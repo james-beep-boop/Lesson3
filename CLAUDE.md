@@ -66,3 +66,14 @@ References: `payloadcms.com/docs`, the `docx` npm package, and the ARES `cbe-gen
 - When in doubt, check `SPEC.md`; if still ambiguous, choose the simplest maintainable option and document the deviation there.
 - Do not invent features beyond the spec.
 - Keep the system single-runtime — do not re-introduce a second language on the core path.
+
+---
+
+## Working process
+
+- **Plan first for non-trivial work.** Any task >3 steps or touching architecture: propose a plan before editing. If the plan breaks, stop and re-plan — don't improvise forward.
+- **Verify, never assume.** Prove each change: golden-file DOCX diff (regenerate → diff vs approved, everything-except-resources), type-check, or boot. "Done" requires evidence.
+- **Surgical edits.** Change only what the task needs. Byte-stability is the product — minimize churn; don't refactor stable code in passing.
+- **Elegance at design time, minimal churn at edit time.** Get the approach right in the plan so you don't rip things out later.
+- **Inline by default.** Research/analysis happens in this context; spin up a subagent only when explicitly asked or when work is truly parallel.
+- **Record corrections.** When I get something wrong and you correct me, I log the lesson to `docs/DECISIONS.md` and review it at the start of each session.
