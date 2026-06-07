@@ -19,6 +19,18 @@ This is the upstream system that produces ARES CBE lesson plans. Lesson3 depends
 
 Each sub-strand bundle generates three Word documents: `*_CBE_LessonSequence.docx`, `*_FinalExplanation.docx`, `*_SummaryTable.docx`.
 
+### 3. The resource subsystem (Python + SQLite) — handle at ingest, and it's optional
+The LessonSequence's per-phase **Resource column** is *not* in the data file. `generators/aresResources.js` produces it at build time by:
+- shelling out to a **Python recommender** — `src/ares_recommender.py`
+- which queries a **SQLite content index** — `data/ares_index/ares_content.db` (override via `ARES_DB_PATH`).
+- `getAllPhaseResources({substrand, topic, subject})` → per-phase `{ video, reading }` (each with `title`, `direct_url`, `search_url`); `buildResourceParagraphs()` formats them.
+
+Implications for Lesson3:
+- This is a **Python + large-SQLite dependency**, not pure Node. **Do not run it live** in the app.
+- **Resolve once at ingest**, store the result in the bundle (`framework[].resources`), then generate purely from stored data — keeps the app single-runtime and regeneration byte-stable. Python + `ares_content.db` are needed only where ingest runs.
+- **The resource column is OPTIONAL / undetermined** — there's a real chance we ship without it. All code must work with `framework[].resources` absent.
+- For the fidelity proof, the resource column only matches the approved DOCX if the same `ares_content.db` + recommender are used — so diff **everything-except-resources** first.
+
 ## Integration plan (see `SPEC.md` §4)
 
 - Refactor `generateOne()` to accept a **data object** (not a file path), so Lesson3 can call it in-process from a Payload hook/endpoint.

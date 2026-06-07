@@ -64,7 +64,7 @@ Sub-strand bundle
 │   ├── slo { purpose, knowledge, skills, attitudes, keyInquiry, purposeInStoryline, safetyNotes }
 │   ├── overview
 │   ├── framework[]      # ordered instructional phases (Predict / Observe / Explain / DQB / Model Building …)
-│   │   └── { phase, learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment }
+│   │   └── { phase, learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment, resources? }
 │   ├── teacherReflection
 │   └── summaryTablePrompt { observed, learned, explained }
 ├── FINAL_EXPLANATION    # { subjectLabel, instructions, sections[{title, prompt, exemplar}], rubric[] }
@@ -80,6 +80,13 @@ Authoritative schema: `cbe-generation-system/generators/data/SCHEMA.md` (see `do
 - **Canonical storage format is JSON.** The ARES `.js` data modules are CommonJS code; ingest must **extract them to JSON**.
 - **`summaryTablePrompt` (in `LESSONS`) and `SUMMARY_TABLE.lessons` are distinct content** serving different documents — not duplicates. Both are edited; label each by the document it feeds.
 
+### Resource column (optional; resolved at ingest, not generation)
+The LessonSequence's per-phase **Resource column** is *not* in the ARES data file. Upstream it is produced at DOCX-build time by a **Python recommender** (`src/ares_recommender.py`) querying a **SQLite content index** (`data/ares_index/ares_content.db`) — i.e. it needs Python + a large DB, not just Node. See `docs/EXTERNAL-DEPENDENCIES.md`.
+
+Decision:
+- **Resolve resources once, at ingest** (run the recommender), and **store the result in the bundle** as `framework[].resources` (`{ video, reading }` with `title`/`direct_url`/`search_url`). Generation then reads stored data only — **pure Node, byte-stable, versioned**. The heavy Python + SQLite are needed only where ingest runs (a one-off/batch step, possibly upstream on the ARES side), never in the live app.
+- **The resource column is OPTIONAL and currently UNDETERMINED** — there is a real chance we generate these documents *without* it. The model, generator integration, and templates must work **with or without** `framework[].resources` present. Do not make any code path assume resources exist.
+
 ---
 
 ## 4. The generator contract (fidelity rules)
@@ -90,7 +97,7 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
 - `\n` → a new paragraph.
 - A line beginning with **`- ` or `• `** → a bullet (the generator adds its own marker).
 - **No inline markup** is parsed (`**bold**`, `*italic*`, `>`, `#` render literally). All styling, tables, colours, and numbering are applied by the generator, never from content.
-- The **Resource column** (LessonSequence, Section C) is **auto-generated** from `aresKeywords` + phase via the ARES content DB. It is not content and is never editable.
+- The **Resource column** (LessonSequence, Section C) is **resolved at ingest and stored** in `framework[].resources` (see §3); generation reads that stored data — it does **not** call Python/SQLite live, and the column is **never user-editable**. It is **optional** (may be omitted entirely — undetermined); the generator must render correctly when it is absent.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
 
 Because `generateOne()` is deterministic on the stored strings, **regeneration is byte-stable** — store the field strings, and the document reproduces exactly. Integrate the generator via a Payload hook/endpoint; refactor ARES's `generateOne()` to accept a data object instead of a file on disk.
@@ -130,6 +137,7 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - **Extract `.js` data modules to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction.
 - Create the bundle via Payload's Local API in a transaction; bulk ingest supported.
 - Validate against the schema on ingest (same rules as §5).
+- **Resource resolution (optional, §3):** if the resource column is enabled, run the ARES recommender (Python + `ares_content.db`) **once at ingest** and store the resolved `framework[].resources` in the bundle. Generation never calls Python/SQLite live. If the column is disabled (undetermined), skip this step — everything downstream must tolerate missing resources.
 
 ---
 
