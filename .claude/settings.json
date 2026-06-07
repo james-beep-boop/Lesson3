@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__computer-use__screenshot",
+      "mcp__Claude_in_Chrome__tabs_context_mcp"
+    ]
+  }
+}

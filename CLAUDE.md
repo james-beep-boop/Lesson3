@@ -2,6 +2,7 @@
 
 Loaded automatically by Claude Code at the start of every session.
 The canonical specification is **`SPEC.md`** in this directory. **Read it before any architectural decision.**
+**At the start of each session, also read `docs/DECISIONS.md`** — the committed record of build-time decisions and prior corrections.
 
 ---
 

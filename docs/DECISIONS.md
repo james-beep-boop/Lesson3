@@ -11,6 +11,24 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-07 — Tooling: Payload skill installed; connectors trimmed
+
+- **Payload skill installed** at `.claude/skills/payload/` (`SKILL.md` + `reference/`),
+  pulled from `payloadcms/payload@3.x` `tools/claude-plugin/skills/payload/`. This is the
+  structural fix for the CLAUDE.md "Knowledge currency" worry (stale Payload 3 APIs) — prefer
+  it over memory when working on collections, fields, hooks, access control, versioning.
+  Re-pull the same path if it needs refreshing.
+- **`laravel-boost` MCP server removed** from `~/Library/Application Support/Claude/claude_desktop_config.json`
+  — it pointed at Lesson2's PHP `artisan` (irrelevant to this single-runtime Node project) and
+  was failing to connect. Restorable from the Lesson2 repo if ever needed there.
+- **Account-level connectors** (trivago, B12, website generators, mcp-registry, etc.) are **not**
+  in local config — they're synced from the Claude account and toggled in the app's
+  **Settings → Connectors**, not by editing files. Keep computer-use, Claude-in-Chrome/Preview,
+  and pdf-viewer (planned uses: DOCX visual-fidelity checks, admin-UI verification, PDF export).
+- **Permission allowlist:** committed `.claude/settings.json` holds only read-only MCP entries;
+  most frequent Bash commands are already auto-allowed by Claude Code, and the rest are mutating
+  or arbitrary-execution and were deliberately left out.
+
 ## 2026-06-07 — Scaffold layout, env var, and `output: 'standalone'`
 
 - **Payload scaffolded into `./app`**, not the repo root, to preserve the committed root
