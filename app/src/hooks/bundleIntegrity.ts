@@ -132,7 +132,11 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
   // 3. Structure + field protection only apply to updates by non-admins.
   if (operation !== 'update' || !originalDoc || !data) return data
   const subjectGradeId = toId((data.subjectGrade ?? originalDoc.subjectGrade) as never)
-  if (isSubjectAdminFor(req.user as User, subjectGradeId)) return data
+  // Subject Admins are unrestricted. A missing user means a trusted system / overrideAccess
+  // call (unauthenticated updates are already denied at collection access) — e.g. ingest
+  // creating an official version or a migration republish; treat it as trusted too, so the
+  // whitelist (which clamps `_status`) can't unintentionally hold a system publish to draft.
+  if (!req.user || isSubjectAdminFor(req.user as User, subjectGradeId)) return data
 
   const reject = (): never => {
     throw new Forbidden(req.t)

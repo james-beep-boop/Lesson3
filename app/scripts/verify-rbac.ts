@@ -371,84 +371,104 @@ const run = async () => {
       all.summaryTable?.lessons?.[0]?.observed === 'editor obs'
     check('cross-container: all prose edits applied on editor edit', proseApplied)
     // --- VERSIONING (SPEC §6) ---
-    // Fresh bundle: semver should be 1.0.0 on create.
-    check('semver initialized to 1.0.0 on create', bundle.semver === '1.0.0')
-    check('lockVersion initialized to 0 on create', bundle.lockVersion === 0)
+    // Use a FRESH bundle: the `bundle` above has been updated many times by the prior
+    // RBAC checks, so its semver/lockVersion are no longer at their initial values.
+    const vb = track(
+      'lesson-bundles',
+      await payload.create({
+        collection: 'lesson-bundles',
+        data: {
+          title: `${P}VBundle`,
+          subjectGrade: sg.id,
+          lessons: [
+            { title: 'L1', framework: [{ phase: 'Predict Phase', learnerExperience: 'orig' }] },
+          ],
+        },
+      }),
+    )
+    check('semver initialized to 1.0.0 on create', vb.semver === '1.0.0')
+    check('lockVersion initialized to 0 on create', vb.lockVersion === 0)
 
-    // Editor save → patch bump (default).
-    const afterEditorSave = await payload.update({
-      collection: 'lesson-bundles',
-      id: bundle.id,
-      user: editorUser,
-      overrideAccess: false,
-      data: {
-        lessons: [
-          {
-            id: bundle.lessons![0].id,
-            title: 'version bump test',
-            framework: [{ id: bundle.lessons![0].framework![0].id, phase: 'Predict Phase', learnerExperience: 'bump' }],
-          },
-        ],
-      },
-    })
-    check('editor save bumps semver by patch (1.0.0 → 1.0.1)', afterEditorSave.semver === '1.0.1')
-    check('lockVersion increments on save (0 → 1)', afterEditorSave.lockVersion === 1)
-    check('bumpType reset to patch after save', afterEditorSave.bumpType === 'patch')
+    const vbL = vb.lessons![0].id
+    const vbF = vb.lessons![0].framework![0].id
+    // A draft save (draft:true) isolates the semver/bump behavior from publish status.
+    const draftEdit = (user: typeof editorUser, extra: Record<string, unknown> = {}) =>
+      payload.update({
+        collection: 'lesson-bundles',
+        id: vb.id,
+        user,
+        overrideAccess: false,
+        draft: true,
+        data: {
+          ...extra,
+          lessons: [
+            { id: vbL, title: 'L1', framework: [{ id: vbF, phase: 'Predict Phase', learnerExperience: 'x' }] },
+          ],
+        },
+      })
 
-    // Editor can request a minor bump.
-    const afterMinorBump = await payload.update({
-      collection: 'lesson-bundles',
-      id: bundle.id,
-      user: editorUser,
-      overrideAccess: false,
-      data: {
-        bumpType: 'minor',
-        lessons: [
-          {
-            id: bundle.lessons![0].id,
-            title: 'minor bump test',
-            framework: [{ id: bundle.lessons![0].framework![0].id, phase: 'Predict Phase', learnerExperience: 'minor' }],
-          },
-        ],
-      },
-    })
-    check('editor can request minor bump (1.0.1 → 1.1.0)', afterMinorBump.semver === '1.1.0')
-    check('bumpType reset to patch after minor bump', afterMinorBump.bumpType === 'patch')
+    const e1 = await draftEdit(editorUser)
+    check('editor save bumps semver by patch (1.0.0 → 1.0.1)', e1.semver === '1.0.1')
+    check('lockVersion increments on save (0 → 1)', e1.lockVersion === 1)
+    check('bumpType reset to patch after save', e1.bumpType === 'patch')
 
-    // Subject Admin can request a major bump.
-    const afterMajorBump = await payload.update({
+    const e2 = await draftEdit(editorUser, { bumpType: 'minor' })
+    check('editor can request minor bump (1.0.1 → 1.1.0)', e2.semver === '1.1.0')
+    check('bumpType reset to patch after minor bump', e2.bumpType === 'patch')
+
+    const e3 = await payload.update({
       collection: 'lesson-bundles',
-      id: bundle.id,
+      id: vb.id,
       user: userBUser,
       overrideAccess: false,
+      draft: true,
       data: { bumpType: 'major' },
     })
-    check('subject admin can request major bump (1.1.0 → 2.0.0)', afterMajorBump.semver === '2.0.0')
+    check('subject admin can request major bump (1.1.0 → 2.0.0)', e3.semver === '2.0.0')
 
-    // Editor cannot publish (mark official) — _status must stay 'draft'.
-    const afterEditorPublish = await payload.update({
+    // Publishing (= marking official) is governed by the `draft:false` operation param,
+    // NOT a `_status` value in data (Payload ignores the latter). The whitelist hook
+    // preserves `_status` for Editors, so an Editor's publish attempt stays draft.
+    const editorPublish = await payload.update({
       collection: 'lesson-bundles',
-      id: bundle.id,
+      id: vb.id,
       user: editorUser,
       overrideAccess: false,
-      data: { _status: 'published' },
+      draft: false,
+      data: {
+        lessons: [
+          { id: vbL, title: 'L1', framework: [{ id: vbF, phase: 'Predict Phase', learnerExperience: 'y' }] },
+        ],
+      },
     })
-    check(
-      'editor cannot publish (status preserved as draft)',
-      afterEditorPublish._status !== 'published',
-    )
+    check('editor cannot publish (status stays draft)', editorPublish._status !== 'published')
 
-    // Subject Admin can publish.
-    const afterAdminPublish = await payload.update({
+    const adminPublish = await payload.update({
       collection: 'lesson-bundles',
-      id: bundle.id,
+      id: vb.id,
       user: userBUser,
       overrideAccess: false,
-      data: { _status: 'published' },
+      draft: false,
+      data: { bumpType: 'patch' },
+    })
+    check('subject admin can publish (mark official)', adminPublish._status === 'published')
+
+    // An Editor editing an already-official bundle must NOT unpublish it.
+    const editorOnPublished = await payload.update({
+      collection: 'lesson-bundles',
+      id: vb.id,
+      user: editorUser,
+      overrideAccess: false,
+      draft: false,
+      data: {
+        lessons: [
+          { id: vbL, title: 'L1 edited', framework: [{ id: vbF, phase: 'Predict Phase', learnerExperience: 'z' }] },
+        ],
+      },
     })
     check(
-      'subject admin can publish (mark official)',
-      afterAdminPublish._status === 'published',
+      'editor edit preserves official (published) status',
+      editorOnPublished._status === 'published',
     )
 
   } finally {
