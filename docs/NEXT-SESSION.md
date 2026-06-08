@@ -1,44 +1,59 @@
-# Start-here for the next session (the coding kickoff)
+# Start-here for the next session — product modeling begins
 
-Open a fresh session **in this repo** (`~/Documents/GitHub/Lesson3`) so the correct
-`CLAUDE.md` + `SPEC.md` auto-load. Suggested opening message:
+Open a fresh session **in this repo** (`~/Documents/GitHub/Lesson3`) so `CLAUDE.md`,
+`SPEC.md`, and `docs/DECISIONS.md` auto-load. Suggested opening message:
 
-> Read `SPEC.md` and `CLAUDE.md`. We're starting the build: scaffold the Payload app
-> (blank template, PostgreSQL, TypeScript), wire `DATABASE_URI` to the
-> `docker-compose.yml` Postgres service, then do the `bio_1_4` fidelity proof.
-> The ARES generator lives at `markknit/cbe-generation-system`
-> (see `docs/EXTERNAL-DEPENDENCIES.md`).
+> Read `SPEC.md`, `CLAUDE.md`, and `docs/DECISIONS.md`. The scaffold is done and
+> deployed. Let's model the authorization entities and the sub-strand bundle as
+> native Payload nested fields (SPEC §3, §5, §8). Use the `payload` skill.
 
-## Orientation (read these first)
-- `SPEC.md` — canonical spec (architecture, content model, editing, versioning, ingest, resources).
-- `CLAUDE.md` — non-negotiable design rules.
-- `docs/EXTERNAL-DEPENDENCIES.md` — the ARES generator + the resource subsystem.
-- `docs/ROCK5B-SETUP.md` — Docker co-tenancy runbook for the Rock 5B (runs beside nanoclaw).
+## Where things stand (scaffold + deploy: DONE)
+- Payload **3.85** + Postgres in Docker (blank template, TypeScript) in `./app`.
+- Running on the **Rock 5B** at `/srv/lesson3`, co-tenant with nanoclaw, `/admin` live,
+  first admin user created. URL: `http://rock5b.tail49b05.ts.net:3001/admin`.
+- Initial migration committed (`app/src/migrations/`); **migrate-on-deploy wired**
+  (one-shot `migrate` service + Postgres healthcheck in `docker-compose.yml`).
+- Fidelity proof passed earlier (`bio_1_4`). `payload` skill installed at
+  `.claude/skills/payload/`.
 
-## Immediate task list
-1. **Scaffold Payload** — blank template, PostgreSQL, TypeScript, npm.
-   - ⚠️ `create-payload-app` needs a **real interactive terminal**. An automated/PTY attempt
-     in the prior session did **not** complete. Run it in a normal terminal:
-     `npx create-payload-app@latest . -t blank --db postgres --use-npm`
-     (verify current flags at payloadcms.com/docs first). Scaffold into the repo root,
-     or into `./app` and set `build: ./app` in `docker-compose.yml`.
-   - Keep the generated **Dockerfile**; discard the generated `docker-compose.yml`/`.env.example`
-     in favor of the committed, co-tenancy-tuned ones.
-2. **Wire env** — `cp .env.example .env`, set `PAYLOAD_SECRET` (`openssl rand -hex 32`) and
-   `POSTGRES_PASSWORD`; `DATABASE_URI` host is the compose service name `postgres`.
-3. **Boot it** — `docker compose up -d --build`, confirm `localhost:3001/admin` (or
-   `rock5b.tail49b05.ts.net:3001/admin`) loads and you can create the first admin user.
-4. **Fidelity proof** — refactor the ARES generator's `generateOne()` to accept a data object,
-   run it on `bio_1_4`, and diff against the approved `Chemicals_of_Life` DOCX.
-   **Diff everything-except-resources first** (resources need the Python recommender + `ares_content.db`).
+## Step 0 — verify the migrate-on-deploy gate (if not already done)
+On the Rock: `cd /srv/lesson3 && git pull && docker compose up -d --build`, then
+`docker compose logs migrate` (should apply nothing — initial already applied — and exit 0)
+and `docker ps` (app + postgres up). Proves the new gate before feature work.
 
-## Open decisions to confirm during the build
-- **Editor placement:** start with Payload's admin edit screen; custom React editor only if inadequate.
-- **Resource column:** OPTIONAL / undetermined — code must work with or without `framework[].resources`.
-- **Scope:** decide whether favorites / messaging / deletion-requests carry over from Lesson2.
-- **Host:** Rock 5B for testing/offline-prototype; a public host (VPS/Railway/Render) for production later.
+## Immediate task — model in this order
+1. **Authorization entities FIRST** (so access functions exist to attach to):
+   - `Subject` (discipline only) and `SubjectGrade` (subject + **integer** grade; display
+     "Grade N"). `class` is reserved — the entity is always `SubjectGrade`.
+   - Roles: **Site Admin** (global), **Subject Admin** (≤1 per subject-grade; promoting
+     auto-demotes the prior holder to Editor in **one transaction**), **Editor**
+     (per subject-grade), **Teacher** (default; view/export). Enforce in Payload access
+     functions, **server-side**. Non–Site-Admins never see others' emails.
+2. **The sub-strand bundle** as **native nested fields** (NOT a JSON blob):
+   `META, UNIT, LESSONS[]{ slo, overview, framework[]{ phase (dropdown), learnerExperience,
+   teacherMoves, sensemakingStrategy, formativeAssessment, resources? }, teacherReflection,
+   summaryTablePrompt }, FINAL_EXPLANATION, SUMMARY_TABLE`.
+   - Editor grammar = **subset** of the generator's: plain strings, `\n` = paragraph,
+     leading `- ` = bullet, **no inline markup**; `framework[].phase` is a controlled dropdown.
+   - Resource column is **system-only and OPTIONAL** — every path must work with it absent.
+   - Field-level access per SPEC §5 (Editor = prose values; Subject Admin = `META`/
+     `aresKeywords`/`phase`/structure/answer-keys; system-only = resource column +
+     `LESSONS[].number`).
+
+## Schema-change workflow (important — you WILL hit this)
+Adding collections/fields is a schema change → generate a **new migration before deploy**:
+build the `builder`/tools image and run `npx payload migrate:create <name>` against the DB,
+commit `app/src/migrations/*`. The `migrate` service applies it automatically on
+`docker compose up`. (Only the *apply* is automated; *create* is still a manual step.)
+
+## Use these
+- **`payload` skill** (`.claude/skills/payload/`) — collections, fields, access control, hooks,
+  versioning/drafts, transactions. Trust it over memory for Payload 3 APIs.
+- **`security-review` skill** — run on the access functions (the auto-demote transaction and
+  field-level boundaries are the highest-risk correctness surfaces), and later on ingest
+  (the never-`require()`-an-uploaded-`.js` RCE surface).
 
 ## Reference assets
-- Verified matched pair for the fidelity proof: `~/Desktop/ares-docx-fidelity-demo/`
-  (`bio_1_4_data.js` ↔ `Biology_Chemicals_of_Life_CBE_LessonSequence.docx`, plus the
-  FinalExplanation and SummaryTable docs).
+- Fidelity matched pair: `~/Desktop/ares-docx-fidelity-demo/` (`bio_1_4`).
+- ARES generator: `markknit/cbe-generation-system` (branch in `docs/EXTERNAL-DEPENDENCIES.md`);
+  `run(dataModule)` already takes a data object — see memory `ares-generator-integration`.
