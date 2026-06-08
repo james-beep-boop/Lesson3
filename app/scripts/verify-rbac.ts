@@ -108,12 +108,19 @@ const run = async () => {
             {
               title: 'L1',
               duration: '40 minutes',
+              substrand: 'orig substrand',
               aresKeywords: 'kw1, kw2',
               framework: [{ phase: 'Predict Phase', learnerExperience: 'orig' }],
             },
           ],
           finalExplanation: {
+            subjectLabel: 'orig label',
             sections: [{ title: 'S1', prompt: 'orig prompt', exemplar: 'orig exemplar' }],
+          },
+          summaryTable: {
+            subStrand: 'orig st-substrand',
+            drivingQuestion: 'orig dq',
+            lessons: [{ title: 'STL', observed: 'orig observed' }],
           },
         },
       }),
@@ -297,6 +304,72 @@ const run = async () => {
       saAssignmentOk = false
     }
     check('subject admin can still manage assignments in their SG', saAssignmentOk)
+
+    // --- STANDING PATTERN: an Editor changing a field in EVERY container changes only
+    // prose; all admin/system fields are preserved. This guards the whitelist hook: a new
+    // admin field is protected by default, and this asserts the contract across containers. ---
+    const base = await payload.findByID({ collection: 'lesson-bundles', id: bundle.id, depth: 0 })
+    const all = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: editorUser,
+      overrideAccess: false,
+      data: {
+        meta: { ...(base.meta ?? {}), titleDoc: 'HACK' },
+        lessons: [
+          {
+            id: base.lessons![0].id,
+            title: 'editor lesson title',
+            duration: 'HACK',
+            substrand: 'HACK',
+            aresKeywords: 'HACK',
+            framework: [
+              {
+                id: base.lessons![0].framework![0].id,
+                phase: 'Observe Phase',
+                learnerExperience: 'editor LE',
+              },
+            ],
+          },
+        ],
+        finalExplanation: {
+          subjectLabel: 'HACK',
+          instructions: 'editor instructions',
+          sections: [
+            {
+              id: base.finalExplanation!.sections![0].id,
+              title: 'HACK',
+              prompt: 'editor prompt 2',
+              exemplar: 'HACK',
+            },
+          ],
+        },
+        summaryTable: {
+          subStrand: 'HACK',
+          drivingQuestion: 'HACK',
+          lessons: [{ id: base.summaryTable!.lessons![0].id, title: 'editor stl', observed: 'editor obs' }],
+        },
+      },
+    })
+    const adminPreserved =
+      all.lessons?.[0]?.duration === base.lessons![0].duration &&
+      all.lessons?.[0]?.substrand === base.lessons![0].substrand &&
+      all.lessons?.[0]?.aresKeywords === base.lessons![0].aresKeywords &&
+      all.lessons?.[0]?.framework?.[0]?.phase === base.lessons![0].framework![0].phase &&
+      all.meta?.titleDoc === base.meta!.titleDoc &&
+      all.finalExplanation?.subjectLabel === base.finalExplanation!.subjectLabel &&
+      all.finalExplanation?.sections?.[0]?.title === base.finalExplanation!.sections![0].title &&
+      all.finalExplanation?.sections?.[0]?.exemplar === base.finalExplanation!.sections![0].exemplar &&
+      all.summaryTable?.subStrand === base.summaryTable!.subStrand &&
+      all.summaryTable?.drivingQuestion === base.summaryTable!.drivingQuestion
+    check('cross-container: ALL admin/system fields preserved on editor edit', adminPreserved)
+    const proseApplied =
+      all.lessons?.[0]?.title === 'editor lesson title' &&
+      all.lessons?.[0]?.framework?.[0]?.learnerExperience === 'editor LE' &&
+      all.finalExplanation?.instructions === 'editor instructions' &&
+      all.finalExplanation?.sections?.[0]?.prompt === 'editor prompt 2' &&
+      all.summaryTable?.lessons?.[0]?.observed === 'editor obs'
+    check('cross-container: all prose edits applied on editor edit', proseApplied)
   } finally {
     // Cleanup in reverse creation order.
     for (const { collection, id } of created.reverse()) {

@@ -5,21 +5,30 @@ import type { User } from '@/payload-types'
 import { isSubjectAdminFor, toId } from '../access'
 
 /**
- * Structural integrity for LessonBundles (SPEC §5, §13).
+ * Structural + field-level integrity for LessonBundles (SPEC §5, §13).
  *
- * Payload field access can gate a field's *value* (a subfield with `update: false`
- * silently keeps its existing value) but it CANNOT stop someone from adding,
- * removing, or reordering array *rows*. So this hook, running server-side:
+ * Subject Admins / Site Admins are unrestricted. For everyone else (Editors), this hook:
  *
  *  1. Re-derives the system-only lesson numbers from array order.
- *  2. For Editors (anyone who is not Subject Admin / Site Admin for the bundle's
- *     subject-grade) rejects any change to array cardinality or order — they may edit
- *     prose values but not structure. Subject Admins are unrestricted here.
+ *  2. Rejects any change to array cardinality or order (Editors edit values, not structure).
+ *  3. Enforces the field-level split with a WHITELIST: the written document is the original
+ *     with ONLY the Editor-editable *prose* fields overlaid from the submission. Everything
+ *     not on the prose whitelist (META, phase, durations, answer keys, structure, system
+ *     fields…) is preserved from the original.
  *
- * Only arrays actually present in the incoming `data` are checked, so partial
- * (REST PATCH) updates that omit a section are not treated as deletions.
+ * Why a whitelist (not field-level access): Payload's field access NULLS optional admin-only
+ * subfields inside open arrays when a non-admin submits the array (it would wipe answer keys,
+ * durations, etc.), so those subfields carry no field-level `access` (see fields/bundleFields.ts)
+ * and protection lives here. A whitelist is also *secure by default*: a newly added admin/system
+ * field is protected automatically — forgetting to list a field can only make it non-editable by
+ * an Editor (a visible annoyance), never silently editable (a security hole). Hook output is
+ * authoritative — verified it is not re-stripped after beforeChange.
+ *
+ * Only arrays present in the incoming `data` are touched; omitted parents are retained intact
+ * by Payload's merge (these fields have no access to strip them), so partial updates are safe.
  */
 
+type Doc = Record<string, any>
 type Row = { id?: string | number }
 
 const idSequence = (rows?: Row[] | null): Array<string | number | undefined> =>
@@ -29,6 +38,53 @@ const sameSequence = (
   a: Array<string | number | undefined>,
   b: Array<string | number | undefined>,
 ): boolean => a.length === b.length && a.every((v, i) => v === b[i])
+
+// Editor-editable prose fields, by container. Anything NOT listed is admin/system and is
+// preserved from the original. Keep these in sync with the `prose()` fields in LessonBundles.
+const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
+const SLO_PROSE = [
+  'purpose',
+  'knowledge',
+  'skills',
+  'attitudes',
+  'keyInquiry',
+  'purposeInStoryline',
+  'safetyNotes',
+]
+const FRAMEWORK_PROSE = [
+  'learnerExperience',
+  'teacherMoves',
+  'sensemakingStrategy',
+  'formativeAssessment',
+]
+const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
+const FINAL_EXPLANATION_PROSE = ['instructions']
+const SECTION_PROSE = ['prompt']
+const SUMMARY_LESSON_PROSE = ['title', 'observed', 'learned', 'explained']
+
+/** Return a copy of `base` with only `proseKeys` overlaid from `sub` (when present). */
+const overlayProse = (base: Doc, sub: Doc | undefined, proseKeys: string[]): Doc => {
+  const out: Doc = { ...base }
+  if (sub) for (const key of proseKeys) if (key in sub) out[key] = sub[key]
+  return out
+}
+
+/** Map submitted array rows back onto their originals by id, overlaying only prose. */
+const overlayRows = (
+  base: Doc[] | undefined,
+  submitted: Doc[],
+  proseKeys: string[],
+  perRow?: (baseRow: Doc, subRow: Doc, out: Doc) => void,
+): Doc[] => {
+  const byId = new Map((base ?? []).map((r) => [r.id, r]))
+  return submitted.map((sub) => {
+    const baseRow = byId.get(sub.id)
+    if (!baseRow) return sub // unreachable: cardinality/order already validated
+    const out = overlayProse(baseRow, sub, proseKeys)
+    perRow?.(baseRow, sub, out)
+    return out
+  })
+}
 
 export const enforceBundleStructure: CollectionBeforeChangeHook = ({
   data,
@@ -48,7 +104,7 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
     })
   }
 
-  // 2. Structural protection only applies to updates by non-admins.
+  // 2. Structure + field protection only apply to updates by non-admins.
   if (operation !== 'update' || !originalDoc || !data) return data
   const subjectGradeId = toId((data.subjectGrade ?? originalDoc.subjectGrade) as never)
   if (isSubjectAdminFor(req.user as User, subjectGradeId)) return data
@@ -57,6 +113,7 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
     throw new Forbidden(req.t)
   }
 
+  // 2a. Cardinality / order is structural — Editors may not change it.
   if ('lessons' in data) {
     if (!sameSequence(idSequence(originalDoc.lessons), idSequence(data.lessons))) reject()
     const prevById = new Map(
@@ -69,7 +126,6 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
       }
     }
   }
-
   if (data.finalExplanation) {
     const fe = data.finalExplanation
     const feBefore = originalDoc.finalExplanation ?? {}
@@ -78,67 +134,58 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
     if ('rubric' in fe && !sameSequence(idSequence(feBefore.rubric), idSequence(fe.rubric)))
       reject()
   }
-
   if (data.summaryTable && 'lessons' in data.summaryTable) {
     const stBefore = originalDoc.summaryTable ?? {}
     if (!sameSequence(idSequence(stBefore.lessons), idSequence(data.summaryTable.lessons)))
       reject()
   }
 
-  // Enforce admin-only field VALUES for Editors. These fields carry NO field-level
-  // access (see fields/bundleFields.ts): Payload's field access nulls optional admin-only
-  // subfields inside open arrays when a non-admin submits the array, which would WIPE
-  // answer keys/durations/etc. Without that stripping, a parent omitted by the Editor is
-  // retained intact by Payload's merge, and a parent the Editor *did* submit is corrected
-  // here by overwriting its admin-only values from the original. Hook output is
-  // authoritative — verified it is not re-stripped after beforeChange (SPEC §5).
-  type Doc = Record<string, any>
+  // 2b. WHITELIST: write = original, with only prose overlaid from the submission.
   const orig = originalDoc as Doc
   const d = data as Doc
 
+  // No Editor-editable fields at the top level or in the META/UNIT groups → preserve.
   d.title = orig.title
   d.subjectGrade = orig.subjectGrade
+  d.meta = orig.meta
+  d.unit = orig.unit
 
   if (Array.isArray(d.lessons)) {
-    const byId = new Map((orig.lessons ?? []).map((l: Doc) => [l.id, l]))
-    for (const lesson of d.lessons as Doc[]) {
-      const o = byId.get(lesson.id) as Doc | undefined
-      if (!o) continue
-      lesson.duration = o.duration
-      lesson.substrand = o.substrand
-      lesson.aresKeywords = o.aresKeywords
-      if (Array.isArray(lesson.framework)) {
-        const fById = new Map((o.framework ?? []).map((f: Doc) => [f.id, f]))
-        for (const fw of lesson.framework as Doc[]) {
-          const of = fById.get(fw.id) as Doc | undefined
-          if (of) fw.phase = of.phase
-        }
+    d.lessons = overlayRows(orig.lessons, d.lessons as Doc[], LESSON_PROSE, (baseRow, subRow, out) => {
+      out.slo = overlayProse((baseRow.slo ?? {}) as Doc, subRow.slo as Doc, SLO_PROSE)
+      out.summaryTablePrompt = overlayProse(
+        (baseRow.summaryTablePrompt ?? {}) as Doc,
+        subRow.summaryTablePrompt as Doc,
+        SUMMARY_PROMPT_PROSE,
+      )
+      if (Array.isArray(subRow.framework)) {
+        out.framework = overlayRows(
+          baseRow.framework as Doc[] | undefined,
+          subRow.framework as Doc[],
+          FRAMEWORK_PROSE,
+        )
       }
-    }
+    })
   }
 
   if (d.finalExplanation) {
     const feo = (orig.finalExplanation ?? {}) as Doc
-    d.finalExplanation.subjectLabel = feo.subjectLabel
-    d.finalExplanation.rubric = feo.rubric
-    if (Array.isArray(d.finalExplanation.sections)) {
-      const sById = new Map((feo.sections ?? []).map((s: Doc) => [s.id, s]))
-      for (const sec of d.finalExplanation.sections as Doc[]) {
-        const o = sById.get(sec.id) as Doc | undefined
-        if (o) {
-          sec.title = o.title
-          sec.exemplar = o.exemplar
-        }
-      }
+    const sub = d.finalExplanation as Doc
+    const out = overlayProse(feo, sub, FINAL_EXPLANATION_PROSE)
+    if (Array.isArray(sub.sections)) {
+      out.sections = overlayRows(feo.sections as Doc[] | undefined, sub.sections as Doc[], SECTION_PROSE)
     }
+    d.finalExplanation = out
   }
 
   if (d.summaryTable) {
     const sto = (orig.summaryTable ?? {}) as Doc
-    d.summaryTable.subStrand = sto.subStrand
-    d.summaryTable.drivingQuestion = sto.drivingQuestion
-  } else {
-    d.summaryTable = orig.summaryTable
+    const sub = d.summaryTable as Doc
+    const out = overlayProse(sto, sub, []) // subStrand, drivingQuestion are admin-only
+    if (Array.isArray(sub.lessons)) {
+      out.lessons = overlayRows(sto.lessons as Doc[] | undefined, sub.lessons as Doc[], SUMMARY_LESSON_PROSE)
+    }
+    d.summaryTable = out
   }
 
   return data
