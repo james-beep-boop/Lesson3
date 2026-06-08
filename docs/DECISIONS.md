@@ -11,6 +11,71 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Scaffold deployed on Rock 5B; build & DB-init gotchas resolved
+
+Got the Payload + Postgres stack building and running in Docker on the Rock 5B
+(`/srv/lesson3`, named volume `lesson3_pgdata`), co-tenant with nanoclaw, `/admin`
+serving, first admin user created. Several non-obvious traps, recorded so the
+public-production host (identical stack) doesn't re-hit them:
+
+- **`npm ci` failed: "Missing yjs/monaco/@testing-library/... from lock file."**
+  Root cause was **not** Node/npm version (that was a red herring that cost time — a
+  pinned-npm "fix" was tried and reverted). The scaffold's **`app/.npmrc` sets
+  `legacy-peer-deps=true`** (Payload 3 / React 19 / Next 16 peer conflicts), but the
+  generated Dockerfile's `COPY` line **didn't include `.npmrc`** — so `npm ci` ran in
+  strict-peer mode in the image and rejected the legacy-peer-authored lock. **Fix:**
+  add `.npmrc` to the deps-stage `COPY`. Lesson: `.npmrc` must travel into the build;
+  when install passes locally but `npm ci` fails only in Docker, suspect a missing
+  `.npmrc`/config, not versions.
+- **Build then failed at `COPY /app/public`:** the blank Payload template ships no
+  `public/` dir but the generated Dockerfile assumes one. **Fix:** committed
+  `app/public/.gitkeep`.
+- **App ran but `/admin` 500'd: `relation "users" does not exist`.** Production builds
+  do **not** auto-push the schema (push is dev-only); production needs **migrations**.
+  Verified against installed Payload source: prod default `push:false`, CLI is
+  `payload migrate*`, default `migrationDir = src/migrations`.
+- **Migrations can't run from the prod image** (minimal Next standalone, no Payload CLI).
+  Generated + applied the initial migration from a one-off container built off the
+  Dockerfile **`builder`** stage, on the compose network. Initial migration committed
+  (`app/src/migrations/*`).
+- **Wired migrate-on-deploy:** added a one-shot **`migrate`** service to
+  `docker-compose.yml` (builds `target: builder`, runs `npx payload migrate`), gated on
+  a new Postgres **healthcheck**; `app` now `depends_on` it via
+  `service_completed_successfully`. So `docker compose up -d --build` applies pending
+  migrations before the app starts. Idempotent.
+- **Open follow-up — schema-change workflow:** generating a *new* migration still needs
+  the `builder`/tools image (or local dev) to run `payload migrate:create`; only the
+  *apply* step is automated. Document the create step when we first change collections.
+- **Latent risk:** dev Mac runs **Node 25**, the build image runs **Node 22** (LTS).
+  Regenerate lockfiles in the Node-22 toolchain (or align local dev to Node 22) to avoid
+  tree-resolution drift. Not yet fixed.
+
+## 2026-06-07 — Multi-agent review: deferred, with a concrete trigger
+
+Considered bringing in a second agent (OpenAI Codex, and/or **Hermes** — the Nous Research
+always-on agent daemon on the MacBook Air, GPT-5.x-capable) to review/test alongside Claude
+Code. **Decision: defer. Claude codes; the human is the arbiter; deterministic checks are the
+gate.** Rationale and the rules we settled on:
+
+- **Independent cross-model review is valuable** (uncorrelated blind spots), but the *verdict*
+  stays deterministic — golden-file DOCX diff, type-check, eventual test suite + CI — never a
+  model's opinion. Reviews are advisory input, not a merge gate; never auto-apply a reviewer's edits.
+- **One writer, one reviewer, integrate at the PR.** Never two agents editing the same tree.
+  Shared constitution: `SPEC.md` is canonical; `CLAUDE.md` (Claude) and `AGENTS.md` (Codex)
+  both defer to it — keep the pointers in sync.
+- **Do NOT use Hermes as a per-change reviewer** — it has no native git/PR pipeline, so that
+  path is glue-building = complexity for no gain (Codex/CodeRabbit/`security-review` cover
+  per-change review with full repo context already).
+- **Hermes's real niche is out-of-loop, always-on scheduled jobs** (daemon + cron + cross-session
+  memory + messaging): nightly fidelity-regression diff with notification, scheduled async GPT-5.x
+  review of the day's diff, dependency/backup watches. Nothing else in the stack does this well.
+- **Trigger to revisit:** once there is feature code, a test suite, and **CI** (the deterministic
+  gate) — *then* Hermes is justified as the async layer that schedules regressions/reviews and
+  pings on failure. Not before. CI (GitHub Actions) is the prerequisite and the next infra piece.
+- **Cautions for that day:** (1) Hermes's *self-improving skills* cut against a verification
+  role's need for consistency — pin/review skill changes, don't let them auto-evolve. (2) Hermes
+  overlaps nanoclaw; if adopted it should *replace* a role, not add a fifth standing agent layer.
+
 ## 2026-06-07 — Tooling: Payload skill installed; connectors trimmed
 
 - **Payload skill installed** at `.claude/skills/payload/` (`SKILL.md` + `reference/`),
