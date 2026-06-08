@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Product model: authorization entities + sub-strand bundle
+
+Modeled the authorization entities and the sub-strand bundle as **native Payload nested fields**
+(SPEC §3, §5, §8), plus the Codex scaffold-hygiene fixes. Collections: `subjects`,
+`subject-grades`, role-bearing `users`, and `lesson-bundles`. Verified locally as far as a
+DB-less host allows — `generate:types`, config sanitization, `tsc --noEmit`, and `eslint` all
+clean; the migration + true end-to-end run happen on the Rock. Decisions and the non-obvious
+traps:
+
+- **Content model grounded in real data, not memory.** Shapes were read from the
+  fidelity-proven `~/Desktop/ares-docx-fidelity-demo/bio_1_4_data.js` (matches SPEC §3 exactly):
+  `rubric[]` = `{criterion, excellent, proficient, developing}`; `sections[]` =
+  `{title, prompt, exemplar}`; `framework[].resources` is **absent** in real data → modeled
+  optional. `UNIT` is `{}` there → modeled minimally as a single optional `overview` pending a
+  populated example.
+- **Conflict resolved — admin-panel access.** NEXT-SESSION said "panel = Site Admins only";
+  **SPEC §5 (canonical) has Editors/Subject Admins editing via the admin edit screen in Phase 1.**
+  SPEC wins: `access.admin` (`adminPanelAccess`) allows **siteAdmin OR subjectAdmin OR editor**,
+  excludes plain Teachers. General rule: when NEXT-SESSION (staged plan) and SPEC (canonical)
+  disagree, SPEC governs; surface the conflict rather than silently following either.
+- **Conflict flagged — phase vocabulary.** The local `cbe-generation-system` checkout is the
+  older **Python** generator, so the authoritative Node `docx_kit.js` phase→colour map isn't
+  available. The `framework[].phase` dropdown uses the **five phase strings from `bio_1_4`**
+  (`Predict Phase`, `Observe Phase`, `Explain Phase`, `Driving Question Board (DQB) Creation`,
+  `Model Building Phase`). **TODO: reconcile against the Node generator's colour-map keys when
+  the generator integration / ingest lands** — an unknown phase silently degrades output (SPEC §4).
+- **Field access gates *values*; a hook gates *structure*.** Payload field-level `update: false`
+  silently keeps a field's existing value, but field access **cannot** stop add/remove/reorder of
+  array rows. So SPEC §5 is enforced in two layers: per-field access (prose = Editor+, META /
+  phase / duration / answer keys = Subject Admin+, resource column + lesson `number` = system-only),
+  **plus** `enforceBundleStructure` (beforeChange) which rejects cardinality/order changes by
+  non-admins and re-derives lesson numbers from order. Highest-risk surface → security-review.
+- **≤1 Subject Admin per subject-grade.** `autoDemotePriorSubjectAdmins` (afterChange) demotes any
+  prior holder to Editor in the **same transaction** (`req` threaded) guarded by a `context` flag.
+  Scoped role management for Subject Admins is enforced by `enforceAssignmentScope` (beforeChange):
+  a non-site-admin may only touch assignment rows for subject-grades they administer.
+- **`req.user` carries full role data.** Confirmed in installed source: the JWT strategy
+  re-fetches the user via `findByID` (`auth/strategies/jwt.js`), so `roles` and `assignments` are
+  always present in access functions; relationships come back as raw IDs at the default auth depth
+  (helpers normalize ID-or-object via `toId`).
+- **Two Payload-3 gotchas (trust installed source).** (1) A **virtual** field can be `useAsTitle`
+  *only* if it maps to a relationship field — so `SubjectGrade.displayName` ("<Subject> — Grade N")
+  is a **stored** field maintained by a beforeChange hook, not virtual. (2) `payload generate:types`
+  runs **without a DB** (pure config parse) and is a fast local correctness gate; `next build` and
+  migrations do need the DB → run on the Rock.
+- **Field naming.** Top-level groups are camelCase (`meta`, `unit`, `lessons`, `finalExplanation`,
+  `summaryTable`) to avoid uppercase-column oddities; the generator adapter will map them back to
+  `META/UNIT/LESSONS/FINAL_EXPLANATION/SUMMARY_TABLE`. Inner keys already match the ARES data verbatim.
+- **ESLint fix.** `eslint-config-next` 16 ships native flat-config arrays; wrapping them via
+  `FlatCompat.extends('next/...')` double-wraps the flat plugin config and crashes the legacy
+  validator ("circular structure"). Fix: import `eslint-config-next/core-web-vitals` and
+  `/typescript` and spread them directly (no FlatCompat).
+
 ## 2026-06-08 — External review (Codex) triaged into the build plan
 
 Codex audited the scaffold against the root docs. Its code reads were accurate and it ran the

@@ -1,4 +1,18 @@
-# Start-here for the next session — product modeling begins
+# Start-here for the next session
+
+> **Status after the 2026-06-08 product-model session:** Phases A–C are implemented and
+> verified locally (`generate:types`, config sanitize, `tsc`, `eslint` all clean) — scaffold
+> hygiene done; `subjects`, `subject-grades`, role-bearing `users`, and `lesson-bundles`
+> collections + server-side access functions + the auto-demote and structural-integrity hooks
+> are in `app/src`. **Remaining:** generate the migration on the Rock (`migrate:create` against
+> the live DB), deploy, and run the end-to-end RBAC checks + `security-review` (the
+> "On the Rock" section of the approved plan). **Then** the next build step is **versioning**
+> (SPEC §6: Payload versions/drafts + semver + official pointer) — its own session and migration.
+> See `docs/DECISIONS.md` (2026-06-08 product-model entry) for the decisions made.
+
+---
+
+## Original notes — product modeling (now implemented; kept for reference)
 
 Open a fresh session **in this repo** (`~/Documents/GitHub/Lesson3`) so `CLAUDE.md`,
 `SPEC.md`, and `docs/DECISIONS.md` auto-load. Suggested opening message:
@@ -26,17 +40,17 @@ and `docker ps` (app + postgres up). Proves the new gate before feature work.
 Small, no-migration fixes that restore a currently-broken dev/test loop. Bank these first
 so "verify, never assume" actually holds (each verified against the scaffold):
 
-- [ ] **Package-manager drift:** `app/package.json` `test` script calls `pnpm`, but the
+- [x] **Package-manager drift:** `app/package.json` `test` script calls `pnpm`, but the
   project uses npm (`package-lock.json`, Docker `npm ci`). Switch the `test` script to npm
   and drop the `pnpm` `engines`/config block. (`npm test` currently fails: `pnpm: not found`.)
-- [ ] **Int-test DB host:** `vitest.setup.ts` loads `.env`, whose `DATABASE_URI` host is the
+- [x] **Int-test DB host:** `vitest.setup.ts` loads `.env`, whose `DATABASE_URI` host is the
   Docker service name `postgres` (unresolvable on the host). Add `app/test.env` (or a test
   override) pointing at `localhost`/a test DB so `npm run test:int` connects.
-- [ ] **ESLint flat-config fails** under ESLint 9 + Next 16 `FlatCompat`. Make `npm run lint`
+- [x] **ESLint flat-config fails** under ESLint 9 + Next 16 `FlatCompat`. Make `npm run lint`
   actually run (pin/adjust the config).
-- [ ] **Finish dependency pinning** (our policy): `cross-env`, `graphql`, `eslint`, `prettier`
+- [x] **Finish dependency pinning** (our policy): `cross-env`, `graphql`, `eslint`, `prettier`
   still carry `^` ranges — pin exact like the Payload/Next/React deps already are.
-- [ ] **Media default-private:** `app/src/collections/Media.ts` has `read: () => true`
+- [x] **Media default-private:** `app/src/collections/Media.ts` has `read: () => true`
   (blank-template default). Gate it (authenticated/role-based) until there's an explicit
   public-asset policy.
 
