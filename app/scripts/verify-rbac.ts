@@ -426,20 +426,19 @@ const run = async () => {
     })
     check('subject admin can request major bump (1.1.0 → 2.0.0)', e3.semver === '2.0.0')
 
-    // Publishing (= marking official) is governed by the `draft:false` operation param,
-    // NOT a `_status` value in data (Payload ignores the latter). The whitelist hook
+    // Publishing (= marking official) is set via `_status: 'published'` in data; the
+    // `draft` op param only toggles draft-validation. Publishing enforces required fields,
+    // so these updates submit the full lessons (phase is required). The whitelist hook
     // preserves `_status` for Editors, so an Editor's publish attempt stays draft.
+    const fullLessons = (le: string) => [
+      { id: vbL, title: 'L1', framework: [{ id: vbF, phase: 'Predict Phase' as const, learnerExperience: le }] },
+    ]
     const editorPublish = await payload.update({
       collection: 'lesson-bundles',
       id: vb.id,
       user: editorUser,
       overrideAccess: false,
-      draft: false,
-      data: {
-        lessons: [
-          { id: vbL, title: 'L1', framework: [{ id: vbF, phase: 'Predict Phase', learnerExperience: 'y' }] },
-        ],
-      },
+      data: { _status: 'published', lessons: fullLessons('y') },
     })
     check('editor cannot publish (status stays draft)', editorPublish._status !== 'published')
 
@@ -448,23 +447,18 @@ const run = async () => {
       id: vb.id,
       user: userBUser,
       overrideAccess: false,
-      draft: false,
-      data: { bumpType: 'patch' },
+      data: { _status: 'published', lessons: fullLessons('admin published') },
     })
     check('subject admin can publish (mark official)', adminPublish._status === 'published')
 
-    // An Editor editing an already-official bundle must NOT unpublish it.
+    // An Editor editing an already-official bundle must NOT unpublish it (whitelist
+    // preserves the original 'published' status even if the editor submits 'draft').
     const editorOnPublished = await payload.update({
       collection: 'lesson-bundles',
       id: vb.id,
       user: editorUser,
       overrideAccess: false,
-      draft: false,
-      data: {
-        lessons: [
-          { id: vbL, title: 'L1 edited', framework: [{ id: vbF, phase: 'Predict Phase', learnerExperience: 'z' }] },
-        ],
-      },
+      data: { _status: 'draft', lessons: fullLessons('z') },
     })
     check(
       'editor edit preserves official (published) status',
