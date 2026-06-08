@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Code-review (high) follow-ups + a Payload transaction lesson
+
+A correctness-focused review pass (complementing the security review) on the auth branch.
+No High bugs; the access hooks held up. Actioned:
+
+- **M1 (fixed) — denormalized title went stale.** `SubjectGrade.displayName` ("<Subject> —
+  Grade N") is stored at write time; renaming the parent `Subject` left it stale. Added a
+  `Subject` afterChange hook that refreshes dependent SubjectGrade titles on rename.
+- **L3 (fixed) — duplicated access helpers consolidated.** Exported a shared `Assignment` type
+  and a single `subjectGradeIdsByRole` from `access/index.ts`; removed the near-duplicate copies
+  in `access/bundle.ts` and `hooks/userRoles.ts`. Behavior-preserving.
+- **Transaction-consistency bug surfaced while fixing M1 (the real lesson).** The rename hook
+  *looked* correct but the title still didn't update. Root cause, found by instrumenting:
+  (1) Payload **merges existing field values into `data`** on update, so a `beforeChange` that
+  guards on `data.grade == null` still runs its recompute even when you only passed one field;
+  and (2) `SubjectGrade.beforeChange`'s subject lookup **omitted `req`**, so it read *outside the
+  current transaction* and recomputed the title from the pre-rename name, clobbering the refresh.
+  **Rule:** always thread `req` into nested `payload.find/findByID/update` inside hooks — not just
+  for writes (atomicity) but for **reads**, or they see pre-transaction state. Don't assume a
+  partial update means other fields are absent in `beforeChange`.
+- **Verification:** `verify-rbac.ts` extended with a rename check; full gate green on the Rock
+  (9/9), test data self-cleaned. Tooling note: `/code-review` resolved to the CodeRabbit plugin
+  (name collision); the high-effort correctness pass was done inline instead.
+
 ## 2026-06-08 — Product model: authorization entities + sub-strand bundle
 
 Modeled the authorization entities and the sub-strand bundle as **native Payload nested fields**
