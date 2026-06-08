@@ -1,0 +1,2 @@
+# Keeps the Next.js public/ directory in git (empty in the blank template).
+# The Dockerfile copies public/ into the standalone runtime image.
