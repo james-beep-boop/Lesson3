@@ -31,7 +31,21 @@ import {
  */
 export const Users: CollectionConfig = {
   slug: 'users',
-  auth: true,
+  auth: {
+    // Build the reset link from ADMIN_URL (falling back to SERVER_URL). serverURL is
+    // intentionally '' on the internal host (see payload.config.ts) so it can't be used
+    // for the email base there.
+    forgotPassword: {
+      generateEmailHTML: (args) => {
+        const token = (args as { token?: string } | undefined)?.token ?? ''
+        const base = process.env.ADMIN_URL || process.env.SERVER_URL || ''
+        const url = `${base}/admin/reset/${token}`
+        return `<p>You requested a password reset for the ARES Lesson Library.</p>
+<p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
+<p>If you didn't request this, ignore this email.</p>`
+      },
+    },
+  },
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'roles'],

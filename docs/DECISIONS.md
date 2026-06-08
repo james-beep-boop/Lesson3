@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Admin login loop on Safari: serverURL forces strict CSRF
+
+After a Rock reboot, browser login looped (enter password → flicker → back to login),
+specifically on **Safari**. Diagnosed against the running stack (not guessed): app healthy,
+account not locked, password valid, and **header auth (`Authorization: JWT`) worked while
+cookie auth failed** — login POST set the cookie but the follow-up GET wasn't authenticated.
+
+Root cause in installed source (`auth/extractJWT.js` + `config/sanitize.js`): setting
+**`serverURL`** makes sanitize **push it onto `config.csrf`** (`if (serverURL !== '')`), and a
+non-empty `csrf` makes Payload honor a cookie token on a request with **no `Origin`** only if
+it carries `Sec-Fetch-Site: same-origin|same-site|none`. Browsers omit `Origin` on same-origin
+GETs; **older Safari also omits `Sec-Fetch-Site`** → the admin's auth-check GET is rejected →
+bounce to login. (Reproduced exactly: cookie + correct `Origin` ✓; cookie + no `Origin`/no
+`Sec-Fetch-Site` ✗; cookie + `Sec-Fetch-Site: same-origin` ✓.)
+
+**Fix:** default `serverURL` to `''` (empty → NOT pushed to csrf → cookie auth honored for all
+browsers; CSRF still covered by the `SameSite=Lax` cookie, which blocks cross-site
+POST/subrequests). The password-reset email base moved to a separate **`ADMIN_URL`** env via a
+custom `forgotPassword.generateEmailHTML` (serverURL is no longer available for it). Env-driven:
+a public **HTTPS** host may set `SERVER_URL` to opt into strict CSRF (modern browsers over HTTPS
+send `Sec-Fetch-Site`, so they're fine). **Rule:** don't set `serverURL` on a plain-HTTP/internal
+host that older browsers hit — it silently breaks their cookie login; use `ADMIN_URL` for email
+links instead. Gotcha: `serverURL` must be the empty string, not `undefined` (undefined is still
+pushed to csrf).
+
 ## 2026-06-08 — Bundle field protection: blacklist → whitelist (secure by default)
 
 Follow-up to the audit below. The first fix made `enforceBundleStructure` restore an

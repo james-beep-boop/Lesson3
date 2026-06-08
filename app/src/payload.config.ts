@@ -38,9 +38,15 @@ const email = process.env.SMTP_HOST
 
 export default buildConfig({
   email,
-  // Absolute base URL for this deployment. Used for CORS/CSRF and, importantly, to
-  // build absolute links in emails (e.g. the password-reset link). Per-host → env.
-  serverURL: process.env.SERVER_URL || undefined,
+  // Absolute base URL. Setting it makes Payload add it to the CSRF allowlist, which then
+  // requires cookie-auth requests to carry a matching Origin OR a `Sec-Fetch-Site` header
+  // — browsers that send neither on same-origin GETs (e.g. older Safari) get bounced back
+  // to login. So we default it to '' (empty → NOT pushed to csrf → cookie auth works for
+  // all browsers; CSRF is still covered by the SameSite=Lax cookie). The reset-email link
+  // base comes from ADMIN_URL instead (see Users auth). A public HTTPS host may set
+  // SERVER_URL to opt into strict CSRF. Must be '' (not undefined) — undefined still gets
+  // pushed to csrf. See docs/DECISIONS.md.
+  serverURL: process.env.SERVER_URL || '',
   admin: {
     user: Users.slug,
     importMap: {
