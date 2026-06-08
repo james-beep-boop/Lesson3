@@ -8,7 +8,7 @@ import {
   lessonBundleUpdate,
   systemOnly,
 } from '../access/bundle'
-import { prose, structureText } from '../fields/bundleFields'
+import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 
 /**
@@ -209,8 +209,8 @@ export const LessonBundles: CollectionConfig = {
           fields: [
             structureText('title', 'Title'),
             prose('prompt', 'Prompt'),
-            // Answer key — Subject Admin only (SPEC §5).
-            prose('exemplar', 'Exemplar (answer key)'),
+            // Answer key — Subject Admin only (SPEC §5). Multiline prose, admin-gated.
+            proseAdmin('exemplar', 'Exemplar (answer key)'),
           ],
         },
         {

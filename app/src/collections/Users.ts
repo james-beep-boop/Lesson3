@@ -14,6 +14,7 @@ import {
   autoDemotePriorSubjectAdmins,
   enforceAssignmentScope,
   grantSiteAdminToFirstUser,
+  guardPasswordChange,
 } from '../hooks/userRoles'
 
 /**
@@ -43,7 +44,7 @@ export const Users: CollectionConfig = {
     delete: siteAdminOnly,
   },
   hooks: {
-    beforeChange: [grantSiteAdminToFirstUser, enforceAssignmentScope],
+    beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
   },
   fields: [

@@ -29,6 +29,29 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
 }
 
 /**
+ * Guard password changes (SPEC §8 / least privilege).
+ *
+ * Subject Admins hold collection-level update on every user (so `enforceAssignmentScope`
+ * can validate assignment edits). But Payload's update pipeline saves `data.password`
+ * outside normal field access (verified in installed source: `collections/operations/
+ * utilities/update.js` saves it with no password-specific check), so without this guard a
+ * Subject Admin could reset *any* user's password → account takeover. Only the user
+ * themselves or a Site Admin may change a password here.
+ *
+ * Safe against the legitimate flows: the token reset (`auth/operations/resetPassword.js`)
+ * writes hash/salt directly via `payload.db.updateOne` and never puts `password` in hook
+ * data; trusted system calls run with `overrideAccess` and no `req.user` (and an
+ * unauthenticated REST update is already denied at collection access, so it never reaches
+ * here) — hence `!actor` is treated as a trusted system operation.
+ */
+export const guardPasswordChange: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) => {
+  if (operation !== 'update' || !data?.password) return data
+  const actor = (req.user as User) ?? null
+  if (!actor || isSiteAdmin(actor) || actor.id === originalDoc?.id) return data
+  throw new Forbidden(req.t)
+}
+
+/**
  * Scope assignment edits for non-site-admin actors (SPEC §8).
  *
  * A Subject Admin may manage roles only within the subject-grades they administer.

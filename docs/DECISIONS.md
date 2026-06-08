@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — External audit (Codex + CodeRabbit) triage + fixes
+
+Second external pass on the auth/bundle branch (now merged to `main`). Six findings; all
+valid. Triage (live now / next-task / future) and resolution — **changes staged locally,
+not yet committed/deployed** (Rock still on `main`); verified on the Rock via bind-mounted
+source so `verify-rbac.ts` ran against the real DB (now **17/17**):
+
+- **[live-when-roles-exist, FIXED] Subject Admins could reset any user's password.**
+  Verified in installed source (`collections/operations/utilities/update.js`): Payload saves
+  `data.password` with NO password-specific access check — only collection `update` gates it,
+  and Subject Admins have collection update on all users (needed for assignment mgmt). Added
+  `guardPasswordChange` (beforeChange): only self or Site Admin may change a password; `!actor`
+  is treated as a trusted system/override call (unauthenticated REST is already denied at
+  collection access, and the token reset writes hash/salt directly, never via this path).
+  Not exploitable today (only the Site Admin exists) but mandatory before assigning Subject Admins.
+- **[authz-correctness, FIXED] Editors could edit `sections[].exemplar` (an answer key).**
+  SPEC §5 makes exemplar Subject-Admin-only. Fixing this surfaced a **deeper Payload
+  limitation (the important lesson):** field-level access reliably retains denied values for
+  **groups** and **required** array subfields, but **NULLS optional admin-only subfields inside
+  open arrays** when a non-admin submits the array — and nulls them at *write* time even when
+  the parent is merely *omitted* from the update (hook injection of an omitted field does NOT
+  persist; only modifications to *submitted* fields do). Net effect: with field access, an
+  Editor's ordinary save would **wipe** `exemplar`, `sections[].title`, and (pre-existing, missed
+  by everyone) `lessons[].duration/substrand/aresKeywords`. **Resolution:** remove field-level
+  access from those optional admin array subfields and make `enforceBundleStructure` the single
+  enforcement point — it overwrites admin-only values from the original for non-admins (omitted
+  parents are then retained intact by Payload's merge; submitted changes are corrected by the
+  hook). **Rule:** do not rely on Payload field-level `access` to protect optional admin-only
+  subfields inside shared/open arrays; enforce those in a hook.
+- **[future, DOCUMENTED—not changed] FK `ON DELETE SET NULL` on NOT NULL columns**
+  (`subject_grades.subject_id`, `users_assignments.subject_grade_id`, `lesson_bundles.subject_grade_id`).
+  Verified Payload 3.85 / db-postgres exposes **no `onDelete` config** — it hardcodes SET NULL
+  for relationships. Practically, SET NULL on a NOT NULL column *prevents* deleting a referenced
+  parent (the delete errors), so there's no orphaning/data-corruption risk today — only a less
+  friendly error and a schema smell. Hand-forcing RESTRICT in a corrective migration would
+  diverge from Payload's generated schema snapshot and fight `migrate:create`. **Decision:** keep
+  Payload's default; when taxonomy *delete workflows* are built, add app-level `beforeDelete`
+  guards on Subject/SubjectGrade that block deletion when dependents exist (clear message),
+  rather than fighting the FK DDL. No delete workflows exist now; deferred deliberately.
+- **[live dev harness, FIXED]** `playwright.config.ts` `webServer.command` was `pnpm dev` →
+  `npm run dev` (`npm run test:e2e -- --list` now works; 4 tests listed).
+- **[future-correctness, FIXED]** `SubjectGrade` uniqueness `beforeValidate` lookup omitted
+  `req` → added (transaction-consistent, per the rule below). DB-level composite unique index
+  still deferred (app-level check acceptable at this scale; documented).
+- **[next-task, DONE] Coverage.** `verify-rbac.ts` extended to 17 checks incl. password-guard
+  (subject-admin-blocked / self-allowed / assignment-mgmt-still-works) and exemplar
+  (editor-blocked / admin-allowed / prompt-still-editable) and admin-array-subfield anti-wipe.
+
 ## 2026-06-08 — Code-review (high) follow-ups + a Payload transaction lesson
 
 A correctness-focused review pass (complementing the security review) on the auth branch.

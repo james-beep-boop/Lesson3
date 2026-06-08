@@ -107,9 +107,14 @@ const run = async () => {
           lessons: [
             {
               title: 'L1',
+              duration: '40 minutes',
+              aresKeywords: 'kw1, kw2',
               framework: [{ phase: 'Predict Phase', learnerExperience: 'orig' }],
             },
           ],
+          finalExplanation: {
+            sections: [{ title: 'S1', prompt: 'orig prompt', exemplar: 'orig exemplar' }],
+          },
         },
       }),
     )
@@ -150,6 +155,15 @@ const run = async () => {
       'editor phase edit ignored (structure protected)',
       updated.lessons?.[0]?.framework?.[0]?.phase === 'Predict Phase',
     )
+    // Admin-only array subfields must survive an editor edit (not be wiped to null).
+    check(
+      'editor edit preserves admin-only duration (not wiped)',
+      updated.lessons?.[0]?.duration === '40 minutes',
+    )
+    check(
+      'editor edit preserves admin-only aresKeywords (not wiped)',
+      updated.lessons?.[0]?.aresKeywords === 'kw1, kw2',
+    )
 
     // Editor adding a lesson (structural) should be rejected by the integrity hook.
     let blocked = false
@@ -170,6 +184,119 @@ const run = async () => {
       blocked = true
     }
     check('editor adding a lesson rejected (cardinality protected)', blocked)
+
+    // --- exemplar is an answer key → Subject Admin only (SPEC §5) ---
+    const userBUser = await payload.findByID({ collection: 'users', id: userB.id })
+    const sectionId = bundle.finalExplanation?.sections?.[0]?.id
+    const editorSectionEdit = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: editorUser,
+      overrideAccess: false,
+      data: {
+        // Mirror the admin UI, which submits the whole document (required `phase` present).
+        lessons: [
+          {
+            id: bundle.lessons![0].id,
+            title: 'L1',
+            framework: [
+              {
+                id: bundle.lessons![0].framework![0].id,
+                phase: 'Predict Phase',
+                learnerExperience: 'orig',
+              },
+            ],
+          },
+        ],
+        finalExplanation: {
+          sections: [
+            { id: sectionId, title: 'S1', prompt: 'editor prompt', exemplar: 'EDITOR HACK' },
+          ],
+        },
+      },
+    })
+    check(
+      'editor can edit section prompt (prose)',
+      editorSectionEdit.finalExplanation?.sections?.[0]?.prompt === 'editor prompt',
+    )
+    check(
+      'editor cannot edit exemplar (answer key protected)',
+      editorSectionEdit.finalExplanation?.sections?.[0]?.exemplar === 'orig exemplar',
+    )
+    const adminSectionEdit = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: userBUser,
+      overrideAccess: false,
+      data: {
+        lessons: [
+          {
+            id: bundle.lessons![0].id,
+            title: 'L1',
+            framework: [
+              {
+                id: bundle.lessons![0].framework![0].id,
+                phase: 'Predict Phase',
+                learnerExperience: 'orig',
+              },
+            ],
+          },
+        ],
+        finalExplanation: {
+          sections: [
+            { id: sectionId, title: 'S1', prompt: 'editor prompt', exemplar: 'ADMIN EXEMPLAR' },
+          ],
+        },
+      },
+    })
+    check(
+      'subject admin can edit exemplar',
+      adminSectionEdit.finalExplanation?.sections?.[0]?.exemplar === 'ADMIN EXEMPLAR',
+    )
+
+    // --- password guard (SPEC §8): only self or site admin may change a password ---
+    let saPasswordBlocked = false
+    try {
+      await payload.update({
+        collection: 'users',
+        id: editor.id,
+        user: userBUser, // a Subject Admin
+        overrideAccess: false,
+        data: { password: 'hacked-by-subject-admin' },
+      })
+    } catch {
+      saPasswordBlocked = true
+    }
+    check('subject admin cannot change another user password', saPasswordBlocked)
+
+    let selfPasswordOk = true
+    try {
+      await payload.update({
+        collection: 'users',
+        id: editor.id,
+        user: editorUser, // self
+        overrideAccess: false,
+        data: { password: 'editors-own-new-password' },
+      })
+    } catch {
+      selfPasswordOk = false
+    }
+    check('user can change their own password', selfPasswordOk)
+
+    // The guard must not over-restrict: a Subject Admin can still manage assignments in their SG.
+    let saAssignmentOk = true
+    try {
+      await payload.update({
+        collection: 'users',
+        id: editor.id,
+        user: userBUser,
+        overrideAccess: false,
+        data: { assignments: [{ subjectGrade: sg.id, role: 'editor' }] },
+      })
+    } catch {
+      saAssignmentOk = false
+    }
+    check('subject admin can still manage assignments in their SG', saAssignmentOk)
   } finally {
     // Cleanup in reverse creation order.
     for (const { collection, id } of created.reverse()) {

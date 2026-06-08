@@ -31,6 +31,7 @@ export const SubjectGrade: CollectionConfig = {
           collection: 'subject-grades',
           depth: 0,
           limit: 1,
+          req,
           where: {
             and: [{ subject: { equals: subjectId } }, { grade: { equals: data.grade } }],
           },

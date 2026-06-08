@@ -1,6 +1,6 @@
 import type { TextField, TextareaField } from 'payload'
 
-import { canEditProse, canEditStructure } from '../access/bundle'
+import { canEditProse } from '../access/bundle'
 
 /**
  * Field factories for the sub-strand bundle. The editor's grammar is a strict subset
@@ -23,7 +23,24 @@ export const prose = (name: string, label: string, description?: string): Textar
   access: { update: canEditProse },
 })
 
-/** Structural / admin-only text — editable by Subject Admins and above (SPEC §5). */
+/**
+ * Admin-only multiline prose — same grammar as `prose`. For answer keys (SPEC §5),
+ * e.g. `sections[].exemplar`. NOTE: admin-only enforcement lives in the
+ * `enforceBundleStructure` hook, NOT field-level access: Payload's field access nulls
+ * optional admin-only subfields inside open arrays when a non-admin submits the array,
+ * which would wipe answer keys. The hook restores admin-only values from the original.
+ */
+export const proseAdmin = (name: string, label: string, description?: string): TextareaField => ({
+  name,
+  type: 'textarea',
+  label,
+  admin: {
+    description: description ? `${description} — ${GRAMMAR_HINT}` : GRAMMAR_HINT,
+  },
+})
+
+/** Structural / admin-only text (SPEC §5). Enforced by `enforceBundleStructure`, not
+ *  field access — see the note on `proseAdmin`. */
 export const structureText = (
   name: string,
   label: string,
@@ -33,5 +50,4 @@ export const structureText = (
   type: 'text',
   label,
   ...(description ? { admin: { description } } : {}),
-  access: { update: canEditStructure },
 })
