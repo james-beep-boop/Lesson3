@@ -11,15 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Bundle field protection: blacklist → whitelist (secure by default)
+
+Follow-up to the audit below. The first fix made `enforceBundleStructure` restore an
+*enumerated* list of admin-only fields from the original (a **blacklist**). That is
+insecure-by-default: a new admin-only field added inside an editable array that someone
+forgets to add to the hook would be silently Editor-editable. **Inverted to a WHITELIST**
+(commit `2059156`, deployed, `verify-rbac.ts` **19/19** against the deployed image): for a
+non-admin Editor the hook writes the *original* document with only the Editor-editable
+**prose** fields overlaid from the submission. Everything else is preserved.
+
+- **Why this is the right default:** forgetting to whitelist a field can only make it
+  non-editable by Editors (a visible annoyance, caught in use) — never silently editable
+  (a security hole). New admin/system fields are protected automatically.
+- **Standing rules for anyone adding bundle fields (see the LessonBundles docstring):**
+  1. A new field is **admin-only by default**. To make it Editor-editable, add it to the
+     matching prose-whitelist constant in `hooks/bundleIntegrity.ts` (and use `prose()`).
+     The cross-container regression test in `verify-rbac.ts` guards the contract.
+  2. Field-level `access` is **not** the authority for the Editor/admin split — the hook is.
+     (`prose()`/`proseAdmin()`/`structureText()` carry only grammar hints + UI/create access.)
+  3. **Array edits must submit the full array** (same rows/order): the hook rejects
+     cardinality/order changes by Editors. Fine for the Payload admin UI; required to know
+     before building custom API/editor flows.
+- **UNIT.overview** is admin-only (SPEC §5 does not list UNIT) — modeled with `proseAdmin`
+  and preserved wholesale by the hook; it is intentionally not in the prose whitelist.
+- Field-level access is still kept on groups (META/UNIT), `phase`, the `rubric` array, and
+  top-level `title`/`subjectGrade` as harmless defense-in-depth, but the hook is the
+  single source of truth.
+
 ## 2026-06-08 — External audit (Codex + CodeRabbit) triage + fixes
 
 Second external pass on the auth/bundle work (already merged to `main`). Six findings; all
 valid. Triage (live now / next-task / future) and resolution below.
 
-**Status:** committed as `eba6157` and pushed to `main`. **Deployed to the Rock** —
-rebuilt from `eba6157` via `docker compose up -d --build` (migrate exit 0, app running).
-`verify-rbac.ts` passes **17/17 against the deployed image** (rebuilt from this commit, not
-bind-mounted); the earlier bind-mounted runs were development iterations only.
+**Status:** landed over two commits on `main`, both deployed to the Rock (rebuilt via
+`docker compose up -d --build`, migrate exit 0, app running) and verified against the
+deployed image (not bind-mounted): `eba6157` (the fixes below) verified 17/17, then
+`2059156` (the whitelist inversion + cross-container test, see the dedicated entry above)
+verified **19/19**. The current design point is the whitelist hook.
 
 - **[live-when-roles-exist, FIXED] Subject Admins could reset any user's password.**
   Verified in installed source (`collections/operations/utilities/update.js`): Payload saves
@@ -42,7 +71,8 @@ bind-mounted); the earlier bind-mounted runs were development iterations only.
   enforcement point — it overwrites admin-only values from the original for non-admins (omitted
   parents are then retained intact by Payload's merge; submitted changes are corrected by the
   hook). **Rule:** do not rely on Payload field-level `access` to protect optional admin-only
-  subfields inside shared/open arrays; enforce those in a hook.
+  subfields inside shared/open arrays; enforce those in a hook. *(This hook was then inverted
+  from this blacklist to a secure-by-default whitelist — see the entry above.)*
 - **[future, DOCUMENTED—not changed] FK `ON DELETE SET NULL` on NOT NULL columns**
   (`subject_grades.subject_id`, `users_assignments.subject_grade_id`, `lesson_bundles.subject_grade_id`).
   Verified Payload 3.85 / db-postgres exposes **no `onDelete` config** — it hardcodes SET NULL

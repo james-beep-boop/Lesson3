@@ -23,8 +23,19 @@ import { enforceBundleStructure } from '../hooks/bundleIntegrity'
  *
  * Field-level access (SPEC §5): Editors edit prose; Subject Admins edit
  * META / aresKeywords / phase / duration / structure / answer keys; the resource
- * column and lesson numbers are system-only. Array cardinality/order is protected by
- * `enforceBundleStructure` (field access cannot gate row add/remove/reorder).
+ * column and lesson numbers are system-only.
+ *
+ * IMPORTANT — the authority for the Editor/admin split is the `enforceBundleStructure`
+ * hook, NOT Payload field-level access (which can't gate array rows and silently nulls
+ * optional admin-only array subfields). The hook is a WHITELIST: for a non-admin Editor
+ * it writes the original document with only the Editor-editable *prose* fields overlaid.
+ * Consequences for anyone adding fields here:
+ *   • A new field is admin-only BY DEFAULT.
+ *   • To make a field Editor-editable you must add it to the matching prose whitelist
+ *     constant in `hooks/bundleIntegrity.ts` (and use `prose()` for the grammar hint).
+ *     Forgetting only makes it non-editable by Editors — never silently editable.
+ *   • Editing a container's array via the API requires submitting the FULL array
+ *     (same rows/order); the hook rejects cardinality/order changes by Editors.
  *
  * The per-phase Resource column is OPTIONAL (SPEC §3/§4): resolved at ingest if
  * enabled, absent otherwise. Every path must tolerate empty `resources`.
@@ -111,7 +122,9 @@ export const LessonBundles: CollectionConfig = {
       label: 'UNIT',
       access: { update: canEditStructure },
       admin: { description: 'Sub-strand overview. May be empty.' },
-      fields: [prose('overview', 'Overview')],
+      // Admin-only (SPEC §5 does not list UNIT): proseAdmin, and the whitelist hook
+      // preserves `unit` wholesale for Editors.
+      fields: [proseAdmin('overview', 'Overview')],
     },
 
     // ---- LESSONS[] ----

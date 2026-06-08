@@ -12,7 +12,12 @@ import { canEditProse } from '../access/bundle'
 const GRAMMAR_HINT =
   'Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.'
 
-/** Prose value — editable by Editors and above (SPEC §5). */
+/**
+ * Prose value (SPEC §5). `prose()` only carries the grammar hint + `canEditProse` (for
+ * UI/create); the actual Editor/admin split is enforced by the WHITELIST in
+ * `enforceBundleStructure` — a field is Editor-editable only if it is listed in that
+ * hook's prose constants, regardless of which factory created it.
+ */
 export const prose = (name: string, label: string, description?: string): TextareaField => ({
   name,
   type: 'textarea',
