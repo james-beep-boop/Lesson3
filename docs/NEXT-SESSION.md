@@ -1,8 +1,8 @@
 # Start-here for the next session — Bundle versioning (SPEC §6)
 
 > **Status (merged & deployed):** scaffold + authorization entities + the sub-strand bundle
-> are done, merged to `main`, and running on the Rock at **`d0cf69a`** (Docker `restart:
-> unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot, verified). Field-level
+> are done, merged to `main`, and running on the Rock at the **current `main` HEAD** (Docker
+> `restart: unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot, verified). Field-level
 > Editor/admin protection on `lesson-bundles` is enforced by a **whitelist hook**
 > (`enforceBundleStructure`), not field access; `app/scripts/verify-rbac.ts` passes **19/19**
 > against the deployed image. Two external audits (Codex + CodeRabbit) are triaged and resolved.
@@ -25,7 +25,7 @@ Suggested session name: **`Lesson3: Bundle versioning (SPEC §6)`** · branch `f
 Opening message:
 
 > Read `SPEC.md` (§6), `CLAUDE.md`, and `docs/DECISIONS.md`. Scaffold, auth, and the
-> sub-strand bundle are done and deployed on the Rock (`main` @ `3fb833d`). Implement
+> sub-strand bundle are done and deployed on the Rock (current `main`). Implement
 > **versioning** per SPEC §6: enable Payload versions/drafts on `lesson-bundles`; add
 > **semver** (`x.y.z`) + an **official-version pointer** as custom fields + a save hook
 > (first ingested = **1.0.0**, default edit bump = **patch**, user may choose
