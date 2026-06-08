@@ -3,11 +3,6 @@
 
 FROM node:22.17.0-alpine AS base
 
-# Pin npm to match the lockfile's authoring npm. The dev machine uses npm 11.x,
-# but node:22.17-alpine ships npm 10.9.2, whose `npm ci` rejects an npm-11-authored
-# package-lock.json ("Missing/Invalid ... from lock file"). Keep dev and build npm in sync.
-RUN npm install -g npm@11.11.0
-
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
