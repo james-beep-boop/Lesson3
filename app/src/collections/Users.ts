@@ -10,7 +10,11 @@ import {
   usersCollectionRead,
   usersCollectionUpdate,
 } from '../access'
-import { autoDemotePriorSubjectAdmins, enforceAssignmentScope } from '../hooks/userRoles'
+import {
+  autoDemotePriorSubjectAdmins,
+  enforceAssignmentScope,
+  grantSiteAdminToFirstUser,
+} from '../hooks/userRoles'
 
 /**
  * Users + roles (SPEC §8).
@@ -39,7 +43,7 @@ export const Users: CollectionConfig = {
     delete: siteAdminOnly,
   },
   hooks: {
-    beforeChange: [enforceAssignmentScope],
+    beforeChange: [grantSiteAdminToFirstUser, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
   },
   fields: [

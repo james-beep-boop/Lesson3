@@ -9,6 +9,27 @@ type Assignment = NonNullable<User['assignments']>[number]
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
 
 /**
+ * Bootstrap: make the very first user a Site Administrator (SPEC §8).
+ *
+ * `access.admin` (adminPanelAccess) admits only site admins / assigned users, and
+ * `roles` defaults to []. Without this, the first user created on a fresh deployment
+ * would be locked out of the admin panel — a bootstrap deadlock. On the first create
+ * (no users yet) we force `roles` to include 'siteAdmin'.
+ */
+export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  req,
+}) => {
+  if (operation !== 'create' || !data) return data
+  const { totalDocs } = await req.payload.count({ collection: 'users', req })
+  if (totalDocs === 0) {
+    data.roles = [...new Set([...(data.roles ?? []), 'siteAdmin' as const])]
+  }
+  return data
+}
+
+/**
  * Scope assignment edits for non-site-admin actors (SPEC §8).
  *
  * A Subject Admin may manage roles only within the subject-grades they administer.

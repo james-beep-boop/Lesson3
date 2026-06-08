@@ -74,6 +74,21 @@ traps:
   Administrator") and the committed migration amended for the not-yet-deployed production host;
   amending an applied migration is acceptable here because only the pre-existing-row backfill
   changed — the schema snapshot is untouched and the Rock won't replay it.
+- **Admin-panel lockout + bootstrap (fixed).** Gating `access.admin` on siteAdmin/assignment
+  (correct per SPEC §5) locked out the *existing* Rock admin, whose `roles` was `[]` — login API
+  returned 200 but `/admin` refused entry. Fixed in place (granted siteAdmin). The deeper bug:
+  on a *fresh* deploy Payload's first-user creation also yields `roles: []`, so the new admin
+  would be locked out too — a bootstrap deadlock. Fix: `grantSiteAdminToFirstUser` (beforeChange)
+  forces `roles: ['siteAdmin']` when creating the first user (user count 0). **Rule:** any time
+  panel/admin access is gated on a role, ensure the *first* user is granted that role
+  automatically, or the system is un-bootstrappable. Lesson on testing: `verify-rbac.ts` passed
+  because it created users *with* roles; it didn't cover the role-less pre-existing/first user —
+  exercise the bootstrap path, not just the happy path.
+- **Email adapter (operations).** Password resets silently no-op'd ("Email attempted without
+  being configured") because no email adapter was set. Added a conditional `nodemailerAdapter`
+  (enabled when `SMTP_HOST` is set; console fallback otherwise; `skipVerify` so boot isn't
+  coupled to SMTP reachability). Gmail SMTP needs a 16-char **App Password** (2FA required), not
+  the account password. SPEC §11 wants real email/observability before real users.
 
 ## 2026-06-08 — External review (Codex) triaged into the build plan
 
