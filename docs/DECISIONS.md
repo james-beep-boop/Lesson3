@@ -63,6 +63,17 @@ traps:
   `FlatCompat.extends('next/...')` double-wraps the flat plugin config and crashes the legacy
   validator ("circular structure"). Fix: import `eslint-config-next/core-web-vitals` and
   `/typescript` and spread them directly (no FlatCompat).
+- **Security-review finding (fixed) — don't backfill `name` from `email`.** The first migration
+  backfilled the new, publicly-readable `users.name` from the private `email`. Because `name` is
+  *intentionally* public (attribution — SPEC §8) while `email` is gated by `emailReadAccess`,
+  copying email into name leaked it to any authenticated user for pre-existing rows. Fix: backfill
+  with a neutral `'User ' || id` placeholder, not email. **Rule:** when adding a public field to a
+  table with rows, never backfill it from a private column — fix the *data*, not the field's
+  visibility (locking down `name`'s read would break required attribution). The migration had
+  already applied on the Rock, so the data was corrected in place (admin `name` set to "Site
+  Administrator") and the committed migration amended for the not-yet-deployed production host;
+  amending an applied migration is acceptable here because only the pre-existing-row backfill
+  changed — the schema snapshot is untouched and the Rock won't replay it.
 
 ## 2026-06-08 — External review (Codex) triaged into the build plan
 

@@ -130,10 +130,13 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
   
-  -- Add nullable, backfill existing rows from email, then enforce NOT NULL.
-  -- (A bare "ADD COLUMN name varchar NOT NULL" fails on a table that already has rows.)
+  -- Add nullable, backfill existing rows with a neutral non-PII placeholder, then
+  -- enforce NOT NULL. (A bare "ADD COLUMN name varchar NOT NULL" fails on a table
+  -- that already has rows.) Do NOT backfill from "email": `name` is publicly readable
+  -- (attribution — SPEC §8) while `email` is private, so copying email into name would
+  -- leak it to any authenticated user. Backfilled users should be given a real name.
   ALTER TABLE "users" ADD COLUMN "name" varchar;
-  UPDATE "users" SET "name" = "email" WHERE "name" IS NULL;
+  UPDATE "users" SET "name" = 'User ' || "id"::text WHERE "name" IS NULL;
   ALTER TABLE "users" ALTER COLUMN "name" SET NOT NULL;
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "subjects_id" integer;
   ALTER TABLE "payload_locked_documents_rels" ADD COLUMN "subject_grades_id" integer;
