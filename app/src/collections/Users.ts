@@ -32,6 +32,11 @@ import {
 export const Users: CollectionConfig = {
   slug: 'users',
   auth: {
+    // 15-minute inactivity window. With admin.autoRefresh off (the default), the admin
+    // shows a "Stay logged in?" prompt ~1 min before expiry and force-logs-out at expiry
+    // if unattended — so a walked-away session (even with the tab open) clears itself.
+    // Active editors get one prompt per window; explicit Log Out is immediate.
+    tokenExpiration: 900,
     // Build the reset link from ADMIN_URL (falling back to SERVER_URL). serverURL is
     // intentionally '' on the internal host (see payload.config.ts) so it can't be used
     // for the email base there.
