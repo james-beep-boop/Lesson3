@@ -69,6 +69,9 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    subjects: Subject;
+    'subject-grades': SubjectGrade;
+    'lesson-bundles': LessonBundle;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,13 +81,16 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    subjects: SubjectsSelect<false> | SubjectsSelect<true>;
+    'subject-grades': SubjectGradesSelect<false> | SubjectGradesSelect<true>;
+    'lesson-bundles': LessonBundlesSelect<false> | LessonBundlesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   fallbackLocale: null;
   globals: {};
@@ -122,7 +128,25 @@ export interface UserAuthOperations {
  * via the `definition` "users".
  */
 export interface User {
-  id: string;
+  id: number;
+  /**
+   * Shown for attribution. Non-site-admins never see other emails.
+   */
+  name: string;
+  /**
+   * Global Site Administrator grant. Leave empty for non-admins.
+   */
+  roles?: 'siteAdmin'[] | null;
+  /**
+   * Per subject-grade grants. Subject Admins may manage only their own subject-grades.
+   */
+  assignments?:
+    | {
+        subjectGrade: number | SubjectGrade;
+        role: 'subjectAdmin' | 'editor';
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -144,10 +168,45 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subject-grades".
+ */
+export interface SubjectGrade {
+  id: number;
+  subject: number | Subject;
+  /**
+   * Whole number; displayed as "Grade N".
+   */
+  grade: number;
+  /**
+   * Auto-generated from subject + grade.
+   */
+  displayName?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subjects".
+ */
+export interface Subject {
+  id: number;
+  /**
+   * Academic discipline only, e.g. "Biology". No grade here.
+   */
+  name: string;
+  /**
+   * URL-safe identifier, e.g. "biology".
+   */
+  slug?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
+  id: number;
   alt: string;
   updatedAt: string;
   createdAt: string;
@@ -163,10 +222,217 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-bundles".
+ */
+export interface LessonBundle {
+  id: number;
+  /**
+   * Bundle label for lists, e.g. the document title.
+   */
+  title: string;
+  subjectGrade: number | SubjectGrade;
+  meta?: {
+    subject?: string | null;
+    grade?: number | null;
+    substrand_id?: string | null;
+    substrand_name?: string | null;
+    outputDir?: string | null;
+    filePrefix?: string | null;
+    titleDoc?: string | null;
+    subtitleDoc?: string | null;
+    col3Label?: string | null;
+    col5Label?: string | null;
+  };
+  /**
+   * Sub-strand overview. May be empty.
+   */
+  unit?: {
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    overview?: string | null;
+  };
+  lessons?:
+    | {
+        /**
+         * Set automatically from lesson order.
+         */
+        number?: number | null;
+        /**
+         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+         */
+        title?: string | null;
+        duration?: string | null;
+        substrand?: string | null;
+        aresKeywords?: string | null;
+        slo?: {
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          purpose?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          knowledge?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          skills?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          attitudes?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          keyInquiry?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          purposeInStoryline?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          safetyNotes?: string | null;
+        };
+        /**
+         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+         */
+        overview?: string | null;
+        framework?:
+          | {
+              /**
+               * Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.
+               */
+              phase:
+                | 'Predict Phase'
+                | 'Observe Phase'
+                | 'Explain Phase'
+                | 'Driving Question Board (DQB) Creation'
+                | 'Model Building Phase';
+              /**
+               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+               */
+              learnerExperience?: string | null;
+              /**
+               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+               */
+              teacherMoves?: string | null;
+              /**
+               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+               */
+              sensemakingStrategy?: string | null;
+              /**
+               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+               */
+              formativeAssessment?: string | null;
+              /**
+               * Auto-resolved at ingest; never user-editable. May be empty.
+               */
+              resources?: {
+                video?: {
+                  title?: string | null;
+                  direct_url?: string | null;
+                  search_url?: string | null;
+                };
+                reading?: {
+                  title?: string | null;
+                  direct_url?: string | null;
+                  search_url?: string | null;
+                };
+              };
+              id?: string | null;
+            }[]
+          | null;
+        /**
+         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+         */
+        teacherReflection?: string | null;
+        summaryTablePrompt?: {
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          observed?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          learned?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          explained?: string | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  finalExplanation?: {
+    subjectLabel?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    instructions?: string | null;
+    sections?:
+      | {
+          title?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          prompt?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          exemplar?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    rubric?:
+      | {
+          criterion?: string | null;
+          excellent?: string | null;
+          proficient?: string | null;
+          developing?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  summaryTable?: {
+    subStrand?: string | null;
+    drivingQuestion?: string | null;
+    lessons?:
+      | {
+          /**
+           * Set automatically from row order.
+           */
+          number?: number | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          title?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          observed?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          learned?: string | null;
+          /**
+           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+           */
+          explained?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: string;
+  id: number;
   key: string;
   data:
     | {
@@ -183,20 +449,32 @@ export interface PayloadKv {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'users';
-        value: string | User;
+        value: number | User;
       } | null)
     | ({
         relationTo: 'media';
-        value: string | Media;
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'subjects';
+        value: number | Subject;
+      } | null)
+    | ({
+        relationTo: 'subject-grades';
+        value: number | SubjectGrade;
+      } | null)
+    | ({
+        relationTo: 'lesson-bundles';
+        value: number | LessonBundle;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -206,10 +484,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   key?: string | null;
   value?:
@@ -229,7 +507,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -240,6 +518,15 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  roles?: T;
+  assignments?:
+    | T
+    | {
+        subjectGrade?: T;
+        role?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -274,6 +561,153 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subjects_select".
+ */
+export interface SubjectsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subject-grades_select".
+ */
+export interface SubjectGradesSelect<T extends boolean = true> {
+  subject?: T;
+  grade?: T;
+  displayName?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-bundles_select".
+ */
+export interface LessonBundlesSelect<T extends boolean = true> {
+  title?: T;
+  subjectGrade?: T;
+  meta?:
+    | T
+    | {
+        subject?: T;
+        grade?: T;
+        substrand_id?: T;
+        substrand_name?: T;
+        outputDir?: T;
+        filePrefix?: T;
+        titleDoc?: T;
+        subtitleDoc?: T;
+        col3Label?: T;
+        col5Label?: T;
+      };
+  unit?:
+    | T
+    | {
+        overview?: T;
+      };
+  lessons?:
+    | T
+    | {
+        number?: T;
+        title?: T;
+        duration?: T;
+        substrand?: T;
+        aresKeywords?: T;
+        slo?:
+          | T
+          | {
+              purpose?: T;
+              knowledge?: T;
+              skills?: T;
+              attitudes?: T;
+              keyInquiry?: T;
+              purposeInStoryline?: T;
+              safetyNotes?: T;
+            };
+        overview?: T;
+        framework?:
+          | T
+          | {
+              phase?: T;
+              learnerExperience?: T;
+              teacherMoves?: T;
+              sensemakingStrategy?: T;
+              formativeAssessment?: T;
+              resources?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                        };
+                  };
+              id?: T;
+            };
+        teacherReflection?: T;
+        summaryTablePrompt?:
+          | T
+          | {
+              observed?: T;
+              learned?: T;
+              explained?: T;
+            };
+        id?: T;
+      };
+  finalExplanation?:
+    | T
+    | {
+        subjectLabel?: T;
+        instructions?: T;
+        sections?:
+          | T
+          | {
+              title?: T;
+              prompt?: T;
+              exemplar?: T;
+              id?: T;
+            };
+        rubric?:
+          | T
+          | {
+              criterion?: T;
+              excellent?: T;
+              proficient?: T;
+              developing?: T;
+              id?: T;
+            };
+      };
+  summaryTable?:
+    | T
+    | {
+        subStrand?: T;
+        drivingQuestion?: T;
+        lessons?:
+          | T
+          | {
+              number?: T;
+              title?: T;
+              observed?: T;
+              learned?: T;
+              explained?: T;
+              id?: T;
+            };
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

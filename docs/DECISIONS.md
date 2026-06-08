@@ -11,6 +11,109 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Code-review (high) follow-ups + a Payload transaction lesson
+
+A correctness-focused review pass (complementing the security review) on the auth branch.
+No High bugs; the access hooks held up. Actioned:
+
+- **M1 (fixed) — denormalized title went stale.** `SubjectGrade.displayName` ("<Subject> —
+  Grade N") is stored at write time; renaming the parent `Subject` left it stale. Added a
+  `Subject` afterChange hook that refreshes dependent SubjectGrade titles on rename.
+- **L3 (fixed) — duplicated access helpers consolidated.** Exported a shared `Assignment` type
+  and a single `subjectGradeIdsByRole` from `access/index.ts`; removed the near-duplicate copies
+  in `access/bundle.ts` and `hooks/userRoles.ts`. Behavior-preserving.
+- **Transaction-consistency bug surfaced while fixing M1 (the real lesson).** The rename hook
+  *looked* correct but the title still didn't update. Root cause, found by instrumenting:
+  (1) Payload **merges existing field values into `data`** on update, so a `beforeChange` that
+  guards on `data.grade == null` still runs its recompute even when you only passed one field;
+  and (2) `SubjectGrade.beforeChange`'s subject lookup **omitted `req`**, so it read *outside the
+  current transaction* and recomputed the title from the pre-rename name, clobbering the refresh.
+  **Rule:** always thread `req` into nested `payload.find/findByID/update` inside hooks — not just
+  for writes (atomicity) but for **reads**, or they see pre-transaction state. Don't assume a
+  partial update means other fields are absent in `beforeChange`.
+- **Verification:** `verify-rbac.ts` extended with a rename check; full gate green on the Rock
+  (9/9), test data self-cleaned. Tooling note: `/code-review` resolved to the CodeRabbit plugin
+  (name collision); the high-effort correctness pass was done inline instead.
+
+## 2026-06-08 — Product model: authorization entities + sub-strand bundle
+
+Modeled the authorization entities and the sub-strand bundle as **native Payload nested fields**
+(SPEC §3, §5, §8), plus the Codex scaffold-hygiene fixes. Collections: `subjects`,
+`subject-grades`, role-bearing `users`, and `lesson-bundles`. Verified locally as far as a
+DB-less host allows — `generate:types`, config sanitization, `tsc --noEmit`, and `eslint` all
+clean; the migration + true end-to-end run happen on the Rock. Decisions and the non-obvious
+traps:
+
+- **Content model grounded in real data, not memory.** Shapes were read from the
+  fidelity-proven `~/Desktop/ares-docx-fidelity-demo/bio_1_4_data.js` (matches SPEC §3 exactly):
+  `rubric[]` = `{criterion, excellent, proficient, developing}`; `sections[]` =
+  `{title, prompt, exemplar}`; `framework[].resources` is **absent** in real data → modeled
+  optional. `UNIT` is `{}` there → modeled minimally as a single optional `overview` pending a
+  populated example.
+- **Conflict resolved — admin-panel access.** NEXT-SESSION said "panel = Site Admins only";
+  **SPEC §5 (canonical) has Editors/Subject Admins editing via the admin edit screen in Phase 1.**
+  SPEC wins: `access.admin` (`adminPanelAccess`) allows **siteAdmin OR subjectAdmin OR editor**,
+  excludes plain Teachers. General rule: when NEXT-SESSION (staged plan) and SPEC (canonical)
+  disagree, SPEC governs; surface the conflict rather than silently following either.
+- **Conflict flagged — phase vocabulary.** The local `cbe-generation-system` checkout is the
+  older **Python** generator, so the authoritative Node `docx_kit.js` phase→colour map isn't
+  available. The `framework[].phase` dropdown uses the **five phase strings from `bio_1_4`**
+  (`Predict Phase`, `Observe Phase`, `Explain Phase`, `Driving Question Board (DQB) Creation`,
+  `Model Building Phase`). **TODO: reconcile against the Node generator's colour-map keys when
+  the generator integration / ingest lands** — an unknown phase silently degrades output (SPEC §4).
+- **Field access gates *values*; a hook gates *structure*.** Payload field-level `update: false`
+  silently keeps a field's existing value, but field access **cannot** stop add/remove/reorder of
+  array rows. So SPEC §5 is enforced in two layers: per-field access (prose = Editor+, META /
+  phase / duration / answer keys = Subject Admin+, resource column + lesson `number` = system-only),
+  **plus** `enforceBundleStructure` (beforeChange) which rejects cardinality/order changes by
+  non-admins and re-derives lesson numbers from order. Highest-risk surface → security-review.
+- **≤1 Subject Admin per subject-grade.** `autoDemotePriorSubjectAdmins` (afterChange) demotes any
+  prior holder to Editor in the **same transaction** (`req` threaded) guarded by a `context` flag.
+  Scoped role management for Subject Admins is enforced by `enforceAssignmentScope` (beforeChange):
+  a non-site-admin may only touch assignment rows for subject-grades they administer.
+- **`req.user` carries full role data.** Confirmed in installed source: the JWT strategy
+  re-fetches the user via `findByID` (`auth/strategies/jwt.js`), so `roles` and `assignments` are
+  always present in access functions; relationships come back as raw IDs at the default auth depth
+  (helpers normalize ID-or-object via `toId`).
+- **Two Payload-3 gotchas (trust installed source).** (1) A **virtual** field can be `useAsTitle`
+  *only* if it maps to a relationship field — so `SubjectGrade.displayName` ("<Subject> — Grade N")
+  is a **stored** field maintained by a beforeChange hook, not virtual. (2) `payload generate:types`
+  runs **without a DB** (pure config parse) and is a fast local correctness gate; `next build` and
+  migrations do need the DB → run on the Rock.
+- **Field naming.** Top-level groups are camelCase (`meta`, `unit`, `lessons`, `finalExplanation`,
+  `summaryTable`) to avoid uppercase-column oddities; the generator adapter will map them back to
+  `META/UNIT/LESSONS/FINAL_EXPLANATION/SUMMARY_TABLE`. Inner keys already match the ARES data verbatim.
+- **ESLint fix.** `eslint-config-next` 16 ships native flat-config arrays; wrapping them via
+  `FlatCompat.extends('next/...')` double-wraps the flat plugin config and crashes the legacy
+  validator ("circular structure"). Fix: import `eslint-config-next/core-web-vitals` and
+  `/typescript` and spread them directly (no FlatCompat).
+- **Security-review finding (fixed) — don't backfill `name` from `email`.** The first migration
+  backfilled the new, publicly-readable `users.name` from the private `email`. Because `name` is
+  *intentionally* public (attribution — SPEC §8) while `email` is gated by `emailReadAccess`,
+  copying email into name leaked it to any authenticated user for pre-existing rows. Fix: backfill
+  with a neutral `'User ' || id` placeholder, not email. **Rule:** when adding a public field to a
+  table with rows, never backfill it from a private column — fix the *data*, not the field's
+  visibility (locking down `name`'s read would break required attribution). The migration had
+  already applied on the Rock, so the data was corrected in place (admin `name` set to "Site
+  Administrator") and the committed migration amended for the not-yet-deployed production host;
+  amending an applied migration is acceptable here because only the pre-existing-row backfill
+  changed — the schema snapshot is untouched and the Rock won't replay it.
+- **Admin-panel lockout + bootstrap (fixed).** Gating `access.admin` on siteAdmin/assignment
+  (correct per SPEC §5) locked out the *existing* Rock admin, whose `roles` was `[]` — login API
+  returned 200 but `/admin` refused entry. Fixed in place (granted siteAdmin). The deeper bug:
+  on a *fresh* deploy Payload's first-user creation also yields `roles: []`, so the new admin
+  would be locked out too — a bootstrap deadlock. Fix: `grantSiteAdminToFirstUser` (beforeChange)
+  forces `roles: ['siteAdmin']` when creating the first user (user count 0). **Rule:** any time
+  panel/admin access is gated on a role, ensure the *first* user is granted that role
+  automatically, or the system is un-bootstrappable. Lesson on testing: `verify-rbac.ts` passed
+  because it created users *with* roles; it didn't cover the role-less pre-existing/first user —
+  exercise the bootstrap path, not just the happy path.
+- **Email adapter (operations).** Password resets silently no-op'd ("Email attempted without
+  being configured") because no email adapter was set. Added a conditional `nodemailerAdapter`
+  (enabled when `SMTP_HOST` is set; console fallback otherwise; `skipVerify` so boot isn't
+  coupled to SMTP reachability). Gmail SMTP needs a 16-char **App Password** (2FA required), not
+  the account password. SPEC §11 wants real email/observability before real users.
+
 ## 2026-06-08 — External review (Codex) triaged into the build plan
 
 Codex audited the scaffold against the root docs. Its code reads were accurate and it ran the

@@ -1,16 +1,12 @@
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
-import { FlatCompat } from '@eslint/eslintrc'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
+// ESLint 9 flat config. `eslint-config-next` 16 ships native flat-config arrays,
+// so we spread them directly — wrapping them via FlatCompat.extends() double-wraps
+// the flat plugin config and crashes the legacy validator ("circular structure").
+import coreWebVitals from 'eslint-config-next/core-web-vitals'
+import typescript from 'eslint-config-next/typescript'
 
 const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...coreWebVitals,
+  ...typescript,
   {
     rules: {
       '@typescript-eslint/ban-ts-comment': 'warn',
