@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Local agent skill mirror — canonical copy is tracked under .claude/skills/
+.agents/
