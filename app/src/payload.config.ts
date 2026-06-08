@@ -38,6 +38,9 @@ const email = process.env.SMTP_HOST
 
 export default buildConfig({
   email,
+  // Absolute base URL for this deployment. Used for CORS/CSRF and, importantly, to
+  // build absolute links in emails (e.g. the password-reset link). Per-host → env.
+  serverURL: process.env.SERVER_URL || undefined,
   admin: {
     user: Users.slug,
     importMap: {
