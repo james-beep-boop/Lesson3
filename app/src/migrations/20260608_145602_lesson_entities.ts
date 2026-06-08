@@ -131,10 +131,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   );
   
   -- Add nullable, backfill existing rows with a neutral non-PII placeholder, then
-  -- enforce NOT NULL. (A bare "ADD COLUMN name varchar NOT NULL" fails on a table
-  -- that already has rows.) Do NOT backfill from "email": `name` is publicly readable
-  -- (attribution — SPEC §8) while `email` is private, so copying email into name would
-  -- leak it to any authenticated user. Backfilled users should be given a real name.
+  -- enforce NOT NULL. (A bare ADD COLUMN name varchar NOT NULL fails on a table that
+  -- already has rows.) Do NOT backfill from email: the name column is publicly readable
+  -- (attribution, SPEC section 8) while email is private, so copying email into name
+  -- would leak it to any authenticated user. Give backfilled users a real name.
   ALTER TABLE "users" ADD COLUMN "name" varchar;
   UPDATE "users" SET "name" = 'User ' || "id"::text WHERE "name" IS NULL;
   ALTER TABLE "users" ALTER COLUMN "name" SET NOT NULL;

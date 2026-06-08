@@ -1,4 +1,5 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -14,7 +15,29 @@ import { LessonBundles } from './collections/LessonBundles'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Email adapter is opt-in via env so the app boots (console fallback) without SMTP
+// creds. When SMTP_HOST is set (runtime .env), real mail is sent — e.g. password
+// resets, which otherwise only log "Email attempted without being configured".
+// skipVerify keeps app boot decoupled from SMTP reachability; delivery is tested
+// separately. Port 465 = implicit TLS; anything else (e.g. 587) = STARTTLS.
+const smtpPort = Number(process.env.SMTP_PORT) || 465
+const email = process.env.SMTP_HOST
+  ? await nodemailerAdapter({
+      defaultFromName: process.env.EMAIL_FROM_NAME || 'ARES Lesson Library',
+      defaultFromAddress:
+        process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER || 'no-reply@localhost',
+      skipVerify: true,
+      transportOptions: {
+        host: process.env.SMTP_HOST,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      },
+    })
+  : undefined
+
 export default buildConfig({
+  email,
   admin: {
     user: Users.slug,
     importMap: {
