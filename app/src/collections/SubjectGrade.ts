@@ -51,7 +51,7 @@ export const SubjectGrade: CollectionConfig = {
         let subjectName: string | undefined
         if (subjectId != null) {
           const subject = await req.payload
-            .findByID({ collection: 'subjects', id: subjectId, depth: 0 })
+            .findByID({ collection: 'subjects', id: subjectId, depth: 0, req })
             .catch(() => null)
           subjectName = subject?.name
         }
