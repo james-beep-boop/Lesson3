@@ -13,10 +13,13 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ## 2026-06-08 — External audit (Codex + CodeRabbit) triage + fixes
 
-Second external pass on the auth/bundle branch (now merged to `main`). Six findings; all
-valid. Triage (live now / next-task / future) and resolution — **changes staged locally,
-not yet committed/deployed** (Rock still on `main`); verified on the Rock via bind-mounted
-source so `verify-rbac.ts` ran against the real DB (now **17/17**):
+Second external pass on the auth/bundle work (already merged to `main`). Six findings; all
+valid. Triage (live now / next-task / future) and resolution below.
+
+**Status:** committed as `eba6157` and pushed to `main`. **Deployed to the Rock** —
+rebuilt from `eba6157` via `docker compose up -d --build` (migrate exit 0, app running).
+`verify-rbac.ts` passes **17/17 against the deployed image** (rebuilt from this commit, not
+bind-mounted); the earlier bind-mounted runs were development iterations only.
 
 - **[live-when-roles-exist, FIXED] Subject Admins could reset any user's password.**
   Verified in installed source (`collections/operations/utilities/update.js`): Payload saves
