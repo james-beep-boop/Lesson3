@@ -1,19 +1,43 @@
-# Start-here for the next session
+# Start-here for the next session — Bundle versioning (SPEC §6)
 
-> **Status after the 2026-06-08 product-model session: DONE & deployed.** Phases A–C
-> implemented; `subjects`, `subject-grades`, role-bearing `users`, and `lesson-bundles`
-> collections + server-side access functions + auto-demote/structural-integrity hooks are in
-> `app/src`. Migration `20260608_145602_lesson_entities` generated on the Rock, **applied**, and
-> the app redeployed (branch `feat/auth-and-bundle-model`). RBAC verified end-to-end on the live
-> stack via `app/scripts/verify-rbac.ts` (8/8: auto-demote, editor field-access, structural
-> integrity) + unauthenticated 403s. `security-review` run: one finding (migration backfilled the
-> public `name` from private `email`) found and fixed — non-PII placeholder backfill + Rock admin
-> name reset to "Site Administrator". **Open:** the branch is not yet merged to `main`; the
-> separate **public-production host** has not deployed this branch yet.
+> **Status (merged & deployed):** scaffold + authorization entities + the sub-strand bundle
+> are done, merged to `main`, and running on the Rock at **`3fb833d`** (Docker `restart:
+> unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot). Field-level
+> Editor/admin protection on `lesson-bundles` is enforced by a **whitelist hook**
+> (`enforceBundleStructure`), not field access; `app/scripts/verify-rbac.ts` passes **19/19**
+> against the deployed image. Email (password resets) works via the nodemailer adapter +
+> `SERVER_URL`. Two external audits (Codex + CodeRabbit) are triaged and resolved — see the
+> top entries in `docs/DECISIONS.md`.
 >
-> **Next build step → versioning** (SPEC §6: Payload versions/drafts + semver + official
-> pointer) — its own session and migration. See `docs/DECISIONS.md` (2026-06-08 product-model
-> entry) for all decisions, including the email/`name` fix.
+> **Open / not-yet:** the separate **public-production host** hasn't deployed; `beforeDelete`
+> guards on Subject/SubjectGrade are required **before** any taxonomy delete UI is built.
+
+## This session: versioning (SPEC §6) — its own migration
+
+Suggested session name: **`Lesson3: Bundle versioning (SPEC §6)`** · branch `feat/bundle-versioning`.
+
+Opening message:
+
+> Read `SPEC.md` (§6), `CLAUDE.md`, and `docs/DECISIONS.md`. Scaffold, auth, and the
+> sub-strand bundle are done and deployed on the Rock (`main` @ `3fb833d`). Implement
+> **versioning** per SPEC §6: enable Payload versions/drafts on `lesson-bundles`; add
+> **semver** (`x.y.z`) + an **official-version pointer** as custom fields + a save hook
+> (first ingested = **1.0.0**, default edit bump = **patch**, user may choose
+> patch/minor/major, **≤1 official version per bundle**); add **optimistic concurrency**.
+> Use the `payload` skill (trust installed source over memory). Generate the migration on
+> the Rock as before (builder image, `migrate:create`, against the live DB); extend
+> `verify-rbac.ts` (or add a versioning test) and verify 0-fail on the Rock.
+
+Watch-outs for this work:
+- Versioning interacts with the **whitelist hook** — version restore/publish must respect the
+  same Editor/admin split (a restore is effectively a write; route it through, or re-assert,
+  `enforceBundleStructure`'s rules so an Editor can't restore admin-only changes).
+- Drafts add `_versions` tables and semver/official add columns → **new migration** (only
+  *apply* is automated on deploy; *create* is manual via the builder image — see the
+  schema-change workflow below).
+- Adding new bundle fields? They're **admin-only by default** under the whitelist — add to the
+  prose constant in `hooks/bundleIntegrity.ts` only if Editor-editable (see the LessonBundles
+  docstring).
 
 ---
 
