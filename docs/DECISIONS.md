@@ -36,6 +36,17 @@ host that older browsers hit — it silently breaks their cookie login; use `ADM
 links instead. Gotcha: `serverURL` must be the empty string, not `undefined` (undefined is still
 pushed to csrf).
 
+**Session policy (same session):** set `auth.tokenExpiration: 900` (15-min inactivity window).
+With `admin.autoRefresh` off (Payload default), the admin shows a "Stay logged in?" prompt ~1 min
+before expiry and **force-logs-out an unattended session at expiry even with the tab open** —
+addressing the shared-device "someone sits down later" concern (cookie persistence alone wouldn't).
+Avoided very short windows (e.g. 1 min): the prompt fires at `expiry − min(60s, lifetime/2)`, so a
+1-min window nags every ~30s and logs you out on any brief pause, risking lost unsaved edits.
+"Log Out" is always immediate. Note Payload has **no native session-cookie / "clear on tab/browser
+close"** option (cookie carries `Expires` = tokenExpiration, and tabs aren't cookie-scoped), so the
+inactivity window is the supported lever. Tune `tokenExpiration` (`app/src/collections/Users.ts`) if
+15 min proves tight for real editing.
+
 ## 2026-06-08 — Bundle field protection: blacklist → whitelist (secure by default)
 
 Follow-up to the audit below. The first fix made `enforceBundleStructure` restore an

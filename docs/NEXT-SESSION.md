@@ -1,16 +1,22 @@
 # Start-here for the next session — Bundle versioning (SPEC §6)
 
 > **Status (merged & deployed):** scaffold + authorization entities + the sub-strand bundle
-> are done, merged to `main`, and running on the Rock at **`3fb833d`** (Docker `restart:
-> unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot). Field-level
+> are done, merged to `main`, and running on the Rock at **`d0cf69a`** (Docker `restart:
+> unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot, verified). Field-level
 > Editor/admin protection on `lesson-bundles` is enforced by a **whitelist hook**
 > (`enforceBundleStructure`), not field access; `app/scripts/verify-rbac.ts` passes **19/19**
-> against the deployed image. Email (password resets) works via the nodemailer adapter +
-> `SERVER_URL`. Two external audits (Codex + CodeRabbit) are triaged and resolved — see the
-> top entries in `docs/DECISIONS.md`.
+> against the deployed image. Two external audits (Codex + CodeRabbit) are triaged and resolved.
 >
-> **Open / not-yet:** the separate **public-production host** hasn't deployed; `beforeDelete`
-> guards on Subject/SubjectGrade are required **before** any taxonomy delete UI is built.
+> **Auth/session hardening (post-reboot troubleshooting):** admin login is solid across browsers.
+> `serverURL` is intentionally **empty** on the Rock (setting it forced a strict CSRF allowlist
+> that bounced Safari's cookie login — see DECISIONS); email reset links use **`ADMIN_URL`**
+> instead. Session is a **15-minute inactivity window** (`auth.tokenExpiration: 900`,
+> `admin.autoRefresh` off): a "Stay logged in?" prompt ~1 min before expiry, force-logout if
+> unattended. Rock `.env` now has `SERVER_URL=` (empty) + `ADMIN_URL=http://rock5b...:3001`.
+>
+> **Open / not-yet:** the separate **public-production host** hasn't deployed (it sets `SERVER_URL`
+> for strict CSRF over HTTPS, and needs `ADMIN_URL`); `beforeDelete` guards on Subject/SubjectGrade
+> are required **before** any taxonomy delete UI is built. See the top entries in `docs/DECISIONS.md`.
 
 ## This session: versioning (SPEC §6) — its own migration
 
