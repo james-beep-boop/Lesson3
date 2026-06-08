@@ -1,49 +1,53 @@
-# Start-here for the next session — Bundle versioning (SPEC §6)
+# Start-here for the next session — Deploy versioning migration on the Rock
 
-> **Status (merged & deployed):** scaffold + authorization entities + the sub-strand bundle
-> are done, merged to `main`, and running on the Rock at the **current `main` HEAD** (Docker
-> `restart: unless-stopped`, data in volume `lesson3_lesson3_pgdata` — survives reboot, verified). Field-level
-> Editor/admin protection on `lesson-bundles` is enforced by a **whitelist hook**
-> (`enforceBundleStructure`), not field access; `app/scripts/verify-rbac.ts` passes **19/19**
-> against the deployed image. Two external audits (Codex + CodeRabbit) are triaged and resolved.
+> **Status:** scaffold + authorization entities + sub-strand bundle + **bundle versioning
+> (SPEC §6)** are coded and on `main`. The versioning code is NOT YET deployed — it needs
+> a migration generated and applied on the Rock before the app can restart.
 >
-> **Auth/session hardening (post-reboot troubleshooting):** admin login is solid across browsers.
-> `serverURL` is intentionally **empty** on the Rock (setting it forced a strict CSRF allowlist
-> that bounced Safari's cookie login — see DECISIONS); email reset links use **`ADMIN_URL`**
-> instead. Session is a **15-minute inactivity window** (`auth.tokenExpiration: 900`,
-> `admin.autoRefresh` off): a "Stay logged in?" prompt ~1 min before expiry, force-logout if
-> unattended. Rock `.env` now has `SERVER_URL=` (empty) + `ADMIN_URL=http://rock5b...:3001`.
+> **Versioning code (committed, not yet migrated):** `versions: { drafts: true, maxPerDoc: 100 }`
+> on `lesson-bundles`; `semver` / `bumpType` / `lockVersion` sidebar fields; versioning +
+> publishing-restriction logic in `enforceBundleStructure`; `verify-rbac.ts` extended with
+> 10 versioning checks. See `docs/DECISIONS.md` for the design decisions.
 >
-> **Open / not-yet:** the separate **public-production host** hasn't deployed (it sets `SERVER_URL`
-> for strict CSRF over HTTPS, and needs `ADMIN_URL`); `beforeDelete` guards on Subject/SubjectGrade
-> are required **before** any taxonomy delete UI is built. See the top entries in `docs/DECISIONS.md`.
+> **Auth/session hardening:** admin login is solid across browsers. `serverURL` intentionally
+> **empty** on the Rock; email reset links use `ADMIN_URL`. Session = 15-min inactivity window.
+>
+> **Open / not-yet:** the separate **public-production host** hasn't deployed; `beforeDelete`
+> guards on Subject/SubjectGrade are required before any taxonomy delete UI is built.
 
-## This session: versioning (SPEC §6) — its own migration
-
-Suggested session name: **`Lesson3: Bundle versioning (SPEC §6)`** · branch `feat/bundle-versioning`.
+## This session: migrate + deploy versioning on the Rock
 
 Opening message:
 
-> Read `SPEC.md` (§6), `CLAUDE.md`, and `docs/DECISIONS.md`. Scaffold, auth, and the
-> sub-strand bundle are done and deployed on the Rock (current `main`). Implement
-> **versioning** per SPEC §6: enable Payload versions/drafts on `lesson-bundles`; add
-> **semver** (`x.y.z`) + an **official-version pointer** as custom fields + a save hook
-> (first ingested = **1.0.0**, default edit bump = **patch**, user may choose
-> patch/minor/major, **≤1 official version per bundle**); add **optimistic concurrency**.
-> Use the `payload` skill (trust installed source over memory). Generate the migration on
-> the Rock as before (builder image, `migrate:create`, against the live DB); extend
-> `verify-rbac.ts` (or add a versioning test) and verify 0-fail on the Rock.
+> Read `SPEC.md` (§6), `CLAUDE.md`, and `docs/DECISIONS.md`. Bundle versioning is coded and
+> committed to `main`. The schema change needs a migration before it can deploy:
+>
+> 1. **On the Rock (`/srv/lesson3`):** `git pull` to get the versioning code, then generate
+>    the migration via the `migrate` service (it builds the Dockerfile `builder` target,
+>    which carries the Payload CLI + src/config; `run` overrides its default command and
+>    starts the `postgres` dep automatically):
+>    ```
+>    docker compose run --rm migrate npx payload migrate:create bundle-versioning
+>    ```
+>    This generates `app/src/migrations/<timestamp>_bundle-versioning.ts` — commit it.
+>
+> 2. **Redeploy:** `docker compose up -d --build` — the `migrate` service applies the new
+>    migration automatically (Payload's `versions` tables + new columns).
+>
+> 3. **Verify:** `docker compose run --rm migrate npx payload run scripts/verify-rbac.ts`
+>    — should be 0 fail (the versioning checks are already in the script).
+>
+> Then update this file to point at the next planned work (ingest, SPEC §7).
 
-Watch-outs for this work:
-- Versioning interacts with the **whitelist hook** — version restore/publish must respect the
-  same Editor/admin split (a restore is effectively a write; route it through, or re-assert,
-  `enforceBundleStructure`'s rules so an Editor can't restore admin-only changes).
-- Drafts add `_versions` tables and semver/official add columns → **new migration** (only
-  *apply* is automated on deploy; *create* is manual via the builder image — see the
-  schema-change workflow below).
-- Adding new bundle fields? They're **admin-only by default** under the whitelist — add to the
-  prose constant in `hooks/bundleIntegrity.ts` only if Editor-editable (see the LessonBundles
-  docstring).
+Watch-outs:
+- The migration generates `_lesson_bundles_v` (versions table) plus `semver`, `bump_type`,
+  `lock_version` columns on `lesson_bundles`. Existing rows get `lock_version = 0` (the
+  `defaultValue: 0` in the field definition ensures the migration sets the column default).
+- `semver` will be NULL on existing rows until they are saved — this is fine; the hook
+  treats `null` as `'1.0.0'` and bumps from there on next save. Optionally add a
+  `UPDATE lesson_bundles SET semver = '1.0.0' WHERE semver IS NULL` to the migration SQL.
+- With drafts enabled, Payload adds a `_status` column to `lesson_bundles`. Existing rows
+  get `_status = 'draft'` (Payload default). Subject Admins can publish them after migration.
 
 ---
 

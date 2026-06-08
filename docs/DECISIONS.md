@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Bundle versioning: implementation decisions (SPEC §6)
+
+Implemented `versions: { drafts: true, maxPerDoc: 100 }` on `lesson-bundles` plus three
+sidebar fields (`semver`, `bumpType`, `lockVersion`) and versioning logic in
+`enforceBundleStructure`. Key decisions:
+
+- **Payload drafts as the "official version" mechanism.** Payload's single published
+  document per collection naturally enforces "≤1 official version per bundle" (SPEC §6).
+  Publishing (`_status: 'published'`) = marking official. The whitelist hook preserves
+  `_status` for Editors (`d._status = orig._status ?? 'draft'`), so only Subject Admins
+  can publish.
+- **bumpType is Editor-accessible.** SPEC §6 says "user may choose patch/minor/major" without
+  restricting who. The `bumpType` field passes through the whitelist for all users; Editors
+  can signal a minor/major bump when their change warrants it. The hook consumes and resets
+  it to `'patch'` after every save.
+- **Versioning logic runs before the admin early-return.** The semver bump and lockVersion
+  increment are in the outer scope of `enforceBundleStructure` (before `if (isSubjectAdminFor)
+  return data`), so all users get version stamps on every save. Subject Admins also get the
+  whitelist bypassed (correct).
+- **Restore interaction.** Version restore in Payload calls `update` with the old version's
+  data, which goes through `enforceBundleStructure`. For Editors: the whitelist applies —
+  only prose fields from the restored version are written; admin fields are preserved from
+  the current document. For Subject Admins: the full restored data is written. The semver
+  always bumps on restore (treated as a write), which is correct.
+- **Optimistic concurrency: `lockVersion` counter + Payload's `lockDocuments`.** True
+  server-side OCC (reject-if-stale) can't safely distinguish a restore (submitted old
+  `lockVersion`) from a concurrent edit without Payload exposing a restore context flag.
+  Implemented: `lockVersion` increments on every save (clients can use it to detect races);
+  `lockDocuments: true` (explicit; prevents concurrent admin UI edits via Payload's locking).
+  Server-side reject-if-stale can be added when building custom API endpoints — at that
+  point callers can pass `_expectedLockVersion` and the hook can enforce it.
+
+---
+
 ## 2026-06-08 — Admin login loop on Safari: serverURL forces strict CSRF
 
 After a Rock reboot, browser login looped (enter password → flicker → back to login),

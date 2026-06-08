@@ -4,6 +4,20 @@ import { Forbidden } from 'payload'
 import type { User } from '@/payload-types'
 import { isSubjectAdminFor, toId } from '../access'
 
+// ---------------------------------------------------------------------------
+// Semver helpers (SPEC §6)
+// ---------------------------------------------------------------------------
+
+const bumpSemver = (current: string, bump: string): string => {
+  const parts = (current ?? '1.0.0').split('.').map(Number)
+  const [major = 1, minor = 0, patch = 0] = parts
+  switch (bump) {
+    case 'major': return `${major + 1}.0.0`
+    case 'minor': return `${major}.${minor + 1}.0`
+    default:      return `${major}.${minor}.${patch + 1}`
+  }
+}
+
 /**
  * Structural + field-level integrity for LessonBundles (SPEC §5, §13).
  *
@@ -104,7 +118,18 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
     })
   }
 
-  // 2. Structure + field protection only apply to updates by non-admins.
+  // 2. Versioning (SPEC §6) — runs for all users on every save.
+  if (operation === 'create') {
+    data.semver = '1.0.0'
+    data.lockVersion = 0
+    data.bumpType = 'patch'
+  } else if (operation === 'update' && originalDoc) {
+    data.semver = bumpSemver(originalDoc.semver ?? '1.0.0', data.bumpType ?? 'patch')
+    data.bumpType = 'patch' // reset after consuming
+    data.lockVersion = (originalDoc.lockVersion ?? 0) + 1
+  }
+
+  // 3. Structure + field protection only apply to updates by non-admins.
   if (operation !== 'update' || !originalDoc || !data) return data
   const subjectGradeId = toId((data.subjectGrade ?? originalDoc.subjectGrade) as never)
   if (isSubjectAdminFor(req.user as User, subjectGradeId)) return data
@@ -149,6 +174,8 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
   d.subjectGrade = orig.subjectGrade
   d.meta = orig.meta
   d.unit = orig.unit
+  // Publishing (marking official, SPEC §6) is Subject Admin only.
+  d._status = orig._status ?? 'draft'
 
   if (Array.isArray(d.lessons)) {
     d.lessons = overlayRows(orig.lessons, d.lessons as Doc[], LESSON_PROSE, (baseRow, subRow, out) => {

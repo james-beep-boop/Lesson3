@@ -65,9 +65,14 @@ export const LessonBundles: CollectionConfig = {
   slug: 'lesson-bundles',
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'subjectGrade'],
+    defaultColumns: ['title', 'subjectGrade', 'semver', '_status'],
     group: 'Content',
   },
+  versions: {
+    drafts: true,
+    maxPerDoc: 100,
+  },
+  lockDocuments: true,
   access: {
     read: lessonBundleRead,
     create: lessonBundleCreate,
@@ -78,6 +83,41 @@ export const LessonBundles: CollectionConfig = {
     beforeChange: [enforceBundleStructure],
   },
   fields: [
+    // ---- Versioning (sidebar) ----
+    {
+      name: 'semver',
+      type: 'text',
+      defaultValue: '1.0.0',
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Set automatically on each save.',
+      },
+    },
+    {
+      name: 'bumpType',
+      type: 'select',
+      defaultValue: 'patch',
+      options: [
+        { label: 'Patch (1.0.x) — prose edits', value: 'patch' },
+        { label: 'Minor (1.x.0) — new content or structure', value: 'minor' },
+        { label: 'Major (x.0.0) — breaking / complete revision', value: 'major' },
+      ],
+      admin: {
+        position: 'sidebar',
+        description: 'Version increment for the next save.',
+      },
+    },
+    {
+      name: 'lockVersion',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Generation counter — increments on every save.',
+      },
+    },
     {
       // Human label for lists; mirrors META titleDoc. Structural (admin-set).
       name: 'title',

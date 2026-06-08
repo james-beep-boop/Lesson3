@@ -370,6 +370,87 @@ const run = async () => {
       all.finalExplanation?.sections?.[0]?.prompt === 'editor prompt 2' &&
       all.summaryTable?.lessons?.[0]?.observed === 'editor obs'
     check('cross-container: all prose edits applied on editor edit', proseApplied)
+    // --- VERSIONING (SPEC §6) ---
+    // Fresh bundle: semver should be 1.0.0 on create.
+    check('semver initialized to 1.0.0 on create', bundle.semver === '1.0.0')
+    check('lockVersion initialized to 0 on create', bundle.lockVersion === 0)
+
+    // Editor save → patch bump (default).
+    const afterEditorSave = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: editorUser,
+      overrideAccess: false,
+      data: {
+        lessons: [
+          {
+            id: bundle.lessons![0].id,
+            title: 'version bump test',
+            framework: [{ id: bundle.lessons![0].framework![0].id, phase: 'Predict Phase', learnerExperience: 'bump' }],
+          },
+        ],
+      },
+    })
+    check('editor save bumps semver by patch (1.0.0 → 1.0.1)', afterEditorSave.semver === '1.0.1')
+    check('lockVersion increments on save (0 → 1)', afterEditorSave.lockVersion === 1)
+    check('bumpType reset to patch after save', afterEditorSave.bumpType === 'patch')
+
+    // Editor can request a minor bump.
+    const afterMinorBump = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: editorUser,
+      overrideAccess: false,
+      data: {
+        bumpType: 'minor',
+        lessons: [
+          {
+            id: bundle.lessons![0].id,
+            title: 'minor bump test',
+            framework: [{ id: bundle.lessons![0].framework![0].id, phase: 'Predict Phase', learnerExperience: 'minor' }],
+          },
+        ],
+      },
+    })
+    check('editor can request minor bump (1.0.1 → 1.1.0)', afterMinorBump.semver === '1.1.0')
+    check('bumpType reset to patch after minor bump', afterMinorBump.bumpType === 'patch')
+
+    // Subject Admin can request a major bump.
+    const afterMajorBump = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: userBUser,
+      overrideAccess: false,
+      data: { bumpType: 'major' },
+    })
+    check('subject admin can request major bump (1.1.0 → 2.0.0)', afterMajorBump.semver === '2.0.0')
+
+    // Editor cannot publish (mark official) — _status must stay 'draft'.
+    const afterEditorPublish = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: editorUser,
+      overrideAccess: false,
+      data: { _status: 'published' } as Record<string, unknown>,
+    })
+    check(
+      'editor cannot publish (status preserved as draft)',
+      (afterEditorPublish as Record<string, unknown>)._status !== 'published',
+    )
+
+    // Subject Admin can publish.
+    const afterAdminPublish = await payload.update({
+      collection: 'lesson-bundles',
+      id: bundle.id,
+      user: userBUser,
+      overrideAccess: false,
+      data: { _status: 'published' } as Record<string, unknown>,
+    })
+    check(
+      'subject admin can publish (mark official)',
+      (afterAdminPublish as Record<string, unknown>)._status === 'published',
+    )
+
   } finally {
     // Cleanup in reverse creation order.
     for (const { collection, id } of created.reverse()) {
