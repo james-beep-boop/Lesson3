@@ -9,8 +9,11 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+# Install dependencies based on the preferred package manager.
+# .npmrc carries `legacy-peer-deps=true` (Payload 3 / React 19 / Next 16 peer conflicts);
+# it MUST be present so `npm ci` resolves the same tree the lockfile was authored with —
+# otherwise npm ci runs strict-peer and rejects the lock ("Missing yjs/monaco/... from lock file").
+COPY package.json package-lock.json* .npmrc* yarn.lock* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
