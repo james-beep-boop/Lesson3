@@ -1,14 +1,19 @@
 # Start-here for the next session
 
-> **Status after the 2026-06-08 product-model session:** Phases A–C are implemented and
-> verified locally (`generate:types`, config sanitize, `tsc`, `eslint` all clean) — scaffold
-> hygiene done; `subjects`, `subject-grades`, role-bearing `users`, and `lesson-bundles`
-> collections + server-side access functions + the auto-demote and structural-integrity hooks
-> are in `app/src`. **Remaining:** generate the migration on the Rock (`migrate:create` against
-> the live DB), deploy, and run the end-to-end RBAC checks + `security-review` (the
-> "On the Rock" section of the approved plan). **Then** the next build step is **versioning**
-> (SPEC §6: Payload versions/drafts + semver + official pointer) — its own session and migration.
-> See `docs/DECISIONS.md` (2026-06-08 product-model entry) for the decisions made.
+> **Status after the 2026-06-08 product-model session: DONE & deployed.** Phases A–C
+> implemented; `subjects`, `subject-grades`, role-bearing `users`, and `lesson-bundles`
+> collections + server-side access functions + auto-demote/structural-integrity hooks are in
+> `app/src`. Migration `20260608_145602_lesson_entities` generated on the Rock, **applied**, and
+> the app redeployed (branch `feat/auth-and-bundle-model`). RBAC verified end-to-end on the live
+> stack via `app/scripts/verify-rbac.ts` (8/8: auto-demote, editor field-access, structural
+> integrity) + unauthenticated 403s. `security-review` run: one finding (migration backfilled the
+> public `name` from private `email`) found and fixed — non-PII placeholder backfill + Rock admin
+> name reset to "Site Administrator". **Open:** the branch is not yet merged to `main`; the
+> separate **public-production host** has not deployed this branch yet.
+>
+> **Next build step → versioning** (SPEC §6: Payload versions/drafts + semver + official
+> pointer) — its own session and migration. See `docs/DECISIONS.md` (2026-06-08 product-model
+> entry) for all decisions, including the email/`name` fix.
 
 ---
 
