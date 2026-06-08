@@ -35,6 +35,14 @@ const run = async () => {
     // displayName auto-generated
     check('subject-grade displayName computed', sg.displayName === `${P}Biology — Grade 99`)
 
+    // M1: renaming the subject refreshes dependent SubjectGrade titles.
+    await payload.update({ collection: 'subjects', id: subject.id, data: { name: `${P}Zoology` } })
+    const sgRenamed = await payload.findByID({ collection: 'subject-grades', id: sg.id, depth: 0 })
+    check(
+      'subject rename refreshes SubjectGrade displayName',
+      sgRenamed.displayName === `${P}Zoology — Grade 99`,
+    )
+
     // --- auto-demote: <=1 subject admin per subject-grade ---
     const userA = track(
       'users',

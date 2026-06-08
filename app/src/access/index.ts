@@ -17,7 +17,7 @@ import type { User } from '@/payload-types'
  * normalizes ID-or-object so callers don't care which.
  */
 
-type Assignment = NonNullable<User['assignments']>[number]
+export type Assignment = NonNullable<User['assignments']>[number]
 type SubjectGradeRef = Assignment['subjectGrade']
 
 export const toId = (ref: SubjectGradeRef | null | undefined): number | undefined => {
@@ -59,6 +59,19 @@ export const isEditorFor = (
 /** Holds a Subject Admin grant for at least one subject-grade. */
 export const isSubjectAdminForAny = (user: User | null | undefined): boolean =>
   Boolean(user?.assignments?.some((a) => a.role === 'subjectAdmin'))
+
+/** Distinct subject-grade ids where the user holds any of the given roles. */
+export const subjectGradeIdsByRole = (
+  user: User | null | undefined,
+  roles: Assignment['role'][],
+): number[] => {
+  if (!user?.assignments) return []
+  const ids = user.assignments
+    .filter((a) => roles.includes(a.role))
+    .map((a) => toId(a.subjectGrade))
+    .filter((id): id is number => id != null)
+  return [...new Set(ids)]
+}
 
 // ---------------------------------------------------------------------------
 // Collection-level access

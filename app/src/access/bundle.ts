@@ -1,7 +1,14 @@
 import type { Access, FieldAccess } from 'payload'
 
 import type { User } from '@/payload-types'
-import { isEditorFor, isSiteAdmin, isSubjectAdminFor, toId } from './index'
+import type { Assignment } from './index'
+import {
+  isEditorFor,
+  isSiteAdmin,
+  isSubjectAdminFor,
+  subjectGradeIdsByRole,
+  toId,
+} from './index'
 
 /**
  * Access for LessonBundles (SPEC §5, §8).
@@ -15,25 +22,11 @@ import { isEditorFor, isSiteAdmin, isSubjectAdminFor, toId } from './index'
  * column and lesson numbers are system-only.
  */
 
-type Assignment = NonNullable<User['assignments']>[number]
-
-const collectSubjectGradeIds = (
-  user: User | null | undefined,
-  roles: Assignment['role'][],
-): number[] => {
-  if (!user?.assignments) return []
-  const ids = user.assignments
-    .filter((a) => roles.includes(a.role))
-    .map((a) => toId(a.subjectGrade))
-    .filter((id): id is number => id != null)
-  return [...new Set(ids)]
-}
-
 export const editableSubjectGradeIds = (user: User | null | undefined): number[] =>
-  collectSubjectGradeIds(user, ['editor', 'subjectAdmin'])
+  subjectGradeIdsByRole(user, ['editor', 'subjectAdmin'])
 
 export const adminSubjectGradeIds = (user: User | null | undefined): number[] =>
-  collectSubjectGradeIds(user, ['subjectAdmin'])
+  subjectGradeIdsByRole(user, ['subjectAdmin'])
 
 // The subject-grade this field's document belongs to: existing doc on update,
 // incoming data on create.

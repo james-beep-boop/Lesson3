@@ -2,9 +2,8 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
+import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
-
-type Assignment = NonNullable<User['assignments']>[number]
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
 
