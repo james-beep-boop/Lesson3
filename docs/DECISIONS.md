@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — External review (Codex) triaged into the build plan
+
+Codex audited the scaffold against the root docs. Its code reads were accurate and it ran the
+real `lint`/`test`/`build` commands (caught genuine tooling breakage). Its weakness was
+**urgency calibration**: it reviewed code-vs-root-docs without weighting the staged plan
+(this file + `NEXT-SESSION.md`), so "no product model yet" was reported as a defect when it's
+the intended scaffold state. Outcome:
+
+- **Actionable items folded into `NEXT-SESSION.md`:** a "scaffold-hygiene" pre-flight
+  (npm/pnpm drift in the `test` script; int-test DB host; ESLint flat-config; finish dep
+  pinning; Media default-private), plus the security items attached to the auth task
+  (`access.admin`; `username` + field-level `email` read). None is a live exploit today
+  (only the admin user exists) — they're requirements for the imminent roles work.
+- **Prompting lesson for cross-model review:** give the reviewer the plan/stage
+  (`SPEC.md` + `DECISIONS.md` + `NEXT-SESSION.md`); ask it to classify findings as
+  (a) live risk now / (b) requirement of the next planned task / (c) future, and to check
+  exploitability before assigning P1; have it separate scaffold defaults from designed
+  choices. Keep leaning on it for running the deterministic commands and (later) security
+  review of the access functions.
+- Reviews stay **advisory**; the deterministic gate (golden-file diff, type-check, CI) is the
+  arbiter — consistent with the 2026-06-07 multi-agent decision.
+
 ## 2026-06-08 — Scaffold deployed on Rock 5B; build & DB-init gotchas resolved
 
 Got the Payload + Postgres stack building and running in Docker on the Rock 5B

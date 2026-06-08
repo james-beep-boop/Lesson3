@@ -21,6 +21,28 @@ On the Rock: `cd /srv/lesson3 && git pull && docker compose up -d --build`, then
 `docker compose logs migrate` (should apply nothing — initial already applied — and exit 0)
 and `docker ps` (app + postgres up). Proves the new gate before feature work.
 
+## Pre-flight — scaffold-hygiene fixes (from a Codex audit; do before feature work)
+
+Small, no-migration fixes that restore a currently-broken dev/test loop. Bank these first
+so "verify, never assume" actually holds (each verified against the scaffold):
+
+- [ ] **Package-manager drift:** `app/package.json` `test` script calls `pnpm`, but the
+  project uses npm (`package-lock.json`, Docker `npm ci`). Switch the `test` script to npm
+  and drop the `pnpm` `engines`/config block. (`npm test` currently fails: `pnpm: not found`.)
+- [ ] **Int-test DB host:** `vitest.setup.ts` loads `.env`, whose `DATABASE_URI` host is the
+  Docker service name `postgres` (unresolvable on the host). Add `app/test.env` (or a test
+  override) pointing at `localhost`/a test DB so `npm run test:int` connects.
+- [ ] **ESLint flat-config fails** under ESLint 9 + Next 16 `FlatCompat`. Make `npm run lint`
+  actually run (pin/adjust the config).
+- [ ] **Finish dependency pinning** (our policy): `cross-env`, `graphql`, `eslint`, `prettier`
+  still carry `^` ranges — pin exact like the Payload/Next/React deps already are.
+- [ ] **Media default-private:** `app/src/collections/Media.ts` has `read: () => true`
+  (blank-template default). Gate it (authenticated/role-based) until there's an explicit
+  public-asset policy.
+
+> Not a defect: Codex also flagged "no product model yet" — that is the intended scaffold
+> state described by this doc, not a problem.
+
 ## Immediate task — model in this order
 1. **Authorization entities FIRST** (so access functions exist to attach to):
    - `Subject` (discipline only) and `SubjectGrade` (subject + **integer** grade; display
@@ -29,6 +51,11 @@ and `docker ps` (app + postgres up). Proves the new gate before feature work.
      auto-demotes the prior holder to Editor in **one transaction**), **Editor**
      (per subject-grade), **Teacher** (default; view/export). Enforce in Payload access
      functions, **server-side**. Non–Site-Admins never see others' emails.
+   - **Fix the scaffold-default Users collection as part of this** (insecure defaults; no
+     live exploit yet — only the admin user exists): add `access.admin` so only Site Admins
+     (not Teachers/Editors) can enter the Payload admin panel — without it *any* user in the
+     collection can; add a `username`/display field, move `admin.useAsTitle` off `email`, and
+     add **field-level read access on `email`** so non-Site-Admins never see it (SPEC §8).
 2. **The sub-strand bundle** as **native nested fields** (NOT a JSON blob):
    `META, UNIT, LESSONS[]{ slo, overview, framework[]{ phase (dropdown), learnerExperience,
    teacherMoves, sensemakingStrategy, formativeAssessment, resources? }, teacherReflection,
@@ -45,6 +72,18 @@ Adding collections/fields is a schema change → generate a **new migration befo
 build the `builder`/tools image and run `npx payload migrate:create <name>` against the DB,
 commit `app/src/migrations/*`. The `migrate` service applies it automatically on
 `docker compose up`. (Only the *apply* is automated; *create* is still a manual step.)
+
+## Housekeeping & investigate (opportunistic / non-blocking)
+- **Sync stale root docs:** `README.md` still says "scaffolding not generated"; `AGENTS.md`
+  still says test framework "TBD" (it's Vitest + Playwright now).
+- **Remove blank-template artifacts:** `app/src/app/(frontend)/page.tsx` + `layout.tsx`,
+  `tests/e2e/frontend.e2e.spec.ts`, `app/.env.example`, `app/README.md` still describe the
+  Payload/Mongo blank template.
+- **Investigate, don't assume a bug:** local `npm run build` hung at "Creating an optimized
+  production build". The Docker build works (`/admin` is live on the Rock), so this is most
+  likely a local-env quirk — reproduce in Docker before changing anything.
+- **Node 22/25 lock drift** (already logged in DECISIONS 2026-06-08): regenerate lockfiles
+  under Node 22, or align local dev to Node 22.
 
 ## Use these
 - **`payload` skill** (`.claude/skills/payload/`) — collections, fields, access control, hooks,
