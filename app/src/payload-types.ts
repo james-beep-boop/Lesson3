@@ -227,6 +227,18 @@ export interface Media {
 export interface LessonBundle {
   id: number;
   /**
+   * Set automatically on each save.
+   */
+  semver?: string | null;
+  /**
+   * Version increment for the next save.
+   */
+  bumpType?: ('patch' | 'minor' | 'major') | null;
+  /**
+   * Generation counter — increments on every save.
+   */
+  lockVersion?: number | null;
+  /**
    * Bundle label for lists, e.g. the document title.
    */
   title: string;
@@ -426,6 +438,7 @@ export interface LessonBundle {
   };
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -588,6 +601,9 @@ export interface SubjectGradesSelect<T extends boolean = true> {
  * via the `definition` "lesson-bundles_select".
  */
 export interface LessonBundlesSelect<T extends boolean = true> {
+  semver?: T;
+  bumpType?: T;
+  lockVersion?: T;
   title?: T;
   subjectGrade?: T;
   meta?:
@@ -708,6 +724,7 @@ export interface LessonBundlesSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

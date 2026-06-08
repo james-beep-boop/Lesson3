@@ -431,11 +431,11 @@ const run = async () => {
       id: bundle.id,
       user: editorUser,
       overrideAccess: false,
-      data: { _status: 'published' } as Record<string, unknown>,
+      data: { _status: 'published' },
     })
     check(
       'editor cannot publish (status preserved as draft)',
-      (afterEditorPublish as Record<string, unknown>)._status !== 'published',
+      afterEditorPublish._status !== 'published',
     )
 
     // Subject Admin can publish.
@@ -444,11 +444,11 @@ const run = async () => {
       id: bundle.id,
       user: userBUser,
       overrideAccess: false,
-      data: { _status: 'published' } as Record<string, unknown>,
+      data: { _status: 'published' },
     })
     check(
       'subject admin can publish (mark official)',
-      (afterAdminPublish as Record<string, unknown>)._status === 'published',
+      afterAdminPublish._status === 'published',
     )
 
   } finally {
