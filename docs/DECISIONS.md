@@ -39,9 +39,11 @@ sidebar fields (`semver`, `bumpType`, `lockVersion`) and versioning logic in
   server-side OCC (reject-if-stale) can't safely distinguish a restore (submitted old
   `lockVersion`) from a concurrent edit without Payload exposing a restore context flag.
   Implemented: `lockVersion` increments on every save (clients can use it to detect races);
-  `lockDocuments: true` (explicit; prevents concurrent admin UI edits via Payload's locking).
-  Server-side reject-if-stale can be added when building custom API endpoints — at that
-  point callers can pass `_expectedLockVersion` and the hook can enforce it.
+  Payload 3 **document locking is on by default** (guards concurrent admin-UI edits) — note
+  there is no `lockDocuments: true` literal (the option type is `false | { duration }`), so we
+  leave it at the default rather than setting it explicitly. Server-side reject-if-stale can
+  be added when building custom API endpoints — at that point callers can pass
+  `_expectedLockVersion` and the hook can enforce it.
 
 ---
 

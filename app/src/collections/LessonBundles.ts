@@ -72,7 +72,9 @@ export const LessonBundles: CollectionConfig = {
     drafts: true,
     maxPerDoc: 100,
   },
-  lockDocuments: true,
+  // Document locking is ON by default in Payload 3 (no `true` literal exists; the
+  // option is `false | { duration }`). Leaving it default = concurrent admin-UI
+  // edits are guarded. See docs/DECISIONS.md (optimistic concurrency).
   access: {
     read: lessonBundleRead,
     create: lessonBundleCreate,
