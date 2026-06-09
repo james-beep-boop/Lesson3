@@ -36,7 +36,9 @@ const run = async () => {
     depth: 0,
     overrideAccess: true,
   })) as LessonBundle
-  const prefix = bundle.meta?.filePrefix || 'bundle'
+  // `filePrefix` is ingested data — sanitise to a bare filename component (no path
+  // separators / traversal) before using it in a path join.
+  const prefix = (bundle.meta?.filePrefix || 'bundle').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
   const docx = await generateForBundle(payload, id)
   const outDir = outArg ?? mkdtempSync(path.join(os.tmpdir(), 'lesson3-docx-'))

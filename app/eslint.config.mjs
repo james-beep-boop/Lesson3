@@ -27,7 +27,15 @@ const eslintConfig = [
     },
   },
   {
-    ignores: ['.next/', 'src/payload-types.ts', 'src/payload-generated-schema.ts'],
+    // Vendored ARES generator is byte-pristine CommonJS (require()-style) that we must
+    // never edit — see vendor/PROVENANCE.md. The sibling aresResources.js is our shim
+    // but lives in the same require-path dir; linting it as ESM is noise. Exclude both.
+    ignores: [
+      '.next/',
+      'src/payload-types.ts',
+      'src/payload-generated-schema.ts',
+      'src/generator/vendor/**',
+    ],
   },
 ]
 

@@ -33,6 +33,16 @@ function hasContent(value: unknown): boolean {
 }
 
 /**
+ * Force a generator-iterated slot to an array. The generator unconditionally `.map()`s
+ * over LESSONS, `lesson.framework`, FE.sections, FE.rubric and ST.lessons; Payload
+ * normally returns `[]` for empty arrays, but a missing/null value would otherwise be
+ * turned into `''` by `clean()` and crash `.map`. Guard those exact slots.
+ */
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value.map(clean) : []
+}
+
+/**
  * Deep copy that drops Payload's row `id`, normalises `null` → `''`, and prunes empty
  * `resources` groups. Pure (does not mutate the input).
  */
@@ -55,14 +65,26 @@ function clean(value: unknown): unknown {
 
 /** Map a stored bundle to the ARES generator's data object. */
 export function bundleToAresData(bundle: LessonBundle): AresDataObject {
-  const finalExplanation = clean(bundle.finalExplanation ?? {})
-  const summaryTable = clean(bundle.summaryTable ?? {})
+  const lessons = asArray(bundle.lessons).map((lesson) => {
+    const l = lesson as Record<string, unknown>
+    // `clean` already stripped ids / pruned empty resources inside each framework row;
+    // re-assert framework is an array so a null/missing value can't crash the generator.
+    l.framework = Array.isArray(l.framework) ? l.framework : []
+    return l
+  })
+
+  const fe = clean(bundle.finalExplanation ?? {}) as Record<string, unknown>
+  fe.sections = Array.isArray(fe.sections) ? fe.sections : []
+  fe.rubric = Array.isArray(fe.rubric) ? fe.rubric : []
+
+  const st = clean(bundle.summaryTable ?? {}) as Record<string, unknown>
+  st.lessons = Array.isArray(st.lessons) ? st.lessons : []
 
   return {
     META: clean(bundle.meta ?? {}),
     UNIT: clean(bundle.unit ?? {}),
-    LESSONS: ((bundle.lessons ?? []) as unknown[]).map(clean),
-    FINAL_EXPLANATION: hasContent(finalExplanation) ? finalExplanation : undefined,
-    SUMMARY_TABLE: hasContent(summaryTable) ? summaryTable : undefined,
+    LESSONS: lessons,
+    FINAL_EXPLANATION: hasContent(fe) ? fe : undefined,
+    SUMMARY_TABLE: hasContent(st) ? st : undefined,
   }
 }

@@ -11,6 +11,51 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Phase 2 external review (Codex/CodeRabbit) triage + fixes
+
+Codex reviewed the just-committed Phase 2. Five findings, all valid; verified each directly
+(don't trust the summary) and fixed. Gates re-run green afterward.
+
+- **[FIXED — broken gates, mine to own] Repo lint + `tsc` were red, since Phase 0/1.**
+  Verified: `npm run lint` → **10 errors, all the vendored pristine CJS** (`require()`
+  forbidden) — eslint was never told to ignore `src/generator/vendor/`. `tsc --noEmit` → the
+  vendored `.js` aren't checked (tsconfig `include` is `**/*.ts`), but `jsdom` was untyped in
+  `scripts/`, so **`next build` would have failed too** (uncaught only because Phase 0/1 was
+  never built on the Rock). **Calling it "pre-existing" was the wrong call** — a committed gate
+  that doesn't pass is a broken gate. Fixes: eslint `ignores: ['src/generator/vendor/**']`
+  (pristine code we must never edit + our sibling shim); added `@types/jsdom@28.0.3` (exact,
+  matches `jsdom@28.0.0`). Now `lint` 0 errors / `tsc` 0 errors. **Rule:** run the *repo-wide*
+  `npm run lint` / `tsc`, not just `eslint <my-files>` — a gate is the whole tree or it's nothing.
+- **[FIXED — latent crash] Published ≠ generator-valid; adapter turned null arrays into `''`.**
+  The publish gate only enforces *schema-required* fields (`title`, `subjectGrade`,
+  `framework[].phase`); the generator unconditionally `.map()`s LESSONS / `lesson.framework` /
+  FE.sections / FE.rubric / ST.lessons. Payload normally returns `[]` for empty arrays, but I
+  proved `clean(null) → ''` — a null array would have crashed `.map`. (Codex's group examples —
+  `slo.purpose` etc. — don't actually crash: Payload groups always materialise and the adapter
+  nulls→''.) Fix: `bundleToAresData` now force-coerces those five iterated slots to arrays.
+  **Content-completeness validation stays an ingest/publish concern (SPEC §5 "reject anything
+  that would produce a broken document"), built in Phase 3** — export trusts validated-in data
+  + publish status; the adapter just guarantees it can't *crash*.
+- **[FIXED — product call: BLANK column] Resource cells showed "(ARES resources unavailable)".**
+  `sections.js`'s try/catch fallback printed that placeholder into real DOCX (the fidelity
+  harness strips the column, so gates didn't catch it). Decided (user): render the column
+  **blank**, not the placeholder and not removed (removing it would diverge from the approved
+  baseline, which keeps the column). Added a **Lesson3-authored** pure-Node shim
+  `vendor/aresResources.js` (`getAllPhaseResources → {}`, `buildResourceParagraphs → [para('')]`)
+  at the fixed `require('../aresResources')` path. No Python, deterministic. The re-sync script
+  copies only the three lib files, so the shim survives a re-pin. Verified: generated
+  LessonSequence contains no placeholder; gates still 3/3 and 5/5.
+- **[FIXED — doc, future-endpoint] `generateForBundle` uses `overrideAccess: true`.** Correct
+  for the trusted CLI/system path, dangerous if a future §9 endpoint reuses it without a read
+  check. Hardened the docstring to a firm contract: the endpoint must enforce the caller's READ
+  access (or pass `req`) before calling; do not expose this directly as a handler. Restructure
+  when the endpoint lands.
+- **[FIXED — hygiene] `meta.filePrefix` flowed into a path join unsanitised.** Operator script
+  writing to a temp dir, but `filePrefix` is ingested data → trivial path-traversal hygiene.
+  Now sanitised to a bare filename component (`[^A-Za-z0-9._-] → _`).
+- CodeRabbit's null-check (Payload `findByID` throws by default) and duplicate-fetch notes:
+  noise/minor; the script's second `findByID` is a deliberate convenience for the filename. No change.
+
 ## 2026-06-08 — Phase 2: generator integration (adapter + validity-gated core)
 
 Built the stored-bundle → ARES generator path on `feat/generator-ingest`. Decisions:

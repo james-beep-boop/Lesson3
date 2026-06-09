@@ -33,8 +33,10 @@
   marks the dir CommonJS (app is ESM); `vendor/PROVENANCE.md` + `docs/EXTERNAL-DEPENDENCIES.md`
   hold provenance; `scripts/vendor-generator.sh` does one-command re-sync. Pinned `docx@9.6.1`
   exact + `mammoth@1.12.0` (devDep).
-- **`aresResources.js` intentionally NOT vendored** → `sections.js` falls back to a no-op
-  Resource column → guaranteed zero live Python (single-runtime). See DECISIONS 2026-06-08.
+- **Upstream `aresResources.js` (Python) NOT vendored.** Phase 0 relied on `sections.js`'s
+  `(ARES resources unavailable)` fallback; **Phase 2 replaced that** with a Lesson3-authored
+  pure-Node shim at `vendor/aresResources.js` so the Resource column renders **blank** (not the
+  placeholder), structure preserved, zero live Python. See DECISIONS 2026-06-08 + PROVENANCE.md.
 - **In-process generate wrapper** `app/src/generator/index.ts`: imports the three builders via
   `createRequire`, returns `{ lessonSequence, finalExplanation, summaryTable }` Buffers. No
   disk, no Python, no edits to vendored code. (`run()` is NOT used — the builders return
@@ -89,7 +91,16 @@ Suggested branch: continue on `feat/generator-ingest`.
 2. **Create the bundle as `1.0.0` via the Payload Local API in a transaction** (trusted system
    call — `enforceBundleStructure` already treats `!req.user` as system/overrideAccess). Bulk
    ingest supported. Validate against the schema on ingest (same rules as §5).
-3. **`security-review` the extraction** — this is the highest-risk surface (untrusted input).
+3. **Generator-completeness validation (the export-correctness gate Codex flagged).** Schema-
+   required fields (`title`/`subjectGrade`/`framework[].phase`) + publish status are NOT enough:
+   the generator dereferences groups the schema leaves optional — a lesson without `slo` crashes
+   with `Cannot read properties of undefined (reading 'purpose')`. The Phase-2 adapter guarantees
+   *type*-safety (array slots stay arrays) but deliberately does NOT fabricate missing groups —
+   that is invalid content to **reject at ingest/publish**, not silently render. Add a
+   `validateGeneratable(bundle)` (groups present: `slo`/`summaryTablePrompt`/`meta`; each lesson
+   has ≥1 framework phase; phase ∈ vocab) and run it on ingest + before publish. Export then
+   trusts validated-in data.
+4. **`security-review` the extraction** — this is the highest-risk surface (untrusted input).
 
 **Watch-outs:**
 - **Never execute uploaded `.js`** — the whole point. No `require`, no `vm`, no `eval`.

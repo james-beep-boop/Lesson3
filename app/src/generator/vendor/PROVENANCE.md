@@ -27,18 +27,25 @@ identical to upstream is what makes re-syncing a future version a clean diff.
 | `lib/sections.js`    | `generators/lib/sections.js`      |
 | `lib/docx_kit.js`    | `generators/lib/docx_kit.js`      |
 
-## Intentionally NOT vendored: `aresResources.js`
+## Upstream `aresResources.js` NOT vendored — replaced by a Lesson3 shim
 
 `generators/aresResources.js` shells out to Python (`execSync('python3' …)`) against a
 SQLite DB to populate the Section-C **Resource column**. Lesson3 is **single-runtime
-(Node only)** and must **never invoke the Python recommender live** (SPEC §0 / CLAUDE.md).
+(Node only)** and must **never invoke the Python recommender live** (SPEC §0 / CLAUDE.md),
+so the upstream file is **not vendored**.
 
-`sections.js` already treats this module as **optional**: it `try`-requires `../aresResources`
-and, when absent, falls back to no-op resource functions (emitting a
-`(ARES resources unavailable)` placeholder). By omitting the file we exercise that
-documented fallback, guaranteeing **zero Python** and a deterministic (empty) Resource
-column. The fidelity diff excludes the Resource column on both sides, so this does not
-affect the proof.
+`sections.js` `try`-requires `../aresResources` and, when it cannot resolve, falls back to
+emitting a `(ARES resources unavailable)` placeholder in every Resource cell. Rather than
+ship that placeholder in real exports, Lesson3 provides its **own pure-Node shim** at
+`vendor/aresResources.js` (the fixed require path, sibling of `lib/`) — `getAllPhaseResources
+→ {}`, `buildResourceParagraphs → [para('')]` — so the column **renders blank** while the
+table structure is preserved. This matches the DEFERRED-resources decision (see
+`docs/DECISIONS.md`), guarantees **zero Python**, and is deterministic.
+
+**`vendor/aresResources.js` is Lesson3-authored, NOT pristine vendored code** — it is the one
+file under `vendor/` that we own and may edit. `scripts/vendor-generator.sh` copies only the
+three `lib/` files, so the shim survives a generator re-pin untouched. The fidelity diff
+excludes the Resource column on both sides, so the shim does not affect the proof.
 
 ## `package.json` marker
 

@@ -40,6 +40,12 @@ export function assertExportable(bundle: Pick<LessonBundle, 'id' | '_status'>): 
  * Load the published bundle by id, validate, and generate its three DOCX as Buffers.
  * Reads the published snapshot (no `draft: true`) so an in-progress draft never leaks
  * into an export.
+ *
+ * SECURITY — this fetch uses `overrideAccess: true`: it is a TRUSTED SYSTEM path (the
+ * CLI / future batch jobs), NOT an authorization boundary. A future §9 export endpoint
+ * MUST enforce the caller's READ access *before* calling this (e.g. find the bundle with
+ * the request's `req`/`overrideAccess:false` first, then pass the id), or pass `req` so
+ * access runs. Do not expose this function directly as an endpoint handler.
  */
 export async function generateForBundle(payload: Payload, id: number | string): Promise<GeneratedDocx> {
   const bundle = (await payload.findByID({
