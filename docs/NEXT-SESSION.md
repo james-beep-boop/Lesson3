@@ -80,6 +80,10 @@
   `generateForBundle` → diff vs approved; verify on the Rock.
 - **Carried from the Phase-2 review (build in Phase 3):** `validateGeneratable` — see Phase 3
   task 3. `test:int` + `next build` need a DB (Rock only); not run locally.
+- **Two schema changes are committed but NOT yet migrated on the Rock** (no deploy done): the
+  `subject_grades` compound-unique index `(subject, grade)`, and the `DROP TABLE media` (Media
+  collection removed). Both ride the next Rock deploy — generate the migration(s) per the workflow
+  below; both are safe (no duplicate SG rows, empty media table).
 
 ## This session: Phase 3 — safe `.js → JSON` ingest (SPEC §7)
 

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { Users } from './collections/Users'
-import { Media } from './collections/Media'
 import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonBundles } from './collections/LessonBundles'
@@ -53,7 +52,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Subject, SubjectGrade, LessonBundles],
+  collections: [Users, Subject, SubjectGrade, LessonBundles],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

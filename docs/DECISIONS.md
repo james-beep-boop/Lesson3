@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-09 — Removed the unused scaffold `Media` collection
+
+Audited `Media` (Payload-first tidy-up): it was pure `create-payload-app` scaffold residue — an
+`upload` collection with only an `alt` field, **zero domain references** (the only mentions were
+the config registration, auto-generated `payload-types.ts`, the initial migration's `CREATE TABLE
+"media"`, and Payload's internal `payload_locked_documents_rels.media_id`). The editor grammar is
+plain strings (SPEC §4) and the generator owns all visuals, so there is no upload need; an empty
+"Media" collection in the admin sidebar was misleading dead weight.
+
+Removed: `src/collections/Media.ts`, its `payload.config.ts` import/registration, and the
+media-only `images.localPatterns` block in `next.config.ts`. `generate:types` regenerated (Media
+gone from `payload-types.ts`); `tsc` 0 errors, `lint` 0 errors, fidelity gates 3/3 + 5/5.
+**Pending Rock migration:** a `DROP TABLE media` (+ the locked-docs FK) rides the next deploy —
+safe, the table is empty. If image/attachment support is ever needed, re-adding an upload
+collection is trivial.
+
 ## 2026-06-09 — SubjectGrade modeling locked (junction entity) + native compound-unique index
 
 Deliberate review of "two fields (subject, grade) vs one SubjectGrade entity" (SPEC §8),
@@ -83,6 +99,10 @@ Payload:
   UI — not a standalone function only the export path calls.
 - **`generateForBundle` `overrideAccess`:** trusted system path now; the §9 endpoint must switch to
   `req`-based access (Payload custom endpoint reusing access + Local API).
+- **"Preview as Word/PDF" (SPEC §5):** when built, make it a Payload **admin custom component** (an
+  edit-view button via `admin.components`) that calls the generate endpoint — NOT a separate React
+  app. Verified caveat: Payload's native `admin.preview`/Live Preview targets HTML *frontend* URLs,
+  so it does NOT fit DOCX rendering; only the *button* lives in Payload's component slots.
 - **Optimistic concurrency:** currently Payload document-locking + a `lockVersion` counter; true
   reject-if-stale OCC, if needed, is a custom-endpoint concern (documented earlier).
 
