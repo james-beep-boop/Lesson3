@@ -1,10 +1,11 @@
 # Start-here for the next session — Phase 2: generator integration into Lesson3 (SPEC §4)
 
-> **Status (committed, NOT yet pushed/merged/deployed):** branch **`feat/generator-ingest`**,
-> commit `6c928d3`. Phase 0 (vendor the ARES generator) and Phase 1 (standalone fidelity proof)
-> are **DONE and the GATE passed 3/3**. `main` still has only scaffold + auth + sub-strand
-> bundle + versioning (all deployed on the Rock). **The Phase-0/1 branch has not been merged,
-> pushed, or deployed.**
+> **Status (MERGED to `main`, NOT yet deployed to the Rock):** Phase 0 (vendor the ARES
+> generator) and Phase 1 (standalone fidelity proof) are **DONE, GATE passed 3/3**, and merged
+> to `main` (merge commit `3751412`; also on branch `feat/generator-ingest`). **The Rock still
+> runs the previous `main`** (scaffold + auth + sub-strand bundle + versioning) — Phase 0/1 is
+> code-only (no schema change, generator not yet wired into the running app), so a deploy is
+> optional and was intentionally deferred.
 
 ## What got done last session (Phase 0 + Phase 1)
 
