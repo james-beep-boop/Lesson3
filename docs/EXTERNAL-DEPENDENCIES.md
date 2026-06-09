@@ -41,6 +41,26 @@ Implications for Lesson3:
 
 Pin the upstream generator to a known commit/version. Because fidelity depends on it, treat generator upgrades as deliberate, tested changes — never automatic.
 
+## Vendored into Lesson3 (Phase 0 — 2026-06-08)
+
+The Node generator is **vendored byte-verbatim** (not a submodule/npm-dep — the source is an
+unmerged bot branch that may be rebased/deleted). See `app/src/generator/vendor/PROVENANCE.md`
+for the full record and the re-sync procedure.
+
+- **Branch / pinned commit:** `claude/setup-cbe-generation-ZKiIi` @ `529be408618e6748df5d666dd98d0bfbc6cc1032` (branch tip 2026-06-08; the three vendored lib files are byte-identical to the earlier `212da91` — re-pin was provenance-only)
+- **Mirror tag (insurance):** `lesson3-vendor-529be40` on `james-beep-boop/cbe-generation-system`
+- **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`, `docx_kit.js`
+- **NOT vendored:** `aresResources.js` — it `execSync`s Python; `sections.js` falls back to a
+  no-op Resource column when it's absent, which keeps Lesson3 single-runtime (zero Python).
+- **`docx` pinned** `9.6.1` exact; `mammoth` `1.12.0` (devDep, for DOCX→text diffing).
+- **Re-sync:** `scripts/vendor-generator.sh <clone> <sha>`, then re-run the fidelity regression
+  (the acceptance gate) before trusting the new version.
+
+> Note: the integration-plan bullet below ("Refactor `generateOne()` to accept a data object")
+> turned out unnecessary — `build_docs.js` already exports builders that return `docx` `Document`s
+> and a `run(dataModule)`; Lesson3 wraps the builders + `Packer.toBuffer()` for in-process Buffers
+> without modifying any vendored file.
+
 ## Prior implementation (reference only)
 
 The previous build lives in the separate **`Lesson2`** repository (Laravel 13 / Filament 5 / DreamHost). It is preserved unchanged for reference; no code is ported from it.
