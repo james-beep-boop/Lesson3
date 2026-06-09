@@ -3,8 +3,14 @@
 > **Status (merged & DEPLOYED):** scaffold + authorization entities + sub-strand bundle +
 > **bundle versioning (SPEC §6)** are all on `main` and running on the Rock at the current
 > `main` HEAD. The versioning migration (`20260608_224715_bundle_versioning`) is applied;
-> `app/scripts/verify-rbac.ts` passes **30/30** against the live DB (incl. semver bumps,
-> lockVersion, and the publish/official gate).
+> `app/scripts/verify-rbac.ts` passes **36/36** against the live DB (incl. semver bumps,
+> lockVersion, the publish/official gate, and the Teacher read boundary).
+>
+> **Read boundary (Codex review, deployed):** Teachers read only **published/official**
+> bundles; Editors/Subject Admins also read drafts **within their subject-grades**; Site
+> Admins all — on both `read` and `readVersions` (drafts can't leak via `?draft=true` or the
+> versions endpoint). The Editor whitelist is now **secure-by-default at the top level** too
+> (restore-all-except-known). See `docs/DECISIONS.md`.
 >
 > **Versioning shipped (SPEC §6):** `versions: { drafts: true, maxPerDoc: 100 }` on
 > `lesson-bundles`; `semver` / `bumpType` / `lockVersion` sidebar fields; bump + publish-gate
@@ -44,6 +50,20 @@ Watch-outs for ingest:
   set all fields and publish if desired. Pass `_status: 'published'` in data to mark official.
 - `framework[].phase` is a controlled vocabulary; an unknown phase silently degrades output.
   Reconcile against the Node generator's colour-map keys when generator integration lands.
+- **Draft validity vs bulletproof export (SPEC §6/§9, deferred from the Codex review):** drafts
+  relax `NOT NULL` and skip required validation, so an invalid draft snapshot can exist.
+  Generation/export must **validate the exact version before generating**, and/or restrict
+  export to official/validated versions — handle this when the generator integration lands.
+
+## Consider a vertical slice (Codex suggestion)
+
+Rather than building all four roles in isolation, the highest-signal next move is a thin
+end-to-end slice that proves the product's core ("edit data → regenerate document", SPEC §0,
+still unproven in Lesson3 — only the standalone generator was proven in the fidelity demo):
+**ingest one real bundle → Editor edits prose → export that exact version → Subject Admin
+publishes → verify Teacher read/export against the official boundary.** Ingest (§7) is the
+first step of that slice, so this doesn't conflict with the plan above — it just sequences the
+following phases (editing UX, generator integration/export) behind a single real bundle.
 
 ## Rock deploy / schema-change workflow (LEARNED — read before touching the schema)
 

@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — External review (Codex) on versioning: read boundary + secure-by-default
+
+Codex reviewed the deployed versioning work. Four findings; two acted on now (deployed,
+`verify-rbac.ts` **36/36**), two recorded for the relevant upcoming phase.
+
+- **[FIXED — security] Teacher read boundary.** `lessonBundleRead` was `Boolean(user)`, so
+  with drafts enabled any authenticated Teacher could pull unpublished work via `?draft=true`
+  and enumerate history via the versions endpoint. Not exploitable yet (only the Site Admin
+  exists) but live the moment Teacher accounts do. **Decision (locked):** Teachers read only
+  **published/official** bundles; **Editors/Subject Admins** additionally read any-status
+  bundles (incl. drafts) **within their subject-grades**; Site Admins all. Implemented as a
+  query-returning `read` plus a mirrored **`readVersions`** (`version._status` /
+  `version.subjectGrade` paths — verified working against the live DB) so the version-history
+  endpoint can't leak drafts. `verify-rbac.ts` covers teacher-sees-published,
+  teacher-blocked-from-draft (list + by-id + versions), editor-sees-own-SG-draft.
+- **[FIXED — secure-by-default] Top-level whitelist gap.** The hook's claim that "a new
+  admin/system field is protected automatically" held for *array subfields* (overlayRows
+  rebuilds each row from the original) but **not for top-level fields** — the Editor branch
+  only restored enumerated keys (`title`/`subjectGrade`/`meta`/`unit`/`_status`), so a future
+  top-level field added without access/hook handling would pass through an Editor update.
+  **Fix:** invert to a true allow-list — restore EVERY top-level key from the original except
+  the content containers (`lessons`/`finalExplanation`/`summaryTable`), the hook-set version
+  fields (`semver`/`bumpType`/`lockVersion`), and Payload's `updatedAt`. New top-level fields
+  are now protected by default. **Rule:** "secure by default" means *restore-all-except-known*,
+  never *restore-known*; the latter silently rots as the schema grows.
+- **[DEFERRED — export phase, SPEC §6/§9] Draft validity vs bulletproof export.** Enabling
+  drafts relaxed DB `NOT NULL` and `draft:true` skips required validation, so an invalid draft
+  snapshot can exist. SPEC says "any version regenerates on demand" — so **generation/export
+  must validate the exact snapshot first, and/or only official/validated versions are
+  exportable.** Honor this when the generator integration lands; not a bug today.
+- **[DEFERRED — low] CodeRabbit migration notes.** `numeric` for integer-ish columns is the
+  db-postgres default for `number` fields (style, not a bug); the down-migration `SET NOT NULL`
+  only fails if you roll back after creating null-bearing drafts. Both downgraded; no action.
+
 ## 2026-06-08 — Versioning DEPLOYED + hard-won Payload/Docker lessons
 
 Bundle versioning is merged and **deployed on the Rock** (migration
