@@ -80,6 +80,47 @@ Decisions (confirmed with the user at design time):
 - **Still TODO:** the true DB round-trip — ingest → stored 1.0.0 draft → publish →
   `generateForBundle` → diff vs approved — is Phase 4 (needs a DB; run on the Rock).
 
+## 2026-06-09 — Phase 4 DONE: bio_1_4 DB round-trip proven on the Rock (3/3)
+
+Closed the full pipeline against the real Postgres DB on the Rock: seeded taxonomy (Biology
+G10, Mathematics G10) → ingested `bio_1_4_data.js` via the CLI → stored 1.0.0 draft (id 33) →
+published → generated the three DOCX → diffed vs the stakeholder-approved set. **3/3
+content-identical** (LessonSequence 381 blocks, FinalExplanation 52, SummaryTable 37; Resource
+column excluded). The architecture is validated end-to-end: edit-the-data → regenerate
+byte-faithful documents, through ingest + Postgres + versioning + the generator.
+
+Two bugs surfaced + fixed, one wrinkle flagged:
+- **[FIXED, `f696214`] `payload run` tears the process down before async work finishes.** The
+  script scaffolds ended with a detached `run().then(() => process.exit(0))`. `payload run` only
+  `await`s the module's EVALUATION, then calls `process.exit(0)` unconditionally
+  (`payload/dist/bin/index.js:53,76`) — so the first two ingest attempts exited 0, created 0
+  rows, and printed nothing (silent no-op; both the "no output" AND "no data"). Fixed with
+  top-level `await run()` (like `verify-rbac.ts`, which always worked) + an explicit trailing
+  `process.exit(0)` (so it also exits under `tsx`, where getPayload keeps the DB pool open).
+  Applied to `ingest.ts`, `generate-bundle.ts`, `publish-bundle.ts`. **Rule: any `payload run`
+  script MUST top-level-await its work — never fire-and-forget.**
+- **[ADDED, `afd6f80`] `scripts/publish-bundle.ts`** — Local-API publish (`payload.update`
+  `_status: 'published'`, overrideAccess). The admin "Publish Changes" button is disabled on a
+  pristine/unchanged draft (expected Payload behavior — the form must be dirty), so a scripted
+  publish is the clean path for round-trips.
+- **[WRINKLE — TOP FOLLOW-UP] Publishing double-bumps semver.** Ingest created 1.0.0; a single
+  publish → **1.0.2** (expected at most 1.0.1; ideally marking the FIRST version official
+  shouldn't bump at all). `enforceBundleStructure` bumps on every `update`, and a draft-enabled
+  publish appears to run the hook twice. No fidelity impact (generator ignores semver) but it
+  violates SPEC §6 "first ingested version is 1.0.0 (official)". Investigate: (a) skip the bump
+  when only `_status` changes (publish ≠ content edit); (b) find why the hook fires twice on a
+  drafts-enabled publish.
+
+Mechanics learned (Rock round-trip):
+- **Scripts run via the deps image + bind-mount** (`-v /srv/lesson3/app:/app`), so a
+  script-only change is `git pull` + re-run — **NO image rebuild**.
+- **Generated DOCX must go to a bind-mounted host dir** (`-v /srv/lesson3/out:/out`, pass `/out`
+  as the `generate-bundle.ts` outDir) or they vanish with the `--rm` container's `/tmp`.
+- The Mac drives Rock steps over passwordless SSH; the **content diff** (mammoth→HTML→jsdom via
+  `scripts/lib/docxDiff.ts`) runs on the Mac, comparing the pulled-back DOCX vs the approved set
+  (`compareDoc(label, generated, approved, stripResources)` — strip=true only for the
+  LessonSequence). Not yet wired as a one-command regression (see NEXT-SESSION).
+
 ## 2026-06-09 — Removed the unused `subjects.slug` scaffold field
 
 `Subject.slug` ("URL-safe identifier, e.g. biology") was `create-payload-app`-style residue —

@@ -1,13 +1,18 @@
-# Start-here for the next session — Phase 4: end-to-end DB round-trip + Rock verification
+# Start-here for the next session — Phase 5: versioning fix, editor/preview (§5), export (§9)
 
-> **Status:** Phases 0–3 are **DONE**. **Phase 3 (safe `.js → JSON` ingest, SPEC §7) is
-> built and committed on `main`** (gates green: **ingest 18/18, fidelity 3/3, adapter 5/5,
-> lint 0 / tsc 0**; Codex + CodeRabbit reviewed and triaged; `security-review` clean; the
-> extractor folds `+` string concatenation so all 13 corpus files parse). The Rock is at
-> `0096f7a` (SG compound-index + media-drop migration applied). **One pending migration** rides
-> the next deploy: `20260609_170000_drop_subject_slug` (drops the unused `subjects.slug`
-> scaffold column — safe, disposable data). Rock pickup = `git pull` + `docker compose up -d
-> --build` (the one-shot `migrate` service applies it). **Phase 4 (DB round-trip) is next.**
+> **Status:** Phases 0–**4 are DONE**. **Phase 4 (end-to-end DB round-trip) is PROVEN on the
+> Rock: 3/3 content-identical** — seed taxonomy → ingest `bio_1_4` → 1.0.0 draft (id 33) →
+> publish → generate → diff vs approved (LessonSequence 381 blocks, FinalExplanation 52,
+> SummaryTable 37; Resource column excluded). The architecture is validated end to end. Rock is
+> on **`afd6f80`+** (the `drop_subject_slug` migration is applied; SG compound-index + media-drop
+> already live). Gates green: **ingest 18/18, fidelity 3/3, adapter 5/5, lint 0 / tsc 0**. See
+> `docs/DECISIONS.md` (2026-06-09 Phase-4 entry) for the bugs fixed + mechanics.
+>
+> **TOP FOLLOW-UP — versioning bug:** publishing **double-bumps semver** (ingest 1.0.0 → publish
+> **1.0.2**). `enforceBundleStructure` bumps on every `update` and a drafts-enabled publish fires
+> the hook twice; marking the FIRST version official shouldn't bump at all (SPEC §6). No fidelity
+> impact, but fix before declaring versioning done — (a) skip the bump when only `_status`
+> changes; (b) find the double-fire. Then: §5 editor/preview, §9 export, bulk-ingest the corpus.
 
 ## What got done this session (Phase 3 — safe ingest, SPEC §7)
 
@@ -64,34 +69,39 @@ executed**. New code under `app/src/ingest/` + one collection hook + a shared ph
 - **`security-review` clean; Codex/CodeRabbit findings triaged + fixed** (export-layer
   `__proto__` guard, `ARES_DEMO_PATH` portability, type-hygiene cast, stale-doc note).
 
-## This session: Phase 4 — end-to-end DB round-trip + Rock verification
+## Phase 4 — DONE (bio_1_4 DB round-trip, 3/3 on the Rock)
 
-> Opening message: Read `SPEC.md`, `CLAUDE.md`, `docs/DECISIONS.md`, and this file. Phases
-> 0–3 are done on `main`. Build Phase 4: prove the full pipeline against a real DB and verify
-> on the Rock. Use the `payload` skill; trust installed source over memory.
+Proven this session: seeded Biology G10 + Mathematics G10 → `ingest.ts` bio_1_4 → 1.0.0 draft
+(id 33) → `publish-bundle.ts` → `generate-bundle.ts` into a bind-mounted `/srv/lesson3/out` →
+pulled the DOCX to the Mac → `compareDoc` vs approved = **3/3 content-identical**. Bugs found +
+fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published on the Rock.
 
-**Phase 4 tasks (DB round-trip):**
-1. **Seed taxonomy + ingest for real.** Create the needed Subjects + SubjectGrades (Biology
-   G10 at minimum), then `payload run scripts/ingest.ts -- <bio_1_4_data.js>` → a stored 1.0.0
-   draft. Confirm the draft is NOT exportable (export is published-only).
-2. **Publish → export → diff.** Publish the bundle (admin or Local API `_status: 'published'`
-   — fires `enforceGeneratable`), then `generateForBundle` → diff vs the approved DOCX reusing
-   `app/scripts/lib/docxDiff.ts` (everything-except-resources). This closes the DB-less gap:
-   the Phase-2/3 gates simulate/parse; Phase 4 proves stored → published → DOCX through Postgres.
-3. **Wire it as a repeatable regression check** (a script that seeds → ingests → publishes →
-   generates → diffs, self-cleaning), and **run it on the Rock** (deploy workflow below).
-4. **Bulk-ingest the corpus** (optional, once #1–3 pass): the 10 Biology + 3 Math `*_data.js`
-   at SHA `529be40` on `upstream` — exercises the pre-flight + transaction + warn-only FE/ST
-   path at scale, and surfaces any phase-vocab / META-label variance (esp. Mathematics).
+## Next priorities (Phase 5)
+
+1. **Versioning bug (TOP).** Publishing double-bumps semver (1.0.0 → 1.0.2). Fix in
+   `enforceBundleStructure`: don't bump when only `_status` changes (publish ≠ content edit),
+   and find why the hook fires twice on a drafts-enabled publish. Add a `verify-rbac.ts`-style
+   assertion. This is the last piece of SPEC §6 versioning.
+2. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
+   command — ideally fully on the Rock (place the approved DOCX on the Rock, generate + diff
+   there) so it doesn't need the Mac round-trip. Reuse `scripts/lib/docxDiff.ts`.
+3. **Bulk-ingest the corpus.** The 10 Biology + 3 Math `*_data.js` at SHA `529be40` on
+   `upstream` (all grade 10; subjects "Biology"/"Mathematics" already seeded). Exercises the
+   pre-flight + transaction + warn-only FE/ST at scale. **6/13 carry null FE/ST** (upstream
+   content gap) → expect deliverable warnings; only promote FE/ST to a hard gate if/when the
+   corpus is completed upstream.
+4. **§5 editor + preview** (Payload admin edit screens + the "Preview as Word/PDF" derived from
+   the generator — DOCX→mammoth HTML) and **§9 export endpoint** (Payload custom endpoint over
+   `generateForBundle`, READ-access-gated; Jobs Queue for async). Both per the Payload-first rule.
 
 **Watch-outs:**
-- **Phase 3 needs no migration**, but Phase 4 *does* touch the DB (ingest writes). No schema
-  change though — just data. The Rock pickup is `git pull` + `docker compose up -d --build`.
-- **Math META differs** (`subject` label, `col3Label`/`col5Label` "Teacher Actions"/"Assessment
-  Strategy") — carried through verbatim; Math shares the 5 phases but different labels. Confirm
-  a Math SubjectGrade exists before ingesting Math.
-- **Promote FE/ST to a hard gate** once the corpus bulk-ingest (#4) confirms every bundle
-  carries FE + ST (move `deliverableWarnings` checks into `validateGeneratable`, drop warn-only).
+- **Running scripts on the Rock:** deps image + bind-mount means a *script-only* change is
+  `git pull` + re-run (no rebuild). Generated DOCX MUST go to a bind-mounted host dir
+  (`-v /srv/lesson3/out:/out`) or they vanish with `--rm`. Any `payload run` script must
+  **top-level-await** its work (see the Phase-4 bug in DECISIONS).
+- **Math META differs** (`col3Label`/`col5Label` = "Teacher Actions"/"Assessment Strategy";
+  single-quoted/identifier-key JS syntax) — the acorn extractor handles it; carried through
+  verbatim. Math SubjectGrade (Mathematics G10) is already seeded.
 
 ## Open items / pending
 
