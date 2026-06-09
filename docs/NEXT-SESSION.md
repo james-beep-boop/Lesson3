@@ -1,11 +1,32 @@
 # Start-here for the next session — Phase 3: safe `.js → JSON` ingest (SPEC §7)
 
 > **Status:** Phases 0–2 are **DONE and pushed to `main`** (Phase 2 generator integration =
-> `01782ac`; the Phase-2 review fixes = `847cab1`, the current tip). `feat/generator-ingest` is
-> fast-forwarded to the same commit, so **both branches are even** — `main` is the active line
-> (recent work commits directly to it). Gates green: **lint 0 / tsc 0, fidelity 3/3, adapter
-> 5/5.** **The Rock still runs the previous `main`** — everything since is code-only (no schema
-> change yet), so a deploy remains optional/deferred. **Phase 3 (ingest) is next.**
+> `01782ac`; Phase-2 review fixes = `847cab1`; **post-Phase-2 Payload-native hardening = tip
+> `90b0f2c`**). `feat/generator-ingest` is fast-forwarded to the tip, so **both branches are
+> even** — `main` is the active line (recent work commits directly to it). Gates green: **lint 0
+> / tsc 0, fidelity 3/3, adapter 5/5.** **Phase 3 (ingest) is next.**
+>
+> **The Rock still runs the previous `main` and there are now TWO committed-but-unmigrated schema
+> changes** (compound-unique index on `subject_grades`; `DROP TABLE media`). So the next deploy is
+> no longer "code-only" — it needs migrations generated/applied per the Rock workflow below (both
+> safe: no duplicate SG rows, empty media table). See Open items.
+
+## Post-Phase-2 Payload-native hardening (tip `90b0f2c`, this session)
+
+- **"Payload-first" working rule adopted** (SPEC §13 + `docs/DECISIONS.md` 2026-06-09 + a leverage
+  audit): before any custom endpoint/editor/permission/workflow/persistence code, check whether
+  Payload already provides it; document the gap if not. The audit found the app already strongly
+  Payload-native — follow this rule in Phase 3/§9.
+- **SubjectGrade modeling locked** (DECISIONS 2026-06-09): keep the junction entity (per-pair
+  assignments make the tuple atomic), grade stays a constrained int, cross-axis reporting via the
+  two-step (no denormalization). Added a **native compound-unique index `(subject, grade)`**
+  (kept the `beforeValidate` for the friendly message) → **pending migration**.
+- **Removed the unused scaffold `Media` collection** (zero domain refs) → **pending `DROP TABLE`
+  migration**.
+- **Preview strategy locked** (SPEC §5 + DECISIONS 2026-06-09): preview is DERIVED from generator
+  output, never a parallel HTML renderer. Two tiers — fast content preview = real DOCX → `mammoth`
+  HTML; exact = DOCX/PDF (§9). Trigger via a preview button; runs on the draft (export stays
+  published-only). Build with the §5 editor / §9 export work.
 
 ## What got done this session (Phase 2 — generator integration, SPEC §4)
 
