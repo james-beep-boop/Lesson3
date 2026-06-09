@@ -1,4 +1,4 @@
-# Start-here for the next session — Ingest (SPEC §7)
+# Start-here for the next session — bio_1_4 end-to-end fidelity proof: generator integration (SPEC §4/§9) + ingest (§7)
 
 > **Status (merged & DEPLOYED):** scaffold + authorization entities + sub-strand bundle +
 > **bundle versioning (SPEC §6)** are all on `main` and running on the Rock at the current
@@ -25,45 +25,97 @@
 > **Open / not-yet:** the separate **public-production host** hasn't deployed; `beforeDelete`
 > guards on Subject/SubjectGrade are required before any taxonomy delete UI is built.
 
-## This session: Ingest (SPEC §7)
+## This session: bio_1_4 end-to-end fidelity proof — generator integration (§4/§9) + ingest (§7)
 
-Suggested session name: **`Lesson3: Ingest (SPEC §7)`** · branch `feat/ingest`.
+Suggested session name: **`Lesson3: Generator round-trip + ingest`** · branch `feat/generator-ingest`.
 
 Opening message:
 
-> Read `SPEC.md` (§7, and §3/§5 for the schema), `CLAUDE.md`, and `docs/DECISIONS.md`.
-> Scaffold, auth, the sub-strand bundle, and versioning are done and deployed on the Rock
-> (current `main`, verify-rbac 30/30). Implement **ingest** per SPEC §7: accept ARES output
-> and create the first version as **1.0.0** via the Local API in a transaction; bulk ingest
-> supported; validate against the schema (same rules as §5). **CRITICAL: extract the `.js`
-> data module to canonical JSON — NEVER `require()`/execute an uploaded `.js`** (RCE;
-> ARES's `extract_generator_data.py` is the model for safe extraction). Resource resolution
-> is optional (skip if the column is disabled). Use the `payload` skill; run `security-review`
-> on the extraction path. Generate the migration (if any) on the Rock and verify on the Rock.
+> Read `SPEC.md` (§0, §4, §7, §9, and §3/§5 for the schema), `CLAUDE.md`, and
+> `docs/DECISIONS.md`. Scaffold, auth, the sub-strand bundle, and versioning are done and
+> deployed on the Rock (current `main`). Execute the phased plan in `docs/NEXT-SESSION.md`:
+> prove Lesson3's core end-to-end on `bio_1_4` — wire ARES's Node generator in-process, and
+> prove a Lesson3-stored `bio_1_4` regenerates the three approved DOCX (content-identical
+> **except the Resource column**), plus safe ingest (§7). Use the `payload` skill; trust
+> installed source over memory; `security-review` the `.js` extraction; verify on the Rock.
 
-Watch-outs for ingest:
-- The bundle's field names are camelCase top-level groups mapping to ARES `META/UNIT/...`;
-  inner keys match ARES verbatim. Read shapes from the fidelity demo
-  (`~/Desktop/ares-docx-fidelity-demo/bio_1_4_data.js`), not memory.
-- Ingest creates as a **trusted system call** (no `req.user`) — `enforceBundleStructure`
-  now treats `!req.user` as trusted (bypasses the Editor whitelist), so a system ingest can
-  set all fields and publish if desired. Pass `_status: 'published'` in data to mark official.
-- `framework[].phase` is a controlled vocabulary; an unknown phase silently degrades output.
-  Reconcile against the Node generator's colour-map keys when generator integration lands.
-- **Draft validity vs bulletproof export (SPEC §6/§9, deferred from the Codex review):** drafts
-  relax `NOT NULL` and skip required validation, so an invalid draft snapshot can exist.
-  Generation/export must **validate the exact version before generating**, and/or restrict
-  export to official/validated versions — handle this when the generator integration lands.
+**Goal.** Prove SPEC §0 ("edit the data → regenerate the document") *inside Lesson3* — so far
+only the standalone generator was proven (the fidelity demo). One complete matched set is enough
+for this; the larger corpus (arriving in a few days) only adds regression breadth, so don't wait.
 
-## Consider a vertical slice (Codex suggestion)
+**Assets (verified this session — read these, don't trust memory):**
+- Matched set on `~/Desktop/ares-docx-fidelity-demo/`: `bio_1_4_data.js` + the three approved DOCX
+  (`Biology_Chemicals_of_Life_{CBE_LessonSequence,FinalExplanation,SummaryTable}.docx`).
+  (`bio_1_4_checkpoint.json` is just the `LESSONS` array — an intermediate, not needed.)
+- Node generator: branch **`origin/claude/setup-cbe-generation-ZKiIi`** of `markknit/cbe-generation-system`.
+  Entry = `generators/lib/build_docs.js` → **`async run(dataModule)`** — already takes the ARES data
+  object `{META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE}`, builds 3 `docx` Documents
+  (`buildSoW`/`buildFinalExplanation`/`buildSummaryTable`), and **writes them to disk** under
+  `data/outputs/docx/<META.outputDir>`. Deps: `docx@^9.6.1`, `mammoth` (devDep — use for DOCX→text diffing).
+  Also ships a `generators/data/` corpus (~16 sub-strands) + `data/SCHEMA.md` — useful for ingest
+  variety later, but only `bio_1_4` has approved DOCX.
+- **Resources are gracefully optional:** `generators/lib/sections.js` try-requires the Python
+  `aresResources` (which `execSync`s `python3` + a SQLite DB) and **falls back to `() => ({})`**
+  when absent. So the generator runs WITHOUT Python, emitting DOCX missing only the Resource column.
+  **Never invoke the Python recommender live** (single-runtime rule); the fidelity diff therefore
+  **excludes resources** (as the original proof did).
 
-Rather than building all four roles in isolation, the highest-signal next move is a thin
-end-to-end slice that proves the product's core ("edit data → regenerate document", SPEC §0,
-still unproven in Lesson3 — only the standalone generator was proven in the fidelity demo):
-**ingest one real bundle → Editor edits prose → export that exact version → Subject Admin
-publishes → verify Teacher read/export against the official boundary.** Ingest (§7) is the
-first step of that slice, so this doesn't conflict with the plan above — it just sequences the
-following phases (editing UX, generator integration/export) behind a single real bundle.
+**Phased plan (de-risk the generator first; each phase gated):**
+
+**Phase 0 — Vendor + pin the generator.** Pull branch `…setup-cbe-generation-ZKiIi`; **pin its commit
+SHA** (record in `docs/DECISIONS.md` + `docs/EXTERNAL-DEPENDENCIES.md`). Recommended embedding: vendor
+the minimal Node set (`lib/build_docs.js`, `lib/sections.js`, `lib/docx_kit.js`, `aresResources.js`
+with its fallback intact) into `app/src/generator/`, and pin `docx@9.6.1` exact in `app/package.json`.
+Read those lib files to confirm the input shape + the resources fallback before wiring. Single runtime
+= Node generator only.
+
+**Phase 1 — Generator fidelity spike (GATE; standalone, no Lesson3 yet).** Run `run(bio_1_4 data)`
+with resources disabled → 3 DOCX. Build the **diff harness**: extract content from generated vs
+approved (via `mammoth`→text and/or unzip+normalize `word/document.xml`) and compare, **excluding the
+Section-C resource cells**. **GATE: must match (except resources) before continuing** — this
+re-establishes the prior proof in our pinned toolchain and validates the diff method. Decide the exact
+diff mechanism + how resources are excluded.
+
+**Phase 2 — Generator integration into Lesson3 (§4).**
+- **Adapter** `lesson-bundle doc → ARES data object`: `meta→META, unit→UNIT, lessons→LESSONS,
+  finalExplanation→FINAL_EXPLANATION, summaryTable→SUMMARY_TABLE`; strip Lesson3-only fields
+  (`semver/bumpType/lockVersion/_status/id/createdAt/updatedAt`); keep `lessons[].number`;
+  `framework[].resources` optional/empty. (Inner keys already match ARES verbatim.)
+- **In-process generate fn:** refactor `run()` to **return Buffers** (not only write to disk) so
+  Lesson3 can stream/download; keep a thin disk-writing wrapper for parity. Expose via a Payload
+  **custom endpoint** (or a script for now — full export/sharing UI is §9, later).
+- **Validity gate (flagged in the Codex review):** drafts relax `NOT NULL`/required validation, so an
+  invalid draft snapshot can exist. **Validate the exact version before generating**, and/or restrict
+  generation to published/official (validated) versions. Decide + implement.
+
+**Phase 3 — Ingest (§7).** Safe `.js → JSON` extraction that **NEVER executes the module** (RCE):
+statically parse the object literals (`@babel/parser` or `acorn` → extract `META/UNIT/LESSONS/
+FINAL_EXPLANATION/SUMMARY_TABLE`), modeled on ARES `extract_generator_data.py`. Create the bundle as
+**1.0.0** via the Local API **in a transaction** (trusted system call — no `req.user`, which
+`enforceBundleStructure` treats as trusted; pass `_status: 'published'` to mark official if desired).
+Validate against the schema (§5). Run **`security-review`** on the extraction path. Ingest `bio_1_4`.
+
+**Phase 4 — End-to-end proof + regression seed.** Ingest `bio_1_4` → stored 1.0.0 bundle → adapter →
+generator → 3 DOCX → diff vs approved (except resources). Wire it as a **repeatable fidelity check**
+(the seed of a regression suite for when the corpus lands). Verify on the Rock.
+
+This subsumes the earlier "vertical slice" idea (ingest → edit → export → publish → Teacher read):
+Phase 4 is that slice's spine; layer the Editor-edit/publish steps on once the round-trip holds.
+
+**Decisions to surface at plan-time:** vendor-vs-dependency + pinned SHA; the DOCX diff mechanism +
+precise resource-exclusion; the `run()`→Buffers refactor; the draft-vs-export validity policy; where
+generation lives (endpoint vs script) for now.
+
+**Watch-outs:**
+- `framework[].phase` is a controlled vocabulary — confirm `bio_1_4`'s phase strings match
+  `docx_kit.js`'s expected colour-map keys (an unknown phase silently degrades output).
+- Aim for **content-identical** (normalized `document.xml` / mammoth text) except resources; true
+  byte-identical zips can differ on metadata — don't chase zip-level identity.
+- Read shapes from `bio_1_4_data.js` + the generator's `data/SCHEMA.md`, not memory.
+- Single runtime: Node generator only; the Python recommender is never called live.
+
+**Out of scope (later):** full export/sharing UI + PDF (§9), live "Preview as Word/PDF" (§5),
+`beforeDelete` taxonomy guards, public-production deploy, operations/observability (§11).
 
 ## Rock deploy / schema-change workflow (LEARNED — read before touching the schema)
 
