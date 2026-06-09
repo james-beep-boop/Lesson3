@@ -1,28 +1,36 @@
 # Start-here for the next session — Phase 3: safe `.js → JSON` ingest (SPEC §7)
 
-> **Status:** Phase 0 (vendor generator) + Phase 1 (fidelity proof, 3/3) are **MERGED to
-> `main`** (merge `3751412`). **Phase 2 (generator integration) is DONE on
-> `feat/generator-ingest`, GATE 5/5** (not yet committed/pushed at handoff — see "Phase 2 done"
-> below). **The Rock still runs the previous `main`** — everything since is code-only (no schema
-> change yet), so a deploy remains optional/deferred.
+> **Status:** Phases 0–2 are **DONE and pushed to `main`** (Phase 2 generator integration =
+> `01782ac`; the Phase-2 review fixes = `847cab1`, the current tip). `feat/generator-ingest` is
+> fast-forwarded to the same commit, so **both branches are even** — `main` is the active line
+> (recent work commits directly to it). Gates green: **lint 0 / tsc 0, fidelity 3/3, adapter
+> 5/5.** **The Rock still runs the previous `main`** — everything since is code-only (no schema
+> change yet), so a deploy remains optional/deferred. **Phase 3 (ingest) is next.**
 
 ## What got done this session (Phase 2 — generator integration, SPEC §4)
 
 - **Adapter** `app/src/generator/adapter.ts`: `bundleToAresData(bundle)` — renames the 5
   top-level groups, deep-strips Payload row `id`, `null`→`''`, drops empty
-  `resources`/`FINAL_EXPLANATION`/`SUMMARY_TABLE`. Inner keys pass through verbatim. (Generator
-  never reads `framework[].resources` — Resource column comes from the absent Python module.)
+  `resources`/`FINAL_EXPLANATION`/`SUMMARY_TABLE`, and **force-coerces the 5 generator-iterated
+  array slots to arrays** (a null array would otherwise become `''` and crash `.map`). Inner keys
+  pass through verbatim. (Generator pulls the Resource column from the Python module, not from
+  `framework[].resources`; that module is shimmed → blank column.)
 - **Validity-gated core** `app/src/generator/generateForBundle.ts`: `generateForBundle(payload,
   id)` loads the published snapshot + `assertExportable` (refuses non-`published` →
   `NotExportableError`) + adapter + `generateBundleDocx`. Gate lives in the **shared core** so
-  every path enforces it; the future §9 endpoint just adds READ access. CLI script
-  `app/scripts/generate-bundle.ts` (`payload run`) for now.
+  every path enforces it; `overrideAccess` makes it a TRUSTED system path — the future §9 endpoint
+  must enforce READ access first. CLI script `app/scripts/generate-bundle.ts` (`payload run`) for now.
+- **Blank Resource column shim** `app/src/generator/vendor/aresResources.js` (Lesson3-authored,
+  not vendored): renders empty cells instead of the `(ARES resources unavailable)` placeholder.
 - **Phase-2 GATE** `app/scripts/adapter-fidelity.ts` (**5/5**, DB-less): simulates a stored
   Payload bundle from `bio_1_4_data.js` → real adapter + generator → diff vs approved (proves
   bundle→DOCX by transitivity). Diff helpers extracted to `app/scripts/lib/docxDiff.ts`;
-  Phase-1 gate refactored to import them, still **3/3**. `tsc` clean (bar the pre-existing
-  `@types/jsdom` script-tooling note); `eslint` clean.
-- **Decisions recorded** in `docs/DECISIONS.md` (2026-06-08 Phase 2 entry).
+  Phase-1 gate refactored to import them, still **3/3**.
+- **Repo gates repaired** (`847cab1`, were red since Phase 0/1): eslint now ignores the pristine
+  vendored CJS (`src/generator/vendor/**`); added `@types/jsdom@28.0.3` (exact) so `scripts/`
+  type-check. **`npm run lint` 0 errors, `tsc --noEmit` 0 errors.**
+- **Decisions recorded** in `docs/DECISIONS.md` (two 2026-06-08 entries: Phase 2 + the
+  Codex/CodeRabbit review triage).
 
 ## What got done last session (Phase 0 + Phase 1)
 
@@ -53,8 +61,9 @@
   seam (links to be sourced from ARES-produced documents later, not the live recommender).
   SPEC §3/§4 nudged UNDETERMINED→DEFERRED.
 - **Generation gated to published/official versions only** (drafts relax required-field
-  validation → an invalid draft snapshot must never be exported). Recorded; **build it in
-  Phase 2.**
+  validation → an invalid draft snapshot must never be exported). **Built in Phase 2**
+  (`assertExportable`). NB: publish-status alone is necessary but NOT sufficient — see Phase 3
+  task 3 (generator-completeness validation).
 - **Offline-priority reframing FLAGGED, not yet done.** User's audience analysis (A: ~10–60
   schools w/ ARES server; B: hundreds online; C: thousands offline = the largest) suggests the
   *exported documents* standing alone offline is the majority case. SPEC line 25 still calls
@@ -62,8 +71,6 @@
 
 ## Open items / pending
 
-- **Commit Phase 2** on `feat/generator-ingest` (adapter + generateForBundle + scripts + docs),
-  then push & merge `feat/generator-ingest` when ready (nothing pushed yet).
 - **ARES confirmation message drafted** (in an earlier transcript) — awaiting Mark's reply on
   which data/DOCX are canonical. Not blocking (we have `bio_1_4`).
 - Fork's `origin` is stale at `212da91`; we read newer commits from `upstream`. Pin is by SHA
@@ -71,16 +78,18 @@
 - **Phase 4 will need a DB round-trip** (the Phase-2 gate is DB-less by design). Reuse
   `app/scripts/lib/docxDiff.ts` + `generateForBundle`: ingest → stored 1.0.0 → published →
   `generateForBundle` → diff vs approved; verify on the Rock.
+- **Carried from the Phase-2 review (build in Phase 3):** `validateGeneratable` — see Phase 3
+  task 3. `test:int` + `next build` need a DB (Rock only); not run locally.
 
 ## This session: Phase 3 — safe `.js → JSON` ingest (SPEC §7)
 
-Suggested branch: continue on `feat/generator-ingest`.
+Branch: work on `main` (the active line; `feat/generator-ingest` mirrors it at `847cab1`).
 
 > Opening message: Read `SPEC.md` (§3/§7), `CLAUDE.md`, `docs/DECISIONS.md`, and this file.
-> Phases 0–2 are done on `feat/generator-ingest` (generator vendored at `529be40`; Phase-1 gate
-> 3/3; Phase-2 adapter + validity-gated generate core, gate 5/5). Build Phase 3: safe static
-> extraction of ARES `.js` data modules → bundle created as 1.0.0 via the Local API. Use the
-> `payload` skill; trust installed source over memory.
+> Phases 0–2 are done and pushed to `main` at `847cab1` (generator vendored at `529be40`;
+> Phase-1 gate 3/3; Phase-2 adapter + validity-gated generate core, gate 5/5; lint 0 / tsc 0).
+> Build Phase 3: safe static extraction of ARES `.js` data modules → bundle created as 1.0.0 via
+> the Local API. Use the `payload` skill; trust installed source over memory.
 
 **Phase 3 tasks (ingest, §7):**
 1. **Safe `.js → JSON` extraction that NEVER `require()`s/executes the module** (RCE). Static
