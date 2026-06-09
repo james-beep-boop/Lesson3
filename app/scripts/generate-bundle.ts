@@ -58,9 +58,11 @@ const run = async () => {
   for (const f of written) console.log(`  ${f}`)
 }
 
-run()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
+// Top-level `await` (NOT `run().then(...)`): `payload run` only awaits module evaluation, then
+// calls process.exit(0) (payload/dist/bin/index.js) — a detached promise is torn down before the
+// async work finishes. See scripts/ingest.ts for the full note.
+await run().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})
+process.exit(0)

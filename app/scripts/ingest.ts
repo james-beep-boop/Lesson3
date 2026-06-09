@@ -45,9 +45,13 @@ const run = async () => {
   console.log('Review and publish each bundle (admin) to make it official / exportable.')
 }
 
-run()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e instanceof Error ? e.message : e)
-    process.exit(1)
-  })
+// Top-level `await` (NOT fire-and-forget `run().then(...)`): `payload run` only awaits the
+// module's EVALUATION, then calls process.exit(0) unconditionally (payload/dist/bin/index.js).
+// A detached promise would be torn down before getPayload/ingest finish — exit 0, no work,
+// no output. Top-level await keeps evaluation pending until run() completes. (run() calls
+// process.exit itself, so this also exits cleanly under `tsx`, where the DB pool stays open.)
+await run().catch((e) => {
+  console.error(e instanceof Error ? e.message : e)
+  process.exit(1)
+})
+process.exit(0) // explicit so it also exits under `tsx` (getPayload keeps the DB pool open)
