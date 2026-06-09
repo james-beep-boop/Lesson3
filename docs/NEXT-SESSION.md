@@ -1,11 +1,28 @@
-# Start-here for the next session — Phase 2: generator integration into Lesson3 (SPEC §4)
+# Start-here for the next session — Phase 3: safe `.js → JSON` ingest (SPEC §7)
 
-> **Status (MERGED to `main`, NOT yet deployed to the Rock):** Phase 0 (vendor the ARES
-> generator) and Phase 1 (standalone fidelity proof) are **DONE, GATE passed 3/3**, and merged
-> to `main` (merge commit `3751412`; also on branch `feat/generator-ingest`). **The Rock still
-> runs the previous `main`** (scaffold + auth + sub-strand bundle + versioning) — Phase 0/1 is
-> code-only (no schema change, generator not yet wired into the running app), so a deploy is
-> optional and was intentionally deferred.
+> **Status:** Phase 0 (vendor generator) + Phase 1 (fidelity proof, 3/3) are **MERGED to
+> `main`** (merge `3751412`). **Phase 2 (generator integration) is DONE on
+> `feat/generator-ingest`, GATE 5/5** (not yet committed/pushed at handoff — see "Phase 2 done"
+> below). **The Rock still runs the previous `main`** — everything since is code-only (no schema
+> change yet), so a deploy remains optional/deferred.
+
+## What got done this session (Phase 2 — generator integration, SPEC §4)
+
+- **Adapter** `app/src/generator/adapter.ts`: `bundleToAresData(bundle)` — renames the 5
+  top-level groups, deep-strips Payload row `id`, `null`→`''`, drops empty
+  `resources`/`FINAL_EXPLANATION`/`SUMMARY_TABLE`. Inner keys pass through verbatim. (Generator
+  never reads `framework[].resources` — Resource column comes from the absent Python module.)
+- **Validity-gated core** `app/src/generator/generateForBundle.ts`: `generateForBundle(payload,
+  id)` loads the published snapshot + `assertExportable` (refuses non-`published` →
+  `NotExportableError`) + adapter + `generateBundleDocx`. Gate lives in the **shared core** so
+  every path enforces it; the future §9 endpoint just adds READ access. CLI script
+  `app/scripts/generate-bundle.ts` (`payload run`) for now.
+- **Phase-2 GATE** `app/scripts/adapter-fidelity.ts` (**5/5**, DB-less): simulates a stored
+  Payload bundle from `bio_1_4_data.js` → real adapter + generator → diff vs approved (proves
+  bundle→DOCX by transitivity). Diff helpers extracted to `app/scripts/lib/docxDiff.ts`;
+  Phase-1 gate refactored to import them, still **3/3**. `tsc` clean (bar the pre-existing
+  `@types/jsdom` script-tooling note); `eslint` clean.
+- **Decisions recorded** in `docs/DECISIONS.md` (2026-06-08 Phase 2 entry).
 
 ## What got done last session (Phase 0 + Phase 1)
 
@@ -43,46 +60,48 @@
 
 ## Open items / pending
 
-- **Push & merge `feat/generator-ingest`** when ready (nothing pushed yet).
-- **ARES confirmation message drafted** (in last session's transcript) — awaiting Mark's reply
-  on which data/DOCX are canonical. Not blocking Phase 2 (we have `bio_1_4`).
+- **Commit Phase 2** on `feat/generator-ingest` (adapter + generateForBundle + scripts + docs),
+  then push & merge `feat/generator-ingest` when ready (nothing pushed yet).
+- **ARES confirmation message drafted** (in an earlier transcript) — awaiting Mark's reply on
+  which data/DOCX are canonical. Not blocking (we have `bio_1_4`).
 - Fork's `origin` is stale at `212da91`; we read newer commits from `upstream`. Pin is by SHA
   + mirror tag, so this doesn't affect us.
+- **Phase 4 will need a DB round-trip** (the Phase-2 gate is DB-less by design). Reuse
+  `app/scripts/lib/docxDiff.ts` + `generateForBundle`: ingest → stored 1.0.0 → published →
+  `generateForBundle` → diff vs approved; verify on the Rock.
 
-## This session: Phase 2 — generator integration into Lesson3 (SPEC §4)
+## This session: Phase 3 — safe `.js → JSON` ingest (SPEC §7)
 
 Suggested branch: continue on `feat/generator-ingest`.
 
-> Opening message: Read `SPEC.md` (§3/§4/§5), `CLAUDE.md`, `docs/DECISIONS.md`, and this file.
-> Phase 0/1 are done on `feat/generator-ingest` (generator vendored at `529be40`, fidelity gate
-> 3/3). Build Phase 2: the bundle→ARES adapter and an in-process generate path, gated to
-> published/official versions. Use the `payload` skill; trust installed source over memory.
+> Opening message: Read `SPEC.md` (§3/§7), `CLAUDE.md`, `docs/DECISIONS.md`, and this file.
+> Phases 0–2 are done on `feat/generator-ingest` (generator vendored at `529be40`; Phase-1 gate
+> 3/3; Phase-2 adapter + validity-gated generate core, gate 5/5). Build Phase 3: safe static
+> extraction of ARES `.js` data modules → bundle created as 1.0.0 via the Local API. Use the
+> `payload` skill; trust installed source over memory.
 
-**Phase 2 tasks:**
-1. **Adapter** `lesson-bundle doc → ARES data object`: `meta→META, unit→UNIT, lessons→LESSONS,
-   finalExplanation→FINAL_EXPLANATION, summaryTable→SUMMARY_TABLE`. Strip Lesson3-only fields
-   (`semver/bumpType/lockVersion/_status/id/createdAt/updatedAt`); keep `lessons[].number`;
-   `framework[].resources` optional/empty. Inner keys already match ARES verbatim. (Confirm by
-   round-tripping: stored `bio_1_4` bundle → adapter → generator → diff vs approved.)
-2. **Expose generation** via a Payload custom endpoint (or a script for now — full export/
-   sharing UI is §9, later). Reuse `app/src/generator/index.ts`.
-3. **Validity gate:** restrict generation to **published/official** versions (decided). Validate
-   the exact version before generating; refuse drafts. Decide where the check lives (endpoint
-   access vs explicit validate call).
+**Phase 3 tasks (ingest, §7):**
+1. **Safe `.js → JSON` extraction that NEVER `require()`s/executes the module** (RCE). Static
+   parse only (e.g. an AST/`acorn` walk of the `module.exports = { … }` object literal). ARES's
+   `extract_generator_data.py` is the conceptual model. The shape it must emit maps 1:1 onto the
+   stored bundle (camelCase top-level groups; inner keys already match — see the Phase-2 adapter
+   for the exact field set).
+2. **Create the bundle as `1.0.0` via the Payload Local API in a transaction** (trusted system
+   call — `enforceBundleStructure` already treats `!req.user` as system/overrideAccess). Bulk
+   ingest supported. Validate against the schema on ingest (same rules as §5).
+3. **`security-review` the extraction** — this is the highest-risk surface (untrusted input).
 
 **Watch-outs:**
+- **Never execute uploaded `.js`** — the whole point. No `require`, no `vm`, no `eval`.
 - `framework[].phase` is a controlled vocabulary — `bio_1_4`'s 5 phases match `docx_kit.js`'s
-  colour-map keys (verified). Mathematics shares the same 5 phases but uses different
-  `META.col3Label`/`col5Label` ("Teacher Actions"/"Assessment Strategy") — the adapter must
-  pass META labels through.
-- Aim for **content-identical** (the existing harness), not byte/zip identity.
-- Single runtime: Node generator only; Python recommender never called live.
+  colour-map keys (verified). Mathematics shares the same 5 phases but different META labels
+  (`col3Label`/`col5Label` "Teacher Actions"/"Assessment Strategy") — carry META through.
+- Resources are DEFERRED: ingest carries `framework[].resources` through if ever present, else
+  omits it (the Phase-2 adapter already tolerates either).
 
-**Then Phase 3 (ingest, §7)** — safe `.js → JSON` static extraction that NEVER executes the
-module (RCE); create the bundle as 1.0.0 via the Local API in a transaction (trusted system
-call); `security-review` the extraction. **Phase 4 (end-to-end + Rock verification)** — ingest
-→ stored 1.0.0 → adapter → generator → diff vs approved; wire as a repeatable regression check;
-verify on the Rock.
+**Then Phase 4 (end-to-end + Rock verification)** — ingest → stored 1.0.0 → publish →
+`generateForBundle` → diff vs approved (DB round-trip); wire as a repeatable regression check;
+verify on the Rock (see the deploy workflow below).
 
 ## Assets (verified — read these, don't trust memory)
 

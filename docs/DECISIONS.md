@@ -11,6 +11,42 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Phase 2: generator integration (adapter + validity-gated core)
+
+Built the stored-bundle → ARES generator path on `feat/generator-ingest`. Decisions:
+
+- **Adapter is a thin rename + clean, not a field-by-field mapping.** The ARES *inner*
+  keys already match the Payload field names verbatim (verified against `bio_1_4_data.js`),
+  so `bundleToAresData` (`app/src/generator/adapter.ts`) only (1) renames the five top-level
+  groups (`meta→META` …), (2) deep-strips Payload's row `id`, (3) converts **`null` → `''`**,
+  and (4) drops **empty** `framework[].resources` / `FINAL_EXPLANATION` / `SUMMARY_TABLE`.
+  **Why null→'':** Payload returns `null` for empty optional strings, but the generator's
+  `cell()` wraps a non-string/non-array child as `[content]` → a raw `null` produces invalid
+  docx; ARES data files never contain `null`, so the adapter restores that invariant. A
+  *populated* `resources` is carried through untouched (the deferred-resources future seam).
+  Verified the generator **never reads `framework[].resources`** anyway (`sections.js` pulls
+  the Resource column from the absent Python `aresResources` module via its no-op fallback),
+  so this is fidelity-neutral.
+- **Validity gate lives in the shared core, not the caller (secure by default).**
+  `generateForBundle(payload, id)` (`app/src/generator/generateForBundle.ts`) loads the
+  bundle (`overrideAccess`, no `draft:true` → the published snapshot), calls `assertExportable`
+  (refuses anything whose `_status !== 'published'` with a `NotExportableError`), then runs the
+  adapter + `generateBundleDocx`. The gate is enforced by **every** path by construction; the
+  CLI uses it now and the future §9 export endpoint just adds READ access on top — it does not
+  re-implement the gate. Publishing already enforces required fields, so a published bundle is
+  schema-valid. Matches the deferred Codex finding (drafts must never export).
+- **Generation exposed as a script for now** (`app/scripts/generate-bundle.ts`, run via
+  `payload run`), not an endpoint — full export/sharing UI is SPEC §9, later.
+- **Phase-2 GATE is DB-less** (`app/scripts/adapter-fidelity.ts`, 5/5): it *simulates* a stored
+  Payload bundle from `bio_1_4_data.js` (camelCase groups + injected row `id`s + sidebar fields
+  + `null` UNIT.overview + empty `resources` groups), runs the real adapter + generator, and
+  diffs vs the approved DOCX — proving bundle→DOCX by transitivity with the Phase-1 gate. The
+  true end-to-end **DB** round-trip + Rock verification stays Phase 4 (per NEXT-SESSION). Shared
+  mammoth/jsdom diff helpers were extracted to `app/scripts/lib/docxDiff.ts` (both gates import
+  them; Phase-1 gate still 3/3). *Tooling note:* `scripts/*` trip a pre-existing
+  `@types/jsdom`-missing `tsc` warning (present since Phase 1); left as-is to avoid an
+  out-of-scope dependency add.
+
 ## 2026-06-08 — Resources deferred (recommender out of scope); audience-driven priority note
 
 **Decision (firm):** the ARES **Resource column is not populated** for the foreseeable future,
