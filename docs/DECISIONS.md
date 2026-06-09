@@ -11,6 +11,92 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Resources deferred (recommender out of scope); audience-driven priority note
+
+**Decision (firm):** the ARES **Resource column is not populated** for the foreseeable future,
+and the **Python recommender is not integrated at all** — not live *and not at ingest*. This
+formalises the Phase-0 omission of `aresResources.js`. It is **within SPEC**, not a spec change:
+§3/§4/§5/§7 already mark resources **optional and "undetermined… may be omitted entirely,"** and
+the recommender path was always conditional ("if the column is enabled"). We are exercising the
+already-specified "off" branch.
+
+**What we keep (the future seam):** the optional `framework[].resources` field in
+`LessonBundles.ts` stays. Removing it would be the one move that forecloses the future; keeping
+it costs nothing (it already tolerates empty).
+
+**Why (three distinct audiences, user-provided):**
+- **A — schools with their own ARES server** (~10–60): links resolve to local content; genuinely useful.
+- **B — schools using the online ARES demo** (hundreds): links useful if online.
+- **C — little/intermittent internet** (thousands — the **largest** group): links are useless.
+
+So links add value only for a minority, while the majority is best served by a self-contained
+lesson-plan document (high-fidelity DOCX/PDF, no live links). This **aligns with** the existing
+SPEC non-goal "not an offline content-distribution platform (Kolibri/RACHEL serve that need)."
+
+**Future sourcing (no live recommender):** resources do **not** live in the ARES data files —
+upstream they exist only in the *rendered* DOCX (computed at build time from `aresKeywords`). So
+if links are wanted later, the path is to **extract them from the ARES-produced documents** and
+attach to `framework[].resources` — or, if the ARES team later embeds resources in the data
+files, ingest simply carries them through. Either way, the same optional field absorbs it.
+
+**Fidelity impact:** none. We already diff "everything-except-resources." The approved DOCX still
+contain the column, so we keep excluding it; only a *structural* removal of the column would force
+new baselines, and we are not doing that (that's the generator/format owner's call, not a fork).
+
+**Flagged for a later deliberate SPEC pass (NOT changed now):** SPEC line 25 calls offline a
+**"secondary goal."** The audience sizing above suggests the *exported documents* standing alone
+offline is actually the majority case (distinct from running the *app* on an offline box, which
+remains secondary infra). Before editing SPEC, firm up the audience numbers and think through the
+downstream nudge toward **print/PDF/offline fidelity over interactive links**. Captured here as an
+open question rather than a reactive spec edit.
+
+---
+
+## 2026-06-08 — Generator embedding (Phase 0): vendor pristine, omit Python, mirror the SHA
+
+Starting the bio_1_4 end-to-end fidelity proof (NEXT-SESSION.md). Phase 0 vendors the ARES
+Node generator into Lesson3. Decisions (all confirmed with the user at plan time):
+
+- **Vendor pristine, not submodule/npm-dep.** The source lives on an **unmerged `claude/*`
+  bot branch** (`markknit/cbe-generation-system@212da91…`), which can be rebased/force-pushed/
+  deleted on merge — so any approach that points *live* at that ref (submodule SHA, npm
+  git-ref) is fragile, and submodules add friction to the Rock's bind-mount Docker flow.
+  **Decision:** copy the three lib files **byte-verbatim** into `app/src/generator/vendor/lib/`
+  and never edit them; all integration lives in `app/src/generator/` (ours). Provenance +
+  exact SHA in `vendor/PROVENANCE.md` and `docs/EXTERNAL-DEPENDENCIES.md`; one-command re-sync
+  via `scripts/vendor-generator.sh`. **Pinned at `529be40`** (branch tip). *Process note:* the
+  SHA was first taken as `212da91` from a **stale local fork**; the real tip was four commits
+  ahead (`529be40`). Re-pinned after verifying the four intervening commits touched only
+  docs/content/output DOCX — the three vendored lib files are **byte-identical** at both
+  commits and the fidelity gate still passes. **Lesson:** `git fetch` before resolving a pin;
+  don't trust a local clone's `origin`. **Rule:** because a generator change *also* ripples into
+  our schema/adapter/approved-DOCX, an upgrade is never a silent SHA bump — the **fidelity
+  regression is the acceptance gate** for adopting any new version. Vendoring makes that change
+  visible and tested; a submodule's transparent bump would hide it.
+- **Buffers need ZERO generator modification.** `build_docs.js` exports the three builders
+  (`buildSoW`/`buildFinalExplanation`/`buildSummaryTable`), each returning a `docx` `Document`.
+  Our wrapper calls them + `Packer.toBuffer()`. The NEXT-SESSION assumption that we'd "refactor
+  `run()` to return Buffers" was unnecessary — `run()` stays untouched (disk-write parity only).
+  This is what makes pristine vendoring cheap: no local patches to carry across upstream changes.
+- **`aresResources.js` intentionally NOT vendored (deviation from NEXT-SESSION, rule-driven).**
+  It `execSync`s `python3` against a SQLite DB for the Section-C Resource column. Single-runtime
+  / "never invoke the Python recommender live" (SPEC §0) forbids that. `sections.js` already
+  `try`-requires `../aresResources` and falls back to no-ops when absent — so **omitting the
+  file** exercises that documented fallback, guaranteeing zero Python and a deterministic
+  (empty) Resource column. The fidelity diff excludes the Resource column anyway.
+- **CJS-in-ESM boundary.** The vendored files are CommonJS; the app is `"type":"module"`.
+  Added `vendor/package.json` = `{"type":"commonjs"}` so Node parses them correctly without
+  editing them; Lesson3 imports the builders from ESM via `createRequire`. (Smoke-tested: a
+  builder produces a valid PK-zip docx Buffer.)
+- **Pinned `docx@9.6.1` exact** (the version the generator was authored against) + **`mammoth@1.12.0`**
+  (devDep, for DOCX→text diffing) in `app/package.json`.
+- **Mirror tag pushed:** `lesson3-vendor-212da91` on `james-beep-boop/cbe-generation-system`,
+  insurance against the upstream bot branch disappearing.
+- **Export gate (confirmed, ties to the deferred Codex finding below):** generation is
+  restricted to **published/official** (validated) versions; drafts are never exported.
+
+---
+
 ## 2026-06-08 — External review (Codex) on versioning: read boundary + secure-by-default
 
 Codex reviewed the deployed versioning work. Four findings; two acted on now (deployed,
