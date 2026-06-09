@@ -105,10 +105,12 @@ Branch: work on `main` (the active line; `feat/generator-ingest` mirrors it at `
    the generator dereferences groups the schema leaves optional — a lesson without `slo` crashes
    with `Cannot read properties of undefined (reading 'purpose')`. The Phase-2 adapter guarantees
    *type*-safety (array slots stay arrays) but deliberately does NOT fabricate missing groups —
-   that is invalid content to **reject at ingest/publish**, not silently render. Add a
-   `validateGeneratable(bundle)` (groups present: `slo`/`summaryTablePrompt`/`meta`; each lesson
-   has ≥1 framework phase; phase ∈ vocab) and run it on ingest + before publish. Export then
-   trusts validated-in data.
+   that is invalid content to **reject at ingest/publish**, not silently render. Per the
+   **Payload-first rule** (SPEC §13), build this the native way — field `validate` functions +
+   a `beforeValidate`/`beforeChange` collection hook — so it runs automatically on save/publish/
+   ingest and surfaces in the admin UI, NOT a standalone function only the export path calls.
+   Checks: groups present (`slo`/`summaryTablePrompt`/`meta`); each lesson has ≥1 framework phase;
+   phase ∈ vocab. Export then trusts validated-in data.
 4. **`security-review` the extraction** — this is the highest-risk surface (untrusted input).
 
 **Watch-outs:**

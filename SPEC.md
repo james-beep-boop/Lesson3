@@ -204,4 +204,10 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 - One runtime: resist re-introducing a second language on the core path.
 - Structured data is canonical; the editor's grammar must stay a subset of the generator's input grammar (§4).
 - Critical rules enforced server-side (access functions, hooks, validation), never only in the UI.
+- **Payload-first.** Before adding any new custom endpoint, editor, permission layer, workflow,
+  or persistence code, first check whether Payload already provides it — through collection
+  config, access control, field/collection hooks, versions/drafts, admin config, the Jobs Queue,
+  or the Local API. Build custom only when Payload genuinely cannot; when you do, **document the
+  specific gap** in a code comment and/or `docs/DECISIONS.md`. The point is to keep the system
+  leaning on Payload's tested machinery rather than re-implementing it.
 - Document any deviation from this spec here.

@@ -14,6 +14,12 @@ export const SubjectGrade: CollectionConfig = {
     defaultColumns: ['displayName', 'subject', 'grade'],
     group: 'Taxonomy',
   },
+  // DB-level guarantee that (subject, grade) is unique — Payload's native compound index
+  // (verified in installed source: collections/config/types `indexes`). The beforeValidate
+  // check below is kept for a friendly error message (a raw unique-constraint violation is
+  // opaque); together = defense in depth (hard DB constraint + good UX). See
+  // docs/DECISIONS.md 2026-06-09.
+  indexes: [{ unique: true, fields: ['subject', 'grade'] }],
   access: {
     read: authenticated,
     create: siteAdminOnly,
@@ -22,8 +28,7 @@ export const SubjectGrade: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [
-      // Enforce one row per (subject, grade). Payload core has no compound-unique
-      // field config, so we check on write.
+      // Friendly duplicate check (the hard guarantee is the compound unique index above).
       async ({ data, req, originalDoc }) => {
         if (!data?.subject || data?.grade == null) return data
         const subjectId = typeof data.subject === 'object' ? data.subject.id : data.subject

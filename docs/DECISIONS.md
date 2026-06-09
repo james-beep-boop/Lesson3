@@ -11,6 +11,85 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-09 — SubjectGrade modeling locked (junction entity) + native compound-unique index
+
+Deliberate review of "two fields (subject, grade) vs one SubjectGrade entity" (SPEC §8),
+confirmed with two requirements the user nailed down:
+
+- **(1) Teachers are ALWAYS assigned at `(subject, grade)` granularity → SubjectGrade stays a
+  first-class junction entity.** The decisive test is the *permission grant*: a grant is a tuple
+  ("Grade 10 Math"), and a teacher holds several independent tuples. Two *independent* fields
+  (`subjects[]`, `grades[]`) can only express their **cross-product**, which over-grants (e.g.
+  Math-10 + Biology-12 would also grant Biology-10, Math-12). So the pair must be atomic — an
+  entity. This also gives clean Payload access queries (`subjectGrade: { in: [...] }`, mirrored in
+  `readVersions`), referential integrity (a curated list of valid combos, no garbage/typos), and
+  matches the domain mental model (Subject + Grade = building blocks; SubjectGrade = their curated
+  junction). **Caveat recorded:** the entity's justification rests entirely on per-pair
+  assignments; if that ever softened to subject-only or grade-only grants, two fields would be
+  simpler and this should be revisited.
+- **(2) Cross-axis reporting ("all Biology across grades", "all Grade 10") is OCCASIONAL → do NOT
+  denormalize.** Mirror `subject`/`grade` columns on bundles would buy direct querying at the cost
+  of permanent sync upkeep + more secure-by-default whitelist surface — not worth it for occasional
+  use. Pattern instead: the **two-step** (resolve SubjectGrade ids for the subject/grade, then
+  `bundles where subjectGrade in (...)`), which always works regardless of adapter query support. A
+  one-shot relationship dot-path (`where: { 'subjectGrade.subject': … }`) may also work — verify
+  against the DB before relying on it; the two-step is the safe default.
+- **`grade` stays a constrained integer**, not its own `Grade` collection (YAGNI). Promote to a
+  relationship via migration only if grades gain attributes (alternate names like "Form 4",
+  ordering/banding, per-grade metadata).
+
+**Action taken — adopt the native compound-unique index** (supersedes the 2026-06-08 audit note
+"DB-level composite unique index still deferred; app-level check acceptable"). Added
+`indexes: [{ unique: true, fields: ['subject', 'grade'] }]` to `SubjectGrade` (verified in
+installed source `collections/config/types` — Payload natively supports compound unique indexes;
+this is the Payload-first replacement for relying on the hook alone). Kept the `beforeValidate`
+duplicate check for a friendly error message (a raw unique-violation is opaque) → defense in depth.
+`generate:types` parses clean, `tsc` 0 errors, `payload-types.ts` unchanged (no new fields).
+**Still needs a migration generated + applied on the Rock** (the index is DDL); existing data is
+safe because the app-level check has prevented duplicates all along.
+
+## 2026-06-09 — "Payload-first" working rule (+ leverage audit)
+
+**Rule (adopted; also added to SPEC §13).** Before adding any new custom endpoint, editor,
+permission layer, workflow, or persistence code, first check whether Payload already provides it
+— via collection config, access control, field/collection hooks, versions/drafts, admin config,
+the Jobs Queue, or the Local API. Build custom only when Payload genuinely cannot; when you do,
+**document the specific gap** in a code comment and/or here. Keep leaning on Payload's tested
+machinery instead of re-implementing it.
+
+**Audit to date (grounded in the code, not memory) — strongly compliant.** Where we leverage
+Payload:
+- **Data model:** sub-strand bundle as native nested groups/arrays (`LessonBundles.ts`), NOT a
+  JSON blob — the choice that unlocks per-field validation, field access, and versioning.
+- **Auth:** built-in Payload auth on `Users` (JWT, `forgotPassword`, `tokenExpiration`); no custom auth.
+- **RBAC:** collection + field access functions; reads return `Where` queries
+  (`lessonBundleRead`) with a mirrored `readVersions` so history can't leak drafts — the idiomatic
+  query-filter approach, not post-fetch filtering.
+- **Versioning:** Payload `versions` + `drafts` as the history/official-version engine; restore is
+  Payload's. Custom layer = only `semver`/`bumpType`/`lockVersion` (Payload has no semver).
+- **Structural integrity:** `enforceBundleStructure` is a `beforeChange` hook used *because* field
+  access cannot gate array cardinality/order (a documented Payload limitation) — right primitive,
+  not reinvention. Same for the other hooks (`autoDemotePriorSubjectAdmins`, `guardPasswordChange`,
+  `grantSiteAdminToFirstUser`, subject-rename refresh), all threading `req`.
+- **Editor UI:** Phase 1 uses Payload admin edit screens; no custom React editor (SPEC §5 "only if
+  needed"). **Email/migrations/persistence:** `@payloadcms/email-nodemailer`, `payload migrate` +
+  `db-postgres`, Local API in scripts. **Generation:** script + reusable core via Local API; custom
+  endpoint deliberately deferred to §9.
+
+**Opportunities to be MORE native (flagged, all future — honor when these phases land):**
+- **Async export (§9):** use Payload's built-in **Jobs Queue**, not a hand-rolled queue.
+- **`validateGeneratable` (Phase 3):** implement as Payload field `validate` + a
+  `beforeValidate`/`beforeChange` hook so it runs on save/publish/ingest and surfaces in the admin
+  UI — not a standalone function only the export path calls.
+- **`generateForBundle` `overrideAccess`:** trusted system path now; the §9 endpoint must switch to
+  `req`-based access (Payload custom endpoint reusing access + Local API).
+- **Optimistic concurrency:** currently Payload document-locking + a `lockVersion` counter; true
+  reject-if-stale OCC, if needed, is a custom-endpoint concern (documented earlier).
+
+**Verdict:** the only custom code maps to justified, already-documented gaps. The rule formalises
+existing practice; its main forward use is steering Phase 3/§9 (validation + async export) toward
+Payload's native validate-hooks and Jobs Queue.
+
 ## 2026-06-08 — Phase 2 external review (Codex/CodeRabbit) triage + fixes
 
 Codex reviewed the just-committed Phase 2. Five findings, all valid; verified each directly
