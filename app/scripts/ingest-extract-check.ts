@@ -118,7 +118,10 @@ expectReject('reject: member access (process.env) in data', moduleWith(`evil: pr
 expectReject('reject: template literal with expression', moduleWith('evil: `${1 + 1}`'))
 expectReject('reject: bare identifier reference in data', moduleWith(`evil: someVariable`))
 expectReject('reject: IIFE / arrow call in data', moduleWith(`evil: (() => 1)()`))
-expectReject('reject: binary expression in data', moduleWith(`evil: 1 + 2`))
+// Constant `+` folds (below), but `+` with a NON-literal operand must still reject —
+// proving the fold can't smuggle in an identifier/call.
+expectReject('reject: binary `+` with a non-literal operand', moduleWith(`evil: 1 + someVar`))
+expectReject('reject: non-`+` binary operator', moduleWith(`evil: 6 * 7`))
 expectReject('reject: __proto__ key (prototype pollution)', moduleWith(`__proto__: { polluted: true }`))
 expectReject(
   'reject: __proto__ key in module.exports (export layer)',
@@ -138,6 +141,13 @@ expectReject(
   'reject: no module.exports',
   `'use strict'; const META = {}; const UNIT = {}; const LESSONS = [];`,
 )
+
+// 2c. FOLD — constant string concatenation (the ARES multi-line-string pattern) folds.
+{
+  const r = extractAresData(moduleWith(`note: 'a\\n' + 'b' + 'c'`)) as { META: { note?: unknown } }
+  if (r.META.note === 'a\nbc') ok("fold: constant string concatenation (+) folds to one string")
+  else bad("fold: constant string concatenation (+) folds", `got ${JSON.stringify(r.META.note)}`)
+}
 
 // 3. COMPLETENESS GATE — validateGeneratable on real + broken data.
 {

@@ -85,6 +85,26 @@ function literalToJson(node: AnyNode): unknown {
       return fail(`Unsupported unary operator '${op}'`, node)
     }
 
+    case 'BinaryExpression': {
+      // Constant-fold string concatenation ONLY (`+`). ARES authors build long prose by
+      // joining string literals across lines (`'a\n' + 'b\n' + …`). Both operands are
+      // evaluated through `literalToJson`, so a non-literal operand (identifier, call,
+      // member access) still throws — the no-execution boundary is unchanged; this is pure
+      // constant-folding. Restricted to `+` on string/number primitives (no other operator,
+      // no object/array operands → no surprising coercions). See docs/DECISIONS.md.
+      const op = node.operator as string
+      if (op !== '+') {
+        return fail(`Unsupported binary operator '${op}'; only '+' (constant concat) is allowed`, node)
+      }
+      const left = literalToJson(node.left as AnyNode)
+      const right = literalToJson(node.right as AnyNode)
+      const isPrimitive = (v: unknown) => typeof v === 'string' || typeof v === 'number'
+      if (!isPrimitive(left) || !isPrimitive(right)) {
+        return fail("`+` operands must be string or number literals", node)
+      }
+      return (left as string | number) + (right as never)
+    }
+
     case 'ArrayExpression': {
       const elements = node.elements as Array<AnyNode | null>
       return elements.map((el) => {

@@ -41,7 +41,7 @@ export const Subject: CollectionConfig = {
   slug: 'subjects',
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'slug'],
+    defaultColumns: ['name'],
     group: 'Taxonomy',
   },
   access: {
@@ -61,13 +61,6 @@ export const Subject: CollectionConfig = {
       unique: true,
       label: 'Subject',
       admin: { description: 'Academic discipline only, e.g. "Biology". No grade here.' },
-    },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      index: true,
-      admin: { description: 'URL-safe identifier, e.g. "biology".' },
     },
   ],
 }

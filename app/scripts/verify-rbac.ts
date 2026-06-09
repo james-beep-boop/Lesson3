@@ -25,7 +25,7 @@ const run = async () => {
   try {
     const subject = track(
       'subjects',
-      await payload.create({ collection: 'subjects', data: { name: `${P}Biology`, slug: `${P}bio` } }),
+      await payload.create({ collection: 'subjects', data: { name: `${P}Biology` } }),
     )
     const sg = track(
       'subject-grades',

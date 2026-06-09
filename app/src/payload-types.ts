@@ -192,10 +192,6 @@ export interface Subject {
    * Academic discipline only, e.g. "Biology". No grade here.
    */
   name: string;
-  /**
-   * URL-safe identifier, e.g. "biology".
-   */
-  slug?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -538,7 +534,6 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface SubjectsSelect<T extends boolean = true> {
   name?: T;
-  slug?: T;
   updatedAt?: T;
   createdAt?: T;
 }

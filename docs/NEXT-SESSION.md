@@ -1,11 +1,13 @@
 # Start-here for the next session — Phase 4: end-to-end DB round-trip + Rock verification
 
 > **Status:** Phases 0–3 are **DONE**. **Phase 3 (safe `.js → JSON` ingest, SPEC §7) is
-> built and committed on `main`** (gates green: **ingest 16/16, fidelity 3/3, adapter 5/5,
-> lint 0 / tsc 0**; Codex + CodeRabbit reviewed and triaged; `security-review` clean). The
-> Rock is at `0096f7a` (SG compound-index + media-drop migration applied). **Phase 3 needs
-> NO migration** (hooks + validation + one dep only — `payload-types.ts` byte-identical), so
-> the Rock just needs a `git pull` + rebuild to pick it up. **Phase 4 (DB round-trip) is next.**
+> built and committed on `main`** (gates green: **ingest 18/18, fidelity 3/3, adapter 5/5,
+> lint 0 / tsc 0**; Codex + CodeRabbit reviewed and triaged; `security-review` clean; the
+> extractor folds `+` string concatenation so all 13 corpus files parse). The Rock is at
+> `0096f7a` (SG compound-index + media-drop migration applied). **One pending migration** rides
+> the next deploy: `20260609_170000_drop_subject_slug` (drops the unused `subjects.slug`
+> scaffold column — safe, disposable data). Rock pickup = `git pull` + `docker compose up -d
+> --build` (the one-shot `migrate` service applies it). **Phase 4 (DB round-trip) is next.**
 
 ## What got done this session (Phase 3 — safe ingest, SPEC §7)
 

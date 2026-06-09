@@ -80,6 +80,55 @@ Decisions (confirmed with the user at design time):
 - **Still TODO:** the true DB round-trip — ingest → stored 1.0.0 draft → publish →
   `generateForBundle` → diff vs approved — is Phase 4 (needs a DB; run on the Rock).
 
+## 2026-06-09 — Removed the unused `subjects.slug` scaffold field
+
+`Subject.slug` ("URL-safe identifier, e.g. biology") was `create-payload-app`-style residue —
+referenced **nowhere** in logic: ingest matches Subject by `name` (exact), RBAC / SubjectGrade
+link by `id`, and there are no subject routes/URLs in scope (SPEC §8 = discipline only). It also
+cluttered the Subject create form with an extra (optional, blank-able) field. Same call as the
+2026-06-09 Media-collection removal. Removed the field + its `defaultColumns` entry; fixed the
+one consumer (`verify-rbac.ts` test fixture). **Migration hand-authored** (no local Postgres to
+run `migrate:create`): `20260609_170000_drop_subject_slug` — `DROP INDEX IF EXISTS
+subjects_slug_idx` + `DROP COLUMN IF EXISTS slug` (`up` idempotent per the migration-gen
+lesson), `down` restores column + unique index. The `.json` snapshot was derived from the prior
+one by deleting `public.subjects.columns.slug` + `indexes.subjects_slug_idx` (only the `.ts`
+runs at apply time; the snapshot keeps future `migrate:create` diffs clean), registered in
+`migrations/index.ts` (sorts last). `generate:types` dropped `Subject.slug`. Gates: tsc 0, lint
+0, ingest 18/18, fidelity 3/3, adapter 5/5. **Pending Rock deploy** — rides the next
+`docker compose up -d --build` (safe; slug data is disposable/unused).
+
+## 2026-06-09 — Corpus dry-run: `+` concat folding + FE/ST readiness map
+
+Ran the real extractor + gates over all **13** corpus data files (`generators/data/*_data.js`
+at SHA `529be40`, materialized read-only via `git show`) before Phase 4, to confirm
+ingestability and which SubjectGrades to seed. Two findings:
+
+- **Seed exactly TWO SubjectGrades: `Biology — Grade 10` and `Mathematics — Grade 10`.** All 13
+  files are grade 10; subjects are `"Biology"` (10 sub-strands) and `"Mathematics"` (3). Seed
+  those exact subject names (ingest matches on `Subject.name` verbatim). NB Math META differs
+  in *syntax* (unquoted identifier keys + single-quoted strings, vs Biology's JSON-style
+  double quotes) and *labels* (`col3Label`/`col5Label` = "Teacher Actions"/"Assessment
+  Strategy") — the acorn extractor handles both syntaxes; `JSON.parse` would NOT (proves acorn
+  was the right tool, not a regex/JSON shortcut).
+- **`+` string-concat folding added (user-approved, `+` only).** 6/13 files (bio_1_1, bio_1_3,
+  bio_2_1, all 3 Math) initially failed extraction with `Unsupported expression
+  (BinaryExpression)` — ARES authors build long prose as `'a\n' + 'b\n' + …`. Extended
+  `literalToJson` to **constant-fold `+`** (and only `+`) on operands that each evaluate to a
+  string/number literal. **Security boundary unchanged:** both operands recurse through
+  `literalToJson`, so a non-literal operand (`'a' + ident`, `'a' + call()`) still throws; a
+  non-`+` operator (`6 * 7`) still throws. Gate updated: the old `reject: 1 + 2` case became
+  `reject: '+' with a non-literal operand` + `reject: non-'+' operator` + a positive fold
+  assertion. Now **18/18**, and **13/13 files extract + pass the hard gate**.
+- **FE/ST readiness (validates the warn-only decision).** 6/13 files have
+  `const FINAL_EXPLANATION = null; // fill in or extract manually` (and the same for
+  SUMMARY_TABLE) — bio_1_1, bio_1_3, bio_2_1, math_2_2/2_3/2_4. They are **upstream content
+  gaps** (ARES hasn't authored FE/ST for those sub-strands yet), not a code/shape issue — the
+  extractor handles `null` and the bundle just warns. So the corpus does NOT uniformly carry
+  all three documents; **do not promote FE/ST to a hard gate** (it would reject ~46% of the
+  corpus). The 7 complete bundles (bio_1_2, 1_4, 2_2, 2_3, 3_1, 3_2, 3_3) produce all three;
+  the 6 produce only the LessonSequence until ARES fills in FE/ST. bio_1_4 (the Phase-4 oracle)
+  is complete → ready for the full round-trip.
+
 ## 2026-06-09 — Phase 3 external review (Codex + CodeRabbit) triage + fixes
 
 Codex/CodeRabbit reviewed the ingest work. Verified each finding directly; all green after.
