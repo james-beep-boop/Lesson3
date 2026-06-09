@@ -8,11 +8,10 @@
 > already live). Gates green: **ingest 18/18, fidelity 3/3, adapter 5/5, lint 0 / tsc 0**. See
 > `docs/DECISIONS.md` (2026-06-09 Phase-4 entry) for the bugs fixed + mechanics.
 >
-> **TOP FOLLOW-UP — versioning bug:** publishing **double-bumps semver** (ingest 1.0.0 → publish
-> **1.0.2**). `enforceBundleStructure` bumps on every `update` and a drafts-enabled publish fires
-> the hook twice; marking the FIRST version official shouldn't bump at all (SPEC §6). No fidelity
-> impact, but fix before declaring versioning done — (a) skip the bump when only `_status`
-> changes; (b) find the double-fire. Then: §5 editor/preview, §9 export, bulk-ingest the corpus.
+> **Versioning note (NOT a bug — corrected):** the 1.0.0 → 1.0.2 was TWO publishes (admin UI +
+> scripted), one bump per publish — expected. Minor optional refinement: skip the semver bump on
+> a *no-op* publish (only `_status` changes). Next up: §5 editor/preview, §9 export, bulk-ingest
+> the corpus, and a repeatable round-trip regression. See DECISIONS (Phase-4 entry).
 
 ## What got done this session (Phase 3 — safe ingest, SPEC §7)
 
@@ -78,21 +77,20 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 
 ## Next priorities (Phase 5)
 
-1. **Versioning bug (TOP).** Publishing double-bumps semver (1.0.0 → 1.0.2). Fix in
-   `enforceBundleStructure`: don't bump when only `_status` changes (publish ≠ content edit),
-   and find why the hook fires twice on a drafts-enabled publish. Add a `verify-rbac.ts`-style
-   assertion. This is the last piece of SPEC §6 versioning.
-2. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
+1. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
    command — ideally fully on the Rock (place the approved DOCX on the Rock, generate + diff
    there) so it doesn't need the Mac round-trip. Reuse `scripts/lib/docxDiff.ts`.
-3. **Bulk-ingest the corpus.** The 10 Biology + 3 Math `*_data.js` at SHA `529be40` on
+2. **Bulk-ingest the corpus.** The 10 Biology + 3 Math `*_data.js` at SHA `529be40` on
    `upstream` (all grade 10; subjects "Biology"/"Mathematics" already seeded). Exercises the
    pre-flight + transaction + warn-only FE/ST at scale. **6/13 carry null FE/ST** (upstream
    content gap) → expect deliverable warnings; only promote FE/ST to a hard gate if/when the
    corpus is completed upstream.
-4. **§5 editor + preview** (Payload admin edit screens + the "Preview as Word/PDF" derived from
+3. **§5 editor + preview** (Payload admin edit screens + the "Preview as Word/PDF" derived from
    the generator — DOCX→mammoth HTML) and **§9 export endpoint** (Payload custom endpoint over
    `generateForBundle`, READ-access-gated; Jobs Queue for async). Both per the Payload-first rule.
+4. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update`
+   (incl. a publish with no content change) bumps semver. Not considered a bug; do only if
+   "mark official without editing shouldn't bump" is wanted.
 
 **Watch-outs:**
 - **Running scripts on the Rock:** deps image + bind-mount means a *script-only* change is

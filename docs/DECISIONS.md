@@ -103,13 +103,17 @@ Two bugs surfaced + fixed, one wrinkle flagged:
   `_status: 'published'`, overrideAccess). The admin "Publish Changes" button is disabled on a
   pristine/unchanged draft (expected Payload behavior — the form must be dirty), so a scripted
   publish is the clean path for round-trips.
-- **[WRINKLE — TOP FOLLOW-UP] Publishing double-bumps semver.** Ingest created 1.0.0; a single
-  publish → **1.0.2** (expected at most 1.0.1; ideally marking the FIRST version official
-  shouldn't bump at all). `enforceBundleStructure` bumps on every `update`, and a draft-enabled
-  publish appears to run the hook twice. No fidelity impact (generator ignores semver) but it
-  violates SPEC §6 "first ingested version is 1.0.0 (official)". Investigate: (a) skip the bump
-  when only `_status` changes (publish ≠ content edit); (b) find why the hook fires twice on a
-  drafts-enabled publish.
+- **[NOT A BUG — corrected] The 1.0.0 → 1.0.2 semver was TWO publishes, not a double-bump.**
+  Initially mis-diagnosed as a single publish double-bumping; the user clarified they ALSO
+  published via the admin UI (after a trivial edit to un-grey the disabled "Publish Changes"
+  button) in addition to the scripted `publish-bundle.ts`. So: ingest 1.0.0 → publish 1.0.1 →
+  publish 1.0.2 — **one bump per publish**, which is exactly what `enforceBundleStructure` does
+  (every `update` bumps). No fidelity impact (generator ignores semver). **Lesson:** don't infer
+  a bug from a version number without accounting for every write that occurred.
+  **Minor open question (not urgent):** the hook bumps even on a *no-op* publish (the scripted
+  one changed no content yet bumped). If "mark official without editing shouldn't bump" is
+  wanted, skip the bump when only `_status` changes — small refinement, the user did not consider
+  the current behavior a problem.
 
 Mechanics learned (Rock round-trip):
 - **Scripts run via the deps image + bind-mount** (`-v /srv/lesson3/app:/app`), so a
