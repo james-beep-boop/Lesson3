@@ -2,13 +2,13 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "media" DISABLE ROW LEVEL SECURITY;
-  DROP TABLE "media" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_media_fk";
+   ALTER TABLE IF EXISTS "media" DISABLE ROW LEVEL SECURITY;
+  DROP TABLE IF EXISTS "media" CASCADE;
+  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT IF EXISTS "payload_locked_documents_rels_media_fk";
   
-  DROP INDEX "payload_locked_documents_rels_media_id_idx";
-  CREATE UNIQUE INDEX "subject_grade_idx" ON "subject_grades" USING btree ("subject_id","grade");
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "media_id";`)
+  DROP INDEX IF EXISTS "payload_locked_documents_rels_media_id_idx";
+  CREATE UNIQUE INDEX IF NOT EXISTS "subject_grade_idx" ON "subject_grades" USING btree ("subject_id","grade");
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "media_id";`)
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
