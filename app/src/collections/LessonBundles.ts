@@ -5,6 +5,7 @@ import {
   lessonBundleCreate,
   lessonBundleDelete,
   lessonBundleRead,
+  lessonBundleReadVersions,
   lessonBundleUpdate,
   systemOnly,
 } from '../access/bundle'
@@ -77,6 +78,7 @@ export const LessonBundles: CollectionConfig = {
   // edits are guarded. See docs/DECISIONS.md (optimistic concurrency).
   access: {
     read: lessonBundleRead,
+    readVersions: lessonBundleReadVersions,
     create: lessonBundleCreate,
     update: lessonBundleUpdate,
     delete: lessonBundleDelete,

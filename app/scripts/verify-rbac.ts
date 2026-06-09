@@ -465,6 +465,81 @@ const run = async () => {
       editorOnPublished._status === 'published',
     )
 
+    // --- READ BOUNDARY (SPEC §6/§8) ---
+    // vb is now published (official). A brand-new bundle stays draft.
+    const teacher = track(
+      'users',
+      await payload.create({
+        collection: 'users',
+        data: { name: `${P}T`, email: `${P.toLowerCase()}t@test.local`, password: 'test1234' },
+      }),
+    )
+    const teacherUser = await payload.findByID({ collection: 'users', id: teacher.id })
+    const draftOnly = track(
+      'lesson-bundles',
+      await payload.create({
+        collection: 'lesson-bundles',
+        data: {
+          title: `${P}DraftOnly`,
+          subjectGrade: sg.id,
+          lessons: [{ title: 'L1', framework: [{ phase: 'Predict Phase', learnerExperience: 'd' }] }],
+        },
+      }),
+    )
+
+    const teacherFind = await payload.find({
+      collection: 'lesson-bundles',
+      user: teacherUser,
+      overrideAccess: false,
+      where: { subjectGrade: { equals: sg.id } },
+      limit: 100,
+      depth: 0,
+    })
+    const teacherIds = teacherFind.docs.map((d) => d.id)
+    check('teacher reads published (official) bundle', teacherIds.includes(vb.id))
+    check('teacher cannot list a draft-only bundle', !teacherIds.includes(draftOnly.id))
+
+    const teacherDraftById = await payload.findByID({
+      collection: 'lesson-bundles',
+      id: draftOnly.id,
+      draft: true,
+      user: teacherUser,
+      overrideAccess: false,
+      disableErrors: true,
+    })
+    check('teacher cannot fetch a draft bundle by id', !teacherDraftById)
+
+    const editorFind = await payload.find({
+      collection: 'lesson-bundles',
+      user: editorUser,
+      overrideAccess: false,
+      where: { subjectGrade: { equals: sg.id } },
+      limit: 100,
+      depth: 0,
+    })
+    check(
+      'editor reads draft in their subject-grade',
+      editorFind.docs.map((d) => d.id).includes(draftOnly.id),
+    )
+
+    // readVersions mirrors the boundary: a teacher must not see draft version snapshots.
+    const teacherVersions = await payload.findVersions({
+      collection: 'lesson-bundles',
+      user: teacherUser,
+      overrideAccess: false,
+      where: { parent: { equals: draftOnly.id } },
+      depth: 0,
+    })
+    check('teacher cannot read draft version snapshots', teacherVersions.totalDocs === 0)
+    const editorVersions = await payload.findVersions({
+      collection: 'lesson-bundles',
+      user: editorUser,
+      overrideAccess: false,
+      where: { parent: { equals: draftOnly.id } },
+      depth: 0,
+    })
+    check('editor reads version snapshots in their subject-grade', editorVersions.totalDocs > 0)
+
   } finally {
     // Cleanup in reverse creation order.
     for (const { collection, id } of created.reverse()) {

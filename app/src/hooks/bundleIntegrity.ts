@@ -173,13 +173,26 @@ export const enforceBundleStructure: CollectionBeforeChangeHook = ({
   const orig = originalDoc as Doc
   const d = data as Doc
 
-  // No Editor-editable fields at the top level or in the META/UNIT groups → preserve.
-  d.title = orig.title
-  d.subjectGrade = orig.subjectGrade
-  d.meta = orig.meta
-  d.unit = orig.unit
-  // Publishing (marking official, SPEC §6) is Subject Admin only.
-  d._status = orig._status ?? 'draft'
+  // SECURE BY DEFAULT (top level): restore EVERY top-level key from the original except
+  // the ones an Editor legitimately influences — the content containers overlaid below
+  // (`lessons`/`finalExplanation`/`summaryTable`), the version fields the hook itself set
+  // in step 2 (`semver`/`bumpType`/`lockVersion`), and Payload's own `updatedAt`. So a NEW
+  // top-level field that nobody wired up is reset to the original automatically (it can
+  // never be silently Editor-writable). `_status` is preserved with the draft default —
+  // publishing (marking official, SPEC §6) is Subject Admin only.
+  const EDITOR_INFLUENCED = new Set([
+    'lessons',
+    'finalExplanation',
+    'summaryTable',
+    'semver',
+    'bumpType',
+    'lockVersion',
+    'updatedAt',
+  ])
+  for (const key of Object.keys(d)) {
+    if (EDITOR_INFLUENCED.has(key)) continue
+    d[key] = key === '_status' ? (orig._status ?? 'draft') : orig[key]
+  }
 
   if (Array.isArray(d.lessons)) {
     d.lessons = overlayRows(orig.lessons, d.lessons as Doc[], LESSON_PROSE, (baseRow, subRow, out) => {

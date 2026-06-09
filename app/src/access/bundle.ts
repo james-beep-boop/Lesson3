@@ -38,7 +38,39 @@ const subjectGradeIdFor = (args: { doc?: unknown; data?: unknown }): number | un
 
 // ----- collection-level -----
 
-export const lessonBundleRead: Access = ({ req: { user } }) => Boolean(user)
+/**
+ * Read boundary (SPEC §6/§8). Teachers (any authenticated user with no grant) may read
+ * only OFFICIAL (published) bundles. Editors / Subject Admins additionally read any-status
+ * bundles (incl. drafts) within the subject-grades they work on. Site Admins read all.
+ * With drafts enabled this prevents a plain Teacher from pulling unpublished work via
+ * `?draft=true`. `readVersions` mirrors this so the version-history endpoint can't leak drafts.
+ */
+export const lessonBundleRead: Access = ({ req: { user } }) => {
+  const u = user as User
+  if (!u) return false
+  if (isSiteAdmin(u)) return true
+  const scoped = editableSubjectGradeIds(u)
+  if (scoped.length) {
+    return { or: [{ _status: { equals: 'published' } }, { subjectGrade: { in: scoped } }] }
+  }
+  return { _status: { equals: 'published' } }
+}
+
+export const lessonBundleReadVersions: Access = ({ req: { user } }) => {
+  const u = user as User
+  if (!u) return false
+  if (isSiteAdmin(u)) return true
+  const scoped = editableSubjectGradeIds(u)
+  if (scoped.length) {
+    return {
+      or: [
+        { 'version._status': { equals: 'published' } },
+        { 'version.subjectGrade': { in: scoped } },
+      ],
+    }
+  }
+  return { 'version._status': { equals: 'published' } }
+}
 
 export const lessonBundleCreate: Access = ({ req: { user }, data }) =>
   isSubjectAdminFor(user as User, toId((data as { subjectGrade?: Assignment['subjectGrade'] })?.subjectGrade))
