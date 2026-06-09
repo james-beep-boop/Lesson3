@@ -11,6 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-08 — Versioning DEPLOYED + hard-won Payload/Docker lessons
+
+Bundle versioning is merged and **deployed on the Rock** (migration
+`20260608_224715_bundle_versioning` applied; `verify-rbac.ts` **30/30** against the live DB).
+Getting there surfaced several non-obvious traps — recorded so the next schema change and the
+public-production host don't re-hit them:
+
+- **Regenerate `payload-types.ts` BEFORE building, after any schema change.** `next build`
+  type-checks the whole tree; the generated `LessonBundle` type won't know new fields
+  (`semver`/`bumpType`/`lockVersion`/`_status`) until regenerated, so the build fails on
+  `verify-rbac.ts` (and would fail on the hook/collection too). It can't be regenerated
+  locally here (no `node_modules`), so it's done on the Rock via the **deps image with the
+  source bind-mounted** (anon volume preserves the image's node_modules):
+  `docker run --rm -v /srv/lesson3/app:/app -v /app/node_modules -w /app lesson3-deps npx payload generate:types`.
+- **`migrate:create` needs a bind mount AND the compose network.** `docker compose run --rm
+  migrate npx payload migrate:create` writes the migration file *inside* the ephemeral
+  container (the builder stage `COPY . .`'d the source; there's no volume) — `--rm` then
+  deletes it. Run it via the deps image with `-v /srv/lesson3/app:/app` (so the file lands on
+  the host) **and** `--network lesson3_default --env-file .env` (migrate:create connects to
+  Postgres to diff the schema). The exact workflow is in `docs/NEXT-SESSION.md`.
+- **Publishing is `_status: 'published'` in *data*, not the `draft` op param.** Verified in
+  installed source (`collections/operations/create.js`/`update*.js`): `draft: true` only forces
+  draft status + skips required-field validation; the persisted `_status` otherwise comes from
+  `data._status` (default `'draft'`). So **marking official = passing `_status: 'published'`**;
+  `draft: false` alone does nothing. Publishing also **enforces required fields**, so a publish
+  update must carry a valid doc (e.g. `framework[].phase`). The whitelist hook *preserves*
+  `_status` for Editors, which both blocks an Editor from publishing a draft AND stops an
+  Editor's edit from accidentally unpublishing an official bundle — both now covered by
+  `verify-rbac.ts`.
+- **`lockDocuments: true` is not a valid literal** (the option type is `false | { duration }`);
+  document locking is **on by default** in Payload 3, so we leave it unset. An explicit `true`
+  breaks the build type-check.
+- **Test hygiene:** the versioning checks initially reused the suite's already-mutated bundle
+  (semver long past its initial value) — they now create a **fresh** bundle. General rule:
+  exact-value assertions need a fixture untouched by earlier steps.
+- **`enforceBundleStructure` now treats `!req.user` as trusted** (system / `overrideAccess`),
+  bypassing the Editor whitelist — so ingest/migrations can set all fields and publish.
+  Unauthenticated updates are already denied at collection access, so this only frees genuine
+  system calls. Matches the `guardPasswordChange` `!actor` convention.
+
 ## 2026-06-08 — Bundle versioning: implementation decisions (SPEC §6)
 
 Implemented `versions: { drafts: true, maxPerDoc: 100 }` on `lesson-bundles` plus three

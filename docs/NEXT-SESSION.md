@@ -1,13 +1,17 @@
-# Start-here for the next session — Deploy versioning migration on the Rock
+# Start-here for the next session — Ingest (SPEC §7)
 
-> **Status:** scaffold + authorization entities + sub-strand bundle + **bundle versioning
-> (SPEC §6)** are coded and on `main`. The versioning code is NOT YET deployed — it needs
-> a migration generated and applied on the Rock before the app can restart.
+> **Status (merged & DEPLOYED):** scaffold + authorization entities + sub-strand bundle +
+> **bundle versioning (SPEC §6)** are all on `main` and running on the Rock at the current
+> `main` HEAD. The versioning migration (`20260608_224715_bundle_versioning`) is applied;
+> `app/scripts/verify-rbac.ts` passes **30/30** against the live DB (incl. semver bumps,
+> lockVersion, and the publish/official gate).
 >
-> **Versioning code (committed, not yet migrated):** `versions: { drafts: true, maxPerDoc: 100 }`
-> on `lesson-bundles`; `semver` / `bumpType` / `lockVersion` sidebar fields; versioning +
-> publishing-restriction logic in `enforceBundleStructure`; `verify-rbac.ts` extended with
-> 10 versioning checks. See `docs/DECISIONS.md` for the design decisions.
+> **Versioning shipped (SPEC §6):** `versions: { drafts: true, maxPerDoc: 100 }` on
+> `lesson-bundles`; `semver` / `bumpType` / `lockVersion` sidebar fields; bump + publish-gate
+> logic in `enforceBundleStructure`. First save = `1.0.0`; default bump = patch; Editors may
+> request minor/major via `bumpType`; **only Subject Admins (or trusted system calls) can
+> publish** (= mark official), and an Editor's edit can't accidentally unpublish. See the top
+> entry in `docs/DECISIONS.md` for the Payload publish-mechanics lessons.
 >
 > **Auth/session hardening:** admin login is solid across browsers. `serverURL` intentionally
 > **empty** on the Rock; email reset links use `ADMIN_URL`. Session = 15-min inactivity window.
@@ -15,39 +19,57 @@
 > **Open / not-yet:** the separate **public-production host** hasn't deployed; `beforeDelete`
 > guards on Subject/SubjectGrade are required before any taxonomy delete UI is built.
 
-## This session: migrate + deploy versioning on the Rock
+## This session: Ingest (SPEC §7)
+
+Suggested session name: **`Lesson3: Ingest (SPEC §7)`** · branch `feat/ingest`.
 
 Opening message:
 
-> Read `SPEC.md` (§6), `CLAUDE.md`, and `docs/DECISIONS.md`. Bundle versioning is coded and
-> committed to `main`. The schema change needs a migration before it can deploy:
->
-> 1. **On the Rock (`/srv/lesson3`):** `git pull` to get the versioning code, then generate
->    the migration via the `migrate` service (it builds the Dockerfile `builder` target,
->    which carries the Payload CLI + src/config; `run` overrides its default command and
->    starts the `postgres` dep automatically):
->    ```
->    docker compose run --rm migrate npx payload migrate:create bundle-versioning
->    ```
->    This generates `app/src/migrations/<timestamp>_bundle-versioning.ts` — commit it.
->
-> 2. **Redeploy:** `docker compose up -d --build` — the `migrate` service applies the new
->    migration automatically (Payload's `versions` tables + new columns).
->
-> 3. **Verify:** `docker compose run --rm migrate npx payload run scripts/verify-rbac.ts`
->    — should be 0 fail (the versioning checks are already in the script).
->
-> Then update this file to point at the next planned work (ingest, SPEC §7).
+> Read `SPEC.md` (§7, and §3/§5 for the schema), `CLAUDE.md`, and `docs/DECISIONS.md`.
+> Scaffold, auth, the sub-strand bundle, and versioning are done and deployed on the Rock
+> (current `main`, verify-rbac 30/30). Implement **ingest** per SPEC §7: accept ARES output
+> and create the first version as **1.0.0** via the Local API in a transaction; bulk ingest
+> supported; validate against the schema (same rules as §5). **CRITICAL: extract the `.js`
+> data module to canonical JSON — NEVER `require()`/execute an uploaded `.js`** (RCE;
+> ARES's `extract_generator_data.py` is the model for safe extraction). Resource resolution
+> is optional (skip if the column is disabled). Use the `payload` skill; run `security-review`
+> on the extraction path. Generate the migration (if any) on the Rock and verify on the Rock.
 
-Watch-outs:
-- The migration generates `_lesson_bundles_v` (versions table) plus `semver`, `bump_type`,
-  `lock_version` columns on `lesson_bundles`. Existing rows get `lock_version = 0` (the
-  `defaultValue: 0` in the field definition ensures the migration sets the column default).
-- `semver` will be NULL on existing rows until they are saved — this is fine; the hook
-  treats `null` as `'1.0.0'` and bumps from there on next save. Optionally add a
-  `UPDATE lesson_bundles SET semver = '1.0.0' WHERE semver IS NULL` to the migration SQL.
-- With drafts enabled, Payload adds a `_status` column to `lesson_bundles`. Existing rows
-  get `_status = 'draft'` (Payload default). Subject Admins can publish them after migration.
+Watch-outs for ingest:
+- The bundle's field names are camelCase top-level groups mapping to ARES `META/UNIT/...`;
+  inner keys match ARES verbatim. Read shapes from the fidelity demo
+  (`~/Desktop/ares-docx-fidelity-demo/bio_1_4_data.js`), not memory.
+- Ingest creates as a **trusted system call** (no `req.user`) — `enforceBundleStructure`
+  now treats `!req.user` as trusted (bypasses the Editor whitelist), so a system ingest can
+  set all fields and publish if desired. Pass `_status: 'published'` in data to mark official.
+- `framework[].phase` is a controlled vocabulary; an unknown phase silently degrades output.
+  Reconcile against the Node generator's colour-map keys when generator integration lands.
+
+## Rock deploy / schema-change workflow (LEARNED — read before touching the schema)
+
+The migration generation has real gotchas; these are the working commands (see DECISIONS):
+1. `git pull` on the Rock (`/srv/lesson3`, login `david@rock5b`).
+2. **Regenerate types FIRST** after any field/collection change, or `next build` fails the
+   type-check (the generated `LessonBundle` type won't know the new fields). Run via the
+   deps image with the source bind-mounted (image's node_modules preserved by an anon volume):
+   ```
+   docker build --target deps -t lesson3-deps ./app
+   docker run --rm -v /srv/lesson3/app:/app -v /app/node_modules -w /app --env-file .env \
+     lesson3-deps npx payload generate:types
+   ```
+   Commit the regenerated `app/src/payload-types.ts`.
+3. **Generate the migration with a bind mount + the compose network** (a plain
+   `docker compose run --rm migrate migrate:create` writes the file INSIDE the ephemeral
+   container and loses it; it also needs DB access for the schema diff):
+   ```
+   docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules \
+     -w /app --env-file .env lesson3-deps npx payload migrate:create <name>
+   ```
+   Review the generated SQL, commit `app/src/migrations/*`.
+4. **Deploy:** `docker compose up -d --build` — the one-shot `migrate` service applies pending
+   migrations before `app` starts.
+5. **Verify:** run `verify-rbac.ts` via the same deps-image + bind-mount + `--network` line
+   (so it uses the latest source without an app rebuild).
 
 ---
 
