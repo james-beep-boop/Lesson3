@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-09 — DEPLOYED to the Rock: SG compound index + media drop (migration-gen quirk)
+
+Generated + applied the migration `20260609_164927_subjectgrade_unique_drop_media` on the Rock
+(`docker compose up -d --build`; migrate exit 0 in 43ms; app healthy on :3001). Verified live:
+`subject_grades` now has `"subject_grade_idx" UNIQUE btree (subject_id, grade)`, and the `media`
+table is gone. The Rock now runs `0096f7a` (both branches + origin even at `0096f7a`).
+
+**Hard-won lesson — Payload's migration generator collides `DROP TABLE … CASCADE` with an explicit
+`DROP CONSTRAINT`.** The first `up` failed: `constraint "payload_locked_documents_rels_media_fk"
+does not exist`. Cause: dropping a collection (`media`) that is referenced by Payload's internal
+`payload_locked_documents_rels` FK generates, in order, `DROP TABLE "media" CASCADE` (which already
+drops that FK) **and then** an explicit `ALTER TABLE payload_locked_documents_rels DROP CONSTRAINT
+payload_locked_documents_rels_media_fk` — which now errors because CASCADE already removed it.
+Migrations are transactional, so it rolled back cleanly (no partial state).
+
+**Fix (rule for the next collection removal):** make the generated `up` idempotent by hand before
+applying — `DROP TABLE IF EXISTS … CASCADE`, `DROP CONSTRAINT IF EXISTS`, `DROP INDEX IF EXISTS`,
+`DROP COLUMN IF EXISTS`, `CREATE … IF NOT EXISTS`. (Equivalently: delete the redundant explicit
+`DROP CONSTRAINT` line, since CASCADE handles it.) `IF EXISTS` throughout also makes the migration
+safely re-runnable regardless of any partial state. The migration was patched, re-applied, and the
+idempotent version committed (`0096f7a`). **Process note:** the migration is authored *on the Rock*
+(needs DB access to diff schema), so it flows Rock→git→Mac (pull to sync) — the reverse of normal.
+
 ## 2026-06-09 — Preview strategy locked: derive from the generator (DOCX→HTML), never parallel HTML
 
 Discussed how the "Preview as Word/PDF" trust-builder (SPEC §5) should render lesson plans, and

@@ -1,17 +1,12 @@
 # Start-here for the next session — Phase 3: safe `.js → JSON` ingest (SPEC §7)
 
-> **Status:** Phases 0–2 are **DONE and pushed to `main`** (Phase 2 generator integration =
-> `01782ac`; Phase-2 review fixes = `847cab1`; **post-Phase-2 Payload-native hardening = tip
-> `90b0f2c`**). `feat/generator-ingest` is fast-forwarded to the tip, so **both branches are
-> even** — `main` is the active line (recent work commits directly to it). Gates green: **lint 0
-> / tsc 0, fidelity 3/3, adapter 5/5.** **Phase 3 (ingest) is next.**
->
-> **The Rock still runs the previous `main` and there are now TWO committed-but-unmigrated schema
-> changes** (compound-unique index on `subject_grades`; `DROP TABLE media`). So the next deploy is
-> no longer "code-only" — it needs migrations generated/applied per the Rock workflow below (both
-> safe: no duplicate SG rows, empty media table). See Open items.
+> **Status:** Phases 0–2 are **DONE**, plus post-Phase-2 Payload-native hardening, **DEPLOYED to
+> the Rock at tip `0096f7a`** (migration `…_subjectgrade_unique_drop_media` applied; SG
+> compound-unique index live, `media` table dropped — verified). `main`, `feat/generator-ingest`,
+> origin, and the Rock are **all even at `0096f7a`** — `main` is the active line. Gates green:
+> **lint 0 / tsc 0, fidelity 3/3, adapter 5/5.** **No pending migrations. Phase 3 (ingest) is next.**
 
-## Post-Phase-2 Payload-native hardening (tip `90b0f2c`, this session)
+## Post-Phase-2 Payload-native hardening (DEPLOYED, tip `0096f7a`)
 
 - **"Payload-first" working rule adopted** (SPEC §13 + `docs/DECISIONS.md` 2026-06-09 + a leverage
   audit): before any custom endpoint/editor/permission/workflow/persistence code, check whether
@@ -20,9 +15,11 @@
 - **SubjectGrade modeling locked** (DECISIONS 2026-06-09): keep the junction entity (per-pair
   assignments make the tuple atomic), grade stays a constrained int, cross-axis reporting via the
   two-step (no denormalization). Added a **native compound-unique index `(subject, grade)`**
-  (kept the `beforeValidate` for the friendly message) → **pending migration**.
-- **Removed the unused scaffold `Media` collection** (zero domain refs) → **pending `DROP TABLE`
-  migration**.
+  (kept the `beforeValidate` for the friendly message) → **applied on the Rock**.
+- **Removed the unused scaffold `Media` collection** (zero domain refs) → **`DROP TABLE` applied on
+  the Rock**. (Migration-gen quirk hit + fixed: `DROP TABLE … CASCADE` already drops the
+  `payload_locked_documents_rels` media FK, so the generated explicit `DROP CONSTRAINT` collided —
+  patched the `up` to be idempotent (`IF EXISTS`/`IF NOT EXISTS`). See DECISIONS 2026-06-09.)
 - **Preview strategy locked** (SPEC §5 + DECISIONS 2026-06-09): preview is DERIVED from generator
   output, never a parallel HTML renderer. Two tiers — fast content preview = real DOCX → `mammoth`
   HTML; exact = DOCX/PDF (§9). Trigger via a preview button; runs on the draft (export stays
@@ -101,10 +98,9 @@
   `generateForBundle` → diff vs approved; verify on the Rock.
 - **Carried from the Phase-2 review (build in Phase 3):** `validateGeneratable` — see Phase 3
   task 3. `test:int` + `next build` need a DB (Rock only); not run locally.
-- **Two schema changes are committed but NOT yet migrated on the Rock** (no deploy done): the
-  `subject_grades` compound-unique index `(subject, grade)`, and the `DROP TABLE media` (Media
-  collection removed). Both ride the next Rock deploy — generate the migration(s) per the workflow
-  below; both are safe (no duplicate SG rows, empty media table).
+- **Rock is current at `0096f7a`** — the SG compound-index + media-drop migration is applied and
+  verified; no pending migrations. (The Rock runs whatever `main` is deployed; future schema
+  changes still follow the workflow below.)
 
 ## This session: Phase 3 — safe `.js → JSON` ingest (SPEC §7)
 
