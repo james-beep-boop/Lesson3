@@ -11,6 +11,38 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-09 — Preview strategy locked: derive from the generator (DOCX→HTML), never parallel HTML
+
+Discussed how the "Preview as Word/PDF" trust-builder (SPEC §5) should render lesson plans, and
+whether a JSON→HTML preview would be "close enough." Locked the approach (also tightened SPEC §5).
+
+- **Principle (non-negotiable): preview is always DERIVED from generator output, never a parallel
+  HTML renderer.** A hand-built HTML template re-implementing the layout would be a *second source
+  of layout truth* that can drift from the real DOCX and **mislead the teacher** — fatal for a
+  trust-builder aimed at a Word-centric stakeholder, and a return of the "HTML is lossy" problem we
+  rejected for storage. One layout source: the generator.
+- **What Payload provides (verified in installed source):** the *plumbing* only — `admin.livePreview`
+  (`LivePreviewConfig`: iframe + breakpoints + form-state `postMessage`) and `admin.preview`
+  (`GeneratePreviewURL`: a preview-button URL). Payload does NOT render your data as HTML; you supply
+  the view/URL. So "does Payload manage HTML natively" = harness yes, document rendering no.
+- **Two fidelity tiers:**
+  1. **Fast in-browser content preview** = real DOCX (generated in-process from the working copy) →
+     HTML via **`mammoth`**. We already do this in the fidelity harness, so it's nearly free. It is
+     the *actual document's* content + table structure; mammoth intentionally drops styling
+     (colours/widths/fonts). Adequate *because* teachers edit prose and the generator owns visuals,
+     which don't change with prose edits; our grammar (`\n`=para, `- `=bullet) round-trips cleanly.
+     (Implication: `mammoth` moves devDep → dependency when this ships.)
+  2. **Exact visual check** = the real DOCX download and/or DOCX→PDF. PDF needs a converter
+     (headless LibreOffice or similar) — heavier; fold into §9 PDF export. HTML is never the
+     "exact look" answer; the DOCX/PDF is.
+- **Trigger:** a preview button / custom edit-view component (the §5 component note), NOT continuous
+  live-preview — regenerating a DOCX per keystroke is wasteful; the value is "check before publish."
+  A debounced "Refresh preview" on the draft is the sweet spot.
+- **Gates differ:** preview runs on the **working draft** (that's its purpose, so it bypasses the
+  published-only export gate); **export** stays published-only via `generateForBundle`. Preview ≠
+  export.
+- **Status:** design decision only; built with the §5 editor / §9 export work, not now.
+
 ## 2026-06-09 — Removed the unused scaffold `Media` collection
 
 Audited `Media` (Payload-first tidy-up): it was pure `create-payload-app` scaffold residue — an
