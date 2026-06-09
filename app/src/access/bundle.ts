@@ -1,4 +1,4 @@
-import type { Access, FieldAccess } from 'payload'
+import type { Access, FieldAccess, Where } from 'payload'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from './index'
@@ -50,10 +50,10 @@ export const lessonBundleRead: Access = ({ req: { user } }) => {
   if (!u) return false
   if (isSiteAdmin(u)) return true
   const scoped = editableSubjectGradeIds(u)
-  if (scoped.length) {
-    return { or: [{ _status: { equals: 'published' } }, { subjectGrade: { in: scoped } }] }
-  }
-  return { _status: { equals: 'published' } }
+  const where: Where = scoped.length
+    ? { or: [{ _status: { equals: 'published' } }, { subjectGrade: { in: scoped } }] }
+    : { _status: { equals: 'published' } }
+  return where
 }
 
 export const lessonBundleReadVersions: Access = ({ req: { user } }) => {
@@ -61,15 +61,15 @@ export const lessonBundleReadVersions: Access = ({ req: { user } }) => {
   if (!u) return false
   if (isSiteAdmin(u)) return true
   const scoped = editableSubjectGradeIds(u)
-  if (scoped.length) {
-    return {
-      or: [
-        { 'version._status': { equals: 'published' } },
-        { 'version.subjectGrade': { in: scoped } },
-      ],
-    }
-  }
-  return { 'version._status': { equals: 'published' } }
+  const where: Where = scoped.length
+    ? {
+        or: [
+          { 'version._status': { equals: 'published' } },
+          { 'version.subjectGrade': { in: scoped } },
+        ],
+      }
+    : { 'version._status': { equals: 'published' } }
+  return where
 }
 
 export const lessonBundleCreate: Access = ({ req: { user }, data }) =>
