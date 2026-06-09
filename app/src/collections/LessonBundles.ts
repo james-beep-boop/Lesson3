@@ -10,7 +10,9 @@ import {
   systemOnly,
 } from '../access/bundle'
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
+import { PHASE_OPTIONS } from '../fields/phases'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
+import { enforceGeneratable } from '../hooks/generatable'
 
 /**
  * Sub-strand bundle (SPEC §3) — one structured object that generates the three ARES
@@ -41,14 +43,6 @@ import { enforceBundleStructure } from '../hooks/bundleIntegrity'
  * The per-phase Resource column is OPTIONAL (SPEC §3/§4): resolved at ingest if
  * enabled, absent otherwise. Every path must tolerate empty `resources`.
  */
-
-const PHASE_OPTIONS = [
-  'Predict Phase',
-  'Observe Phase',
-  'Explain Phase',
-  'Driving Question Board (DQB) Creation',
-  'Model Building Phase',
-].map((p) => ({ label: p, value: p }))
 
 // Resource sub-link (system-generated): title + direct/search URLs.
 const resourceLink = (name: string, label: string) => ({
@@ -84,6 +78,9 @@ export const LessonBundles: CollectionConfig = {
     delete: lessonBundleDelete,
   },
   hooks: {
+    // Completeness gate (blocks publishing an un-generatable bundle) runs first, then the
+    // structure/field-split enforcement. See hooks/generatable.ts and hooks/bundleIntegrity.ts.
+    beforeValidate: [enforceGeneratable],
     beforeChange: [enforceBundleStructure],
   },
   fields: [
@@ -177,6 +174,9 @@ export const LessonBundles: CollectionConfig = {
       type: 'array',
       label: 'LESSONS',
       labels: { singular: 'Lesson', plural: 'Lessons' },
+      // A bundle must have ≥1 lesson (native; skipped for drafts). The generator-
+      // completeness hook (enforceGeneratable) is the publish-time authority.
+      minRows: 1,
       fields: [
         {
           name: 'number',
@@ -208,6 +208,9 @@ export const LessonBundles: CollectionConfig = {
           type: 'array',
           label: 'Instructional framework',
           labels: { singular: 'Phase', plural: 'Phases' },
+          // Each lesson needs ≥1 phase or the generator's Section C is empty (native;
+          // skipped for drafts — enforceGeneratable is the publish-time authority).
+          minRows: 1,
           fields: [
             {
               name: 'phase',

@@ -137,10 +137,13 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 ## 7. Ingest
 
 - Accept ARES output and create the first version as **1.0.0**.
-- **Extract `.js` data modules to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction.
-- Create the bundle via Payload's Local API in a transaction; bulk ingest supported.
-- Validate against the schema on ingest (same rules as §5).
-- **Resource resolution (optional, §3):** if the resource column is enabled, run the ARES recommender (Python + `ares_content.db`) **once at ingest** and store the resolved `framework[].resources` in the bundle. Generation never calls Python/SQLite live. If the column is disabled (undetermined), skip this step — everything downstream must tolerate missing resources.
+- **Dev-only operation.** Ingest is run by the app developer or the lesson-plan author via a CLI (`app/scripts/ingest.ts`, `payload run`) — **never teacher-facing, never an HTTP/upload surface.** It is a trusted Local-API system call.
+- **Extract `.js` data modules to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction. Implemented (`app/src/ingest/extract.ts`) as a static **`acorn` AST parse that evaluates ONLY pure data literals** — strings/numbers/booleans/null/arrays/objects — and **rejects** anything executable or dynamic (a call, identifier reference, member access, template-with-expression, spread, getter, `__proto__` key). No `require`/`vm`/`eval`/`Function`. Highest-risk surface → security-reviewed.
+- **Resolve `subjectGrade` by EXACT `(META.subject, META.grade)` match;** missing taxonomy is a hard, actionable failure. Ingest never auto-creates Subjects/SubjectGrades (keeps that curated junction list clean). Seed taxonomy before ingesting.
+- Create the bundle via Payload's Local API **in one all-or-nothing transaction**; bulk ingest supported (point at a file or directory). A read-only **pre-flight** validates+resolves every file first and reports all problems before any write.
+- **Ingest creates the bundle as a DRAFT** (`_status: 'draft'`). An administrator reviews and **publishes** it to make it official / export-eligible (SPEC §6). Export stays published-only.
+- **Validate against the schema on ingest, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo` and `summaryTablePrompt` groups and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced at **ingest** (pre-write, rejects incomplete ARES data even as a draft) **and at publish** (native `beforeValidate` hook `enforceGeneratable` — surfaces in the admin UI); export then trusts validated-in data.
+- **Resource resolution (optional, §3):** if the resource column is enabled, run the ARES recommender (Python + `ares_content.db`) **once at ingest** and store the resolved `framework[].resources` in the bundle. Generation never calls Python/SQLite live. If the column is disabled (DEFERRED — see §3/`docs/DECISIONS.md`), skip this step; ingest carries `framework[].resources` through if present, else omits it.
 
 ---
 

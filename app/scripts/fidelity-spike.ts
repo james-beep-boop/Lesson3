@@ -21,7 +21,8 @@ import { compareDoc } from './lib/docxDiff'
 
 const require = createRequire(import.meta.url)
 
-const DEMO = path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
+// Defaults to the local convention; override with ARES_DEMO_PATH on CI / the Rock.
+const DEMO = process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
 // Trusted demo asset (NOT untrusted ingest — the never-execute rule is Phase 3).
 const data = require(path.join(DEMO, 'bio_1_4_data.js'))
 

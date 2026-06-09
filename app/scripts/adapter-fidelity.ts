@@ -25,7 +25,8 @@ import type { LessonBundle } from '../src/payload-types'
 
 const require = createRequire(import.meta.url)
 
-const DEMO = path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
+// Defaults to the local convention; override with ARES_DEMO_PATH on CI / the Rock.
+const DEMO = process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
 const data = require(path.join(DEMO, 'bio_1_4_data.js'))
 const approved = (file: string) => readFileSync(path.join(DEMO, file))
 

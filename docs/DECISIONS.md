@@ -11,6 +11,103 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-09 — Phase 3: safe `.js → JSON` ingest (SPEC §7)
+
+Built the ingest path on `main`: ARES `.js` data modules → stored bundles created as 1.0.0
+drafts via the Local API. New code under `app/src/ingest/` (`extract.ts`, `toBundle.ts`,
+`validateGeneratable.ts`, `index.ts`, `errors.ts`), the CLI `app/scripts/ingest.ts`, the
+native publish hook `app/src/hooks/generatable.ts`, the shared phase vocab
+`app/src/fields/phases.ts`, and the DB-less gate `app/scripts/ingest-extract-check.ts`.
+Decisions (confirmed with the user at design time):
+
+- **Ingest is DEV-ONLY, a CLI, never teacher-facing.** Run by the app developer or the
+  lesson-plan author (`payload run scripts/ingest.ts`). No HTTP/upload surface, no upload
+  RBAC — the SPEC §9 endpoint stays deferred. It is a trusted Local-API system call
+  (`!req.user` → `enforceBundleStructure` treats it as the system path).
+- **Safe extraction = static `acorn` parse, evaluate literals only, NEVER execute.** The
+  untrusted-input contract (SPEC §0/§7): parse to an AST and statically evaluate ONLY pure
+  data literals (string/number/bool/null/array/object, plus unary ± on numbers and
+  zero-expression template literals). REJECT everything executable/dynamic — calls,
+  identifier references inside data, member access, template-with-`${}`, spread, getters,
+  `__proto__` keys. No `require`/`vm`/`eval`/`Function`. acorn@8.16.0 was already in the
+  tree (via Next/Payload); promoted to an exact **direct** dependency. (`tsc`/`typescript`
+  could parse too but acorn is the lighter, purpose-built ESTree tool.)
+- **`acorn`-as-direct-dep lockfile sync.** acorn was already resolved at 8.16.0 in
+  `package-lock.json` (transitive); adding it to root `dependencies` needed only
+  `npm install --package-lock-only` (one-line lock diff, zero version churn) so the Rock's
+  strict `npm ci` stays in sync. **No migration / no schema change this phase** (only hooks
+  + validation + a dep — `generate:types` left `payload-types.ts` byte-identical).
+- **SubjectGrade: EXACT `(Subject.name, grade)` match, require pre-existing, fail loud.**
+  The `.js` META carries only `subject` (free text) + `grade` (int), not a SubjectGrade id.
+  Resolve by exact name match (trimmed) — **no fuzzy matching** (a silent mis-assignment
+  corrupts RBAC scope, worse than a clear failure). Missing taxonomy aborts with an
+  actionable message listing existing subjects. **No `--seed`/auto-create** — keeps the
+  curated junction-entity invariant (2026-06-09 SubjectGrade decision) pure; seed taxonomy
+  first. A read-only **pre-flight** resolves/validates all files and reports every problem
+  before any write; the actual writes run in **one all-or-nothing transaction**.
+- **Ingested 1.0.0 is a DRAFT; an administrator reviews & publishes.** Lesson plans land as
+  `_status: 'draft'` (not official, not exportable) until an admin publishes (SPEC §6).
+  Teachers never upload and never publish — they view/export published bundles only.
+- **Generator-completeness gate, built the Payload-first way (the export-correctness check
+  Codex flagged).** Schema-required fields + publish status are NOT enough: the generator
+  unguarded-dereferences `lesson.slo.purpose`, `lesson.summaryTablePrompt.observed`,
+  `lesson.framework.map(…)` and reads `META.*` (verified in `vendor/lib/sections.js` /
+  `build_docs.js`); FE/ST are fully guarded there, so they're not gated. `validateGeneratable`
+  (a pure function, single source of truth) requires META + per-lesson `slo`/
+  `summaryTablePrompt`/≥1-phase + every phase ∈ vocab. Wired three ways: (1) the ingest
+  script rejects incomplete data pre-write (even as a draft); (2) a native `beforeValidate`
+  hook `enforceGeneratable` throws a Payload `ValidationError` **when the write would be
+  PUBLISHED** — so it surfaces in the admin UI and via the Local API, not just the export
+  path; drafts may be incomplete WIP; (3) native `minRows: 1` on `lessons` + `framework`
+  for inline admin feedback (skipped on drafts, which is fine — the hook is the authority).
+  Export then trusts validated-in data. The adapter's array-coercion stays the type-safety
+  backstop (it can't *crash*); completeness is content-correctness, enforced here.
+- **GATE `app/scripts/ingest-extract-check.ts` (DB-less, 13/13).** (1) PARITY — static
+  extraction of `bio_1_4_data.js` deep-equals `require()`ing it (execution used ONLY as the
+  test oracle, never in the product path). (2) SAFETY — a non-execution canary (a benign
+  top-level statement never runs) + eight adversarial modules (require-in-data, member
+  access, template-with-expr, identifier ref, IIFE, binary op, `__proto__` key, undefined
+  export) all rejected. (3) completeness assertions. By transitivity with the Phase-2
+  adapter gate (which runs `require(bio_1_4)` → adapter → DOCX, 5/5), extract → DOCX is
+  proven faithful. All gates green: extract 13/13, fidelity 3/3, adapter 5/5, `tsc` 0,
+  `lint` 0 errors.
+- **`security-review` DONE (Phase 3 task 4) — no qualifying findings.** Reviewed the
+  extraction + orchestration: no `require`/`vm`/`eval`/`Function` on the product path; the
+  literal evaluator's `default`-throw rejects every executable/dynamic node; query inputs
+  (`META.subject`/`grade`) are type-guarded and flow only through Payload's parameterized
+  ORM; CLI paths are trusted; a malicious `.js` can't self-publish (explicit `draft: true`
+  + `rawToBundle` shape). DoS/resource-exhaustion is out of scope by policy.
+- **Still TODO:** the true DB round-trip — ingest → stored 1.0.0 draft → publish →
+  `generateForBundle` → diff vs approved — is Phase 4 (needs a DB; run on the Rock).
+
+## 2026-06-09 — Phase 3 external review (Codex + CodeRabbit) triage + fixes
+
+Codex/CodeRabbit reviewed the ingest work. Verified each finding directly; all green after.
+
+- **[PRODUCT DECISION — FE/ST deliverable contract] WARN-ONLY for now.** SPEC §3 says every
+  bundle "generates three documents," but the Phase-2 adapter omits empty FINAL_EXPLANATION /
+  SUMMARY_TABLE (generator then produces only the LessonSequence), and `validateGeneratable`
+  deliberately gates only crash-safety, not deliverable completeness. **User's call:** add the
+  FE/ST checks but as a **non-blocking warning at ingest** (logged, not a hard publish block),
+  until the full corpus is confirmed to always carry all three — then promote to a hard gate.
+  Implemented as `deliverableWarnings()` (FE has ≥1 section, ST has ≥1 lesson row), surfaced
+  per-file by the CLI; `validateGeneratable` (the hard gate) is unchanged. SPEC §3 stays the
+  target (canonical); this interim stance lives here.
+- **[FIXED — `__proto__` at the export layer] Consistency.** `literalToJson` rejected
+  `__proto__` data keys, but the `module.exports = { … }` resolution loop did not — no global
+  prototype-pollution exploit (it would only re-point the local `result` object's prototype),
+  but it broke the stated "reject `__proto__`" contract. Added the same guard there + a gate
+  test (`reject: __proto__ key in module.exports`).
+- **[FIXED — CI portability] Hard-coded `~/Desktop/ares-docx-fidelity-demo`.** All three
+  DB-less gates (`fidelity-spike`, `adapter-fidelity`, `ingest-extract-check`) hard-coded the
+  demo path. Added an `ARES_DEMO_PATH` env override (defaults to the existing path, so local
+  behaviour is unchanged) across all three, so the suite runs on CI / the Rock / another
+  machine without editing.
+- **[FIXED — type hygiene] Dropped the needless `as string` cast in `enforceGeneratable`** —
+  `?? 'draft'` already yields the `'draft' | 'published'` union (CodeRabbit).
+- **[NO ACTION] `npm run test:int` fails locally** — local Postgres isn't running; not this
+  code path. The DB round-trip is Phase 4 on the Rock.
+
 ## 2026-06-09 — DEPLOYED to the Rock: SG compound index + media drop (migration-gen quirk)
 
 Generated + applied the migration `20260609_164927_subjectgrade_unique_drop_media` on the Rock
