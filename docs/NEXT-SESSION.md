@@ -103,8 +103,15 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 
 ## Open items / pending
 
-- **ARES confirmation message** — awaiting Mark's reply on which data/DOCX are canonical. Not
-  blocking (we have `bio_1_4`).
+- **Resource column — sourcing from ARES (decided 2026-06-09).** The blank Resource column is a
+  fidelity issue; the resolved per-lesson resources (video + reading: `title/source/direct_url?/
+  search_url`) live only in the Python recommender's output, not our data. Plan: get that data
+  FROM ARES (embedded in the `.js` or a side JSON), carry via `framework[].resources`, render via
+  the shim. **Blocked on ARES providing it.** Our-side prep when it arrives: add `source` to the
+  resource schema (migration), rewire `vendor/aresResources.js` to render stored resources. See
+  the DECISIONS entry for the full contract. (Bundle the resource ask with the message below.)
+- **ARES confirmation message** — awaiting Mark's reply on which data/DOCX are canonical, AND the
+  resource-data request above. Not blocking core work (we have `bio_1_4`).
 - Fork's `origin` is stale at `212da91`; we read newer commits from `upstream`. Pin is by SHA
   + mirror tag, so this doesn't affect us.
 - **FE/ST hard-gate promotion** (see above) — gated on the corpus check.

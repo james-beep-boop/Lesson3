@@ -80,6 +80,52 @@ Decisions (confirmed with the user at design time):
 - **Still TODO:** the true DB round-trip — ingest → stored 1.0.0 draft → publish →
   `generateForBundle` → diff vs approved — is Phase 4 (needs a DB; run on the Rock).
 
+## 2026-06-09 — Resource column: source resolved resources FROM ARES (un-defer the rendering)
+
+Reviewing the Phase-4 output, the user flagged the blank Resource column as a major fidelity
+issue — a blank column makes the document look incomplete, even though the *links* are useless
+to the offline-majority audience (the original deferral rationale, 2026-06-08). Extracted the
+approved column to confirm what it holds: **per-lesson recommended resources** — a video and a
+reading, each `title + source` + "Search ARES" links (e.g. *Gene Expression Essentials* / PhET;
+*…DNA Codons* / MIT Blossoms). Verified this text is **NOT in our pipeline**: bio_1_4's framework
+rows carry no resource field, and the vendored generator pulls the column from the `aresResources`
+*module* (our blank shim), not from the lesson data. (Also: the recommender's matches are uneven —
+a DNA video landed on the diet-themed Lesson 1.)
+
+**Decision (user-chosen): source the resolved resource data FROM ARES**, carry it through ingest
+via the existing `framework[].resources` seam, and render it via an updated shim — no live Python,
+no DOCX back-extraction, generalises to every bundle. This refines (not reverses) the deferral:
+we still don't run the recommender; we ingest its *output as data*. The two lighter options were
+declined: (b) one-off extraction from approved DOCX (doesn't generalise, inherits mismatches),
+(c) keyword-only "Search ARES" guidance (non-blank but not the real titles).
+
+**Data contract requested from ARES (per lesson — resources render identically across a lesson's
+phases):**
+```
+resources: {
+  video:   { title, source, direct_url?, search_url },
+  reading: { title, source, direct_url?, search_url }
+}
+```
+Delivery: ideally embedded in the `.js` data files (a lesson-level `resources`, or on each
+`framework[]` row), else a side JSON keyed by (substrand_id, lesson number). `direct_url` may be
+dead/omitted (offline) — `title`/`source` are what make the column non-blank.
+
+**Our-side work (scoped, PENDING the data shape — do NOT build speculatively):**
+1. **Schema gap:** the current `resourceLink` is `{ title, direct_url, search_url }` — **add
+   `source`** (a migration). Hold until ARES confirms the shape/granularity (per-lesson vs
+   per-phase).
+2. **Render:** rewire the Lesson3 shim `vendor/aresResources.js` (`buildResourceParagraphs` /
+   `getAllPhaseResources`) to render the stored resources (the 📹 VIDEO / 📖 PDF / Source / Search
+   layout) instead of a blank paragraph — still pure Node, no Python.
+3. **Ingest:** already carries `framework[].resources` through (adapter tolerates populated or
+   empty); confirm the inbound shape maps cleanly.
+4. **Fidelity gate:** once resources render, the diff can *stop* excluding the Resource column for
+   bundles that have resource data (or keep excluding where `direct_url`s differ run-to-run).
+
+Open question to settle with ARES: **per-lesson or per-phase** resources? Rendered output is
+per-lesson; model accordingly once confirmed.
+
 ## 2026-06-09 — Phase 4 DONE: bio_1_4 DB round-trip proven on the Rock (3/3)
 
 Closed the full pipeline against the real Postgres DB on the Rock: seeded taxonomy (Biology
