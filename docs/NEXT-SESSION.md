@@ -1,4 +1,4 @@
-# Start-here for the next session — Phase 5: versioning fix, editor/preview (§5), export (§9)
+# Start-here for the next session — Phase 5: editor/preview (§5), export (§9), bulk ingest, resources
 
 > **Status:** Phases 0–**4 are DONE**. **Phase 4 (end-to-end DB round-trip) is PROVEN on the
 > Rock: 3/3 content-identical** — seed taxonomy → ingest `bio_1_4` → 1.0.0 draft (id 33) →
