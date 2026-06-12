@@ -80,6 +80,35 @@ Decisions (confirmed with the user at design time):
 - **Still TODO:** the true DB round-trip — ingest → stored 1.0.0 draft → publish →
   `generateForBundle` → diff vs approved — is Phase 4 (needs a DB; run on the Rock).
 
+## 2026-06-09 — Transport format from ARES: JSON preferred (not `.js`+JSON, not DOCX)
+
+ARES asked which format Lesson3 needs to **store, edit, and generate** lesson plans: the JSON,
+the `.js`, or both. **Answer: the data once — JSON preferred. Not both; not the rendered DOCX.**
+
+**Why one format suffices.** Transport (how ARES hands us a lesson) is separate from storage. At
+ingest, Lesson3 extracts the data and keeps it as **structured JSON in Postgres** (native Payload
+fields, versioned). Store/edit/generate all run off that stored JSON; the DOCX/PDF are
+regenerated build artifacts. So the original file is only an ingest *seed* — needed once, in one
+form. This is exactly SPEC §3 ("canonical storage format is JSON; ingest extracts the `.js`").
+
+**Why JSON over `.js` (recommend ARES emit JSON going forward).**
+- **Safety:** a `.js` module is executable code, so ingest uses a deliberate parse-but-never-run
+  extractor (acorn AST, literals only — the RCE-avoidance machinery). **Pure JSON is inert** →
+  `JSON.parse`, no risk surface, no AST walk.
+- **No JS-only quirks:** JSON sidesteps the things we had to special-case in the `.js`
+  (cross-line string concatenation `'a\n' + 'b\n'`, single-quoted/unquoted keys in the Math
+  files, `//` comments). JSON is lossless for this data — the modules are pure literals.
+
+**Not needed:** both formats (identical data, redundant); the generated DOCX/PDF (we reproduce
+them byte-faithfully — proven for bio_1_4). **Shape unchanged:** `{ META, UNIT, LESSONS[],
+FINAL_EXPLANATION, SUMMARY_TABLE }`, ideally with the resolved `resources` included (see the
+resource-sourcing entry below).
+
+**Our-side follow-up (small, when ARES switches):** add a **direct `.json` ingest path** beside
+the `.js` extractor — `JSON.parse` → the SAME `rawToBundle` + `validateGeneratable` + Local-API
+create. Keep the `.js` extractor for backward compatibility / mixed inputs. No schema change;
+just an input-format branch in `app/src/ingest/`.
+
 ## 2026-06-09 — Resource column: source resolved resources FROM ARES (un-defer the rendering)
 
 Reviewing the Phase-4 output, the user flagged the blank Resource column as a major fidelity
