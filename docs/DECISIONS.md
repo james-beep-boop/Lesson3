@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-13 — Payload 3.85.0 → 3.85.1 (deliberate patch bump)
+
+Took the 3.85.1 patch after reviewing the changelog (none of the seven fixes touch us —
+they're upload-collections / import-export-plugin / conditional-tabs / TS6 areas we don't
+use). Bumped all six pins (`payload` + `@payloadcms/{db-postgres,email-nodemailer,next,
+richtext-lexical,ui}`) to exact `3.85.1`; transitive `@payloadcms/{drizzle,graphql,
+translations}` followed. Verified locally: `tsc` 0, eslint 0, **fidelity 3/3**, **format2
+7/7** — the fidelity-critical chain is intact.
+
+- **Caveat (dev-env only) — `payload generate:importmap`/`generate:types` fail locally on
+  Node 25.** 3.85.1 bundles `tsx@4.22.4`, whose loader throws
+  `ENOENT … node:path?tsx-namespace=…` under **Node 25** (my local). It works on **Node
+  22.17.0** (the Docker base, `app/Dockerfile`) — so the **Rock is unaffected** (build,
+  migrations, `payload run` scripts all run on Node 22). Our own DB-less gates use the
+  project's `tsx@4.21.0` devDep and are fine. **Not worked around:** an `overrides: { tsx }`
+  pin (a) didn't re-resolve payload's nested copy cleanly and (b) would impose a tsx pin on
+  the Rock to paper over a local bleeding-edge-Node issue — wrong trade. To run those two
+  CLIs locally, use Node ≤23 (or the deps Docker image); otherwise they run on the Rock.
+- **Deferred-to-Rock verification (unchanged from prior workflow).** `generate:types`,
+  `generate:importmap`, and `next build` run on the Rock at deploy (Node 22). `next build`/
+  `test:int` were already Rock-only (need a DB). The committed `importMap.js` and
+  `payload-types.ts` are valid as-is — a patch with no schema/field change on our side
+  doesn't alter generated output, and `tsc` passes against the committed types under 3.85.1.
+  If `generate:types` yields a diff on the Rock, commit it.
+
 ## 2026-06-13 — Second LessonSequence DOCX format (compact, no Resource column)
 
 Added a **second LessonSequence layout**, selectable per-export, alongside the existing
