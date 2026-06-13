@@ -27,11 +27,13 @@ const eslintConfig = [
     },
   },
   {
-    // buildSowCompact.js is Lesson3-owned but is a CommonJS bridge: it is loaded via
+    // buildSowCompact.cjs is Lesson3-owned but is a CommonJS bridge: it is loaded via
     // createRequire from index.ts and must require() the vendored CommonJS primitives
-    // (docx_kit / sections) in their own module system. require() is correct here, so
+    // (docx_kit / sections) in their own module system. The .cjs extension forces CJS
+    // regardless of the app's "type":"module" (Node's native require(ESM) path otherwise
+    // breaks it — surfaced by `payload generate:importmap`). require() is correct here, so
     // exempt this one file from the ESM-only rule while keeping every other rule.
-    files: ['src/generator/buildSowCompact.js'],
+    files: ['src/generator/buildSowCompact.cjs'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },

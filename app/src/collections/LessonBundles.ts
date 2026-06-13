@@ -11,6 +11,7 @@ import {
 } from '../access/bundle'
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
+import { exportBundleEndpoint } from '../endpoints/exportBundle'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 import { enforceGeneratable } from '../hooks/generatable'
 
@@ -62,7 +63,13 @@ export const LessonBundles: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'subjectGrade', 'semver', '_status'],
     group: 'Content',
+    components: {
+      // Per-export DOCX download with the standard/compact LessonSequence toggle (SPEC §9).
+      edit: { beforeDocumentControls: ['@/components/ExportBundle#default'] },
+    },
   },
+  // GET /api/lesson-bundles/:id/export?format=standard|compact — READ-gated, published-only.
+  endpoints: [exportBundleEndpoint],
   versions: {
     drafts: true,
     maxPerDoc: 100,

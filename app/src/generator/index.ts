@@ -15,7 +15,7 @@ const { buildSoW, buildFinalExplanation, buildSummaryTable } =
     buildSummaryTable: (META: unknown, ST: unknown) => Promise<unknown>
   }
 const { buildSoWCompact } =
-  require('./buildSowCompact.js') as {
+  require('./buildSowCompact.cjs') as {
     buildSoWCompact: (META: unknown, UNIT: unknown, LESSONS: unknown) => Promise<unknown>
   }
 const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Promise<Buffer> } }

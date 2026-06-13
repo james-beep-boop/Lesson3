@@ -44,11 +44,57 @@ FinalExplanation and SummaryTable are identical across formats.
 - **Vendored code stays byte-pristine.** Format 1 remains the pure vendored path
   (`vendor/lib/build_docs.js` → `sections.js`), so its fidelity is untouched — re-verified
   **3/3 content-identical** via `fidelity-spike.ts`. Format 2 is Lesson3-owned
-  `app/src/generator/buildSowCompact.js`: a CommonJS bridge that **reuses** the vendored
+  `app/src/generator/buildSowCompact.cjs`: a CommonJS bridge that **reuses** the vendored
   primitives (`docx_kit`) and unchanged section builders (`sectionA/B/D/E`,
   `titleBlock`, …), re-implementing only `sectionC` + the `buildSoW` wrapper. It is loaded
   via `createRequire` like the vendored generator; a one-file eslint override exempts it
   from the ESM-only `no-require-imports` rule (require() is correct for the CJS bridge).
+- **LESSON — a CJS bridge file outside `vendor/` MUST be `.cjs`, not `.js`.** First written
+  as `buildSowCompact.js`; it ran under `tsx` (which transpiled it) but **broke under
+  `payload generate:importmap`** with "require is not defined in ES module scope". Cause:
+  the app root `package.json` is `"type":"module"`, so a bare `.js` there is ESM; the
+  vendored `.js` only load as CJS because `vendor/package.json` declares
+  `"type":"commonjs"`. Node's native `require(ESM)` path (used by the Payload CLI, not just
+  tsx) then loads the `.js` as ESM and `require`/`module.exports` are undefined. Fix: the
+  `.cjs` extension forces CommonJS unconditionally. Rule: any new require()-style bridge
+  module living under the `"type":"module"` tree gets `.cjs` (or its own
+  `package.json{"type":"commonjs"}`).
+
+### §9 export — first slice: web download with the format toggle (2026-06-13)
+
+Wired the standard/compact toggle into the admin UI (the user's follow-up: "toggle from the
+web interface, not just the CLI"). This is the first piece of SPEC §9 (export/sharing) —
+there was no export endpoint or admin component before.
+
+- **Output = all three DOCX as one `.zip`** (confirmed with the user), mirroring the CLI.
+  `jszip` promoted from transitive to an **exact direct dependency (3.10.1)** — it's now
+  runtime app code, so the Rock's `npm ci` must resolve it from the lockfile (same reasoning
+  as the acorn promotion). The format only changes the LessonSequence; FE/ST are identical.
+- **Endpoint = Payload collection endpoint** (`app/src/endpoints/exportBundle.ts`), mounted
+  `GET /api/lesson-bundles/:id/export?format=standard|compact`. Payload-first: a native
+  collection endpoint, not a hand-rolled Next route, so it gets `req.user` + the Local API.
+  **Authorization lives here, by design** — `generateForBundle` fetches with
+  `overrideAccess:true` (trusted system path, per its own security note), so the endpoint
+  FIRST re-reads the bundle with `overrideAccess:false` + `user` to enforce `lessonBundleRead`
+  (a Teacher can export only published bundles; an Editor only within their subject-grades →
+  else 404). `NotExportableError` (draft) → 409; bad format → 400; no user → 401.
+- **Admin control = client component** (`app/src/components/ExportBundle/index.tsx`) injected
+  via `admin.components.edit.beforeDocumentControls`. `useDocumentInfo()` gives `id` +
+  `hasPublishedDoc`: hidden on unsaved docs, disabled (with a "publish to enable" tooltip)
+  when no published version exists. Download is a same-origin `window.location` GET so the
+  admin auth cookie rides along; the attachment Content-Disposition downloads without
+  unloading the edit page. Registered in the import map (`@/components/ExportBundle#default`,
+  committed `importMap.js`).
+- **Synchronous for now.** SPEC §9 mentions the Jobs Queue for long generations; a single
+  bundle generates in well under a second, so v1 returns the zip inline. Promote to the Jobs
+  Queue if/when batch or very large exports need it.
+- **Verification.** `tsc` 0 / eslint 0; `generate:importmap` loads the whole config through
+  the new endpoint→generator→`.cjs` chain (also how the `.js`→`.cjs` bug surfaced);
+  standalone zip round-trip = 3 valid DOCX entries; both DOCX gates still green
+  (fidelity 3/3, format2 7/7). Endpoint+button runtime-tested on the Rock (needs a DB).
+- **Deploy delta.** Unlike the CLI-only change, this adds app-server code + a dependency +
+  a component, so the Rock needs a full `docker compose up -d --build` (not `git pull` +
+  re-run), and `npm ci` picks up jszip from the committed lockfile.
 - **Verification.** New DB-less gate `app/scripts/format2-check.ts` (7/7): unzips
   `word/document.xml`, asserts compact Section-C grids are 5-col `[2261,2854,2854,2854,2857]`
   summing to 13680, standard stays 6-col with Resource, no cross-leak, and FE/ST
