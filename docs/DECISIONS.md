@@ -11,6 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-13 — Second LessonSequence DOCX format (compact, no Resource column)
+
+Added a **second LessonSequence layout**, selectable per-export, alongside the existing
+(now-named `standard`) one. The new `compact` format addresses two complaints with the
+upstream layout: the narrow first column wrapped phase names mid-word, and the Resource
+column rendered blank (the Python recommender is out of scope — see the 2026-06-08/09
+resource decisions). Only **Section C** ("C. Lesson Implementation Framework") differs;
+FinalExplanation and SummaryTable are identical across formats.
+
+- **What changes.** `standard` Section C = 6 columns `[900, 2300, 2556, 3324, 2300, 2300]`
+  with the (blank) Resource column. `compact` = 5 columns, Resource **removed**, widths
+  `[2261, 2854, 2854, 2854, 2857]` DXA — Phase fixed at **1.57″ (2261 DXA)**, the other
+  four split the remaining content width evenly so the row sums to exactly **13680 DXA**
+  (no overflow). The four flex widths are *derived from* the vendored content width `W`
+  (`floor((W − 2261) / 4)`, remainder on the last column), so they track any future margin
+  change automatically.
+- **Width reasoning (recorded so it isn't re-litigated).** Page is landscape US Letter
+  (15840 DXA wide). The generator **overrides** margins to 0.75″ (1080 DXA), giving a
+  **13680 DXA (9.5″)** content area — *wider* than docx's default 1″ margins would
+  (`docx@9.6.1` `sectionMarginDefaults` = 1440 all round → 12960 DXA / 9.0″). The user's
+  first instinct (four 2.00″/2880-DXA columns) overflowed by ~0.07″; at the kept 0.75″
+  margins, even columns land at **1.98″ (2855 DXA)** and fit exactly. Chosen:
+  keep 0.75″ margins, columns ≈ 1.98″. Phase column was explicitly kept at 1.57″.
+- **Where the toggle lives — per-export parameter, NOT stored on the bundle.** Confirmed
+  with the user. A format is a *presentation* choice; storing it on the versioned bundle
+  would couple data to presentation and need a migration, against "edit the data, never the
+  document" (SPEC §5). So `format: 'standard' | 'compact'` is a function/CLI argument
+  (default `'standard'`), threaded `generateBundleDocx` → `generateForBundle` → the
+  `generate-bundle` CLI `--format=` flag, and ready for the future §9 export/preview UI to
+  pass per request. No schema change, no migration.
+- **Vendored code stays byte-pristine.** Format 1 remains the pure vendored path
+  (`vendor/lib/build_docs.js` → `sections.js`), so its fidelity is untouched — re-verified
+  **3/3 content-identical** via `fidelity-spike.ts`. Format 2 is Lesson3-owned
+  `app/src/generator/buildSowCompact.js`: a CommonJS bridge that **reuses** the vendored
+  primitives (`docx_kit`) and unchanged section builders (`sectionA/B/D/E`,
+  `titleBlock`, …), re-implementing only `sectionC` + the `buildSoW` wrapper. It is loaded
+  via `createRequire` like the vendored generator; a one-file eslint override exempts it
+  from the ESM-only `no-require-imports` rule (require() is correct for the CJS bridge).
+- **Verification.** New DB-less gate `app/scripts/format2-check.ts` (7/7): unzips
+  `word/document.xml`, asserts compact Section-C grids are 5-col `[2261,2854,2854,2854,2857]`
+  summing to 13680, standard stays 6-col with Resource, no cross-leak, and FE/ST
+  **content** (document.xml) is identical across formats. Note: full-buffer byte-equality
+  is *not* a valid assertion — `docProps/core.xml` carries a per-build timestamp, so
+  "byte-stable regeneration" (SPEC §4) means *content*-stable; compare `document.xml`, as
+  the fidelity gate already does via mammoth. `tsc` 0 / eslint 0; standard fidelity 3/3.
+
 ## 2026-06-09 — Phase 3: safe `.js → JSON` ingest (SPEC §7)
 
 Built the ingest path on `main`: ARES `.js` data modules → stored bundles created as 1.0.0

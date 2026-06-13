@@ -15,7 +15,7 @@
 import type { Payload } from 'payload'
 
 import { bundleToAresData } from './adapter'
-import { generateBundleDocx, type GeneratedDocx } from './index'
+import { generateBundleDocx, type GeneratedDocx, type LessonSequenceFormat } from './index'
 import type { LessonBundle } from '../payload-types'
 
 /** Thrown when a bundle is not in an exportable (published/official) state. */
@@ -47,7 +47,11 @@ export function assertExportable(bundle: Pick<LessonBundle, 'id' | '_status'>): 
  * the request's `req`/`overrideAccess:false` first, then pass the id), or pass `req` so
  * access runs. Do not expose this function directly as an endpoint handler.
  */
-export async function generateForBundle(payload: Payload, id: number | string): Promise<GeneratedDocx> {
+export async function generateForBundle(
+  payload: Payload,
+  id: number | string,
+  format: LessonSequenceFormat = 'standard',
+): Promise<GeneratedDocx> {
   const bundle = (await payload.findByID({
     collection: 'lesson-bundles',
     id,
@@ -57,5 +61,5 @@ export async function generateForBundle(payload: Payload, id: number | string): 
 
   assertExportable(bundle)
 
-  return generateBundleDocx(bundleToAresData(bundle))
+  return generateBundleDocx(bundleToAresData(bundle), format)
 }
