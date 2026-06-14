@@ -12,6 +12,7 @@ import {
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
 import { exportBundleEndpoint } from '../endpoints/exportBundle'
+import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 import { enforceGeneratable } from '../hooks/generatable'
 
@@ -66,10 +67,16 @@ export const LessonBundles: CollectionConfig = {
     components: {
       // Per-export DOCX download with the standard/compact LessonSequence toggle (SPEC §9).
       edit: { beforeDocumentControls: ['@/components/ExportBundle#default'] },
+      // Site-Admin-only upload panel above the list (SPEC §7 deviation — self-hides for others).
+      beforeListTable: ['@/components/UploadBundles#default'],
     },
   },
-  // GET /api/lesson-bundles/:id/export?format=standard|compact — READ-gated, published-only.
-  endpoints: [exportBundleEndpoint],
+  endpoints: [
+    // GET /:id/export?format=standard|compact — READ-gated, published-only (SPEC §9).
+    exportBundleEndpoint,
+    // POST /upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
+    uploadBundlesEndpoint,
+  ],
   versions: {
     drafts: true,
     maxPerDoc: 100,

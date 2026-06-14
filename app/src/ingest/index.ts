@@ -117,48 +117,59 @@ const extractDataFile = (file: string, source: string): Record<string, unknown> 
   file.endsWith('.json') ? extractAresJson(source) : extractAresData(source)
 
 type Prepared = {
-  file: string
+  name: string
   data: IngestBundleData
   subjectGrade: string | number
   warnings: string[]
 }
 
 /**
- * Ingest every `.js`/`.json` data file under the given file/dir paths. Two phases:
+ * One ingest input: a named source plus a thunk that produces its raw bundle. `extract` is
+ * a thunk (not an eagerly-parsed object) so a parse failure is caught and AGGREGATED in
+ * pre-flight alongside validation/taxonomy problems, rather than aborting the whole batch on
+ * the first bad file. The thunk also lets each caller choose the safe parser: the CLI picks
+ * by extension (`.js` AST / `.json` JSON.parse); the upload endpoint always uses
+ * `extractAresJson`. Neither path ever executes the input.
+ */
+export type IngestItem = { name: string; extract: () => Record<string, unknown> }
+
+/**
+ * Shared ingest core (used by the CLI `ingestPaths` and the Site-Admin upload endpoint).
+ * Two phases:
  *   1. PRE-FLIGHT (read-only): extract + completeness-validate + resolve taxonomy for ALL
- *      files, collecting every problem. If any file fails, throw with the full list and
- *      write NOTHING.
+ *      items, collecting every problem. If any fails, throw with the full list, write NOTHING.
  *   2. WRITE: create all prepared bundles as 1.0.0 drafts inside ONE transaction
  *      (all-or-nothing — a failure rolls back the whole batch).
+ *
+ * This is a TRUSTED system path (no `req.user`): callers MUST enforce authorization before
+ * calling it — the CLI is dev-only; the endpoint gates on Site Admin.
  */
-export async function ingestPaths(payload: Payload, inputPaths: string[]): Promise<IngestResult[]> {
-  const files = gatherDataFiles(inputPaths)
-  if (files.length === 0) {
-    throw new IngestError(`No .js/.json files found at: ${inputPaths.join(', ')}`)
+export async function ingestItems(payload: Payload, items: IngestItem[]): Promise<IngestResult[]> {
+  if (items.length === 0) {
+    throw new IngestError('No bundles to ingest.')
   }
 
   // Phase 1 — pre-flight (read-only).
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
   const errors: string[] = []
-  for (const file of files) {
+  for (const { name, extract } of items) {
     try {
-      const source = readFileSync(file, 'utf8')
-      const raw = extractDataFile(file, source)
+      const raw = extract()
       const data = rawToBundle(raw)
       const problems = validateGeneratable(data)
       if (problems.length > 0) {
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
       const subjectGrade = await resolveSubjectGrade(payload, raw, preflightReq)
-      prepared.push({ file, data, subjectGrade, warnings: deliverableWarnings(data) })
+      prepared.push({ name, data, subjectGrade, warnings: deliverableWarnings(data) })
     } catch (e) {
-      errors.push(`${path.basename(file)}: ${e instanceof Error ? e.message : String(e)}`)
+      errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
   if (errors.length > 0) {
     throw new IngestError(
-      `Pre-flight failed (${errors.length}/${files.length} file(s)); nothing was written:\n  - ${errors.join('\n  - ')}`,
+      `Pre-flight failed (${errors.length}/${items.length} file(s)); nothing was written:\n  - ${errors.join('\n  - ')}`,
     )
   }
 
@@ -167,7 +178,7 @@ export async function ingestPaths(payload: Payload, inputPaths: string[]): Promi
   await initTransaction(req)
   try {
     const results: IngestResult[] = []
-    for (const { file, data, subjectGrade, warnings } of prepared) {
+    for (const { name, data, subjectGrade, warnings } of prepared) {
       const created = await payload.create({
         collection: 'lesson-bundles',
         data: { ...data, subjectGrade } as unknown as RequiredDataFromCollectionSlug<'lesson-bundles'>,
@@ -175,7 +186,7 @@ export async function ingestPaths(payload: Payload, inputPaths: string[]): Promi
         req,
       })
       results.push({
-        file: path.basename(file),
+        file: name,
         id: created.id,
         title: created.title ?? data.title,
         subjectGrade,
@@ -190,4 +201,23 @@ export async function ingestPaths(payload: Payload, inputPaths: string[]): Promi
     await killTransaction(req)
     throw e
   }
+}
+
+/**
+ * Ingest every `.js`/`.json` data file under the given file/dir paths (CLI entry point).
+ * Thin wrapper over `ingestItems`: gathers files and hands each as an extract-thunk so a
+ * parse error is aggregated in pre-flight like any other problem.
+ */
+export async function ingestPaths(payload: Payload, inputPaths: string[]): Promise<IngestResult[]> {
+  const files = gatherDataFiles(inputPaths)
+  if (files.length === 0) {
+    throw new IngestError(`No .js/.json files found at: ${inputPaths.join(', ')}`)
+  }
+  return ingestItems(
+    payload,
+    files.map((file) => ({
+      name: path.basename(file),
+      extract: () => extractDataFile(file, readFileSync(file, 'utf8')),
+    })),
+  )
 }

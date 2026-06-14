@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-13 — Site-Admin web upload for ingest (DEVIATION from SPEC §7 "no HTTP/upload surface")
+
+The user asked for an in-browser upload to add bundles, Site-Administrator-only, with the
+control hidden from everyone else. This **reverses** SPEC §7's original "ingest is … never an
+HTTP/upload surface." Recorded as a deliberate, documented deviation; SPEC §7 updated.
+
+- **Why it's now safe.** The original rule existed to prevent **executing uploaded `.js`** (RCE).
+  Uploads are never executed: the web path is **JSON-only** (`JSON.parse` via `extractAresJson`).
+  `.js` stays CLI-only. So the threat the rule guarded against doesn't apply to the web surface.
+- **Authorization is server-side, not cosmetic.** `POST /api/lesson-bundles/upload`
+  (`app/src/endpoints/uploadBundles.ts`) enforces `isSiteAdmin(req.user)` → 401/403; the
+  self-hiding list panel (`app/src/components/UploadBundles`, `beforeListTable`, returns null
+  unless `roles` includes `siteAdmin`) is convenience only. `roles` is `saveToJWT`, so the client
+  check needs no fetch.
+- **Guardrails:** JSON only (`.json` extension + content-type-agnostic safe parse), per-file 5 MB
+  / 50-file caps, the same `validateGeneratable` + exact-match taxonomy gates as the CLI, and the
+  same **all-or-nothing** transaction. Pre-flight failures → **422** with the actionable per-file
+  message; nothing written. Bundles land as **drafts** — publish stays a separate step (no
+  auto-publish from upload).
+- **Shared core (no duplication).** Refactored `app/src/ingest/index.ts` to a single
+  `ingestItems(payload, items)` where each item is `{ name, extract() }` (a thunk so parse
+  errors aggregate in pre-flight). `ingestPaths` (CLI) and the endpoint both call it; the endpoint
+  runs it as the trusted system path *after* the Site-Admin gate.
+- **Verified:** `tsc` 0 / eslint 0; ingest gate 24/24; importMap hand-updated for the new
+  component (the `payload generate:importmap` CLI is blocked locally by the 3.85.1/Node-25 tsx
+  bug — entry added with Payload's exact `default_<md5(path)>` binding so a Rock regen is a no-op).
+  **Endpoint + panel are runtime-tested on the Rock (need a DB).** TODO before real exposure:
+  **re-run `security-review`** on this web ingest surface (SPEC §7 calls ingest the highest-risk
+  surface; a web entry point warrants a fresh pass).
+
 ## 2026-06-13 — Ingest accepts `.json` exports as well as `.js` modules (SPEC §7)
 
 ARES prefers JSON as the transport format (and its repo now emits `*_data.json` exports), so
