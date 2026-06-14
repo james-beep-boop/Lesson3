@@ -1,5 +1,21 @@
-# Start-here for the next session — Phase 5: editor/preview (§5), export (§9), bulk ingest, resources
+# Start-here for the next session — Phase 5: editor/preview (§5), bulk ingest, resources
 
+> **SHIPPED 2026-06-13 (deployed + verified on the Rock):**
+> - **§9 export — first slice DONE and LIVE.** Per-export DOCX download as a `.zip` from the
+>   admin edit view, via a READ-access-gated Payload collection endpoint
+>   `GET /api/lesson-bundles/:id/export?format=standard|compact` + a `beforeDocumentControls`
+>   button. Proven end-to-end on the Rock: unauth → 401, bad format → 400, published → 200 +
+>   `application/zip` (3 docx). Synchronous for now (Jobs Queue deferred until batch/large needs it).
+> - **Second LessonSequence format (`compact`).** Drops Section C's Resource column and re-balances
+>   widths (Phase 1.57″=2261; the other four ~1.98″=2854/2857, summing to 13680). Lesson3-owned
+>   `app/src/generator/buildSowCompact.cjs` reusing vendored primitives; the vendored `standard`
+>   path stays byte-pristine (fidelity 3/3). Verified on the Rock: compact grid = 5 cols, 0 Resource
+>   refs; standard still carries the 2556 Resource column.
+> - **Payload 3.85.0 → 3.85.1** (deliberate patch). Rock rebuilt; `next build` clean on Node 22.
+> - New gate `app/scripts/format2-check.ts` (7/7). Rock now on **`0fb1cc3`**. See `docs/DECISIONS.md`
+>   (three 2026-06-13 entries). **Dev caveat:** `payload generate:*` CLIs break on local Node 25
+>   (bundled tsx 4.22.4); fine on the Rock's Node 22.
+>
 > **Status:** Phases 0–**4 are DONE**. **Phase 4 (end-to-end DB round-trip) is PROVEN on the
 > Rock: 3/3 content-identical** — seed taxonomy → ingest `bio_1_4` → 1.0.0 draft (id 33) →
 > publish → generate → diff vs approved (LessonSequence 381 blocks, FinalExplanation 52,
@@ -86,8 +102,9 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
    content gap) → expect deliverable warnings; only promote FE/ST to a hard gate if/when the
    corpus is completed upstream.
 3. **§5 editor + preview** (Payload admin edit screens + the "Preview as Word/PDF" derived from
-   the generator — DOCX→mammoth HTML) and **§9 export endpoint** (Payload custom endpoint over
-   `generateForBundle`, READ-access-gated; Jobs Queue for async). Both per the Payload-first rule.
+   the generator — DOCX→mammoth HTML), per the Payload-first rule. **§9 export endpoint is DONE**
+   (shipped 2026-06-13, see top) — the preview can reuse the same `generateForBundle` core; promote
+   the export to the Jobs Queue only when batch/large-bundle async is actually needed.
 4. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update`
    (incl. a publish with no content change) bumps semver. Not considered a bug; do only if
    "mark official without editing shouldn't bump" is wanted.
