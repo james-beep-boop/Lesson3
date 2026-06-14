@@ -222,3 +222,50 @@ export function extractAresData(source: string): AresRawBundle {
 
   return result
 }
+
+/** Recursively reject any `__proto__` own key — the JSON-path equivalent of literalToJson's
+ *  prototype-pollution guard. (`JSON.parse` makes `__proto__` an own data property rather
+ *  than polluting the prototype, but downstream spread/assign could still mishandle it, so
+ *  we reject it outright to keep parity with the `.js` extractor's contract.) */
+function assertNoProtoKeys(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const el of value) assertNoProtoKeys(el)
+  } else if (value !== null && typeof value === 'object') {
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      if (key === '__proto__') throw new IngestError('`__proto__` keys are not allowed')
+      assertNoProtoKeys((value as Record<string, unknown>)[key])
+    }
+  }
+}
+
+/**
+ * Parse an ARES JSON data export → the raw bundle. Sibling of extractAresData for ARES's
+ * preferred transport format (the `.json` export and the `.js` module carry deep-equal data
+ * for a sub-strand — verified — so everything downstream of this is shared).
+ *
+ * There is NO code-execution risk here: `JSON.parse` only ever yields data. We still apply
+ * the two structural guards the `.js` path enforces — reject `__proto__` keys anywhere in
+ * the tree, and require the same five top-level groups — so both entry points hand the rest
+ * of the pipeline the same validated shape.
+ *
+ * @throws {IngestError} on invalid JSON, a non-object root, a `__proto__` key, or a missing group.
+ */
+export function extractAresJson(source: string): AresRawBundle {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(source)
+  } catch (e) {
+    throw new IngestError(`Could not parse the file as JSON: ${(e as Error).message}`)
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new IngestError('JSON root must be an object with the ARES bundle groups (META, UNIT, …)')
+  }
+  assertNoProtoKeys(parsed)
+
+  const result = parsed as AresRawBundle
+  const missing = REQUIRED_EXPORTS.filter((k) => !(k in result))
+  if (missing.length > 0) {
+    throw new IngestError(`JSON is missing required group(s): ${missing.join(', ')}`)
+  }
+  return result
+}

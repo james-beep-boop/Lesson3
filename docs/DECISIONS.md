@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-13 — Ingest accepts `.json` exports as well as `.js` modules (SPEC §7)
+
+ARES prefers JSON as the transport format (and its repo now emits `*_data.json` exports), so
+ingest now reads both. Confirmed the two are equivalent before building: for the same
+sub-strand the `.js` module and ARES's official `.json` export are **deep-equal** (verified
+on bio_3_3 — same five groups, same fields, ~213 KB each; neither carries `framework[].resources`,
+so JSON does *not* un-blank the Resource column — that's still ARES's build-time Python step).
+
+- **Only the read step differs; everything downstream is shared.** New `extractAresJson(source)`
+  in `src/ingest/extract.ts` is the `.json` sibling of `extractAresData`. `src/ingest/index.ts`
+  picks by extension (`gatherDataFiles` accepts `.js`/`.json`; `extractDataFile` branches), then
+  feeds the same `rawToBundle → validateGeneratable → create` pipeline. Proven: a real clone
+  `.json` → `extractAresJson` → `rawToBundle` is deep-equal to the `.js` path (0 validate problems).
+- **Security: no new execution surface.** `JSON.parse` only yields data — there is no
+  parse-never-execute concern as there is for `.js`. We still apply the structural guards the
+  `.js` path enforces, for parity: reject a non-object root, **recursively reject `__proto__`
+  keys** (JSON.parse makes `__proto__` an own property rather than polluting the prototype, but
+  we reject it so downstream spread/assign can't be surprised), and require the five top-level
+  groups.
+- **CLI unchanged in spirit** — `payload run scripts/ingest.ts -- <file.js | file.json | dir>`;
+  a directory ingests every `.js`/`.json` in it. (Pointing at a dir holding BOTH a `.js` and a
+  `.json` for the same sub-strand would create two bundles — ingest has no dedupe; in the ARES
+  clone the two live in different dirs so this doesn't arise.)
+- **Verified:** `ingest-extract-check.ts` extended to **24/24** (round-trip JS↔JSON parity +
+  the three reject guards + accept-valid); `tsc` 0 / eslint 0.
+
 ## 2026-06-13 — Payload 3.85.0 → 3.85.1 (deliberate patch bump)
 
 Took the 3.85.1 patch after reviewing the changelog (none of the seven fixes touch us —

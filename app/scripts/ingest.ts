@@ -1,13 +1,14 @@
 /**
- * Ingest ARES `.js` data modules as version 1.0.0 DRAFT bundles (SPEC §7).
+ * Ingest ARES data files (`.js` modules OR `.json` exports) as version 1.0.0 DRAFT bundles
+ * (SPEC §7).
  *
  * DEV-ONLY operator tool — run by the app developer or lesson-plan author, never teachers.
- * Safe static extraction (the `.js` is PARSED, never executed — see src/ingest/extract.ts).
- * Bundles are created as drafts; an administrator reviews and publishes to make them
- * official / exportable.
+ * `.js` is PARSED, never executed; `.json` is JSON.parse'd — both safe (see
+ * src/ingest/extract.ts). Bundles are created as drafts; an administrator reviews and
+ * publishes to make them official / exportable.
  *
  * Run (needs a DB, so on the Rock or any host with DATABASE_URI):
- *   cd app && npx payload run scripts/ingest.ts -- <file.js | dir> [more…]
+ *   cd app && npx payload run scripts/ingest.ts -- <file.js | file.json | dir> [more…]
  *
  * Taxonomy must already exist: each module's (META.subject, META.grade) is resolved to a
  * SubjectGrade by exact match; a missing Subject/SubjectGrade is a hard error (seed first).
@@ -21,7 +22,7 @@ import { ingestPaths } from '../src/ingest'
 const run = async () => {
   const paths = process.argv.slice(2).filter((a) => a !== '--')
   if (paths.length === 0) {
-    console.error('Usage: npx payload run scripts/ingest.ts -- <file.js | dir> [more…]')
+    console.error('Usage: npx payload run scripts/ingest.ts -- <file.js | file.json | dir> [more…]')
     process.exit(1)
   }
 

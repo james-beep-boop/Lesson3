@@ -9,6 +9,9 @@
  *      an expression, an identifier reference, an IIFE, a binary op, a `__proto__` key,
  *      a malformed export) are all REJECTED — and a benign-but-unexpected top-level
  *      statement is NEVER executed (a global "canary" stays unset).
+ *   3. JSON PATH: the `.json` entry point (extractAresJson) ingests equivalently to `.js`
+ *      (round-trip parity) and applies matching guards (non-object root, `__proto__`,
+ *      missing groups).
  * Plus a couple of `validateGeneratable` (completeness-gate) assertions.
  *
  * Run:  cd app && npx tsx scripts/ingest-extract-check.ts
@@ -18,7 +21,7 @@ import { deepStrictEqual } from 'node:assert'
 import path from 'node:path'
 import os from 'node:os'
 
-import { extractAresData } from '../src/ingest/extract'
+import { extractAresData, extractAresJson } from '../src/ingest/extract'
 import { IngestError } from '../src/ingest/errors'
 import { rawToBundle } from '../src/ingest/toBundle'
 import { deliverableWarnings, validateGeneratable } from '../src/ingest/validateGeneratable'
@@ -45,6 +48,17 @@ const expectReject = (name: string, source: string) => {
   try {
     extractAresData(source)
     bad(name, 'expected IngestError, but extraction succeeded')
+  } catch (e) {
+    if (e instanceof IngestError) ok(name)
+    else bad(name, `threw a non-IngestError: ${(e as Error).message}`)
+  }
+}
+
+/** Assert that extractAresJson(source) throws an IngestError. */
+const expectRejectJson = (name: string, source: string) => {
+  try {
+    extractAresJson(source)
+    bad(name, 'expected IngestError, but JSON extraction succeeded')
   } catch (e) {
     if (e instanceof IngestError) ok(name)
     else bad(name, `threw a non-IngestError: ${(e as Error).message}`)
@@ -147,6 +161,46 @@ expectReject(
   const r = extractAresData(moduleWith(`note: 'a\\n' + 'b' + 'c'`)) as { META: { note?: unknown } }
   if (r.META.note === 'a\nbc') ok("fold: constant string concatenation (+) folds to one string")
   else bad("fold: constant string concatenation (+) folds", `got ${JSON.stringify(r.META.note)}`)
+}
+
+// 2d. JSON PATH — `.json` exports ingest equivalently to `.js`, with matching guards.
+{
+  // PARITY: a sub-strand's `.json` and `.js` yield the SAME bundle. We don't have a trusted
+  // `.json` fixture on disk (ARES's are deep-equal to the `.js` — proven separately), so we
+  // serialize the trusted `.js` extract to JSON and re-read it through the JSON path: the
+  // round-trip must reproduce the exact object the `.js` path produced.
+  try {
+    const fromJs = extractAresData(require('node:fs').readFileSync(BIO, 'utf8'))
+    const fromJson = extractAresJson(JSON.stringify(fromJs))
+    deepStrictEqual(fromJson, fromJs, 'JSON path differs from JS path for the same data')
+    ok('json parity: extractAresJson(JSON of bio_1_4) deep-equals extractAresData(bio_1_4)')
+  } catch (e) {
+    bad('json parity: extractAresJson deep-equals extractAresData', (e as Error).message)
+  }
+
+  // A full valid bundle as JSON is accepted.
+  const validJson = JSON.stringify({
+    META: { subject: 'Biology', grade: 10 },
+    UNIT: {},
+    LESSONS: [{ slo: {}, summaryTablePrompt: {}, framework: [{ phase: 'Observe Phase' }] }],
+    FINAL_EXPLANATION: {},
+    SUMMARY_TABLE: {},
+  })
+  try {
+    extractAresJson(validJson)
+    ok('json: a well-formed ARES bundle is accepted')
+  } catch (e) {
+    bad('json: a well-formed ARES bundle is accepted', (e as Error).message)
+  }
+
+  // Guards: bad JSON, non-object root, __proto__ key, missing required group.
+  expectRejectJson('json reject: invalid JSON syntax', '{ "META": }')
+  expectRejectJson('json reject: non-object root (array)', '[]')
+  expectRejectJson(
+    'json reject: __proto__ key (prototype pollution)',
+    '{"META":{"__proto__":{"polluted":true}},"UNIT":{},"LESSONS":[],"FINAL_EXPLANATION":{},"SUMMARY_TABLE":{}}',
+  )
+  expectRejectJson('json reject: missing required group(s)', '{"META":{},"UNIT":{}}')
 }
 
 // 3. COMPLETENESS GATE — validateGeneratable on real + broken data.

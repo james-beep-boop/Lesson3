@@ -1,12 +1,14 @@
 /**
- * Ingest orchestration (SPEC §7): extract ARES `.js` data modules → create stored bundles
- * as version 1.0.0 (DRAFT) via the Local API, in one all-or-nothing transaction.
+ * Ingest orchestration (SPEC §7): read ARES data files (`.js` modules OR `.json` exports) →
+ * create stored bundles as version 1.0.0 (DRAFT) via the Local API, in one all-or-nothing
+ * transaction. The two input formats carry deep-equal data for a sub-strand, so only the
+ * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
  * DEV-ONLY: ingest is run by the app developer or the lesson-plan author via the CLI
  * (`app/scripts/ingest.ts`), never by teachers and never via an HTTP/upload surface. It is
  * a TRUSTED Local-API system call (no `req.user` → `enforceBundleStructure` treats it as a
  * system path and lets it set all fields). The untrusted-input risk lives in `extract.ts`
- * (parse-never-execute); see that file's security contract.
+ * (parse-never-execute for `.js`; structural guards for `.json`); see its security contract.
  *
  * Lifecycle: bundles are created as DRAFTS (`_status: 'draft'`). An administrator reviews
  * and publishes to make a bundle official / export-eligible (SPEC §6); publishing is
@@ -23,7 +25,7 @@ import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
 
 import { IngestError } from './errors'
-import { extractAresData } from './extract'
+import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
 
@@ -88,24 +90,31 @@ async function resolveSubjectGrade(
   return sg.id
 }
 
-/** Recursively-free list of `.js` files for the given file/dir inputs (sorted, de-duped). */
-function gatherJsFiles(inputPaths: string[]): string[] {
+/** A recognised ARES data file: a `.js` module or a `.json` export. */
+const isDataFile = (f: string): boolean => f.endsWith('.js') || f.endsWith('.json')
+
+/** Flat list of `.js`/`.json` data files for the given file/dir inputs (sorted, de-duped). */
+function gatherDataFiles(inputPaths: string[]): string[] {
   const out = new Set<string>()
   for (const input of inputPaths) {
     const resolved = path.resolve(input)
     const st = statSync(resolved)
     if (st.isDirectory()) {
       for (const entry of readdirSync(resolved).sort()) {
-        if (entry.endsWith('.js')) out.add(path.join(resolved, entry))
+        if (isDataFile(entry)) out.add(path.join(resolved, entry))
       }
-    } else if (resolved.endsWith('.js')) {
+    } else if (isDataFile(resolved)) {
       out.add(resolved)
     } else {
-      throw new IngestError(`Not a .js file or directory: ${input}`)
+      throw new IngestError(`Not a .js/.json file or directory: ${input}`)
     }
   }
   return [...out]
 }
+
+/** Extract a data file's raw bundle: `.json` via JSON.parse, `.js` via the safe AST parse. */
+const extractDataFile = (file: string, source: string): Record<string, unknown> =>
+  file.endsWith('.json') ? extractAresJson(source) : extractAresData(source)
 
 type Prepared = {
   file: string
@@ -115,7 +124,7 @@ type Prepared = {
 }
 
 /**
- * Ingest every `.js` data module under the given file/dir paths. Two phases:
+ * Ingest every `.js`/`.json` data file under the given file/dir paths. Two phases:
  *   1. PRE-FLIGHT (read-only): extract + completeness-validate + resolve taxonomy for ALL
  *      files, collecting every problem. If any file fails, throw with the full list and
  *      write NOTHING.
@@ -123,9 +132,9 @@ type Prepared = {
  *      (all-or-nothing — a failure rolls back the whole batch).
  */
 export async function ingestPaths(payload: Payload, inputPaths: string[]): Promise<IngestResult[]> {
-  const files = gatherJsFiles(inputPaths)
+  const files = gatherDataFiles(inputPaths)
   if (files.length === 0) {
-    throw new IngestError(`No .js files found at: ${inputPaths.join(', ')}`)
+    throw new IngestError(`No .js/.json files found at: ${inputPaths.join(', ')}`)
   }
 
   // Phase 1 — pre-flight (read-only).
@@ -135,7 +144,7 @@ export async function ingestPaths(payload: Payload, inputPaths: string[]): Promi
   for (const file of files) {
     try {
       const source = readFileSync(file, 'utf8')
-      const raw = extractAresData(source)
+      const raw = extractDataFile(file, source)
       const data = rawToBundle(raw)
       const problems = validateGeneratable(data)
       if (problems.length > 0) {
