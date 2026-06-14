@@ -9,8 +9,8 @@ import { validateGeneratable } from '../ingest/validateGeneratable'
  * Runs `validateGeneratable` automatically on every create/update and BLOCKS the write
  * when the resulting document would be PUBLISHED (i.e. marked official / export-eligible)
  * but is not generatable. Drafts are intentionally allowed through incomplete — a bundle
- * can be a work-in-progress — while ingest's own pre-write check (`ingestFile`) still
- * rejects incomplete ARES data up front. So the invariant "no PUBLISHED bundle is ever
+ * can be a work-in-progress — while ingest's own pre-write check (`ingestItems` pre-flight)
+ * still rejects incomplete ARES data up front. So the invariant "no PUBLISHED bundle is ever
  * un-generatable" holds across the admin UI, the Local API, and ingest by construction.
  *
  * `beforeValidate` (not the export path) is the right home: it surfaces problems as a

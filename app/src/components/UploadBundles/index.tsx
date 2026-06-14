@@ -10,7 +10,7 @@
  * which re-checks isSiteAdmin. Accepts ARES `.json` exports → created as 1.0.0 drafts; the
  * admin then publishes each to make it exportable.
  */
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Button, toast, useAuth, useConfig } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 
@@ -30,6 +30,7 @@ export default function UploadBundles() {
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<UploadResult[]>([])
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Site Admin only — invisible to everyone else (server still enforces independently).
   const roles = (user as { roles?: string[] } | null | undefined)?.roles
@@ -62,6 +63,11 @@ export default function UploadBundles() {
       }
       setResults(json.bundles)
       toast.success(`Ingested ${json.count} bundle(s) as drafts — review and publish to make them exportable.`)
+      // Reset the picker so the button returns to its disabled "Upload" state and the same
+      // files can't be re-submitted by accident. (Clearing state alone won't clear the native
+      // input's "N files" label — reset its value too.)
+      setFiles([])
+      if (inputRef.current) inputRef.current.value = ''
       router.refresh() // reflect the new drafts in the list
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Upload failed')
@@ -88,6 +94,7 @@ export default function UploadBundles() {
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <input
+          ref={inputRef}
           type="file"
           accept=".json,application/json"
           multiple

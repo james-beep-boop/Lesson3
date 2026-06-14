@@ -48,6 +48,17 @@ export default buildConfig({
   serverURL: process.env.SERVER_URL || '',
   admin: {
     user: Users.slug,
+    // Brand the admin as "Lesson Plan Repository 3" instead of Payload: titleSuffix sets the
+    // browser tab; the graphics components replace the login-page logo and the nav mark.
+    meta: {
+      titleSuffix: ' — Lesson Plan Repository 3',
+    },
+    components: {
+      graphics: {
+        Logo: '@/components/Brand/Logo#default',
+        Icon: '@/components/Brand/Icon#default',
+      },
+    },
     importMap: {
       baseDir: path.resolve(dirname),
     },
