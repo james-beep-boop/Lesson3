@@ -58,6 +58,9 @@ export default buildConfig({
         Logo: '@/components/Brand/Logo#default',
         Icon: '@/components/Brand/Icon#default',
       },
+      // Wall-clock backstop that reliably logs out an idle/backgrounded tab at the token
+      // deadline (Payload's single-timer auto-logout is unreliable when suspended).
+      providers: ['@/components/IdleLogout#default'],
     },
     importMap: {
       baseDir: path.resolve(dirname),
