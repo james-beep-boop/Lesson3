@@ -1,59 +1,50 @@
-import { headers as getHeaders } from 'next/headers.js'
-import Image from 'next/image'
-import { getPayload } from 'payload'
 import React from 'react'
-import { fileURLToPath } from 'url'
+import Link from 'next/link'
 
-import config from '@/payload.config'
-import './styles.css'
+import { requireUser } from '@/lib/session'
 
-export default async function HomePage() {
-  const headers = await getHeaders()
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const { user } = await payload.auth({ headers })
+export default async function BrowsePage() {
+  const { payload, user } = await requireUser()
 
-  const fileURL = `vscode://file/${fileURLToPath(import.meta.url)}`
+  // Access-gated: a Teacher sees only published bundles; Editors/Subject Admins additionally
+  // see their in-scope drafts. The explicit published filter keeps the default view clean.
+  // `select` keeps the list query light — only the fields the list renders, not the whole
+  // (large) lesson body; depth 2 resolves the subjectGrade → subject name for the label.
+  const { docs } = await payload.find({
+    collection: 'lesson-bundles',
+    where: { _status: { equals: 'published' } },
+    overrideAccess: false,
+    user,
+    depth: 2,
+    limit: 200,
+    sort: 'title',
+    select: { title: true, subjectGrade: true },
+  })
 
   return (
-    <div className="home">
-      <div className="content">
-        <picture>
-          <source srcSet="https://raw.githubusercontent.com/payloadcms/payload/3.x/packages/ui/src/assets/payload-favicon.svg" />
-          <Image
-            alt="Payload Logo"
-            height={65}
-            src="https://raw.githubusercontent.com/payloadcms/payload/3.x/packages/ui/src/assets/payload-favicon.svg"
-            width={65}
-          />
-        </picture>
-        {!user && <h1>Welcome to your new project.</h1>}
-        {user && <h1>Welcome back, {user.email}</h1>}
-        <div className="links">
-          <a
-            className="admin"
-            href={payloadConfig.routes.admin}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Go to admin panel
-          </a>
-          <a
-            className="docs"
-            href="https://payloadcms.com/docs"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Documentation
-          </a>
-        </div>
-      </div>
-      <div className="footer">
-        <p>Update this page by editing</p>
-        <a className="codeLink" href={fileURL}>
-          <code>app/(frontend)/page.tsx</code>
-        </a>
-      </div>
-    </div>
+    <section className="browse">
+      <h1>Lesson plans</h1>
+      {docs.length === 0 ? (
+        <p className="muted">No published lesson plans yet.</p>
+      ) : (
+        <ul className="bundle-list">
+          {docs.map((b) => {
+            // depth 2 populates these relationships, so `typeof === 'object'` narrows the
+            // `id | doc` unions without casts.
+            const sg = typeof b.subjectGrade === 'object' ? b.subjectGrade : null
+            const subject = sg && typeof sg.subject === 'object' ? sg.subject : null
+            const meta = sg && subject ? `${subject.name} · Grade ${sg.grade}` : undefined
+            return (
+              <li key={b.id} className="bundle-row">
+                <Link href={`/lessons/${b.id}`} className="bundle-title">
+                  {b.title}
+                </Link>
+                {meta && <span className="bundle-meta">{meta}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
   )
 }

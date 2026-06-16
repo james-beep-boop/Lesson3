@@ -82,19 +82,18 @@ export const authenticated: Access = ({ req: { user } }) => Boolean(user)
 export const siteAdminOnly: Access = ({ req: { user } }) => isSiteAdmin(asUser(user))
 
 /**
- * Admin-panel access. SPEC §5: Phase-1 editing happens in the Payload admin edit
- * screen, so Editors and Subject Admins must be allowed in — only plain Teachers
- * (authenticated, no grant) are excluded. (Resolves the NEXT-SESSION note that
- * said "Site Admins only"; SPEC §5 is canonical — see docs/DECISIONS.md.)
+ * Who may use the Payload admin panel (SPEC §5): Site Admins + anyone holding a subject-grade
+ * assignment (Editor / Subject Admin). Plain Teachers (authenticated, no grant) are excluded.
+ * Exposed as a plain `User` predicate so "The App" nav can reuse the *same* rule — keeping the
+ * Admin link's visibility tracking panel access exactly (no forbidden controls, §13).
  */
-// `access.admin` must return a plain boolean (not a Where query), so it has a
-// narrower signature than collection `Access`.
-export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): boolean => {
-  const u = asUser(user)
-  if (!u) return false
-  if (isSiteAdmin(u)) return true
-  return Boolean(u.assignments?.length)
-}
+export const canUseAdminPanel = (user: User | null | undefined): boolean =>
+  isSiteAdmin(user) || Boolean(user?.assignments?.length)
+
+// `access.admin` must return a plain boolean (not a Where query), so it has a narrower
+// signature than collection `Access`.
+export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): boolean =>
+  canUseAdminPanel(asUser(user))
 
 // ---------------------------------------------------------------------------
 // Users collection access
