@@ -129,6 +129,13 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
    (incl. a publish with no content change) bumps semver. Not considered a bug; do only if
    "mark official without editing shouldn't bump" is wanted.
 
+**Phase 2+ — "The App" (decided 2026-06-14, see SPEC §2/§10 + DECISIONS):** a unified role-aware
+frontend (`app/src/app/(frontend)`) that ALL roles log into, over the same Payload backend, home to
+the cross-user features (browse/view/export, email-a-doc, messaging+notifications, translation, AI).
+`/admin` stays the editing/admin back-office. Teachers live only in The App (no `/admin`) — so a
+Teacher login has no surface until it's built. Recommended first slice: teacher browse → view →
+export. Sample logins: `app/scripts/seed-users.ts` (Teacher/Editor/Subject-Admin).
+
 **Watch-outs:**
 - **Running scripts on the Rock:** deps image + bind-mount means a *script-only* change is
   `git pull` + re-run (no rebuild). Generated DOCX MUST go to a bind-mounted host dir

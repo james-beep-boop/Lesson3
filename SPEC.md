@@ -44,10 +44,18 @@ Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RAC
 
 **Maturity caveat (managed):** Payload 3 is young, Next.js-coupled, and ships weekly. We **pin the version and upgrade deliberately** — this is how we reconcile "reuse debugged code" with "stable and trouble-free."
 
+### Two application surfaces (decided 2026-06-14)
+
+The product has **two front-ends over one Payload backend** (one runtime, one auth, one access layer):
+
+1. **The App** — a unified, role-aware front-of-house frontend (`app/src/app/(frontend)`) that **all four roles log into**, built on Payload's API + auth. It is the home for everything **common to all users**: browse/search published lessons, view, export/print, **email a document**, **internal messaging + notifications**, **translation** (e.g. Swahili), and **AI features** (summaries, etc.). Per the §13 minimal-UI principle it shows each role only what it can do. **Teachers — the majority — live entirely here** (they are intentionally excluded from `/admin`).
+2. **Payload `/admin`** — the **back-office** for the roles that manage content: structured editing (Phase 1), versioning, user/role/taxonomy management, ingest/upload. Editors & Subject Admins edit here; Site Admins administer here.
+
+Rationale: the common features above are *product* features every role uses; giving teachers a separate app would force duplicating them (or making editors switch apps). One shared App + an admin back-office avoids that. This **resolves the former "editor placement" open decision** (start in `/admin`; a custom editor may later move editing into the App — SPEC §5 Phase 2) and confirms the §10 workflows as in-scope. It is a **Phase-2+ track** that does not block current `/admin` editing/publishing work.
+
 ### Open decisions (not yet made)
-- **Editor placement:** start with Payload's admin edit screen; build a custom React editor *only if* admin usability proves inadequate in real teacher use.
 - **Exact host** for production and for the offline box.
-- **Whether a messaging / deletion-request workflow** (present in Lesson2) is wanted here (see §10).
+- **App build sequencing** — recommended first slice is the teacher-critical path (browse → view → export), then messaging → email → AI/translation.
 
 ---
 
@@ -108,7 +116,7 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 **Principle: edit the data, never the document.** DOCX/PDF are build artifacts, regenerated on demand. There is no Word round-trip.
 
-- **Presentation:** a document-shaped view (sub-strand → lessons → phases → fields). Phase 1 uses Payload's admin edit screen (nested field panels); invest in clear field **labels and descriptions**. Phase 2 builds a custom React editor only if needed — it reuses the same model, access rules, and versioning, so phase-1 work is not thrown away.
+- **Presentation:** a document-shaped view (sub-strand → lessons → phases → fields). Phase 1 uses Payload's admin edit screen (nested field panels); invest in clear field **labels and descriptions**. Phase 2 builds a custom React editor only if needed — it reuses the same model, access rules, and versioning, so phase-1 work is not thrown away. The **role-tailored, minimal-UI principle (§13)** governs every screen: a role sees only the controls it can use.
 - **Widgets:** prose fields are **plain multi-line text boxes** (newline = paragraph; a `- ` line prefix, ideally via a small "bullet" toggle, makes a bullet). `framework[].phase` is a **controlled dropdown**. No rich-text editor — simplicity *is* the fidelity guarantee.
 - **Live preview is the one early custom add** (not built into the admin): a "Preview as Word/PDF" action that runs the real generator on the working copy before publish. This is the trust-builder for the Word-centric stakeholder.
   - **Preview is always DERIVED from generator output — never a parallel HTML renderer.** A hand-built HTML template would be a second source of layout truth that can drift from the actual DOCX and mislead the teacher (and re-introduces the "HTML is lossy" problem rejected for storage). The preview generates the real DOCX in-process from the working copy, then displays it.
@@ -172,14 +180,20 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 ---
 
-## 10. Workflows to confirm before building
+## 10. Cross-user workflows (confirmed in scope, 2026-06-14)
 
-These existed in Lesson2 and may or may not be wanted here — **decide before building:**
+These are **features of "The App"** (§2) — common to every role, role-aware per §13. Confirmed
+wanted (Phase 2+ track; build order per §2 open decisions). All are ordinary Payload
+collections / endpoints / hooks + the Jobs Queue — none affects the generator/versioning core.
+
+- **Browse / search / filter** published bundles by subject-grade, official status, contributor, favorites.
+- **View + export/print**, and **email a document** to any address (server-side send; SPEC §9/§11).
+- **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
+  bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
+  deletion-request flow can ride on the same messaging substrate if wanted.)
 - **Favorites** (per user, per bundle).
-- **Messaging / inbox** and **deletion-request** workflow.
-- **Browse/filter** by subject-grade, official status, contributor, favorites.
-
-If kept, they are ordinary Payload collections + hooks; none affects the core architecture.
+- **Translation** (e.g. Swahili) and **AI features** (summaries, etc.) — server-side outbound
+  services behind endpoints/jobs, rate-limited (§11); AI uses the current Claude API/models.
 
 ---
 
@@ -211,6 +225,14 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
 - One runtime: resist re-introducing a second language on the core path.
 - Structured data is canonical; the editor's grammar must stay a subset of the generator's input grammar (§4).
 - Critical rules enforced server-side (access functions, hooks, validation), never only in the UI.
+- **Role-tailored, minimal UI (applies to EVERY user type).** The user-facing interface must be
+  as clean, lean, and self-evident as possible — a user should grasp the main functionality at a
+  glance. **Show only what the current user can actually do:** any action a role cannot perform
+  must not appear at all — *not even disabled/greyed-out*. A Teacher (no edit rights) sees no edit
+  controls; a non–Site-Admin sees no "create Subject/Grade"; etc. Most users are Teachers, so the
+  Teacher view in particular is view/export-only and uncluttered. This is consistent across all
+  roles. It is a presentation rule **layered on top of** the server-side access control (§5, §8),
+  never a substitute for it — hiding ≠ securing; access is still enforced server-side.
 - **Payload-first.** Before adding any new custom endpoint, editor, permission layer, workflow,
   or persistence code, first check whether Payload already provides it — through collection
   config, access control, field/collection hooks, versions/drafts, admin config, the Jobs Queue,

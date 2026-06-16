@@ -11,6 +11,42 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-14 — Architecture: a unified role-aware App for all users + `/admin` as back-office
+
+Confirmed the product is **two front-ends over one Payload backend** (one runtime/auth/access):
+**The App** — a role-aware front-of-house frontend (`app/src/app/(frontend)`) that *all four roles*
+log into — and **Payload `/admin`** as the content/admin back-office. See SPEC §2 ("Two application
+surfaces") + §10 (the now-confirmed cross-user workflows).
+
+- **What forced the decision.** The user confirmed a set of features **common to every role**:
+  browse/view/export, **email a document**, **internal messaging + notifications** (any user → any
+  user, optional bundle link/attachment), **translation** (Swahili), and **AI features**. A
+  teacher-only frontend would force duplicating those across two apps (or making editors switch
+  apps). So they belong in one shared App; `/admin` stays the editing/management console for
+  Editors/Subject Admins/Site Admins.
+- **Roles map cleanly to surfaces.** Teachers (the majority) live *entirely* in the App
+  (intentionally excluded from `/admin`). Editors/Subject Admins use the App for the common
+  features and `/admin` for editing; Site Admins administer in `/admin`. The §13 minimal-UI
+  principle governs the App's role-aware rendering (show only what the role can do).
+- **Resolves prior open decisions.** SPEC §2 "editor placement" → start in `/admin`, optionally
+  move editing into the App later (the §5 Phase-2 custom editor, now well-motivated). SPEC §10
+  workflows (messaging/favorites/browse) → **confirmed in scope**, plus email-out, translation, AI.
+- **No core-architecture change.** New surface = the already-scaffolded `(frontend)` route on
+  Payload's API + auth; new features = ordinary Payload collections/endpoints/hooks + the Jobs
+  Queue. Single runtime preserved. Outbound services (AI, email, translation) stay server-side,
+  rate-limited (§11); AI uses the current Claude API/models.
+- **Sequencing.** Phase 2+ track; does NOT block current `/admin` work (publish the uploaded
+  drafts, §5 editing cleanup). Recommended first App slice: the teacher-critical path
+  (browse → view → export — the majority's core need and the only surface that doesn't exist yet).
+
+### Sample role logins for UI testing (2026-06-14)
+
+Added `app/scripts/seed-users.ts` — creates one Teacher, one Editor, one Subject-Grade Admin
+(Editor + Subject Admin scoped to Biology G10 by default) via the Local API, to exercise the
+role-tailored UI. Credentials from env or randomly generated + printed once (no secrets committed);
+idempotent (skips existing emails). Run on the Rock (needs a DB). Note: the Teacher login has **no
+surface until The App exists** — it's created ready for that.
+
 ## 2026-06-14 — Admin session timeout: 15-min expiry + reliable idle-logout backstop
 
 Auth `tokenExpiration: 900` (15 min) is the admin inactivity window (commit `d0cf69a`).
