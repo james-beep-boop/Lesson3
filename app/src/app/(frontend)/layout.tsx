@@ -12,6 +12,11 @@ export const metadata = {
   description: 'ARES Lesson Library',
 }
 
+// The App is authenticated and per-request (Payload auth + live data) — never statically
+// prerendered. Set at the route-group root so it applies to every page below. Without this,
+// `next build` tries to prerender and hits the DB at build time (no DB → build fails).
+export const dynamic = 'force-dynamic'
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { user } = await getSession()
   // Show the Admin link only to roles that can actually use /admin — the same rule that gates
