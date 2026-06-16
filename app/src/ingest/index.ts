@@ -4,11 +4,14 @@
  * transaction. The two input formats carry deep-equal data for a sub-strand, so only the
  * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
- * DEV-ONLY: ingest is run by the app developer or the lesson-plan author via the CLI
- * (`app/scripts/ingest.ts`), never by teachers and never via an HTTP/upload surface. It is
- * a TRUSTED Local-API system call (no `req.user` → `enforceBundleStructure` treats it as a
- * system path and lets it set all fields). The untrusted-input risk lives in `extract.ts`
- * (parse-never-execute for `.js`; structural guards for `.json`); see its security contract.
+ * ENTRY POINTS (both trusted, never teacher-facing): the dev-only CLI (`app/scripts/ingest.ts`)
+ * and the Site-Administrator-only JSON upload endpoint (`src/endpoints/uploadBundles.ts`) — both
+ * call the shared `ingestItems` core below. `ingestItems` runs as a TRUSTED Local-API system
+ * call (no `req.user` → `enforceBundleStructure` treats it as a system path and lets it set all
+ * fields), so **callers MUST enforce authorization first**: the CLI is dev-only; the endpoint
+ * gates on Site Admin server-side (`isSiteAdmin`) and accepts JSON only. The untrusted-input risk
+ * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its
+ * security contract.
  *
  * Lifecycle: bundles are created as DRAFTS (`_status: 'draft'`). An administrator reviews
  * and publishes to make a bundle official / export-eligible (SPEC §6); publishing is

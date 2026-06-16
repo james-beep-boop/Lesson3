@@ -21,14 +21,19 @@ import os from 'node:os'
 import { generateBundleDocx } from '../src/generator/index'
 
 const require = createRequire(import.meta.url)
-const JSZip = require('jszip') as {
-  loadAsync: (b: Buffer) => Promise<{ file: (p: string) => { async: (t: 'string') => Promise<string> } }>
+type Zip = { file: (p: string) => { async: (t: 'string') => Promise<string> } | null }
+const JSZip = require('jszip') as { loadAsync: (b: Buffer) => Promise<Zip> }
+
+/** Read a zip entry, failing the gate clearly if it's missing (JSZip.file() returns null). */
+async function readEntry(zip: Zip, name: string): Promise<string> {
+  const file = zip.file(name)
+  if (!file) throw new Error(`DOCX is missing "${name}" — not a valid Office Open XML file`)
+  return file.async('string')
 }
 
 /** word/document.xml — the content payload, free of the per-build timestamp in docProps/core.xml. */
 async function documentXml(buf: Buffer): Promise<string> {
-  const zip = await JSZip.loadAsync(buf)
-  return zip.file('word/document.xml').async('string')
+  return readEntry(await JSZip.loadAsync(buf), 'word/document.xml')
 }
 
 const DEMO = process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
@@ -39,8 +44,7 @@ const COMPACT_C = [2261, 2854, 2854, 2854, 2857]
 
 /** Every table's gridCol widths, in document order. */
 async function tableGrids(buf: Buffer): Promise<number[][]> {
-  const zip = await JSZip.loadAsync(buf)
-  const xml = await zip.file('word/document.xml').async('string')
+  const xml = await readEntry(await JSZip.loadAsync(buf), 'word/document.xml')
   const grids: number[][] = []
   for (const m of xml.matchAll(/<w:tblGrid>(.*?)<\/w:tblGrid>/gs)) {
     grids.push([...m[1].matchAll(/<w:gridCol\s+w:w="(\d+)"/g)].map((g) => Number(g[1])))

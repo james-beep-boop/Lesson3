@@ -18,7 +18,8 @@ import { createRequire } from 'node:module'
 
 import { generateForBundle, NotExportableError } from '../generator/generateForBundle'
 import type { LessonSequenceFormat } from '../generator'
-import type { LessonBundle } from '../payload-types'
+import { findReadableBundle } from '../lib/readBundle'
+import type { User } from '../payload-types'
 
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip') as new () => {
@@ -45,12 +46,9 @@ export const exportBundleEndpoint: Endpoint = {
     }
     const format: LessonSequenceFormat = formatParam === 'compact' ? 'compact' : 'standard'
 
-    // Authorization: enforce the caller's READ access before generating. findByID with
-    // overrideAccess:false applies lessonBundleRead — a non-readable/unpublished bundle
-    // is "not found" for this user.
-    const bundle = (await req.payload
-      .findByID({ collection: 'lesson-bundles', id, depth: 0, overrideAccess: false, user: req.user, req })
-      .catch(() => null)) as LessonBundle | null
+    // Authorization: enforce the caller's READ access before generating. A non-readable /
+    // unpublished bundle is "not found" for this user (null); a real DB/runtime error propagates.
+    const bundle = await findReadableBundle(req.payload, { id, user: req.user as User, req })
     if (!bundle) throw new APIError('Bundle not found', 404)
 
     let docx

@@ -6,9 +6,16 @@ import { useRouter } from 'next/navigation'
 export function LogoutButton() {
   const router = useRouter()
   const onLogout = async () => {
-    await fetch('/api/users/logout', { method: 'POST', credentials: 'include' })
-    router.replace('/login')
-    router.refresh()
+    try {
+      await fetch('/api/users/logout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // Ignore network errors — navigate away regardless so a failed request can't strand the
+      // user on a protected page. (If the cookie somehow survived, /login bounces back to /,
+      // which is the correct still-authenticated behavior.)
+    } finally {
+      router.replace('/login')
+      router.refresh()
+    }
   }
   return (
     <button type="button" className="link-button" onClick={onLogout}>

@@ -33,6 +33,10 @@ const run = async () => {
 
   const subjectName = (process.env.SEED_SUBJECT || 'Biology').trim()
   const grade = Number(process.env.SEED_GRADE || 10)
+  if (!Number.isInteger(grade)) {
+    console.error(`SEED_GRADE must be an integer (got "${process.env.SEED_GRADE}").`)
+    process.exit(1)
+  }
 
   // Resolve the SubjectGrade by exact (name, grade) — same rule as ingest. The Editor and
   // Subject Admin must attach to it; fail loud if the taxonomy isn't seeded.

@@ -4,18 +4,16 @@ import { notFound } from 'next/navigation'
 import mammoth from 'mammoth'
 
 import { requireUser } from '@/lib/session'
+import { findReadableBundle } from '@/lib/readBundle'
 import { generateForBundle, NotExportableError } from '@/generator/generateForBundle'
-import type { LessonBundle } from '@/payload-types'
 
 export default async function LessonView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { payload, user } = await requireUser()
 
-  // Access-gated read — published-only for Teachers; not-visible → 404 for this user. Only the
-  // title is read here, so depth 0 (no relationship population) is enough.
-  const bundle = (await payload
-    .findByID({ collection: 'lesson-bundles', id, depth: 0, overrideAccess: false, user })
-    .catch(() => null)) as LessonBundle | null
+  // Access-gated read — published-only for Teachers; not-visible → 404. A real DB/runtime error
+  // propagates (not masked as 404). Only the title is read here, so depth 0 is enough.
+  const bundle = await findReadableBundle(payload, { id, user })
   if (!bundle) notFound()
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier —
