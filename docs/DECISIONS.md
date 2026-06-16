@@ -11,6 +11,61 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-16 — §5 preview shipped; corpus published + deduped; Codex-review hardening
+
+Three threads this session: the corpus went live, the §5 content preview shipped, and an
+external (Codex) review was triaged.
+
+**Corpus: 13 canonical published bundles (was 27 with duplicates).** The Rock had drifted
+to 27 bundles — the Site-Admin web upload **dedups within a single request, not across
+requests**, so re-uploading the same set created duplicate drafts (three waves on 06-14:
+ids 36–47 and a verbatim 48–59, plus stragglers). Resolved by picking **batch B (48–59) +
+bundle 33** (Chemicals, the fidelity oracle) as canonical — it already contained the only
+pre-published members (33, 56, 59) so nothing had to be un-published — publishing its 10
+remaining drafts and **deleting the 14 duplicates** (34–47). Result: one published bundle
+per distinct sub-strand (10 Biology + 3 Math). New tool `app/scripts/publish-drafts.ts`
+(`--list` / `--drafts` / id-list / `--delete`) did the batch work.
+- **Correction — FE/ST presence:** a naive `--list` that checked field *truthiness* labeled
+  all 13 as "FE ST", but the **generator's output is the truth**: **6/13 produce empty
+  FE/ST** (the documented upstream gap). The field can be a non-null-but-empty group. Trust
+  `generateBundleDocx`'s null buffers, not the stored field's truthiness.
+
+**§5 content preview shipped (teacher + admin).** Teacher view now renders all three
+documents (FE/ST omitted when absent). New **admin draft-capable preview** so an editor can
+see saved-draft output before publishing. Design decisions:
+- **Preview ≠ export — a separate HTML-only, draft-capable core.** `renderBundlePreview`
+  (and the shared `docxToSections`) has **no published/exportable gate** — the deliberate
+  difference from `generateForBundle`. It returns **HTML only, never DOCX bytes**, so it can
+  never be an export bypass. Authorization is enforced at the endpoint
+  (`findReadableBundle(draft:true)` — the read access rule still filters, so a Teacher can't
+  reach a draft), exactly as the export endpoint does.
+- **Incomplete-draft 422 reuses the publish gate.** The preview endpoint calls
+  `validateGeneratable` (the same single-source gate `enforceGeneratable` uses) to return a
+  **precise** "can't preview yet: <reasons>" (422); an unexpected throw *after* completeness
+  passes is **logged and surfaced as 500**, not masked. (Fixes the first-draft blanket
+  `catch` that turned every error into 422.)
+- **Previews the latest SAVED snapshot**, not unsaved form state (live form-state preview is
+  deferred — far bigger). Returned HTML page is **script-free + CSP-locked**; the frontend
+  view relies on mammoth text-escaping (our prose is plain strings, no inline markup).
+
+**Codex review — dispositions.** Fixed in-change: **#5** (blanket catch masking failures),
+**#8** (`publish-drafts.ts` `process.exit(0)` overrode `process.exitCode` → false CI
+success). Folded in as separate hardening: **#1** (fail-fast on missing `PAYLOAD_SECRET` in
+production — was `|| ''`), **#10** (removed the dead `my-route` scaffold). **Deferred**
+(pre-existing / already-tracked): #2 rate-limit/Jobs-Queue, #3 dep advisories, #6 FE/ST hard
+gate, #7 official-version model, #9 CSRF posture (our preview is a read-only GET).
+- **#4 XSS — kept as an open hardening item, not closed.** No *current* attacker-controlled
+  HTML path (mammoth escapes text; our generated DOCX carries no user-controlled hrefs/
+  images), but both preview surfaces *trust generated HTML*, so it stays a high-value
+  hardening point. When the deferred **Resource-column links** land, sanitize in the shared
+  `docxToSections` chokepoint (DOMPurify) — a deliberate dependency decision, declined for now.
+
+**Calibration (lesson).** Two claims were corrected as overstated: "**Rock deploy** ≠
+**production-ready**" (the Rock is a non-production verification environment; the audit's
+production blockers stand), and the `validateGeneratable` happy-path invariant holds for
+bundles **published via the normal hook**, not unconditionally (overrideAccess scripts /
+legacy data / hook drift could violate it — the failure mode is a benign 422, not a crash).
+
 ## 2026-06-14 — PDF converter: open decision, but constraints locked (offline/free/faithful)
 
 PDF output (and emailing/linking PDF + DOCX in the messaging platform) is confirmed in scope
