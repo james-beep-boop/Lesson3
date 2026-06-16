@@ -15,10 +15,14 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 // Auth-token signing / session integrity depend on this secret. An empty secret silently
-// weakens that, so fail fast in production rather than booting with a blank shared secret.
-// (Dev/test still default to '' so the app boots without env wiring.)
+// weakens that, so fail fast at server runtime in production rather than booting with a
+// blank shared secret. The check is SKIPPED during `next build` (NEXT_PHASE), where this
+// config is imported for static page-data collection with NODE_ENV=production but WITHOUT
+// the runtime env injected (secrets arrive at container runtime via --env-file). Dev/test
+// still default to '' so the app boots without env wiring.
 const payloadSecret = process.env.PAYLOAD_SECRET || ''
-if (process.env.NODE_ENV === 'production' && !payloadSecret) {
+const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
+if (process.env.NODE_ENV === 'production' && !isNextBuild && !payloadSecret) {
   throw new Error('PAYLOAD_SECRET is required in production (refusing to boot with an empty secret).')
 }
 
