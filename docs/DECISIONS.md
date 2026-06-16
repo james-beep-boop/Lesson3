@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-14 — Admin session timeout: 15-min expiry + reliable idle-logout backstop
+
+Auth `tokenExpiration: 900` (15 min) is the admin inactivity window (commit `d0cf69a`).
+Investigated a report that the "Stay logged in?" modal lingered for a very long time and the
+session seemed resurrectable. Traced through the installed Payload 3.85 source and confirmed
+behavior on the Rock:
+
+- **Server-side enforcement is sound — no security hole.** The auth cookie's `Expires` and the
+  JWT `exp` are both `issuedAt + tokenExpiration` (`auth/cookies.js` `getCookieExpiration`;
+  `auth/jwt.js`). `jwtVerify` (jose) rejects an expired JWT, and the `refresh-token` operation
+  throws `Forbidden` without a valid `req.user` (`auth/operations/refresh.js`). So after 15 min of
+  real time the session genuinely dies — confirmed: reloading/navigating past the window bounces
+  to login. No `autoLogin` is configured (ruled out as a resurrection path).
+- **The defect was client-side.** Payload's *proactive* auto-logout is a single `setTimeout`
+  scheduled for the deadline (`providers/Auth/index.js`); browsers throttle/suspend timers in
+  backgrounded or slept tabs, so an idle tab lingers past expiry and only clears "eventually" (on
+  the next server interaction). Annoying, not a breach — a stale tab can't act once the token dies.
+- **Fix — `IdleLogout` wall-clock backstop** (`app/src/components/IdleLogout`, mounted via
+  `admin.components.providers`, so it's always inside `AuthProvider`). Uses Payload's own auth
+  context (`tokenExpirationMs` + `logOut`): a 30 s interval (focused-idle tab → out within ~30 s)
+  plus `focus`/`visibilitychange` (slept/backgrounded tab → out immediately on return). It never
+  logs out an active user — `tokenExpirationMs` advances on every refresh (activity or clicking
+  "Stay logged in"). It changes no server behavior; it only makes the tab terminate promptly.
+- **General rule:** don't rely on a single client `setTimeout` for security-relevant timing —
+  browsers suspend timers off-screen. Enforce server-side (already true here) and, for UX, check
+  the wall clock on an interval + visibility/focus.
+
 ## 2026-06-13 — Site-Admin web upload for ingest (DEVIATION from SPEC §7 "no HTTP/upload surface")
 
 The user asked for an in-browser upload to add bundles, Site-Administrator-only, with the

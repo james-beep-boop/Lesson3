@@ -1,5 +1,25 @@
-# Start-here for the next session — Phase 5: editor/preview (§5), bulk ingest, resources
+# Start-here for the next session — Phase 5: editor/preview (§5), resources, round-trip regression
 
+> **SHIPPED 2026-06-14:**
+> - **Site-Admin web upload + `.json` ingest.** Ingest reads `.js` AND `.json` (deep-equal per
+>   sub-strand; `extractAresJson` = safe JSON.parse + `__proto__`/required-group guards). New
+>   Site-Admin-only browser upload `POST /api/lesson-bundles/upload` (JSON-only, server-side
+>   `isSiteAdmin` gate, self-hiding `beforeListTable` panel) — a DEVIATION from SPEC §7's "no
+>   HTTP/upload surface", security-reviewed (no HIGH/MED). Shared ingest core refactored to
+>   `ingestItems(payload, items)`. **12 bundles uploaded as drafts (ids #36–47)** — corpus largely
+>   loaded; publish each to make it exportable. (Live on the Rock; the upload was used in anger.)
+> - **Admin branding** "Lesson Plan Repository 3" (titleSuffix + custom Logo/Icon); upload form
+>   resets after success; **local Node pinned to 22.17.0** (`.nvmrc` + volta) to match the Rock and
+>   work around the tsx/Node-25 `generate:*` breakage.
+> - **Reliable idle-logout** (`IdleLogout` provider, `admin.components.providers`). Server-side
+>   15-min expiry was already sound (cookie + JWT die together; expired tokens can't refresh); added
+>   a wall-clock backstop (30 s interval + focus/visibility) so idle/backgrounded tabs terminate
+>   promptly instead of "eventually." See DECISIONS (2026-06-14).
+> - **On `main` at `b036699`.** `.json` ingest + the web upload are deployed/live; **branding +
+>   idle-logout (`0cee69a`, `b036699`) are pushed but need a Rock `git pull && docker compose up -d
+>   --build` to deploy.** Custom admin components are hand-registered in `importMap.js` (the
+>   `generate:importmap` CLI is blocked on local Node 25; bindings match Payload's `default_<md5>`).
+>
 > **SHIPPED 2026-06-13 (deployed + verified on the Rock):**
 > - **§9 export — first slice DONE and LIVE.** Per-export DOCX download as a `.zip` from the
 >   admin edit view, via a READ-access-gated Payload collection endpoint
@@ -96,11 +116,11 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 1. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
    command — ideally fully on the Rock (place the approved DOCX on the Rock, generate + diff
    there) so it doesn't need the Mac round-trip. Reuse `scripts/lib/docxDiff.ts`.
-2. **Bulk-ingest the corpus.** The 10 Biology + 3 Math `*_data.js` at SHA `529be40` on
-   `upstream` (all grade 10; subjects "Biology"/"Mathematics" already seeded). Exercises the
-   pre-flight + transaction + warn-only FE/ST at scale. **6/13 carry null FE/ST** (upstream
-   content gap) → expect deliverable warnings; only promote FE/ST to a hard gate if/when the
-   corpus is completed upstream.
+2. **Bulk-ingest the corpus — LARGELY DONE (2026-06-14).** 12 of the 13 sub-strands were
+   uploaded as drafts via the new Site-Admin web upload (ids #36–47; bio_1_4 was already id 33).
+   **6/13 carry null FE/ST** (upstream content gap) → these ingested with the expected
+   warn-only deliverable warnings (LessonSequence-only). Remaining: **publish** the drafts to make
+   them exportable; and promote FE/ST to a hard gate only if/when the corpus is completed upstream.
 3. **§5 editor + preview** (Payload admin edit screens + the "Preview as Word/PDF" derived from
    the generator — DOCX→mammoth HTML), per the Payload-first rule. **§9 export endpoint is DONE**
    (shipped 2026-06-13, see top) — the preview can reuse the same `generateForBundle` core; promote

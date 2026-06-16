@@ -189,6 +189,7 @@ If kept, they are ordinary Payload collections + hooks; none affects the core ar
 - **Automated, off-site, encrypted backups** (Postgres dumps); snapshot before migrations.
 - **CI/CD** so build/deploy is not bound to one machine.
 - **Rate limiting** on expensive endpoints (generation, auth).
+- **Admin session timeout.** Auth `tokenExpiration` = 15 min, enforced server-side (the auth cookie and JWT expire together; an expired token can't be refreshed). A client `IdleLogout` provider (`app/src/components/IdleLogout`) enforces the deadline on the wall clock (interval + focus/visibility) so idle or backgrounded tabs terminate promptly, not just on the next request. See `docs/DECISIONS.md`.
 - Offline target later: a single Node + Postgres deployment on a local box.
 
 ---
