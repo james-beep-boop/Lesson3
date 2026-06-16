@@ -14,6 +14,14 @@ import { LessonBundles } from './collections/LessonBundles'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Auth-token signing / session integrity depend on this secret. An empty secret silently
+// weakens that, so fail fast in production rather than booting with a blank shared secret.
+// (Dev/test still default to '' so the app boots without env wiring.)
+const payloadSecret = process.env.PAYLOAD_SECRET || ''
+if (process.env.NODE_ENV === 'production' && !payloadSecret) {
+  throw new Error('PAYLOAD_SECRET is required in production (refusing to boot with an empty secret).')
+}
+
 // Email adapter is opt-in via env so the app boots (console fallback) without SMTP
 // creds. When SMTP_HOST is set (runtime .env), real mail is sent — e.g. password
 // resets, which otherwise only log "Email attempted without being configured".
@@ -68,7 +76,7 @@ export default buildConfig({
   },
   collections: [Users, Subject, SubjectGrade, LessonBundles],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
+  secret: payloadSecret,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
