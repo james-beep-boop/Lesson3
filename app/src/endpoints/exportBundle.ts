@@ -17,7 +17,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { createRequire } from 'node:module'
 
 import { generateForBundle, NotExportableError } from '../generator/generateForBundle'
-import type { LessonSequenceFormat } from '../generator'
+import { parseLessonSequenceFormat } from './parseFormat'
 import { findReadableBundle } from '../lib/readBundle'
 import type { User } from '../payload-types'
 
@@ -40,11 +40,7 @@ export const exportBundleEndpoint: Endpoint = {
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing bundle id', 400)
 
-    const formatParam = new URL(req.url ?? '', 'http://localhost').searchParams.get('format')
-    if (formatParam !== null && formatParam !== 'standard' && formatParam !== 'compact') {
-      throw new APIError(`Invalid format "${formatParam}" — expected standard|compact`, 400)
-    }
-    const format: LessonSequenceFormat = formatParam === 'compact' ? 'compact' : 'standard'
+    const format = parseLessonSequenceFormat(req)
 
     // Authorization: enforce the caller's READ access before generating. A non-readable /
     // unpublished bundle is "not found" for this user (null); a real DB/runtime error propagates.

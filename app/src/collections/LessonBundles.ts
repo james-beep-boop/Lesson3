@@ -12,6 +12,7 @@ import {
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
 import { exportBundleEndpoint } from '../endpoints/exportBundle'
+import { previewBundleEndpoint } from '../endpoints/previewBundle'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 import { enforceGeneratable } from '../hooks/generatable'
@@ -65,8 +66,14 @@ export const LessonBundles: CollectionConfig = {
     defaultColumns: ['title', 'subjectGrade', 'semver', '_status'],
     group: 'Content',
     components: {
-      // Per-export DOCX download with the standard/compact LessonSequence toggle (SPEC §9).
-      edit: { beforeDocumentControls: ['@/components/ExportBundle#default'] },
+      // Edit-view controls: content preview (any saved version, drafts included — SPEC §5)
+      // and per-export DOCX download with the standard/compact toggle (published-only — SPEC §9).
+      edit: {
+        beforeDocumentControls: [
+          '@/components/PreviewBundle#default',
+          '@/components/ExportBundle#default',
+        ],
+      },
       // Site-Admin-only upload panel above the list (SPEC §7 deviation — self-hides for others).
       beforeListTable: ['@/components/UploadBundles#default'],
     },
@@ -74,6 +81,8 @@ export const LessonBundles: CollectionConfig = {
   endpoints: [
     // GET /:id/export?format=standard|compact — READ-gated, published-only (SPEC §9).
     exportBundleEndpoint,
+    // GET /:id/preview?format=standard|compact — READ-gated, draft-capable HTML view (SPEC §5).
+    previewBundleEndpoint,
     // POST /upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
     uploadBundlesEndpoint,
   ],

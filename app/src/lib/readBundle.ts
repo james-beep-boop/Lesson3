@@ -13,13 +13,23 @@ import type { LessonBundle, User } from '@/payload-types'
  */
 export async function findReadableBundle(
   payload: Payload,
-  args: { id: string | number; user: User | null; depth?: number; req?: PayloadRequest },
+  args: {
+    id: string | number
+    user: User | null
+    depth?: number
+    req?: PayloadRequest
+    draft?: boolean
+  },
 ): Promise<LessonBundle | null> {
   try {
     return (await payload.findByID({
       collection: 'lesson-bundles',
       id: args.id,
       depth: args.depth ?? 0,
+      // `draft: true` reads the latest (draft) snapshot — for the editor preview. The read
+      // access rule (`lessonBundleRead`) still applies, so a Teacher can't pull an
+      // unpublished draft this way (they only match `_status: published`).
+      draft: args.draft ?? false,
       overrideAccess: false,
       user: args.user,
       req: args.req,

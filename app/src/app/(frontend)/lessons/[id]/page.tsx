@@ -1,11 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import mammoth from 'mammoth'
 
 import { requireUser } from '@/lib/session'
 import { findReadableBundle } from '@/lib/readBundle'
 import { generateForBundle, NotExportableError } from '@/generator/generateForBundle'
+import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 
 export default async function LessonView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -21,11 +21,13 @@ export default async function LessonView({ params }: { params: Promise<{ id: str
   // derived from the generator, never a parallel renderer. The exact PDF view comes later (§9).
   // mammoth escapes DOCX text into HTML text nodes, and our prose is plain strings (no inline
   // markup), so the rendered HTML carries no executable markup.
-  let html = ''
+  //
+  // A bundle is three documents (SPEC §3); render each present one (FE/ST may legitimately be
+  // absent for some sub-strands). Standard layout for the on-screen view.
+  let sections: PreviewSection[] = []
   let viewError: string | null = null
   try {
-    const docx = await generateForBundle(payload, id) // standard layout for the on-screen view
-    html = (await mammoth.convertToHtml({ buffer: docx.lessonSequence })).value
+    sections = await docxToSections(await generateForBundle(payload, id))
   } catch (e) {
     viewError =
       e instanceof NotExportableError
@@ -52,7 +54,12 @@ export default async function LessonView({ params }: { params: Promise<{ id: str
       {viewError ? (
         <p className="muted">{viewError}</p>
       ) : (
-        <div className="doc-preview" dangerouslySetInnerHTML={{ __html: html }} />
+        sections.map((s) => (
+          <section key={s.label} className="doc-section">
+            <h2 className="doc-section-title">{s.label}</h2>
+            <div className="doc-preview" dangerouslySetInnerHTML={{ __html: s.html }} />
+          </section>
+        ))
       )}
     </article>
   )

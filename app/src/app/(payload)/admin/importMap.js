@@ -1,3 +1,4 @@
+import { default as default_PreviewBundle } from '@/components/PreviewBundle'
 import { default as default_550184ac4a132e15679f22dc6a77d28a } from '@/components/ExportBundle'
 import { default as default_d29816b6c18496691c5d08fa717f2174 } from '@/components/UploadBundles'
 import { default as default_5496f0f5764d226375d5dd242e31d0d2 } from '@/components/Brand/Logo'
@@ -7,6 +8,7 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  "@/components/PreviewBundle#default": default_PreviewBundle,
   "@/components/ExportBundle#default": default_550184ac4a132e15679f22dc6a77d28a,
   "@/components/UploadBundles#default": default_d29816b6c18496691c5d08fa717f2174,
   "@/components/Brand/Logo#default": default_5496f0f5764d226375d5dd242e31d0d2,
