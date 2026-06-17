@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ares.example/cbe-lesson-bundle.schema.json",
+  "title": "ARES CBE Lesson Bundle",
+  "description": "DRAFT canonical contract for generators/data/*_data.(js|json), contributed by the Lesson3 team and derived from the current 13 data files. Goal: ONE name per field (aliases collapsed), explicit required/optional, and additionalProperties:false so typos (e.g. 'safety3otes') and stray keys are rejected on emit. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "META", "UNIT", "LESSONS", "FINAL_EXPLANATION", "SUMMARY_TABLE"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of THIS contract the file conforms to, e.g. \"1.0.0\"."
+    },
+
+    "META": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "grade", "substrand_id", "substrand_name", "titleDoc"],
+      "properties": {
+        "subject": { "type": "string" },
+        "grade": { "type": "integer" },
+        "substrand_id": { "type": "string", "description": "e.g. \"2.2\". Part of the stable bundle key (subject + grade + substrand_id)." },
+        "substrand_name": { "type": "string" },
+        "titleDoc": { "type": "string" },
+        "subtitleDoc": { "type": "string" },
+        "col3Label": { "type": "string", "description": "Framework column 3 header (default differs Biology vs Math)." },
+        "col5Label": { "type": "string", "description": "Framework column 5 header." },
+        "outputDir": { "type": "string", "description": "Authoring/output hint; not consumed downstream." },
+        "filePrefix": { "type": "string", "description": "Output filename stem." }
+      }
+    },
+
+    "UNIT": {
+      "description": "Sub-strand overview table. Use null to signal an INTENTIONALLY absent overview; an empty object is treated as an export error.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["gradeLevel", "subject", "strand", "substrand", "totalDuration", "content", "learningOutcomes", "coreCompetencies"],
+      "properties": {
+        "gradeLevel": { "type": "string" },
+        "subject": { "type": "string" },
+        "strand": { "type": "string" },
+        "substrand": { "type": "string" },
+        "totalDuration": { "type": "string", "$comment": "Canonical. Some files emit 'duration' — collapse to this one name." },
+        "content": { "type": "string", "$comment": "Canonical. SCHEMA.md's 'subStrandContent' alias to be removed." },
+        "learningOutcomes": { "type": "string", "$comment": "Canonical. SCHEMA.md's 'outcomes' alias to be removed." },
+        "coreCompetencies": { "type": "string", "$comment": "Canonical. SCHEMA.md's 'competencies' alias to be removed." },
+        "values": { "type": "string" },
+        "sep": { "type": "string", "description": "Science & Engineering Practices." },
+        "pcis": { "type": "string", "description": "Pertinent & Contemporary Issues." },
+        "careers": { "type": "string", "$comment": "Canonical. SCHEMA.md's 'careerConnections' alias to be removed." },
+        "focus": { "type": "string", "$comment": "Canonical. SCHEMA.md's 'focusForLessons' alias to be removed." },
+        "phenomenon": { "type": "string", "description": "Anchoring phenomenon." },
+        "supportingPhenomena": { "type": "string" },
+        "drivingQuestion": { "type": "string", "$comment": "Canonical for the Key Inquiry / Driving Question row. SCHEMA.md's 'keyInquiryQuestions' alias to be removed; the stray UNIT-level 'keyInquiry' seen in the data should not appear here." },
+        "storyline": { "type": "string", "$comment": "Canonical. Some files emit 'storylineThread' — collapse to this one name." }
+      }
+    },
+
+    "LESSONS": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["number", "title", "duration", "slo", "framework"],
+        "properties": {
+          "number": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string" },
+          "duration": { "type": "string", "description": "Per-lesson, e.g. \"40 minutes\"." },
+          "substrand": { "type": "string", "description": "For ARES resource lookup." },
+          "aresKeywords": { "type": "string", "description": "ARES search terms." },
+          "overview": { "type": "string" },
+          "slo": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["purpose", "knowledge", "skills", "attitudes", "keyInquiry"],
+            "properties": {
+              "purpose": { "type": "string" },
+              "knowledge": { "type": "string" },
+              "skills": { "type": "string" },
+              "attitudes": { "type": "string" },
+              "keyInquiry": { "type": "string" },
+              "purposeInStoryline": { "type": "string" },
+              "safetyNotes": { "type": "string", "$comment": "Canonical. The corpus currently emits corrupted variants 'safety1otes'..'safety8otes' — these must be fixed to 'safetyNotes'; additionalProperties:false rejects them." }
+            }
+          },
+          "framework": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["phase", "learnerExperience", "teacherMoves", "sensemakingStrategy", "formativeAssessment"],
+              "properties": {
+                "phase": {
+                  "type": "string",
+                  "description": "Controlled vocabulary — drives colour-coding and resource bucketing; an unknown value degrades the document silently.",
+                  "enum": [
+                    "Predict Phase",
+                    "Observe Phase",
+                    "Explain Phase",
+                    "Driving Question Board (DQB) Creation",
+                    "Model Building Phase"
+                  ]
+                },
+                "learnerExperience": { "type": "string" },
+                "teacherMoves": { "type": "string" },
+                "sensemakingStrategy": { "type": "string" },
+                "formativeAssessment": { "type": "string" },
+                "resource": {
+                  "type": "string",
+                  "$comment": "Currently a single free-text string. P3 ask: replace with a structured 'resources' object carrying the resolved video/reading (title, source, direct_url|search_url) so the Resource column can populate."
+                }
+              }
+            }
+          },
+          "teacherReflection": { "type": "string" },
+          "summaryTablePrompt": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["observed", "learned", "explained"],
+            "properties": {
+              "observed": { "type": "string" },
+              "learned": { "type": "string" },
+              "explained": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "FINAL_EXPLANATION": {
+      "description": "Use null to signal an intentionally absent Final Explanation document.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["subjectLabel", "instructions", "sections"],
+      "properties": {
+        "subjectLabel": { "type": "string" },
+        "instructions": { "type": "string" },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["title", "prompt"],
+            "properties": {
+              "title": { "type": "string" },
+              "prompt": { "type": "string" },
+              "exemplar": { "type": "string", "description": "Answer key." }
+            }
+          }
+        },
+        "rubric": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["criterion", "excellent", "proficient", "developing"],
+            "properties": {
+              "criterion": { "type": "string" },
+              "excellent": { "type": "string" },
+              "proficient": { "type": "string" },
+              "developing": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "SUMMARY_TABLE": {
+      "description": "Use null to signal an intentionally absent Summary Table document.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["subStrand", "drivingQuestion", "lessons"],
+      "properties": {
+        "subStrand": { "type": "string" },
+        "drivingQuestion": { "type": "string" },
+        "lessons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["number", "title", "observed", "learned", "explained"],
+            "properties": {
+              "number": { "type": "integer", "minimum": 1 },
+              "title": { "type": "string" },
+              "observed": { "type": "string" },
+              "learned": { "type": "string" },
+              "explained": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
