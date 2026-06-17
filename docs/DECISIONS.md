@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-16 — Preview layout: Compact default; HTML preview stays content-only (no width injection)
+
+After deploying §5 and eyeballing real lessons in-browser, two layout decisions (don't re-litigate):
+
+- **On-screen preview defaults to Compact.** The Resource column is deferred/blank, so Standard's
+  HTML preview renders an **empty** column. Default both surfaces to Compact (the admin Preview
+  keeps a Standard/Compact toggle; the teacher inline view is Compact-only — both export formats
+  still download). Compact also gives the four content columns **equal** widths in the DOCX.
+- **Do NOT inject fixed column widths into the HTML preview.** The browser's auto-layout makes the
+  content columns uneven (sizes by text, ignoring the generator's DXA widths), which looks less
+  balanced than the DOCX. We considered injecting the generator's `cw` proportions via a `colgroup`
+  but **rejected it:** (1) it's cosmetic polish on the **content-preview tier**, which is explicitly
+  *not* the faithful view; (2) it doesn't generalize — forcing the DOCX widths in **Standard** would
+  reserve ~19% for the *empty* Resource column (worse, not better); (3) faithful layout/colour is the
+  job of the future **PDF** (the *converted* DOCX), and the **DOCX export already has correct widths +
+  colour**. Rule: the HTML preview is the fast content check; fidelity lives in the DOCX/PDF, never in
+  a second HTML renderer (same single-source-of-layout-truth reasoning as the PDF decision).
+- **Build gotcha (lesson):** the production `PAYLOAD_SECRET` fail-fast (#1) **broke `next build`** —
+  build-time page-data collection runs with `NODE_ENV=production` but **without** the runtime secret
+  (injected at container runtime via `--env-file`). Gate such runtime-only guards on
+  `process.env.NEXT_PHASE === 'phase-production-build'`. Build-time config evaluation ≠ runtime.
+
 ## 2026-06-16 — §5 preview shipped; corpus published + deduped; Codex-review hardening
 
 Three threads this session: the corpus went live, the §5 content preview shipped, and an

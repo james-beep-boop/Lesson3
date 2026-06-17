@@ -1,18 +1,26 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
 > **SHIPPED 2026-06-16:**
-> - **§5 content preview — DONE (teacher + admin), committed, NOT yet runtime-verified over HTTP.**
+> - **§5 content preview — DONE, DEPLOYED + verified on the Rock.**
 >   Teacher view (`app/(frontend)/lessons/[id]`) renders all three documents (FE/ST omitted when
 >   absent). New **admin draft-capable preview**: `generator/previewBundle.ts` (HTML-only render
 >   core + shared `docxToSections`, **no published gate** — the deliberate difference from
 >   `generateForBundle`), `endpoints/previewBundle.ts` (`GET /:id/preview?format=…`, access-gated
 >   via `findReadableBundle(draft:true)`, script-free CSP-locked HTML page, **422 via
 >   `validateGeneratable`** for incomplete drafts / logged-500 for real failures), a `PreviewBundle`
->   edit-view button, `endpoints/parseFormat.ts` (shared `?format=` parser). Proven on the Rock:
->   the render **core** generates+mammoth-converts a real DRAFT (ingested id 60 → 3 sections →
->   deleted). **Still unverified without a deploy:** the endpoint over HTTP (401/404/422/200), the
->   admin button, and the hand-registered `importMap` binding. Commits `05f1fe7` (feature),
->   `c6886c0` (publish-drafts ops tool), `a1970af` (hardening). See DECISIONS (2026-06-16).
+>   edit-view button, `endpoints/parseFormat.ts` (shared `?format=` parser). **Verified:** unauth
+>   →401 over HTTP; the **authenticated admin Preview render confirmed by the user** in-browser; the
+>   render core proven on a real DRAFT (ingested id 60 → 3 sections → deleted).
+>   - **On-screen preview defaults to COMPACT** (admin Preview keeps a Standard/Compact toggle; the
+>     teacher inline view is Compact-only, both export formats still offered). Reason: the Resource
+>     column is deferred/blank, so Standard's on-screen view shows an empty column. **Decided
+>     AGAINST injecting fixed column widths into the HTML preview** — cosmetic on the content tier,
+>     doesn't generalize (Standard would reserve width for the empty Resource column), and faithful
+>     layout/colour belongs to the future **PDF** (the *converted* DOCX). The HTML preview is the
+>     fast content check; the DOCX export already carries correct widths + colour. See DECISIONS.
+>   - Build gotcha fixed: the #1 secret guard fired during `next build` (NODE_ENV=production, no
+>     runtime secret) → gated on `NEXT_PHASE` (`4e0c297`). Commits `05f1fe7`/`c6886c0`/`a1970af`/
+>     `277a59d`(docs)/`4e0c297`/`15698a7`(compact default). Rock on **`15698a7`**.
 > - **Corpus published + deduped → 13 canonical published bundles** (was 27 with duplicate upload
 >   waves; the web upload dedups *within* a request, not across). One published bundle per
 >   sub-strand (10 Biology + 3 Math); duplicates 34–47 deleted. **6/13 produce empty FE/ST**
@@ -137,25 +145,23 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 
 ## Next priorities
 
-1. **Verify the admin preview END-TO-END over HTTP (after this deploy).** The core is proven, but
-   the `GET /:id/preview` endpoint (401/404/422/200), the edit-view Preview button, and the
-   hand-registered `importMap` binding only take effect in a running admin build. As an editor:
-   open a published bundle → Preview → confirm the HTML page renders; as a Teacher, confirm a
-   draft 404s. (Custom admin components are hand-registered in `importMap.js` — `generate:importmap`
-   is blocked on local Node 25.)
-2. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
+1. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
    command — ideally fully on the Rock (place the approved DOCX on the Rock, generate + diff
    there) so it doesn't need the Mac round-trip. Reuse `scripts/lib/docxDiff.ts`; `publish-drafts.ts`
    is a building block.
-3. **§5 editor refinements** (preview itself is DONE — shipped 2026-06-16). Open: **live-unsaved
-   preview** (currently previews the latest SAVED snapshot — bigger; needs posting form state) and
-   any custom edit-screen ergonomics beyond Payload's native fields.
-4. **PDF export** (§9) — constraints locked (offline/free/faithful → local office engine via a
+2. **§5 editor refinements** (preview itself is DONE + deployed 2026-06-16). Open: **live-unsaved
+   preview** (currently previews the latest SAVED snapshot — bigger; needs posting form state);
+   optional **Standard/Compact toggle on the teacher inline view** (the admin Preview has one; the
+   teacher view is Compact-only — a small `?format=` add, deferred as low-value); any custom
+   edit-screen ergonomics beyond Payload's native fields. (Edge case still unverified over HTTP:
+   a non-readable draft → 404 for a Teacher — proven by the access rule, not yet clicked.)
+3. **PDF export** (§9) — constraints locked (offline/free/faithful → local office engine via a
    swappable `docxToPdf(buffer)` seam, Jobs Queue, golden-file fidelity test to pick the engine).
-   See DECISIONS 2026-06-14.
-5. **Cross-user App features** (§10): email-a-doc, internal messaging + notifications, translation
+   This is also the **faithful on-screen layout/colour view** (the HTML preview is content-only by
+   design — see the column-width decision in DECISIONS 2026-06-16). See DECISIONS 2026-06-14.
+4. **Cross-user App features** (§10): email-a-doc, internal messaging + notifications, translation
    (Swahili), AI. The unified App now has browse → view → preview → export.
-6. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update` bumps
+5. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update` bumps
    semver. Not a bug; do only if "mark official without editing shouldn't bump" is wanted.
 
 **Production-readiness backlog (Codex 2026-06-16, NOT done — the Rock is non-production):** rate-limit
