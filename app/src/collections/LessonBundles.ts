@@ -12,7 +12,7 @@ import {
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
 import { exportBundleEndpoint } from '../endpoints/exportBundle'
-import { previewBundleEndpoint } from '../endpoints/previewBundle'
+import { previewBundleEndpoint, previewBundleUnsavedEndpoint } from '../endpoints/previewBundle'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 import { enforceGeneratable } from '../hooks/generatable'
@@ -59,6 +59,17 @@ const resourceLink = (name: string, label: string) => ({
   ],
 })
 
+// Collapsed-row label config for an array: shows "<noun> N — <first line of `field`>" via the
+// shared RowLabel component (registered once in admin/importMap.js). Pure per-array config.
+const rowLabel = (field: string, noun: string) => ({
+  components: {
+    RowLabel: {
+      path: '@/components/RowLabel#default',
+      clientProps: { field, noun },
+    },
+  },
+})
+
 export const LessonBundles: CollectionConfig = {
   slug: 'lesson-bundles',
   admin: {
@@ -83,6 +94,8 @@ export const LessonBundles: CollectionConfig = {
     exportBundleEndpoint,
     // GET /:id/preview?format=standard|compact — READ-gated, draft-capable HTML view (SPEC §5).
     previewBundleEndpoint,
+    // POST /:id/preview — same gate; renders the editor's current UNSAVED form state (SPEC §5).
+    previewBundleUnsavedEndpoint,
     // POST /upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
     uploadBundlesEndpoint,
   ],
@@ -197,6 +210,7 @@ export const LessonBundles: CollectionConfig = {
       type: 'array',
       label: 'LESSONS',
       labels: { singular: 'Lesson', plural: 'Lessons' },
+      admin: rowLabel('title', 'Lesson'),
       // A bundle must have ≥1 lesson (native; skipped for drafts). The generator-
       // completeness hook (enforceGeneratable) is the publish-time authority.
       minRows: 1,
@@ -231,6 +245,7 @@ export const LessonBundles: CollectionConfig = {
           type: 'array',
           label: 'Instructional framework',
           labels: { singular: 'Phase', plural: 'Phases' },
+          admin: rowLabel('phase', 'Phase'),
           // Each lesson needs ≥1 phase or the generator's Section C is empty (native;
           // skipped for drafts — enforceGeneratable is the publish-time authority).
           minRows: 1,
@@ -289,6 +304,7 @@ export const LessonBundles: CollectionConfig = {
           name: 'sections',
           type: 'array',
           labels: { singular: 'Section', plural: 'Sections' },
+          admin: rowLabel('title', 'Section'),
           fields: [
             structureText('title', 'Title'),
             prose('prompt', 'Prompt'),
@@ -301,6 +317,7 @@ export const LessonBundles: CollectionConfig = {
           name: 'rubric',
           type: 'array',
           labels: { singular: 'Rubric row', plural: 'Rubric' },
+          admin: rowLabel('criterion', 'Rubric row'),
           access: { update: canEditStructure },
           fields: [
             structureText('criterion', 'Criterion'),
@@ -324,6 +341,7 @@ export const LessonBundles: CollectionConfig = {
           name: 'lessons',
           type: 'array',
           labels: { singular: 'Lesson row', plural: 'Lesson rows' },
+          admin: rowLabel('title', 'Lesson row'),
           fields: [
             {
               name: 'number',

@@ -53,46 +53,65 @@ const run = async () => {
   // Records we create — torn down in reverse in the finally below.
   const created: { collection: 'subjects' | 'subject-grades' | 'lesson-bundles'; id: number | string }[] = []
   let passed = 0
+  let cleanupFailed = false
   const total = 3
+
+  // Reuse a pre-existing taxonomy row, or create it and track it for cleanup. The find/create
+  // calls stay at the call site (literal collection slugs = type-safe); this only factors the
+  // shared reuse-vs-create-then-track-then-log tail the two seed steps share.
+  const reuseOrSeed = async (
+    collection: 'subjects' | 'subject-grades',
+    noun: string,
+    existing: { id: number | string } | undefined,
+    create: () => Promise<{ id: number | string }>,
+  ): Promise<number | string> => {
+    if (existing) {
+      console.log(`Taxonomy: ${noun} exists (id ${existing.id}) — reusing.`)
+      return existing.id
+    }
+    const doc = await create()
+    created.push({ collection, id: doc.id })
+    console.log(`Taxonomy: created ${noun} (id ${doc.id}).`)
+    return doc.id
+  }
 
   try {
     // 1. Seed taxonomy IF MISSING (track only what we create — leave pre-existing rows alone).
-    const subjects = await payload.find({
-      collection: 'subjects',
-      where: { name: { equals: SUBJECT } },
-      limit: 1,
-      depth: 0,
-      overrideAccess: true,
-    })
-    let subjectId: number | string
-    if (subjects.docs[0]) {
-      subjectId = subjects.docs[0].id
-      console.log(`Taxonomy: Subject "${SUBJECT}" exists (id ${subjectId}) — reusing.`)
-    } else {
-      const s = await payload.create({ collection: 'subjects', data: { name: SUBJECT }, overrideAccess: true })
-      subjectId = s.id
-      created.push({ collection: 'subjects', id: subjectId })
-      console.log(`Taxonomy: created Subject "${SUBJECT}" (id ${subjectId}).`)
-    }
+    const subjectId = await reuseOrSeed(
+      'subjects',
+      `Subject "${SUBJECT}"`,
+      (
+        await payload.find({
+          collection: 'subjects',
+          where: { name: { equals: SUBJECT } },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        })
+      ).docs[0],
+      () => payload.create({ collection: 'subjects', data: { name: SUBJECT }, overrideAccess: true }),
+    )
 
-    const sgs = await payload.find({
-      collection: 'subject-grades',
-      where: { and: [{ subject: { equals: subjectId } }, { grade: { equals: GRADE } }] },
-      limit: 1,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (sgs.docs[0]) {
-      console.log(`Taxonomy: SubjectGrade "${SUBJECT} — Grade ${GRADE}" exists (id ${sgs.docs[0].id}) — reusing.`)
-    } else {
-      const sg = await payload.create({
-        collection: 'subject-grades',
-        data: { subject: subjectId, grade: GRADE },
-        overrideAccess: true,
-      })
-      created.push({ collection: 'subject-grades', id: sg.id })
-      console.log(`Taxonomy: created SubjectGrade "${SUBJECT} — Grade ${GRADE}" (id ${sg.id}).`)
-    }
+    await reuseOrSeed(
+      'subject-grades',
+      `SubjectGrade "${SUBJECT} — Grade ${GRADE}"`,
+      (
+        await payload.find({
+          collection: 'subject-grades',
+          where: { and: [{ subject: { equals: subjectId } }, { grade: { equals: GRADE } }] },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        })
+      ).docs[0],
+      () =>
+        payload.create({
+          // subjectId is a real (numeric) row id; the relationship field is typed number|Subject.
+          collection: 'subject-grades',
+          data: { subject: subjectId as number, grade: GRADE },
+          overrideAccess: true,
+        }),
+    )
 
     // 2. Ingest the trusted demo data file → a fresh 1.0.0 DRAFT (never touches existing bundles).
     const [ingested] = await ingestPaths(payload, [path.join(DEMO, DATA_FILE)])
@@ -124,6 +143,7 @@ const run = async () => {
         await payload.delete({ collection, id, overrideAccess: true })
         console.log(`Cleanup: deleted ${collection} ${id}`)
       } catch (e) {
+        cleanupFailed = true
         console.warn(`Cleanup: FAILED to delete ${collection} ${id}: ${e instanceof Error ? e.message : e}`)
       }
     }
@@ -133,6 +153,12 @@ const run = async () => {
   console.log(`ROUND-TRIP GATE: ${passed}/${total} documents content-identical (except Resource column)`)
   if (passed !== total) {
     console.error('✗ ROUND-TRIP GATE FAILED')
+    process.exit(1)
+  }
+  // A self-cleaning gate that leaves state behind is a failed gate, even if the diff matched —
+  // otherwise CI/Rock runs silently accumulate test rows and hide a cleanup regression.
+  if (cleanupFailed) {
+    console.error('✗ ROUND-TRIP GATE FAILED — diff matched but cleanup left records behind (see above)')
     process.exit(1)
   }
   console.log('✓ ROUND-TRIP GATE PASSED (seed → ingest → publish → generate → diff, self-cleaned)')

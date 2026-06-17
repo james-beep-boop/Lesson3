@@ -6,10 +6,22 @@ import { requireUser } from '@/lib/session'
 import { findReadableBundle } from '@/lib/readBundle'
 import { generateForBundle, NotExportableError } from '@/generator/generateForBundle'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
+import type { LessonSequenceFormat } from '@/generator'
 
-export default async function LessonView({ params }: { params: Promise<{ id: string }> }) {
+export default async function LessonView({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ format?: string }>
+}) {
   const { id } = await params
   const { payload, user } = await requireUser()
+
+  // On-screen view defaults to Compact (Standard's Resource column is deferred/blank — see
+  // DECISIONS 2026-06-16); the toggle below lets a teacher switch to Standard on demand.
+  const format: LessonSequenceFormat =
+    (await searchParams).format === 'standard' ? 'standard' : 'compact'
 
   // Access-gated read — published-only for Teachers; not-visible → 404. A real DB/runtime error
   // propagates (not masked as 404). Only the title is read here, so depth 0 is enough.
@@ -23,12 +35,11 @@ export default async function LessonView({ params }: { params: Promise<{ id: str
   // markup), so the rendered HTML carries no executable markup.
   //
   // A bundle is three documents (SPEC §3); render each present one (FE/ST may legitimately be
-  // absent for some sub-strands). Compact layout on-screen: the Resource column is deferred/blank,
-  // so Standard would just show an empty column. Both formats remain available to download below.
+  // absent for some sub-strands). Both formats remain available to download below.
   let sections: PreviewSection[] = []
   let viewError: string | null = null
   try {
-    sections = await docxToSections(await generateForBundle(payload, id, 'compact'))
+    sections = await docxToSections(await generateForBundle(payload, id, format))
   } catch (e) {
     viewError =
       e instanceof NotExportableError
@@ -42,6 +53,21 @@ export default async function LessonView({ params }: { params: Promise<{ id: str
         ← All lesson plans
       </Link>
       <h1>{bundle.title}</h1>
+
+      <div className="export-bar">
+        <span className="export-label">View</span>
+        {(['compact', 'standard'] as const).map((f) => (
+          <Link
+            key={f}
+            className="btn"
+            href={`/lessons/${id}?format=${f}`}
+            aria-current={format === f ? 'page' : undefined}
+            style={format === f ? { fontWeight: 600, textDecoration: 'underline' } : undefined}
+          >
+            {f === 'standard' ? 'Standard' : 'Compact'}
+          </Link>
+        ))}
+      </div>
 
       <div className="export-bar">
         <span className="export-label">Download</span>

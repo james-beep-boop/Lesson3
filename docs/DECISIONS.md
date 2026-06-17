@@ -11,6 +11,110 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-17 — Codex review of the §5 preview: POST authz/boundary hardened; triage
+
+Codex reviewed the live-unsaved preview + editor refinements. No critical RCE/secret issue.
+Fixed the three High findings (all in the new `POST /:id/preview`) + two Lows; the rest are
+pre-existing/tracked. All fixes tsc 0 / eslint 0; DB-less gates still green (ingest 24/24,
+adapter 5/5, format2, fidelity 3/3). **Behavioural verify is on the Rock** (`verify-rbac.ts`
+covers `isEditorFor` + `enforceBundleStructure`; the round-trip script covers cleanup-exit).
+
+**FIXED:**
+- **#1 POST preview authz — was read-gated, now edit-gated.** My "equivalent to save-then-
+  preview" claim was WRONG: a Teacher can read (and so could POST to) any *published* bundle,
+  but cannot save — so read access let a non-editor drive the render path with arbitrary
+  content. Rule: **unsaved preview is an EDITING affordance → require `isEditorFor` for the
+  bundle's subject-grade** (Teachers → 404). GET stays read-gated (it shows only stored content).
+- **#2 Field-boundary bypass — now reuses the save hook.** The whole-object overlay bypassed
+  `enforceBundleStructure`'s editor whitelist, so an Editor could preview admin-only/structural
+  changes they couldn't save. Fix: **call `enforceBundleStructure` (a pure, sync function)
+  directly on the posted candidate** — Editor → prose-only overlay, structural change → 422,
+  Subject/Site Admin → unrestricted. Reusing the hook (not a parallel whitelist) means preview
+  and save can't drift — the key altitude point. The hook trusts that update-access already
+  passed, which is exactly why #1's gate must run first.
+- **#3 No payload cap — added.** Cap the posted JSON before parse/generate
+  (`MAX_PREVIEW_JSON_BYTES = 4 MB`, 413). Full per-request body-limit + rate-limit + Jobs-Queue
+  for generation stays the deferred production item (#2/#3 below).
+- **#10 round-trip cleanup now fails the gate.** A self-cleaning gate that leaves rows behind is
+  a failed gate (else CI/Rock silently accumulate state) — track cleanup failures, exit non-zero.
+- **#9 RowLabel committed.** The new `components/RowLabel/` is part of the commit with its
+  importMap entry (was untracked at review time).
+
+**TRIAGED / pre-existing (NOT this session's regressions):**
+- **#4 optimistic concurrency (`lockVersion` incremented but not checked)** — real, but
+  pre-existing and already an open item; API/script updates can still clobber. Backlog.
+- **#5 sanitize shared `docxToSections` HTML + add CSP to the teacher frontend route** — the
+  same tracked XSS-hardening item (low exploitability today: prose is plain text, mammoth
+  escapes; raise priority when Resource links land). The admin preview already sends a
+  script-blocking CSP; the teacher Next.js route does not (needs an app-wide CSP strategy).
+- **#6 FE/ST warn-only vs SPEC's three-documents** — the deliberate deferred decision (promote
+  `deliverableWarnings` to a hard gate once the corpus is confirmed to always carry all three).
+- **#7 dep advisories (vitest/postcss/esbuild, dev-tooling)** — backlog; deliberate pinned
+  upgrade + re-run gates.
+- **#8 no tests for POST preview authz/whitelist/limits** — fair. The logic is covered indirectly
+  by `verify-rbac.ts` (roles + hook). Follow-up: add HTTP-level int tests (Teacher POST→404,
+  Editor structural→422, oversize→413) — needs the cookie-auth + role-fixture harness the
+  current `tests/int/api.int.spec.ts` lacks; deferred rather than shipped unrun (no local DB).
+
+## 2026-06-17 — §5 editor refinements: live-unsaved preview, teacher format toggle, array row labels
+
+Three §5 editor refinements (priority #2), code-complete + tsc/eslint clean; functional verify
+is on the Rock (admin-component / endpoint / field-config changes → `up -d --build`, NOT a
+script-only re-run). **No new stored fields, no migration, no payload-types regen.**
+
+- **Live-unsaved preview.** Preview now reflects the editor's CURRENT form state — unsaved
+  edits included — instead of only the latest saved snapshot. Added `POST /:id/preview`
+  alongside the existing `GET` (`endpoints/previewBundle.ts`): same READ gate
+  (`findReadableBundle(draft:true)`), then OVERLAYS the posted form values onto the stored
+  bundle (pinning stored `id`/`_status` so the body can't spoof identity/exportability) and
+  renders. Output stays HTML-only behind the same script-free CSP — rendering the caller's own
+  posted content is **equivalent to save-then-preview**, so no new trust surface. The
+  `PreviewBundle` control reads form state via `useAllFormFields` + `reduceFieldsToValues(.,true)`
+  and submits a hidden transient `<form method=POST target=_blank>` so the new tab gets the
+  endpoint's real HTML response (real CSP headers) — no fetch/blob round-trip. GET (saved) and
+  POST (unsaved) share one `renderPreviewResponse` so they can't drift on gating/422/500/CSP.
+- **Teacher format toggle.** The teacher inline view (`(frontend)/lessons/[id]`) gained a
+  Standard/Compact toggle via a `?format=` **searchParam** (server-rendered, no client JS),
+  matching the existing download links. Default stays **Compact** (the 2026-06-16 decision —
+  Standard's Resource column is deferred/blank); Standard is available on demand.
+- **Array row labels.** Collapsed rows for all five nested arrays (lessons, framework phases,
+  FE sections, summary-table rows, rubric) now read "<noun> N — <first line of a field>"
+  (e.g. "Lesson 1 — …", "Phase 2 — Observe Phase") instead of generic "Lesson 01". ONE shared
+  client component `components/RowLabel` configured per array via `admin.components.RowLabel`
+  `clientProps: { field, noun }`; falls back to "<noun> N" for an empty new row. **Lesson: one
+  importMap.js entry covers all five** — the entry keys on the component PATH
+  (`@/components/RowLabel#default`), not the call site, so reusing one component across many
+  arrays needs a single hand-registered binding (generate:importmap still blocked on local
+  Node 25). `PHASE_OPTIONS` has label===value, so the phase row label just shows `data.phase`
+  — the component stays fully generic (`{ field, noun }`), no phase special-casing.
+
+## 2026-06-17 — Repeatable round-trip regression (priority #1 DONE; 3/3 on the Rock)
+
+The manual Phase-4 round-trip is now ONE self-cleaning command, run + green on the Rock.
+
+- **New gate `app/scripts/roundtrip-regression.ts`.** Proves the *stored* path stays
+  content-faithful (not just the DB-less `fidelity-spike`): seed-if-missing taxonomy →
+  `ingestPaths(bio_1_4_data.js)` → 1.0.0 draft → publish → `generateForBundle('standard')` →
+  `compareDoc` ×3 vs the approved DOCX (Resource column excluded for the SoW). Reuses
+  `scripts/lib/docxDiff.ts`. **Result: 3/3 content-identical.** Runs fully in-process on the
+  Rock — no Mac round-trip (the earlier Phase-4 proof pulled the DOCX to the Mac to diff).
+- **Self-cleaning + non-destructive (the design rule for DB gates):** track every record the
+  script creates and delete it in a `finally`, newest-first (bundle → SubjectGrade → Subject).
+  Seed taxonomy only if absent and delete only what was seeded; ingest always creates a *fresh*
+  draft, so the live published bundle is never touched. Cleanup runs on pass AND on crash, so
+  re-running is always safe. (Same track-and-teardown pattern as `verify-rbac.ts`.)
+- **Lessons (Rock script-run gotchas, both hit live):**
+  1. **A script-only change must be committed + pushed before the Rock can run it.** The Rock
+     bind-mounts `/srv/lesson3/app`; `git pull` only sees *committed* files — an uncommitted
+     local script gives `ERR_MODULE_NOT_FOUND` for the `.ts` path. (Predicted, then hit.)
+  2. **The approved DOCX + data file must be staged on the Rock** (e.g. `/srv/lesson3/out/
+     ares-demo`) and pointed at via `ARES_DEMO_PATH`. They were Mac-only before this gate.
+- **Invocation (deps-image + bind-mount + compose network, the established script-run line):**
+  `docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules -w /app
+  --env-file .env -v /srv/lesson3/out:/out -e ARES_DEMO_PATH=/out/ares-demo lesson3-deps
+  npx payload run scripts/roundtrip-regression.ts`. Like the sibling gates, it's not a
+  package.json script — the run command lives in the file header.
+
 ## 2026-06-16 — Preview layout: Compact default; HTML preview stays content-only (no width injection)
 
 After deploying §5 and eyeballing real lessons in-browser, two layout decisions (don't re-litigate):

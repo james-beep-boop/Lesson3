@@ -5,29 +5,49 @@
  * bundle being edited, in a new tab. Injected via
  * `admin.components.edit.beforeDocumentControls` on the lesson-bundles collection.
  *
- * It opens `GET /api/lesson-bundles/:id/preview?format=…` (see endpoints/previewBundle.ts),
- * which is READ-access-gated and DRAFT-capable — so unlike Export (published-only), Preview
- * is available for any SAVED document, including a draft in progress. It previews the latest
- * SAVED snapshot, so save edits before previewing.
+ * It previews the editor's CURRENT form state — UNSAVED edits included — so you don't have to
+ * save before checking output. The current field values are read from the form
+ * (`useAllFormFields` + `reduceFieldsToValues`) and POSTed to
+ * `/api/lesson-bundles/:id/preview?format=…` (see endpoints/previewBundle.ts), which is
+ * READ-access-gated and draft-capable; it overlays the posted content onto the stored,
+ * access-checked bundle and returns a script-free HTML page. We submit a hidden, transient
+ * `<form method="POST" target="_blank">` so the browser opens the endpoint's real HTML
+ * response in a new tab (with its real CSP headers) — no fetch/blob round-trip.
  *
- * Same-origin GET → the admin auth cookie rides along and the endpoint sees `req.user`.
+ * Same-origin POST → the admin auth cookie rides along and the endpoint sees `req.user`.
  */
 import React, { useState } from 'react'
-import { Button, useDocumentInfo } from '@payloadcms/ui'
+import { Button, useAllFormFields, useDocumentInfo } from '@payloadcms/ui'
+import { reduceFieldsToValues } from 'payload/shared'
 
 type Format = 'standard' | 'compact'
 
 export default function PreviewBundle() {
   const { id } = useDocumentInfo()
+  const [fields] = useAllFormFields()
   // Default to Compact: the Resource column is deferred/blank, so Standard's on-screen
   // preview shows an empty column. The toggle still offers Standard.
   const [format, setFormat] = useState<Format>('compact')
 
-  // No id → unsaved/new document; nothing saved to preview yet.
+  // No id → unsaved/new document; nothing stored to authorize the preview against yet.
   if (!id) return null
 
   const onPreview = () => {
-    window.open(`/api/lesson-bundles/${id}/preview?format=${format}`, '_blank', 'noopener')
+    // Unflatten the live form state to the bundle's nested shape (meta/unit/lessons/…).
+    const data = reduceFieldsToValues(fields, true)
+
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = `/api/lesson-bundles/${id}/preview?format=${format}`
+    form.target = '_blank'
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = 'data'
+    input.value = JSON.stringify(data)
+    form.appendChild(input)
+    document.body.appendChild(form)
+    form.submit()
+    form.remove()
   }
 
   return (
@@ -48,7 +68,7 @@ export default function PreviewBundle() {
         buttonStyle="secondary"
         size="small"
         onClick={onPreview}
-        tooltip="Preview the latest saved version (drafts included)"
+        tooltip="Preview current edits (unsaved included)"
       >
         Preview
       </Button>

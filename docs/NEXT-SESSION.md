@@ -1,5 +1,35 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
+> **SHIPPED 2026-06-17:**
+> - **§5 editor refinements — all three code-complete (priority #2), pending Rock functional
+>   verify (admin-component/endpoint/field-config → `up -d --build`, not script-only).** No new
+>   stored fields / no migration / no payload-types regen. tsc 0 / eslint 0.
+>   1. **Live-unsaved preview:** Preview now renders the editor's CURRENT (unsaved) form state,
+>      not just the saved snapshot. New `POST /:id/preview`: **EDIT-gated** (`isEditorFor` —
+>      Teachers→404; hardened after Codex review, GET stays read-gated) and runs the posted data
+>      through the real save hook (`enforceBundleStructure`) so an Editor previews only what they
+>      could save (admin/structural change→422); 4 MB payload cap (413). `PreviewBundle` posts
+>      `reduceFieldsToValues(useAllFormFields())` via a hidden `<form target=_blank>`. GET/POST
+>      share one `renderPreviewResponse`. `endpoints/previewBundle.ts` + `components/PreviewBundle`.
+>   2. **Teacher format toggle:** `(frontend)/lessons/[id]` got a Standard/Compact `?format=`
+>      toggle (server-rendered searchParam); default stays Compact (2026-06-16 decision).
+>   3. **Array row labels:** all five nested arrays show "<noun> N — <field>" via ONE shared
+>      `components/RowLabel` (clientProps `{field,noun}`); single importMap.js entry (keys on the
+>      component path). **Verify on the Rock (rebuild):** as a Teacher, POST `/:id/preview` → 404;
+>      as an Editor, prose edit unsaved → Preview shows it, structural change → 422; collapsed
+>      lesson/phase rows show meaningful labels; teacher view toggle switches Standard/Compact.
+>      Re-run `verify-rbac.ts` (covers the reused `enforceBundleStructure`). See DECISIONS
+>      (two 2026-06-17 entries: refinements + Codex security triage).
+> - **Repeatable round-trip regression — DONE, 3/3 on the Rock (priority #1 closed).** New gate
+>   `app/scripts/roundtrip-regression.ts`: one self-cleaning command that proves the *stored* path
+>   (seed-if-missing taxonomy → ingest `bio_1_4_data.js` → publish → `generateForBundle` → diff vs
+>   the approved DOCX, Resource column excluded). Fully in-process on the Rock — no Mac round-trip.
+>   Tracks + tears down everything it creates in a `finally` (bundle → SubjectGrade → Subject),
+>   non-destructive to the live corpus. Committed `890632e`, run green on the Rock. Two Rock
+>   gotchas hit + logged: (1) commit+push before the Rock `git pull` can see a script; (2) stage
+>   the approved DOCX + data file on the Rock (`ARES_DEMO_PATH`, e.g. `/srv/lesson3/out/ares-demo`).
+>   See DECISIONS (2026-06-17). **Next chosen focus: §5 editor refinements.**
+>
 > **SHIPPED 2026-06-16:**
 > - **§5 content preview — DONE, DEPLOYED + verified on the Rock.**
 >   Teacher view (`app/(frontend)/lessons/[id]`) renders all three documents (FE/ST omitted when
@@ -145,16 +175,13 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 
 ## Next priorities
 
-1. **Repeatable round-trip regression.** Wire the manual round-trip into one self-cleaning
-   command — ideally fully on the Rock (place the approved DOCX on the Rock, generate + diff
-   there) so it doesn't need the Mac round-trip. Reuse `scripts/lib/docxDiff.ts`; `publish-drafts.ts`
-   is a building block.
-2. **§5 editor refinements** (preview itself is DONE + deployed 2026-06-16). Open: **live-unsaved
-   preview** (currently previews the latest SAVED snapshot — bigger; needs posting form state);
-   optional **Standard/Compact toggle on the teacher inline view** (the admin Preview has one; the
-   teacher view is Compact-only — a small `?format=` add, deferred as low-value); any custom
-   edit-screen ergonomics beyond Payload's native fields. (Edge case still unverified over HTTP:
-   a non-readable draft → 404 for a Teacher — proven by the access rule, not yet clicked.)
+1. ~~**Repeatable round-trip regression.**~~ **DONE 2026-06-17** — `scripts/roundtrip-regression.ts`,
+   3/3 on the Rock, self-cleaning. See the SHIPPED note above + DECISIONS.
+2. **§5 editor refinements** — **code-complete 2026-06-17** (live-unsaved preview + teacher
+   Standard/Compact toggle + array row labels; see the SHIPPED note above). **Pending Rock
+   functional verify** (`up -d --build`). Still open after that lands: deeper edit-screen
+   ergonomics (tabs/collapsible grouping of the big nested structure) if wanted; the unverified
+   edge case (non-readable draft → 404 for a Teacher — proven by the access rule, not yet clicked).
 3. **PDF export** (§9) — constraints locked (offline/free/faithful → local office engine via a
    swappable `docxToPdf(buffer)` seam, Jobs Queue, golden-file fidelity test to pick the engine).
    This is also the **faithful on-screen layout/colour view** (the HTML preview is content-only by
@@ -164,10 +191,14 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 5. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update` bumps
    semver. Not a bug; do only if "mark official without editing shouldn't bump" is wanted.
 
-**Production-readiness backlog (Codex 2026-06-16, NOT done — the Rock is non-production):** rate-limit
-/ Jobs-Queue for generation (#2); FE/ST hard gate once corpus complete (#6); official-version model
-vs SPEC §6 (#7); dep advisories (#3); global security headers + CSRF posture (#9/#10); **XSS: sanitize
-`docxToSections` output when Resource links land (#4)**.
+**Production-readiness backlog (Codex 2026-06-16/-17, NOT done — the Rock is non-production):**
+rate-limit / Jobs-Queue for generation incl. the preview POST (#2); FE/ST hard gate once corpus
+complete (#6); official-version model vs SPEC §6 (#7); dep advisories — vitest/postcss/esbuild (#3);
+global security headers + CSRF posture, incl. a **CSP on the teacher frontend route** (#9/#10);
+**XSS: sanitize `docxToSections` output when Resource links land (#4)**; **optimistic concurrency —
+check `lockVersion` on user updates, not just increment it (#4-conc)**; **add HTTP int tests for the
+preview POST** (Teacher→404, Editor structural→422, oversize→413; needs an auth+role fixture harness
+the current `tests/int/api.int.spec.ts` lacks).
 
 **Phase 2+ — "The App" (decided 2026-06-14, see SPEC §2/§10 + DECISIONS):** a unified role-aware
 frontend (`app/src/app/(frontend)`) that ALL roles log into, over the same Payload backend, home to
