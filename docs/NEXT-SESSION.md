@@ -1,5 +1,19 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
+> **SHIPPED 2026-06-17 (ARES data-contract):**
+> - **Contract drafted, shared with ARES, and validated on every ingest.** ARES agreed to
+>   canonicalise output. `app/src/ingest/ares-contract.schema.json` is the single source of truth
+>   (co-located so the validator imports it AND it's the artifact shared with ARES). New
+>   `src/ingest/contract.ts` — a dependency-free subset validator (no ajv) emitting alias/typo-aware
+>   drift messages; wired NON-BLOCKING into ingest pre-flight (warn, not gate — current ARES data
+>   doesn't conform; promote to hard gate once it does). `scripts/contract-drift.ts` prints the full
+>   per-file report (pre-ingest preview + the ARES deliverable); `scripts/contract-check.ts` is the
+>   DB-less gate (9/9). Report findings (sent upstream): widespread `safety*otes` corruption,
+>   missing `META.titleDoc`/`substrand_id`, `duration`/`storylineThread` aliases, bio_1_4 empty UNIT,
+>   missing `schemaVersion`. tsc 0 / eslint 0. See DECISIONS (2026-06-17) + `docs/ARES-DATA-REQUEST.md`.
+>   **STILL DEFERRED:** the interim Lesson3-side UNIT model fix (model the UNIT fields + re-ingest)
+>   — we now *detect* the dropped-UNIT drift, but don't yet *capture* it. Pick up when ready.
+>
 > **SHIPPED 2026-06-17:**
 > - **§5 editor refinements — all three code-complete (priority #2), pending Rock functional
 >   verify (admin-component/endpoint/field-config → `up -d --build`, not script-only).** No new

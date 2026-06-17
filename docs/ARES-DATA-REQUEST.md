@@ -2,7 +2,7 @@
 
 **From:** the Lesson3 team (ARES Lesson Library)
 **Re:** Stabilising the lesson-data contract so downstream ingestion is clean, complete, and reproducible at scale
-**Attachment:** [`ares-data-contract.schema.json`](ares-data-contract.schema.json) — a first-pass JSON Schema we drafted from your current 13 data files, offered as a starting point for the canonical contract.
+**Attachment:** [`ares-contract.schema.json`](../app/src/ingest/ares-contract.schema.json) — a first-pass JSON Schema we drafted from your current 13 data files, offered as a starting point for the canonical contract. (It lives in our ingest source because we validate every ingest against it; see below.)
 
 ---
 
@@ -81,12 +81,16 @@ with no extra integration on our side.
 - You can keep the `get(a,b)` tolerance internally; we only ask that the **emitted data** be
   canonical and validated.
 
-## Offer
-We've attached a **first-draft JSON Schema** (`ares-data-contract.schema.json`) derived from your
+## Offer (now in place on our side)
+We've attached a **first-draft JSON Schema** (`ares-contract.schema.json`) derived from your
 current 13 files — canonical names, required/optional fields, the phase controlled-vocabulary, and
-`additionalProperties: false` so typos/aliases are rejected. Please adopt/adjust it as the
-canonical contract; we'll validate every ingest against the agreed version and report drift back
-to you.
+`additionalProperties: false` so typos/aliases are rejected. **We now validate every ingest
+against it and report drift** (non-blocking for now, so we can still load preliminary data): each
+ingest flags how many fields diverge from the contract, and `scripts/contract-drift.ts` produces a
+full per-file report — e.g. it currently flags `UNIT.duration` (alias of `totalDuration`), the
+`slo.safety3otes`-class typos, `UNIT.storylineThread` (alias of `storyline`), and the missing
+top-level `schemaVersion`. Please adopt/adjust the schema as the canonical contract; once your
+output conforms we can promote our check from a warning to a hard ingest gate.
 
 If a single canonical, versioned, validated JSON contract is feasible on your end, it removes
 essentially all of our downstream normalisation and makes the whole pipeline reproducible.

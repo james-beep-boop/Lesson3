@@ -27,6 +27,7 @@ import path from 'node:path'
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
 
+import { contractDriftSummary } from './contract'
 import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
@@ -165,7 +166,15 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
       const subjectGrade = await resolveSubjectGrade(payload, raw, preflightReq)
-      prepared.push({ name, data, subjectGrade, warnings: deliverableWarnings(data) })
+      // Contract drift is NON-BLOCKING (current ARES output doesn't conform yet — that's the
+      // drift we report). Validate the RAW (UPPERCASE) object, the shape the contract describes.
+      const drift = contractDriftSummary(raw)
+      prepared.push({
+        name,
+        data,
+        subjectGrade,
+        warnings: [...deliverableWarnings(data), ...(drift ? [drift] : [])],
+      })
     } catch (e) {
       errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
     }

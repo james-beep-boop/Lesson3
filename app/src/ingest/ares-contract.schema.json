@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ares.example/cbe-lesson-bundle.schema.json",
+  "$id": "https://raw.githubusercontent.com/james-beep-boop/Lesson3/main/app/src/ingest/ares-contract.schema.json",
   "title": "ARES CBE Lesson Bundle",
   "description": "DRAFT canonical contract for generators/data/*_data.(js|json), contributed by the Lesson3 team and derived from the current 13 data files. Goal: ONE name per field (aliases collapsed), explicit required/optional, and additionalProperties:false so typos (e.g. 'safety3otes') and stray keys are rejected on emit. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
   "type": "object",

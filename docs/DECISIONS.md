@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-17 — ARES data-contract: drafted, shared, and validated on every ingest
+
+ARES (Mark) agreed to canonicalise their data output. Root cause of the blank Sub-Strand
+Overview: 12/13 source files carry a rich `UNIT`, but our `unit` group was modelled as a stub
+(`{overview}`) so ingest dropped it. We delivered our half of the offer — a contract + drift
+validation — WITHOUT yet doing the interim UNIT model fix (still deferred).
+
+- **Canonical schema is the single source of truth, co-located in the app.** Moved the drafted
+  JSON Schema to `app/src/ingest/ares-contract.schema.json` (from `docs/`) so the validator
+  imports it directly (`resolveJsonModule`) and Next bundles it — a relative import across the
+  `app/` boundary is fragile. `docs/ARES-DATA-REQUEST.md` links to it there; it's both our
+  validation source AND the artifact shared with ARES, so the two can't drift.
+- **Hand-rolled subset validator, not ajv (`src/ingest/contract.ts`).** Only ajv 6 is present
+  (transitive, draft-07) and the project pins deps deliberately; our schema uses a small fixed
+  keyword set (type/required/properties/additionalProperties/items/enum/pattern/minItems/minimum),
+  and hand-rolling lets us emit ACTIONABLE drift messages — alias hints (`UNIT.duration` →
+  `totalDuration`) and typo hints (`slo.safety3otes` → corrupted `safetyNotes`). De-risked by a
+  DB-less gate (`scripts/contract-check.ts`, 9/9: conforming→0 drift, null sections allowed, each
+  drift class detected).
+- **Drift is NON-BLOCKING (report, don't gate) — for now.** Current ARES output doesn't conform
+  (that's the drift we report), so a hard gate would block ingesting the preliminary corpus.
+  Wired into ingest pre-flight as a per-bundle warning (alongside `deliverableWarnings`), validated
+  on the RAW UPPERCASE object the contract describes. Promote to a hard gate once ARES conforms
+  (same staged approach as the FE/ST deliverable decision). `scripts/contract-drift.ts` prints the
+  full per-file report — both a pre-ingest preview and the artifact we send ARES.
+- **What the report found across the 13 files** (sent upstream): widespread `safetyNotes`
+  corruption (`safety1otes`..`safety8otes` in 5 files), missing `META.titleDoc`/`substrand_id`/
+  `substrand_name` in several, a missing `LESSONS[3].summaryTablePrompt.explained` (bio_3_1), the
+  `duration`/`storylineThread` aliases + stray `UNIT.keyInquiry` (bio_2_1, math_*), bio_1_4's empty
+  UNIT, and a universally-missing `schemaVersion`. Validates that the contract is doing its job.
+
 ## 2026-06-17 — Codex review of the §5 preview: POST authz/boundary hardened; triage
 
 Codex reviewed the live-unsaved preview + editor refinements. No critical RCE/secret issue.
