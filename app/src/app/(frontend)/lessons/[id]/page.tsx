@@ -23,11 +23,12 @@ export default async function LessonView({ params }: { params: Promise<{ id: str
   // markup), so the rendered HTML carries no executable markup.
   //
   // A bundle is three documents (SPEC §3); render each present one (FE/ST may legitimately be
-  // absent for some sub-strands). Standard layout for the on-screen view.
+  // absent for some sub-strands). Compact layout on-screen: the Resource column is deferred/blank,
+  // so Standard would just show an empty column. Both formats remain available to download below.
   let sections: PreviewSection[] = []
   let viewError: string | null = null
   try {
-    sections = await docxToSections(await generateForBundle(payload, id))
+    sections = await docxToSections(await generateForBundle(payload, id, 'compact'))
   } catch (e) {
     viewError =
       e instanceof NotExportableError

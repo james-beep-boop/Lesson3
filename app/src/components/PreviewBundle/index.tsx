@@ -19,7 +19,9 @@ type Format = 'standard' | 'compact'
 
 export default function PreviewBundle() {
   const { id } = useDocumentInfo()
-  const [format, setFormat] = useState<Format>('standard')
+  // Default to Compact: the Resource column is deferred/blank, so Standard's on-screen
+  // preview shows an empty column. The toggle still offers Standard.
+  const [format, setFormat] = useState<Format>('compact')
 
   // No id → unsaved/new document; nothing saved to preview yet.
   if (!id) return null
