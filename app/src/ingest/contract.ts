@@ -34,7 +34,7 @@ const schema = schemaJson as unknown as Schema
 /** Non-canonical field names ARES currently emits → the canonical name in the contract. */
 const ALIAS_OF: Record<string, string> = {
   duration: 'totalDuration',
-  storylineThread: 'storyline',
+  storyline: 'storylineThread',
   subStrandContent: 'content',
   outcomes: 'learningOutcomes',
   competencies: 'coreCompetencies',

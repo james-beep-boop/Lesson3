@@ -92,6 +92,11 @@ delete (aliased.UNIT as Record<string, unknown>).totalDuration
   check('missing canonical UNIT.totalDuration reported', has(d, 'UNIT.totalDuration: required field missing'))
 }
 
+// Legacy 'storyline' is now the alias; 'storylineThread' is canonical (ARES SCHEMA.md 2026-06-18).
+const legacyStoryline = conforming()
+;(legacyStoryline.UNIT as Record<string, unknown>).storyline = 'L1: …'
+check('UNIT.storyline flagged as alias of storylineThread', has(contractDrift(legacyStoryline), 'UNIT.storyline: unexpected key (non-canonical alias of "storylineThread")'))
+
 // Corrupted safetyNotes typo.
 const typo = conforming()
 ;(typo.LESSONS[0]!.slo as Record<string, unknown>).safety3otes = 'none'

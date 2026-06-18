@@ -53,7 +53,7 @@
         "phenomenon": { "type": "string", "description": "Anchoring phenomenon." },
         "supportingPhenomena": { "type": "string" },
         "drivingQuestion": { "type": "string", "$comment": "Canonical for the Key Inquiry / Driving Question row. SCHEMA.md's 'keyInquiryQuestions' alias to be removed; the stray UNIT-level 'keyInquiry' seen in the data should not appear here." },
-        "storyline": { "type": "string", "$comment": "Canonical. Some files emit 'storylineThread' — collapse to this one name." }
+        "storylineThread": { "type": "string", "$comment": "Canonical per ARES SCHEMA.md (2026-06-18) — the alias 'storyline' is to be removed." }
       }
     },
 
