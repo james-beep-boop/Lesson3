@@ -1,5 +1,25 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
+> **2026-06-18 (ARES contract — round 2):**
+> - **Reviewed Mark's upstream update** (`markknit/cbe-generation-system` `upstream/main`, commits
+>   `47cb095`+`dd4bab4`) by re-running our drift validator on his updated files. **Fixed:**
+>   `duration`→`totalDuration`, `storyline`→`storylineThread` standardised, bio_1_4 UNIT populated,
+>   canonical `SCHEMA.md` added. **🔴 NEW REGRESSION:** bio_1_4 now **won't parse** — unescaped
+>   apostrophes in the new UNIT block (e.g. `Benedict's`, ~5 occurrences); node + our extractor both
+>   fail. Our former fidelity oracle is currently non-generating upstream. **Still open:** `safetyNotes`
+>   corruption (`safety1otes`..`safety8otes`, 5 files), stray `UNIT.keyInquiry` (bio_2_1, math_*),
+>   missing `META.titleDoc`/`substrand_id`/`substrand_name` (bio_1_1/1_3/2_1/math_*), missing
+>   `summaryTablePrompt.explained` (bio_3_1 L4), missing `UNIT.content` (bio_1_1/1_3).
+> - **We adopted ARES's canonical `storylineThread`** (their SCHEMA.md declares it; we'd said we'd
+>   match their names). Commit `8071078`: schema UNIT field + validator alias + gate (10/10).
+>   Live public schema URL confirmed updated. Corpus drift 55→43.
+> - **Mark's SCHEMA.md ⇄ data gaps flagged back to him:** omits `content` + `supportingPhenomena`
+>   (both emitted+rendered); lists LESSON `summaryTable` but data emits `summaryTablePrompt`; says
+>   "three constants" but files export five. **A reply email to Mark is drafted (in session) and
+>   being sent** — leads with the bio_1_4 parse regression + the open data-bug punch-list.
+> - **Next on this track:** when Mark's output validates clean, **promote the ingest drift check
+>   from warn-only to a hard gate**; re-pull `upstream` and re-run `scripts/contract-drift.ts`.
+>
 > **SHIPPED 2026-06-17 (ARES data-contract):**
 > - **Contract drafted, shared with ARES, and validated on every ingest.** ARES agreed to
 >   canonicalise output. `app/src/ingest/ares-contract.schema.json` is the single source of truth
