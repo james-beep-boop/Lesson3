@@ -73,6 +73,12 @@ export default buildConfig({
       // Wall-clock backstop that reliably logs out an idle/backgrounded tab at the token
       // deadline (Payload's single-timer auto-logout is unreliable when suspended).
       providers: ['@/components/IdleLogout#default'],
+      // Teachers are excluded from /admin (SPEC §2). Override Payload's built-in "unauthorized"
+      // view so an authenticated non-admin (e.g. a Teacher logging in at /admin) is redirected
+      // to The App home instead of seeing the hard "no admin access" error.
+      views: {
+        unauthorized: { Component: '@/components/AdminUnauthorizedRedirect#default' },
+      },
     },
     importMap: {
       baseDir: path.resolve(dirname),
