@@ -1,24 +1,22 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
-> **2026-06-18 (ARES contract — round 2):**
-> - **Reviewed Mark's upstream update** (`markknit/cbe-generation-system` `upstream/main`, commits
->   `47cb095`+`dd4bab4`) by re-running our drift validator on his updated files. **Fixed:**
->   `duration`→`totalDuration`, `storyline`→`storylineThread` standardised, bio_1_4 UNIT populated,
->   canonical `SCHEMA.md` added. **🔴 NEW REGRESSION:** bio_1_4 now **won't parse** — unescaped
->   apostrophes in the new UNIT block (e.g. `Benedict's`, ~5 occurrences); node + our extractor both
->   fail. Our former fidelity oracle is currently non-generating upstream. **Still open:** `safetyNotes`
->   corruption (`safety1otes`..`safety8otes`, 5 files), stray `UNIT.keyInquiry` (bio_2_1, math_*),
->   missing `META.titleDoc`/`substrand_id`/`substrand_name` (bio_1_1/1_3/2_1/math_*), missing
->   `summaryTablePrompt.explained` (bio_3_1 L4), missing `UNIT.content` (bio_1_1/1_3).
-> - **We adopted ARES's canonical `storylineThread`** (their SCHEMA.md declares it; we'd said we'd
->   match their names). Commit `8071078`: schema UNIT field + validator alias + gate (10/10).
->   Live public schema URL confirmed updated. Corpus drift 55→43.
-> - **Mark's SCHEMA.md ⇄ data gaps flagged back to him:** omits `content` + `supportingPhenomena`
->   (both emitted+rendered); lists LESSON `summaryTable` but data emits `summaryTablePrompt`; says
->   "three constants" but files export five. **A reply email to Mark is drafted (in session) and
->   being sent** — leads with the bio_1_4 parse regression + the open data-bug punch-list.
-> - **Next on this track:** when Mark's output validates clean, **promote the ingest drift check
->   from warn-only to a hard gate**; re-pull `upstream` and re-run `scripts/contract-drift.ts`.
+> **2026-06-18 (ARES contract — essentially converged):**
+> - **Outcome: 13/14 ARES files now conform to our contract** (`upstream/main` @ `f36d47c`). Over a
+>   same-day back-and-forth Mark conformed the whole pipeline to `ares-contract v1.0.0` AND made the
+>   generator **schema-validate its own tool-use output + retry on off-schema** (the P1 validate-on-emit
+>   ask, built in). Drift trend 55→43→18→**8**. All earlier issues resolved upstream (bio_1_4 parse
+>   regression, `safetyNotes` corruption, stray `UNIT.keyInquiry`, missing `META`/`UNIT.content`,
+>   bio_3_1 gap). **We adopted ARES's canonical `storylineThread`** to match their SCHEMA.md (commit
+>   `8071078`; gate 10/10; live schema URL updated).
+> - **Only remaining drift:** the new **chem_1_4** sub-strand emits `LESSONS[].number` as a string
+>   (`"1"`) not an integer (all 8 lessons). Flagged to Mark; note drafted in session. Corpus is also
+>   **growing past the original 13** (Chemistry now appearing) — expect dozens→hundreds.
+> - **Drift snapshots committed:** `docs/drift.md` (latest = `c9a539f`, snapshot at `f36d47c`).
+> - **➡ Next on this track:** once chem_1_4's `number` is an integer → **14/14**, then **promote the
+>   ingest drift check from warn-only to a HARD gate** (`src/ingest/contract.ts` is wired non-blocking
+>   in `ingestItems` pre-flight today). Re-pull `upstream` + re-run `scripts/contract-drift.ts` to verify.
+>   The interim Lesson3-side UNIT *model* fix (capture the now-populated UNIT in our schema + re-ingest)
+>   is the other half — we detect the data but don't yet store it. See the 2026-06-17 entry below.
 >
 > **SHIPPED 2026-06-17 (ARES data-contract):**
 > - **Contract drafted, shared with ARES, and validated on every ingest.** ARES agreed to
