@@ -7,7 +7,7 @@
  *
  * We don't need a DB here: we simulate exactly what Payload stores and returns —
  * camelCase top-level groups, an injected `id` on every array row, Lesson3-only sidebar
- * fields, `null` for empty optionals (UNIT.overview), and an empty `resources` group on
+ * fields, `null` for empty optional strings, and an empty `resources` group on
  * each framework phase — then run the real adapter + generator and diff vs the approved
  * set. The true end-to-end DB round-trip + Rock verification is Phase 4.
  *
@@ -78,8 +78,9 @@ function asStoredBundle(): LessonBundle {
     createdAt: '2026-06-08T00:00:00.000Z',
     updatedAt: '2026-06-08T00:00:00.000Z',
     meta: withRowIds(data.META) as LessonBundle['meta'],
-    // UNIT is {} upstream → Payload returns the group with a null overview.
-    unit: { overview: null },
+    // UNIT mirrors the other groups: stored as-is, the adapter passes it through. An empty
+    // upstream UNIT ({}) yields an empty group; a populated UNIT renders the Sub-Strand Overview.
+    unit: withRowIds(data.UNIT) as LessonBundle['unit'],
     lessons: lessons as LessonBundle['lessons'],
     finalExplanation: withRowIds(data.FINAL_EXPLANATION) as LessonBundle['finalExplanation'],
     summaryTable: withRowIds(data.SUMMARY_TABLE) as LessonBundle['summaryTable'],

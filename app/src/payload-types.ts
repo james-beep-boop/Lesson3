@@ -231,13 +231,62 @@ export interface LessonBundle {
     col5Label?: string | null;
   };
   /**
-   * Sub-strand overview. May be empty.
+   * Sub-strand overview. May be empty for some sub-strands.
    */
   unit?: {
+    gradeLevel?: string | null;
+    subject?: string | null;
+    strand?: string | null;
+    substrand?: string | null;
+    totalDuration?: string | null;
     /**
      * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
      */
-    overview?: string | null;
+    content?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    learningOutcomes?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    coreCompetencies?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    values?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    sep?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    pcis?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    careers?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    focus?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    drivingQuestion?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    phenomenon?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    supportingPhenomena?: string | null;
+    /**
+     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
+     */
+    storylineThread?: string | null;
   };
   lessons?:
     | {
@@ -575,7 +624,23 @@ export interface LessonBundlesSelect<T extends boolean = true> {
   unit?:
     | T
     | {
-        overview?: T;
+        gradeLevel?: T;
+        subject?: T;
+        strand?: T;
+        substrand?: T;
+        totalDuration?: T;
+        content?: T;
+        learningOutcomes?: T;
+        coreCompetencies?: T;
+        values?: T;
+        sep?: T;
+        pcis?: T;
+        careers?: T;
+        focus?: T;
+        drivingQuestion?: T;
+        phenomenon?: T;
+        supportingPhenomena?: T;
+        storylineThread?: T;
       };
   lessons?:
     | T
