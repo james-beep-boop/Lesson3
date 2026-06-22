@@ -1,5 +1,25 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
+> **SHIPPED + DEPLOYED 2026-06-22 (UNIT model + contract hard gate + clean re-ingest):**
+> - **Interim UNIT model fix DONE — the Sub-Strand Overview now renders end-to-end.** Modelled the
+>   17 canonical UNIT fields (was a dead `overview` stub), migration `add_unit_fields` applied on the
+>   Rock. `roundtrip-regression` **3/3** through the full DB path — LessonSequence **381 → 408 blocks**
+>   (the +27 overview rows). See DECISIONS (2026-06-22).
+> - **Contract drift promoted to a HARD GATE.** `ingestItems` pre-flight now throws on any drift.
+>   13/14 conform; **chem_1_4 is rejected** until its string `LESSONS[].number` → integer (deferred
+>   from the corpus). Once Mark fixes it: re-pull `upstream`, stage, ingest (gate admits it) → 14th.
+> - **Corpus re-ingested clean (13 fresh, ids 63–75, published 1.0.1).** Wiped the old empty-UNIT
+>   bundles (`scripts/wipe-bundles.ts`, new) and re-ingested the 13 conforming upstream files; all
+>   carry populated UNIT in the DB. Fidelity oracle refreshed to the populated-UNIT bio_1_4 + ARES's
+>   regenerated DOCX (Rock `out/ares-demo`, Desktop pending if wanted).
+> - **On origin `dffdfa6`; Rock mirrors origin** (types/migration generated on the Rock were pulled to
+>   origin, Rock `reset --hard`). `verify-rbac` 36/36 on the Rock; app up.
+> - **➡ Still open:** (a) **manual browser smoke-test of the §5 editor refinements** (Teacher POST
+>   `/:id/preview`→404, Editor unsaved-preview shows edits / structural→422, array row labels, teacher
+>   format toggle) — needs role logins in a browser, not yet clicked; (b) refresh the **Desktop**
+>   oracle to match the Rock if running local DB-less gates against bio_1_4; (c) chem_1_4 → 14th bundle
+>   when Mark's fix lands.
+>
 > **2026-06-18 (ARES contract — essentially converged):**
 > - **Outcome: 13/14 ARES files now conform to our contract** (`upstream/main` @ `f36d47c`). Over a
 >   same-day back-and-forth Mark conformed the whole pipeline to `ares-contract v1.0.0` AND made the

@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-22 — UNIT model fix + contract hard gate + clean corpus re-ingest (deployed)
+
+Three converging tracks, all shipped and verified on the Rock. The interim UNIT model fix
+(deferred since 2026-06-17) is done: the Sub-Strand Overview now renders end-to-end.
+
+- **UNIT model (Track 3).** The `unit` group modelled only a dead `overview` stub (the generator
+  never reads `unit.overview` — Section B reads `lesson.overview`), so ingest dropped ARES's now-
+  populated `UNIT`. Replaced it with the **17 canonical UNIT fields** the generator's
+  `subStrandOverview()` reads (`vendor/lib/sections.js`) and the contract declares: 5 short
+  (`structureText`: gradeLevel/subject/strand/substrand/totalDuration) + 12 prose (`proseAdmin`:
+  content/learningOutcomes/coreCompetencies/values/sep/pcis/careers/focus/drivingQuestion/
+  phenomenon/supportingPhenomena/storylineThread). All admin-only — the `enforceBundleStructure`
+  whitelist preserves the whole `unit` group wholesale for Editors (UNIT isn't in `EDITOR_INFLUENCED`),
+  so no hook change was needed. Migration `add_unit_fields` (idempotent `IF [NOT] EXISTS` on both
+  `lesson_bundles` + `_lesson_bundles_v`; drops `unit_overview`). **Proven:** `roundtrip-regression`
+  3/3 on the Rock through the full DB path — **LessonSequence 381 → 408 blocks** (the +27 are the
+  Sub-Strand Overview rows), FE 52 / ST 37 identical.
+- **Contract → HARD GATE (Track 2).** Flipped the warn-only drift check to blocking: `ingestItems`
+  pre-flight now throws on any non-empty `contractDrift(raw)` (all-or-nothing, like
+  `validateGeneratable`). 13/14 upstream files conform (`f36d47c`); **chem_1_4 is rejected** until
+  its string `LESSONS[].number` is coerced to integer — the gate doing its job (we deferred chem_1_4
+  from the corpus accordingly). `contract-check` gained the string-number reject case (11/11).
+- **Clean re-ingest (Track 3e).** Per the user: version lineage beyond 1.0.0 is disposable in early
+  testing → **wipe + re-ingest fresh** (not in-place backfill). New `scripts/wipe-bundles.ts`
+  (deletes all bundles incl. published, guarded by `--yes`; companion to `publish-drafts.ts` whose
+  `--delete` refuses published). Wiped the 13 old empty-UNIT bundles → ingested the 13 conforming
+  upstream files once (all passed the hard gate) → published. DB confirms all 13 carry populated
+  UNIT (`unit_content`/`unit_storyline_thread`/`unit_learning_outcomes` non-null).
+- **Fidelity oracle refreshed.** The Desktop/Rock oracle was stale (`UNIT={}`, May-30 DOCX with no
+  overview). Re-staged from `upstream/main`: populated-UNIT `bio_1_4_data.js` + ARES's regenerated
+  `Biology_Chemicals_of_Life_*` DOCX (`data/outputs/docx/Grade 10 Biology/Bio 1.4/`, confirmed to
+  carry the overview rows; its `_data.json` UNIT is byte-identical to the data file). Oracle = the
+  generator's own regenerated output (proves OUR pipeline matches the generator on the new data).
+
+**LESSON — local `tsc` can't catch type errors from dropped/renamed Payload fields.** Dropping
+`unit.overview` left a stale `unit: { overview: null }` literal in `scripts/adapter-fidelity.ts`.
+Local `tsc` passed because **`payload generate:types` is blocked on local Node 25**, so the Mac's
+`payload-types.ts` still had `overview`; the Rock's *regenerated* types removed it and `next build`
+failed the type-check. Rules: (1) when dropping/renaming a Payload field, **grep the whole codebase
+for the old name** before deploying; (2) to type-check against the real new types without a Rock
+round-trip, **fetch the Rock-regenerated `payload-types.ts` and run `tsc` against it locally**
+(done here — caught nothing further; all gates green pre-redeploy).
+
+**Git flow note.** Types + migration are generated on the Rock (Node 22 + DB), but to avoid stranded
+un-pushable Rock commits, their content was pulled to the Mac and committed to origin (`3b9a364`),
+then the Rock `reset --hard origin/main`. **origin is the single source of truth; the Rock mirrors
+it.** Verified on the Rock: migration applied (38 ms), `verify-rbac` 36/36, app up.
+
 ## 2026-06-17 — ARES data-contract: drafted, shared, and validated on every ingest
 
 ARES (Mark) agreed to canonicalise their data output. Root cause of the blank Sub-Strand
