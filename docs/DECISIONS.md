@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-22 — Teachers redirected from /admin to The App (no "unauthorized" error)
+
+A Teacher who authenticated against `/admin` (the admin login form, or a stale post-logout
+cookie reopening `/admin`) hit Payload's hard **"this user does not have access to the admin
+panel"** error. Teachers live entirely in The App (SPEC §2; DECISIONS 2026-06-14), so this is a
+dead end. Fixed by **overriding Payload's built-in `unauthorized` view**.
+
+- **Mechanism (verified in installed source).** On admin-panel-access denial, Payload's `RootPage`
+  calls `redirect(handleAuthRedirect(...))`; for an *authenticated* user that targets
+  `admin.routes.unauthorized` (`/admin/unauthorized`), which renders the default `UnauthorizedView`.
+  `getRouteData` resolves a per-key custom view first (`getCustomViewByKey`), so
+  `admin.components.views.unauthorized` overrides the built-in. This is the **single chokepoint**
+  for every admin-access denial, so it covers all entry paths (login, stale cookie, direct nav).
+- **Fix.** New server component `components/AdminUnauthorizedRedirect` = `redirect('/')` (The App
+  home / lesson-plans browse). Server-side → no error flash. It only ever runs for a user who
+  failed `canUseAdminPanel` (Teachers); every authenticated user can view `/` (`requireUser`).
+  Hand-registered in `importMap.js` (generate:importmap blocked on local Node 25).
+- **Why the view-override, not middleware.** A Next.js middleware can't distinguish a Teacher from
+  an Editor: `roles` is `saveToJWT` but `assignments` is NOT, and `canUseAdminPanel` =
+  `isSiteAdmin || assignments.length`. The decision needs the DB-backed user, which the
+  Payload-rendered view already has. The view-override is also config-only, no new route.
+- **Verified on the Rock** (curl with real logins): Teacher → `GET /admin` follows to
+  `http://…/` (200, "Lesson plans"); Editor → `GET /admin` stays at `/admin` (200, "Dashboard").
+  Admins unaffected. Test users seeded + deleted.
+
 ## 2026-06-22 — UNIT model fix + contract hard gate + clean corpus re-ingest (deployed)
 
 Three converging tracks, all shipped and verified on the Rock. The interim UNIT model fix
