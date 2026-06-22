@@ -27,7 +27,8 @@ dead end. Fixed by **overriding Payload's built-in `unauthorized` view**.
 - **Fix.** New server component `components/AdminUnauthorizedRedirect` = `redirect('/')` (The App
   home / lesson-plans browse). Server-side → no error flash. It only ever runs for a user who
   failed `canUseAdminPanel` (Teachers); every authenticated user can view `/` (`requireUser`).
-  Hand-registered in `importMap.js` (generate:importmap blocked on local Node 25).
+  Registered via Payload's own `generate:importmap` (run on the Rock, Node 22) — the canonical
+  basic method, so the committed `importMap.js` matches generator output and future regens no-op.
 - **Why the view-override, not middleware.** A Next.js middleware can't distinguish a Teacher from
   an Editor: `roles` is `saveToJWT` but `assignments` is NOT, and `canUseAdminPanel` =
   `isSiteAdmin || assignments.length`. The decision needs the DB-backed user, which the
