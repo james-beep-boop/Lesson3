@@ -12,13 +12,26 @@
 >   bundles (`scripts/wipe-bundles.ts`, new) and re-ingested the 13 conforming upstream files; all
 >   carry populated UNIT in the DB. Fidelity oracle refreshed to the populated-UNIT bio_1_4 + ARES's
 >   regenerated DOCX (Rock `out/ares-demo`, Desktop pending if wanted).
-> - **On origin `dffdfa6`; Rock mirrors origin** (types/migration generated on the Rock were pulled to
->   origin, Rock `reset --hard`). `verify-rbac` 36/36 on the Rock; app up.
-> - **➡ Still open:** (a) **manual browser smoke-test of the §5 editor refinements** (Teacher POST
->   `/:id/preview`→404, Editor unsaved-preview shows edits / structural→422, array row labels, teacher
->   format toggle) — needs role logins in a browser, not yet clicked; (b) refresh the **Desktop**
->   oracle to match the Rock if running local DB-less gates against bio_1_4; (c) chem_1_4 → 14th bundle
->   when Mark's fix lands.
+> - **Teacher /admin UX fixed.** A Teacher who authenticates at `/admin` (stale cookie / admin login)
+>   was shown Payload's hard "no admin access" error. Now overridden via Payload's own
+>   `admin.components.views.unauthorized` → a server component `redirect('/')` to The App home.
+>   Verified on the Rock (Teacher→`/`, Editor→Dashboard). `importMap.js` regenerated canonically via
+>   `generate:importmap` (Rock, Node 22). See DECISIONS (2026-06-22).
+> - **On origin `c7b0589`; Rock mirrors origin, app rebuilt + up.** Types/migration/importMap were
+>   generated on the Rock (Node 22) then pulled to origin so **origin is the single source of truth**.
+>   Corpus = 13 published bundles (ids 63–75), all carrying populated UNIT. `verify-rbac` 36/36;
+>   `roundtrip-regression` 3/3; hard gate proven to reject chem_1_4 live.
+> - **Rock staging dirs:** `out/ares-demo` (refreshed fidelity oracle — keep, used by
+>   `roundtrip-regression`), `out/ares-data` (the 13 staged corpus files — keep for re-ingest).
+>   Pre-existing untracked strays `11.17.0` (empty file) + `ingest-data/` (old bio_1_4) left as-is.
+> - **➡ Still open / next:** (a) **manual browser smoke-test of the §5 editor refinements** (Teacher
+>   POST `/:id/preview`→404, Editor unsaved-preview shows edits / structural→422, array row labels,
+>   teacher format toggle) — needs role logins in a browser, not yet clicked; (b) optionally refresh
+>   the **Desktop** oracle to the populated-UNIT bio_1_4 so local DB-less gates exercise the overview
+>   (the Rock oracle is already refreshed; local gates still pass against the old self-consistent set);
+>   (c) **chem_1_4 → 14th bundle** when Mark coerces its `number` to integer (re-pull `upstream`, stage
+>   into `out/ares-data`, ingest — the gate will admit it); (d) **PDF export (§9)** is the next major
+>   phase (constraints locked: offline/free/faithful → local office engine via `docxToPdf(buffer)`).
 >
 > **2026-06-18 (ARES contract — essentially converged):**
 > - **Outcome: 13/14 ARES files now conform to our contract** (`upstream/main` @ `f36d47c`). Over a
