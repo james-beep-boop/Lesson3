@@ -121,6 +121,12 @@ check('missing schemaVersion reported', has(contractDrift(noVersion), 'schemaVer
 const emptyUnit = { ...conforming(), UNIT: {} }
 check('empty UNIT object reports missing required fields', contractDrift(emptyUnit).length >= 8)
 
+// String LESSONS[].number (the live chem_1_4 drift) → integer mismatch. This is the exact
+// class the ingest hard gate now rejects (ingestItems pre-flight throws on any non-empty drift).
+const stringNumber = conforming()
+;(stringNumber.LESSONS[0]! as Record<string, unknown>).number = '1'
+check('LESSONS[].number as string flagged (expected integer)', has(contractDrift(stringNumber), 'LESSONS[0].number: expected integer, got string'))
+
 console.log(`\n${'='.repeat(50)}`)
 console.log(`CONTRACT GATE: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

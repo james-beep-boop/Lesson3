@@ -192,16 +192,37 @@ export const LessonBundles: CollectionConfig = {
       ],
     },
 
-    // ---- UNIT (sub-strand overview; may be empty) ----
+    // ---- UNIT (sub-strand overview; renders the generator's Sub-Strand Overview table) ----
     {
       name: 'unit',
       type: 'group',
       label: 'UNIT',
       access: { update: canEditStructure },
-      admin: { description: 'Sub-strand overview. May be empty.' },
-      // Admin-only (SPEC §5 does not list UNIT): proseAdmin, and the whitelist hook
-      // preserves `unit` wholesale for Editors.
-      fields: [proseAdmin('overview', 'Overview')],
+      admin: { description: 'Sub-strand overview. May be empty for some sub-strands.' },
+      // All UNIT fields are admin-only (SPEC §5 does not list UNIT among Editor prose): the
+      // whitelist hook (enforceBundleStructure) preserves the whole `unit` group wholesale for
+      // Editors, so none of these need field-level access or the prose() whitelist. Field set +
+      // names mirror the generator's subStrandOverview() reader (vendor/lib/sections.js) and the
+      // ARES contract's UNIT block (ingest/ares-contract.schema.json) — canonical names only.
+      fields: [
+        structureText('gradeLevel', 'Grade level'),
+        structureText('subject', 'Subject'),
+        structureText('strand', 'Strand'),
+        structureText('substrand', 'Sub-strand'),
+        structureText('totalDuration', 'Total duration'),
+        proseAdmin('content', 'Sub-strand content'),
+        proseAdmin('learningOutcomes', 'Learning outcomes'),
+        proseAdmin('coreCompetencies', 'Core competencies'),
+        proseAdmin('values', 'Core values'),
+        proseAdmin('sep', 'Science & Engineering Practices'),
+        proseAdmin('pcis', 'Pertinent & Contemporary Issues (PCIs)'),
+        proseAdmin('careers', 'Career connections'),
+        proseAdmin('focus', 'Focus for lessons'),
+        proseAdmin('drivingQuestion', 'Driving question / key inquiry'),
+        proseAdmin('phenomenon', 'Anchoring phenomenon'),
+        proseAdmin('supportingPhenomena', 'Supporting phenomena'),
+        proseAdmin('storylineThread', 'Storyline thread'),
+      ],
     },
 
     // ---- LESSONS[] ----

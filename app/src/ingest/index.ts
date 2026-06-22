@@ -27,7 +27,7 @@ import path from 'node:path'
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
 
-import { contractDriftSummary } from './contract'
+import { contractDrift } from './contract'
 import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
@@ -165,15 +165,20 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       if (problems.length > 0) {
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
+      // Contract drift is a HARD GATE: ARES adopted ares-contract.schema.json, so any divergence
+      // is a regression that must block ingest (same all-or-nothing pre-flight as
+      // validateGeneratable — nothing is written if ANY file drifts). Validate the RAW (UPPERCASE)
+      // object, the shape the contract describes. See docs/DECISIONS.md (warn-only → hard gate).
+      const drift = contractDrift(raw)
+      if (drift.length > 0) {
+        throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
+      }
       const subjectGrade = await resolveSubjectGrade(payload, raw, preflightReq)
-      // Contract drift is NON-BLOCKING (current ARES output doesn't conform yet — that's the
-      // drift we report). Validate the RAW (UPPERCASE) object, the shape the contract describes.
-      const drift = contractDriftSummary(raw)
       prepared.push({
         name,
         data,
         subjectGrade,
-        warnings: [...deliverableWarnings(data), ...(drift ? [drift] : [])],
+        warnings: deliverableWarnings(data),
       })
     } catch (e) {
       errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
