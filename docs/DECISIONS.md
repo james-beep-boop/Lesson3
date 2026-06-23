@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-23 — Jobs surface locked down (external-review finding; Payload defaults are permissive)
+
+An external review (GPT-5.5 audit) flagged that the Phase 5 job surface trusted that only the export
+endpoint could enqueue `generateArtifact`, but **Payload 3.85.1's job defaults are open**. Verified in
+installed source:
+- the **run endpoint** (`/api/payload-jobs/run`) access defaults to **`() => true`** —
+  `jobsConfig.access?.run ?? (() => true)` — i.e. callable **unauthenticated**;
+- the **`payload-jobs` collection ships with no `access` block**, so it falls back to
+  `defaultAccess = ({ req:{ user } }) => Boolean(user)` — **any authenticated user** could
+  `POST /api/payload-jobs` to enqueue `generateArtifact` with an arbitrary `input`, **bypassing the
+  export endpoint's read-gate AND the per-user rate limit** (forces Gotenberg/cache work for any
+  bundleId; a Teacher still can't *download* a bundle they can't read — export/status re-gate — but
+  the generation work runs).
+
+**Fix (`payload.config.ts` `jobs`):** set `jobs.access.{run,queue,cancel}` to `isSiteAdmin`, and add
+`jobsCollectionOverrides` setting the collection access to `read: isSiteAdmin`, `create/update/delete:
+() => false`. **Why this is safe for the system path (verified in source):** the export endpoint's
+`payload.jobs.queue(...)` and the `autoRun` runner both use the Local API's default
+`overrideAccess: true`, and job-state writes go through `payload.update` (Local-API default
+overrideAccess true) or `payload.db.updateJobs` (direct DB) — all bypass access control. So the gates
+hit **only external REST callers**. No schema change (access fns only) → no migration; deploy is the
+plain `git pull` + `up -d --build` path. **Lesson:** Payload's job system is open-by-default — any app
+exposing it must set `jobs.access` AND lock the `payload-jobs` collection via `jobsCollectionOverrides`.
+
 ## 2026-06-23 — Phase 5 (readiness #1): artifact cache + per-user rate limit + Jobs Queue async export
 
 **DEPLOYED + verified live on the Rock 2026-06-23** (commit `d3525c0`): cold export → `202` +

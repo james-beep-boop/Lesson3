@@ -11,6 +11,7 @@ import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonBundles } from './collections/LessonBundles'
 import { generateArtifactTask } from './jobs/generateArtifact'
+import { isSiteAdmin } from './access'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -95,6 +96,33 @@ export default buildConfig({
   // cleanup is a follow-up. Cadence/limit are env-tunable for the host's CPU/Gotenberg budget.
   jobs: {
     tasks: [generateArtifactTask],
+    // LOCK DOWN the job surface (Payload's defaults are permissive). Without this, the
+    // `run` endpoint defaults to `() => true` (callable UNAUTHENTICATED), and `queue`/`cancel`
+    // default to any-logged-in-user. Restrict all three to Site Admins. This does NOT affect
+    // the system path: the export endpoint's `payload.jobs.queue(...)` and the `autoRun` runner
+    // both use the Local API's default `overrideAccess: true`, so access control is bypassed for
+    // them — only EXTERNAL REST callers are gated.
+    access: {
+      run: ({ req }) => isSiteAdmin(req.user),
+      queue: ({ req }) => isSiteAdmin(req.user),
+      cancel: ({ req }) => isSiteAdmin(req.user),
+    },
+    // The above gates the job-system endpoints, but the `payload-jobs` collection itself ships
+    // with NO access block → it falls back to Payload's `defaultAccess` (any authenticated user),
+    // so a Teacher could `POST /api/payload-jobs` to enqueue `generateArtifact` with an arbitrary
+    // input, bypassing the export endpoint's read-gate + rate-limit. Lock the collection's REST
+    // CRUD: nobody creates/updates/deletes jobs over the API (the system writes via overrideAccess
+    // / direct DB), and only Site Admins may read them.
+    jobsCollectionOverrides: ({ defaultJobsCollection }) => ({
+      ...defaultJobsCollection,
+      access: {
+        ...defaultJobsCollection.access,
+        read: ({ req }) => isSiteAdmin(req.user),
+        create: () => false,
+        update: () => false,
+        delete: () => false,
+      },
+    }),
     autoRun: [
       {
         cron: process.env.JOBS_AUTORUN_CRON || '*/3 * * * * *', // every 3s (6-field: leading seconds)
