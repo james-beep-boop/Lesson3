@@ -11,6 +11,34 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-23 — Async-export correctness fixes (external audit findings #4/#5/#6)
+
+A full external audit (GPT-5.5) of Phase 5 surfaced three correctness bugs in the async-export path,
+now fixed (tsc/eslint clean; not yet runtime-verified on the Rock):
+- **#5 temp-file collision** (`artifactCache.putArtifact`): the temp path was `${file}.${pid}.tmp`, so
+  two concurrent jobs producing the *same* key (duplicate cold exports) shared a temp file and could
+  clobber each other before rename. Now `${file}.${pid}.${randomUUID()}.tmp` (per-write unique).
+- **#6 manifest-only readiness** (`exportArtifacts.isExportReady`): it checked only the manifest, but
+  `loadCachedExportZip` requires every listed deliverable. If a deliverable was evicted while the
+  manifest survived, status said "ready" then the download re-enqueued (looked like a failure). Now
+  `isExportReady` verifies the manifest **and** every artifact exists (cheap `hasArtifact` existence
+  checks — added to the cache — no byte reads).
+- **#4 stale-lockVersion stuck poll** (`exportStatus`): a job caches under its enqueue-time
+  `lockVersion`, but status recomputed readiness from the *current* bundle. A republish mid-job left
+  the client polling forever. Status now compares the job's `input.lockVersion` to the current spec and
+  returns **409 "bundle changed — retry"** on drift; and if the job `completedAt` but artifacts aren't
+  present (evicted post-completion), returns **409 "expired — retry"** instead of spinning. The client
+  already treats a status `state:'error'` as terminal, so no client change was needed.
+
+**Deferred from the same audit:** **#3 (GET `/export` enqueues on cache miss → not idempotent; a
+cross-site top-level navigation with SameSite=Lax could consume quota/enqueue work).** The fix —
+make GET serve-only and move enqueue to a `POST /export` (SameSite=Lax blocks cross-site POST, so the
+CSRF vector closes) + the matching client handshake change — is a client-contract change to the
+headline feature, so it is held to pair with **runtime verification on the Rock**, not blind-shipped.
+The remaining audit items (#2 deps, #7 CSP/sanitization, #8 optimistic concurrency, #9 GraphQL gating,
+#10 endpoint tests, #11 pagination, #12 PDF-fidelity CI) are the already-tracked production-hardening
+backlog (NEXT-SESSION #2–#9) — the planned next phase, not single-turn fixes.
+
 ## 2026-06-23 — Jobs surface locked down (external-review finding; Payload defaults are permissive)
 
 An external review (GPT-5.5 audit) flagged that the Phase 5 job surface trusted that only the export

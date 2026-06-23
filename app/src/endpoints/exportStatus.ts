@@ -48,14 +48,25 @@ export const exportStatusEndpoint: Endpoint = {
     }
 
     // Bind the job to THIS bundle so a jobId can't probe unrelated jobs.
-    const jobBundleId = (job?.input as { bundleId?: number | string } | undefined)?.bundleId
+    const jobInput = job?.input as { bundleId?: number | string; lockVersion?: number } | undefined
     const belongs =
-      job?.taskSlug === GENERATE_ARTIFACT_SLUG && String(jobBundleId ?? '') === String(spec.bundleId)
+      job?.taskSlug === GENERATE_ARTIFACT_SLUG && String(jobInput?.bundleId ?? '') === String(spec.bundleId)
     if (!job || !belongs) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
     if (job.hasError) {
       return json({ state: 'error', message: 'Export failed — please try again.' }, 502)
+    }
+    // The job caches under its ENQUEUE-time lockVersion; if the bundle was republished since, its
+    // artifacts land under the old key and `isExportReady` (current spec) would never see them →
+    // an endless "preparing". Detect the drift and tell the client to restart the export.
+    if (String(jobInput?.lockVersion ?? '') !== String(spec.lockVersion ?? '')) {
+      return json({ state: 'error', message: 'Bundle changed during export — please retry.' }, 409)
+    }
+    // Job finished without error but the artifacts aren't present (e.g. evicted post-completion):
+    // not recoverable by polling, so ask the client to retry rather than spin forever.
+    if (job.completedAt) {
+      return json({ state: 'error', message: 'Export expired — please retry.' }, 409)
     }
     return json({ state: 'preparing' })
   },

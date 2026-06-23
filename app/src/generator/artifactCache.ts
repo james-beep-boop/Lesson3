@@ -19,7 +19,7 @@
  * `/srv/lesson3/out` so entries survive container `--rm`). Falls back to a local dir for
  * dev. EVICTION: oldest-first by mtime once total size exceeds `ARTIFACT_CACHE_MAX_BYTES`.
  */
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
@@ -48,6 +48,16 @@ function fileForKey(key: string): string {
   return path.join(CACHE_DIR, `${hash}.bin`)
 }
 
+/** Cheap existence check (no read, no mtime touch) — for readiness polling that must not load bytes. */
+export async function hasArtifact(key: string): Promise<boolean> {
+  try {
+    await fs.access(fileForKey(key))
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Return cached bytes for a key, or null on a miss. A read also refreshes mtime (LRU touch). */
 export async function getArtifact(key: string): Promise<Buffer | null> {
   const file = fileForKey(key)
@@ -70,7 +80,9 @@ export async function getArtifact(key: string): Promise<Buffer | null> {
 export async function putArtifact(key: string, bytes: Buffer): Promise<void> {
   await fs.mkdir(CACHE_DIR, { recursive: true })
   const file = fileForKey(key)
-  const tmp = `${file}.${process.pid}.tmp` // unique per writer; derived from the final path (no re-hash)
+  // Per-WRITE unique temp (pid + uuid): two concurrent jobs producing the same key (duplicate
+  // cold exports) must not share a temp path and clobber each other's write before rename.
+  const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`
   await fs.writeFile(tmp, bytes)
   await fs.rename(tmp, file)
   await evictIfNeeded()

@@ -17,7 +17,7 @@ import { createRequire } from 'node:module'
 import type { Payload } from 'payload'
 
 import { generateForBundle } from './generateForBundle'
-import { artifactKey, getArtifact, putArtifact } from './artifactCache'
+import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
 import type { LessonSequenceFormat } from './index'
 import type { LessonBundle } from '../payload-types'
 
@@ -149,7 +149,21 @@ export async function loadCachedExportZip(spec: ArtifactSpec): Promise<Buffer | 
   return zipEntries(entries)
 }
 
-/** True once an export's manifest is cached (used by the status poll to detect readiness). */
+/**
+ * True only when the export is FULLY downloadable: the manifest AND every deliverable it lists
+ * are present. The status poll uses this — checking the manifest alone would report "ready" after
+ * a deliverable was evicted, so the client's download would then re-enqueue and look like a failure.
+ * Mirrors exactly what `loadCachedExportZip` requires, but cheaply (existence checks, no byte reads).
+ */
 export async function isExportReady(spec: ArtifactSpec): Promise<boolean> {
-  return (await getArtifact(keyFor(spec, MANIFEST_DOC))) !== null
+  const manifestBytes = await getArtifact(keyFor(spec, MANIFEST_DOC))
+  if (!manifestBytes) return false
+  let manifest: Manifest
+  try {
+    manifest = JSON.parse(manifestBytes.toString('utf8')) as Manifest
+  } catch {
+    return false
+  }
+  const present = await Promise.all(manifest.docs.map((d) => hasArtifact(keyFor(spec, d.tag))))
+  return present.every(Boolean)
 }
