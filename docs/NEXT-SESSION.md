@@ -296,8 +296,13 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
    semver. Not a bug; do only if "mark official without editing shouldn't bump" is wanted.
 
 **Production-readiness backlog (Codex 2026-06-16/-17, NOT done — the Rock is non-production):**
-rate-limit / Jobs-Queue for generation incl. the preview POST (#2); FE/ST hard gate once corpus
-complete (#6); official-version model vs SPEC §6 (#7); dep advisories — vitest/postcss/esbuild (#3);
+rate-limit / Jobs-Queue for generation incl. the preview POST (#2); **FE/ST deliverable model (#6) —
+reframed (Codex 2026-06-22): not a bug, a spec/product mismatch needing an EXPLICIT model. Today's
+warn-only conflates "this sub-strand legitimately has no FE/ST" (6/13 upstream) with "the data is
+incomplete." Resolve by either (a) SPEC §3 allowing single-doc bundles for some sub-strands, or
+(b) a typed `notApplicable`/intentionally-omitted state so the two are distinguishable — THEN the
+hard gate can fire only on genuinely-missing data**; official-version model vs SPEC §6 (#7); dep
+advisories — vitest/postcss/esbuild (#3);
 global security headers + CSRF posture, incl. a **CSP on the teacher frontend route** (#9/#10);
 **XSS: sanitize `docxToSections` output when Resource links land (#4)**; **optimistic concurrency —
 check `lockVersion` on user updates, not just increment it (#4-conc)** — must EXEMPT system/ingest
@@ -313,11 +318,17 @@ an auth+role fixture harness the current `tests/int/api.int.spec.ts` lacks).
 - **Lesson browse hard-limits at `limit: 200`** with no pagination (`(frontend)/page.tsx`) — content
   becomes undiscoverable once the corpus grows to hundreds (expected). Add page/search.
 - **Frontend e2e is stale scaffold** (`tests/e2e/frontend.e2e.spec.ts` asserts the blank Payload
-  template) — replace with real teacher browse→view→export coverage, or remove.
-- **Synchronous unthrottled generation** is the live ranked-#1 risk — the `docxToPdf` request timeout
-  is now the floor; the real fix is the deferred Jobs Queue + per-user rate-limit + artifact cache
-  (folds into #2 above). Codex confirmed **no current Critical/High application bug** — all
-  operational hardening, consistent with the Rock being non-production.
+  template) — replace/remove, AND add real endpoint coverage for preview / export / PDF / authz.
+- **Synchronous unthrottled generation — finding #1 is NOT closed.** The `docxToPdf` request timeout
+  (120s) is only a floor-level guard against a hung socket; it does **not** reduce the core
+  availability risk — any authenticated user can still trigger expensive synchronous DOCX+PDF
+  conversions and tie up an app worker + Gotenberg capacity for up to 120s per request. The actual
+  fix is the deferred **Jobs Queue + per-user rate-limit + artifact cache** (folds into #2 above).
+- **Production-readiness conclusion (do not soften):** Codex found **no current Critical/High
+  *exploitable application bug*** — but that is NOT "production-ready." The system must NOT be treated
+  as production for sensitive data / scale until ALL of these land: queue+rate-limit+cache for heavy
+  generation; dependency-advisory remediation; CSP + HTML-sanitization posture; PDF fidelity in CI;
+  and real preview/export/PDF/authz endpoint tests. The Rock remains an explicit non-production env.
 
 **Phase 2+ — "The App" (decided 2026-06-14, see SPEC §2/§10 + DECISIONS):** a unified role-aware
 frontend (`app/src/app/(frontend)`) that ALL roles log into, over the same Payload backend, home to
