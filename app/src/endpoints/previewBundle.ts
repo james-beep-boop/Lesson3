@@ -27,13 +27,15 @@ import { renderBundlePreview, type PreviewSection } from '../generator/previewBu
 import { parseLessonSequenceFormat } from './parseFormat'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import { findReadableBundle } from '../lib/readBundle'
+import { enforceUserRateLimit } from '../lib/rateLimit'
 import { isEditorFor, toId } from '../access'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
 import type { LessonBundle, User } from '../payload-types'
 
 /** Cap the posted form-state JSON before we parse + generate from it (defence against a
- *  memory/CPU-heavy preview). Bundles are large prose, so this is generous; true per-request
- *  body limiting + rate-limiting is the deferred production-hardening item (Codex #2/#3). */
+ *  memory/CPU-heavy preview). Bundles are large prose, so this is generous. Per-user rate
+ *  limiting now guards both preview verbs (see enforceUserRateLimit); true per-request body
+ *  streaming/limiting remains a production-hardening follow-up. */
 const MAX_PREVIEW_JSON_BYTES = 4_000_000
 
 const escapeHtml = (s: string): string =>
@@ -134,6 +136,8 @@ export const previewBundleEndpoint: Endpoint = {
   method: 'get',
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
+    const limited = enforceUserRateLimit(req, 'preview')
+    if (limited) return limited
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing bundle id', 400)
 
@@ -163,6 +167,8 @@ export const previewBundleUnsavedEndpoint: Endpoint = {
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
+    const limited = enforceUserRateLimit(req, 'preview')
+    if (limited) return limited
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing bundle id', 400)
 

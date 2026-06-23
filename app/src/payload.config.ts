@@ -10,6 +10,7 @@ import { Users } from './collections/Users'
 import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonBundles } from './collections/LessonBundles'
+import { generateArtifactTask } from './jobs/generateArtifact'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -85,6 +86,23 @@ export default buildConfig({
     },
   },
   collections: [Users, Subject, SubjectGrade, LessonBundles],
+  // Jobs Queue (SPEC §9/§11; readiness #1) — heavy export generation runs async + throttled.
+  // Defining a task creates the `payload-jobs` collection (a schema migration). The in-process
+  // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,
+  // per installed-source guidance — fine on the Rock). `limit` is the GLOBAL concurrency cap on
+  // heavy conversions: at most this many run per tick regardless of how many users enqueued.
+  // Completed jobs are kept (not auto-deleted) so the status poll can surface failures; periodic
+  // cleanup is a follow-up. Cadence/limit are env-tunable for the host's CPU/Gotenberg budget.
+  jobs: {
+    tasks: [generateArtifactTask],
+    autoRun: [
+      {
+        cron: process.env.JOBS_AUTORUN_CRON || '*/3 * * * * *', // every 3s (6-field: leading seconds)
+        queue: 'default',
+        limit: Number(process.env.JOBS_AUTORUN_LIMIT) || 2,
+      },
+    ],
+  },
   editor: lexicalEditor(),
   secret: payloadSecret,
   typescript: {

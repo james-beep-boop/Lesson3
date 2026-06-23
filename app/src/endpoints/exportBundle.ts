@@ -1,36 +1,30 @@
 /**
- * Export endpoint (SPEC §9) — download a bundle's three DOCX as one .zip.
+ * Export endpoint (SPEC §9) — download a bundle's deliverables as one .zip, async + throttled.
  *
  * Mounted on the lesson-bundles collection → `GET /api/lesson-bundles/:id/export`.
- * Query: `?format=standard|compact` (default `standard`). `compact` drops Section C's
- * Resource column and re-balances widths (see src/generator/buildSowCompact.js); it
- * only affects the LessonSequence — FinalExplanation/SummaryTable are identical.
+ * Query: `?format=standard|compact` (default `standard`) · `?as=docx|pdf` (default `docx`).
  *
- * SECURITY: this is the authorization boundary that `generateForBundle` deliberately
- * is NOT (it fetches with overrideAccess:true as a trusted system path). We FIRST
- * re-read the bundle with the caller's own access (`overrideAccess:false` + `user`),
- * so the read rules apply — a Teacher can export only published bundles, an Editor only
- * within their subject-grades, etc. Only then do we generate. Published-only is enforced
- * again inside generateForBundle (NotExportableError → 409).
+ * TWO-PHASE (readiness #1): heavy generation/conversion must never tie up an app worker.
+ *   - WARM (artifacts already cached) → 200 with the .zip, synchronously (a pure cache read).
+ *   - COLD (cache miss) → enqueue the `generateArtifact` job and return **202** with a status
+ *     URL. The in-process queue runner produces the artifacts (bounded by the queue's
+ *     concurrency `limit`); the client polls the status URL, then re-requests this endpoint —
+ *     now warm — to download. So this handler does at most a cache read + an enqueue: O(ms).
+ *
+ * SECURITY: this is the authorization boundary that the generator/job deliberately are NOT.
+ * We re-read the bundle with the caller's OWN access (`findReadableBundle`, overrideAccess:false)
+ * so read rules apply (a Teacher only matches published bundles), then assert published-only,
+ * BEFORE serving or enqueuing. The job runs as a trusted system path on already-gated input.
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
-import { createRequire } from 'node:module'
 
-import { generateForBundle, NotExportableError } from '../generator/generateForBundle'
-import { docxToPdf, PdfConversionError } from '../generator/docxToPdf'
+import { assertExportable, NotExportableError } from '../generator/generateForBundle'
+import { loadCachedExportZip, type ArtifactSpec } from '../generator/exportArtifacts'
+import { GENERATE_ARTIFACT_SLUG, type GenerateArtifactInput } from '../jobs/generateArtifact'
 import { parseLessonSequenceFormat, parseExportKind } from './parseFormat'
 import { findReadableBundle } from '../lib/readBundle'
+import { enforceUserRateLimit } from '../lib/rateLimit'
 import type { User } from '../payload-types'
-
-const require = createRequire(import.meta.url)
-const JSZip = require('jszip') as new () => {
-  file(name: string, data: Buffer): void
-  generateAsync(opts: { type: 'nodebuffer' }): Promise<Buffer>
-}
-
-/** Strip a stored filePrefix down to a safe bare filename component (no path/traversal). */
-const safePrefix = (raw: unknown): string =>
-  (typeof raw === 'string' ? raw : '').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
 export const exportBundleEndpoint: Endpoint = {
   path: '/:id/export',
@@ -38,60 +32,61 @@ export const exportBundleEndpoint: Endpoint = {
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
 
+    // Throttle per user BEFORE any work (readiness #1). A warm hit is cheap, but cold hits
+    // enqueue real work, so the rate limit guards the enqueue rate regardless of warmth.
+    const limited = enforceUserRateLimit(req, 'export')
+    if (limited) return limited
+
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing bundle id', 400)
 
     const format = parseLessonSequenceFormat(req)
     const kind = parseExportKind(req)
 
-    // Authorization: enforce the caller's READ access before generating. A non-readable /
-    // unpublished bundle is "not found" for this user (null); a real DB/runtime error propagates.
+    // Authorization: enforce the caller's READ access, then published-only, before serving.
     const bundle = await findReadableBundle(req.payload, { id, user: req.user as User, req })
     if (!bundle) throw new APIError('Bundle not found', 404)
-
-    let docx
     try {
-      docx = await generateForBundle(req.payload, id, format)
+      assertExportable(bundle)
     } catch (err) {
       if (err instanceof NotExportableError) throw new APIError(err.message, 409)
       throw err
     }
 
-    const prefix = safePrefix(bundle.meta?.filePrefix)
+    const spec: ArtifactSpec = { bundleId: id, lockVersion: bundle.lockVersion, format, kind }
 
-    // The up-to-three deliverables, in document order. FE/ST are null for some sub-strands.
-    const docs: { name: string; docx: Buffer }[] = [
-      { name: `${prefix}_CBE_LessonSequence`, docx: docx.lessonSequence },
-    ]
-    if (docx.finalExplanation) docs.push({ name: `${prefix}_FinalExplanation`, docx: docx.finalExplanation })
-    if (docx.summaryTable) docs.push({ name: `${prefix}_SummaryTable`, docx: docx.summaryTable })
-
-    const ext = kind === 'pdf' ? 'pdf' : 'docx'
-    const zip = new JSZip()
-    try {
-      // Convert the (independent) deliverables concurrently — capped at 3, so the fan-out
-      // onto the single Gotenberg sidecar is bounded. DOCX needs no conversion.
-      const entries = await Promise.all(
-        docs.map(async (d) => ({
-          name: `${d.name}.${ext}`,
-          bytes: kind === 'pdf' ? await docxToPdf(d.docx, `${d.name}.docx`) : d.docx,
-        })),
-      )
-      for (const e of entries) zip.file(e.name, e.bytes)
-    } catch (err) {
-      // The converter being down is an upstream/service failure, not a client error.
-      if (err instanceof PdfConversionError) throw new APIError(err.message, 502)
-      throw err
+    // WARM: serve the cached zip synchronously.
+    const cached = await loadCachedExportZip(spec)
+    if (cached) {
+      const prefix = (bundle.meta?.filePrefix || 'bundle').replace(/[^A-Za-z0-9._-]/g, '_')
+      return new Response(new Uint8Array(cached), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="${prefix}_${format}_${kind}.zip"`,
+          'Content-Length': String(cached.length),
+        },
+      })
     }
-    const buf = await zip.generateAsync({ type: 'nodebuffer' })
 
-    return new Response(new Uint8Array(buf), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${prefix}_${format}_${ext}.zip"`,
-        'Content-Length': String(buf.length),
-      },
-    })
+    // COLD: enqueue the heavy work and return 202 + a poll URL. (TypedJobs only knows the task
+    // slug after `generate:types` runs on the Rock; the input is validated by the task schema.)
+    const input: GenerateArtifactInput = {
+      bundleId: Number(id),
+      lockVersion: Number(bundle.lockVersion ?? 0),
+      format,
+      kind,
+    }
+    const job = (await req.payload.jobs.queue({
+      task: GENERATE_ARTIFACT_SLUG,
+      input,
+      req,
+    } as Parameters<typeof req.payload.jobs.queue>[0])) as { id: string | number }
+
+    const statusUrl = `/api/lesson-bundles/${id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
+    return new Response(
+      JSON.stringify({ status: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }),
+      { status: 202, headers: { 'Content-Type': 'application/json' } },
+    )
   },
 }

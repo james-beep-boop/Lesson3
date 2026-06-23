@@ -43,6 +43,11 @@ services:
     ports:
       - "3001:3000"
     env_file: .env
+    # Durable artifact cache (generated DOCX/PDF bytes). A named volume so it survives
+    # `up --build` (which recreates the container) — without it the cache cold-starts on
+    # every deploy. Must match ARTIFACT_CACHE_DIR in .env. Inspect via `docker volume`.
+    volumes:
+      - lesson3_artifact_cache:/var/cache/lesson3
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,3 +94,4 @@ services:
 
 volumes:
   lesson3_pgdata:
+  lesson3_artifact_cache:
