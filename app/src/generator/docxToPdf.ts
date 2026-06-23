@@ -40,16 +40,15 @@ export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promi
     filename.endsWith('.docx') ? filename : `${filename}.docx`,
   )
 
+  const base = gotenbergUrl()
   let res: Response
   try {
-    res = await fetch(`${gotenbergUrl()}/forms/libreoffice/convert`, {
+    res = await fetch(`${base}/forms/libreoffice/convert`, {
       method: 'POST',
       body: form,
     })
   } catch (err) {
-    throw new PdfConversionError(
-      `PDF converter unreachable at ${gotenbergUrl()}: ${(err as Error).message}`,
-    )
+    throw new PdfConversionError(`PDF converter unreachable at ${base}: ${(err as Error).message}`)
   }
 
   if (!res.ok) {
