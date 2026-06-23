@@ -8,6 +8,32 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED + DEPLOYED + VERIFIED 2026-06-23 (async export: Jobs Queue + artifact cache + rate limit)
+
+- **Phase 5 — readiness #1 closed (the "heavy generation is synchronous + unthrottled" top risk),
+  and the deferred async half of the PDF slice finished. DEPLOYED + VERIFIED LIVE on the Rock**
+  (merged to `main` as `aff318a`; feature `191510f`, Rock types+migration `17614f7`, Dockerfile fix
+  `d3525c0`). Three composing protections:
+  - **Artifact cache behind a seam** (`src/generator/artifactCache.ts`, `exportArtifacts.ts`):
+    content-stable bytes cached by `(bundle, lockVersion, format, kind, doc)` — `lockVersion` is the
+    cache-buster. Bounded on-disk LRU, durable via a `lesson3_artifact_cache` named volume. Warm
+    `?as=pdf` skips Gotenberg entirely.
+  - **Per-user rate limit** (`src/lib/rateLimit.ts`) on export + both preview verbs → `429 +
+    Retry-After` (Payload 3 has no built-in `rateLimit`; verified against installed source).
+  - **Jobs Queue async export** (`src/jobs/generateArtifact.ts` + `jobs` config): the `payload-jobs`
+    collection (one migration). In-process `autoRun` with `limit` as the global concurrency cap on
+    heavy conversions. Export is two-phase — warm → `200` zip; cold → enqueue + `202` + a status URL
+    (`GET …/export/status?jobId=`). Frontend (`components/exportClient.ts`, admin button, teacher
+    `DownloadButtons`) follows the 202 → poll → download handshake.
+  - **Verified live:** cold export `202` → `autoRun` produced + cached → status `ready` → warm
+    `200 application/zip` with a valid PDF (bundle 63).
+- **Two Rock deployment traps found, fixed, recorded** (see DECISIONS 2026-06-23): a fresh Docker
+  named volume mounts **root-owned** (app runs as `nextjs` uid 1001 → `EACCES`, export stuck at
+  `202`) → Dockerfile now pre-creates + `chown`s the cache dir; and **`ARTIFACT_CACHE_DIR` must be in
+  `.env`** (+ recreate the container) or the cache falls back to the non-writable `/app/.artifact-cache`.
+- **Still open:** the formal PDF **fidelity gate** (`scripts/pdf-fidelity-check.ts`) — conversion is
+  proven, the layout-faithfulness measurement still needs Rock-side ImageMagick + 3 Word oracle PDFs.
+
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-22 (§5 smoke-test PASSED + PDF export slice live)
 
 - **§5 editor refinements browser smoke-test — ALL PASS on the Rock** (driven via Chrome MCP
