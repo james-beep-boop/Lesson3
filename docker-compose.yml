@@ -48,7 +48,25 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      gotenberg:
+        condition: service_started
     mem_limit: 1500m
+    cpus: 2.0
+
+  # DOCX -> PDF conversion sidecar (SPEC §9). Gotenberg wraps a headless LibreOffice;
+  # the app POSTs generated DOCX to it and gets back a faithful PDF (one source of layout
+  # truth — we never re-render). Multi-arch (arm64), fully offline, no paid service.
+  # Internal-only — NO published host port (same posture as postgres); reachable by the
+  # app over the compose network at http://gotenberg:3000 (see GOTENBERG_URL in .env).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    # Disable the modules the app never calls, trimming the attack/startup surface.
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --api-timeout=120s
+    mem_limit: 1024m
     cpus: 2.0
 
   postgres:

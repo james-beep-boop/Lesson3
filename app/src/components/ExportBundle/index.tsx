@@ -19,10 +19,12 @@ import React, { useState } from 'react'
 import { Button, useDocumentInfo } from '@payloadcms/ui'
 
 type Format = 'standard' | 'compact'
+type Kind = 'docx' | 'pdf'
 
 export default function ExportBundle() {
   const { id, hasPublishedDoc } = useDocumentInfo()
   const [format, setFormat] = useState<Format>('standard')
+  const [kind, setKind] = useState<Kind>('docx')
 
   // No id → unsaved document; nothing to export yet.
   if (!id) return null
@@ -30,7 +32,7 @@ export default function ExportBundle() {
   const exportable = hasPublishedDoc
   const onExport = () => {
     if (!exportable) return
-    window.location.assign(`/api/lesson-bundles/${id}/export?format=${format}`)
+    window.location.assign(`/api/lesson-bundles/${id}/export?format=${format}&as=${kind}`)
   }
 
   return (
@@ -47,6 +49,17 @@ export default function ExportBundle() {
       >
         <option value="standard">Standard</option>
         <option value="compact">Compact (no Resource column)</option>
+      </select>
+      <select
+        id="export-kind"
+        aria-label="File type"
+        value={kind}
+        onChange={(e) => setKind(e.target.value as Kind)}
+        disabled={!exportable}
+        style={{ padding: '0.25rem', borderRadius: '4px' }}
+      >
+        <option value="docx">DOCX</option>
+        <option value="pdf">PDF</option>
       </select>
       <Button
         buttonStyle="secondary"

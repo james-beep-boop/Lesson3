@@ -17,6 +17,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { createRequire } from 'node:module'
 
 import { generateForBundle, NotExportableError } from '../generator/generateForBundle'
+import { docxToPdf, PdfConversionError } from '../generator/docxToPdf'
 import { parseLessonSequenceFormat } from './parseFormat'
 import { findReadableBundle } from '../lib/readBundle'
 import type { User } from '../payload-types'
@@ -31,6 +32,15 @@ const JSZip = require('jszip') as new () => {
 const safePrefix = (raw: unknown): string =>
   (typeof raw === 'string' ? raw : '').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
+/** `?as=docx|pdf` (default `docx`). PDF runs each DOCX through the docxToPdf seam. */
+const parseExportKind = (req: PayloadRequest): 'docx' | 'pdf' => {
+  const as = new URL(req.url ?? '', 'http://localhost').searchParams.get('as')
+  if (as !== null && as !== 'docx' && as !== 'pdf') {
+    throw new APIError(`Invalid as "${as}" — expected docx|pdf`, 400)
+  }
+  return as === 'pdf' ? 'pdf' : 'docx'
+}
+
 export const exportBundleEndpoint: Endpoint = {
   path: '/:id/export',
   method: 'get',
@@ -41,6 +51,7 @@ export const exportBundleEndpoint: Endpoint = {
     if (!id) throw new APIError('Missing bundle id', 400)
 
     const format = parseLessonSequenceFormat(req)
+    const kind = parseExportKind(req)
 
     // Authorization: enforce the caller's READ access before generating. A non-readable /
     // unpublished bundle is "not found" for this user (null); a real DB/runtime error propagates.
@@ -56,17 +67,33 @@ export const exportBundleEndpoint: Endpoint = {
     }
 
     const prefix = safePrefix(bundle.meta?.filePrefix)
+
+    // The up-to-three deliverables, in document order. FE/ST are null for some sub-strands.
+    const docs: { name: string; docx: Buffer }[] = [
+      { name: `${prefix}_CBE_LessonSequence`, docx: docx.lessonSequence },
+    ]
+    if (docx.finalExplanation) docs.push({ name: `${prefix}_FinalExplanation`, docx: docx.finalExplanation })
+    if (docx.summaryTable) docs.push({ name: `${prefix}_SummaryTable`, docx: docx.summaryTable })
+
+    const ext = kind === 'pdf' ? 'pdf' : 'docx'
     const zip = new JSZip()
-    zip.file(`${prefix}_CBE_LessonSequence.docx`, docx.lessonSequence)
-    if (docx.finalExplanation) zip.file(`${prefix}_FinalExplanation.docx`, docx.finalExplanation)
-    if (docx.summaryTable) zip.file(`${prefix}_SummaryTable.docx`, docx.summaryTable)
+    for (const d of docs) {
+      try {
+        const bytes = kind === 'pdf' ? await docxToPdf(d.docx, `${d.name}.docx`) : d.docx
+        zip.file(`${d.name}.${ext}`, bytes)
+      } catch (err) {
+        // The converter being down is an upstream/service failure, not a client error.
+        if (err instanceof PdfConversionError) throw new APIError(err.message, 502)
+        throw err
+      }
+    }
     const buf = await zip.generateAsync({ type: 'nodebuffer' })
 
     return new Response(new Uint8Array(buf), {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${prefix}_${format}.zip"`,
+        'Content-Disposition': `attachment; filename="${prefix}_${format}_${ext}.zip"`,
         'Content-Length': String(buf.length),
       },
     })

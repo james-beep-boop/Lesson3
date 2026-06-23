@@ -1,5 +1,33 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
+> **2026-06-22 (§5 smoke-test PASSED + PDF export slice — code-complete, deploying):**
+> - **§5 editor refinements browser smoke-test — ALL PASS on the Rock** (driven via Chrome MCP
+>   over Tailscale, real Teacher + Editor logins). Results: Teacher login redirects `/admin`→The App
+>   home; teacher format toggle Compact↔Standard re-renders server-side; **Teacher POST `/:id/preview`
+>   → 404** (edit-gated) while **GET → 200** (read-gated; the verb split holds); **Editor unsaved
+>   prose edit → Preview renders it** (banner "UNSAVED EDITS", nothing saved — stored bundle verified
+>   pristine afterwards); **Editor structural change (6→5 lessons) → 422**; oversize (>4 MB) → 413;
+>   array row labels via the shared `RowLabel` confirmed on all nested arrays (**Lesson N —**,
+>   **Phase N —**, **Section N —**, **Rubric row N —**). This closes the last open §5 item.
+> - **Cosmetic follow-up (not a failure):** lesson rows read "**Lesson 1 — Lesson 1 — …**" — `RowLabel`
+>   prepends `Lesson N —` but the stored `title` already begins with its own `Lesson N —`, so it doubles.
+>   Phase/Section/Rubric don't double. Fix later by stripping a leading `Lesson N —` in the lessons
+>   row label (or dropping the number prefix for that one array). See `components/RowLabel`.
+> - **PDF export slice (§9) — code-complete (tsc/eslint/compose all clean), deploying to the Rock.**
+>   PDF = the generated DOCX run through a **local office engine** (one source of layout truth), via a
+>   swappable `docxToPdf(buffer)` seam → a **Gotenberg sidecar** (`gotenberg/gotenberg:8`, internal-only,
+>   no exposed port — matches the Postgres posture). New `?as=pdf` on the export endpoint reuses the
+>   exact READ gate (`findReadableBundle` + `generateForBundle`) then converts each DOCX (502 if the
+>   converter is down); DOCX/PDF picker added to the admin Export button + the teacher download links.
+>   New files: `src/generator/docxToPdf.ts`, `scripts/pdf-fidelity-check.ts`; `GOTENBERG_URL` in
+>   `.env.example`. **Jobs Queue DEFERRED** (approved fallback): synchronous convert ships first
+>   (a single sub-strand is a few seconds); the async queue (Payload `jobs.tasks` generatePdf +
+>   in-process runner + enqueue/poll) is the immediate follow-up.
+> - **➡ Still to run on the Rock (needs the live box):** (a) `pdf-fidelity-check.ts` — the go/no-go
+>   on Gotenberg layout fidelity; needs **3 Word-produced oracle PDFs** staged in `ARES_DEMO_PATH`
+>   (`<name>.oracle.pdf`: open each approved DOCX in Word → Save as PDF) **+ poppler-utils +
+>   imagemagick** on the host. (b) The Jobs Queue async wrapper. (c) The row-label cosmetic fix.
+>
 > **SHIPPED + DEPLOYED 2026-06-22 (UNIT model + contract hard gate + clean re-ingest):**
 > - **Interim UNIT model fix DONE — the Sub-Strand Overview now renders end-to-end.** Modelled the
 >   17 canonical UNIT fields (was a dead `overview` stub), migration `add_unit_fields` applied on the

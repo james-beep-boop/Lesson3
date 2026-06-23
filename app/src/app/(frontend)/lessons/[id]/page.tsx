@@ -71,11 +71,17 @@ export default async function LessonView({
 
       <div className="export-bar">
         <span className="export-label">Download</span>
-        {(['standard', 'compact'] as const).map((format) => (
-          <a key={format} className="btn" href={`/api/lesson-bundles/${id}/export?format=${format}`}>
-            {format === 'standard' ? 'Standard' : 'Compact'} (.zip)
-          </a>
-        ))}
+        {(['standard', 'compact'] as const).flatMap((format) =>
+          (['docx', 'pdf'] as const).map((as) => (
+            <a
+              key={`${format}-${as}`}
+              className="btn"
+              href={`/api/lesson-bundles/${id}/export?format=${format}&as=${as}`}
+            >
+              {format === 'standard' ? 'Standard' : 'Compact'} {as.toUpperCase()} (.zip)
+            </a>
+          )),
+        )}
       </div>
 
       {viewError ? (
