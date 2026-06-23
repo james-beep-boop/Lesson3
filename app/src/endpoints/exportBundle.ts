@@ -11,20 +11,16 @@
  *     concurrency `limit`); the client polls the status URL, then re-requests this endpoint —
  *     now warm — to download. So this handler does at most a cache read + an enqueue: O(ms).
  *
- * SECURITY: this is the authorization boundary that the generator/job deliberately are NOT.
- * We re-read the bundle with the caller's OWN access (`findReadableBundle`, overrideAccess:false)
- * so read rules apply (a Teacher only matches published bundles), then assert published-only,
- * BEFORE serving or enqueuing. The job runs as a trusted system path on already-gated input.
+ * SECURITY: the authorization boundary (caller READ access + published-only) lives in the
+ * shared `authorizeExportRequest`; the generator/job deliberately do NOT re-check (trusted
+ * system path on already-gated input).
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
-import { assertExportable, NotExportableError } from '../generator/generateForBundle'
-import { loadCachedExportZip, type ArtifactSpec } from '../generator/exportArtifacts'
+import { loadCachedExportZip, safePrefix } from '../generator/exportArtifacts'
 import { GENERATE_ARTIFACT_SLUG, type GenerateArtifactInput } from '../jobs/generateArtifact'
-import { parseLessonSequenceFormat, parseExportKind } from './parseFormat'
-import { findReadableBundle } from '../lib/readBundle'
+import { authorizeExportRequest } from './exportAuth'
 import { enforceUserRateLimit } from '../lib/rateLimit'
-import type { User } from '../payload-types'
 
 export const exportBundleEndpoint: Endpoint = {
   path: '/:id/export',
@@ -37,28 +33,13 @@ export const exportBundleEndpoint: Endpoint = {
     const limited = enforceUserRateLimit(req, 'export')
     if (limited) return limited
 
-    const id = req.routeParams?.id as string | undefined
-    if (!id) throw new APIError('Missing bundle id', 400)
-
-    const format = parseLessonSequenceFormat(req)
-    const kind = parseExportKind(req)
-
-    // Authorization: enforce the caller's READ access, then published-only, before serving.
-    const bundle = await findReadableBundle(req.payload, { id, user: req.user as User, req })
-    if (!bundle) throw new APIError('Bundle not found', 404)
-    try {
-      assertExportable(bundle)
-    } catch (err) {
-      if (err instanceof NotExportableError) throw new APIError(err.message, 409)
-      throw err
-    }
-
-    const spec: ArtifactSpec = { bundleId: id, lockVersion: bundle.lockVersion, format, kind }
+    const { bundle, spec } = await authorizeExportRequest(req)
+    const { format, kind } = spec
 
     // WARM: serve the cached zip synchronously.
     const cached = await loadCachedExportZip(spec)
     if (cached) {
-      const prefix = (bundle.meta?.filePrefix || 'bundle').replace(/[^A-Za-z0-9._-]/g, '_')
+      const prefix = safePrefix(bundle.meta?.filePrefix)
       return new Response(new Uint8Array(cached), {
         status: 200,
         headers: {
@@ -69,21 +50,16 @@ export const exportBundleEndpoint: Endpoint = {
       })
     }
 
-    // COLD: enqueue the heavy work and return 202 + a poll URL. (TypedJobs only knows the task
-    // slug after `generate:types` runs on the Rock; the input is validated by the task schema.)
+    // COLD: enqueue the heavy work and return 202 + a poll URL.
     const input: GenerateArtifactInput = {
-      bundleId: Number(id),
+      bundleId: Number(spec.bundleId),
       lockVersion: Number(bundle.lockVersion ?? 0),
       format,
       kind,
     }
-    const job = (await req.payload.jobs.queue({
-      task: GENERATE_ARTIFACT_SLUG,
-      input,
-      req,
-    } as Parameters<typeof req.payload.jobs.queue>[0])) as { id: string | number }
+    const job = await req.payload.jobs.queue({ task: GENERATE_ARTIFACT_SLUG, input, req })
 
-    const statusUrl = `/api/lesson-bundles/${id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
+    const statusUrl = `/api/lesson-bundles/${spec.bundleId}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
     return new Response(
       JSON.stringify({ status: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }),
       { status: 202, headers: { 'Content-Type': 'application/json' } },

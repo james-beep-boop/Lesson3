@@ -48,12 +48,21 @@ installed source before building (knowledge-currency rule): `jobs.tasks` + `jobs
   states, because a plain `<a href>`/navigation can't follow a 202. No importMap change (these are
   ordinary ESM imports inside already-registered client components, not new component-path entries).
 - **Typing around `TypedJobs`:** the task is typed by its I/O *shape* (`TaskConfig<{ input; output }>`)
-  not its slug, and the `payload-jobs` slug + `jobs.queue` slug are cast locally — all three only
-  enter the generated types after `generate:types` runs on the Rock. Keeps local tsc green pre-regen
-  and stays clean post-regen. **Deploy = schema-change path:** on the Rock, `generate:types` +
-  `migrate:create` (commit both), then `up -d --build`. Two follow-ups noted: completed jobs are kept
-  (no auto-delete) for failure visibility → periodic cleanup later; the status endpoint is unthrottled
-  (cheap, but a generous limiter could be added).
+  not its slug, which keeps it strongly typed regardless of regen. The `payload-jobs`/`jobs.queue`
+  slug casts were needed only *before* the Rock ran `generate:types`; once `payload-types.ts` landed on
+  `main` (it now knows the `payload-jobs` collection + `generateArtifact` task) a follow-up `/simplify`
+  pass **removed those casts** and switched the status endpoint to the real `PayloadJob` type. **Deploy
+  = schema-change path:** on the Rock, `generate:types` + `migrate:create` (commit both), then
+  `up -d --build`. Two follow-ups noted: completed jobs are kept (no auto-delete) for failure
+  visibility → periodic cleanup later; the status endpoint is unthrottled (cheap, but a generous
+  limiter could be added).
+- **`/simplify` cleanup (post-merge, 2026-06-23, tsc/eslint clean):** the export download + status
+  endpoints share one `authorizeExportRequest` gate (`endpoints/exportAuth.ts`) so the read-access +
+  published-only check and `ArtifactSpec` can't drift between them; the now-redundant `TypedJobs` casts
+  were dropped (see above); `produceArtifacts` restored **concurrent** PDF conversion (`Promise.all`,
+  capped at the ≤3 deliverables — a serial-loop regression vs the original endpoint); and `safePrefix`
+  + the rate-limit `Bucket` type were de-duplicated to single sources. Behavior-preserving — re-run the
+  cold→ready→warm export smoke-test on the next Rock deploy to confirm at runtime.
 
 **Deployment traps hit on the Rock (both env/infra, not code) — fix for any new artifact-cache deploy:**
 1. **Named-volume root ownership.** A fresh Docker named volume mounts its path **root-owned**, but

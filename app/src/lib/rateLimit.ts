@@ -15,8 +15,6 @@ import type { PayloadRequest } from 'payload'
 
 import type { User } from '../payload-types'
 
-type Bucket = 'export' | 'preview'
-
 interface Limit {
   /** Max requests allowed within the window. */
   max: number
@@ -24,8 +22,11 @@ interface Limit {
   windowMs: number
 }
 
-/** Per-bucket limits, env-overridable. Defaults are generous for real use, tight on abuse. */
-const LIMITS: Record<Bucket, Limit> = {
+/**
+ * Per-bucket limits, env-overridable, and the single source of the `Bucket` type — add a bucket
+ * here and `enforceUserRateLimit` accepts it. Defaults are generous for real use, tight on abuse.
+ */
+const LIMITS = {
   export: {
     max: Number(process.env.RATE_LIMIT_EXPORT_MAX) || 20,
     windowMs: Number(process.env.RATE_LIMIT_EXPORT_WINDOW_MS) || 60_000,
@@ -34,7 +35,9 @@ const LIMITS: Record<Bucket, Limit> = {
     max: Number(process.env.RATE_LIMIT_PREVIEW_MAX) || 40,
     windowMs: Number(process.env.RATE_LIMIT_PREVIEW_WINDOW_MS) || 60_000,
   },
-}
+} satisfies Record<string, Limit>
+
+type Bucket = keyof typeof LIMITS
 
 /** key → ascending list of request timestamps (ms) still inside the window. */
 const hits = new Map<string, number[]>()

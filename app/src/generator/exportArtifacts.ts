@@ -54,7 +54,7 @@ const MANIFEST_DOC = '__manifest__'
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
 
 /** Strip a stored filePrefix to a safe bare filename component (no path/traversal). */
-const safePrefix = (raw: unknown): string =>
+export const safePrefix = (raw: unknown): string =>
   (typeof raw === 'string' ? raw : '').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
 const keyFor = (spec: ArtifactSpec, doc: string): string =>
@@ -105,19 +105,18 @@ export async function produceArtifacts(
   })) as LessonBundle
   const prefix = safePrefix(bundle.meta?.filePrefix)
   const docs = docListFor(prefix, generated)
+  // `generated` is already keyed by deliverable tag; docListFor only lists ones that exist.
+  const docxFor = (tag: string): Buffer => (generated as unknown as Record<string, Buffer>)[tag]
 
-  const sources: Record<string, Buffer> = {
-    lessonSequence: generated.lessonSequence,
-    ...(generated.finalExplanation ? { finalExplanation: generated.finalExplanation } : {}),
-    ...(generated.summaryTable ? { summaryTable: generated.summaryTable } : {}),
-  }
-
-  // Produce + cache each deliverable. PDF conversion is the heavy step; DOCX is passthrough.
-  for (const d of docs) {
-    const docxBytes = sources[d.tag]
-    const bytes = spec.kind === 'pdf' ? await convert(docxBytes, `${d.name}.docx`) : docxBytes
-    await putArtifact(keyFor(spec, d.tag), bytes)
-  }
+  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤3) onto the single
+  // Gotenberg sidecar, matching the prior synchronous endpoint's fan-out; then cache each.
+  const entries = await Promise.all(
+    docs.map(async (d) => ({
+      tag: d.tag,
+      bytes: spec.kind === 'pdf' ? await convert(docxFor(d.tag), `${d.name}.docx`) : docxFor(d.tag),
+    })),
+  )
+  for (const e of entries) await putArtifact(keyFor(spec, e.tag), e.bytes)
 
   // Manifest LAST — its presence means every deliverable above is already cached.
   await putArtifact(keyFor(spec, MANIFEST_DOC), Buffer.from(JSON.stringify({ docs } satisfies Manifest)))

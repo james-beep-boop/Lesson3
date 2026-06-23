@@ -33,6 +33,11 @@ The chronological build log (newest on top). This is **history**, kept for prove
   `.env`** (+ recreate the container) or the cache falls back to the non-writable `/app/.artifact-cache`.
 - **Still open:** the formal PDF **fidelity gate** (`scripts/pdf-fidelity-check.ts`) — conversion is
   proven, the layout-faithfulness measurement still needs Rock-side ImageMagick + 3 Word oracle PDFs.
+- **Post-merge `/simplify` cleanup** (tsc/eslint clean; behavior-preserving): shared
+  `authorizeExportRequest` gate (`endpoints/exportAuth.ts`) across export + status; removed the
+  now-redundant `TypedJobs` casts (types regenerated); restored **concurrent** PDF conversion in
+  `produceArtifacts` (a serial-loop regression); de-duplicated `safePrefix` + the rate-limit `Bucket`
+  type. Not yet runtime-verified on the Rock — re-run the export smoke-test on the next deploy.
 
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-22 (§5 smoke-test PASSED + PDF export slice live)
 

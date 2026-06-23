@@ -70,7 +70,7 @@ export async function getArtifact(key: string): Promise<Buffer | null> {
 export async function putArtifact(key: string, bytes: Buffer): Promise<void> {
   await fs.mkdir(CACHE_DIR, { recursive: true })
   const file = fileForKey(key)
-  const tmp = path.join(CACHE_DIR, `.${createHash('sha256').update(key).digest('hex')}.${process.pid}.tmp`)
+  const tmp = `${file}.${process.pid}.tmp` // unique per writer; derived from the final path (no re-hash)
   await fs.writeFile(tmp, bytes)
   await fs.rename(tmp, file)
   await evictIfNeeded()
