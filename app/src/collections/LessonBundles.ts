@@ -12,6 +12,7 @@ import {
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
 import { exportBundleEndpoint } from '../endpoints/exportBundle'
+import { exportStatusEndpoint } from '../endpoints/exportStatus'
 import { previewBundleEndpoint, previewBundleUnsavedEndpoint } from '../endpoints/previewBundle'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { enforceBundleStructure } from '../hooks/bundleIntegrity'
@@ -90,8 +91,11 @@ export const LessonBundles: CollectionConfig = {
     },
   },
   endpoints: [
-    // GET /:id/export?format=standard|compact — READ-gated, published-only (SPEC §9).
+    // GET /:id/export?format=standard|compact&as=docx|pdf — READ-gated, published-only.
+    // Warm → 200 .zip; cold → 202 + enqueue the generateArtifact job (SPEC §9; readiness #1).
     exportBundleEndpoint,
+    // GET /:id/export/status?jobId=… — poll an enqueued export job (preparing/ready/error).
+    exportStatusEndpoint,
     // GET /:id/preview?format=standard|compact — READ-gated, draft-capable HTML view (SPEC §5).
     previewBundleEndpoint,
     // POST /:id/preview — same gate; renders the editor's current UNSAVED form state (SPEC §5).

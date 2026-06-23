@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-23 — Phase 5 (readiness #1): artifact cache + per-user rate limit + Jobs Queue async export
+
+**Code-complete locally (tsc 0 / eslint 0); NOT yet deployed/verified on the Rock.** Closes the
+"heavy generation is synchronous + unthrottled" top risk and finishes the deferred async half of
+the PDF slice. Verified the Payload **3.85.1** APIs against installed source before building
+(knowledge-currency rule): `jobs.tasks` + `jobs.autoRun` exist; **Payload 3 has NO built-in
+`rateLimit`** (dropped from v2's Express server — confirmed absent in `config/types.d.ts`), so the
+limiter is necessarily custom.
+
+- **Artifact cache behind a seam** (`generator/artifactCache.ts`). Generation is content-stable, so
+  bytes are cached by `(bundleId, lockVersion, format, kind, doc)` — **`lockVersion` is the
+  cache-buster** (it bumps on every bundle update, so an edit/republish auto-invalidates). Bounded
+  on-disk LRU (atomic temp+rename writes; oldest-by-mtime eviction over `ARTIFACT_CACHE_MAX_BYTES`).
+  Deliberately NOT a Payload media/storage layer (SPEC §9 defers persistence); swappable for object
+  storage later. Durable across `up --build` via a **`lesson3_artifact_cache` named volume** on the
+  `app` service (a cache wiped every deploy is near-useless). A warm `?as=pdf` export now skips
+  Gotenberg entirely (the 120s-timeout path).
+- **Per-user rate limit** (`lib/rateLimit.ts`) on export + both preview verbs → `429 + Retry-After`.
+  In-memory sliding window, keyed by user id. **Per-process** (not shared across replicas; resets on
+  restart) — correct for the single-box Rock; must move to a shared store if ever horizontally
+  scaled. This bounds the *request rate*; the queue `limit` bounds *concurrency* — both needed.
+- **Jobs Queue async export** (`jobs/generateArtifact.ts` + `jobs` config). Defining the task creates
+  the **`payload-jobs` collection → a migration** (generate on the Rock per the runbook). In-process
+  `autoRun` cron (`*/3 * * * * *`, 6-field seconds — croner supports it; `_initializeCrons` is gated
+  `!isNextBuild()` so it never fires during `next build`) with **`limit` as the GLOBAL concurrency
+  cap** on heavy conversions. Export endpoint is now **two-phase**: warm → `200` .zip synchronously;
+  cold → enqueue + **`202`** + a status URL. New `GET …/export/status?jobId=` reports
+  preparing/ready/error (binds the job to the bundle so a jobId can't probe unrelated jobs). The job
+  output carries **no bytes** — artifacts live only in the cache; a manifest entry written LAST is
+  the "ready" sentinel. Shared `generator/exportArtifacts.ts` is the single source of cache keys +
+  zip assembly for both the sync endpoint and the async job (they cannot drift).
+- **Frontend follows the 202 handshake** (`components/exportClient.ts`): the admin Export button and
+  teacher download links are now JS-driven (fetch → poll → blob download) with Preparing…/error
+  states, because a plain `<a href>`/navigation can't follow a 202. No importMap change (these are
+  ordinary ESM imports inside already-registered client components, not new component-path entries).
+- **Typing around `TypedJobs`:** the task is typed by its I/O *shape* (`TaskConfig<{ input; output }>`)
+  not its slug, and the `payload-jobs` slug + `jobs.queue` slug are cast locally — all three only
+  enter the generated types after `generate:types` runs on the Rock. Keeps local tsc green pre-regen
+  and stays clean post-regen. **Deploy = schema-change path:** on the Rock, `generate:types` +
+  `migrate:create` (commit both), then `up -d --build`. Two follow-ups noted: completed jobs are kept
+  (no auto-delete) for failure visibility → periodic cleanup later; the status endpoint is unthrottled
+  (cheap, but a generous limiter could be added).
+
 ## 2026-06-22 — PDF export slice (§9): Gotenberg sidecar behind a `docxToPdf` seam
 
 PDF export shipped as a first slice and is **live on the Rock**. The locked SPEC §9 constraints

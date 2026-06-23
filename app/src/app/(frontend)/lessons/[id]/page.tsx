@@ -7,6 +7,7 @@ import { findReadableBundle } from '@/lib/readBundle'
 import { generateForBundle, NotExportableError } from '@/generator/generateForBundle'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
+import DownloadButtons from './DownloadButtons'
 
 export default async function LessonView({
   params,
@@ -75,17 +76,7 @@ export default async function LessonView({
 
       <div className="export-bar">
         <span className="export-label">Download</span>
-        {(['standard', 'compact'] as const).flatMap((format) =>
-          (['docx', 'pdf'] as const).map((as) => (
-            <a
-              key={`${format}-${as}`}
-              className="btn"
-              href={`/api/lesson-bundles/${id}/export?format=${format}&as=${as}`}
-            >
-              {format === 'standard' ? 'Standard' : 'Compact'} {as.toUpperCase()} (.zip)
-            </a>
-          )),
-        )}
+        <DownloadButtons id={id} />
       </div>
 
       {viewError ? (

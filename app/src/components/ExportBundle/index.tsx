@@ -11,12 +11,14 @@
  *   - disabled with a hint when no published version exists (export is published-only;
  *     `hasPublishedDoc` is false). The format is a per-export choice, never stored.
  *
- * The download is a same-origin GET, so the admin auth cookie rides along and the
- * endpoint sees `req.user`. We navigate via window.location: the attachment
- * Content-Disposition makes the browser download without unloading this page.
+ * Export is two-phase (SPEC §9; readiness #1): a warm request downloads the .zip; a cold one
+ * returns 202 while the generateArtifact job runs. So we drive it through `downloadExport`
+ * (fetch → poll → download) instead of a plain navigation, and surface a "Preparing…" state.
  */
 import React, { useState } from 'react'
 import { Button, useDocumentInfo } from '@payloadcms/ui'
+
+import { downloadExport, type ExportState } from '../exportClient'
 
 type Format = 'standard' | 'compact'
 type Kind = 'docx' | 'pdf'
@@ -25,15 +27,29 @@ export default function ExportBundle() {
   const { id, hasPublishedDoc } = useDocumentInfo()
   const [format, setFormat] = useState<Format>('standard')
   const [kind, setKind] = useState<Kind>('docx')
+  const [state, setState] = useState<ExportState>('idle')
+  const [error, setError] = useState<string | null>(null)
 
   // No id → unsaved document; nothing to export yet.
   if (!id) return null
 
   const exportable = hasPublishedDoc
+  const busy = state === 'preparing' || state === 'downloading'
   const onExport = () => {
-    if (!exportable) return
-    window.location.assign(`/api/lesson-bundles/${id}/export?format=${format}&as=${kind}`)
+    if (!exportable || busy) return
+    setError(null)
+    downloadExport(`/api/lesson-bundles/${id}/export?format=${format}&as=${kind}`, {
+      onState: (s, message) => {
+        setState(s)
+        if (s === 'error' && message) setError(message)
+      },
+    }).catch(() => {
+      /* state/error already set via onState */
+    })
   }
+
+  const buttonLabel =
+    state === 'preparing' ? 'Preparing…' : state === 'downloading' ? 'Downloading…' : 'Export .zip'
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
@@ -55,7 +71,7 @@ export default function ExportBundle() {
         aria-label="File type"
         value={kind}
         onChange={(e) => setKind(e.target.value as Kind)}
-        disabled={!exportable}
+        disabled={!exportable || busy}
         style={{ padding: '0.25rem', borderRadius: '4px' }}
       >
         <option value="docx">DOCX</option>
@@ -65,11 +81,16 @@ export default function ExportBundle() {
         buttonStyle="secondary"
         size="small"
         onClick={onExport}
-        disabled={!exportable}
+        disabled={!exportable || busy}
         tooltip={exportable ? undefined : 'Publish this bundle to enable export'}
       >
-        Export .zip
+        {buttonLabel}
       </Button>
+      {error ? (
+        <span role="alert" style={{ color: '#b00020', fontSize: '0.8rem' }}>
+          {error}
+        </span>
+      ) : null}
     </div>
   )
 }
