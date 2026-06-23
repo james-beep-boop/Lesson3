@@ -11,6 +11,62 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-22 — PDF export slice (§9): Gotenberg sidecar behind a `docxToPdf` seam
+
+PDF export shipped as a first slice and is **live on the Rock**. The locked SPEC §9 constraints
+(faithful / free / fully offline / self-hostable) were realised as decided on 2026-06-14.
+
+- **PDF = convert the generated DOCX, never a parallel renderer.** The same "one source of layout
+  truth" rule that limits the mammoth preview to *content*. We feed the generator's own DOCX bytes
+  to a **local office engine** and return its PDF — so the PDF reproduces the approved DOCX exactly.
+- **Engine = a Gotenberg sidecar** (`gotenberg/gotenberg:8`, multi-arch/arm64, offline), wrapping
+  headless LibreOffice. Packaged as a **separate compose service**, **internal-only — no published
+  host port** (same isolation posture as Postgres); the app reaches it at `http://gotenberg:3000`
+  (`GOTENBERG_URL`). Keeps the app image slim; the ~GB office engine lives in the sidecar.
+- **Seam = `src/generator/docxToPdf.ts`** — the *only* module that knows the engine
+  (`POST /forms/libreoffice/convert`; throws `PdfConversionError` → the endpoint maps it to **502**,
+  an upstream-service failure, not a client error). Callers depend on `docxToPdf(buffer) → buffer`,
+  so the engine can be swapped if the fidelity test ever favours another, without touching export.
+- **`?as=pdf` on the existing export endpoint** (default `docx`) — reuses the **exact same READ
+  gate** (`findReadableBundle` + `generateForBundle`, published-only) then converts each of the
+  three DOCX and zips the PDFs. No new auth surface. DOCX/PDF picker added to the admin Export
+  button and the teacher `/lessons/[id]` download links. **No schema change → no migration.**
+- **Synchronous first; Jobs Queue deferred (approved fallback).** A single sub-strand converts in
+  a few seconds, so the slice ships synchronously; the async Payload Jobs Queue
+  (`jobs.tasks` generatePdf + in-process runner + enqueue/poll) is the immediate follow-up, not a
+  blocker. This let the live slice land without queue plumbing that can't be verified off-Rock.
+- **Fidelity gate is the engine's go/no-go — written, not yet run.** `scripts/pdf-fidelity-check.ts`
+  converts the approved bio_1_4 DOCX via the seam and pixel-diffs each page (`pdftoppm` +
+  ImageMagick `compare`) against **Word's own DOCX→PDF** (same input both sides → pure converter
+  fidelity, so the Resource-column caveat the *generator* test carries does not apply). Blocked on:
+  ImageMagick on the Rock (poppler already present), 3 staged Word `*.oracle.pdf`, and a path to
+  reach the port-less `gotenberg`. **Conversion itself is proven live** (Teacher `?as=pdf` → zip of
+  3 valid `%PDF` docs); the gate measures *layout faithfulness*, which is the remaining evidence.
+- **Verified on the Rock** (commit `9ef5ccc`): `gotenberg /health` → 200 on the compose network;
+  authenticated `?as=pdf` export → 200 `application/zip` with 3 `%PDF` files. tsc 0 / eslint 0 /
+  `docker compose config` clean.
+
+## 2026-06-22 — §5 editor refinements: browser smoke-test ALL PASS on the Rock
+
+The three §5 refinements (live-unsaved preview, teacher Standard/Compact toggle, array row labels)
+were code-complete since 2026-06-17 but never clicked through with real role logins. Done now,
+driven via the Chrome MCP over Tailscale with seeded Teacher + Editor logins — **all checks pass**.
+
+- Teacher login at `/admin` → redirects to The App home (the 2026-06-22 redirect fix, in a browser).
+- Teacher format toggle Compact↔Standard re-renders server-side (`?format=`).
+- **`POST /:id/preview` is edit-gated:** Teacher POST → **404**, while GET → **200** (read-gated) —
+  the deliberate verb split holds. Editor **unsaved** prose edit → Preview renders it (banner
+  "UNSAVED EDITS"); the stored bundle was verified pristine afterwards (nothing saved).
+- Editor **structural** change (6→5 lessons) → **422**; oversize (>4 MB) `data` → **413**.
+- Shared `RowLabel` confirmed on every nested array: **Lesson N —**, **Phase N —**, **Section N —**,
+  **Rubric row N —**.
+- **Lesson — cosmetic follow-up:** lesson rows read "**Lesson 1 — Lesson 1 — …**" because `RowLabel`
+  prepends `Lesson N —` while the stored `title` already begins with its own `Lesson N —`. The other
+  arrays don't double (their source fields carry no such prefix). Fix later in `components/RowLabel`
+  (strip a leading `Lesson N —` for the lessons array, or drop its number prefix). **Rule:** when a
+  RowLabel's source field may already embed its own ordinal, the label's `noun N —` prefix can
+  duplicate it — pick the prefix per array against the field's actual content, not uniformly.
+
 ## 2026-06-22 — Teachers redirected from /admin to The App (no "unauthorized" error)
 
 A Teacher who authenticated against `/admin` (the admin login form, or a stale post-logout

@@ -1,6 +1,6 @@
 # Start-here for the next session — Phase 5+: §5 editor, PDF export, cross-user App features
 
-> **2026-06-22 (§5 smoke-test PASSED + PDF export slice — code-complete, deploying):**
+> **SHIPPED + DEPLOYED + VERIFIED 2026-06-22 (§5 smoke-test PASSED + PDF export slice live):**
 > - **§5 editor refinements browser smoke-test — ALL PASS on the Rock** (driven via Chrome MCP
 >   over Tailscale, real Teacher + Editor logins). Results: Teacher login redirects `/admin`→The App
 >   home; teacher format toggle Compact↔Standard re-renders server-side; **Teacher POST `/:id/preview`
@@ -13,20 +13,31 @@
 >   prepends `Lesson N —` but the stored `title` already begins with its own `Lesson N —`, so it doubles.
 >   Phase/Section/Rubric don't double. Fix later by stripping a leading `Lesson N —` in the lessons
 >   row label (or dropping the number prefix for that one array). See `components/RowLabel`.
-> - **PDF export slice (§9) — code-complete (tsc/eslint/compose all clean), deploying to the Rock.**
+> - **PDF export slice (§9) — DEPLOYED + VERIFIED LIVE on the Rock (commit `9ef5ccc`).**
 >   PDF = the generated DOCX run through a **local office engine** (one source of layout truth), via a
 >   swappable `docxToPdf(buffer)` seam → a **Gotenberg sidecar** (`gotenberg/gotenberg:8`, internal-only,
 >   no exposed port — matches the Postgres posture). New `?as=pdf` on the export endpoint reuses the
 >   exact READ gate (`findReadableBundle` + `generateForBundle`) then converts each DOCX (502 if the
 >   converter is down); DOCX/PDF picker added to the admin Export button + the teacher download links.
 >   New files: `src/generator/docxToPdf.ts`, `scripts/pdf-fidelity-check.ts`; `GOTENBERG_URL` in
->   `.env.example`. **Jobs Queue DEFERRED** (approved fallback): synchronous convert ships first
->   (a single sub-strand is a few seconds); the async queue (Payload `jobs.tasks` generatePdf +
->   in-process runner + enqueue/poll) is the immediate follow-up.
-> - **➡ Still to run on the Rock (needs the live box):** (a) `pdf-fidelity-check.ts` — the go/no-go
->   on Gotenberg layout fidelity; needs **3 Word-produced oracle PDFs** staged in `ARES_DEMO_PATH`
->   (`<name>.oracle.pdf`: open each approved DOCX in Word → Save as PDF) **+ poppler-utils +
->   imagemagick** on the host. (b) The Jobs Queue async wrapper. (c) The row-label cosmetic fix.
+>   `.env.example` (+ added to the Rock's `/srv/lesson3/.env`). **Verified live:** `gotenberg /health`
+>   → 200 on the compose network; an authenticated Teacher `?as=pdf` export of bundle 66 → **200
+>   `application/zip`** holding **3 valid PDFs** (LessonSequence/FinalExplanation/SummaryTable, each
+>   `%PDF`). No schema change → no migration. **Jobs Queue DEFERRED** (approved fallback): synchronous
+>   convert is live and fast enough (a single sub-strand is a few seconds); the async queue (Payload
+>   `jobs.tasks` generatePdf + in-process runner + enqueue/poll) is the immediate follow-up.
+> - **➡ Deferred to next session (3 follow-ups):**
+>   1. **Formal PDF fidelity gate** (`pdf-fidelity-check.ts`) — conversion is proven, but the
+>      layout-vs-Word measurement hasn't run. Needs, on the Rock: **ImageMagick** installed
+>      (`pdftoppm`/poppler is already present; `compare`/`identify` are MISSING); **3 Word oracle
+>      PDFs** staged as `<name>.oracle.pdf` in `/srv/lesson3/out/ares-demo` (open each approved DOCX
+>      in Word → Save as PDF); and a path to reach `gotenberg` from where the tools run (it has **no
+>      host port** — either temporarily expose it, or run the script in a tooling image on
+>      `lesson3_default`). Then `npx tsx scripts/pdf-fidelity-check.ts`.
+>   2. **Jobs Queue async wrapper** for PDF (above).
+>   3. **Row-label doubling** cosmetic fix (above).
+>   - Left open on the Rock browser: an **Editor edit tab on bundle 66 with the unsaved
+>     `ZZTESTUNSAVED` marker** (never saved — bundle verified pristine). Close it + "Leave" to discard.
 >
 > **SHIPPED + DEPLOYED 2026-06-22 (UNIT model + contract hard gate + clean re-ingest):**
 > - **Interim UNIT model fix DONE — the Sub-Strand Overview now renders end-to-end.** Modelled the
@@ -270,15 +281,15 @@ fixed (the `payload run` silent no-op) are in DECISIONS. Bundle 33 is published 
 
 1. ~~**Repeatable round-trip regression.**~~ **DONE 2026-06-17** — `scripts/roundtrip-regression.ts`,
    3/3 on the Rock, self-cleaning. See the SHIPPED note above + DECISIONS.
-2. **§5 editor refinements** — **code-complete 2026-06-17** (live-unsaved preview + teacher
-   Standard/Compact toggle + array row labels; see the SHIPPED note above). **Pending Rock
-   functional verify** (`up -d --build`). Still open after that lands: deeper edit-screen
-   ergonomics (tabs/collapsible grouping of the big nested structure) if wanted; the unverified
-   edge case (non-readable draft → 404 for a Teacher — proven by the access rule, not yet clicked).
-3. **PDF export** (§9) — constraints locked (offline/free/faithful → local office engine via a
-   swappable `docxToPdf(buffer)` seam, Jobs Queue, golden-file fidelity test to pick the engine).
-   This is also the **faithful on-screen layout/colour view** (the HTML preview is content-only by
-   design — see the column-width decision in DECISIONS 2026-06-16). See DECISIONS 2026-06-14.
+2. ~~**§5 editor refinements.**~~ **DONE 2026-06-22** — code-complete + **browser smoke-test ALL
+   PASS on the Rock** (see the top SHIPPED entry). Optional leftovers if wanted: deeper edit-screen
+   ergonomics (tabs/collapsible grouping of the big nested structure); the row-label doubling fix.
+3. **PDF export** (§9) — **first slice DEPLOYED + LIVE 2026-06-22** (Gotenberg sidecar +
+   `docxToPdf` seam + `?as=pdf`; see the top SHIPPED entry + DECISIONS 2026-06-22). **Remaining:**
+   the **formal fidelity gate** (`pdf-fidelity-check.ts` — needs ImageMagick + Word oracle PDFs +
+   gotenberg reachability) and the **Jobs Queue async wrapper**. PDF is also the **faithful
+   on-screen layout/colour view** (the HTML preview is content-only by design — see DECISIONS
+   2026-06-16). Original constraints: DECISIONS 2026-06-14.
 4. **Cross-user App features** (§10): email-a-doc, internal messaging + notifications, translation
    (Swahili), AI. The unified App now has browse → view → preview → export.
 5. **(Minor, optional) Skip the semver bump on a no-op publish** — currently any `update` bumps
