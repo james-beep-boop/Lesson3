@@ -38,6 +38,15 @@ The chronological build log (newest on top). This is **history**, kept for prove
   now-redundant `TypedJobs` casts (types regenerated); restored **concurrent** PDF conversion in
   `produceArtifacts` (a serial-loop regression); de-duplicated `safePrefix` + the rate-limit `Bucket`
   type. Not yet runtime-verified on the Rock — re-run the export smoke-test on the next deploy.
+- **External audit (GPT-5.5, 2026-06-23) + fixes** (tsc/eslint clean; **not yet runtime-verified**):
+  - **Jobs surface locked down** (`5b58b41`): Payload's job defaults were open (run endpoint
+    `() => true`; `payload-jobs` collection any-auth-user) → `jobs.access` + `jobsCollectionOverrides`
+    restrict to Site Admins / system path. **High finding.**
+  - **Async-export correctness** (`8bede30`): per-write-unique cache temp file (concurrent-write race),
+    `isExportReady` now verifies every artifact not just the manifest, and the status poll returns
+    `409 retry` on stale `lockVersion`/expired artifacts instead of spinning at "preparing".
+  - **Deferred:** audit #3 (GET `/export` enqueues → move to POST) — held to pair with Rock runtime
+    verification. Remaining audit items (#2/#7–#12) are the hardening backlog (NEXT-SESSION).
 
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-22 (§5 smoke-test PASSED + PDF export slice live)
 

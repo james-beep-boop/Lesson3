@@ -11,13 +11,45 @@ exports high-fidelity DOCX/PDF by reusing ARES's own generator. Node/TypeScript 
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-Then propose a plan for ONE next phase (see "Choose the next phase" below) before editing anything.
+**Do this BEFORE planning a new phase** (see "▶ Start the next session here" below) — there is a
+defined, in-flight sequence to resume, not a blank-slate phase choice.
 
 ---
 
-## Where things stand (as of 2026-06-23, origin/main `aff318a`)
+## ▶ Start the next session here (defined sequence — resume, don't re-plan)
 
-**Phases 0–5 are done and the architecture is validated end-to-end.** What's live and proven on the
+An external audit (GPT-5.5, 2026-06-23) reviewed Phase 5; fixes landed on `main` (`8bede30`) but the
+**Rock was redeployed separately and the deployed code is NOT yet runtime-verified.** So:
+
+1. **FIRST: verify normal export still works on the Rock.** The Rock now runs the jobs-access lockdown
+   (`5b58b41`), the `/simplify` refactor (`0330efa`), and the async-export correctness fixes
+   (`8bede30`) — none runtime-proven. Smoke-test (curl recipe in DECISIONS / prior sessions): cold
+   export → `202` → status `ready` → warm export → `200 application/zip`. Also confirm the lockdown:
+   Teacher `POST /api/payload-jobs` → **403**, unauth `POST /api/payload-jobs/run` → **401/403**.
+   If anything regressed, fix forward before new work.
+2. **THEN work the remaining audit items, in this order** (full list + dispositions in the backlog
+   below; DECISIONS 2026-06-23 has the detail):
+   - **(1) Audit #3 — GET `/export` enqueues (not idempotent / CSRF):** make GET serve-only and move
+     enqueue to a `POST /export` (SameSite=Lax blocks cross-site POST → closes the vector) + the
+     matching client handshake change. **Pair with the runtime verification in step 1** so the whole
+     async flow is proven end-to-end. *(Deferred from the audit precisely to verify, not blind-ship.)*
+   - **(2) Cheap/safe hardening:** **#11 pagination** (browse `limit:200` → page/search) and
+     **#9 GraphQL/Playground gating** (verify the exact Payload 3.85 `graphQL.disable` option against
+     installed source FIRST).
+   - **(3) Deliberate hardening (individual attention — do NOT batch blind):** **#7 CSP +
+     HTML-sanitization** (adds a dep), **#8 optimistic concurrency** (MUST exempt ingest/migration
+     system-writes or it breaks ingest), **#10 real endpoint/authz test harness** (DB → Rock),
+     **#2 dependency advisories** (deliberate Payload/transport upgrade, not a blind bump),
+     **#12 PDF-fidelity gate in CI**.
+
+---
+
+## Where things stand (as of 2026-06-23, origin/main `8bede30`)
+
+**Phases 0–5 are done and the architecture is validated end-to-end.** Note: commits after the Phase 5
+merge — `/simplify` refactor (`0330efa`), jobs-access lockdown (`5b58b41`), and async-export
+correctness fixes (`8bede30`) — are on `main` but **were redeployed to the Rock separately and are NOT
+yet runtime-verified** (see "▶ Start the next session here", step 1). What's live and proven on the
 Rock (the deploy/verification box — see "Rock" below):
 
 - **Ingest** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one all-or-nothing
@@ -47,21 +79,20 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 
 ---
 
-## Choose the next phase (propose a plan for one)
+## Choose the next phase (only after the start-here sequence above)
 
-1. **Production hardening** — the chosen track (2026-06-23). With Phase 5's queue/cache/throttle
-   substrate in place, work the readiness backlog below: dep advisories (#2), CSP/sanitization (#3),
-   optimistic concurrency (#4), real endpoint/authz tests (#6), GraphQL gating (#7), pagination (#8),
-   ops/Sentry/backups (#9). *Recommended — shifts the system from "validated" to "deployable for real."*
+The immediate work is the **defined sequence in "▶ Start the next session here"** (verify the Rock
+redeploy, then audit #3, then the hardening backlog) — that IS the chosen track (production hardening,
+decided 2026-06-23). The options below are the bigger picture once that sequence is worked down:
+
+1. **Production hardening** — the chosen/in-flight track. The audit (2026-06-23) refined the backlog
+   below; work it in the start-here order. *Shifts the system from "validated" to "deployable for real."*
 2. **Cross-user "The App" features (§10)** — the other major track. Email-a-doc, internal messaging +
    notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
    collections/endpoints/hooks + the **now-live Jobs Queue**; none touches the generator/versioning
-   core. SPEC §10. *Recommended if you want forward product progress instead of hardening.*
-3. **Finish PDF (§9)** — only the **formal PDF fidelity gate** remains (the Jobs Queue async wrapper
-   landed in Phase 5). Small, Rock-side ops; can ride along with any track. See in-flight follow-ups.
-
-Recommend one to the user with a one-line rationale, then plan it. (Smaller wins in the next section
-can ride along or be done standalone.)
+   core. SPEC §10. *Pick this for forward product progress instead of hardening.*
+3. **Finish PDF (§9)** — only the **formal PDF fidelity gate** remains (audit #12). Small, Rock-side
+   ops; can ride along with any track. See in-flight follow-ups.
 
 ## In-flight follow-ups (small, already scoped)
 
@@ -88,6 +119,13 @@ can ride along or be done standalone.)
 **Do not soften this:** Codex (2026-06-22) found **no current Critical/High *exploitable application
 bug***, but that is NOT "production-ready." The system must not serve real users / sensitive data at
 scale until ALL of these land:
+
+**External audit (GPT-5.5, 2026-06-23) — Phase-5 items already resolved (see DECISIONS):** the Payload
+**jobs surface was open by default** (run endpoint `() => true`; collection fell back to any-auth-user)
+→ **locked down** (`jobs.access` + `jobsCollectionOverrides`, `5b58b41`); and three async-export
+correctness bugs — temp-file race, manifest-only readiness, stale-`lockVersion` stuck poll — **fixed**
+(`8bede30`). **Deferred → start-here item (1):** audit **#3** GET `/export` enqueues (not idempotent /
+CSRF) → move enqueue to `POST`. The numbered items below are the remaining hardening backlog.
 
 1. **~~Heavy generation is synchronous + unthrottled~~ — CLOSED (Phase 5, 2026-06-23).** Fixed with
    the **Jobs Queue + per-user rate-limit + artifact cache** (deployed + verified live). Heavy
