@@ -15,9 +15,9 @@ Then propose a plan for ONE next phase (see "Choose the next phase" below) befor
 
 ---
 
-## Where things stand (as of 2026-06-22, origin/main `8caa6a2`)
+## Where things stand (as of 2026-06-23, origin/main `aff318a`)
 
-**Phases 0–4 are done and the architecture is validated end-to-end.** What's live and proven on the
+**Phases 0–5 are done and the architecture is validated end-to-end.** What's live and proven on the
 Rock (the deploy/verification box — see "Rock" below):
 
 - **Ingest** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one all-or-nothing
@@ -34,6 +34,12 @@ Rock (the deploy/verification box — see "Rock" below):
 - **§9 export** — DOCX **and PDF** (`GET /api/lesson-bundles/:id/export?format=standard|compact&as=docx|pdf`),
   READ-access-gated, published-only. PDF = the generated DOCX converted by a **Gotenberg sidecar**
   via the `docxToPdf(buffer)` seam. **Live + verified.**
+- **§9/§11 async export (Phase 5) — readiness #1 closed. Live + verified 2026-06-23.** Export is now
+  two-phase: warm → `200` zip; cold → enqueue the `generateArtifact` **Jobs Queue** task + `202` + a
+  status URL (`GET …/export/status?jobId=`). An **artifact cache** (content-addressed by
+  `lockVersion`, on a `lesson3_artifact_cache` named volume) makes repeats free; a **per-user rate
+  limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
+  heavy conversions. Frontend follows the 202 → poll → download handshake. See DECISIONS 2026-06-23.
 - **Corpus** = 13 published bundles (10 Biology + 3 Math, Grade 10, ids 63–75), all carrying populated UNIT.
 
 **The Rock is an explicit NON-PRODUCTION verification environment** — not production-ready (see the
@@ -43,22 +49,22 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 
 ## Choose the next phase (propose a plan for one)
 
-1. **Cross-user "The App" features (§10)** — the natural next major phase. Email-a-doc, internal
-   messaging + notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
-   collections/endpoints/hooks + a Jobs Queue; none touches the generator/versioning core. SPEC §10.
-   *Recommended if you want forward product progress.*
-2. **Finish PDF (§9)** — the two deferred halves of the slice: (a) the **Jobs Queue async wrapper**
-   for heavy generation, (b) the **formal PDF fidelity gate**. See in-flight follow-ups below.
-3. **Production hardening** — required before real users / sensitive data. Work the readiness
-   backlog below. *Recommended if the goal is shifting from "validated" to "deployable for real."*
+1. **Production hardening** — the chosen track (2026-06-23). With Phase 5's queue/cache/throttle
+   substrate in place, work the readiness backlog below: dep advisories (#2), CSP/sanitization (#3),
+   optimistic concurrency (#4), real endpoint/authz tests (#6), GraphQL gating (#7), pagination (#8),
+   ops/Sentry/backups (#9). *Recommended — shifts the system from "validated" to "deployable for real."*
+2. **Cross-user "The App" features (§10)** — the other major track. Email-a-doc, internal messaging +
+   notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
+   collections/endpoints/hooks + the **now-live Jobs Queue**; none touches the generator/versioning
+   core. SPEC §10. *Recommended if you want forward product progress instead of hardening.*
+3. **Finish PDF (§9)** — only the **formal PDF fidelity gate** remains (the Jobs Queue async wrapper
+   landed in Phase 5). Small, Rock-side ops; can ride along with any track. See in-flight follow-ups.
 
 Recommend one to the user with a one-line rationale, then plan it. (Smaller wins in the next section
 can ride along or be done standalone.)
 
 ## In-flight follow-ups (small, already scoped)
 
-- **PDF Jobs Queue async wrapper** — synchronous convert is live; the async path (Payload `jobs.tasks`
-  generatePdf + in-process runner + enqueue/poll) is the immediate follow-up. *Closes readiness #1.*
 - **Formal PDF fidelity gate** (`app/scripts/pdf-fidelity-check.ts`) — conversion is proven; the
   layout-vs-Word measurement hasn't run. Needs, on the Rock: **ImageMagick** installed (poppler is
   present); **3 Word oracle PDFs** staged as `<name>.oracle.pdf` in `/srv/lesson3/out/ares-demo` (open
@@ -71,6 +77,11 @@ can ride along or be done standalone.)
   upstream. When fixed: re-pull `upstream`, stage into `out/ares-data`, ingest (the hard gate admits it).
 - **(Optional) Skip the semver bump on a no-op publish** — any `update` currently bumps semver; only
   do this if "mark official without editing shouldn't bump" is wanted.
+- **Phase 5 residuals (small):** completed `payload-jobs` rows are kept (no auto-delete) for failure
+  visibility → add periodic cleanup; the `…/export/status` endpoint is unthrottled (cheap, but a
+  generous limiter could be added); the `429` rate-limit was deployed but not yet eyeballed under a
+  burst (covered by the int-test work in readiness #6). The per-user limiter is **in-memory /
+  per-process** — fine on the single-box Rock; must move to a shared store if ever horizontally scaled.
 
 ## Production-readiness backlog (the Rock is NOT production)
 
@@ -78,10 +89,11 @@ can ride along or be done standalone.)
 bug***, but that is NOT "production-ready." The system must not serve real users / sensitive data at
 scale until ALL of these land:
 
-1. **Heavy generation is synchronous + unthrottled (live #1 risk).** Any authenticated user can
-   trigger DOCX+PDF conversion and tie up an app worker + Gotenberg for up to 120s/request. The 120s
-   `docxToPdf` timeout is only a floor-level guard. Real fix: **Jobs Queue + per-user rate-limit +
-   artifact cache** (covers generation incl. the preview POST).
+1. **~~Heavy generation is synchronous + unthrottled~~ — CLOSED (Phase 5, 2026-06-23).** Fixed with
+   the **Jobs Queue + per-user rate-limit + artifact cache** (deployed + verified live). Heavy
+   conversion no longer ties up an app worker (cold → `202` + enqueue, bounded by the queue `limit`);
+   repeats are free (cache); per-user `429` guards export + preview. Residuals tracked in the
+   follow-ups above (jobs cleanup, status-endpoint limiter, per-process limiter caveat) — none blocking.
 2. **Dependency advisories** — `npm audit` shows criticals/highs incl. `nodemailer`/`undici` via
    Payload's own deps. Resolve by a deliberate Payload/transport upgrade (not a blind bump).
 3. **CSP + HTML-sanitization posture** — generated Mammoth HTML is rendered with
@@ -130,10 +142,24 @@ Docker compose (`app` on host :3001, `postgres` + `gotenberg` internal-only, one
   docker compose up -d --build                          # one-shot `migrate` applies pending, then `app` starts
   ```
   Verify with `verify-rbac.ts` / `roundtrip-regression.ts` via the same deps-image + `--network` line.
+  *(The Phase 5 `payload-jobs` migration was generated + committed this way; it is now on `main`.)*
+- *Push from the Rock:* the Rock is normally pull-only (no git push credential, no `gh`, no SSH key).
+  When the Rock must push (e.g. it generated types/migration), push once over HTTPS with a short-lived
+  fine-grained PAT: `git push "https://<user>:<TOKEN>@github.com/<owner>/Lesson3.git" <branch>`.
+
+**Artifact cache (Phase 5):** generated DOCX/PDF bytes are cached on a **`lesson3_artifact_cache`
+named volume** at `ARTIFACT_CACHE_DIR=/var/cache/lesson3`. **Two deploy gotchas (see DECISIONS
+2026-06-23):** a fresh named volume mounts **root-owned** but the app runs as `nextjs` (uid 1001) —
+the Dockerfile now pre-creates + `chown`s the dir, but if you ever wipe the volume confirm it's
+writable; and **`ARTIFACT_CACHE_DIR` must be set in `.env`** (then `up -d --force-recreate app`) or
+the cache silently falls back to the non-writable `/app/.artifact-cache` and every export job fails
+with `EACCES` (stuck at `202`). The job error names the exact failing path — that tells you which.
 
 **Env** (`.env` on the Rock; `app/.env.example` documents all): `DATABASE_URI`, `PAYLOAD_SECRET`,
 `ADMIN_URL`, optional `SERVER_URL` (leave EMPTY on internal/plain-HTTP — strict CSRF bounces some
-browsers), SMTP_*, `GOTENBERG_URL=http://gotenberg:3000`, `GOTENBERG_TIMEOUT_MS=120000`.
+browsers), SMTP_*, `GOTENBERG_URL=http://gotenberg:3000`, `GOTENBERG_TIMEOUT_MS=120000`,
+`ARTIFACT_CACHE_DIR=/var/cache/lesson3` (Phase 5; required), optional `ARTIFACT_CACHE_MAX_BYTES`,
+`RATE_LIMIT_*`, `JOBS_AUTORUN_CRON`/`JOBS_AUTORUN_LIMIT`.
 
 **Logins** — `app/scripts/seed-users.ts` seeds a Teacher / Editor / Subject-Admin (scoped to Biology
 G10 by default; passwords from `*_PASSWORD` env or printed once). The Rock already has Teacher +
