@@ -13,12 +13,13 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ## 2026-06-23 — Phase 5 (readiness #1): artifact cache + per-user rate limit + Jobs Queue async export
 
-**Code-complete locally (tsc 0 / eslint 0); NOT yet deployed/verified on the Rock.** Closes the
-"heavy generation is synchronous + unthrottled" top risk and finishes the deferred async half of
-the PDF slice. Verified the Payload **3.85.1** APIs against installed source before building
-(knowledge-currency rule): `jobs.tasks` + `jobs.autoRun` exist; **Payload 3 has NO built-in
-`rateLimit`** (dropped from v2's Express server — confirmed absent in `config/types.d.ts`), so the
-limiter is necessarily custom.
+**DEPLOYED + verified live on the Rock 2026-06-23** (commit `d3525c0`): cold export → `202` +
+enqueue → `autoRun` runner produced + cached the artifact → status `ready` → warm export → `200`
+zip with a valid PDF. Closes the "heavy generation is synchronous + unthrottled" top risk and
+finishes the deferred async half of the PDF slice. Verified the Payload **3.85.1** APIs against
+installed source before building (knowledge-currency rule): `jobs.tasks` + `jobs.autoRun` exist;
+**Payload 3 has NO built-in `rateLimit`** (dropped from v2's Express server — confirmed absent in
+`config/types.d.ts`), so the limiter is necessarily custom.
 
 - **Artifact cache behind a seam** (`generator/artifactCache.ts`). Generation is content-stable, so
   bytes are cached by `(bundleId, lockVersion, format, kind, doc)` — **`lockVersion` is the
@@ -53,6 +54,22 @@ limiter is necessarily custom.
   `migrate:create` (commit both), then `up -d --build`. Two follow-ups noted: completed jobs are kept
   (no auto-delete) for failure visibility → periodic cleanup later; the status endpoint is unthrottled
   (cheap, but a generous limiter could be added).
+
+**Deployment traps hit on the Rock (both env/infra, not code) — fix for any new artifact-cache deploy:**
+1. **Named-volume root ownership.** A fresh Docker named volume mounts its path **root-owned**, but
+   the Next standalone image runs as **uid 1001 `nextjs` / gid 65533 `nogroup`** (the scaffold's
+   `adduser` sets no `-G`, so the primary group is `nogroup`). So the app couldn't `mkdir`/write the
+   cache → the job failed with `EACCES` and the export stayed stuck at `202` forever. Fix: the
+   Dockerfile now `mkdir -p /var/cache/lesson3 && chown nextjs:nogroup` **before `USER nextjs`**, so a
+   fresh volume initialises writable (a new named volume inherits the image dir's ownership). The
+   existing Rock volume was `chown`ed live (persists in the volume). **Lesson: any writable named
+   volume on this image must be pre-created + chowned to `nextjs:nogroup` in the Dockerfile.**
+2. **Missing `ARTIFACT_CACHE_DIR`.** Without the env var the cache fell back to its in-image default
+   `/app/.artifact-cache`, which the non-root user also can't create → same `EACCES`. The var must be
+   in the Rock `.env` (`/var/cache/lesson3`) AND the container recreated (`up -d --force-recreate app`)
+   for it to take, since `env_file` is read at container create. **Diagnosis tip: the job error names
+   the exact failing path — `mkdir '/app/.artifact-cache'` vs `/var/cache/lesson3` instantly tells you
+   whether the env var or the volume ownership is wrong.** Both are now in `.env.example` + this entry.
 
 ## 2026-06-22 — PDF export slice (§9): Gotenberg sidecar behind a `docxToPdf` seam
 
