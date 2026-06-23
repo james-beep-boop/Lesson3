@@ -300,9 +300,24 @@ rate-limit / Jobs-Queue for generation incl. the preview POST (#2); FE/ST hard g
 complete (#6); official-version model vs SPEC §6 (#7); dep advisories — vitest/postcss/esbuild (#3);
 global security headers + CSRF posture, incl. a **CSP on the teacher frontend route** (#9/#10);
 **XSS: sanitize `docxToSections` output when Resource links land (#4)**; **optimistic concurrency —
-check `lockVersion` on user updates, not just increment it (#4-conc)**; **add HTTP int tests for the
-preview POST** (Teacher→404, Editor structural→422, oversize→413; needs an auth+role fixture harness
-the current `tests/int/api.int.spec.ts` lacks).
+check `lockVersion` on user updates, not just increment it (#4-conc)** — must EXEMPT system/ingest
+paths (`overrideAccess` republish, migrations) from a stale-`lockVersion` 409 or it breaks ingest;
+**add HTTP int tests for the preview POST** (Teacher→404, Editor structural→422, oversize→413; needs
+an auth+role fixture harness the current `tests/int/api.int.spec.ts` lacks).
+
+**New (Codex 2026-06-22 review of the PDF slice; the PDF-specific items it raised were either fixed
+— Gotenberg request timeout + teacher-render logging — or already above):**
+- **Disable GraphQL + GraphQL Playground** (`payload.config.ts`) — scaffold-mounted but the app is
+  REST/admin-driven; access controls still apply so it's recon surface, not a hole. Verify the exact
+  Payload `graphQL.disable` option against installed source before applying.
+- **Lesson browse hard-limits at `limit: 200`** with no pagination (`(frontend)/page.tsx`) — content
+  becomes undiscoverable once the corpus grows to hundreds (expected). Add page/search.
+- **Frontend e2e is stale scaffold** (`tests/e2e/frontend.e2e.spec.ts` asserts the blank Payload
+  template) — replace with real teacher browse→view→export coverage, or remove.
+- **Synchronous unthrottled generation** is the live ranked-#1 risk — the `docxToPdf` request timeout
+  is now the floor; the real fix is the deferred Jobs Queue + per-user rate-limit + artifact cache
+  (folds into #2 above). Codex confirmed **no current Critical/High application bug** — all
+  operational hardening, consistent with the Rock being non-production.
 
 **Phase 2+ — "The App" (decided 2026-06-14, see SPEC §2/§10 + DECISIONS):** a unified role-aware
 frontend (`app/src/app/(frontend)`) that ALL roles log into, over the same Payload backend, home to
