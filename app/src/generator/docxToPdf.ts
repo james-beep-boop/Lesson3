@@ -41,14 +41,22 @@ export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promi
   )
 
   const base = gotenbergUrl()
+  // Cap a hung conversion so it can't pin a Node request slot indefinitely (the converter is
+  // a separate process; a dead socket would otherwise block forever). This is the floor-level
+  // safety net — per-user rate-limiting + a Jobs Queue for the heavy path are the tracked
+  // follow-ups. Default sits at the sidecar's own --api-timeout (120s); override via env.
+  const timeoutMs = Number(process.env.GOTENBERG_TIMEOUT_MS) || 120_000
   let res: Response
   try {
     res = await fetch(`${base}/forms/libreoffice/convert`, {
       method: 'POST',
       body: form,
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {
-    throw new PdfConversionError(`PDF converter unreachable at ${base}: ${(err as Error).message}`)
+    throw new PdfConversionError(
+      `PDF converter unreachable or timed out at ${base}: ${(err as Error).message}`,
+    )
   }
 
   if (!res.ok) {

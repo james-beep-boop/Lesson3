@@ -41,10 +41,14 @@ export default async function LessonView({
   try {
     sections = await docxToSections(await generateForBundle(payload, id, format))
   } catch (e) {
-    viewError =
-      e instanceof NotExportableError
-        ? 'This lesson is not published yet, so it can’t be viewed here.'
-        : 'Could not render this lesson.'
+    if (e instanceof NotExportableError) {
+      // Expected for an unpublished bundle — not an error worth logging.
+      viewError = 'This lesson is not published yet, so it can’t be viewed here.'
+    } else {
+      // A real generator/converter failure — log with context so it's triageable in prod.
+      payload.logger.error({ err: e, bundleId: id, userId: user?.id }, 'teacher lesson render failed')
+      viewError = 'Could not render this lesson.'
+    }
   }
 
   return (
