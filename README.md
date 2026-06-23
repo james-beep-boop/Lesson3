@@ -16,12 +16,21 @@ ARES lesson plans are **structured data** (a nested sub-strand bundle), and the 
 
 ## Docs
 
-- `SPEC.md` — canonical specification
-- `CLAUDE.md` — AI assistant instructions
-- `AGENTS.md` — engineering conventions
+- `SPEC.md` — canonical specification (architecture + domain rules)
+- `CLAUDE.md` — AI assistant operating rules
+- `AGENTS.md` — engineering conventions (stack, layout, commands)
 - `USER_GUIDE.md` — roles and user workflow
+- `docs/NEXT-SESSION.md` — current state + what to work on next (the launch prompt)
+- `docs/DECISIONS.md` — build-time decisions + reasoning (canonical)
+- `docs/CHANGELOG.md` — session-by-session build history
 - `docs/EXTERNAL-DEPENDENCIES.md` — the ARES generator + schema this app depends on
+- `docs/ROCK5B-SETUP.md` — deployment runbook
 
 ## Status
 
-Documentation and architecture are set. Application scaffolding (Payload + Postgres + the embedded generator) has not been generated yet.
+The app is built and validated end to end (Phases 0–4 done). Ingest, versioning, field-level RBAC,
+the role-aware frontend, §5 editing/preview, and §9 DOCX **and PDF** export are all live. It is
+deployed on **"the Rock"** (a Rock 5B running Docker) as a **non-production verification environment**
+— production hardening (queue/rate-limit, dependency remediation, security headers, backups, CI/CD)
+is still outstanding. The current corpus is 13 published bundles (Biology + Mathematics, Grade 10).
+See `docs/NEXT-SESSION.md` for the live state and next steps.

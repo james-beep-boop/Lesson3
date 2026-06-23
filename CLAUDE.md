@@ -2,7 +2,9 @@
 
 Loaded automatically by Claude Code at the start of every session.
 The canonical specification is **`SPEC.md`** in this directory. **Read it before any architectural decision.**
-**At the start of each session, also read `docs/DECISIONS.md`** — the committed record of build-time decisions and prior corrections.
+**At the start of each session, also read `docs/DECISIONS.md`** — the committed record of build-time decisions and prior corrections (it's large; skim the newest entries and grep for the area you're touching).
+Engineering conventions (stack, project layout, commands) live in **`AGENTS.md`** — this file holds AI operating rules and project-specific design law, not generic conventions.
+For current state + what to work on next, start from **`docs/NEXT-SESSION.md`**.
 
 ---
 

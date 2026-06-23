@@ -2,7 +2,9 @@
 
 This guide describes the **target product** (see `SPEC.md`). The library lets authorized users browse ARES CBE lesson plans, make basic edits, keep a full version history, and export polished Word and PDF documents.
 
-> Note: the application is not yet built. This guide describes intended behavior; screens and demo accounts will be defined during the build.
+> Status: the application is built and running in a verification environment. Browsing, role-based
+> editing, version history, on-screen preview, and Word **and PDF** export all work today. It is not
+> yet hardened for production at scale. Exact screens and demo accounts are still being finalized.
 
 ## What users can do
 
