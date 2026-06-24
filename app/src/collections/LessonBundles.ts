@@ -189,7 +189,9 @@ export const LessonBundles: CollectionConfig = {
         { name: 'substrand_name', type: 'text' },
         { name: 'outputDir', type: 'text' },
         { name: 'filePrefix', type: 'text' },
-        { name: 'titleDoc', type: 'text' },
+        // `title` is derived from this at ingest, so a titleDoc list column just duplicates Title.
+        // Keep it on the edit form, but bar it from the list columns (incl. saved user prefs).
+        { name: 'titleDoc', type: 'text', admin: { disableListColumn: true } },
         { name: 'subtitleDoc', type: 'text' },
         { name: 'col3Label', type: 'text' },
         { name: 'col5Label', type: 'text' },
