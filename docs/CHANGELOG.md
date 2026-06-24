@@ -8,6 +8,33 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED + DEPLOYED 2026-06-24 (Official-version model slice + schema migration)
+
+- **Official-version product model chosen and first implementation slice shipped.** User clarified:
+  upload/import creates `1.0.0 Official`; every edit creates a retained Not Official version; one
+  global Official pointer per lesson plan; teachers can view/export all versions; Site Admins and
+  matching Subject Admins can move the pointer without copying/restoring content. `SPEC.md` and
+  `docs/DECISIONS.md` updated accordingly.
+- **New Payload collections added** (`273816c`): `lesson-plans` owns stable identity +
+  `officialVersion`; `lesson-bundle-versions` owns immutable structured snapshots. New access helpers
+  gate version creation and Official pointer changes; hooks enforce generatable saved versions and
+  reject an Official pointer to a version from another plan/subject-grade.
+- **Upload/import write path moved to the new model** (`273816c`): valid uploads now create
+  `LessonPlan` + `LessonBundleVersion 1.0.0`, then set `LessonPlan.officialVersion` to that exact
+  snapshot. UI/CLI copy now says upload/import and Official/Not Official rather than ingest/draft/publish.
+- **Editor convenience patch included** (`273816c`): frontend lesson detail shows an Edit button for
+  users with edit scope; the browse page includes in-scope draft rows for admin-panel users; disallowed
+  Manage collections are hidden from roles that cannot use them.
+- **Schema migration follow-up** (`5c847e2`): initial deploy missed generated Payload types +
+  migration, causing Rock admin errors such as `relation "lesson_plans" does not exist`. Generated on
+  the Rock with Node 22, committed `payload-types.ts`, migration
+  `20260624_221905_official_version_model`, and `migrations/index.ts`; redeployed successfully. Recent
+  app logs no longer show missing-table errors.
+- **Known transition state:** legacy `lesson-bundles` still powers most browse/view/export/edit UI, and
+  the 13 existing legacy bundles are not yet copied into `lesson-plans` / `lesson-bundle-versions`.
+  Next work is the version selector, export-by-version, edit-from-version, Make Official action, and
+  corpus migration/copy.
+
 ## SHIPPED 2026-06-24 (UX batch: one login, consistent menu, resources checkbox, admin polish)
 
 Pushed to `main` (`783f019`…`bc9b656`); **not yet runtime-verified on the Rock** (the auth redirect,

@@ -22,6 +22,13 @@ pointer must not restore/copy content into a new version, because that would dup
 documents under different semver labels. Teachers can view and export all versions; Official is the
 default/trust marker, not an access or export boundary.
 
+Implementation note: adding the new collections without a generated Payload migration made the Rock
+admin fail at runtime (`relation "lesson_plans" does not exist`, plus missing lock-document relation
+columns). The fix was the normal schema-change path: run `payload generate:types` and
+`payload migrate:create official-version-model` on the Rock's Node 22 tooling, commit
+`payload-types.ts`, `migrations/index.ts`, and `20260624_221905_official_version_model.{ts,json}`,
+then redeploy so the one-shot migrate container applies it before the app starts.
+
 ## 2026-06-24 — UX batch: one login, consistent top-right menu, resources checkbox, admin polish
 
 A second UX pass (with the user + external review) unified the auth/shell and the export controls.

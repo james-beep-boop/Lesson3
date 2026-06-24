@@ -1,9 +1,10 @@
 # Start here — plan the next phase
 
 You are picking up the **ARES Lesson Library (Lesson3)**: a versioned lesson-plan repository that
-ingests ARES CBE lesson plans, lets teachers/editors view + edit them under field-level RBAC, and
-exports high-fidelity DOCX/PDF by reusing ARES's own generator. Node/TypeScript + Payload CMS
-(Postgres) end to end.
+uploads/imports ARES CBE lesson plans as structured lesson data, lets teachers/editors view + edit
+them under field-level RBAC, tracks one **Official** version pointer per lesson plan, and exports
+high-fidelity DOCX/PDF by reusing ARES's own generator. Node/TypeScript + Payload CMS (Postgres)
+end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
@@ -18,50 +19,61 @@ defined, in-flight sequence to resume, not a blank-slate phase choice.
 
 ## ▶ Start the next session here (defined sequence — resume, don't re-plan)
 
-Two UX batches shipped since the 2026-06-23 audit (DECISIONS 2026-06-23 + 2026-06-24): the strand-first
-**Lesson Plans page**, the custom **admin dashboard**, the **one login form**, the **consistent
-top-right user menu** (both surfaces), the **"Include ARES Resources" checkbox**, and admin polish
-(fonts, nav mark). The Lesson Plans page + dashboard were verified on the Rock; **the 2026-06-24 batch
-(`783f019`…`bc9b656`) is NOT yet runtime-verified** — the auth redirect, admin header injection,
-one-logout, and font scale are admin-shell changes that can't be tested locally. So:
+The current work-in-flight is the **Official-version model migration**, not generic hardening. The
+user clarified the product model on 2026-06-24:
 
-1. **Deploy the UX batch to the Rock + eyeball it.** Sync to origin and rebuild: `git fetch &&
-   git reset --hard origin/main && docker compose up -d --build` (**reset, not pull** — the Rock had a
-   local-only importMap commit now superseded on origin; **no importMap regen needed** — origin's map
-   is already correct via the `default_<md5(path)>` reproduction). Then check: logged-out `/admin` →
-   `/login` (no 404); after sign-in everyone lands on `/`; **both** headers show the same top-right
-   menu (username · Admin/Lessons · logout · avatar) with **one** logout; the admin nav mark is a tidy
-   document glyph (no "Le"); admin text is larger; the Lesson view's "Include ARES Resources" checkbox
-   drives the Resource column + downloads. If the admin header bar sits oddly or anything overflows,
-   it's CSS-only to fix forward.
-2. **Verify the async export end-to-end** (NOT re-run since the Phase-5 fixes): cold `202` → status
-   `ready` → warm `200 zip`; plus the jobs lockdown (Teacher `POST /api/payload-jobs` → **403**, unauth
-   `POST /api/payload-jobs/run` → **401/403**). Curl recipe in DECISIONS / prior sessions.
-3. **Then the hardening backlog, in order** (full dispositions in the backlog below):
-   - **(1) Audit #3 — GET `/export` enqueues (not idempotent / CSRF):** make GET serve-only, move
-     enqueue to a `POST /export` (SameSite=Lax blocks cross-site POST) + the matching client handshake.
-     **Pair with the export verification in step 2** so the whole async flow is proven end-to-end.
-   - **(2) Cheap/safe:** **#11 pagination** (browse `limit:200` → page/search) and **#9 GraphQL /
-     Playground gating** (verify the exact Payload 3.85 `graphQL.disable` option against source FIRST).
-   - **(3) Deliberate (do NOT batch blind):** **#7 CSP + HTML-sanitization** (adds a dep),
-     **#8 optimistic concurrency** (MUST exempt ingest/migration system-writes), **#10 real
-     endpoint/authz test harness** (DB → Rock), **#2 dependency advisories** (deliberate Payload/
-     transport upgrade), **#12 PDF-fidelity gate in CI**.
+- A lesson plan has many retained immutable versions.
+- Exactly one version is **Official** at a time, globally.
+- Upload/import creates version `1.0.0` and makes that exact snapshot Official immediately.
+- Editing any version creates a new Not Official version; it does **not** mutate that version.
+- Site Admins and matching Subject Admins can move the Official pointer to any retained version.
+- Teachers can view/export all versions; Official is a default/trust marker, not an access/export gate.
+
+What is already on `origin/main` and deployed to the Rock:
+
+- `273816c` added `lesson-plans` + `lesson-bundle-versions`, official-pointer access rules, upload/import
+  writes to the new model, and product-language/docs updates.
+- `5c847e2` added the missing Payload generated types + migration
+  `20260624_221905_official_version_model`; it was deployed and the one-shot migrate container exited
+  successfully. The missing-table admin error (`relation "lesson_plans" does not exist`) is fixed.
+
+Resume in this order:
+
+1. **Verify the editor symptom that triggered the migration fix.** Log in as the Editor on the Rock,
+   open a lesson plan from The App, click **Edit**, and confirm the legacy admin edit form now renders.
+   If it still fails, inspect `docker compose logs app` first. The previous concrete failure was missing
+   DB tables/lock-document relationship columns, now migrated.
+2. **Finish the Official-version behavior migration.** The schema exists, but much of the app still
+   reads/writes the legacy `lesson-bundles` collection. Next code work:
+   - frontend browse/detail should move from legacy `lesson-bundles` to `lesson-plans` plus selected
+     `lesson-bundle-versions`;
+   - default view should open the Official version, with a version selector for all versions;
+   - export/generation should accept a version snapshot, not only a legacy bundle id;
+   - **Edit** should become an explicit "edit from this version → create a new version" flow;
+   - **Make Official** should update `LessonPlan.officialVersion` only, with no content copy;
+   - migrate/copy the existing 13 legacy published bundles into the new LessonPlan/Version shape, or
+     consciously re-upload/import them under the new model.
+3. **Then return to the hardening backlog** below: async export verification, GET `/export` enqueue
+   semantics, pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
+   tests, and PDF-fidelity CI.
 
 ---
 
-## Where things stand (as of 2026-06-24, origin/main `bc9b656`)
+## Where things stand (as of 2026-06-24, origin/main `5c847e2`)
 
-**Phases 0–5 are done, the architecture is validated end-to-end, and two UX batches shipped on top.**
-Note: the **2026-06-24 UX batch is on `main` but not yet runtime-verified on the Rock**, and the async
-export hasn't been re-verified since the Phase-5 fixes (see "▶ Start the next session here"). What's
-live and proven on the Rock (the deploy/verification box — see "Rock"):
+**Phases 0–5 are done, the architecture was validated end-to-end under the old draft/publish model,
+two UX batches shipped, and the first Official-version model slice is deployed.** The Official-version
+schema is live, but the product behavior migration is incomplete; treat the current app as a transition
+state until the "Start here" sequence above is done. What's live on the Rock (the deploy/verification
+box — see "Rock"):
 
-- **Ingest** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one all-or-nothing
-  transaction, **contract drift is a HARD gate**. Dev CLI + a Site-Admin-only web upload.
-- **Data model + versioning** — the sub-strand bundle as native Payload nested fields (META, UNIT,
-  LESSONS[], FINAL_EXPLANATION, SUMMARY_TABLE); whole-bundle immutable snapshots, semver, one
-  official version. UNIT/Sub-Strand Overview renders end-to-end.
+- **Upload/import** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one
+  all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload.
+  New writes create `LessonPlan` + `LessonBundleVersion 1.0.0` and set the Official pointer.
+- **Data model + versioning** — the legacy `lesson-bundles` collection still powers most browse/view/
+  export behavior. New collections now exist: `lesson-plans` owns stable identity + `officialVersion`;
+  `lesson-bundle-versions` owns immutable structured snapshots (META, UNIT, LESSONS[],
+  FINAL_EXPLANATION, SUMMARY_TABLE). `20260624_221905_official_version_model` created the DB schema.
 - **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level; `verify-rbac` 36/36.
 - **"The App"** (`app/src/app/(frontend)`) — the role-aware frontend ALL roles log into. Teachers
   live here only (excluded from `/admin`, redirected home). Has browse → view → preview → export.
@@ -73,7 +85,7 @@ live and proven on the Rock (the deploy/verification box — see "Rock"):
   and the nav groups are renamed/reordered to **Lesson plans / Curriculum / People**. The redundant
   Lesson-Bundles "META > Title Doc" list column is gone. Lesson Plans page + dashboard verified live;
   see DECISIONS 2026-06-23.
-- **UX batch (2026-06-24) — on `main`, NOT yet Rock-verified** (DECISIONS 2026-06-24): **one login**
+- **UX batch (2026-06-24) — deployed on the Rock** (DECISIONS 2026-06-24): **one login**
   (`/admin/login` → frontend `/login` via a `next.config` redirect; everyone lands on `/`); a
   **consistent top-right user menu** on both surfaces (username · Admin/Lessons · logout · initials
   avatar) with **one logout** (Payload's nav logout hidden via `admin.components.header` + custom.scss);
@@ -82,16 +94,18 @@ live and proven on the Rock (the deploy/verification box — see "Rock"):
 - **§5 editing/preview** — admin editor with array row labels, draft-capable HTML preview, **live
   unsaved-edit preview** (`POST /:id/preview`, edit-gated), teacher "Include ARES Resources" toggle.
   **Browser smoke-test ALL PASS** (2026-06-22).
-- **§9 export** — DOCX **and PDF** (`GET /api/lesson-bundles/:id/export?format=standard|compact&as=docx|pdf`),
-  READ-access-gated, published-only. PDF = the generated DOCX converted by a **Gotenberg sidecar**
-  via the `docxToPdf(buffer)` seam. **Live + verified.**
+- **§9 export (legacy path)** — DOCX **and PDF** (`GET /api/lesson-bundles/:id/export?format=standard|compact&as=docx|pdf`),
+  READ-access-gated, published-only under the old model. PDF = the generated DOCX converted by a
+  **Gotenberg sidecar** via the `docxToPdf(buffer)` seam. **Live + verified under the old model.**
+  Must be moved to version snapshots so any Official or Not Official version can export.
 - **§9/§11 async export (Phase 5) — readiness #1 closed. Live + verified 2026-06-23.** Export is now
   two-phase: warm → `200` zip; cold → enqueue the `generateArtifact` **Jobs Queue** task + `202` + a
   status URL (`GET …/export/status?jobId=`). An **artifact cache** (content-addressed by
   `lockVersion`, on a `lesson3_artifact_cache` named volume) makes repeats free; a **per-user rate
   limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
   heavy conversions. Frontend follows the 202 → poll → download handshake. See DECISIONS 2026-06-23.
-- **Corpus** = 13 published bundles (10 Biology + 3 Math, Grade 10, ids 63–75), all carrying populated UNIT.
+- **Corpus** = 13 legacy published bundles (10 Biology + 3 Math, Grade 10, ids 63–75), all carrying
+  populated UNIT. These have not yet been migrated into `lesson-plans` / `lesson-bundle-versions`.
 
 **The Rock is an explicit NON-PRODUCTION verification environment** — not production-ready (see the
 readiness backlog). It is the only place with a DB; `test:int` and `next build` only run there.
@@ -125,8 +139,8 @@ decided 2026-06-23). The options below are the bigger picture once that sequence
   `components/RowLabel` (strip a leading `Lesson N —` for the lessons array, or drop its prefix).
 - **chem_1_4 → 14th bundle** — blocked on Mark coercing its `LESSONS[].number` from string to integer
   upstream. When fixed: re-pull `upstream`, stage into `out/ares-data`, ingest (the hard gate admits it).
-- **(Optional) Skip the semver bump on a no-op publish** — any `update` currently bumps semver; only
-  do this if "mark official without editing shouldn't bump" is wanted.
+- **No-op publish semver bump** — superseded by the Official pointer model. Moving Official should
+  update only `LessonPlan.officialVersion`, not create or bump a version.
 - **Phase 5 residuals (small):** completed `payload-jobs` rows are kept (no auto-delete) for failure
   visibility → add periodic cleanup; the `…/export/status` endpoint is unthrottled (cheap, but a
   generous limiter could be added); the `429` rate-limit was deployed but not yet eyeballed under a
@@ -143,8 +157,8 @@ scale until ALL of these land:
 **jobs surface was open by default** (run endpoint `() => true`; collection fell back to any-auth-user)
 → **locked down** (`jobs.access` + `jobsCollectionOverrides`, `5b58b41`); and three async-export
 correctness bugs — temp-file race, manifest-only readiness, stale-`lockVersion` stuck poll — **fixed**
-(`8bede30`). **Deferred → start-here item (1):** audit **#3** GET `/export` enqueues (not idempotent /
-CSRF) → move enqueue to `POST`. The numbered items below are the remaining hardening backlog.
+(`8bede30`). **Deferred hardening:** audit **#3** GET `/export` enqueues (not idempotent / CSRF) →
+move enqueue to `POST`. The numbered items below are the remaining hardening backlog.
 
 1. **~~Heavy generation is synchronous + unthrottled~~ — CLOSED (Phase 5, 2026-06-23).** Fixed with
    the **Jobs Queue + per-user rate-limit + artifact cache** (deployed + verified live). Heavy
@@ -199,7 +213,8 @@ Docker compose (`app` on host :3001, `postgres` + `gotenberg` internal-only, one
   docker compose up -d --build                          # one-shot `migrate` applies pending, then `app` starts
   ```
   Verify with `verify-rbac.ts` / `roundtrip-regression.ts` via the same deps-image + `--network` line.
-  *(The Phase 5 `payload-jobs` migration was generated + committed this way; it is now on `main`.)*
+  *(The Phase 5 `payload-jobs` migration and the 2026-06-24 Official-version migration were generated
+  + committed this way; both are now on `main`.)*
 - *Push from the Rock:* the Rock is normally pull-only (no git push credential, no `gh`, no SSH key).
   When the Rock must push (e.g. it generated types/migration), push once over HTTPS with a short-lived
   fine-grained PAT: `git push "https://<user>:<TOKEN>@github.com/<owner>/Lesson3.git" <branch>`.
