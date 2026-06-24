@@ -20,7 +20,8 @@ import React, { useState } from 'react'
 import { Button, useAllFormFields, useDocumentInfo } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
-type Format = 'standard' | 'compact'
+import { ResourcesCheckbox } from '../ResourcesCheckbox'
+import { formatFromResources } from '../../lib/format'
 
 export default function PreviewBundle() {
   const { id } = useDocumentInfo()
@@ -32,7 +33,7 @@ export default function PreviewBundle() {
   // No id → unsaved/new document; nothing stored to authorize the preview against yet.
   if (!id) return null
 
-  const format: Format = resources ? 'standard' : 'compact'
+  const format = formatFromResources(resources)
 
   const onPreview = () => {
     // Unflatten the live form state to the bundle's nested shape (meta/unit/lessons/…).
@@ -54,14 +55,7 @@ export default function PreviewBundle() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
-        <input
-          type="checkbox"
-          checked={resources}
-          onChange={(e) => setResources(e.target.checked)}
-        />
-        Include ARES Resources
-      </label>
+      <ResourcesCheckbox checked={resources} onChange={setResources} />
       <Button
         buttonStyle="secondary"
         size="small"

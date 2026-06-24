@@ -12,6 +12,8 @@
 import React from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 
+import { formatFromResources, resourcesIncluded } from '@/lib/format'
+
 export function ResourcesToggle({ format }: { format: 'standard' | 'compact' }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -20,8 +22,8 @@ export function ResourcesToggle({ format }: { format: 'standard' | 'compact' }) 
     <label className="resources-toggle">
       <input
         type="checkbox"
-        checked={format === 'standard'}
-        onChange={(e) => router.push(`${pathname}?format=${e.target.checked ? 'standard' : 'compact'}`)}
+        checked={resourcesIncluded(format)}
+        onChange={(e) => router.push(`${pathname}?format=${formatFromResources(e.target.checked)}`)}
       />
       Include ARES Resources
     </label>

@@ -19,8 +19,9 @@ import React, { useState } from 'react'
 import { Button, useDocumentInfo } from '@payloadcms/ui'
 
 import { downloadExport, type ExportState } from '../exportClient'
+import { ResourcesCheckbox } from '../ResourcesCheckbox'
+import { formatFromResources } from '../../lib/format'
 
-type Format = 'standard' | 'compact'
 type Kind = 'docx' | 'pdf'
 
 export default function ExportBundle() {
@@ -34,7 +35,7 @@ export default function ExportBundle() {
   // No id → unsaved document; nothing to export yet.
   if (!id) return null
 
-  const format: Format = resources ? 'standard' : 'compact'
+  const format = formatFromResources(resources)
   const exportable = hasPublishedDoc
   const busy = state === 'preparing' || state === 'downloading'
   const onExport = () => {
@@ -55,15 +56,7 @@ export default function ExportBundle() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
-      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
-        <input
-          type="checkbox"
-          checked={resources}
-          onChange={(e) => setResources(e.target.checked)}
-          disabled={!exportable || busy}
-        />
-        Include ARES Resources
-      </label>
+      <ResourcesCheckbox checked={resources} onChange={setResources} disabled={!exportable || busy} />
       <select
         id="export-kind"
         aria-label="File type"
