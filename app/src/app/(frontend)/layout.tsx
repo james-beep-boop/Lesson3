@@ -36,13 +36,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 same menu, top-right, via admin.components.header). */}
             <nav className="app-nav">
               <span className="nav-user">{user.name ?? user.email}</span>
-              {/* "Admin" only for roles that can use /admin (§13). The other surface's menu shows
+              {/* "Manage" only for roles that can use /admin (§13). The other surface's menu shows
                   "Lessons" instead — each links to the surface you're NOT on. A plain <a> is a full
                   navigation into the separate admin app. */}
               {canUseAdminPanel(user) && (
                 // eslint-disable-next-line @next/next/no-html-link-for-pages
                 <a href="/admin" className="nav-link">
-                  Admin
+                  Manage
                 </a>
               )}
               <LogoutButton />

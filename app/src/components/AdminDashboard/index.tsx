@@ -1,4 +1,5 @@
 import React from 'react'
+import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps } from 'payload'
 
 import { isSiteAdmin, toId } from '../../access'
@@ -24,8 +25,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
   const { role, scope } = await describeUser(req, user)
 
+  // Wrap in Payload's own `Gutter` — the same padded container the stock dashboard and list views
+  // use — so this view lines up with every other admin page (no bespoke spacing to maintain).
   return (
-    <div className="lp-admin-dash">
+    <Gutter className="lp-admin-dash">
       <h1 className="lp-admin-dash__title">Lesson Plan Repository</h1>
       <p className="lp-admin-dash__role">Signed in as {role}</p>
       {scope && <p className="lp-admin-dash__scope">{scope}</p>}
@@ -47,7 +50,7 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
           </ul>
         </>
       )}
-    </div>
+    </Gutter>
   )
 }
 
