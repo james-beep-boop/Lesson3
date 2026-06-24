@@ -5,6 +5,7 @@ import * as migration_20260609_164927_subjectgrade_unique_drop_media from './202
 import * as migration_20260609_170000_drop_subject_slug from './20260609_170000_drop_subject_slug';
 import * as migration_20260622_210554_add_unit_fields from './20260622_210554_add_unit_fields';
 import * as migration_20260623_151918_add_payload_jobs from './20260623_151918_add_payload_jobs';
+import * as migration_20260624_221905_official_version_model from './20260624_221905_official_version_model';
 
 export const migrations = [
   {
@@ -40,6 +41,11 @@ export const migrations = [
   {
     up: migration_20260623_151918_add_payload_jobs.up,
     down: migration_20260623_151918_add_payload_jobs.down,
-    name: '20260623_151918_add_payload_jobs'
+    name: '20260623_151918_add_payload_jobs',
+  },
+  {
+    up: migration_20260624_221905_official_version_model.up,
+    down: migration_20260624_221905_official_version_model.down,
+    name: '20260624_221905_official_version_model'
   },
 ];
