@@ -11,6 +11,48 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — UX batch: one login, consistent top-right menu, resources checkbox, admin polish
+
+A second UX pass (with the user + external review) unified the auth/shell and the export controls.
+Decisions + reasoning:
+
+- **One login form.** Two surfaces (The App + `/admin`) each had a login; teachers can't use `/admin`,
+  so the frontend `/login` is the single form. `/admin/login` now redirects to `/login` — chosen as a
+  **`next.config.ts` `redirects()`** rule (fires at the routing layer before the admin routes resolve,
+  so it can't 404). Two earlier attempts were rejected: a Payload **views.login override** (404'd —
+  the `views` slot didn't reliably catch the login route) and **Next middleware** (worked but was more
+  machinery than a static redirect needs — the open-redirect guard it justified was redundant with the
+  login page's own sanitizer). Product call: **everyone lands on `/` after login, just like a teacher;
+  admins click the header "Admin" link** — so the `?redirect=` return-path plumbing (`safeRedirect`,
+  middleware) was deleted as gold-plating. Brand text `Lesson Plan Repository 3` → `Lesson Plan
+  Repository` everywhere; the admin login Logo graphic was dropped (never rendered after the redirect);
+  the frontend header is hidden when logged-out so `/login` is a clean splash.
+- **One consistent top-right user menu on both surfaces:** username · [Admin|Lessons] · logout ·
+  initials avatar (the cross-link shows the surface you're NOT on). Admin side injected via
+  `admin.components.header` (renders top-of-page, gets `user` in serverProps). **One logout everywhere**
+  — Payload's own nav logout is hidden (`custom.scss .nav__log-out { display: none }`). `Avatar` +
+  `LogoutButton` are shared components, styled per surface. The custom dashboard's "Browse lesson
+  library" action was removed (the header "Lessons" link covers it — closing the redundancy).
+- **"Include ARES Resources" checkbox replaces Standard/Compact** everywhere (teacher view, admin
+  export, admin preview). Standard/Compact only ever meant *with/without the Resource column*, and
+  users work in one mode — so it's a single checkbox, **unchecked by default** (= compact = no Resource
+  column), driving the view AND all downloads; the 4 teacher download buttons collapsed to DOCX/PDF.
+  The boolean↔format mapping lives in one place (`lib/format.ts`); a shared `ResourcesCheckbox`
+  dedups the two admin controls.
+- **Admin legibility — and a trap.** Payload's `--base-body-size` is a **DIVISOR** for its spacing
+  unit, NOT the text size — bumping it 13→14 *shrank* the admin (a regression we caught). The real
+  lever is the rem root + body size: `html, body { font-size: 15px }` scales text + spacing uniformly
+  (~15%) toward the 16px frontend. The nav mark slot (`.step-nav__home`) is a fixed **18×18px** box
+  that clips text (a wordmark showed as "Le"/"LP"), so the mark is a small **SVG document glyph sized
+  to 18×18**, not a cryptic monogram.
+- **OPERATIONAL — importMap entries reproduced by hand (again).** Each new admin component registered
+  by config path (`views.login`, `views.dashboard`, `components.header`, graphics) needs an
+  `admin/importMap.js` entry, and the local `generate:importmap` CLI breaks on Node > 22. The entry is
+  deterministic — `default_<md5(component-path-without-#default)>` — so it's reproduced locally and
+  committed, keeping origin correct without a Rock regen. (See the 2026-06-23 entry for the scheme.)
+- **e2e login helper** (`tests/helpers/login.ts`) updated for the single login: go to `/login`, fill
+  the frontend form, wait for `/`; admin specs navigate to `/admin` themselves (shared cookie).
+
 ## 2026-06-23 — UI/admin redesign: strand-first Lesson Plans page, custom dashboard, nav rename
 
 A multi-round UI pass (with the user + an external reviewer) replaced the arbitrary-feeling browse and

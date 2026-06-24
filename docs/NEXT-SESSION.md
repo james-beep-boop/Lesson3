@@ -18,18 +18,22 @@ defined, in-flight sequence to resume, not a blank-slate phase choice.
 
 ## ▶ Start the next session here (defined sequence — resume, don't re-plan)
 
-Since the 2026-06-23 audit, a **UI track shipped** (see "UI / admin redesign" in the live list and
-DECISIONS 2026-06-23): the strand-first **Lesson Plans page** (deployed + verified on the Rock) and a
-custom **admin dashboard** + **nav cleanup**. During that work the Rock was redeployed repeatedly, so
-it now runs all post-Phase-5 code. Two loose ends + the hardening sequence remain:
+Two UX batches shipped since the 2026-06-23 audit (DECISIONS 2026-06-23 + 2026-06-24): the strand-first
+**Lesson Plans page**, the custom **admin dashboard**, the **one login form**, the **consistent
+top-right user menu** (both surfaces), the **"Include ARES Resources" checkbox**, and admin polish
+(fonts, nav mark). The Lesson Plans page + dashboard were verified on the Rock; **the 2026-06-24 batch
+(`783f019`…`bc9b656`) is NOT yet runtime-verified** — the auth redirect, admin header injection,
+one-logout, and font scale are admin-shell changes that can't be tested locally. So:
 
-1. **Finish the admin deploy + spot-check.** The last two admin commits — `676333c` (drop the
-   redundant Lesson-Bundles "META > Title Doc" column) and `9d4d882` (nav rename/reorder) — may not be
-   live yet. Sync the Rock to origin and rebuild: `git fetch && git reset --hard origin/main &&
-   docker compose up -d --build` (**reset, not pull** — the Rock had a local-only importMap commit
-   `b5bfeda` now superseded on origin). Then eyeball: nav reads **Lesson plans / Curriculum / People**;
-   the Lesson Bundles list has no duplicate "META > Title Doc" column; `/admin` shows the role-aware
-   dashboard (no boxes).
+1. **Deploy the UX batch to the Rock + eyeball it.** Sync to origin and rebuild: `git fetch &&
+   git reset --hard origin/main && docker compose up -d --build` (**reset, not pull** — the Rock had a
+   local-only importMap commit now superseded on origin; **no importMap regen needed** — origin's map
+   is already correct via the `default_<md5(path)>` reproduction). Then check: logged-out `/admin` →
+   `/login` (no 404); after sign-in everyone lands on `/`; **both** headers show the same top-right
+   menu (username · Admin/Lessons · logout · avatar) with **one** logout; the admin nav mark is a tidy
+   document glyph (no "Le"); admin text is larger; the Lesson view's "Include ARES Resources" checkbox
+   drives the Resource column + downloads. If the admin header bar sits oddly or anything overflows,
+   it's CSS-only to fix forward.
 2. **Verify the async export end-to-end** (NOT re-run since the Phase-5 fixes): cold `202` → status
    `ready` → warm `200 zip`; plus the jobs lockdown (Teacher `POST /api/payload-jobs` → **403**, unauth
    `POST /api/payload-jobs/run` → **401/403**). Curl recipe in DECISIONS / prior sessions.
@@ -46,12 +50,12 @@ it now runs all post-Phase-5 code. Two loose ends + the hardening sequence remai
 
 ---
 
-## Where things stand (as of 2026-06-23, origin/main `9d4d882`)
+## Where things stand (as of 2026-06-24, origin/main `bc9b656`)
 
-**Phases 0–5 are done, the architecture is validated end-to-end, and a UI/admin redesign shipped on
-top.** Note: the two latest admin commits (`676333c` titleDoc column, `9d4d882` nav) may not be live
-on the Rock yet, and the async export hasn't been re-verified since the Phase-5 fixes (see "▶ Start the
-next session here"). What's live and proven on the Rock (the deploy/verification box — see "Rock"):
+**Phases 0–5 are done, the architecture is validated end-to-end, and two UX batches shipped on top.**
+Note: the **2026-06-24 UX batch is on `main` but not yet runtime-verified on the Rock**, and the async
+export hasn't been re-verified since the Phase-5 fixes (see "▶ Start the next session here"). What's
+live and proven on the Rock (the deploy/verification box — see "Rock"):
 
 - **Ingest** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one all-or-nothing
   transaction, **contract drift is a HARD gate**. Dev CLI + a Site-Admin-only web upload.
@@ -69,9 +73,15 @@ next session here"). What's live and proven on the Rock (the deploy/verification
   and the nav groups are renamed/reordered to **Lesson plans / Curriculum / People**. The redundant
   Lesson-Bundles "META > Title Doc" list column is gone. Lesson Plans page + dashboard verified live;
   see DECISIONS 2026-06-23.
+- **UX batch (2026-06-24) — on `main`, NOT yet Rock-verified** (DECISIONS 2026-06-24): **one login**
+  (`/admin/login` → frontend `/login` via a `next.config` redirect; everyone lands on `/`); a
+  **consistent top-right user menu** on both surfaces (username · Admin/Lessons · logout · initials
+  avatar) with **one logout** (Payload's nav logout hidden via `admin.components.header` + custom.scss);
+  a single **"Include ARES Resources" checkbox** replacing Standard/Compact across the teacher view +
+  admin export/preview (`lib/format.ts` is the one mapping); admin font scale-up + an SVG nav glyph.
 - **§5 editing/preview** — admin editor with array row labels, draft-capable HTML preview, **live
-  unsaved-edit preview** (`POST /:id/preview`, edit-gated), teacher Standard/Compact toggle. **Browser
-  smoke-test ALL PASS** (2026-06-22).
+  unsaved-edit preview** (`POST /:id/preview`, edit-gated), teacher "Include ARES Resources" toggle.
+  **Browser smoke-test ALL PASS** (2026-06-22).
 - **§9 export** — DOCX **and PDF** (`GET /api/lesson-bundles/:id/export?format=standard|compact&as=docx|pdf`),
   READ-access-gated, published-only. PDF = the generated DOCX converted by a **Gotenberg sidecar**
   via the `docxToPdf(buffer)` seam. **Live + verified.**

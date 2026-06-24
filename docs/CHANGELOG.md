@@ -8,6 +8,29 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED 2026-06-24 (UX batch: one login, consistent menu, resources checkbox, admin polish)
+
+Pushed to `main` (`783f019`…`bc9b656`); **not yet runtime-verified on the Rock** (the auth redirect,
+admin header injection, one-logout, and font scale are admin-shell changes that can't be tested
+locally). Details + reasoning in DECISIONS 2026-06-24.
+
+- **One login form** (`b6eb0bc`): `/admin/login` → the frontend `/login` via a `next.config` redirect
+  (replaced a 404-ing Payload view-override and an over-built middleware attempt). Everyone lands on
+  `/` after sign-in; admins use the header "Admin" link. Brand `…Repository 3` → `…Repository`; admin
+  login Logo graphic dropped; logged-out header hidden so `/login` is a clean splash.
+- **Consistent top-right user menu** on both surfaces (`fbd637a`, `21769d1`): username · [Admin|Lessons]
+  · logout · initials avatar. Admin side via `admin.components.header`; **one logout everywhere**
+  (Payload's nav logout hidden); shared `Avatar` + `LogoutButton`. Dashboard "Browse lesson library"
+  removed (header "Lessons" covers it).
+- **"Include ARES Resources" checkbox** (`657bd3e`, `bc9b656`) replaces Standard/Compact on the teacher
+  view + admin export + admin preview — one checkbox, unchecked by default, drives the view and all
+  downloads; 4 teacher download buttons → DOCX/PDF. Mapping centralized in `lib/format.ts`; shared
+  `ResourcesCheckbox`.
+- **Admin polish** (`2ed3667`, `618f536`): fixed an admin-font regression (the `--base-body-size` bump
+  was a spacing *divisor* and shrank things) by scaling the rem root/body to 15px; replaced the
+  clipped "LPR3" nav wordmark with an 18×18 SVG document glyph (sized to Payload's `.step-nav__home`).
+- **e2e login helper** updated for the single login (`4a19742`).
+
 ## SHIPPED 2026-06-23 (UI/admin redesign: strand-first Lesson Plans page + custom admin dashboard)
 
 - **Strand-first Lesson Plans page** (`34b6122`, `7717088`; deployed + verified on the Rock). Replaced
