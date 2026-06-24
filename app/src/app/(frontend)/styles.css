@@ -176,18 +176,19 @@ a {
   margin: 4rem auto 0;
 }
 /* Brand + prompt share one size (the top scale step); hierarchy comes from weight/colour. */
-.login-title {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin: 0;
-  text-align: center;
-}
+.login-title,
 .login-subtitle {
   font-size: 1.4rem;
+  text-align: center;
+}
+.login-title {
+  font-weight: 600;
+  margin: 0;
+}
+.login-subtitle {
   font-weight: 400;
   color: var(--muted);
   margin: 0.1rem 0 1.5rem;
-  text-align: center;
 }
 .login-form {
   display: flex;

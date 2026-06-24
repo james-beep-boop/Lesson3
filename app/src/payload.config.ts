@@ -79,9 +79,8 @@ export default buildConfig({
         // Teachers are excluded from /admin (SPEC §2): an authenticated non-admin who reaches the
         // panel is redirected to The App home instead of the hard "no admin access" error.
         unauthorized: { Component: '@/components/AdminUnauthorizedRedirect#default' },
-        // ONE login form: /admin/login redirects to the frontend /login (shared cookie admits
-        // admin-capable users to /admin afterward). See src/components/AdminLoginRedirect.
-        login: { Component: '@/components/AdminLoginRedirect#default' },
+        // (ONE login form: /admin/login → frontend /login is handled in src/middleware.ts, which
+        // intercepts before Payload renders — robust against 404s and preserves the return path.)
         // Replace Payload's default dashboard (collection-card boxes that duplicate the nav) with
         // a quiet, additive, role-aware landing. The rest of the admin shell stays Payload-native.
         dashboard: { Component: '@/components/AdminDashboard#default' },

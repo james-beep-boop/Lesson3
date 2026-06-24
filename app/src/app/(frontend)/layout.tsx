@@ -19,9 +19,6 @@ export const dynamic = 'force-dynamic'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { user } = await getSession()
-  // Show the Admin link only to roles that can actually use /admin — the same rule that gates
-  // the panel itself (§13: no dead/forbidden controls).
-  const canAdmin = canUseAdminPanel(user)
 
   return (
     <html lang="en">
@@ -35,9 +32,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               Lesson Plan Repository
             </Link>
             <nav className="app-nav">
-              {canAdmin && (
-                // Full navigation into the Payload admin (a separate app surface), not a
-                // client-side route into The App — so a plain <a> is intentional here.
+              {/* Admin link only for roles that can use /admin (§13: no dead controls). A plain
+                  <a> is intentional — a full navigation into the separate admin surface. */}
+              {canUseAdminPanel(user) && (
                 // eslint-disable-next-line @next/next/no-html-link-for-pages
                 <a href="/admin" className="nav-link">
                   Admin
