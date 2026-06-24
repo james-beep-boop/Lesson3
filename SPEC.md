@@ -22,7 +22,7 @@ The decisive facts:
 
 ## 1. Product, in one paragraph
 
-A **versioned lesson-plan repository**. ARES-generated CBE lesson plans are ingested as version **1.0.0**; teachers make basic edits; every edit produces a new, immutable version with bulletproof history; any version can be exported as **high-fidelity DOCX and PDF**. Running on offline local servers is a **secondary** goal, not a primary constraint.
+A **versioned lesson-plan repository**. ARES-generated CBE lesson plans are uploaded/imported as version **1.0.0 Official**; later edits create retained, immutable versions; exactly one version per lesson plan is **Official** at a time; any version can be viewed and exported as **high-fidelity DOCX and PDF**. Running on offline local servers is a **secondary** goal, not a primary constraint.
 
 Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RACHEL serve that need), not a Word round-trip editor.
 
@@ -48,7 +48,7 @@ Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RAC
 
 The product has **two front-ends over one Payload backend** (one runtime, one auth, one access layer):
 
-1. **The App** — a unified, role-aware front-of-house frontend (`app/src/app/(frontend)`) that **all four roles log into**, built on Payload's API + auth. It is the home for everything **common to all users**: browse/search published lessons, view, export/print, **email a document**, **internal messaging + notifications**, **translation** (e.g. Swahili), and **AI features** (summaries, etc.). Per the §13 minimal-UI principle it shows each role only what it can do. **Teachers — the majority — live entirely here** (they are intentionally excluded from `/admin`).
+1. **The App** — a unified, role-aware front-of-house frontend (`app/src/app/(frontend)`) that **all four roles log into**, built on Payload's API + auth. It is the home for everything **common to all users**: browse/search lesson plans, view all versions, export/print, **email a document**, **internal messaging + notifications**, **translation** (e.g. Swahili), and **AI features** (summaries, etc.). Per the §13 minimal-UI principle it shows each role only what it can do. **Teachers — the majority — live entirely here** (they are intentionally excluded from `/admin`).
 2. **Payload `/admin`** — the **back-office** for the roles that manage content: structured editing (Phase 1), versioning, user/role/taxonomy management, ingest/upload. Editors & Subject Admins edit here; Site Admins administer here.
 
 Rationale: the common features above are *product* features every role uses; giving teachers a separate app would force duplicating them (or making editors switch apps). One shared App + an admin back-office avoids that. This **resolves the former "editor placement" open decision** (start in `/admin`; a custom editor may later move editing into the App — SPEC §5 Phase 2) and confirms the §10 workflows as in-scope. It is a **Phase-2+ track** that does not block current `/admin` editing/publishing work.
@@ -118,10 +118,10 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 - **Presentation:** a document-shaped view (sub-strand → lessons → phases → fields). Phase 1 uses Payload's admin edit screen (nested field panels); invest in clear field **labels and descriptions**. Phase 2 builds a custom React editor only if needed — it reuses the same model, access rules, and versioning, so phase-1 work is not thrown away. The **role-tailored, minimal-UI principle (§13)** governs every screen: a role sees only the controls it can use.
 - **Widgets:** prose fields are **plain multi-line text boxes** (newline = paragraph; a `- ` line prefix, ideally via a small "bullet" toggle, makes a bullet). `framework[].phase` is a **controlled dropdown**. No rich-text editor — simplicity *is* the fidelity guarantee.
-- **Live preview is the one early custom add** (not built into the admin): a "Preview as Word/PDF" action that runs the real generator on the working copy before publish. This is the trust-builder for the Word-centric stakeholder.
+- **Live preview is the one early custom add** (not built into the admin): a "Preview as Word/PDF" action that runs the real generator on the working copy before saving a new version. This is the trust-builder for the Word-centric stakeholder.
   - **Preview is always DERIVED from generator output — never a parallel HTML renderer.** A hand-built HTML template would be a second source of layout truth that can drift from the actual DOCX and mislead the teacher (and re-introduces the "HTML is lossy" problem rejected for storage). The preview generates the real DOCX in-process from the working copy, then displays it.
   - **Two fidelity tiers:** (1) a fast in-browser **content preview** = real DOCX → HTML via `mammoth` (faithful content + table structure; styling/colours are intentionally dropped — adequate because teachers edit prose and the generator owns visuals); (2) an **exact** check = the real DOCX download and/or DOCX→PDF (§9). Trigger via a preview button / custom edit-view component, not continuous live-preview (don't regenerate per keystroke).
-  - **Preview runs on the working DRAFT** (its whole purpose); **export stays published-only** (`generateForBundle`). Different gates.
+  - **Preview runs on the working copy** (its whole purpose); export is available for every saved valid version. Official status is a default/trust marker, not an export permission boundary.
 - **Validation on save:** required fields present, framework cardinality intact, phase ∈ vocabulary — reject anything that would produce a broken document.
 
 ### Field-level edit permissions (maps directly to Payload field access control)
@@ -134,23 +134,23 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 ## 6. Versioning
 
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.
-- Use **Payload's native versions + drafts** as the storage/history engine.
-- Add **semver** (`x.y.z`) and an **official-version pointer** as custom fields + a save hook. First ingested version is **1.0.0**; default edit bump is **patch**; user may choose patch/minor/major. At most one official version per bundle.
+- Store a stable Lesson Plan identity separately from immutable Lesson Bundle Version snapshots.
+- Add **semver** (`x.y.z`) and an **official-version pointer** on the Lesson Plan. First uploaded/imported version is **1.0.0 Official**; default edit bump is **patch**; user may choose patch/minor/major. At most one official version per lesson plan.
 - Any version regenerates its three documents on demand.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
 ---
 
-## 7. Ingest
+## 7. Upload / import
 
-- Accept ARES output and create the first version as **1.0.0**.
+- Accept ARES output and create the first version as **1.0.0 Official**.
 - **Two entry points, both trusted:** (1) a **dev-only CLI** (`app/scripts/ingest.ts`, `payload run`) accepting `.js` and `.json`; and (2) a **Site-Administrator-only web upload** (`POST /api/lesson-bundles/upload`, `.json` only) — a Lesson3-owned collection endpoint + a self-hiding list-view panel. **Still never teacher-facing.** *(DEVIATION 2026-06-13 from the original "never an HTTP/upload surface" rule — see `docs/DECISIONS.md`. It is now safe because uploads are never executed: `.json` → `JSON.parse`; `.js` stays CLI-only. The web surface is JSON-only to keep the attack surface minimal. Authorization is enforced server-side in the endpoint (`isSiteAdmin`), not just by hiding the button.)*
 - **Extract `.js`/`.json` data to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction. The `.js` path (`app/src/ingest/extract.ts` → `extractAresData`) is a static **`acorn` AST parse that evaluates ONLY pure data literals** — strings/numbers/booleans/null/arrays/objects, plus **constant folding of `+` string concatenation** (the ARES `'a\n' + 'b\n'` multi-line-prose pattern; operands are themselves evaluated as literals, so nothing dynamic slips in) — and **rejects** anything executable or dynamic (a call, identifier reference, member access, non-`+` operator, template-with-expression, spread, getter, `__proto__` key). No `require`/`vm`/`eval`/`Function`. The `.json` path (`extractAresJson`) is `JSON.parse` (no execution surface) with matching structural guards (non-object root, recursive `__proto__` rejection, required groups). Both share the same downstream pipeline. Highest-risk surface → security-reviewed (re-review the web upload before exposing it).
-- **Resolve `subjectGrade` by EXACT `(META.subject, META.grade)` match;** missing taxonomy is a hard, actionable failure. Ingest never auto-creates Subjects/SubjectGrades (keeps that curated junction list clean). Seed taxonomy before ingesting.
-- Create the bundle via Payload's Local API **in one all-or-nothing transaction**; bulk ingest supported (point at a file or directory). A read-only **pre-flight** validates+resolves every file first and reports all problems before any write.
-- **Ingest creates the bundle as a DRAFT** (`_status: 'draft'`). An administrator reviews and **publishes** it to make it official / export-eligible (SPEC §6). Export stays published-only.
-- **Validate against the schema on ingest, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo` and `summaryTablePrompt` groups and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced at **ingest** (pre-write, rejects incomplete ARES data even as a draft) **and at publish** (native `beforeValidate` hook `enforceGeneratable` — surfaces in the admin UI); export then trusts validated-in data.
+- **Resolve `subjectGrade` by EXACT `(META.subject, META.grade)` match;** missing taxonomy is a hard, actionable failure. Upload/import never auto-creates Subjects/SubjectGrades (keeps that curated junction list clean). Seed taxonomy before uploading/importing.
+- Create the Lesson Plan and version snapshot via Payload's Local API **in one all-or-nothing transaction**; bulk import supported (point at a file or directory). A read-only **pre-flight** validates+resolves every file first and reports all problems before any write.
+- **Upload/import creates version 1.0.0 as Official.** Later edits create additional Not Official versions by default. Site Admins and matching Subject Admins can make any retained version Official; doing so only moves the official pointer and does not duplicate content.
+- **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo` and `summaryTablePrompt` groups and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
 - **Resource resolution (optional, §3):** if the resource column is enabled, run the ARES recommender (Python + `ares_content.db`) **once at ingest** and store the resolved `framework[].resources` in the bundle. Generation never calls Python/SQLite live. If the column is disabled (DEFERRED — see §3/`docs/DECISIONS.md`), skip this step; ingest carries `framework[].resources` through if present, else omits it.
 
 ---
@@ -174,7 +174,7 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 ## 9. Generation, export & sharing
 
-- Export any version as **DOCX** (all three documents) and **PDF**, via the embedded generator.
+- Export any version, Official or Not Official, as **DOCX** (all three documents) and **PDF**, via the embedded generator.
 - Print, save-as-PDF/DOCX, and email-as-attachment are in scope. **PDF, email-out, and message links/attachments are confirmed in scope** (see §10): a lesson artifact is referenced by **(bundle, version, document, format, layout)** — a stable, access-gated, version-pinned URL (generation is content-stable, so it resolves deterministically). Email attaches freshly-generated bytes; messages link the URL. Persisting/caching artifacts is a later optimization, not required first (generate-on-demand behind stable URLs avoids reintroducing a media/storage layer).
 - **PDF = convert the generated DOCX, never a parallel renderer** (one source of layout truth — the same rule that limits the mammoth view to a *content* preview). A semantic converter (Pandoc, HTML→PDF) reinterprets layout and would not match the approved DOCX, so it is disqualified for the exact artifact.
 - **PDF converter — OPEN decision (do not lock in; decide by fidelity test).** Constraints (locked 2026-06-14): must be **faithful** (reproduces the generator's tables/merges/shading/widths), **free / no paid or commercial service**, **fully offline / no cloud** (rules out MS Graph and metered APIs), and self-hostable. That narrows the field to a **local office engine** (LibreOffice headless, or OnlyOffice/Collabora) — the bulk (~0.4–1 GB) is the intrinsic price of faithful DOCX layout; fine on the Rock's NVMe. **Preferred packaging: a separate sidecar container** (e.g. Gotenberg wrapping LibreOffice — multi-arch/arm64, offline) so the app image stays slim. PDF is **slow → Jobs Queue (async)**. The engine is chosen by a golden-file fidelity test (Word's own DOCX→PDF as oracle) when the PDF slice is built; code calls it behind a swappable `docxToPdf(buffer)` seam.
@@ -188,7 +188,7 @@ These are **features of "The App"** (§2) — common to every role, role-aware p
 wanted (Phase 2+ track; build order per §2 open decisions). All are ordinary Payload
 collections / endpoints / hooks + the Jobs Queue — none affects the generator/versioning core.
 
-- **Browse / search / filter** published bundles by subject-grade, official status, contributor, favorites.
+- **Browse / search / filter** lesson plans and versions by subject-grade, official status, contributor, favorites.
 - **View + export/print**, and **email a document** to any address (server-side send; SPEC §9/§11).
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a

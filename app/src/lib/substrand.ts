@@ -18,6 +18,7 @@ export interface LessonRow {
   /** `unit.strand` (strand name); null when UNIT is empty. */
   strandName: string | null
   lessonCount: number
+  status?: 'draft' | 'published'
 }
 
 export interface StrandGroup {

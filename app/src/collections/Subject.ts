@@ -1,6 +1,7 @@
 import type { CollectionAfterChangeHook, CollectionConfig } from 'payload'
 
-import { authenticated, siteAdminOnly } from '../access'
+import { authenticated, canManageCurriculum, siteAdminOnly } from '../access'
+import type { User } from '../payload-types'
 
 /**
  * SubjectGrade.displayName ("<Subject> — Grade N") is denormalized (stored at write
@@ -43,6 +44,7 @@ export const Subject: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name'],
     group: 'Curriculum',
+    hidden: ({ user }) => !canManageCurriculum(user as User),
   },
   access: {
     read: authenticated,

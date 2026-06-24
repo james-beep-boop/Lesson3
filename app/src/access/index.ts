@@ -90,6 +90,11 @@ export const siteAdminOnly: Access = ({ req: { user } }) => isSiteAdmin(asUser(u
 export const canUseAdminPanel = (user: User | null | undefined): boolean =>
   isSiteAdmin(user) || Boolean(user?.assignments?.length)
 
+export const canManageUsers = (user: User | null | undefined): boolean =>
+  isSiteAdmin(user) || isSubjectAdminForAny(user)
+
+export const canManageCurriculum = (user: User | null | undefined): boolean => isSiteAdmin(user)
+
 // `access.admin` must return a plain boolean (not a Where query), so it has a narrower
 // signature than collection `Access`.
 export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): boolean =>

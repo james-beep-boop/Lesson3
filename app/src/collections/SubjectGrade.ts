@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticated, siteAdminOnly } from '../access'
+import { authenticated, canManageCurriculum, siteAdminOnly } from '../access'
+import type { User } from '../payload-types'
 
 /**
  * SubjectGrade = subject + integer grade (SPEC §8). The assignable unit roles
@@ -13,6 +14,7 @@ export const SubjectGrade: CollectionConfig = {
     useAsTitle: 'displayName',
     defaultColumns: ['displayName', 'subject', 'grade'],
     group: 'Curriculum',
+    hidden: ({ user }) => !canManageCurriculum(user as User),
   },
   // DB-level guarantee that (subject, grade) is unique — Payload's native compound index
   // (verified in installed source: collections/config/types `indexes`). The beforeValidate

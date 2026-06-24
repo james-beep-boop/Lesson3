@@ -23,7 +23,7 @@
  * Exit 0 only when all three documents are content-identical (Resource column excluded);
  * non-zero otherwise.
  */
-import { getPayload } from 'payload'
+import { getPayload, type CollectionSlug } from 'payload'
 import config from '@payload-config'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -51,7 +51,7 @@ const run = async () => {
   const payload = await getPayload({ config })
 
   // Records we create — torn down in reverse in the finally below.
-  const created: { collection: 'subjects' | 'subject-grades' | 'lesson-bundles'; id: number | string }[] = []
+  const created: { collection: CollectionSlug; id: number | string }[] = []
   let passed = 0
   let cleanupFailed = false
   const total = 3
@@ -117,7 +117,7 @@ const run = async () => {
     const [ingested] = await ingestPaths(payload, [path.join(DEMO, DATA_FILE)])
     if (!ingested) throw new Error(`Ingest produced no bundle for ${DATA_FILE}`)
     created.push({ collection: 'lesson-bundles', id: ingested.id })
-    console.log(`Ingested ${DATA_FILE} → bundle id ${ingested.id} · "${ingested.title}" · ${ingested.semver} · ${ingested.status}`)
+    console.log(`Imported ${DATA_FILE} → plan ${ingested.id} · "${ingested.title}" · ${ingested.semver} · Official`)
 
     // 3. Publish (runs the enforceGeneratable gate; semver bumps but content is unaffected).
     const published = await payload.update({

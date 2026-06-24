@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 
+import { canUseAdminPanel } from '@/access'
 import { requireUser } from '@/lib/session'
 import {
   groupLessons,
@@ -22,13 +23,14 @@ export default async function BrowsePage({
 }) {
   const { payload, user } = await requireUser()
   const q = ((await searchParams).q ?? '').trim()
+  const includeDrafts = canUseAdminPanel(user)
 
   // Access-gated (Teacher → published only; Editors/Subject Admins also their in-scope drafts).
   // Light projection: only what the list renders/orders/searches — `lessons: { id: true }` yields
   // the count via length WITHOUT loading the (large) lesson bodies. depth 2 resolves subject name.
   const { docs } = await payload.find({
     collection: 'lesson-bundles',
-    where: { _status: { equals: 'published' } },
+    draft: includeDrafts,
     overrideAccess: false,
     user,
     depth: 2,
@@ -39,6 +41,7 @@ export default async function BrowsePage({
       meta: { substrand_id: true, substrand_name: true },
       unit: { strand: true },
       lessons: { id: true },
+      _status: true,
     },
   })
 
@@ -54,6 +57,7 @@ export default async function BrowsePage({
       substrandName: b.meta?.substrand_name || b.title || 'Untitled',
       strandName: b.unit?.strand ?? null,
       lessonCount: Array.isArray(b.lessons) ? b.lessons.length : 0,
+      status: b._status === 'draft' ? 'draft' : 'published',
     }
   })
 
@@ -133,6 +137,7 @@ function SubstrandRow({ row, showContext = false }: { row: LessonRow; showContex
         </span>
       </Link>
       <span className="substrand-count">
+        {row.status === 'draft' && <span className="status-pill">Draft</span>}
         {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
       </span>
     </li>

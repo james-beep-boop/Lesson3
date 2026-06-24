@@ -3,8 +3,8 @@
  *
  * Mounted on lesson-bundles → `POST /api/lesson-bundles/upload` (multipart, field `files`).
  * Accepts ARES `.json` exports only, parses each with the SAFE `extractAresJson` (JSON.parse +
- * structural guards — never executes input), and creates 1.0.0 DRAFT bundles via the shared
- * ingest core. Bundles still require a separate publish to become exportable.
+ * structural guards — never executes input), and creates Official 1.0.0 lesson-plan versions
+ * via the shared upload/import core.
  *
  * SECURITY — this is the authorization boundary that makes a web ingest surface acceptable:
  *  - **Site Administrator only**, enforced HERE server-side (`isSiteAdmin`) — the hidden UI

@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+import { canUseAdminPanel, isEditorFor, toId } from '@/access'
 import { requireUser } from '@/lib/session'
 import { findReadableBundle } from '@/lib/readBundle'
 import { generateForBundle, NotExportableError } from '@/generator/generateForBundle'
@@ -19,6 +20,7 @@ export default async function LessonView({
 }) {
   const { id } = await params
   const { payload, user } = await requireUser()
+  const includeDrafts = canUseAdminPanel(user)
 
   // On-screen view defaults to Compact (Standard's Resource column is deferred/blank — see
   // DECISIONS 2026-06-16); the toggle below lets a teacher switch to Standard on demand.
@@ -27,8 +29,9 @@ export default async function LessonView({
 
   // Access-gated read — published-only for Teachers; not-visible → 404. A real DB/runtime error
   // propagates (not masked as 404). Only the title is read here, so depth 0 is enough.
-  const bundle = await findReadableBundle(payload, { id, user })
+  const bundle = await findReadableBundle(payload, { id, user, draft: includeDrafts })
   if (!bundle) notFound()
+  const canEdit = isEditorFor(user, toId(bundle.subjectGrade))
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier —
   // content + table structure are faithful; styling/colour are intentionally dropped). This is
@@ -58,7 +61,14 @@ export default async function LessonView({
       <Link href="/" className="back-link">
         ← All lesson plans
       </Link>
-      <h1>{bundle.title}</h1>
+      <div className="lesson-heading">
+        <h1>{bundle.title}</h1>
+        {canEdit && (
+          <a href={`/admin/collections/lesson-bundles/${id}`} className="btn">
+            Edit
+          </a>
+        )}
+      </div>
 
       <div className="export-bar">
         <span className="export-label">Download</span>

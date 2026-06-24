@@ -1,11 +1,10 @@
 /**
- * Ingest ARES data files (`.js` modules OR `.json` exports) as version 1.0.0 DRAFT bundles
+ * Import ARES data files (`.js` modules OR `.json` exports) as version 1.0.0 Official lesson plans
  * (SPEC §7).
  *
  * DEV-ONLY operator tool — run by the app developer or lesson-plan author, never teachers.
  * `.js` is PARSED, never executed; `.json` is JSON.parse'd — both safe (see
- * src/ingest/extract.ts). Bundles are created as drafts; an administrator reviews and
- * publishes to make them official / exportable.
+ * src/ingest/extract.ts). Valid files create version 1.0.0 and mark it Official.
  *
  * Run (needs a DB, so on the Rock or any host with DATABASE_URI):
  *   cd app && npx payload run scripts/ingest.ts -- <file.js | file.json | dir> [more…]
@@ -29,10 +28,10 @@ const run = async () => {
   const payload = await getPayload({ config })
   const results = await ingestPaths(payload, paths)
 
-  console.log(`Ingested ${results.length} bundle(s) as 1.0.0 drafts:`)
+  console.log(`Imported ${results.length} lesson plan(s) as Official 1.0.0:`)
   let warningCount = 0
   for (const r of results) {
-    console.log(`  ${r.file} → id ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · ${r.status}`)
+    console.log(`  ${r.file} → plan ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · Official`)
     for (const w of r.warnings) {
       warningCount++
       console.warn(`     ⚠ ${w}`)
@@ -40,10 +39,9 @@ const run = async () => {
   }
   if (warningCount > 0) {
     console.warn(
-      `\n${warningCount} non-blocking deliverable warning(s) — these bundles ingested as drafts but would omit a document. Review before publishing.`,
+      `\n${warningCount} non-blocking deliverable warning(s) — these lesson plans imported, but one or more optional deliverables would be omitted.`,
     )
   }
-  console.log('Review and publish each bundle (admin) to make it official / exportable.')
 }
 
 // Top-level `await` (NOT fire-and-forget `run().then(...)`): `payload run` only awaits the

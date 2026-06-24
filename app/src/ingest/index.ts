@@ -1,6 +1,6 @@
 /**
- * Ingest orchestration (SPEC §7): read ARES data files (`.js` modules OR `.json` exports) →
- * create stored bundles as version 1.0.0 (DRAFT) via the Local API, in one all-or-nothing
+ * Upload/import orchestration (SPEC §7): read ARES data files (`.js` modules OR `.json` exports) →
+ * create a LessonPlan plus its version 1.0.0 (Official) via the Local API, in one all-or-nothing
  * transaction. The two input formats carry deep-equal data for a sub-strand, so only the
  * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
@@ -13,9 +13,9 @@
  * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its
  * security contract.
  *
- * Lifecycle: bundles are created as DRAFTS (`_status: 'draft'`). An administrator reviews
- * and publishes to make a bundle official / export-eligible (SPEC §6); publishing is
- * separately gated by `enforceGeneratable`. Export stays published-only.
+ * Lifecycle: valid uploads create version 1.0.0 and immediately mark that exact snapshot
+ * Official via the parent LessonPlan. Later edits create additional non-official snapshots;
+ * Site Admins / matching Subject Admins move the official pointer when a later version is ready.
  *
  * SubjectGrade: resolved by EXACT (Subject.name, grade) match. Missing taxonomy is a hard,
  * actionable failure — ingest never auto-creates Subjects/SubjectGrades, keeping that
@@ -25,7 +25,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
-import type { Payload, PayloadRequest, RequiredDataFromCollectionSlug } from 'payload'
+import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
 
 import { contractDrift } from './contract'
 import { IngestError } from './errors'
@@ -35,14 +35,16 @@ import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 type IngestReq = Partial<PayloadRequest> & { payload: Payload }
+const LESSON_PLANS = 'lesson-plans' as CollectionSlug
+const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
 
 export interface IngestResult {
   file: string
-  id: string | number
+  id: number
   title: string
-  subjectGrade: string | number
+  subjectGrade: number
   semver: string
-  status: string
+  official: boolean
   /** Non-blocking deliverable warnings (e.g. missing FINAL_EXPLANATION / SUMMARY_TABLE). */
   warnings: string[]
 }
@@ -52,7 +54,7 @@ async function resolveSubjectGrade(
   payload: Payload,
   raw: Record<string, unknown>,
   req: IngestReq,
-): Promise<string | number> {
+): Promise<number> {
   const meta = (raw.META ?? {}) as Record<string, unknown>
   const subjectName = typeof meta.subject === 'string' ? meta.subject.trim() : ''
   const grade = typeof meta.grade === 'number' ? meta.grade : null
@@ -123,7 +125,7 @@ const extractDataFile = (file: string, source: string): Record<string, unknown> 
 type Prepared = {
   name: string
   data: IngestBundleData
-  subjectGrade: string | number
+  subjectGrade: number
   warnings: string[]
 }
 
@@ -142,7 +144,7 @@ export type IngestItem = { name: string; extract: () => Record<string, unknown> 
  * Two phases:
  *   1. PRE-FLIGHT (read-only): extract + completeness-validate + resolve taxonomy for ALL
  *      items, collecting every problem. If any fails, throw with the full list, write NOTHING.
- *   2. WRITE: create all prepared bundles as 1.0.0 drafts inside ONE transaction
+ *   2. WRITE: create all prepared lesson plans + 1.0.0 Official versions inside ONE transaction
  *      (all-or-nothing — a failure rolls back the whole batch).
  *
  * This is a TRUSTED system path (no `req.user`): callers MUST enforce authorization before
@@ -196,19 +198,39 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
   try {
     const results: IngestResult[] = []
     for (const { name, data, subjectGrade, warnings } of prepared) {
-      const created = await payload.create({
-        collection: 'lesson-bundles',
-        data: { ...data, subjectGrade } as unknown as RequiredDataFromCollectionSlug<'lesson-bundles'>,
-        draft: true,
+      const plan = await payload.create({
+        collection: LESSON_PLANS,
+        data: {
+          title: data.title,
+          subjectGrade,
+        } as never,
+        req,
+      })
+      const version = await payload.create({
+        collection: LESSON_BUNDLE_VERSIONS,
+        data: {
+          ...data,
+          lessonPlan: plan.id,
+          subjectGrade,
+          semver: '1.0.0',
+        } as never,
+        req,
+      })
+      await payload.update({
+        collection: LESSON_PLANS,
+        id: plan.id,
+        data: {
+          officialVersion: version.id,
+        } as never,
         req,
       })
       results.push({
         file: name,
-        id: created.id,
-        title: created.title ?? data.title,
+        id: plan.id,
+        title: data.title,
         subjectGrade,
-        semver: created.semver ?? '1.0.0',
-        status: created._status ?? 'draft',
+        semver: '1.0.0',
+        official: true,
         warnings,
       })
     }

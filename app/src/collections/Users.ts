@@ -1,8 +1,10 @@
 import type { CollectionConfig } from 'payload'
+import type { User } from '../payload-types'
 
 import {
   adminPanelAccess,
   assignmentsUpdateField,
+  canManageUsers,
   emailReadAccess,
   selfOrSiteAdminField,
   siteAdminField,
@@ -55,6 +57,7 @@ export const Users: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'roles'],
     group: 'People',
+    hidden: ({ user }) => !canManageUsers(user as User),
   },
   access: {
     admin: adminPanelAccess,

@@ -16,12 +16,12 @@ import type { User } from '../../payload-types'
  *
  * Type scale matches the public Lesson Plans page (22 / 18 / 16 / 14) for cross-surface
  * consistency; colours use Payload theme variables so it adapts to light/dark. Role-aware per
- * SPEC §13 — actions a role can't use are not shown (the Site-Admin ingest is hidden otherwise).
+ * SPEC §13 — actions a role can't use are not shown (the Site-Admin upload is hidden otherwise).
  */
 export default async function AdminDashboard({ initPageResult }: AdminViewServerProps) {
   const { req } = initPageResult
   const user = req.user as User | null
-  const canIngest = isSiteAdmin(user)
+  const canUpload = isSiteAdmin(user)
 
   const { role, scope } = await describeUser(req, user)
 
@@ -35,15 +35,15 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
       {/* "Browse lesson library" used to live here, but the top-right header menu's "Lessons" link
           now covers that — so the dashboard only surfaces actions the nav/header DON'T (the
-          Site-Admin ingest). Editors/Subject Admins see just the role/scope above — no empty list. */}
-      {canIngest && (
+          Site-Admin upload). Editors/Subject Admins see just the role/scope above — no empty list. */}
+      {canUpload && (
         <>
           <h2 className="lp-admin-dash__section">Get started</h2>
           <ul className="lp-admin-dash__actions">
             <li>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a className="lp-admin-dash__action" href="/admin/collections/lesson-bundles">
-                <span className="lp-admin-dash__action-label">Ingest lesson plans</span>
+                <span className="lp-admin-dash__action-label">Upload lesson plans</span>
                 <span className="lp-admin-dash__action-desc">Upload generated ARES lesson bundles.</span>
               </a>
             </li>

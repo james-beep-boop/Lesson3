@@ -11,6 +11,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Official pointer replaces draft/publish as product state
+
+The product state is now **Official / Not Official**, not Payload **published / draft**. A lesson
+plan has many retained immutable version snapshots and exactly one global Official version pointer.
+Uploading valid ARES data creates version `1.0.0` and immediately points the Lesson Plan's
+`officialVersion` at that exact snapshot. Later edits create new Not Official snapshots by default.
+Site Admins and the matching Subject Admin may move the pointer to any retained version; moving the
+pointer must not restore/copy content into a new version, because that would duplicate identical
+documents under different semver labels. Teachers can view and export all versions; Official is the
+default/trust marker, not an access or export boundary.
+
 ## 2026-06-24 — UX batch: one login, consistent top-right menu, resources checkbox, admin polish
 
 A second UX pass (with the user + external review) unified the auth/shell and the export controls.
