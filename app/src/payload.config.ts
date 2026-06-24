@@ -62,27 +62,28 @@ export default buildConfig({
   serverURL: process.env.SERVER_URL || '',
   admin: {
     user: Users.slug,
-    // Brand the admin as "Lesson Plan Repository 3" instead of Payload: titleSuffix sets the
-    // browser tab; the graphics components replace the login-page logo and the nav mark.
+    // Brand the admin as "Lesson Plan Repository": titleSuffix sets the browser tab; the Icon
+    // graphic replaces the nav mark. (The login-page Logo graphic is gone — /admin/login now
+    // redirects to the single frontend login, so it was never seen.)
     meta: {
-      titleSuffix: ' — Lesson Plan Repository 3',
+      titleSuffix: ' — Lesson Plan Repository',
     },
     components: {
       graphics: {
-        Logo: '@/components/Brand/Logo#default',
         Icon: '@/components/Brand/Icon#default',
       },
       // Wall-clock backstop that reliably logs out an idle/backgrounded tab at the token
       // deadline (Payload's single-timer auto-logout is unreliable when suspended).
       providers: ['@/components/IdleLogout#default'],
-      // Teachers are excluded from /admin (SPEC §2). Override Payload's built-in "unauthorized"
-      // view so an authenticated non-admin (e.g. a Teacher logging in at /admin) is redirected
-      // to The App home instead of seeing the hard "no admin access" error.
       views: {
+        // Teachers are excluded from /admin (SPEC §2): an authenticated non-admin who reaches the
+        // panel is redirected to The App home instead of the hard "no admin access" error.
         unauthorized: { Component: '@/components/AdminUnauthorizedRedirect#default' },
+        // ONE login form: /admin/login redirects to the frontend /login (shared cookie admits
+        // admin-capable users to /admin afterward). See src/components/AdminLoginRedirect.
+        login: { Component: '@/components/AdminLoginRedirect#default' },
         // Replace Payload's default dashboard (collection-card boxes that duplicate the nav) with
-        // a quiet, additive, role-aware landing. Only the /admin landing changes; the rest of the
-        // admin shell stays Payload-native. See src/components/AdminDashboard.
+        // a quiet, additive, role-aware landing. The rest of the admin shell stays Payload-native.
         dashboard: { Component: '@/components/AdminDashboard#default' },
       },
     },

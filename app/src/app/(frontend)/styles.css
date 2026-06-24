@@ -46,7 +46,7 @@ a {
 }
 .brand {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1rem;
   color: var(--ink);
   text-decoration: none;
 }
@@ -95,7 +95,7 @@ a {
 .lp-search input {
   width: 100%;
   padding: 0.5rem 0.7rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -162,7 +162,7 @@ a {
   display: block;
   margin-top: 0.1rem;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 .substrand-count {
   flex-shrink: 0;
@@ -173,7 +173,21 @@ a {
 /* ---- Login ---- */
 .login {
   max-width: 360px;
-  margin: 3rem auto 0;
+  margin: 4rem auto 0;
+}
+/* Brand + prompt share one size (the top scale step); hierarchy comes from weight/colour. */
+.login-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.login-subtitle {
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin: 0.1rem 0 1.5rem;
+  text-align: center;
 }
 .login-form {
   display: flex;
@@ -229,7 +243,7 @@ button[type='submit']:disabled {
 }
 .export-label {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 .btn {
   text-decoration: none;
@@ -251,7 +265,7 @@ button[type='submit']:disabled {
   border-top: 2px solid var(--line);
 }
 .doc-section-title {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -260,7 +274,7 @@ button[type='submit']:disabled {
 
 /* Faithful content preview (mammoth → HTML). Tables are the bulk of a lesson. */
 .doc-preview {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   overflow-x: auto;
 }
 .doc-preview table {

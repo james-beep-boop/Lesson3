@@ -8,7 +8,7 @@ import './styles.css'
 import { LogoutButton } from './LogoutButton'
 
 export const metadata = {
-  title: 'Lesson Plan Repository 3',
+  title: 'Lesson Plan Repository',
   description: 'ARES Lesson Library',
 }
 
@@ -26,11 +26,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        <header className="app-header">
-          <Link href="/" className="brand">
-            Lesson Plan Repository&nbsp;3
-          </Link>
-          {user && (
+        {/* Header (with the user menu) only for signed-in users; the logged-out /login route is a
+            clean splash that supplies its own branding. The full top-right menu (avatar + dynamic
+            Admin/Lessons cross-link) lands in the next installment. */}
+        {user && (
+          <header className="app-header">
+            <Link href="/" className="brand">
+              Lesson Plan Repository
+            </Link>
             <nav className="app-nav">
               {canAdmin && (
                 // Full navigation into the Payload admin (a separate app surface), not a
@@ -43,8 +46,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <span className="nav-user">{user.name ?? user.email}</span>
               <LogoutButton />
             </nav>
-          )}
-        </header>
+          </header>
+        )}
         <main className="app-main">{children}</main>
       </body>
     </html>

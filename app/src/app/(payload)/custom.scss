@@ -1,3 +1,9 @@
+// Bump the admin base font one step (Payload default is 13px) so the left nav and admin text read
+// at a comfortable size. Payload derives most sizing from this single token, so it scales uniformly.
+:root {
+  --base-body-size: 14;
+}
+
 // Custom admin dashboard (src/components/AdminDashboard) — quiet, additive landing that replaces
 // Payload's redundant collection-card boxes. Scoped to .lp-admin-dash so nothing else in the admin
 // is re-themed. Type scale mirrors the public Lesson Plans page (22 / 18 / 16 / 14); colours use
