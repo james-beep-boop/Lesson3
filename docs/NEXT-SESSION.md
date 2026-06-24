@@ -39,21 +39,28 @@ What is already on `origin/main` and deployed to the Rock:
 
 Resume in this order:
 
-1. **Verify the editor symptom that triggered the migration fix.** Log in as the Editor on the Rock,
-   open a lesson plan from The App, click **Edit**, and confirm the legacy admin edit form now renders.
-   If it still fails, inspect `docker compose logs app` first. The previous concrete failure was missing
-   DB tables/lock-document relationship columns, now migrated.
-2. **Finish the Official-version behavior migration.** The schema exists, but much of the app still
-   reads/writes the legacy `lesson-bundles` collection. Next code work:
-   - frontend browse/detail should move from legacy `lesson-bundles` to `lesson-plans` plus selected
-     `lesson-bundle-versions`;
-   - default view should open the Official version, with a version selector for all versions;
-   - export/generation should accept a version snapshot, not only a legacy bundle id;
-   - **Edit** should become an explicit "edit from this version → create a new version" flow;
-   - **Make Official** should update `LessonPlan.officialVersion` only, with no content copy;
-   - migrate/copy the existing 13 legacy published bundles into the new LessonPlan/Version shape, or
-     consciously re-upload/import them under the new model.
-3. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
+1. **✅ DONE (2026-06-24) — Editor symptom verified resolved (server-level).** Migration applied
+   cleanly (`Migrated: …official_version_model`), all `lesson_plans`/`lesson_bundle_versions` tables
+   exist, no runtime errors, `/admin/collections/lesson-bundles/:id` serves 200, APIs 403 unauth (not
+   500). The `relation "lesson_plans" does not exist` crash is gone.
+2. **✅ DONE (2026-06-24) — Stage 1: data backfill.** The 13 published legacy bundles (ids 63–75) are
+   migrated into `lesson-plans` + Official `lesson-bundle-versions` 1.0.0 and verified LOSSLESS
+   (39/39 docs content-identical) on the Rock. Scripts: `scripts/migrate-bundles-to-versions.ts`
+   (idempotent, dry-run default) + `scripts/verify-migration.ts`. See DECISIONS 2026-06-24. Legacy
+   `lesson-bundles` left untouched (reversible). **DB now: 13 plans / 13 official / 13 versions.**
+3. **▶ NEXT — Stage 2: read/export cutover (the remaining code work).** Ingest already writes the new
+   model; the migration backfilled it; but the app still READS legacy `lesson-bundles` everywhere
+   (frontend pages, export/preview/status, generator, admin components, `lib/readBundle.ts`). Cut
+   them over, in dependency order:
+   - read layer (`lib/readBundle.ts` + frontend pages) → `lesson-plans`, defaulting to the Official
+     version, with a version selector for all retained versions;
+   - export/generation → accept a version snapshot id, not only a legacy bundle id (artifact cache
+     already keys on `lockVersion` ↔ the immutable version);
+   - **Edit** → explicit "edit from this version → create a new version" flow (never mutate a snapshot);
+   - **Make Official** → update `LessonPlan.officialVersion` only, no content copy.
+4. **Stage 3 — retire `lesson-bundles`** once reads are cut over (drop the collection + migration;
+   re-run `verify-rbac` 36/36 + `roundtrip-regression`).
+5. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
    enqueue semantics~~ (both CLOSED + Rock-verified 2026-06-24, `9c9a701` — see DECISIONS),
    pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
    tests, and PDF-fidelity CI.
@@ -106,7 +113,9 @@ box — see "Rock"):
   limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
   heavy conversions. Frontend follows the 202 → poll → download handshake. See DECISIONS 2026-06-23.
 - **Corpus** = 13 legacy published bundles (10 Biology + 3 Math, Grade 10, ids 63–75), all carrying
-  populated UNIT. These have not yet been migrated into `lesson-plans` / `lesson-bundle-versions`.
+  populated UNIT. **Now also backfilled (Stage 1, 2026-06-24) into 13 `lesson-plans` + Official
+  1.0.0 `lesson-bundle-versions`** — verified lossless. The legacy bundles remain as the live read
+  source until the Stage 2 cutover; both representations coexist during the transition.
 
 **The Rock is an explicit NON-PRODUCTION verification environment** — not production-ready (see the
 readiness backlog). It is the only place with a DB; `test:int` and `next build` only run there.

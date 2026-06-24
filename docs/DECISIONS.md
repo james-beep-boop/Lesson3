@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Stage 1: backfilled the 13 legacy bundles into the Official-version model
+
+**Decision.** The Official-version schema + ingest write path were live but the 13 pre-existing
+**published** `lesson-bundles` (ids 63–75: 10 Biology @ SG 30, 3 Math @ SG 31) had no Plan/Version,
+so the new read/export paths had no data. Backfilled them with a one-shot, idempotent migration
+(`scripts/migrate-bundles-to-versions.ts`) that mirrors ingest's Phase-2 write block exactly: per
+bundle, create `LessonPlan {title, subjectGrade}` → create `LessonBundleVersion {…content,
+lessonPlan, semver:'1.0.0'}` → point `LessonPlan.officialVersion` at it, all in ONE transaction.
+
+**How it stays faithful.** Content is the legacy doc minus version-metadata/internal keys
+(`semver, bumpType, lockVersion, _status, createdAt, updatedAt, id`) with **all nested array-row
+`id`s stripped** (those belong to the source rows; Payload regenerates them on create). The same
+version hooks then run (`numberBundleVersionRows`, `enforceBundleVersionGeneratable`). Drafts are
+NOT migrated — only published snapshots were ever Official. The run is idempotent (skips a bundle
+whose `(title, subjectGrade)` already has a Plan), so a re-run after partial failure is safe.
+
+**Verified (oracle-free, `scripts/verify-migration.ts`).** Generated all three CBE DOCX from each
+legacy bundle AND its new version and diffed: **39/39 documents content-identical** (Resource column
+excluded), including the 6/13 sub-strands that legitimately have no FE/ST ("both absent — OK").
+`bio_1_4` ("CHEMICALS OF LIFE", bundle 66 → plan 10) matches, consistent with the standing fidelity
+proof. Applied + verified on the Rock; legacy `lesson-bundles` left **untouched** (purely additive,
+fully reversible). **Next:** Stage 2 cuts the read/export paths over to Plans/versions; Stage 3
+retires `lesson-bundles`.
+
 ## 2026-06-24 — Audit #3 closed: GET `/export` split into serve-only GET + enqueue-only POST
 
 **Decision.** The export endpoint that *enqueued* heavy work on a cold GET was both non-idempotent
