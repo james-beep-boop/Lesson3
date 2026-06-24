@@ -12,7 +12,7 @@ export const SubjectGrade: CollectionConfig = {
   admin: {
     useAsTitle: 'displayName',
     defaultColumns: ['displayName', 'subject', 'grade'],
-    group: 'Taxonomy',
+    group: 'Curriculum',
   },
   // DB-level guarantee that (subject, grade) is unique — Payload's native compound index
   // (verified in installed source: collections/config/types `indexes`). The beforeValidate

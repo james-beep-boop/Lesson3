@@ -76,7 +76,7 @@ export const LessonBundles: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'subjectGrade', 'semver', '_status'],
-    group: 'Content',
+    group: 'Lesson plans',
     components: {
       // Edit-view controls: content preview (any saved version, drafts included — SPEC §5)
       // and per-export DOCX download with the standard/compact toggle (published-only — SPEC §9).

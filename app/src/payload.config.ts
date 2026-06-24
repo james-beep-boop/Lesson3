@@ -90,7 +90,9 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Subject, SubjectGrade, LessonBundles],
+  // Order here drives the admin nav order (groups appear by first-seen): Lesson plans →
+  // Curriculum (Subjects, Subject Grades) → People (Users). See each collection's admin.group.
+  collections: [LessonBundles, Subject, SubjectGrade, Users],
   // Jobs Queue (SPEC §9/§11; readiness #1) — heavy export generation runs async + throttled.
   // Defining a task creates the `payload-jobs` collection (a schema migration). The in-process
   // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,

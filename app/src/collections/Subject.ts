@@ -42,7 +42,7 @@ export const Subject: CollectionConfig = {
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name'],
-    group: 'Taxonomy',
+    group: 'Curriculum',
   },
   access: {
     read: authenticated,

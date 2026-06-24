@@ -54,6 +54,7 @@ export const Users: CollectionConfig = {
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'roles'],
+    group: 'People',
   },
   access: {
     admin: adminPanelAccess,
