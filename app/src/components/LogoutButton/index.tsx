@@ -3,6 +3,11 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 
+/**
+ * Shared "Log out" button — used by both the frontend header and the admin header (one logout
+ * everywhere). Clears the shared auth cookie and goes to the single login page. Styled per surface
+ * via the `.link-button` class (frontend tokens / admin theme vars).
+ */
 export function LogoutButton() {
   const router = useRouter()
   const onLogout = async () => {

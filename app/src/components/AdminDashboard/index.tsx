@@ -30,28 +30,23 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
       <p className="lp-admin-dash__role">Signed in as {role}</p>
       {scope && <p className="lp-admin-dash__scope">{scope}</p>}
 
-      <h2 className="lp-admin-dash__section">Get started</h2>
-      {/* Full navigations across surfaces (admin → The App frontend; admin → a collection page that
-          re-renders the admin shell), not client-side routes — so plain <a> is intentional, matching
-          the frontend layout's admin link. */}
-      <ul className="lp-admin-dash__actions">
-        <li>
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a className="lp-admin-dash__action" href="/">
-            <span className="lp-admin-dash__action-label">Browse lesson library</span>
-            <span className="lp-admin-dash__action-desc">Open the shared lesson-plan page.</span>
-          </a>
-        </li>
-        {canIngest && (
-          <li>
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-            <a className="lp-admin-dash__action" href="/admin/collections/lesson-bundles">
-              <span className="lp-admin-dash__action-label">Ingest lesson plans</span>
-              <span className="lp-admin-dash__action-desc">Upload generated ARES lesson bundles.</span>
-            </a>
-          </li>
-        )}
-      </ul>
+      {/* "Browse lesson library" used to live here, but the top-right header menu's "Lessons" link
+          now covers that — so the dashboard only surfaces actions the nav/header DON'T (the
+          Site-Admin ingest). Editors/Subject Admins see just the role/scope above — no empty list. */}
+      {canIngest && (
+        <>
+          <h2 className="lp-admin-dash__section">Get started</h2>
+          <ul className="lp-admin-dash__actions">
+            <li>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a className="lp-admin-dash__action" href="/admin/collections/lesson-bundles">
+                <span className="lp-admin-dash__action-label">Ingest lesson plans</span>
+                <span className="lp-admin-dash__action-desc">Upload generated ARES lesson bundles.</span>
+              </a>
+            </li>
+          </ul>
+        </>
+      )}
     </div>
   )
 }

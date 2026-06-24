@@ -76,3 +76,65 @@ body {
     color: var(--theme-elevation-500);
   }
 }
+
+// Admin top-right user menu (src/components/AdminHeaderMenu) — mirrors the frontend header.
+.lp-admin-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--theme-elevation-150);
+
+  &__menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+  }
+
+  &__user {
+    color: var(--theme-elevation-600);
+  }
+
+  &__link {
+    color: var(--theme-elevation-1000);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Shared components, themed for the admin:
+  .link-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    color: var(--theme-elevation-1000);
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    background: var(--theme-elevation-100);
+    border: 1px solid var(--theme-elevation-150);
+    color: var(--theme-elevation-1000);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+}
+
+// One logout everywhere: hide Payload's nav logout (ours lives top-right in .lp-admin-header).
+.nav__log-out {
+  display: none;
+}

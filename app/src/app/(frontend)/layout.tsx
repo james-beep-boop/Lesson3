@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { canUseAdminPanel } from '@/access'
 import { Avatar } from '@/components/Avatar'
+import { LogoutButton } from '@/components/LogoutButton'
 
 import './styles.css'
-import { LogoutButton } from './LogoutButton'
 
 export const metadata = {
   title: 'Lesson Plan Repository',

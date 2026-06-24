@@ -75,6 +75,10 @@ export default buildConfig({
       // Wall-clock backstop that reliably logs out an idle/backgrounded tab at the token
       // deadline (Payload's single-timer auto-logout is unreliable when suspended).
       providers: ['@/components/IdleLogout#default'],
+      // Top-of-page header carrying the SAME user menu as the frontend (username · Lessons ·
+      // logout · avatar), so both surfaces match. Payload's own nav logout is hidden in
+      // custom.scss for one logout everywhere. See src/components/AdminHeaderMenu.
+      header: ['@/components/AdminHeaderMenu#default'],
       views: {
         // Teachers are excluded from /admin (SPEC §2): an authenticated non-admin who reaches the
         // panel is redirected to The App home instead of the hard "no admin access" error.
