@@ -25,12 +25,14 @@ type Format = 'standard' | 'compact'
 export default function PreviewBundle() {
   const { id } = useDocumentInfo()
   const [fields] = useAllFormFields()
-  // Default to Compact: the Resource column is deferred/blank, so Standard's on-screen
-  // preview shows an empty column. The toggle still offers Standard.
-  const [format, setFormat] = useState<Format>('compact')
+  // One control for the Resource column, unchecked by default (the column is deferred/blank, so
+  // the default preview omits it). Maps to the standard/compact format.
+  const [resources, setResources] = useState(false)
 
   // No id → unsaved/new document; nothing stored to authorize the preview against yet.
   if (!id) return null
+
+  const format: Format = resources ? 'standard' : 'compact'
 
   const onPreview = () => {
     // Unflatten the live form state to the bundle's nested shape (meta/unit/lessons/…).
@@ -52,18 +54,14 @@ export default function PreviewBundle() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
-      <label htmlFor="preview-format" style={{ fontSize: '0.8rem' }}>
-        Format
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
+        <input
+          type="checkbox"
+          checked={resources}
+          onChange={(e) => setResources(e.target.checked)}
+        />
+        Include ARES Resources
       </label>
-      <select
-        id="preview-format"
-        value={format}
-        onChange={(e) => setFormat(e.target.value as Format)}
-        style={{ padding: '0.25rem', borderRadius: '4px' }}
-      >
-        <option value="standard">Standard</option>
-        <option value="compact">Compact (no Resource column)</option>
-      </select>
       <Button
         buttonStyle="secondary"
         size="small"

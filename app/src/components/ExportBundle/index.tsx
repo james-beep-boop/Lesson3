@@ -25,7 +25,8 @@ type Kind = 'docx' | 'pdf'
 
 export default function ExportBundle() {
   const { id, hasPublishedDoc } = useDocumentInfo()
-  const [format, setFormat] = useState<Format>('standard')
+  // One control for the Resource column (unchecked by default); maps to the standard/compact format.
+  const [resources, setResources] = useState(false)
   const [kind, setKind] = useState<Kind>('docx')
   const [state, setState] = useState<ExportState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +34,7 @@ export default function ExportBundle() {
   // No id → unsaved document; nothing to export yet.
   if (!id) return null
 
+  const format: Format = resources ? 'standard' : 'compact'
   const exportable = hasPublishedDoc
   const busy = state === 'preparing' || state === 'downloading'
   const onExport = () => {
@@ -53,19 +55,15 @@ export default function ExportBundle() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
-      <label htmlFor="export-format" style={{ fontSize: '0.8rem' }}>
-        Format
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
+        <input
+          type="checkbox"
+          checked={resources}
+          onChange={(e) => setResources(e.target.checked)}
+          disabled={!exportable || busy}
+        />
+        Include ARES Resources
       </label>
-      <select
-        id="export-format"
-        value={format}
-        onChange={(e) => setFormat(e.target.value as Format)}
-        disabled={!exportable}
-        style={{ padding: '0.25rem', borderRadius: '4px' }}
-      >
-        <option value="standard">Standard</option>
-        <option value="compact">Compact (no Resource column)</option>
-      </select>
       <select
         id="export-kind"
         aria-label="File type"

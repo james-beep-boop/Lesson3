@@ -8,6 +8,7 @@ import { generateForBundle, NotExportableError } from '@/generator/generateForBu
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
+import { ResourcesToggle } from './ResourcesToggle'
 
 export default async function LessonView({
   params,
@@ -60,23 +61,12 @@ export default async function LessonView({
       <h1>{bundle.title}</h1>
 
       <div className="export-bar">
-        <span className="export-label">View</span>
-        {(['compact', 'standard'] as const).map((f) => (
-          <Link
-            key={f}
-            className="btn"
-            href={`/lessons/${id}?format=${f}`}
-            aria-current={format === f ? 'page' : undefined}
-            style={format === f ? { fontWeight: 600, textDecoration: 'underline' } : undefined}
-          >
-            {f === 'standard' ? 'Standard' : 'Compact'}
-          </Link>
-        ))}
+        <ResourcesToggle format={format} />
       </div>
 
       <div className="export-bar">
         <span className="export-label">Download</span>
-        <DownloadButtons id={id} />
+        <DownloadButtons id={id} format={format} />
       </div>
 
       {viewError ? (

@@ -10,14 +10,20 @@ import React, { useState } from 'react'
 
 import { downloadExport, type ExportState } from '@/components/exportClient'
 
+// Only the genuine choice — DOCX vs PDF. Whether the Resource column is included follows the
+// page's "Include ARES Resources" checkbox (the `format` prop), not a per-button choice.
 const OPTIONS = [
-  { format: 'standard', as: 'docx', label: 'Standard DOCX' },
-  { format: 'standard', as: 'pdf', label: 'Standard PDF' },
-  { format: 'compact', as: 'docx', label: 'Compact DOCX' },
-  { format: 'compact', as: 'pdf', label: 'Compact PDF' },
+  { as: 'docx', label: 'DOCX' },
+  { as: 'pdf', label: 'PDF' },
 ] as const
 
-export default function DownloadButtons({ id }: { id: string }) {
+export default function DownloadButtons({
+  id,
+  format,
+}: {
+  id: string
+  format: 'standard' | 'compact'
+}) {
   const [states, setStates] = useState<Record<string, ExportState>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -36,8 +42,8 @@ export default function DownloadButtons({ id }: { id: string }) {
 
   return (
     <>
-      {OPTIONS.map(({ format, as, label }) => {
-        const key = `${format}-${as}`
+      {OPTIONS.map(({ as, label }) => {
+        const key = as
         const s = states[key]
         const busy = s === 'preparing' || s === 'downloading'
         const text = s === 'preparing' ? 'Preparing…' : s === 'downloading' ? 'Downloading…' : label
