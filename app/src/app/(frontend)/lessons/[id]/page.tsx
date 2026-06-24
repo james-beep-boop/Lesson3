@@ -61,12 +61,9 @@ export default async function LessonView({
       <h1>{bundle.title}</h1>
 
       <div className="export-bar">
-        <ResourcesToggle format={format} />
-      </div>
-
-      <div className="export-bar">
         <span className="export-label">Download</span>
         <DownloadButtons id={id} format={format} />
+        <ResourcesToggle format={format} />
       </div>
 
       {viewError ? (
