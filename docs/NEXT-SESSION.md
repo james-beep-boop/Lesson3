@@ -51,13 +51,25 @@ Resume in this order:
 3. **▶ NEXT — Stage 2: read/export cutover (the remaining code work).** Ingest already writes the new
    model; the migration backfilled it; but the app still READS legacy `lesson-bundles` everywhere
    (frontend pages, export/preview/status, generator, admin components, `lib/readBundle.ts`). Cut
-   them over, in dependency order:
-   - read layer (`lib/readBundle.ts` + frontend pages) → `lesson-plans`, defaulting to the Official
-     version, with a version selector for all retained versions;
-   - export/generation → accept a version snapshot id, not only a legacy bundle id (artifact cache
-     already keys on `lockVersion` ↔ the immutable version);
-   - **Edit** → explicit "edit from this version → create a new version" flow (never mutate a snapshot);
-   - **Make Official** → update `LessonPlan.officialVersion` only, no content copy.
+   them over, in dependency order. **Decisions locked 2026-06-24:**
+   - **Read scope = subject-grade (match legacy).** Today `lessonPlanRead`/`lessonBundleVersionRead`
+     are `Boolean(user)` (any logged-in user reads everything). Rewrite to scope Teacher/Editor/
+     Subject-Admin to their assigned subject-grades like legacy `lessonBundleRead` (Site Admin = all).
+     No published gate (versions are inherently valid); Official is NOT an access gate.
+   - read layer (`lib/readBundle.ts` → add `findReadableVersion` + a plan resolver; frontend pages)
+     → `lesson-plans`, defaulting to the Official version, with a version selector for all versions;
+   - **Detail URL = `/lessons/<planId>?version=<id>`** (plan id; Official by default). Old
+     `/lessons/63` bundle-id links break — acceptable (non-production Rock only).
+   - generator: `generateForBundle` → `generateForVersion(versionId)`; **drop** the published-only
+     `assertExportable` gate (a version already passed `enforceBundleVersionGeneratable` at create).
+     `bundleToAresData` works on a version unchanged (proven by Stage-1 verify).
+   - export/preview/status endpoints (now on `LessonBundles`) → re-mount with version-snapshot
+     semantics; **artifact cache key `lockVersion` → the immutable version id** (simpler, content-stable);
+   - **Edit = edit-in-place, fork on first save** — open the version in the admin editor; intercept
+     the save to spawn a NEW Not-Official version (semver bump, `sourceVersion` set) instead of
+     mutating the snapshot. (More hook machinery than a server-action copy — chosen for fewer clicks.)
+   - **Make Official** → UI control sets `LessonPlan.officialVersion` only, no content copy
+     (`canSetOfficialVersion` + `validateOfficialVersionPointer` already enforce it).
 4. **Stage 3 — retire `lesson-bundles`** once reads are cut over (drop the collection + migration;
    re-run `verify-rbac` 36/36 + `roundtrip-regression`).
 5. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
