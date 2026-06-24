@@ -13,6 +13,7 @@ import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
 import { LessonBundles } from './collections/LessonBundles'
 import { generateArtifactTask } from './jobs/generateArtifact'
+import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { isSiteAdmin } from './access'
 
 const filename = fileURLToPath(import.meta.url)
@@ -107,7 +108,7 @@ export default buildConfig({
   // Completed jobs are kept (not auto-deleted) so the status poll can surface failures; periodic
   // cleanup is a follow-up. Cadence/limit are env-tunable for the host's CPU/Gotenberg budget.
   jobs: {
-    tasks: [generateArtifactTask],
+    tasks: [generateArtifactTask, generateVersionArtifactTask],
     // LOCK DOWN the job surface (Payload's defaults are permissive). Without this, the
     // `run` endpoint defaults to `() => true` (callable UNAUTHENTICATED), and `queue`/`cancel`
     // default to any-logged-in-user. Restrict all three to Site Admins. This does NOT affect

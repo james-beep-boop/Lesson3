@@ -30,16 +30,20 @@ const MAX_BYTES = Number(process.env.ARTIFACT_CACHE_MAX_BYTES) || 512 * 1024 * 1
 
 /**
  * Build a stable cache key from its parts. Each part is coerced to a string and joined with
- * a delimiter that cannot appear inside the structured parts (ids, ints, enums, filenames).
+ * a delimiter that cannot appear inside the structured parts (scope, enums, filenames).
+ *
+ * `scope` is an opaque, content-stable identity string chosen by the caller — `version:<id>`
+ * for an immutable version snapshot (no cache-buster needed), or `bundle:<id>:<lockVersion>`
+ * for the legacy bundle path (the lockVersion is the cache-buster). Keeping the cache key
+ * generator-agnostic lets both the version and bundle export paths share one cache.
  */
 export function artifactKey(parts: {
-  bundleId: string | number
-  lockVersion: number | null | undefined
+  scope: string
   format: string
   kind: 'docx' | 'pdf'
   doc: string
 }): string {
-  return [parts.bundleId, parts.lockVersion ?? 0, parts.format, parts.kind, parts.doc].join('::')
+  return [parts.scope, parts.format, parts.kind, parts.doc].join('::')
 }
 
 /** Map a key to its on-disk path (sha256 → hex filename; never path-derived from user input). */

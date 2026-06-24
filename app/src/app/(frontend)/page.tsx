@@ -1,7 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
 
-import { canUseAdminPanel } from '@/access'
 import { requireUser } from '@/lib/session'
 import {
   groupLessons,
@@ -11,10 +10,17 @@ import {
   type SubjectGradeGroup,
 } from '@/lib/substrand'
 
+const relId = (value: unknown): number | null => {
+  if (typeof value === 'number') return value
+  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
+  return null
+}
+
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
  * → strand → sub-strands, in curriculum order (by `meta.substrand_id`, numerically). Pure server
- * component: one access-gated `payload.find` + in-JS grouping/search, no client state.
+ * component. Official-version model: list each Lesson Plan via its Official version (the snapshot
+ * carrying meta/unit/lessons); the row links to the plan, which opens its Official version.
  */
 export default async function BrowsePage({
   searchParams,
@@ -23,42 +29,59 @@ export default async function BrowsePage({
 }) {
   const { payload, user } = await requireUser()
   const q = ((await searchParams).q ?? '').trim()
-  const includeDrafts = canUseAdminPanel(user)
 
-  // Access-gated (Teacher → published only; Editors/Subject Admins also their in-scope drafts).
-  // Light projection: only what the list renders/orders/searches — `lessons: { id: true }` yields
-  // the count via length WITHOUT loading the (large) lesson bodies. depth 2 resolves subject name.
-  const { docs } = await payload.find({
-    collection: 'lesson-bundles',
-    draft: includeDrafts,
+  // 1. Access-gated plans (every authenticated user reads all plans). We only need each plan's id +
+  //    its Official version pointer; the listable content lives on that version.
+  const { docs: plans } = await payload.find({
+    collection: 'lesson-plans',
     overrideAccess: false,
     user,
-    depth: 2,
+    depth: 0,
     limit: 200,
-    select: {
-      title: true,
-      subjectGrade: true,
-      meta: { substrand_id: true, substrand_name: true },
-      unit: { strand: true },
-      lessons: { id: true },
-      _status: true,
-    },
+    select: { officialVersion: true },
   })
+  const officialIds = plans.map((p) => relId(p.officialVersion)).filter((id): id is number => id != null)
 
-  const rows: LessonRow[] = docs.map((b) => {
-    const sg = typeof b.subjectGrade === 'object' ? b.subjectGrade : null
+  // 2. Load those Official versions with a light projection — the version carries meta/unit/lessons.
+  //    `lessons: { id: true }` yields the count via length without loading lesson bodies; depth 2
+  //    resolves the subject name. `lessonPlan` maps each version back to its plan (the row link).
+  const { docs: versions } = officialIds.length
+    ? await payload.find({
+        collection: 'lesson-bundle-versions',
+        where: { id: { in: officialIds } },
+        overrideAccess: false,
+        user,
+        depth: 2,
+        limit: 200,
+        select: {
+          title: true,
+          subjectGrade: true,
+          lessonPlan: true,
+          meta: { substrand_id: true, substrand_name: true },
+          unit: { strand: true },
+          lessons: { id: true },
+        },
+      })
+    : { docs: [] }
+
+  const rows: LessonRow[] = versions.flatMap((v) => {
+    const planId = relId(v.lessonPlan)
+    if (planId == null) return []
+    const sg = typeof v.subjectGrade === 'object' ? v.subjectGrade : null
     const subject = sg && typeof sg.subject === 'object' ? sg.subject : null
-    return {
-      id: b.id,
-      subjectName: subject?.name ?? 'Unknown subject',
-      grade: sg?.grade ?? null,
-      substrandId: b.meta?.substrand_id ?? '',
-      // Prefer the clean structured name over the shouty stored `title` (e.g. "BIOLOGY GRADE 10: …").
-      substrandName: b.meta?.substrand_name || b.title || 'Untitled',
-      strandName: b.unit?.strand ?? null,
-      lessonCount: Array.isArray(b.lessons) ? b.lessons.length : 0,
-      status: b._status === 'draft' ? 'draft' : 'published',
-    }
+    return [
+      {
+        id: planId, // the row links to the plan; the detail page opens its Official version
+        subjectName: subject?.name ?? 'Unknown subject',
+        grade: sg?.grade ?? null,
+        substrandId: v.meta?.substrand_id ?? '',
+        // Prefer the clean structured name over the shouty stored `title` (e.g. "BIOLOGY GRADE 10: …").
+        substrandName: v.meta?.substrand_name || v.title || 'Untitled',
+        strandName: v.unit?.strand ?? null,
+        lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
+        status: 'published',
+      },
+    ]
   })
 
   return (
@@ -76,7 +99,7 @@ export default async function BrowsePage({
       </form>
 
       {rows.length === 0 ? (
-        <p className="muted">No published lesson plans yet.</p>
+        <p className="muted">No lesson plans yet.</p>
       ) : q ? (
         <SearchResults rows={orderLessons(rows.filter((r) => matchesQuery(r, q)))} query={q} />
       ) : (

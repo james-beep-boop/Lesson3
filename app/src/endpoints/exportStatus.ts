@@ -31,7 +31,7 @@ export const exportStatusEndpoint: Endpoint = {
     const jobId = typeof req.query?.jobId === 'string' ? req.query.jobId : undefined
     if (!jobId) throw new APIError('Missing jobId', 400)
 
-    const { spec } = await authorizeExportRequest(req)
+    const { bundle, spec } = await authorizeExportRequest(req)
     if (await isExportReady(spec)) return json({ state: 'ready' })
 
     // Not ready yet — consult the job to distinguish "still working" from "failed".
@@ -50,7 +50,7 @@ export const exportStatusEndpoint: Endpoint = {
     // Bind the job to THIS bundle so a jobId can't probe unrelated jobs.
     const jobInput = job?.input as { bundleId?: number | string; lockVersion?: number } | undefined
     const belongs =
-      job?.taskSlug === GENERATE_ARTIFACT_SLUG && String(jobInput?.bundleId ?? '') === String(spec.bundleId)
+      job?.taskSlug === GENERATE_ARTIFACT_SLUG && String(jobInput?.bundleId ?? '') === String(bundle.id)
     if (!job || !belongs) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
@@ -60,7 +60,7 @@ export const exportStatusEndpoint: Endpoint = {
     // The job caches under its ENQUEUE-time lockVersion; if the bundle was republished since, its
     // artifacts land under the old key and `isExportReady` (current spec) would never see them →
     // an endless "preparing". Detect the drift and tell the client to restart the export.
-    if (String(jobInput?.lockVersion ?? '') !== String(spec.lockVersion ?? '')) {
+    if (String(jobInput?.lockVersion ?? '') !== String(bundle.lockVersion ?? '')) {
       return json({ state: 'error', message: 'Bundle changed during export — please retry.' }, 409)
     }
     // Job finished without error but the artifacts aren't present (e.g. evicted post-completion):

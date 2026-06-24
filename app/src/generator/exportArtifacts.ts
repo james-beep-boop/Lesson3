@@ -14,12 +14,9 @@
  * BEFORE producing/serving. This module fetches with overrideAccess like `generateForBundle`.
  */
 import { createRequire } from 'node:module'
-import type { Payload } from 'payload'
 
-import { generateForBundle } from './generateForBundle'
 import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
-import type { LessonSequenceFormat } from './index'
-import type { LessonBundle } from '../payload-types'
+import type { GeneratedDocx, LessonSequenceFormat } from './index'
 
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip') as new () => {
@@ -29,14 +26,20 @@ const JSZip = require('jszip') as new () => {
 
 export type ExportKind = 'docx' | 'pdf'
 
-/** The four inputs that fully determine an export's artifacts (its cache identity). */
+/** The inputs that fully determine an export's artifacts (its cache identity). */
 export interface ArtifactSpec {
-  bundleId: number | string
-  /** The published bundle's lockVersion — the cache-buster (bumps on every update). */
-  lockVersion: number | null | undefined
+  /** Opaque, content-stable identity: `version:<id>` (immutable) or `bundle:<id>:<lockVersion>`. */
+  scope: string
   format: LessonSequenceFormat
   kind: ExportKind
 }
+
+/** Cache scope for an immutable version snapshot (no cache-buster — the bytes never change). */
+export const versionScope = (versionId: number | string): string => `version:${versionId}`
+
+/** Cache scope for a legacy bundle export (lockVersion is the cache-buster). */
+export const bundleScope = (bundleId: number | string, lockVersion: number | null | undefined): string =>
+  `bundle:${bundleId}:${lockVersion ?? 0}`
 
 /** One deliverable's stable cache tag + its download filename stem (no extension). */
 interface DocMeta {
@@ -58,16 +61,10 @@ export const safePrefix = (raw: unknown): string =>
   (typeof raw === 'string' ? raw : '').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
 const keyFor = (spec: ArtifactSpec, doc: string): string =>
-  artifactKey({
-    bundleId: spec.bundleId,
-    lockVersion: spec.lockVersion,
-    format: spec.format,
-    kind: spec.kind,
-    doc,
-  })
+  artifactKey({ scope: spec.scope, format: spec.format, kind: spec.kind, doc })
 
-/** Build the ordered deliverable list (tag + filename stem) from a bundle's filePrefix. */
-function docListFor(prefix: string, docx: Awaited<ReturnType<typeof generateForBundle>>): DocMeta[] {
+/** Build the ordered deliverable list (tag + filename stem) from a filePrefix. */
+function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
   const docs: DocMeta[] = [{ tag: 'lessonSequence', name: `${prefix}_CBE_LessonSequence` }]
   if (docx.finalExplanation) docs.push({ tag: 'finalExplanation', name: `${prefix}_FinalExplanation` })
   if (docx.summaryTable) docs.push({ tag: 'summaryTable', name: `${prefix}_SummaryTable` })
@@ -82,28 +79,19 @@ async function zipEntries(entries: { name: string; bytes: Buffer }[]): Promise<B
 }
 
 /**
- * COLD PATH (job / first request): generate the three DOCX, convert to PDF if requested,
- * cache every deliverable, then write the manifest sentinel. Idempotent — re-running simply
- * rewrites identical bytes. `convert` is injected so this module need not import the PDF seam
- * directly (keeps the converter dependency at the call site). Returns the deliverable list.
- *
- * NOTE on staleness: keys use `spec.lockVersion` (the enqueue-time value), but content is read
- * fresh here. If the bundle advanced between enqueue and run, the (rare) result is newer content
- * cached under the older version key — harmless, since the next request's new lockVersion misses.
+ * COLD PATH (job / first request): given the already-generated DOCX and the filePrefix, convert
+ * to PDF if requested, cache every deliverable, then write the manifest sentinel. Idempotent —
+ * re-running simply rewrites identical bytes. `convert` is injected so this module need not import
+ * the PDF seam directly (keeps the converter dependency at the call site). Returns the deliverable
+ * list. Generator-agnostic: the caller chooses the generator (bundle or version) and passes the
+ * result + prefix, so the cache layer stays decoupled from the data model.
  */
 export async function produceArtifacts(
-  payload: Payload,
   spec: ArtifactSpec,
+  generated: GeneratedDocx,
+  prefix: string,
   convert: (docx: Buffer, filename: string) => Promise<Buffer>,
 ): Promise<DocMeta[]> {
-  const generated = await generateForBundle(payload, spec.bundleId, spec.format)
-  const bundle = (await payload.findByID({
-    collection: 'lesson-bundles',
-    id: spec.bundleId,
-    depth: 0,
-    overrideAccess: true,
-  })) as LessonBundle
-  const prefix = safePrefix(bundle.meta?.filePrefix)
   const docs = docListFor(prefix, generated)
   // `generated` is already keyed by deliverable tag; docListFor only lists ones that exist.
   const docxFor = (tag: string): Buffer => (generated as unknown as Record<string, Buffer>)[tag]

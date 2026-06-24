@@ -11,6 +11,11 @@ import {
   enforceBundleVersionGeneratable,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
+import {
+  exportVersionEndpoint,
+  exportVersionPrepareEndpoint,
+  exportVersionStatusEndpoint,
+} from '../endpoints/exportVersion'
 import { LessonBundles } from './LessonBundles'
 
 const LEGACY_VERSION_FIELDS = new Set(['semver', 'bumpType', 'lockVersion', 'title', 'subjectGrade'])
@@ -38,6 +43,14 @@ export const LessonBundleVersions: CollectionConfig = {
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceBundleVersionGeneratable],
   },
+  endpoints: [
+    // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
+    exportVersionEndpoint,
+    // POST /:id/export — prepare: warm → 200 {ready}; cold → 202 + enqueue generateVersionArtifact.
+    exportVersionPrepareEndpoint,
+    // GET /:id/export/status?jobId=… — poll an enqueued export job.
+    exportVersionStatusEndpoint,
+  ],
   fields: [
     {
       name: 'lessonPlan',

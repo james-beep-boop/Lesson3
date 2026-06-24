@@ -18,10 +18,10 @@ const OPTIONS = [
 ] as const
 
 export default function DownloadButtons({
-  id,
+  versionId,
   format,
 }: {
-  id: string
+  versionId: number
   format: 'standard' | 'compact'
 }) {
   const [states, setStates] = useState<Record<string, ExportState>>({})
@@ -54,7 +54,9 @@ export default function DownloadButtons({
             className="btn"
             disabled={busy}
             aria-busy={busy}
-            onClick={() => start(key, `/api/lesson-bundles/${id}/export?format=${format}&as=${as}`)}
+            onClick={() =>
+              start(key, `/api/lesson-bundle-versions/${versionId}/export?format=${format}&as=${as}`)
+            }
           >
             {text} (.zip)
           </button>

@@ -10,10 +10,10 @@
 import { APIError, type PayloadRequest } from 'payload'
 
 import { assertExportable, NotExportableError } from '../generator/generateForBundle'
-import type { ArtifactSpec } from '../generator/exportArtifacts'
+import { bundleScope, versionScope, type ArtifactSpec } from '../generator/exportArtifacts'
 import { parseLessonSequenceFormat, parseExportKind } from './parseFormat'
-import { findReadableBundle } from '../lib/readBundle'
-import type { LessonBundle, User } from '../payload-types'
+import { findReadableBundle, findReadableVersion } from '../lib/readBundle'
+import type { LessonBundle, LessonBundleVersion, User } from '../payload-types'
 
 export async function authorizeExportRequest(
   req: PayloadRequest,
@@ -35,5 +35,26 @@ export async function authorizeExportRequest(
     throw err
   }
 
-  return { bundle, spec: { bundleId: id, lockVersion: bundle.lockVersion, format, kind } }
+  return { bundle, spec: { scope: bundleScope(id, bundle.lockVersion), format, kind } }
+}
+
+/**
+ * Version-model counterpart: authorize + resolve the export spec for a `lesson-bundle-version`.
+ * Enforces the caller's READ access (not-visible → 404). There is NO published/exportable gate —
+ * a retained version is immutable and already passed `enforceBundleVersionGeneratable` at create,
+ * so it is inherently exportable. The cache scope is the immutable version id (no cache-buster).
+ */
+export async function authorizeVersionExportRequest(
+  req: PayloadRequest,
+): Promise<{ version: LessonBundleVersion; spec: ArtifactSpec }> {
+  const id = req.routeParams?.id as string | undefined
+  if (!id) throw new APIError('Missing version id', 400)
+
+  const format = parseLessonSequenceFormat(req)
+  const kind = parseExportKind(req)
+
+  const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
+  if (!version) throw new APIError('Version not found', 404)
+
+  return { version, spec: { scope: versionScope(version.id), format, kind } }
 }

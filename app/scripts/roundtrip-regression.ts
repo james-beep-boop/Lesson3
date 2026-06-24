@@ -30,7 +30,7 @@ import path from 'node:path'
 import os from 'node:os'
 
 import { ingestPaths } from '../src/ingest'
-import { generateForBundle } from '../src/generator/generateForBundle'
+import { generateForVersion } from '../src/generator/generateForVersion'
 import { compareDoc } from './lib/docxDiff'
 
 // bio_1_4's META (verified): the data file resolves to this taxonomy on ingest.
@@ -113,23 +113,30 @@ const run = async () => {
         }),
     )
 
-    // 2. Ingest the trusted demo data file → a fresh 1.0.0 DRAFT (never touches existing bundles).
+    // 2. Ingest the trusted demo data file → a fresh LessonPlan + Official 1.0.0 version (never
+    //    touches existing data — ingest always creates a new plan). Track BOTH for cleanup.
     const [ingested] = await ingestPaths(payload, [path.join(DEMO, DATA_FILE)])
-    if (!ingested) throw new Error(`Ingest produced no bundle for ${DATA_FILE}`)
-    created.push({ collection: 'lesson-bundles', id: ingested.id })
+    if (!ingested) throw new Error(`Ingest produced no plan for ${DATA_FILE}`)
+    created.push({ collection: 'lesson-plans', id: ingested.id })
     console.log(`Imported ${DATA_FILE} → plan ${ingested.id} · "${ingested.title}" · ${ingested.semver} · Official`)
 
-    // 3. Publish (runs the enforceGeneratable gate; semver bumps but content is unaffected).
-    const published = await payload.update({
-      collection: 'lesson-bundles',
+    // 3. Resolve the plan's Official version snapshot (the immutable doc we generate from).
+    const plan = await payload.findByID({
+      collection: 'lesson-plans',
       id: ingested.id,
-      data: { _status: 'published' },
+      depth: 0,
       overrideAccess: true,
     })
-    console.log(`Published → ${published.semver} · ${published._status}`)
+    const officialVersionId =
+      typeof plan.officialVersion === 'object' && plan.officialVersion
+        ? plan.officialVersion.id
+        : plan.officialVersion
+    if (officialVersionId == null) throw new Error('Ingested plan has no Official version')
+    created.push({ collection: 'lesson-bundle-versions', id: officialVersionId })
+    console.log(`Official version → ${officialVersionId}`)
 
-    // 4. Generate from the stored, published bundle and diff vs the approved DOCX.
-    const out = await generateForBundle(payload, ingested.id, 'standard')
+    // 4. Generate from the stored Official version and diff vs the approved DOCX.
+    const out = await generateForVersion(payload, officialVersionId, 'standard')
     const results = [
       await compareDoc('LessonSequence (SoW)', out.lessonSequence, approved(APPROVED.lessonSequence), true),
       await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
@@ -137,7 +144,19 @@ const run = async () => {
     ]
     passed = results.filter(Boolean).length
   } finally {
-    // 5. Tear down everything we created, newest first (bundle → SubjectGrade → Subject).
+    // 5. Break the plan↔version mutual relationship before deleting, then tear down newest-first
+    //    (version → plan → SubjectGrade → Subject). LessonPlan.officialVersion and
+    //    LessonBundleVersion.lessonPlan reference each other, so null the pointer first or the
+    //    first delete can trip the FK.
+    for (const { collection, id } of created) {
+      if (collection === 'lesson-plans') {
+        try {
+          await payload.update({ collection, id, data: { officialVersion: null }, overrideAccess: true })
+        } catch {
+          /* best-effort — the delete below reports any real failure */
+        }
+      }
+    }
     for (const { collection, id } of created.reverse()) {
       try {
         await payload.delete({ collection, id, overrideAccess: true })

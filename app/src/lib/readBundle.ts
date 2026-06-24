@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import type { LessonBundle, User } from '@/payload-types'
+import type { LessonBundle, LessonBundleVersion, LessonPlan, User } from '@/payload-types'
 
 /**
  * findByID for a lesson bundle with the CALLER's access (overrideAccess:false + user).
@@ -38,5 +38,58 @@ export async function findReadableBundle(
     const status = (e as { status?: number } | null | undefined)?.status
     if (status === 404 || status === 403) return null
     throw e
+  }
+}
+
+/** Turn an access 404/403 into null (the "not visible to this user" cases); rethrow real errors. */
+function nullOnNotVisible(e: unknown): null {
+  const status = (e as { status?: number } | null | undefined)?.status
+  if (status === 404 || status === 403) return null
+  throw e
+}
+
+/**
+ * findByID for a LessonPlan with the CALLER's access (overrideAccess:false + user). Returns null
+ * only for the expected not-visible cases (404/403); real errors propagate. The new-model
+ * counterpart to `findReadableBundle` — see its doc for the null-vs-throw contract.
+ */
+export async function findReadablePlan(
+  payload: Payload,
+  args: { id: string | number; user: User | null; depth?: number; req?: PayloadRequest },
+): Promise<LessonPlan | null> {
+  try {
+    return (await payload.findByID({
+      collection: 'lesson-plans',
+      id: args.id,
+      depth: args.depth ?? 0,
+      overrideAccess: false,
+      user: args.user,
+      req: args.req,
+    })) as LessonPlan
+  } catch (e) {
+    return nullOnNotVisible(e)
+  }
+}
+
+/**
+ * findByID for an immutable LessonBundleVersion with the CALLER's access (overrideAccess:false +
+ * user). Returns null only for not-visible cases (404/403). There is no draft/published axis on
+ * versions — every retained version is a valid snapshot — so this has no `draft` flag.
+ */
+export async function findReadableVersion(
+  payload: Payload,
+  args: { id: string | number; user: User | null; depth?: number; req?: PayloadRequest },
+): Promise<LessonBundleVersion | null> {
+  try {
+    return (await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: args.id,
+      depth: args.depth ?? 0,
+      overrideAccess: false,
+      user: args.user,
+      req: args.req,
+    })) as LessonBundleVersion
+  } catch (e) {
+    return nullOnNotVisible(e)
   }
 }

@@ -14,8 +14,10 @@
  */
 import type { TaskConfig } from 'payload'
 
-import { produceArtifacts, type ArtifactSpec } from '../generator/exportArtifacts'
+import { bundleScope, produceArtifacts, safePrefix, type ArtifactSpec } from '../generator/exportArtifacts'
+import { generateForBundle } from '../generator/generateForBundle'
 import { docxToPdf } from '../generator/docxToPdf'
+import type { LessonBundle } from '../payload-types'
 
 export interface GenerateArtifactInput {
   bundleId: number
@@ -44,8 +46,15 @@ export const generateArtifactTask: TaskConfig<{ input: GenerateArtifactInput; ou
   ],
   handler: async ({ input, req }) => {
     const { bundleId, lockVersion, format, kind } = input
-    const spec: ArtifactSpec = { bundleId, lockVersion, format, kind }
-    await produceArtifacts(req.payload, spec, docxToPdf)
+    const spec: ArtifactSpec = { scope: bundleScope(bundleId, lockVersion), format, kind }
+    const generated = await generateForBundle(req.payload, bundleId, format)
+    const bundle = (await req.payload.findByID({
+      collection: 'lesson-bundles',
+      id: bundleId,
+      depth: 0,
+      overrideAccess: true,
+    })) as LessonBundle
+    await produceArtifacts(spec, generated, safePrefix(bundle.meta?.filePrefix), docxToPdf)
     return { output: {} }
   },
 }

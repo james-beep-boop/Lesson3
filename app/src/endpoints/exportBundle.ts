@@ -90,14 +90,14 @@ export const exportPrepareEndpoint: Endpoint = {
 
     // COLD: enqueue the heavy work and return 202 + a poll URL.
     const input: GenerateArtifactInput = {
-      bundleId: Number(spec.bundleId),
+      bundleId: Number(bundle.id),
       lockVersion: Number(bundle.lockVersion ?? 0),
       format,
       kind,
     }
     const job = await req.payload.jobs.queue({ task: GENERATE_ARTIFACT_SLUG, input, req })
 
-    const statusUrl = `/api/lesson-bundles/${spec.bundleId}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
+    const statusUrl = `/api/lesson-bundles/${bundle.id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
     return json({ state: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }, 202)
   },
 }
