@@ -82,28 +82,91 @@ a {
   color: var(--muted);
 }
 
-/* ---- Browse ---- */
-.bundle-list {
+/* ---- Lesson Plans (browse) ---- */
+/* Four-step type scale: page title (22) > subject-grade (18) > strand (16) > sub-strand (14). */
+.lp-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+.lp-search {
+  margin: 0 0 1.75rem;
+}
+.lp-search input {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.sg-section + .sg-section {
+  margin-top: 2.25rem;
+}
+.sg-head {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+.strand-section + .strand-section {
+  margin-top: 1.25rem;
+}
+.strand-head {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.substrand-list {
   list-style: none;
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--line);
 }
-.bundle-row {
+.substrand-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 0.25rem;
+  padding: 0.6rem 0.1rem;
   border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
 }
-.bundle-title {
-  font-weight: 600;
+/* Titles read as ink (not link-blue); the accent is reserved for hover/focus. */
+.substrand-link {
+  display: flex;
+  align-items: baseline;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
   text-decoration: none;
 }
-.bundle-meta {
+.substrand-link:hover,
+.substrand-link:focus-visible {
+  color: var(--accent);
+}
+.substrand-num {
+  flex-shrink: 0;
+  width: 2.6rem;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+/* Let a long curriculum name shrink/wrap instead of shoving the lesson count off the row. */
+.substrand-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.substrand-context {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.substrand-count {
+  flex-shrink: 0;
+  color: var(--muted);
   white-space: nowrap;
 }
 
