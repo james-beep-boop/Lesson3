@@ -59,6 +59,19 @@ a {
 .nav-user {
   color: var(--muted);
 }
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 .nav-link {
   text-decoration: none;
 }
