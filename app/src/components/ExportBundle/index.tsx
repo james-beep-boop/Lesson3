@@ -5,8 +5,8 @@
  * with a per-export LessonSequence format toggle (SPEC §9). Injected via
  * `admin.components.edit.beforeDocumentControls` on the lesson-bundles collection.
  *
- * It hits `GET /api/lesson-bundles/:id/export?format=…` (see endpoints/exportBundle.ts),
- * which is READ-access-gated and published-only. So:
+ * It drives `/api/lesson-bundles/:id/export?format=…` (POST to prepare, GET to download — see
+ * endpoints/exportBundle.ts), which is READ-access-gated and published-only. So:
  *   - hidden entirely on an unsaved/new doc (no id yet);
  *   - disabled with a hint when no published version exists (export is published-only;
  *     `hasPublishedDoc` is false). The format is a per-export choice, never stored.

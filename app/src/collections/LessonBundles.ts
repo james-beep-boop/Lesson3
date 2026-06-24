@@ -11,7 +11,7 @@ import {
 } from '../access/bundle'
 import { prose, proseAdmin, structureText } from '../fields/bundleFields'
 import { PHASE_OPTIONS } from '../fields/phases'
-import { exportBundleEndpoint } from '../endpoints/exportBundle'
+import { exportBundleEndpoint, exportPrepareEndpoint } from '../endpoints/exportBundle'
 import { exportStatusEndpoint } from '../endpoints/exportStatus'
 import { previewBundleEndpoint, previewBundleUnsavedEndpoint } from '../endpoints/previewBundle'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
@@ -91,9 +91,12 @@ export const LessonBundles: CollectionConfig = {
     },
   },
   endpoints: [
-    // GET /:id/export?format=standard|compact&as=docx|pdf — READ-gated, published-only.
-    // Warm → 200 .zip; cold → 202 + enqueue the generateArtifact job (SPEC §9; readiness #1).
+    // GET /:id/export?format=standard|compact&as=docx|pdf — READ-gated, published-only, serve-only.
+    // Warm → 200 .zip; cold → 409 (no enqueue — GET is idempotent; audit #3). SPEC §9.
     exportBundleEndpoint,
+    // POST /:id/export — prepare: warm → 200 {ready}; cold → 202 + enqueue generateArtifact.
+    // The only state-changing export op (CSRF-guarded by SameSite=Lax). SPEC §9; readiness #1.
+    exportPrepareEndpoint,
     // GET /:id/export/status?jobId=… — poll an enqueued export job (preparing/ready/error).
     exportStatusEndpoint,
     // GET /:id/preview?format=standard|compact — READ-gated, draft-capable HTML view (SPEC §5).

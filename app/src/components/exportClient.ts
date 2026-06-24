@@ -1,11 +1,11 @@
 /**
- * Client-side export driver (SPEC §9). The export endpoint is now two-phase: a warm request
- * returns the .zip (200); a cold request returns 202 + a status URL while the `generateArtifact`
- * job runs. A plain `<a href>`/navigation can't follow that handshake, so the admin button and
- * the teacher download links both call this: fetch → if 200 download; if 202 poll the status URL
- * until ready, then fetch once more to download. Reports progress so the UI can show "Preparing…".
- *
- * Same-origin fetch carries the auth cookie, so the endpoint still sees `req.user`.
+ * Client-side export driver (SPEC §9). Export is two-phase AND split by HTTP method (audit #3):
+ * the side-effecting "prepare" is a **POST** (CSRF-guarded by the SameSite=Lax cookie); the
+ * download is an idempotent **GET**. A plain `<a href>` can't follow that, so the admin button and
+ * the teacher links both call this:
+ *   POST `…/export` → 200 {ready} download via GET · 202 → poll status → download via GET.
+ * Reports progress so the UI can show "Preparing…". Same-origin fetch carries the auth cookie, so
+ * both requests still see `req.user`.
  */
 export type ExportState = 'idle' | 'preparing' | 'downloading' | 'error'
 
@@ -47,57 +47,70 @@ async function messageFrom(res: Response, fallback: string): Promise<string> {
 }
 
 /**
- * Download an export, following the warm (200) or cold (202 → poll → 200) path. Resolves once
- * the file download has been triggered; rejects with a user-facing message on failure (incl. 429
- * rate-limit and job errors). Drives `onState` through preparing → downloading.
+ * Download an export. Prepares via POST (ready immediately, or 202 → poll), then downloads via a
+ * GET of the now-warm .zip. Resolves once the download has been triggered; rejects with a
+ * user-facing message on failure (incl. 429 rate-limit and job errors). Drives `onState` through
+ * preparing → downloading.
  */
 export async function downloadExport(exportUrl: string, opts: DownloadOpts = {}): Promise<void> {
   const { onState = () => {}, maxPolls = 60 } = opts
   const fallbackName = 'export.zip'
 
-  onState('downloading')
-  const first = await fetch(exportUrl, { credentials: 'same-origin' })
-
-  if (first.status === 200) {
-    saveBlob(await first.blob(), filenameFrom(first, fallbackName))
+  // Download the (now-warm) zip via the idempotent GET. Shared by the ready and polled paths.
+  const fetchAndSave = async (): Promise<void> => {
+    onState('downloading')
+    const dl = await fetch(exportUrl, { credentials: 'same-origin' })
+    if (dl.status !== 200) {
+      const msg = await messageFrom(dl, 'Export could not be downloaded.')
+      onState('error', msg)
+      throw new Error(msg)
+    }
+    saveBlob(await dl.blob(), filenameFrom(dl, fallbackName))
     onState('idle')
+  }
+
+  // Phase 1: prepare via POST — the only state-changing call (CSRF-guarded by SameSite=Lax).
+  onState('preparing')
+  const prep = await fetch(exportUrl, { method: 'POST', credentials: 'same-origin' })
+
+  if (prep.status === 429) {
+    const msg = await messageFrom(prep, 'Too many requests — please wait and try again.')
+    onState('error', msg)
+    throw new Error(msg)
+  }
+  if (prep.status !== 200 && prep.status !== 202) {
+    const msg = await messageFrom(prep, `Export failed (${prep.status}).`)
+    onState('error', msg)
+    throw new Error(msg)
+  }
+
+  const prepBody = (await prep.json().catch(() => ({}))) as {
+    state?: string
+    statusUrl?: string
+    retryAfterMs?: number
+  }
+
+  // WARM: artifacts already cached — download straight away.
+  if (prep.status === 200 && prepBody.state === 'ready') {
+    await fetchAndSave()
     return
   }
 
-  if (first.status === 429) {
-    const msg = await messageFrom(first, 'Too many requests — please wait and try again.')
+  // COLD (202): poll the status URL until the artifacts are ready, then download.
+  const cadence = prepBody.retryAfterMs ?? 1500
+  const statusUrl = prepBody.statusUrl
+  if (!statusUrl) {
+    const msg = 'Export failed — please try again.'
     onState('error', msg)
     throw new Error(msg)
   }
-
-  if (first.status !== 202) {
-    const msg = await messageFrom(first, `Export failed (${first.status}).`)
-    onState('error', msg)
-    throw new Error(msg)
-  }
-
-  // Cold path: poll the status URL until the artifacts are ready, then re-fetch to download.
-  const { statusUrl, retryAfterMs } = (await first.json()) as {
-    statusUrl: string
-    retryAfterMs?: number
-  }
-  const cadence = retryAfterMs ?? 1500
-  onState('preparing')
 
   for (let i = 0; i < maxPolls; i++) {
     await sleep(cadence)
     const poll = await fetch(statusUrl, { credentials: 'same-origin' })
     const body = (await poll.json().catch(() => ({}))) as { state?: string; message?: string }
     if (body.state === 'ready') {
-      onState('downloading')
-      const dl = await fetch(exportUrl, { credentials: 'same-origin' })
-      if (dl.status !== 200) {
-        const msg = await messageFrom(dl, 'Export could not be downloaded.')
-        onState('error', msg)
-        throw new Error(msg)
-      }
-      saveBlob(await dl.blob(), filenameFrom(dl, fallbackName))
-      onState('idle')
+      await fetchAndSave()
       return
     }
     if (body.state === 'error') {
