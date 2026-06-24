@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Audit #3 closed: GET `/export` split into serve-only GET + enqueue-only POST
+
+**Decision.** The export endpoint that *enqueued* heavy work on a cold GET was both non-idempotent
+and a cross-site enqueue vector (a bare `<img src=…/export>` would queue a job). Split by HTTP
+method:
+- `GET /:id/export` — serve-only. Warm → `200` zip; cold → `409 {state:'not_prepared'}`. It **never
+  enqueues**, so it is idempotent and side-effect free.
+- `POST /:id/export` — the only state-changing export op. Warm → `200 {state:'ready'}`; cold →
+  enqueue `generateArtifact` + `202 {statusUrl}`. The per-user rate limit moved here (the enqueue).
+- `GET …/export/status` unchanged. The client (`exportClient.ts`) now POSTs to prepare, then GETs to
+  download (200 ready → GET; 202 → poll → GET). Both UI callers pass the same base URL, so no change.
+
+**Why this is the CSRF fix.** Verified against installed Payload source: the auth cookie defaults to
+`SameSite=Lax` (`collections/config/defaults.js`) and `Users.ts` doesn't override it. A cross-site
+POST therefore carries no cookie → `req.user` null → `401`. So the only operation that drives the
+queue is an authenticated *same-site* POST — no CSRF token machinery needed.
+
+**Verified on the Rock (`9c9a701`, 2026-06-24):** cold POST → `202` → poll `ready` → GET `200`
+application/zip (42 KB, correct filename); cold GET on an unprepared spec → `409` (no enqueue);
+unauth POST → `401`; Teacher POST `/api/payload-jobs` → `403`. **Note:** unauth POST
+`/api/payload-jobs/run` returned `404`, not the `401/403` the backlog predicted — harmless (the run
+surface isn't exposed to an unauth caller, nothing runs/leaks), but the run path/handler differs from
+what was assumed; confirm if revisiting the jobs surface.
+
 ## 2026-06-24 — Official pointer replaces draft/publish as product state
 
 The product state is now **Official / Not Official**, not Payload **published / draft**. A lesson

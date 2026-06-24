@@ -8,6 +8,18 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED + DEPLOYED 2026-06-24 (Audit #3 — export GET/POST split, Rock-verified)
+
+- **Closed audit #3** (`9c9a701`): the export endpoint that enqueued heavy work on a cold GET was
+  split — `GET /:id/export` is now serve-only (warm → 200 zip, cold → 409, never enqueues), and a new
+  `POST /:id/export` is the only state-changing op (enqueue + rate limit). With the Payload auth
+  cookie `SameSite=Lax` (confirmed in installed source), a cross-site POST has no cookie → 401, so the
+  CSRF/enqueue vector is closed and GET is idempotent. `exportClient.ts` now POSTs to prepare then GETs
+  to download.
+- **Verified end-to-end on the Rock:** cold POST → 202 → poll ready → GET 200 zip; cold GET → 409;
+  unauth POST → 401; Teacher POST `/api/payload-jobs` → 403. (Unauth `…/payload-jobs/run` → 404, not
+  401/403 — noted in DECISIONS.)
+
 ## SHIPPED + DEPLOYED 2026-06-24 (Official-version model slice + schema migration)
 
 - **Official-version product model chosen and first implementation slice shipped.** User clarified:

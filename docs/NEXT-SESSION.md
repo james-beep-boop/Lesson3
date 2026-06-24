@@ -53,8 +53,9 @@ Resume in this order:
    - **Make Official** should update `LessonPlan.officialVersion` only, with no content copy;
    - migrate/copy the existing 13 legacy published bundles into the new LessonPlan/Version shape, or
      consciously re-upload/import them under the new model.
-3. **Then return to the hardening backlog** below: async export verification, GET `/export` enqueue
-   semantics, pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
+3. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
+   enqueue semantics~~ (both CLOSED + Rock-verified 2026-06-24, `9c9a701` — see DECISIONS),
+   pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
    tests, and PDF-fidelity CI.
 
 ---
@@ -157,8 +158,11 @@ scale until ALL of these land:
 **jobs surface was open by default** (run endpoint `() => true`; collection fell back to any-auth-user)
 → **locked down** (`jobs.access` + `jobsCollectionOverrides`, `5b58b41`); and three async-export
 correctness bugs — temp-file race, manifest-only readiness, stale-`lockVersion` stuck poll — **fixed**
-(`8bede30`). **Deferred hardening:** audit **#3** GET `/export` enqueues (not idempotent / CSRF) →
-move enqueue to `POST`. The numbered items below are the remaining hardening backlog.
+(`8bede30`). **Audit #3 — CLOSED + Rock-verified 2026-06-24 (`9c9a701`):** the GET `/export` enqueue
+(not idempotent / CSRF) was split — GET is now serve-only (warm → 200 zip; cold → 409, never enqueues),
+and a new **POST `/export`** is the only state-changing op (CSRF-guarded by the SameSite=Lax cookie).
+Verified end-to-end on the Rock (cold POST → 202 → poll → 200 zip; cold GET → 409; unauth POST → 401).
+The numbered items below are the remaining hardening backlog.
 
 1. **~~Heavy generation is synchronous + unthrottled~~ — CLOSED (Phase 5, 2026-06-23).** Fixed with
    the **Jobs Queue + per-user rate-limit + artifact cache** (deployed + verified live). Heavy
