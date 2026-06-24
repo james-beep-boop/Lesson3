@@ -52,10 +52,11 @@ Resume in this order:
    model; the migration backfilled it; but the app still READS legacy `lesson-bundles` everywhere
    (frontend pages, export/preview/status, generator, admin components, `lib/readBundle.ts`). Cut
    them over, in dependency order. **Decisions locked 2026-06-24:**
-   - **Read scope = subject-grade (match legacy).** Today `lessonPlanRead`/`lessonBundleVersionRead`
-     are `Boolean(user)` (any logged-in user reads everything). Rewrite to scope Teacher/Editor/
-     Subject-Admin to their assigned subject-grades like legacy `lessonBundleRead` (Site Admin = all).
-     No published gate (versions are inherently valid); Official is NOT an access gate.
+   - **Read scope = open to all authenticated (teachers see all subjects).** The existing
+     `Boolean(user)` read access on `lessonPlanRead`/`lessonBundleVersionRead` is CORRECT and stays —
+     no rewrite. (A subject-grade-scoped read was considered then reversed: plain teachers have no
+     association, and versions have no draft to hide, so scoping reads would hide everything for no
+     gain. See DECISIONS 2026-06-24.) WRITES stay subject-grade-scoped (already correct).
    - read layer (`lib/readBundle.ts` → add `findReadableVersion` + a plan resolver; frontend pages)
      → `lesson-plans`, defaulting to the Official version, with a version selector for all versions;
    - **Detail URL = `/lessons/<planId>?version=<id>`** (plan id; Official by default). Old

@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Stage 2: new-model reads stay open to all authenticated (teachers see all subjects)
+
+**Decision.** On the new Official-version collections, ANY authenticated user may READ every
+`lesson-plan` / `lesson-bundle-version` (the existing `Boolean(user)` access on `lessonPlanRead` /
+`lessonBundleVersionRead` is correct and stays). WRITES remain subject-grade-scoped (create/update/
+delete + the `officialVersion` pointer) — those rules already exist and are unchanged.
+
+**Why (and a reversal).** A subject-grade-scoped read was briefly considered ("teachers see only
+their associated subject-grades"), but a plain Teacher has **no** subject-grade association (the only
+assignment roles are `editor` / `subjectAdmin`), so scoping reads would make teachers see *nothing*
+unless a new view-only association role were added. We chose NOT to add that: teachers keep
+cross-subject read, matching legacy intent (where a Teacher could read any published bundle across
+all subjects). Two properties make `Boolean(user)` the faithful translation of that intent:
+- **No draft/published gate on versions.** Legacy scoping existed mainly to hide *drafts* from
+  teachers (`or: [published, subjectGrade in scoped]`). A retained version is immutable and already
+  passed `enforceBundleVersionGeneratable` at create, so there is no draft to hide.
+- **Official is a default/trust marker, NOT an access/export gate.** Within everything they can see,
+  users may view/export every retained version (Official or not).
+
+Other Stage-2 forks locked the same day (see NEXT-SESSION): detail URL `/lessons/<planId>?version=`
+(Official by default), and Edit = edit-in-place / fork-on-first-save into a new Not-Official version.
+
 ## 2026-06-24 — Stage 1: backfilled the 13 legacy bundles into the Official-version model
 
 **Decision.** The Official-version schema + ingest write path were live but the 13 pre-existing
