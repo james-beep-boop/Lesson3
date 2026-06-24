@@ -80,6 +80,10 @@ export default buildConfig({
       // to The App home instead of seeing the hard "no admin access" error.
       views: {
         unauthorized: { Component: '@/components/AdminUnauthorizedRedirect#default' },
+        // Replace Payload's default dashboard (collection-card boxes that duplicate the nav) with
+        // a quiet, additive, role-aware landing. Only the /admin landing changes; the rest of the
+        // admin shell stays Payload-native. See src/components/AdminDashboard.
+        dashboard: { Component: '@/components/AdminDashboard#default' },
       },
     },
     importMap: {
