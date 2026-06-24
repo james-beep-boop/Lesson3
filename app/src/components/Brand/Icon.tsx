@@ -1,15 +1,15 @@
 /**
- * Nav brand (admin.components.graphics.Icon) — replaces Payload's default mark. The slot is a tiny
- * square that clips text (which is why a wordmark showed as "Le"/"LP"), so this is a small document
- * glyph instead of a cryptic monogram. Static server component.
+ * Nav brand (admin.components.graphics.Icon) — replaces Payload's default mark. The slot
+ * (`.step-nav__home`) is a fixed 18×18px icon box that clips text (which is why a wordmark showed
+ * as "Le"/"LP"), so this is a small document glyph sized to the box. Static server component.
  */
 import React from 'react'
 
 export default function Icon() {
   return (
     <svg
-      width="22"
-      height="22"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
       stroke="var(--theme-elevation-1000)"
