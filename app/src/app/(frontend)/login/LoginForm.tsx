@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function LoginForm({ redirectTo = '/' }: { redirectTo?: string }) {
+export function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,7 +25,7 @@ export function LoginForm({ redirectTo = '/' }: { redirectTo?: string }) {
         setError('Invalid email or password.')
         return
       }
-      router.replace(redirectTo)
+      router.replace('/')
       router.refresh()
     } catch {
       setError('Sign-in failed — please try again.')
