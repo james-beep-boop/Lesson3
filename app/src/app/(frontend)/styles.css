@@ -316,3 +316,84 @@ button[type='submit']:disabled {
 .doc-preview h3 {
   margin: 1.25rem 0 0.5rem;
 }
+
+/* ---- User guide ---- */
+.guide {
+  max-width: 760px;
+}
+.guide-intro {
+  margin-bottom: 1.5rem;
+}
+.guide-kicker {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.guide h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.guide h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.guide p {
+  margin: 0 0 0.8rem;
+}
+.guide-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0 0 2rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.guide-toc a {
+  text-decoration: none;
+}
+.guide-toc a:hover,
+.guide-toc a:focus-visible {
+  text-decoration: underline;
+}
+.guide-section {
+  padding-top: 1.25rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+.guide-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.guide-list li + li {
+  margin-top: 0.45rem;
+}
+.guide code {
+  padding: 0.05rem 0.25rem;
+  border-radius: 4px;
+  background: var(--bg-soft);
+}
+.guide-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .app-header,
+  .app-nav {
+    align-items: flex-start;
+  }
+  .app-header {
+    flex-direction: column;
+  }
+  .app-nav {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.85rem;
+  }
+}

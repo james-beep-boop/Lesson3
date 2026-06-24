@@ -18,6 +18,9 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
     <header className="lp-admin-header">
       <nav className="lp-admin-header__menu">
         <span className="lp-admin-header__user">{name}</span>
+        <a className="lp-admin-header__link" href="/guide">
+          Guide
+        </a>
         {/* Full navigation to The App (a separate surface) — a plain <a> is intentional. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a className="lp-admin-header__link" href="/">

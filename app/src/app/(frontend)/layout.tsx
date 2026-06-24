@@ -24,18 +24,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        {/* Header (with the user menu) only for signed-in users; the logged-out /login route is a
-            clean splash that supplies its own branding. The full top-right menu (avatar + dynamic
-            Admin/Lessons cross-link) lands in the next installment. */}
+        {/* Header only for signed-in users; the logged-out /login route is a clean splash that
+            supplies its own branding. */}
         {user && (
           <header className="app-header">
             <Link href="/" className="brand">
               Lesson Plan Repository
             </Link>
-            {/* The shared user menu: username · [Admin] · logout · avatar (the admin surface has the
-                same menu, top-right, via admin.components.header). */}
+            {/* The shared user menu: username · guide · [Manage] · logout · avatar. The admin surface
+                mirrors it via admin.components.header. */}
             <nav className="app-nav">
               <span className="nav-user">{user.name ?? user.email}</span>
+              <Link href="/guide" className="nav-link">
+                Guide
+              </Link>
               {/* "Manage" only for roles that can use /admin (§13). The other surface's menu shows
                   "Lessons" instead — each links to the surface you're NOT on. A plain <a> is a full
                   navigation into the separate admin app. */}
