@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   compareSubstrandId,
   strandNumberOf,
+  cleanStrandName,
   groupLessons,
   orderLessons,
   matchesQuery,
@@ -66,9 +67,23 @@ describe('groupLessons', () => {
     expect(groups).toHaveLength(1)
     expect(groups[0].label).toBe('Biology · Grade 10')
     expect(groups[0].strands.map((s) => s.strandNumber)).toEqual([1, 3])
-    expect(groups[0].strands[0].label).toBe('Strand 1 · Cell biology')
+    expect(groups[0].strands[0].label).toBe('Strand 1: Cell biology')
     // Within strand 1: 1.4 before 1.10 (numeric, not lexical).
     expect(groups[0].strands[0].rows.map((r) => r.substrandId)).toEqual(['1.4', '1.10'])
+  })
+})
+
+describe('cleanStrandName', () => {
+  it('strips the stored "Strand N.M:" prefix, leaving the descriptive name', () => {
+    expect(cleanStrandName('Strand 2.0: Physiology of Plants')).toBe('Physiology of Plants')
+    expect(cleanStrandName('Strand 1.0: Cell Biology and Biodiversity')).toBe(
+      'Cell Biology and Biodiversity',
+    )
+  })
+  it('leaves a prefix-less name alone and handles empties/bare ordinals', () => {
+    expect(cleanStrandName('Cell biology')).toBe('Cell biology')
+    expect(cleanStrandName(null)).toBe('')
+    expect(cleanStrandName('Strand 2')).toBe('') // bare ordinal, no descriptive name
   })
 })
 

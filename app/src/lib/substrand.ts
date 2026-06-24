@@ -78,6 +78,22 @@ function compareStrandNumber(a: number | null, b: number | null): number {
 }
 
 /**
+ * The stored `unit.strand` already embeds its own ordinal, e.g. "Strand 2.0: Physiology of Plants".
+ * Strip that leading "Strand N[.M]:" prefix so the descriptive name renders once, behind our own
+ * (consistent, derived) strand number — avoiding "Strand 2 · Strand 2.0: …" doubling.
+ */
+export function cleanStrandName(raw: string | null): string {
+  if (!raw) return ''
+  return raw.replace(/^\s*strand\s+\d+(\.\d+)*\s*:?\s*/i, '').trim()
+}
+
+/** "Strand N: Name", degrading to "Strand N", then the bare name, then "Other". */
+function strandLabel(strandNumber: number | null, name: string): string {
+  if (strandNumber != null) return name ? `Strand ${strandNumber}: ${name}` : `Strand ${strandNumber}`
+  return name || 'Other'
+}
+
+/**
  * Group rows into subject-grade → strand → sub-strands, each level ordered: subject-grades by
  * subject then grade; strands by number; sub-strands by curriculum sequence. Strand label is
  * "Strand N · Name" (falls back to "Strand N", then the name alone, then "Other").
@@ -101,9 +117,7 @@ export function groupLessons(rows: LessonRow[]): SubjectGradeGroup[] {
     const stKey = n != null ? `n${n}` : r.strandName ? `s${r.strandName}` : 'other'
     let st = sg.strands.find((s) => s.key === stKey)
     if (!st) {
-      // "Strand N · Name", degrading to whichever parts exist, else "Other".
-      const label = [n != null ? `Strand ${n}` : '', r.strandName].filter(Boolean).join(' · ') || 'Other'
-      st = { key: stKey, label, strandNumber: n, rows: [] }
+      st = { key: stKey, label: strandLabel(n, cleanStrandName(r.strandName)), strandNumber: n, rows: [] }
       sg.strands.push(st)
     }
     st.rows.push(r)
