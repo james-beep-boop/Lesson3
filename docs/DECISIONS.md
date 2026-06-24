@@ -11,6 +11,53 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-23 — UI/admin redesign: strand-first Lesson Plans page, custom dashboard, nav rename
+
+A multi-round UI pass (with the user + an external reviewer) replaced the arbitrary-feeling browse and
+admin surfaces. Decisions + reasoning:
+
+- **Lesson Plans page is strand-first and server-rendered.** Sub-strands are children of strands, so
+  the page groups subject-grade → strand → sub-strand in **curriculum order** (`meta.substrand_id`,
+  e.g. "1.4"), sorted **dotted-numeric** (`1.4 < 1.10`) — not alphabetical, not Payload default. The
+  identifier `substrand_id` was already the stable bundle key; the strand is its first dotted segment,
+  named by `unit.strand` (fallback `Strand N`). Labels use `meta.substrand_name`, dropping the
+  denormalized shouty `title`; strand headings strip the stored `Strand N.M:` prefix so they read
+  `Strand N: Name` (not `Strand 2 · Strand 2.0: …`).
+- **Stacked sections over a master-detail two-pane** (the user preferred master-detail visually, but an
+  external review flagged it as "custom app shell"). Stacked sections need **no client state** — one
+  access-gated `payload.find` + JS grouping in a server component — so it's the lower-custom, more
+  Payload-native choice, and it stacks multiple subject-grades naturally. Lesson counts come from a
+  light `select: { lessons: { id: true } }` (no bodies). Search is modest **local JS filtering** over
+  sub-strand number/name, strand, subject, grade (not a Payload nested `where`, not lesson-body text);
+  it filters the already-fetched ≤200 set and will need to move server-side when pagination lands.
+  Pure logic in `src/lib/substrand.ts` with a **DB-free** unit suite on its own `vitest.unit.config.mts`
+  (`test:unit`) so the dotted comparator etc. run locally without the Rock; `test`/`test:int` untouched.
+- **Admin dashboard: replace, don't fight.** Payload's default dashboard renders collection-card boxes
+  that exactly duplicate the nav. Override **only** that view via `admin.components.views.dashboard`
+  (sanctioned extension point) with a quiet, role-aware, **additive-only** landing (role/scope line +
+  actions the nav lacks: public-library link, Site-Admin-only ingest) — never re-listing collections.
+  **Rejected the new modular widget dashboard:** its only built-in widget is the same `CollectionCards`
+  plus drag/config chrome, so a clean result would need custom widget components — *more* code for a
+  worse fit. Styles live in `(payload)/custom.scss` (already wired by the scaffold), scoped to
+  `.lp-admin-dash`, using `--theme-elevation-*` so they follow light/dark; type scale mirrors the
+  Lesson Plans page. No global admin re-theme.
+- **Nav: rename, because headingless isn't native.** A truly headingless flat nav is NOT a config
+  option — Payload renders one heading per group, and **`admin.group: false` HIDES the item** (verified
+  in `groupNavItems`), not flattens it; a custom `Nav` override would have to re-implement the
+  account/logout menu (`SettingsMenuButton` isn't cleanly exported) — too custom/fragile. So the clean
+  native fix is to **rename** the vague groups to plain words and reorder: Content/Taxonomy/Collections
+  → **Lesson plans / Curriculum / People**, ordered by the `collections` array (first-seen wins).
+- **Redundant column:** `title` is derived from `meta.titleDoc` at ingest, so both columns duplicated;
+  `admin.disableListColumn` on `titleDoc` bars it from the list (incl. saved user prefs), edit form
+  unaffected.
+- **OPERATIONAL — importMap without a Rock push.** Registering an admin view (the dashboard) requires
+  regenerating `(payload)/admin/importMap.js`, and the local `payload generate:importmap` CLI breaks on
+  Node > 22 (tsx loader). Rather than depend on the Rock (which has no git push credential), the entry
+  was reproduced locally: Payload names the identifier **`default_<md5(component-path-WITHOUT-#default)>`**
+  (verified against an existing entry), so the import + map line are byte-identical to the generator's
+  output and can be hand-committed. **Lesson:** when only a component path is added, the importMap entry
+  is deterministic and can be written by hand if codegen isn't runnable locally.
+
 ## 2026-06-23 — Async-export correctness fixes (external audit findings #4/#5/#6)
 
 A full external audit (GPT-5.5) of Phase 5 surfaced three correctness bugs in the async-export path,

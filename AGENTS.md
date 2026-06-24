@@ -36,6 +36,9 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 
 - **Lint:** `npm run lint` (ESLint 9). **Types:** `npx tsc --noEmit -p tsconfig.json`.
 - **Tests:** `npm test` = `test:int` (Vitest, **needs a DB → Rock only**) + `test:e2e` (Playwright).
+  **`npm run test:unit`** (own `vitest.unit.config.mts`) runs pure DB-free unit specs in `tests/unit/`
+  **locally** (no Rock) — use it for pure logic like `src/lib/substrand.ts`; it's separate from
+  `test`/`test:int`.
 - **Build:** `npm run build` (`next build`, **needs a DB → Rock only**).
 - **Codegen (run on the Rock, Node 22):** `npm run generate:types`, `npm run generate:importmap` —
   commit the output. The local CLIs can break on newer Node.

@@ -18,39 +18,40 @@ defined, in-flight sequence to resume, not a blank-slate phase choice.
 
 ## ▶ Start the next session here (defined sequence — resume, don't re-plan)
 
-An external audit (GPT-5.5, 2026-06-23) reviewed Phase 5; fixes landed on `main` (`8bede30`) but the
-**Rock was redeployed separately and the deployed code is NOT yet runtime-verified.** So:
+Since the 2026-06-23 audit, a **UI track shipped** (see "UI / admin redesign" in the live list and
+DECISIONS 2026-06-23): the strand-first **Lesson Plans page** (deployed + verified on the Rock) and a
+custom **admin dashboard** + **nav cleanup**. During that work the Rock was redeployed repeatedly, so
+it now runs all post-Phase-5 code. Two loose ends + the hardening sequence remain:
 
-1. **FIRST: verify normal export still works on the Rock.** The Rock now runs the jobs-access lockdown
-   (`5b58b41`), the `/simplify` refactor (`0330efa`), and the async-export correctness fixes
-   (`8bede30`) — none runtime-proven. Smoke-test (curl recipe in DECISIONS / prior sessions): cold
-   export → `202` → status `ready` → warm export → `200 application/zip`. Also confirm the lockdown:
-   Teacher `POST /api/payload-jobs` → **403**, unauth `POST /api/payload-jobs/run` → **401/403**.
-   If anything regressed, fix forward before new work.
-2. **THEN work the remaining audit items, in this order** (full list + dispositions in the backlog
-   below; DECISIONS 2026-06-23 has the detail):
-   - **(1) Audit #3 — GET `/export` enqueues (not idempotent / CSRF):** make GET serve-only and move
-     enqueue to a `POST /export` (SameSite=Lax blocks cross-site POST → closes the vector) + the
-     matching client handshake change. **Pair with the runtime verification in step 1** so the whole
-     async flow is proven end-to-end. *(Deferred from the audit precisely to verify, not blind-ship.)*
-   - **(2) Cheap/safe hardening:** **#11 pagination** (browse `limit:200` → page/search) and
-     **#9 GraphQL/Playground gating** (verify the exact Payload 3.85 `graphQL.disable` option against
-     installed source FIRST).
-   - **(3) Deliberate hardening (individual attention — do NOT batch blind):** **#7 CSP +
-     HTML-sanitization** (adds a dep), **#8 optimistic concurrency** (MUST exempt ingest/migration
-     system-writes or it breaks ingest), **#10 real endpoint/authz test harness** (DB → Rock),
-     **#2 dependency advisories** (deliberate Payload/transport upgrade, not a blind bump),
-     **#12 PDF-fidelity gate in CI**.
+1. **Finish the admin deploy + spot-check.** The last two admin commits — `676333c` (drop the
+   redundant Lesson-Bundles "META > Title Doc" column) and `9d4d882` (nav rename/reorder) — may not be
+   live yet. Sync the Rock to origin and rebuild: `git fetch && git reset --hard origin/main &&
+   docker compose up -d --build` (**reset, not pull** — the Rock had a local-only importMap commit
+   `b5bfeda` now superseded on origin). Then eyeball: nav reads **Lesson plans / Curriculum / People**;
+   the Lesson Bundles list has no duplicate "META > Title Doc" column; `/admin` shows the role-aware
+   dashboard (no boxes).
+2. **Verify the async export end-to-end** (NOT re-run since the Phase-5 fixes): cold `202` → status
+   `ready` → warm `200 zip`; plus the jobs lockdown (Teacher `POST /api/payload-jobs` → **403**, unauth
+   `POST /api/payload-jobs/run` → **401/403**). Curl recipe in DECISIONS / prior sessions.
+3. **Then the hardening backlog, in order** (full dispositions in the backlog below):
+   - **(1) Audit #3 — GET `/export` enqueues (not idempotent / CSRF):** make GET serve-only, move
+     enqueue to a `POST /export` (SameSite=Lax blocks cross-site POST) + the matching client handshake.
+     **Pair with the export verification in step 2** so the whole async flow is proven end-to-end.
+   - **(2) Cheap/safe:** **#11 pagination** (browse `limit:200` → page/search) and **#9 GraphQL /
+     Playground gating** (verify the exact Payload 3.85 `graphQL.disable` option against source FIRST).
+   - **(3) Deliberate (do NOT batch blind):** **#7 CSP + HTML-sanitization** (adds a dep),
+     **#8 optimistic concurrency** (MUST exempt ingest/migration system-writes), **#10 real
+     endpoint/authz test harness** (DB → Rock), **#2 dependency advisories** (deliberate Payload/
+     transport upgrade), **#12 PDF-fidelity gate in CI**.
 
 ---
 
-## Where things stand (as of 2026-06-23, origin/main `8bede30`)
+## Where things stand (as of 2026-06-23, origin/main `9d4d882`)
 
-**Phases 0–5 are done and the architecture is validated end-to-end.** Note: commits after the Phase 5
-merge — `/simplify` refactor (`0330efa`), jobs-access lockdown (`5b58b41`), and async-export
-correctness fixes (`8bede30`) — are on `main` but **were redeployed to the Rock separately and are NOT
-yet runtime-verified** (see "▶ Start the next session here", step 1). What's live and proven on the
-Rock (the deploy/verification box — see "Rock" below):
+**Phases 0–5 are done, the architecture is validated end-to-end, and a UI/admin redesign shipped on
+top.** Note: the two latest admin commits (`676333c` titleDoc column, `9d4d882` nav) may not be live
+on the Rock yet, and the async export hasn't been re-verified since the Phase-5 fixes (see "▶ Start the
+next session here"). What's live and proven on the Rock (the deploy/verification box — see "Rock"):
 
 - **Ingest** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one all-or-nothing
   transaction, **contract drift is a HARD gate**. Dev CLI + a Site-Admin-only web upload.
@@ -60,6 +61,14 @@ Rock (the deploy/verification box — see "Rock" below):
 - **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level; `verify-rbac` 36/36.
 - **"The App"** (`app/src/app/(frontend)`) — the role-aware frontend ALL roles log into. Teachers
   live here only (excluded from `/admin`, redirected home). Has browse → view → preview → export.
+- **UI / admin redesign (2026-06-23)** — the shared **Lesson Plans** browse page is now strand-first:
+  subject-grade → strand → sub-strand in curriculum order (by `meta.substrand_id`, dotted-numeric),
+  four-step type scale, lesson counts, ink titles, server-side `?q=` search; pure server component +
+  `src/lib/substrand.ts` (DB-free unit suite, `test:unit`). The Payload **dashboard** boxes are
+  replaced by a quiet, role-aware landing (`src/components/AdminDashboard`, `views.dashboard` override),
+  and the nav groups are renamed/reordered to **Lesson plans / Curriculum / People**. The redundant
+  Lesson-Bundles "META > Title Doc" list column is gone. Lesson Plans page + dashboard verified live;
+  see DECISIONS 2026-06-23.
 - **§5 editing/preview** — admin editor with array row labels, draft-capable HTML preview, **live
   unsaved-edit preview** (`POST /:id/preview`, edit-gated), teacher Standard/Compact toggle. **Browser
   smoke-test ALL PASS** (2026-06-22).

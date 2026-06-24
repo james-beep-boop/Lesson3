@@ -8,6 +8,30 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED 2026-06-23 (UI/admin redesign: strand-first Lesson Plans page + custom admin dashboard)
+
+- **Strand-first Lesson Plans page** (`34b6122`, `7717088`; deployed + verified on the Rock). Replaced
+  the arbitrary blue/grey title list with a server-rendered, strand-first browse shared by all roles:
+  subject-grade → strand → sub-strand in **curriculum order** (`meta.substrand_id`, dotted-NUMERIC so
+  `1.4 < 1.10`), four-step type scale (22/18/16/14), ink titles (accent only on hover), lesson counts,
+  and a modest server-side `?q=` search. Labels use `meta.substrand_name` (drops the shouty stored
+  `BIOLOGY GRADE 10: …` title); strand headings strip the stored `Strand N.M:` prefix → `Strand N:
+  Name`. Pure logic in `src/lib/substrand.ts` with a DB-free unit suite (`tests/unit` + its own
+  `vitest.unit.config.mts` + a `test:unit` script; `test`/`test:int` untouched). No schema/endpoint
+  change.
+- **Custom admin dashboard** (`7a2397b`, importMap `9e1e8cf`; deployed + verified). Replaced Payload's
+  default collection-card dashboard (which duplicated the nav) with a quiet, role-aware landing
+  (`src/components/AdminDashboard` via `admin.components.views.dashboard`; scoped styles in
+  `(payload)/custom.scss`, theme-aware): title + factual role/scope line + additive-only actions
+  (Site-Admin-only ingest hidden otherwise). NOT the modular widget system (its only built-in widget
+  is the same collection cards). Registering a view needs an importMap regen (Node 22) — reproduced
+  the generator's `default_<md5(path)>` entry locally so origin stayed correct without a Rock push.
+- **Admin polish:** dropped the redundant Lesson-Bundles "META > Title Doc" list column
+  (`disableListColumn`, `676333c`); renamed/reordered nav groups Content/Taxonomy/Collections →
+  **Lesson plans / Curriculum / People** (`9d4d882`) — a truly headingless nav isn't a Payload config
+  option (`admin.group:false` hides items), so renaming is the clean native fix. **Pending final Rock
+  redeploy** for the last two (dashboard already live).
+
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-23 (async export: Jobs Queue + artifact cache + rate limit)
 
 - **Phase 5 — readiness #1 closed (the "heavy generation is synchronous + unthrottled" top risk),
