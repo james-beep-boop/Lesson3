@@ -8,6 +8,30 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED + DEPLOYED + VERIFIED 2026-06-24 (Official-version cutover: Stages 1, 2a, 2b-admin)
+
+The Official-version model went from "schema only" to powering the live teacher + admin paths. All
+deployed to the Rock and verified. See DECISIONS 2026-06-24 for reasoning.
+
+- **Stage 1 — corpus backfill (`503b09f`).** Migrated the 13 legacy published bundles (ids 63–75) into
+  13 `lesson-plans` + Official `lesson-bundle-versions` 1.0.0. Verified LOSSLESS: 39/39 documents
+  regenerate byte-identically to their source bundles (`verify-migration.ts`). Legacy left untouched.
+- **Stage 2a — teacher read/view/export on versions (`f857fb9`…`97b9379`).** Browse lists plans via
+  their Official version; detail uses the plan id with a `?version=` selector (Official by default);
+  content-preview + DOCX/PDF download run off the selected version. Generator-agnostic artifact cache
+  (opaque `scope` key), `generateForVersion` (no published gate), `generateVersionArtifact` job,
+  version export endpoints (GET serve / POST prepare / status). `roundtrip-regression` repointed to the
+  version model (it had broken when ingest moved off bundles). Verified: roundtrip 3/3 byte-identical,
+  reads 13/13, export DOCX+PDF.
+- **Stage 2b — admin editing on versions (`d18a544`…).** Working-copy model: Official versions are
+  immutable (`enforceVersionImmutable`) and undeletable (`enforceOfficialNotDeletable`); **Edit** forks
+  a Not-Official working copy (`POST /:id/fork`) and opens its admin editor; **Make Official**
+  (`POST /:id/make-official`) moves the plan pointer with no content copy. Admin-scoped. Verified:
+  `verify-stage2b-edit` 8/8 (immutability, fork, mutable copy, make-official, Editor+Teacher denials),
+  `verify-rbac` 36/36.
+- **Remaining:** Editor prose-editing (needs the field-split factored out of `enforceBundleStructure`);
+  cut admin Preview/Export components to versions; **Stage 3** retire `lesson-bundles`.
+
 ## SHIPPED + DEPLOYED 2026-06-24 (Audit #3 — export GET/POST split, Rock-verified)
 
 - **Closed audit #3** (`9c9a701`): the export endpoint that enqueued heavy work on a cold GET was
@@ -42,10 +66,10 @@ The chronological build log (newest on top). This is **history**, kept for prove
   the Rock with Node 22, committed `payload-types.ts`, migration
   `20260624_221905_official_version_model`, and `migrations/index.ts`; redeployed successfully. Recent
   app logs no longer show missing-table errors.
-- **Known transition state:** legacy `lesson-bundles` still powers most browse/view/export/edit UI, and
-  the 13 existing legacy bundles are not yet copied into `lesson-plans` / `lesson-bundle-versions`.
-  Next work is the version selector, export-by-version, edit-from-version, Make Official action, and
-  corpus migration/copy.
+- **Transition state at the time of this slice (since superseded — see the top entry):** legacy
+  `lesson-bundles` still powered most browse/view/export/edit UI, and the 13 legacy bundles weren't yet
+  copied into the new collections. All of that next work — version selector, export-by-version,
+  edit-from-version, Make Official, and the corpus copy — shipped in Stages 1/2a/2b (top entry).
 
 ## SHIPPED 2026-06-24 (UX batch: one login, consistent menu, resources checkbox, admin polish)
 

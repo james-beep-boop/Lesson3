@@ -28,17 +28,23 @@ and redirect the admin UI — fragile machinery fighting the framework. The work
 Payload-native (fork is an explicit create-then-edit), avoids one-version-per-keystroke, and matches
 how editors actually work (draft until ready, then publish-as-Official).
 
-**Implementation shape (Stage 2b):**
-- Immutability enforced by a `beforeChange` hook on `lesson-bundle-versions` that rejects updates to a
-  version that is currently its plan's `officialVersion` (not via access `Where`, which can't express
-  "not this plan's pointer" across all rows). `lessonBundleVersionUpdate` access becomes editor-scoped
-  (subject-grade) like create, instead of the current hard `false`.
-- Field-split (Editor = prose; Admin = structure/answer-keys) replicated on versions by reusing
-  `enforceBundleStructure` as a `beforeChange` hook (same content fields as the bundle).
-- An **Edit** affordance on the detail page (editors/admins only) → a fork endpoint that creates the
-  working version and returns its admin URL.
-- A **Make Official** control → sets `LessonPlan.officialVersion` only (no content copy);
-  `canSetOfficialVersion` + `validateOfficialVersionPointer` already gate/validate it.
+**Implementation — as built (admin slice, `d18a544`):**
+- Immutability enforced by `enforceVersionImmutable` (`beforeChange`): rejects updates to a version
+  that is currently its plan's `officialVersion` (not via access `Where`, which can't express "not
+  this plan's pointer" across all rows).
+- `lessonBundleVersionUpdate` access is **admin-scoped** (Site Admin = all; Subject Admin = their
+  subject-grades), instead of the prior hard `false`. **Editor prose-editing is NOT in this slice** —
+  it needs the field-split factored out of `enforceBundleStructure` first (that hook is entangled with
+  bundle `semver`/`_status`/`lockVersion`, which versions don't have, so it can't be reused as-is).
+  Tracked as the next 2b step.
+- **Edit** affordance on the detail page (Subject/Site Admins) → `POST /:id/fork` creates the working
+  version and returns its admin URL. **Make Official** → `POST /:id/make-official` sets
+  `LessonPlan.officialVersion` only (no content copy); `canSetOfficialVersion` +
+  `validateOfficialVersionPointer` gate/validate it.
+- **Retention guard** (`enforceOfficialNotDeletable`, `beforeDelete`): the Official version cannot be
+  DELETED (would orphan the plan pointer / lose the canonical snapshot). Not-Official working copies
+  stay deletable so a Site Admin can prune abandoned forks; to delete the Official one, move the
+  pointer first. (Update-immutability alone left Official versions delete-able — closed here.)
 
 ## 2026-06-24 — Stage 2a: teacher read/view/export cut over to the version model (deployed + verified)
 

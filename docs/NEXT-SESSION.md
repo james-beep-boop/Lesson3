@@ -102,12 +102,13 @@ Resume in this order:
 
 ## Where things stand (as of 2026-06-24, origin/main `97b9379`)
 
-**Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, and
-the TEACHER path is fully cut over to the version model (Stage 2a, deployed + verified).** The product
-behavior migration is partway: teacher browse/view/export read `lesson-plans` + `lesson-bundle-versions`,
-but ADMIN editing still uses the legacy `lesson-bundles` editor until Stage 2b lands. Treat the app as a
-transition state until Stage 2b/3 (Start-here items 3–4) are done. What's live on the Rock (the
-deploy/verification box — see "Rock"):
+**Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, the
+TEACHER path is cut over to the version model (Stage 2a), and ADMIN editing now runs on the version
+model too (Stage 2b admin slice: Edit→fork working copy, Make Official) — all deployed + verified.**
+The migration is partway: teacher browse/view/export AND admin edit/Make-Official run on `lesson-plans`
++ `lesson-bundle-versions`. What remains: **Editor** prose-editing (needs the field-split extraction),
+cutting the admin Preview/Export components over, and retiring `lesson-bundles` (Stage 3). Treat the app
+as a transition state until then. What's live on the Rock (the deploy/verification box — see "Rock"):
 
 - **Upload/import** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one
   all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload.
@@ -116,8 +117,9 @@ deploy/verification box — see "Rock"):
   (Stage 2a): `lesson-plans` owns stable identity + `officialVersion`; `lesson-bundle-versions` owns
   immutable structured snapshots (META, UNIT, LESSONS[], FINAL_EXPLANATION, SUMMARY_TABLE).
   `20260624_221905_official_version_model` created the DB schema; the 13 legacy bundles are backfilled
-  (Stage 1). The legacy `lesson-bundles` collection now powers only ADMIN editing + its own export/
-  preview endpoints, until Stage 2b moves editing over and Stage 3 retires it.
+  (Stage 1). Admin editing now runs on versions too (Stage 2b: working-copy fork + Make Official).
+  The legacy `lesson-bundles` collection now powers only its own (soon-retired) export/preview admin
+  components; Stage 3 retires it.
 - **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level; `verify-rbac` 36/36.
 - **"The App"** (`app/src/app/(frontend)`) — the role-aware frontend ALL roles log into. Teachers
   live here only (excluded from `/admin`, redirected home). Has browse → view → preview → export.

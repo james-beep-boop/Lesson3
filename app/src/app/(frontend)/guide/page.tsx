@@ -58,28 +58,20 @@ export default async function UserGuidePage() {
       <section id="editors" className="guide-section">
         <h2>Editors</h2>
         <p>
-          Editors can do everything Teachers can do. They also use Manage to edit prose fields for the
-          subject-grades assigned to them. Editing a version creates a new version of the whole
-          sub-strand; it never changes an existing version, and it never edits a Word file directly.
+          Editors can do everything Teachers can do, and their role is to edit the prose fields for the
+          subject-grades assigned to them — lesson titles, SLO text, overviews, learner experiences,
+          teacher moves, sensemaking strategies, formative assessments, teacher reflections,
+          summary-table text, and Final Explanation prompts. They never edit a Word file directly.
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Open Manage:</strong> use the header link to enter the admin area, then open the
-            Lesson plans area.
+            <strong>Working versions, not Official ones:</strong> editing always works on a new
+            <em> working</em> version. The Official version is never changed in place; a Subject or
+            Site Administrator marks a working version Official when it is ready.
           </li>
           <li>
-            <strong>Edit lesson prose:</strong> update lesson titles, SLO text, overviews, learner
-            experiences, teacher moves, sensemaking strategies, formative assessments, teacher
-            reflections, summary-table prompts, summary-table lesson text, Final Explanation
-            instructions, and Final Explanation section prompts.
-          </li>
-          <li>
-            <strong>Preview your edits:</strong> use Preview to see the generated content from your
-            current edits, including unsaved field changes, before they become a new version.
-          </li>
-          <li>
-            <strong>New version per edit:</strong> saving creates a new, Not Official version of the
-            whole sub-strand. A Subject or Site Administrator decides when it becomes Official.
+            <strong>Rolling out:</strong> direct self-service editing for Editors is being enabled. For
+            now, prose edits are made by a Subject Administrator for the editor’s subject-grades.
           </li>
         </ul>
       </section>

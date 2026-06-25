@@ -1,10 +1,39 @@
-import type { CollectionBeforeChangeHook, CollectionBeforeValidateHook, CollectionSlug } from 'payload'
-import { ValidationError } from 'payload'
+import type {
+  CollectionBeforeChangeHook,
+  CollectionBeforeDeleteHook,
+  CollectionBeforeValidateHook,
+  CollectionSlug,
+} from 'payload'
+import { APIError, ValidationError } from 'payload'
 
 import { toId } from '../access'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 
 const LESSON_PLANS = 'lesson-plans' as CollectionSlug
+
+/** The plan id a version belongs to, and whether the version is that plan's Official one. */
+async function officialStatus(
+  req: Parameters<CollectionBeforeChangeHook>[0]['req'],
+  versionId: number | string,
+): Promise<{ planId: number | null; isOfficial: boolean }> {
+  const version = (await req.payload.findByID({
+    collection: 'lesson-bundle-versions',
+    id: versionId,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as { lessonPlan?: unknown }
+  const planId = toId(version.lessonPlan as never) ?? null
+  if (planId == null) return { planId, isOfficial: false }
+  const plan = (await req.payload.findByID({
+    collection: LESSON_PLANS,
+    id: planId,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as { officialVersion?: unknown }
+  return { planId, isOfficial: String(toId(plan.officialVersion as never)) === String(versionId) }
+}
 
 export const numberBundleVersionRows: CollectionBeforeValidateHook = ({ data }) => {
   if (Array.isArray(data?.lessons)) {
@@ -37,18 +66,8 @@ export const enforceVersionImmutable: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   if (operation !== 'update' || !originalDoc || !req.user) return data
-  const planId = toId(originalDoc.lessonPlan as never)
-  if (planId == null) return data
-
-  const plan = (await req.payload.findByID({
-    collection: LESSON_PLANS,
-    id: planId,
-    depth: 0,
-    overrideAccess: true,
-    req,
-  })) as { officialVersion?: unknown }
-
-  if (toId(plan.officialVersion as never) === originalDoc.id) {
+  const { isOfficial } = await officialStatus(req, originalDoc.id)
+  if (isOfficial) {
     throw new ValidationError(
       {
         collection: 'lesson-bundle-versions',
@@ -64,6 +83,24 @@ export const enforceVersionImmutable: CollectionBeforeChangeHook = async ({
     )
   }
   return data
+}
+
+/**
+ * Retention guard: the Official version cannot be DELETED (it would orphan the plan's pointer and
+ * lose the canonical snapshot). Not-Official working versions remain deletable, so a Site Admin can
+ * still prune abandoned working copies. To delete the Official version, first move the pointer to
+ * another version (Make Official) — then this version is no longer Official and may be deleted.
+ * Runs on every path (incl. system/overrideAccess), since orphaning the pointer is never desirable;
+ * callers that legitimately need to remove it null/move the pointer first (e.g. roundtrip cleanup).
+ */
+export const enforceOfficialNotDeletable: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const { isOfficial } = await officialStatus(req, id)
+  if (isOfficial) {
+    throw new APIError(
+      'This version is Official and cannot be deleted. Make another version Official first.',
+      409,
+    )
+  }
 }
 
 export const enforceBundleVersionGeneratable: CollectionBeforeValidateHook = ({

@@ -9,6 +9,7 @@ import {
 import { canEditStructure } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
+  enforceOfficialNotDeletable,
   enforceVersionImmutable,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
@@ -47,6 +48,8 @@ export const LessonBundleVersions: CollectionConfig = {
     // Working-copy model: reject edits to the plan's Official (immutable) version. Editing flows
     // through a forked Not-Official working copy (POST /:id/fork).
     beforeChange: [enforceVersionImmutable],
+    // Retention: the Official version cannot be deleted (would orphan the plan pointer).
+    beforeDelete: [enforceOfficialNotDeletable],
   },
   endpoints: [
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.

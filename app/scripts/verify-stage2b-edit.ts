@@ -118,6 +118,12 @@ const run = async () => {
         payload.update({ collection: 'lesson-bundle-versions', id: forkedId!, data: { title: 'Y' } as never, overrideAccess: false, user: admin }),
       ),
     )
+    // Retention guard: the Official version cannot be deleted (even with overrideAccess — it's a hook).
+    results.push(
+      await expectThrow('Official version cannot be deleted', () =>
+        payload.delete({ collection: 'lesson-bundle-versions', id: forkedId!, overrideAccess: true }),
+      ),
+    )
 
     // 5. RBAC denials. The fork is now Official, so to isolate the ACCESS check from the immutability
     //    hook, restore the original Official first, making the fork a Not-Official (otherwise-editable)
