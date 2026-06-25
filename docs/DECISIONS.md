@@ -28,19 +28,25 @@ and redirect the admin UI — fragile machinery fighting the framework. The work
 Payload-native (fork is an explicit create-then-edit), avoids one-version-per-keystroke, and matches
 how editors actually work (draft until ready, then publish-as-Official).
 
-**Implementation — as built (admin slice, `d18a544`):**
+**Implementation — as built (`d18a544` admin slice; `a774273`/`36e9500` Editor slice):**
 - Immutability enforced by `enforceVersionImmutable` (`beforeChange`): rejects updates to a version
   that is currently its plan's `officialVersion` (not via access `Where`, which can't express "not
   this plan's pointer" across all rows).
-- `lessonBundleVersionUpdate` access is **admin-scoped** (Site Admin = all; Subject Admin = their
-  subject-grades), instead of the prior hard `false`. **Editor prose-editing is NOT in this slice** —
-  it needs the field-split factored out of `enforceBundleStructure` first (that hook is entangled with
-  bundle `semver`/`_status`/`lockVersion`, which versions don't have, so it can't be reused as-is).
-  Tracked as the next 2b step.
-- **Edit** affordance on the detail page (Subject/Site Admins) → `POST /:id/fork` creates the working
-  version and returns its admin URL. **Make Official** → `POST /:id/make-official` sets
-  `LessonPlan.officialVersion` only (no content copy); `canSetOfficialVersion` +
-  `validateOfficialVersionPointer` gate/validate it.
+- **Field-split for Editors (Editor slice).** The Editor whitelist was factored OUT of
+  `enforceBundleStructure` into a shared pure `applyEditorFieldSplit` (`hooks/fieldSplit.ts`),
+  parameterised by which TOP-LEVEL keys an Editor may influence — the one bundle-vs-version
+  difference (a bundle has `semver`/`bumpType`/`lockVersion`/`_status`; a version doesn't). Both
+  collections now delegate to it; the bundle path is behavior-identical (`verify-rbac` stays 36/36).
+  `enforceVersionFieldSplit` applies it on versions.
+- `lessonBundleVersionUpdate` access is **editor-scoped** (Editor/Subject Admin for their grades; Site
+  Admin all) — the field-split limits an Editor to prose. `lessonBundleVersionCreate` is **admin-only**:
+  the fork copies the source via `overrideAccess` (a trusted faithful snapshot, not Editor-authored
+  input), so Editors never create a version directly — which would let them set admin-only fields on a
+  brand-new row where the whitelist has no original to protect.
+- **Edit** affordance on the detail page (**Editors + admins**) → `POST /:id/fork` (Editor-or-admin
+  gated) creates the working version and returns its admin URL. **Make Official** (**admins only**) →
+  `POST /:id/make-official` sets `LessonPlan.officialVersion` only (no content copy);
+  `canSetOfficialVersion` + `validateOfficialVersionPointer` gate/validate it.
 - **Retention guard** (`enforceOfficialNotDeletable`, `beforeDelete`): the Official version cannot be
   DELETED (would orphan the plan pointer / lose the canonical snapshot). Not-Official working copies
   stay deletable so a Site Admin can prune abandoned forks; to delete the Official one, move the

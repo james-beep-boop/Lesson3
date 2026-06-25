@@ -23,14 +23,16 @@ deployed to the Rock and verified. See DECISIONS 2026-06-24 for reasoning.
   version export endpoints (GET serve / POST prepare / status). `roundtrip-regression` repointed to the
   version model (it had broken when ingest moved off bundles). Verified: roundtrip 3/3 byte-identical,
   reads 13/13, export DOCX+PDF.
-- **Stage 2b — admin editing on versions (`d18a544`…).** Working-copy model: Official versions are
-  immutable (`enforceVersionImmutable`) and undeletable (`enforceOfficialNotDeletable`); **Edit** forks
-  a Not-Official working copy (`POST /:id/fork`) and opens its admin editor; **Make Official**
-  (`POST /:id/make-official`) moves the plan pointer with no content copy. Admin-scoped. Verified:
-  `verify-stage2b-edit` 8/8 (immutability, fork, mutable copy, make-official, Editor+Teacher denials),
-  `verify-rbac` 36/36.
-- **Remaining:** Editor prose-editing (needs the field-split factored out of `enforceBundleStructure`);
-  cut admin Preview/Export components to versions; **Stage 3** retire `lesson-bundles`.
+- **Stage 2b — editing on versions (`d18a544`…`36e9500`).** Working-copy model: Official versions are
+  immutable (`enforceVersionImmutable`) and undeletable (`enforceOfficialNotDeletable`); **Edit**
+  (Editors + admins) forks a Not-Official working copy (`POST /:id/fork`) and opens its admin editor;
+  **Make Official** (admins only, `POST /:id/make-official`) moves the plan pointer with no content
+  copy. **Editors prose-edit** the working copy — the field-split was factored out of
+  `enforceBundleStructure` into a shared `applyEditorFieldSplit` (bundle behavior unchanged) and
+  applied to versions; `lessonBundleVersionUpdate` editor-scoped, `…Create` admin-only. Verified:
+  `verify-stage2b-edit` 13/13 (immutability, fork, mutable copy, make-official, editor prose
+  applies / structure+admin preserved, delete guard, editor+teacher denials), `verify-rbac` 36/36.
+- **Remaining:** cut admin Preview/Export components to versions; **Stage 3** retire `lesson-bundles`.
 
 ## SHIPPED + DEPLOYED 2026-06-24 (Audit #3 — export GET/POST split, Rock-verified)
 

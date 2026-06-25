@@ -56,20 +56,20 @@ Resume in this order:
      `findReadablePlan`/`findReadableVersion`. roundtrip-regression repointed to versions (it had
      broken when ingest moved to the new model). Verified: roundtrip 3/3 byte-identical;
      `verify-stage2-reads` 13/13; `verify-stage2-export` DOCX+PDF. See DECISIONS 2026-06-24.
-   - **✅ Stage 2b (admin editing) DONE + verified (`0802204`).** Working-copy model: Official version
-     is immutable (`enforceVersionImmutable`); **Edit** on the detail page (Subject/Site Admins) forks a
-     Not-Official working copy (`POST /:id/fork` — content copy, semver patch-bump, `sourceVersion`) and
-     opens its admin editor; **Make Official** (`POST /:id/make-official`) moves `LessonPlan.officialVersion`
-     (no content copy). `lessonBundleVersionUpdate` is admin-scoped. Verified on the Rock: `verify-stage2b-edit`
-     8/8 (immutability, fork, mutable working copy, make-official, Editor+Teacher denials), `verify-rbac` 36/36.
-     See DECISIONS 2026-06-24 (working-copy model).
-   - **▶ NEXT — Stage 2b (Editors):** widen editing to Editors (prose-only). Needs the field-split
-     factored OUT of `enforceBundleStructure` (currently entangled with bundle semver/`_status`/`lockVersion`,
-     which versions don't have) into a shared pure fn, applied as a `beforeChange` on
-     `lesson-bundle-versions`; then `lessonBundleVersionUpdate` → editor-scoped. Security-critical —
-     re-run `verify-rbac` + extend `verify-stage2b-edit` (editor-prose-allowed / editor-structure-denied).
-     Also: cut the admin Preview/Export components over to versions. **Note:** the seeded
-     `subjectadmin@lesson3.local` user actually holds an *editor* grant (only the Site Admin is a true admin).
+   - **✅ Stage 2b DONE + verified (admin slice `0802204`; Editor slice `36e9500`).** Working-copy
+     model: Official version is immutable (`enforceVersionImmutable`) and undeletable
+     (`enforceOfficialNotDeletable`); **Edit** on the detail page (**Editors + admins**) forks a
+     Not-Official working copy (`POST /:id/fork` — content copy via overrideAccess, semver patch-bump,
+     `sourceVersion`) and opens its admin editor; **Make Official** (**admins only**, `POST /:id/make-official`)
+     moves `LessonPlan.officialVersion` (no content copy). Editors prose-edit the working copy
+     (field-split via the shared `applyEditorFieldSplit`, extracted from `enforceBundleStructure`);
+     `lessonBundleVersionUpdate` editor-scoped, `…Create` admin-only (fork copies via overrideAccess).
+     Verified on the Rock: `verify-stage2b-edit` 13/13 (immutability, fork, mutable copy, make-official,
+     editor prose applies / structure+admin preserved, delete guard, editor+teacher denials),
+     `verify-rbac` 36/36. See DECISIONS 2026-06-24. **Note:** the seeded `subjectadmin@lesson3.local`
+     user actually holds an *editor* grant (only the Site Admin is a true admin).
+   - **▶ NEXT — Stage 2b finish:** cut the admin **Preview/Export components** (still on the bundle
+     edit view) over to versions, so the admin working-copy editor has live preview + export.
    - **Stage 3:** retire `lesson-bundles` (drop collection + its export/preview endpoints + migration).
    Original dependency-ordered notes + locked decisions below:
    - **Read scope = open to all authenticated (teachers see all subjects).** The existing
@@ -104,7 +104,8 @@ Resume in this order:
 
 **Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, the
 TEACHER path is cut over to the version model (Stage 2a), and ADMIN editing now runs on the version
-model too (Stage 2b admin slice: Edit→fork working copy, Make Official) — all deployed + verified.**
+model too (Stage 2b: Edit→fork working copy with Editor prose-editing, admin Make Official) — all
+deployed + verified.**
 The migration is partway: teacher browse/view/export AND admin edit/Make-Official run on `lesson-plans`
 + `lesson-bundle-versions`. What remains: **Editor** prose-editing (needs the field-split extraction),
 cutting the admin Preview/Export components over, and retiring `lesson-bundles` (Stage 3). Treat the app
