@@ -1,24 +1,24 @@
 /**
- * Draft-capable CONTENT PREVIEW for a bundle — the generated DOCX rendered to HTML
+ * CONTENT PREVIEW for a lesson-plan version — the generated DOCX rendered to HTML
  * (SPEC §5 preview tier). Used by the admin editor preview so an editor can see what
- * their (saved) edits produce *before* publishing.
+ * their edits produce, and by the teacher content view.
  *
- * This is deliberately NOT `generateForBundle`:
- *   - NO published/exportable gate — it renders whatever snapshot it is given, including
- *     an in-progress DRAFT. The caller is responsible for authorization (the preview
- *     endpoint enforces the caller's READ access first, exactly like the export endpoint).
+ * This is deliberately separate from the export/`generateForVersion` path:
+ *   - It renders whatever snapshot it is given (including an editor's in-progress working copy).
+ *     The caller is responsible for authorization (the preview endpoint enforces the caller's
+ *     READ access first, exactly like the export endpoint).
  *   - HTML ONLY — it never returns DOCX bytes, so it can never be an export bypass. The
  *     output is mammoth's content+table HTML (styling/colour dropped); our prose fields are
  *     plain strings with no inline markup, so mammoth escapes all text into text nodes and
  *     the result carries no executable markup (same basis as the teacher content view).
  *
- * It takes an already-loaded bundle (the endpoint loads it access-gated) — no reload here.
+ * It takes an already-loaded version (the endpoint loads it access-gated) — no reload here.
  */
 import mammoth from 'mammoth'
 
 import { bundleToAresData } from './adapter'
 import { generateBundleDocx, type GeneratedDocx, type LessonSequenceFormat } from './index'
-import type { LessonBundle } from '../payload-types'
+import type { LessonBundleVersion } from '../payload-types'
 
 export interface PreviewSection {
   label: string
@@ -54,7 +54,7 @@ export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSectio
  * callers should surface that as a "not ready to preview yet" message, not a 500.
  */
 export async function renderBundlePreview(
-  bundle: LessonBundle,
+  bundle: LessonBundleVersion,
   format: LessonSequenceFormat = 'standard',
 ): Promise<PreviewSection[]> {
   return docxToSections(await generateBundleDocx(bundleToAresData(bundle), format))

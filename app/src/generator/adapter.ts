@@ -1,5 +1,5 @@
 /**
- * Adapter: stored Payload `LessonBundle` → the ARES generator's data object.
+ * Adapter: a stored Payload lesson-plan `LessonBundleVersion` → the ARES generator's data object.
  *
  * Lesson3 stores the bundle as native Payload nested fields with camelCase top-level
  * groups (`meta`, `unit`, `lessons`, `finalExplanation`, `summaryTable`). The ARES
@@ -18,10 +18,10 @@
  *   5. Omits `FINAL_EXPLANATION` / `SUMMARY_TABLE` when the bundle has none, so the
  *      generator skips those documents (matches `generateBundleDocx`'s null contract).
  *
- * The Lesson3-only top-level fields (`semver`, `bumpType`, `lockVersion`, `_status`,
- * `id`, `createdAt`, `updatedAt`, `title`, `subjectGrade`) are simply not read.
+ * The Lesson3-only top-level fields (`semver`, `sourceVersion`, `id`, `createdAt`,
+ * `updatedAt`, `title`, `subjectGrade`, `lessonPlan`) are simply not read.
  */
-import type { LessonBundle } from '../payload-types'
+import type { LessonBundleVersion } from '../payload-types'
 import type { AresDataObject } from './index'
 
 /** True if any leaf string under `value` is non-empty (used to prune empty groups). */
@@ -63,8 +63,8 @@ function clean(value: unknown): unknown {
   return value
 }
 
-/** Map a stored bundle to the ARES generator's data object. */
-export function bundleToAresData(bundle: LessonBundle): AresDataObject {
+/** Map a stored version snapshot to the ARES generator's data object. */
+export function bundleToAresData(bundle: LessonBundleVersion): AresDataObject {
   const lessons = asArray(bundle.lessons).map((lesson) => {
     const l = lesson as Record<string, unknown>
     // `clean` already stripped ids / pruned empty resources inside each framework row;

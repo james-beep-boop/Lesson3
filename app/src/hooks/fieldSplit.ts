@@ -1,8 +1,7 @@
 /**
- * Editor field-split (SPEC §5) — the shared WHITELIST that constrains a non-admin Editor's writes to
- * prose values, preserving all structure / admin / system fields from the original. Extracted from
- * `enforceBundleStructure` so BOTH `lesson-bundles` (legacy) and `lesson-bundle-versions` (the
- * Official-version working copies) enforce the exact same Editor/Admin boundary.
+ * Editor field-split (SPEC §5) — the WHITELIST that constrains a non-admin Editor's writes to prose
+ * values, preserving all structure / admin / system fields from the original. Enforces the Editor/
+ * Admin boundary for the `lesson-bundle-versions` working copies (via `enforceVersionFieldSplit`).
  *
  * Subject Admins / Site Admins (and trusted system / overrideAccess calls with no `req.user`) are
  * unrestricted. For an Editor this:
@@ -17,8 +16,8 @@
  * is preserved automatically — forgetting to list a field can only make it non-editable by an Editor
  * (a visible annoyance), never silently Editor-writable (a security hole).
  *
- * The ONLY bundle-vs-version difference is which TOP-LEVEL keys an Editor may influence (a bundle has
- * `semver`/`bumpType`/`lockVersion`/`_status`; a version doesn't), so that set is passed in.
+ * The set of TOP-LEVEL keys an Editor may influence is passed in (`editorTopLevelKeys`), so the
+ * whitelist stays decoupled from any one collection's identity/version metadata.
  */
 import type { CollectionBeforeChangeHook } from 'payload'
 import { Forbidden } from 'payload'
@@ -39,7 +38,7 @@ const sameSequence = (
 ): boolean => a.length === b.length && a.every((v, i) => v === b[i])
 
 // Editor-editable prose fields, by container. Anything NOT listed is admin/system and is preserved
-// from the original. Keep in sync with the `prose()` fields in LessonBundles.
+// from the original. Keep in sync with the `prose()` fields in fields/lessonContent.ts.
 const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
 const SLO_PROSE = ['purpose', 'knowledge', 'skills', 'attitudes', 'keyInquiry', 'purposeInStoryline', 'safetyNotes']
 const FRAMEWORK_PROSE = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment']
@@ -128,11 +127,10 @@ export const applyEditorFieldSplit = ({
 
   // Restore EVERY top-level key from the original except the ones an Editor legitimately influences
   // (the content containers overlaid below + collection-specific version fields). So a NEW top-level
-  // field nobody wired up is reset to the original automatically. `_status`, when present (bundles),
-  // is preserved with the draft default — publishing is Subject Admin only.
+  // field nobody wired up is reset to the original automatically.
   for (const key of Object.keys(d)) {
     if (editorTopLevelKeys.has(key)) continue
-    d[key] = key === '_status' ? (orig._status ?? 'draft') : orig[key]
+    d[key] = orig[key]
   }
 
   if (Array.isArray(d.lessons)) {

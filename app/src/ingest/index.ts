@@ -7,7 +7,7 @@
  * ENTRY POINTS (both trusted, never teacher-facing): the dev-only CLI (`app/scripts/ingest.ts`)
  * and the Site-Administrator-only JSON upload endpoint (`src/endpoints/uploadBundles.ts`) — both
  * call the shared `ingestItems` core below. `ingestItems` runs as a TRUSTED Local-API system
- * call (no `req.user` → `enforceBundleStructure` treats it as a system path and lets it set all
+ * call (no `req.user` → the version field-split treats it as a system path and lets it set all
  * fields), so **callers MUST enforce authorization first**: the CLI is dev-only; the endpoint
  * gates on Site Admin server-side (`isSiteAdmin`) and accepts JSON only. The untrusted-input risk
  * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its

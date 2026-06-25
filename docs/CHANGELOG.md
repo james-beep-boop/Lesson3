@@ -8,6 +8,27 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## CODE COMPLETE + LOCALLY VERIFIED 2026-06-24 (Stage 2b finish + Stage 3 retire `lesson-bundles`) — Rock pending
+
+Not yet deployed/verified on the Rock. Local: type-check + lint (warnings-only) clean, unit 19/19.
+See DECISIONS 2026-06-24 for reasoning and the Rock drop-migration runbook.
+
+- **Stage 2b finish — admin Preview/Export on versions.** New version preview endpoints
+  (`endpoints/previewVersion.ts`, GET saved + POST unsaved; shared shell/body-parse in
+  `previewShared.ts`); the `PreviewBundle`/`ExportBundle` admin controls now drive the
+  `lesson-bundle-versions` endpoints (a version has no published gate). Verifier:
+  `verify-stage2b-preview.ts`.
+- **Stage 3 — legacy `lesson-bundles` retired.** Deleted the collection and its entire bundle-path
+  (`exportBundle`/`exportStatus`/`previewBundle` endpoints, `generateForBundle`, `generateArtifact`
+  job, `bundleIntegrity`/`generatable` hooks, the five `lessonBundle*` access fns, `findReadableBundle`,
+  `bundleScope`, and the obsolete bundle scripts). Shared content fields extracted to
+  `fields/lessonContent.ts`; web upload re-homed to `lesson-plans` (`POST /api/lesson-plans/upload`);
+  the generator/adapter/preview chain retyped from the vanishing `LessonBundle` to `LessonBundleVersion`
+  (deleting the Stage-2a `as unknown as LessonBundle` casts). `verify-rbac.ts` slimmed to the
+  People/Curriculum RBAC it uniquely covers (lesson-content RBAC lives in `verify-stage2b-edit`).
+  **PENDING on the Rock:** `generate:types` (drops the `LessonBundle` type + `generateArtifact` task
+  slug) + a drop-table migration, then re-verify.
+
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-24 (Official-version cutover: Stages 1, 2a, 2b-admin)
 
 The Official-version model went from "schema only" to powering the live teacher + admin paths. All
@@ -32,7 +53,8 @@ deployed to the Rock and verified. See DECISIONS 2026-06-24 for reasoning.
   applied to versions; `lessonBundleVersionUpdate` editor-scoped, `…Create` admin-only. Verified:
   `verify-stage2b-edit` 13/13 (immutability, fork, mutable copy, make-official, editor prose
   applies / structure+admin preserved, delete guard, editor+teacher denials), `verify-rbac` 36/36.
-- **Remaining:** cut admin Preview/Export components to versions; **Stage 3** retire `lesson-bundles`.
+- **Remaining (at the time of this entry):** cut admin Preview/Export components to versions; **Stage 3**
+  retire `lesson-bundles`. *(Both now CODE COMPLETE — see the newer entry at the top.)*
 
 ## SHIPPED + DEPLOYED 2026-06-24 (Audit #3 — export GET/POST split, Rock-verified)
 

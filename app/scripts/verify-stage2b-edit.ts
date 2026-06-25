@@ -2,7 +2,8 @@
  * Verify the Stage-2b working-copy edit semantics + RBAC, self-cleaning, no HTTP session.
  *
  * Exercises the access rules + hooks the fork/make-official endpoints rely on, via the Local API as
- * the seeded Subject Admin (scoped to Biology G10) and Teacher:
+ * the Site Admin (admin path), a Biology-G10 Editor, and a Teacher (the seeded `subjectadmin@…` holds
+ * only an EDITOR grant — see the actor note below):
  *   - Official version is immutable (enforceVersionImmutable rejects the update).
  *   - Fork creates a Not-Official working copy (semver bumped, sourceVersion set, pointer unchanged).
  *   - The working copy is mutable (a Subject Admin update succeeds).

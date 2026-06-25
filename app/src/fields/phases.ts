@@ -5,8 +5,8 @@
  * (`PHASE_COLOUR[ph.phase]` / `PHASE_KEY[ph.phase]` in vendor/lib/sections.js); an
  * unknown phase silently degrades the document (grey cell, wrong resource bucket).
  * The five values match `bio_1_4`'s phases, verified against the generator's colour-map
- * keys. Single source of truth: the `LessonBundles` select options AND the ingest /
- * publish completeness gate (`validateGeneratable`) both read this.
+ * keys. Single source of truth: the `lessonContent.ts` phase select options AND the ingest /
+ * version completeness gate (`validateGeneratable`) both read this.
  */
 export const PHASE_VALUES = [
   'Predict Phase',

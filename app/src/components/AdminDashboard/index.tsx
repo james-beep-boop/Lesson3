@@ -42,9 +42,9 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
           <ul className="lp-admin-dash__actions">
             <li>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a className="lp-admin-dash__action" href="/admin/collections/lesson-bundles">
+              <a className="lp-admin-dash__action" href="/admin/collections/lesson-plans">
                 <span className="lp-admin-dash__action-label">Upload lesson plans</span>
-                <span className="lp-admin-dash__action-desc">Upload generated ARES lesson bundles.</span>
+                <span className="lp-admin-dash__action-desc">Upload generated ARES lesson plans.</span>
               </a>
             </li>
           </ul>

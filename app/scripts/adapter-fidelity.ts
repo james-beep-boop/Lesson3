@@ -19,9 +19,8 @@ import path from 'node:path'
 import os from 'node:os'
 import { generateBundleDocx } from '../src/generator/index'
 import { bundleToAresData } from '../src/generator/adapter'
-import { assertExportable, NotExportableError } from '../src/generator/generateForBundle'
 import { compareDoc } from './lib/docxDiff'
-import type { LessonBundle } from '../src/payload-types'
+import type { LessonBundleVersion } from '../src/payload-types'
 
 const require = createRequire(import.meta.url)
 
@@ -56,8 +55,8 @@ function withRowIds(value: unknown): unknown {
   return value
 }
 
-/** Build the LessonBundle exactly as Payload would store & return the bio_1_4 data. */
-function asStoredBundle(): LessonBundle {
+/** Build the version snapshot exactly as Payload would store & return the bio_1_4 data. */
+function asStoredBundle(): LessonBundleVersion {
   const lessons = (withRowIds(data.LESSONS) as Record<string, unknown>[]).map((l) => ({
     ...l,
     // bio_1_4 has no resources → Payload stores an empty group; the adapter must drop it.
@@ -69,56 +68,24 @@ function asStoredBundle(): LessonBundle {
 
   return {
     id: 4242,
+    lessonPlan: 1,
     title: data.META.titleDoc,
     subjectGrade: 1,
     semver: '1.0.0',
-    bumpType: 'patch',
-    lockVersion: 7,
-    _status: 'published',
     createdAt: '2026-06-08T00:00:00.000Z',
     updatedAt: '2026-06-08T00:00:00.000Z',
-    meta: withRowIds(data.META) as LessonBundle['meta'],
+    meta: withRowIds(data.META) as LessonBundleVersion['meta'],
     // UNIT mirrors the other groups: stored as-is, the adapter passes it through. An empty
     // upstream UNIT ({}) yields an empty group; a populated UNIT renders the Sub-Strand Overview.
-    unit: withRowIds(data.UNIT) as LessonBundle['unit'],
-    lessons: lessons as LessonBundle['lessons'],
-    finalExplanation: withRowIds(data.FINAL_EXPLANATION) as LessonBundle['finalExplanation'],
-    summaryTable: withRowIds(data.SUMMARY_TABLE) as LessonBundle['summaryTable'],
+    unit: withRowIds(data.UNIT) as LessonBundleVersion['unit'],
+    lessons: lessons as LessonBundleVersion['lessons'],
+    finalExplanation: withRowIds(data.FINAL_EXPLANATION) as LessonBundleVersion['finalExplanation'],
+    summaryTable: withRowIds(data.SUMMARY_TABLE) as LessonBundleVersion['summaryTable'],
   }
-}
-
-function gateChecks(): boolean {
-  let ok = true
-  // Published → allowed.
-  try {
-    assertExportable({ id: 1, _status: 'published' })
-    console.log('  ✓ published bundle is exportable')
-  } catch {
-    console.log('  ✗ published bundle was wrongly rejected')
-    ok = false
-  }
-  // Draft → refused.
-  for (const status of ['draft', undefined] as const) {
-    try {
-      assertExportable({ id: 1, _status: status })
-      console.log(`  ✗ draft (${status}) was NOT refused`)
-      ok = false
-    } catch (e) {
-      if (e instanceof NotExportableError) console.log(`  ✓ draft (${status ?? 'undefined'}) refused`)
-      else {
-        console.log(`  ✗ unexpected error for ${status}: ${e}`)
-        ok = false
-      }
-    }
-  }
-  return ok
 }
 
 async function main() {
   console.log('Phase 2 adapter round-trip proof — bio_1_4 (Chemicals of Life)')
-
-  console.log('\n── Validity gate ───────────────────────')
-  const gateOk = gateChecks()
 
   const aresData = bundleToAresData(asStoredBundle())
   // Sanity: the adapter output must carry no Payload `id` and no empty resources.
@@ -131,7 +98,6 @@ async function main() {
   const out = await generateBundleDocx(aresData)
 
   const results = [
-    gateOk,
     cleanShape,
     await compareDoc('LessonSequence (SoW)', out.lessonSequence, approved(APPROVED.lessonSequence), true),
     await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
@@ -140,7 +106,7 @@ async function main() {
 
   const passed = results.filter(Boolean).length
   console.log(`\n${'='.repeat(50)}`)
-  console.log(`GATE: ${passed}/${results.length} checks passed (gate + adapter shape + 3 docs)`)
+  console.log(`GATE: ${passed}/${results.length} checks passed (adapter shape + 3 docs)`)
   if (passed !== results.length) process.exit(1)
   console.log('✓ Phase 2 adapter round-trip GATE PASSED')
 }

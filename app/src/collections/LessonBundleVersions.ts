@@ -1,4 +1,4 @@
-import type { CollectionConfig, CollectionSlug, Field } from 'payload'
+import type { CollectionConfig, CollectionSlug } from 'payload'
 
 import {
   lessonBundleVersionCreate,
@@ -19,15 +19,9 @@ import {
   exportVersionPrepareEndpoint,
   exportVersionStatusEndpoint,
 } from '../endpoints/exportVersion'
+import { previewVersionEndpoint, previewVersionUnsavedEndpoint } from '../endpoints/previewVersion'
 import { forkVersionEndpoint, makeOfficialEndpoint } from '../endpoints/versionEdit'
-import { LessonBundles } from './LessonBundles'
-
-const LEGACY_VERSION_FIELDS = new Set(['semver', 'bumpType', 'lockVersion', 'title', 'subjectGrade'])
-
-const bundleContentFields = (LessonBundles.fields as Field[]).filter((field) => {
-  if (!('name' in field)) return true
-  return !LEGACY_VERSION_FIELDS.has(field.name)
-})
+import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
   slug: 'lesson-bundle-versions',
@@ -37,6 +31,17 @@ export const LessonBundleVersions: CollectionConfig = {
     group: 'Lesson plans',
     description:
       'Immutable lesson-plan snapshots. The parent Lesson Plan chooses one snapshot as Official.',
+    components: {
+      // Working-copy edit-view controls: content preview (current form state, unsaved included —
+      // SPEC §5) and per-export DOCX/PDF download (every retained version is inherently exportable —
+      // SPEC §9, Official-version model).
+      edit: {
+        beforeDocumentControls: [
+          '@/components/PreviewBundle#default',
+          '@/components/ExportBundle#default',
+        ],
+      },
+    },
   },
   access: {
     read: lessonBundleVersionRead,
@@ -59,6 +64,10 @@ export const LessonBundleVersions: CollectionConfig = {
     exportVersionPrepareEndpoint,
     // GET /:id/export/status?jobId=… — poll an enqueued export job.
     exportVersionStatusEndpoint,
+    // GET /:id/preview?format=… — READ-gated HTML content view of the stored version (SPEC §5).
+    previewVersionEndpoint,
+    // POST /:id/preview — same gate; renders the editor's current UNSAVED working-copy state (SPEC §5).
+    previewVersionUnsavedEndpoint,
     // POST /:id/fork — create a Not-Official working copy from this version and return its admin URL.
     forkVersionEndpoint,
     // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.
@@ -113,6 +122,6 @@ export const LessonBundleVersions: CollectionConfig = {
       index: true,
       access: { update: canEditStructure },
     },
-    ...bundleContentFields,
+    ...lessonContentFields,
   ],
 }

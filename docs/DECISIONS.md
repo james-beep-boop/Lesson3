@@ -11,6 +11,111 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Stage 3: legacy `lesson-bundles` collection retired
+
+**Decision.** The Official-version model (`lesson-plans` + immutable `lesson-bundle-versions`) is now
+the ONLY representation. The legacy `lesson-bundles` collection and its entire bundle-path
+(endpoints, generator, hooks, access, scripts) are removed. **Code DONE + locally verified; the DB
+DROP migration is PENDING on the Rock** (see runbook below).
+
+**What was removed (deleted files).** `collections/LessonBundles.ts`;
+`endpoints/{exportBundle,exportStatus,previewBundle}.ts`; `generator/generateForBundle.ts`;
+`jobs/generateArtifact.ts`; `hooks/{bundleIntegrity,generatable}.ts`; and the obsolete scripts
+`generate-bundle`, `publish-bundle`, `publish-drafts`, `wipe-bundles`, `migrate-bundles-to-versions`,
+`verify-migration` (one-shot Stage-1 proof — its job is permanently done; `roundtrip-regression`
+remains the standing fidelity gate). Pruned the now-dead exports from shared modules:
+`authorizeExportRequest`/`bundleScope`/`findReadableBundle`/`assertExportable` and the five
+`lessonBundle*` collection-access fns (`access/bundle.ts` now holds only the shared field-access
+helpers `canEditProse`/`canEditStructure`/`systemOnly`).
+
+**Three things the cutover surfaced that the plan had to handle:**
+1. **Shared content fields.** `LessonBundleVersions` reused `LessonBundles.fields`, so the META/UNIT/
+   LESSONS/FINAL_EXPLANATION/SUMMARY_TABLE field groups (+ `resourceLink`/`rowLabel` helpers) were
+   extracted to `fields/lessonContent.ts` (the sole home now); the version collection imports
+   `lessonContentFields`.
+2. **Upload re-homed, not deleted.** The web ingest endpoint (`uploadBundles.ts`) and its
+   `UploadBundles` panel were mounted on `lesson-bundles`; the core (`ingestItems`) already writes
+   plans+versions, so both moved to `lesson-plans` (`POST /api/lesson-plans/upload`, panel above the
+   Lesson Plans list). Chosen over the versions collection because import creates a *plan*.
+3. **The generator was typed to the vanishing `LessonBundle` type.** Dropping the collection removes
+   `LessonBundle` from `payload-types.ts`. The generator/adapter/preview chain (`adapter.ts`,
+   `previewBundle.ts`, `generateForVersion.ts`, `previewShared.ts`) was retyped to
+   `LessonBundleVersion` — the surviving, content-identical shape — which also DELETED the transitional
+   `as unknown as LessonBundle` casts from Stage 2a. Cleaner end-state, not just a port.
+
+**Follow-on simplifications (the second consumer is gone).** The `PreviewBundle`/`ExportBundle`
+controls dropped their `basePath`/`publishedGate` clientProps (hardcoded to the version endpoints; a
+version has no published gate); `previewShared.ts` and `fieldSplit.ts` doc comments updated to
+single-owner. RBAC: `verify-rbac.ts` was rewritten to the People/Curriculum rules it UNIQUELY covers
+(SubjectGrade displayName, ≤1-subject-admin auto-demote, password/assignment guards); its bundle
+field-split + draft/publish-versioning assertions were dropped because the Official-version model's
+field-split/immutability RBAC is covered by `verify-stage2b-edit`. `adapter-fidelity.ts` kept as the
+byte gate (retyped; its obsolete draft/published export-gate check removed).
+
+**Verification.** Local: type-check clean, lint warnings-only (pre-existing patterns), unit 19/19.
+**Rock PENDING:** apply the drop migration, then re-run `roundtrip-regression`, `verify-rbac`,
+`verify-stage2b-edit`, `verify-stage2b-preview`, `verify-stage2-export`, and smoke the upload panel +
+admin Preview/Export on a forked working copy.
+
+**Drop migration — Rock runbook** (schema change → generate ON THE ROCK, Node 22; local payload CLIs
+break on newer Node — same pattern as prior migrations):
+```
+git pull
+docker build --target deps -t lesson3-deps ./app
+docker run --rm -v /srv/lesson3/app:/app -v /app/node_modules -w /app --env-file .env \
+  lesson3-deps npx payload generate:types          # LessonBundle type drops out; commit payload-types.ts
+docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules \
+  -w /app --env-file .env lesson3-deps npx payload migrate:create drop_lesson_bundles
+#   → REVIEW the generated up()/down() before applying. It should DROP the lesson_bundles tables
+#     (+ its _v versions/locks/rels). Confirm it does NOT touch lesson_plans / lesson_bundle_versions.
+#     Make it idempotent (IF EXISTS); commit it.
+docker compose up -d --build                        # one-shot `migrate` applies it, then `app` starts
+```
+
+## 2026-06-24 — Stage 2b finish: admin Preview/Export controls cut over to versions
+
+> **Partially superseded by the Stage 3 entry above (same day).** The `basePath`/`publishedGate`
+> clientProps and the `as unknown as LessonBundle` cast described below were REMOVED in Stage 3 when
+> `lesson-bundles` was retired (the components hardcode the version endpoints; the generator is typed
+> natively to `LessonBundleVersion`). The decisions here are kept as the record of what was built then.
+
+**Decision.** The admin edit-view **Preview** and **Export** controls now run on the
+`lesson-bundle-versions` working-copy editor (where Edit→fork lands the user), not only the legacy
+`lesson-bundles` edit view. This closes the Official-version cutover bar Stage 3 (retire
+`lesson-bundles`).
+
+**What changed.**
+- New **version preview endpoints** (`src/endpoints/previewVersion.ts`), mounted on
+  `lesson-bundle-versions`: `GET /:id/preview` (stored version) and `POST /:id/preview` (current
+  UNSAVED working-copy form state). The version-model counterpart of `previewBundle.ts`, minus the
+  draft/published axis (every retained version is a valid snapshot — `findReadableVersion`), rendering
+  by casting the version across to the sibling bundle content shape (as `generateForVersion` does).
+- The preview **page shell + CSP + completeness gate + error semantics** (`renderPreviewResponse`)
+  and the **unsaved-POST body parse + size limit** (`parsePreviewCandidate`) were extracted to
+  `src/endpoints/previewShared.ts` so the bundle and version preview paths can't drift on what a
+  preview looks like, how an incomplete/failed render is reported, or the `data`-field validation.
+  The per-endpoint remainder (the readable-doc loader and the overlay + field-split hook, which
+  genuinely differ) is intentionally NOT shared — `lesson-bundles`/`previewBundle.ts` retire in
+  Stage 3, so a higher-order `handler(loader, hook)` seam would only complicate that deletion.
+- POST-unsaved security mirrors the bundle path: edit-authority gate (`isEditorFor`) THEN the real
+  version field-split (`enforceVersionFieldSplit`) on the posted overlay — an Editor previews only
+  what they could save; a structural change → `Forbidden` → 422. Preview persists nothing, so it does
+  NOT enforce version immutability (saving an Official version is separately rejected).
+- The two admin controls were **parameterised, not duplicated** (chosen over version-only twins):
+  `PreviewBundle`/`ExportBundle` gained `basePath` (default `lesson-bundles`) and `ExportBundle` a
+  `publishedGate` clientProp. Versions mount them with `basePath: 'lesson-bundle-versions'` +
+  `publishedGate: false` (no published gate — every version is inherently exportable, SPEC §9). Same
+  registered components → no importMap change. Names kept as-is despite now serving versions; renaming
+  is churn + importMap regen — defer to Stage 3 cleanup.
+
+**Verification.** Local ONLY so far (working-tree change, nothing deployed): type-check + lint clean,
+unit 19/19. **Rock PENDING** — run `scripts/verify-stage2b-preview.ts` (Local-API, read-only; covers
+saved-render non-empty, editor prose applied / admin+structure reverted, cardinality change rejected,
+teacher has no edit authority) AND eyeball the admin Preview/Export mount on a forked working copy.
+Export-on-versions is already covered by `verify-stage2-export`. **Test gap (follow-up, non-blocking):**
+`verify-stage2b-preview` bypasses HTTP, so the new `parsePreviewCandidate` formData→JSON→size→shape
+path is not yet exercised — a small unit test on its 400/413 error cases would close it.
+
 ## 2026-06-24 — Stage 2b edit model: working-copy (fork on Edit, mutable until Official)
 
 **Decision (supersedes the earlier "edit-in-place, fork on first save").** Editing works on a

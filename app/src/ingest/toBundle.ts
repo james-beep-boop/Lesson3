@@ -8,7 +8,7 @@
  *
  * `framework[].resources` is carried through if present, omitted otherwise (the Resource
  * column is DEFERRED — see docs/DECISIONS.md). Lesson `number`s are left as-is; the
- * `enforceBundleStructure` hook re-derives them from array order on write.
+ * `numberBundleVersionRows` hook re-derives them from array order on write.
  */
 import type { AresRawBundle } from './extract'
 

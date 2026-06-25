@@ -2,13 +2,13 @@
 
 /**
  * PreviewBundle — admin edit-view control to open the content preview (SPEC §5) of the
- * bundle being edited, in a new tab. Injected via
- * `admin.components.edit.beforeDocumentControls` on the lesson-bundles collection.
+ * lesson-plan version being edited, in a new tab. Injected via
+ * `admin.components.edit.beforeDocumentControls` on the lesson-bundle-versions collection.
  *
  * It previews the editor's CURRENT form state — UNSAVED edits included — so you don't have to
  * save before checking output. The current field values are read from the form
  * (`useAllFormFields` + `reduceFieldsToValues`) and POSTed to
- * `/api/lesson-bundles/:id/preview?format=…` (see endpoints/previewBundle.ts), which is
+ * `/api/lesson-bundle-versions/:id/preview?format=…` (see endpoints/previewVersion.ts), which is
  * READ-access-gated and draft-capable; it overlays the posted content onto the stored,
  * access-checked bundle and returns a script-free HTML page. We submit a hidden, transient
  * `<form method="POST" target="_blank">` so the browser opens the endpoint's real HTML
@@ -41,7 +41,7 @@ export default function PreviewBundle() {
 
     const form = document.createElement('form')
     form.method = 'POST'
-    form.action = `/api/lesson-bundles/${id}/preview?format=${format}`
+    form.action = `/api/lesson-bundle-versions/${id}/preview?format=${format}`
     form.target = '_blank'
     const input = document.createElement('input')
     input.type = 'hidden'

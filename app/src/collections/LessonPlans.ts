@@ -9,6 +9,7 @@ import {
 } from '../access/versioning'
 import { canEditStructure } from '../access/bundle'
 import { validateOfficialVersionPointer } from '../hooks/lessonPlan'
+import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 
 export const LessonPlans: CollectionConfig = {
   slug: 'lesson-plans',
@@ -16,6 +17,11 @@ export const LessonPlans: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'subjectGrade', 'officialVersion'],
     group: 'Lesson plans',
+    components: {
+      // Site-Admin-only upload panel above the list (SPEC §7 deviation — self-hides for others).
+      // Import creates a LessonPlan + Official 1.0.0 version, so this is its natural home.
+      beforeListTable: ['@/components/UploadBundles#default'],
+    },
   },
   access: {
     read: lessonPlanRead,
@@ -26,6 +32,10 @@ export const LessonPlans: CollectionConfig = {
   hooks: {
     beforeValidate: [validateOfficialVersionPointer],
   },
+  endpoints: [
+    // POST /api/lesson-plans/upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
+    uploadBundlesEndpoint,
+  ],
   fields: [
     {
       name: 'title',

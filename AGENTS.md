@@ -17,14 +17,16 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   under `app/src/generator/vendor` and called in-process. **Never reimplement the formatting**; the
   vendored path is byte-pristine (fidelity-gated). PDF = the generated DOCX converted by a local
   office engine (Gotenberg sidecar) via the `docxToPdf(buffer)` seam — never a parallel renderer.
-- **Versioning:** Payload native versions/drafts + custom semver and official-version fields.
+- **Versioning:** immutable `lesson-bundle-versions` snapshots (semver) + a per-plan official-version
+  pointer; editing forks a Not-Official working copy (no Payload drafts).
 
 ## Project layout (`app/`)
 
-- `src/collections` — Payload collections (Users, Subject, SubjectGrade, LessonBundles).
+- `src/collections` — Payload collections (Users, Subject, SubjectGrade, LessonPlans, LessonBundleVersions).
 - `src/access` — reusable access functions (the authz source of truth).
-- `src/fields`, `src/hooks` — shared field configs + collection hooks (e.g. `bundleIntegrity`).
-- `src/generator` — the DOCX/PDF generator boundary (`generateForBundle`, `docxToPdf`, `previewBundle`,
+- `src/fields`, `src/hooks` — shared field configs (`lessonContent`, `bundleFields`) + collection hooks
+  (`bundleVersion`, the shared `fieldSplit`).
+- `src/generator` — the DOCX/PDF generator boundary (`generateForVersion`, `docxToPdf`, `previewBundle`,
   the `compact` format) + `vendor/` (the pristine ARES generator).
 - `src/ingest` — safe `.js`/`.json` extraction (parse-never-execute), the contract validator/schema.
 - `src/endpoints` — custom Payload endpoints (export, preview, upload, shared param parsers).

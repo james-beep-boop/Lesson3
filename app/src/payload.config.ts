@@ -11,8 +11,6 @@ import { Subject } from './collections/Subject'
 import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
-import { LessonBundles } from './collections/LessonBundles'
-import { generateArtifactTask } from './jobs/generateArtifact'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { isSiteAdmin } from './access'
 
@@ -99,7 +97,7 @@ export default buildConfig({
   },
   // Order here drives the admin nav order (groups appear by first-seen): Lesson plans →
   // Curriculum (Subjects, Subject Grades) → People (Users). See each collection's admin.group.
-  collections: [LessonPlans, LessonBundleVersions, LessonBundles, Subject, SubjectGrade, Users],
+  collections: [LessonPlans, LessonBundleVersions, Subject, SubjectGrade, Users],
   // Jobs Queue (SPEC §9/§11; readiness #1) — heavy export generation runs async + throttled.
   // Defining a task creates the `payload-jobs` collection (a schema migration). The in-process
   // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,
@@ -108,7 +106,7 @@ export default buildConfig({
   // Completed jobs are kept (not auto-deleted) so the status poll can surface failures; periodic
   // cleanup is a follow-up. Cadence/limit are env-tunable for the host's CPU/Gotenberg budget.
   jobs: {
-    tasks: [generateArtifactTask, generateVersionArtifactTask],
+    tasks: [generateVersionArtifactTask],
     // LOCK DOWN the job surface (Payload's defaults are permissive). Without this, the
     // `run` endpoint defaults to `() => true` (callable UNAUTHENTICATED), and `queue`/`cancel`
     // default to any-logged-in-user. Restrict all three to Site Admins. This does NOT affect
@@ -122,8 +120,8 @@ export default buildConfig({
     },
     // The above gates the job-system endpoints, but the `payload-jobs` collection itself ships
     // with NO access block → it falls back to Payload's `defaultAccess` (any authenticated user),
-    // so a Teacher could `POST /api/payload-jobs` to enqueue `generateArtifact` with an arbitrary
-    // input, bypassing the export endpoint's read-gate + rate-limit. Lock the collection's REST
+    // so a Teacher could `POST /api/payload-jobs` to enqueue `generateVersionArtifact` with an
+    // arbitrary input, bypassing the export endpoint's read-gate + rate-limit. Lock the collection's REST
     // CRUD: nobody creates/updates/deletes jobs over the API (the system writes via overrideAccess
     // / direct DB), and only Site Admins may read them.
     jobsCollectionOverrides: ({ defaultJobsCollection }) => ({

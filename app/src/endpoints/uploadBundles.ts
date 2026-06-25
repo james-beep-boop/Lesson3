@@ -1,7 +1,7 @@
 /**
- * Site-Admin bundle UPLOAD endpoint (SPEC §7 deviation — see docs/DECISIONS.md 2026-06-13).
+ * Site-Admin lesson-plan UPLOAD endpoint (SPEC §7 deviation — see docs/DECISIONS.md 2026-06-13).
  *
- * Mounted on lesson-bundles → `POST /api/lesson-bundles/upload` (multipart, field `files`).
+ * Mounted on lesson-plans → `POST /api/lesson-plans/upload` (multipart, field `files`).
  * Accepts ARES `.json` exports only, parses each with the SAFE `extractAresJson` (JSON.parse +
  * structural guards — never executes input), and creates Official 1.0.0 lesson-plan versions
  * via the shared upload/import core.

@@ -1,15 +1,14 @@
 'use client'
 
 /**
- * ExportBundle — admin edit-view control to download a bundle's three DOCX as a .zip,
+ * ExportBundle — admin edit-view control to download a lesson-plan version's three DOCX as a .zip,
  * with a per-export LessonSequence format toggle (SPEC §9). Injected via
- * `admin.components.edit.beforeDocumentControls` on the lesson-bundles collection.
+ * `admin.components.edit.beforeDocumentControls` on the lesson-bundle-versions collection.
  *
- * It drives `/api/lesson-bundles/:id/export?format=…` (POST to prepare, GET to download — see
- * endpoints/exportBundle.ts), which is READ-access-gated and published-only. So:
- *   - hidden entirely on an unsaved/new doc (no id yet);
- *   - disabled with a hint when no published version exists (export is published-only;
- *     `hasPublishedDoc` is false). The format is a per-export choice, never stored.
+ * It drives `/api/lesson-bundle-versions/:id/export?format=…` (POST to prepare, GET to download —
+ * see endpoints/exportVersion.ts), which is READ-access-gated. A version has NO published gate —
+ * every retained snapshot is inherently exportable — so the only disabled state is an unsaved/new
+ * doc (no id yet). The format is a per-export choice, never stored.
  *
  * Export is two-phase (SPEC §9; readiness #1): a warm request downloads the .zip; a cold one
  * returns 202 while the generateArtifact job runs. So we drive it through `downloadExport`
@@ -25,7 +24,7 @@ import { formatFromResources } from '../../lib/format'
 type Kind = 'docx' | 'pdf'
 
 export default function ExportBundle() {
-  const { id, hasPublishedDoc } = useDocumentInfo()
+  const { id } = useDocumentInfo()
   // One control for the Resource column (unchecked by default); maps to the standard/compact format.
   const [resources, setResources] = useState(false)
   const [kind, setKind] = useState<Kind>('docx')
@@ -36,12 +35,11 @@ export default function ExportBundle() {
   if (!id) return null
 
   const format = formatFromResources(resources)
-  const exportable = hasPublishedDoc
   const busy = state === 'preparing' || state === 'downloading'
   const onExport = () => {
-    if (!exportable || busy) return
+    if (busy) return
     setError(null)
-    downloadExport(`/api/lesson-bundles/${id}/export?format=${format}&as=${kind}`, {
+    downloadExport(`/api/lesson-bundle-versions/${id}/export?format=${format}&as=${kind}`, {
       onState: (s, message) => {
         setState(s)
         if (s === 'error' && message) setError(message)
@@ -56,25 +54,19 @@ export default function ExportBundle() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
-      <ResourcesCheckbox checked={resources} onChange={setResources} disabled={!exportable || busy} />
+      <ResourcesCheckbox checked={resources} onChange={setResources} disabled={busy} />
       <select
         id="export-kind"
         aria-label="File type"
         value={kind}
         onChange={(e) => setKind(e.target.value as Kind)}
-        disabled={!exportable || busy}
+        disabled={busy}
         style={{ padding: '0.25rem', borderRadius: '4px' }}
       >
         <option value="docx">DOCX</option>
         <option value="pdf">PDF</option>
       </select>
-      <Button
-        buttonStyle="secondary"
-        size="small"
-        onClick={onExport}
-        disabled={!exportable || busy}
-        tooltip={exportable ? undefined : 'Publish this bundle to enable export'}
-      >
+      <Button buttonStyle="secondary" size="small" onClick={onExport} disabled={busy}>
         {buttonLabel}
       </Button>
       {error ? (

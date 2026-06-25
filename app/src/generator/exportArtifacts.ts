@@ -10,8 +10,8 @@
  * presence is the "this export is fully ready" sentinel the warm path and status poll check.
  *
  * AUTHORIZATION is NOT here. Callers (the endpoint at enqueue time; nothing re-checks in the
- * job, which is a trusted system path) must enforce the caller's READ access + published-only
- * BEFORE producing/serving. This module fetches with overrideAccess like `generateForBundle`.
+ * job, which is a trusted system path) must enforce the caller's READ access BEFORE
+ * producing/serving. This module fetches with overrideAccess like `generateForVersion`.
  */
 import { createRequire } from 'node:module'
 
@@ -28,7 +28,7 @@ export type ExportKind = 'docx' | 'pdf'
 
 /** The inputs that fully determine an export's artifacts (its cache identity). */
 export interface ArtifactSpec {
-  /** Opaque, content-stable identity: `version:<id>` (immutable) or `bundle:<id>:<lockVersion>`. */
+  /** Opaque, content-stable identity: `version:<id>` (an immutable snapshot — never changes). */
   scope: string
   format: LessonSequenceFormat
   kind: ExportKind
@@ -36,10 +36,6 @@ export interface ArtifactSpec {
 
 /** Cache scope for an immutable version snapshot (no cache-buster — the bytes never change). */
 export const versionScope = (versionId: number | string): string => `version:${versionId}`
-
-/** Cache scope for a legacy bundle export (lockVersion is the cache-buster). */
-export const bundleScope = (bundleId: number | string, lockVersion: number | null | undefined): string =>
-  `bundle:${bundleId}:${lockVersion ?? 0}`
 
 /** One deliverable's stable cache tag + its download filename stem (no extension). */
 interface DocMeta {

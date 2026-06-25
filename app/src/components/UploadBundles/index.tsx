@@ -1,12 +1,12 @@
 'use client'
 
 /**
- * UploadBundles — Site-Admin-only panel above the Lesson Bundles list (SPEC §7 deviation;
+ * UploadBundles — Site-Admin-only panel above the Lesson Plans list (SPEC §7 deviation;
  * see docs/DECISIONS.md). Injected via admin.components.beforeListTable.
  *
  * Renders NOTHING unless the current user is a Site Administrator (`roles` includes
  * 'siteAdmin' — saveToJWT, so it's on the client user). This hides the control as requested;
- * the real authorization boundary is the server endpoint (POST /api/lesson-bundles/upload),
+ * the real authorization boundary is the server endpoint (POST /api/lesson-plans/upload),
  * which re-checks isSiteAdmin. Accepts ARES `.json` exports and creates Official 1.0.0
  * lesson-plan versions.
  */
@@ -49,7 +49,7 @@ export default function UploadBundles() {
     setBusy(true)
     setResults([])
     try {
-      const res = await fetch(`${apiBase}/lesson-bundles/upload`, {
+      const res = await fetch(`${apiBase}/lesson-plans/upload`, {
         method: 'POST',
         body: form,
         credentials: 'include',
@@ -86,7 +86,7 @@ export default function UploadBundles() {
         background: 'var(--theme-elevation-50)',
       }}
     >
-      <strong>Upload lesson bundles</strong>
+      <strong>Upload lesson plans</strong>
       <p style={{ margin: '0.25rem 0 0.75rem', color: 'var(--theme-elevation-600)', fontSize: '0.85rem' }}>
         Site Administrator only. ARES <code>.json</code> exports are validated and saved as
         Official 1.0.0 versions. The upload never executes the file; only JSON data is parsed.

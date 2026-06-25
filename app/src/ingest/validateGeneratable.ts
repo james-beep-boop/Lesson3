@@ -19,9 +19,9 @@
  *   || []`, `ST.lessons || []`, `|| ''` — so they cannot crash and are not gated here.)
  *
  * Pure: returns a list of human-readable problems (empty = generatable). The ingest
- * script calls it before writing; the `enforceGeneratable` collection hook calls it on
- * publish — single source of truth. Operates on the stored camelCase bundle shape (or the
- * `rawToBundle` output, which is identical).
+ * script calls it before writing; the `enforceBundleVersionGeneratable` collection hook calls it
+ * on version create — single source of truth. Operates on the stored camelCase content shape (or
+ * the `rawToBundle` output, which is identical).
  */
 import { PHASE_VALUES, isPhase } from '../fields/phases'
 

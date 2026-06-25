@@ -28,10 +28,10 @@ on `origin/main` at `f93f9bc`). The product model (clarified 2026-06-24) it impl
   Site Admin marks a working copy Official when ready (moves the pointer, no content copy).
 - Teachers can view/export all versions; Official is a default/trust marker, not an access/export gate.
 
-**Remaining to finish the cutover:** (a) cut the admin **Preview/Export components** over to versions
-(they still sit on the legacy bundle edit view), then (b) **Stage 3 — retire `lesson-bundles`** (drop
-the collection, its export/preview endpoints, and add a drop migration). After that, the **production-
-hardening backlog** below is the track.
+**Cutover status:** ~~(a) admin Preview/Export → versions~~ (DONE) and ~~(b) Stage 3 retire
+`lesson-bundles`~~ (CODE DONE 2026-06-24, locally verified) are both done in code. **The only thing
+left for the cutover is applying the drop migration on the Rock** (runbook in DECISIONS 2026-06-24
+"Stage 3"). After that lands + verifies, the **production-hardening backlog** below is the track.
 
 History of what's done (newest first) is in `docs/CHANGELOG.md`; the items below carry the detail:
 
@@ -64,13 +64,24 @@ History of what's done (newest first) is in `docs/CHANGELOG.md`; the items below
      editor prose applies / structure+admin preserved, delete guard, editor+teacher denials),
      `verify-rbac` 36/36. See DECISIONS 2026-06-24. **Note:** the seeded `subjectadmin@lesson3.local`
      user actually holds an *editor* grant (only the Site Admin is a true admin).
-   - **▶ NEXT — Stage 2b finish:** cut the admin **Preview/Export components** (still mounted on the
-     legacy bundle edit view) over to versions, so the admin working-copy editor has live preview +
-     export. (The teacher-facing preview/export already run on versions; this is the admin-shell side.)
-4. **▶ Stage 3 — retire `lesson-bundles`** once the admin components are off it: drop the collection +
-   its export/preview endpoints + `generateForBundle`/`generateArtifact` (bundle path), add a drop
-   migration (regen on the Rock), and re-run `verify-rbac` 36/36 + `roundtrip-regression`. Search for
-   remaining `lesson-bundles` references first (`grep -rl lesson-bundles src`).
+   - **◐ Stage 2b finish — CODE DONE, LOCAL-verified only; Rock NOT yet done (2026-06-24).** The admin
+     **Preview/Export controls** now run on the `lesson-bundle-versions` working-copy editor. New version
+     preview endpoints (`endpoints/previewVersion.ts`, GET saved + POST unsaved, shared page shell +
+     body-parse in `endpoints/previewShared.ts`); the `PreviewBundle`/`ExportBundle` controls were
+     parameterised (`basePath` + `ExportBundle` `publishedGate`) and mounted on versions
+     (`publishedGate:false` — no published gate). **Before marking ✅ DONE, on the Rock:** run
+     `verify-stage2b-preview` AND eyeball the admin Preview/Export mount on a forked working copy.
+     Follow-up (non-blocking): a unit test for `parsePreviewCandidate`'s 400/413 cases (the HTTP/form
+     path the Local-API verifier bypasses). See DECISIONS 2026-06-24.
+4. **◐ Stage 3 — retire `lesson-bundles`: CODE DONE (2026-06-24), DB DROP MIGRATION PENDING on the
+   Rock.** The collection, its export/preview/upload-on-bundles endpoints, `generateForBundle`/
+   `generateArtifact`, the bundle hooks/access, and the obsolete bundle scripts are all removed; the
+   shared content fields moved to `fields/lessonContent.ts`, upload re-homed to `lesson-plans`, and the
+   generator retyped to `LessonBundleVersion` (Stage-2a casts deleted). **▶ NEXT: on the Rock, run the
+   drop-migration runbook** (DECISIONS 2026-06-24 "Stage 3"), then re-run `roundtrip-regression`,
+   `verify-rbac`, `verify-stage2b-edit`, `verify-stage2b-preview`, `verify-stage2-export`, and smoke
+   the upload panel + admin Preview/Export. **`verify-rbac` is now a smaller suite** (People/Curriculum
+   RBAC only; lesson-content RBAC lives in `verify-stage2b-edit`) — don't expect the old 36/36 count.
 5. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
    enqueue semantics~~ (both CLOSED + Rock-verified 2026-06-24, `9c9a701` — see DECISIONS),
    pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
@@ -78,28 +89,30 @@ History of what's done (newest first) is in `docs/CHANGELOG.md`; the items below
 
 ---
 
-## Where things stand (as of 2026-06-24, origin/main `f93f9bc`)
+## Where things stand (origin/main `f93f9bc` is the last DEPLOYED commit; Stage 2b-finish + Stage 3 are uncommitted working-tree changes, code-complete + locally verified)
 
-**Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, the
-TEACHER path is cut over to the version model (Stage 2a), and ADMIN editing now runs on the version
-model too (Stage 2b: Edit→fork working copy with Editor prose-editing, admin Make Official) — all
-deployed + verified.**
-The migration is partway: teacher browse/view/export AND admin edit/Make-Official run on `lesson-plans`
-+ `lesson-bundle-versions`. What remains: **Editor** prose-editing (needs the field-split extraction),
-cutting the admin Preview/Export components over, and retiring `lesson-bundles` (Stage 3). Treat the app
-as a transition state until then. What's live on the Rock (the deploy/verification box — see "Rock"):
+**Phases 0–5 are done, two UX batches shipped, the Official-version cutover is COMPLETE IN CODE: the
+teacher path (Stage 2a) and admin editing (Stage 2b) run on `lesson-plans` + `lesson-bundle-versions`,
+the admin Preview/Export controls were cut over (Stage 2b-finish), and the legacy `lesson-bundles`
+collection + its entire bundle path were deleted (Stage 3).** Stages 1/2a/2b-admin are deployed +
+Rock-verified at `f93f9bc`; **Stage 2b-finish + Stage 3 are local-only** (type-check/lint/unit green)
+and **await the Rock typegen + drop-migration** (DECISIONS/CHANGELOG 2026-06-24). What's on the Rock
+right now (the deploy/verification box — see "Rock") still predates the Stage 3 deletion:
 
 - **Upload/import** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one
-  all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload.
+  all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload
+  (`POST /api/lesson-plans/upload` after Stage 3; panel above the Lesson Plans list).
   New writes create `LessonPlan` + `LessonBundleVersion 1.0.0` and set the Official pointer.
-- **Data model + versioning** — the TEACHER read/view/export path now reads the new collections
-  (Stage 2a): `lesson-plans` owns stable identity + `officialVersion`; `lesson-bundle-versions` owns
-  immutable structured snapshots (META, UNIT, LESSONS[], FINAL_EXPLANATION, SUMMARY_TABLE).
-  `20260624_221905_official_version_model` created the DB schema; the 13 legacy bundles are backfilled
-  (Stage 1). Admin editing now runs on versions too (Stage 2b: working-copy fork + Make Official).
-  The legacy `lesson-bundles` collection now powers only its own (soon-retired) export/preview admin
-  components; Stage 3 retires it.
-- **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level; `verify-rbac` 36/36.
+- **Data model + versioning** — `lesson-plans` owns stable identity + `officialVersion`;
+  `lesson-bundle-versions` owns immutable structured snapshots (META, UNIT, LESSONS[],
+  FINAL_EXPLANATION, SUMMARY_TABLE) — the content fields live in `fields/lessonContent.ts`.
+  `20260624_221905_official_version_model` created the DB schema; the 13 legacy bundles were backfilled
+  (Stage 1). After Stage 3 these are the ONLY representation: the legacy `lesson-bundles` collection and
+  its bundle path are deleted in code (DB drop migration pending on the Rock).
+- **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level. Lesson-content RBAC (Editor
+  prose vs admin structure/answer-keys, version immutability, read scoping) is covered by
+  `verify-stage2b-edit`; the slimmed `verify-rbac` now covers only People/Curriculum rules
+  (SubjectGrade displayName, ≤1-subject-admin auto-demote, password/assignment guards).
 - **"The App"** (`app/src/app/(frontend)`) — the role-aware frontend ALL roles log into. Teachers
   live here only (excluded from `/admin`, redirected home). Has browse → view → preview → export.
 - **UI / admin redesign (2026-06-23)** — the shared **Lesson Plans** browse page is now strand-first:
@@ -116,23 +129,27 @@ as a transition state until then. What's live on the Rock (the deploy/verificati
   avatar) with **one logout** (Payload's nav logout hidden via `admin.components.header` + custom.scss);
   a single **"Include ARES Resources" checkbox** replacing Standard/Compact across the teacher view +
   admin export/preview (`lib/format.ts` is the one mapping); admin font scale-up + an SVG nav glyph.
-- **§5 editing/preview** — admin editor with array row labels, draft-capable HTML preview, **live
-  unsaved-edit preview** (`POST /:id/preview`, edit-gated), teacher "Include ARES Resources" toggle.
+- **§5 editing/preview** — admin editor with array row labels, working-copy HTML preview, **live
+  unsaved-edit preview** (`POST /api/lesson-bundle-versions/:id/preview`, edit-gated), teacher "Include
+  ARES Resources" toggle.
   **Browser smoke-test ALL PASS** (2026-06-22).
-- **§9 export (legacy path)** — DOCX **and PDF** (`GET /api/lesson-bundles/:id/export?format=standard|compact&as=docx|pdf`),
-  READ-access-gated, published-only under the old model. PDF = the generated DOCX converted by a
-  **Gotenberg sidecar** via the `docxToPdf(buffer)` seam. **Live + verified under the old model.**
-  Must be moved to version snapshots so any Official or Not Official version can export.
-- **§9/§11 async export (Phase 5) — readiness #1 closed. Live + verified 2026-06-23.** Export is now
-  two-phase: warm → `200` zip; cold → enqueue the `generateArtifact` **Jobs Queue** task + `202` + a
-  status URL (`GET …/export/status?jobId=`). An **artifact cache** (content-addressed by
-  `lockVersion`, on a `lesson3_artifact_cache` named volume) makes repeats free; a **per-user rate
-  limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
+- **§9 export (version path)** — DOCX **and PDF** on versions
+  (`GET/POST /api/lesson-bundle-versions/:id/export?format=standard|compact&as=docx|pdf`), READ-access-
+  gated, NO published gate (every retained version is exportable). PDF = the generated DOCX converted by
+  a **Gotenberg sidecar** via the `docxToPdf(buffer)` seam. Stage 2a moved this to versions and Stage 3
+  deleted the legacy `/api/lesson-bundles/:id/export` path.
+- **§9/§11 async export (Phase 5) — readiness #1 closed. Live + verified 2026-06-23.** Export is
+  two-phase: warm → `200` zip; cold → enqueue the `generateVersionArtifact` **Jobs Queue** task + `202`
+  + a status URL (`GET …/export/status?jobId=`). An **artifact cache** (content-addressed by the
+  immutable `versionScope`, on a `lesson3_artifact_cache` named volume) makes repeats free; a **per-user
+  rate limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
   heavy conversions. Frontend follows the 202 → poll → download handshake. See DECISIONS 2026-06-23.
-- **Corpus** = 13 legacy published bundles (10 Biology + 3 Math, Grade 10, ids 63–75), all carrying
-  populated UNIT. **Now also backfilled (Stage 1, 2026-06-24) into 13 `lesson-plans` + Official
-  1.0.0 `lesson-bundle-versions`** — verified lossless. The legacy bundles remain as the live read
-  source until the Stage 2 cutover; both representations coexist during the transition.
+  *(The bundle-path `generateArtifact` job was deleted in Stage 3; the `generateArtifact` task slug
+  lingers in `payload-types.ts` until the Rock typegen.)*
+- **Corpus** = the 13 originally-published bundles (10 Biology + 3 Math, Grade 10), backfilled (Stage 1)
+  into 13 `lesson-plans` + Official 1.0.0 `lesson-bundle-versions` — verified lossless. After Stage 3
+  the versions are the ONLY representation (the legacy bundles are deleted in code; their DB tables drop
+  with the pending Rock migration).
 
 **The Rock is an explicit NON-PRODUCTION verification environment** — not production-ready (see the
 readiness backlog). It is the only place with a DB; `test:int` and `next build` only run there.
@@ -141,9 +158,9 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 
 ## Choose the next phase (only after the start-here sequence above)
 
-The immediate work is in **"▶ Start the next session here"**: finish the Official-version cutover
-(admin Preview/Export components → versions, then Stage 3 retire `lesson-bundles`). The options below
-are the bigger picture once that's done:
+The immediate work is in **"▶ Start the next session here"**: deploy the code-complete Stage 2b-finish +
+Stage 3 to the Rock (typegen + drop migration), then re-verify. The options below are the bigger
+picture once that lands:
 
 1. **Production hardening** — the chosen/in-flight track. The audit (2026-06-23) refined the backlog
    below; work it in the start-here order. *Shifts the system from "validated" to "deployable for real."*
