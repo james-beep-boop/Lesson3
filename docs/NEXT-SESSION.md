@@ -56,11 +56,20 @@ Resume in this order:
      `findReadablePlan`/`findReadableVersion`. roundtrip-regression repointed to versions (it had
      broken when ingest moved to the new model). Verified: roundtrip 3/3 byte-identical;
      `verify-stage2-reads` 13/13; `verify-stage2-export` DOCX+PDF. See DECISIONS 2026-06-24.
-   - **▶ NEXT — Stage 2b:** edit-in-place fork-on-save (open a version in the admin editor; intercept
-     save → spawn a new Not-Official version; needs the field-split enforcement — `enforceBundleStructure`
-     equivalent — replicated for `lesson-bundle-versions`); cut the admin Preview/Export components over
-     to versions; **Make Official** UI (set `LessonPlan.officialVersion`, no content copy). Until this
-     lands, admin editing still uses the legacy bundle editor (so admin edits ≠ teacher views).
+   - **✅ Stage 2b (admin editing) DONE + verified (`0802204`).** Working-copy model: Official version
+     is immutable (`enforceVersionImmutable`); **Edit** on the detail page (Subject/Site Admins) forks a
+     Not-Official working copy (`POST /:id/fork` — content copy, semver patch-bump, `sourceVersion`) and
+     opens its admin editor; **Make Official** (`POST /:id/make-official`) moves `LessonPlan.officialVersion`
+     (no content copy). `lessonBundleVersionUpdate` is admin-scoped. Verified on the Rock: `verify-stage2b-edit`
+     8/8 (immutability, fork, mutable working copy, make-official, Editor+Teacher denials), `verify-rbac` 36/36.
+     See DECISIONS 2026-06-24 (working-copy model).
+   - **▶ NEXT — Stage 2b (Editors):** widen editing to Editors (prose-only). Needs the field-split
+     factored OUT of `enforceBundleStructure` (currently entangled with bundle semver/`_status`/`lockVersion`,
+     which versions don't have) into a shared pure fn, applied as a `beforeChange` on
+     `lesson-bundle-versions`; then `lessonBundleVersionUpdate` → editor-scoped. Security-critical —
+     re-run `verify-rbac` + extend `verify-stage2b-edit` (editor-prose-allowed / editor-structure-denied).
+     Also: cut the admin Preview/Export components over to versions. **Note:** the seeded
+     `subjectadmin@lesson3.local` user actually holds an *editor* grant (only the Site Admin is a true admin).
    - **Stage 3:** retire `lesson-bundles` (drop collection + its export/preview endpoints + migration).
    Original dependency-ordered notes + locked decisions below:
    - **Read scope = open to all authenticated (teachers see all subjects).** The existing
