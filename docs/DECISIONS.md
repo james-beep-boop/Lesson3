@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Stage 2a: teacher read/view/export cut over to the version model (deployed + verified)
+
+**Done.** Browse, detail, content-preview and download now read `lesson-plans` + `lesson-bundle-
+versions` instead of legacy `lesson-bundles`. Teachers get the Official version by default with a
+`?version=` selector for all retained versions. Deployed to the Rock (`0d4a49a`) and verified.
+
+**Key design choice — generator-agnostic artifact cache.** Rather than maintain the export chain
+twice during the transition, the cache key was genericized from `bundleId`+`lockVersion` to an opaque
+`scope` string (`version:<id>` for immutable snapshots — no cache-buster needed — or
+`bundle:<id>:<lockVersion>` for the legacy path). `produceArtifacts` no longer fetches/generates; the
+caller passes the already-generated DOCX + filePrefix, so one cache serves both paths. This let the
+teacher path move to versions while the admin/bundle export machinery kept working untouched.
+
+**Other choices:** `generateForVersion` has NO published gate (a version is immutable and already
+passed `enforceBundleVersionGeneratable` at create). A second job (`generateVersionArtifact`) keys on
+the immutable version id, so the bundle path's lockVersion-drift race cannot occur. Version export
+endpoints (GET serve / POST prepare / status) mount on `lesson-bundle-versions`, preserving the
+audit-#3 GET/POST split. Detail route id is the PLAN id (`/lessons/<planId>?version=`); old
+bundle-id links break (acceptable, non-production).
+
+**Verified on the Rock:** roundtrip gate 3/3 byte-identical vs the approved DOCX (proves
+`generateForVersion`); teacher read verify 13/13 plans visible + browse rows + detail-generate
+(`verify-stage2-reads.ts`); export produce→cache→zip for DOCX (41 KB) + PDF (118 KB via Gotenberg)
+(`verify-stage2-export.ts`); endpoints 401 unauth / 307 redirects / 403 APIs, no 500s; app boots clean.
+Also fixed `roundtrip-regression.ts`, which had silently broken when ingest moved to plans/versions.
+
+**Deferred to the next slices (Stage 2b / 3):** edit-in-place fork-on-save + admin Preview/Export
+component cutover; Make-Official UI; retiring `lesson-bundles`. During the transition admin editing
+still uses the legacy bundle editor, so admin edits and teacher views can diverge (consistent with
+the model: edits make new versions; Official doesn't move automatically).
+
 ## 2026-06-24 — Stage 2: new-model reads stay open to all authenticated (teachers see all subjects)
 
 **Decision.** On the new Official-version collections, ANY authenticated user may READ every

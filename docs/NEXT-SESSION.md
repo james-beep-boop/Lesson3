@@ -48,10 +48,21 @@ Resume in this order:
    (39/39 docs content-identical) on the Rock. Scripts: `scripts/migrate-bundles-to-versions.ts`
    (idempotent, dry-run default) + `scripts/verify-migration.ts`. See DECISIONS 2026-06-24. Legacy
    `lesson-bundles` left untouched (reversible). **DB now: 13 plans / 13 official / 13 versions.**
-3. **▶ NEXT — Stage 2: read/export cutover (the remaining code work).** Ingest already writes the new
-   model; the migration backfilled it; but the app still READS legacy `lesson-bundles` everywhere
-   (frontend pages, export/preview/status, generator, admin components, `lib/readBundle.ts`). Cut
-   them over, in dependency order. **Decisions locked 2026-06-24:**
+3. **◐ IN PROGRESS — Stage 2: read/export cutover.**
+   - **✅ Stage 2a DONE + verified on the Rock (`0d4a49a`).** The TEACHER path (browse, detail +
+     `?version=` selector, content-preview, DOCX/PDF download) now reads `lesson-plans` +
+     `lesson-bundle-versions`. Generator-agnostic artifact cache (scope key), `generateForVersion`,
+     `generateVersionArtifact` job, version export endpoints on `lesson-bundle-versions`,
+     `findReadablePlan`/`findReadableVersion`. roundtrip-regression repointed to versions (it had
+     broken when ingest moved to the new model). Verified: roundtrip 3/3 byte-identical;
+     `verify-stage2-reads` 13/13; `verify-stage2-export` DOCX+PDF. See DECISIONS 2026-06-24.
+   - **▶ NEXT — Stage 2b:** edit-in-place fork-on-save (open a version in the admin editor; intercept
+     save → spawn a new Not-Official version; needs the field-split enforcement — `enforceBundleStructure`
+     equivalent — replicated for `lesson-bundle-versions`); cut the admin Preview/Export components over
+     to versions; **Make Official** UI (set `LessonPlan.officialVersion`, no content copy). Until this
+     lands, admin editing still uses the legacy bundle editor (so admin edits ≠ teacher views).
+   - **Stage 3:** retire `lesson-bundles` (drop collection + its export/preview endpoints + migration).
+   Original dependency-ordered notes + locked decisions below:
    - **Read scope = open to all authenticated (teachers see all subjects).** The existing
      `Boolean(user)` read access on `lessonPlanRead`/`lessonBundleVersionRead` is CORRECT and stays —
      no rewrite. (A subject-grade-scoped read was considered then reversed: plain teachers have no
