@@ -19,7 +19,10 @@ import config from '@payload-config'
 import { relId } from '../src/lib/relId'
 import type { LessonBundleVersion, User } from '../src/payload-types'
 
-const SUBJECT_ADMIN_EMAIL = 'subjectadmin@lesson3.local'
+// The seeded "Subject Admin" user actually holds an EDITOR grant for Biology G10, so we drive the
+// admin path with the Site Admin, and use that editor to confirm editing is admin-only this slice.
+const SITE_ADMIN_EMAIL = process.env.SITE_ADMIN_EMAIL ?? 'clinicvim@gmail.com'
+const EDITOR_EMAIL = 'subjectadmin@lesson3.local'
 const TEACHER_EMAIL = 'teacher@lesson3.local'
 
 const expectThrow = async (label: string, fn: () => Promise<unknown>): Promise<boolean> => {
@@ -51,10 +54,13 @@ const run = async () => {
     if (!u) throw new Error(`Seeded user ${email} not found`)
     return u
   }
-  const admin = await userByEmail(SUBJECT_ADMIN_EMAIL)
+  const admin = await userByEmail(SITE_ADMIN_EMAIL)
+  const editor = await userByEmail(EDITOR_EMAIL)
   const teacher = await userByEmail(TEACHER_EMAIL)
 
-  // A plan the seeded Subject Admin governs (Biology G10). Use its current Official version.
+  // Use a plan in the Editor's grade so the "editor is denied" check is meaningful (in-scope, but
+  // editing is admin-only this slice). The Site Admin governs all, so drives the admin path.
+  const editorGrades = new Set((editor.assignments ?? []).map((a) => relId(a.subjectGrade)))
   const { docs: plans } = await payload.find({
     collection: 'lesson-plans',
     where: { officialVersion: { exists: true } },
@@ -62,9 +68,8 @@ const run = async () => {
     limit: 50,
     overrideAccess: true,
   })
-  const adminGrades = new Set((admin.assignments ?? []).filter((a) => a.role === 'subjectAdmin').map((a) => relId(a.subjectGrade)))
-  const plan = plans.find((p) => adminGrades.has(relId(p.subjectGrade)))
-  if (!plan) throw new Error('No plan in the Subject Admin’s grades — check seeded assignments.')
+  const plan = plans.find((p) => editorGrades.has(relId(p.subjectGrade))) ?? plans[0]
+  if (!plan) throw new Error('No plan with an Official version found.')
   const originalOfficialId = relId(plan.officialVersion)!
   console.log(`Plan ${plan.id} "${plan.title}" — Official version ${originalOfficialId}`)
 
@@ -114,9 +119,15 @@ const run = async () => {
       ),
     )
 
-    // 5. Teacher RBAC: no update, no create, no pointer move.
+    // 5. RBAC denials. The fork is now Official, so to isolate the ACCESS check from the immutability
+    //    hook, restore the original Official first, making the fork a Not-Official (otherwise-editable)
+    //    target — then a denial proves access, not immutability.
+    await payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: originalOfficialId } as never, overrideAccess: true })
+    // Editor is in-scope but editing is admin-only this slice → denied.
+    results.push(await expectThrow('editor update of a (Not-Official) version', () => payload.update({ collection: 'lesson-bundle-versions', id: forkedId!, data: { title: 'E' } as never, overrideAccess: false, user: editor })))
+    // Teacher: no update, no pointer move.
     results.push(await expectThrow('teacher update of a version', () => payload.update({ collection: 'lesson-bundle-versions', id: forkedId!, data: { title: 'Z' } as never, overrideAccess: false, user: teacher })))
-    results.push(await expectThrow('teacher move of Official pointer', () => payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: originalOfficialId } as never, overrideAccess: false, user: teacher })))
+    results.push(await expectThrow('teacher move of Official pointer', () => payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: forkedId } as never, overrideAccess: false, user: teacher })))
   } finally {
     // Restore original Official pointer, then delete the forked copy (can't delete while Official).
     try {
