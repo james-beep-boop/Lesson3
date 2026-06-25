@@ -132,12 +132,24 @@ const run = async () => {
     // 5. Restore the original Official so the fork is a Not-Official (editable) working copy again.
     await payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: originalOfficialId } as never, overrideAccess: true })
 
-    // 5a. Editor prose-editing on the working copy: prose sticks, structure/admin fields are preserved.
+    // 5a. Editor prose-editing on the working copy: prose sticks, structure/admin fields preserved.
+    //     The Editor must submit the FULL lessons array (same rows/order) — the field-split rejects
+    //     cardinality changes — exactly as the admin UI does.
     const fork = (await payload.findByID({ collection: 'lesson-bundle-versions', id: forkedId!, depth: 0, overrideAccess: true })) as LessonBundleVersion
     const lesson0 = fork.lessons?.[0]
     const fw0 = lesson0?.framework?.[0]
     if (lesson0?.id && fw0?.id && fw0.phase) {
       const otherPhase = fw0.phase === 'Observe Phase' ? 'Predict Phase' : 'Observe Phase'
+      // Rebuild the full document, changing only lesson0/fw0 prose + planting admin/structure "hacks".
+      const fullLessons = (fork.lessons ?? []).map((l, i) => ({
+        id: l.id,
+        ...(i === 0 ? { title: 'editor lesson title' } : {}), // prose → applies on row 0
+        framework: (l.framework ?? []).map((f, j) => ({
+          id: f.id,
+          phase: i === 0 && j === 0 ? otherPhase : f.phase, // structure hack on fw0 → must be ignored
+          ...(i === 0 && j === 0 ? { learnerExperience: 'EDITOR PROSE' } : {}), // prose → applies
+        })),
+      }))
       const edited = (await payload.update({
         collection: 'lesson-bundle-versions',
         id: forkedId!,
@@ -145,13 +157,7 @@ const run = async () => {
         overrideAccess: false,
         data: {
           meta: { ...(fork.meta ?? {}), titleDoc: 'EDITOR HACK' }, // admin field → must be ignored
-          lessons: [
-            {
-              id: lesson0.id,
-              title: 'editor lesson title', // prose → applies
-              framework: [{ id: fw0.id, phase: otherPhase, learnerExperience: 'EDITOR PROSE' }], // phase=structure (ignored), LE=prose (applies)
-            },
-          ],
+          lessons: fullLessons,
         } as never,
       })) as LessonBundleVersion
       const ef = edited.lessons?.[0]?.framework?.[0]
