@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { requireUser } from '@/lib/session'
-import { isSubjectAdminFor, toId } from '@/access'
+import { isEditorFor, isSubjectAdminFor, toId } from '@/access'
 import { findReadablePlan } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { generateForVersion } from '@/generator/generateForVersion'
@@ -63,10 +63,12 @@ export default async function LessonView({
   const selectedId = selected.id
   const title = selected.title ?? plan.title ?? 'Lesson plan'
 
-  // Admin edit affordances (Stage 2b, working-copy model): Subject/Site Admins for this plan's
-  // subject-grade may fork a working copy or move the Official pointer. Editors get prose-editing
-  // once the field-split is factored out of enforceBundleStructure.
-  const canEdit = isSubjectAdminFor(user, toId(plan.subjectGrade as never))
+  // Edit affordances (Stage 2b, working-copy model): Editors (and admins) for this plan's
+  // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
+  // Official pointer (Make Official).
+  const sgId = toId(plan.subjectGrade as never)
+  const canEdit = isEditorFor(user, sgId)
+  const canMakeOfficial = isSubjectAdminFor(user, sgId)
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,
@@ -87,7 +89,13 @@ export default async function LessonView({
       </Link>
       <div className="lesson-heading">
         <h1>{title}</h1>
-        {canEdit && <EditActions versionId={selectedId} isOfficial={selectedId === officialId} />}
+        {canEdit && (
+          <EditActions
+            versionId={selectedId}
+            isOfficial={selectedId === officialId}
+            canMakeOfficial={canMakeOfficial}
+          />
+        )}
       </div>
 
       {versions.length > 1 && (

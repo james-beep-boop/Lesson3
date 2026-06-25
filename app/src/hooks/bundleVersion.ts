@@ -7,9 +7,23 @@ import type {
 import { APIError, ValidationError } from 'payload'
 
 import { toId } from '../access'
+import { applyEditorFieldSplit } from './fieldSplit'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 
 const LESSON_PLANS = 'lesson-plans' as CollectionSlug
+
+// Top-level keys an Editor may influence on a version: the content containers only. Identity/version
+// metadata (title, subjectGrade, lessonPlan, sourceVersion, semver, meta, unit) is preserved. Unlike
+// a bundle, a version has no `semver` bump on edit, no `bumpType`/`lockVersion`, and no `_status`.
+const VERSION_EDITOR_KEYS = new Set(['lessons', 'finalExplanation', 'summaryTable', 'updatedAt'])
+
+/**
+ * Editor/Admin field-split for versions (SPEC §5) — shared whitelist via `applyEditorFieldSplit`.
+ * An Editor editing a (Not-Official) working version may change prose only; structure, META, answer
+ * keys, and identity/version metadata are preserved from the original. Admins are unrestricted.
+ */
+export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) =>
+  applyEditorFieldSplit({ data, originalDoc, operation, req, editorTopLevelKeys: VERSION_EDITOR_KEYS })
 
 /** The plan id a version belongs to, and whether the version is that plan's Official one. */
 async function officialStatus(

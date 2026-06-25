@@ -14,9 +14,11 @@ import { useRouter } from 'next/navigation'
 export default function EditActions({
   versionId,
   isOfficial,
+  canMakeOfficial,
 }: {
   versionId: number
   isOfficial: boolean
+  canMakeOfficial: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState<null | 'edit' | 'official'>(null)
@@ -64,7 +66,7 @@ export default function EditActions({
       <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
         {busy === 'edit' ? 'Opening…' : 'Edit'}
       </button>
-      {!isOfficial && (
+      {canMakeOfficial && !isOfficial && (
         <button type="button" className="btn" disabled={busy !== null} onClick={onMakeOfficial}>
           {busy === 'official' ? 'Updating…' : 'Make Official'}
         </button>

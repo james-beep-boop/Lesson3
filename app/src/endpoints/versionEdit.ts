@@ -7,13 +7,14 @@
  *                                copy). The version then becomes immutable (enforceVersionImmutable).
  *
  * AUTHORIZATION is enforced HERE (both are state-changing POSTs, CSRF-guarded by the SameSite=Lax
- * cookie). Editing is admin-scoped for now: a caller must be Subject Admin for the version's
- * subject-grade (or Site Admin). Editor prose-editing arrives once the field-split is factored out
- * of `enforceBundleStructure`. A non-admin gets 403.
+ * cookie):
+ *   - fork: Editor or admin for the version's subject-grade (Editors start editing by forking).
+ *   - make-official: Subject/Site Admin only (marking Official is an admin action).
+ * A caller without the required role gets 403.
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
-import { isSubjectAdminFor, toId } from '../access'
+import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { bumpSemver } from '../lib/semver'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
@@ -38,17 +39,23 @@ const stripIds = (value: unknown): unknown => {
   return value
 }
 
-/** Load the version with the caller's READ access, then require Subject/Site Admin for its grade. */
-async function authorizeAdminEdit(req: PayloadRequest): Promise<LessonBundleVersion> {
+/** Load the version with the caller's READ access, then require `role` authority for its grade. */
+async function authorize(
+  req: PayloadRequest,
+  role: 'editor' | 'admin',
+): Promise<LessonBundleVersion> {
   if (!req.user) throw new APIError('Unauthorized', 401)
   const id = req.routeParams?.id as string | undefined
   if (!id) throw new APIError('Missing version id', 400)
 
   const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
   if (!version) throw new APIError('Version not found', 404)
-  if (!isSubjectAdminFor(req.user as User, toId(version.subjectGrade as never))) {
-    throw new APIError('Not allowed', 403)
-  }
+  const sgId = toId(version.subjectGrade as never)
+  const ok =
+    role === 'admin'
+      ? isSubjectAdminFor(req.user as User, sgId)
+      : isEditorFor(req.user as User, sgId)
+  if (!ok) throw new APIError('Not allowed', 403)
   return version
 }
 
@@ -57,7 +64,7 @@ export const forkVersionEndpoint: Endpoint = {
   path: '/:id/fork',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
-    const source = await authorizeAdminEdit(req)
+    const source = await authorize(req, 'editor')
 
     const content = stripIds(
       Object.fromEntries(
@@ -65,6 +72,9 @@ export const forkVersionEndpoint: Endpoint = {
       ),
     ) as Record<string, unknown>
 
+    // overrideAccess: the fork is a TRUSTED faithful copy of admin-authored content, not
+    // Editor-authored input — authorization was enforced above. This also avoids the version
+    // create access (admin-only) so an Editor can still start a working copy.
     const working = await req.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
@@ -75,8 +85,7 @@ export const forkVersionEndpoint: Endpoint = {
         sourceVersion: source.id,
       } as never,
       req,
-      overrideAccess: false,
-      user: req.user,
+      overrideAccess: true,
     })
 
     return json({
@@ -91,7 +100,7 @@ export const makeOfficialEndpoint: Endpoint = {
   path: '/:id/make-official',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
-    const version = await authorizeAdminEdit(req)
+    const version = await authorize(req, 'admin')
     const planId = toId(version.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 

@@ -35,6 +35,10 @@ const expectThrow = async (label: string, fn: () => Promise<unknown>): Promise<b
     return true
   }
 }
+const printCheck = (label: string, ok: boolean): boolean => {
+  console.log(`  ${ok ? '✓' : '✗'} ${label}`)
+  return ok
+}
 const expectOk = async (label: string, fn: () => Promise<unknown>): Promise<boolean> => {
   try {
     await fn()
@@ -125,13 +129,44 @@ const run = async () => {
       ),
     )
 
-    // 5. RBAC denials. The fork is now Official, so to isolate the ACCESS check from the immutability
-    //    hook, restore the original Official first, making the fork a Not-Official (otherwise-editable)
-    //    target — then a denial proves access, not immutability.
+    // 5. Restore the original Official so the fork is a Not-Official (editable) working copy again.
     await payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: originalOfficialId } as never, overrideAccess: true })
-    // Editor is in-scope but editing is admin-only this slice → denied.
-    results.push(await expectThrow('editor update of a (Not-Official) version', () => payload.update({ collection: 'lesson-bundle-versions', id: forkedId!, data: { title: 'E' } as never, overrideAccess: false, user: editor })))
-    // Teacher: no update, no pointer move.
+
+    // 5a. Editor prose-editing on the working copy: prose sticks, structure/admin fields are preserved.
+    const fork = (await payload.findByID({ collection: 'lesson-bundle-versions', id: forkedId!, depth: 0, overrideAccess: true })) as LessonBundleVersion
+    const lesson0 = fork.lessons?.[0]
+    const fw0 = lesson0?.framework?.[0]
+    if (lesson0?.id && fw0?.id && fw0.phase) {
+      const otherPhase = fw0.phase === 'Observe Phase' ? 'Predict Phase' : 'Observe Phase'
+      const edited = (await payload.update({
+        collection: 'lesson-bundle-versions',
+        id: forkedId!,
+        user: editor,
+        overrideAccess: false,
+        data: {
+          meta: { ...(fork.meta ?? {}), titleDoc: 'EDITOR HACK' }, // admin field → must be ignored
+          lessons: [
+            {
+              id: lesson0.id,
+              title: 'editor lesson title', // prose → applies
+              framework: [{ id: fw0.id, phase: otherPhase, learnerExperience: 'EDITOR PROSE' }], // phase=structure (ignored), LE=prose (applies)
+            },
+          ],
+        } as never,
+      })) as LessonBundleVersion
+      const ef = edited.lessons?.[0]?.framework?.[0]
+      results.push(printCheck('editor prose (learnerExperience) applied', ef?.learnerExperience === 'EDITOR PROSE'))
+      results.push(printCheck('editor lesson title (prose) applied', edited.lessons?.[0]?.title === 'editor lesson title'))
+      results.push(printCheck('editor structure (phase) ignored', ef?.phase === fw0.phase))
+      results.push(printCheck('editor admin field (meta.titleDoc) ignored', edited.meta?.titleDoc !== 'EDITOR HACK'))
+    } else {
+      console.log('  ⚠ skipped editor prose checks — fork has no framework row to edit')
+    }
+
+    // 5b. Editor cannot make a version Official (admin-only).
+    results.push(await expectThrow('editor cannot move Official pointer', () => payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: forkedId } as never, overrideAccess: false, user: editor })))
+
+    // 5c. Teacher: no update, no pointer move.
     results.push(await expectThrow('teacher update of a version', () => payload.update({ collection: 'lesson-bundle-versions', id: forkedId!, data: { title: 'Z' } as never, overrideAccess: false, user: teacher })))
     results.push(await expectThrow('teacher move of Official pointer', () => payload.update({ collection: 'lesson-plans', id: plan.id, data: { officialVersion: forkedId } as never, overrideAccess: false, user: teacher })))
   } finally {
