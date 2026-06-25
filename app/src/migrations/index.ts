@@ -6,6 +6,7 @@ import * as migration_20260609_170000_drop_subject_slug from './20260609_170000_
 import * as migration_20260622_210554_add_unit_fields from './20260622_210554_add_unit_fields';
 import * as migration_20260623_151918_add_payload_jobs from './20260623_151918_add_payload_jobs';
 import * as migration_20260624_221905_official_version_model from './20260624_221905_official_version_model';
+import * as migration_20260625_125532_drop_lesson_bundles from './20260625_125532_drop_lesson_bundles';
 
 export const migrations = [
   {
@@ -46,6 +47,11 @@ export const migrations = [
   {
     up: migration_20260624_221905_official_version_model.up,
     down: migration_20260624_221905_official_version_model.down,
-    name: '20260624_221905_official_version_model'
+    name: '20260624_221905_official_version_model',
+  },
+  {
+    up: migration_20260625_125532_drop_lesson_bundles.up,
+    down: migration_20260625_125532_drop_lesson_bundles.down,
+    name: '20260625_125532_drop_lesson_bundles'
   },
 ];
