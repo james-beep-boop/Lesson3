@@ -19,25 +19,21 @@ defined, in-flight sequence to resume, not a blank-slate phase choice.
 
 ## ▶ Start the next session here (defined sequence — resume, don't re-plan)
 
-The current work-in-flight is the **Official-version model migration**, not generic hardening. The
-user clarified the product model on 2026-06-24:
+The **Official-version model cutover is largely complete** (Stages 1, 2a, 2b done + Rock-verified, all
+on `origin/main` at `f93f9bc`). The product model (clarified 2026-06-24) it implements:
 
-- A lesson plan has many retained immutable versions.
-- Exactly one version is **Official** at a time, globally.
+- A lesson plan has many retained immutable versions; exactly one is **Official** at a time, globally.
 - Upload/import creates version `1.0.0` and makes that exact snapshot Official immediately.
-- Editing any version creates a new Not Official version; it does **not** mutate that version.
-- Site Admins and matching Subject Admins can move the Official pointer to any retained version.
+- **Editing forks a mutable Not-Official working copy** (Official versions are immutable); a Subject/
+  Site Admin marks a working copy Official when ready (moves the pointer, no content copy).
 - Teachers can view/export all versions; Official is a default/trust marker, not an access/export gate.
 
-What is already on `origin/main` and deployed to the Rock:
+**Remaining to finish the cutover:** (a) cut the admin **Preview/Export components** over to versions
+(they still sit on the legacy bundle edit view), then (b) **Stage 3 — retire `lesson-bundles`** (drop
+the collection, its export/preview endpoints, and add a drop migration). After that, the **production-
+hardening backlog** below is the track.
 
-- `273816c` added `lesson-plans` + `lesson-bundle-versions`, official-pointer access rules, upload/import
-  writes to the new model, and product-language/docs updates.
-- `5c847e2` added the missing Payload generated types + migration
-  `20260624_221905_official_version_model`; it was deployed and the one-shot migrate container exited
-  successfully. The missing-table admin error (`relation "lesson_plans" does not exist`) is fixed.
-
-Resume in this order:
+History of what's done (newest first) is in `docs/CHANGELOG.md`; the items below carry the detail:
 
 1. **✅ DONE (2026-06-24) — Editor symptom verified resolved (server-level).** Migration applied
    cleanly (`Migrated: …official_version_model`), all `lesson_plans`/`lesson_bundle_versions` tables
@@ -48,7 +44,7 @@ Resume in this order:
    (39/39 docs content-identical) on the Rock. Scripts: `scripts/migrate-bundles-to-versions.ts`
    (idempotent, dry-run default) + `scripts/verify-migration.ts`. See DECISIONS 2026-06-24. Legacy
    `lesson-bundles` left untouched (reversible). **DB now: 13 plans / 13 official / 13 versions.**
-3. **◐ IN PROGRESS — Stage 2: read/export cutover.**
+3. **◐ Stage 2: read/export/edit cutover — 2a + 2b DONE; finish below.**
    - **✅ Stage 2a DONE + verified on the Rock (`0d4a49a`).** The TEACHER path (browse, detail +
      `?version=` selector, content-preview, DOCX/PDF download) now reads `lesson-plans` +
      `lesson-bundle-versions`. Generator-agnostic artifact cache (scope key), `generateForVersion`,
@@ -68,31 +64,13 @@ Resume in this order:
      editor prose applies / structure+admin preserved, delete guard, editor+teacher denials),
      `verify-rbac` 36/36. See DECISIONS 2026-06-24. **Note:** the seeded `subjectadmin@lesson3.local`
      user actually holds an *editor* grant (only the Site Admin is a true admin).
-   - **▶ NEXT — Stage 2b finish:** cut the admin **Preview/Export components** (still on the bundle
-     edit view) over to versions, so the admin working-copy editor has live preview + export.
-   - **Stage 3:** retire `lesson-bundles` (drop collection + its export/preview endpoints + migration).
-   Original dependency-ordered notes + locked decisions below:
-   - **Read scope = open to all authenticated (teachers see all subjects).** The existing
-     `Boolean(user)` read access on `lessonPlanRead`/`lessonBundleVersionRead` is CORRECT and stays —
-     no rewrite. (A subject-grade-scoped read was considered then reversed: plain teachers have no
-     association, and versions have no draft to hide, so scoping reads would hide everything for no
-     gain. See DECISIONS 2026-06-24.) WRITES stay subject-grade-scoped (already correct).
-   - read layer (`lib/readBundle.ts` → add `findReadableVersion` + a plan resolver; frontend pages)
-     → `lesson-plans`, defaulting to the Official version, with a version selector for all versions;
-   - **Detail URL = `/lessons/<planId>?version=<id>`** (plan id; Official by default). Old
-     `/lessons/63` bundle-id links break — acceptable (non-production Rock only).
-   - generator: `generateForBundle` → `generateForVersion(versionId)`; **drop** the published-only
-     `assertExportable` gate (a version already passed `enforceBundleVersionGeneratable` at create).
-     `bundleToAresData` works on a version unchanged (proven by Stage-1 verify).
-   - export/preview/status endpoints (now on `LessonBundles`) → re-mount with version-snapshot
-     semantics; **artifact cache key `lockVersion` → the immutable version id** (simpler, content-stable);
-   - **Edit = edit-in-place, fork on first save** — open the version in the admin editor; intercept
-     the save to spawn a NEW Not-Official version (semver bump, `sourceVersion` set) instead of
-     mutating the snapshot. (More hook machinery than a server-action copy — chosen for fewer clicks.)
-   - **Make Official** → UI control sets `LessonPlan.officialVersion` only, no content copy
-     (`canSetOfficialVersion` + `validateOfficialVersionPointer` already enforce it).
-4. **Stage 3 — retire `lesson-bundles`** once reads are cut over (drop the collection + migration;
-   re-run `verify-rbac` 36/36 + `roundtrip-regression`).
+   - **▶ NEXT — Stage 2b finish:** cut the admin **Preview/Export components** (still mounted on the
+     legacy bundle edit view) over to versions, so the admin working-copy editor has live preview +
+     export. (The teacher-facing preview/export already run on versions; this is the admin-shell side.)
+4. **▶ Stage 3 — retire `lesson-bundles`** once the admin components are off it: drop the collection +
+   its export/preview endpoints + `generateForBundle`/`generateArtifact` (bundle path), add a drop
+   migration (regen on the Rock), and re-run `verify-rbac` 36/36 + `roundtrip-regression`. Search for
+   remaining `lesson-bundles` references first (`grep -rl lesson-bundles src`).
 5. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
    enqueue semantics~~ (both CLOSED + Rock-verified 2026-06-24, `9c9a701` — see DECISIONS),
    pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
@@ -100,7 +78,7 @@ Resume in this order:
 
 ---
 
-## Where things stand (as of 2026-06-24, origin/main `97b9379`)
+## Where things stand (as of 2026-06-24, origin/main `f93f9bc`)
 
 **Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, the
 TEACHER path is cut over to the version model (Stage 2a), and ADMIN editing now runs on the version
@@ -163,9 +141,9 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 
 ## Choose the next phase (only after the start-here sequence above)
 
-The immediate work is the **defined sequence in "▶ Start the next session here"** (verify the Rock
-redeploy, then audit #3, then the hardening backlog) — that IS the chosen track (production hardening,
-decided 2026-06-23). The options below are the bigger picture once that sequence is worked down:
+The immediate work is in **"▶ Start the next session here"**: finish the Official-version cutover
+(admin Preview/Export components → versions, then Stage 3 retire `lesson-bundles`). The options below
+are the bigger picture once that's done:
 
 1. **Production hardening** — the chosen/in-flight track. The audit (2026-06-23) refined the backlog
    below; work it in the start-here order. *Shifts the system from "validated" to "deployable for real."*
