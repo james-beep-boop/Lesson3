@@ -28,9 +28,9 @@ export default async function UserGuidePage() {
       <section id="teachers" className="guide-section">
         <h2>Teachers</h2>
         <p>
-          Teachers use the Lesson Plans area to find published lesson plans, read them on screen, and
-          download the generated documents. Teachers do not use the admin area and do not see editing
-          controls.
+          Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
+          the generated documents. Each lesson plan opens at its Official version, with a selector for
+          any other retained version. Teachers do not use the admin area and do not see editing controls.
         </p>
         <ul className="guide-list">
           <li>
@@ -59,13 +59,13 @@ export default async function UserGuidePage() {
         <h2>Editors</h2>
         <p>
           Editors can do everything Teachers can do. They also use Manage to edit prose fields for the
-          subject-grades assigned to them. Their edits create draft changes and version history inside
-          the repository; they never edit a Word file directly.
+          subject-grades assigned to them. Editing a version creates a new version of the whole
+          sub-strand; it never changes an existing version, and it never edits a Word file directly.
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Open Manage:</strong> use the header link to enter the admin area, then open Lesson
-            Bundles.
+            <strong>Open Manage:</strong> use the header link to enter the admin area, then open the
+            Lesson plans area.
           </li>
           <li>
             <strong>Edit lesson prose:</strong> update lesson titles, SLO text, overviews, learner
@@ -74,12 +74,12 @@ export default async function UserGuidePage() {
             instructions, and Final Explanation section prompts.
           </li>
           <li>
-            <strong>Preview drafts:</strong> use Preview before publishing to see the generated content
-            from the current working copy, including unsaved field edits.
+            <strong>Preview your edits:</strong> use Preview to see the generated content from your
+            current edits, including unsaved field changes, before they become a new version.
           </li>
           <li>
-            <strong>Save versions:</strong> every save is tracked as a version of the whole sub-strand
-            bundle.
+            <strong>New version per edit:</strong> saving creates a new, Not Official version of the
+            whole sub-strand. A Subject or Site Administrator decides when it becomes Official.
           </li>
         </ul>
       </section>
@@ -112,7 +112,7 @@ export default async function UserGuidePage() {
         <h2>Site Administrators</h2>
         <p>
           Site Administrators have full access across the repository. They manage users, curriculum
-          taxonomy, ingestion, and all lesson bundles.
+          taxonomy, lesson-plan upload/import, and all lesson plans.
         </p>
         <ul className="guide-list">
           <li>
@@ -121,15 +121,15 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson
-            bundles are ingested.
+            plans are uploaded.
           </li>
           <li>
-            <strong>Ingest lesson plans:</strong> upload ARES JSON lesson bundles through the admin
-            upload action.
+            <strong>Upload lesson plans:</strong> import ARES lesson data through the admin upload
+            action; each upload creates a lesson plan and its first Official version.
           </li>
           <li>
-            <strong>Review everything:</strong> inspect, edit, publish, export, or delete lesson bundles
-            across all subjects and grades.
+            <strong>Review everything:</strong> inspect, edit, export, mark Official, or delete lesson
+            plans across all subjects and grades.
           </li>
         </ul>
       </section>

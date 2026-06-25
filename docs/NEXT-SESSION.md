@@ -91,21 +91,24 @@ Resume in this order:
 
 ---
 
-## Where things stand (as of 2026-06-24, origin/main `5c847e2`)
+## Where things stand (as of 2026-06-24, origin/main `97b9379`)
 
-**Phases 0–5 are done, the architecture was validated end-to-end under the old draft/publish model,
-two UX batches shipped, and the first Official-version model slice is deployed.** The Official-version
-schema is live, but the product behavior migration is incomplete; treat the current app as a transition
-state until the "Start here" sequence above is done. What's live on the Rock (the deploy/verification
-box — see "Rock"):
+**Phases 0–5 are done, two UX batches shipped, the Official-version schema + migration are live, and
+the TEACHER path is fully cut over to the version model (Stage 2a, deployed + verified).** The product
+behavior migration is partway: teacher browse/view/export read `lesson-plans` + `lesson-bundle-versions`,
+but ADMIN editing still uses the legacy `lesson-bundles` editor until Stage 2b lands. Treat the app as a
+transition state until Stage 2b/3 (Start-here items 3–4) are done. What's live on the Rock (the
+deploy/verification box — see "Rock"):
 
 - **Upload/import** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one
   all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload.
   New writes create `LessonPlan` + `LessonBundleVersion 1.0.0` and set the Official pointer.
-- **Data model + versioning** — the legacy `lesson-bundles` collection still powers most browse/view/
-  export behavior. New collections now exist: `lesson-plans` owns stable identity + `officialVersion`;
-  `lesson-bundle-versions` owns immutable structured snapshots (META, UNIT, LESSONS[],
-  FINAL_EXPLANATION, SUMMARY_TABLE). `20260624_221905_official_version_model` created the DB schema.
+- **Data model + versioning** — the TEACHER read/view/export path now reads the new collections
+  (Stage 2a): `lesson-plans` owns stable identity + `officialVersion`; `lesson-bundle-versions` owns
+  immutable structured snapshots (META, UNIT, LESSONS[], FINAL_EXPLANATION, SUMMARY_TABLE).
+  `20260624_221905_official_version_model` created the DB schema; the 13 legacy bundles are backfilled
+  (Stage 1). The legacy `lesson-bundles` collection now powers only ADMIN editing + its own export/
+  preview endpoints, until Stage 2b moves editing over and Stage 3 retires it.
 - **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level; `verify-rbac` 36/36.
 - **"The App"** (`app/src/app/(frontend)`) — the role-aware frontend ALL roles log into. Teachers
   live here only (excluded from `/admin`, redirected home). Has browse → view → preview → export.
