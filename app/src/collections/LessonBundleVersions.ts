@@ -9,6 +9,7 @@ import {
 import { canEditStructure } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
+  enforceVersionImmutable,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
 import {
@@ -16,6 +17,7 @@ import {
   exportVersionPrepareEndpoint,
   exportVersionStatusEndpoint,
 } from '../endpoints/exportVersion'
+import { forkVersionEndpoint, makeOfficialEndpoint } from '../endpoints/versionEdit'
 import { LessonBundles } from './LessonBundles'
 
 const LEGACY_VERSION_FIELDS = new Set(['semver', 'bumpType', 'lockVersion', 'title', 'subjectGrade'])
@@ -42,6 +44,9 @@ export const LessonBundleVersions: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceBundleVersionGeneratable],
+    // Working-copy model: reject edits to the plan's Official (immutable) version. Editing flows
+    // through a forked Not-Official working copy (POST /:id/fork).
+    beforeChange: [enforceVersionImmutable],
   },
   endpoints: [
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
@@ -50,6 +55,10 @@ export const LessonBundleVersions: CollectionConfig = {
     exportVersionPrepareEndpoint,
     // GET /:id/export/status?jobId=… — poll an enqueued export job.
     exportVersionStatusEndpoint,
+    // POST /:id/fork — create a Not-Official working copy from this version and return its admin URL.
+    forkVersionEndpoint,
+    // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.
+    makeOfficialEndpoint,
   ],
   fields: [
     {

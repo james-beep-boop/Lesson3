@@ -46,7 +46,16 @@ export const lessonBundleVersionCreate: Access = ({ req: { user }, data }) => {
   return subjectGradeIdsByRole(u, ['editor', 'subjectAdmin']).includes(subjectGradeId)
 }
 
-// Version rows are immutable snapshots. Editing any version must create a new version row.
-export const lessonBundleVersionUpdate: Access = () => false
+// Working-copy model (Stage 2b): a Not-Official version is a mutable working copy; the Official
+// version is immutable (enforced by `enforceVersionImmutable`, which can see the plan's pointer —
+// access `Where` can't express "not this plan's official version"). Update is admin-scoped for now
+// (Subject/Site Admin); Editor prose-editing follows once the field-split is factored out of
+// `enforceBundleStructure`. Site Admin = all; Subject Admin = their subject-grades.
+export const lessonBundleVersionUpdate: Access = ({ req: { user } }) => {
+  const u = user as User | null | undefined
+  if (isSiteAdmin(u)) return true
+  const ids = subjectGradeIdsByRole(u, ['subjectAdmin'])
+  return ids.length ? ({ subjectGrade: { in: ids } } satisfies Where) : false
+}
 
 export const lessonBundleVersionDelete: Access = ({ req: { user } }) => isSiteAdmin(user as User)

@@ -3,12 +3,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { requireUser } from '@/lib/session'
+import { isSubjectAdminFor, toId } from '@/access'
 import { findReadablePlan } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { generateForVersion } from '@/generator/generateForVersion'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
+import EditActions from './EditActions'
 import { ResourcesToggle } from './ResourcesToggle'
 
 /**
@@ -61,6 +63,11 @@ export default async function LessonView({
   const selectedId = selected.id
   const title = selected.title ?? plan.title ?? 'Lesson plan'
 
+  // Admin edit affordances (Stage 2b, working-copy model): Subject/Site Admins for this plan's
+  // subject-grade may fork a working copy or move the Official pointer. Editors get prose-editing
+  // once the field-split is factored out of enforceBundleStructure.
+  const canEdit = isSubjectAdminFor(user, toId(plan.subjectGrade as never))
+
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,
   // so the rendered HTML carries no executable markup. FE/ST may be legitimately absent.
@@ -80,6 +87,7 @@ export default async function LessonView({
       </Link>
       <div className="lesson-heading">
         <h1>{title}</h1>
+        {canEdit && <EditActions versionId={selectedId} isOfficial={selectedId === officialId} />}
       </div>
 
       {versions.length > 1 && (
