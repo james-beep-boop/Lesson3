@@ -17,6 +17,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import { relId } from '../src/lib/relId'
+import { stripIds } from '../src/lib/stripIds'
 import type { LessonBundleVersion, User } from '../src/payload-types'
 
 // The seeded "Subject Admin" user actually holds an EDITOR grant for Biology G10, so we drive the
@@ -90,8 +91,6 @@ const run = async () => {
     // 2. Fork: create a Not-Official working copy (what the fork endpoint does).
     const source = (await payload.findByID({ collection: 'lesson-bundle-versions', id: originalOfficialId, depth: 0, overrideAccess: true })) as LessonBundleVersion
     const { id: _i, semver: _s, sourceVersion: _sv, createdAt: _c, updatedAt: _u, ...rest } = source as unknown as Record<string, unknown>
-    const stripIds = (v: unknown): unknown =>
-      Array.isArray(v) ? v.map(stripIds) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => k !== 'id').map(([k, x]) => [k, stripIds(x)])) : v
     const working = await payload.create({
       collection: 'lesson-bundle-versions',
       data: { ...(stripIds(rest) as Record<string, unknown>), lessonPlan: plan.id, semver: '1.0.1', sourceVersion: originalOfficialId } as never,

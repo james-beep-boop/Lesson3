@@ -16,6 +16,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { bumpSemver } from '../lib/semver'
+import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
 
@@ -24,20 +25,6 @@ const json = (body: unknown, status = 200): Response =>
 
 /** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals). */
 const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'createdAt', 'updatedAt'])
-
-/** Deep-clone, dropping every nested `id` (array-row ids belong to the source rows, not the copy). */
-const stripIds = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(stripIds)
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (k === 'id') continue
-      out[k] = stripIds(v)
-    }
-    return out
-  }
-  return value
-}
 
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(

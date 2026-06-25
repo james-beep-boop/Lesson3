@@ -28,6 +28,7 @@ import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { relId } from '../src/lib/relId'
+import { stripIds } from '../src/lib/stripIds'
 
 /** Legacy-only / Payload-internal keys that must NOT carry into a version snapshot. */
 const DROP_KEYS = new Set([
@@ -39,20 +40,6 @@ const DROP_KEYS = new Set([
   'createdAt',
   'updatedAt',
 ])
-
-/** Deep-clone, dropping every nested `id` (array-row ids belong to the source rows, not the copy). */
-const stripIds = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(stripIds)
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (k === 'id') continue
-      out[k] = stripIds(v)
-    }
-    return out
-  }
-  return value
-}
 
 const run = async () => {
   const apply = process.argv.slice(2).includes('--apply')

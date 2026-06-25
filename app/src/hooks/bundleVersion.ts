@@ -25,20 +25,12 @@ const VERSION_EDITOR_KEYS = new Set(['lessons', 'finalExplanation', 'summaryTabl
 export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) =>
   applyEditorFieldSplit({ data, originalDoc, operation, req, editorTopLevelKeys: VERSION_EDITOR_KEYS })
 
-/** The plan id a version belongs to, and whether the version is that plan's Official one. */
-async function officialStatus(
+/** Is `versionId` the Official version of plan `planId`? Fetches just the plan. */
+async function isOfficialVersion(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
+  planId: number,
   versionId: number | string,
-): Promise<{ planId: number | null; isOfficial: boolean }> {
-  const version = (await req.payload.findByID({
-    collection: 'lesson-bundle-versions',
-    id: versionId,
-    depth: 0,
-    overrideAccess: true,
-    req,
-  })) as { lessonPlan?: unknown }
-  const planId = toId(version.lessonPlan as never) ?? null
-  if (planId == null) return { planId, isOfficial: false }
+): Promise<boolean> {
   const plan = (await req.payload.findByID({
     collection: LESSON_PLANS,
     id: planId,
@@ -46,7 +38,7 @@ async function officialStatus(
     overrideAccess: true,
     req,
   })) as { officialVersion?: unknown }
-  return { planId, isOfficial: String(toId(plan.officialVersion as never)) === String(versionId) }
+  return String(toId(plan.officialVersion as never)) === String(versionId)
 }
 
 export const numberBundleVersionRows: CollectionBeforeValidateHook = ({ data }) => {
@@ -80,8 +72,10 @@ export const enforceVersionImmutable: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   if (operation !== 'update' || !originalDoc || !req.user) return data
-  const { isOfficial } = await officialStatus(req, originalDoc.id)
-  if (isOfficial) {
+  // `originalDoc` IS the stored version — read its plan directly (no version re-fetch).
+  const planId = toId(originalDoc.lessonPlan as never)
+  if (planId == null) return data
+  if (await isOfficialVersion(req, planId, originalDoc.id)) {
     throw new ValidationError(
       {
         collection: 'lesson-bundle-versions',
@@ -108,8 +102,17 @@ export const enforceVersionImmutable: CollectionBeforeChangeHook = async ({
  * callers that legitimately need to remove it null/move the pointer first (e.g. roundtrip cleanup).
  */
 export const enforceOfficialNotDeletable: CollectionBeforeDeleteHook = async ({ id, req }) => {
-  const { isOfficial } = await officialStatus(req, id)
-  if (isOfficial) {
+  // No `originalDoc` on delete — fetch the version for its plan id, then check the plan's pointer.
+  const version = (await req.payload.findByID({
+    collection: 'lesson-bundle-versions',
+    id,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as { lessonPlan?: unknown }
+  const planId = toId(version.lessonPlan as never)
+  if (planId == null) return
+  if (await isOfficialVersion(req, planId, id)) {
     throw new APIError(
       'This version is Official and cannot be deleted. Make another version Official first.',
       409,
