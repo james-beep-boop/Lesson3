@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-24 — Stage 2b edit model: working-copy (fork on Edit, mutable until Official)
+
+**Decision (supersedes the earlier "edit-in-place, fork on first save").** Editing works on a
+mutable **working copy**, not per-save snapshots:
+- An **Official** version is **immutable** (frozen).
+- Clicking **Edit** on a version creates ONE new **Not-Official working version** (a content copy,
+  semver patch-bumped, `sourceVersion` = the edited version) and opens it in the admin editor.
+- A Not-Official version is **mutable** — subsequent saves update that same working version (no
+  version explosion). When a Subject/Site Admin **marks it Official**, the plan's `officialVersion`
+  pointer moves to it and it becomes frozen.
+
+**Why the change.** Payload's admin edit view is bound to one document; a save is an `update` on that
+doc. "Fork on first save" would require a hook to transparently turn an update into a *new* document
+and redirect the admin UI — fragile machinery fighting the framework. The working-copy model is
+Payload-native (fork is an explicit create-then-edit), avoids one-version-per-keystroke, and matches
+how editors actually work (draft until ready, then publish-as-Official).
+
+**Implementation shape (Stage 2b):**
+- Immutability enforced by a `beforeChange` hook on `lesson-bundle-versions` that rejects updates to a
+  version that is currently its plan's `officialVersion` (not via access `Where`, which can't express
+  "not this plan's pointer" across all rows). `lessonBundleVersionUpdate` access becomes editor-scoped
+  (subject-grade) like create, instead of the current hard `false`.
+- Field-split (Editor = prose; Admin = structure/answer-keys) replicated on versions by reusing
+  `enforceBundleStructure` as a `beforeChange` hook (same content fields as the bundle).
+- An **Edit** affordance on the detail page (editors/admins only) → a fork endpoint that creates the
+  working version and returns its admin URL.
+- A **Make Official** control → sets `LessonPlan.officialVersion` only (no content copy);
+  `canSetOfficialVersion` + `validateOfficialVersionPointer` already gate/validate it.
+
 ## 2026-06-24 — Stage 2a: teacher read/view/export cut over to the version model (deployed + verified)
 
 **Done.** Browse, detail, content-preview and download now read `lesson-plans` + `lesson-bundle-
