@@ -3,18 +3,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { requireUser } from '@/lib/session'
-import { findReadablePlan, findReadableVersion } from '@/lib/readBundle'
+import { findReadablePlan } from '@/lib/readBundle'
+import { relId } from '@/lib/relId'
 import { generateForVersion } from '@/generator/generateForVersion'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
 import { ResourcesToggle } from './ResourcesToggle'
-
-const relId = (value: unknown): number | null => {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
-  return null
-}
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -56,16 +51,15 @@ export default async function LessonView({
   const officialId = relId(plan.officialVersion)
   // Selected version: an explicit, valid `?version=` that belongs to this plan, else Official.
   const requested = sp.version ? Number(sp.version) : null
-  const selectedId =
-    requested != null && versions.some((v) => v.id === requested) ? requested : officialId
-  if (selectedId == null) notFound() // a plan with no Official version + no valid selection
+  const selected =
+    (requested != null && versions.find((v) => v.id === requested)) ||
+    versions.find((v) => v.id === officialId)
+  if (!selected) notFound() // a plan with no Official version + no valid selection
 
-  // Re-read the selected version with the caller's access (defence in depth — the list above is
-  // already access-gated, but this is the doc we generate from).
-  const version = await findReadableVersion(payload, { id: selectedId, user })
-  if (!version) notFound()
-
-  const title = version.title ?? plan.title ?? 'Lesson plan'
+  // The version list is already access-gated and scoped to this plan, so `selected` proves the user
+  // may read it — no second read needed; `generateForVersion` reads the content for rendering.
+  const selectedId = selected.id
+  const title = selected.title ?? plan.title ?? 'Lesson plan'
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,

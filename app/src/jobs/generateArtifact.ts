@@ -47,13 +47,16 @@ export const generateArtifactTask: TaskConfig<{ input: GenerateArtifactInput; ou
   handler: async ({ input, req }) => {
     const { bundleId, lockVersion, format, kind } = input
     const spec: ArtifactSpec = { scope: bundleScope(bundleId, lockVersion), format, kind }
-    const generated = await generateForBundle(req.payload, bundleId, format)
-    const bundle = (await req.payload.findByID({
-      collection: 'lesson-bundles',
-      id: bundleId,
-      depth: 0,
-      overrideAccess: true,
-    })) as LessonBundle
+    // Generation and the prefix read are independent — run them concurrently.
+    const [generated, bundle] = await Promise.all([
+      generateForBundle(req.payload, bundleId, format),
+      req.payload.findByID({
+        collection: 'lesson-bundles',
+        id: bundleId,
+        depth: 0,
+        overrideAccess: true,
+      }) as Promise<LessonBundle>,
+    ])
     await produceArtifacts(spec, generated, safePrefix(bundle.meta?.filePrefix), docxToPdf)
     return { output: {} }
   },

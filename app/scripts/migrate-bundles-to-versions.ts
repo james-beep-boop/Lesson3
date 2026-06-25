@@ -27,6 +27,8 @@ import config from '@payload-config'
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { Payload, PayloadRequest } from 'payload'
 
+import { relId } from '../src/lib/relId'
+
 /** Legacy-only / Payload-internal keys that must NOT carry into a version snapshot. */
 const DROP_KEYS = new Set([
   'id',
@@ -50,13 +52,6 @@ const stripIds = (value: unknown): unknown => {
     return out
   }
   return value
-}
-
-/** Numeric id from a relationship value (id number, or populated {id}). */
-const relId = (value: unknown): number => {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
-  return Number(value)
 }
 
 const run = async () => {

@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 import { requireUser } from '@/lib/session'
+import { relId } from '@/lib/relId'
 import {
   groupLessons,
   matchesQuery,
@@ -9,12 +10,6 @@ import {
   type LessonRow,
   type SubjectGradeGroup,
 } from '@/lib/substrand'
-
-const relId = (value: unknown): number | null => {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
-  return null
-}
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade

@@ -20,13 +20,8 @@ import config from '@payload-config'
 import { bundleToAresData } from '../src/generator/adapter'
 import { generateBundleDocx } from '../src/generator'
 import type { LessonBundle } from '../src/payload-types'
+import { relId } from '../src/lib/relId'
 import { compareDoc } from './lib/docxDiff'
-
-const relId = (value: unknown): number => {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
-  return Number(value)
-}
 
 const run = async () => {
   const payload = await getPayload({ config })

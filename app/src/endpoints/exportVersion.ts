@@ -72,11 +72,7 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     }
 
     const input: GenerateVersionArtifactInput = { versionId: Number(version.id), format, kind }
-    // The slug isn't in the generated TypedJobs map until `generate:types` runs on the Rock (same
-    // pre-generation typing gap as generateArtifact); coerce the args shape until it is.
-    const job = await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req } as unknown as Parameters<
-      typeof req.payload.jobs.queue
-    >[0])
+    const job = await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req })
 
     const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
     return json({ state: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }, 202)
@@ -111,7 +107,7 @@ export const exportVersionStatusEndpoint: Endpoint = {
     // Bind the job to THIS version so a jobId can't probe unrelated jobs.
     const jobInput = job?.input as { versionId?: number | string } | undefined
     const belongs =
-      String(job?.taskSlug ?? '') === GENERATE_VERSION_ARTIFACT_SLUG &&
+      job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
       String(jobInput?.versionId ?? '') === String(version.id)
     if (!job || !belongs) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)

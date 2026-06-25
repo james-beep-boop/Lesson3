@@ -15,13 +15,8 @@ import config from '@payload-config'
 
 import { findReadablePlan, findReadableVersion } from '../src/lib/readBundle'
 import { generateForVersion } from '../src/generator/generateForVersion'
+import { relId } from '../src/lib/relId'
 import type { User } from '../src/payload-types'
-
-const relId = (value: unknown): number | null => {
-  if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
-  return null
-}
 
 const run = async () => {
   const email = process.argv.slice(2).find((a) => a !== '--') ?? 'teacher@lesson3.local'
