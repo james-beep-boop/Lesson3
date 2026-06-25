@@ -11,12 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-25 — Stage 3 DEPLOYED + Rock-verified; collection-drop migration gotchas
+
+**Outcome.** The `lesson-bundles` retirement is live on the Rock. The drop migration
+(`20260625_125532_drop_lesson_bundles`) applied cleanly (exit 0, 277 ms, batch 9); 0 `lesson_bundles*`
+tables remain; `lesson_plans` (13) + `lesson_bundle_versions` (14) intact; app healthy on the new
+schema (no `relation … does not exist`). All verifiers green: roundtrip-regression **3/3 byte-identical**
+(seed→ingest→version→generate→diff vs the stakeholder oracle), `verify-rbac` 7/7, `verify-stage2b-edit`
+13/13, `verify-stage2b-preview` 7/7, `verify-stage2-export` DOCX+PDF. Committed `1959daf` (Rock-generated
+`payload-types.ts` + migration, pushed back to `main`). The Stage 3 entry below is now fully realised.
+
+**Two gotchas to expect on ANY future Payload collection-drop migration (the auto-generated SQL is not
+apply-safe as-is — review + harden the `up()` before `docker compose up -d --build`):**
+
+1. **`DROP CONSTRAINT` must be `IF EXISTS`.** Payload emits `DROP TABLE "<coll>" CASCADE` *and* a later
+   explicit `ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "<...>_<coll>_fk"`. The CASCADE
+   already removes that FK (it references the dropped table), so the explicit drop then errors
+   `constraint … does not exist` and the whole (transactional) migration rolls back. Fix: make the
+   `up()` drops idempotent — `DROP CONSTRAINT IF EXISTS`, and for safety `DROP TABLE/TYPE/INDEX/COLUMN
+   IF EXISTS` too. (The earlier "IF EXISTS is optional" call was wrong for a real DB — it's required.)
+   The `lesson_bundle_versions` FK/column/index on the same join table are left untouched — verify that.
+
+2. **Removing a value from an in-use enum fails on stale rows.** The diff also rebuilt the
+   `payload_jobs(_log).task_slug` enum to drop the retired `generateArtifact` value, via
+   `ALTER COLUMN … SET DATA TYPE <new_enum> USING task_slug::<new_enum>`. That cast throws
+   `invalid input value for enum … "generateArtifact"` if any retained job row still holds the removed
+   value — and completed jobs ARE retained (no auto-delete). Fix: prepend `DELETE FROM payload_jobs_log
+   …; DELETE FROM payload_jobs … WHERE task_slug = '<removed>'` to `up()` (kept in the migration so a
+   replay on any DB is safe). Generalises: dropping any task/enum value requires clearing rows that use it.
+
+**Process note.** The migration + `payload-types.ts` must be generated ON THE ROCK (Node 22; local
+payload CLIs break on newer Node), then committed + pushed back to `main` with a short-lived PAT (the
+Rock is pull-only). The hand-edits above were applied on the Rock via `sudo` (the deps container
+generates the file root-owned). See the runbook in the Stage 3 entry below.
+
+**Minor follow-up.** The DB-less fidelity scripts (`roundtrip-regression`, `adapter-fidelity`,
+`pdf-fidelity-check`) default their oracle path to `~/Desktop/ares-docx-fidelity-demo`; in-container on
+the Rock they need BOTH `-e ARES_DEMO_PATH=/ares-demo` AND `-v /srv/lesson3/out/ares-demo:/ares-demo`
+(env alone fails ENOENT — the host path isn't mounted). Worth baking into a Rock verify helper.
+
 ## 2026-06-24 — Stage 3: legacy `lesson-bundles` collection retired
 
 **Decision.** The Official-version model (`lesson-plans` + immutable `lesson-bundle-versions`) is now
 the ONLY representation. The legacy `lesson-bundles` collection and its entire bundle-path
-(endpoints, generator, hooks, access, scripts) are removed. **Code DONE + locally verified; the DB
-DROP migration is PENDING on the Rock** (see runbook below).
+(endpoints, generator, hooks, access, scripts) are removed. **DONE + Rock-verified 2026-06-25** — the
+drop migration applied and all verifiers pass (see the 2026-06-25 entry above for the result + the
+migration gotchas). The runbook below is retained for reference / future collection drops.
 
 **What was removed (deleted files).** `collections/LessonBundles.ts`;
 `endpoints/{exportBundle,exportStatus,previewBundle}.ts`; `generator/generateForBundle.ts`;
@@ -53,12 +93,11 @@ field-split/immutability RBAC is covered by `verify-stage2b-edit`. `adapter-fide
 byte gate (retyped; its obsolete draft/published export-gate check removed).
 
 **Verification.** Local: type-check clean, lint warnings-only (pre-existing patterns), unit 19/19.
-**Rock PENDING:** apply the drop migration, then re-run `roundtrip-regression`, `verify-rbac`,
-`verify-stage2b-edit`, `verify-stage2b-preview`, `verify-stage2-export`, and smoke the upload panel +
-admin Preview/Export on a forked working copy.
+**Rock (2026-06-25): DONE** — drop migration applied + all verifiers green (see the 2026-06-25 entry).
 
 **Drop migration — Rock runbook** (schema change → generate ON THE ROCK, Node 22; local payload CLIs
-break on newer Node — same pattern as prior migrations):
+break on newer Node — same pattern as prior migrations). NOTE: the generated `up()` needed hand-edits
+before applying — see the 2026-06-25 entry's two gotchas (`IF EXISTS` on drops + DELETE stale job rows):
 ```
 git pull
 docker build --target deps -t lesson3-deps ./app
@@ -108,10 +147,9 @@ docker compose up -d --build                        # one-shot `migrate` applies
   registered components → no importMap change. Names kept as-is despite now serving versions; renaming
   is churn + importMap regen — defer to Stage 3 cleanup.
 
-**Verification.** Local ONLY so far (working-tree change, nothing deployed): type-check + lint clean,
-unit 19/19. **Rock PENDING** — run `scripts/verify-stage2b-preview.ts` (Local-API, read-only; covers
-saved-render non-empty, editor prose applied / admin+structure reverted, cardinality change rejected,
-teacher has no edit authority) AND eyeball the admin Preview/Export mount on a forked working copy.
+**Verification.** Local: type-check + lint clean, unit 19/19. **Rock-verified 2026-06-25:**
+`verify-stage2b-preview` **7/7** (saved-render non-empty, editor prose applied / admin+structure
+reverted, cardinality change rejected, teacher has no edit authority).
 Export-on-versions is already covered by `verify-stage2-export`. **Test gap (follow-up, non-blocking):**
 `verify-stage2b-preview` bypasses HTTP, so the new `parsePreviewCandidate` formData→JSON→size→shape
 path is not yet exercised — a small unit test on its 400/413 error cases would close it.

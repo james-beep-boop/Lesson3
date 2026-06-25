@@ -8,10 +8,12 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
-## CODE COMPLETE + LOCALLY VERIFIED 2026-06-24 (Stage 2b finish + Stage 3 retire `lesson-bundles`) — Rock pending
+## SHIPPED + DEPLOYED + VERIFIED 2026-06-25 (Stage 2b finish + Stage 3 retire `lesson-bundles`)
 
-Not yet deployed/verified on the Rock. Local: type-check + lint (warnings-only) clean, unit 19/19.
-See DECISIONS 2026-06-24 for reasoning and the Rock drop-migration runbook.
+Cutover complete. Code `d1bb614`; Rock-generated types + drop migration `1959daf`. Rock-verified
+2026-06-25: roundtrip-regression 3/3 byte-identical, `verify-rbac` 7/7, `verify-stage2b-edit` 13/13,
+`verify-stage2b-preview` 7/7, `verify-stage2-export` DOCX+PDF; app healthy on the new schema. The
+collection-drop migration needed two hand-edits before applying — see DECISIONS 2026-06-25.
 
 - **Stage 2b finish — admin Preview/Export on versions.** New version preview endpoints
   (`endpoints/previewVersion.ts`, GET saved + POST unsaved; shared shell/body-parse in
@@ -26,8 +28,9 @@ See DECISIONS 2026-06-24 for reasoning and the Rock drop-migration runbook.
   the generator/adapter/preview chain retyped from the vanishing `LessonBundle` to `LessonBundleVersion`
   (deleting the Stage-2a `as unknown as LessonBundle` casts). `verify-rbac.ts` slimmed to the
   People/Curriculum RBAC it uniquely covers (lesson-content RBAC lives in `verify-stage2b-edit`).
-  **PENDING on the Rock:** `generate:types` (drops the `LessonBundle` type + `generateArtifact` task
-  slug) + a drop-table migration, then re-verify.
+  Deployed: `generate:types` (dropped the `LessonBundle` type + `generateArtifact` task slug) +
+  the `20260625_125532_drop_lesson_bundles` migration (applied 2026-06-25; 0 bundle tables remain,
+  `lesson_plans`/`lesson_bundle_versions` intact).
 
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-24 (Official-version cutover: Stages 1, 2a, 2b-admin)
 

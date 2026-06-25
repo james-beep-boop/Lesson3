@@ -12,15 +12,17 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**Do this BEFORE planning a new phase** (see "▶ Start the next session here" below) — there is a
-defined, in-flight sequence to resume, not a blank-slate phase choice.
+**The Official-version cutover is COMPLETE and Rock-verified (origin/main `1959daf`, 2026-06-25)** —
+no in-flight sequence to resume. The next session is a clean track choice: see "▶ Start the next
+session here" for the current state, then "Choose the next phase" for the options.
 
 ---
 
-## ▶ Start the next session here (defined sequence — resume, don't re-plan)
+## ▶ Start the next session here — the cutover is DONE; pick a track
 
-The **Official-version model cutover is largely complete** (Stages 1, 2a, 2b done + Rock-verified, all
-on `origin/main` at `f93f9bc`). The product model (clarified 2026-06-24) it implements:
+The **Official-version model cutover is COMPLETE and Rock-verified** (origin/main `1959daf`,
+2026-06-25). There is no in-flight sequence to resume — the next session is a fresh track choice
+(see "Choose the next phase" below). The product model it implements:
 
 - A lesson plan has many retained immutable versions; exactly one is **Official** at a time, globally.
 - Upload/import creates version `1.0.0` and makes that exact snapshot Official immediately.
@@ -28,87 +30,44 @@ on `origin/main` at `f93f9bc`). The product model (clarified 2026-06-24) it impl
   Site Admin marks a working copy Official when ready (moves the pointer, no content copy).
 - Teachers can view/export all versions; Official is a default/trust marker, not an access/export gate.
 
-**Cutover status:** ~~(a) admin Preview/Export → versions~~ (DONE) and ~~(b) Stage 3 retire
-`lesson-bundles`~~ (CODE DONE 2026-06-24, locally verified) are both done in code. **The only thing
-left for the cutover is applying the drop migration on the Rock** (runbook in DECISIONS 2026-06-24
-"Stage 3"). After that lands + verifies, the **production-hardening backlog** below is the track.
+**`lesson-plans` + immutable `lesson-bundle-versions` are now the ONLY representation** — the legacy
+`lesson-bundles` collection and its entire bundle path are gone, in code AND in the DB (drop migration
+`20260625_125532_drop_lesson_bundles` applied; 0 bundle tables remain). The full stage history (1 →
+2a → 2b → 2b-finish → 3) is in `docs/CHANGELOG.md`; the reasoning + the collection-drop migration
+gotchas are in `docs/DECISIONS.md` (2026-06-25 + 2026-06-24 entries).
 
-History of what's done (newest first) is in `docs/CHANGELOG.md`; the items below carry the detail:
+**Last Rock verification (2026-06-25):** roundtrip-regression **3/3 byte-identical**, `verify-rbac`
+**7/7** (now People/Curriculum RBAC only — lesson-content RBAC lives in `verify-stage2b-edit`),
+`verify-stage2b-edit` **13/13**, `verify-stage2b-preview` **7/7**, `verify-stage2-export` DOCX+PDF;
+app healthy on the new schema.
 
-1. **✅ DONE (2026-06-24) — Editor symptom verified resolved (server-level).** Migration applied
-   cleanly (`Migrated: …official_version_model`), all `lesson_plans`/`lesson_bundle_versions` tables
-   exist, no runtime errors, `/admin/collections/lesson-bundles/:id` serves 200, APIs 403 unauth (not
-   500). The `relation "lesson_plans" does not exist` crash is gone.
-2. **✅ DONE (2026-06-24) — Stage 1: data backfill.** The 13 published legacy bundles (ids 63–75) are
-   migrated into `lesson-plans` + Official `lesson-bundle-versions` 1.0.0 and verified LOSSLESS
-   (39/39 docs content-identical) on the Rock. Scripts: `scripts/migrate-bundles-to-versions.ts`
-   (idempotent, dry-run default) + `scripts/verify-migration.ts`. See DECISIONS 2026-06-24. Legacy
-   `lesson-bundles` left untouched (reversible). **DB now: 13 plans / 13 official / 13 versions.**
-3. **◐ Stage 2: read/export/edit cutover — 2a + 2b DONE; finish below.**
-   - **✅ Stage 2a DONE + verified on the Rock (`0d4a49a`).** The TEACHER path (browse, detail +
-     `?version=` selector, content-preview, DOCX/PDF download) now reads `lesson-plans` +
-     `lesson-bundle-versions`. Generator-agnostic artifact cache (scope key), `generateForVersion`,
-     `generateVersionArtifact` job, version export endpoints on `lesson-bundle-versions`,
-     `findReadablePlan`/`findReadableVersion`. roundtrip-regression repointed to versions (it had
-     broken when ingest moved to the new model). Verified: roundtrip 3/3 byte-identical;
-     `verify-stage2-reads` 13/13; `verify-stage2-export` DOCX+PDF. See DECISIONS 2026-06-24.
-   - **✅ Stage 2b DONE + verified (admin slice `0802204`; Editor slice `36e9500`).** Working-copy
-     model: Official version is immutable (`enforceVersionImmutable`) and undeletable
-     (`enforceOfficialNotDeletable`); **Edit** on the detail page (**Editors + admins**) forks a
-     Not-Official working copy (`POST /:id/fork` — content copy via overrideAccess, semver patch-bump,
-     `sourceVersion`) and opens its admin editor; **Make Official** (**admins only**, `POST /:id/make-official`)
-     moves `LessonPlan.officialVersion` (no content copy). Editors prose-edit the working copy
-     (field-split via the shared `applyEditorFieldSplit`, extracted from `enforceBundleStructure`);
-     `lessonBundleVersionUpdate` editor-scoped, `…Create` admin-only (fork copies via overrideAccess).
-     Verified on the Rock: `verify-stage2b-edit` 13/13 (immutability, fork, mutable copy, make-official,
-     editor prose applies / structure+admin preserved, delete guard, editor+teacher denials),
-     `verify-rbac` 36/36. See DECISIONS 2026-06-24. **Note:** the seeded `subjectadmin@lesson3.local`
-     user actually holds an *editor* grant (only the Site Admin is a true admin).
-   - **◐ Stage 2b finish — CODE DONE, LOCAL-verified only; Rock NOT yet done (2026-06-24).** The admin
-     **Preview/Export controls** now run on the `lesson-bundle-versions` working-copy editor. New version
-     preview endpoints (`endpoints/previewVersion.ts`, GET saved + POST unsaved, shared page shell +
-     body-parse in `endpoints/previewShared.ts`); the `PreviewBundle`/`ExportBundle` controls were
-     parameterised (`basePath` + `ExportBundle` `publishedGate`) and mounted on versions
-     (`publishedGate:false` — no published gate). **Before marking ✅ DONE, on the Rock:** run
-     `verify-stage2b-preview` AND eyeball the admin Preview/Export mount on a forked working copy.
-     Follow-up (non-blocking): a unit test for `parsePreviewCandidate`'s 400/413 cases (the HTTP/form
-     path the Local-API verifier bypasses). See DECISIONS 2026-06-24.
-4. **◐ Stage 3 — retire `lesson-bundles`: CODE DONE (2026-06-24), DB DROP MIGRATION PENDING on the
-   Rock.** The collection, its export/preview/upload-on-bundles endpoints, `generateForBundle`/
-   `generateArtifact`, the bundle hooks/access, and the obsolete bundle scripts are all removed; the
-   shared content fields moved to `fields/lessonContent.ts`, upload re-homed to `lesson-plans`, and the
-   generator retyped to `LessonBundleVersion` (Stage-2a casts deleted). **▶ NEXT: on the Rock, run the
-   drop-migration runbook** (DECISIONS 2026-06-24 "Stage 3"), then re-run `roundtrip-regression`,
-   `verify-rbac`, `verify-stage2b-edit`, `verify-stage2b-preview`, `verify-stage2-export`, and smoke
-   the upload panel + admin Preview/Export. **`verify-rbac` is now a smaller suite** (People/Curriculum
-   RBAC only; lesson-content RBAC lives in `verify-stage2b-edit`) — don't expect the old 36/36 count.
-5. **Then return to the hardening backlog** below: ~~async export verification~~, ~~GET `/export`
-   enqueue semantics~~ (both CLOSED + Rock-verified 2026-06-24, `9c9a701` — see DECISIONS),
-   pagination, GraphQL/Playground gating, CSP/sanitization, dependency advisories, endpoint
-   tests, and PDF-fidelity CI.
+**Two small non-blocking follow-ups left by the cutover** (do opportunistically, not gating):
+- Unit test for `parsePreviewCandidate`'s 400/413 cases (the HTTP/form path the Local-API
+  `verify-stage2b-preview` bypasses).
+- The DB-less fidelity scripts need `-e ARES_DEMO_PATH=/ares-demo -v /srv/lesson3/out/ares-demo:/ares-demo`
+  to run in-container on the Rock — worth baking into a Rock verify helper (see DECISIONS 2026-06-25).
+- `ingest-data/` is untracked on the Rock — confirm it's meant to be gitignored.
 
 ---
 
-## Where things stand (origin/main `f93f9bc` is the last DEPLOYED commit; Stage 2b-finish + Stage 3 are uncommitted working-tree changes, code-complete + locally verified)
+## Where things stand (origin/main `1959daf`, all DEPLOYED + Rock-verified 2026-06-25)
 
-**Phases 0–5 are done, two UX batches shipped, the Official-version cutover is COMPLETE IN CODE: the
-teacher path (Stage 2a) and admin editing (Stage 2b) run on `lesson-plans` + `lesson-bundle-versions`,
-the admin Preview/Export controls were cut over (Stage 2b-finish), and the legacy `lesson-bundles`
-collection + its entire bundle path were deleted (Stage 3).** Stages 1/2a/2b-admin are deployed +
-Rock-verified at `f93f9bc`; **Stage 2b-finish + Stage 3 are local-only** (type-check/lint/unit green)
-and **await the Rock typegen + drop-migration** (DECISIONS/CHANGELOG 2026-06-24). What's on the Rock
-right now (the deploy/verification box — see "Rock") still predates the Stage 3 deletion:
+**Phases 0–5 are done, two UX batches shipped, and the Official-version cutover is COMPLETE and live:
+the teacher path (Stage 2a) and admin editing (Stage 2b) run on `lesson-plans` +
+`lesson-bundle-versions`, the admin Preview/Export controls run on versions (Stage 2b-finish), and the
+legacy `lesson-bundles` collection + its entire bundle path are deleted in code AND in the DB
+(Stage 3).** Everything below is live on the Rock (the deploy/verification box — see "Rock"):
 
 - **Upload/import** — safe static extraction of ARES `.js`/`.json` (parse-never-execute), one
   all-or-nothing transaction, **contract drift is a HARD gate**. Dev CLI + Site-Admin-only web upload
-  (`POST /api/lesson-plans/upload` after Stage 3; panel above the Lesson Plans list).
+  (`POST /api/lesson-plans/upload`; panel above the Lesson Plans list).
   New writes create `LessonPlan` + `LessonBundleVersion 1.0.0` and set the Official pointer.
 - **Data model + versioning** — `lesson-plans` owns stable identity + `officialVersion`;
   `lesson-bundle-versions` owns immutable structured snapshots (META, UNIT, LESSONS[],
   FINAL_EXPLANATION, SUMMARY_TABLE) — the content fields live in `fields/lessonContent.ts`.
   `20260624_221905_official_version_model` created the DB schema; the 13 legacy bundles were backfilled
-  (Stage 1). After Stage 3 these are the ONLY representation: the legacy `lesson-bundles` collection and
-  its bundle path are deleted in code (DB drop migration pending on the Rock).
+  (Stage 1); `20260625_125532_drop_lesson_bundles` dropped the legacy collection. These are now the
+  ONLY representation — the `lesson-bundles` collection and its bundle path are gone in code and DB.
 - **RBAC** — Site Admin / Subject Admin / Editor / Teacher, field-level. Lesson-content RBAC (Editor
   prose vs admin structure/answer-keys, version immutability, read scoping) is covered by
   `verify-stage2b-edit`; the slimmed `verify-rbac` now covers only People/Curriculum rules
@@ -144,26 +103,24 @@ right now (the deploy/verification box — see "Rock") still predates the Stage 
   immutable `versionScope`, on a `lesson3_artifact_cache` named volume) makes repeats free; a **per-user
   rate limit** (`429 + Retry-After`) guards export + preview; the queue `autoRun` `limit` caps concurrent
   heavy conversions. Frontend follows the 202 → poll → download handshake. See DECISIONS 2026-06-23.
-  *(The bundle-path `generateArtifact` job was deleted in Stage 3; the `generateArtifact` task slug
-  lingers in `payload-types.ts` until the Rock typegen.)*
+  *(Stage 3 deleted the bundle-path `generateArtifact` job and dropped its task-slug enum value.)*
 - **Corpus** = the 13 originally-published bundles (10 Biology + 3 Math, Grade 10), backfilled (Stage 1)
-  into 13 `lesson-plans` + Official 1.0.0 `lesson-bundle-versions` — verified lossless. After Stage 3
-  the versions are the ONLY representation (the legacy bundles are deleted in code; their DB tables drop
-  with the pending Rock migration).
+  into `lesson-plans` + Official 1.0.0 `lesson-bundle-versions` — verified lossless. The versions are
+  now the ONLY representation (the legacy bundles are gone in code and DB). DB as of the Stage 3 deploy:
+  13 plans / 14 versions (one extra working version from verifier runs — harmless).
 
 **The Rock is an explicit NON-PRODUCTION verification environment** — not production-ready (see the
 readiness backlog). It is the only place with a DB; `test:int` and `next build` only run there.
 
 ---
 
-## Choose the next phase (only after the start-here sequence above)
+## Choose the next phase — the cutover is done, this is a clean track choice
 
-The immediate work is in **"▶ Start the next session here"**: deploy the code-complete Stage 2b-finish +
-Stage 3 to the Rock (typegen + drop migration), then re-verify. The options below are the bigger
-picture once that lands:
+The Official-version cutover is fully deployed, so there's no carry-over work blocking a new phase.
+Pick one:
 
 1. **Production hardening** — the chosen/in-flight track. The audit (2026-06-23) refined the backlog
-   below; work it in the start-here order. *Shifts the system from "validated" to "deployable for real."*
+   below; work it top-down. *Shifts the system from "validated" to "deployable for real."*
 2. **Cross-user "The App" features (§10)** — the other major track. Email-a-doc, internal messaging +
    notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
    collections/endpoints/hooks + the **now-live Jobs Queue**; none touches the generator/versioning
