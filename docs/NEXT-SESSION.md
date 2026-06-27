@@ -12,17 +12,57 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The Official-version cutover is COMPLETE and Rock-verified (origin/main `1959daf`, 2026-06-25)** —
-no in-flight sequence to resume. The next session is a clean track choice: see "▶ Start the next
-session here" for the current state, then "Choose the next phase" for the options.
+**The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
+cutover is long done; the current work is the hardening backlog below. **See "⚠ RESUME HERE" next — there
+are 4 local commits NOT yet pushed, and that push (+ a Rock verify) is the first thing to finish.**
 
 ---
 
-## ▶ Start the next session here — the cutover is DONE; pick a track
+## ⚠ RESUME HERE (2026-06-27) — push the local batch, then Rock-verify, then continue #4
+
+**State:** 4 commits sit on local `main` **ahead of `origin/main` (`1959daf`)** — NOT pushed. The push was
+blocked by GitHub credentials on this machine (the macOS keychain had no cached token; SSH key is not
+registered on the account). The remote is HTTPS (`https://github.com/james-beep-boop/Lesson3.git`).
+
+The 4 unpushed commits (oldest→newest):
+```
+68677ae harden(graphql): disable GraphQL + delete generated graphql routes
+a62d58e harden(preview): sanitize preview HTML, add frontend security headers, size-guard the parser
+8c0b0e3 test+spec: hermetic int role fixture + access-control tests; FE/ST single-doc decision
+9a4f84c docs: record hardening decisions (FE/ST, GraphQL, preview sanitize+CSP) + refresh backlog
+```
+
+**Step 1 — push (do this first).** In a real terminal (not an automated/sandboxed shell — it can't reach
+the keychain/ssh-agent): `git push origin main`. HTTPS will prompt for username `james-beep-boop` and a
+**PAT as the password** (GitHub no longer accepts account passwords; scope `repo` / fine-grained
+`Contents: write`). The `osxkeychain` helper caches it after the first success. (Alternative: register
+`~/.ssh/id_ed25519.pub` on GitHub and `git remote set-url origin git@github.com:james-beep-boop/Lesson3.git`.)
+
+**Step 2 — Rock verify (Task list #6).** On the Rock: `git pull` → `npm --prefix app ci` (picks up the new
+**`dompurify`** dep / updated lockfile) → `docker compose up -d --build`. Then confirm, all green:
+- `test:int` — the NEW hermetic fixture (`app/tests/helpers/fixtures.ts`) + access-control specs
+  (`app/tests/int/access.int.spec.ts`). These need a DB → Rock only. Sanity-flip an access rule to prove
+  they fail (the evidence gate).
+- `next build` clean; `POST /api/graphql` → 404 and `GET /api/graphql-playground` → 404 (GraphQL removed).
+- Baseline security headers present on a frontend response (nosniff / X-Frame-Options / Referrer-Policy /
+  the non-script CSP); the teacher preview still renders tables + formatting after sanitization.
+- `test:unit` locally already green this session (sanitizeHtml + parsePreviewCandidate added; 33 tests).
+
+**Step 3 — then continue the hardening order:** #4 (endpoint/authz e2e + a `POST /api/graphql → 404`
+regression assertion; replaces the stale `frontend.e2e.spec.ts`), then #1 (dependency advisories — a
+*deliberate* Payload/transport upgrade, not a blind `npm audit fix`; `vitest` critical is dev-only).
+
+**What this session completed (all committed locally, tsc-clean, unit 33/33):** backlog #5 FE/ST CLOSED,
+#7 GraphQL CLOSED, #3 sanitize+headers LARGELY CLOSED (strict nonce script-src deferred), plus the int
+test harness + the `parsePreviewCandidate` cutover follow-up. Details in DECISIONS.md 2026-06-26/27.
+
+---
+
+## ▶ Track context — Production Hardening (the backlog below is the work)
 
 The **Official-version model cutover is COMPLETE and Rock-verified** (origin/main `1959daf`,
-2026-06-25). There is no in-flight sequence to resume — the next session is a fresh track choice
-(see "Choose the next phase" below). The product model it implements:
+2026-06-25) — it is the stable foundation the hardening work builds on (the in-progress work is the
+hardening backlog, NOT the cutover; see "⚠ RESUME HERE"). The product model it implements:
 
 - A lesson plan has many retained immutable versions; exactly one is **Official** at a time, globally.
 - Upload/import creates version `1.0.0` and makes that exact snapshot Official immediately.
@@ -115,13 +155,15 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 
 ---
 
-## Choose the next phase — the cutover is done, this is a clean track choice
+## The chosen track — Production hardening (IN PROGRESS) — and the alternatives
 
-The Official-version cutover is fully deployed, so there's no carry-over work blocking a new phase.
-Pick one:
+**Production hardening is the chosen, active track** (2026-06-27), being worked top-down in this agreed
+order: GraphQL (done) → preview sanitize+CSP (done) → **#4 endpoint/authz e2e (next)** → #1 dependency
+advisories (last; deliberate upgrade). The two alternatives below are NOT being pursued now — recorded
+so a future session knows they exist.
 
-1. **Production hardening** — the chosen/in-flight track. The audit (2026-06-23) refined the backlog
-   below; work it top-down. *Shifts the system from "validated" to "deployable for real."*
+1. **Production hardening** — *the active track.* The audit (2026-06-23) refined the backlog below;
+   work it top-down. *Shifts the system from "validated" to "deployable for real."*
 2. **Cross-user "The App" features (§10)** — the other major track. Email-a-doc, internal messaging +
    notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
    collections/endpoints/hooks + the **now-live Jobs Queue**; none touches the generator/versioning
