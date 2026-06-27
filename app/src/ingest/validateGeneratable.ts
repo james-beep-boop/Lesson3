@@ -87,11 +87,12 @@ export function validateGeneratable(bundle: Bundleish): string[] {
  * NON-BLOCKING deliverable warnings (SPEC §3 "three documents per bundle").
  *
  * The generator (and the Phase-2 adapter) SKIP the FinalExplanation / SummaryTable
- * documents when those groups are empty — so an incomplete bundle silently produces only
- * the LessonSequence. SPEC §3 expects all three. Pending confirmation that the whole ARES
- * corpus always carries FE + ST, this is enforced as a WARN-ONLY check at ingest (logged,
- * not a hard publish block — decision 2026-06-09): the operator sees which deliverables a
- * bundle would omit. Promote to a hard gate (fold into `validateGeneratable`) once verified.
+ * documents when those groups are empty, producing only the LessonSequence. Per SPEC §3
+ * (confirmed 2026-06-26) **single-document sub-strands are legitimate** — a missing FE/ST is
+ * valid content, not incomplete data — so this is an INFORMATIONAL note only and must NEVER
+ * become a hard gate (that was the open question; it is now resolved in favour of option (a)).
+ * It lets the operator see, at ingest, which deliverables a given bundle will omit. The
+ * always-required LessonSequence is gated separately by `validateGeneratable`.
  */
 export function deliverableWarnings(bundle: Bundleish): string[] {
   const warnings: string[] = []
