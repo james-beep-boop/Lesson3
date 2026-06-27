@@ -41,9 +41,10 @@ gotchas are in `docs/DECISIONS.md` (2026-06-25 + 2026-06-24 entries).
 `verify-stage2b-edit` **13/13**, `verify-stage2b-preview` **7/7**, `verify-stage2-export` DOCX+PDF;
 app healthy on the new schema.
 
-**Two small non-blocking follow-ups left by the cutover** (do opportunistically, not gating):
-- Unit test for `parsePreviewCandidate`'s 400/413 cases (the HTTP/form path the Local-API
-  `verify-stage2b-preview` bypasses).
+**Small non-blocking follow-ups left by the cutover** (do opportunistically, not gating):
+- ~~Unit test for `parsePreviewCandidate`'s 400/413 cases~~ — **DONE 2026-06-26**
+  (`tests/unit/parsePreviewCandidate.spec.ts`, runs under `test:unit`; also added a Content-Length
+  pre-parse guard test).
 - The DB-less fidelity scripts need `-e ARES_DEMO_PATH=/ares-demo -v /srv/lesson3/out/ares-demo:/ares-demo`
   to run in-container on the Rock — worth baking into a Rock verify helper (see DECISIONS 2026-06-25).
 - `ingest-data/` is untracked on the Rock — confirm it's meant to be gitignored.
@@ -171,24 +172,28 @@ The numbered items below are the remaining hardening backlog.
    follow-ups above (jobs cleanup, status-endpoint limiter, per-process limiter caveat) — none blocking.
 2. **Dependency advisories** — `npm audit` shows criticals/highs incl. `nodemailer`/`undici` via
    Payload's own deps. Resolve by a deliberate Payload/transport upgrade (not a blind bump).
-3. **CSP + HTML-sanitization posture** — generated Mammoth HTML is rendered with
-   `dangerouslySetInnerHTML` on the teacher route (low risk today: plain-string inputs, Mammoth
-   escapes — becomes real **when Resource links land**). Sanitize `docxToSections` output; add the
-   preview endpoint's CSP to the teacher frontend route; global security headers + CSRF posture.
+3. **~~CSP + HTML-sanitization posture~~ — LARGELY CLOSED 2026-06-26.** Mammoth preview HTML is now
+   sanitized at the single seam (`docxToSections` → `sanitizePreviewHtml`, DOMPurify+jsdom), and
+   baseline security headers (nosniff, X-Frame-Options, Referrer-Policy, + a non-script CSP:
+   object-src/base-uri/frame-ancestors/form-action) are set globally in `next.config.ts`. See DECISIONS
+   2026-06-26. **Still open:** a strict nonce-based `script-src` CSP (deferred — needs Next hydration
+   nonce plumbing) and a review of CSRF posture beyond the SameSite=Lax cookie.
 4. **Optimistic concurrency** — updates increment `lockVersion` but don't reject a stale client
    version. Add the check, but **EXEMPT system/ingest paths** (`overrideAccess` republish, migrations)
    or it breaks ingest.
-5. **FE/ST deliverable model** — *reframed from "bug" to a spec/product modeling gap.* Today's
-   warn-only conflates "this sub-strand legitimately has no FE/ST" (6/13 upstream) with "the data is
-   incomplete." Resolve via either (a) SPEC §3 allowing single-doc bundles for some sub-strands, or
-   (b) a typed `notApplicable`/intentionally-omitted state — THEN a hard gate can fire only on
-   genuinely-missing data.
+5. **FE/ST deliverable model — CLOSED 2026-06-26 (option a).** Single-document sub-strands are
+   legitimate: a missing FINAL_EXPLANATION / SUMMARY_TABLE is valid content, not incomplete data, so
+   the deliverable check stays informational and must never become a hard gate. The always-present
+   LessonSequence remains hard-gated by `validateGeneratable`. The typed `notApplicable` state
+   (option b) is deferred (no functional gain today). SPEC §3 amended; see DECISIONS.md 2026-06-26.
 6. **Tests** — `tests/e2e/frontend.e2e.spec.ts` still asserts the blank Payload template (stale
    scaffold); replace/remove it AND add real **preview/export/PDF/authz** endpoint coverage (needs an
    auth+role fixture harness `tests/int/api.int.spec.ts` lacks). PDF fidelity gate in CI (see above).
-7. **Disable/gate unused GraphQL + GraphQL Playground** (`payload.config.ts`) — scaffold-mounted,
-   recon surface (access controls still apply). Verify the exact Payload `graphQL.disable` option
-   against installed source before applying.
+7. **~~Disable/gate unused GraphQL + GraphQL Playground~~ — CLOSED 2026-06-26.** `graphQL.disable: true`
+   in `payload.config.ts` AND both generated `api/graphql*` route files deleted (the POST handler
+   ignores the flag at runtime, so deletion is what actually 404s the endpoints). Rock build confirms
+   `/api/graphql` + `/api/graphql-playground` are gone. See DECISIONS 2026-06-26. *(Add a `POST
+   /api/graphql → 404` e2e assertion as a regression guard — folded into the endpoint-coverage work.)*
 8. **Lesson browse hard-limits at `limit: 200`** with no pagination (`(frontend)/page.tsx`) — content
    becomes undiscoverable once the corpus grows to hundreds (expected). Add page/search.
 9. **Ops** — error tracking (Sentry), off-site encrypted Postgres backups + pre-migration snapshots,

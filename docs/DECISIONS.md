@@ -11,6 +11,88 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-26 — Hardening: sanitize preview HTML + baseline frontend security headers (backlog #3)
+
+**Context.** Backlog #3 (and Codex) flagged that Mammoth-generated preview HTML is rendered with
+`dangerouslySetInnerHTML` on the teacher route (`(frontend)/lessons/[id]/page.tsx`) and as a standalone
+page from the preview endpoint, with no sanitization and no frontend CSP. Low risk today (inputs are
+plain strings; Mammoth escapes text) but becomes real XSS the moment resource links or richer imported
+content land — so close it now.
+
+**Decisions.**
+1. **Sanitize at the single seam.** Added `src/lib/sanitizeHtml.ts` (`sanitizePreviewHtml`) using
+   **DOMPurify + the already-vendored jsdom** (pinned `dompurify@3.4.11`, exact — matches the repo's
+   no-caret convention). Applied inside `docxToSections` (`generator/previewBundle.ts`), the one
+   function BOTH render paths flow through — not per-render-site. Allowlist = the safe subset Mammoth
+   emits (p/inline-emphasis/headings/lists/links/tables; attrs href/colspan/rowspan; no style/class/id,
+   no `on*`). Chose DOMPurify over a hand-rolled allowlist (the altitude anti-pattern).
+   **Gotcha recorded:** do NOT set a custom `ALLOWED_URI_REGEXP` — it over-applies to non-URI
+   attributes and silently strips `colspan`/`rowspan`. DOMPurify's DEFAULT URI validation already
+   blocks `javascript:`/`data:` while keeping http(s)/mailto/relative/anchors (verified empirically).
+2. **Baseline frontend security headers** via `next.config.ts` `headers()` on every route:
+   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+   strict-origin-when-cross-origin`, `X-DNS-Prefetch-Control: off`, and a CSP that hardens WITHOUT a
+   script-src/default-src (`object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action
+   'self'`). Deliberately no strict script-src: Next relies on inline hydration scripts, so a strict
+   policy needs nonce plumbing — **deferred as a separate, larger task**. The preview endpoint keeps
+   its own strict standalone CSP; multiple CSP headers combine by intersection (stricter), no conflict.
+
+**Verify.** Unit `tests/unit/sanitizeHtml.spec.ts` (strips script/on*/javascript:/data:, keeps
+tables/links/emphasis, drops style/class/id). On the Rock: `next build`; confirm the headers are present
+on a frontend response and the teacher preview still renders tables/formatting.
+
+## 2026-06-26 — Hardening: GraphQL + Playground disabled (config flag is NOT enough — delete the routes)
+
+**Context.** Production-readiness backlog #7 (and an external Codex review) flagged the scaffold-mounted
+GraphQL POST + Playground routes as unnecessary recon surface — this app's API is REST + custom
+endpoints; GraphQL is unused. Access control still applies, so this is surface reduction, not a fix
+for an exploitable hole.
+
+**Finding (verify-installed-source rule paid off).** Setting `graphQL: { disable: true }` in
+`payload.config.ts` is **not sufficient on its own**. The generated Next route handler
+(`@payloadcms/next/dist/routes/graphql/handler.js`) `POST` export does NOT check `graphQL.disable` —
+it unconditionally builds the schema (`configToSchema`) and serves. Only the *playground* GET handler
+honours the flag. So the committed `app/(payload)/api/graphql/route.ts` would keep serving queries
+regardless of the config flag.
+
+**Decision.** Belt-and-suspenders: (1) set `graphQL.disable: true` (kills introspection, the playground,
+and any internal schema build that DOES read the flag), AND (2) **delete** both generated route files
+`app/(payload)/api/graphql/route.ts` and `…/graphql-playground/route.ts`. With the specific segments
+gone, `POST /api/graphql` and `GET /api/graphql-playground` fall through to the REST catch-all
+(`api/[...slug]/route.ts`), which treats "graphql" as an unknown collection slug and returns 404. No
+other code references these routes (importMap clean, no src imports). The "DO NOT MODIFY — generated"
+banner warns against *editing* the files (a re-scaffold could overwrite); deleting to remove an endpoint
+is the supported way to drop a route in an app-router Payload project.
+
+**Verify on the Rock.** `next build` succeeds; `POST /api/graphql` → 404, `GET /api/graphql-playground`
+→ 404; admin + REST + custom endpoints unaffected (Payload 3 admin uses REST/server functions, not
+GraphQL).
+
+## 2026-06-26 — FE/ST modeling resolved: single-document sub-strands are legitimate (option a)
+
+**Context.** The production-readiness backlog (NEXT-SESSION #5) flagged that ingest's warn-only
+deliverable check conflates two cases: "this sub-strand legitimately has no FINAL_EXPLANATION /
+SUMMARY_TABLE" (6/13 of the upstream corpus) vs. "the data is incomplete." It could not become a
+hard gate until that ambiguity was resolved (SPEC §3 option (a) allow single-doc bundles, OR (b) a
+typed `notApplicable` state).
+
+**Decision (user-confirmed 2026-06-26).** Adopt **option (a)**: some sub-strands ship as a *single*
+document (the LessonSequence only). A missing FE/ST is **valid content, not incomplete data**.
+Therefore:
+- The deliverable check stays **informational only** and must **never** be promoted to a hard gate.
+  (The generator already guards empty FE/ST — `FE.sections || []`, `ST.lessons || []` — and simply
+  skips those documents, so single-doc bundles already generate correctly end to end.)
+- The always-present **LessonSequence remains hard-gated** by `validateGeneratable` (META, ≥1 lesson,
+  SLO/summaryTablePrompt groups, ≥1 valid framework phase). That gate is unchanged.
+- **Option (b) (a typed `notApplicable`/intentionally-omitted state) is DEFERRED** — not built. It
+  would require a DB field + Rock migration for no functional gain today, since absence already
+  generates the right output and is no longer treated as a defect. Revisit only if we later need to
+  distinguish "intentionally omitted" from "not yet authored" in the editor UI.
+
+**Changes.** SPEC §3 amended (single-document sub-strands called out as legitimate; "up to three
+documents per bundle"). `deliverableWarnings` doc comment in `validateGeneratable.ts` reworded to
+state the resolution (no behavior change — it already only warned). Backlog item #5 is now CLOSED.
+
 ## 2026-06-25 — Stage 3 DEPLOYED + Rock-verified; collection-drop migration gotchas
 
 **Outcome.** The `lesson-bundles` retirement is live on the Rock. The drop migration
