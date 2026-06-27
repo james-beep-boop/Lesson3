@@ -60,15 +60,20 @@ describe('version immutability', () => {
 
 describe('Editor field-split on a working copy', () => {
   it('lets an Editor overlay prose but preserves admin/structure fields', async () => {
-    const wc = await makeWorkingCopy()
-    const submitted = minimalBundleContent()
-    submitted.lessons[0].overview = 'EDITOR-EDITED overview' // prose → should persist
-    submitted.meta.substrand_name = 'EDITOR-HACKED meta' // admin-only → should be preserved
+    const wc = (await makeWorkingCopy()) as any
+    // Resubmit the working copy's REAL rows (with their ids + admin fields like `phase`), mirroring
+    // the live edit path (`verify-stage2b-edit`). A fresh minimalBundleContent() has no row ids, so
+    // Payload treats each as a NEW row and strips the admin-only `phase` — which then fails the
+    // generatable gate before the field-split can restore it (i.e. it tests the wrong thing).
+    const lessons = (wc.lessons ?? []).map((l: any, i: number) =>
+      i === 0 ? { ...l, overview: 'EDITOR-EDITED overview' } : l, // prose → should persist
+    )
 
     const updated = (await fx.payload.update({
       collection: 'lesson-bundle-versions',
       id: wc.id,
-      data: { ...submitted } as never,
+      // meta is admin-only → the hacked substrand_name must be ignored (preserved from the original).
+      data: { lessons, meta: { ...wc.meta, substrand_name: 'EDITOR-HACKED meta' } } as never,
       overrideAccess: false,
       user: fx.users.editor,
     })) as any

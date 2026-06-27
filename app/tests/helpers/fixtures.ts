@@ -73,7 +73,7 @@ export function minimalBundleContent() {
         overview: 'A minimal generatable lesson.',
         framework: [
           {
-            phase: 'Predict',
+            phase: 'Predict Phase',
             learnerExperience: 'Predict the outcome.',
             teacherMoves: 'Elicit predictions.',
             sensemakingStrategy: 'Discussion.',
