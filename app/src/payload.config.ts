@@ -143,6 +143,13 @@ export default buildConfig({
     ],
   },
   editor: lexicalEditor(),
+  // GraphQL is unused — this app's API is REST + custom endpoints. Disable it to shrink the recon
+  // surface (introspection + the internal schema build). NOTE: the generated POST route handler
+  // does NOT honour this flag at runtime, so the two `app/(payload)/api/graphql*` route files are
+  // ALSO deleted; requests then fall through to the REST catch-all and 404. See DECISIONS 2026-06-26.
+  graphQL: {
+    disable: true,
+  },
   secret: payloadSecret,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
