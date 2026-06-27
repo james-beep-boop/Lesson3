@@ -13,48 +13,45 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **See "⚠ RESUME HERE" next — there
-are 4 local commits NOT yet pushed, and that push (+ a Rock verify) is the first thing to finish.**
+cutover is long done; the current work is the hardening backlog below. **The hardening batch is now
+PUSHED + Rock-verified (origin/main `a97d596` + the test-int fixes on top). See "▶ RESUME HERE" next —
+the next work is backlog #4 (endpoint/authz e2e).**
 
 ---
 
-## ⚠ RESUME HERE (2026-06-27) — push the local batch, then Rock-verify, then continue #4
+## ▶ RESUME HERE (2026-06-27, evening) — hardening batch verified; next is #4 (endpoint/authz e2e)
 
-**State:** 4 commits sit on local `main` **ahead of `origin/main` (`1959daf`)** — NOT pushed. The push was
-blocked by GitHub credentials on this machine (the macOS keychain had no cached token; SSH key is not
-registered on the account). The remote is HTTPS (`https://github.com/james-beep-boop/Lesson3.git`).
+**State: clean. Everything below is pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
+from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
+cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same key authorised on
+both machines).
 
-The 4 unpushed commits (oldest→newest):
-```
-68677ae harden(graphql): disable GraphQL + delete generated graphql routes
-a62d58e harden(preview): sanitize preview HTML, add frontend security headers, size-guard the parser
-8c0b0e3 test+spec: hermetic int role fixture + access-control tests; FE/ST single-doc decision
-9a4f84c docs: record hardening decisions (FE/ST, GraphQL, preview sanitize+CSP) + refresh backlog
-```
+**What this session did:**
+- **Pushed** the 4-commit hardening batch (`68677ae..a97d596`: GraphQL off, preview sanitize+headers,
+  int harness, docs) — it had been stuck unpushed on the laptop for credential reasons.
+- **Deployed on the Rock** (`git pull` → `docker compose up -d --build`; migrate had nothing pending;
+  app healthy). Host `npm ci` is NOT needed/used — `node_modules` is root-owned and the image installs
+  deps internally from the lockfile (which already has `dompurify`).
+- **Verified the hardening:** `POST /api/graphql` → 404, `GET /api/graphql-playground` → 404; security
+  headers all present (nosniff / X-Frame-Options:DENY / Referrer-Policy / DNS-prefetch off / non-script
+  CSP); `next build` clean; `test:unit` **33/33** (incl. `sanitizeHtml` keeping tables, stripping
+  script).
+- **Got `test:int` actually running for the first time ever** — it had never executed anywhere with a
+  DB. Fixed 3 real bugs (committed): `vitest.config.mts` `jsdom`→`node`; fixture phase
+  `'Predict'`→`'Predict Phase'`; `access.int.spec.ts` now resubmits the working copy's real rows (with
+  ids) instead of an id-less fresh bundle. **`test:int` 9/9 green**, and a **sanity-flip** (kill the
+  immutability guard) flips only the matching test red — the gate has teeth. Full write-up + the **Rock
+  test-DB procedure** (isolated `lesson3_test` + temp `test.env` swap) in DECISIONS.md 2026-06-27.
 
-**Step 1 — push (do this first).** In a real terminal (not an automated/sandboxed shell — it can't reach
-the keychain/ssh-agent): `git push origin main`. HTTPS will prompt for username `james-beep-boop` and a
-**PAT as the password** (GitHub no longer accepts account passwords; scope `repo` / fine-grained
-`Contents: write`). The `osxkeychain` helper caches it after the first success. (Alternative: register
-`~/.ssh/id_ed25519.pub` on GitHub and `git remote set-url origin git@github.com:james-beep-boop/Lesson3.git`.)
-
-**Step 2 — Rock verify (Task list #6).** On the Rock: `git pull` → `npm --prefix app ci` (picks up the new
-**`dompurify`** dep / updated lockfile) → `docker compose up -d --build`. Then confirm, all green:
-- `test:int` — the NEW hermetic fixture (`app/tests/helpers/fixtures.ts`) + access-control specs
-  (`app/tests/int/access.int.spec.ts`). These need a DB → Rock only. Sanity-flip an access rule to prove
-  they fail (the evidence gate).
-- `next build` clean; `POST /api/graphql` → 404 and `GET /api/graphql-playground` → 404 (GraphQL removed).
-- Baseline security headers present on a frontend response (nosniff / X-Frame-Options / Referrer-Policy /
-  the non-script CSP); the teacher preview still renders tables + formatting after sanitization.
-- `test:unit` locally already green this session (sanitizeHtml + parsePreviewCandidate added; 33 tests).
-
-**Step 3 — then continue the hardening order:** #4 (endpoint/authz e2e + a `POST /api/graphql → 404`
-regression assertion; replaces the stale `frontend.e2e.spec.ts`), then #1 (dependency advisories — a
-*deliberate* Payload/transport upgrade, not a blind `npm audit fix`; `vitest` critical is dev-only).
-
-**What this session completed (all committed locally, tsc-clean, unit 33/33):** backlog #5 FE/ST CLOSED,
-#7 GraphQL CLOSED, #3 sanitize+headers LARGELY CLOSED (strict nonce script-src deferred), plus the int
-test harness + the `parsePreviewCandidate` cutover follow-up. Details in DECISIONS.md 2026-06-26/27.
+**Next — continue the hardening order, top-down:**
+- **#4 endpoint/authz e2e (DO THIS NEXT).** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still
+  asserts the blank Payload template) with real **preview/export/PDF/authz** endpoint coverage, and add
+  a `POST /api/graphql → 404` regression assertion. The new `tests/int` auth+role fixture
+  (`tests/helpers/fixtures.ts`, now proven 9/9) is the harness to build on. NOTE the Rock test-DB
+  procedure in DECISIONS — `test:int` needs an isolated DB + a `test.env` pointing at the in-network
+  `postgres` host; a committed one-command helper for that is the right small backlog-#6 follow-up.
+- **then #1 dependency advisories** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
+  Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only.
 
 ---
 
@@ -228,9 +225,14 @@ The numbered items below are the remaining hardening backlog.
    the deliverable check stays informational and must never become a hard gate. The always-present
    LessonSequence remains hard-gated by `validateGeneratable`. The typed `notApplicable` state
    (option b) is deferred (no functional gain today). SPEC §3 amended; see DECISIONS.md 2026-06-26.
-6. **Tests** — `tests/e2e/frontend.e2e.spec.ts` still asserts the blank Payload template (stale
-   scaffold); replace/remove it AND add real **preview/export/PDF/authz** endpoint coverage (needs an
-   auth+role fixture harness `tests/int/api.int.spec.ts` lacks). PDF fidelity gate in CI (see above).
+6. **Tests** — the auth+role fixture harness now EXISTS and runs (`tests/helpers/fixtures.ts` +
+   `tests/int/access.int.spec.ts`, `test:int` 9/9 green on the Rock as of 2026-06-27, sanity-flip
+   proven). **Still open:** `tests/e2e/frontend.e2e.spec.ts` still asserts the blank Payload template
+   (stale scaffold) — replace/remove it AND add real **preview/export/PDF/authz** endpoint coverage on
+   the new harness, plus a `POST /api/graphql → 404` regression assertion (this is backlog #4). Also:
+   `test:int` needs an isolated Rock test DB + a `test.env` pointing at the in-network `postgres` host
+   (committed `test.env` assumes a `localhost` dev DB) — bake the procedure (DECISIONS 2026-06-27) into
+   a one-command helper. PDF fidelity gate in CI (see above).
 7. **~~Disable/gate unused GraphQL + GraphQL Playground~~ — CLOSED 2026-06-26.** `graphQL.disable: true`
    in `payload.config.ts` AND both generated `api/graphql*` route files deleted (the POST handler
    ignores the flag at runtime, so deletion is what actually 404s the endpoints). Rock build confirms

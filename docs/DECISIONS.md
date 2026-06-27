@@ -11,6 +11,62 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-27 — `test:int` had never actually run; three fixes + the Rock test-DB procedure
+
+**Context.** Pushed the 4-commit hardening batch (GraphQL off, preview sanitize + headers, int harness)
+from the home Mac mini, pulled + rebuilt + redeployed on the Rock, and ran the verification gate. The
+endpoint/header checks passed immediately (GraphQL `POST`/playground both 404; nosniff / X-Frame /
+Referrer-Policy / non-script CSP all present; `next build` clean in the image; `test:unit` 33/33). But
+the headline gate — `test:int` (the new hermetic role fixture + `access.int.spec.ts`) — **had never
+been executed anywhere with a DB**, and first contact surfaced three real bugs.
+
+**Finding 1 — wrong vitest environment.** `vitest.config.mts` (the `tests/int` config) set
+`environment: 'jsdom'`. These are server-side Payload integration tests (`getPayload({ config })`);
+under jsdom, vite externalizes node builtins and the whole `payload.config` import chain dies at load
+with `ERR_UNKNOWN_BUILTIN_MODULE: node:` (empty specifier), 0 tests collected. A trivial no-import
+smoke spec passed under the same config, proving it was the payload import chain, not the harness.
+**Fix:** `environment: 'node'` — which is exactly what the already-green `vitest.unit.config.mts` uses.
+*Rule: server-side Payload int tests run under the `node` environment, never `jsdom`.*
+
+**Finding 2 — fixture used an invalid phase.** `tests/helpers/fixtures.ts` `minimalBundleContent()`
+set `framework[].phase: 'Predict'`, which is **not** in the controlled vocabulary (`fields/phases.ts`:
+the value is `'Predict Phase'`). So the fixture's own version-create tripped `validateGeneratable`
+(`enforceBundleVersionGeneratable`), throwing in `beforeAll` and skipping all 8 specs. **Fix:**
+`'Predict Phase'`.
+
+**Finding 3 — Editor test submitted id-less rows (the subtle one).** The "Editor overlays prose but
+admin/structure preserved" spec submitted a *fresh* `minimalBundleContent()` — rows with **no `id`s**.
+Payload treats id-less array rows as NEW, and on a new row a non-admin's submission has the admin-only
+`framework[].phase` stripped (it carries no field-level value for an Editor). `validateGeneratable`
+runs in `beforeValidate` — BEFORE `enforceVersionFieldSplit` (a `beforeChange` hook) restores `phase`
+from the original — so it saw `phase: undefined` and threw. This is a **test bug, not a product bug**:
+the live edit path (and `verify-stage2b-edit`, 13/13) resubmits the *loaded* rows via `{ ...l }`,
+preserving each row's `id` + `phase`, so `merged` stays valid and the field-split then ignores any
+hack. **Fix:** the spec now maps the working copy's real rows (`wc.lessons.map(...)`) and overlays the
+prose change, mirroring the live path. *Lesson: an Editor-edit test MUST resubmit rows with their ids
+(and admin subfields), because id-less rows are "new" and lose admin fields before the generatable
+gate — which validates pre-field-split for Editors.* (The ordering — generatable in `beforeValidate`,
+field-split in `beforeChange` — is safe in practice because every real writer submits ids; noted, not
+changed.)
+
+**Result.** `test:int` 9/9 green. Evidence gate honoured with a **sanity-flip**: neutralizing
+`enforceVersionImmutable`'s Official-version check flips ONLY "rejects updating the Official version"
+to red, the other 8 stay green — the suite has teeth.
+
+**Rock test-DB procedure (the ops wrinkle — belongs with backlog #6).** The committed `test.env`
+points `DATABASE_URI` at `localhost:5432/lesson3_test` (a dev-host assumption) and `vitest.setup.ts`
+loads it with `override: true`, so it clobbers any passed DATABASE_URI. On the Rock, postgres is
+internal-only at `postgres:5432` and there is no `localhost` DB. To run `test:int` on the Rock:
+1. `CREATE DATABASE lesson3_test;` (via `docker compose exec -T postgres psql -U lesson3 -d postgres`).
+2. Apply migrations to it with the deps image + an env whose DATABASE_URI db is `lesson3_test`
+   (`npx payload migrate`, `--network lesson3_default`).
+3. Temporarily rewrite `app/test.env`'s `DATABASE_URI` to `postgres://…@postgres:5432/lesson3_test`,
+   run `npm run test:int` in the deps image on `--network lesson3_default`, then
+   `git checkout -- app/test.env`.
+The `lesson3_test` DB is isolated from the real `lesson3` corpus and was left in place for future runs;
+delete any throwaway env file (it holds the real `PAYLOAD_SECRET`). A committed helper that makes this
+one command (or a Rock-host-aware `test.env`) is the proper backlog-#6 follow-up.
+
 ## 2026-06-26 — Hardening: sanitize preview HTML + baseline frontend security headers (backlog #3)
 
 **Context.** Backlog #3 (and Codex) flagged that Mammoth-generated preview HTML is rendered with
