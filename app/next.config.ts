@@ -16,6 +16,28 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: '/admin/login', destination: '/login', permanent: false }]
   },
+  // Baseline security headers on every route (hardening backlog #3). Deliberately does NOT set a
+  // script-src/default-src CSP: Next.js relies on inline hydration scripts, so a strict policy needs
+  // nonce plumbing (a separate, larger task). These directives harden without breaking hydration —
+  // block plugins/embeds, base-tag hijack, and clickjacking. The preview ENDPOINT additionally
+  // returns its own strict standalone CSP; multiple CSP headers combine by intersection (stricter).
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-DNS-Prefetch-Control', value: 'off' },
+          {
+            key: 'Content-Security-Policy',
+            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+          },
+        ],
+      },
+    ]
+  },
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],

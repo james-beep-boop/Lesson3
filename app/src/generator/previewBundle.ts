@@ -18,6 +18,7 @@ import mammoth from 'mammoth'
 
 import { bundleToAresData } from './adapter'
 import { generateBundleDocx, type GeneratedDocx, type LessonSequenceFormat } from './index'
+import { sanitizePreviewHtml } from '../lib/sanitizeHtml'
 import type { LessonBundleVersion } from '../payload-types'
 
 export interface PreviewSection {
@@ -43,7 +44,8 @@ export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSectio
       .filter((d): d is { label: string; buffer: Buffer } => d.buffer !== null)
       .map(async ({ label, buffer }) => ({
         label,
-        html: (await mammoth.convertToHtml({ buffer })).value,
+        // Sanitize at this single seam so both the endpoint and teacher route render safe HTML.
+        html: sanitizePreviewHtml((await mammoth.convertToHtml({ buffer })).value),
       })),
   )
 }

@@ -12,41 +12,9 @@ import type { parseLessonSequenceFormat } from './parseFormat'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import type { LessonBundleVersion } from '../payload-types'
 
-/** Cap the posted form-state JSON before we parse + generate from it (defence against a
- *  memory/CPU-heavy preview). Bundles are large prose, so this is generous. Per-user rate
- *  limiting also guards both preview verbs (see enforceUserRateLimit). */
-const MAX_PREVIEW_JSON_BYTES = 4_000_000
-
-/**
- * Parse + validate the posted form-state for an UNSAVED preview (the `data` field of the admin
- * Preview control's hidden form). Keeps the GET/POST verbs from drifting on the size limit, JSON
- * validation, or 400/413 semantics. Returns the candidate object; the caller overlays it onto the
- * stored version and runs the field-split hook (the part that genuinely differs).
- */
-export async function parsePreviewCandidate(
-  req: PayloadRequest,
-): Promise<Record<string, unknown>> {
-  let form: FormData
-  try {
-    form = await req.formData!()
-  } catch {
-    throw new APIError('Expected a form post with a "data" field', 400)
-  }
-  const raw = form.get('data')
-  if (typeof raw !== 'string') throw new APIError('Missing "data" field', 400)
-  if (raw.length > MAX_PREVIEW_JSON_BYTES) throw new APIError('Preview payload too large', 413)
-
-  let candidate: unknown
-  try {
-    candidate = JSON.parse(raw)
-  } catch {
-    throw new APIError('Invalid JSON in "data" field', 400)
-  }
-  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
-    throw new APIError('"data" must be a version object', 400)
-  }
-  return candidate as Record<string, unknown>
-}
+// The unsaved-POST body parse lives in its own generator-free module so it can be unit tested
+// without booting the docx/mammoth chain. Re-exported here so existing import sites are unchanged.
+export { parsePreviewCandidate, MAX_PREVIEW_JSON_BYTES } from './previewParse'
 
 const escapeHtml = (s: string): string =>
   s.replace(
