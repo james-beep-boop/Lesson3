@@ -343,8 +343,12 @@ The numbered items below are the remaining hardening backlog.
    ignores the flag at runtime, so deletion is what actually 404s the endpoints). Rock build confirms
    `/api/graphql` + `/api/graphql-playground` are gone. See DECISIONS 2026-06-26. *(Add a `POST
    /api/graphql → 404` e2e assertion as a regression guard — folded into the endpoint-coverage work.)*
-8. **Lesson browse hard-limits at `limit: 200`** with no pagination (`(frontend)/page.tsx`) — content
-   becomes undiscoverable once the corpus grows to hundreds (expected). Add page/search.
+8. **~~Lesson browse hard-limits at `limit: 200`~~ — DONE 2026-06-28 (`3dfb01f`).** Both browse finds
+   (`(frontend)/page.tsx`) now use `pagination: false` so the WHOLE corpus renders — no silent
+   truncation past 200. It's a grouped curriculum catalogue (subject-grade → strand → sub-strand), so
+   completeness + the existing `?q=` search is the discoverability model rather than paginating (which
+   would fragment strands across pages). Light id/meta projection → cheap for the expected hundreds;
+   revisit with lazy-load/virtualize only at thousands.
 9. **Ops** — error tracking (Sentry), off-site encrypted Postgres backups + pre-migration snapshots,
    CI/CD so deploy isn't bound to one machine. SPEC §11.
 
