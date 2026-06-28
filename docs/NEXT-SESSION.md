@@ -268,10 +268,10 @@ so a future session knows they exist.
   generous limiter could be added); the `429` rate-limit was deployed but not yet eyeballed under a
   burst (covered by the int-test work in readiness #6). The per-user limiter is **in-memory /
   per-process** — fine on the single-box Rock; must move to a shared store if ever horizontally scaled.
-  **Export-job dedupe (Codex #5, 2026-06-27):** each cold `POST /:id/export` enqueues a NEW
-  `generateVersionArtifact` job even for an identical `{versionId, format, kind}` already pending —
-  add an idempotency key / pending-job lookup so repeats coalesce (the artifact cache already makes
-  *completed* repeats free; this guards the in-flight window).
+  **~~Export-job dedupe (Codex #5)~~ — DONE 2026-06-28 (`e6f52bd`).** `findPendingExportJob` coalesces a
+  cold `POST /:id/export` onto an already in-flight job for the same `{versionId, format, kind}` instead
+  of enqueuing a duplicate (the artifact cache already makes *completed* repeats free; this closes the
+  in-flight window). test:http 14/14 (a repeated cold prepare returns the same jobId).
   **~~Export-status `jobId` binding (Codex re-review #4)~~ — RESOLVED 2026-06-28 (`c044e4a`).** Made the
   contract explicit (the sanctioned 2nd option): status readiness is VERSION/spec-scoped, the `jobId`
   binds only the not-ready diagnostics (a stray jobId 404s only on an uncached version). Bind-first (the
