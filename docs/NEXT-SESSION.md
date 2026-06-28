@@ -91,9 +91,16 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
   auth/read/edit gates + CSP, export DOCX+PDF end-to-end (read-gated, no Official gate), Bucket-A
   invariants over HTTP. Stale `frontend.e2e.spec.ts` removed. **`test:http` 13/13** on the Rock (hits
   live `lesson3` + `E2E_BASE_URL=http://app:3000` — second run procedure, see DECISIONS 2026-06-28).
-- **② dependency advisories (#1) — DO THIS NEXT.** A *deliberate* Payload/transport upgrade
-  (nodemailer/undici via Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only. Add an
-  `audit:prod` (`npm audit --omit=dev --audit-level=high`) CI gate (Codex's suggestion).
+- **② dependency advisories (#1) — DO THIS NEXT (assessed 2026-06-28; `audit:prod` script added).**
+  Current pins `payload@3.85.1` / `next@16.2.6`; `npm run audit:prod` is **RED** — 11 advisories (4 high),
+  ALL framework-transitive: **undici** (high ×7, bundled under `payload`), **nodemailer** (high, no
+  upstream fix, via `@payloadcms/email-nodemailer`; not exploitable in our usage — we don't use the `raw`
+  message option), **postcss** (moderate, via `next`). **Do NOT `npm audit fix --force`** — it proposes
+  destructive downgrades (`next@9.3.3`, `payload@3.79.1`). The task: research which Payload/Next release
+  bumps the vulnerable transitive deps (knowledge-currency rule — read release notes/installed source,
+  not memory), bump deliberately, regenerate types/migrations ON THE ROCK if the schema shifts, then
+  `next build` + `test:int` (15/15) + `test:http` (13/13) + `audit:prod` all green. See DECISIONS
+  2026-06-28.
 - **③ NEW follow-up (Low) — preview CSP override.** The e2e (item ①) proved `next.config.ts`'s `/:path*`
   baseline CSP overrides (not intersects) the preview endpoint's own strict `default-src 'none'` CSP, so
   the preview loses its intended strict standalone policy (low-risk: preview HTML is DOMPurify-sanitized

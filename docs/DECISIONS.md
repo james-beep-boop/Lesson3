@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 — Item ② (dependency advisories) assessed + `audit:prod` script added; upgrade NOT done
+
+**Decision: do not improvise the framework upgrade in this session — it is a deliberate, plan-first
+task (CLAUDE.md: "pin versions; upgrade deliberately, not on the weekly release train").** Added the
+`audit:prod` script (`npm audit --omit=dev --audit-level=high`, Codex's suggested CI gate) so the
+upgrade is measurable; it is **expected-RED today** (see below) until the upgrade lands. No deps changed.
+
+**Current state (pins: `payload@3.85.1`, `next@16.2.6`).** `npm audit --omit=dev` → **11 (7 moderate,
+4 high)**, all FRAMEWORK-TRANSITIVE:
+- **undici (HIGH ×7)** — TLS validation bypass, Set-Cookie header injection, WS DoS, cache poisoning,
+  etc. Bundled under `node_modules/payload/node_modules/undici`. Fix = a Payload release whose undici
+  dep is bumped past the vulnerable range — not an in-range patch of our pin.
+- **nodemailer (HIGH, "no fix available")** via `@payloadcms/email-nodemailer` — message-level `raw`
+  option bypasses `disableFileAccess/disableUrlAccess` (arbitrary file read + SSRF). We don't use the
+  `raw` option (templated mail only), so not exploitable in our usage; still flagged until upstream.
+- **postcss (MODERATE)** via `next` — XSS in CSS stringify output. Fix = a Next bump.
+
+**CRITICAL: do NOT run `npm audit fix --force`.** Its "fixes" are destructive DOWNGRADES — it proposes
+`next@9.3.3` (from 16) and `payload@3.79.1` (from 3.85). The right path is a deliberate, researched
+Payload/Next version bump (read the release notes / installed source per the knowledge-currency rule),
+then regenerate types/migrations ON THE ROCK if the schema shifts, `next build` + `test:int` +
+`test:http` green, and finally `audit:prod` green. That is the whole of item ② and is the next task.
+
 ## 2026-06-28 — Item ① landed: real endpoint/authz e2e suite (`test:http`), Rock-verified
 
 **Outcome.** Backlog #4/#6's "real preview/export/PDF/authz coverage + a `POST /api/graphql → 404`
