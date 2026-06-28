@@ -18,14 +18,28 @@
  *
  * NOTE: requires a database → runs on the Rock only (like all of `tests/int`).
  */
+import { randomUUID } from 'node:crypto'
+
 import type { Payload } from 'payload'
 import { getPayload } from 'payload'
 import config from '../../src/payload.config.js'
 
 import type { LessonBundleVersion, LessonPlan, Subject, SubjectGrade, User } from '../../src/payload-types.js'
 
-/** Marker prefix on every seeded record's identifying text — keeps fixture data identifiable + greppable. */
-export const MARK = 'ZZ_INT_'
+/**
+ * Stable namespace prefix shared by every fixture run. Used ONLY for the crashed-run safety sweep at
+ * setup (clear leftovers from any prior run, whatever its run id). Never tag records with this alone.
+ */
+export const MARK_BASE = 'ZZ_INT_'
+
+/**
+ * Per-run marker: every record THIS run seeds (here and in the specs) is tagged with it, so teardown
+ * deletes ONLY this run's rows — not a concurrent run's, and not unrelated live data that merely shares
+ * the namespace. Generated once per test process; the specs import this same module binding, so their
+ * ad-hoc records inherit the run marker for free (no spec changes needed). Bounds the blast radius of
+ * the broad `like`-delete against the live `lesson3` DB the HTTP suite runs against.
+ */
+export const MARK = `${MARK_BASE}${randomUUID()}_`
 
 export type RoleKey = 'siteAdmin' | 'subjectAdmin' | 'editor' | 'teacher'
 
@@ -99,7 +113,8 @@ export function minimalBundleContent() {
  */
 export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixture> {
   const payload = await getPayload({ config })
-  await purgeMarked(payload)
+  // Crashed-run safety sweep: clear leftovers from ANY prior run (match the whole namespace).
+  await purgeMarked(payload, MARK_BASE)
 
   const subject = await payload.create({
     collection: 'subjects',
@@ -162,7 +177,8 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
   })
 
   const teardown = async () => {
-    await purgeMarked(payload)
+    // Precise: delete only the records THIS run tagged with its unique marker.
+    await purgeMarked(payload, MARK)
   }
 
   return {
@@ -178,22 +194,24 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
 }
 
 /**
- * Delete every `MARK`-tagged record in dependency order. Clears the plan's Official pointer first so
- * the Official-not-deletable guard does not block version deletion.
+ * Delete every record whose identifying text contains `mark`, in dependency order. Clears each plan's
+ * Official pointer first so the Official-not-deletable guard does not block version deletion. Pass the
+ * per-run {@link MARK} for a precise teardown, or {@link MARK_BASE} for the setup namespace sweep.
  */
-export async function purgeMarked(payload: Payload): Promise<void> {
-  // Unset Official pointers on marked plans so their versions become deletable.
-  const { docs: plans } = await payload.find({
-    collection: 'lesson-plans',
-    where: { title: { like: MARK } },
-    limit: 200,
-    depth: 0,
-    overrideAccess: true,
-  })
-  await Promise.all(
-    plans
-      .filter((p) => p.officialVersion)
-      .map((p) =>
+export async function purgeMarked(payload: Payload, mark: string): Promise<void> {
+  // Unset Official pointers on marked plans so their versions become deletable. Loop (rather than a
+  // fixed cap) so an unbounded number of leftover plans is fully cleared.
+  for (;;) {
+    const { docs: plans } = await payload.find({
+      collection: 'lesson-plans',
+      where: { title: { like: mark }, officialVersion: { exists: true } },
+      limit: 200,
+      depth: 0,
+      overrideAccess: true,
+    })
+    if (plans.length === 0) break
+    await Promise.all(
+      plans.map((p) =>
         payload.update({
           collection: 'lesson-plans',
           id: p.id,
@@ -201,31 +219,32 @@ export async function purgeMarked(payload: Payload): Promise<void> {
           overrideAccess: true,
         }),
       ),
-  )
+    )
+  }
 
   await payload.delete({
     collection: 'lesson-bundle-versions',
-    where: { title: { like: MARK } },
+    where: { title: { like: mark } },
     overrideAccess: true,
   })
   await payload.delete({
     collection: 'lesson-plans',
-    where: { title: { like: MARK } },
+    where: { title: { like: mark } },
     overrideAccess: true,
   })
   await payload.delete({
     collection: 'users',
-    where: { name: { like: MARK } },
+    where: { name: { like: mark } },
     overrideAccess: true,
   })
   await payload.delete({
     collection: 'subject-grades',
-    where: { displayName: { like: MARK } },
+    where: { displayName: { like: mark } },
     overrideAccess: true,
   })
   await payload.delete({
     collection: 'subjects',
-    where: { name: { like: MARK } },
+    where: { name: { like: mark } },
     overrideAccess: true,
   })
 }
