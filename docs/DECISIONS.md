@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Readiness #4 LANDED: optimistic concurrency on working-copy edits (Rock-verified)
+
+**Outcome.** Two editors opening the same Not-Official version no longer silently clobber each other
+(last-write-wins). New `enforceVersionConcurrency` beforeChange hook (before the field-split) rejects a
+stale overwrite with 409. Commit `699bd9f`. **test:int 17/17** (+2), test:http 14/14, app live.
+
+**Mechanism — reuse the resubmitted `updatedAt` as the base token (no migration).** The model has no
+`lockVersion` anymore (versions are immutable; only working copies mutate), so the old "reject stale
+lockVersion" is obsolete. The edit path **resubmits the version it loaded, including `updatedAt`** —
+which is already whitelisted in `VERSION_EDITOR_KEYS` (that whitelist was the tell: the submitted data
+carries `updatedAt`). The hook treats `data.updatedAt` as the client's base and compares to
+`originalDoc.updatedAt`: if stored has advanced past the base, someone else saved → 409. The DB stamps a
+fresh `updatedAt` at write, so the submitted value is read-only here. **Verified empirically (the int
+test discriminates):** had `data.updatedAt` been stripped before `beforeChange`, the stale-overwrite
+assertion would have failed; it passes, so the base threads through. A normal single-editor save is
+unaffected (base == stored → allowed).
+
+**Scope / honest caveat.** Authenticated UPDATEs only; system/`overrideAccess` paths (ingest,
+migrations, fork, fixtures — no `req.user`) are exempt and carry no base. If a client does a partial
+PATCH WITHOUT `updatedAt`, the check is skipped (can't compare) — it protects the resubmit-based edit
+path (which is what the app/admin uses) without breaking partial-update API callers. Confirming the
+native Payload admin form includes `updatedAt` in its PATCH (vs needing a hidden field to inject it) is
+the one piece not headlessly verifiable here — but the whitelist + the live resubmit path indicate it
+does. If a future check shows otherwise, add a hidden form field carrying the loaded `updatedAt`.
+
 ## 2026-06-28 (late) — Phase-5 residual: export-status readiness is VERSION-scoped (Codex #4 resolved; bind-first reverted)
 
 **Outcome.** `exportVersionStatusEndpoint` (`…/:id/export/status?jobId=`) now documents its real

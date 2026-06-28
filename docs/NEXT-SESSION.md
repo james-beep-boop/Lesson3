@@ -13,15 +13,16 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① + ② + ③
-are now PUSHED + Rock-verified (origin/main `5ad774f`). The top-down hardening list is COMPLETE; see
-"▶ RESUME HERE" for what's left (backlog #4/#8/#9 + Phase-5 residuals) and pick the next track.**
+cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪–③ + backlog
+#4 + #8 + 2 Phase-5 residuals (export-status, export dedupe) are now PUSHED + Rock-verified (origin/main
+`699bd9f`). What's LEFT: backlog #9 (ops: CI/CD, Sentry, backups) and the shared/per-process rate-limiter
+residual — see "▶ RESUME HERE".**
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① + ② + ③ DONE; pick the next item
+## ▶ RESUME HERE (2026-06-28) — hardening list + #4/#8 + 2 residuals DONE; left: #9 ops + shared limiter
 
-**State: clean. Everything below is pushed to `origin/main` (HEAD `5ad774f`) and DEPLOYED + verified on
+**State: clean. Everything below is pushed to `origin/main` (HEAD `699bd9f`) and DEPLOYED + verified on
 the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
 (osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
 key authorised on both machines).
@@ -316,9 +317,13 @@ The numbered items below are the remaining hardening backlog.
    CLOSED 2026-06-28 (item ③, `d45bdb9`+`5ad774f`):** the `/:path*` baseline CSP now excludes the preview
    path (negative-lookahead source), so the endpoint's strict `default-src 'none'` survives; curl- +
    test:http-verified on the Rock.
-4. **Optimistic concurrency** — updates increment `lockVersion` but don't reject a stale client
-   version. Add the check, but **EXEMPT system/ingest paths** (`overrideAccess` republish, migrations)
-   or it breaks ingest.
+4. **~~Optimistic concurrency~~ — DONE 2026-06-28 (`699bd9f`).** The premise changed: there's no
+   `lockVersion` anymore (versions are immutable; only working copies mutate). `enforceVersionConcurrency`
+   (beforeChange, before the field-split) treats the edit path's resubmitted `updatedAt` as the client's
+   base and rejects a stale overwrite (409); authenticated updates only, system/`overrideAccess` exempt,
+   skipped when no base is supplied. **test:int 17/17** (stale rejected, current allowed, system exempt).
+   Caveat: confirming the native admin form sends `updatedAt` (vs a hidden field) is a small follow-up —
+   see DECISIONS 2026-06-28 "late".
 5. **FE/ST deliverable model — CLOSED 2026-06-26 (option a).** Single-document sub-strands are
    legitimate: a missing FINAL_EXPLANATION / SUMMARY_TABLE is valid content, not incomplete data, so
    the deliverable check stays informational and must never become a hard gate. The always-present
