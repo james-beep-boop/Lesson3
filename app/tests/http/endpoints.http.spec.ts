@@ -207,6 +207,34 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     expect(res.status).toBe(404)
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
   })
+
+  it('a repeated cold prepare coalesces onto the same in-flight job (dedupe)', async () => {
+    // Cold throwaway version → POST prepare twice back-to-back. The second must coalesce onto the first
+    // job (same {versionId, format, kind}) rather than enqueue a duplicate. autoRun cron is every 3s,
+    // so both calls land inside the pending window and return the SAME jobId.
+    const cold = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '8.1.0',
+        title: `${MARK}dedupe`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const prepare = () =>
+      fetch(url(`/api/lesson-bundle-versions/${cold.id}/export?format=standard&as=docx`), {
+        method: 'POST',
+        headers: auth('teacher'),
+      }).then((r) => r.json() as Promise<{ state: string; jobId?: string | number }>)
+    const a = await prepare()
+    const b = await prepare()
+    expect(a.state).toBe('preparing')
+    expect(b.state).toBe('preparing')
+    expect(String(b.jobId)).toBe(String(a.jobId))
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+  })
 })
 
 describe('Bucket-A server invariants over HTTP', () => {

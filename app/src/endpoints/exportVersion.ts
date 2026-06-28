@@ -27,6 +27,37 @@ import type { PayloadJob } from '../payload-types'
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
+/**
+ * Find an in-flight `generateVersionArtifact` job matching this exact spec, or null. A job is
+ * "in-flight" if it has not completed and is not in a terminal error state. `payload-jobs.input` is a
+ * JSON column, so match in-memory over the (few) pending rows rather than via a nested-JSON `where`.
+ */
+async function findPendingExportJob(
+  req: PayloadRequest,
+  input: GenerateVersionArtifactInput,
+): Promise<PayloadJob | null> {
+  const { docs } = await req.payload.find({
+    collection: 'payload-jobs',
+    where: {
+      taskSlug: { equals: GENERATE_VERSION_ARTIFACT_SLUG },
+      completedAt: { exists: false },
+      hasError: { not_equals: true },
+    },
+    limit: 100,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const match = docs.find((j) => {
+    const i = j.input as { versionId?: number | string; format?: string; kind?: string } | undefined
+    return (
+      String(i?.versionId ?? '') === String(input.versionId) &&
+      i?.format === input.format &&
+      i?.kind === input.kind
+    )
+  })
+  return match ?? null
+}
+
 /** GET — serve-only download. Idempotent, side-effect free; never enqueues. */
 export const exportVersionEndpoint: Endpoint = {
   path: '/:id/export',
@@ -72,7 +103,12 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     }
 
     const input: GenerateVersionArtifactInput = { versionId: Number(version.id), format, kind }
-    const job = await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req })
+
+    // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, format, kind} rather than
+    // enqueuing a duplicate (repeated clicks / poll races / two tabs). The artifact cache already makes
+    // COMPLETED repeats free (the isExportReady short-circuit above); this guards the in-flight window.
+    const existing = await findPendingExportJob(req, input)
+    const job = existing ?? (await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req }))
 
     const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
     return json({ state: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }, 202)
