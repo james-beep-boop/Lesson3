@@ -13,18 +13,27 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **The hardening batch is now
-PUSHED + Rock-verified (origin/main `a97d596` + the test-int fixes on top). See "▶ RESUME HERE" next —
-the next work is backlog #4 (endpoint/authz e2e).**
+cutover is long done; the current work is the hardening backlog below. **Bucket A + item ⓪ are now
+PUSHED + Rock-verified (origin/main `ca826f1`). See "▶ RESUME HERE" next — the next work is item ①
+(endpoint/authz e2e).**
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — Bucket A (invariant hardening) DONE; next is endpoint/authz e2e
+## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ DONE; next is ① endpoint/authz e2e
 
-**State: clean. Everything below is pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
-from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
-cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same key authorised on
-both machines).
+**State: clean. Everything below is pushed to `origin/main` (HEAD `ca826f1`) and DEPLOYED + verified on
+the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
+(osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
+key authorised on both machines).
+
+**✓ Latest (2026-06-28, this session): Bucket A item ⓪ — create-path Official-pointer gap — DONE,
+deployed + Rock-verified.** Commits `68fc706` (hook + specs) + `ca826f1` (spec cleanup-order fix).
+`validateOfficialVersionPointer` now also rejects `officialVersion` on an authenticated create; the
+`#2` int spec is rebuilt two-phase + a create-guard spec added. `test:int` **15/15** on the Rock, a
+sanity-flip fails only the new spec (gate has teeth), app rebuilt (migrate clean), graphql still 404.
+Full write-up in DECISIONS.md 2026-06-28 (top entry). **Next: item ①.**
+
+**Earlier this day (prior session):**
 
 **What this session did:**
 - **Pushed** the 4-commit hardening batch (`68677ae..a97d596`: GraphQL off, preview sanitize+headers,
@@ -48,6 +57,7 @@ Commits `0caf341` (hooks/helper) + `fb72cec` (unique-index migration). The produ
 enforced as collection hooks + a DB constraint, not just in the workflow paths:
 - **#2** `validateOfficialVersionPointer` rejects an AUTHENTICATED update that clears `officialVersion`
   to null; the system/`overrideAccess` path (ingest, roundtrip cleanup, fixture teardown) stays exempt.
+  *(Follow-up: this covered only the UPDATE path — the CREATE-path sibling gap is item ⓪ below.)*
 - **#3a** new `enforceVersionPlanConsistency` — a version's `subjectGrade` must equal its plan's.
 - **#3b** `semver` is server-immutable (field `access.update: () => false`), not just UI `readOnly`.
 - **#4** fork uses `nextSemverForPlan` (next free patch across the plan) + a **unique
@@ -62,6 +72,10 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
 
 **Next — continue the hardening order:**
 
+- **✓ ⓪ Bucket A follow-up — create-path Official-pointer gap — DONE (2026-06-28).** Closed +
+  deployed + Rock-verified (commits `68fc706` + `ca826f1`). `validateOfficialVersionPointer` rejects
+  `officialVersion` on an authenticated create; system/`overrideAccess` exempt. `#2` int spec rebuilt
+  two-phase, create-guard spec added, `test:int` **15/15**, sanity-flip proven. See DECISIONS 2026-06-28.
 - **① endpoint/authz e2e (DO THIS NEXT).** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still
   asserts the blank Payload template) with real **preview/export/PDF/authz** coverage, add a `POST
   /api/graphql → 404` regression assert, and exercise the Bucket-A invariants end-to-end. Build on the

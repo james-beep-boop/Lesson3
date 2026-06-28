@@ -11,6 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 — Bucket A ⓪ landed: create-path Official-pointer gap closed (deployed + Rock-verified)
+
+**Outcome.** The CREATE-path sibling of Bucket A's #2 (the Codex re-review finding below) is closed,
+deployed, and Rock-verified. `validateOfficialVersionPointer` now also rejects `officialVersion` being
+set on an **authenticated create** (`operation === 'create' && req.user && data?.officialVersion →
+throw`). System/`overrideAccess` paths (no `req.user`: ingest, migrations) stay exempt — and never set
+the pointer on create anyway (the valid flow is two-phase: create plan → create version under it → set
+pointer via update). Hook-only, **no migration**. Commits `68fc706` (hook + specs) + `ca826f1` (spec
+cleanup-order fix).
+
+**Tests.** Rebuilt the `#2` int spec two-phase (version created UNDER the throwaway plan, then the
+pointer set via update) — replacing the old cross-plan shape that only passed via `overrideAccess` —
+and added a guard spec asserting an authenticated `siteAdmin` create-with-pointer is rejected while the
+system path creates pointer-less. `test:int` **15/15** on the Rock (`lesson3_test`); a **sanity-flip**
+(neutralize the create guard → `if (false)`) fails **exactly** the new create-guard spec and nothing
+else — the gate has teeth. App rebuilt on the Rock so the running container enforces it; migrate had
+nothing pending; frontend healthy, `POST /api/graphql` still 404.
+
+**Test gotcha recorded.** Because the rebuilt `#2` version now lives UNDER its plan
+(`lesson_bundle_versions.lesson_plan_id` is NOT NULL), the cleanup must delete the child version
+BEFORE the plan — deleting the plan first makes Payload null the version's `lesson_plan_id` and the
+delete errors (`23502`). Mirror `purgeMarked`'s order (versions before plans).
+
+## 2026-06-28 — Codex re-review: Bucket A's #2 missed the CREATE path (RESOLVED — landed; see entry above)
+
+**Finding (verified, real High).** Bucket A's official-pointer guard (#2) covers only UPDATE. On a
+`lesson-plans` **create**, `validateOfficialVersionPointer`'s ownership check keys off
+`idFrom(originalDoc?.id)`, which is undefined on create, so the "version must belong to this plan"
+check is skipped. The grade check still runs, but a same-grade version of ANOTHER plan passes it — so
+an authenticated create can set a new plan's `officialVersion` to a version owned by a different plan
+→ two plans sharing one Official version (violates the one-Official-per-plan model). The only valid
+assignment is two-phase (create plan → create version under it → update pointer), which ingest + the
+fixture already do; on create the plan doesn't exist yet, so any `officialVersion` value is
+structurally invalid.
+
+**Self-inflicted test smell.** Bucket A's new `#2` int spec demonstrates the illegal shape: it creates
+a version under `fx.plan`, then a SEPARATE plan whose `officialVersion` points at that version. It only
+"passes" because `overrideAccess` bypasses the guard. The fix must also rebuild that spec two-phase
+(version under the new plan) and add a guard spec.
+
+**Decision: fold into next session as item ⓪ (do first; hook-only, no migration).** Reject
+`officialVersion` on an authenticated create
+(`operation === 'create' && req.user && data?.officialVersion → throw`); exempt system/overrideAccess
+(ingest never sets it on create). The rest of the Codex re-review (#2–#7: deps, export dedupe, limiter,
+stale e2e, browse-200, subject-admin) is the already-tracked backlog — nothing new.
+
 ## 2026-06-28 — Bucket A landed: server-side invariant hardening (deployed + Rock-verified)
 
 **Outcome.** The invariant cluster from the Codex triage is enforced server-side and live on the Rock.
