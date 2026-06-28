@@ -90,8 +90,12 @@ export const exportVersionStatusEndpoint: Endpoint = {
     if (!jobId) throw new APIError('Missing jobId', 400)
 
     const { version, spec } = await authorizeVersionExportRequest(req)
-    if (await isExportReady(spec)) return json({ state: 'ready' })
 
+    // Bind the supplied jobId to THIS version BEFORE any readiness short-circuit. Previously the
+    // `isExportReady` short-circuit ran first, so once an artifact was warm in the cache ANY jobId —
+    // even a bogus one — got `{ready}` without the job ever being looked up. Binding first makes the
+    // contract honest: this endpoint reports a SPECIFIC job's progress, so a stray jobId always 404s,
+    // warm cache or not. (Not a data leak either way — READ is already enforced above.)
     let job: PayloadJob | null = null
     try {
       job = await req.payload.findByID({
@@ -103,8 +107,6 @@ export const exportVersionStatusEndpoint: Endpoint = {
     } catch {
       job = null
     }
-
-    // Bind the job to THIS version so a jobId can't probe unrelated jobs.
     const jobInput = job?.input as { versionId?: number | string } | undefined
     const belongs =
       job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
@@ -112,11 +114,14 @@ export const exportVersionStatusEndpoint: Endpoint = {
     if (!job || !belongs) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
+
+    // Bound job → report its outcome. A cache hit wins (the job may have completed and been pruned);
+    // then a hard error; then completed-but-artifact-evicted (not recoverable by polling — re-prepare).
+    // Otherwise it is still running. (No lockVersion drift case — a version is immutable.)
+    if (await isExportReady(spec)) return json({ state: 'ready' })
     if (job.hasError) {
       return json({ state: 'error', message: 'Export failed — please try again.' }, 502)
     }
-    // Finished without error but artifacts absent (e.g. evicted post-completion): not recoverable
-    // by polling. (No lockVersion drift case — a version is immutable.)
     if (job.completedAt) {
       return json({ state: 'error', message: 'Export expired — please retry.' }, 409)
     }
