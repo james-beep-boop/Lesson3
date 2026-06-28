@@ -13,21 +13,31 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **Bucket A + item ⓪ are now
-PUSHED + Rock-verified (origin/main `ca826f1`). See "▶ RESUME HERE" next — the next work is item ①
-(endpoint/authz e2e).**
+cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① are now
+PUSHED + Rock-verified (origin/main `847fdd7`). See "▶ RESUME HERE" next — the next work is item ②
+(dependency advisories).**
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ DONE; next is ① endpoint/authz e2e
+## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① DONE; next is ② dependency advisories
 
-**State: clean. Everything below is pushed to `origin/main` (HEAD `ca826f1`) and DEPLOYED + verified on
+**State: clean. Everything below is pushed to `origin/main` (HEAD `847fdd7`) and DEPLOYED + verified on
 the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
 (osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
 key authorised on both machines).
 
-**✓ Latest (2026-06-28, this session): Bucket A item ⓪ — create-path Official-pointer gap — DONE,
-deployed + Rock-verified.** Commits `68fc706` (hook + specs) + `ca826f1` (spec cleanup-order fix).
+**✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
+Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +
+`vitest.http.config.mts` + `test:http` drive the RUNNING app over HTTP (graphql-404, preview auth/read/
+edit gates + CSP, export DOCX+PDF end-to-end read-gated, Bucket-A invariants over the wire); stale
+`tests/e2e/frontend.e2e.spec.ts` removed. **`test:http` 13/13** on the Rock. Distinct run procedure from
+`test:int` (hits live `lesson3` + `E2E_BASE_URL=http://app:3000`; see DECISIONS 2026-06-28 top entry).
+The e2e surfaced a **real Low finding: the next.config `/:path*` CSP overrides the preview endpoint's
+strict `default-src 'none'` CSP** (preview loses its intended strict policy; sanitized HTML so low-risk)
+→ tracked in the follow-ups below. **Next: item ②.**
+
+**✓ Earlier this session: Bucket A item ⓪ — create-path Official-pointer gap — DONE, deployed +
+Rock-verified.** Commits `68fc706` (hook + specs) + `ca826f1` (spec cleanup-order fix).
 `validateOfficialVersionPointer` now also rejects `officialVersion` on an authenticated create; the
 `#2` int spec is rebuilt two-phase + a create-guard spec added. `test:int` **15/15** on the Rock, a
 sanity-flip fails only the new spec (gate has teeth), app rebuilt (migrate clean), graphql still 404.
@@ -76,16 +86,21 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
   deployed + Rock-verified (commits `68fc706` + `ca826f1`). `validateOfficialVersionPointer` rejects
   `officialVersion` on an authenticated create; system/`overrideAccess` exempt. `#2` int spec rebuilt
   two-phase, create-guard spec added, `test:int` **15/15**, sanity-flip proven. See DECISIONS 2026-06-28.
-- **① endpoint/authz e2e (DO THIS NEXT).** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still
-  asserts the blank Payload template) with real **preview/export/PDF/authz** coverage, add a `POST
-  /api/graphql → 404` regression assert, and exercise the Bucket-A invariants end-to-end. Build on the
-  proven `tests/int` auth+role fixture (`tests/helpers/fixtures.ts`, now **14/14**). NOTE the Rock
-  test-DB procedure in DECISIONS (`test:int` needs an isolated DB + a `test.env` pointing at the
-  in-network `postgres` host) — a committed one-command helper for that is the right small backlog-#6
-  follow-up.
-- **② dependency advisories (#1)** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
-  Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only. Add an `audit:prod`
-  (`npm audit --omit=dev --audit-level=high`) CI gate (Codex's suggestion).
+- **✓ ① endpoint/authz e2e — DONE (2026-06-28).** New `tests/http/endpoints.http.spec.ts` +
+  `vitest.http.config.mts` + `test:http` (commits `059b18d` + `847fdd7`): graphql-404, preview
+  auth/read/edit gates + CSP, export DOCX+PDF end-to-end (read-gated, no Official gate), Bucket-A
+  invariants over HTTP. Stale `frontend.e2e.spec.ts` removed. **`test:http` 13/13** on the Rock (hits
+  live `lesson3` + `E2E_BASE_URL=http://app:3000` — second run procedure, see DECISIONS 2026-06-28).
+- **② dependency advisories (#1) — DO THIS NEXT.** A *deliberate* Payload/transport upgrade
+  (nodemailer/undici via Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only. Add an
+  `audit:prod` (`npm audit --omit=dev --audit-level=high`) CI gate (Codex's suggestion).
+- **③ NEW follow-up (Low) — preview CSP override.** The e2e (item ①) proved `next.config.ts`'s `/:path*`
+  baseline CSP overrides (not intersects) the preview endpoint's own strict `default-src 'none'` CSP, so
+  the preview loses its intended strict standalone policy (low-risk: preview HTML is DOMPurify-sanitized
+  + script-free). Fix: scope the `/:path*` rule to EXCLUDE the preview path (e.g. negative-lookahead
+  source) so the endpoint's Response CSP survives — and verify Next header precedence by `curl` on the
+  Rock (don't trust the config alone; that's the assumption this finding broke). Then tighten the
+  `test:http` preview assertion back to `default-src 'none'`. See DECISIONS 2026-06-28.
 
 **Codex audit note (2026-06-27 eve):** 11 findings, 7/10. Bucket A (#2/#3/#4; #10 deferred) is now
 DONE (above). Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe
@@ -195,8 +210,8 @@ readiness backlog). It is the only place with a DB; `test:int` and `next build` 
 ## The chosen track — Production hardening (IN PROGRESS) — and the alternatives
 
 **Production hardening is the chosen, active track** (2026-06-27), being worked top-down in this agreed
-order: GraphQL (done) → preview sanitize+CSP (done) → **#4 endpoint/authz e2e (next)** → #1 dependency
-advisories (last; deliberate upgrade). The two alternatives below are NOT being pursued now — recorded
+order: GraphQL (done) → preview sanitize+CSP (done) → Bucket A invariants + ⓪ (done) → endpoint/authz
+e2e (done) → **#1 dependency advisories (next; deliberate upgrade)**. The two alternatives below are NOT being pursued now — recorded
 so a future session knows they exist.
 
 1. **Production hardening** — *the active track.* The audit (2026-06-23) refined the backlog below;
@@ -260,7 +275,10 @@ The numbered items below are the remaining hardening backlog.
    baseline security headers (nosniff, X-Frame-Options, Referrer-Policy, + a non-script CSP:
    object-src/base-uri/frame-ancestors/form-action) are set globally in `next.config.ts`. See DECISIONS
    2026-06-26. **Still open:** a strict nonce-based `script-src` CSP (deferred — needs Next hydration
-   nonce plumbing) and a review of CSRF posture beyond the SameSite=Lax cookie.
+   nonce plumbing); a review of CSRF posture beyond the SameSite=Lax cookie; and (NEW, found by item ①'s
+   e2e 2026-06-28) the **preview endpoint's strict `default-src 'none'` CSP is overridden** by the global
+   `/:path*` CSP — scope the global rule to exclude the preview path so the strict policy survives (see
+   RESUME-HERE item ③ + DECISIONS 2026-06-28). Low risk (preview HTML is sanitized).
 4. **Optimistic concurrency** — updates increment `lockVersion` but don't reject a stale client
    version. Add the check, but **EXEMPT system/ingest paths** (`overrideAccess` republish, migrations)
    or it breaks ingest.
@@ -269,14 +287,15 @@ The numbered items below are the remaining hardening backlog.
    the deliverable check stays informational and must never become a hard gate. The always-present
    LessonSequence remains hard-gated by `validateGeneratable`. The typed `notApplicable` state
    (option b) is deferred (no functional gain today). SPEC §3 amended; see DECISIONS.md 2026-06-26.
-6. **Tests** — the auth+role fixture harness now EXISTS and runs (`tests/helpers/fixtures.ts` +
-   `tests/int/access.int.spec.ts`, `test:int` 9/9 green on the Rock as of 2026-06-27, sanity-flip
-   proven). **Still open:** `tests/e2e/frontend.e2e.spec.ts` still asserts the blank Payload template
-   (stale scaffold) — replace/remove it AND add real **preview/export/PDF/authz** endpoint coverage on
-   the new harness, plus a `POST /api/graphql → 404` regression assertion (this is backlog #4). Also:
-   `test:int` needs an isolated Rock test DB + a `test.env` pointing at the in-network `postgres` host
-   (committed `test.env` assumes a `localhost` dev DB) — bake the procedure (DECISIONS 2026-06-27) into
-   a one-command helper. PDF fidelity gate in CI (see above).
+6. **Tests** — the auth+role fixture harness EXISTS and runs at two layers: Local-API `test:int`
+   (`tests/int/access.int.spec.ts`, **15/15** on the Rock 2026-06-28, sanity-flip proven) AND the new
+   over-the-wire `test:http` (`tests/http/endpoints.http.spec.ts`, **13/13** on the Rock 2026-06-28 —
+   preview/export/PDF/authz + `POST /api/graphql → 404`; closed the old item-#4 e2e gap and removed the
+   stale `frontend.e2e.spec.ts`). **Still open:** both suites need a Rock-specific DB/URL procedure (see
+   DECISIONS 2026-06-27 + 2026-06-28) — `test:int` an isolated `lesson3_test` + `test.env` swap,
+   `test:http` the live `lesson3` + `E2E_BASE_URL` — bake BOTH into a one-command helper. PDF fidelity
+   gate in CI (see above). Playwright `tests/e2e/` (browser, localhost:3000) is dev-only, not in the
+   Rock flow.
 7. **~~Disable/gate unused GraphQL + GraphQL Playground~~ — CLOSED 2026-06-26.** `graphQL.disable: true`
    in `payload.config.ts` AND both generated `api/graphql*` route files deleted (the POST handler
    ignores the flag at runtime, so deletion is what actually 404s the endpoints). Rock build confirms

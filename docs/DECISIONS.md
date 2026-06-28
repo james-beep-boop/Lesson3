@@ -11,6 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 — Item ① landed: real endpoint/authz e2e suite (`test:http`), Rock-verified
+
+**Outcome.** Backlog #4/#6's "real preview/export/PDF/authz coverage + a `POST /api/graphql → 404`
+regression assert" is delivered as a new HTTP e2e suite that drives the RUNNING app over the wire,
+complementing the in-process Local-API `tests/int` suite. `tests/http/endpoints.http.spec.ts` +
+`vitest.http.config.mts` + a `test:http` script; the stale starter scaffold
+`tests/e2e/frontend.e2e.spec.ts` (asserted the blank Payload template) is removed. **13/13 green on the
+Rock.** Commits `059b18d` (suite) + `847fdd7` (fixes).
+
+**Coverage.** GraphQL gone (`POST /api/graphql` + `GET /api/graphql-playground` → 404); preview auth
+(401), Teacher GET read-gated → 200 script-free HTML, Teacher POST → 404 (EDIT-gated), Editor POST
+prose overlay → 200 (overlay visible in the rendered HTML), Editor POST structural change → 422; export
+read-gated with NO Official/published gate — a Teacher exports DOCX and PDF **end-to-end** (cold GET 409
+→ POST prepare → poll status → GET zip, PK magic), stray jobId → 404; Bucket-A invariants over HTTP
+(⓪ create-with-pointer rejected + nothing persisted, #2 clear-pointer rejected + pointer intact).
+
+**How it runs (a SECOND Rock test procedure, distinct from `test:int`).** Unlike `test:int` (Local API,
+redirected to the disposable `lesson3_test` via `test.env`), the HTTP suite must hit the running app,
+which serves the **live `lesson3`**. So it loads NO `vitest.setup.ts` (no `test.env` override), seeds the
+shared role fixture via the Local API into `lesson3` (MARK-tagged + self-cleaning, exactly like the
+verify-* scripts — verified zero residue after teardown), and talks to the app at `E2E_BASE_URL`
+(`http://app:3000`, the compose service) authenticating with the login token via `Authorization: JWT …`
+(token auth → no CSRF dance). Run:
+```
+docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules \
+  -w /app --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
+```
+
+**Two findings the e2e surfaced (first run was 11/13):**
+- **Real (Low) — preview CSP override.** `next.config.ts`'s `/:path*` baseline CSP
+  (`object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`) **overrides** (not
+  intersects) the preview endpoint's own stricter `default-src 'none'` Response CSP — only the global
+  one reaches the client (`Headers.get()` returned a single value, no `default-src`). The next.config
+  comment claiming "combine by intersection" was wrong; corrected it. So the preview does NOT get its
+  intended strict standalone CSP. Low risk (preview HTML is DOMPurify-sanitized + script-free), but a
+  defense-in-depth gap → **follow-up:** scope the `/:path*` rule to exclude the preview path (and verify
+  Next header precedence by curl). Test now asserts the directives actually deployed.
+- **Test-only — warm-cache status probe.** The `/export/status` handler returns `{ready}` for ANY jobId
+  once the artifact is cached (the `isExportReady` short-circuit precedes the job-binding check), so the
+  stray-jobId 404 assert must query a COLD (uncached) throwaway version, not the warmed `fx.version`.
+
 ## 2026-06-28 — Bucket A ⓪ landed: create-path Official-pointer gap closed (deployed + Rock-verified)
 
 **Outcome.** The CREATE-path sibling of Bucket A's #2 (the Codex re-review finding below) is closed,
