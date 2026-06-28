@@ -41,6 +41,41 @@ async function isOfficialVersion(
   return String(toId(plan.officialVersion as never)) === String(versionId)
 }
 
+/**
+ * Optimistic concurrency for mutable working copies (readiness #4). Two editors can open the same
+ * Not-Official version; without a guard the second save silently clobbers the first (last-write-wins).
+ * The edit path resubmits the version it loaded — including `updatedAt` (whitelisted in
+ * {@link VERSION_EDITOR_KEYS}) — so we treat the submitted `updatedAt` as the client's base: if the
+ * STORED doc has advanced past it, someone else saved in the meantime → reject with 409 and ask the
+ * editor to reload. (The DB stamps a fresh `updatedAt` at write time, so the submitted value is only
+ * ever read here, never persisted.)
+ *
+ * Authenticated UPDATEs only — system/overrideAccess paths (no `req.user`: ingest, migrations, fork,
+ * fixtures) carry no live base and must never be blocked. If no base is supplied (an API caller doing a
+ * partial update without `updatedAt`) the check is skipped: it protects the resubmit-based edit path
+ * without breaking partial-update callers. Must run BEFORE the field-split so it reads the client's
+ * submitted `updatedAt`, not a preserved one.
+ */
+export const enforceVersionConcurrency: CollectionBeforeChangeHook = ({
+  operation,
+  originalDoc,
+  data,
+  req,
+}) => {
+  if (operation !== 'update' || !originalDoc || !req?.user) return data
+  const base = (data as { updatedAt?: unknown })?.updatedAt
+  if (base == null) return data
+  const baseMs = new Date(base as string).getTime()
+  const storedMs = new Date(originalDoc.updatedAt as string).getTime()
+  if (Number.isFinite(baseMs) && Number.isFinite(storedMs) && baseMs < storedMs) {
+    throw new APIError(
+      'This working copy changed since you opened it — reload the page and reapply your edits.',
+      409,
+    )
+  }
+  return data
+}
+
 export const numberBundleVersionRows: CollectionBeforeValidateHook = ({ data }) => {
   if (Array.isArray(data?.lessons)) {
     data.lessons.forEach((lesson: { number?: number }, i: number) => {

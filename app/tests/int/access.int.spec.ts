@@ -104,6 +104,63 @@ describe('Editor field-split on a working copy', () => {
   })
 })
 
+describe('Optimistic concurrency on a working copy', () => {
+  it('rejects a stale overwrite (base updatedAt older than stored) but allows a current one', async () => {
+    const wc = (await makeWorkingCopy()) as any
+    const base = wc.updatedAt as string // the version both editors loaded
+    const lessons = (wc.lessons ?? []).map((l: any, i: number) =>
+      i === 0 ? { ...l, overview: 'first editor save' } : l,
+    )
+
+    // Editor A saves from the current base → succeeds, and the DB advances updatedAt past `base`.
+    const after = (await fx.payload.update({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      data: { lessons, updatedAt: base } as never,
+      overrideAccess: false,
+      user: fx.users.editor,
+    })) as any
+    expect(after.lessons[0].overview).toBe('first editor save')
+    expect(new Date(after.updatedAt).getTime()).toBeGreaterThan(new Date(base).getTime())
+
+    // Editor B saves from the now-STALE base → rejected (would clobber A's save).
+    await expect(
+      fx.payload.update({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        data: { lessons, updatedAt: base } as never,
+        overrideAccess: false,
+        user: fx.users.editor,
+      }),
+    ).rejects.toThrow()
+
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+
+  it('exempts system/overrideAccess updates from the concurrency guard', async () => {
+    const wc = (await makeWorkingCopy()) as any
+    const staleBase = wc.updatedAt as string
+    // Advance stored updatedAt via a system update…
+    await fx.payload.update({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      data: { title: `${MARK}WC-sys` } as never,
+      overrideAccess: true,
+    })
+    // …then a system update carrying the STALE base must still succeed (system path is exempt).
+    await expect(
+      fx.payload.update({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        data: { title: `${MARK}WC-sys2`, updatedAt: staleBase } as never,
+        overrideAccess: true,
+      }),
+    ).resolves.toBeTruthy()
+
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+})
+
 describe('Teacher cannot write versions', () => {
   it('rejects a Teacher creating a version', async () => {
     await expect(

@@ -10,6 +10,7 @@ import { canEditStructure } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
+  enforceVersionConcurrency,
   enforceVersionFieldSplit,
   enforceVersionImmutable,
   enforceVersionPlanConsistency,
@@ -56,9 +57,10 @@ export const LessonBundleVersions: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
-    // Working-copy model: reject edits to the plan's Official (immutable) version; then apply the
-    // Editor/Admin field-split (Editors edit prose only) to the mutable working copy.
-    beforeChange: [enforceVersionImmutable, enforceVersionFieldSplit],
+    // Working-copy model: reject edits to the plan's Official (immutable) version; reject a stale
+    // overwrite of a working copy (optimistic concurrency, reading the client's submitted updatedAt
+    // BEFORE the field-split); then apply the Editor/Admin field-split (Editors edit prose only).
+    beforeChange: [enforceVersionImmutable, enforceVersionConcurrency, enforceVersionFieldSplit],
     // Retention: the Official version cannot be deleted (would orphan the plan pointer).
     beforeDelete: [enforceOfficialNotDeletable],
   },
