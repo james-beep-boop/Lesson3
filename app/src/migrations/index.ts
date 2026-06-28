@@ -7,6 +7,7 @@ import * as migration_20260622_210554_add_unit_fields from './20260622_210554_ad
 import * as migration_20260623_151918_add_payload_jobs from './20260623_151918_add_payload_jobs';
 import * as migration_20260624_221905_official_version_model from './20260624_221905_official_version_model';
 import * as migration_20260625_125532_drop_lesson_bundles from './20260625_125532_drop_lesson_bundles';
+import * as migration_20260628_154237_add_version_semver_unique from './20260628_154237_add_version_semver_unique';
 
 export const migrations = [
   {
@@ -52,6 +53,11 @@ export const migrations = [
   {
     up: migration_20260625_125532_drop_lesson_bundles.up,
     down: migration_20260625_125532_drop_lesson_bundles.down,
-    name: '20260625_125532_drop_lesson_bundles'
+    name: '20260625_125532_drop_lesson_bundles',
+  },
+  {
+    up: migration_20260628_154237_add_version_semver_unique.up,
+    down: migration_20260628_154237_add_version_semver_unique.down,
+    name: '20260628_154237_add_version_semver_unique'
   },
 ];

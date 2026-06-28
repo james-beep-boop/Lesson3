@@ -26,6 +26,10 @@ import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
   slug: 'lesson-bundle-versions',
+  // Invariant #4 backstop: semver is unique per plan. `nextSemverForPlan` computes the next free
+  // patch on fork, but this compound unique index is the hard guarantee against a race (two forks of
+  // the same source persisting concurrently). Realised by the generated migration.
+  indexes: [{ fields: ['lessonPlan', 'semver'], unique: true }],
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'lessonPlan', 'semver', 'subjectGrade', 'createdAt'],

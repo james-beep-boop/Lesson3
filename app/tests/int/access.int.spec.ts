@@ -234,6 +234,24 @@ describe('Server-side invariants (Bucket A)', () => {
     expect(next).toBe('1.0.2')
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v101.id, overrideAccess: true })
   })
+
+  it('#4 the unique (lessonPlan, semver) index rejects a duplicate semver on the same plan', async () => {
+    const mk = (semver: string) =>
+      fx.payload.create({
+        collection: 'lesson-bundle-versions',
+        data: {
+          lessonPlan: fx.plan.id,
+          subjectGrade: fx.subjectGrade.id,
+          semver,
+          title: `${MARK}dup-${semver}`,
+          ...minimalBundleContent(),
+        } as never,
+        overrideAccess: true,
+      })
+    const first = (await mk('5.5.5')) as any
+    await expect(mk('5.5.5')).rejects.toThrow() // same (plan, semver) → unique-index violation
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: first.id, overrideAccess: true })
+  })
 })
 
 describe('People rules (SPEC §8)', () => {
