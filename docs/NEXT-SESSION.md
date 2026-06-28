@@ -13,18 +13,29 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① are now
-PUSHED + Rock-verified (origin/main `847fdd7`). See "▶ RESUME HERE" next — the next work is item ②
-(dependency advisories).**
+cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① + ② are
+now PUSHED + Rock-verified (origin/main `8e80e17`). See "▶ RESUME HERE" next — the next work is item ③
+(preview CSP override, Low).**
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① DONE; next is ② dependency advisories
+## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① + ② DONE; next is ③ preview CSP override (Low)
 
-**State: clean. Everything below is pushed to `origin/main` (HEAD `847fdd7`) and DEPLOYED + verified on
+**State: clean. Everything below is pushed to `origin/main` (HEAD `8e80e17`) and DEPLOYED + verified on
 the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
 (osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
 key authorised on both machines).
+
+**✓ Latest (2026-06-28, this session): item ② — dependency advisories — DONE, Rock-verified.** Commit
+`8e80e17`. Research flipped the approach: **no framework bump fixes these** — Payload 3.85.1 is already
+latest stable (pins undici exact `7.24.4`) and Next's latest (`16.2.9`) still ships vulnerable
+`postcss@8.4.31`. Fix = scoped npm `overrides` (`undici@7.28.0`, `postcss@8.5.16`, `nodemailer@9.0.1`),
+no schema change/migration. **`audit:prod` GREEN** (0 high/0 critical prod); **test:int 15/15** +
+**test:http 13/13** on the Rock; app boots stably under nodemailer 9 (SMTP_HOST is set) + a
+sendMail smoke passed. Overrides are TEMPORARY — remove each when upstream catches up (see DECISIONS
+2026-06-28 "late" for the exit conditions + the `test.env` real-password gotcha). Remaining audit noise
+(below the high gate): 5 moderate esbuild/drizzle-kit build-toolchain advisories + a **dev-only** vitest
+critical (not in prod image). **Next: item ③.**
 
 **✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
 Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +
@@ -91,17 +102,15 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
   auth/read/edit gates + CSP, export DOCX+PDF end-to-end (read-gated, no Official gate), Bucket-A
   invariants over HTTP. Stale `frontend.e2e.spec.ts` removed. **`test:http` 13/13** on the Rock (hits
   live `lesson3` + `E2E_BASE_URL=http://app:3000` — second run procedure, see DECISIONS 2026-06-28).
-- **② dependency advisories (#1) — DO THIS NEXT (assessed 2026-06-28; `audit:prod` script added).**
-  Current pins `payload@3.85.1` / `next@16.2.6`; `npm run audit:prod` is **RED** — 11 advisories (4 high),
-  ALL framework-transitive: **undici** (high ×7, bundled under `payload`), **nodemailer** (high, no
-  upstream fix, via `@payloadcms/email-nodemailer`; not exploitable in our usage — we don't use the `raw`
-  message option), **postcss** (moderate, via `next`). **Do NOT `npm audit fix --force`** — it proposes
-  destructive downgrades (`next@9.3.3`, `payload@3.79.1`). The task: research which Payload/Next release
-  bumps the vulnerable transitive deps (knowledge-currency rule — read release notes/installed source,
-  not memory), bump deliberately, regenerate types/migrations ON THE ROCK if the schema shifts, then
-  `next build` + `test:int` (15/15) + `test:http` (13/13) + `audit:prod` all green. See DECISIONS
-  2026-06-28.
-- **③ NEW follow-up (Low) — preview CSP override.** The e2e (item ①) proved `next.config.ts`'s `/:path*`
+- **✓ ② dependency advisories (#1) — DONE (2026-06-28).** Commit `8e80e17`, Rock-verified. The
+  anticipated framework bump doesn't exist (Payload 3.85.1 latest stable + pins undici exact `7.24.4`;
+  Next 16.2.9 still ships vulnerable `postcss@8.4.31`), so the fix is scoped npm `overrides`
+  (`undici@7.28.0`, `postcss@8.5.16`, `nodemailer@9.0.1`) — no schema change. **`audit:prod` GREEN**;
+  **test:int 15/15** + **test:http 13/13**; nodemailer-9 boot + sendMail smoke OK. Overrides are
+  TEMPORARY (remove each when upstream catches up). Remaining audit noise is below the high gate: 5
+  moderate esbuild/drizzle-kit build-toolchain advisories + a **dev-only** vitest critical. See DECISIONS
+  2026-06-28 "late".
+- **③ NEW follow-up (Low) — preview CSP override — DO THIS NEXT.** The e2e (item ①) proved `next.config.ts`'s `/:path*`
   baseline CSP overrides (not intersects) the preview endpoint's own strict `default-src 'none'` CSP, so
   the preview loses its intended strict standalone policy (low-risk: preview HTML is DOMPurify-sanitized
   + script-free). Fix: scope the `/:path*` rule to EXCLUDE the preview path (e.g. negative-lookahead
@@ -281,8 +290,14 @@ The numbered items below are the remaining hardening backlog.
    conversion no longer ties up an app worker (cold → `202` + enqueue, bounded by the queue `limit`);
    repeats are free (cache); per-user `429` guards export + preview. Residuals tracked in the
    follow-ups above (jobs cleanup, status-endpoint limiter, per-process limiter caveat) — none blocking.
-2. **Dependency advisories** — `npm audit` shows criticals/highs incl. `nodemailer`/`undici` via
-   Payload's own deps. Resolve by a deliberate Payload/transport upgrade (not a blind bump).
+2. **~~Dependency advisories~~ — CLOSED 2026-06-28 (`8e80e17`).** The prod HIGHs (`undici`×7,
+   `nodemailer`) + the `postcss` moderate are cleared via scoped npm `overrides` (`undici@7.28.0`,
+   `postcss@8.5.16`, `nodemailer@9.0.1`) — NOT a framework bump, because Payload 3.85.1 is already latest
+   stable (pins undici exact 7.24.4) and Next still ships vulnerable postcss. `audit:prod` GREEN,
+   Rock-verified (test:int 15/15, test:http 13/13). Overrides are temporary — remove when upstream
+   catches up (exit conditions in DECISIONS 2026-06-28 "late"). Below the high gate, still open: 5
+   moderate esbuild/drizzle-kit build-toolchain advisories + a dev-only vitest critical (`vitest run`, no
+   UI server; not in prod image) — bump opportunistically.
 3. **~~CSP + HTML-sanitization posture~~ — LARGELY CLOSED 2026-06-26.** Mammoth preview HTML is now
    sanitized at the single seam (`docxToSections` → `sanitizePreviewHtml`, DOMPurify+jsdom), and
    baseline security headers (nosniff, X-Frame-Options, Referrer-Policy, + a non-script CSP:

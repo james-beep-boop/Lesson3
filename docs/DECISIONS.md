@@ -11,6 +11,73 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Item ② LANDED: deps advisories cleared via npm `overrides`, NOT a version bump (Rock-verified)
+
+**Outcome.** `audit:prod` is GREEN (exit 0; 0 high / 0 critical in prod deps). The two prod HIGHs
+(undici, nodemailer) and the postcss MODERATE are gone. Commit `8e80e17`, deployed + verified on the Rock.
+
+**The research flipped the approach (knowledge-currency rule paid off).** NEXT-SESSION framed this as
+"find which Payload/Next release bumps the vulnerable transitives, then bump deliberately." Checking the
+registry (not memory): **no such release exists.**
+- **Payload 3.85.1 is already the latest stable** (only `3.86.0-internal.*` / `4.0.0-canary.*` exist) and
+  it pins undici to an **exact `7.24.4`** — so no forward Payload stable carries an undici fix, and our
+  pin can't move.
+- **Next's latest (`16.2.9`) still ships `postcss@8.4.31`** (< the `>=8.5.10` fix) — bumping Next fixes
+  nothing here.
+So the deliberate, minimal-churn fix is **scoped npm `overrides`** in `app/package.json` (no framework
+version change, no schema change, no migration):
+```jsonc
+"overrides": { "undici": "7.28.0", "postcss": "8.5.16", "nodemailer": "9.0.1" }
+```
+- **undici 7.24.4 → 7.28.0** clears 7 HIGH advisories (TLS-cert-validation bypass in SOCKS5, Set-Cookie
+  header injection, WS DoS, SOCKS5 pool cross-origin routing, keep-alive response-queue poisoning,
+  SameSite downgrade, shared-cache whitespace disclosure). Fix range is exactly `>=7.28.0`; stayed in the
+  **7.x** line (NOT undici 8.5.0 — a major against Payload). Override also deduped the tree (was two
+  undici copies: top-level 7.27.2 + payload's nested 7.24.4 → one 7.28.0; confirmed in the running
+  container, nested copy gone).
+- **nodemailer 8.0.10 → 9.0.1** clears the HIGH (`raw` message option bypasses
+  `disableFileAccess`/`disableUrlAccess`). 9.0.1 IS the upstream fix. Assessed safe for us: the ONLY
+  9.0.0 breaking change is strict TLS validation on *remote-content fetches* (attachment href/path URLs,
+  OAuth2 token endpoints, proxy CONNECT) — none of which our vanilla SMTP path uses
+  (`createTransport({host,port,secure,auth})` + `sendMail`, `skipVerify:true`). `@payloadcms/email-nodemailer`
+  declares `nodemailer@^8` but the override is fine — the adapter only calls
+  `createTransport`/`sendMail`/`verify`/`createTestAccount`, all stable across 8→9.
+- **postcss 8.4.31 → 8.5.16** clears the MODERATE CSS-stringify XSS (fix `>=8.5.10`); same-major,
+  build-time only.
+
+**`npm audit fix --force` is still the wrong tool** (proposes destructive downgrades `next@9.3.3`,
+`payload@3.79.1`) — overrides are the correct mechanism.
+
+**Overrides are TEMPORARY — exit conditions (remove each when upstream catches up):**
+- drop the **undici** override once a Payload release pins undici `>=7.28.0`;
+- drop the **nodemailer** override once `@payloadcms/email-nodemailer` widens its range to allow `9.x`;
+- drop the **postcss** override once Next ships `postcss >=8.5.10`.
+Until then they pin three transitives, so re-check on every Payload/Next bump.
+
+**What remains after the override (does NOT gate `audit:prod`, which is `--audit-level=high`):**
+- **5 MODERATE** in the esbuild → @esbuild-kit → drizzle-kit → @payloadcms/db-postgres chain
+  (`fixAvailable:false`; build/migration tooling, the esbuild dev-server-request advisory). Blocked on
+  drizzle-kit dropping the abandoned `@esbuild-kit/*`; below the high gate.
+- **1 CRITICAL but DEV-ONLY: vitest** (UI-server arbitrary-file-read/exec). We run `vitest run` with **no
+  UI server**, and vitest isn't in the prod image — excluded by `--omit=dev`, so `audit:prod` stays
+  green. Pre-existing, not introduced here. Bump vitest opportunistically if a fixed release lands.
+
+**Verification (Rock, the canonical gate `test:unit`+`test:int`+`test:http`, all on the new image/deps):**
+`docker compose up -d --build` (migrate found nothing pending; app `Up`, Restarts=0; `/`→307,
+`POST /api/graphql`→404) · `audit:prod` **exit 0 (GREEN)** in the rebuilt `lesson3-deps` · **test:http
+13/13** (incl. DOCX+PDF export end-to-end via Gotenberg, exercising the undici-backed fetch) · **test:int
+15/15**. nodemailer-9 runtime: SMTP_HOST IS set on the Rock, so the app constructs the v9 transport at
+boot and runs stably (no email/module errors); a `createTransport({jsonTransport})`+`sendMail` smoke in
+the deps image returned a messageId under 9.0.1.
+
+**Test-DB gotcha logged (cost a red herring).** The `test:int` Rock procedure's step-3 "rewrite
+`test.env` DATABASE_URI" hides the credentials as "…". The committed `test.env` literal is
+`lesson3:lesson3@localhost` — the **password is a placeholder, not the real one**. Swapping only the host
+(`localhost`→`postgres`) yields `28P01 password authentication failed`, which *looks* like a deps
+regression but isn't. Correct recipe: derive the URI from the real `.env` `DATABASE_URI` and swap only
+the **db name** to `lesson3_test` (keep its real user:pass@host), then `git checkout -- app/test.env`.
+This is exactly the kind of friction backlog-#6's one-command helper should remove.
+
 ## 2026-06-28 (eve) — Codex re-review (8/10) reconciled: 5 already-tracked, 2 net-new
 
 External re-review after items ⓪/① landed. Confirmed the create-path Official-pointer fix (⓪) and the
