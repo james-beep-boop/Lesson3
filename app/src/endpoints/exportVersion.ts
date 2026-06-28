@@ -91,11 +91,18 @@ export const exportVersionStatusEndpoint: Endpoint = {
 
     const { version, spec } = await authorizeVersionExportRequest(req)
 
-    // Bind the supplied jobId to THIS version BEFORE any readiness short-circuit. Previously the
-    // `isExportReady` short-circuit ran first, so once an artifact was warm in the cache ANY jobId —
-    // even a bogus one — got `{ready}` without the job ever being looked up. Binding first makes the
-    // contract honest: this endpoint reports a SPECIFIC job's progress, so a stray jobId always 404s,
-    // warm cache or not. (Not a data leak either way — READ is already enforced above.)
+    // CONTRACT (Phase-5 residual / Codex #4, resolved 2026-06-28): readiness here is VERSION/SPEC-scoped,
+    // not job-scoped — and deliberately so. A cache hit returns {ready} regardless of the supplied jobId
+    // because (a) the caller already holds version READ (authorizeVersionExportRequest above) and (b)
+    // completed payload-jobs rows are pruned, so a genuinely-ready artifact MUST resolve even when its
+    // job row is gone. (Binding the jobId before this short-circuit was tried and reverted: it 404s the
+    // normal poll the instant a fast job completes + is pruned.) The jobId still binds the NOT-ready
+    // diagnostics to THIS version below, so a stray jobId 404s exactly when it matters — when there is
+    // no cached artifact to report.
+    if (await isExportReady(spec)) return json({ state: 'ready' })
+
+    // Not ready → the jobId must name a real generateVersionArtifact job for THIS version (no probing
+    // another version's job), else 404.
     let job: PayloadJob | null = null
     try {
       job = await req.payload.findByID({
@@ -114,14 +121,11 @@ export const exportVersionStatusEndpoint: Endpoint = {
     if (!job || !belongs) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
-
-    // Bound job → report its outcome. A cache hit wins (the job may have completed and been pruned);
-    // then a hard error; then completed-but-artifact-evicted (not recoverable by polling — re-prepare).
-    // Otherwise it is still running. (No lockVersion drift case — a version is immutable.)
-    if (await isExportReady(spec)) return json({ state: 'ready' })
     if (job.hasError) {
       return json({ state: 'error', message: 'Export failed — please try again.' }, 502)
     }
+    // Finished without error but artifacts absent (e.g. evicted post-completion): not recoverable
+    // by polling. (No lockVersion drift case — a version is immutable.)
     if (job.completedAt) {
       return json({ state: 'error', message: 'Export expired — please retry.' }, 409)
     }
