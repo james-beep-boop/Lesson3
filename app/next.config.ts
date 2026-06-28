@@ -19,8 +19,12 @@ const nextConfig: NextConfig = {
   // Baseline security headers on every route (hardening backlog #3). Deliberately does NOT set a
   // script-src/default-src CSP: Next.js relies on inline hydration scripts, so a strict policy needs
   // nonce plumbing (a separate, larger task). These directives harden without breaking hydration —
-  // block plugins/embeds, base-tag hijack, and clickjacking. The preview ENDPOINT additionally
-  // returns its own strict standalone CSP; multiple CSP headers combine by intersection (stricter).
+  // block plugins/embeds, base-tag hijack, and clickjacking.
+  // CAVEAT (verified by tests/http e2e 2026-06-28): this `/:path*` CSP OVERRIDES, not intersects, the
+  // stricter `default-src 'none'` CSP the preview endpoint sets on its own Response — only this one
+  // reaches the client. So the preview does NOT currently get its intended strict standalone CSP
+  // (low-risk: preview HTML is DOMPurify-sanitized + script-free). Tracked as a follow-up; the fix is
+  // to scope this rule to exclude the preview path (and verify header precedence by curl).
   async headers() {
     return [
       {
