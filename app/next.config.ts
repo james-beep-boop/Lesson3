@@ -16,30 +16,32 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: '/admin/login', destination: '/login', permanent: false }]
   },
-  // Baseline security headers on every route (hardening backlog #3). Deliberately does NOT set a
-  // script-src/default-src CSP: Next.js relies on inline hydration scripts, so a strict policy needs
-  // nonce plumbing (a separate, larger task). These directives harden without breaking hydration —
-  // block plugins/embeds, base-tag hijack, and clickjacking.
-  // CAVEAT (verified by tests/http e2e 2026-06-28): this `/:path*` CSP OVERRIDES, not intersects, the
-  // stricter `default-src 'none'` CSP the preview endpoint sets on its own Response — only this one
-  // reaches the client. So the preview does NOT currently get its intended strict standalone CSP
-  // (low-risk: preview HTML is DOMPurify-sanitized + script-free). Tracked as a follow-up; the fix is
-  // to scope this rule to exclude the preview path (and verify header precedence by curl).
+  // Baseline security headers (hardening backlog #3). Deliberately NO script-src/default-src in the
+  // baseline CSP: Next.js relies on inline hydration scripts, so a strict global policy needs nonce
+  // plumbing (a separate, larger task). These directives harden without breaking hydration — block
+  // plugins/embeds, base-tag hijack, and clickjacking.
+  //
+  // Two rules, on purpose: a next.config CSP on `/:path*` OVERRIDES (not intersects) a route handler's
+  // own Response CSP — only one CSP header reaches the client (verified by the tests/http e2e + curl,
+  // 2026-06-28). The preview endpoint sets a stricter `default-src 'none'` on its Response, so:
+  //   (1) the non-CSP headers apply to EVERY route (incl. preview), but
+  //   (2) the baseline CSP is applied to every route EXCEPT the preview endpoint (negative-lookahead
+  //       source), leaving the preview's own strict standalone CSP uncontested.
   async headers() {
+    const baseline = [
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'X-DNS-Prefetch-Control', value: 'off' },
+    ]
+    const baselineCsp = {
+      key: 'Content-Security-Policy',
+      value: "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    }
     return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'X-DNS-Prefetch-Control', value: 'off' },
-          {
-            key: 'Content-Security-Policy',
-            value: "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-          },
-        ],
-      },
+      { source: '/:path*', headers: baseline },
+      // Exclude `/api/lesson-bundle-versions/:id/preview` so its Response CSP (default-src 'none') wins.
+      { source: '/((?!api/lesson-bundle-versions/[^/]+/preview).*)', headers: [baselineCsp] },
     ]
   },
   webpack: (webpackConfig) => {

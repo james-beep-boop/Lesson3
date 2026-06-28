@@ -57,10 +57,15 @@ function previewPage(
 </body></html>`
 }
 
-/** Shared response headers: a script-free, self-contained HTML page (no external loads). */
+/**
+ * Shared response headers: a script-free, self-contained HTML page (no external loads). The strict
+ * standalone CSP survives because `next.config.ts` excludes the preview path from its baseline CSP
+ * rule (a next.config CSP would otherwise override this Response CSP). `frame-ancestors 'none'` is
+ * explicit — `default-src` does not cover it — so the preview is anti-clickjacking on the CSP layer too.
+ */
 export const PREVIEW_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
 } as const
 
