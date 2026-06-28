@@ -87,7 +87,9 @@ async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
-  for (const key of ROLES) token[key] = await login(fx.users[key].email, fx.password)
+  // Independent logins → run concurrently (one HTTP round-trip each).
+  const tokens = await Promise.all(ROLES.map((key) => login(fx.users[key].email, fx.password)))
+  ROLES.forEach((key, i) => (token[key] = tokens[i]))
 }, 120_000)
 
 afterAll(async () => {
