@@ -11,6 +11,72 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-27 (evening) — Codex audit triage + the next batch: server-side invariant hardening
+
+**Context.** Codex ran an external review of `main` (`da0a189`) and filed 11 findings + a 7/10 rating.
+Triaged each against the source. The audit's central thesis is **correct and the useful takeaway**:
+*invariants are enforced at the workflow/endpoint layer (fork, make-official, upload) but NOT as
+collection hooks or DB constraints — so privileged direct API/admin writes can still violate them.*
+Roughly half the findings rediscover the existing backlog (good corroboration); the new signal is a
+cluster of server-side invariant gaps. **No code changed this session — this entry records the triage
+and the plan; the batch starts next session.**
+
+**Bucket A — NEW, act on it (the invariant cluster; verified against code):**
+- **#2 plan can lose its Official version.** `officialVersion` is not `required`
+  ([LessonPlans.ts:54]) and `validateOfficialVersionPointer` returns early on null
+  ([hooks/lessonPlan.ts:27]); anyone with `canSetOfficialVersion` can clear it on update and nothing
+  rejects it. (Codex's `ON DELETE SET NULL` orphan path is actually mitigated by
+  `enforceOfficialNotDeletable`; the real gap is the direct update-to-null.)
+- **#3 version/plan consistency unchecked at create + `semver` not server-immutable.** The
+  plan/grade-match check in `validateOfficialVersionPointer` fires only at make-official, not at
+  version **create**, so an admin can create a version under plan A carrying subjectGrade B (reads /
+  authz key off the version's own `subjectGrade`). `semver` is `readOnly` in the **admin UI only**
+  ([LessonBundleVersions.ts:106]) with no field `access.update` lock → mutable via API. (Rate Medium,
+  not High — both require admin create access; admins are trusted. Defense-in-depth still warrants it.)
+- **#4 duplicate semver from forks.** Every fork is `bumpSemver(source.semver,'patch')`
+  ([endpoints/versionEdit.ts:71]); two forks of `1.0.0` both become `1.0.1`. No unique `(lessonPlan,
+  semver)`.
+- **#10 "≤1 Subject Admin" is hook-enforced, not atomic.** `autoDemotePriorSubjectAdmins` is an
+  after-change fan-out with no DB constraint; concurrent promotions can transiently violate it. Known
+  design choice; lowest priority in the batch.
+
+**Bucket B — accurate but ALREADY on the backlog (Codex corroborated, not new work):** #1 deps =
+backlog #1 (the `audit:prod` CI-gate idea is a good add); #6 per-process limiter + unthrottled
+`/export/status` = the documented Phase-5 residual; #7 stale `frontend.e2e.spec.ts` = backlog #6 (and
+is the planned #4-next); #8 browse `limit:200` = backlog #8; #9 minimal CSP / no nonce `script-src` =
+backlog #3 (deferred with reasoning). #5 export-job dedupe/idempotency is real and not yet tracked →
+folded into the Phase-5 residuals.
+
+**Bucket C — context corrections:** Codex's "local test runner broken by an esbuild native mismatch"
+is an **environment artifact** (platform/ownership of `node_modules`), not a code defect — `test:int`
+9/9 and `test:unit` 33/33 are green on the Rock (this session). Its test-coverage commentary is
+read-only inference that missed the now-green Local-API layer. #11 (upload buffers before per-file
+size check) is genuine but **Site-Admin-only** (self-compromise) → Low; a `Content-Length` pre-guard
+like the preview parser's is the cheap fix. CodeRabbit produced nothing (seat unassigned) — ignore.
+
+**Plan for the Bucket A batch (next session) — hooks + constraints, EXEMPT system/ingest paths:**
+1. **#2** — in `validateOfficialVersionPointer`, reject clearing `officialVersion` to null **on update
+   when the plan already has ≥1 version**. GOTCHA: ingest creates the plan with a null pointer, then
+   the version, then sets the pointer — so the guard must be update-only AND must not fire while the
+   plan still has zero versions (or exempt the `overrideAccess`/no-`req.user` system path, like the
+   field-split/immutability hooks already do). Hook-only, no migration.
+2. **#3** — add `validateVersionPlanConsistency` (beforeValidate on `lesson-bundle-versions`):
+   `data.subjectGrade` must equal the parent plan's `subjectGrade`. AND make `semver` immutable on
+   update except trusted/system contexts (field `access.update` or a hook), but allow it on
+   **create** (fork sets semver via `overrideAccess`). Hook-only, no migration.
+3. **#4** — compute the next patch from the plan's existing versions (`nextSemverForPlan`) instead of
+   blindly patch-bumping the source, AND add a **partial unique index on `(lessonPlan, semver)`**.
+   Migration required → generate on the Rock (Node 22, deploy doc). PRE-CHECK the live corpus for any
+   existing `(plan, semver)` duplicate before adding the constraint (the verifier runs left an extra
+   working `1.0.1` — confirm it's not a dup under the same plan, or the migration's index build fails).
+4. **#10 (optional, lowest)** — a partial unique constraint for subject-admin-per-subjectGrade; larger
+   (representation/locking). Defer unless cheap. Migration if done.
+
+**Sequencing decision:** do Bucket A **before** the endpoint/authz e2e (#4-next), because the e2e
+suite should assert these invariants once they exist (and the new `tests/int` fixture is the harness
+for both). Then #1 deps last, as already planned. Rated the codebase 7/10 — fair; closing Bucket A +
+the test gate is what moves it toward "deployable for real."
+
 ## 2026-06-27 — `test:int` had never actually run; three fixes + the Rock test-DB procedure
 
 **Context.** Pushed the 4-commit hardening batch (GraphQL off, preview sanitize + headers, int harness)

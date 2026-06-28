@@ -43,15 +43,37 @@ both machines).
   immutability guard) flips only the matching test red — the gate has teeth. Full write-up + the **Rock
   test-DB procedure** (isolated `lesson3_test` + temp `test.env` swap) in DECISIONS.md 2026-06-27.
 
-**Next — continue the hardening order, top-down:**
-- **#4 endpoint/authz e2e (DO THIS NEXT).** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still
-  asserts the blank Payload template) with real **preview/export/PDF/authz** endpoint coverage, and add
-  a `POST /api/graphql → 404` regression assertion. The new `tests/int` auth+role fixture
-  (`tests/helpers/fixtures.ts`, now proven 9/9) is the harness to build on. NOTE the Rock test-DB
-  procedure in DECISIONS — `test:int` needs an isolated DB + a `test.env` pointing at the in-network
-  `postgres` host; a committed one-command helper for that is the right small backlog-#6 follow-up.
-- **then #1 dependency advisories** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
-  Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only.
+**Next — re-sequenced after the Codex audit (2026-06-27 eve; full triage in DECISIONS):**
+
+- **① Server-side invariant hardening (DO THIS FIRST — the new work).** Codex's real signal: the
+  product invariants are enforced in the workflow/endpoint paths (fork, make-official, upload) but NOT
+  as collection hooks / DB constraints, so privileged direct API/admin writes can still violate them.
+  Close the cluster (all verified in code; plan + gotchas in DECISIONS 2026-06-27 eve):
+  - **#2** reject clearing `officialVersion`→null on update when the plan has ≥1 version
+    (`hooks/lessonPlan.ts`; update-only, exempt the system/`overrideAccess` ingest path). Hook-only.
+  - **#3** new `validateVersionPlanConsistency` (version.subjectGrade must equal its plan's) + make
+    `semver` server-immutable on update except create/system (it's only `readOnly` in the UI today).
+    Hook-only.
+  - **#4** compute next patch from the plan's existing versions, not a blind `bumpSemver(source,'patch')`
+    (two forks of 1.0.0 both → 1.0.1), + a **partial unique index `(lessonPlan, semver)`**. Migration
+    → generate on the Rock; PRE-CHECK the corpus for existing dup `(plan, semver)` first.
+  - **#10 (optional, lowest)** DB-level uniqueness for subject-admin-per-grade (today: hook fan-out).
+  Sequenced BEFORE the e2e work so the e2e suite can assert these once they exist.
+- **② endpoint/authz e2e.** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still asserts the
+  blank Payload template) with real **preview/export/PDF/authz** coverage, add a `POST /api/graphql →
+  404` regression assert, and exercise the new invariants from ①. Build on the proven `tests/int`
+  auth+role fixture (`tests/helpers/fixtures.ts`, 9/9). NOTE the Rock test-DB procedure in DECISIONS
+  (`test:int` needs an isolated DB + a `test.env` pointing at the in-network `postgres` host) — a
+  committed one-command helper for that is the right small backlog-#6 follow-up.
+- **③ dependency advisories (#1)** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
+  Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only. Add an `audit:prod`
+  (`npm audit --omit=dev --audit-level=high`) CI gate (Codex's suggestion).
+
+**Codex audit note (2026-06-27 eve):** 11 findings, 7/10. Bucket A (#2/#3/#4/#10) = the new work in ①
+above. Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe is
+real → added to the Phase-5 residuals. Corrections: the "local test runner broken (esbuild)" is an
+env/platform artifact, not a defect — `test:int` 9/9 + `test:unit` 33/33 are green on the Rock; #11
+upload-buffering is Site-Admin-only (Low).
 
 ---
 
@@ -187,6 +209,10 @@ so a future session knows they exist.
   generous limiter could be added); the `429` rate-limit was deployed but not yet eyeballed under a
   burst (covered by the int-test work in readiness #6). The per-user limiter is **in-memory /
   per-process** — fine on the single-box Rock; must move to a shared store if ever horizontally scaled.
+  **Export-job dedupe (Codex #5, 2026-06-27):** each cold `POST /:id/export` enqueues a NEW
+  `generateVersionArtifact` job even for an identical `{versionId, format, kind}` already pending —
+  add an idempotency key / pending-job lookup so repeats coalesce (the artifact cache already makes
+  *completed* repeats free; this guards the in-flight window).
 
 ## Production-readiness backlog (the Rock is NOT production)
 
