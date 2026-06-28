@@ -35,6 +35,19 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
     throw validationError('A lesson plan must keep one Official version; the pointer cannot be cleared.', req)
   }
 
+  // Invariant: a NEW plan cannot be created already pointing at an Official version. The pointer is
+  // only set in a follow-up UPDATE, once a version exists under THIS plan (ingest + the fixture do
+  // exactly that). On create `originalDoc` is absent, so the "version belongs to this plan" ownership
+  // check below is skipped — a same-grade version of ANOTHER plan would slip through, letting two
+  // plans share one Official version. Reject any pointer on an authenticated create outright. System
+  // paths (no `req.user`: ingest, migrations) never set it on create and stay exempt.
+  if (operation === 'create' && req.user && data?.officialVersion) {
+    throw validationError(
+      'A new lesson plan cannot set an Official version on create; create a version under it first.',
+      req,
+    )
+  }
+
   if (!data?.officialVersion) return data
 
   const officialVersionId = idFrom(data.officialVersion)

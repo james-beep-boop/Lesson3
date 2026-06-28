@@ -138,11 +138,19 @@ describe('Teacher cannot write versions', () => {
 
 describe('Server-side invariants (Bucket A)', () => {
   it('#2 rejects an authenticated update that clears the Official pointer; system clear is allowed', async () => {
-    // Throwaway plan + Official version (don't touch the shared fixture's pointer).
+    // Throwaway plan + its OWN Official version, assembled the only legal way: create the plan, create
+    // the version UNDER it, then point the pointer at it via update (the two-phase ingest order). A
+    // cross-plan pointer (version owned by a different plan) is structurally invalid — see the create
+    // guard spec below.
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}inv2-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
     const v = (await fx.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
-        lessonPlan: fx.plan.id,
+        lessonPlan: p.id,
         subjectGrade: fx.subjectGrade.id,
         semver: '9.0.0',
         title: `${MARK}inv2`,
@@ -150,9 +158,10 @@ describe('Server-side invariants (Bucket A)', () => {
       } as never,
       overrideAccess: true,
     })) as any
-    const p = await fx.payload.create({
+    await fx.payload.update({
       collection: 'lesson-plans',
-      data: { title: `${MARK}inv2-plan`, subjectGrade: fx.subjectGrade.id, officialVersion: v.id } as never,
+      id: p.id,
+      data: { officialVersion: v.id } as never,
       overrideAccess: true,
     })
 
@@ -179,6 +188,35 @@ describe('Server-side invariants (Bucket A)', () => {
 
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+  })
+
+  it('#2 rejects an authenticated CREATE that sets the Official pointer (two-phase only)', async () => {
+    // On create the plan does not exist yet, so any officialVersion is structurally invalid — and the
+    // ownership ("version belongs to this plan") check can't run (no originalDoc), which is exactly the
+    // gap this guard closes. Point at the fixture's real (same-grade) version so only the create guard,
+    // not the grade check, can be doing the rejecting.
+    await expect(
+      fx.payload.create({
+        collection: 'lesson-plans',
+        data: {
+          title: `${MARK}inv2-create`,
+          subjectGrade: fx.subjectGrade.id,
+          officialVersion: fx.version.id,
+        } as never,
+        overrideAccess: false,
+        user: fx.users.siteAdmin,
+      }),
+    ).rejects.toThrow()
+
+    // The system/ingest path (overrideAccess, no user) is exempt — but it still never sets the pointer
+    // on create; it creates the plan pointer-less, then sets it via update (the fixture proves this).
+    const sys = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}inv2-create-sys`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
+    expect(sys.officialVersion ?? null).toBeNull()
+    await fx.payload.delete({ collection: 'lesson-plans', id: sys.id, overrideAccess: true })
   })
 
   it('#3a rejects a version whose subjectGrade differs from its plan', async () => {
