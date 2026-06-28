@@ -11,6 +11,25 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Phase-5 residual: export-status readiness is VERSION-scoped (Codex #4 resolved; bind-first reverted)
+
+**Outcome.** `exportVersionStatusEndpoint` (`…/:id/export/status?jobId=`) now documents its real
+contract instead of pretending to be job-scoped. Readiness is **version/spec-scoped**: a cache hit
+returns `{ready}` regardless of the supplied `jobId`, and the `jobId` binds the NOT-ready diagnostics to
+the version (a stray jobId 404s only when there is no cached artifact). Commit `c044e4a`. **test:http
+13/13.**
+
+**The instructive part — bind-first is WRONG here.** Codex #4 offered two fixes: bind the jobId before
+the `isExportReady` short-circuit, OR make the API explicit that readiness is version-scoped. I tried
+bind-first (`37e51ea`) — and it **regressed the normal export poll**: completed `payload-jobs` rows are
+PRUNED on completion, so the instant a fast job finishes its legit jobId is no longer findable →
+`findByID` throws → 404. The export DOCX+PDF e2e went red ("Export job not found") on the happy path.
+The old ready-first short-circuit existed precisely to mask the pruned-job window. So the correct
+resolution is the SECOND option (document version-scoped readiness), not the first. Lesson: the
+"obvious" stricter fix (bind before serving) assumed durable job rows; the queue prunes them, so
+readiness MUST be answerable without the job. (NB: this contradicts an older residual note that said
+completed jobs are "kept" — they are not in this config; the unbounded-retention cleanup item is moot.)
+
 ## 2026-06-28 (late) — Item ③ LANDED: preview CSP override fixed by scoping the baseline rule (curl + e2e verified)
 
 **Outcome.** The preview endpoint now serves its intended strict standalone CSP (`default-src 'none';

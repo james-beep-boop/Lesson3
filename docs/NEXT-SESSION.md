@@ -272,12 +272,11 @@ so a future session knows they exist.
   `generateVersionArtifact` job even for an identical `{versionId, format, kind}` already pending —
   add an idempotency key / pending-job lookup so repeats coalesce (the artifact cache already makes
   *completed* repeats free; this guards the in-flight window).
-  **Export-status `jobId` binding (Codex re-review #4, 2026-06-28, Low):** `exportVersionStatusEndpoint`
-  returns `{ready}` from the `isExportReady(spec)` short-circuit BEFORE the supplied `jobId` is looked
-  up/bound, so once an artifact is cached any (even bogus) `jobId` gets `200 {ready}`. NOT a data leak
-  (caller still needs version READ; status carries no job detail) — a contract nit (advertised
-  job-specific, actually spec/version readiness). Fix: bind `jobId` before the ready short-circuit, OR
-  make the API explicit that `jobId` is optional. See DECISIONS 2026-06-28 (eve).
+  **~~Export-status `jobId` binding (Codex re-review #4)~~ — RESOLVED 2026-06-28 (`c044e4a`).** Made the
+  contract explicit (the sanctioned 2nd option): status readiness is VERSION/spec-scoped, the `jobId`
+  binds only the not-ready diagnostics (a stray jobId 404s only on an uncached version). Bind-first (the
+  1st option) was tried and reverted — it 404s the NORMAL poll because completed `payload-jobs` rows are
+  pruned the moment a fast job finishes. See DECISIONS 2026-06-28 "late". test:http 13/13.
 
 ## Production-readiness backlog (the Rock is NOT production)
 
