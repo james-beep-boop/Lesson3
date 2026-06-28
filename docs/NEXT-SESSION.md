@@ -37,6 +37,16 @@ sendMail smoke passed. Overrides are TEMPORARY — remove each when upstream cat
 (below the high gate): 5 moderate esbuild/drizzle-kit build-toolchain advisories + a **dev-only** vitest
 critical (not in prod image). **Next: item ③.**
 
+**✓ Also this session (2026-06-28): two small review follow-ups landed (commit `579113e`, Rock-verified).**
+An external review (no CodeRabbit) re-confirmed the existing backlog and surfaced two net-new Low items,
+both now DONE: **(#7)** the role fixture's `MARK` is now **per-run-unique** (`MARK_BASE` + `randomUUID`),
+so teardown deletes only that run's rows against the live `lesson3` DB (setup still sweeps `MARK_BASE`
+for crashed-run leftovers); `purgeMarked`'s `limit:200` pointer cap became an unbounded loop. **(#8)**
+added a `test:rock` script (`test:unit && test:int && test:http`) naming the canonical gate.
+Re-verified: **test:int 15/15 + test:http 13/13**, and a post-run DB probe shows **0 `ZZ_INT_` residue**.
+The review's other findings were already tracked (preview CSP = item ③; export dedupe / warm-status jobId
+/ per-process limiter / browse-200 = Phase-5 residuals + backlog #1/#8/#9).
+
 **✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
 Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +
 `vitest.http.config.mts` + `test:http` drive the RUNNING app over HTTP (graphql-404, preview auth/read/
