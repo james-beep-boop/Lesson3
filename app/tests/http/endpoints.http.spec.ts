@@ -124,14 +124,14 @@ describe('Preview endpoint (SPEC §5)', () => {
     const res = await fetch(url(previewUrl()), { headers: auth('teacher') })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/html')
-    // CSP posture as actually DEPLOYED: Next's next.config `headers()` for `/:path*` overrides the
-    // preview endpoint's own (stricter) `default-src 'none'` Response header — only ONE CSP header
-    // reaches the client, the global baseline. (The endpoint's intended strict standalone CSP is not
-    // applied — a known defense-in-depth gap tracked separately; preview HTML is DOMPurify-sanitized +
-    // script-free regardless.) Assert the baseline directives that ARE present.
+    // CSP posture: next.config excludes the preview path from its baseline CSP rule (negative-lookahead
+    // source), so the endpoint's OWN strict standalone CSP survives to the client (item ③, curl-verified
+    // on the Rock 2026-06-28). Assert the strict directives ARE present and the baseline `object-src`
+    // CSP did NOT clobber them.
     const csp = res.headers.get('content-security-policy') ?? ''
-    expect(csp).toContain("object-src 'none'")
+    expect(csp).toContain("default-src 'none'")
     expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).not.toContain('object-src') // baseline CSP no longer overrides the preview
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     const html = await res.text()
     expect(html).toContain('Content preview')
