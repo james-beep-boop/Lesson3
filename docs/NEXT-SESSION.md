@@ -253,6 +253,12 @@ so a future session knows they exist.
   `generateVersionArtifact` job even for an identical `{versionId, format, kind}` already pending —
   add an idempotency key / pending-job lookup so repeats coalesce (the artifact cache already makes
   *completed* repeats free; this guards the in-flight window).
+  **Export-status `jobId` binding (Codex re-review #4, 2026-06-28, Low):** `exportVersionStatusEndpoint`
+  returns `{ready}` from the `isExportReady(spec)` short-circuit BEFORE the supplied `jobId` is looked
+  up/bound, so once an artifact is cached any (even bogus) `jobId` gets `200 {ready}`. NOT a data leak
+  (caller still needs version READ; status carries no job detail) — a contract nit (advertised
+  job-specific, actually spec/version readiness). Fix: bind `jobId` before the ready short-circuit, OR
+  make the API explicit that `jobId` is optional. See DECISIONS 2026-06-28 (eve).
 
 ## Production-readiness backlog (the Rock is NOT production)
 
@@ -302,7 +308,12 @@ The numbered items below are the remaining hardening backlog.
    DECISIONS 2026-06-27 + 2026-06-28) — `test:int` an isolated `lesson3_test` + `test.env` swap,
    `test:http` the live `lesson3` + `E2E_BASE_URL` — bake BOTH into a one-command helper. PDF fidelity
    gate in CI (see above). Playwright `tests/e2e/` (browser, localhost:3000) is dev-only, not in the
-   Rock flow.
+   Rock flow. **Gate definition (Codex re-review #7, 2026-06-28):** the canonical verification gate is
+   **`test:unit` + `test:int` + `test:http`**; the default `npm test` is the scaffold
+   `test:int && test:e2e` and OMITS `test:http` (can't merge them — `test:http` needs the running
+   container while Playwright `test:e2e` needs a dev server, so no single chain is runnable). A real CI
+   runner that stands up app+DB then runs all three is the proper fix; until then run the three
+   explicitly (see DECISIONS 2026-06-28 for the deps-image commands).
 7. **~~Disable/gate unused GraphQL + GraphQL Playground~~ — CLOSED 2026-06-26.** `graphQL.disable: true`
    in `payload.config.ts` AND both generated `api/graphql*` route files deleted (the POST handler
    ignores the flag at runtime, so deletion is what actually 404s the endpoints). Rock build confirms

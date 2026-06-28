@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (eve) — Codex re-review (8/10) reconciled: 5 already-tracked, 2 net-new
+
+External re-review after items ⓪/① landed. Confirmed the create-path Official-pointer fix (⓪) and the
+new HTTP suite (①). Five of its seven findings are ALREADY tracked: deps (item ②), preview CSP override
+(follow-up ③ + spawned chip), export in-flight dedupe (Phase-5 residual "Codex #5"), per-process
+limiter + unthrottled status (Phase-5 residuals + backlog #1/#9), browse-200 (backlog #8). Two are
+NET-NEW, both Low and now in NEXT-SESSION:
+
+- **#4 (Low) — `/export/status` returns `{ready}` before binding `jobId`.** `isExportReady(spec)`
+  short-circuits at the top of `exportVersionStatusEndpoint`, so once the artifact is cached ANY `jobId`
+  (even a bogus one) gets `200 {ready}` without the version-binding check below ever running. NOT a data
+  leak — the caller still needs READ access to the version (`authorizeVersionExportRequest`), and the
+  status carries no job detail. It's a contract nit: the endpoint advertises job-specific status but is
+  really *spec/version readiness*. (The HTTP suite already documents this: the stray-jobId 404 assert
+  must use a COLD version.) Fix options: bind `jobId` before the ready short-circuit, OR make the API
+  explicit that `jobId` is optional and status is version/spec readiness. Low priority.
+- **#7 (Low) — default `npm test` omits `test:http`.** `test` is still the scaffold default
+  `test:int && test:e2e` (Playwright, browser, dev-only). Adding `test:http` to that chain does NOT make
+  a runnable gate — `test:http` needs the running container (`E2E_BASE_URL=http://app:3000`) while the
+  Playwright `test:e2e` needs a dev server at `:3000`; they can't both pass in one environment. So the
+  fix is DOCUMENTATION not a script merge: the canonical **Rock verification gate is `test:unit` +
+  `test:int` + `test:http`** (Playwright `tests/e2e/` is dev-only, not in the gate). Recorded in
+  NEXT-SESSION backlog #6. A proper CI runner that stands up the app + DB then runs all three is the
+  real follow-up.
+
 ## 2026-06-28 — Item ② (dependency advisories) assessed + `audit:prod` script added; upgrade NOT done
 
 **Decision: do not improvise the framework upgrade in this session — it is a deliberate, plan-first
