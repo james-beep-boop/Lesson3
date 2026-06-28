@@ -11,6 +11,41 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 — Bucket A landed: server-side invariant hardening (deployed + Rock-verified)
+
+**Outcome.** The invariant cluster from the Codex triage is enforced server-side and live on the Rock.
+Commits `0caf341` (hooks/helper + 4 int specs) and `fb72cec` (unique index + migration + regression
+spec). `test:int` **14/14**; app rebuilt on the Rock so the running container matches the new index.
+
+**Implementation choices worth recording:**
+- **#2 (official pointer can't be cleared).** Added to `validateOfficialVersionPointer`: reject an
+  update that nulls `officialVersion` **only when `req.user` is present**. The no-`req.user`
+  overrideAccess path legitimately clears it — ingest (creates plan with a null pointer, sets it in a
+  follow-up update), roundtrip cleanup, and the int-fixture `purgeMarked` teardown all do — so the
+  system carve-out is required, same pattern as the field-split/immutability hooks. Confirmed by an
+  int spec asserting BOTH: authenticated clear rejected, overrideAccess clear allowed.
+- **#3a (version/plan grade consistency).** New `enforceVersionPlanConsistency` (beforeValidate, runs
+  on create + update) fetches the parent plan (overrideAccess — integrity, not authz) and requires
+  `version.subjectGrade === plan.subjectGrade`. Holds for ingest + fork (both carry the plan's grade).
+- **#3b (semver immutable).** Chose **field `access: { update: () => false }`** over a hook: Payload
+  silently preserves the original on any authenticated update (no error needed), and overrideAccess
+  (ingest 1.0.0, fork's computed patch) bypasses it on create. `readOnly` only hid it in the admin UI.
+- **#4 (no duplicate semver).** `nextSemverForPlan` computes the next patch from the **max existing
+  semver across the plan's versions** (the old code blind-bumped the *source*, so two forks of 1.0.0
+  both made 1.0.1). The **unique `(lessonPlan, semver)` index** is the concurrency backstop (declared
+  `indexes: [{ fields:['lessonPlan','semver'], unique:true }]`). Migration hardened idempotent
+  (`CREATE UNIQUE INDEX IF NOT EXISTS` / `DROP INDEX IF EXISTS`), per the Stage-3 lesson.
+- **Pre-migration data cleanup (gotcha for any future unique constraint).** The live corpus already
+  had a dup `(10, 1.0.1)` — two non-Official verifier-cruft working copies (versions 23, 26). A unique
+  index build FAILS on existing dups, so they were deleted first (via a one-off `payload run` script
+  using the Local API + overrideAccess, with a never-delete-Official guard). **Always pre-check
+  `GROUP BY … HAVING count(*)>1` before adding a unique index to a live table.**
+- **Test-DB hygiene.** A crashed earlier run left `ZZ_INT_` rows that wedged `purgeMarked` with a
+  Postgres `25P02` (aborted-transaction) cascade. Fastest fix: drop + recreate + re-migrate the
+  disposable `lesson3_test`. The fixture's leftover-tolerance is a known fragility (not fixed here).
+- **#10 deferred** — DB-level subject-admin-per-grade uniqueness needs a representation change; the
+  hook fan-out still enforces it. Out of scope for this batch.
+
 ## 2026-06-27 (evening) — Codex audit triage + the next batch: server-side invariant hardening
 
 **Context.** Codex ran an external review of `main` (`da0a189`) and filed 11 findings + a 7/10 rating.

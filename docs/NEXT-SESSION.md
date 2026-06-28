@@ -19,7 +19,7 @@ the next work is backlog #4 (endpoint/authz e2e).**
 
 ---
 
-## ▶ RESUME HERE (2026-06-27, evening) — hardening batch verified; next is #4 (endpoint/authz e2e)
+## ▶ RESUME HERE (2026-06-28) — Bucket A (invariant hardening) DONE; next is endpoint/authz e2e
 
 **State: clean. Everything below is pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
 from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
@@ -43,36 +43,40 @@ both machines).
   immutability guard) flips only the matching test red — the gate has teeth. Full write-up + the **Rock
   test-DB procedure** (isolated `lesson3_test` + temp `test.env` swap) in DECISIONS.md 2026-06-27.
 
-**Next — re-sequenced after the Codex audit (2026-06-27 eve; full triage in DECISIONS):**
+**✓ Bucket A — server-side invariant hardening — DONE, deployed + Rock-verified (2026-06-28).**
+Commits `0caf341` (hooks/helper) + `fb72cec` (unique-index migration). The product invariants are now
+enforced as collection hooks + a DB constraint, not just in the workflow paths:
+- **#2** `validateOfficialVersionPointer` rejects an AUTHENTICATED update that clears `officialVersion`
+  to null; the system/`overrideAccess` path (ingest, roundtrip cleanup, fixture teardown) stays exempt.
+- **#3a** new `enforceVersionPlanConsistency` — a version's `subjectGrade` must equal its plan's.
+- **#3b** `semver` is server-immutable (field `access.update: () => false`), not just UI `readOnly`.
+- **#4** fork uses `nextSemverForPlan` (next free patch across the plan) + a **unique
+  `(lessonPlan, semver)` index** (`lessonPlan_semver_idx`, migration
+  `20260628_154237_add_version_semver_unique`, idempotent up/down). Pre-applied cleanup: deleted the
+  two non-Official `1.0.1` verifier-cruft working copies on plan 10 (versions 23, 26) so the index
+  could build — corpus now has zero `(plan, semver)` dups. **`test:int` 14/14** (4 new invariant specs
+  + the unique-index regression). Migration applied to live `lesson3` AND `lesson3_test`.
+- **#10 DEFERRED** (lowest): DB-level uniqueness for subject-admin-per-grade — the hook fan-out
+  (`autoDemotePriorSubjectAdmins`) still handles it; a partial unique constraint needs a representation
+  change, out of scope for this batch. Revisit if concurrent promotions become a real risk.
 
-- **① Server-side invariant hardening (DO THIS FIRST — the new work).** Codex's real signal: the
-  product invariants are enforced in the workflow/endpoint paths (fork, make-official, upload) but NOT
-  as collection hooks / DB constraints, so privileged direct API/admin writes can still violate them.
-  Close the cluster (all verified in code; plan + gotchas in DECISIONS 2026-06-27 eve):
-  - **#2** reject clearing `officialVersion`→null on update when the plan has ≥1 version
-    (`hooks/lessonPlan.ts`; update-only, exempt the system/`overrideAccess` ingest path). Hook-only.
-  - **#3** new `validateVersionPlanConsistency` (version.subjectGrade must equal its plan's) + make
-    `semver` server-immutable on update except create/system (it's only `readOnly` in the UI today).
-    Hook-only.
-  - **#4** compute next patch from the plan's existing versions, not a blind `bumpSemver(source,'patch')`
-    (two forks of 1.0.0 both → 1.0.1), + a **partial unique index `(lessonPlan, semver)`**. Migration
-    → generate on the Rock; PRE-CHECK the corpus for existing dup `(plan, semver)` first.
-  - **#10 (optional, lowest)** DB-level uniqueness for subject-admin-per-grade (today: hook fan-out).
-  Sequenced BEFORE the e2e work so the e2e suite can assert these once they exist.
-- **② endpoint/authz e2e.** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still asserts the
-  blank Payload template) with real **preview/export/PDF/authz** coverage, add a `POST /api/graphql →
-  404` regression assert, and exercise the new invariants from ①. Build on the proven `tests/int`
-  auth+role fixture (`tests/helpers/fixtures.ts`, 9/9). NOTE the Rock test-DB procedure in DECISIONS
-  (`test:int` needs an isolated DB + a `test.env` pointing at the in-network `postgres` host) — a
-  committed one-command helper for that is the right small backlog-#6 follow-up.
-- **③ dependency advisories (#1)** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
+**Next — continue the hardening order:**
+
+- **① endpoint/authz e2e (DO THIS NEXT).** Replace the stale `tests/e2e/frontend.e2e.spec.ts` (still
+  asserts the blank Payload template) with real **preview/export/PDF/authz** coverage, add a `POST
+  /api/graphql → 404` regression assert, and exercise the Bucket-A invariants end-to-end. Build on the
+  proven `tests/int` auth+role fixture (`tests/helpers/fixtures.ts`, now **14/14**). NOTE the Rock
+  test-DB procedure in DECISIONS (`test:int` needs an isolated DB + a `test.env` pointing at the
+  in-network `postgres` host) — a committed one-command helper for that is the right small backlog-#6
+  follow-up.
+- **② dependency advisories (#1)** — a *deliberate* Payload/transport upgrade (nodemailer/undici via
   Payload), NOT a blind `npm audit fix`; the `vitest` critical is dev-only. Add an `audit:prod`
   (`npm audit --omit=dev --audit-level=high`) CI gate (Codex's suggestion).
 
-**Codex audit note (2026-06-27 eve):** 11 findings, 7/10. Bucket A (#2/#3/#4/#10) = the new work in ①
-above. Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe is
-real → added to the Phase-5 residuals. Corrections: the "local test runner broken (esbuild)" is an
-env/platform artifact, not a defect — `test:int` 9/9 + `test:unit` 33/33 are green on the Rock; #11
+**Codex audit note (2026-06-27 eve):** 11 findings, 7/10. Bucket A (#2/#3/#4; #10 deferred) is now
+DONE (above). Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe
+is real → in the Phase-5 residuals. Corrections: the "local test runner broken (esbuild)" is an
+env/platform artifact, not a defect — `test:int` 14/14 + `test:unit` 33/33 are green on the Rock; #11
 upload-buffering is Site-Admin-only (Low).
 
 ---
