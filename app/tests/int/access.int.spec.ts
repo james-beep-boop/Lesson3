@@ -186,8 +186,10 @@ describe('Server-side invariants (Bucket A)', () => {
       }),
     ).resolves.toBeTruthy()
 
-    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+    // Version `v` lives UNDER `p` (NOT NULL lesson_plan_id) → delete the child version before its
+    // plan, or the plan-delete's relationship-null violates the constraint.
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
   it('#2 rejects an authenticated CREATE that sets the Official pointer (two-phase only)', async () => {
