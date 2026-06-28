@@ -13,15 +13,15 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① + ② are
-now PUSHED + Rock-verified (origin/main `8e80e17`). See "▶ RESUME HERE" next — the next work is item ③
-(preview CSP override, Low).**
+cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪ + ① + ② + ③
+are now PUSHED + Rock-verified (origin/main `5ad774f`). The top-down hardening list is COMPLETE; see
+"▶ RESUME HERE" for what's left (backlog #4/#8/#9 + Phase-5 residuals) and pick the next track.**
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① + ② DONE; next is ③ preview CSP override (Low)
+## ▶ RESUME HERE (2026-06-28) — Bucket A + ⓪ + ① + ② + ③ DONE; pick the next item
 
-**State: clean. Everything below is pushed to `origin/main` (HEAD `8e80e17`) and DEPLOYED + verified on
+**State: clean. Everything below is pushed to `origin/main` (HEAD `5ad774f`) and DEPLOYED + verified on
 the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
 (osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
 key authorised on both machines).
@@ -120,13 +120,13 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
   TEMPORARY (remove each when upstream catches up). Remaining audit noise is below the high gate: 5
   moderate esbuild/drizzle-kit build-toolchain advisories + a **dev-only** vitest critical. See DECISIONS
   2026-06-28 "late".
-- **③ NEW follow-up (Low) — preview CSP override — DO THIS NEXT.** The e2e (item ①) proved `next.config.ts`'s `/:path*`
-  baseline CSP overrides (not intersects) the preview endpoint's own strict `default-src 'none'` CSP, so
-  the preview loses its intended strict standalone policy (low-risk: preview HTML is DOMPurify-sanitized
-  + script-free). Fix: scope the `/:path*` rule to EXCLUDE the preview path (e.g. negative-lookahead
-  source) so the endpoint's Response CSP survives — and verify Next header precedence by `curl` on the
-  Rock (don't trust the config alone; that's the assumption this finding broke). Then tighten the
-  `test:http` preview assertion back to `default-src 'none'`. See DECISIONS 2026-06-28.
+- **✓ ③ preview CSP override (Low) — DONE (2026-06-28).** Commits `d45bdb9` + `5ad774f`, Rock-verified.
+  `next.config.ts` `headers()` split into two rules: non-CSP baseline on `/:path*` (incl. preview) +
+  baseline CSP on a negative-lookahead source that EXCLUDES `…/:id/preview`, so the endpoint's own
+  `default-src 'none'` Response CSP survives uncontested (also added `frame-ancestors 'none'` to
+  `PREVIEW_HEADERS`). **curl-verified** on the Rock (baseline CSP on `/login` + sibling `…/export`,
+  absent on `…/preview` which still keeps `X-Frame-Options: DENY`) and **test:http 13/13** with the
+  tightened assertion. See DECISIONS 2026-06-28 "late".
 
 **Codex audit note (2026-06-27 eve):** 11 findings, 7/10. Bucket A (#2/#3/#4; #10 deferred) is now
 DONE (above). Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe
@@ -313,10 +313,10 @@ The numbered items below are the remaining hardening backlog.
    baseline security headers (nosniff, X-Frame-Options, Referrer-Policy, + a non-script CSP:
    object-src/base-uri/frame-ancestors/form-action) are set globally in `next.config.ts`. See DECISIONS
    2026-06-26. **Still open:** a strict nonce-based `script-src` CSP (deferred — needs Next hydration
-   nonce plumbing); a review of CSRF posture beyond the SameSite=Lax cookie; and (NEW, found by item ①'s
-   e2e 2026-06-28) the **preview endpoint's strict `default-src 'none'` CSP is overridden** by the global
-   `/:path*` CSP — scope the global rule to exclude the preview path so the strict policy survives (see
-   RESUME-HERE item ③ + DECISIONS 2026-06-28). Low risk (preview HTML is sanitized).
+   nonce plumbing); a review of CSRF posture beyond the SameSite=Lax cookie. **~~Preview CSP override~~ —
+   CLOSED 2026-06-28 (item ③, `d45bdb9`+`5ad774f`):** the `/:path*` baseline CSP now excludes the preview
+   path (negative-lookahead source), so the endpoint's strict `default-src 'none'` survives; curl- +
+   test:http-verified on the Rock.
 4. **Optimistic concurrency** — updates increment `lockVersion` but don't reject a stale client
    version. Add the check, but **EXEMPT system/ingest paths** (`overrideAccess` republish, migrations)
    or it breaks ingest.

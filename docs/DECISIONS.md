@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Item ③ LANDED: preview CSP override fixed by scoping the baseline rule (curl + e2e verified)
+
+**Outcome.** The preview endpoint now serves its intended strict standalone CSP (`default-src 'none';
+style-src 'unsafe-inline'; frame-ancestors 'none'`) to the client — the global baseline CSP no longer
+clobbers it. Commits `d45bdb9` (fix) + `5ad774f` (tightened test). Deployed + Rock-verified.
+
+**Root cause (confirmed, not assumed).** A `next.config.ts` `headers()` CSP on `/:path*` **overrides**
+(does not intersect) a route handler's own Response CSP — only one CSP header reaches the client. So the
+preview's `default-src 'none'` Response header was being replaced by the baseline
+`object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`.
+
+**Fix.** Split `headers()` into two rules: (1) the **non-CSP** baseline (nosniff, X-Frame-Options,
+Referrer-Policy, DNS-prefetch) on `/:path*` — applies everywhere INCLUDING preview; (2) the baseline
+**CSP** on a negative-lookahead source that excludes the preview path:
+`'/((?!api/lesson-bundle-versions/[^/]+/preview).*)'`. With no next.config CSP on the preview path, the
+endpoint's Response CSP is uncontested. Also added `frame-ancestors 'none'` to `PREVIEW_HEADERS`
+(`default-src` does not cover `frame-ancestors`) so the preview is anti-clickjacking on the CSP layer
+too (it already gets `X-Frame-Options: DENY` from rule 1).
+
+**Verified by curl on the Rock (the step the original finding proved you cannot skip).** `next.config`
+path-regex behaves as intended: `/login` (200) and the SIBLING `…/:id/export` (401) both carry the
+baseline `object-src` CSP; `…/:id/preview` (401) carries **no** baseline CSP but still carries
+`X-Frame-Options: DENY` — i.e. the lookahead excludes ONLY `…/preview`, not the whole
+`lesson-bundle-versions` prefix, and not the non-CSP headers. Then `test:http` **13/13** with the
+tightened assertion (preview 200 → `default-src 'none'` + `frame-ancestors 'none'` present,
+`object-src` ABSENT). **Lesson reinforced:** Next path-to-regexp source matching (incl. the
+negative-lookahead `((?!…).*)` form) works here under Next 16, but header *precedence* is config-version
+sensitive — curl the live response, don't reason from the config. Backlog #3 CSP item now fully closed
+except the deferred nonce-based `script-src` (needs Next hydration-nonce plumbing).
+
 ## 2026-06-28 (late) — Item ② LANDED: deps advisories cleared via npm `overrides`, NOT a version bump (Rock-verified)
 
 **Outcome.** `audit:prod` is GREEN (exit 0; 0 high / 0 critical in prod deps). The two prod HIGHs
