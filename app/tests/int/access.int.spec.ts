@@ -17,6 +17,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
+import { nextSemverForPlan } from '../../src/lib/semver.js'
 
 let fx: RoleFixture
 
@@ -132,6 +133,106 @@ describe('Teacher cannot write versions', () => {
       }),
     ).rejects.toThrow()
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+})
+
+describe('Server-side invariants (Bucket A)', () => {
+  it('#2 rejects an authenticated update that clears the Official pointer; system clear is allowed', async () => {
+    // Throwaway plan + Official version (don't touch the shared fixture's pointer).
+    const v = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '9.0.0',
+        title: `${MARK}inv2`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as any
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}inv2-plan`, subjectGrade: fx.subjectGrade.id, officialVersion: v.id } as never,
+      overrideAccess: true,
+    })
+
+    // Authenticated Site Admin clearing officialVersion → rejected.
+    await expect(
+      fx.payload.update({
+        collection: 'lesson-plans',
+        id: p.id,
+        data: { officialVersion: null } as never,
+        overrideAccess: false,
+        user: fx.users.siteAdmin,
+      }),
+    ).rejects.toThrow()
+
+    // System path (overrideAccess, no user) may still clear it — teardown/cleanup relies on this.
+    await expect(
+      fx.payload.update({
+        collection: 'lesson-plans',
+        id: p.id,
+        data: { officialVersion: null } as never,
+        overrideAccess: true,
+      }),
+    ).resolves.toBeTruthy()
+
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+  })
+
+  it('#3a rejects a version whose subjectGrade differs from its plan', async () => {
+    // A second subject-grade under the same subject (grade 98 ≠ the fixture's 99).
+    const otherSg = await fx.payload.create({
+      collection: 'subject-grades',
+      data: { subject: fx.subject.id, grade: 98 } as never,
+      overrideAccess: true,
+    })
+    await expect(
+      fx.payload.create({
+        collection: 'lesson-bundle-versions',
+        data: {
+          lessonPlan: fx.plan.id, // plan is grade 99
+          subjectGrade: otherSg.id, // mismatch → reject
+          semver: '9.1.0',
+          title: `${MARK}inv3a`,
+          ...minimalBundleContent(),
+        } as never,
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow()
+    await fx.payload.delete({ collection: 'subject-grades', id: otherSg.id, overrideAccess: true })
+  })
+
+  it('#3b semver is server-immutable on an authenticated update', async () => {
+    const wc = (await makeWorkingCopy()) as any
+    const updated = (await fx.payload.update({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      data: { semver: '7.7.7' } as never, // attempt to mutate identity
+      overrideAccess: false,
+      user: fx.users.siteAdmin,
+    })) as any
+    expect(updated.semver).toBe(wc.semver) // unchanged, not '7.7.7'
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+
+  it('#4 nextSemverForPlan returns the next free patch across the plan (not a blind source bump)', async () => {
+    // Fixture plan already has its Official 1.0.0; add a 1.0.1, then the next free patch is 1.0.2.
+    const v101 = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.1',
+        title: `${MARK}inv4`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as any
+    const next = await nextSemverForPlan(fx.payload, fx.plan.id)
+    expect(next).toBe('1.0.2')
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v101.id, overrideAccess: true })
   })
 })
 

@@ -12,6 +12,7 @@ import {
   enforceOfficialNotDeletable,
   enforceVersionFieldSplit,
   enforceVersionImmutable,
+  enforceVersionPlanConsistency,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
 import {
@@ -50,7 +51,7 @@ export const LessonBundleVersions: CollectionConfig = {
     delete: lessonBundleVersionDelete,
   },
   hooks: {
-    beforeValidate: [numberBundleVersionRows, enforceBundleVersionGeneratable],
+    beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
     // Working-copy model: reject edits to the plan's Official (immutable) version; then apply the
     // Editor/Admin field-split (Editors edit prose only) to the mutable working copy.
     beforeChange: [enforceVersionImmutable, enforceVersionFieldSplit],
@@ -100,6 +101,12 @@ export const LessonBundleVersions: CollectionConfig = {
       required: true,
       defaultValue: '1.0.0',
       index: true,
+      // Server-immutable identity: set once on create (ingest 1.0.0; fork via overrideAccess computes
+      // the next free patch). `update: false` blocks any authenticated edit from mutating it (Payload
+      // preserves the original); overrideAccess system paths bypass it. `readOnly` only hid it in the UI.
+      access: {
+        update: () => false,
+      },
       admin: {
         position: 'sidebar',
         readOnly: true,

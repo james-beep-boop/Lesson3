@@ -21,9 +21,20 @@ const validationError = (message: string, req: Parameters<CollectionBeforeValida
 
 export const validateOfficialVersionPointer: CollectionBeforeValidateHook = async ({
   data,
+  operation,
   originalDoc,
   req,
 }) => {
+  // Invariant: a lesson plan keeps exactly one Official version. Reject an AUTHENTICATED update that
+  // clears the pointer to null — browse skips a plan with no Official, its detail can 404, and the
+  // "one Official" product rule breaks. System paths (no `req.user`: migrations, roundtrip cleanup,
+  // the int-fixture teardown that nulls the pointer before deleting versions) legitimately clear it
+  // via overrideAccess and are exempt — same trusted-system carve-out as the field-split/immutability
+  // hooks. (Create with no pointer yet is fine: ingest sets it in a follow-up update.)
+  if (operation === 'update' && req.user && data && 'officialVersion' in data && !idFrom(data.officialVersion)) {
+    throw validationError('A lesson plan must keep one Official version; the pointer cannot be cleared.', req)
+  }
+
   if (!data?.officialVersion) return data
 
   const officialVersionId = idFrom(data.officialVersion)

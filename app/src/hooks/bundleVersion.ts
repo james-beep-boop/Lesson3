@@ -120,6 +120,45 @@ export const enforceOfficialNotDeletable: CollectionBeforeDeleteHook = async ({ 
   }
 }
 
+/**
+ * Integrity: a version's `subjectGrade` MUST equal its parent plan's `subjectGrade`. Read-scoping and
+ * authorization key off the version's own `subjectGrade` (`lessonBundleVersionRead/Update`), so a row
+ * whose grade disagrees with its plan would authorize/render under the wrong grade. The workflow paths
+ * keep them aligned (ingest creates the plan then the version with the same grade; fork copies the
+ * source's grade) — this guard closes the direct-API hole where a privileged caller sets a mismatched
+ * grade. Runs on create AND update; the plan lookup uses overrideAccess (integrity, not authz).
+ */
+export const enforceVersionPlanConsistency: CollectionBeforeValidateHook = async ({
+  data,
+  originalDoc,
+  req,
+}) => {
+  if (!data) return data
+  const planId = toId((data.lessonPlan ?? originalDoc?.lessonPlan) as never)
+  const sgId = toId((data.subjectGrade ?? originalDoc?.subjectGrade) as never)
+  // `lessonPlan`/`subjectGrade` are both required — let the required-field validation report absence.
+  if (planId == null || sgId == null) return data
+
+  const plan = (await req.payload.findByID({
+    collection: LESSON_PLANS,
+    id: planId,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as { subjectGrade?: unknown }
+  const planSgId = toId(plan.subjectGrade as never)
+  if (planSgId != null && planSgId !== sgId) {
+    throw new ValidationError(
+      {
+        collection: 'lesson-bundle-versions',
+        errors: [{ message: 'Version subject-grade must match its lesson plan.', path: 'subjectGrade' }],
+      },
+      req.t,
+    )
+  }
+  return data
+}
+
 export const enforceBundleVersionGeneratable: CollectionBeforeValidateHook = ({
   data,
   originalDoc,

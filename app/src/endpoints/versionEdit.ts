@@ -15,7 +15,7 @@
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
-import { bumpSemver } from '../lib/semver'
+import { nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
@@ -59,6 +59,9 @@ export const forkVersionEndpoint: Endpoint = {
       ),
     ) as Record<string, unknown>
 
+    const planId = toId(source.lessonPlan as never)
+    if (planId == null) throw new APIError('Version has no lesson plan', 409)
+
     // overrideAccess: the fork is a TRUSTED faithful copy of admin-authored content, not
     // Editor-authored input — authorization was enforced above. This also avoids the version
     // create access (admin-only) so an Editor can still start a working copy.
@@ -66,9 +69,11 @@ export const forkVersionEndpoint: Endpoint = {
       collection: 'lesson-bundle-versions',
       data: {
         ...content,
-        lessonPlan: toId(source.lessonPlan as never),
+        lessonPlan: planId,
         subjectGrade: toId(source.subjectGrade as never),
-        semver: bumpSemver(source.semver, 'patch'),
+        // Next free patch across the plan's versions (not a blind bump of the source) so two forks of
+        // the same source don't collide; the unique (lessonPlan, semver) index is the hard backstop.
+        semver: await nextSemverForPlan(req.payload, planId, req),
         sourceVersion: source.id,
       } as never,
       req,
