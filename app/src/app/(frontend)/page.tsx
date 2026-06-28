@@ -27,12 +27,17 @@ export default async function BrowsePage({
 
   // 1. Access-gated plans (every authenticated user reads all plans). We only need each plan's id +
   //    its Official version pointer; the listable content lives on that version.
+  //    `pagination: false` returns the WHOLE corpus, not a silently-truncated first page — this is a
+  //    grouped curriculum catalogue (subject-grade → strand → sub-strand), so paginating would fragment
+  //    strands across pages; completeness + search is the right discoverability model here. The
+  //    projection is light (ids + small meta), so all-of-hundreds is cheap; revisit (lazy-load /
+  //    virtualize) only if the corpus reaches thousands. (Backlog #8.)
   const { docs: plans } = await payload.find({
     collection: 'lesson-plans',
     overrideAccess: false,
     user,
     depth: 0,
-    limit: 200,
+    pagination: false,
     select: { officialVersion: true },
   })
   const officialIds = plans.map((p) => relId(p.officialVersion)).filter((id): id is number => id != null)
@@ -47,7 +52,7 @@ export default async function BrowsePage({
         overrideAccess: false,
         user,
         depth: 2,
-        limit: 200,
+        pagination: false,
         select: {
           title: true,
           subjectGrade: true,
