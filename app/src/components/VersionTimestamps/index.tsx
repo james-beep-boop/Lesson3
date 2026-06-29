@@ -17,10 +17,11 @@ const fmt = (v: unknown): string => {
 }
 
 export default function VersionTimestamps() {
-  const { updatedAt, createdAt } = useFormFields(([fields]) => ({
-    updatedAt: fields?.updatedAt?.value,
-    createdAt: fields?.createdAt?.value,
-  }))
+  // Select each scalar separately: `useFormFields` is `useContextSelector`, which re-renders on
+  // Object.is inequality — returning a fresh `{...}` object would re-render on every keystroke in the
+  // form. Two primitive selectors only re-render when a timestamp's value actually changes.
+  const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value)
+  const createdAt = useFormFields(([fields]) => fields?.createdAt?.value)
   return (
     <div className="version-timestamps">
       <div className="version-timestamps__row">
