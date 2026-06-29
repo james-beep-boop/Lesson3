@@ -28,6 +28,19 @@ const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 /**
+ * Is `job` a `generateVersionArtifact` job for `versionId`? `payload-jobs.input` is a JSON column, so
+ * read `versionId` off it as a scalar (not a Payload relationship — `relId`/`toId` don't apply). Shared
+ * by the status-binding check and the dedupe lookup.
+ */
+function jobMatchesVersion(job: PayloadJob | null | undefined, versionId: number | string): boolean {
+  const input = job?.input as { versionId?: number | string } | undefined
+  return (
+    job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
+    String(input?.versionId ?? '') === String(versionId)
+  )
+}
+
+/**
  * Find an in-flight `generateVersionArtifact` job matching this exact spec, or null. A job is
  * "in-flight" if it has not completed and is not in a terminal error state. `payload-jobs.input` is a
  * JSON column, so match in-memory over the (few) pending rows rather than via a nested-JSON `where`.
@@ -43,17 +56,15 @@ async function findPendingExportJob(
       completedAt: { exists: false },
       hasError: { not_equals: true },
     },
-    limit: 100,
+    // The pending set for one task slug is tiny — autoRun drains it every ~3s and dedupe coalesces
+    // repeats — so a small bound comfortably covers any realistic in-flight window.
+    limit: 20,
     depth: 0,
     overrideAccess: true,
   })
   const match = docs.find((j) => {
-    const i = j.input as { versionId?: number | string; format?: string; kind?: string } | undefined
-    return (
-      String(i?.versionId ?? '') === String(input.versionId) &&
-      i?.format === input.format &&
-      i?.kind === input.kind
-    )
+    const i = j.input as { format?: string; kind?: string } | undefined
+    return jobMatchesVersion(j, input.versionId) && i?.format === input.format && i?.kind === input.kind
   })
   return match ?? null
 }
@@ -150,11 +161,7 @@ export const exportVersionStatusEndpoint: Endpoint = {
     } catch {
       job = null
     }
-    const jobInput = job?.input as { versionId?: number | string } | undefined
-    const belongs =
-      job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
-      String(jobInput?.versionId ?? '') === String(version.id)
-    if (!job || !belongs) {
+    if (!job || !jobMatchesVersion(job, version.id)) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
     if (job.hasError) {

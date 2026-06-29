@@ -85,6 +85,21 @@ async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 
   return buf
 }
 
+/** Create a cold (uncached) throwaway version under the fixture plan, for tests needing a not-yet-
+ *  exported version. Caller deletes it (overrideAccess). */
+const makeColdVersion = (tag: string, semver: string) =>
+  fx.payload.create({
+    collection: 'lesson-bundle-versions',
+    data: {
+      lessonPlan: fx.plan.id,
+      subjectGrade: fx.subjectGrade.id,
+      semver,
+      title: `${MARK}${tag}`,
+      ...minimalBundleContent(),
+    } as never,
+    overrideAccess: true,
+  }) as Promise<{ id: number }>
+
 beforeAll(async () => {
   fx = await setupRoleFixture()
   // Independent logins → run concurrently (one HTTP round-trip each).
@@ -189,17 +204,7 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     // Contract: status readiness is version/spec-scoped, so a warm version returns {ready} for any
     // jobId by design (the caller holds READ; the job row may be pruned). The jobId binding therefore
     // only has teeth when NOT ready — so probe a COLD throwaway version: a bogus jobId must 404.
-    const cold = (await fx.payload.create({
-      collection: 'lesson-bundle-versions',
-      data: {
-        lessonPlan: fx.plan.id,
-        subjectGrade: fx.subjectGrade.id,
-        semver: '8.0.0',
-        title: `${MARK}cold-status`,
-        ...minimalBundleContent(),
-      } as never,
-      overrideAccess: true,
-    })) as { id: number }
+    const cold = await makeColdVersion('cold-status', '8.0.0')
     const res = await fetch(
       url(`/api/lesson-bundle-versions/${cold.id}/export/status?jobId=999999999&format=standard&as=docx`),
       { headers: auth('teacher') },
@@ -212,17 +217,7 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     // Cold throwaway version → POST prepare twice back-to-back. The second must coalesce onto the first
     // job (same {versionId, format, kind}) rather than enqueue a duplicate. autoRun cron is every 3s,
     // so both calls land inside the pending window and return the SAME jobId.
-    const cold = (await fx.payload.create({
-      collection: 'lesson-bundle-versions',
-      data: {
-        lessonPlan: fx.plan.id,
-        subjectGrade: fx.subjectGrade.id,
-        semver: '8.1.0',
-        title: `${MARK}dedupe`,
-        ...minimalBundleContent(),
-      } as never,
-      overrideAccess: true,
-    })) as { id: number }
+    const cold = await makeColdVersion('dedupe', '8.1.0')
     const prepare = () =>
       fetch(url(`/api/lesson-bundle-versions/${cold.id}/export?format=standard&as=docx`), {
         method: 'POST',

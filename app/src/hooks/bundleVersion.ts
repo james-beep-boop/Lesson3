@@ -67,7 +67,9 @@ export const enforceVersionConcurrency: CollectionBeforeChangeHook = ({
   if (base == null) return data
   const baseMs = new Date(base as string).getTime()
   const storedMs = new Date(originalDoc.updatedAt as string).getTime()
-  if (Number.isFinite(baseMs) && Number.isFinite(storedMs) && baseMs < storedMs) {
+  // `storedMs` is always a valid DB-stamped timestamp; only guard the client-supplied base (a malformed
+  // one yields NaN, which we treat as "no usable base" → skip rather than false-reject).
+  if (Number.isFinite(baseMs) && baseMs < storedMs) {
     throw new APIError(
       'This working copy changed since you opened it — reload the page and reapply your edits.',
       409,
