@@ -24,6 +24,10 @@ import type { User } from '../payload-types'
 
 const MAX_FILES = 50
 const MAX_FILE_BYTES = 5 * 1024 * 1024 // 5 MB/file (real bundles are ≪ 1 MB)
+// Coarse cap for the WHOLE multipart request body — the Content-Length pre-parse guard. Sits above the
+// aggregate per-file budget by enough to cover multipart framing (boundaries + headers per part), so a
+// valid max-sized batch is never falsely rejected; the precise per-file caps below remain the authority.
+const MAX_BODY_BYTES = MAX_FILES * MAX_FILE_BYTES + 256 * 1024
 
 export const uploadBundlesEndpoint: Endpoint = {
   path: '/upload',
@@ -32,6 +36,14 @@ export const uploadBundlesEndpoint: Endpoint = {
     if (!req.user) throw new APIError('Unauthorized', 401)
     if (!isSiteAdmin(req.user as User)) {
       throw new APIError('Forbidden — Site Administrator only', 403)
+    }
+
+    // Coarse pre-parse guard: reject an oversized body via Content-Length BEFORE `formData()` buffers
+    // the whole multipart payload into memory. The header may be absent or wrong, so the per-file caps
+    // below stay the authority; this just bounds the buffering for an honest (or huge-and-honest) client.
+    const declaredLength = Number(req.headers?.get('content-length'))
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+      throw new APIError(`Upload too large (max ${MAX_BODY_BYTES} bytes)`, 413)
     }
 
     let form: FormData

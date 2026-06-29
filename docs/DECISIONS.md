@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Codex re-review reconciled: native doc-locking reframes #4; upload pre-guard + audit:all added
+
+External re-review (8 findings, 7.5/10). Most re-confirm the tracked backlog; reconciliation:
+
+- **#1 (claimed "Medium live risk" — DOWNGRADED to Low, reframed).** The new `enforceVersionConcurrency`
+  guard skips when `data.updatedAt` is absent, so a raw REST partial PATCH could bypass it. BUT the
+  PRIMARY guard for concurrent ADMIN-UI editing is **Payload's native document locking**
+  (`lockDocuments`, default-on; we don't disable it — verified live: the `payload-locked-documents`
+  collection exists on the Rock with an active lock). Native locking stops a second editor saving over an
+  open doc in the admin UI — the real edit surface. Our hook is **data-layer defense-in-depth** for the
+  REST/Local-API surface. Deliberately NOT made mandatory: forcing a base on every authenticated update
+  would 409 any caller (incl. the native admin form, which we have not confirmed submits `updatedAt`)
+  that omits it — and the admin surface is already locked, so the residual (a trusted Editor issuing a raw
+  partial PATCH without a base) is a low, accepted gap, not a silent admin clobber. Clarified in the hook
+  doc-comment. (Knowledge-currency win: reading installed Payload source surfaced the native-locking
+  layer both the reviewer and the original #4 work had overlooked.)
+- **#6 (Low) — DONE.** `uploadBundles` buffered the whole multipart body (`req.formData()`) before the
+  per-file caps. Added a Content-Length pre-parse 413 guard (`MAX_BODY_BYTES`), matching the existing
+  `previewParse` idiom. Site-Admin-only, so low, but cheap defense-in-depth.
+- **#7 (Low) — partially addressed.** Added an `audit:all` script (`npm audit --audit-level=moderate`)
+  for full-audit visibility alongside the gating `audit:prod`. It is expected-RED (dev-only `vitest`
+  critical + `esbuild`/`drizzle-kit` moderates, all `fixAvailable:false`); not a gate.
+- **Already tracked, no new action:** #2 export dedupe is check-then-queue (not atomic) — true-concurrent
+  bursts can still double-queue; acceptable on the single-box Rock (autoRun limit 2 + artifact cache make
+  completed repeats free); an advisory-lock/unique-key upgrade is a scale follow-up. #3 per-process
+  rate-limiter = the explicitly-remaining shared-limiter residual. #4 subject-admin-per-grade uniqueness
+  is hook-only = Bucket A **#10 deferred** (needs a relation-table representation change). #5 browse
+  `pagination:false` = the documented #8 trade-off (fine for hundreds; revisit at thousands). #8 lint
+  warnings (mostly `any` in tests + generated-migration unused args) = known hygiene, not addressed.
+
 ## 2026-06-28 (late) — Readiness #4 LANDED: optimistic concurrency on working-copy edits (Rock-verified)
 
 **Outcome.** Two editors opening the same Not-Official version no longer silently clobber each other

@@ -55,6 +55,14 @@ async function isOfficialVersion(
  * partial update without `updatedAt`) the check is skipped: it protects the resubmit-based edit path
  * without breaking partial-update callers. Must run BEFORE the field-split so it reads the client's
  * submitted `updatedAt`, not a preserved one.
+ *
+ * LAYERING: the PRIMARY guard for concurrent ADMIN-UI editing is Payload's native document locking
+ * (`lockDocuments`, default-on for this collection — verified: the `payload-locked-documents` collection
+ * exists live), which stops a second editor saving over an open doc. This hook is DATA-LAYER
+ * defense-in-depth for the REST/Local-API surface. It is intentionally NOT made mandatory: forcing a
+ * base on every authenticated update would 409 any caller (incl. the native admin form) that omits
+ * `updatedAt`, and the admin surface is already covered by the lock — so the residual (a trusted Editor
+ * issuing a raw partial PATCH without a base) is a low, accepted gap, not a silent admin-UI clobber.
  */
 export const enforceVersionConcurrency: CollectionBeforeChangeHook = ({
   operation,

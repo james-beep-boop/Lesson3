@@ -133,7 +133,16 @@ enforced as collection hooks + a DB constraint, not just in the workflow paths:
 DONE (above). Bucket B just re-confirms the existing backlog (#1, #6, #7, #8, #9). #5 export-job dedupe
 is real → in the Phase-5 residuals. Corrections: the "local test runner broken (esbuild)" is an
 env/platform artifact, not a defect — `test:int` 14/14 + `test:unit` 33/33 are green on the Rock; #11
-upload-buffering is Site-Admin-only (Low).
+upload-buffering is Site-Admin-only (Low) — **now closed 2026-06-28: Content-Length pre-parse 413 guard
+in `uploadBundles` (matches the `previewParse` idiom).**
+
+**Codex re-review (2026-06-28, 7.5/10) — reconciled (see DECISIONS "late").** #1 concurrency "bypass"
+DOWNGRADED to Low + reframed: Payload's **native document locking** (`lockDocuments` default-on; verified
+live) is the primary admin-UI concurrency guard, and `enforceVersionConcurrency` is data-layer
+defense-in-depth (intentionally not mandatory). #6 upload guard DONE; #7 added `audit:all`
+(visibility, non-gating). Already tracked: #2 export-dedupe atomicity (scale follow-up), #3 shared limiter
+(remaining residual), #4 subject-admin uniqueness (= Bucket A #10 deferred), #5 browse (= #8 trade-off),
+#8 lint warnings (known hygiene).
 
 ---
 
