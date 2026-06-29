@@ -90,6 +90,17 @@ export const siteAdminOnly: Access = ({ req: { user } }) => isSiteAdmin(asUser(u
 export const canUseAdminPanel = (user: User | null | undefined): boolean =>
   isSiteAdmin(user) || Boolean(user?.assignments?.length)
 
+/**
+ * Human-readable role label for the user menu (highest grant wins). Site Administrator > Subject
+ * Administrator > Editor > Teacher. A plain authenticated user with no grant is a Teacher.
+ */
+export const userTypeLabel = (user: User | null | undefined): string => {
+  if (isSiteAdmin(user)) return 'Site Administrator'
+  if (user?.assignments?.some((a) => a.role === 'subjectAdmin')) return 'Subject Administrator'
+  if (user?.assignments?.some((a) => a.role === 'editor')) return 'Editor'
+  return 'Teacher'
+}
+
 export const canManageUsers = (user: User | null | undefined): boolean =>
   isSiteAdmin(user) || isSubjectAdminForAny(user)
 

@@ -2,9 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 import { getSession } from '@/lib/session'
-import { canUseAdminPanel } from '@/access'
-import { Avatar } from '@/components/Avatar'
-import { LogoutButton } from '@/components/LogoutButton'
+import { AppNav } from '@/components/AppNav'
 
 import './styles.css'
 
@@ -31,25 +29,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Link href="/" className="brand">
               Lesson Plan Repository
             </Link>
-            {/* The shared user menu: username · guide · [Manage] · logout · avatar. The admin surface
-                mirrors it via admin.components.header. */}
-            <nav className="app-nav">
-              <span className="nav-user">{user.name ?? user.email}</span>
-              <Link href="/guide" className="nav-link">
-                Guide
-              </Link>
-              {/* "Manage" only for roles that can use /admin (§13). The other surface's menu shows
-                  "Lessons" instead — each links to the surface you're NOT on. A plain <a> is a full
-                  navigation into the separate admin app. */}
-              {canUseAdminPanel(user) && (
-                // eslint-disable-next-line @next/next/no-html-link-for-pages
-                <a href="/admin" className="nav-link">
-                  Manage
-                </a>
-              )}
-              <LogoutButton />
-              <Avatar name={user.name ?? user.email} />
-            </nav>
+            {/* The ONE shared nav (Lessons · [Manage] · Guide · avatar). The admin surface renders the
+                same <AppNav> via admin.components.header, so the two match exactly. */}
+            <AppNav user={user} />
           </header>
         )}
         <main className="app-main">{children}</main>
