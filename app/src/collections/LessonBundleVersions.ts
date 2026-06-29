@@ -104,6 +104,8 @@ export const LessonBundleVersions: CollectionConfig = {
     {
       name: 'semver',
       type: 'text',
+      // Display label only — the field name / data / code stay `semver`.
+      label: 'Version',
       required: true,
       defaultValue: '1.0.0',
       index: true,
@@ -116,6 +118,17 @@ export const LessonBundleVersions: CollectionConfig = {
       admin: {
         position: 'sidebar',
         readOnly: true,
+      },
+    },
+    {
+      // Read-only display of the native timestamps, relocated into the sidebar below Version (the
+      // native "Last Modified / Created" row in the doc controls is hidden via custom.scss, scoped to
+      // this collection). UI field → no DB column.
+      name: 'timestampsDisplay',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/VersionTimestamps#default' },
       },
     },
     {

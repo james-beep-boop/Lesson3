@@ -173,3 +173,32 @@ body {
 .nav__log-out {
   display: none;
 }
+
+// Lesson-version edit view: the native "Last Modified / Created" row is relocated into the sidebar
+// (the VersionTimestamps UI field, under "Version"). Hide the native row, SCOPED to this collection
+// so other collections keep their timestamp display.
+.collection-lesson-bundle-versions .doc-controls__meta {
+  display: none;
+}
+
+// Sidebar timestamps block (VersionTimestamps).
+.version-timestamps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+
+  &__row {
+    display: flex;
+    flex-direction: column;
+  }
+  &__label {
+    color: var(--theme-elevation-500);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  &__value {
+    color: var(--theme-elevation-800);
+  }
+}

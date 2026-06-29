@@ -58,6 +58,29 @@ const rowLabel = (field: string, noun: string) => ({
   },
 })
 
+// Admin-form VISIBILITY for the admin-only structure sections (META / UNIT): show them only to whoever
+// may edit them — Subject Admins for THIS doc's subject-grade, and Site Admins — and hide them from
+// everyone else (an Editor) rather than showing them read-only. Mirrors `canEditStructure` (server) but
+// the `condition` runs client-side, so it is kept dependency-free here. Server access is unchanged —
+// this is presentation only; the field-split hook remains the write-time authority.
+const idOf = (ref: unknown): number | string | undefined =>
+  ref && typeof ref === 'object' ? (ref as { id?: number | string }).id : (ref as number | string | undefined)
+
+const canEditStructureClient = (data: unknown, user: unknown): boolean => {
+  const u = user as
+    | { roles?: string[] | null; assignments?: { subjectGrade?: unknown; role?: string }[] | null }
+    | null
+    | undefined
+  if (!u) return false
+  if (u.roles?.includes('siteAdmin')) return true
+  const sg = (data as { subjectGrade?: unknown } | undefined)?.subjectGrade
+  return Boolean(
+    u.assignments?.some(
+      (a) => a.role === 'subjectAdmin' && String(idOf(a.subjectGrade) ?? '') === String(idOf(sg) ?? ''),
+    ),
+  )
+}
+
 export const lessonContentFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   {
@@ -65,6 +88,7 @@ export const lessonContentFields: Field[] = [
     type: 'group',
     label: 'META',
     access: { update: canEditStructure },
+    admin: { condition: (data, _siblingData, { user }) => canEditStructureClient(data, user) },
     fields: [
       { name: 'subject', type: 'text' },
       { name: 'grade', type: 'number' },
@@ -87,7 +111,10 @@ export const lessonContentFields: Field[] = [
     type: 'group',
     label: 'UNIT',
     access: { update: canEditStructure },
-    admin: { description: 'Sub-strand overview. May be empty for some sub-strands.' },
+    admin: {
+      description: 'Sub-strand overview. May be empty for some sub-strands.',
+      condition: (data, _siblingData, { user }) => canEditStructureClient(data, user),
+    },
     // All UNIT fields are admin-only (SPEC §5 does not list UNIT among Editor prose): the
     // whitelist hook preserves the whole `unit` group wholesale for Editors, so none of these
     // need field-level access or the prose() whitelist. Field set + names mirror the generator's

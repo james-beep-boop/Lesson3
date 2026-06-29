@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { isSiteAdmin } from '../../access'
 import { AppNav } from '../AppNav'
 import type { User } from '../../payload-types'
 
@@ -13,8 +14,16 @@ import type { User } from '../../payload-types'
 export default function AdminHeaderMenu({ user }: { user?: User | null }) {
   if (!user) return null
   return (
-    <header className="lp-admin-header">
-      <AppNav user={user} />
-    </header>
+    <>
+      {/* The document "API" tab is for Site Admins only. The endpoint stays access-controlled
+          regardless; this hides the tab in the edit view for everyone else. Rendered here because the
+          admin header is present on every admin page (incl. the document edit view). */}
+      {!isSiteAdmin(user) && (
+        <style dangerouslySetInnerHTML={{ __html: '.doc-tab[href$="/api"]{display:none!important}' }} />
+      )}
+      <header className="lp-admin-header">
+        <AppNav user={user} />
+      </header>
+    </>
   )
 }
