@@ -12,41 +12,56 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is PRODUCTION HARDENING, and it is IN PROGRESS (2026-06-27).** The Official-version
-cutover is long done; the current work is the hardening backlog below. **Bucket A + items ⓪–③ + backlog
-#4 + #8 + 2 Phase-5 residuals (export-status, export dedupe) are now PUSHED + Rock-verified (origin/main
-`699bd9f`). What's LEFT: backlog #9 (ops: CI/CD, Sentry, backups) and the shared/per-process rate-limiter
-residual — see "▶ RESUME HERE".**
+**The chosen track is PRODUCTION HARDENING (IN PROGRESS).** The Official-version cutover is long done.
+**As of 2026-06-29 (HEAD `1da45f8`, all pushed + Rock-verified):** the hardening list (Bucket A, items
+⓪–③, deps overrides ②, #4, #8, Phase-5 export residuals) AND a full **editing-UX redesign** (nav
+unification + Stage 1 admin tweaks + Stage 2/2b versioning model) are DONE. What's LEFT: **backlog #9
+ops** (CI/CD, Sentry, off-site backups, monitoring), the **shared rate limiter**, a small **semver
+retry-on-conflict**, and a deliberate **`vitest` bump** — see "▶ RESUME HERE".
 
 ---
 
-## ▶ RESUME HERE (2026-06-28) — hardening list + #4/#8 + 2 residuals DONE; left: #9 ops + shared limiter
+## ▶ RESUME HERE (2026-06-29) — editing redesign COMPLETE; left: #9 ops + shared limiter + 2 small items
 
-**State: clean. Everything below is pushed to `origin/main` (HEAD `699bd9f`) and DEPLOYED + verified on
-the Rock.** Worked from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here
-(osxkeychain token cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` (same
-key authorised on both machines).
+**State: clean. HEAD `1da45f8`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
+from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
+cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. Canonical gate green:
+**test:http 22/22, test:int 15/15, test:unit 33/33, audit:prod GREEN.** Seeded logins for UI checks are
+in the assistant's private memory (NOT the repo).
 
-**✓ Latest (2026-06-28, this session): item ② — dependency advisories — DONE, Rock-verified.** Commit
-`8e80e17`. Research flipped the approach: **no framework bump fixes these** — Payload 3.85.1 is already
-latest stable (pins undici exact `7.24.4`) and Next's latest (`16.2.9`) still ships vulnerable
-`postcss@8.4.31`. Fix = scoped npm `overrides` (`undici@7.28.0`, `postcss@8.5.16`, `nodemailer@9.0.1`),
-no schema change/migration. **`audit:prod` GREEN** (0 high/0 critical prod); **test:int 15/15** +
-**test:http 13/13** on the Rock; app boots stably under nodemailer 9 (SMTP_HOST is set) + a
-sendMail smoke passed. Overrides are TEMPORARY — remove each when upstream catches up (see DECISIONS
-2026-06-28 "late" for the exit conditions + the `test.env` real-password gotcha). Remaining audit noise
-(below the high gate): 5 moderate esbuild/drizzle-kit build-toolchain advisories + a **dev-only** vitest
-critical (not in prod image). **Next: item ③.**
+**✓ Done this session (2026-06-28 → 06-29), all Rock-verified:**
+- **② Dependency advisories** (`8e80e17`): scoped npm `overrides` (`undici@7.28.0`, `postcss@8.5.16`,
+  `nodemailer@9.0.1`) — no forward framework bump exists. `audit:prod` GREEN. Overrides are TEMPORARY
+  (remove when upstream catches up — exit conditions in DECISIONS 2026-06-28 "late").
+- **③ Preview CSP override** (`d45bdb9`): `next.config` baseline CSP now excludes the preview path
+  (negative-lookahead) so the endpoint's strict `default-src 'none'` survives; curl + e2e verified.
+- **Phase-5 residuals**: export-status readiness is version-scoped (Codex #4); in-flight export **dedupe**
+  (Codex #5). **#4 optimistic concurrency** (now folded into save-as-new). **#8 browse**: `pagination:false`.
+- **Review follow-ups**: per-run fixture `MARK`, `test:rock` script, `audit:all`, upload Content-Length
+  guard, nav unification (one `AppNav` + avatar dropdown across both surfaces).
+- **Editing-UX redesign (the big one):**
+  - *Stage 1 (admin edit view):* "Semver"→"Version" label; META/UNIT hidden for non-editors; API tab
+    Site-Admin-only; Last Modified/Created moved to the sidebar.
+  - *Stage 2/2b (versioning model — supersedes the old fork-on-open working-copy model):* versions are
+    **immutable to authenticated users** (`lessonBundleVersionUpdate: () => false`); the one control bar
+    `LessonControls` (Edit·Preview·Save·Discard·Download·☑docx ☐PDF ☐ARES) drives it. **Save** = a NEW
+    candidate via `POST /:id/save-as-new` (never publishes; optional **atomic delete-source**). **Make
+    Official** (admin only) moves the pointer (optional **atomic delete-previous**). Both endpoints are
+    **transactional** (initTransaction/commit/kill); stale-base guard is mandatory (400/409). Public
+    lesson-page **Edit** now links to the admin editor (no fork); `/fork` retired. Dead beforeChange
+    hooks removed. Full HTTP coverage. See DECISIONS 2026-06-29 entries.
 
-**✓ Also this session (2026-06-28): two small review follow-ups landed (commit `579113e`, Rock-verified).**
-An external review (no CodeRabbit) re-confirmed the existing backlog and surfaced two net-new Low items,
-both now DONE: **(#7)** the role fixture's `MARK` is now **per-run-unique** (`MARK_BASE` + `randomUUID`),
-so teardown deletes only that run's rows against the live `lesson3` DB (setup still sweeps `MARK_BASE`
-for crashed-run leftovers); `purgeMarked`'s `limit:200` pointer cap became an unbounded loop. **(#8)**
-added a `test:rock` script (`test:unit && test:int && test:http`) naming the canonical gate.
-Re-verified: **test:int 15/15 + test:http 13/13**, and a post-run DB probe shows **0 `ZZ_INT_` residue**.
-The review's other findings were already tracked (preview CSP = item ③; export dedupe / warm-status jobId
-/ per-process limiter / browse-200 = Phase-5 residuals + backlog #1/#8/#9).
+**▶ LEFT TO DO (pick up here):**
+- **Backlog #9 — Ops** (the big remaining gap): CI/CD so deploy isn't bound to one machine + a runner
+  that stands up app+DB and runs `test:unit`+`test:int`+`test:http`; **Sentry** error tracking; off-site
+  **encrypted Postgres backups** + pre-migration snapshots; monitoring. Needs user decisions (CI scope,
+  backup destination, whether to add the Sentry dep).
+- **Shared rate limiter**: `lib/rateLimit.ts` is in-memory/per-process — fine on the single-box Rock,
+  must move to a shared store (Postgres/Redis) before horizontal scaling.
+- **Semver retry-on-conflict** (Codex, Low): concurrent `save-as-new` on the same plan can surface the
+  unique `(lessonPlan, semver)` index error as a 500 — add retry-on-conflict. Integrity is already safe.
+- **`vitest` bump** (dev-only critical advisory) + the 5 moderate esbuild/drizzle-kit advisories
+  (`fixAvailable:false`, below the prod gate). Bump deliberately.
 
 **✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
 Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +
