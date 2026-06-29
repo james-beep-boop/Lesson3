@@ -154,8 +154,12 @@ hardening backlog, NOT the cutover; see "⚠ RESUME HERE"). The product model it
 
 - A lesson plan has many retained immutable versions; exactly one is **Official** at a time, globally.
 - Upload/import creates version `1.0.0` and makes that exact snapshot Official immediately.
-- **Editing forks a mutable Not-Official working copy** (Official versions are immutable); a Subject/
-  Site Admin marks a working copy Official when ready (moves the pointer, no content copy).
+- **SUPERSEDED by the Stage 2 editing model (2026-06-29, DECISIONS):** editing no longer forks a mutable
+  working copy on open. ALL saved versions are immutable to authenticated users (`update: () => false`);
+  **Edit** opens the version read-only, **Save** creates a NEW candidate via `POST /:id/save-as-new`
+  (never moves the Official pointer; optional atomic delete-source), and a Subject/Site Admin **Make
+  Official** moves the pointer (optional atomic delete-previous). Only system/`overrideAccess` paths +
+  those endpoints write.
 - Teachers can view/export all versions; Official is a default/trust marker, not an access/export gate.
 
 **`lesson-plans` + immutable `lesson-bundle-versions` are now the ONLY representation** — the legacy

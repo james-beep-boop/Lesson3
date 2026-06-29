@@ -53,10 +53,12 @@ export default function LessonControls() {
     fetch(`/api/lesson-plans/${planId}?depth=0`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
-        if (!cancelled) setSourceIsOfficial(p ? String(toId(p.officialVersion)) === String(id) : false)
+        // Only set a definite value when the plan was actually fetched; on failure leave `null`
+        // (unknown) so Save does NOT offer to delete the source on a transient API error.
+        if (!cancelled && p) setSourceIsOfficial(String(toId(p.officialVersion)) === String(id))
       })
       .catch(() => {
-        if (!cancelled) setSourceIsOfficial(false)
+        /* leave `null` (unknown) — Save won't offer delete-source */
       })
     return () => {
       cancelled = true
