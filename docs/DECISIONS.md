@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-29 (eve) — Codex re-review: make the "atomic" ops truly transactional + mandatory stale guard
+
+Codex re-reviewed `d45360b` (7.8/10, no Critical/High). Correctly flagged that the "atomic" delete-source
+/ delete-previous were **single-handler, not transactional** — a failed second step left the first
+persisted while the request errored. Fixed (`4614958`), gate green (test:http 22/22, test:int 15/15):
+
+- **Transactions (#2/#3).** `save-as-new` (create + optional delete) and `make-official` (pointer move +
+  optional delete) now run inside one Payload transaction via `initTransaction`/`commitTransaction`/
+  `killTransaction` (the built-in op pattern). Either step failing rolls back the whole operation.
+- **Stale guard mandatory (#1).** `save-as-new` now REQUIRES a parseable base `updatedAt` → 400 if
+  missing/invalid (was silently skipped), 409 if it predates the source. The real client always posts it
+  (full form content); this closes the omit-to-bypass hole at the write boundary.
+- **#5.** `LessonControls` leaves Official-ness `null` (unknown) on a failed plan fetch → Save won't
+  offer delete-source on a transient error (was defaulting to "deletable").
+- **#6.** NEXT-SESSION's old "editing forks a working copy" description marked SUPERSEDED by Stage 2.
+
+**Deferred (noted in the commit):** #4 — concurrent `save-as-new` on the same plan can still surface the
+unique `(lessonPlan, semver)` index error as a 500 (the transaction doesn't serialize semver allocation;
+integrity is protected, it's a UX/retry gap). Rare on the single-box Rock → retry-on-conflict is a
+follow-up. #7 — dev-only `vitest` critical + `esbuild` moderates (below the prod gate); bump `vitest`
+deliberately later.
+
 ## 2026-06-29 — Atomic version replace/promote + /simplify cleanup; Stage 2 editing model COMPLETE
 
 Two follow-ups landed, plus the /simplify pass that preceded them. The Stage 2 editing model is now
