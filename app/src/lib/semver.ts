@@ -30,6 +30,26 @@ export const compareSemver = (a: string, b: string): number => {
 }
 
 /**
+ * True ONLY for the unique `(lessonPlan, semver)` index violation (`lessonPlan_semver_idx`) — the one
+ * race the endpoint retries: two concurrent `save-as-new` calls on the same plan can both compute the
+ * same next patch before either commits, and the loser hits this. Retrying recomputes the semver against
+ * freshly-committed state instead of surfacing a 500. Deliberately NARROW: any OTHER uniqueness failure
+ * (a real bug) must surface immediately, not be masked by retries. Postgres reports SQLSTATE `23505` and
+ * names the constraint both on the error's `constraint` field and inside the message; drizzle wraps the
+ * pg error, so we check the error and its `cause`, and match the index name (not a bare `23505`).
+ */
+export function isSemverConflict(e: unknown): boolean {
+  const err = e as {
+    constraint?: string
+    message?: string
+    cause?: { constraint?: string; message?: string }
+  }
+  if ((err?.constraint ?? err?.cause?.constraint) === 'lessonPlan_semver_idx') return true
+  const msg = `${err?.message ?? ''} ${err?.cause?.message ?? ''}`
+  return /lessonPlan_semver_idx/i.test(msg)
+}
+
+/**
  * Next free PATCH for a plan: (max existing semver across the plan's versions) + 1 patch. So two forks
  * of `1.0.0` yield `1.0.1` then `1.0.2` — never a duplicate (the old code blindly patch-bumped the
  * SOURCE, so both forks of 1.0.0 produced 1.0.1). The unique `(lessonPlan, semver)` index is the

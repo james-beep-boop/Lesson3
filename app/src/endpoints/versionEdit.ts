@@ -24,7 +24,7 @@ import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
 import { parsePreviewCandidate } from './previewParse'
-import { nextSemverForPlan } from '../lib/semver'
+import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
@@ -34,6 +34,9 @@ const json = (body: unknown, status = 200): Response =>
 
 /** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals). */
 const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'createdAt', 'updatedAt'])
+
+/** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
+const SEMVER_CONFLICT_RETRIES = 4
 
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
@@ -111,48 +114,58 @@ export const saveAsNewEndpoint: Endpoint = {
     // Create the candidate and (optionally) delete the source in ONE DB transaction, so "replace this
     // draft with my edits" is genuinely atomic: if either step fails, nothing persists. The Official is
     // never deleted (re-checked + `enforceOfficialNotDeletable` backstop); deletion skipped if Official.
+    //
+    // Retry on a `(lessonPlan, semver)` conflict: a concurrent save on the same plan may grab the next
+    // patch first, poisoning this transaction. We can't recompute inside the aborted transaction (Postgres
+    // requires a rollback first), so each attempt is its OWN transaction — kill, recompute the semver
+    // against freshly-committed state, and try again. Integrity was always safe (the index rejects the
+    // dup); this just turns a rare 500 into a transparent retry.
     const deleteSource = req.query?.deleteSource === 'true'
-    const shouldCommit = await initTransaction(req)
-    try {
-      // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
-      // also lets an Editor create a version (the collection create access is admin-only).
-      const created = await req.payload.create({
-        collection: 'lesson-bundle-versions',
-        data: {
-          ...content,
-          lessonPlan: planId,
-          subjectGrade: toId(source.subjectGrade as never),
-          semver: await nextSemverForPlan(req.payload, planId, req),
-          sourceVersion: source.id,
-        } as never,
-        req,
-        overrideAccess: true,
-      })
 
-      const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
-      let sourceDeleted = false
-      if (deleteSource && !sourceIsOfficial) {
-        await req.payload.delete({
+    for (let attempt = 0; ; attempt++) {
+      const shouldCommit = await initTransaction(req)
+      try {
+        // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
+        // also lets an Editor create a version (the collection create access is admin-only).
+        const created = await req.payload.create({
           collection: 'lesson-bundle-versions',
-          id: source.id,
-          overrideAccess: true,
+          data: {
+            ...content,
+            lessonPlan: planId,
+            subjectGrade: toId(source.subjectGrade as never),
+            semver: await nextSemverForPlan(req.payload, planId, req),
+            sourceVersion: source.id,
+          } as never,
           req,
+          overrideAccess: true,
         })
-        sourceDeleted = true
-      }
 
-      if (shouldCommit) await commitTransaction(req)
-      return json({
-        id: created.id,
-        adminUrl: `/admin/collections/lesson-bundle-versions/${created.id}`,
-        sourceId: source.id,
-        sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
-        sourceIsOfficial,
-        sourceDeleted,
-      })
-    } catch (e) {
-      await killTransaction(req)
-      throw e
+        const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
+        let sourceDeleted = false
+        if (deleteSource && !sourceIsOfficial) {
+          await req.payload.delete({
+            collection: 'lesson-bundle-versions',
+            id: source.id,
+            overrideAccess: true,
+            req,
+          })
+          sourceDeleted = true
+        }
+
+        if (shouldCommit) await commitTransaction(req)
+        return json({
+          id: created.id,
+          adminUrl: `/admin/collections/lesson-bundle-versions/${created.id}`,
+          sourceId: source.id,
+          sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
+          sourceIsOfficial,
+          sourceDeleted,
+        })
+      } catch (e) {
+        await killTransaction(req)
+        if (isSemverConflict(e) && attempt < SEMVER_CONFLICT_RETRIES) continue
+        throw e
+      }
     }
   },
 }
