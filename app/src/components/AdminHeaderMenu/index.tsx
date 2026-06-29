@@ -16,12 +16,17 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
   return (
     <>
       {/* The document "API" tab is for Site Admins only. The endpoint stays access-controlled
-          regardless; this hides the tab in the edit view for everyone else. Rendered here because the
-          admin header is present on every admin page (incl. the document edit view). `hideAPIURL` would
-          hide it for ALL roles, so a CSS rule is used instead — couples to Payload's `.doc-tab[href$="/api"]`
-          markup (verified payload@3.85.1); re-check on Payload upgrades. */}
+          regardless; this hides the tab for everyone else (everywhere), plus all doc tabs on the
+          lesson-version edit view (where the Edit tab is already hidden for all roles — so a non-Site
+          Admin would otherwise see an empty tab bar). `hideAPIURL` would hide it for ALL roles, so a CSS
+          rule is used instead — couples to Payload's `.doc-tab` markup (verified payload@3.85.1). */}
       {!isSiteAdmin(user) && (
-        <style dangerouslySetInnerHTML={{ __html: '.doc-tab[href$="/api"]{display:none!important}' }} />
+        <style
+          dangerouslySetInnerHTML={{
+            __html:
+              '.doc-tab[href$="/api"]{display:none!important}.collection-edit--lesson-bundle-versions .doc-tabs{display:none!important}',
+          }}
+        />
       )}
       <header className="lp-admin-header">
         <AppNav user={user} />

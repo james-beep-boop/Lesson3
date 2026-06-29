@@ -22,7 +22,7 @@ import {
   exportVersionStatusEndpoint,
 } from '../endpoints/exportVersion'
 import { previewVersionEndpoint, previewVersionUnsavedEndpoint } from '../endpoints/previewVersion'
-import { forkVersionEndpoint, makeOfficialEndpoint } from '../endpoints/versionEdit'
+import { forkVersionEndpoint, makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -42,10 +42,7 @@ export const LessonBundleVersions: CollectionConfig = {
       // SPEC §5) and per-export DOCX/PDF download (every retained version is inherently exportable —
       // SPEC §9, Official-version model).
       edit: {
-        beforeDocumentControls: [
-          '@/components/PreviewBundle#default',
-          '@/components/ExportBundle#default',
-        ],
+        beforeDocumentControls: ['@/components/LessonControls#default'],
       },
     },
   },
@@ -77,6 +74,8 @@ export const LessonBundleVersions: CollectionConfig = {
     previewVersionUnsavedEndpoint,
     // POST /:id/fork — create a Not-Official working copy from this version and return its admin URL.
     forkVersionEndpoint,
+    // POST /:id/save-as-new — save the editor's form content as a new candidate version (no pointer move).
+    saveAsNewEndpoint,
     // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.
     makeOfficialEndpoint,
   ],

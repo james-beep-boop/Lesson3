@@ -181,6 +181,38 @@ body {
   display: none;
 }
 
+// Lesson-version edit view: our LessonControls bar is the only control surface — hide the native Save
+// button and the top-right "Edit" tab (Edit now lives in the bar). API tab: Site-Admins keep it;
+// non-Site-Admins get all tabs hidden via the admin header's conditional <style>. (Verified payload@3.85.1.)
+.collection-edit--lesson-bundle-versions {
+  .doc-controls .form-submit {
+    display: none;
+  }
+  .doc-tab[title='Edit'] {
+    display: none;
+  }
+}
+
+// The single edit-view control bar (LessonControls), injected before the document controls.
+.lesson-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+
+  &__chk {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  &__msg {
+    color: var(--theme-error-500, #b00020);
+    font-size: 0.8rem;
+  }
+}
+
 // Sidebar timestamps block (VersionTimestamps).
 .version-timestamps {
   display: flex;

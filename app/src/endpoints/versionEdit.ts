@@ -15,6 +15,8 @@
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
+import { applyEditorFieldSplit } from '../hooks/fieldSplit'
+import { VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
 import { nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
@@ -83,6 +85,84 @@ export const forkVersionEndpoint: Endpoint = {
     return json({
       id: working.id,
       adminUrl: `/admin/collections/lesson-bundle-versions/${working.id}`,
+    })
+  },
+}
+
+/**
+ * POST /:id/save-as-new — save the editor's current form content as a NEW candidate version of this
+ * plan (Stage 2 editing model). Does NOT move the Official pointer — designating Official is a separate
+ * admin-only action (`make-official`). Editor authorship is enforced server-side: the submitted content
+ * is run through `applyEditorFieldSplit` against THIS version as the source, so an Editor's structural /
+ * META changes are ignored (prose only); a Subject/Site Admin's edits pass through. Body: multipart with
+ * a `data` field carrying the JSON nested bundle (same shape the preview endpoint accepts).
+ *
+ * Returns the new version + the source's identity so the client can offer to delete the source (only
+ * when it is NOT the live Official — that guard is the client's, but `sourceIsOfficial` is computed here).
+ */
+export const saveAsNewEndpoint: Endpoint = {
+  path: '/:id/save-as-new',
+  method: 'post',
+  handler: async (req: PayloadRequest): Promise<Response> => {
+    const source = await authorize(req, 'editor')
+    const planId = toId(source.lessonPlan as never)
+    if (planId == null) throw new APIError('Version has no lesson plan', 409)
+
+    let edited: Record<string, unknown> | undefined
+    try {
+      const raw = (await req.formData!()).get('data')
+      edited = typeof raw === 'string' ? (JSON.parse(raw) as Record<string, unknown>) : undefined
+    } catch {
+      throw new APIError('Expected a multipart body with a JSON "data" field', 400)
+    }
+    if (!edited) throw new APIError('Missing edited content', 400)
+
+    // Enforce Editor-prose-only: overlay the submitted prose onto THIS version (the source) and preserve
+    // its admin/structure fields. Admins (and the system) pass through unchanged. Cardinality/order
+    // changes by an Editor are rejected inside the helper.
+    const merged = applyEditorFieldSplit({
+      data: { ...edited, subjectGrade: toId(source.subjectGrade as never) },
+      originalDoc: source as unknown as Record<string, unknown>,
+      operation: 'update',
+      req,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as Record<string, unknown>
+
+    // Strip identity/version metadata + row ids so the new candidate gets fresh ones (as fork does).
+    const content = stripIds(
+      Object.fromEntries(Object.entries(merged).filter(([k]) => !DROP_KEYS.has(k))),
+    ) as Record<string, unknown>
+
+    // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
+    // also lets an Editor create a version (the collection create access is admin-only).
+    const created = await req.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        ...content,
+        lessonPlan: planId,
+        subjectGrade: toId(source.subjectGrade as never),
+        semver: await nextSemverForPlan(req.payload, planId, req),
+        sourceVersion: source.id,
+      } as never,
+      req,
+      overrideAccess: true,
+    })
+
+    const plan = (await req.payload.findByID({
+      collection: 'lesson-plans',
+      id: planId,
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })) as { officialVersion?: unknown }
+    const sourceIsOfficial = String(toId(plan.officialVersion as never) ?? '') === String(source.id)
+
+    return json({
+      id: created.id,
+      adminUrl: `/admin/collections/lesson-bundle-versions/${created.id}`,
+      sourceId: source.id,
+      sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
+      sourceIsOfficial,
     })
   },
 }
