@@ -11,6 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-29 (late) — Semver retry-on-conflict (Codex #4) + deliberate vitest bump; both Rock-verified
+
+Closed the two small remaining code items from the hardening backlog. Gate green on the Rock with
+vitest 4.1.9: **test:unit 39/39, test:int 15/15, test:http 22/22, audit:prod GREEN (exit 0)**; app
+healthy (`/`→307, graphql→404, migrate nothing pending).
+
+- **Semver retry-on-conflict (`eaec3ed`).** Two concurrent `POST /:id/save-as-new` on the same plan can
+  both compute the same next patch (`nextSemverForPlan` = max-semver+1) before either commits; the loser
+  hit the unique `lessonPlan_semver_idx` index and surfaced as a 500. Integrity was always protected (the
+  index rejects the dup) — this just turns the rare race into a transparent retry. **Key constraint:** the
+  conflict aborts the Postgres transaction, so you CANNOT recompute-and-retry inside it (Postgres requires
+  a rollback first). So each attempt is its OWN transaction — the whole `initTransaction → create →
+  (optional delete) → commit` block is wrapped in a bounded `for` loop; on conflict it `killTransaction`s,
+  loops, and `nextSemverForPlan` reads the now-committed competitor row to pick a higher patch. Bounded to
+  `SEMVER_CONFLICT_RETRIES = 4`.
+- **`isSemverConflict` is deliberately NARROW (Codex re-review, Medium).** First cut matched any SQLSTATE
+  `23505` or generic "duplicate key value" — too broad: it would mask an UNRELATED uniqueness bug behind 4
+  retries and slow diagnostics. Narrowed to match ONLY `lessonPlan_semver_idx`: the pg error's
+  `.constraint` field, the drizzle-wrapped `.cause.constraint`, or the index name in the message (case-
+  insensitive). A bare `23505` no longer retries. Rule: **a retry predicate must name the exact condition
+  it masks; everything else must surface immediately.** Unit-pinned in `tests/unit/semverConflict.spec.ts`
+  (a `users_email_unique` `23505` asserts `false`). `isSemverConflict` lives in `lib/semver.ts` (type-only
+  payload import → DB-free, unit-testable without the endpoint/DB import chain).
+- **DEFERRED (Codex, Medium): a transactional-rollback failure-path test.** The transactional
+  save-as-new/make-official are covered on the happy path but not on a forced 2nd-step failure (the prior
+  bug — `4614958` — was partial success after step 2). A real rollback test needs a fault-injection seam
+  (a valid Payload `delete` won't fail on its own) and only runs on the Rock. Left as a follow-up rather
+  than bolt a test-only hook into the production endpoint. Tracked in NEXT-SESSION.
+- **vitest 4.0.18 → 4.1.9 (`2599bb2`).** Clears the dev-only critical advisory GHSA-5xrq-8626-4rwp
+  (arbitrary file read/exec when the **Vitest UI server** is listening). Never exploitable here — we only
+  ever run `vitest run`, never `--ui` — but bumped deliberately. The bump restructured vitest's dep tree
+  (npm removed ~157 packages). Exact pin (repo's no-caret convention). `audit:prod` stays GREEN; the 5
+  remaining moderate esbuild/drizzle-kit advisories are transitive (`fixAvailable:false`), below the
+  `--omit=dev --audit-level=high` gate.
+- **`/simplify` (4 agents) + `/code-review` (Codex-style) both run on the delta.** Simplify found it
+  essentially clean (one applied micro-polish: early-return in `isSemverConflict` before the regex);
+  skipped the "extract a shared `createVersionWithSemver` helper" altitude suggestion as premature
+  abstraction — there is exactly ONE caller today that allocates a computed semver + creates a version
+  (ingest is conflict-free at `1.0.0`). The review's narrowing finding (above) was the substantive catch.
+
 ## 2026-06-29 (eve) — Codex re-review: make the "atomic" ops truly transactional + mandatory stale guard
 
 Codex re-reviewed `d45360b` (7.8/10, no Critical/High). Correctly flagged that the "atomic" delete-source

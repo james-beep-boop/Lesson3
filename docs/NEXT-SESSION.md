@@ -13,21 +13,37 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING (IN PROGRESS).** The Official-version cutover is long done.
-**As of 2026-06-29 (HEAD `1da45f8`, all pushed + Rock-verified):** the hardening list (Bucket A, items
+**As of 2026-06-29 (HEAD `2599bb2`, all pushed + Rock-verified):** the hardening list (Bucket A, items
 ⓪–③, deps overrides ②, #4, #8, Phase-5 export residuals) AND a full **editing-UX redesign** (nav
-unification + Stage 1 admin tweaks + Stage 2/2b versioning model) are DONE. What's LEFT: **backlog #9
-ops** (CI/CD, Sentry, off-site backups, monitoring), the **shared rate limiter**, a small **semver
-retry-on-conflict**, and a deliberate **`vitest` bump** — see "▶ RESUME HERE".
+unification + Stage 1 admin tweaks + Stage 2/2b versioning model) are DONE — plus, this session, the
+**semver retry-on-conflict** and the deliberate **`vitest` bump** (4.0.18 → 4.1.9). What's LEFT: **backlog
+#9 ops** (CI/CD, Sentry, off-site backups, monitoring) and the **shared rate limiter** — see "▶ RESUME HERE".
 
 ---
 
-## ▶ RESUME HERE (2026-06-29) — editing redesign COMPLETE; left: #9 ops + shared limiter + 2 small items
+## ▶ RESUME HERE (2026-06-29) — semver-retry + vitest bump DONE; left: #9 ops + shared limiter
 
-**State: clean. HEAD `1da45f8`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
+**State: clean. HEAD `2599bb2`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
 from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
 cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. Canonical gate green:
-**test:http 22/22, test:int 15/15, test:unit 33/33, audit:prod GREEN.** Seeded logins for UI checks are
-in the assistant's private memory (NOT the repo).
+**test:http 22/22, test:int 15/15, test:unit 39/39, audit:prod GREEN** (all re-verified on the Rock with
+vitest 4.1.9). Seeded logins for UI checks are in the assistant's private memory (NOT the repo).
+
+**✓ Done this session (2026-06-29 late), Rock-verified:**
+- **Semver retry-on-conflict** (`eaec3ed`) — `POST /:id/save-as-new` now retries (bounded to 4) when two
+  concurrent saves on one plan race for the same next patch and hit the unique `lessonPlan_semver_idx`.
+  Each retry is its OWN transaction (kill → recompute the semver against freshly-committed state → retry),
+  because the conflict poisons the Postgres transaction. `isSemverConflict` (in `lib/semver.ts`) is
+  deliberately NARROW — matches ONLY `lessonPlan_semver_idx` (via the pg error's `.constraint`, the
+  drizzle-wrapped `.cause.constraint`, or the index name in the message), never a bare `23505`/generic
+  "duplicate key value", so an unrelated uniqueness bug surfaces immediately. Unit-pinned
+  (`tests/unit/semverConflict.spec.ts`). Integrity was always safe; this just turns a rare 500 into a
+  transparent retry. **Still open (Codex):** a failure-path/rollback test for the transactional
+  save-as-new/make-official (forcing the 2nd step to fail) — needs a fault-injection seam + the Rock;
+  tracked as a follow-up, not built (didn't want a test-only hook in production code).
+- **`vitest` 4.0.18 → 4.1.9** (`2599bb2`) — clears the dev-only critical advisory (GHSA-5xrq-8626-4rwp,
+  the Vitest UI server; we only run `vitest run`, never `--ui`). `audit:prod` stays GREEN; the 5 remaining
+  moderate esbuild/drizzle-kit advisories are transitive with no upstream fix, below the prod gate.
 
 **✓ Done this session (2026-06-28 → 06-29), all Rock-verified:**
 - **② Dependency advisories** (`8e80e17`): scoped npm `overrides` (`undici@7.28.0`, `postcss@8.5.16`,
@@ -58,10 +74,13 @@ in the assistant's private memory (NOT the repo).
   backup destination, whether to add the Sentry dep).
 - **Shared rate limiter**: `lib/rateLimit.ts` is in-memory/per-process — fine on the single-box Rock,
   must move to a shared store (Postgres/Redis) before horizontal scaling.
-- **Semver retry-on-conflict** (Codex, Low): concurrent `save-as-new` on the same plan can surface the
-  unique `(lessonPlan, semver)` index error as a 500 — add retry-on-conflict. Integrity is already safe.
-- **`vitest` bump** (dev-only critical advisory) + the 5 moderate esbuild/drizzle-kit advisories
-  (`fixAvailable:false`, below the prod gate). Bump deliberately.
+- **Transactional rollback test** (Codex, Medium): the transactional `save-as-new` / `make-official`
+  are covered on the happy path but not on a forced 2nd-step failure (the prior bug was partial success
+  after step 2). Add a Rock-only int test that injects the fault (e.g. a `beforeDelete` hook gated on a
+  test-only env flag) and asserts no candidate/pointer change persists. Left as a follow-up to avoid a
+  test-only seam in production code.
+- **5 moderate esbuild/drizzle-kit advisories** (`fixAvailable:false`, below the prod gate) — bump
+  opportunistically when upstream catches up.
 
 **✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
 Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +
