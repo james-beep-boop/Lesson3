@@ -13,23 +13,34 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING (IN PROGRESS).** The Official-version cutover is long done.
-**As of 2026-06-29 (HEAD `2599bb2`, all pushed + Rock-verified):** the hardening list (Bucket A, items
+**As of 2026-06-29 (HEAD `ed2fd6b`, all pushed + Rock-verified):** the hardening list (Bucket A, items
 ⓪–③, deps overrides ②, #4, #8, Phase-5 export residuals) AND a full **editing-UX redesign** (nav
 unification + Stage 1 admin tweaks + Stage 2/2b versioning model) are DONE — plus, this session, the
-**semver retry-on-conflict** and the deliberate **`vitest` bump** (4.0.18 → 4.1.9). What's LEFT: **backlog
-#9 ops** (CI/CD, Sentry, off-site backups, monitoring) and the **shared rate limiter** — see "▶ RESUME HERE".
+**semver retry-on-conflict**, the deliberate **`vitest` bump** (4.0.18 → 4.1.9), and the **shared
+Postgres-backed rate limiter**. What's LEFT: **backlog #9 ops** (CI/CD, Sentry, off-site backups,
+monitoring) — see "▶ RESUME HERE".
 
 ---
 
-## ▶ RESUME HERE (2026-06-29) — semver-retry + vitest bump DONE; left: #9 ops + shared limiter
+## ▶ RESUME HERE (2026-06-29) — semver-retry + vitest + shared limiter DONE; left: #9 ops
 
-**State: clean. HEAD `2599bb2`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
+**State: clean. HEAD `ed2fd6b`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
 from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
 cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. Canonical gate green:
-**test:http 22/22, test:int 15/15, test:unit 39/39, audit:prod GREEN** (all re-verified on the Rock with
+**test:http 22/22, test:int 18/18, test:unit 39/39, audit:prod GREEN** (all re-verified on the Rock with
 vitest 4.1.9). Seeded logins for UI checks are in the assistant's private memory (NOT the repo).
 
 **✓ Done this session (2026-06-29 late), Rock-verified:**
+- **Shared Postgres-backed rate limiter** (`ed2fd6b`) — `lib/rateLimit.ts` was an in-memory per-process
+  window (each replica its own count → budget multiplied under scaling). Moved to a SHARED store: a new
+  `rate_limit_counters` table (migration `20260629_213000`), one row per `(bucket, user)` reused via an
+  atomic `INSERT … ON CONFLICT DO UPDATE`. **Postgres, not Redis** (single-runtime, no new infra). Changed
+  from a sliding log to a **fixed-window counter** (deliberate, documented — ~2× boundary slack is
+  immaterial for an abuse guard, keeps the shared path one atomic statement). `enforceUserRateLimit` is now
+  async; the 3 export/preview call sites await it. Int-covered (`tests/int/rateLimit.int.spec.ts`: budget
+  enforced → 429+Retry-After, per-user isolation, 401 unauth). **Ops gotcha (cost time):** `npx payload
+  migrate` against `lesson3_test` HUNG (open pg pool, never exited) — applied the `CREATE TABLE` + a
+  `payload_migrations` row to `lesson3_test` via `psql` directly instead. See DECISIONS 2026-06-29 (late).
 - **Semver retry-on-conflict** (`eaec3ed`) — `POST /:id/save-as-new` now retries (bounded to 4) when two
   concurrent saves on one plan race for the same next patch and hit the unique `lessonPlan_semver_idx`.
   Each retry is its OWN transaction (kill → recompute the semver against freshly-committed state → retry),
@@ -68,12 +79,14 @@ vitest 4.1.9). Seeded logins for UI checks are in the assistant's private memory
     hooks removed. Full HTTP coverage. See DECISIONS 2026-06-29 entries.
 
 **▶ LEFT TO DO (pick up here):**
-- **Backlog #9 — Ops** (the big remaining gap): CI/CD so deploy isn't bound to one machine + a runner
-  that stands up app+DB and runs `test:unit`+`test:int`+`test:http`; **Sentry** error tracking; off-site
-  **encrypted Postgres backups** + pre-migration snapshots; monitoring. Needs user decisions (CI scope,
-  backup destination, whether to add the Sentry dep).
-- **Shared rate limiter**: `lib/rateLimit.ts` is in-memory/per-process — fine on the single-box Rock,
-  must move to a shared store (Postgres/Redis) before horizontal scaling.
+- **Backlog #9 — Ops** (the big remaining gap, NEXT UP — needs user decisions): CI/CD so deploy isn't
+  bound to one machine + a runner that stands up app+DB and runs `test:unit`+`test:int`+`test:http`;
+  **Sentry** error tracking; off-site **encrypted Postgres backups** + pre-migration snapshots; monitoring.
+  Decisions to make: CI platform/scope, backup destination, whether to add the Sentry dep. *(The hung
+  `npx payload migrate` this session is itself an argument for a proper CI migrate step.)*
+- **Rate-limiter follow-ups (small, non-blocking):** stale `rate_limit_counters` rows for deleted users
+  are never pruned (bounded — one row per distinct user — so harmless; add a periodic cleanup only if the
+  user set grows large). The `…/export/status` endpoint is still unthrottled (cheap).
 - **Transactional rollback test** (Codex, Medium): the transactional `save-as-new` / `make-official`
   are covered on the happy path but not on a forced 2nd-step failure (the prior bug was partial success
   after step 2). Add a Rock-only int test that injects the fault (e.g. a `beforeDelete` hook gated on a

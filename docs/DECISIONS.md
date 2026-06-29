@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-29 (late) — Shared Postgres-backed rate limiter (readiness #9); + a `payload migrate` hang gotcha
+
+Closed the "shared rate limiter" backlog item. Gate green on the Rock: **test:unit 39/39, test:int 18/18
+(+3, the new limiter spec), test:http 22/22, audit:prod GREEN**; migration applied to `lesson3` +
+`lesson3_test`; app healthy. Commit `ed2fd6b`.
+
+- **Why.** `lib/rateLimit.ts` was an in-memory sliding window keyed per `(bucket, user)` — correct only
+  on the single-box Rock. Under horizontal scaling each replica keeps its OWN map, so the effective budget
+  is `max × replicas` and a restart resets it. Move the state to a SHARED store so the limit holds across
+  processes.
+- **Store: Postgres, not Redis.** New `rate_limit_counters` table (migration `20260629_213000`), one row
+  per `(bucket, user)` key, reused each request. Redis would be a new container + client + env for one
+  small feature; Postgres is already the single datastore and keeps the system single-runtime (CLAUDE.md).
+- **Algorithm: fixed-window counter, not a sliding log (deliberate trade-off).** `window_start =
+  floor(now / windowMs) * windowMs`; a single atomic `INSERT … ON CONFLICT DO UPDATE` bumps the count
+  within the current window or resets it, `RETURNING` the new count. A fixed window can admit up to ~2×
+  the budget across ONE boundary — immaterial for an abuse guard with generous per-user budgets — and it
+  keeps the shared path one statement instead of array-pruning a per-hit log (the sliding-log alternative
+  needs a row per request + cleanup). The count is incremented even when over budget (harmless: bounded by
+  in-window volume, resets next window), so `Retry-After` is derived from the window boundary, not the count.
+- **Atomicity.** `INSERT … ON CONFLICT DO UPDATE` takes a row lock, so concurrent requests for the same key
+  serialise — no lost increments. Not a Payload collection (limiter bookkeeping, not domain content, must
+  not show in the admin UI) → created by raw SQL in a hand-written migration, no `payload-types` change.
+  `enforceUserRateLimit` is now **async** (one roundtrip via `req.payload.db.drizzle.execute(sql\`…\`)`);
+  the 3 export/preview call sites await it. Int spec `tests/int/rateLimit.int.spec.ts` drives it directly
+  with a minimal `{ user, payload }` req: allows up to max → 429 + `Retry-After`, per-user isolation, 401
+  unauth. Cleanup of orphaned rows (deleted users) is a noted non-blocking follow-up — bounded by distinct
+  users, so harmless at this scale.
+- **OPS GOTCHA (cost time, logged for #9 CI).** A schema change normally rides the compose one-shot
+  `migrate` container, which targets `lesson3` only. For `lesson3_test` the procedure runs `npx payload
+  migrate` in the deps image — and it **HUNG** (no migration output, container "Up" indefinitely; the pg
+  pool keeps the event loop alive and the CLI never exits in this invocation). Rather than fight it, the
+  table is just `CREATE TABLE` SQL — applied it (and a `payload_migrations` row) to `lesson3_test`
+  directly via `docker compose exec postgres psql`. Lesson: for a standalone-table migration, applying the
+  raw SQL to the test DB is faster and more reliable than the migrate CLI; a real CI migrate step (#9)
+  should run the actual `migrate` against a fresh DB so this path is exercised properly. (`lesson3` itself
+  migrated cleanly via the compose `migrate` container — only the manual `lesson3_test` path hung.)
+
 ## 2026-06-29 (late) — Semver retry-on-conflict (Codex #4) + deliberate vitest bump; both Rock-verified
 
 Closed the two small remaining code items from the hardening backlog. Gate green on the Rock with
