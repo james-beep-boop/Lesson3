@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-29 — Atomic version replace/promote + /simplify cleanup; Stage 2 editing model COMPLETE
+
+Two follow-ups landed, plus the /simplify pass that preceded them. The Stage 2 editing model is now
+complete end-to-end. Gate: **test:http 22/22, test:int 15/15**, app healthy.
+
+- **Atomic delete-source on save-as-new (`a085...`→`7b4290f`).** `POST /:id/save-as-new?deleteSource=true`
+  creates the new candidate AND deletes the version you edited from in ONE handler — replacing the old
+  create-then-separate-client-DELETE (which could orphan on interrupt). The Official is never deleted
+  (server re-check + `enforceOfficialNotDeletable`). `LessonControls` determines Official-ness up front
+  (one cheap plan read) and prompts "…and delete the one you're editing?" only for a deletable candidate.
+- **Make Official atomic delete-previous (Stage 2b, `a1bb268`).** `POST /:id/make-official?deletePrevious=true`
+  captures the current Official, moves the pointer, then deletes the now-superseded version in the same
+  handler (never the promoted one; no-op if none). `EditActions` prompts "…also delete the previously-
+  Official version? (Cancel keeps it.)". This completes the delete-prompt model for the official-
+  replacement case.
+- **/simplify cleanup (`bf9bd53`).** Removed the now-unreachable `enforceVersionImmutable` +
+  `enforceVersionConcurrency` beforeChange hooks (dead under `update:() => false`); `save-as-new` reuses
+  the exported `isOfficialVersion`. The model lives in one place: the access gate (immutability) +
+  save-as-new (field-split + stale-check) + make-official (pointer). `enforceVersionFieldSplit` stays
+  (preview uses it directly). Kept: the `editing` mirror in LessonControls (useForm().disabled
+  reactivity via use-context-selector isn't guaranteed); serial docx+pdf download (safer for two browser
+  downloads).
+
+**Editing model status — COMPLETE:** Edit (open admin editor, read-only) → Edit unlocks → Save = new
+candidate (never publishes) with optional atomic delete-source → admin Make Official moves the pointer
+with optional atomic delete-previous. Versions immutable to authenticated users; only system/overrideAccess
++ these endpoints write. test:http covers save-as-new (editor/teacher/structural/stale/deleteSource) and
+make-official (deletePrevious/editor-denied).
+
 ## 2026-06-29 — Stage 2 editing model ENFORCED server-side (Codex review #1–#6 addressed)
 
 Stage 2a shipped the control-row UI but left the model only CSS-deep (native Save hidden, versions still
