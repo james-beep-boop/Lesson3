@@ -343,4 +343,51 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })
     expect(res.status).toBe(409)
   })
+
+  it('?deleteSource=true atomically deletes a NON-Official source', async () => {
+    // A throwaway candidate to edit-from; saving with deleteSource should create the new one AND remove
+    // this source in one request.
+    const cand = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '7.1.0',
+        title: `${MARK}del-src`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const candDoc = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: cand.id, depth: 0 })
+    const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm(candDoc),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number; sourceDeleted: boolean }
+    expect(out.sourceDeleted).toBe(true)
+    const gone = await fx.payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { id: { equals: cand.id } },
+      overrideAccess: true,
+    })
+    expect(gone.totalDocs).toBe(0)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
+  it('?deleteSource=true is ignored for the Official source (kept)', async () => {
+    const res = await fetch(url(`${saveUrl()}?deleteSource=true`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any) }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number; sourceIsOfficial: boolean; sourceDeleted: boolean }
+    expect(out.sourceIsOfficial).toBe(true)
+    expect(out.sourceDeleted).toBe(false)
+    const still = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: fx.version.id, depth: 0 })
+    expect(still).toBeTruthy()
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
 })

@@ -21,6 +21,7 @@ import { reduceFieldsToValues } from 'payload/shared'
 
 import { downloadExport, type ExportState } from '../exportClient'
 import { formatFromResources } from '../../lib/format'
+import { toId } from '../../access'
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
@@ -36,10 +37,31 @@ export default function LessonControls() {
   const [exportState, setExportState] = useState<ExportState>('idle')
   const [msg, setMsg] = useState<string | null>(null)
 
+  // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
+  // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
+  const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
+
   // Read-only by default — lock the form on mount; "Edit" unlocks it.
   useEffect(() => {
     setDisabled(true)
   }, [setDisabled])
+
+  useEffect(() => {
+    const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
+    if (!id || planId == null) return // leave `null` (unknown) → Save won't offer to delete the source
+    let cancelled = false
+    fetch(`/api/lesson-plans/${planId}?depth=0`, { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (!cancelled) setSourceIsOfficial(p ? String(toId(p.officialVersion)) === String(id) : false)
+      })
+      .catch(() => {
+        if (!cancelled) setSourceIsOfficial(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, savedDocumentData])
 
   // No id → unsaved/new document; nothing to act on yet.
   if (!id) return null
@@ -65,39 +87,26 @@ export default function LessonControls() {
 
   const onSave = async () => {
     if (saving) return
+    // Decide up front whether to also delete the version being edited — offered only for a deletable
+    // (non-Official) candidate. Asking before the request lets save-as-new create + delete atomically
+    // in one handler (no orphan-on-interrupt window).
+    const deleteSource =
+      sourceIsOfficial === false &&
+      window.confirm('Save your edits as a new version and delete the one you are editing?')
     setSaving(true)
     setMsg(null)
     try {
       const body = new FormData()
       body.set('data', JSON.stringify(currentContent()))
-      const res = await fetch(`/api/lesson-bundle-versions/${id}/save-as-new`, {
-        method: 'POST',
-        body,
-        credentials: 'same-origin',
-      })
+      const res = await fetch(
+        `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
+        { method: 'POST', body, credentials: 'same-origin' },
+      )
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
         throw new Error(err.errors?.[0]?.message || `Save failed (${res.status})`)
       }
-      const out = (await res.json()) as {
-        adminUrl: string
-        sourceId: number | string
-        sourceLabel: string
-        sourceIsOfficial: boolean
-      }
-      // Offer to delete the version you edited from — but only when it is NOT the live Official one
-      // (the Official is never deletable, and replacing it is an admin "Make Official" action).
-      if (
-        !out.sourceIsOfficial &&
-        window.confirm(`Saved as a new version. Delete the version you edited from (${out.sourceLabel})?`)
-      ) {
-        await fetch(`/api/lesson-bundle-versions/${out.sourceId}`, {
-          method: 'DELETE',
-          credentials: 'same-origin',
-        }).catch(() => {
-          /* non-fatal — the new version is saved regardless */
-        })
-      }
+      const out = (await res.json()) as { adminUrl: string }
       // Open the new candidate version (loads read-only).
       window.location.assign(out.adminUrl)
     } catch (e) {

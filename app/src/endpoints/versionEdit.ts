@@ -116,12 +116,30 @@ export const saveAsNewEndpoint: Endpoint = {
 
     const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
 
+    // Optional atomic cleanup: when the caller asked to delete the version they edited from
+    // (`?deleteSource=true`), do it HERE, in the same handler as the create — so "replace this draft
+    // with my edits" is one operation, not a create followed by a separate client DELETE that could be
+    // interrupted (orphaning both). The Official version is never deleted (re-checked server-side, plus
+    // `enforceOfficialNotDeletable` backstops it); deletion is skipped if `sourceIsOfficial`.
+    const deleteSource = req.query?.deleteSource === 'true'
+    let sourceDeleted = false
+    if (deleteSource && !sourceIsOfficial) {
+      await req.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: source.id,
+        overrideAccess: true,
+        req,
+      })
+      sourceDeleted = true
+    }
+
     return json({
       id: created.id,
       adminUrl: `/admin/collections/lesson-bundle-versions/${created.id}`,
       sourceId: source.id,
       sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
       sourceIsOfficial,
+      sourceDeleted,
     })
   },
 }
