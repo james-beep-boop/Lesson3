@@ -46,7 +46,7 @@ export const previewVersionEndpoint: Endpoint = {
   method: 'get',
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
-    const limited = enforceUserRateLimit(req, 'preview')
+    const limited = await enforceUserRateLimit(req, 'preview')
     if (limited) return limited
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing version id', 400)
@@ -74,7 +74,7 @@ export const previewVersionUnsavedEndpoint: Endpoint = {
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
-    const limited = enforceUserRateLimit(req, 'preview')
+    const limited = await enforceUserRateLimit(req, 'preview')
     if (limited) return limited
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing version id', 400)

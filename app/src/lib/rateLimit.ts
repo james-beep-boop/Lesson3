@@ -1,16 +1,26 @@
 /**
- * Per-user rate limiting for the expensive generation endpoints (SPEC §11; readiness #1).
+ * Per-user rate limiting for the expensive generation endpoints (SPEC §11; readiness #1/#9).
  *
  * WHY here and not in Payload: Payload 3 dropped the built-in `rateLimit` config that v2's
  * Express server had (verified absent in installed `payload/dist/config/types.d.ts`, 3.85.1).
  * So throttling expensive endpoints is necessarily a small custom limiter.
  *
- * SCOPE / CAVEAT: an in-memory sliding window, keyed per user + bucket. It is PER-PROCESS —
- * not shared across replicas and reset on restart. That is correct for the single-box Rock
- * (one app container); if the app is ever horizontally scaled this must move to a shared store
- * (Redis/Postgres). The queue's `autoRun` `limit` is the *concurrency* bound on heavy work;
- * this is the *request-rate* bound on triggering it. Together they cover readiness #1.
+ * STORE: a SHARED Postgres-backed fixed-window counter — `rate_limit_counters`, one row per
+ * `(bucket, user)` key, reused each request via an atomic UPSERT (migration
+ * `20260629_213000_add_rate_limit_counters`). This supersedes the original in-memory per-process
+ * window, which was correct only for the single-box Rock; the count now holds across replicas and
+ * survives restarts, so the limiter is correct under horizontal scaling. Postgres (not Redis) keeps
+ * the system single-runtime and adds no new infra.
+ *
+ * FIXED vs SLIDING (deliberate, documented): the prior window was a true sliding log; this is a fixed
+ * window (`window_start = floor(now / windowMs) * windowMs`). A fixed window can admit up to ~2× the
+ * budget across a single boundary, which is immaterial for an abuse guard with generous per-user
+ * budgets — and it makes the shared-store path a single atomic statement instead of array pruning.
+ *
+ * The queue's `autoRun` `limit` is the *concurrency* bound on heavy work; this is the *request-rate*
+ * bound on triggering it. Together they cover readiness #1.
  */
+import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import type { User } from '../payload-types'
@@ -18,7 +28,7 @@ import type { User } from '../payload-types'
 interface Limit {
   /** Max requests allowed within the window. */
   max: number
-  /** Sliding window length in milliseconds. */
+  /** Fixed window length in milliseconds. */
   windowMs: number
 }
 
@@ -39,25 +49,34 @@ const LIMITS = {
 
 type Bucket = keyof typeof LIMITS
 
-/** key → ascending list of request timestamps (ms) still inside the window. */
-const hits = new Map<string, number[]>()
+/** Minimal view of the postgres adapter's drizzle handle — enough to run a parameterised statement. */
+type DrizzleExec = { execute: (q: unknown) => Promise<{ rows: Array<{ count: number | string }> }> }
 
 /**
- * Record a hit for (user, bucket) and decide whether it is allowed. Returns the wait time in
- * seconds when blocked (0 when allowed). Prunes expired timestamps as it goes, so the map does
- * not grow unbounded for active users; idle keys are dropped once their window empties.
+ * Record a hit for `key` in the current fixed window and decide whether it is allowed, atomically.
+ * One UPSERT: insert the row at count 1, or — on conflict — bump the count when the stored window is
+ * the current one, else reset to 1 (a new window). The count is incremented even when over budget
+ * (harmless: it is bounded by request volume within the window and resets next window), so the wait
+ * is derived from the window boundary, not the count. Returns the wait in seconds when blocked.
  */
-function take(key: string, limit: Limit, now: number): { ok: boolean; retryAfterSec: number } {
-  const cutoff = now - limit.windowMs
-  const recent = (hits.get(key) ?? []).filter((t) => t > cutoff)
-  if (recent.length >= limit.max) {
-    hits.set(key, recent)
-    const retryAfterSec = Math.max(1, Math.ceil((recent[0] + limit.windowMs - now) / 1000))
-    return { ok: false, retryAfterSec }
-  }
-  recent.push(now)
-  hits.set(key, recent)
-  return { ok: true, retryAfterSec: 0 }
+async function take(
+  db: DrizzleExec,
+  key: string,
+  limit: Limit,
+  now: number,
+): Promise<{ ok: boolean; retryAfterSec: number }> {
+  const windowStart = Math.floor(now / limit.windowMs) * limit.windowMs
+  const result = await db.execute(sql`
+    INSERT INTO "rate_limit_counters" AS r ("bucket_key", "window_start", "count")
+    VALUES (${key}, ${windowStart}, 1)
+    ON CONFLICT ("bucket_key") DO UPDATE
+    SET "window_start" = ${windowStart},
+        "count" = CASE WHEN r."window_start" = ${windowStart} THEN r."count" + 1 ELSE 1 END
+    RETURNING "count" AS count;`)
+  const count = Number(result.rows[0]?.count ?? 0)
+  if (count <= limit.max) return { ok: true, retryAfterSec: 0 }
+  const retryAfterSec = Math.max(1, Math.ceil((windowStart + limit.windowMs - now) / 1000))
+  return { ok: false, retryAfterSec }
 }
 
 /**
@@ -66,13 +85,17 @@ function take(key: string, limit: Limit, now: number): { ok: boolean; retryAfter
  * Keyed by user id so one user can't exhaust another's budget; unauthenticated callers are
  * rejected upstream (the handlers check `req.user`), so a missing user is treated as blocked.
  */
-export function enforceUserRateLimit(req: PayloadRequest, bucket: Bucket): Response | null {
+export async function enforceUserRateLimit(
+  req: PayloadRequest,
+  bucket: Bucket,
+): Promise<Response | null> {
   const userId = (req.user as User | undefined)?.id
   if (userId === undefined || userId === null) {
     return jsonError('Unauthorized', 401)
   }
   const limit = LIMITS[bucket]
-  const { ok, retryAfterSec } = take(`${bucket}:${userId}`, limit, Date.now())
+  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
+  const { ok, retryAfterSec } = await take(db, `${bucket}:${userId}`, limit, Date.now())
   if (ok) return null
   return jsonError(
     `Too many ${bucket} requests — please wait ${retryAfterSec}s and try again.`,

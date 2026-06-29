@@ -103,7 +103,7 @@ export const exportVersionPrepareEndpoint: Endpoint = {
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
 
-    const limited = enforceUserRateLimit(req, 'export')
+    const limited = await enforceUserRateLimit(req, 'export')
     if (limited) return limited
 
     const { version, spec } = await authorizeVersionExportRequest(req)
