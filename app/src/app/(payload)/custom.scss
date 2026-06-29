@@ -177,7 +177,7 @@ body {
 // Lesson-version edit view: the native "Last Modified / Created" row is relocated into the sidebar
 // (the VersionTimestamps UI field, under "Version"). Hide the native row, SCOPED to this collection
 // so other collections keep their timestamp display.
-.collection-lesson-bundle-versions .doc-controls__meta {
+.collection-edit--lesson-bundle-versions .doc-controls__meta {
   display: none;
 }
 

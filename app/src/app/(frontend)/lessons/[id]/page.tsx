@@ -89,13 +89,6 @@ export default async function LessonView({
       </Link>
       <div className="lesson-heading">
         <h1>{title}</h1>
-        {canEdit && (
-          <EditActions
-            versionId={selectedId}
-            isOfficial={selectedId === officialId}
-            canMakeOfficial={canMakeOfficial}
-          />
-        )}
       </div>
 
       {versions.length > 1 && (
@@ -120,6 +113,13 @@ export default async function LessonView({
       )}
 
       <div className="export-bar">
+        {canEdit && (
+          <EditActions
+            versionId={selectedId}
+            isOfficial={selectedId === officialId}
+            canMakeOfficial={canMakeOfficial}
+          />
+        )}
         <span className="export-label">Download</span>
         <DownloadButtons versionId={selectedId} format={format} />
         <ResourcesToggle format={format} />
