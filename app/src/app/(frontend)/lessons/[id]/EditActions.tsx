@@ -33,13 +33,18 @@ export default function EditActions({
   }
 
   const onMakeOfficial = async () => {
+    // Promote always; the prompt only governs whether the previously-Official version is also deleted
+    // (atomically, server-side). Cancel keeps it.
+    const deletePrevious = window.confirm(
+      'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)',
+    )
     setBusy('official')
     setError(null)
     try {
-      const res = await fetch(`/api/lesson-bundle-versions/${versionId}/make-official`, {
-        method: 'POST',
-        credentials: 'same-origin',
-      })
+      const res = await fetch(
+        `/api/lesson-bundle-versions/${versionId}/make-official?deletePrevious=${deletePrevious}`,
+        { method: 'POST', credentials: 'same-origin' },
+      )
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
         throw new Error(body.errors?.[0]?.message ?? 'Could not mark Official.')

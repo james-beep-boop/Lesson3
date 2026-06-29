@@ -391,3 +391,71 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 })
+
+describe('make-official (Stage 2b) — POST /:id/make-official', () => {
+  it('?deletePrevious=true moves the pointer and atomically deletes the previous Official', async () => {
+    // Self-contained throwaway plan + two versions, so the fixture plan's pointer is untouched.
+    const p = (await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}mo-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const mk = (semver: string, tag: string) =>
+      fx.payload.create({
+        collection: 'lesson-bundle-versions',
+        data: {
+          lessonPlan: p.id,
+          subjectGrade: fx.subjectGrade.id,
+          semver,
+          title: `${MARK}${tag}`,
+          ...minimalBundleContent(),
+        } as never,
+        overrideAccess: true,
+      }) as Promise<{ id: number }>
+    const vA = await mk('1.0.0', 'mo-A')
+    const vB = await mk('1.0.1', 'mo-B')
+    await fx.payload.update({
+      collection: 'lesson-plans',
+      id: p.id,
+      data: { officialVersion: vA.id } as never,
+      overrideAccess: true,
+    })
+
+    const res = await fetch(url(`/api/lesson-bundle-versions/${vB.id}/make-official?deletePrevious=true`), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { officialVersion: number; previousDeleted: boolean }
+    expect(String(out.officialVersion)).toBe(String(vB.id))
+    expect(out.previousDeleted).toBe(true)
+
+    const goneA = await fx.payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { id: { equals: vA.id } },
+      overrideAccess: true,
+    })
+    expect(goneA.totalDocs).toBe(0)
+    const plan = await fx.payload.findByID({ collection: 'lesson-plans', id: p.id, depth: 0 })
+    expect(String(plan.officialVersion)).toBe(String(vB.id))
+
+    // cleanup
+    await fx.payload.update({
+      collection: 'lesson-plans',
+      id: p.id,
+      data: { officialVersion: null } as never,
+      overrideAccess: true,
+    })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: vB.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+  })
+
+  it('Editor cannot make-official → 4xx', async () => {
+    const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/make-official`), {
+      method: 'POST',
+      headers: auth('editor'),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+  })
+})

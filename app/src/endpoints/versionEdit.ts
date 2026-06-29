@@ -144,7 +144,12 @@ export const saveAsNewEndpoint: Endpoint = {
   },
 }
 
-/** POST /:id/make-official — move this version's plan pointer to it (no content copy). */
+/**
+ * POST /:id/make-official — move this version's plan pointer to it (no content copy). Optionally, with
+ * `?deletePrevious=true`, atomically delete the version that WAS Official (now superseded) in the same
+ * handler — so "promote this and drop the old one" is one operation. The new Official is never the one
+ * deleted; a no-op if the plan had no previous Official.
+ */
 export const makeOfficialEndpoint: Endpoint = {
   path: '/:id/make-official',
   method: 'post',
@@ -152,6 +157,16 @@ export const makeOfficialEndpoint: Endpoint = {
     const version = await authorize(req, 'admin')
     const planId = toId(version.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
+
+    // Capture the current (about-to-be-previous) Official before moving the pointer.
+    const planBefore = (await req.payload.findByID({
+      collection: 'lesson-plans',
+      id: planId,
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })) as { officialVersion?: unknown }
+    const previousOfficialId = toId(planBefore.officialVersion as never)
 
     // Field access (`canSetOfficialVersion`) + `validateOfficialVersionPointer` gate/validate this.
     await req.payload.update({
@@ -163,6 +178,24 @@ export const makeOfficialEndpoint: Endpoint = {
       user: req.user,
     })
 
-    return json({ ok: true, officialVersion: version.id })
+    // Atomic cleanup: the previous Official is now non-Official → deletable (and only now). Skip if it
+    // is the one we just promoted or there was none.
+    const deletePrevious = req.query?.deletePrevious === 'true'
+    let previousDeleted = false
+    if (
+      deletePrevious &&
+      previousOfficialId != null &&
+      String(previousOfficialId) !== String(version.id)
+    ) {
+      await req.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: previousOfficialId,
+        overrideAccess: true,
+        req,
+      })
+      previousDeleted = true
+    }
+
+    return json({ ok: true, officialVersion: version.id, previousOfficialId, previousDeleted })
   },
 }
