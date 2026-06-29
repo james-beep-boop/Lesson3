@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Unified top nav across both surfaces + avatar dropdown
+
+**Outcome.** The frontend header and the admin header now render ONE shared `AppNav`
+(`src/components/AppNav`), so the two surfaces are identical: **Lessons · [Manage] · Guide · avatar**.
+`Manage` (→`/admin`) shows only for `canUseAdminPanel` users (Editor/Subject/Site Admin); Teachers get
+`Lessons · Guide · avatar`. The two-letter avatar is now a dropdown (`src/components/UserMenu`, client):
+line 1 = role type (`userTypeLabel`: Teacher/Editor/Subject Administrator/Site Administrator), line 2 =
+login email, line 3 = **Log Out** — replacing the old standalone username text + visible logout button.
+Retired the now-unused `Avatar` + `LogoutButton` components (absorbed by `UserMenu`). Commit `e135de5`.
+
+**Consistency mechanism.** Both surfaces use the SAME class names (`.app-nav`, `.app-nav__link`,
+`.user-menu*`) with identical sizing (font-size, avatar dimensions, dropdown), differing only in theme
+color tokens — frontend `(frontend)/styles.css` (CSS vars) vs admin `(payload)/custom.scss` (Payload
+`--theme-*`). Supersedes the 2026-06-24 "consistent user menu" entry, which still had each surface
+showing a different cross-link (frontend "Manage" vs admin "Lessons") + a standalone logout.
+
+**Verified on the Rock via real logins** (creds held in private assistant memory, NOT the repo — see
+NEXT-SESSION "passwords are NOT in the repo"): GET `/` as Teacher → `Lessons,Guide` + avatar (no
+Manage); as Editor → `Lessons,Manage,Guide` + avatar; GET `/admin` as Editor → same nav inside
+`lp-admin-header`. Build clean, test:http 14/14, test:int 17/17. (Dropdown contents + visual clipping
+are client-render/visual — eyeball on `/admin`.)
+
 ## 2026-06-28 (late) — Codex re-review reconciled: native doc-locking reframes #4; upload pre-guard + audit:all added
 
 External re-review (8 findings, 7.5/10). Most re-confirm the tracked backlog; reconciliation:
