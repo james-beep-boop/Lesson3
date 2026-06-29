@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-29 — Stage 2 editing model ENFORCED server-side (Codex review #1–#6 addressed)
+
+Stage 2a shipped the control-row UI but left the model only CSS-deep (native Save hidden, versions still
+mutable via the API). A Codex review flagged that gap (#1, High) + related items. All actionable findings
+closed; commits `cc321b0` (core) + `faa06bc` (test fix). Gate green: **test:http 18/18, test:int 15/15**,
+and a live `PATCH /lesson-bundle-versions/8` as Editor → **403** (title unchanged).
+
+- **#1 (High) — versions are now immutable to ALL authenticated users.** `lessonBundleVersionUpdate
+  → () => false` (`access/versioning.ts`). There is no in-place edit: authoring a change goes only
+  through `POST /:id/save-as-new`, which writes with `overrideAccess` after the field-split. Trusted
+  system paths (ingest/migrations) keep writing via `overrideAccess` (bypasses access). Delete opened to
+  Editor+ for NON-Official candidates (the Official one stays protected by `enforceOfficialNotDeletable`)
+  so the delete-source cleanup works. The beforeChange hooks (`enforceVersionImmutable/FieldSplit/
+  Concurrency`) are now BACKSTOPS for the authenticated path (never reached under update:false); the live
+  field-split + stale-check run inside `save-as-new`.
+- **#2 — public Edit no longer forks on open.** `EditActions` links straight to the admin editor for the
+  selected version; the `/fork` endpoint is retired. A DB row is created only on Save.
+- **#3 — stale-source guard.** `save-as-new` rejects a submitted base `updatedAt` older than the source's
+  current value → 409 ("reload before saving").
+- **#4 — body guards.** `save-as-new` reuses `parsePreviewCandidate` (Content-Length pre-check, byte cap,
+  JSON + object-shape).
+- **#5 — delete-source prompt.** After Save, `LessonControls` offers to delete the version you edited
+  from, but ONLY when it is not the live Official.
+- **#6 — tests.** Reworked the int spec for the new model (in-place update rejected for any role;
+  overrideAccess still works; removed the old update-path field-split/concurrency specs — those semantics
+  moved to save-as-new). Added `test:http` save-as-new coverage: Editor candidate created + Official
+  pointer unchanged + source untouched; Teacher 4xx; Editor structural change 4xx; stale base 409.
+- **#7 (Low) — API-tab CSS kept.** Payload's `hideAPIURL` is all-roles, not role-aware, so a CSS rule
+  (version-pinned comment) remains the only way to keep the API tab for Site Admins only.
+
+**Still open (Stage 2b residue):** the "delete the previously-Official version" prompt after Make Official
+isn't built yet (Make Official lives on the public `EditActions`); and the dormant beforeChange hooks
+could be pruned in a later /simplify pass.
+
 ## 2026-06-28 (late) — Editing UX redesign: AGREED MODEL (Stage 2) + Stage 1 admin tweaks landed
 
 **Agreed editing/versioning model (supersedes SPEC §5's persistent-working-copy model — to BUILD in Stage 2):**
