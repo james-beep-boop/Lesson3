@@ -10,9 +10,6 @@ import { canEditStructure } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
-  enforceVersionConcurrency,
-  enforceVersionFieldSplit,
-  enforceVersionImmutable,
   enforceVersionPlanConsistency,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
@@ -54,10 +51,10 @@ export const LessonBundleVersions: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
-    // Working-copy model: reject edits to the plan's Official (immutable) version; reject a stale
-    // overwrite of a working copy (optimistic concurrency, reading the client's submitted updatedAt
-    // BEFORE the field-split); then apply the Editor/Admin field-split (Editors edit prose only).
-    beforeChange: [enforceVersionImmutable, enforceVersionConcurrency, enforceVersionFieldSplit],
+    // Stage 2 model: versions are immutable to authenticated users (`lessonBundleVersionUpdate` is
+    // `() => false`), so there is NO in-place-update beforeChange stack — authoring goes through the
+    // save-as-new endpoint (which applies the field-split + stale-check itself). `enforceVersionFieldSplit`
+    // still exists for the preview endpoint's direct use; it is not wired here.
     // Retention: the Official version cannot be deleted (would orphan the plan pointer).
     beforeDelete: [enforceOfficialNotDeletable],
   },

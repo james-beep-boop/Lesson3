@@ -2,11 +2,11 @@
  * Access-control integration tests (Local API), CI-gateable port of the coverage previously living
  * only in `scripts/verify-rbac.ts` + `scripts/verify-stage2b-edit.ts`. Drives Payload's Local API
  * with `overrideAccess: false` + an explicit `user`, exercising the real collection access functions
- * and beforeChange hooks (SPEC §5/§8):
+ * and hooks (SPEC §5/§8):
  *
- *   - Official versions are immutable (any role) — `enforceVersionImmutable`.
- *   - A Not-Official working copy is mutable; the Editor field-split whitelist constrains an Editor
- *     to prose values (admin/structure fields preserved, array cardinality changes rejected).
+ *   - ALL saved versions are immutable to authenticated users (`lessonBundleVersionUpdate` is
+ *     `() => false`); authoring a change goes through save-as-new (covered over HTTP). Only trusted
+ *     system paths (overrideAccess: ingest/migrations) may write in place.
  *   - Teachers cannot create or update versions.
  *   - ≤1 Subject Admin per SubjectGrade (auto-demote on promotion).
  *   - Password guard: only self or Site Admin; Subject Admin may still manage assignments.

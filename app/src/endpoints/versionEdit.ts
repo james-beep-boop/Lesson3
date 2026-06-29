@@ -15,7 +15,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
-import { VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
+import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
 import { parsePreviewCandidate } from './previewParse'
 import { nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
@@ -114,14 +114,7 @@ export const saveAsNewEndpoint: Endpoint = {
       overrideAccess: true,
     })
 
-    const plan = (await req.payload.findByID({
-      collection: 'lesson-plans',
-      id: planId,
-      depth: 0,
-      overrideAccess: true,
-      req,
-    })) as { officialVersion?: unknown }
-    const sourceIsOfficial = String(toId(plan.officialVersion as never) ?? '') === String(source.id)
+    const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
 
     return json({
       id: created.id,

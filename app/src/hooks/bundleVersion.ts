@@ -26,7 +26,7 @@ export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({ data, ope
   applyEditorFieldSplit({ data, originalDoc, operation, req, editorTopLevelKeys: VERSION_EDITOR_KEYS })
 
 /** Is `versionId` the Official version of plan `planId`? Fetches just the plan. */
-async function isOfficialVersion(
+export async function isOfficialVersion(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
   planId: number,
   versionId: number | string,
@@ -41,51 +41,6 @@ async function isOfficialVersion(
   return String(toId(plan.officialVersion as never)) === String(versionId)
 }
 
-/**
- * Optimistic concurrency for mutable working copies (readiness #4). Two editors can open the same
- * Not-Official version; without a guard the second save silently clobbers the first (last-write-wins).
- * The edit path resubmits the version it loaded — including `updatedAt` (whitelisted in
- * {@link VERSION_EDITOR_KEYS}) — so we treat the submitted `updatedAt` as the client's base: if the
- * STORED doc has advanced past it, someone else saved in the meantime → reject with 409 and ask the
- * editor to reload. (The DB stamps a fresh `updatedAt` at write time, so the submitted value is only
- * ever read here, never persisted.)
- *
- * Authenticated UPDATEs only — system/overrideAccess paths (no `req.user`: ingest, migrations, fork,
- * fixtures) carry no live base and must never be blocked. If no base is supplied (an API caller doing a
- * partial update without `updatedAt`) the check is skipped: it protects the resubmit-based edit path
- * without breaking partial-update callers. Must run BEFORE the field-split so it reads the client's
- * submitted `updatedAt`, not a preserved one.
- *
- * LAYERING: the PRIMARY guard for concurrent ADMIN-UI editing is Payload's native document locking
- * (`lockDocuments`, default-on for this collection — verified: the `payload-locked-documents` collection
- * exists live), which stops a second editor saving over an open doc. This hook is DATA-LAYER
- * defense-in-depth for the REST/Local-API surface. It is intentionally NOT made mandatory: forcing a
- * base on every authenticated update would 409 any caller (incl. the native admin form) that omits
- * `updatedAt`, and the admin surface is already covered by the lock — so the residual (a trusted Editor
- * issuing a raw partial PATCH without a base) is a low, accepted gap, not a silent admin-UI clobber.
- */
-export const enforceVersionConcurrency: CollectionBeforeChangeHook = ({
-  operation,
-  originalDoc,
-  data,
-  req,
-}) => {
-  if (operation !== 'update' || !originalDoc || !req?.user) return data
-  const base = (data as { updatedAt?: unknown })?.updatedAt
-  if (base == null) return data
-  const baseMs = new Date(base as string).getTime()
-  const storedMs = new Date(originalDoc.updatedAt as string).getTime()
-  // `storedMs` is always a valid DB-stamped timestamp; only guard the client-supplied base (a malformed
-  // one yields NaN, which we treat as "no usable base" → skip rather than false-reject).
-  if (Number.isFinite(baseMs) && baseMs < storedMs) {
-    throw new APIError(
-      'This working copy changed since you opened it — reload the page and reapply your edits.',
-      409,
-    )
-  }
-  return data
-}
-
 export const numberBundleVersionRows: CollectionBeforeValidateHook = ({ data }) => {
   if (Array.isArray(data?.lessons)) {
     data.lessons.forEach((lesson: { number?: number }, i: number) => {
@@ -96,44 +51,6 @@ export const numberBundleVersionRows: CollectionBeforeValidateHook = ({ data }) 
     data.summaryTable.lessons.forEach((lesson: { number?: number }, i: number) => {
       lesson.number = i + 1
     })
-  }
-  return data
-}
-
-/**
- * Working-copy model (Stage 2b): the Official version is IMMUTABLE. Reject any update to a version
- * that is currently its plan's `officialVersion`. To change an Official version you fork a new
- * Not-Official working copy (the fork endpoint) and edit that; marking it Official then freezes it.
- *
- * Why a hook (not access): "is this version the one my plan points to as Official?" can't be
- * expressed as a collection-wide access `Where` (the official id differs per plan). The plan lookup
- * uses overrideAccess — this is an integrity guard, not an authorization boundary (update access
- * already gated the caller). System paths (no `req.user`: migrations/ingest) are exempt.
- */
-export const enforceVersionImmutable: CollectionBeforeChangeHook = async ({
-  operation,
-  originalDoc,
-  data,
-  req,
-}) => {
-  if (operation !== 'update' || !originalDoc || !req.user) return data
-  // `originalDoc` IS the stored version — read its plan directly (no version re-fetch).
-  const planId = toId(originalDoc.lessonPlan as never)
-  if (planId == null) return data
-  if (await isOfficialVersion(req, planId, originalDoc.id)) {
-    throw new ValidationError(
-      {
-        collection: 'lesson-bundle-versions',
-        errors: [
-          {
-            message:
-              'This version is Official and cannot be edited. Use “Edit” to create a new working version from it.',
-            path: '',
-          },
-        ],
-      },
-      req.t,
-    )
   }
   return data
 }
