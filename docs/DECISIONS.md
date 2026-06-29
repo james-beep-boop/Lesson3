@@ -11,6 +11,23 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-28 (late) — Editing UX redesign: AGREED MODEL (Stage 2) + Stage 1 admin tweaks landed
+
+**Agreed editing/versioning model (supersedes SPEC §5's persistent-working-copy model — to BUILD in Stage 2):**
+- **Edit** (any version) makes the form editable per role (Editor = prose; Admin = +structure/META). **No DB row** is created on Edit.
+- **Discard Edits** / leaving → in-progress edits thrown away; nothing persists.
+- **Save** (any Editor+) writes a **new candidate version** (next patch). **Never moves the Official pointer.** If the source you edited is **not** the current Official, prompt *"Delete source vX? [Delete][Keep]"*.
+- **Make Official** (Site Admin, or Subject-Grade Admin for THAT subject-grade — only) is the sole pointer mover; separate click; then prompt *"Delete the previously-Official version? [Delete][Keep]"*.
+- **Concurrency:** Save warns if the source changed since opened. **Visibility:** teachers see only Official; Editors/Admins see candidates in the admin list. **Delete rights:** Editor+ may delete a non-Official candidate; Official is never deletable.
+- Implementation shape: edit the existing version's form in place but never write back — a custom Save calls a `save-as-new` endpoint (create candidate, no pointer move); native Save replaced; retire the fork-on-open endpoint; keep the public "Edit" as a link into the admin edit (no fork). Hardest piece: the read-only↔edit toggle in the admin doc view (to research first). Sub-decisions locked: A keep public Edit (as link), B warn on stale save, C keep Make-Official for rollback.
+
+**Stage 1 (standalone admin edit-view tweaks) — DONE 2026-06-28 (`e84ce78`), Rock-verified.**
+- "Semver" field **label → "Version"** (data/name stay `semver`).
+- **Hide META + UNIT** for users who can't edit them: `admin.condition` mirroring `canEditStructure`, evaluated client-side (dependency-free `canEditStructureClient` in `fields/lessonContent.ts`). Editors don't see them; Subject/Site Admins in scope do. Server access unchanged; the field-split hook still preserves META for Editors on write.
+- **API document tab → Site Admins only:** `AdminHeaderMenu` renders a conditional `<style>` hiding `.doc-tab[href$="/api"]` for non-Site-Admins (the admin header is on every admin page incl. the doc view). The API endpoint stays access-controlled regardless.
+- **Last Modified / Created → right sidebar** under "Version": new `VersionTimestamps` UI field (reads form state, no DB column; registered in importMap); native `.doc-controls__meta` hidden **scoped** via `.collection-lesson-bundle-versions` so other collections keep theirs.
+- Verified: edit page 200 for Editor + Subject-Admin (field config + importMap valid), API-hide style present for both; test:http 14/14, test:int 17/17. Client-rendered specifics (META hidden, Version label, sidebar timestamps) + Site-Admin-sees-API need an eyeball.
+
 ## 2026-06-28 (late) — Unified top nav across both surfaces + avatar dropdown
 
 **Outcome.** The frontend header and the admin header now render ONE shared `AppNav`
