@@ -49,16 +49,20 @@ export const lessonBundleVersionCreate: Access = ({ req: { user }, data }) => {
   return isSubjectAdminFor(u, subjectGradeIdFor({ data }))
 }
 
-// Working-copy model (Stage 2b): a Not-Official version is a mutable working copy; the Official
-// version is immutable (enforced by `enforceVersionImmutable`, which can see the plan's pointer —
-// access `Where` can't express "not this plan's official version"). Editors AND Subject Admins may
-// update versions in their subject-grades; the field-split (`enforceVersionFieldSplit`) then limits
-// an Editor to prose. Site Admin = all.
-export const lessonBundleVersionUpdate: Access = ({ req: { user } }) => {
+// Stage 2 editing model: a saved version is an IMMUTABLE candidate snapshot — there is no in-place
+// edit. Authoring a change creates a NEW candidate via `POST /:id/save-as-new` (which writes with
+// `overrideAccess`, applying the Editor/Admin field-split against the source). So NO authenticated user
+// may update a version row in place; only trusted system paths (ingest, migrations, save-as-new) write,
+// via `overrideAccess` (which bypasses this access function entirely). This is the server-side guarantee
+// behind "edits never write back to an existing version" — not just the hidden native Save button.
+export const lessonBundleVersionUpdate: Access = () => false
+
+// Editors and Subject Admins may delete a NON-Official candidate in their subject-grades (e.g. the
+// "delete the source you replaced" cleanup after save-as-new); Site Admin = all. The Official version is
+// never deletable — `enforceOfficialNotDeletable` (beforeDelete) blocks it regardless of this grant.
+export const lessonBundleVersionDelete: Access = ({ req: { user } }) => {
   const u = user as User | null | undefined
   if (isSiteAdmin(u)) return true
   const ids = subjectGradeIdsByRole(u, ['editor', 'subjectAdmin'])
   return ids.length ? ({ subjectGrade: { in: ids } } satisfies Where) : false
 }
-
-export const lessonBundleVersionDelete: Access = ({ req: { user } }) => isSiteAdmin(user as User)

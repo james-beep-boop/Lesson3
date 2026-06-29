@@ -267,3 +267,80 @@ describe('Bucket-A server invariants over HTTP', () => {
     expect(plan.officialVersion).toBeTruthy()
   })
 })
+
+describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
+  const saveUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/save-as-new`
+  const dataForm = (content: unknown): FormData => {
+    const f = new FormData()
+    f.set('data', JSON.stringify(content))
+    return f
+  }
+
+  it('Editor saves a new candidate — Official pointer unchanged, source unchanged', async () => {
+    const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
+    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+      i === 0 ? { ...l, overview: `${MARK}SAVED-AS-NEW` } : l,
+    )
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any), lessons }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number; sourceId: number; sourceIsOfficial: boolean }
+    expect(String(out.sourceId)).toBe(String(fx.version.id))
+    expect(out.sourceIsOfficial).toBe(true) // fx.version is the plan's Official
+
+    // Official pointer did NOT move; the new candidate carries the prose edit + sourceVersion.
+    const after = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
+    expect(String(after.officialVersion)).toBe(String(before.officialVersion))
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as any
+    expect(created.lessons[0].overview).toBe(`${MARK}SAVED-AS-NEW`)
+    expect(String(created.sourceVersion)).toBe(String(fx.version.id))
+
+    // The source version is untouched (immutable snapshot).
+    const src = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: fx.version.id,
+      depth: 0,
+    })) as any
+    expect(src.lessons[0].overview).not.toBe(`${MARK}SAVED-AS-NEW`)
+
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
+  it('Teacher cannot save-as-new → 4xx', async () => {
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('teacher'),
+      body: dataForm({ lessons: (fx.version as any).lessons ?? [] }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+  })
+
+  it("Editor's structural change is rejected (prose-only field-split) → 4xx", async () => {
+    const lessons = [...((fx.version as any).lessons ?? [])]
+    lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any), lessons }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+  })
+
+  it('stale base updatedAt → 409 (source changed since opened)', async () => {
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any), updatedAt: '2000-01-01T00:00:00.000Z' }),
+    })
+    expect(res.status).toBe(409)
+  })
+})

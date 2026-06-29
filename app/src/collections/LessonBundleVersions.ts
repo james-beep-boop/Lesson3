@@ -22,7 +22,7 @@ import {
   exportVersionStatusEndpoint,
 } from '../endpoints/exportVersion'
 import { previewVersionEndpoint, previewVersionUnsavedEndpoint } from '../endpoints/previewVersion'
-import { forkVersionEndpoint, makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
+import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -72,8 +72,6 @@ export const LessonBundleVersions: CollectionConfig = {
     previewVersionEndpoint,
     // POST /:id/preview — same gate; renders the editor's current UNSAVED working-copy state (SPEC §5).
     previewVersionUnsavedEndpoint,
-    // POST /:id/fork — create a Not-Official working copy from this version and return its admin URL.
-    forkVersionEndpoint,
     // POST /:id/save-as-new — save the editor's form content as a new candidate version (no pointer move).
     saveAsNewEndpoint,
     // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.

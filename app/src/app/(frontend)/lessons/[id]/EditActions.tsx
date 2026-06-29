@@ -5,7 +5,9 @@
  * to Subject/Site Admins for the plan's subject-grade. Both are state-changing POSTs (CSRF-guarded
  * by the SameSite=Lax cookie), so they're JS-driven, not plain links.
  *
- *   - Edit         → POST …/fork → redirect to the new working version's admin editor.
+ *   - Edit         → open this version in the admin editor (read-only; the editor's "Edit" there
+ *                    unlocks the form, and "Save" writes a new candidate). No fork-on-open — a DB row
+ *                    is only created on Save (Stage 2 model).
  *   - Make Official → POST …/make-official → reload so the new Official is reflected.
  */
 import React, { useState } from 'react'
@@ -21,34 +23,23 @@ export default function EditActions({
   canMakeOfficial: boolean
 }) {
   const router = useRouter()
-  const [busy, setBusy] = useState<null | 'edit' | 'official'>(null)
+  const [busy, setBusy] = useState<null | 'official'>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const post = async (action: 'fork' | 'make-official'): Promise<Response> =>
-    fetch(`/api/lesson-bundle-versions/${versionId}/${action}`, {
-      method: 'POST',
-      credentials: 'same-origin',
-    })
-
-  const onEdit = async () => {
-    setBusy('edit')
-    setError(null)
-    try {
-      const res = await post('fork')
-      const body = (await res.json().catch(() => ({}))) as { adminUrl?: string; errors?: { message?: string }[] }
-      if (!res.ok || !body.adminUrl) throw new Error(body.errors?.[0]?.message ?? 'Could not start editing.')
-      window.location.href = body.adminUrl
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start editing.')
-      setBusy(null)
-    }
+  // Edit just opens the admin editor for THIS version (read-only there until the editor clicks "Edit");
+  // no fork-on-open — Save creates the candidate.
+  const onEdit = () => {
+    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}`
   }
 
   const onMakeOfficial = async () => {
     setBusy('official')
     setError(null)
     try {
-      const res = await post('make-official')
+      const res = await fetch(`/api/lesson-bundle-versions/${versionId}/make-official`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
         throw new Error(body.errors?.[0]?.message ?? 'Could not mark Official.')
@@ -64,7 +55,7 @@ export default function EditActions({
   return (
     <span className="edit-actions">
       <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
-        {busy === 'edit' ? 'Opening…' : 'Edit'}
+        Edit
       </button>
       {canMakeOfficial && !isOfficial && (
         <button type="button" className="btn" disabled={busy !== null} onClick={onMakeOfficial}>

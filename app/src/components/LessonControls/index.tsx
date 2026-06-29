@@ -79,7 +79,25 @@ export default function LessonControls() {
         const err = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
         throw new Error(err.errors?.[0]?.message || `Save failed (${res.status})`)
       }
-      const out = (await res.json()) as { adminUrl: string }
+      const out = (await res.json()) as {
+        adminUrl: string
+        sourceId: number | string
+        sourceLabel: string
+        sourceIsOfficial: boolean
+      }
+      // Offer to delete the version you edited from — but only when it is NOT the live Official one
+      // (the Official is never deletable, and replacing it is an admin "Make Official" action).
+      if (
+        !out.sourceIsOfficial &&
+        window.confirm(`Saved as a new version. Delete the version you edited from (${out.sourceLabel})?`)
+      ) {
+        await fetch(`/api/lesson-bundle-versions/${out.sourceId}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        }).catch(() => {
+          /* non-fatal — the new version is saved regardless */
+        })
+      }
       // Open the new candidate version (loads read-only).
       window.location.assign(out.adminUrl)
     } catch (e) {

@@ -45,8 +45,8 @@ async function makeWorkingCopy() {
   })
 }
 
-describe('version immutability', () => {
-  it('rejects updating the Official version even for a Site Admin', async () => {
+describe('version immutability (Stage 2 model: no in-place updates)', () => {
+  it('rejects an authenticated update of the Official version (even Site Admin)', async () => {
     await expect(
       fx.payload.update({
         collection: 'lesson-bundle-versions',
@@ -57,109 +57,41 @@ describe('version immutability', () => {
       }),
     ).rejects.toThrow()
   })
-})
 
-describe('Editor field-split on a working copy', () => {
-  it('lets an Editor overlay prose but preserves admin/structure fields', async () => {
-    const wc = (await makeWorkingCopy()) as any
-    // Resubmit the working copy's REAL rows (with their ids + admin fields like `phase`), mirroring
-    // the live edit path (`verify-stage2b-edit`). A fresh minimalBundleContent() has no row ids, so
-    // Payload treats each as a NEW row and strips the admin-only `phase` — which then fails the
-    // generatable gate before the field-split can restore it (i.e. it tests the wrong thing).
-    const lessons = (wc.lessons ?? []).map((l: any, i: number) =>
-      i === 0 ? { ...l, overview: 'EDITOR-EDITED overview' } : l, // prose → should persist
-    )
-
-    const updated = (await fx.payload.update({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      // meta is admin-only → the hacked substrand_name must be ignored (preserved from the original).
-      data: { lessons, meta: { ...wc.meta, substrand_name: 'EDITOR-HACKED meta' } } as never,
-      overrideAccess: false,
-      user: fx.users.editor,
-    })) as any
-
-    expect(updated.lessons[0].overview).toBe('EDITOR-EDITED overview')
-    expect(updated.meta.substrand_name).toBe(`${MARK}Sub-strand`) // original, not the hack
-
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
-  })
-
-  it('rejects an Editor changing lesson array cardinality', async () => {
+  it('rejects an authenticated update of a NON-Official candidate too (any role)', async () => {
+    // In-place edits are gone: authoring a change goes through save-as-new (a new candidate), so even a
+    // Subject Admin cannot mutate an existing candidate row directly — `lessonBundleVersionUpdate` is
+    // `() => false`. Only trusted system paths write, via overrideAccess.
     const wc = await makeWorkingCopy()
-    const submitted = minimalBundleContent()
-    submitted.lessons.push({ ...submitted.lessons[0], title: `${MARK}extra` }) // add a row
-
     await expect(
       fx.payload.update({
         collection: 'lesson-bundle-versions',
         id: wc.id,
-        data: { ...submitted } as never,
+        data: { title: 'in-place edit' } as never,
         overrideAccess: false,
-        user: fx.users.editor,
+        user: fx.users.subjectAdmin,
       }),
     ).rejects.toThrow()
-
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
-  })
-})
-
-describe('Optimistic concurrency on a working copy', () => {
-  it('rejects a stale overwrite (base updatedAt older than stored) but allows a current one', async () => {
-    const wc = (await makeWorkingCopy()) as any
-    const base = wc.updatedAt as string // the version both editors loaded
-    const lessons = (wc.lessons ?? []).map((l: any, i: number) =>
-      i === 0 ? { ...l, overview: 'first editor save' } : l,
-    )
-
-    // Editor A saves from the current base → succeeds, and the DB advances updatedAt past `base`.
-    const after = (await fx.payload.update({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      data: { lessons, updatedAt: base } as never,
-      overrideAccess: false,
-      user: fx.users.editor,
-    })) as any
-    expect(after.lessons[0].overview).toBe('first editor save')
-    expect(new Date(after.updatedAt).getTime()).toBeGreaterThan(new Date(base).getTime())
-
-    // Editor B saves from the now-STALE base → rejected (would clobber A's save).
-    await expect(
-      fx.payload.update({
-        collection: 'lesson-bundle-versions',
-        id: wc.id,
-        data: { lessons, updatedAt: base } as never,
-        overrideAccess: false,
-        user: fx.users.editor,
-      }),
-    ).rejects.toThrow()
-
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 
-  it('exempts system/overrideAccess updates from the concurrency guard', async () => {
-    const wc = (await makeWorkingCopy()) as any
-    const staleBase = wc.updatedAt as string
-    // Advance stored updatedAt via a system update…
-    await fx.payload.update({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      data: { title: `${MARK}WC-sys` } as never,
-      overrideAccess: true,
-    })
-    // …then a system update carrying the STALE base must still succeed (system path is exempt).
+  it('still allows trusted system (overrideAccess) updates — ingest/migrations rely on this', async () => {
+    const wc = (await makeWorkingCopy()) as { id: number | string }
     await expect(
       fx.payload.update({
         collection: 'lesson-bundle-versions',
         id: wc.id,
-        data: { title: `${MARK}WC-sys2`, updatedAt: staleBase } as never,
+        data: { title: `${MARK}sys-update` } as never,
         overrideAccess: true,
       }),
     ).resolves.toBeTruthy()
-
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 })
+
+// NOTE: the Editor prose-only field-split and the stale-source guard now live on the save-as-new write
+// path (POST /:id/save-as-new), not an in-place update — so they're covered over HTTP in
+// tests/http/endpoints.http.spec.ts, not here.
 
 describe('Teacher cannot write versions', () => {
   it('rejects a Teacher creating a version', async () => {

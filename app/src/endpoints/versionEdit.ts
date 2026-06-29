@@ -1,15 +1,14 @@
 /**
- * Working-copy edit endpoints (SPEC §6, Stage 2b), mounted on `lesson-bundle-versions`:
+ * Version edit endpoints (Stage 2 editing model), mounted on `lesson-bundle-versions`:
  *
- *   - POST /:id/fork           — create a Not-Official working copy from this version (content copy,
- *                                semver patch-bump, `sourceVersion` set) and return its admin URL.
- *   - POST /:id/make-official  — point this version's plan at it (move `officialVersion`; no content
- *                                copy). The version then becomes immutable (enforceVersionImmutable).
+ *   - POST /:id/save-as-new   — write the editor's submitted content as a NEW candidate version of this
+ *                                plan (field-split enforced vs the source); never moves the Official
+ *                                pointer. The source stays an immutable snapshot.
+ *   - POST /:id/make-official — point this version's plan at it (move `officialVersion`; no content copy).
  *
- * AUTHORIZATION is enforced HERE (both are state-changing POSTs, CSRF-guarded by the SameSite=Lax
- * cookie):
- *   - fork: Editor or admin for the version's subject-grade (Editors start editing by forking).
- *   - make-official: Subject/Site Admin only (marking Official is an admin action).
+ * AUTHORIZATION is enforced HERE (state-changing POSTs, CSRF-guarded by the SameSite=Lax cookie):
+ *   - save-as-new: Editor or admin for the version's subject-grade (Editor edits are prose-only).
+ *   - make-official: Subject/Site Admin only (designating Official is an admin action).
  * A caller without the required role gets 403.
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
@@ -17,6 +16,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
+import { parsePreviewCandidate } from './previewParse'
 import { nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
@@ -48,47 +48,6 @@ async function authorize(
   return version
 }
 
-/** POST /:id/fork — create a Not-Official working copy and return its admin URL. */
-export const forkVersionEndpoint: Endpoint = {
-  path: '/:id/fork',
-  method: 'post',
-  handler: async (req: PayloadRequest): Promise<Response> => {
-    const source = await authorize(req, 'editor')
-
-    const content = stripIds(
-      Object.fromEntries(
-        Object.entries(source as unknown as Record<string, unknown>).filter(([k]) => !DROP_KEYS.has(k)),
-      ),
-    ) as Record<string, unknown>
-
-    const planId = toId(source.lessonPlan as never)
-    if (planId == null) throw new APIError('Version has no lesson plan', 409)
-
-    // overrideAccess: the fork is a TRUSTED faithful copy of admin-authored content, not
-    // Editor-authored input — authorization was enforced above. This also avoids the version
-    // create access (admin-only) so an Editor can still start a working copy.
-    const working = await req.payload.create({
-      collection: 'lesson-bundle-versions',
-      data: {
-        ...content,
-        lessonPlan: planId,
-        subjectGrade: toId(source.subjectGrade as never),
-        // Next free patch across the plan's versions (not a blind bump of the source) so two forks of
-        // the same source don't collide; the unique (lessonPlan, semver) index is the hard backstop.
-        semver: await nextSemverForPlan(req.payload, planId, req),
-        sourceVersion: source.id,
-      } as never,
-      req,
-      overrideAccess: true,
-    })
-
-    return json({
-      id: working.id,
-      adminUrl: `/admin/collections/lesson-bundle-versions/${working.id}`,
-    })
-  },
-}
-
 /**
  * POST /:id/save-as-new — save the editor's current form content as a NEW candidate version of this
  * plan (Stage 2 editing model). Does NOT move the Official pointer — designating Official is a separate
@@ -108,14 +67,21 @@ export const saveAsNewEndpoint: Endpoint = {
     const planId = toId(source.lessonPlan as never)
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 
-    let edited: Record<string, unknown> | undefined
-    try {
-      const raw = (await req.formData!()).get('data')
-      edited = typeof raw === 'string' ? (JSON.parse(raw) as Record<string, unknown>) : undefined
-    } catch {
-      throw new APIError('Expected a multipart body with a JSON "data" field', 400)
+    // Body guards (Content-Length pre-check, byte cap, JSON + object-shape) shared with the preview
+    // parser — this is an authenticated endpoint accepting large nested content.
+    const edited = await parsePreviewCandidate(req)
+
+    // Stale-source guard: the submitted base `updatedAt` must not predate the source's current value.
+    // If the source changed since the editor opened it, reject so they reload rather than branch from
+    // stale content.
+    const base = edited.updatedAt
+    if (typeof base === 'string' || typeof base === 'number') {
+      const baseMs = new Date(base).getTime()
+      const srcMs = new Date(source.updatedAt as string).getTime()
+      if (Number.isFinite(baseMs) && baseMs < srcMs) {
+        throw new APIError('This version changed since you opened it — reload before saving.', 409)
+      }
     }
-    if (!edited) throw new APIError('Missing edited content', 400)
 
     // Enforce Editor-prose-only: overlay the submitted prose onto THIS version (the source) and preserve
     // its admin/structure fields. Admins (and the system) pass through unchanged. Cardinality/order
