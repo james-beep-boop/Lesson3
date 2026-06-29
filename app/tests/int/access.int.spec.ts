@@ -233,16 +233,19 @@ describe('Server-side invariants (Bucket A)', () => {
     await fx.payload.delete({ collection: 'subject-grades', id: otherSg.id, overrideAccess: true })
   })
 
-  it('#3b semver is server-immutable on an authenticated update', async () => {
-    const wc = (await makeWorkingCopy()) as any
-    const updated = (await fx.payload.update({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      data: { semver: '7.7.7' } as never, // attempt to mutate identity
-      overrideAccess: false,
-      user: fx.users.siteAdmin,
-    })) as any
-    expect(updated.semver).toBe(wc.semver) // unchanged, not '7.7.7'
+  it('#3b semver (and every field) is server-immutable — authenticated updates are rejected', async () => {
+    // Stage 2 model: no in-place updates at all, so an authenticated attempt to mutate identity (semver)
+    // is rejected outright (rather than silently preserved). Changes go through save-as-new.
+    const wc = await makeWorkingCopy()
+    await expect(
+      fx.payload.update({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        data: { semver: '7.7.7' } as never,
+        overrideAccess: false,
+        user: fx.users.siteAdmin,
+      }),
+    ).rejects.toThrow()
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 
