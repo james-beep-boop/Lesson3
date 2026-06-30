@@ -284,6 +284,104 @@ describe('Server-side invariants (Bucket A)', () => {
     await expect(mk('5.5.5')).rejects.toThrow() // same (plan, semver) → unique-index violation
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: first.id, overrideAccess: true })
   })
+
+  it('deleting a lesson plan cascades its versions (incl. the Official one) — no 23502', async () => {
+    // Regression: `lesson_bundle_versions.lesson_plan_id` is NOT NULL but its FK is ON DELETE SET NULL,
+    // so a plan with surviving child versions could not be deleted — Postgres raised 23502, surfaced in
+    // the admin UI as "An unknown error has occurred." The beforeDelete cascade removes the children
+    // (the Official one's retention guard stands down because the plan is going away).
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}cascade-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
+    const official = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: p.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.0',
+        title: `${MARK}cascade-official`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number | string }
+    const candidate = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: p.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.1',
+        title: `${MARK}cascade-candidate`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number | string }
+    await fx.payload.update({
+      collection: 'lesson-plans',
+      id: p.id,
+      data: { officialVersion: official.id } as never,
+      overrideAccess: true,
+    })
+
+    // The real admin delete path (the one the user hit): Site Admin, access enforced. Must succeed.
+    await expect(
+      fx.payload.delete({
+        collection: 'lesson-plans',
+        id: p.id,
+        overrideAccess: false,
+        user: fx.users.siteAdmin,
+      }),
+    ).resolves.toBeTruthy()
+
+    // Both child versions are gone — neither orphaned with a null lesson_plan_id.
+    for (const id of [official.id, candidate.id]) {
+      await expect(
+        fx.payload.findByID({ collection: 'lesson-bundle-versions', id, overrideAccess: true }),
+      ).rejects.toThrow()
+    }
+  })
+
+  it('the Official-version retention guard still blocks a direct delete (cascade carve-out is scoped)', async () => {
+    // The context carve-out only applies while the parent plan is being deleted. Deleting the Official
+    // version on its own (plan untouched) must still be rejected — it would orphan the plan pointer.
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}guard-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
+    const v = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: p.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.0',
+        title: `${MARK}guard-official`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number | string }
+    await fx.payload.update({
+      collection: 'lesson-plans',
+      id: p.id,
+      data: { officialVersion: v.id } as never,
+      overrideAccess: true,
+    })
+
+    await expect(
+      fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true }),
+    ).rejects.toThrow()
+
+    // Cleanup: clear the pointer, then the version, then the plan (the system teardown order).
+    await fx.payload.update({
+      collection: 'lesson-plans',
+      id: p.id,
+      data: { officialVersion: null } as never,
+      overrideAccess: true,
+    })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+  })
 })
 
 describe('People rules (SPEC §8)', () => {

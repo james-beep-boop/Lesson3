@@ -8,6 +8,7 @@ import { APIError, ValidationError } from 'payload'
 
 import { toId } from '../access'
 import { applyEditorFieldSplit } from './fieldSplit'
+import { DELETING_LESSON_PLAN_IDS } from './lessonPlan'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 
 const LESSON_PLANS = 'lesson-plans' as CollectionSlug
@@ -74,6 +75,10 @@ export const enforceOfficialNotDeletable: CollectionBeforeDeleteHook = async ({ 
   })) as { lessonPlan?: unknown }
   const planId = toId(version.lessonPlan as never)
   if (planId == null) return
+  // The parent plan is being deleted in this same request (cascadeDeleteLessonPlanVersions): its
+  // Official pointer is moot, so the cascade may legitimately remove this version. Stand down.
+  const deletingPlans = req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined
+  if (deletingPlans?.has(String(planId))) return
   if (await isOfficialVersion(req, planId, id)) {
     throw new APIError(
       'This version is Official and cannot be deleted. Make another version Official first.',

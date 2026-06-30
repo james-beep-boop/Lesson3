@@ -1,9 +1,16 @@
-import type { CollectionBeforeValidateHook, CollectionSlug } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionBeforeValidateHook, CollectionSlug } from 'payload'
 import { ValidationError } from 'payload'
 
 import { toId } from '../access'
 
 const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
+
+/**
+ * `req.context` key carrying the set of lesson-plan ids whose deletion is in progress this request.
+ * The version-retention guard (`enforceOfficialNotDeletable`) reads it and stands down for the
+ * Official versions of those plans — the pointer is moot once the parent plan is going away.
+ */
+export const DELETING_LESSON_PLAN_IDS = 'deletingLessonPlanIds'
 
 const idFrom = (value: unknown): number | undefined => {
   const id = toId(value as never)
@@ -76,4 +83,26 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   }
 
   return data
+}
+
+/**
+ * Cascade: delete a lesson plan's child versions BEFORE the plan row goes. `lesson_bundle_versions.
+ * lesson_plan_id` is NOT NULL, but its FK is `ON DELETE SET NULL`, so leaving children behind makes
+ * Postgres raise `23502` (not-null violation) — which the admin UI surfaces as the opaque "An unknown
+ * error has occurred." We remove the children first, in the SAME transaction (`req`) with
+ * `overrideAccess`. The Official version among them is normally undeletable (`enforceOfficialNotDeletable`);
+ * we flag this plan in `req.context` so that guard stands down here — the plan, and its pointer, is
+ * being deleted. Mirrors the `purgeMarked` teardown order (versions before plans).
+ */
+export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const ids = (req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined) ?? new Set<string>()
+  ids.add(String(id))
+  req.context[DELETING_LESSON_PLAN_IDS] = ids
+
+  await req.payload.delete({
+    collection: LESSON_BUNDLE_VERSIONS,
+    where: { lessonPlan: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
 }
