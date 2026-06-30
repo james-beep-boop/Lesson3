@@ -22,13 +22,15 @@ if [[ -z "$PING_URL" ]]; then
   echo "heartbeat: HEALTHCHECK_APP_URL not set — nothing to ping (see docs/OPS.md)"; exit 0
 fi
 
-# Liveness probe: any HTTP response (incl. the / -> 307 redirect to login) means the app is serving.
-# `--fail` would treat 307 as success only with -L; we accept any status, so just check curl connects.
-if curl -sS -m 10 -o /dev/null -w '%{http_code}' "$PROBE_URL" | grep -qE '^[1-5][0-9][0-9]$'; then
+# Liveness probe: accept ONLY a healthy 2xx/3xx (the normal `/` is a 307 redirect to login). A 4xx/5xx
+# (e.g. Payload/Postgres broken → 500) is NOT healthy, so we DON'T ping — the dead-man's-switch then
+# alerts instead of monitoring falsely reporting green. A connection failure → empty code → also not ok.
+CODE="$(curl -sS -m 10 -o /dev/null -w '%{http_code}' "$PROBE_URL" || true)"
+if [[ "$CODE" =~ ^[23][0-9][0-9]$ ]]; then
   curl -fsS -m 15 --retry 3 "$PING_URL" -o /dev/null \
-    && echo "heartbeat: app responded — pinged OK" \
+    && echo "heartbeat: app healthy ($CODE) — pinged OK" \
     || { echo "heartbeat: WARN ping failed (app was up)" >&2; exit 1; }
 else
-  echo "heartbeat: app did NOT respond at $PROBE_URL — NOT pinging (dead-man's-switch will alert)" >&2
+  echo "heartbeat: app UNHEALTHY at $PROBE_URL (status '${CODE:-no response}') — NOT pinging (dead-man's-switch will alert)" >&2
   exit 1
 fi

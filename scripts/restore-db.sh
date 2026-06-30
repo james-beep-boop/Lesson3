@@ -49,6 +49,10 @@ fi
 [[ -n "$FROM" ]] || die "specify --from <stream/name.dump.age> (see --list)"
 [[ -n "${AGE_IDENTITY:-}" ]] || die "AGE_IDENTITY must point to the age private key file (held off-box)"
 [[ -f "$AGE_IDENTITY" ]] || die "AGE_IDENTITY file not found: $AGE_IDENTITY"
+# Validate the target name as a plain Postgres identifier BEFORE it is interpolated into DROP/CREATE
+# DATABASE (the name is quoted there, but rejecting anything but [A-Za-z_][A-Za-z0-9_]* closes the
+# identifier-injection door entirely — operator-only, but this runs with DB-owner privileges).
+[[ "$INTO" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] || die "invalid target DB name: $INTO"
 if [[ "$INTO" == "lesson3" && "$FORCE_PROD" -ne 1 ]]; then
   die "refusing to restore into live 'lesson3' without --force-prod (use a disposable target for drills)"
 fi
