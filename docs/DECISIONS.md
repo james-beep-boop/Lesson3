@@ -41,6 +41,13 @@ verified against the wrong target and still fail on the **JSON exports** we inge
 Both are minor/non-blocking; the corpus is ingestable today. Full write-up in
 `docs/ARES-v2-followup.md`.
 
+**Update (commit `fd476b4`, "Address partner re-review"):** both residual items resolved at the
+right target — `schemaVersion: '1.0.0'` now in all 42 **JSON exports** (first top-level key), and
+`LESSONS[].summaryTablePrompt.explained` authored for Physics SS3.4/L8 and SS4.2/L7 (affected DOCX
+regenerated). Full re-run: **42/42 clean — 0 blockers, 0 contract drift, 0 missing fields.** All
+four original findings + both follow-up corrections closed; the v2 corpus conforms fully to
+`ares-contract.schema.json`. Generator/SCHEMA.md unchanged throughout.
+
 ## 2026-06-30 (eve) — Codex review of the #9 ops layer (8.1/10): 8 fixes applied, 2 deferred
 
 Codex reviewed the ops layer (no Critical/High). Applied 8 findings (commits `df88935` + a docs commit);

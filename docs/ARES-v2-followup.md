@@ -1,3 +1,11 @@
+> **✅ RESOLVED in commit `fd476b4`** ("Address partner re-review"). Both items below were fixed
+> at the correct target: `schemaVersion: '1.0.0'` now ships in all 42 **JSON exports** (first
+> top-level key), and `LESSONS[].summaryTablePrompt.explained` was authored for Physics SS3.4/L8
+> and SS4.2/L7 with their DOCX regenerated. Full re-run: **42/42 clean — 0 blockers, 0 contract
+> drift, 0 missing fields.** The history below is retained for the record.
+
+---
+
 ## Re-review of the updated v2 data (commit `3b75018`) — 2 of 4 fixed, 2 still open
 
 Thanks for the remediation summary — re-ran all 42 `data/outputs/v2/**/*_data.json` through the
