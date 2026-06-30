@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-30 — ARES v2 data re-review: DQB phase vocabulary resolved; 2 export gaps remain
+
+Reviewed the updated ARES v2 corpus (`markknit/cbe-generation-system` commit `3b75018`, 42
+sub-strands) against our own ingest checkers (`contractDrift` + `validateGeneratable`). Went from
+**42/42 files blocked → 0/42 blocked**: `framework[].phase` is now 100 % canonical (1920/1920) and
+the `safety<N>otes` key corruption is gone (0 remaining). Regenerated DOCX confirmed — Biology
+SS1.1 renders 60/60 phase cells correctly coloured (was 45 grey).
+
+**DQB phase vocabulary — DECIDED (don't reopen).** The earlier open question ("is *DQB Update* a
+distinct phase needing a 6th vocabulary value?") is resolved in favour of the **existing five
+values**. Per ARES (the originating teachers, NGSS storyline model): the Driving Question Board is
+a persistent classroom artifact and *every* visit — Creation, Update, Closure, Completion, Revision
+— is the **same pedagogical activity type**, so all variants collapse to the single canonical
+`"Driving Question Board (DQB) Creation"`. **No change to our `phases` enum, the generator's
+`PHASE_KEY`/`PHASE_COLOUR`, or `SCHEMA.md`.** Our controlled vocabulary stays the 5-value set.
+
+**Lesson — verify against the artifact you actually consume.** ARES's remediation summary
+(saved alongside as `ARES-v2-remediation-summary.docx`) marked all four findings fixed, but two were
+verified against the wrong target and still fail on the **JSON exports** we ingest:
+- `schemaVersion` was added to the `.js` *source* (`generators/data/*_data.js`) but the
+  **JSON-export step drops it** — all 42 `data/outputs/v2/**/*.json` still lack a top-level
+  `schemaVersion`. Non-blocking for us (ingest doesn't gate on it; `contractDrift` only warns).
+- The missing field is `LESSONS[].summaryTablePrompt.explained` (per-lesson summary block), still
+  absent on Physics SS3.4/L8 and SS4.2/L7 — *not* `SUMMARY_TABLE.lessons[].explained` (which is
+  complete and is what ARES checked). Renders a blank "How does this explain…" cell; the docx
+  Packer tolerates the `undefined`, so it degrades silently rather than crashing.
+
+Both are minor/non-blocking; the corpus is ingestable today. Full write-up in
+`docs/ARES-v2-followup.md`.
+
 ## 2026-06-30 (eve) — Codex review of the #9 ops layer (8.1/10): 8 fixes applied, 2 deferred
 
 Codex reviewed the ops layer (no Critical/High). Applied 8 findings (commits `df88935` + a docs commit);
