@@ -11,10 +11,9 @@
 #
 # USAGE:  scripts/deploy.sh            (run on the Rock, from the repo root)
 set -euo pipefail
-export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-cd "$REPO_DIR"
+# Shared PATH + repo-root cd. See scripts/lib.sh.
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 echo "deploy: git pull"
 git pull --ff-only

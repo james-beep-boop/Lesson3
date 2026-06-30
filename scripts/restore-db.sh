@@ -18,20 +18,9 @@
 # SAFETY: refuses to restore into the live 'lesson3' unless --force-prod is given. Default target is a
 # disposable check DB, so a drill never risks the corpus.
 set -euo pipefail
-export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-cd "$REPO_DIR"
-
-# Read ONLY the keys we need from .env — do NOT `source` it (see backup-db.sh). Env wins over .env.
-env_get() {
-  local k="$1"; local v="${!k:-}"
-  if [[ -z "$v" && -f .env ]]; then
-    v="$(grep -E "^${k}=" .env | tail -n1 | cut -d= -f2-)"
-    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
-  fi
-  printf '%s' "$v"
-}
+# Shared PATH + repo-root cd + env_get (reads .env keys without sourcing it). See scripts/lib.sh.
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"
 DB_USER="$(env_get BACKUP_DB_USER)"; DB_USER="${DB_USER:-lesson3}"

@@ -29,22 +29,8 @@
 #   BACKUP_DB_NAME / BACKUP_DB_USER  default lesson3 / lesson3
 set -euo pipefail
 
-# Cron runs with a minimal PATH; make the user-local binaries (age, rclone) and common dirs reachable.
-export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-
-REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-cd "$REPO_DIR"
-
-# Read ONLY the keys we need from .env — do NOT `source` it (a value with spaces or a stray word would
-# be run as a shell command). Precedence: an already-set environment variable wins over the .env value.
-env_get() {
-  local k="$1"; local v="${!k:-}"
-  if [[ -z "$v" && -f .env ]]; then
-    v="$(grep -E "^${k}=" .env | tail -n1 | cut -d= -f2-)"
-    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"   # strip surrounding quotes if any
-  fi
-  printf '%s' "$v"
-}
+# Shared PATH + repo-root cd + env_get (reads .env keys without sourcing it). See scripts/lib.sh.
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
 BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"

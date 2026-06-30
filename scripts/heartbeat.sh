@@ -11,20 +11,9 @@
 # Cron (crontab -e):
 #   */5 * * * * /srv/lesson3/scripts/heartbeat.sh >> /srv/lesson3/out/heartbeat.log 2>&1
 set -euo pipefail
-export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-cd "$REPO_DIR"
-
-# Read a single key from .env without sourcing it (see backup-db.sh). Env wins over .env.
-env_get() {
-  local k="$1"; local v="${!k:-}"
-  if [[ -z "$v" && -f .env ]]; then
-    v="$(grep -E "^${k}=" .env | tail -n1 | cut -d= -f2-)"
-    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
-  fi
-  printf '%s' "$v"
-}
+# Shared PATH + repo-root cd + env_get (reads .env keys without sourcing it). See scripts/lib.sh.
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 PING_URL="$(env_get HEALTHCHECK_APP_URL)"
 PROBE_URL="${HEARTBEAT_APP_URL:-http://localhost:3001/}"
