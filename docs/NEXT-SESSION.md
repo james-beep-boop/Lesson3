@@ -12,23 +12,42 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is PRODUCTION HARDENING (IN PROGRESS).** The Official-version cutover is long done.
-**As of 2026-06-29 (HEAD `ed2fd6b`, all pushed + Rock-verified):** the hardening list (Bucket A, items
-⓪–③, deps overrides ②, #4, #8, Phase-5 export residuals) AND a full **editing-UX redesign** (nav
-unification + Stage 1 admin tweaks + Stage 2/2b versioning model) are DONE — plus, this session, the
-**semver retry-on-conflict**, the deliberate **`vitest` bump** (4.0.18 → 4.1.9), and the **shared
-Postgres-backed rate limiter**. What's LEFT: **backlog #9 ops** (CI/CD, Sentry, off-site backups,
-monitoring) — see "▶ RESUME HERE".
+**The chosen track is PRODUCTION HARDENING — NOW LARGELY COMPLETE.** The Official-version cutover is long
+done. **As of 2026-06-30 (HEAD `f4d73ee`, all pushed + Rock-verified + CI green):** the hardening list
+(Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
+retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**, AND **backlog #9 OPS**
+(backups, structured logging, heartbeat, CI) are ALL DONE. The remaining #9 work is **operator setup only**
+(keys/OAuth/cron — see `docs/OPS.md`), plus small deferred follow-ups. See "▶ RESUME HERE".
 
 ---
 
-## ▶ RESUME HERE (2026-06-29) — semver-retry + vitest + shared limiter DONE; left: #9 ops
+## ▶ RESUME HERE (2026-06-30) — #9 OPS DONE; left: operator setup + small follow-ups + pick next track
 
-**State: clean. HEAD `ed2fd6b`, pushed to `origin/main` and DEPLOYED + verified on the Rock.** Worked
-from the **home Mac mini M4** (not the laptop): GitHub push works from Bash here (osxkeychain token
-cached); Rock SSH works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. Canonical gate green:
-**test:http 22/22, test:int 18/18, test:unit 39/39, audit:prod GREEN** (all re-verified on the Rock with
-vitest 4.1.9). Seeded logins for UI checks are in the assistant's private memory (NOT the repo).
+**State: clean. HEAD `f4d73ee`, pushed to `origin/main`, DEPLOYED + verified on the Rock, and CI is GREEN.**
+Worked from the **home Mac mini M4**: GitHub push works from Bash here (osxkeychain token cached); Rock SSH
+works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. **GitHub Actions is now the canonical gate**
+(`.github/workflows/ci.yml`, ~3.5 min, runs unit+lint+audit+int+http on a full compose stack); last run
+green. Local/Rock gate also green: **test:unit 39/39, test:int 18/18, test:http 22/22, audit:prod GREEN**.
+Seeded logins for UI checks are in the assistant's private memory (NOT the repo).
+
+**✓ Done 2026-06-30 — backlog #9 OPS (all four), CI-verified (see DECISIONS 2026-06-30 + `docs/OPS.md`):**
+- **Backups** (`fdba73f`,`f905869`) — `pg_dump`→`age`→`rclone` to Google Drive; `scripts/{backup,restore,deploy}.sh`;
+  `daily/`(30d)+`premigrate/`(90d); `deploy.sh` snapshots before migrate. Pipeline verified end-to-end on
+  the Rock (restore → lesson_plans=13). `age`+`rclone` installed to `~/bin` on the Rock.
+- **Structured logging** (`5544114`) — pino JSON, env `LOG_LEVEL`, export-job failures logged w/ context,
+  Docker json-file rotation. NOT Sentry (on-box, simpler). Confirmed live.
+- **Heartbeat** (`7c3e72a`) — push/dead-man's-switch: `backup-db.sh` + `scripts/heartbeat.sh` ping
+  Healthchecks-style URLs only when healthy (right for the Tailscale-only box). All branches tested.
+- **CI** (`a631c1a`+fixes) — GH Actions mirrors the Rock procedure (compose up → gate via deps image).
+  Debugging it caught a REAL latent bug: `rate_limit_counters` was invisible to Payload `push` →
+  registered it via `postgresAdapter.beforeSchemaInit` (`471bb03`); `test:int` now builds an EMPTY
+  `lesson3_test` via push (not pre-migrate, `f63e8b8`) and runs spec files sequentially
+  (`fileParallelism:false`, `f4d73ee`). See the push-vs-migrate lesson in DECISIONS 2026-06-30.
+
+**▶ OPERATOR SETUP still needed to ACTIVATE backups/monitoring (you, one-time — all in `docs/OPS.md`):**
+generate the `age` key on your Mac (+ give me/the repo the public recipient); `rclone` Drive OAuth; create
+two Healthchecks.io checks; add `BACKUP_AGE_RECIPIENT`/`BACKUP_RCLONE_REMOTE`/`HEALTHCHECK_*` to the Rock
+`.env`; install the backup + heartbeat crons. Until then `deploy.sh` just warns and skips the snapshot.
 
 **✓ Done this session (2026-06-29 late), Rock-verified:**
 - **Shared Postgres-backed rate limiter** (`ed2fd6b`) — `lib/rateLimit.ts` was an in-memory per-process
@@ -78,22 +97,27 @@ vitest 4.1.9). Seeded logins for UI checks are in the assistant's private memory
     lesson-page **Edit** now links to the admin editor (no fork); `/fork` retired. Dead beforeChange
     hooks removed. Full HTTP coverage. See DECISIONS 2026-06-29 entries.
 
-**▶ LEFT TO DO (pick up here):**
-- **Backlog #9 — Ops** (the big remaining gap, NEXT UP — needs user decisions): CI/CD so deploy isn't
-  bound to one machine + a runner that stands up app+DB and runs `test:unit`+`test:int`+`test:http`;
-  **Sentry** error tracking; off-site **encrypted Postgres backups** + pre-migration snapshots; monitoring.
-  Decisions to make: CI platform/scope, backup destination, whether to add the Sentry dep. *(The hung
-  `npx payload migrate` this session is itself an argument for a proper CI migrate step.)*
-- **Rate-limiter follow-ups (small, non-blocking):** stale `rate_limit_counters` rows for deleted users
-  are never pruned (bounded — one row per distinct user — so harmless; add a periodic cleanup only if the
-  user set grows large). The `…/export/status` endpoint is still unthrottled (cheap).
-- **Transactional rollback test** (Codex, Medium): the transactional `save-as-new` / `make-official`
-  are covered on the happy path but not on a forced 2nd-step failure (the prior bug was partial success
-  after step 2). Add a Rock-only int test that injects the fault (e.g. a `beforeDelete` hook gated on a
-  test-only env flag) and asserts no candidate/pointer change persists. Left as a follow-up to avoid a
-  test-only seam in production code.
-- **5 moderate esbuild/drizzle-kit advisories** (`fixAvailable:false`, below the prod gate) — bump
-  opportunistically when upstream catches up.
+**▶ LEFT TO DO:**
+
+*Production hardening is essentially complete — what remains is operator setup (above) + small deferred
+follow-ups. The next big decision is which TRACK to take (see "The chosen track" below): cross-user §10
+features, or the formal PDF fidelity gate, or stay on residual hardening.*
+
+Deferred follow-ups (small, non-blocking — pick off opportunistically):
+- **Durable cross-deploy log archival** — container logs rotate but reset on `up --build`; ship to a
+  file/volume if post-mortem history across deploys is wanted (DECISIONS 2026-06-30).
+- **Transactional rollback test** (Codex, Medium): `save-as-new`/`make-official` are happy-path covered
+  but not on a forced 2nd-step failure. Needs a fault-injection seam + the Rock; not built (didn't want a
+  test-only hook in prod code).
+- **`payload-jobs` cleanup** (completed rows kept for failure visibility — add periodic prune) and
+  **orphaned `rate_limit_counters` rows** for deleted users (bounded, harmless).
+- **5 moderate esbuild/drizzle-kit advisories** (`fixAvailable:false`, below the prod gate) — bump when
+  upstream catches up. **`actions/checkout` Node-20 deprecation** warning in CI (cosmetic; bump later).
+- **PDF fidelity gate** (audit #12) — see "In-flight follow-ups".
+
+**Rock `test:int` procedure CHANGED (DECISIONS 2026-06-30):** do NOT pre-migrate `lesson3_test` anymore —
+drop+recreate it EMPTY and let push build it (matches CI; pre-migrate + push now conflict). CI is the
+canonical gate regardless.
 
 **✓ Latest (2026-06-28, this session): item ① — endpoint/authz e2e (`test:http`) — DONE, Rock-verified.**
 Commits `059b18d` (suite) + `847fdd7` (fixes). New `tests/http/endpoints.http.spec.ts` +

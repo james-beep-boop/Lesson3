@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-30 — Backlog #9 OPS DONE: backups, structured logging, heartbeat, CI (+ a push-vs-migrate lesson)
+
+The last big readiness gap. All four landed; **GitHub Actions CI is green** (the canonical gate now runs
+off-box) and the Rock is synced (`f4d73ee`, healthy). Operator setup steps (keys, OAuth, cron, Healthchecks
+URLs) are documented in the new **`docs/OPS.md`**, not done here (they need the user's accounts).
+
+**Decisions (the "what" + "why"):**
+- **Backups — Postgres dump → `age` → `rclone` to Google Drive, NOT a managed service.** `pg_dump -Fc`
+  (in the postgres container) → `age` encrypt on the host (recipient public key on the box; the private
+  identity is held OFF-box, so a Rock compromise can't decrypt past backups) → `rclone` to the user's
+  Google Drive (their existing 2TB One/AI plan; Drive isn't S3 so `rclone` is the tool, with a one-time
+  headless OAuth). Two streams: `daily/` (30d) + `premigrate/` (90d). `scripts/{backup,restore,deploy}.sh`.
+  `deploy.sh` snapshots BEFORE `compose up` so a bad migration is recoverable. Verified end-to-end on the
+  Rock (dump→encrypt→upload→prune→restore, lesson_plans=13) with a throwaway key + a local stand-in remote.
+- **Structured logging, NOT Sentry (user chose "simpler").** Payload's logger is already pino (JSON);
+  we added env-tunable `LOG_LEVEL`, logged export-job failures with context, and bounded+rotated the
+  container log stream via Docker's json-file driver (`max-size 10m`, `max-file 5`). Accepted trade-offs
+  (documented): no auto-alerting/grouping and **no client-side error capture** — post-mortems are by
+  grepping JSON logs, liveness is the heartbeat. Nothing leaves the box; no new dep. Verified live (pino
+  JSON with levels confirmed on the Rock).
+- **Monitoring — push/dead-man's-switch heartbeat.** The Rock is Tailscale-only, so an external pull-pinger
+  can't reach it: instead the Rock pings OUT (`backup-db.sh` → `HEALTHCHECK_BACKUP_URL` on success;
+  `scripts/heartbeat.sh` cron → `HEALTHCHECK_APP_URL` only when the app answers). If pings stop, the
+  provider (Healthchecks.io free) alerts. All three branches tested on the Rock.
+- **CI — GitHub Actions mirroring the Rock procedure.** `.github/workflows/ci.yml` on push/PR to main:
+  `docker compose up --build` (postgres + one-shot migrate + app + gotenberg — also runs `next build` +
+  applies migrations) then `test:unit`+`lint`+`audit:prod`+`test:int`+`test:http` via the deps image.
+  Synthetic inline secrets + fully ephemeral stack → no repo secrets. ~3.5 min green.
+
+**The lesson (CI earned its keep on day one): push vs migrate divergence.** The new shared rate-limiter
+table (`rate_limit_counters`, created by migration `20260629_213000`) was **invisible to Payload's dev/test
+`push`** because it isn't a collection. Manual Rock testing had MASKED this (the Rock's `lesson3_test`
+persisted and had the table hand-created); a clean CI run exposed three layered failures:
+1. **Push drops unmanaged tables** → `relation "rate_limit_counters" does not exist`. Fix: register the raw
+   table in the drizzle schema via a `postgresAdapter.beforeSchemaInit` hook (columns mirror the migration),
+   so push creates+keeps it while migrate still creates it in prod. **Rule: any raw (non-collection)
+   table created by a migration MUST also be registered via `beforeSchemaInit`, or push will drop it.**
+2. **migrate + push on the same DB conflict** → push re-adds an existing FK (`constraint … already exists`).
+   So `test:int` must build its DB ONE way, not both.
+3. **Concurrent push race** → parallel vitest workers each push the schema to the shared DB and collide
+   (`users_sessions already exists`). Fix: `fileParallelism: false` (int specs run sequentially; first push
+   creates, rest no-op). **Rule for `test:int`: let push build an EMPTY `lesson3_test` (do NOT pre-migrate
+   it) and run the spec files sequentially.** The OLD Rock procedure (pre-migrate `lesson3_test`) is
+   superseded — recreate it empty and let push build it, matching CI.
+
+**Left to the user (setup, not code):** generate the `age` key on the Mac + give the public recipient;
+`rclone` Drive OAuth; create two Healthchecks.io checks → set the two URLs; add `BACKUP_*`/`HEALTHCHECK_*`
+to `.env`; install the backup + heartbeat crons. **Deferred (small):** durable cross-deploy log archival;
+periodic `payload-jobs` row cleanup; orphaned `rate_limit_counters` rows for deleted users; the
+transactional-rollback failure-path test (Codex Medium); `actions/checkout` Node-20 deprecation warning.
+
 ## 2026-06-29 (late) — Shared Postgres-backed rate limiter (readiness #9); + a `payload migrate` hang gotcha
 
 Closed the "shared rate limiter" backlog item. Gate green on the Rock: **test:unit 39/39, test:int 18/18
