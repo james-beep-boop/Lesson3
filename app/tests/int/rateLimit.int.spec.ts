@@ -28,6 +28,9 @@ beforeAll(async () => {
 }, 60_000)
 
 afterAll(async () => {
+  // If beforeAll failed to boot Payload, skip cleanup — otherwise this throws a secondary TypeError
+  // that masks the real setup failure in the output.
+  if (!payload) return
   // Remove only this run's counter rows (keys are `${bucket}:${userId}`).
   const db = (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }).drizzle
   await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%:${RUN}-%`};`)

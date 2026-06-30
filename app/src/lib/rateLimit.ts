@@ -33,17 +33,34 @@ interface Limit {
 }
 
 /**
+ * Read a positive-integer env override, FAILING FAST on a malformed one. `Number(env) || default`
+ * silently swallowed `0`/`NaN`/garbage back to the default — so an operator who set
+ * `RATE_LIMIT_EXPORT_MAX=0` (intending to lock it down) would unknowingly get the generous default.
+ * Unset → use the default; set-but-not-a-positive-integer → throw at boot (same fail-fast posture as
+ * the empty-PAYLOAD_SECRET guard) so the misconfiguration is loud, not silent.
+ */
+const positiveIntEnv = (name: string, fallback: number): number => {
+  const raw = process.env[name]
+  if (raw == null || raw === '') return fallback
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`${name} must be a positive integer (got "${raw}")`)
+  }
+  return n
+}
+
+/**
  * Per-bucket limits, env-overridable, and the single source of the `Bucket` type — add a bucket
  * here and `enforceUserRateLimit` accepts it. Defaults are generous for real use, tight on abuse.
  */
 const LIMITS = {
   export: {
-    max: Number(process.env.RATE_LIMIT_EXPORT_MAX) || 20,
-    windowMs: Number(process.env.RATE_LIMIT_EXPORT_WINDOW_MS) || 60_000,
+    max: positiveIntEnv('RATE_LIMIT_EXPORT_MAX', 20),
+    windowMs: positiveIntEnv('RATE_LIMIT_EXPORT_WINDOW_MS', 60_000),
   },
   preview: {
-    max: Number(process.env.RATE_LIMIT_PREVIEW_MAX) || 40,
-    windowMs: Number(process.env.RATE_LIMIT_PREVIEW_WINDOW_MS) || 60_000,
+    max: positiveIntEnv('RATE_LIMIT_PREVIEW_MAX', 40),
+    windowMs: positiveIntEnv('RATE_LIMIT_PREVIEW_WINDOW_MS', 60_000),
   },
 } satisfies Record<string, Limit>
 
