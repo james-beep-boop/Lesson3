@@ -13,7 +13,7 @@ the most recent entries and grep it for the area you're touching; don't read it 
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 **The chosen track is PRODUCTION HARDENING — NOW LARGELY COMPLETE.** The Official-version cutover is long
-done. **As of 2026-06-30 (HEAD `f4d73ee`, all pushed + Rock-verified + CI green):** the hardening list
+done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
 retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**, AND **backlog #9 OPS**
 (backups, structured logging, heartbeat, CI) are ALL DONE. The remaining #9 work is **operator setup only**
@@ -21,10 +21,20 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-06-30) — #9 OPS DONE + Codex review applied; left: operator setup + pick next track
+## ▶ RESUME HERE (2026-06-30) — admin Manage-page redesign shipped; #9 OPS operator setup still pending
 
-**State: clean. Last code commit `df88935` (verify current with `git log -1 --oneline` — don't trust a
-pinned hash in prose), pushed to `origin/main`, DEPLOYED + verified on the Rock, and CI is GREEN.**
+**Latest shipped + Rock-verified: the admin lesson-plans LIST view is now a strand-first catalogue**
+(`src/components/AdminLessonList/{index,AdminLessonCatalogue}.tsx`, registered via
+`admin.components.views.list`) replacing Payload's redundant default table — mirrors the public browse
+page, Site-Admin upload panel + bulk-delete, `v{semver}` badge. Pushed to `origin/main`, built +
+SSR-verified on the Rock (42 plans / 4 subject-grades render; clean names; non-admin controls hidden).
+**In-flight (uncommitted at handoff):** a `/simplify` cleanup + review-findings fixes — bulk delete
+switched to per-ID sequential fail-fast (Payload bulk delete commits partial cascades under
+`bulkOperationsSingleTransaction=false`), and pointerless/dangling-pointer plans now render with a "No
+Official version" marker so admins can repair them. Verify with `git status` / `git log -1 --oneline`.
+
+**State: verify with `git log -1 --oneline` — don't trust a pinned hash in prose. Prior baseline was
+`df88935`/`f4d73ee`; the admin-redesign batch (`cbec573`/`25b4875`) is pushed + Rock-verified on top.**
 Latest work: a Codex review of the ops layer — 8 fixes applied (restore identifier validation, heartbeat
 2xx/3xx-only, deploy refuses unbacked, CI `contract-check` probe, fail-fast rate-limit env, direct
 `drizzle-orm` dep, guarded int cleanup), 2 deferred (forced-rollback test, O(n) semver). See DECISIONS

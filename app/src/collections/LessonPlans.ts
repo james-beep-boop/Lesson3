@@ -15,7 +15,6 @@ export const LessonPlans: CollectionConfig = {
   slug: 'lesson-plans',
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'subjectGrade', 'officialVersion'],
     group: 'Lesson plans',
     components: {
       // Replace Payload's default list TABLE (which repeated the subject-grade three ways per row)

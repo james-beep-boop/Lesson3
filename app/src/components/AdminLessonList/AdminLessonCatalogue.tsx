@@ -17,13 +17,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
-import {
-  groupLessons,
-  matchesQuery,
-  orderLessons,
-  type LessonRow,
-  type SubjectGradeGroup,
-} from '../../lib/substrand'
+import { groupLessons, matchesQuery, orderLessons, type LessonRow } from '../../lib/substrand'
 
 export function AdminLessonCatalogue({
   rows,
@@ -38,12 +32,17 @@ export function AdminLessonCatalogue({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
 
+  // One derived view: searching → a flat ordered list of matches; otherwise → the grouped
+  // catalogue. A single discriminated union (vs. two mutually-exclusive nullable memos) keeps the
+  // render branch flat and drops the `groups!` assertion.
   const query = q.trim()
-  const matched = useMemo(
-    () => (query ? orderLessons(rows.filter((r) => matchesQuery(r, query))) : null),
+  const view = useMemo(
+    () =>
+      query
+        ? ({ kind: 'search', rows: orderLessons(rows.filter((r) => matchesQuery(r, query))) } as const)
+        : ({ kind: 'catalogue', groups: groupLessons(rows) } as const),
     [rows, query],
   )
-  const groups = useMemo(() => (query ? null : groupLessons(rows)), [rows, query])
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -65,28 +64,39 @@ export function AdminLessonCatalogue({
       return
 
     setBusy(true)
+    // Delete one plan at a time via the by-ID endpoint, fail-fast. Each by-ID delete is its OWN
+    // transaction, so the cascade (cascadeDeleteLessonPlanVersions beforeDelete → child versions,
+    // then the plan) is atomic per plan and rolls back fully on failure. Payload's BULK delete is
+    // unusable here: with `bulkOperationsSingleTransaction=false` (the Postgres default) all docs
+    // share one transaction that is committed even when a per-doc error is swallowed into `errors`
+    // — so a failed plan delete could still commit its already-removed child versions (orphaning a
+    // plan from its non-Official versions). Sequential by-ID avoids that ambiguity; the corpus is
+    // small and an admin deletes a handful at a time.
+    const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
+    let deleted = 0
     try {
-      const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
-      const params = new URLSearchParams()
-      ;[...selected].forEach((id, i) => params.append(`where[id][in][${i}]`, id))
-      const res = await fetch(`${apiBase}/lesson-plans?${params.toString()}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      const json = (await res.json().catch(() => null)) as
-        | { docs?: unknown[]; errors?: { message: string }[] }
-        | null
-      if (!res.ok || (json?.errors && json.errors.length > 0)) {
-        const msg = json?.errors?.[0]?.message
-        toast.error(msg || `Delete failed (${res.status})`)
-        return
+      for (const id of selected) {
+        const res = await fetch(`${apiBase}/lesson-plans/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+        if (!res.ok) {
+          const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
+          const msg = json?.errors?.[0]?.message || `Delete failed (${res.status})`
+          throw new Error(deleted > 0 ? `${msg} (after deleting ${deleted})` : msg)
+        }
+        deleted++
       }
-      toast.success(`Deleted ${n} lesson plan${n === 1 ? '' : 's'}.`)
-      setSelected(new Set())
-      router.refresh()
+      toast.success(`Deleted ${deleted} lesson plan${deleted === 1 ? '' : 's'}.`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Delete failed')
     } finally {
+      // Refresh regardless — some may have committed before a mid-batch failure, so the list must
+      // reflect reality. Drop the deleted ids from the selection (full success → clears it; partial
+      // → leaves the not-yet-tried ids so a re-click retries only those). `selected` iterates in
+      // insertion order, matching the loop, so the first `deleted` entries are the ones removed.
+      if (deleted > 0) setSelected((prev) => new Set([...prev].slice(deleted)))
+      router.refresh()
       setBusy(false)
     }
   }
@@ -116,51 +126,33 @@ export function AdminLessonCatalogue({
 
       {rows.length === 0 ? (
         <p className="muted">No lesson plans yet.</p>
-      ) : matched ? (
-        matched.length === 0 ? (
+      ) : view.kind === 'search' ? (
+        view.rows.length === 0 ? (
           <p className="muted">No lesson plans match “{query}”.</p>
         ) : (
           <ul className="substrand-list">
-            {matched.map((r) => (
+            {view.rows.map((r) => (
               <Row key={r.id} row={r} canDelete={canDelete} selected={selected} toggle={toggle} showContext />
             ))}
           </ul>
         )
       ) : (
-        <Catalogue groups={groups!} canDelete={canDelete} selected={selected} toggle={toggle} />
+        view.groups.map((sg) => (
+          <div key={sg.key} className="sg-section">
+            <h2 className="sg-head">{sg.label}</h2>
+            {sg.strands.map((st) => (
+              <div key={st.key} className="strand-section">
+                <h3 className="strand-head">{st.label}</h3>
+                <ul className="substrand-list">
+                  {st.rows.map((r) => (
+                    <Row key={r.id} row={r} canDelete={canDelete} selected={selected} toggle={toggle} />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ))
       )}
-    </>
-  )
-}
-
-function Catalogue({
-  groups,
-  canDelete,
-  selected,
-  toggle,
-}: {
-  groups: SubjectGradeGroup[]
-  canDelete: boolean
-  selected: Set<string>
-  toggle: (id: string) => void
-}) {
-  return (
-    <>
-      {groups.map((sg) => (
-        <div key={sg.key} className="sg-section">
-          <h2 className="sg-head">{sg.label}</h2>
-          {sg.strands.map((st) => (
-            <div key={st.key} className="strand-section">
-              <h3 className="strand-head">{st.label}</h3>
-              <ul className="substrand-list">
-                {st.rows.map((r) => (
-                  <Row key={r.id} row={r} canDelete={canDelete} selected={selected} toggle={toggle} />
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      ))}
     </>
   )
 }
@@ -201,8 +193,15 @@ function Row({
         </span>
       </Link>
       <span className="substrand-count">
-        {row.semver && <span className="lp-admin-list__badge">v{row.semver}</span>}
-        {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
+        {row.semver ? (
+          <>
+            <span className="lp-admin-list__badge">v{row.semver}</span>
+            {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
+          </>
+        ) : (
+          // No resolved Official version — flag it so an admin can repair (set a pointer) or delete.
+          <span className="lp-admin-list__badge lp-admin-list__badge--warn">No Official version</span>
+        )}
       </span>
     </li>
   )

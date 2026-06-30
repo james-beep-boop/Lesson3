@@ -122,6 +122,13 @@ body {
     color: var(--theme-elevation-600);
     font-size: 0.72rem;
     font-variant-numeric: tabular-nums;
+
+    // Pointerless/malformed plan — a plan with no resolved Official version. Warn-toned so it
+    // stands out for repair; still selectable + editable like any other row.
+    &--warn {
+      border-color: var(--theme-warning-250, var(--theme-elevation-150));
+      color: var(--theme-warning-600, #a60);
+    }
   }
 
   .sg-section + .sg-section {
