@@ -11,6 +11,43 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-30 (eve) — Codex review of the #9 ops layer (8.1/10): 8 fixes applied, 2 deferred
+
+Codex reviewed the ops layer (no Critical/High). Applied 8 findings (commits `df88935` + a docs commit);
+CI green incl. the new probe; the 3 script behaviour changes Rock-verified.
+
+**Applied:**
+- **Restore identifier injection (Med).** `restore-db.sh` now validates `--into` as a plain Postgres
+  identifier (`^[A-Za-z_][A-Za-z0-9_]{0,62}$`) before it's interpolated into `DROP/CREATE DATABASE`.
+  Operator-only, but it runs with DB-owner rights during recovery. (Verified: a `"; DROP …` name is rejected.)
+- **Heartbeat false-positive (Med).** `heartbeat.sh` now treats ONLY 2xx/3xx as healthy (`/`→307 is the
+  normal redirect). A 5xx (Payload/Postgres broken) no longer pings → the dead-man's-switch fires instead
+  of monitoring falsely reporting green. (Verified: closed port → status 000 → no ping; 307 → ping.)
+- **Unbacked deploy (Med).** `deploy.sh` REFUSES when backups aren't configured (no snapshot, no migrate),
+  overridable with `ALLOW_UNBACKED_DEPLOY=1`. The prior code only warned — the comment had claimed
+  "no snapshot, no migrate," so this aligns behaviour with intent. (Verified: dies before `compose up`.)
+- **CI fidelity coverage (Med, partial).** Added the DB-free `contract-check` probe (ingest contract-drift
+  is a hard gate) to `ci.yml`. The other three probes (`ingest-extract-check`, `format2-check`,
+  `adapter-fidelity`) need the stakeholder oracle DOCX (`ARES_DEMO_PATH`, not in the repo) → staging those
+  in CI is a tracked follow-up (pairs with the PDF-fidelity-gate item).
+- **Silent rate-limit misconfig (Low).** `rateLimit.ts` `positiveIntEnv()` replaces `Number(env) || default`
+  (which swallowed `0`/`NaN`/garbage back to the default — an operator setting `…_MAX=0` thought they'd
+  locked it down but got 20). Now throws at boot on a malformed override (fail-fast, like the
+  PAYLOAD_SECRET guard).
+- **Undeclared dep (Low).** `drizzle-orm@0.45.2` is now a DIRECT dependency (payload.config imports
+  `drizzle-orm/pg-core` for the `rate_limit_counters` `beforeSchemaInit` table; it was only transitive).
+- **Test cleanup masks failure (Low).** `rateLimit.int.spec` `afterAll` guards `if (!payload) return` so a
+  failed boot doesn't throw a secondary TypeError over the real error.
+
+**Deferred (with rationale, tracked in NEXT-SESSION):**
+- **Forced-rollback test for the transactional version endpoints (Med).** Codex suggests a
+  `process.env.TEST_FAIL_AFTER_*` seam. Still declining to bake a test-only branch into the PRODUCTION
+  endpoints — it's the one fix that puts test scaffolding in shipped code. Remains the top tracked
+  follow-up; would need a cleaner mockable seam or a Rock/CI fault-injection harness.
+- **O(n) semver allocation (Low).** `nextSemverForPlan` reads all of a plan's versions to compute max+1.
+  Fine for the current corpus; a counter-row/sequence is a scale optimization that trades away the
+  deliberate max+1 + unique-index design (premature now). Tracked as a scale follow-up.
+
 ## 2026-06-30 — Backlog #9 OPS DONE: backups, structured logging, heartbeat, CI (+ a push-vs-migrate lesson)
 
 The last big readiness gap. All four landed; **GitHub Actions CI is green** (the canonical gate now runs

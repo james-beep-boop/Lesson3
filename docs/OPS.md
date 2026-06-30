@@ -86,8 +86,10 @@ grep -q 'HOME/bin' ~/.profile || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.prof
 ## Deploy (with pre-migration snapshot)
 
 Use `scripts/deploy.sh` instead of a bare `docker compose up`: it pulls, takes a `premigrate-<sha>`
-snapshot (once backups are configured), then `docker compose up -d --build` (the one-shot `migrate`
-runs first). Before backups are wired it just warns and continues, so it is safe to adopt immediately.
+snapshot, then `docker compose up -d --build` (the one-shot `migrate` runs first). **No snapshot, no
+migrate:** if backups aren't configured yet it REFUSES (so a destructive migration can't run with no
+restore point). To deploy before backups are wired, run `ALLOW_UNBACKED_DEPLOY=1 scripts/deploy.sh`
+explicitly.
 
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".

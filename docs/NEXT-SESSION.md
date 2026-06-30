@@ -21,9 +21,14 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-06-30) — #9 OPS DONE; left: operator setup + small follow-ups + pick next track
+## ▶ RESUME HERE (2026-06-30) — #9 OPS DONE + Codex review applied; left: operator setup + pick next track
 
-**State: clean. HEAD `f4d73ee`, pushed to `origin/main`, DEPLOYED + verified on the Rock, and CI is GREEN.**
+**State: clean. Last code commit `df88935` (verify current with `git log -1 --oneline` — don't trust a
+pinned hash in prose), pushed to `origin/main`, DEPLOYED + verified on the Rock, and CI is GREEN.**
+Latest work: a Codex review of the ops layer — 8 fixes applied (restore identifier validation, heartbeat
+2xx/3xx-only, deploy refuses unbacked, CI `contract-check` probe, fail-fast rate-limit env, direct
+`drizzle-orm` dep, guarded int cleanup), 2 deferred (forced-rollback test, O(n) semver). See DECISIONS
+2026-06-30 (eve).
 Worked from the **home Mac mini M4**: GitHub push works from Bash here (osxkeychain token cached); Rock SSH
 works after `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`. **GitHub Actions is now the canonical gate**
 (`.github/workflows/ci.yml`, ~3.5 min, runs unit+lint+audit+int+http on a full compose stack); last run
@@ -113,6 +118,11 @@ Deferred follow-ups (small, non-blocking — pick off opportunistically):
   **orphaned `rate_limit_counters` rows** for deleted users (bounded, harmless).
 - **5 moderate esbuild/drizzle-kit advisories** (`fixAvailable:false`, below the prod gate) — bump when
   upstream catches up. **`actions/checkout` Node-20 deprecation** warning in CI (cosmetic; bump later).
+- **Fidelity probes in CI** (Codex Med, partial): `contract-check` is now in CI; `ingest-extract-check` /
+  `format2-check` / `adapter-fidelity` need the stakeholder oracle DOCX (`ARES_DEMO_PATH`, not in repo)
+  staged in CI — pairs with the PDF fidelity gate below.
+- **O(n) semver allocation** (Codex Low): `nextSemverForPlan` reads all of a plan's versions for max+1 —
+  fine now, revisit with a counter row/sequence only at scale.
 - **PDF fidelity gate** (audit #12) — see "In-flight follow-ups".
 
 **Rock `test:int` procedure CHANGED (DECISIONS 2026-06-30):** do NOT pre-migrate `lesson3_test` anymore —
