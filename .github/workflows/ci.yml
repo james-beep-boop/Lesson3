@@ -1,0 +1,92 @@
+name: CI
+
+# Canonical gate (readiness #9). Mirrors the proven Rock procedure inside the runner: stand up the
+# real stack with docker compose (postgres + one-shot migrate + app + gotenberg), then run
+# test:unit + test:int + test:http + audit:prod + lint via the deps image — the same commands used on
+# the Rock. So a broken commit is caught here instead of only at manual Rock verification, and the
+# deploy box no longer has to be the only place the gate can run.
+#
+# Secrets are SYNTHETIC + inline (a throwaway PAYLOAD_SECRET / DB password): the CI database and the
+# whole stack are ephemeral and torn down at the end, so there is nothing real to protect and no repo
+# secrets to configure. NEVER point this at a real database.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write a synthetic CI .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URI=postgres://lesson3:ci_password@postgres:5432/lesson3
+          POSTGRES_PASSWORD=ci_password
+          PAYLOAD_SECRET=ci_only_throwaway_secret_do_not_use_in_prod
+          ADMIN_URL=http://localhost:3001
+          SERVER_URL=
+          GOTENBERG_URL=http://gotenberg:3000
+          GOTENBERG_TIMEOUT_MS=120000
+          ARTIFACT_CACHE_DIR=/var/cache/lesson3
+          EOF
+
+      - name: Build deps image (test/lint/audit runner)
+        run: docker build --target deps -t lesson3-deps ./app
+
+      - name: Stack up (postgres → migrate → app + gotenberg)
+        # `up --build` also runs `next build` (builder stage) + applies migrations to `lesson3`, so a
+        # build break or migration failure fails CI here.
+        run: docker compose up -d --build
+
+      - name: Wait for app health
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/ || true)
+            if [ "$code" = "307" ]; then echo "app healthy (/ -> 307)"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::app did not become healthy"; docker compose logs --tail 80; exit 1
+
+      - name: test:unit
+        run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run test:unit
+
+      - name: lint
+        run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run lint
+
+      - name: audit:prod
+        run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run audit:prod
+
+      - name: test:int (isolated lesson3_test DB)
+        run: |
+          # Create the disposable test DB and migrate it via the BUILDER-image migrate service (the
+          # proven-clean migrate path), then point test.env at it (the checkout is ephemeral, so no
+          # restore needed). vitest.setup loads test.env with override.
+          docker compose exec -T postgres psql -U lesson3 -d postgres -c "CREATE DATABASE lesson3_test;"
+          docker compose run --rm \
+            -e DATABASE_URI=postgres://lesson3:ci_password@postgres:5432/lesson3_test migrate
+          sed -i -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:ci_password@postgres:5432/lesson3_test#" app/test.env
+          docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
+            --env-file .env lesson3-deps npm run test:int
+
+      - name: test:http (over the wire, hits the running app)
+        run: |
+          docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
+            --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs --tail 120 || true
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v || true
