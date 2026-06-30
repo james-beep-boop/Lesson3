@@ -18,9 +18,13 @@ export const LessonPlans: CollectionConfig = {
     defaultColumns: ['title', 'subjectGrade', 'officialVersion'],
     group: 'Lesson plans',
     components: {
-      // Site-Admin-only upload panel above the list (SPEC §7 deviation — self-hides for others).
-      // Import creates a LessonPlan + Official 1.0.0 version, so this is its natural home.
-      beforeListTable: ['@/components/UploadBundles#default'],
+      // Replace Payload's default list TABLE (which repeated the subject-grade three ways per row)
+      // with a strand-first catalogue that mirrors the public browse page. The view renders the
+      // Site-Admin upload panel itself (the old `beforeListTable` slot does not fire when the whole
+      // list view is overridden) and adds Site-Admin bulk-delete. See the component for the why.
+      views: {
+        list: { Component: '@/components/AdminLessonList#default' },
+      },
     },
   },
   access: {

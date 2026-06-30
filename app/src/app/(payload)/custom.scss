@@ -77,6 +77,126 @@ body {
   }
 }
 
+// Custom admin LIST view (src/components/AdminLessonList) — the strand-first catalogue that
+// replaces Payload's redundant lesson-plans table. Mirrors the public browse page
+// (src/app/(frontend)/styles.css) but RE-THEMED with Payload elevation vars, since the frontend's
+// own custom properties (--ink/--line/--muted/…) aren't loaded in the admin bundle. Scoped to
+// .lp-admin-list so the generic .substrand-* class names can't leak into other admin views.
+// Type scale matches the public page (22 / 18 / 16 / 14).
+.lp-admin-list {
+  .lp-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    color: var(--theme-elevation-1000);
+  }
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1.5rem;
+  }
+
+  &__search {
+    flex: 1;
+    padding: 0.5rem 0.7rem;
+    font-size: 1rem;
+    color: var(--theme-elevation-1000);
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 4px;
+    background: var(--theme-elevation-0);
+  }
+
+  &__check {
+    flex-shrink: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  // Official version marker — a quiet pill, not a third copy of the title.
+  &__badge {
+    padding: 0.08rem 0.4rem;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 4px;
+    color: var(--theme-elevation-600);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sg-section + .sg-section {
+    margin-top: 2.25rem;
+  }
+  .sg-head {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+    color: var(--theme-elevation-1000);
+  }
+  .strand-section + .strand-section {
+    margin-top: 1.25rem;
+  }
+  .strand-head {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--theme-elevation-1000);
+  }
+
+  .substrand-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--theme-elevation-150);
+  }
+  .substrand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0.1rem;
+    border-bottom: 1px solid var(--theme-elevation-150);
+    font-size: 0.9rem;
+  }
+  .substrand-link {
+    display: flex;
+    align-items: baseline;
+    flex: 1;
+    min-width: 0;
+    color: var(--theme-elevation-1000);
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+  .substrand-num {
+    flex-shrink: 0;
+    width: 2.6rem;
+    color: var(--theme-elevation-500);
+    font-variant-numeric: tabular-nums;
+  }
+  .substrand-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .substrand-context {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--theme-elevation-500);
+    font-size: 0.9rem;
+  }
+  .substrand-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+    color: var(--theme-elevation-500);
+    white-space: nowrap;
+  }
+}
+
 // Admin top nav (src/components/AdminHeaderMenu → the SAME <AppNav> as the frontend). The shared
 // .app-nav / .user-menu classes are themed here with Payload vars; SIZING MUST MATCH the frontend
 // (src/app/(frontend)/styles.css) so the two surfaces look identical.

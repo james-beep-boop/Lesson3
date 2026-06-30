@@ -19,6 +19,8 @@ export interface LessonRow {
   strandName: string | null
   lessonCount: number
   status?: 'draft' | 'published'
+  /** Official version's semver (e.g. "1.0.0"); only the admin Manage view sets/uses this. */
+  semver?: string
 }
 
 export interface StrandGroup {
