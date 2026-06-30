@@ -61,6 +61,12 @@ export default buildConfig({
   // SERVER_URL to opt into strict CSRF. Must be '' (not undefined) — undefined still gets
   // pushed to csrf. See docs/DECISIONS.md.
   serverURL: process.env.SERVER_URL || '',
+  // Structured logging (Payload's logger is pino → JSON). Level is env-tunable (LOG_LEVEL, default
+  // 'info'); errors are logged through this stream WITH context (e.g. export-job failures, see
+  // jobs/generateVersionArtifact). In the container the log stream is bounded + rotated by Docker's
+  // json-file driver (docker-compose.yml); durable cross-deploy archival is a noted follow-up.
+  // See docs/OPS.md "Structured logging".
+  logger: { options: { level: process.env.LOG_LEVEL || 'info' } },
   admin: {
     user: Users.slug,
     // Brand the admin as "Lesson Plan Repository": titleSuffix sets the browser tab; the Icon

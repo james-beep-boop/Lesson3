@@ -96,14 +96,20 @@ runs first). Before backups are wired it just warns and continues, so it is safe
 
 ## Structured logging
 
-Payload's `payload.logger` is a **pino** instance (structured JSON). Logs are persisted to a rotated
-file on a named volume so they survive container recreation (`docker compose up --build` otherwise
-discards `docker logs`). Trade-off vs an error-tracking SaaS: no auto-alerting/grouping and no
-client-side error capture — post-mortems are by grepping the JSON logs; liveness is covered by the
-heartbeat below. See DECISIONS for the rationale.
+Payload's `payload.logger` is a **pino** instance — logs are structured JSON. We log errors through it
+WITH context (e.g. `generateVersionArtifact` export-job failures), and the level is env-tunable
+(`LOG_LEVEL` in `.env`, default `info`). The container log stream is **bounded + rotated by Docker's
+json-file driver** (`docker-compose.yml`: `max-size 10m`, `max-file 5` per service) so it can't fill the
+disk and recent history is retained.
 
-- Tail live: `docker compose logs -f app`
-- Persisted file: `out/app/*.log` (rotated) — grep for `"level":50` (error) / `"level":60` (fatal).
+Deliberately **no error-tracking SaaS** (Sentry etc.): keeps everything on-box, no new dep, nothing to
+scrub. Trade-offs we accept: no auto-alerting/grouping, and **no client-side (browser) error capture** —
+post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
+
+- Tail live: `docker compose logs -f app` · errors only: `docker compose logs app | grep '"level":50'`
+  (`50`=error, `60`=fatal).
+- Rotation keeps ~5×10 MB per service; logs reset on container recreation (`up --build`). Durable
+  cross-deploy log archival (ship to a file/volume) is a noted follow-up — not built (kept simple).
 
 ---
 
