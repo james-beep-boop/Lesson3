@@ -66,14 +66,15 @@ jobs:
       - name: audit:prod
         run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run audit:prod
 
-      - name: test:int (isolated lesson3_test DB)
+      - name: test:int (isolated lesson3_test DB, built by push)
         run: |
-          # Create the disposable test DB and migrate it via the BUILDER-image migrate service (the
-          # proven-clean migrate path), then point test.env at it (the checkout is ephemeral, so no
-          # restore needed). vitest.setup loads test.env with override.
+          # Create an EMPTY disposable test DB and point test.env at it (the checkout is ephemeral, so
+          # no restore needed). test:int boots Payload in dev `push` mode, which builds the full schema
+          # from the model — including rate_limit_counters (registered via beforeSchemaInit). We do NOT
+          # pre-migrate it: migrate + push on the same DB conflict (push re-adds existing constraints).
+          # Migrations are still exercised in CI by the "Stack up" step (the migrate service runs them
+          # against `lesson3`). vitest.setup loads test.env with override.
           docker compose exec -T postgres psql -U lesson3 -d postgres -c "CREATE DATABASE lesson3_test;"
-          docker compose run --rm \
-            -e DATABASE_URI=postgres://lesson3:ci_password@postgres:5432/lesson3_test migrate
           sed -i -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:ci_password@postgres:5432/lesson3_test#" app/test.env
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
             --env-file .env lesson3-deps npm run test:int
