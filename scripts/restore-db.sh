@@ -22,9 +22,19 @@ export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_DIR"
-if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
 
-DB_USER="${BACKUP_DB_USER:-lesson3}"
+# Read ONLY the keys we need from .env — do NOT `source` it (see backup-db.sh). Env wins over .env.
+env_get() {
+  local k="$1"; local v="${!k:-}"
+  if [[ -z "$v" && -f .env ]]; then
+    v="$(grep -E "^${k}=" .env | tail -n1 | cut -d= -f2-)"
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+  fi
+  printf '%s' "$v"
+}
+
+BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"
+DB_USER="$(env_get BACKUP_DB_USER)"; DB_USER="${DB_USER:-lesson3}"
 die() { echo "restore-db: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH — see docs/OPS.md setup"; }
 need docker; need age; need rclone

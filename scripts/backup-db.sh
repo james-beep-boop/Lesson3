@@ -35,16 +35,24 @@ export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 REPO_DIR="${BACKUP_REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_DIR"
 
-# Load config from .env without exporting secrets into the log (only the keys we use).
-if [[ -f .env ]]; then
-  # shellcheck disable=SC1091
-  set -a; . ./.env; set +a
-fi
+# Read ONLY the keys we need from .env — do NOT `source` it (a value with spaces or a stray word would
+# be run as a shell command). Precedence: an already-set environment variable wins over the .env value.
+env_get() {
+  local k="$1"; local v="${!k:-}"
+  if [[ -z "$v" && -f .env ]]; then
+    v="$(grep -E "^${k}=" .env | tail -n1 | cut -d= -f2-)"
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"   # strip surrounding quotes if any
+  fi
+  printf '%s' "$v"
+}
 
-DB_NAME="${BACKUP_DB_NAME:-lesson3}"
-DB_USER="${BACKUP_DB_USER:-lesson3}"
-RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
-PREMIGRATE_RETENTION_DAYS="${BACKUP_PREMIGRATE_RETENTION_DAYS:-90}"
+BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
+BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"
+HEALTHCHECK_BACKUP_URL="$(env_get HEALTHCHECK_BACKUP_URL)"
+DB_NAME="$(env_get BACKUP_DB_NAME)";    DB_NAME="${DB_NAME:-lesson3}"
+DB_USER="$(env_get BACKUP_DB_USER)";    DB_USER="${DB_USER:-lesson3}"
+RETENTION_DAYS="$(env_get BACKUP_RETENTION_DAYS)";                       RETENTION_DAYS="${RETENTION_DAYS:-30}"
+PREMIGRATE_RETENTION_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; PREMIGRATE_RETENTION_DAYS="${PREMIGRATE_RETENTION_DAYS:-90}"
 
 LABEL=""
 [[ "${1:-}" == "--label" && -n "${2:-}" ]] && LABEL="$2"
