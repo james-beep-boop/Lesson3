@@ -1,4 +1,5 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { bigint, integer, pgTable, text } from 'drizzle-orm/pg-core'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
@@ -164,6 +165,25 @@ export default buildConfig({
     pool: {
       connectionString: process.env.DATABASE_URI || '',
     },
+    // Register the rate limiter's `rate_limit_counters` table (lib/rateLimit.ts) in the drizzle schema.
+    // It is NOT a Payload collection (limiter bookkeeping, not domain content), but it MUST be in the
+    // model so DEV/TEST `push` creates + keeps it. Without this, push treats the migration-created table
+    // as unmanaged and DROPS it → test:int fails with "relation rate_limit_counters does not exist" (CI
+    // caught exactly this). In PRODUCTION push is off (migrate mode), so migration 20260629_213000 is
+    // what creates it there; this hook keeps push and migrate consistent. Columns mirror that migration.
+    beforeSchemaInit: [
+      ({ schema }) => ({
+        ...schema,
+        tables: {
+          ...schema.tables,
+          rate_limit_counters: pgTable('rate_limit_counters', {
+            bucket_key: text('bucket_key').primaryKey(),
+            window_start: bigint('window_start', { mode: 'number' }).notNull(),
+            count: integer('count').notNull(),
+          }),
+        },
+      }),
+    ],
   }),
   sharp,
   plugins: [],
