@@ -120,9 +120,17 @@ pinger: the Rock pings OUT on a schedule; if pings stop, the provider alerts. Sa
 "did the nightly backup run?".
 
 - Provider: a free Healthchecks.io (or similar) check → gives a ping URL.
-- **Backup heartbeat:** set `HEALTHCHECK_BACKUP_URL` in `.env`; `backup-db.sh` pings it on success.
-  Configure the check's period to ~1 day + a grace window so a missed nightly backup alerts.
-- **App-alive heartbeat:** a cron that pings a SECOND check only when the app answers:
-  ```
-  */5 * * * * curl -fsS -m 10 http://localhost:3001/ -o /dev/null && curl -fsS -m 10 https://hc-ping.com/<app-uuid> >/dev/null 2>&1
-  ```
+### One-time setup
+1. Create TWO checks at the provider → two ping URLs.
+2. In `.env`: `HEALTHCHECK_BACKUP_URL=...` and `HEALTHCHECK_APP_URL=...`.
+3. Cron (`crontab -e`):
+   ```
+   */5 * * * * /srv/lesson3/scripts/heartbeat.sh >> /srv/lesson3/out/heartbeat.log 2>&1
+   ```
+   (The nightly backup cron already pings the backup check via `backup-db.sh`.)
+
+- **Backup heartbeat:** `backup-db.sh` pings `HEALTHCHECK_BACKUP_URL` on success. Set the check's period
+  to ~1 day + a grace window so a missed nightly backup alerts.
+- **App-alive heartbeat:** `scripts/heartbeat.sh` probes the app (`HEARTBEAT_APP_URL`, default
+  `http://localhost:3001/`) and pings `HEALTHCHECK_APP_URL` ONLY when the app responds — so if the app or
+  the box is down, the pings stop and the provider alerts. Set that check's period to ~5–15 min + grace.
