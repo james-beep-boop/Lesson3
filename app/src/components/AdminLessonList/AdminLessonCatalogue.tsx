@@ -7,10 +7,12 @@
  * helpers (no DB, importable on the client) so this view orders identically to the public page.
  *
  * Search filters client-side — the whole corpus is already loaded (the catalogue is unpaginated),
- * so there's no server round-trip. Bulk delete is one Payload REST call
- * (`DELETE /api/lesson-plans?where[id][in][n]=…`), cookie-authed and gated server-side by
+ * so there's no server round-trip. Delete is SEQUENTIAL, one by-ID call per selected plan
+ * (`DELETE /api/lesson-plans/:id`), fail-fast — deliberately NOT Payload's bulk `?where[...]` delete,
+ * which shares one transaction that commits partial cascades under
+ * `bulkOperationsSingleTransaction=false`. Each call is cookie-authed and gated server-side by
  * `lessonPlanDelete` (Site-Admin only); the `cascadeDeleteLessonPlanVersions` beforeDelete hook
- * removes each plan's child versions. On success we `router.refresh()` to re-run the server view.
+ * removes each plan's child versions atomically. On success we `router.refresh()` the server view.
  */
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'

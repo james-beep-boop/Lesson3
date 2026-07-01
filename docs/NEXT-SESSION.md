@@ -21,17 +21,22 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-06-30) — admin Manage-page redesign shipped; #9 OPS operator setup still pending
+## ▶ RESUME HERE (2026-06-30) — admin Manage-page redesign + GFS backups shipped; #9 monitoring optional
 
 **Latest shipped + Rock-verified: the admin lesson-plans LIST view is now a strand-first catalogue**
 (`src/components/AdminLessonList/{index,AdminLessonCatalogue}.tsx`, registered via
 `admin.components.views.list`) replacing Payload's redundant default table — mirrors the public browse
 page, Site-Admin upload panel + bulk-delete, `v{semver}` badge. Pushed to `origin/main`, built +
 SSR-verified on the Rock (42 plans / 4 subject-grades render; clean names; non-admin controls hidden).
-**In-flight (uncommitted at handoff):** a `/simplify` cleanup + review-findings fixes — bulk delete
-switched to per-ID sequential fail-fast (Payload bulk delete commits partial cascades under
-`bulkOperationsSingleTransaction=false`), and pointerless/dangling-pointer plans now render with a "No
-Official version" marker so admins can repair them. Verify with `git status` / `git log -1 --oneline`.
+**Committed follow-ups (all on `origin/main`, Rock-deployed):** `/simplify` cleanup + review fixes —
+delete is now per-ID SEQUENTIAL fail-fast (Payload bulk delete commits partial cascades under
+`bulkOperationsSingleTransaction=false`), and pointerless/dangling-pointer plans render with a "No
+Official version" marker so admins can repair them. **Backups are ACTIVE + restore-verified** — tiered
+GFS retention (7 daily / 4 weekly / 12 monthly, count-based prune) via `backup-db.sh` + a Rock crontab
+(02:00 Pacific); encrypted to Drive; restore drill passed (`lesson_plans=42`). See `docs/OPS.md`.
+**Open follow-up:** no automated test coverage yet for the new admin catalogue / pointerless row /
+per-ID delete (Playwright is dev-only; add browser coverage for "No Official version" + Site-Admin
+delete). Verify state with `git log -1 --oneline`.
 
 **State: verify with `git log -1 --oneline` — don't trust a pinned hash in prose. Prior baseline was
 `df88935`/`f4d73ee`; the admin-redesign batch (`cbec573`/`25b4875`) is pushed + Rock-verified on top.**

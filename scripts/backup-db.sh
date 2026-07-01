@@ -55,6 +55,9 @@ LABEL=""
 
 die() { echo "backup-db: ERROR: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH ($PATH) — see docs/OPS.md setup"; }
+# Reject a retention typo (0 / negative / non-numeric). A bad value would otherwise mean "delete the
+# WHOLE stream" (count-prune: REMOVE = total - 0) or crash `$(( ))` AFTER the dump is already uploaded.
+positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer (got '$2')"; }
 
 need docker; need age; need rclone
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
@@ -71,6 +74,11 @@ case "$LABEL" in
   premigrate*) STREAM="premigrate"; KEEP_DAYS="$PREMIGRATE_RETENTION_DAYS" ;;
   *)           die "unknown --label '$LABEL' (use weekly | monthly | premigrate)" ;;
 esac
+
+# Validate the retention value actually selected for this run — BEFORE the dump/upload/prune. if/then
+# (not `[[ ]] && cmd`) so a false test can't trip `set -e` on the premigrate path (where KEEP_COUNT="").
+if [[ -n "$KEEP_COUNT" ]]; then positive_int "keep-count for '$STREAM'" "$KEEP_COUNT"; fi
+if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KEEP_DAYS"; fi
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 NAME="${DB_NAME}-${TS}${LABEL:+-$LABEL}.dump.age"
@@ -116,8 +124,11 @@ else
     || echo "backup-db: WARN prune step failed (backup itself succeeded)" >&2
 fi
 
-# Dead-man's-switch ping (item: monitoring). Best-effort.
-if [[ -n "${HEALTHCHECK_BACKUP_URL:-}" ]]; then
+# Dead-man's-switch ping — ONLY the nightly `daily` run pings. HEALTHCHECK_BACKUP_URL is a single
+# "did last night's backup run?" check tuned to a ~1-day period; if weekly/monthly/premigrate also
+# pinged it, a successful weekly could reset the switch and MASK a failed daily. Give the retention
+# streams their own checks if you want granular monitoring of them. Best-effort.
+if [[ "$STREAM" == "daily" && -n "${HEALTHCHECK_BACKUP_URL:-}" ]]; then
   curl -fsS -m 15 --retry 3 "$HEALTHCHECK_BACKUP_URL" >/dev/null 2>&1 \
     && echo "backup-db: pinged heartbeat" \
     || echo "backup-db: WARN heartbeat ping failed" >&2
