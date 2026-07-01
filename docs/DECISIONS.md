@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-06-30 (eve) — Post-hardening track order agreed: coverage before fidelity assets
+
+After the admin-UX de-duplication batch (Lesson Plans catalogue + Lesson Bundle Versions title cell,
+`cbec573`..`76d6bbc`) and GFS backup activation, discussed what's actually left before calling the
+system "safe at scale" and agreed an explicit order (full detail + rationale in
+`docs/NEXT-SESSION.md` "Next-session plan"):
+
+1. Re-confirm the full gate (`test:unit`+`test:int`+`test:http`/CI) is green on current HEAD before
+   building anything else on top of it — cheap, no human dependency, and a lot has landed since the
+   last cited green run.
+2. e2e coverage for the new custom admin views (Lesson Plans catalogue + version-list title cell) —
+   these are custom replacements for Payload's stock list views with ZERO direct test coverage, the
+   top item on the production-readiness risk list, and a regression here could silently break the
+   admin repair surface while tests stay green. Bounded effort, no human dependency beyond the
+   running dev+Postgres stack.
+3. The formal PDF fidelity gate, then 4. fidelity probes in CI — deliberately AFTER the coverage win
+   because both need the same staged oracle DOCX/PDF assets (human-dependency-gated: 3 oracle PDFs
+   from the user, ARES oracle data possibly from Mark), so they're grouped and done once the assets
+   land rather than blocking on them first.
+5. Everything else (rollback fault-injection test, log archival, dev-only audit advisories) is
+   low-value cleanup, picked off opportunistically, not gating.
+
+**Rule of thumb worth keeping:** when ranking "what's left before production," sequence by (a) what's
+cheapest to re-verify and unblocks trust in everything after it, (b) highest real risk that's
+bounded/self-directed, then (c) higher-setup work gated on an external human dependency (assets,
+another person) — group items that share the same dependency so the asset-gathering isn't repeated.
+
+---
+
 ## 2026-06-30 — ARES v2 data re-review: DQB phase vocabulary resolved; 2 export gaps remain
 
 Reviewed the updated ARES v2 corpus (`markknit/cbe-generation-system` commit `3b75018`, 42

@@ -21,7 +21,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-06-30) — admin Manage-page redesign + GFS backups shipped; #9 monitoring optional
+## ▶ RESUME HERE (2026-06-30) — admin UX de-duplication + GFS backups shipped; pick up with the ordered plan below
 
 **Latest shipped + Rock-verified: the admin lesson-plans LIST view is now a strand-first catalogue**
 (`src/components/AdminLessonList/{index,AdminLessonCatalogue}.tsx`, registered via
@@ -34,9 +34,47 @@ delete is now per-ID SEQUENTIAL fail-fast (Payload bulk delete commits partial c
 Official version" marker so admins can repair them. **Backups are ACTIVE + restore-verified** — tiered
 GFS retention (7 daily / 4 weekly / 12 monthly, count-based prune) via `backup-db.sh` + a Rock crontab
 (02:00 Pacific); encrypted to Drive; restore drill passed (`lesson_plans=42`). See `docs/OPS.md`.
+**Also shipped (`69d39d3`/`76d6bbc`): the Lesson Bundle Versions admin list de-duplicated** — a custom
+`VersionTitleCell` renders the clean `meta.substrand_name` instead of the shouty stored title, and the
+redundant `lessonPlan` default column is dropped; the "prefer substrand_name, else de-shout the title"
+rule was centralized into `lessonDisplayName`/`stripSubjectGradePrefix` in `lib/substrand.ts`, now
+shared by the version cell, the admin catalogue, and the public browse page. SSR-verified on the Rock
+(proper-case titles render, e.g. "Introduction to Space Physics"; 0 visible shouty prefixes).
 **Open follow-up:** no automated test coverage yet for the new admin catalogue / pointerless row /
-per-ID delete (Playwright is dev-only; add browser coverage for "No Official version" + Site-Admin
-delete). Verify state with `git log -1 --oneline`.
+per-ID delete / version-list title cell (Playwright is dev-only; needs the running stack — see the
+ordered plan below). Verify state with `git log -1 --oneline`.
+
+### ▶ Next-session plan — agreed order (2026-06-30 eve, not yet started)
+
+Discussed and sequenced with the user; pick up in this order tomorrow:
+
+1. **Confirm the full gate is green on current HEAD** (cheap, foundational — do first). A lot of admin
+   changes have landed since the last cited green run. Check GitHub Actions on the latest push; if not
+   already green, run `test:unit` + `test:int` + `test:http` on the Rock. Establishes a trustworthy
+   baseline before adding coverage on top of it. No human dependency.
+2. **e2e coverage for the custom admin catalogue** (highest real risk, bounded effort — this is the
+   top item on the production-readiness risk list). The Lesson Plans catalogue + version-list Title
+   cell are now custom replacements for Payload's stock views with ZERO direct coverage — a regression
+   could silently break the admin repair surface while tests stay green. Add a focused Playwright spec:
+   clean title rendering (no shouty "GRADE N:" visible), the "No Official version" row, the official
+   `v{semver}` badge, and Site-Admin per-ID delete behavior. Do this after ①  so it's added onto a known-
+   green baseline. Needs the dev-server + Postgres stack (Rock or local compose) to author AND run.
+3. **PDF fidelity gate** (`app/scripts/pdf-fidelity-check.ts`) — the one piece of the actual product
+   promise (high-fidelity export) never formally measured. Mostly environmental: ImageMagick installed
+   on the Rock (poppler already present), a path to the port-less `gotenberg`, and **3 stakeholder
+   oracle PDFs** staged as `<name>.oracle.pdf` in `/srv/lesson3/out/ares-demo` (open each approved DOCX
+   in Word → Save as PDF). Higher setup cost + depends on assets, so after the cheaper coverage win.
+   **Human dependency: the user produces the 3 oracle PDFs.**
+4. **Fidelity probes in CI** (`ingest-extract-check` / `format2-check` / `adapter-fidelity`) — pairs with
+   ③: needs the SAME oracle DOCX/PDF fixtures staged, so do immediately after (shared asset-staging
+   work makes this incremental). `contract-check` is already in CI; these three are not.
+   **Human dependency: the ARES oracle data (same `ARES_DEMO_PATH` assets), possibly from Mark.**
+5. **Then the low-value cleanup, opportunistically** (not blocking "safe at scale"): the transactional
+   rollback test (needs a fault-injection seam), durable cross-deploy log archival, and the dev-only
+   `esbuild`/`audit:all` advisories (upstream-gated).
+
+**The critical path to "safe at scale" is really ① → ②, then ③ → ④** once the oracle assets exist from
+the user/Mark. ⑤ can be picked off whenever.
 
 **State: verify with `git log -1 --oneline` — don't trust a pinned hash in prose. Prior baseline was
 `df88935`/`f4d73ee`; the admin-redesign batch (`cbec573`/`25b4875`) is pushed + Rock-verified on top.**
