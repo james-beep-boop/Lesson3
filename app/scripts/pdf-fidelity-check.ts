@@ -43,12 +43,20 @@ const DOCS = [
   'Biology_Chemicals_of_Life_SummaryTable',
 ] as const
 
-/** Fail fast with an actionable message if a required external tool is absent. */
+/**
+ * Fail fast with an actionable message if a required external tool is absent. We only care that the
+ * binary EXISTS on PATH — a non-zero exit from the probe is fine: poppler's `pdftoppm` has no
+ * `-version` flag and treats it as a filename (exits 1) yet is perfectly installed. So only a genuine
+ * ENOENT (binary not on PATH) counts as "not found"; anything that actually ran is present.
+ */
 function requireTool(bin: string, hint: string): void {
   try {
     execFileSync(bin, ['-version'], { stdio: 'ignore' })
-  } catch {
-    throw new Error(`Required tool "${bin}" not found — ${hint}`)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Required tool "${bin}" not found — ${hint}`)
+    }
+    // Present but returned non-zero for `-version` (e.g. pdftoppm) — installed, so continue.
   }
 }
 
