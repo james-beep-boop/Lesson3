@@ -11,6 +11,72 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-01 — PDF fidelity is about fonts, not pixels; real Arial in Gotenberg; + Editor edit-UX
+
+Two threads this session: the editing UX for Editors, and the long-deferred PDF fidelity gate
+(item ③) — which taught the more important lesson.
+
+**Editing UX (#6, #10).**
+- The admin version editor loads read-only by default (`LessonControls` locks the form on mount;
+  Stage-2 immutable-version model). An Editor who clicked "Edit" on a lesson page landed on that
+  locked form and reasonably concluded they had no edit rights. Fix (#6): the lesson-page Edit button
+  now carries `?edit=1`, and `LessonControls` starts unlocked when that intent is present (one effect
+  `setDisabled(!editing)` as the single source of truth); a locked-state notice explains the
+  read-only view for anyone who arrives without the intent.
+- Follow-up (#10) — a subtler trap surfaced: after unlocking, only a couple of admin-only fields were
+  greyed (phase, rubric via field access), but MANY more (`structureText`/`proseAdmin`: duration,
+  ARES keywords, answer-key exemplars, FE/ST structure) rendered as normal editable inputs yet had
+  their edits **silently discarded on save** by the field-split whitelist (`applyEditorFieldSplit`
+  overlays only prose onto the original doc). Decision: **hide all admin-only fields from Editors**,
+  generalizing the existing META/UNIT `structureCondition` treatment into one `adminOnly()` wrapper
+  (`fields/lessonContent.ts`; META/UNIT now use it too). Presentation only — the hook stays the write
+  authority; hidden fields keep their original values, so answer keys/structure are never wiped; array
+  RowLabels still read the value from row `data`. **Rule:** when field-level access can't safely gate
+  a field (Payload nulls optional admin-only subfields inside open arrays), don't leave it
+  falsely-editable — hide it. A form must never show an input whose edits won't persist.
+
+**PDF fidelity (#8, #9) — the gate was measuring the wrong thing.**
+- The gate (`scripts/pdf-fidelity-check.ts`) had never actually run to completion. First bug (#8):
+  `requireTool` probed each tool with `-version`, but poppler's `pdftoppm` has no such flag (treats
+  it as a filename → exits 1), so an installed tool was reported "not found" and aborted the gate.
+  Fixed to fail only on ENOENT. **Rule:** a tool-presence check must distinguish "binary absent
+  (ENOENT)" from "binary ran but disliked the probe flag."
+- Running, it scored 0/3 with per-page diffs of 50–400%. The >100% values were the tell: LibreOffice
+  (Gotenberg) and Word **paginate and lay tables out differently**, so page N of the candidate does
+  not correspond to page N of the oracle. **A per-page pixel comparison of LibreOffice output against
+  a Word oracle at 1% tolerance is mathematically unreachable cross-engine** — faithful output still
+  differs across most pixels (font substitution + row-height shifts cascade into offsets). Pixel-vs-
+  Word was abandoned as the fidelity method.
+- Visual inspection showed the export is actually faithful; the visible gap the user flagged (table
+  row heights) traced to **fonts**: the DOCX calls for **Arial** everywhere, and stock Gotenberg's
+  LibreOffice has no Arial → substitutes **Liberation Sans**, whose vertical metrics differ enough to
+  shift row heights. Fix (#9): build Gotenberg from a local `gotenberg/Dockerfile` = upstream +
+  `ttf-mscorefonts-installer` (real Arial, fetched under Microsoft's EULA at build time — fonts NOT
+  vendored, which the EULA disallows; hence a `build:` not a pinned image). Verified on the Rock: a
+  three-way Liberation/Arial/Word render shows the gap closes to a **minor residual** (LibreOffice's
+  vs Word's table-layout algorithm — not a font issue; nothing short of a Word-native engine closes
+  it). Deployed.
+- **Architecture clarification that reframed the stakes:** the **DOCX opened in real Word is the
+  faithful, primary deliverable and is already perfect** (byte-faithful + Arial is a standard Office
+  font). The **PDF export is the only LibreOffice-rendered artifact** — a *convenience* export. The
+  **on-screen preview is mammoth DOCX→HTML with styling/colour dropped** (`generator/previewBundle.ts`),
+  NOT LibreOffice. So chasing pixel-parity-with-Word for the PDF is overkill; "very good" suffices,
+  and Arial gets it there. **Rule:** before optimizing "fidelity," identify WHICH rendering path is
+  authoritative — don't burn effort making a secondary/derived artifact match a reference that the
+  primary artifact already satisfies.
+- Considered and rejected: Microsoft **`markitdown`** — it extracts documents TO Markdown for LLM
+  ingestion (opposite direction; Markdown is disqualified by SPEC §0; for DOCX it wraps the same
+  mammoth the preview already uses). A **same-engine regression gate** (freeze the Arial LibreOffice
+  output as golden, diff future output vs it) is the only workable automated PDF gate — **parked** as
+  optional, since the DOCX-in-Word path is already faithful and the PDF is secondary.
+
+**Also (item ②):** admin-catalogue e2e coverage (#7) is authored + type-checked + `playwright test
+--list` 4/4, but **not yet executed** (Playwright is dev-only; needs a running app + seedable DB via
+`E2E_BASE_URL`+`DATABASE_URI`). The 3 Word `.oracle.pdf` + DOCX are staged on the Rock at
+`/srv/lesson3/out/ares-demo` for whenever the regression gate or the e2e run happens.
+
+---
+
 ## 2026-06-30 (eve) — Post-hardening track order agreed: coverage before fidelity assets
 
 After the admin-UX de-duplication batch (Lesson Plans catalogue + Lesson Bundle Versions title cell,

@@ -69,11 +69,13 @@ const rowLabel = (field: string, noun: string) => ({
 const structureCondition = (data: unknown, _siblingData: unknown, { user }: { user: unknown }): boolean =>
   isSubjectAdminFor(user as User, toId((data as { subjectGrade?: unknown } | undefined)?.subjectGrade as never))
 
-// Hide an admin-only field from anyone who can't edit it (an Editor) — the SAME predicate and
-// rationale as the META/UNIT sections above: show it only to structure editors (Subject Admins for
-// this doc's subject-grade + Site Admins). This keeps the Editor's form to ONLY the fields they can
-// actually change, removing both greyed inputs AND the subtler trap of fields that look editable but
-// are silently dropped by the field-split whitelist (`applyEditorFieldSplit`) on save. Presentation
+// Hide an admin-only field from anyone who can't edit it (an Editor): via `structureCondition`, show
+// it only to structure editors (Subject Admins for this doc's subject-grade + Site Admins). Used for
+// every admin-only field below — the whole META and UNIT groups, plus the scattered structural /
+// answer-key fields inside LESSONS / FINAL_EXPLANATION / SUMMARY_TABLE. This keeps the Editor's form
+// to ONLY the fields they can actually change, removing both greyed inputs AND the subtler trap of
+// fields that look editable but are silently dropped by the field-split whitelist
+// (`applyEditorFieldSplit`) on save. Presentation
 // only — the hook remains the write-time authority; hidden fields keep their original values (an
 // Editor's save overlays prose onto the original doc), so answer keys/structure are never wiped. The
 // value still lives in row `data`, so collapsed array RowLabels (e.g. by `phase`/`title`) still show.
@@ -85,12 +87,11 @@ const adminOnly = (field: Field): Field => {
 
 export const lessonContentFields: Field[] = [
   // ---- META (all structural / admin-only) ----
-  {
+  adminOnly({
     name: 'meta',
     type: 'group',
     label: 'META',
     access: { update: canEditStructure },
-    admin: { condition: structureCondition },
     fields: [
       { name: 'subject', type: 'text' },
       { name: 'grade', type: 'number' },
@@ -105,17 +106,16 @@ export const lessonContentFields: Field[] = [
       { name: 'col3Label', type: 'text' },
       { name: 'col5Label', type: 'text' },
     ],
-  },
+  }),
 
   // ---- UNIT (sub-strand overview; renders the generator's Sub-Strand Overview table) ----
-  {
+  adminOnly({
     name: 'unit',
     type: 'group',
     label: 'UNIT',
     access: { update: canEditStructure },
     admin: {
       description: 'Sub-strand overview. May be empty for some sub-strands.',
-      condition: structureCondition,
     },
     // All UNIT fields are admin-only (SPEC §5 does not list UNIT among Editor prose): the
     // whitelist hook preserves the whole `unit` group wholesale for Editors, so none of these
@@ -141,7 +141,7 @@ export const lessonContentFields: Field[] = [
       proseAdmin('supportingPhenomena', 'Supporting phenomena'),
       proseAdmin('storylineThread', 'Storyline thread'),
     ],
-  },
+  }),
 
   // ---- LESSONS[] ----
   {

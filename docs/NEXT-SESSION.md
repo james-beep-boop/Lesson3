@@ -21,60 +21,51 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-06-30) — admin UX de-duplication + GFS backups shipped; pick up with the ordered plan below
+## ▶ RESUME HERE (2026-07-01) — edit-UX + PDF-fidelity resolved; items ①/③ done, ② authored-not-run
 
-**Latest shipped + Rock-verified: the admin lesson-plans LIST view is now a strand-first catalogue**
-(`src/components/AdminLessonList/{index,AdminLessonCatalogue}.tsx`, registered via
-`admin.components.views.list`) replacing Payload's redundant default table — mirrors the public browse
-page, Site-Admin upload panel + bulk-delete, `v{semver}` badge. Pushed to `origin/main`, built +
-SSR-verified on the Rock (42 plans / 4 subject-grades render; clean names; non-admin controls hidden).
-**Committed follow-ups (all on `origin/main`, Rock-deployed):** `/simplify` cleanup + review fixes —
-delete is now per-ID SEQUENTIAL fail-fast (Payload bulk delete commits partial cascades under
-`bulkOperationsSingleTransaction=false`), and pointerless/dangling-pointer plans render with a "No
-Official version" marker so admins can repair them. **Backups are ACTIVE + restore-verified** — tiered
-GFS retention (7 daily / 4 weekly / 12 monthly, count-based prune) via `backup-db.sh` + a Rock crontab
-(02:00 Pacific); encrypted to Drive; restore drill passed (`lesson_plans=42`). See `docs/OPS.md`.
-**Also shipped (`69d39d3`/`76d6bbc`): the Lesson Bundle Versions admin list de-duplicated** — a custom
-`VersionTitleCell` renders the clean `meta.substrand_name` instead of the shouty stored title, and the
-redundant `lessonPlan` default column is dropped; the "prefer substrand_name, else de-shout the title"
-rule was centralized into `lessonDisplayName`/`stripSubjectGradePrefix` in `lib/substrand.ts`, now
-shared by the version cell, the admin catalogue, and the public browse page. SSR-verified on the Rock
-(proper-case titles render, e.g. "Introduction to Space Physics"; 0 visible shouty prefixes).
-**Open follow-up:** no automated test coverage yet for the new admin catalogue / pointerless row /
-per-ID delete / version-list title cell (Playwright is dev-only; needs the running stack — see the
-ordered plan below). Verify state with `git log -1 --oneline`.
+**Shipped this session (all merged to `origin/main` + Rock-deployed; verify HEAD with `git log -1`).
+Full reasoning in `docs/DECISIONS.md` 2026-07-01.**
+- **① gate confirmed green** on HEAD — CI runs the full gate (unit + lint + audit + contract + int + http).
+- **Edit-UX (#6, #10).** The lesson-page "Edit" button now deep-links `?edit=1` so the admin version
+  editor lands **unlocked** (it loads read-only by default — which read as "no edit rights"); a
+  locked-state notice covers anyone who arrives without the intent. Follow-up **#10: all admin-only
+  fields are now HIDDEN from Editors** — generalized the existing META/UNIT `structureCondition` into
+  one `adminOnly()` wrapper (`fields/lessonContent.ts`). This also closed a trap where structure /
+  answer-key fields *looked* editable but had their edits silently dropped on save by the field-split
+  whitelist. (Editor UI verification is the user's, in-app as `editor@lesson3.local`.)
+- **PDF fidelity (#8, #9) — item ③ resolved, but NOT as originally scoped.** A pixel-vs-Word gate is
+  unworkable cross-engine (LibreOffice vs Word paginate/lay tables out differently → per-page diffs
+  stay ~50%+ even when faithful). The visible table-row-height gap traced to fonts: the DOCX call
+  **Arial** everywhere and stock Gotenberg substituted Liberation Sans. Fix: **Gotenberg now builds
+  real Arial** (`gotenberg/Dockerfile` + `ttf-mscorefonts-installer`), deployed + Rock-verified — the
+  gap closes to a minor residual (LibreOffice's vs Word's table-layout algorithm, unfixable by fonts).
+  `requireTool` in the gate script was also fixed (#8, ENOENT-only) so the script runs at all. **Key
+  reframing:** the **DOCX opened in Word is the faithful, primary deliverable and is already perfect**;
+  the **PDF is a secondary LibreOffice artifact**; the preview is mammoth-HTML (styling dropped) — so
+  "very good" PDF suffices and pixel-parity-with-Word is overkill.
 
-### ▶ Next-session plan — agreed order (2026-06-30 eve, not yet started)
+### ▶ What's left (updated 2026-07-01)
 
-Discussed and sequenced with the user; pick up in this order tomorrow:
+1. **✓ Confirm the full gate is green on current HEAD — DONE.** CI runs the full gate on every push.
+2. **② admin-catalogue e2e — AUTHORED, NOT RUN.** `app/tests/e2e/adminCatalogue.e2e.spec.ts` (#7) is
+   written + type-checked + `playwright test --list` 4/4 (clean title / no shouty "GRADE N:", the "No
+   Official version" row, the `v{semver}` badge, Site-Admin per-ID delete). But Playwright is dev-only
+   and needs a running app + a seedable DB (`E2E_BASE_URL` + `DATABASE_URI`) — **run it against a stack**
+   (Rock or local compose; instructions in the spec header). This is the **highest-value remaining item.**
+3. **③/④ formal PDF fidelity gate + CI probes — REFRAMED / PARKED.** Pixel-vs-Word is abandoned
+   (unworkable cross-engine — see DECISIONS 2026-07-01). If an automated PDF gate is ever wanted, the
+   only workable form is a **same-engine regression** (freeze the Arial LibreOffice output as golden,
+   diff future output vs it) — parked as *optional*, since the DOCX-in-Word path is already faithful and
+   the PDF is a convenience artifact. The 3 Word `.oracle.pdf` + DOCX are staged on the Rock at
+   `/srv/lesson3/out/ares-demo`. (`requireTool` is fixed so the existing script runs; Arial is deployed.)
+4. **✓ Editor "Admin only" follow-up — DONE** (#10: hidden, not labelled).
+5. **⑤ low-value cleanup, opportunistically** (unchanged, not gating): the transactional rollback
+   fault-injection test, durable cross-deploy log archival, dev-only `esbuild`/`audit:all` advisories.
 
-1. **Confirm the full gate is green on current HEAD** (cheap, foundational — do first). A lot of admin
-   changes have landed since the last cited green run. Check GitHub Actions on the latest push; if not
-   already green, run `test:unit` + `test:int` + `test:http` on the Rock. Establishes a trustworthy
-   baseline before adding coverage on top of it. No human dependency.
-2. **e2e coverage for the custom admin catalogue** (highest real risk, bounded effort — this is the
-   top item on the production-readiness risk list). The Lesson Plans catalogue + version-list Title
-   cell are now custom replacements for Payload's stock views with ZERO direct coverage — a regression
-   could silently break the admin repair surface while tests stay green. Add a focused Playwright spec:
-   clean title rendering (no shouty "GRADE N:" visible), the "No Official version" row, the official
-   `v{semver}` badge, and Site-Admin per-ID delete behavior. Do this after ①  so it's added onto a known-
-   green baseline. Needs the dev-server + Postgres stack (Rock or local compose) to author AND run.
-3. **PDF fidelity gate** (`app/scripts/pdf-fidelity-check.ts`) — the one piece of the actual product
-   promise (high-fidelity export) never formally measured. Mostly environmental: ImageMagick installed
-   on the Rock (poppler already present), a path to the port-less `gotenberg`, and **3 stakeholder
-   oracle PDFs** staged as `<name>.oracle.pdf` in `/srv/lesson3/out/ares-demo` (open each approved DOCX
-   in Word → Save as PDF). Higher setup cost + depends on assets, so after the cheaper coverage win.
-   **Human dependency: the user produces the 3 oracle PDFs.**
-4. **Fidelity probes in CI** (`ingest-extract-check` / `format2-check` / `adapter-fidelity`) — pairs with
-   ③: needs the SAME oracle DOCX/PDF fixtures staged, so do immediately after (shared asset-staging
-   work makes this incremental). `contract-check` is already in CI; these three are not.
-   **Human dependency: the ARES oracle data (same `ARES_DEMO_PATH` assets), possibly from Mark.**
-5. **Then the low-value cleanup, opportunistically** (not blocking "safe at scale"): the transactional
-   rollback test (needs a fault-injection seam), durable cross-deploy log archival, and the dev-only
-   `esbuild`/`audit:all` advisories (upstream-gated).
-
-**The critical path to "safe at scale" is really ① → ②, then ③ → ④** once the oracle assets exist from
-the user/Mark. ⑤ can be picked off whenever.
+**Critical path now: run ② against a stack.** Then optionally the same-engine regression gate. The
+other major track available anytime is **§10 cross-user features** (email-a-doc, messaging +
+notifications, favorites, Swahili translation, AI summaries) — all ordinary Payload
+collections/endpoints/hooks + the live Jobs Queue; none touches the generator/versioning core.
 
 **State: verify with `git log -1 --oneline` — don't trust a pinned hash in prose. Prior baseline was
 `df88935`/`f4d73ee`; the admin-redesign batch (`cbec573`/`25b4875`) is pushed + Rock-verified on top.**
