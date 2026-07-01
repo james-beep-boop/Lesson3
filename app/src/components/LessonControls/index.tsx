@@ -28,8 +28,15 @@ export default function LessonControls() {
   const { setDisabled, reset } = useForm()
   const [fields] = useAllFormFields()
 
-  // Local mirror of edit/view mode — drives our buttons; setDisabled() drives the form fields.
-  const [editing, setEditing] = useState(false)
+  // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
+  // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
+  // Edit button) so a user who clicked "Edit" lands unlocked instead of on a locked form hunting for
+  // a second button. Any other entry (e.g. opened to preview/download) starts read-only.
+  const [editing, setEditing] = useState<boolean>(
+    () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('edit') === '1',
+  )
   const [docx, setDocx] = useState(true)
   const [pdf, setPdf] = useState(false)
   const [resources, setResources] = useState(false)
@@ -41,10 +48,11 @@ export default function LessonControls() {
   // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
   const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
 
-  // Read-only by default — lock the form on mount; "Edit" unlocks it.
+  // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
+  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Discard buttons flip it).
   useEffect(() => {
-    setDisabled(true)
-  }, [setDisabled])
+    setDisabled(!editing)
+  }, [editing, setDisabled])
 
   useEffect(() => {
     const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
@@ -71,8 +79,8 @@ export default function LessonControls() {
   const format = formatFromResources(resources)
   const exporting = exportState === 'preparing' || exportState === 'downloading'
 
+  // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
   const onEdit = () => {
-    setDisabled(false)
     setEditing(true)
     setMsg(null)
   }
@@ -80,7 +88,6 @@ export default function LessonControls() {
   const onDiscard = () => {
     // Revert the form to the saved document (drop unsaved edits) and re-lock to view mode.
     void reset(savedDocumentData ?? {})
-    setDisabled(true)
     setEditing(false)
     setMsg(null)
   }
@@ -155,37 +162,48 @@ export default function LessonControls() {
   }
 
   return (
-    <div className="lesson-controls">
-      <Button buttonStyle="primary" size="small" onClick={onEdit} disabled={editing}>
-        Edit
-      </Button>
-      <Button buttonStyle="secondary" size="small" onClick={onPreview}>
-        Preview
-      </Button>
-      <Button buttonStyle="primary" size="small" onClick={onSave} disabled={!editing || saving}>
-        {saving ? 'Saving…' : 'Save'}
-      </Button>
-      <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={!editing}>
-        Discard Edits
-      </Button>
-      <Button buttonStyle="secondary" size="small" onClick={onDownload} disabled={exporting}>
-        {exporting ? 'Preparing…' : 'Download'}
-      </Button>
-      <label className="lesson-controls__chk">
-        <input type="checkbox" checked={docx} onChange={(e) => setDocx(e.target.checked)} /> docx
-      </label>
-      <label className="lesson-controls__chk">
-        <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
-      </label>
-      <label className="lesson-controls__chk">
-        <input type="checkbox" checked={resources} onChange={(e) => setResources(e.target.checked)} />{' '}
-        Include ARES Resources
-      </label>
-      {msg ? (
-        <span role="alert" className="lesson-controls__msg">
-          {msg}
-        </span>
+    <div className="lesson-controls-wrap">
+      {!editing ? (
+        <div className="lesson-controls__notice" role="status">
+          You’re viewing this version. Click <strong>Edit</strong> to make changes.
+        </div>
       ) : null}
+      <div className="lesson-controls">
+        <Button buttonStyle="primary" size="small" onClick={onEdit} disabled={editing}>
+          Edit
+        </Button>
+        <Button buttonStyle="secondary" size="small" onClick={onPreview}>
+          Preview
+        </Button>
+        <Button buttonStyle="primary" size="small" onClick={onSave} disabled={!editing || saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
+        <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={!editing}>
+          Discard Edits
+        </Button>
+        <Button buttonStyle="secondary" size="small" onClick={onDownload} disabled={exporting}>
+          {exporting ? 'Preparing…' : 'Download'}
+        </Button>
+        <label className="lesson-controls__chk">
+          <input type="checkbox" checked={docx} onChange={(e) => setDocx(e.target.checked)} /> docx
+        </label>
+        <label className="lesson-controls__chk">
+          <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
+        </label>
+        <label className="lesson-controls__chk">
+          <input
+            type="checkbox"
+            checked={resources}
+            onChange={(e) => setResources(e.target.checked)}
+          />{' '}
+          Include ARES Resources
+        </label>
+        {msg ? (
+          <span role="alert" className="lesson-controls__msg">
+            {msg}
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

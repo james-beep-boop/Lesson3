@@ -5,9 +5,9 @@
  * to Subject/Site Admins for the plan's subject-grade. Both are state-changing POSTs (CSRF-guarded
  * by the SameSite=Lax cookie), so they're JS-driven, not plain links.
  *
- *   - Edit         → open this version in the admin editor (read-only; the editor's "Edit" there
- *                    unlocks the form, and "Save" writes a new candidate). No fork-on-open — a DB row
- *                    is only created on Save (Stage 2 model).
+ *   - Edit         → open this version in the admin editor with edit intent (`?edit=1`), landing
+ *                    unlocked; "Save" writes a new candidate. No fork-on-open — a DB row is only
+ *                    created on Save (Stage 2 model).
  *   - Make Official → POST …/make-official → reload so the new Official is reflected.
  */
 import React, { useState } from 'react'
@@ -26,10 +26,11 @@ export default function EditActions({
   const [busy, setBusy] = useState<null | 'official'>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Edit just opens the admin editor for THIS version (read-only there until the editor clicks "Edit");
-  // no fork-on-open — Save creates the candidate.
+  // Edit opens the admin editor for THIS version with edit intent (`?edit=1`), so the form lands
+  // unlocked — LessonControls honours the param instead of the read-only default. No fork-on-open —
+  // Save creates the candidate. (Server access still gates the actual write via save-as-new.)
   const onEdit = () => {
-    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}`
+    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}?edit=1`
   }
 
   const onMakeOfficial = async () => {
