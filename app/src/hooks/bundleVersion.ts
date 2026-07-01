@@ -26,6 +26,23 @@ export const VERSION_EDITOR_KEYS = new Set(['lessons', 'finalExplanation', 'summ
 export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) =>
   applyEditorFieldSplit({ data, originalDoc, operation, req, editorTopLevelKeys: VERSION_EDITOR_KEYS })
 
+/**
+ * Immutability guarantee for saved versions. The collection's `update` ACCESS is deliberately
+ * permissive (Editors/Admins in their subject-grades — see `lessonBundleVersionUpdate`) ONLY so
+ * Payload's admin renders the edit form as editable (Payload forces the whole form read-only when the
+ * user lacks `update` permission). A saved version must never be written back to, so the hard
+ * guarantee lives here: reject every AUTHENTICATED in-place `update`. This exactly preserves the old
+ * `update: () => false` semantics — a stray/direct API PATCH by any role fails — while letting the
+ * form render editable. Trusted system paths (no `req.user`: migrations, data fixes; the same
+ * carve-out as the field-split, `fieldSplit.ts`) may still update via overrideAccess. Authoring a
+ * change is a CREATE (save-as-new), so `create` is untouched.
+ */
+export const enforceVersionImmutable: CollectionBeforeChangeHook = ({ operation, req }) => {
+  if (operation === 'update' && req.user) {
+    throw new APIError('Versions are immutable — save your changes as a new version instead.', 403)
+  }
+}
+
 /** Is `versionId` the Official version of plan `planId`? Fetches just the plan. */
 export async function isOfficialVersion(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
