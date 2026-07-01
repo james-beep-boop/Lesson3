@@ -4,9 +4,11 @@
  * with `overrideAccess: false` + an explicit `user`, exercising the real collection access functions
  * and hooks (SPEC §5/§8):
  *
- *   - ALL saved versions are immutable to authenticated users (`lessonBundleVersionUpdate` is
- *     `() => false`); authoring a change goes through save-as-new (covered over HTTP). Only trusted
- *     system paths (overrideAccess: ingest/migrations) may write in place.
+ *   - ALL saved versions are immutable to authenticated users — `enforceVersionImmutable` (beforeChange)
+ *     rejects every authenticated in-place update; authoring a change goes through save-as-new (a
+ *     create, covered over HTTP). `update` ACCESS is permissive only so the admin edit form renders
+ *     editable; the immutability guarantee is the hook. Trusted system paths (overrideAccess, no user)
+ *     may still write in place (ingest/migrations).
  *   - Teachers cannot create or update versions.
  *   - ≤1 Subject Admin per SubjectGrade (auto-demote on promotion).
  *   - Password guard: only self or Site Admin; Subject Admin may still manage assignments.
@@ -60,8 +62,8 @@ describe('version immutability (Stage 2 model: no in-place updates)', () => {
 
   it('rejects an authenticated update of a NON-Official candidate too (any role)', async () => {
     // In-place edits are gone: authoring a change goes through save-as-new (a new candidate), so even a
-    // Subject Admin cannot mutate an existing candidate row directly — `lessonBundleVersionUpdate` is
-    // `() => false`. Only trusted system paths write, via overrideAccess.
+    // Subject Admin cannot mutate an existing candidate row directly — `enforceVersionImmutable`
+    // (beforeChange) rejects it. Only trusted system paths (overrideAccess, no user) write.
     const wc = await makeWorkingCopy()
     await expect(
       fx.payload.update({

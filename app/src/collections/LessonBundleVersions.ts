@@ -10,6 +10,7 @@ import { canEditStructure } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
+  enforceVersionImmutable,
   enforceVersionPlanConsistency,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
@@ -54,10 +55,13 @@ export const LessonBundleVersions: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
-    // Stage 2 model: versions are immutable to authenticated users (`lessonBundleVersionUpdate` is
-    // `() => false`), so there is NO in-place-update beforeChange stack — authoring goes through the
-    // save-as-new endpoint (which applies the field-split + stale-check itself). `enforceVersionFieldSplit`
-    // still exists for the preview endpoint's direct use; it is not wired here.
+    // Stage 2 model: versions are IMMUTABLE. `update` access is now permissive enough for Payload to
+    // render the edit form editable (so an Editor can actually type + Save-as-new; see
+    // `lessonBundleVersionUpdate`), so the immutability guarantee lives here instead:
+    // `enforceVersionImmutable` rejects every in-place `update` (a stray/direct PATCH included).
+    // Authoring goes through the save-as-new endpoint (a CREATE, applying the field-split + stale-check
+    // itself). `enforceVersionFieldSplit` still exists for the preview endpoint's direct use; not wired here.
+    beforeChange: [enforceVersionImmutable],
     // Retention: the Official version cannot be deleted (would orphan the plan pointer).
     beforeDelete: [enforceOfficialNotDeletable],
   },
