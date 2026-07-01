@@ -10,9 +10,11 @@ the Rock unless noted.
 ## Backups (encrypted, off-site to Google Drive)
 
 `pg_dump` (in the postgres container) → `age` encrypt (on the host) → `rclone` to Google Drive.
-Two streams under the remote: `daily/` (kept `BACKUP_RETENTION_DAYS`, default 30) and `premigrate/`
-(pre-deploy snapshots, kept `BACKUP_PREMIGRATE_RETENTION_DAYS`, default 90). Scripts:
-`scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/deploy.sh`.
+Four streams under the remote, grandfather-father-son retention: `daily/` (keep newest
+`BACKUP_DAILY_KEEP`, default 7), `weekly/` (`BACKUP_WEEKLY_KEEP`, default 4), and `monthly/`
+(`BACKUP_MONTHLY_KEEP`, default 12) — these prune by **count** (newest N; exact and robust to a missed
+run) — plus `premigrate/` (pre-deploy snapshots, pruned by **age**, `BACKUP_PREMIGRATE_RETENTION_DAYS`,
+default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/deploy.sh`.
 
 ### One-time setup
 
@@ -39,15 +41,18 @@ Two streams under the remote: `daily/` (kept `BACKUP_RETENTION_DAYS`, default 30
    ```
    BACKUP_AGE_RECIPIENT=age1xxxxxxxx...
    BACKUP_RCLONE_REMOTE=drive:lesson3-backups
-   # optional overrides: BACKUP_RETENTION_DAYS, BACKUP_PREMIGRATE_RETENTION_DAYS
+   # optional overrides: BACKUP_DAILY_KEEP, BACKUP_WEEKLY_KEEP, BACKUP_MONTHLY_KEEP, BACKUP_PREMIGRATE_RETENTION_DAYS
    # optional (monitoring): HEALTHCHECK_BACKUP_URL=https://hc-ping.com/<uuid>
    ```
    These are read by the scripts only; they are NOT app config (the app ignores them).
 
-5. **Cron — nightly backup** (`crontab -e`):
+5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
+   at 02:00 Pacific). Nightly → `daily/`, Sundays → `weekly/`, the 1st of the month → `monthly/`:
    ```
-   # 03:17 UTC nightly Lesson3 DB backup
-   17 3 * * * /srv/lesson3/scripts/backup-db.sh >> /srv/lesson3/out/backup.log 2>&1
+   # Lesson3 DB backups — GFS retention (7 daily / 4 weekly / 12 monthly)
+   0  2 * * *  /srv/lesson3/scripts/backup-db.sh                 >> /srv/lesson3/out/backup.log 2>&1
+   10 2 * * 0  /srv/lesson3/scripts/backup-db.sh --label weekly  >> /srv/lesson3/out/backup.log 2>&1
+   20 2 1 * *  /srv/lesson3/scripts/backup-db.sh --label monthly >> /srv/lesson3/out/backup.log 2>&1
    ```
 
 ### Run / verify
