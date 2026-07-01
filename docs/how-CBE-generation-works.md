@@ -234,6 +234,75 @@ appears to be either vestigial documentation or a field Claude's schema
 could populate that the current renderer simply doesn't read for
 placement, since resources are instead looked up live at render time.
 
+## 4a. Correction: some already-rendered outputs *with real links* are committed to the public repo
+
+The upstream repo's `.gitignore` lists:
+
+```
+# Large runtime files — live on jhm-spark, not in git
+data/ares_index/ares_content.db
+...
+data/outputs/docx/
+```
+
+which implies none of the generated Word documents should be in git. **This
+is not true in practice** — a `.gitignore` rule only stops *new* untracked
+files from being added; it does not retroactively untrack files already
+committed. A real generated output tree is checked into the public repo at
+`data/outputs/docx/Grade 10 <Subject>/<Sub-strand>/`, confirmed present for
+at least `Grade 10 Bio`, `Grade 10 Biology` (subfolders `Bio 1.2`, `2.2`,
+`2.3`, `3.1`, `3.2`, `3.3`), `Grade 10 Chemistry` (`Chemistry 1.4`), and
+`Grade 10 Math` — each such folder holds all three `.docx` outputs **plus**
+the sub-strand's `_data.json`.
+
+Downloading and unzipping one of these
+(`Chemistry_Chemical_Bonding_CBE_LessonSequence.docx`) and inspecting
+`word/_rels/document.xml.rels` shows genuine hyperlink relationships baked
+into the document, e.g.:
+
+```
+http://ares.edu:8069/en/learn/#/topics/c/1a11aa5bad505b969a466a7e7e05bd47
+http://ares.edu/www2/search.php?searchstring=valence+electrons+octet+rule+video&sources[]=kha&sources[]=ck12&...
+```
+
+— a direct Kolibri-content link plus a fallback keyword-search link
+(with channel-source filters), repeated per lesson phase.
+
+**This does not contradict §5 below** — it confirms it. The sibling
+`Chemistry_Chemical_Bonding_data.json` from that same folder was checked
+directly: every `framework` phase object has exactly the keys `phase,
+learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment`
+— no `resource` key. The links exist only inside the rendered `.docx`
+XML, never in that sub-strand's own JSON, exactly as §5 describes.
+
+**Practical implications for anyone wanting these links (e.g. for
+Lesson3):**
+
+- **Coverage is partial.** Only sub-strands with a committed output
+  folder have real links available at all — a handful, not the full
+  ~2,000-lesson target.
+- **Association is positional, not labeled.** Nothing in the docx ties a
+  given hyperlink explicitly to "Lesson 3, Predict phase" as structured
+  data — recovering that requires walking `document.xml` in document
+  order and matching hyperlinks to the phase table rows they fall inside,
+  then cross-referencing lesson/phase order against the sibling
+  `_data.json`'s `LESSONS[].framework[]` array (same ordering, since both
+  were produced from the same generation run).
+- **Domain caveat.** Links point to `ares.edu` / `ares.edu:8069` — ARES's
+  own hostname for their offline Kolibri server. These may not resolve
+  outside ARES's network or without the same Kolibri content mounted. The
+  embedded Kolibri **topic IDs** and the fallback search **query
+  terms/channel filters** are portable metadata regardless of whether the
+  hostname itself resolves for a given reader.
+- **The live-lookup path (`ares_recommender.py` + `ares_content.db`) is
+  still unavailable** — this doesn't change the assessment in §4 or in
+  `docs/EXTERNAL-DEPENDENCIES.md` that the underlying 1.55M-item SQLite
+  index is not published and was deliberately not vendored into Lesson3.
+  What changed is narrower: a *sample* of real, already-computed links
+  exists in the public repo for the sub-strands that happen to have
+  committed output, recoverable only by parsing those specific `.docx`
+  files directly.
+
 ## 5. The `.js` source file vs. the `.json` export — one is upstream, one is a disposable mirror
 
 These are not two independent copies of the content; the relationship is
@@ -275,7 +344,7 @@ generator, and a fresh `.json` snapshot falls out automatically.
 | One phenomenon idea, driving question(s), rough per-lesson bullet outline, resource placeholders | Individual teacher, filling in the template |
 | Full per-lesson SLOs, prose overviews, 5-phase teacher-moves framework, reflections | Generated de novo by Claude, constrained by the above |
 | Final Explanation (assessment + rubric), Summary Table | Generated de novo by Claude — no teacher-template counterpart exists at all |
-| Resource links (video/reading) | Separate SQLite FTS lookup against the ARES content DB at DOCX-render time — not from KICD, templates, or Claude |
+| Resource links (video/reading) | Separate SQLite FTS lookup against the ARES content DB at DOCX-render time — not from KICD, templates, or Claude, and never written into the `.js`/`.json` data. A partial sample of real, already-computed links *is* recoverable from the handful of already-rendered `.docx` files committed to the public repo (see §4a), by parsing hyperlink relationships directly — not from any JSON export |
 | `.docx` formatting/layout | Node.js renderer (`docx_kit.js`, `sections.js`, `build_docs.js`) |
 | `.json` data export | Mechanical `JSON.stringify` of the `.js` source, written once per render |
 
