@@ -321,6 +321,23 @@ body {
 }
 
 // The single edit-view control bar (LessonControls), injected before the document controls.
+.lesson-controls-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+// Read-only notice: shown when the form is locked, so a version opened for viewing doesn't read as
+// "broken / no permission". Points the user at the Edit button that unlocks the form.
+.lesson-controls__notice {
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--theme-elevation-400);
+  background: var(--theme-elevation-50);
+  color: var(--theme-elevation-700);
+  font-size: 0.85rem;
+  border-radius: 2px;
+}
+
 .lesson-controls {
   display: flex;
   flex-wrap: wrap;
