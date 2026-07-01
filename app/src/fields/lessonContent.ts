@@ -69,6 +69,20 @@ const rowLabel = (field: string, noun: string) => ({
 const structureCondition = (data: unknown, _siblingData: unknown, { user }: { user: unknown }): boolean =>
   isSubjectAdminFor(user as User, toId((data as { subjectGrade?: unknown } | undefined)?.subjectGrade as never))
 
+// Hide an admin-only field from anyone who can't edit it (an Editor) — the SAME predicate and
+// rationale as the META/UNIT sections above: show it only to structure editors (Subject Admins for
+// this doc's subject-grade + Site Admins). This keeps the Editor's form to ONLY the fields they can
+// actually change, removing both greyed inputs AND the subtler trap of fields that look editable but
+// are silently dropped by the field-split whitelist (`applyEditorFieldSplit`) on save. Presentation
+// only — the hook remains the write-time authority; hidden fields keep their original values (an
+// Editor's save overlays prose onto the original doc), so answer keys/structure are never wiped. The
+// value still lives in row `data`, so collapsed array RowLabels (e.g. by `phase`/`title`) still show.
+// Merges into any existing `admin` (descriptions, row labels) rather than replacing it.
+const adminOnly = (field: Field): Field => {
+  const admin = (field as { admin?: Record<string, unknown> }).admin ?? {}
+  return { ...field, admin: { ...admin, condition: structureCondition } } as Field
+}
+
 export const lessonContentFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   {
@@ -147,9 +161,9 @@ export const lessonContentFields: Field[] = [
         access: { create: systemOnly, update: systemOnly },
       },
       prose('title', 'Title'),
-      structureText('duration', 'Duration'),
-      structureText('substrand', 'Sub-strand'),
-      structureText('aresKeywords', 'ARES keywords'),
+      adminOnly(structureText('duration', 'Duration')),
+      adminOnly(structureText('substrand', 'Sub-strand')),
+      adminOnly(structureText('aresKeywords', 'ARES keywords')),
       {
         name: 'slo',
         type: 'group',
@@ -175,7 +189,7 @@ export const lessonContentFields: Field[] = [
         // skipped for drafts — validateGeneratable is the create-time authority).
         minRows: 1,
         fields: [
-          {
+          adminOnly({
             name: 'phase',
             type: 'select',
             required: true,
@@ -185,7 +199,7 @@ export const lessonContentFields: Field[] = [
               description:
                 'Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.',
             },
-          },
+          }),
           prose('learnerExperience', 'Learner experience'),
           prose('teacherMoves', 'Teacher moves'),
           prose('sensemakingStrategy', 'Sensemaking strategy'),
@@ -223,7 +237,7 @@ export const lessonContentFields: Field[] = [
     type: 'group',
     label: 'FINAL EXPLANATION',
     fields: [
-      structureText('subjectLabel', 'Subject label'),
+      adminOnly(structureText('subjectLabel', 'Subject label')),
       prose('instructions', 'Instructions'),
       {
         name: 'sections',
@@ -231,13 +245,13 @@ export const lessonContentFields: Field[] = [
         labels: { singular: 'Section', plural: 'Sections' },
         admin: rowLabel('title', 'Section'),
         fields: [
-          structureText('title', 'Title'),
+          adminOnly(structureText('title', 'Title')),
           prose('prompt', 'Prompt'),
           // Answer key — Subject Admin only (SPEC §5). Multiline prose, admin-gated.
-          proseAdmin('exemplar', 'Exemplar (answer key)'),
+          adminOnly(proseAdmin('exemplar', 'Exemplar (answer key)')),
         ],
       },
-      {
+      adminOnly({
         // Whole rubric is an answer key → Subject Admin only.
         name: 'rubric',
         type: 'array',
@@ -250,7 +264,7 @@ export const lessonContentFields: Field[] = [
           structureText('proficient', 'Proficient'),
           structureText('developing', 'Developing'),
         ],
-      },
+      }),
     ],
   },
 
@@ -260,8 +274,8 @@ export const lessonContentFields: Field[] = [
     type: 'group',
     label: 'SUMMARY TABLE',
     fields: [
-      structureText('subStrand', 'Sub-strand'),
-      structureText('drivingQuestion', 'Driving question'),
+      adminOnly(structureText('subStrand', 'Sub-strand')),
+      adminOnly(structureText('drivingQuestion', 'Driving question')),
       {
         name: 'lessons',
         type: 'array',
