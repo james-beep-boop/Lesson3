@@ -30,7 +30,10 @@ export const LessonBundleVersions: CollectionConfig = {
   indexes: [{ fields: ['lessonPlan', 'semver'], unique: true }],
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'lessonPlan', 'semver', 'subjectGrade', 'createdAt'],
+    // Drop the `lessonPlan` column: a version's title IS its plan's title, so it just repeated the
+    // Title column. The custom Title Cell (below) shows the clean substrand name; the parent plan is
+    // still one click away in the version's edit view.
+    defaultColumns: ['title', 'semver', 'subjectGrade', 'createdAt'],
     group: 'Lesson plans',
     description:
       'Immutable lesson-plan snapshots. The parent Lesson Plan chooses one snapshot as Official.',
@@ -132,6 +135,9 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { update: canEditStructure },
       admin: {
         description: 'Version label for lists, e.g. the document title.',
+        // De-shout + de-duplicate the list column (prefers the clean meta.substrand_name). Display
+        // only — the stored title / useAsTitle stay intact for breadcrumbs + relationship displays.
+        components: { Cell: '@/components/VersionTitleCell#default' },
       },
     },
     {

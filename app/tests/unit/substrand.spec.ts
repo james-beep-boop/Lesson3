@@ -4,6 +4,8 @@ import {
   compareSubstrandId,
   strandNumberOf,
   cleanStrandName,
+  stripSubjectGradePrefix,
+  lessonDisplayName,
   groupLessons,
   orderLessons,
   matchesQuery,
@@ -114,5 +116,38 @@ describe('matchesQuery', () => {
   })
   it('returns all rows for an empty query', () => {
     expect(matchesQuery(r, '   ')).toBe(true)
+  })
+})
+
+describe('stripSubjectGradePrefix', () => {
+  it('drops a leading "SUBJECT GRADE N:" prefix', () => {
+    expect(stripSubjectGradePrefix('PHYSICS GRADE 10: INTRODUCTION TO SPACE PHYSICS')).toBe(
+      'INTRODUCTION TO SPACE PHYSICS',
+    )
+    expect(stripSubjectGradePrefix('Biology Grade 9: Cell Structure')).toBe('Cell Structure')
+  })
+  it('leaves an unprefixed title untouched, and tolerates null/empty', () => {
+    expect(stripSubjectGradePrefix('Pressure')).toBe('Pressure')
+    expect(stripSubjectGradePrefix('')).toBe('')
+    expect(stripSubjectGradePrefix(null)).toBe('')
+  })
+  it('does not over-strip when "grade N:" appears mid-word or without a subject lead', () => {
+    // "grade" is whitespace-delimited, so "Upgrade" is not treated as a "… grade" prefix.
+    expect(stripSubjectGradePrefix('Upgrade 10: Final Review')).toBe('Upgrade 10: Final Review')
+  })
+})
+
+describe('lessonDisplayName', () => {
+  it('prefers the clean substrand name when present', () => {
+    expect(lessonDisplayName('Pressure', 'PHYSICS GRADE 10: PRESSURE')).toBe('Pressure')
+  })
+  it('falls back to the de-shouted title when no substrand name', () => {
+    expect(lessonDisplayName(null, 'PHYSICS GRADE 10: PRESSURE')).toBe('PRESSURE')
+    expect(lessonDisplayName('   ', 'Chemistry Grade 10: Acids')).toBe('Acids')
+  })
+  it('degrades to the raw title, then "Untitled"', () => {
+    expect(lessonDisplayName(undefined, 'Just A Title')).toBe('Just A Title')
+    expect(lessonDisplayName(null, '')).toBe('Untitled')
+    expect(lessonDisplayName(null, null)).toBe('Untitled')
   })
 })

@@ -90,6 +90,33 @@ export function cleanStrandName(raw: string | null): string {
   return raw.replace(/^\s*strand\s+\d+(\.\d+)*\s*:?\s*/i, '').trim()
 }
 
+// Leading "SUBJECT GRADE N:" prefix on a stored ARES title (compiled once, not per row). The lead is
+// constrained to a subject-shaped token (letters, spaces, & / -) and `grade` must be whitespace-
+// delimited, so an unrelated title like "Upgrade 10: Final Review" is NOT stripped.
+const SUBJECT_GRADE_PREFIX = /^[A-Za-z][A-Za-z &/-]*\s+grade\s+\d+\s*:\s*/i
+
+/** Drop a leading "SUBJECT GRADE N:" prefix (non-greedy up to the first "GRADE <n>:"). */
+export function stripSubjectGradePrefix(title: string | null | undefined): string {
+  return (title ?? '').replace(SUBJECT_GRADE_PREFIX, '').trim()
+}
+
+/**
+ * Human display name for a lesson snapshot. Prefer the clean structured `meta.substrand_name`
+ * (e.g. "Pressure"); otherwise de-shout the stored title by stripping its "SUBJECT GRADE N:" prefix
+ * ("PHYSICS GRADE 10: PRESSURE" → "PRESSURE"); finally the raw title, then "Untitled". One home for
+ * the "clean the shouty title" rule the browse catalogue, the admin catalogue, and the version-list
+ * cell all share.
+ */
+export function lessonDisplayName(
+  substrandName: string | null | undefined,
+  storedTitle: string | null | undefined,
+): string {
+  const clean = substrandName?.trim()
+  if (clean) return clean
+  const raw = (storedTitle ?? '').trim()
+  return stripSubjectGradePrefix(raw) || raw || 'Untitled'
+}
+
 /** "Strand N: Name", degrading to "Strand N", then the bare name, then "Other". */
 function strandLabel(strandNumber: number | null, name: string): string {
   if (strandNumber != null) return name ? `Strand ${strandNumber}: ${name}` : `Strand ${strandNumber}`

@@ -4,7 +4,7 @@ import type { ListViewServerProps } from 'payload'
 
 import { isSiteAdmin } from '../../access'
 import { relId } from '../../lib/relId'
-import type { LessonRow } from '../../lib/substrand'
+import { lessonDisplayName, type LessonRow } from '../../lib/substrand'
 import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
 import { AdminLessonCatalogue } from './AdminLessonCatalogue'
@@ -87,8 +87,8 @@ export default async function AdminLessonList({ payload, user }: ListViewServerP
         subjectName: subject?.name ?? 'Unknown subject',
         grade: sg?.grade ?? null,
         substrandId: v.meta?.substrand_id ?? '',
-        // Prefer the clean structured name over the shouty stored title ("PHYSICS GRADE 10: …").
-        substrandName: v.meta?.substrand_name || v.title || 'Untitled',
+        // Clean structured name, else de-shout the stored title ("PHYSICS GRADE 10: …"). Shared rule.
+        substrandName: lessonDisplayName(v.meta?.substrand_name, v.title),
         strandName: v.unit?.strand ?? null,
         lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
         status: 'published',
