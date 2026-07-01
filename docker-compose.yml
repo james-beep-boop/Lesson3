@@ -74,8 +74,12 @@ services:
   # truth — we never re-render). Multi-arch (arm64), fully offline, no paid service.
   # Internal-only — NO published host port (same posture as postgres); reachable by the
   # app over the compose network at http://gotenberg:3000 (see GOTENBERG_URL in .env).
+  #
+  # Built locally from gotenberg/Dockerfile (upstream image + real Microsoft Arial) because ARES
+  # DOCX call for Arial and stock Gotenberg substitutes Liberation Sans, shifting table row heights
+  # vs Word. See gotenberg/Dockerfile. `up --build` needs outbound network once to fetch the fonts.
   gotenberg:
-    image: gotenberg/gotenberg:8
+    build: ./gotenberg
     restart: unless-stopped
     logging: *default-logging
     # Disable the modules the app never calls, trimming the attack/startup surface.
