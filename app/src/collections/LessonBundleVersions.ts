@@ -21,6 +21,7 @@ import {
 } from '../endpoints/exportVersion'
 import { previewVersionEndpoint, previewVersionUnsavedEndpoint } from '../endpoints/previewVersion'
 import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
+import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -85,6 +86,8 @@ export const LessonBundleVersions: CollectionConfig = {
     saveAsNewEndpoint,
     // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.
     makeOfficialEndpoint,
+    // POST /:id/email — send the export zip to any address (READ-gated, daily-capped). SPEC §10.
+    emailVersionEndpoint,
   ],
   fields: [
     {

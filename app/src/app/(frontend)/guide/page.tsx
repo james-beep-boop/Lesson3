@@ -59,6 +59,11 @@ export default async function UserGuidePage() {
             documents for that sub-strand.
           </li>
           <li>
+            <strong>Email:</strong> use the Email button to send the generated documents (as a .zip of
+            Word files) to any email address — your own, or a colleague&apos;s. Sends are limited per
+            day.
+          </li>
+          <li>
             <strong>Include ARES Resources:</strong> turn the checkbox on for the layout that includes
             links to ARES resources.
           </li>

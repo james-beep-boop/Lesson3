@@ -107,6 +107,7 @@ export interface Config {
   jobs: {
     tasks: {
       generateVersionArtifact: TaskGenerateVersionArtifact;
+      emailVersionArtifact: TaskEmailVersionArtifact;
       inline: {
         input: unknown;
         output: unknown;
@@ -573,7 +574,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'generateVersionArtifact';
+        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact';
         taskID: string;
         input?:
           | {
@@ -606,7 +607,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'generateVersionArtifact') | null;
+  taskSlug?: ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -994,6 +995,20 @@ export interface TaskGenerateVersionArtifact {
     versionId: number;
     format: string;
     kind: string;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskEmailVersionArtifact".
+ */
+export interface TaskEmailVersionArtifact {
+  input: {
+    versionId: number;
+    format: string;
+    kind: string;
+    to: string;
+    requestedByName: string;
   };
   output?: unknown;
 }

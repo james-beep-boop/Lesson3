@@ -62,6 +62,14 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_PREVIEW_MAX', 40),
     windowMs: positiveIntEnv('RATE_LIMIT_PREVIEW_WINDOW_MS', 60_000),
   },
+  // Email-a-doc (SPEC §10) sends OUTBOUND mail to arbitrary addresses on the user's behalf, so its
+  // budget is a DAILY CAP, not a burst window: 10 sends per user per 24h fixed window by default.
+  // Deliberately much tighter than export/preview — the cost being bounded is other people's
+  // inboxes (and our SMTP reputation), not our CPU.
+  email: {
+    max: positiveIntEnv('RATE_LIMIT_EMAIL_MAX', 10),
+    windowMs: positiveIntEnv('RATE_LIMIT_EMAIL_WINDOW_MS', 86_400_000),
+  },
 } satisfies Record<string, Limit>
 
 type Bucket = keyof typeof LIMITS

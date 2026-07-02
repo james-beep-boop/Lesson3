@@ -10,6 +10,7 @@ import { generateForVersion } from '@/generator/generateForVersion'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
+import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
 import { ResourcesToggle } from './ResourcesToggle'
 import FavoriteToggle from '@/components/FavoriteToggle'
@@ -141,6 +142,7 @@ export default async function LessonView({
         )}
         <span className="export-label">Download</span>
         <DownloadButtons versionId={selectedId} format={format} />
+        <EmailDocButton versionId={selectedId} format={format} />
         <ResourcesToggle format={format} />
       </div>
 
