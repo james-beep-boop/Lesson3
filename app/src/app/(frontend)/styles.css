@@ -443,6 +443,8 @@ button[type='submit']:disabled {
   border-top: 1px solid var(--line);
 }
 
+/* ---- Reading-first mobile pass (IA redesign PR ⑤): the library, lesson pages, and Guide must be
+   comfortable on a phone. The heavy editing form stays desktop-oriented by decision. ---- */
 @media (max-width: 640px) {
   .app-header,
   .app-nav {
@@ -454,5 +456,35 @@ button[type='submit']:disabled {
   .app-nav {
     flex-wrap: wrap;
     gap: 0.5rem 0.85rem;
+  }
+
+  /* Tighter page gutter on small screens. */
+  .app-main {
+    padding: 1rem 0.9rem 3rem;
+  }
+
+  /* Library rows: let the lesson count drop under the name instead of crushing it. */
+  .substrand-row {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+  .substrand-link {
+    flex-basis: 100%;
+  }
+  .substrand-count {
+    margin-left: 2.6rem; /* aligns under the name, past the number column */
+  }
+
+  /* Lesson page: title and Edit/Make Official stack instead of fighting for one row. */
+  .lesson-heading {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  /* The generated tables (5 columns) stay legible: keep their natural width and let the
+     .doc-preview container (overflow-x: auto) scroll sideways, rather than crushing every
+     cell to a one-word column. */
+  .doc-preview table {
+    min-width: 560px;
   }
 }

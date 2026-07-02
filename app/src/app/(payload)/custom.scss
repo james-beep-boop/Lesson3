@@ -177,6 +177,41 @@ body {
   .btn {
     flex-shrink: 0;
   }
+
+  // Reading-first mobile pass (IA redesign PR ⑤): Manage lists stay usable on a phone — rows wrap
+  // (label full-width, meta + action beneath), the search bar stacks, and the Editors picker fits.
+  @media (max-width: 640px) {
+    &__row {
+      flex-wrap: wrap;
+      row-gap: 0.25rem;
+
+      > :first-child {
+        flex-basis: 100%;
+      }
+    }
+
+    &__meta {
+      white-space: normal;
+      flex-wrap: wrap;
+    }
+
+    &__editors-add {
+      flex-wrap: wrap;
+    }
+
+    &__select {
+      max-width: 100%;
+      flex: 1;
+    }
+
+    .lp-admin-list__bar {
+      flex-wrap: wrap;
+
+      .lp-admin-list__search {
+        flex-basis: 100%;
+      }
+    }
+  }
 }
 
 // IA redesign PR ③ — the "Lesson plans" NAV GROUP (Lesson Plans + Lesson plan versions) is hidden

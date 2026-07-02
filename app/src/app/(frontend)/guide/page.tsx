@@ -15,6 +15,12 @@ export default async function UserGuidePage() {
           The repository stores ARES lesson plans as structured lesson data. You browse, edit, preview,
           and export that data in the app; the system generates the Word and PDF documents for you.
         </p>
+        <p>
+          There are three places: <strong>Lessons</strong> (the library — the one list of every lesson
+          plan), the <strong>lesson page</strong> (everything about one lesson: read, versions,
+          download, and — for editing roles — Edit and Make Official), and <strong>Manage</strong>
+          (housekeeping and people, showing only the functions your role has).
+        </p>
       </header>
 
       <nav className="guide-toc" aria-label="Guide sections">
@@ -65,13 +71,19 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Working versions, not Official ones:</strong> editing always works on a new
-            <em> working</em> version. The Official version is never changed in place; a Subject or
-            Site Administrator marks a working version Official when it is ready.
+            <strong>Edit from the lesson:</strong> open a lesson in the library and press
+            <em> Edit</em>. The editing page opens ready to type, showing only the fields you may
+            change; <em>← Back to lesson</em> returns you when you are done.
           </li>
           <li>
-            <strong>Rolling out:</strong> direct self-service editing for Editors is being enabled. For
-            now, prose edits are made by a Subject Administrator for the editor’s subject-grades.
+            <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new
+            version of the lesson plan — the version you opened is never changed in place. A Subject
+            or Site Administrator marks a saved version Official when it is ready.
+          </li>
+          <li>
+            <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists the
+            versions you have saved — click one to continue editing, or delete the ones you no longer
+            need.
           </li>
         </ul>
       </section>
@@ -91,11 +103,16 @@ export default async function UserGuidePage() {
             duration, ARES keywords, phase choices, assessment exemplars, and rubric rows.
           </li>
           <li>
-            <strong>Control official versions:</strong> mark the approved version that Teachers should
-            use.
+            <strong>Make Official:</strong> on a lesson page, promote a saved version to the Official
+            one Teachers see — optionally deleting the version it replaces.
           </li>
           <li>
-            <strong>Manage scoped roles:</strong> assign Editors for the subject-grades they administer.
+            <strong>Tidy candidates:</strong> <em>Manage → Candidate versions</em> lists every saved,
+            non-Official version in their subject-grades, with delete.
+          </li>
+          <li>
+            <strong>Appoint Editors:</strong> <em>Manage → Editors</em> promotes a Teacher to Editor
+            (or removes one) per subject-grade.
           </li>
         </ul>
       </section>
@@ -108,16 +125,17 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
+            <strong>Everything lives on Manage:</strong> upload lesson plans (each upload creates a
+            lesson plan and its first Official version), repair plans that have no Official version,
+            delete lesson plans (with all their versions), and reach the People and Curriculum lists.
+          </li>
+          <li>
             <strong>Manage people:</strong> create users, grant Site Administrator access, and assign
             Editor or Subject Administrator roles by subject-grade.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson
             plans are uploaded.
-          </li>
-          <li>
-            <strong>Upload lesson plans:</strong> import ARES lesson data through the admin upload
-            action; each upload creates a lesson plan and its first Official version.
           </li>
           <li>
             <strong>Review everything:</strong> inspect, edit, export, mark Official, or delete lesson
