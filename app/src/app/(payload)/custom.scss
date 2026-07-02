@@ -323,6 +323,22 @@ body {
   display: none;
 }
 
+// IA redesign PR ④ — the version editor reads as "this app's editing page", not a back-office
+// screen: entered from a lesson (Edit) or Manage (My saved versions), exited via "← Back to lesson"
+// (LessonControls). Scoped with :has() to the versions DOCUMENT view only; every other admin page
+// keeps full chrome. Hidden here: the nav sidebar + its hamburger (nothing useful while editing —
+// PR ③ already emptied the lesson group) and Payload's app-header with the breadcrumb trail (it
+// points at the redirected list route; the Back link replaces it). Our own .lp-admin-header
+// (the shared AppNav) stays — the same navigation as the frontend. (Class names verified against
+// installed payload/next: .template-default, .nav, .app-header, .step-nav.)
+body:has(.collection-edit--lesson-bundle-versions) {
+  .nav,
+  .template-default__nav-toggler-wrapper,
+  .app-header {
+    display: none;
+  }
+}
+
 // Lesson-version edit view: the native "Last Modified / Created" row is relocated into the sidebar
 // (the VersionTimestamps UI field, under "Version"). Hide the native row, SCOPED to this collection
 // so other collections keep their timestamp display.
@@ -358,6 +374,20 @@ body {
   color: var(--theme-elevation-700);
   font-size: 0.85rem;
   border-radius: 2px;
+}
+
+// "← Back to lesson" — the editor's exit, replacing the hidden breadcrumb trail (PR ④).
+.lesson-controls__back {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  color: var(--theme-elevation-600);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    color: var(--theme-elevation-1000);
+  }
 }
 
 .lesson-controls {
