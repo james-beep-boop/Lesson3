@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-01 (post-②) — Codex audit of the redesign work: 8 findings, 8.0/10, no Critical/High
+
+External Codex audit of `main` after IA-redesign PRs ①–② (+ the /simplify pass). Outcomes:
+
+**Fixed immediately:**
+- **#1 migration rollback ownership** — the author migration's `down` dropped `rate_limit_counters`,
+  a table OWNED by the 20260629 migration (whose own down drops it): a one-step rollback would have
+  killed the live rate limiter. `down` now undoes only what the migration semantically owns.
+  **Rule: a migration's `down` must not tear down objects another migration owns, even ones its `up`
+  defensively creates for chain repair.**
+- **#2 make-official `deletePrevious` stale consent** — the delete-previous confirmation the admin
+  gave was about the version that was Official when THEIR page rendered; if another admin moved the
+  pointer meanwhile, the endpoint deleted the wrong (newer) version. The client now sends
+  `expectedPreviousOfficialId` and the server 409s on mismatch inside the same transaction (pin:
+  http spec "STALE expectedPreviousOfficialId"). **Rule: consent to a destructive action must name
+  its object; the server verifies the object hasn't changed.**
+- **#4 user-directory privacy (decided: tighten)** — `usersCollectionRead` was `Boolean(user)` "for
+  attribution", but nothing teacher-facing reads other users today. Now: Site/Subject Admins read the
+  roster (the Editors widget needs it); everyone else reads only themself (Where-scoped, so lists
+  return the caller rather than erroring). Emails stay field-hidden on top. If §10 features need
+  attribution later, relax deliberately.
+- **#5** stray untracked `apiBase 2.ts` duplicate removed.
+
+**Tracked, deliberately not built now:**
+- **#3 Editors-widget full-array PATCH race** (two admins editing one user concurrently can lose an
+  edit) — real but marginal at ≤1 Subject Admin per subject-grade + a refresh after every change;
+  revisit with an updatedAt precondition or a narrow assign/unassign endpoint if the admin population
+  grows. **#6** Manage loads whole collections (`pagination: false`) — fine at today's corpus,
+  paginate/search at thousands. **#7** Manage has no browser-level coverage — fold into the pending
+  Playwright run (the adminCatalogue spec is also still authored-not-run). **#8** dev-only esbuild
+  moderate advisories — known, upstream-gated.
+
+---
+
 ## 2026-07-01 (late) — IA redesign decided: one library, lesson-page hub, role-scoped Manage
 
 The user flagged the core UX failure: three near-identical lesson lists (public browse, the admin

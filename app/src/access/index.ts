@@ -115,9 +115,17 @@ export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): bo
 // Users collection access
 // ---------------------------------------------------------------------------
 
-/** Any signed-in user may read user docs (for attribution); the `email` field is
- *  separately hidden from non-site-admins via `emailReadAccess`. */
-export const usersCollectionRead: Access = ({ req: { user } }) => Boolean(user)
+/** Directory privacy (tightened per Codex audit 2026-07-01 #4): Site Admins and Subject Admins (who
+ *  need the roster for role management) read everyone; everyone else reads ONLY themselves (Where —
+ *  scoped, so list reads return just the caller instead of erroring). Emails stay additionally
+ *  field-hidden via `emailReadAccess`. NOTE for future §10 attribution features: relax deliberately,
+ *  don't just flip this back to `Boolean(user)`. */
+export const usersCollectionRead: Access = ({ req: { user } }) => {
+  const u = asUser(user)
+  if (!u) return false
+  if (isSiteAdmin(u) || isSubjectAdminForAny(u)) return true
+  return { id: { equals: u.id } }
+}
 
 /** Update self, or any user if site admin / a subject admin (field access + the
  *  beforeChange scoping hook then constrain *what* a subject admin may change). */

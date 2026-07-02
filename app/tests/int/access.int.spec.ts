@@ -493,4 +493,35 @@ describe('People rules (SPEC §8)', () => {
       }),
     ).resolves.toBeTruthy()
   })
+
+  it('directory privacy: a non-admin reads ONLY themself; a Subject Admin reads the roster', async () => {
+    // Codex 2026-07-01 #4: user reads are self-scoped for non-admins (Where), roster for admins.
+    const asTeacher = await fx.payload.find({
+      collection: 'users',
+      where: { name: { like: MARK } },
+      overrideAccess: false,
+      user: fx.users.teacher,
+      depth: 0,
+    })
+    expect(asTeacher.docs.map((d) => d.id)).toEqual([fx.users.teacher.id])
+
+    const asEditor = await fx.payload.find({
+      collection: 'users',
+      where: { name: { like: MARK } },
+      overrideAccess: false,
+      user: fx.users.editor,
+      depth: 0,
+    })
+    expect(asEditor.docs.map((d) => d.id)).toEqual([fx.users.editor.id])
+
+    const asSubjectAdmin = await fx.payload.find({
+      collection: 'users',
+      where: { name: { like: MARK } },
+      overrideAccess: false,
+      user: fx.users.subjectAdmin,
+      depth: 0,
+    })
+    // Sees the whole fixture roster (all four seeded users), not just themself.
+    expect(asSubjectAdmin.docs.length).toBe(4)
+  })
 })

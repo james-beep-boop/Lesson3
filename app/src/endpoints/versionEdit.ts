@@ -188,6 +188,11 @@ export const saveAsNewEndpoint: Endpoint = {
  * `?deletePrevious=true`, atomically delete the version that WAS Official (now superseded) in the same
  * handler — so "promote this and drop the old one" is one operation. The new Official is never the one
  * deleted; a no-op if the plan had no previous Official.
+ *
+ * `?expectedPreviousOfficialId=` (sent by the client with deletePrevious) is a stale-state guard: the
+ * delete-previous consent the user gave was ABOUT the version that was Official when their page
+ * rendered. If another admin moved the pointer since, deleting the now-current previous would destroy
+ * a version nobody agreed to lose → 409 so the caller reloads (Codex audit 2026-07-01 #2).
  */
 export const makeOfficialEndpoint: Endpoint = {
   path: '/:id/make-official',
@@ -200,6 +205,7 @@ export const makeOfficialEndpoint: Endpoint = {
     // Pointer move + optional cleanup in ONE transaction, so promote-and-delete-previous is atomic
     // (a failed cleanup rolls back the pointer move rather than leaving a half-applied promotion).
     const deletePrevious = req.query?.deletePrevious === 'true'
+    const expectedPreviousRaw = req.query?.expectedPreviousOfficialId
     const shouldCommit = await initTransaction(req)
     try {
       // Capture the current (about-to-be-previous) Official before moving the pointer.
@@ -211,6 +217,20 @@ export const makeOfficialEndpoint: Endpoint = {
         req,
       })) as { officialVersion?: unknown }
       const previousOfficialId = toId(planBefore.officialVersion as never)
+
+      // Stale-consent guard for the destructive half: only enforced when the caller asked to delete
+      // AND said which version its consent was about. The promotion itself is not gated — it is
+      // idempotent-safe and re-runnable; only the delete is irreversible.
+      if (
+        deletePrevious &&
+        expectedPreviousRaw != null &&
+        String(expectedPreviousRaw) !== String(previousOfficialId ?? '')
+      ) {
+        throw new APIError(
+          'The Official version changed since you loaded this page — reload before deleting the previous version.',
+          409,
+        )
+      }
 
       // Field access (`canSetOfficialVersion`) + `validateOfficialVersionPointer` gate/validate this.
       await req.payload.update({
