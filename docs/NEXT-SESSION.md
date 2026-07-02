@@ -55,10 +55,9 @@ delete-plans/curriculum/people). Admin catalogue + versions list + "bundle" word
 editor page gets stripped chrome + "← Back to lesson"; mobile is reading-first.
 
 Build order (each: CI green → Rock deploy → user eyeball):
-1. **① Authorship + delete scoping** — `author` on versions stamped by save-as-new (migration!),
-   Editor delete tightens to own-authored (authorless = admin-only). *(in progress 2026-07-01)*
+1. **✓ ① Authorship + delete scoping — DONE** (#13, merged + Rock-deployed, migration applied).
 2. **② The Manage page** — rebuild the dashboard as stacked role-scoped sections (incl. Upload move,
-   delete/repair panels, Editors widget).
+   delete/repair panels, Editors widget). *(shipped 2026-07-01 — see the PR)*
 3. **③ Remove redundant surfaces** — kill admin catalogue + versions nav/list, redirect routes,
    rename labels, prune sidebar. *Checkpoint: does `admin.hidden` block routes? If so nav-hide +
    redirect list views instead (the editor page must stay reachable).*

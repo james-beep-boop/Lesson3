@@ -6,7 +6,6 @@ import { isSiteAdmin } from '../../access'
 import { relId } from '../../lib/relId'
 import { lessonDisplayName, type LessonRow } from '../../lib/substrand'
 import type { User } from '../../payload-types'
-import UploadBundles from '../UploadBundles'
 import { AdminLessonCatalogue } from './AdminLessonCatalogue'
 
 /**
@@ -116,7 +115,8 @@ export default async function AdminLessonList({ payload, user }: ListViewServerP
   return (
     <Gutter className="lp-admin-list">
       <h1 className="lp-title">Lesson plans</h1>
-      <UploadBundles />
+      {/* The Site-Admin upload panel moved to Manage (IA redesign PR ② — one home per function);
+          this whole view is retired in PR ③. */}
       <AdminLessonCatalogue rows={rows} canDelete={isSiteAdmin(u)} />
     </Gutter>
   )

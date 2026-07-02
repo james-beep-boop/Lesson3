@@ -1,51 +1,246 @@
 import React from 'react'
+import Link from 'next/link'
 import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps } from 'payload'
 
-import { isSiteAdmin, toId } from '../../access'
+import { isSiteAdmin, subjectGradeIdsByRole, toId } from '../../access'
+import { relId } from '../../lib/relId'
+import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
+import UploadBundles from '../UploadBundles'
+import { CandidateList, type CandidateRow } from './CandidateList'
+import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
+import { EditorsWidget, type EditorsGroup, type WidgetUser } from './EditorsWidget'
 
 /**
- * Custom admin dashboard (overrides Payload's default via `admin.components.views.dashboard`).
+ * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
+ * old quiet dashboard. ONE scrollable page of stacked sections, strictly cumulative by role;
+ * everything else in the product happens in the library (`/`) and on the lesson page. Sections:
  *
- * Payload's stock dashboard renders collection "cards" that exactly duplicate the left nav — so
- * the landing page is pure redundancy. We replace ONLY that view (nav, auth, permissions, list /
- * edit views, breadcrumbs, the whole admin shell stay 100% Payload-native) with a quiet, additive
- * landing: who you are + your scope, and the few actions the nav does NOT already provide. It must
- * never re-list collections — the sidebar owns those (that's the redundancy we're removing).
+ *   - Saved versions (all panel roles) — the non-Official candidates the user may DELETE. Editors see
+ *     only versions THEY authored ("My saved versions"); Subject/Site Admins see every candidate in
+ *     scope, union'd with their own authored drafts (so an admin who is also an editor elsewhere
+ *     misses nothing). Click resumes editing (`?edit=1`); ✕ deletes. Scope mirrors
+ *     `lessonBundleVersionDelete` exactly — no row is shown that the server would refuse.
+ *   - Editors (Subject Admin: their subject-grades; Site Admin: all) — compact promote/demote widget
+ *     for the Editor role, deliberately NOT the native Users table (decided). The server-side
+ *     `enforceAssignmentScope` hook remains the write authority.
+ *   - Upload / Repair / Delete lesson plans / Curriculum & People links — Site Admin only.
  *
- * Type scale matches the public Lesson Plans page (22 / 18 / 16 / 14) for cross-surface
- * consistency; colours use Payload theme variables so it adapts to light/dark. Role-aware per
- * SPEC §13 — actions a role can't use are not shown (the Site-Admin upload is hidden otherwise).
+ * Server component: gathers everything with the CALLER's access (`overrideAccess: false`), renders
+ * client components for the interactive bits. Dates are formatted server-side (fixed locale) so
+ * hydration can't mismatch. Wrapped in Payload's `Gutter` so it lines up with every admin page.
  */
 export default async function AdminDashboard({ initPageResult }: AdminViewServerProps) {
   const { req } = initPageResult
-  const user = req.user as User | null
-  const canUpload = isSiteAdmin(user)
+  const user = (req.user as User | null) ?? null
+  const payload = req.payload
+
+  const siteAdmin = isSiteAdmin(user)
+  const adminSgIds = subjectGradeIdsByRole(user, ['subjectAdmin'])
+  const isAdmin = siteAdmin || adminSgIds.length > 0
 
   const { role, scope } = await describeUser(req, user)
 
-  // Wrap in Payload's own `Gutter` — the same padded container the stock dashboard and list views
-  // use — so this view lines up with every other admin page (no bespoke spacing to maintain).
+  // ---- Saved versions (deletable candidates) — scoped exactly like `lessonBundleVersionDelete` ----
+  const { docs: versionDocs } = await payload.find({
+    collection: 'lesson-bundle-versions',
+    overrideAccess: false,
+    user,
+    depth: 2,
+    pagination: false,
+    sort: '-createdAt',
+    where: siteAdmin
+      ? {}
+      : adminSgIds.length
+        ? { or: [{ subjectGrade: { in: adminSgIds } }, { author: { equals: user?.id } }] }
+        : { author: { equals: user?.id } },
+    select: {
+      title: true,
+      semver: true,
+      subjectGrade: true,
+      lessonPlan: true,
+      author: true,
+      meta: { substrand_name: true },
+      createdAt: true,
+    },
+  })
+
+  const dateFmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const candidates: CandidateRow[] = versionDocs
+    .filter((v) => {
+      // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
+      const plan = typeof v.lessonPlan === 'object' ? v.lessonPlan : null
+      return plan == null || relId(plan.officialVersion) !== v.id
+    })
+    .map((v) => {
+      const sg = typeof v.subjectGrade === 'object' ? v.subjectGrade : null
+      const author = typeof v.author === 'object' && v.author != null ? v.author : null
+      return {
+        id: v.id,
+        label: lessonDisplayName(v.meta?.substrand_name, v.title),
+        semver: v.semver ?? '',
+        sgLabel: sg?.displayName ?? '',
+        authorName: author?.name ?? null,
+        savedAt: v.createdAt ? dateFmt.format(new Date(v.createdAt)) : '',
+      }
+    })
+
+  // ---- Editors widget data (Subject Admin: scoped; Site Admin: all subject-grades) ----
+  let editorGroups: EditorsGroup[] = []
+  if (isAdmin) {
+    const { docs: sgs } = await payload.find({
+      collection: 'subject-grades',
+      overrideAccess: false,
+      user,
+      depth: 0,
+      pagination: false,
+      sort: 'displayName',
+      where: siteAdmin ? {} : { id: { in: adminSgIds } },
+      select: { displayName: true },
+    })
+    // Every user, light projection (any signed-in user may read users; emails stay field-hidden).
+    const { docs: allUsers } = await payload.find({
+      collection: 'users',
+      overrideAccess: false,
+      user,
+      depth: 0,
+      pagination: false,
+      sort: 'name',
+      select: { name: true, roles: true, assignments: true },
+    })
+    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => ({
+      id: u.id,
+      name: u.name ?? `User ${u.id}`,
+      // Depth-0 rows, re-shaped WITHOUT row ids so a PATCH resubmits clean rows (the scoping/demote
+      // hooks diff by signature, not row id).
+      assignments: (u.assignments ?? []).map((a) => ({
+        subjectGrade: toId(a.subjectGrade) as number,
+        role: a.role,
+      })),
+    })
+    editorGroups = sgs.map((sg) => {
+      const editors = allUsers.filter((u) =>
+        (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
+      )
+      const addable = allUsers.filter(
+        (u) =>
+          !u.roles?.includes('siteAdmin') &&
+          !(u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id),
+      )
+      return {
+        sgId: sg.id,
+        sgLabel: sg.displayName ?? `Subject grade ${sg.id}`,
+        editors: editors.map(widgetUser),
+        addable: addable.map(widgetUser),
+      }
+    })
+  }
+
+  // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
+  const repairPlans: { id: number; label: string }[] = []
+  const planRows: PlanRow[] = []
+  if (siteAdmin) {
+    const { docs: plans } = await payload.find({
+      collection: 'lesson-plans',
+      overrideAccess: false,
+      user,
+      depth: 2,
+      pagination: false,
+      sort: 'title',
+      select: { title: true, subjectGrade: true, officialVersion: true },
+    })
+    for (const p of plans) {
+      const official = typeof p.officialVersion === 'object' ? p.officialVersion : null
+      const sg = typeof p.subjectGrade === 'object' ? p.subjectGrade : null
+      const label = lessonDisplayName(official?.meta?.substrand_name, p.title)
+      planRows.push({ id: p.id, label, sgLabel: sg?.displayName ?? '' })
+      if (relId(p.officialVersion) == null) repairPlans.push({ id: p.id, label })
+    }
+  }
+
+  const savedTitle = isAdmin ? 'Candidate versions' : 'My saved versions'
+  const savedDesc = isAdmin
+    ? 'Saved, non-Official versions you may delete. Click one to open it in the editor.'
+    : 'Versions you saved. Click one to continue editing; delete the ones you no longer need.'
+
   return (
-    <Gutter className="lp-admin-dash">
-      <h1 className="lp-admin-dash__title">Lesson Plan Repository</h1>
+    <Gutter className="lp-admin-dash lp-manage">
+      <h1 className="lp-admin-dash__title">Manage</h1>
       <p className="lp-admin-dash__role">Signed in as {role}</p>
       {scope && <p className="lp-admin-dash__scope">{scope}</p>}
 
-      {/* "Browse lesson library" used to live here, but the top-right header menu's "Lessons" link
-          now covers that — so the dashboard only surfaces actions the nav/header DON'T (the
-          Site-Admin upload). Editors/Subject Admins see just the role/scope above — no empty list. */}
-      {canUpload && (
+      <h2 className="lp-admin-dash__section">{savedTitle}</h2>
+      <p className="lp-manage__desc">{savedDesc}</p>
+      <CandidateList
+        rows={candidates}
+        emptyText={isAdmin ? 'No candidate versions.' : 'You have no saved versions.'}
+        showAuthor={isAdmin}
+      />
+
+      {editorGroups.length > 0 && (
         <>
-          <h2 className="lp-admin-dash__section">Get started</h2>
+          <h2 className="lp-admin-dash__section">Editors</h2>
+          <p className="lp-manage__desc">
+            Who may edit lesson plans, per subject grade. Adding someone makes them an Editor;
+            removing returns them to Teacher.
+          </p>
+          <EditorsWidget groups={editorGroups} />
+        </>
+      )}
+
+      {siteAdmin && (
+        <>
+          <h2 className="lp-admin-dash__section">Upload lesson plans</h2>
+          <UploadBundles />
+
+          {repairPlans.length > 0 && (
+            <>
+              <h2 className="lp-admin-dash__section">Repair</h2>
+              <p className="lp-manage__desc">
+                Lesson plans with no Official version — open one to set its Official pointer.
+              </p>
+              <ul className="lp-manage__list">
+                {repairPlans.map((p) => (
+                  <li key={p.id}>
+                    <Link className="lp-manage__link" href={`/admin/collections/lesson-plans/${p.id}`}>
+                      {p.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <h2 className="lp-admin-dash__section">Delete lesson plans</h2>
+          <p className="lp-manage__desc">
+            Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
+          </p>
+          <DeletePlansPanel rows={planRows} />
+
+          <h2 className="lp-admin-dash__section">Curriculum &amp; people</h2>
           <ul className="lp-admin-dash__actions">
             <li>
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <a className="lp-admin-dash__action" href="/admin/collections/lesson-plans">
-                <span className="lp-admin-dash__action-label">Upload lesson plans</span>
-                <span className="lp-admin-dash__action-desc">Upload generated ARES lesson plans.</span>
-              </a>
+              <Link className="lp-admin-dash__action" href="/admin/collections/users">
+                <span className="lp-admin-dash__action-label">People</span>
+                <span className="lp-admin-dash__action-desc">
+                  All accounts, roles and assignments.
+                </span>
+              </Link>
+            </li>
+            <li>
+              <Link className="lp-admin-dash__action" href="/admin/collections/subjects">
+                <span className="lp-admin-dash__action-label">Subjects</span>
+                <span className="lp-admin-dash__action-desc">Academic disciplines.</span>
+              </Link>
+            </li>
+            <li>
+              <Link className="lp-admin-dash__action" href="/admin/collections/subject-grades">
+                <span className="lp-admin-dash__action-label">Subject grades</span>
+                <span className="lp-admin-dash__action-desc">
+                  Subject + grade units that roles and lesson plans attach to.
+                </span>
+              </Link>
             </li>
           </ul>
         </>
