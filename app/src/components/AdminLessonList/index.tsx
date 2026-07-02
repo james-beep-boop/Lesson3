@@ -21,10 +21,9 @@ import { AdminLessonCatalogue } from './AdminLessonCatalogue'
  * logic is the shared, unit-tested `lib/substrand.ts`. This is a READ-ONLY view — it touches no
  * versioning/generator/access logic.
  *
- * Admin-only affordances on top of the public layout: the Site-Admin upload panel (which used to be
- * injected via `beforeListTable` — that slot does not fire when the whole list view is replaced, so
- * we render it here), an Official `v{semver}` badge per row, an Edit link to each plan, and
- * (Site-Admin-only) bulk-delete checkboxes — see AdminLessonCatalogue.
+ * Admin-only affordances on top of the public layout: an Official `v{semver}` badge per row, an Edit
+ * link to each plan, and (Site-Admin-only) bulk-delete checkboxes — see AdminLessonCatalogue. (The
+ * Site-Admin upload panel moved to Manage in IA-redesign PR ②; this whole view is retired in PR ③.)
  */
 export default async function AdminLessonList({ payload, user }: ListViewServerProps) {
   const u = (user as User | null | undefined) ?? null

@@ -15,6 +15,8 @@ import React, { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
+import { apiBaseFrom } from '../../lib/apiBase'
+
 export interface PlanRow {
   id: number
   label: string
@@ -57,7 +59,7 @@ export function DeletePlansPanel({ rows }: { rows: PlanRow[] }) {
       return
 
     setBusy(true)
-    const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
+    const apiBase = apiBaseFrom(config)
     let deleted = 0
     try {
       for (const id of selected) {

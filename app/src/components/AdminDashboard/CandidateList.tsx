@@ -12,6 +12,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
+import { apiBaseFrom } from '../../lib/apiBase'
+
 export interface CandidateRow {
   id: number
   label: string
@@ -36,7 +38,7 @@ export function CandidateList({
 
   if (rows.length === 0) return <p className="muted">{emptyText}</p>
 
-  const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
+  const apiBase = apiBaseFrom(config)
 
   const onDelete = async (row: CandidateRow) => {
     if (busyId != null) return

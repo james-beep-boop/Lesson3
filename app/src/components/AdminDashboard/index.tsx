@@ -4,6 +4,7 @@ import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps } from 'payload'
 
 import { isSiteAdmin, subjectGradeIdsByRole, toId } from '../../access'
+import { deletableVersionsWhere } from '../../access/versioning'
 import { relId } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
@@ -40,31 +41,71 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   const adminSgIds = subjectGradeIdsByRole(user, ['subjectAdmin'])
   const isAdmin = siteAdmin || adminSgIds.length > 0
 
-  const { role, scope } = await describeUser(req, user)
-
-  // ---- Saved versions (deletable candidates) — scoped exactly like `lessonBundleVersionDelete` ----
-  const { docs: versionDocs } = await payload.find({
-    collection: 'lesson-bundle-versions',
-    overrideAccess: false,
-    user,
-    depth: 2,
-    pagination: false,
-    sort: '-createdAt',
-    where: siteAdmin
-      ? {}
-      : adminSgIds.length
-        ? { or: [{ subjectGrade: { in: adminSgIds } }, { author: { equals: user?.id } }] }
-        : { author: { equals: user?.id } },
-    select: {
-      title: true,
-      semver: true,
-      subjectGrade: true,
-      lessonPlan: true,
-      author: true,
-      meta: { substrand_name: true },
-      createdAt: true,
-    },
-  })
+  // The deletable-candidates scope comes from the SAME where-builder the delete access uses
+  // (`deletableVersionsWhere`) — single source, so this list can never drift from what the server
+  // would actually let the user delete. All queries below are independent → run them concurrently.
+  const deletable = deletableVersionsWhere(user)
+  const [{ role, scope }, versionsRes, sgsRes, usersRes, plansRes] = await Promise.all([
+    describeUser(req, user),
+    // ---- Saved versions (deletable candidates) ----
+    deletable === false
+      ? null
+      : payload.find({
+          collection: 'lesson-bundle-versions',
+          overrideAccess: false,
+          user,
+          depth: 2,
+          pagination: false,
+          sort: '-createdAt',
+          where: deletable === true ? {} : deletable,
+          select: {
+            title: true,
+            semver: true,
+            subjectGrade: true,
+            lessonPlan: true,
+            author: true,
+            meta: { substrand_name: true },
+            createdAt: true,
+          },
+        }),
+    // ---- Editors widget: subject-grades in scope + every user (light projections) ----
+    isAdmin
+      ? payload.find({
+          collection: 'subject-grades',
+          overrideAccess: false,
+          user,
+          depth: 0,
+          pagination: false,
+          sort: 'displayName',
+          where: siteAdmin ? {} : { id: { in: adminSgIds } },
+          select: { displayName: true },
+        })
+      : null,
+    isAdmin
+      ? payload.find({
+          collection: 'users',
+          overrideAccess: false,
+          user,
+          depth: 0,
+          pagination: false,
+          sort: 'name',
+          select: { name: true, roles: true, assignments: true },
+        })
+      : null,
+    // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
+    siteAdmin
+      ? payload.find({
+          collection: 'lesson-plans',
+          overrideAccess: false,
+          user,
+          depth: 2,
+          pagination: false,
+          sort: 'title',
+          select: { title: true, subjectGrade: true, officialVersion: true },
+        })
+      : null,
+  ])
+  const versionDocs = versionsRes?.docs ?? []
 
   const dateFmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   const candidates: CandidateRow[] = versionDocs
@@ -88,27 +129,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
   // ---- Editors widget data (Subject Admin: scoped; Site Admin: all subject-grades) ----
   let editorGroups: EditorsGroup[] = []
-  if (isAdmin) {
-    const { docs: sgs } = await payload.find({
-      collection: 'subject-grades',
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      sort: 'displayName',
-      where: siteAdmin ? {} : { id: { in: adminSgIds } },
-      select: { displayName: true },
-    })
+  if (sgsRes && usersRes) {
+    const sgs = sgsRes.docs
     // Every user, light projection (any signed-in user may read users; emails stay field-hidden).
-    const { docs: allUsers } = await payload.find({
-      collection: 'users',
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      sort: 'name',
-      select: { name: true, roles: true, assignments: true },
-    })
+    const allUsers = usersRes.docs
     const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => ({
       id: u.id,
       name: u.name ?? `User ${u.id}`,
@@ -140,17 +164,8 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
   const repairPlans: { id: number; label: string }[] = []
   const planRows: PlanRow[] = []
-  if (siteAdmin) {
-    const { docs: plans } = await payload.find({
-      collection: 'lesson-plans',
-      overrideAccess: false,
-      user,
-      depth: 2,
-      pagination: false,
-      sort: 'title',
-      select: { title: true, subjectGrade: true, officialVersion: true },
-    })
-    for (const p of plans) {
+  if (plansRes) {
+    for (const p of plansRes.docs) {
       const official = typeof p.officialVersion === 'object' ? p.officialVersion : null
       const sg = typeof p.subjectGrade === 'object' ? p.subjectGrade : null
       const label = lessonDisplayName(official?.meta?.substrand_name, p.title)

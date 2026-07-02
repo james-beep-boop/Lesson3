@@ -73,8 +73,11 @@ export const lessonBundleVersionUpdate: Access = ({ req: { user } }) => {
 // save-as-new) in their subject-grades. Versions predating authorship tracking have `author` = null and
 // are therefore admin-only-deletable (decided: strict, no scope fallback). The Official version is never
 // deletable — `enforceOfficialNotDeletable` (beforeDelete) blocks it regardless of this grant.
-export const lessonBundleVersionDelete: Access = ({ req: { user } }) => {
-  const u = user as User | null | undefined
+//
+// Exported in Where form as the SINGLE SOURCE of the policy: the access function below and the Manage
+// page's "deletable candidates" query (components/AdminDashboard) both use it, so the list a user sees
+// on Manage can never drift from what the server lets them delete.
+export const deletableVersionsWhere = (u: User | null | undefined): Where | boolean => {
   if (isSiteAdmin(u)) return true
   const adminIds = subjectGradeIdsByRole(u, ['subjectAdmin'])
   const editorIds = subjectGradeIdsByRole(u, ['editor'])
@@ -85,3 +88,6 @@ export const lessonBundleVersionDelete: Access = ({ req: { user } }) => {
   }
   return grants.length ? ({ or: grants } satisfies Where) : false
 }
+
+export const lessonBundleVersionDelete: Access = ({ req: { user } }) =>
+  deletableVersionsWhere(user as User | null | undefined)
