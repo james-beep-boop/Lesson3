@@ -322,12 +322,15 @@ export interface LessonBundleVersion {
               /**
                * Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.
                */
-              phase:
-                | 'Predict Phase'
-                | 'Observe Phase'
-                | 'Explain Phase'
-                | 'Driving Question Board (DQB) Creation'
-                | 'Model Building Phase';
+              phase?:
+                | (
+                    | 'Predict Phase'
+                    | 'Observe Phase'
+                    | 'Explain Phase'
+                    | 'Driving Question Board (DQB) Creation'
+                    | 'Model Building Phase'
+                  )
+                | null;
               /**
                * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
                */
