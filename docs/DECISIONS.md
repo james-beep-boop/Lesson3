@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-02 — Playwright e2e RUN for the first time: Mac → Rock over a tunnel; 6/6 green
+
+The browser suite (`tests/e2e/manage.e2e.spec.ts`) had only ever been authored + collected — the last
+"done claims outrun executed proof" item from both Codex audits. **It now RUNS, from the dev Mac
+against the LIVE Rock stack, 6/6 green** (role scoping, retired-route redirects, hidden nav group,
+Repair row, delete-panel flow, and a new editor-shell smoke: stripped chrome + Back-to-lesson +
+`?edit=1` lands a prose textarea editable for the Editor — the session's original bug, now
+machine-verified).
+
+**The run procedure (no Rock-side browser needed):**
+1. `ssh -f -N -L 15432:<postgres-container-ip>:5432 david@rock5b` (container IP via `docker inspect
+   lesson3-postgres-1`; the compose Postgres has no host port, but the Rock host routes to the bridge).
+2. Local env = the Rock `.env` with `@postgres:5432` → `@localhost:15432` (fixture seeding boots
+   Payload's Local API on the Mac against the live DB through the tunnel; works on Node 25).
+3. `E2E_BASE_URL=http://rock5b.tail49b05.ts.net:3001 npx playwright test tests/e2e/manage.e2e.spec.ts`
+   — `playwright.config.ts` now SKIPS its local dev-server when `E2E_BASE_URL` is set.
+4. Fixtures are MARK-tagged + self-cleaning; verified zero residue on live afterwards.
+
+**Assertion lesson:** CSS-hidden chrome (`display: none`) is still in the DOM — assert `toBeHidden()`,
+not `toHaveCount(0)`.
+
+---
+
 ## 2026-07-02 — Codex round-2: guards must be server-MANDATORY; narrow endpoints beat full-state PATCH
 
 Second Codex pass after the redesign completed. Theme it surfaced (and we adopted as a rule):
