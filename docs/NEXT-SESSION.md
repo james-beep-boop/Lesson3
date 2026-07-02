@@ -22,7 +22,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-02) — §10 features track ACTIVE; PR ① favorites SHIPPED
+## ▶ RESUME HERE (2026-07-02) — §10 features track ACTIVE; PRs ① favorites + ② email-a-doc SHIPPED
 
 **Track switch:** production hardening is done; the §10 cross-user features track is active. The
 design was decided via structured Q&A BEFORE any code — full record in DECISIONS 2026-07-02 (top
@@ -44,13 +44,18 @@ translation record keyed `(version, locale)` — human-reviewable, version-pinne
   was byte-identical to the hand-written payload-types.ts. Live REST verification: spoofed create
   stamped to the session user, double-favorite → 400, cross-user delete → 403, owner delete → 200.
   **Only the user's in-browser eyeball of the star UI is pending.**
-- **▶ NEXT: PR ② email-a-doc.** `POST /api/lesson-bundle-versions/:id/email` `{to, format, as}` —
-  read-access-gated exactly like export; reuse the artifact-cache generation path; send via the
-  configured nodemailer through a NEW Jobs Queue task; guardrails since SPEC allows any recipient
-  address: a dedicated stricter rate bucket + per-user daily cap, recipient validation, and a
-  sender-attributed body template ("sent to you by {name} via ARES Lesson Library"). http tests for
-  401/400/429 + the enqueue path; real SMTP send gets a Rock smoke test.
-- **Then PR ③ messaging + notifications** (the big new surface): `messages` collection (sender
+- **✓ PR ② Email-a-doc — MERGED (#26) + Rock-deployed + SMTP-smoke-verified 2026-07-02.**
+  `POST /api/lesson-bundle-versions/:id/email` `{to}` (+ export's `?format/?as`): same READ gate as
+  export, enqueue-and-202 (contract is QUEUED, not delivered), `emailVersionArtifact` job warms the
+  artifact cache like an export then sends the zip via nodemailer with a sender-attributed body.
+  Guardrails: 'email' rate bucket = per-user DAILY cap (10/24h default, `RATE_LIMIT_EMAIL_*`),
+  checked BEFORE validation (probing spends budget); `lib/emailAddress` validator (no CR/LF → no
+  header smuggling); deliberately NO dedupe (re-send is legitimate; the cap bounds it). UI: "Email…"
+  button on the lesson export bar. Enum migration `20260702_230926_add_email_task` Rock-generated,
+  guarded (down deletes the feature's job rows first). http suite covers 401/400/404/202+job-row/
+  429-exhaustion (the 429 test uses invalid bodies — emits no mail). Live smoke: a real send to the
+  operator's address logged `emailVersionArtifact sent`. **Inbox eyeball pending.**
+- **▶ NEXT: PR ③ messaging + notifications** (the big new surface): `messages` collection (sender
   stamped, recipient, plain-text body, optional plan/version link, `readAt`; flat, no threads),
   afterChange create hook → content-free email ping job, unread badge server-rendered in AppNav,
   `/messages` inbox + compose (names-only user picker — the directory relaxation + SPEC amendment
