@@ -189,10 +189,11 @@ export const saveAsNewEndpoint: Endpoint = {
  * handler — so "promote this and drop the old one" is one operation. The new Official is never the one
  * deleted; a no-op if the plan had no previous Official.
  *
- * `?expectedPreviousOfficialId=` (sent by the client with deletePrevious) is a stale-state guard: the
- * delete-previous consent the user gave was ABOUT the version that was Official when their page
- * rendered. If another admin moved the pointer since, deleting the now-current previous would destroy
- * a version nobody agreed to lose → 409 so the caller reloads (Codex audit 2026-07-01 #2).
+ * `?expectedPreviousOfficialId=` is a stale-state guard, REQUIRED whenever `deletePrevious=true`
+ * (400 absent, 409 mismatch): the delete-previous consent the user gave was ABOUT the version that
+ * was Official when their page rendered. If another admin moved the pointer since, deleting the
+ * now-current previous would destroy a version nobody agreed to lose. Mandatory server-side so the
+ * safety never depends on which client calls the API (Codex audit 2026-07-01 #2 + round-2 #1).
  */
 export const makeOfficialEndpoint: Endpoint = {
   path: '/:id/make-official',
@@ -206,6 +207,14 @@ export const makeOfficialEndpoint: Endpoint = {
     // (a failed cleanup rolls back the pointer move rather than leaving a half-applied promotion).
     const deletePrevious = req.query?.deletePrevious === 'true'
     const expectedPreviousRaw = req.query?.expectedPreviousOfficialId
+    // The destructive half requires naming its object — mandatory, so a scripted/direct API caller
+    // gets the same protection as the UI (which always sends it; '' when the plan had no Official).
+    if (deletePrevious && expectedPreviousRaw == null) {
+      throw new APIError(
+        'expectedPreviousOfficialId is required when deleting the previous Official version.',
+        400,
+      )
+    }
     const shouldCommit = await initTransaction(req)
     try {
       // Capture the current (about-to-be-previous) Official before moving the pointer.
@@ -218,14 +227,9 @@ export const makeOfficialEndpoint: Endpoint = {
       })) as { officialVersion?: unknown }
       const previousOfficialId = toId(planBefore.officialVersion as never)
 
-      // Stale-consent guard for the destructive half: only enforced when the caller asked to delete
-      // AND said which version its consent was about. The promotion itself is not gated — it is
-      // idempotent-safe and re-runnable; only the delete is irreversible.
-      if (
-        deletePrevious &&
-        expectedPreviousRaw != null &&
-        String(expectedPreviousRaw) !== String(previousOfficialId ?? '')
-      ) {
+      // Stale-consent check (the required param was validated above). The promotion itself is not
+      // gated — it is idempotent-safe and re-runnable; only the delete is irreversible.
+      if (deletePrevious && String(expectedPreviousRaw) !== String(previousOfficialId ?? '')) {
         throw new APIError(
           'The Official version changed since you loaded this page — reload before deleting the previous version.',
           409,
