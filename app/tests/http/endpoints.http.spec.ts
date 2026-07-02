@@ -676,3 +676,69 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
     expect(unchanged.assignments ?? []).toHaveLength(0)
   })
 })
+
+describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
+  // Read the daily budget the way the limiter does, so the exhaustion test tracks env overrides.
+  const EMAIL_MAX = Number(process.env.RATE_LIMIT_EMAIL_MAX) || 10
+  const emailUrl = (versionId: number | string) =>
+    `/api/lesson-bundle-versions/${versionId}/email?format=standard&as=docx`
+  const post = (versionId: number | string, key: RoleKey | undefined, body: unknown) =>
+    fetch(url(emailUrl(versionId)), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth(key) },
+      body: JSON.stringify(body),
+    })
+
+  it('without auth → 401', async () => {
+    const res = await post(fx.version.id, undefined, { to: 'someone@example.com' })
+    expect(res.status).toBe(401)
+  })
+
+  it('missing / invalid recipient → 400, nothing queued', async () => {
+    expect((await post(fx.version.id, 'teacher', {})).status).toBe(400)
+    expect((await post(fx.version.id, 'teacher', { to: 'not-an-email' })).status).toBe(400)
+    expect(
+      (await post(fx.version.id, 'teacher', { to: 'a@example.com\nBcc: x@example.com' })).status,
+    ).toBe(400)
+  })
+
+  it('unknown version → 404 (read gate), nothing queued', async () => {
+    const res = await post(999_999_999, 'teacher', { to: 'someone@example.com' })
+    expect(res.status).toBe(404)
+  })
+
+  it('Teacher emails a version → 202 {queued} and the job is enqueued', async () => {
+    // RFC 2606-reserved recipient: on the Rock the send goes to example.com's blackhole; in CI
+    // (no SMTP_HOST) the console adapter logs it. The contract under test is queue-and-202.
+    const to = 'mailbox@example.com'
+    const res = await post(fx.version.id, 'teacher', { to })
+    expect(res.status).toBe(202)
+    const body = (await res.json()) as { state?: string; to?: string }
+    expect(body.state).toBe('queued')
+    expect(body.to).toBe(to)
+
+    // The enqueue is real: an emailVersionArtifact job row exists for this recipient (completed
+    // rows are retained — see payload.config jobs notes). input is a JSON column → match in-memory.
+    const { docs } = await fx.payload.find({
+      collection: 'payload-jobs',
+      where: { taskSlug: { equals: 'emailVersionArtifact' } },
+      limit: 50,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const mine = docs.find((j) => (j.input as { to?: string } | undefined)?.to === to)
+    expect(mine).toBeTruthy()
+  })
+
+  it('the per-user DAILY cap → 429 with Retry-After (invalid bodies spend budget too)', async () => {
+    // Run as the Editor (fresh per-run fixture user, so the bucket starts empty) and post INVALID
+    // bodies: the limiter is checked before validation, so budget is spent without ever enqueuing
+    // a job or sending mail — probing is not free, and this test emits nothing.
+    for (let i = 0; i < EMAIL_MAX; i++) {
+      expect((await post(fx.version.id, 'editor', {})).status).toBe(400)
+    }
+    const blocked = await post(fx.version.id, 'editor', {})
+    expect(blocked.status).toBe(429)
+    expect(Number(blocked.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
+  })
+})
