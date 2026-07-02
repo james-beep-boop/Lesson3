@@ -77,6 +77,108 @@ body {
   }
 }
 
+// Manage page additions (src/components/AdminDashboard — the role-scoped functions page, IA
+// redesign 2026-07-01). Extends the .lp-admin-dash scale; interactive lists share one row idiom.
+.lp-manage {
+  max-width: 46rem;
+
+  &__desc {
+    font-size: 0.9rem;
+    margin: 0.15rem 0 0.75rem;
+    color: var(--theme-elevation-500);
+  }
+
+  .muted {
+    color: var(--theme-elevation-500);
+    font-size: 0.9rem;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--theme-elevation-150);
+
+    li {
+      border-bottom: 1px solid var(--theme-elevation-150);
+    }
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.1rem;
+    font-size: 0.9rem;
+
+    > :first-child {
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__link {
+    color: var(--theme-elevation-1000);
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+
+  &__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+    color: var(--theme-elevation-500);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  &__pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  &__editors-group + &__editors-group {
+    margin-top: 1.25rem;
+  }
+
+  &__editors-head {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--theme-elevation-1000);
+  }
+
+  &__editors-add {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  &__select {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+    color: var(--theme-elevation-1000);
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 4px;
+    background: var(--theme-elevation-0);
+    max-width: 18rem;
+  }
+
+  // Manage hosts interactive sections — the Payload buttons inside rows shouldn't stretch.
+  .btn {
+    flex-shrink: 0;
+  }
+}
+
 // Custom admin LIST view (src/components/AdminLessonList) — the strand-first catalogue that
 // replaces Payload's redundant lesson-plans table. Mirrors the public browse page
 // (src/app/(frontend)/styles.css) but RE-THEMED with Payload elevation vars, since the frontend's
