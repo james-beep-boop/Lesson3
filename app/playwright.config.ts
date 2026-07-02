@@ -33,9 +33,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], channel: 'chromium' },
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    reuseExistingServer: true,
-    url: 'http://localhost:3000',
-  },
+  // Local default: stand up the dev server. When E2E_BASE_URL points at an already-running stack
+  // (e.g. the Rock over Tailscale, with DATABASE_URI tunnelled for fixture seeding — see the spec
+  // headers), no local server is wanted: the specs read E2E_BASE_URL themselves.
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run dev',
+        reuseExistingServer: true,
+        url: 'http://localhost:3000',
+      },
 })

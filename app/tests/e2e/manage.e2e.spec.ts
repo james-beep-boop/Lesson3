@@ -66,8 +66,9 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Editors' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
-    // The "Lesson plans" nav group is hidden.
-    await expect(page.locator("[id='nav-group-Lesson plans']")).toHaveCount(0)
+    // The "Lesson plans" nav group is hidden (CSS display:none — still in the DOM, so assert
+    // visibility, not count).
+    await expect(page.locator("[id='nav-group-Lesson plans']")).toBeHidden()
   })
 
   test('Subject Admin sees candidates + Editors, no Site-Admin panels', async ({ browser }) => {
@@ -96,6 +97,32 @@ test.describe('Manage page', () => {
     await expect(
       page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE }),
     ).toBeVisible()
+  })
+
+  test('version editor shell: stripped chrome, Back to lesson, edit-intent unlock', async ({
+    browser,
+  }) => {
+    // Editor-shell smoke (Codex rounds 1–2: the chrome strip depends on pinned-Payload class names —
+    // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
+    // intent as the Editor.
+    const page = await loginAs(browser, 'editor')
+    await page.goto(
+      `${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`,
+    )
+    // Our control bar renders, with the exit link back to this version's lesson page.
+    const back = page.locator('.lesson-controls__back')
+    await expect(back).toBeVisible()
+    await expect(back).toHaveAttribute(
+      'href',
+      `/lessons/${fx.plan.id}?version=${fx.version.id}`,
+    )
+    // Payload chrome is stripped on this page (CSS-hidden): nav sidebar + app-header/breadcrumbs.
+    await expect(page.locator('.template-default .nav')).toBeHidden()
+    await expect(page.locator('.app-header')).toBeHidden()
+    // The native Save button stays hidden (our bar owns Save via save-as-new).
+    await expect(page.locator('.doc-controls .form-submit')).toBeHidden()
+    // Edit intent honoured: a prose textarea is editable for the Editor (form landed unlocked).
+    await expect(page.locator('textarea').first()).toBeEditable()
   })
 
   test('Site Admin can delete a plan from the Delete panel', async ({ browser }) => {

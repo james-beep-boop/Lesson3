@@ -81,10 +81,12 @@ Build order (each: CI green → Rock deploy → user eyeball):
 the deferred list below + the two authored-not-run Playwright specs (manage / adminCatalogue→replaced).
 
 **Deferred (Codex rounds 1–2, see DECISIONS 2026-07-02):** Manage pagination at corpus scale;
-dev-only esbuild advisories (upstream-gated); Playwright backlog = run manage.e2e.spec.ts + add an
-editor-shell smoke (the `:has()` chrome strip depends on pinned-Payload class names). ~~Editors-widget
-PATCH race~~ — FIXED 2026-07-02 (narrow assign/unassign-editor endpoints, required expectedUpdatedAt);
-~~make-official optional guard~~ — now mandatory; ~~lesson page 100-version cap~~ — pagination: false.
+dev-only esbuild advisories (upstream-gated). ~~Playwright run~~ — **DONE 2026-07-02: manage.e2e
+6/6 GREEN from the Mac against the live Rock** (tunnel procedure in DECISIONS), incl. the new
+editor-shell smoke. ~~Editors-widget PATCH race~~ — FIXED (narrow assign/unassign-editor endpoints,
+required expectedUpdatedAt); ~~make-official optional guard~~ — now mandatory; ~~lesson page
+100-version cap~~ — pagination: false. Both Codex production-blocker lists are now fully closed
+except pagination-at-scale (corpus-gated by definition).
 
 ### ▶ Older list (pre-redesign status, still true)
 
