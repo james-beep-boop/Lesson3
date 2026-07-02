@@ -54,7 +54,13 @@ translation record keyed `(version, locale)` — human-reviewable, version-pinne
   button on the lesson export bar. Enum migration `20260702_230926_add_email_task` Rock-generated,
   guarded (down deletes the feature's job rows first). http suite covers 401/400/404/202+job-row/
   429-exhaustion (the 429 test uses invalid bodies — emits no mail). Live smoke: a real send to the
-  operator's address logged `emailVersionArtifact sent`. **Inbox eyeball pending.**
+  operator's address logged `emailVersionArtifact sent`; **inbox delivery confirmed by the user.**
+  **Hardening follow-up (#27, merged + deployed + live-verified same day):** Codex audit (no
+  Critical/High) + /simplify — job input/logs carry `requestedByUserId` (durable egress audit
+  trail); `enforceSharedRateLimit` adds `emailRecipient` (20/day per address, pooled across
+  senders) + `emailGlobal` (1000/day) caps on the same counter table (all three tiers verified
+  counting on live); `npm run typecheck` is the reliable local gate; email job cache path
+  simplified + parallelized; recipient regex mirrors Payload's. DECISIONS 2026-07-02 (late).
 - **▶ NEXT: PR ③ messaging + notifications** (the big new surface): `messages` collection (sender
   stamped, recipient, plain-text body, optional plan/version link, `readAt`; flat, no threads),
   afterChange create hook → content-free email ping job, unread badge server-rendered in AppNav,
