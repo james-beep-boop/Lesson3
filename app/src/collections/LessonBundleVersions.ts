@@ -6,7 +6,7 @@ import {
   lessonBundleVersionRead,
   lessonBundleVersionUpdate,
 } from '../access/versioning'
-import { canEditStructure } from '../access/bundle'
+import { canEditStructure, systemOnly } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
@@ -100,6 +100,22 @@ export const LessonBundleVersions: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description: 'Version this snapshot was edited from. Empty for uploaded 1.0.0.',
+      },
+    },
+    {
+      // Who saved this candidate — stamped by save-as-new from the authenticated caller; empty for
+      // uploaded 1.0.0 / system-created versions. Drives the Editor delete scope (IA redesign
+      // 2026-07-01): an Editor may delete only versions they authored ("My saved versions" on Manage).
+      // System-set only: direct create/update cannot forge it (save-as-new writes via overrideAccess).
+      name: 'author',
+      type: 'relationship',
+      relationTo: 'users' as CollectionSlug,
+      index: true,
+      access: { create: systemOnly, update: systemOnly },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Who saved this version. Empty for uploaded or system-created versions.',
       },
     },
     {

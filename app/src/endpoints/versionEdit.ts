@@ -32,8 +32,9 @@ import type { LessonBundleVersion, User } from '../payload-types'
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-/** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals). */
-const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'createdAt', 'updatedAt'])
+/** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals).
+ *  `author` is stamped server-side from the authenticated caller — a submitted value is never trusted. */
+const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'author', 'createdAt', 'updatedAt'])
 
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
 const SEMVER_CONFLICT_RETRIES = 4
@@ -122,6 +123,15 @@ export const saveAsNewEndpoint: Endpoint = {
     // dup); this just turns a rare 500 into a transparent retry.
     const deleteSource = req.query?.deleteSource === 'true'
 
+    // Delete-source permission (IA redesign 2026-07-01, mirrors `lessonBundleVersionDelete`): admins in
+    // scope may delete any source; an Editor only a source THEY authored. The delete below runs via
+    // overrideAccess inside the transaction, so the rule is enforced here; when not permitted the save
+    // still succeeds and the source is simply kept (`sourceDeleted: false` reports it).
+    const caller = req.user as User
+    const mayDeleteSource =
+      isSubjectAdminFor(caller, toId(source.subjectGrade as never)) ||
+      (toId(source.author as never) != null && toId(source.author as never) === caller.id)
+
     for (let attempt = 0; ; attempt++) {
       const shouldCommit = await initTransaction(req)
       try {
@@ -135,6 +145,9 @@ export const saveAsNewEndpoint: Endpoint = {
             subjectGrade: toId(source.subjectGrade as never),
             semver: await nextSemverForPlan(req.payload, planId, req),
             sourceVersion: source.id,
+            // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
+            // submitted content (DROP_KEYS) — drives the Editor delete scope ("My saved versions").
+            author: caller.id,
           } as never,
           req,
           overrideAccess: true,
@@ -142,7 +155,7 @@ export const saveAsNewEndpoint: Endpoint = {
 
         const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
         let sourceDeleted = false
-        if (deleteSource && !sourceIsOfficial) {
+        if (deleteSource && !sourceIsOfficial && mayDeleteSource) {
           await req.payload.delete({
             collection: 'lesson-bundle-versions',
             id: source.id,

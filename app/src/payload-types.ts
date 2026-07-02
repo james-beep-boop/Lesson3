@@ -190,6 +190,10 @@ export interface LessonBundleVersion {
    * Version this snapshot was edited from. Empty for uploaded 1.0.0.
    */
   sourceVersion?: (number | null) | LessonBundleVersion;
+  /**
+   * Who saved this version. Empty for uploaded or system-created versions.
+   */
+  author?: (number | null) | User;
   semver: string;
   /**
    * Version label for lists, e.g. the document title.
@@ -318,12 +322,15 @@ export interface LessonBundleVersion {
               /**
                * Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.
                */
-              phase:
-                | 'Predict Phase'
-                | 'Observe Phase'
-                | 'Explain Phase'
-                | 'Driving Question Board (DQB) Creation'
-                | 'Model Building Phase';
+              phase?:
+                | (
+                    | 'Predict Phase'
+                    | 'Observe Phase'
+                    | 'Explain Phase'
+                    | 'Driving Question Board (DQB) Creation'
+                    | 'Model Building Phase'
+                  )
+                | null;
               /**
                * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
                */
@@ -680,6 +687,7 @@ export interface LessonPlansSelect<T extends boolean = true> {
 export interface LessonBundleVersionsSelect<T extends boolean = true> {
   lessonPlan?: T;
   sourceVersion?: T;
+  author?: T;
   semver?: T;
   title?: T;
   subjectGrade?: T;

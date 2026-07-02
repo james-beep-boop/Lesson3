@@ -68,12 +68,20 @@ export const lessonBundleVersionUpdate: Access = ({ req: { user } }) => {
   return ids.length ? ({ subjectGrade: { in: ids } } satisfies Where) : false
 }
 
-// Editors and Subject Admins may delete a NON-Official candidate in their subject-grades (e.g. the
-// "delete the source you replaced" cleanup after save-as-new); Site Admin = all. The Official version is
-// never deletable — `enforceOfficialNotDeletable` (beforeDelete) blocks it regardless of this grant.
+// Deletion scope (IA redesign 2026-07-01): Site Admin — anything; Subject Admin — any candidate in
+// their subject-grades; Editor — ONLY candidates they personally authored (`author` = self, stamped by
+// save-as-new) in their subject-grades. Versions predating authorship tracking have `author` = null and
+// are therefore admin-only-deletable (decided: strict, no scope fallback). The Official version is never
+// deletable — `enforceOfficialNotDeletable` (beforeDelete) blocks it regardless of this grant.
 export const lessonBundleVersionDelete: Access = ({ req: { user } }) => {
   const u = user as User | null | undefined
   if (isSiteAdmin(u)) return true
-  const ids = subjectGradeIdsByRole(u, ['editor', 'subjectAdmin'])
-  return ids.length ? ({ subjectGrade: { in: ids } } satisfies Where) : false
+  const adminIds = subjectGradeIdsByRole(u, ['subjectAdmin'])
+  const editorIds = subjectGradeIdsByRole(u, ['editor'])
+  const grants: Where[] = []
+  if (adminIds.length) grants.push({ subjectGrade: { in: adminIds } })
+  if (editorIds.length && u?.id != null) {
+    grants.push({ and: [{ subjectGrade: { in: editorIds } }, { author: { equals: u.id } }] })
+  }
+  return grants.length ? ({ or: grants } satisfies Where) : false
 }
