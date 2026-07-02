@@ -31,11 +31,9 @@ import {
   type PayloadRequest,
 } from 'payload'
 
+import { json } from './respond'
 import { toId, type Assignment } from '../access'
 import type { User } from '../payload-types'
-
-const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 /** Parse + validate the shared body; throws 400s with actionable messages. */
 async function parseBody(req: PayloadRequest): Promise<{ subjectGradeId: number; expectedUpdatedAt: string }> {

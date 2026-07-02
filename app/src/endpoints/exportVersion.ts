@@ -15,6 +15,7 @@
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
+import { json } from './respond'
 import { isExportReady, loadCachedExportZip, safePrefix } from '../generator/exportArtifacts'
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
@@ -23,9 +24,6 @@ import {
 import { authorizeVersionExportRequest } from './exportAuth'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import type { PayloadJob } from '../payload-types'
-
-const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 /**
  * Is `job` a `generateVersionArtifact` job for `versionId`? `payload-jobs.input` is a JSON column, so
