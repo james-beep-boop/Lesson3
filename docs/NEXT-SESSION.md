@@ -12,7 +12,8 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is PRODUCTION HARDENING — NOW LARGELY COMPLETE.** The Official-version cutover is long
+**The chosen track is now the §10 CROSS-USER FEATURES** (2026-07-02; hardening is complete — see the
+new RESUME section). The prior hardening context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
 retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**, AND **backlog #9 OPS**
@@ -21,7 +22,43 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-01) — edit-UX + PDF-fidelity resolved; items ①/③ done, ② authored-not-run
+## ▶ RESUME HERE (2026-07-02) — §10 features track ACTIVE; PR ① favorites SHIPPED
+
+**Track switch:** production hardening is done; the §10 cross-user features track is active. The
+design was decided via structured Q&A BEFORE any code — full record in DECISIONS 2026-07-02 (top
+entry). One-line version: build order **favorites → email-a-doc → messaging + notifications**;
+notifications = in-app unread badge + a content-free email ping (Jobs Queue); the user directory
+relaxes to a **names-only roster for all authenticated users** WITH PR ③ (deliberate reversal of the
+2026-07-01 #4 tightening; SPEC amendment rides that PR); **AI summaries unprioritized** (purpose
+conversation before build); **Swahili translation DEFERRED** (leaning if built: a parallel
+translation record keyed `(version, locale)` — human-reviewable, version-pinned, core untouched).
+
+- **✓ PR ① Favorites — MERGED (#25) + Rock-deployed + live-verified 2026-07-02.** `favorites`
+  collection (session-stamped `user` in beforeValidate — spoofed ids overridden; own-only
+  read/delete, Site Admin excepted; NO update path; compound unique index; hidden from /admin);
+  favorites **cascade on lesson-plan AND user delete** (required rel = NOT NULL col + SET NULL FK →
+  23502 without it); star toggle on library rows + the lesson heading; "My favorites" section pinned
+  above the catalogue; Guide copy. `tests/int/favorites.int.spec.ts` (6 tests) runs in CI's full
+  gate. Migration `20260702_194849_add_favorites` was generated ON THE ROCK (deps image), then
+  hand-guarded idempotent; `deploy.sh` snapshotted before applying it. Rock `generate:types` output
+  was byte-identical to the hand-written payload-types.ts. Live REST verification: spoofed create
+  stamped to the session user, double-favorite → 400, cross-user delete → 403, owner delete → 200.
+  **Only the user's in-browser eyeball of the star UI is pending.**
+- **▶ NEXT: PR ② email-a-doc.** `POST /api/lesson-bundle-versions/:id/email` `{to, format, as}` —
+  read-access-gated exactly like export; reuse the artifact-cache generation path; send via the
+  configured nodemailer through a NEW Jobs Queue task; guardrails since SPEC allows any recipient
+  address: a dedicated stricter rate bucket + per-user daily cap, recipient validation, and a
+  sender-attributed body template ("sent to you by {name} via ARES Lesson Library"). http tests for
+  401/400/429 + the enqueue path; real SMTP send gets a Rock smoke test.
+- **Then PR ③ messaging + notifications** (the big new surface): `messages` collection (sender
+  stamped, recipient, plain-text body, optional plan/version link, `readAt`; flat, no threads),
+  afterChange create hook → content-free email ping job, unread badge server-rendered in AppNav,
+  `/messages` inbox + compose (names-only user picker — the directory relaxation + SPEC amendment
+  land here), message creation rate-limited.
+
+---
+
+## ▶ Older resume (2026-07-01) — edit-UX + PDF-fidelity resolved; items ①/③ done, ② authored-not-run
 
 **Shipped this session (all merged to `origin/main` + Rock-deployed; verify HEAD with `git log -1`).
 Full reasoning in `docs/DECISIONS.md` 2026-07-01.**
