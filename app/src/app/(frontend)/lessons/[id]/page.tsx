@@ -118,6 +118,7 @@ export default async function LessonView({
             versionId={selectedId}
             isOfficial={selectedId === officialId}
             canMakeOfficial={canMakeOfficial}
+            officialVersionId={officialId ?? null}
           />
         )}
         <span className="export-label">Download</span>

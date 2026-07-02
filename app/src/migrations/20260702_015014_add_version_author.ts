@@ -39,10 +39,12 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
+  // Deliberately does NOT touch rate_limit_counters: that table is OWNED by the 20260629 migration
+  // (whose own down drops it) — the guarded CREATE in `up` is only chain-repair. Dropping it here
+  // would break the live rate limiter on a one-step rollback of this migration (Codex audit
+  // 2026-07-01 #1). This down undoes only what this migration semantically owns.
   await db.execute(sql`
-   DROP TABLE IF EXISTS "rate_limit_counters" CASCADE;
-  ALTER TABLE "lesson_bundle_versions" DROP CONSTRAINT IF EXISTS "lesson_bundle_versions_author_id_users_id_fk";
-
+   ALTER TABLE "lesson_bundle_versions" DROP CONSTRAINT IF EXISTS "lesson_bundle_versions_author_id_users_id_fk";
   DROP INDEX IF EXISTS "lesson_bundle_versions_author_idx";
   ALTER TABLE "lesson_bundle_versions_lessons_framework" ALTER COLUMN "phase" SET NOT NULL;
   ALTER TABLE "lesson_bundle_versions" DROP COLUMN IF EXISTS "author_id";`)

@@ -17,10 +17,13 @@ export default function EditActions({
   versionId,
   isOfficial,
   canMakeOfficial,
+  officialVersionId,
 }: {
   versionId: number
   isOfficial: boolean
   canMakeOfficial: boolean
+  /** The plan's Official version id as rendered — the stale-consent anchor for delete-previous. */
+  officialVersionId: number | null
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState<null | 'official'>(null)
@@ -35,15 +38,20 @@ export default function EditActions({
 
   const onMakeOfficial = async () => {
     // Promote always; the prompt only governs whether the previously-Official version is also deleted
-    // (atomically, server-side). Cancel keeps it.
+    // (atomically, server-side). Cancel keeps it. When deleting, we also send WHICH version the user
+    // consented to delete (the Official as this page rendered it) — the server 409s if the pointer
+    // moved meanwhile, so a concurrent admin's promotion is never destroyed by stale consent.
     const deletePrevious = window.confirm(
       'Make this the Official version.\n\nAlso delete the previously-Official version? (Cancel keeps it.)',
     )
     setBusy('official')
     setError(null)
     try {
+      const expected = deletePrevious
+        ? `&expectedPreviousOfficialId=${officialVersionId ?? ''}`
+        : ''
       const res = await fetch(
-        `/api/lesson-bundle-versions/${versionId}/make-official?deletePrevious=${deletePrevious}`,
+        `/api/lesson-bundle-versions/${versionId}/make-official?deletePrevious=${deletePrevious}${expected}`,
         { method: 'POST', credentials: 'same-origin' },
       )
       if (!res.ok) {

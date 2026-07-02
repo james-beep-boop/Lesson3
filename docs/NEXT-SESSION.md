@@ -64,6 +64,11 @@ Build order (each: CI green → Rock deploy → user eyeball):
 4. **④ Strip editor chrome** + "← Back to lesson".
 5. **⑤ Mobile reading pass + Guide copy** update.
 
+**Deferred from the Codex audit (2026-07-01 post-②, see DECISIONS):** Editors-widget PATCH race
+(updatedAt precondition / narrow endpoint — only if the admin population grows); Manage pagination
+at corpus scale; Manage browser coverage (fold into the pending Playwright run alongside the
+authored-not-run adminCatalogue spec); dev-only esbuild advisories (upstream-gated, known).
+
 ### ▶ Older list (pre-redesign status, still true)
 
 1. **✓ Confirm the full gate is green on current HEAD — DONE.** CI runs the full gate on every push.
