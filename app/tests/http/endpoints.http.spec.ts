@@ -344,9 +344,9 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(res.status).toBe(409)
   })
 
-  it('?deleteSource=true atomically deletes a NON-Official source', async () => {
-    // A throwaway candidate to edit-from; saving with deleteSource should create the new one AND remove
-    // this source in one request.
+  it('?deleteSource=true atomically deletes a NON-Official source the editor AUTHORED', async () => {
+    // A throwaway candidate the editor authored (author stamped at creation); saving with deleteSource
+    // should create the new one AND remove this source in one request.
     const cand = (await fx.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
@@ -354,6 +354,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
         subjectGrade: fx.subjectGrade.id,
         semver: '7.1.0',
         title: `${MARK}del-src`,
+        author: fx.users.editor.id,
         ...minimalBundleContent(),
       } as never,
       overrideAccess: true,
@@ -373,6 +374,48 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       overrideAccess: true,
     })
     expect(gone.totalDocs).toBe(0)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
+  it('?deleteSource=true is skipped for a source the editor did NOT author (kept)', async () => {
+    // Authorship delete scope (IA redesign 2026-07-01): an AUTHORLESS candidate (pre-authorship /
+    // system-created) is admin-only-deletable, so an Editor's deleteSource is skipped — the save still
+    // succeeds and the source stays. The NEW version carries the caller's authorship stamp.
+    const cand = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '7.2.0',
+        title: `${MARK}del-src-unowned`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })) as { id: number }
+    const candDoc = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: cand.id, depth: 0 })
+    const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm(candDoc),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number; sourceDeleted: boolean }
+    expect(out.sourceDeleted).toBe(false)
+    const still = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: cand.id,
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(still).toBeTruthy()
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+      overrideAccess: true,
+    })) as { author?: unknown }
+    expect(Number(created.author)).toBe(fx.users.editor.id)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cand.id, overrideAccess: true })
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 

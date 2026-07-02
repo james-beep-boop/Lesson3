@@ -44,7 +44,28 @@ Full reasoning in `docs/DECISIONS.md` 2026-07-01.**
   the **PDF is a secondary LibreOffice artifact**; the preview is mammoth-HTML (styling dropped) — so
   "very good" PDF suffices and pixel-parity-with-Word is overkill.
 
-### ▶ What's left (updated 2026-07-01)
+### ▶ ACTIVE TRACK (2026-07-01 late) — the IA redesign, 5 PRs
+
+**The user called out the core UX failure** (three near-identical lesson lists going three places;
+data model leaking into UX) and a full redesign was decided via structured Q&A — see DECISIONS
+2026-07-01 (late) for the complete design. One-line version: **ONE library (`/`), the lesson page as
+the sole hub/gateway to editing, and Manage as a single role-scoped functions page** (Editor: my saved
+versions; Subject Admin: + scope deletes + Editors-promotion widget; Site Admin: + upload/repair/
+delete-plans/curriculum/people). Admin catalogue + versions list + "bundle" wording all go away;
+editor page gets stripped chrome + "← Back to lesson"; mobile is reading-first.
+
+Build order (each: CI green → Rock deploy → user eyeball):
+1. **① Authorship + delete scoping** — `author` on versions stamped by save-as-new (migration!),
+   Editor delete tightens to own-authored (authorless = admin-only). *(in progress 2026-07-01)*
+2. **② The Manage page** — rebuild the dashboard as stacked role-scoped sections (incl. Upload move,
+   delete/repair panels, Editors widget).
+3. **③ Remove redundant surfaces** — kill admin catalogue + versions nav/list, redirect routes,
+   rename labels, prune sidebar. *Checkpoint: does `admin.hidden` block routes? If so nav-hide +
+   redirect list views instead (the editor page must stay reachable).*
+4. **④ Strip editor chrome** + "← Back to lesson".
+5. **⑤ Mobile reading pass + Guide copy** update.
+
+### ▶ Older list (pre-redesign status, still true)
 
 1. **✓ Confirm the full gate is green on current HEAD — DONE.** CI runs the full gate on every push.
 2. **② admin-catalogue e2e — AUTHORED, NOT RUN.** `app/tests/e2e/adminCatalogue.e2e.spec.ts` (#7) is

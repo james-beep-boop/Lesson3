@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-01 (late) — IA redesign decided: one library, lesson-page hub, role-scoped Manage
+
+The user flagged the core UX failure: three near-identical lesson lists (public browse, the admin
+Lesson Plans catalogue, the Lesson Bundle Versions list) that click through to three different destinations
+— the data model was leaking into the UX. Redesign decided after a structured Q&A; **simplicity and
+elegance are paramount: no redundant menu items, no multiple paths to the same outcome.**
+
+**The design — three places, one purpose each. Data-model names never appear in the UI:**
+1. **Library (`/`)** — THE only list of lessons anywhere, identical for every role (no role-aware
+   badges). Search + strand-first grouping as today.
+2. **Lesson page (`/lessons/[id]`)** — everything about one lesson: rendered view, version pills
+   (ALL roles keep seeing all versions — decided against Official-only for teachers), Download,
+   **Edit** (the SOLE gateway to editing; lands unlocked), **Make Official** (Subject/Site Admin —
+   confirmed unchanged: author ≠ approver, per-subject-grade delegation stays).
+3. **Manage (`/admin`)** — ONE scrollable page of role-scoped functions, strictly cumulative:
+   Editor: *My saved versions* (authored drafts; click resumes editing, ✕ deletes) and NOTHING else.
+   Subject Admin: + delete any candidate in scope, + a compact **Editors widget** (promote/demote
+   Teachers↔Editors per subject-grade; NOT the native Users table). Site Admin: + Upload (moves here
+   from the old catalogue), + Repair (pointerless plans), + Delete lesson plans (search→select→delete),
+   + links to native Curriculum/People lists.
+   **Deleted:** the admin catalogue (duplicate library), the versions nav/list, the plan-edit form as
+   a destination. The version editor gets **stripped chrome** (no admin sidebar/breadcrumbs) + "← Back
+   to lesson"; relabelled "Lesson plan version" ("bundle" never user-visible).
+   **Mobile: reading-first** — library/lesson/Manage must work on a phone; the editor form stays
+   desktop-oriented.
+
+**Authorship (new):** versions get an `author` relationship stamped by save-as-new from the
+authenticated caller (never from submitted content). Editor delete scope TIGHTENS from
+"any non-Official candidate in my subject-grade" to "only candidates I authored"; Subject Admin keeps
+scope-wide; Site Admin everything. Versions predating the field (`author` = null) are
+**admin-only-deletable** (decided: strict, no scope fallback). The save-as-new `deleteSource` flow
+enforces the same rule server-side (skips the delete, still saves) and the client only offers the
+prompt when permitted.
+
+**Build order (5 PRs):** ① authorship + delete scoping (foundation) → ② the Manage page → ③ remove
+redundant surfaces (catalogue, versions list, labels, sidebar) → ④ strip editor chrome + Back-to-lesson
+→ ⑤ mobile reading pass + Guide copy. Each: CI green → Rock deploy → user eyeball.
+Checkpoints for ③: verify whether Payload `admin.hidden` blocks ROUTES (if so, nav-hide + redirect the
+list views instead, keeping the editor reachable); verify the Editors widget's assignment writes pass
+the existing user-update guards.
+
+---
+
 ## 2026-07-01 — PDF fidelity is about fonts, not pixels; real Arial in Gotenberg; + Editor edit-UX
 
 Two threads this session: the editing UX for Editors, and the long-deferred PDF fidelity gate

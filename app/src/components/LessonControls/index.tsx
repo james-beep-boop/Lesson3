@@ -16,17 +16,19 @@
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
 import React, { useEffect, useState } from 'react'
-import { Button, useAllFormFields, useDocumentInfo, useForm } from '@payloadcms/ui'
+import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
 import { downloadExport, type ExportState } from '../exportClient'
 import { formatFromResources } from '../../lib/format'
-import { toId } from '../../access'
+import { isSubjectAdminFor, toId } from '../../access'
+import type { User } from '../../payload-types'
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
   const { setDisabled, reset } = useForm()
   const [fields] = useAllFormFields()
+  const { user } = useAuth()
 
   // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
   // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
@@ -97,10 +99,15 @@ export default function LessonControls() {
   const onSave = async () => {
     if (saving) return
     // Decide up front whether to also delete the version being edited — offered only for a deletable
-    // (non-Official) candidate. Asking before the request lets save-as-new create + delete atomically
-    // in one handler (no orphan-on-interrupt window).
-    const deleteSource =
+    // (non-Official) candidate the CALLER may delete (admins in scope; an Editor only their own-authored
+    // source — mirrors `lessonBundleVersionDelete` and the server-side gate in save-as-new). Asking
+    // before the request lets save-as-new create + delete atomically in one handler.
+    const canDeleteSource =
       sourceIsOfficial === false &&
+      (isSubjectAdminFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never)) ||
+        (user != null && toId((savedDocumentData?.author ?? null) as never) === user.id))
+    const deleteSource =
+      canDeleteSource &&
       window.confirm('Save your edits as a new version and delete the one you are editing?')
     setSaving(true)
     setMsg(null)

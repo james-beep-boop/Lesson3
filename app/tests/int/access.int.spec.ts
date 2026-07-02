@@ -31,16 +31,18 @@ afterAll(async () => {
   await fx?.teardown()
 })
 
-/** Create a Not-Official working copy of the fixture plan via the Local API (system path). */
-async function makeWorkingCopy() {
+/** Create a Not-Official working copy of the fixture plan via the Local API (system path).
+ *  `author` (optional) stamps authorship — the system create may set it (field access is bypassed). */
+async function makeWorkingCopy(semver = '1.0.1', author?: number) {
   return fx.payload.create({
     collection: 'lesson-bundle-versions',
     data: {
       lessonPlan: fx.plan.id,
       subjectGrade: fx.subjectGrade.id,
-      semver: '1.0.1',
+      semver,
       sourceVersion: fx.version.id,
       title: `${MARK}WorkingCopy`,
+      ...(author != null ? { author } : {}),
       ...minimalBundleContent(),
     } as never,
     overrideAccess: true,
@@ -88,6 +90,58 @@ describe('version immutability (Stage 2 model: no in-place updates)', () => {
       }),
     ).resolves.toBeTruthy()
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+})
+
+describe('version deletion scope (authorship — IA redesign 2026-07-01)', () => {
+  it('Editor CAN delete a non-Official candidate they authored', async () => {
+    const wc = await makeWorkingCopy('2.0.1', fx.users.editor.id)
+    await expect(
+      fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        overrideAccess: false,
+        user: fx.users.editor,
+      }),
+    ).resolves.toBeTruthy()
+  })
+
+  it('Editor CANNOT delete an AUTHORLESS candidate (pre-authorship → admin-only)', async () => {
+    const wc = await makeWorkingCopy('2.0.2')
+    await expect(
+      fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        overrideAccess: false,
+        user: fx.users.editor,
+      }),
+    ).rejects.toThrow()
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+
+  it("Editor CANNOT delete another user's candidate", async () => {
+    const wc = await makeWorkingCopy('2.0.3', fx.users.subjectAdmin.id)
+    await expect(
+      fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        overrideAccess: false,
+        user: fx.users.editor,
+      }),
+    ).rejects.toThrow()
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+  })
+
+  it('Subject Admin CAN delete any candidate in scope, authorless included', async () => {
+    const wc = await makeWorkingCopy('2.0.4')
+    await expect(
+      fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: wc.id,
+        overrideAccess: false,
+        user: fx.users.subjectAdmin,
+      }),
+    ).resolves.toBeTruthy()
   })
 })
 
