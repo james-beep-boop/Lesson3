@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-02 — §10 features track opened: design decided via structured Q&A (before any code)
+
+Production hardening is complete; the §10 cross-user features track is now active. Design decisions
+made by the user via structured Q&A, per the "real decisions before code" rule:
+
+- **Build order:** ① **Favorites** → ② **Email-a-doc** → ③ **Messaging + notifications**. The two
+  cheap wins ship first (both ride existing infrastructure: export pipeline, SMTP, Jobs Queue, the
+  shared rate limiter); messaging is the biggest new surface and lands third. **AI summaries:
+  unprioritized** (purpose/placement TBD before build). **Swahili translation: DEFERRED** — revisit
+  with real user demand. If/when built, the leaning is a **parallel translation record** keyed
+  `(version, locale)` (MT draft via Claude → Editor review → export through the same generator seam):
+  version-pinned and human-correctable without touching the versioning core. Translate-at-export
+  (no human review of MT before it reaches a classroom) and locale-tagged versions (modifies the
+  semver/Official invariants this track is scoped to avoid) were both considered and not chosen.
+- **Notification model: in-app unread badge + content-free email ping.** Badge is server-rendered on
+  page loads (no websockets/polling infra); message creation enqueues a Jobs Queue email job saying
+  only "you have a message waiting" (no message content in the email). Chosen over in-app-only
+  (teachers who rarely log in never learn) and daily digest (more moving parts).
+- **User directory: names-only roster for all authenticated users.** This is the DELIBERATE
+  relaxation anticipated by the 2026-07-01 audit #4 privacy tightening — messaging's user picker
+  needs it ("any user may message any user", SPEC §10). Display names become readable by any
+  authenticated user; **emails and roles/assignments stay field-hidden** from non-admins (and the
+  round-3 rule stands: server-side decisions on admin-only fields use trusted projections, never
+  client-visible data). SPEC to be amended when PR ③ lands.
+
+---
+
 ## 2026-07-02 (round 3) — row locks for read-modify-write; field-hidden data can't drive client authz
 
 Third Codex pass, on the round-2 assignment endpoints. Two real findings, both fixed:

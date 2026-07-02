@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { requireUser } from '@/lib/session'
 import { relId } from '@/lib/relId'
+import FavoriteToggle from '@/components/FavoriteToggle'
 import {
   groupLessons,
   lessonDisplayName,
@@ -42,6 +43,23 @@ export default async function BrowsePage({
     select: { officialVersion: true },
   })
   const officialIds = plans.map((p) => relId(p.officialVersion)).filter((id): id is number => id != null)
+
+  // The caller's favorites (§10) — own-rows-only by access, so no user filter needed here. Maps
+  // plan id → favorite row id: the row id drives the star's DELETE, presence drives the section.
+  const { docs: favorites } = await payload.find({
+    collection: 'favorites',
+    overrideAccess: false,
+    user,
+    depth: 0,
+    pagination: false,
+    select: { lessonPlan: true },
+  })
+  // Keyed by LessonRow['id'] (number | string — the DB-free substrand lib keeps ids generic).
+  const favByPlan = new Map<LessonRow['id'], number>()
+  for (const f of favorites) {
+    const planId = relId(f.lessonPlan)
+    if (planId != null) favByPlan.set(planId, f.id)
+  }
 
   // 2. Load those Official versions with a light projection — the version carries meta/unit/lessons.
   //    `lessons: { id: true }` yields the count via length without loading lesson bodies; depth 2
@@ -102,16 +120,42 @@ export default async function BrowsePage({
       {rows.length === 0 ? (
         <p className="muted">No lesson plans yet.</p>
       ) : q ? (
-        <SearchResults rows={orderLessons(rows.filter((r) => matchesQuery(r, q)))} query={q} />
+        <SearchResults
+          rows={orderLessons(rows.filter((r) => matchesQuery(r, q)))}
+          query={q}
+          favByPlan={favByPlan}
+        />
       ) : (
-        <Catalogue groups={groupLessons(rows)} />
+        <>
+          <FavoritesSection
+            rows={orderLessons(rows.filter((r) => favByPlan.has(r.id)))}
+            favByPlan={favByPlan}
+          />
+          <Catalogue groups={groupLessons(rows)} favByPlan={favByPlan} />
+        </>
       )}
     </section>
   )
 }
 
+/** The caller's favorited lessons, pinned above the catalogue (§10). Hidden while empty — the star
+ *  on each row is the affordance, an empty shell would just be clutter (§13 minimal UI). */
+function FavoritesSection({ rows, favByPlan }: { rows: LessonRow[]; favByPlan: Map<LessonRow['id'], number> }) {
+  if (rows.length === 0) return null
+  return (
+    <div className="sg-section fav-section">
+      <h2 className="sg-head">My favorites</h2>
+      <ul className="substrand-list">
+        {rows.map((r) => (
+          <SubstrandRow key={r.id} row={r} favByPlan={favByPlan} showContext />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /** Full catalogue: subject-grade → strand → numbered sub-strands, in curriculum order. */
-function Catalogue({ groups }: { groups: SubjectGradeGroup[] }) {
+function Catalogue({ groups, favByPlan }: { groups: SubjectGradeGroup[]; favByPlan: Map<LessonRow['id'], number> }) {
   return (
     <>
       {groups.map((sg) => (
@@ -122,7 +166,7 @@ function Catalogue({ groups }: { groups: SubjectGradeGroup[] }) {
               <h3 className="strand-head">{st.label}</h3>
               <ul className="substrand-list">
                 {st.rows.map((r) => (
-                  <SubstrandRow key={r.id} row={r} />
+                  <SubstrandRow key={r.id} row={r} favByPlan={favByPlan} />
                 ))}
               </ul>
             </div>
@@ -134,20 +178,36 @@ function Catalogue({ groups }: { groups: SubjectGradeGroup[] }) {
 }
 
 /** Search view: a flat list of matches (grouping only makes sense for the full catalogue). */
-function SearchResults({ rows, query }: { rows: LessonRow[]; query: string }) {
+function SearchResults({
+  rows,
+  query,
+  favByPlan,
+}: {
+  rows: LessonRow[]
+  query: string
+  favByPlan: Map<LessonRow['id'], number>
+}) {
   if (rows.length === 0) {
     return <p className="muted">No lesson plans match “{query}”.</p>
   }
   return (
     <ul className="substrand-list">
       {rows.map((r) => (
-        <SubstrandRow key={r.id} row={r} showContext />
+        <SubstrandRow key={r.id} row={r} favByPlan={favByPlan} showContext />
       ))}
     </ul>
   )
 }
 
-function SubstrandRow({ row, showContext = false }: { row: LessonRow; showContext?: boolean }) {
+function SubstrandRow({
+  row,
+  favByPlan,
+  showContext = false,
+}: {
+  row: LessonRow
+  favByPlan: Map<LessonRow['id'], number>
+  showContext?: boolean
+}) {
   const context = [row.subjectName, row.grade != null ? `Grade ${row.grade}` : null, row.strandName]
     .filter(Boolean)
     .join(' · ')
@@ -164,6 +224,7 @@ function SubstrandRow({ row, showContext = false }: { row: LessonRow; showContex
         {row.status === 'draft' && <span className="status-pill">Draft</span>}
         {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
       </span>
+      <FavoriteToggle planId={row.id} favoriteId={favByPlan.get(row.id) ?? null} />
     </li>
   )
 }

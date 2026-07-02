@@ -19,6 +19,7 @@ import {
   guardPasswordChange,
 } from '../hooks/userRoles'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
+import { cascadeDeleteUserFavorites } from './Favorites'
 
 /**
  * Users + roles (SPEC §8).
@@ -70,6 +71,9 @@ export const Users: CollectionConfig = {
   hooks: {
     beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
+    // A user's favorites are personal join rows with a NOT NULL user FK — cascade them, or the
+    // delete 23502s (same shape as the lesson-plan cascades). See collections/Favorites.
+    beforeDelete: [cascadeDeleteUserFavorites],
   },
   endpoints: [
     // Narrow, freshness-guarded Editor grant/removal for the Manage Editors widget — replaces the

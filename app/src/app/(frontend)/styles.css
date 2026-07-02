@@ -232,6 +232,25 @@ a {
   font-size: 0.75rem;
   line-height: 1.2;
 }
+/* Favorite star (§10): quiet outline until favorited; same glyph everywhere it appears. */
+.fav-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0 0.15rem;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.fav-toggle:hover,
+.fav-toggle:focus-visible,
+.fav-toggle.is-favorite {
+  color: var(--accent);
+}
+.fav-toggle:disabled {
+  opacity: 0.5;
+}
 
 /* ---- Login ---- */
 .login {

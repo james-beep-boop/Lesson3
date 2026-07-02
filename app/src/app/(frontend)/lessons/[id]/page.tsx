@@ -12,6 +12,7 @@ import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
 import EditActions from './EditActions'
 import { ResourcesToggle } from './ResourcesToggle'
+import FavoriteToggle from '@/components/FavoriteToggle'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -74,6 +75,19 @@ export default async function LessonView({
   const canEdit = isEditorFor(user, sgId)
   const canMakeOfficial = isSubjectAdminFor(user, sgId)
 
+  // The caller's favorite row for this plan (§10) — own-rows-only by access, plan-level (the star
+  // follows the lesson, not the selected version). Presence + row id drive the heading star.
+  const { docs: favRows } = await payload.find({
+    collection: 'favorites',
+    where: { lessonPlan: { equals: plan.id } },
+    overrideAccess: false,
+    user,
+    depth: 0,
+    limit: 1,
+    select: {},
+  })
+  const favoriteId = favRows[0]?.id ?? null
+
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,
   // so the rendered HTML carries no executable markup. FE/ST may be legitimately absent.
@@ -93,6 +107,7 @@ export default async function LessonView({
       </Link>
       <div className="lesson-heading">
         <h1>{title}</h1>
+        <FavoriteToggle planId={plan.id} favoriteId={favoriteId} />
       </div>
 
       {versions.length > 1 && (
