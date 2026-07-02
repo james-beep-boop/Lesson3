@@ -20,6 +20,7 @@ import {
   type PayloadRequest,
 } from 'payload'
 
+import { json } from './respond'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
@@ -28,9 +29,6 @@ import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
-
-const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 /** Content keys NOT carried into a forked copy (identity/version metadata + Payload internals).
  *  `author` is stamped server-side from the authenticated caller — a submitted value is never trusted. */
