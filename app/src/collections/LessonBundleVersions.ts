@@ -29,16 +29,21 @@ export const LessonBundleVersions: CollectionConfig = {
   // patch on fork, but this compound unique index is the hard guarantee against a race (two forks of
   // the same source persisting concurrently). Realised by the generated migration.
   indexes: [{ fields: ['lessonPlan', 'semver'], unique: true }],
+  // User-facing name (IA redesign PR ③): the data-model word "bundle" never appears in the UI —
+  // breadcrumbs/titles read "Lesson plan version".
+  labels: { singular: 'Lesson plan version', plural: 'Lesson plan versions' },
   admin: {
     useAsTitle: 'title',
-    // Drop the `lessonPlan` column: a version's title IS its plan's title, so it just repeated the
-    // Title column. The custom Title Cell (below) shows the clean substrand name; the parent plan is
-    // still one click away in the version's edit view.
-    defaultColumns: ['title', 'semver', 'subjectGrade', 'createdAt'],
     group: 'Lesson plans',
     description:
       'Immutable lesson-plan snapshots. The parent Lesson Plan chooses one snapshot as Official.',
     components: {
+      // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
+      // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is
+      // the editor and stays. Nav entry hidden in custom.scss (`nav-group-Lesson plans`).
+      views: {
+        list: { Component: '@/components/RedirectToManage#default' },
+      },
       // Working-copy edit-view controls: content preview (current form state, unsaved included —
       // SPEC §5) and per-export DOCX/PDF download (every retained version is inherently exportable —
       // SPEC §9, Official-version model).
@@ -155,9 +160,6 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { update: canEditStructure },
       admin: {
         description: 'Version label for lists, e.g. the document title.',
-        // De-shout + de-duplicate the list column (prefers the clean meta.substrand_name). Display
-        // only — the stored title / useAsTitle stay intact for breadcrumbs + relationship displays.
-        components: { Cell: '@/components/VersionTitleCell#default' },
       },
     },
     {

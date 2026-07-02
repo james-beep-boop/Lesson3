@@ -179,20 +179,19 @@ body {
   }
 }
 
-// Custom admin LIST view (src/components/AdminLessonList) — the strand-first catalogue that
-// replaces Payload's redundant lesson-plans table. Mirrors the public browse page
-// (src/app/(frontend)/styles.css) but RE-THEMED with Payload elevation vars, since the frontend's
-// own custom properties (--ink/--line/--muted/…) aren't loaded in the admin bundle. Scoped to
-// .lp-admin-list so the generic .substrand-* class names can't leak into other admin views.
-// Type scale matches the public page (22 / 18 / 16 / 14).
-.lp-admin-list {
-  .lp-title {
-    font-size: 1.4rem;
-    font-weight: 600;
-    margin: 0 0 1rem;
-    color: var(--theme-elevation-1000);
-  }
+// IA redesign PR ③ — the "Lesson plans" NAV GROUP (Lesson Plans + Lesson plan versions) is hidden
+// for everyone: the library (`/`) is the only list of lessons and Manage the only functions page.
+// The collections stay non-`hidden` because Payload 404s the DOCUMENT routes of hidden collections
+// (verified in @payloadcms/next views/Document) and the editor/repair forms must stay reachable;
+// their LIST routes redirect to Manage (RedirectToManage). NavGroup renders id="nav-group-<label>".
+[id='nav-group-Lesson plans'] {
+  display: none;
+}
 
+// Shared admin control classes (search bar / checkbox / version pill), originally from the retired
+// catalogue list view — now used by the Manage panels (DeletePlansPanel, CandidateList). Flat BEM
+// class names; the catalogue-only layout rules were removed with the view (PR ③).
+.lp-admin-list {
   &__bar {
     display: flex;
     align-items: center;
@@ -216,7 +215,7 @@ body {
     cursor: pointer;
   }
 
-  // Official version marker — a quiet pill, not a third copy of the title.
+  // Version marker — a quiet pill.
   &__badge {
     padding: 0.08rem 0.4rem;
     border: 1px solid var(--theme-elevation-150);
@@ -224,85 +223,6 @@ body {
     color: var(--theme-elevation-600);
     font-size: 0.72rem;
     font-variant-numeric: tabular-nums;
-
-    // Pointerless/malformed plan — a plan with no resolved Official version. Warn-toned so it
-    // stands out for repair; still selectable + editable like any other row.
-    &--warn {
-      border-color: var(--theme-warning-250, var(--theme-elevation-150));
-      color: var(--theme-warning-600, #a60);
-    }
-  }
-
-  .sg-section + .sg-section {
-    margin-top: 2.25rem;
-  }
-  .sg-head {
-    font-size: 1.15rem;
-    font-weight: 600;
-    margin: 0 0 0.75rem;
-    color: var(--theme-elevation-1000);
-  }
-  .strand-section + .strand-section {
-    margin-top: 1.25rem;
-  }
-  .strand-head {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 0.25rem;
-    color: var(--theme-elevation-1000);
-  }
-
-  .substrand-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border-top: 1px solid var(--theme-elevation-150);
-  }
-  .substrand-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.6rem 0.1rem;
-    border-bottom: 1px solid var(--theme-elevation-150);
-    font-size: 0.9rem;
-  }
-  .substrand-link {
-    display: flex;
-    align-items: baseline;
-    flex: 1;
-    min-width: 0;
-    color: var(--theme-elevation-1000);
-    text-decoration: none;
-
-    &:hover,
-    &:focus-visible {
-      text-decoration: underline;
-    }
-  }
-  .substrand-num {
-    flex-shrink: 0;
-    width: 2.6rem;
-    color: var(--theme-elevation-500);
-    font-variant-numeric: tabular-nums;
-  }
-  .substrand-name {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .substrand-context {
-    display: block;
-    margin-top: 0.1rem;
-    color: var(--theme-elevation-500);
-    font-size: 0.9rem;
-  }
-  .substrand-count {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-shrink: 0;
-    color: var(--theme-elevation-500);
-    white-space: nowrap;
   }
 }
 

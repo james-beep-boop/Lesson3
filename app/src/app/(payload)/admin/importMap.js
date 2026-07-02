@@ -1,6 +1,5 @@
-import { default as default_093e41091a129d2551e2f1f3b9ae3d30 } from '@/components/AdminLessonList'
+import { default as default_RedirectToManage } from '@/components/RedirectToManage'
 import { default as default_b05f13962071af295724d75873776e05 } from '@/components/VersionTimestamps'
-import { default as default_5c6fcdfcdc9065a6a8032586ab7480b1 } from '@/components/VersionTitleCell'
 import { default as default_d4655109717a6f5707cd0a6520a4fd9e } from '@/components/RowLabel'
 import { default as default_1977dab3faaeed591047a7da1ebb7030 } from '@/components/LessonControls'
 import { default as default_dc44d321c241d781a4edae652eb0753a } from '@/components/AdminHeaderMenu'
@@ -12,9 +11,8 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 
 /** @type import('payload').ImportMap */
 export const importMap = {
-  "@/components/AdminLessonList#default": default_093e41091a129d2551e2f1f3b9ae3d30,
+  "@/components/RedirectToManage#default": default_RedirectToManage,
   "@/components/VersionTimestamps#default": default_b05f13962071af295724d75873776e05,
-  "@/components/VersionTitleCell#default": default_5c6fcdfcdc9065a6a8032586ab7480b1,
   "@/components/RowLabel#default": default_d4655109717a6f5707cd0a6520a4fd9e,
   "@/components/LessonControls#default": default_1977dab3faaeed591047a7da1ebb7030,
   "@/components/AdminHeaderMenu#default": default_dc44d321c241d781a4edae652eb0753a,

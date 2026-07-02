@@ -17,12 +17,12 @@ export const LessonPlans: CollectionConfig = {
     useAsTitle: 'title',
     group: 'Lesson plans',
     components: {
-      // Replace Payload's default list TABLE (which repeated the subject-grade three ways per row)
-      // with a strand-first catalogue that mirrors the public browse page. The view renders the
-      // Site-Admin upload panel itself (the old `beforeListTable` slot does not fire when the whole
-      // list view is overridden) and adds Site-Admin bulk-delete. See the component for the why.
+      // IA redesign PR ③: there is no admin lesson-plans LIST — the library (`/`) is the only list of
+      // lessons and Manage owns the functions (upload / repair / delete), so the list route redirects
+      // to Manage. The DOCUMENT (edit) view stays: it is the Official-pointer repair form, reached
+      // from Manage's Repair links. Nav entry hidden in custom.scss (`nav-group-Lesson plans`).
       views: {
-        list: { Component: '@/components/AdminLessonList#default' },
+        list: { Component: '@/components/RedirectToManage#default' },
       },
     },
   },

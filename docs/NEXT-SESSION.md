@@ -58,9 +58,13 @@ Build order (each: CI green → Rock deploy → user eyeball):
 1. **✓ ① Authorship + delete scoping — DONE** (#13, merged + Rock-deployed, migration applied).
 2. **② The Manage page** — rebuild the dashboard as stacked role-scoped sections (incl. Upload move,
    delete/repair panels, Editors widget). *(shipped 2026-07-01 — see the PR)*
-3. **③ Remove redundant surfaces** — kill admin catalogue + versions nav/list, redirect routes,
-   rename labels, prune sidebar. *Checkpoint: does `admin.hidden` block routes? If so nav-hide +
-   redirect list views instead (the editor page must stay reachable).*
+3. **③ Remove redundant surfaces** — *(shipped 2026-07-01 — see the PR)*. Checkpoint ANSWERED:
+   `admin.hidden` DOES block document routes (verified in @payloadcms/next views/Document — only
+   internal drawers pass `overrideEntityVisibility`), so the collections stay non-hidden; their LIST
+   routes redirect to Manage (`RedirectToManage`) and the "Lesson plans" nav group is CSS-hidden
+   (`[id='nav-group-Lesson plans']`). Catalogue + VersionTitleCell deleted; versions relabelled
+   "Lesson plan version"; the obsolete adminCatalogue e2e spec replaced by `manage.e2e.spec.ts`
+   (5 tests, authored-not-run — covers Codex #7's ask).
 4. **④ Strip editor chrome** + "← Back to lesson".
 5. **⑤ Mobile reading pass + Guide copy** update.
 
