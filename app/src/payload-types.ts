@@ -1008,6 +1008,7 @@ export interface TaskEmailVersionArtifact {
     format: string;
     kind: string;
     to: string;
+    requestedByUserId: number;
     requestedByName: string;
   };
   output?: unknown;

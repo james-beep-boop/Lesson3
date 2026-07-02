@@ -10,7 +10,7 @@ import { getPayload, type Payload, type PayloadRequest } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
-import { enforceUserRateLimit } from '../../src/lib/rateLimit.js'
+import { enforceSharedRateLimit, enforceUserRateLimit } from '../../src/lib/rateLimit.js'
 
 // Per-run user ids so the counters start clean and never collide with other runs or real users.
 const RUN = `rltest-${Date.now()}`
@@ -54,5 +54,34 @@ describe('enforceUserRateLimit (shared Postgres store)', () => {
   it('rejects an unauthenticated caller with 401', async () => {
     const res = await enforceUserRateLimit({ payload } as unknown as PayloadRequest, 'export')
     expect(res?.status).toBe(401)
+  })
+})
+
+describe('enforceSharedRateLimit (non-user keys — email abuse controls, Codex audit 2026-07-02)', () => {
+  // Keys embed RUN (after the bucket's colon) so the afterAll LIKE-cleanup catches them too.
+  const RECIPIENT_MAX = Number(process.env.RATE_LIMIT_EMAIL_RECIPIENT_MAX) || 20
+
+  it('a shared key counts ACROSS callers and 429s with the supplied message', async () => {
+    const key = `${RUN}-shared-recipient`
+    // Alternate two different requesting users against the SAME recipient key — the budget is the
+    // key's, not the caller's (that cross-sender pooling is the whole point of the recipient cap).
+    for (let i = 0; i < RECIPIENT_MAX; i++) {
+      expect(
+        await enforceSharedRateLimit(reqFor(i % 2 === 0 ? userA : userB), 'emailRecipient', key, 'capped'),
+      ).toBeNull()
+    }
+    const blocked = await enforceSharedRateLimit(reqFor(userA), 'emailRecipient', key, 'recipient capped')
+    expect(blocked).not.toBeNull()
+    expect(blocked!.status).toBe(429)
+    expect(Number(blocked!.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
+    expect(((await blocked!.json()) as { errors: { message: string }[] }).errors[0].message).toBe(
+      'recipient capped',
+    )
+  })
+
+  it('distinct shared keys keep independent budgets', async () => {
+    expect(
+      await enforceSharedRateLimit(reqFor(userA), 'emailRecipient', `${RUN}-other-recipient`, 'capped'),
+    ).toBeNull()
   })
 })
