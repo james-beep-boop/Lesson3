@@ -70,7 +70,15 @@ Build order (each: CI green → Rock deploy → user eyeball):
    scoped to `.collection-edit--lesson-bundle-versions` (class names verified against installed
    payload/next); the shared `.lp-admin-header` AppNav stays. `LessonControls` gains
    "← Back to lesson" → `/lessons/{planId}?version={id}`.
-5. **⑤ Mobile reading pass + Guide copy** update.
+5. **⑤ Mobile reading pass + Guide copy** — *(shipped 2026-07-01 — see the PR)*. 640px blocks:
+   library rows wrap, lesson heading stacks, generated tables keep min-width and scroll inside
+   .doc-preview, Manage rows/search/picker wrap. Guide rewritten for the new IA (three-places primer;
+   Editors: edit-from-lesson → save-as-new-version → My saved versions; Subject Admins: Make Official
+   + Manage candidates/Editors; Site Admins: everything-on-Manage). Editor form stays desktop-oriented
+   by decision.
+
+**THE IA REDESIGN TRACK IS COMPLETE (①–⑤ all merged + Rock-deployed).** Remaining loose ends live in
+the deferred list below + the two authored-not-run Playwright specs (manage / adminCatalogue→replaced).
 
 **Deferred from the Codex audit (2026-07-01 post-②, see DECISIONS):** Editors-widget PATCH race
 (updatedAt precondition / narrow endpoint — only if the admin population grows); Manage pagination
