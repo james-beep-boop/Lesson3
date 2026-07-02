@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-02 — Codex round-2: guards must be server-MANDATORY; narrow endpoints beat full-state PATCH
+
+Second Codex pass after the redesign completed. Theme it surfaced (and we adopted as a rule):
+**when the UI sends full resource state over a broad API, server-side concurrency guarantees must be
+explicit — and a safety guard that the client may omit is not a guarantee.** Outcomes:
+
+- **#1 make-official consent token now REQUIRED** (was optional-when-present, added in the first
+  round): `deletePrevious=true` without `expectedPreviousOfficialId` → 400; mismatch → 409. The UI
+  always sent it; now a scripted/direct API caller gets the same protection. http pins both paths.
+- **#2 Editors-widget lost-update fixed (deferral reversed** — first round deferred it; Codex
+  re-escalated to production-blocker and the user agreed): the widget's full-`assignments` PATCH is
+  replaced by narrow endpoints `POST /users/:id/assign-editor` / `unassign-editor` with a REQUIRED
+  `expectedUpdatedAt` (400 absent / 409 stale, checked in-transaction). The server rebuilds the row
+  from FRESH state and applies a ONE-ROW delta — a stale page can no longer restore an old snapshot
+  of someone's roles. Authorization unchanged (the update runs as the caller: collection/field access
+  + `enforceAssignmentScope` + auto-demote all still apply). http covers assign→stale-409→unassign +
+  the non-admin 4xx.
+- **#3 lesson page could false-404 past 100 versions** — the version selector's `limit: 100` also fed
+  Official/`?version=` resolution. Now `pagination: false`: a plan's version set is naturally bounded
+  (dozens), completeness over truncation (same call as browse #8).
+- **Kept deferred:** Manage whole-corpus fetches (scale-gated), the moderate esbuild dev advisories
+  (upstream-gated). **CSS-internals brittleness** (the `:has()` chrome strip depends on Payload class
+  names): accepted — versions are pinned and upgrades deliberate (knowledge-currency rule); an editor-
+  shell smoke assertion joins the pending Playwright backlog.
+
+---
+
 ## 2026-07-01 (post-②) — Codex audit of the redesign work: 8 findings, 8.0/10, no Critical/High
 
 External Codex audit of `main` after IA-redesign PRs ①–② (+ the /simplify pass). Outcomes:

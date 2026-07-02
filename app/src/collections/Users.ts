@@ -18,6 +18,7 @@ import {
   grantSiteAdminToFirstUser,
   guardPasswordChange,
 } from '../hooks/userRoles'
+import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
 
 /**
  * Users + roles (SPEC §8).
@@ -70,6 +71,12 @@ export const Users: CollectionConfig = {
     beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
   },
+  endpoints: [
+    // Narrow, freshness-guarded Editor grant/removal for the Manage Editors widget — replaces the
+    // widget's full-array PATCH (lost-update hazard on authorization data). See endpoints/userAssignments.
+    assignEditorEndpoint,
+    unassignEditorEndpoint,
+  ],
   fields: [
     {
       name: 'name',

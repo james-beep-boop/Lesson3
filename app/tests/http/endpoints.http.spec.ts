@@ -464,10 +464,12 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
       overrideAccess: true,
     })
 
-    const res = await fetch(url(`/api/lesson-bundle-versions/${vB.id}/make-official?deletePrevious=true`), {
-      method: 'POST',
-      headers: auth('subjectAdmin'),
-    })
+    const res = await fetch(
+      url(
+        `/api/lesson-bundle-versions/${vB.id}/make-official?deletePrevious=true&expectedPreviousOfficialId=${vA.id}`,
+      ),
+      { method: 'POST', headers: auth('subjectAdmin') },
+    )
     expect(res.status).toBe(200)
     const out = (await res.json()) as { officialVersion: number; previousDeleted: boolean }
     expect(String(out.officialVersion)).toBe(String(vB.id))
@@ -491,6 +493,16 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
     })
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: vB.id, overrideAccess: true })
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+  })
+
+  it('deletePrevious WITHOUT expectedPreviousOfficialId → 400 (guard is mandatory, not client-optional)', async () => {
+    // Codex round-2 #1: server-side safety must not depend on the React client — a direct API caller
+    // omitting the consent token is rejected before anything happens.
+    const res = await fetch(
+      url(`/api/lesson-bundle-versions/${fx.version.id}/make-official?deletePrevious=true`),
+      { method: 'POST', headers: auth('subjectAdmin') },
+    )
+    expect(res.status).toBe(400)
   })
 
   it('deletePrevious with a STALE expectedPreviousOfficialId → 409, nothing changes', async () => {
@@ -561,5 +573,87 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
+  })
+})
+
+describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-editor', () => {
+  // Codex round-2 #2: the Manage Editors widget writes through these narrow, freshness-guarded
+  // endpoints instead of a full-array PATCH — a stale page can no longer overwrite a concurrent
+  // admin's role change. `expectedUpdatedAt` is REQUIRED; the server applies a one-row delta to
+  // the FRESH user row.
+  const freshUpdatedAt = async (id: number) =>
+    String(
+      ((await fx.payload.findByID({ collection: 'users', id, depth: 0, overrideAccess: true })) as {
+        updatedAt: string
+      }).updatedAt,
+    )
+
+  const call = (
+    mode: 'assign' | 'unassign',
+    userId: number,
+    body: Record<string, unknown>,
+    as: RoleKey = 'subjectAdmin',
+  ) =>
+    fetch(url(`/api/users/${userId}/${mode}-editor`), {
+      method: 'POST',
+      headers: { ...auth(as), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+  it('assign → unassign round-trip with fresh tokens; stale + missing tokens rejected', async () => {
+    const teacherId = fx.users.teacher.id
+    const sgId = fx.subjectGrade.id
+
+    // Missing expectedUpdatedAt → 400 (mandatory, like make-official's consent token).
+    const missing = await call('assign', teacherId, { subjectGradeId: sgId })
+    expect(missing.status).toBe(400)
+
+    // Fresh token → assigned.
+    const t0 = await freshUpdatedAt(teacherId)
+    const ok = await call('assign', teacherId, { subjectGradeId: sgId, expectedUpdatedAt: t0 })
+    expect(ok.status).toBe(200)
+    const after = (await fx.payload.findByID({
+      collection: 'users',
+      id: teacherId,
+      depth: 0,
+      overrideAccess: true,
+    })) as { assignments?: { role: string }[] }
+    expect((after.assignments ?? []).some((a) => a.role === 'editor')).toBe(true)
+
+    // The OLD token is now stale → 409 (a page rendered before the change cannot mutate roles).
+    const stale = await call('unassign', teacherId, { subjectGradeId: sgId, expectedUpdatedAt: t0 })
+    expect(stale.status).toBe(409)
+
+    // Fresh token → unassigned (back to Teacher; fixture state restored).
+    const t1 = await freshUpdatedAt(teacherId)
+    const undo = await call('unassign', teacherId, { subjectGradeId: sgId, expectedUpdatedAt: t1 })
+    expect(undo.status).toBe(200)
+    const restored = (await fx.payload.findByID({
+      collection: 'users',
+      id: teacherId,
+      depth: 0,
+      overrideAccess: true,
+    })) as { assignments?: unknown[] }
+    expect(restored.assignments ?? []).toHaveLength(0)
+  })
+
+  it('a non-admin (Editor) cannot grant roles → 4xx', async () => {
+    const t = await freshUpdatedAt(fx.users.teacher.id)
+    const res = await call(
+      'assign',
+      fx.users.teacher.id,
+      { subjectGradeId: fx.subjectGrade.id, expectedUpdatedAt: t },
+      'editor',
+    )
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    // And nothing changed.
+    const unchanged = (await fx.payload.findByID({
+      collection: 'users',
+      id: fx.users.teacher.id,
+      depth: 0,
+      overrideAccess: true,
+    })) as { assignments?: unknown[] }
+    expect(unchanged.assignments ?? []).toHaveLength(0)
   })
 })

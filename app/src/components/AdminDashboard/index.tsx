@@ -89,7 +89,7 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
           depth: 0,
           pagination: false,
           sort: 'name',
-          select: { name: true, roles: true, assignments: true },
+          select: { name: true, roles: true, assignments: true, updatedAt: true },
         })
       : null,
     // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
@@ -133,15 +133,12 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     const sgs = sgsRes.docs
     // Every user, light projection (any signed-in user may read users; emails stay field-hidden).
     const allUsers = usersRes.docs
+    // The widget only needs identity + the freshness token — the assignment endpoints rebuild the
+    // row server-side from fresh state (assignments are read here solely to compute the groups).
     const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => ({
       id: u.id,
       name: u.name ?? `User ${u.id}`,
-      // Depth-0 rows, re-shaped WITHOUT row ids so a PATCH resubmits clean rows (the scoping/demote
-      // hooks diff by signature, not row id).
-      assignments: (u.assignments ?? []).map((a) => ({
-        subjectGrade: toId(a.subjectGrade) as number,
-        role: a.role,
-      })),
+      updatedAt: String(u.updatedAt),
     })
     editorGroups = sgs.map((sg) => {
       const editors = allUsers.filter((u) =>

@@ -39,13 +39,17 @@ export default async function LessonView({
   if (!plan) notFound()
 
   // All retained versions of this plan (for the selector), oldest → newest. Access-gated.
+  // `pagination: false`: a plan's version set is naturally bounded (dozens — candidates get pruned
+  // via save-as-new/make-official cleanup), and the old `limit: 100` could false-404 a valid
+  // `?version=` or even the Official once a plan exceeded it (Codex round-2 #3). Completeness over
+  // truncation, same call as the browse page (hardening #8); light projection keeps it cheap.
   const { docs: versions } = await payload.find({
     collection: 'lesson-bundle-versions',
     where: { lessonPlan: { equals: plan.id } },
     overrideAccess: false,
     user,
     depth: 0,
-    limit: 100,
+    pagination: false,
     sort: 'createdAt',
     select: { semver: true, title: true, createdAt: true },
   })

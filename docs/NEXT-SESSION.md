@@ -80,10 +80,11 @@ Build order (each: CI green → Rock deploy → user eyeball):
 **THE IA REDESIGN TRACK IS COMPLETE (①–⑤ all merged + Rock-deployed).** Remaining loose ends live in
 the deferred list below + the two authored-not-run Playwright specs (manage / adminCatalogue→replaced).
 
-**Deferred from the Codex audit (2026-07-01 post-②, see DECISIONS):** Editors-widget PATCH race
-(updatedAt precondition / narrow endpoint — only if the admin population grows); Manage pagination
-at corpus scale; Manage browser coverage (fold into the pending Playwright run alongside the
-authored-not-run adminCatalogue spec); dev-only esbuild advisories (upstream-gated, known).
+**Deferred (Codex rounds 1–2, see DECISIONS 2026-07-02):** Manage pagination at corpus scale;
+dev-only esbuild advisories (upstream-gated); Playwright backlog = run manage.e2e.spec.ts + add an
+editor-shell smoke (the `:has()` chrome strip depends on pinned-Payload class names). ~~Editors-widget
+PATCH race~~ — FIXED 2026-07-02 (narrow assign/unassign-editor endpoints, required expectedUpdatedAt);
+~~make-official optional guard~~ — now mandatory; ~~lesson page 100-version cap~~ — pagination: false.
 
 ### ▶ Older list (pre-redesign status, still true)
 

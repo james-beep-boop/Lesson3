@@ -6,10 +6,12 @@
  * with ×Remove, plus a picker to add one (any non-site-admin user with no assignment in that
  * subject-grade — i.e. a Teacher there).
  *
- * Writes are plain `PATCH /api/users/:id` with the user's FULL assignments array (rows re-sent
- * without ids; hooks diff by signature). Authorization is entirely server-side and unchanged:
- * `usersCollectionUpdate` + `assignmentsUpdateField` gate the write, and `enforceAssignmentScope`
- * rejects any row outside the caller's subject-grades — the widget is a convenience, not a policy.
+ * Writes go through the narrow assignment endpoints (`POST /api/users/:id/assign-editor` /
+ * `…/unassign-editor`, Codex 2026-07-01 round-2 #2) with the REQUIRED `expectedUpdatedAt` freshness
+ * token — the server rejects a stale page (409) and applies a one-row delta to the FRESH user row,
+ * so a concurrent admin's role change can never be silently overwritten. Authorization is entirely
+ * server-side and unchanged (collection/field access + `enforceAssignmentScope`); the widget is a
+ * convenience, not a policy.
  */
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -17,12 +19,11 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 
-type AssignmentRow = { subjectGrade: number; role: 'editor' | 'subjectAdmin' }
-
 export interface WidgetUser {
   id: number
   name: string
-  assignments: AssignmentRow[]
+  /** Freshness token for the assignment endpoints — the row's updatedAt as this page rendered. */
+  updatedAt: string
 }
 
 export interface EditorsGroup {
@@ -41,14 +42,19 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
 
   const apiBase = apiBaseFrom(config)
 
-  const patchAssignments = async (userId: number, assignments: AssignmentRow[], okMsg: string) => {
+  const changeRole = async (
+    mode: 'assign' | 'unassign',
+    user: WidgetUser,
+    group: EditorsGroup,
+    okMsg: string,
+  ) => {
     setBusy(true)
     try {
-      const res = await fetch(`${apiBase}/users/${userId}`, {
-        method: 'PATCH',
+      const res = await fetch(`${apiBase}/users/${user.id}/${mode}-editor`, {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignments }),
+        body: JSON.stringify({ subjectGradeId: group.sgId, expectedUpdatedAt: user.updatedAt }),
       })
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
@@ -67,21 +73,13 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
     const userId = Number(picks[group.sgId])
     const user = group.addable.find((u) => u.id === userId)
     if (!user) return
-    void patchAssignments(
-      user.id,
-      [...user.assignments, { subjectGrade: group.sgId, role: 'editor' }],
-      `${user.name} is now an Editor for ${group.sgLabel}.`,
-    )
+    void changeRole('assign', user, group, `${user.name} is now an Editor for ${group.sgLabel}.`)
     setPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
   const onRemove = (group: EditorsGroup, user: WidgetUser) => {
     if (!window.confirm(`Remove ${user.name} as an Editor for ${group.sgLabel}?`)) return
-    void patchAssignments(
-      user.id,
-      user.assignments.filter((a) => !(a.subjectGrade === group.sgId && a.role === 'editor')),
-      `${user.name} is no longer an Editor for ${group.sgLabel}.`,
-    )
+    void changeRole('unassign', user, group, `${user.name} is no longer an Editor for ${group.sgLabel}.`)
   }
 
   return (
