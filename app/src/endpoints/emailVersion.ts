@@ -19,7 +19,7 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { json } from './respond'
 import { authorizeVersionExportRequest } from './exportAuth'
-import { enforceUserRateLimit } from '../lib/rateLimit'
+import { enforceSharedRateLimit, enforceUserRateLimit } from '../lib/rateLimit'
 import { parseRecipientEmail } from '../lib/emailAddress'
 import {
   EMAIL_VERSION_ARTIFACT_SLUG,
@@ -42,14 +42,38 @@ export const emailVersionEndpoint: Endpoint = {
     const to = parseRecipientEmail(body?.to)
     if (!to) throw new APIError('A valid recipient email address ("to") is required.', 400)
 
+    // Abuse controls above the per-user cap (Codex audit 2026-07-02): one address may only receive
+    // so much from us per day (shared across senders), and the site has a global daily ceiling —
+    // many accounts (or a compromised account farm) can't turn us into a mail cannon. Keyed by the
+    // lowercased recipient so case games don't mint fresh budgets.
+    const recipientLimited = await enforceSharedRateLimit(
+      req,
+      'emailRecipient',
+      to.toLowerCase(),
+      'This recipient has reached their daily email limit — please try again tomorrow.',
+    )
+    if (recipientLimited) return recipientLimited
+    const globalLimited = await enforceSharedRateLimit(
+      req,
+      'emailGlobal',
+      'all',
+      'The site-wide daily email limit has been reached — please try again tomorrow.',
+    )
+    if (globalLimited) return globalLimited
+
     const { version, spec } = await authorizeVersionExportRequest(req)
 
+    const user = req.user as User
     const input: EmailVersionArtifactInput = {
       versionId: Number(version.id),
       format: spec.format,
       kind: spec.kind,
       to,
-      requestedByName: (req.user as User).name ?? 'A colleague',
+      // Durable audit trail (Codex audit 2026-07-02): the ID is the stable attribution for this
+      // data-egress path (names are neither stable nor unique); both live on the retained
+      // payload-jobs row and in the task's structured logs.
+      requestedByUserId: user.id,
+      requestedByName: user.name ?? 'A colleague',
     }
     await req.payload.jobs.queue({ task: EMAIL_VERSION_ARTIFACT_SLUG, input, req })
 

@@ -15,7 +15,6 @@
 import type { TaskConfig } from 'payload'
 
 import {
-  isExportReady,
   loadCachedExportZip,
   produceArtifacts,
   safePrefix,
@@ -32,6 +31,9 @@ export interface EmailVersionArtifactInput {
   kind: 'docx' | 'pdf'
   /** Validated recipient address (parseRecipientEmail ran at enqueue). */
   to: string
+  /** Requesting user's id — the durable audit anchor for this data-egress path (Codex audit
+   *  2026-07-02): retained on the payload-jobs row and carried in both outcome logs. */
+  requestedByUserId: number
   /** Display name of the requesting user, captured at enqueue for the attribution line. */
   requestedByName: string
 }
@@ -49,26 +51,36 @@ export const emailVersionArtifactTask: TaskConfig<{
     { name: 'format', type: 'text', required: true },
     { name: 'kind', type: 'text', required: true },
     { name: 'to', type: 'text', required: true },
+    { name: 'requestedByUserId', type: 'number', required: true },
     { name: 'requestedByName', type: 'text', required: true },
   ],
   handler: async ({ input, req }) => {
-    const { versionId, format, kind, to, requestedByName } = input
+    const { versionId, format, kind, to, requestedByUserId, requestedByName } = input
     try {
       const spec: ArtifactSpec = { scope: versionScope(versionId), format, kind }
-      const version = (await req.payload.findByID({
-        collection: 'lesson-bundle-versions',
-        id: versionId,
-        depth: 0,
-        overrideAccess: true,
-      })) as LessonBundleVersion
+
+      // `version` (needed for the email body/filename regardless of cache state) and a first cache
+      // read are independent — run them concurrently, same as generateVersionArtifact's Promise.all
+      // of generation + the prefix read.
+      const [version, cached] = await Promise.all([
+        req.payload.findByID({
+          collection: 'lesson-bundle-versions',
+          id: versionId,
+          depth: 0,
+          overrideAccess: true,
+        }) as Promise<LessonBundleVersion>,
+        loadCachedExportZip(spec),
+      ])
       const prefix = safePrefix(version.meta?.filePrefix)
 
-      // Warm the cache exactly like an export would; a prior export/email of this spec makes this
-      // a no-op. The zip MUST resolve afterwards — a null here is a real fault, not a race.
-      if (!(await isExportReady(spec))) {
+      // Warm the cache exactly like an export would; a prior export/email of this spec makes the
+      // cache read above already a hit. The zip MUST resolve afterwards — a null here is a real
+      // fault, not a race.
+      let zip = cached
+      if (!zip) {
         await produceArtifacts(spec, await generateForVersion(req.payload, versionId, format), prefix, docxToPdf)
+        zip = await loadCachedExportZip(spec)
       }
-      const zip = await loadCachedExportZip(spec)
       if (!zip) throw new Error('export artifacts missing after generation')
 
       const filename = `${prefix}_${format}_${kind}.zip`
@@ -83,12 +95,18 @@ export const emailVersionArtifactTask: TaskConfig<{
           `The generated documents are attached as ${filename}.`,
         attachments: [{ filename, content: zip }],
       })
-      req.payload.logger.info({ versionId, to, kind, format }, 'emailVersionArtifact sent')
+      req.payload.logger.info(
+        { versionId, to, kind, format, requestedByUserId },
+        'emailVersionArtifact sent',
+      )
       return { output: {} }
     } catch (err) {
       // Same posture as generateVersionArtifact: structured log WITH context, rethrow so the job is
       // marked failed (visible on the payload-jobs row; retries: 0 keeps a failed send failed).
-      req.payload.logger.error({ err, versionId, to, kind, format }, 'emailVersionArtifact failed')
+      req.payload.logger.error(
+        { err, versionId, to, kind, format, requestedByUserId },
+        'emailVersionArtifact failed',
+      )
       throw err
     }
   },

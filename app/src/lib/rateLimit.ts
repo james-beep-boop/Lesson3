@@ -70,6 +70,19 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_EMAIL_MAX', 10),
     windowMs: positiveIntEnv('RATE_LIMIT_EMAIL_WINDOW_MS', 86_400_000),
   },
+  // Abuse controls ABOVE the per-user email cap (Codex audit 2026-07-02): the per-user cap alone
+  // still lets many accounts (or one compromised account farm) generate real outbound volume.
+  // `emailRecipient` bounds how much mail ONE address can receive from us per day (keyed by the
+  // lowercased recipient via enforceSharedRateLimit — shared across senders); `emailGlobal` is the
+  // site-wide daily ceiling on outbound sends (single shared key).
+  emailRecipient: {
+    max: positiveIntEnv('RATE_LIMIT_EMAIL_RECIPIENT_MAX', 20),
+    windowMs: positiveIntEnv('RATE_LIMIT_EMAIL_RECIPIENT_WINDOW_MS', 86_400_000),
+  },
+  emailGlobal: {
+    max: positiveIntEnv('RATE_LIMIT_EMAIL_GLOBAL_MAX', 1000),
+    windowMs: positiveIntEnv('RATE_LIMIT_EMAIL_GLOBAL_WINDOW_MS', 86_400_000),
+  },
 } satisfies Record<string, Limit>
 
 type Bucket = keyof typeof LIMITS
@@ -127,6 +140,25 @@ export async function enforceUserRateLimit(
     429,
     { 'Retry-After': String(retryAfterSec) },
   )
+}
+
+/**
+ * Enforce a rate limit on a SHARED (non-user) key — e.g. per-recipient or site-global email caps —
+ * against the same Postgres counter table. `key` is namespaced under the bucket exactly like the
+ * user id is in {@link enforceUserRateLimit} (one key shape, one table). The caller supplies the
+ * 429 `message` because a shared bucket's name ("emailGlobal") is not user-facing language.
+ */
+export async function enforceSharedRateLimit(
+  req: PayloadRequest,
+  bucket: Bucket,
+  key: string,
+  message: string,
+): Promise<Response | null> {
+  const limit = LIMITS[bucket]
+  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
+  const { ok, retryAfterSec } = await take(db, `${bucket}:${key}`, limit, Date.now())
+  if (ok) return null
+  return jsonError(message, 429, { 'Retry-After': String(retryAfterSec) })
 }
 
 /** A small JSON error Response matching Payload's `{ errors: [{ message }] }` shape. */

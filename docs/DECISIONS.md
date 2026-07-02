@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-02 (late) — Codex audit of §10 ①/② (no Critical/High) + /simplify pass: email egress hardened
+
+External audit of `main` after PRs #25/#26, plus a 4-agent /simplify review of the PR ② diff.
+Email-a-doc's theme: **arbitrary outbound email is a data-egress path — it needs attribution and
+volume ceilings beyond a per-user cap.** All four audit findings fixed same-day:
+
+- **#1 (Med) durable requester audit trail** — the job input now carries `requestedByUserId`
+  (names are neither stable nor unique enough for investigation); it lives on the retained
+  payload-jobs row and in BOTH outcome logs (`emailVersionArtifact sent/failed`).
+- **#2 (Med) throttles above the per-user cap** — new `enforceSharedRateLimit(req, bucket, key,
+  message)` reuses the same Postgres counter table for NON-user keys: `emailRecipient` (20/day per
+  lowercased address, pooled across senders — case games don't mint budgets) and `emailGlobal`
+  (1000/day site-wide). Checked after recipient validation (unlike the per-user cap, which spends
+  on probes). Int-pinned: a shared key counts across callers; distinct keys independent.
+- **#3 (Low) local tsc gate unreliable** — stale Finder-duplicated `.next/types/* 2.ts` artifacts
+  broke `tsc --noEmit`. New canonical `npm run typecheck` = `rm -rf .next && next typegen && tsc
+  --noEmit` (verified: `next typegen` exists in Next 16.2).
+- **#4 (Low)** `.env.example` said "sliding window"; the limiter is deliberately FIXED-window
+  (DECISIONS 2026-06-29) — comment corrected.
+
+**/simplify outcomes (4 parallel agents: reuse/simplification/efficiency/altitude):** reuse clean;
+the email job's `isExportReady` + `loadCachedExportZip` double-read of the same manifest collapsed
+to one direct `loadCachedExportZip` attempt run CONCURRENTLY with the version `findByID`
+(Promise.all — the sibling job's existing pattern); the recipient regex was looser than Payload's
+own email-field regex (admitted `a..b@x.com`, `a@-x.com`) → now mirrors Payload's pattern
+(unit-pinned). **Deferred deliberately:** extracting a shared `ensureArtifacts` helper into
+`exportArtifacts.ts` — real duplication, but migrating the stable, deployed `generateVersionArtifact`
+in passing violates the minimal-churn rule; do it when either job next changes for its own reasons.
+
+---
+
 ## 2026-07-02 — §10 features track opened: design decided via structured Q&A (before any code)
 
 Production hardening is complete; the §10 cross-user features track is now active. Design decisions

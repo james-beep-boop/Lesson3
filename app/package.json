@@ -12,6 +12,7 @@
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types",
     "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint .",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
+    "typecheck": "rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next typegen && tsc --noEmit -p tsconfig.json",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "audit:all": "npm audit --audit-level=moderate",
