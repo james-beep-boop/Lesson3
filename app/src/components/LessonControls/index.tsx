@@ -80,6 +80,10 @@ export default function LessonControls() {
 
   const format = formatFromResources(resources)
   const exporting = exportState === 'preparing' || exportState === 'downloading'
+  // "← Back to lesson" (IA redesign PR ④): the editor is entered from a lesson page (or Manage) and
+  // exits back to it, viewing THIS version — the loop that replaces the hidden breadcrumb trail.
+  // Cross-root-layout navigation (admin → frontend), so a plain <a> like AppNav's links.
+  const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
 
   // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
   const onEdit = () => {
@@ -170,6 +174,11 @@ export default function LessonControls() {
 
   return (
     <div className="lesson-controls-wrap">
+      {planId != null && (
+        <a className="lesson-controls__back" href={`/lessons/${planId}?version=${id}`}>
+          ← Back to lesson
+        </a>
+      )}
       {!editing ? (
         <div className="lesson-controls__notice" role="status">
           You’re viewing this version. Click <strong>Edit</strong> to make changes.

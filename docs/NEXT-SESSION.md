@@ -65,7 +65,11 @@ Build order (each: CI green → Rock deploy → user eyeball):
    (`[id='nav-group-Lesson plans']`). Catalogue + VersionTitleCell deleted; versions relabelled
    "Lesson plan version"; the obsolete adminCatalogue e2e spec replaced by `manage.e2e.spec.ts`
    (5 tests, authored-not-run — covers Codex #7's ask).
-4. **④ Strip editor chrome** + "← Back to lesson".
+4. **④ Strip editor chrome** + "← Back to lesson" — *(shipped 2026-07-01 — see the PR)*. The version
+   editor hides Payload's nav sidebar/hamburger/app-header (breadcrumbs) via a `body:has()` rule
+   scoped to `.collection-edit--lesson-bundle-versions` (class names verified against installed
+   payload/next); the shared `.lp-admin-header` AppNav stays. `LessonControls` gains
+   "← Back to lesson" → `/lessons/{planId}?version={id}`.
 5. **⑤ Mobile reading pass + Guide copy** update.
 
 **Deferred from the Codex audit (2026-07-01 post-②, see DECISIONS):** Editors-widget PATCH race
