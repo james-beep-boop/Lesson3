@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-02 (round 3) — row locks for read-modify-write; field-hidden data can't drive client authz
+
+Third Codex pass, on the round-2 assignment endpoints. Two real findings, both fixed:
+
+- **#1 TOCTOU window closed with a row lock.** The endpoints read→check→write inside a transaction,
+  but two requests carrying the SAME fresh token could both pass the check before either commit
+  (read committed: the second's UPDATE blocks on the row lock, then proceeds on its stale read).
+  Fix: `SELECT … FOR UPDATE` on the target user BEFORE the freshness read — crucially executed on
+  the TRANSACTION'S OWN connection (`payload.db.sessions[txID].db`, the same lookup
+  @payloadcms/drizzle's unexported `getTransaction()` performs; running it on `payload.db.drizzle`
+  would lock on a different connection and guard nothing). **Rule: a freshness check in a
+  read-modify-write must sit behind a lock on the same connection that writes.**
+- **#2 Site Admin targets are now untouchable by non-Site-Admins** — enforced in
+  `enforceAssignmentScope` (the hook, not just the endpoint, so the generic PATCH and native admin
+  form are covered too; applied only when rows actually change so no-op resubmits pass). Root cause
+  worth remembering: the Manage addable-list filtered on `u.roles`, but `roles` is FIELD-HIDDEN from
+  Subject Admins — the filter silently passed for them. The dashboard's users read is now a trusted
+  server-side projection (overrideAccess, roles consumed server-side only; the client payload stays
+  {id, name, updatedAt}). **Rule: never build client-side authz filtering on data that field access
+  may strip — the server owns the rule, and server components must read via a trusted projection
+  when the decision depends on admin-only fields.**
+- **#3 Manage pagination**: deferred a third time — corpus-gated by definition (42 plans), tracked.
+  **#4** stale "any signed-in user may read users" comment fixed (the privacy tightening obsoleted it).
+
+Pins: int ("Subject Admin cannot change a Site Admin's assignment rows") + http (fresh-token assign
+to a Site Admin → 4xx, nothing changes).
+
+---
+
 ## 2026-07-02 — Playwright e2e RUN for the first time: Mac → Rock over a tunnel; 6/6 green
 
 The browser suite (`tests/e2e/manage.e2e.spec.ts`) had only ever been authored + collected — the last

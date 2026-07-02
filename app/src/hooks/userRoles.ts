@@ -59,6 +59,12 @@ export const guardPasswordChange: CollectionBeforeChangeHook = ({ data, operatio
  * *which* rows. We diff incoming vs existing assignments and require the actor to be
  * Subject Admin for every subject-grade whose row was added, removed, or changed.
  * Site Admins are unrestricted.
+ *
+ * Additionally (Codex round-3 #2): a SITE ADMIN's assignment rows may be changed only by Site
+ * Admins. `roles` is field-HIDDEN from Subject Admins, so a client cannot even reliably know the
+ * target is one — the server owns this rule for every write path (assignment endpoints, generic
+ * PATCH, the native admin form). Applied only when rows actually change, so an incidental
+ * unchanged-array resubmit stays a no-op.
  */
 export const enforceAssignmentScope: CollectionBeforeChangeHook = ({ data, originalDoc, req }) => {
   const actor = (req.user as User) ?? null
@@ -73,6 +79,10 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({ data, origi
   const touchedSubjectGradeIds = new Set<number | undefined>()
   for (const a of after) if (!beforeSigs.has(rowSignature(a))) touchedSubjectGradeIds.add(toId(a.subjectGrade))
   for (const b of before) if (!afterSigs.has(rowSignature(b))) touchedSubjectGradeIds.add(toId(b.subjectGrade))
+
+  if (touchedSubjectGradeIds.size > 0 && (originalDoc as User | undefined)?.roles?.includes('siteAdmin')) {
+    throw new Forbidden(req.t)
+  }
 
   for (const sgId of touchedSubjectGradeIds) {
     if (!isSubjectAdminFor(actor, sgId)) {
