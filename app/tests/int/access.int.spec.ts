@@ -494,6 +494,27 @@ describe('People rules (SPEC §8)', () => {
     ).resolves.toBeTruthy()
   })
 
+  it("Subject Admin cannot change a Site Admin's assignment rows (Codex round-3 #2)", async () => {
+    // roles is field-hidden from Subject Admins, so the SERVER owns this rule (enforceAssignmentScope)
+    // for every write path — a stale/hostile client cannot add an Editor row to a Site Admin.
+    await expect(
+      fx.payload.update({
+        collection: 'users',
+        id: fx.users.siteAdmin.id,
+        data: { assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'editor' }] },
+        overrideAccess: false,
+        user: fx.users.subjectAdmin,
+      }),
+    ).rejects.toThrow()
+    const unchanged = (await fx.payload.findByID({
+      collection: 'users',
+      id: fx.users.siteAdmin.id,
+      depth: 0,
+      overrideAccess: true,
+    })) as { assignments?: unknown[] }
+    expect(unchanged.assignments ?? []).toHaveLength(0)
+  })
+
   it('directory privacy: a non-admin reads ONLY themself; a Subject Admin reads the roster', async () => {
     // Codex 2026-07-01 #4: user reads are self-scoped for non-admins (Where), roster for admins.
     const asTeacher = await fx.payload.find({

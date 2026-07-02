@@ -637,6 +637,25 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
     expect(restored.assignments ?? []).toHaveLength(0)
   })
 
+  it('a Site Admin target is untouchable by a Subject Admin → 4xx (roles are hidden from them)', async () => {
+    // Codex round-3 #2 over the wire: even with a perfectly fresh token, assigning an Editor row to
+    // a Site Admin is rejected server-side (enforceAssignmentScope), and nothing changes.
+    const t = await freshUpdatedAt(fx.users.siteAdmin.id)
+    const res = await call('assign', fx.users.siteAdmin.id, {
+      subjectGradeId: fx.subjectGrade.id,
+      expectedUpdatedAt: t,
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    const unchanged = (await fx.payload.findByID({
+      collection: 'users',
+      id: fx.users.siteAdmin.id,
+      depth: 0,
+      overrideAccess: true,
+    })) as { assignments?: unknown[] }
+    expect(unchanged.assignments ?? []).toHaveLength(0)
+  })
+
   it('a non-admin (Editor) cannot grant roles → 4xx', async () => {
     const t = await freshUpdatedAt(fx.users.teacher.id)
     const res = await call(

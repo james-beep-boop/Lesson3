@@ -30,6 +30,7 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
 
 import { json } from './respond'
 import { toId, type Assignment } from '../access'
@@ -59,16 +60,34 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
     method: 'post',
     handler: async (req: PayloadRequest): Promise<Response> => {
       if (!req.user) throw new APIError('Unauthorized', 401)
-      const id = req.routeParams?.id as string | undefined
-      if (!id) throw new APIError('Missing user id', 400)
+      const targetId = Number(req.routeParams?.id)
+      if (!Number.isFinite(targetId)) throw new APIError('Missing user id', 400)
       const { subjectGradeId, expectedUpdatedAt } = await parseBody(req)
 
       const shouldCommit = await initTransaction(req)
       try {
-        // Fresh read inside the transaction — the freshness check and the delta both work on it.
+        // Serialize concurrent role changes on this user: take a ROW LOCK on the target before the
+        // freshness read (Codex round-3 #1 — two requests carrying the same fresh token could
+        // otherwise both pass the check, and the later write would drop the earlier delta). The lock
+        // must run on THIS transaction's connection: `db.sessions[txID].db` is the tx-bound drizzle
+        // instance — the same lookup @payloadcms/drizzle's own (unexported) getTransaction() does,
+        // verified against installed source. The second request blocks here until the first commits,
+        // then its fresh read sees the NEW updatedAt → 409.
+        const adapter = req.payload.db as unknown as {
+          sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
+          drizzle: { execute: (q: unknown) => Promise<unknown> }
+        }
+        const txDb =
+          (req.transactionID != null
+            ? adapter.sessions?.[String(await req.transactionID)]?.db
+            : undefined) ?? adapter.drizzle
+        await txDb.execute(sql`SELECT id FROM "users" WHERE id = ${targetId} FOR UPDATE`)
+
+        // Fresh read inside the transaction (post-lock) — the freshness check and the delta both
+        // work on it.
         const target = (await req.payload.findByID({
           collection: 'users',
-          id,
+          id: targetId,
           depth: 0,
           overrideAccess: true,
           req,
@@ -97,10 +116,11 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
           next = rows.filter((a) => !isEditorRowForSg(a))
         }
 
-        // As the CALLER — all existing guards apply (collection/field access + scope hook + demote).
+        // As the CALLER — all existing guards apply (collection/field access + scope hook + demote,
+        // including the site-admin-target rule in `enforceAssignmentScope`).
         const updated = (await req.payload.update({
           collection: 'users',
-          id,
+          id: targetId,
           data: { assignments: next } as never,
           overrideAccess: false,
           user: req.user,

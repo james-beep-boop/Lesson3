@@ -81,11 +81,16 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
           select: { displayName: true },
         })
       : null,
+    // Users for the Editors widget — a TRUSTED server-side projection (overrideAccess: true),
+    // deliberately: `roles` is field-HIDDEN from Subject Admins (siteAdminField), so a caller-scoped
+    // read cannot tell which users are Site Admins and the addable-exclusion below would silently
+    // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
+    // the client payload carries just {id, name, updatedAt}. (This section only renders for
+    // Subject/Site Admins, who may read the roster anyway per usersCollectionRead.)
     isAdmin
       ? payload.find({
           collection: 'users',
-          overrideAccess: false,
-          user,
+          overrideAccess: true,
           depth: 0,
           pagination: false,
           sort: 'name',
@@ -131,7 +136,7 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   let editorGroups: EditorsGroup[] = []
   if (sgsRes && usersRes) {
     const sgs = sgsRes.docs
-    // Every user, light projection (any signed-in user may read users; emails stay field-hidden).
+    // Every user (trusted projection — see the find above; only Subject/Site Admins reach here).
     const allUsers = usersRes.docs
     // The widget only needs identity + the freshness token — the assignment endpoints rebuild the
     // row server-side from fresh state (assignments are read here solely to compute the groups).
