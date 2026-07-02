@@ -15,16 +15,16 @@ import { useRouter } from 'next/navigation'
 
 export default function EditActions({
   versionId,
-  isOfficial,
   canMakeOfficial,
   officialVersionId,
 }: {
   versionId: number
-  isOfficial: boolean
   canMakeOfficial: boolean
-  /** The plan's Official version id as rendered — the stale-consent anchor for delete-previous. */
+  /** The plan's Official version id as rendered — drives the "is this one already Official?"
+   *  display AND the stale-consent anchor for delete-previous. */
   officialVersionId: number | null
 }) {
+  const isOfficial = officialVersionId != null && versionId === officialVersionId
   const router = useRouter()
   const [busy, setBusy] = useState<null | 'official'>(null)
   const [error, setError] = useState<string | null>(null)

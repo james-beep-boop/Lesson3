@@ -116,7 +116,6 @@ export default async function LessonView({
         {canEdit && (
           <EditActions
             versionId={selectedId}
-            isOfficial={selectedId === officialId}
             canMakeOfficial={canMakeOfficial}
             officialVersionId={officialId ?? null}
           />
