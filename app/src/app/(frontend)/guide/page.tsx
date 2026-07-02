@@ -47,6 +47,10 @@ export default async function UserGuidePage() {
             <strong>Search:</strong> use the search box to find a subject, grade, strand, or sub-strand.
           </li>
           <li>
+            <strong>Favorites:</strong> click the star on a lesson to pin it to a My favorites list at
+            the top of the home page. Favorites are personal — only you see yours.
+          </li>
+          <li>
             <strong>Read on screen:</strong> open a sub-strand to view the Lesson Sequence, Final
             Explanation, and Summary Table when those documents are present.
           </li>

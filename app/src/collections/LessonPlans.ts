@@ -9,6 +9,7 @@ import {
 } from '../access/versioning'
 import { canEditStructure } from '../access/bundle'
 import { cascadeDeleteLessonPlanVersions, validateOfficialVersionPointer } from '../hooks/lessonPlan'
+import { cascadeDeleteLessonPlanFavorites } from './Favorites'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 
 export const LessonPlans: CollectionConfig = {
@@ -36,7 +37,8 @@ export const LessonPlans: CollectionConfig = {
     beforeValidate: [validateOfficialVersionPointer],
     // Deleting a plan must first remove its child versions (NOT NULL lesson_plan_id + ON DELETE SET
     // NULL FK → Postgres 23502 otherwise, shown as "An unknown error has occurred"). SPEC §6.
-    beforeDelete: [cascadeDeleteLessonPlanVersions],
+    // Favorites rows share the same FK shape and cascade the same way (§10).
+    beforeDelete: [cascadeDeleteLessonPlanVersions, cascadeDeleteLessonPlanFavorites],
   },
   endpoints: [
     // POST /api/lesson-plans/upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
