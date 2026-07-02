@@ -15,6 +15,8 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
+import { apiBaseFrom } from '../../lib/apiBase'
+
 type AssignmentRow = { subjectGrade: number; role: 'editor' | 'subjectAdmin' }
 
 export interface WidgetUser {
@@ -37,7 +39,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
   // One pending pick per group (keyed by subject-grade id).
   const [picks, setPicks] = useState<Record<number, string>>({})
 
-  const apiBase = `${config.serverURL || ''}${config.routes?.api || '/api'}`
+  const apiBase = apiBaseFrom(config)
 
   const patchAssignments = async (userId: number, assignments: AssignmentRow[], okMsg: string) => {
     setBusy(true)
