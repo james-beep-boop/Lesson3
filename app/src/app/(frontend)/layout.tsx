@@ -11,6 +11,14 @@ export const metadata = {
   description: 'ARES Lesson Library',
 }
 
+// Explicit mobile viewport (was relying on Next's implicit default). The App is reading-first on a
+// phone — declare it so the responsive rules in styles.css engage on real devices, not just the
+// desktop-emulated viewport. `viewport` is the Next 15/16 way (separate from `metadata`).
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
+
 // The App is authenticated and per-request (Payload auth + live data) — never statically
 // prerendered. Set at the route-group root so it applies to every page below. Without this,
 // `next build` tries to prerender and hits the DB at build time (no DB → build fails).

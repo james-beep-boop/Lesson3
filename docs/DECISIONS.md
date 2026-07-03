@@ -11,6 +11,90 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-03 (late) — ARCHITECTURAL: collapse to ONE document format (ARES-resources-inline, no Resource column); UI-cleanup + Codex-fix session state
+
+Two parts: (A) an architectural decision to record and act on next session, and (B) the in-flight
+state of this session's work (uncommitted, to be committed/merged first thing next session).
+
+### (A) DECISION — a single document format; drop the two-format (standard/compact) system entirely
+
+**To date there were two export formats:** `standard` (the LessonSequence "C. Lesson Implementation
+Framework" table carries a separate **Resource** column) and `compact` (no Resource column). A single
+**"Include ARES Resources"** checkbox drove which one every surface produced (`lib/format.ts` is the
+one mapping: checked→`standard`, unchecked→`compact`). On-screen view defaulted to `compact` because
+the Resource column was deferred/blank (no resource data yet — blocked on Mark).
+
+**New decision (supersedes the two-format model):** there is only **ONE** document format going
+forward — the one **with ARES resource links** — and it has **NO separate "Resource" column**. When
+ARES resource data exists at all, the links live **inline within the phase rows** of the framework
+table (the phase content), NOT in a dedicated column. See the two reference images the user supplied:
+the **target** layout has columns `Phase | Learner Experience | Teacher Moves | Sensemaking Strategy
+| Formative Assessment Strategy` (no Resource column); the **eliminated** layout inserted an (empty)
+`Resource` column between Learner Experience and Teacher Moves.
+
+**Why:** the separate Resource column has been blank this whole time (resource data blocked on Mark),
+and the two-format toggle is redundant complexity across the teacher view, admin preview, admin
+export, email, and the editor control bar. One format = cleaner UX and a meaningful code deletion.
+
+**This SUPERSEDES the 2026-06-09 "Resource column from ARES" plan** (which was: add `source` to the
+resource schema, carry via `framework[].resources`, render as a **column** via `vendor/aresResources.js`).
+The column approach is dropped; resources render **inline in the phase content** instead.
+
+**Scope of the removal work (next session — NOT done yet).** Remove the standard/compact axis
+end-to-end; KEEP the orthogonal `?as=docx|pdf` document-TYPE axis (that's unaffected). Touchpoints
+found via `grep -rilE "compact|LessonSequenceFormat|ResourcesToggle|Include ARES" app/src`:
+- **Delete:** `lib/format.ts` (the checkbox↔format mapping), `ResourcesToggle.tsx` (the checkbox),
+  the `?format=standard|compact` handling in `endpoints/parseFormat.ts`.
+- **Collapse the type/plumbing:** `LessonSequenceFormat` in `generator/index.ts` (down to one mode or
+  gone), and the `format` params/props threaded through `endpoints/{exportVersion,previewVersion,
+  previewShared,emailVersion,exportAuth}.ts`, `jobs/{generateVersionArtifact,emailVersionArtifact}.ts`,
+  `generator/{generateForVersion,exportArtifacts,previewBundle}.ts`, and the UI
+  (`lessons/[id]/page.tsx` `sp.format` logic + heading, `DownloadButtons.tsx`, `EmailDocButton.tsx`,
+  `components/LessonControls/index.tsx` — the editor's ☑docx/☐PDF/☐ARES bar loses the ARES checkbox).
+- **Generator layout:** always produce the no-Resource-column table (today's `compact` layout). The
+  vendored generator is byte-pristine (fidelity 3/3) — confirm whether "no Resource column" is already
+  a generator parameter (it is, via the standard/compact selection) so we can pin it without editing
+  vendored code; the **inline resource-link rendering** is a separate, still-blocked-on-Mark concern.
+- **Artifact cache:** the `versionScope`/cache key currently includes format — dropping a format axis
+  changes cache keys (a benign cold-start), and any migration/enum that encodes format should be checked.
+- **Tests/docs:** update `test:http`/`test:int` specs that pass `?format=`, and re-touch `/guide` +
+  `USER_GUIDE.md` (drop "Include ARES Resources" wording).
+
+**OPEN DETAIL (confirm when resource data actually lands — still blocked on Mark):** the precise
+inline placement of the resource links within a phase row (which cell / formatting). Not blocking the
+removal work above, which stands on its own; the on-screen/DOCX result is simply today's compact
+layout until the data exists.
+
+### (B) SESSION STATE — two uncommitted work streams to land next session (get to a clean tree FIRST)
+
+This session did NOT commit anything (per the no-commit-without-request rule). Two independent streams
+are in-flight; **the first next-session task is to commit + merge both and reach a clean state:**
+1. **UI cleanup + mobile pass — uncommitted on `main`'s working tree** (8 files): clean lesson-page
+   title + `Subject · Grade` context line (reuses `lessonDisplayName`), styled version-pill selector
+   (was unstyled — "Version1.0.0· Official1.0.1"), mobile touch targets + export-bar/compose wrap, a
+   `--danger` token + `.inline-error` class replacing three inline error styles, explicit `viewport`
+   export, a guide typo fix, and a **Manage-page mobile fix** (hid Payload's nav/hamburger/app-header
+   on the dashboard via a shared `body:has(.lp-admin-dash), body:has(.collection-edit--lesson-bundle-versions)`
+   chrome-strip + a dashboard-only `grid-template-columns: 1fr` — the nav-hide collapsed Payload's
+   2-col grid and crushed the content). Verified on a local compose stack (typecheck + unit 51/51;
+   admin `/admin` pages reliably time out `preview_screenshot`, so verified via computed metrics).
+   `.claude/launch.json` was gitignored (Codex #5).
+2. **Codex Medium/Low fixes — uncommitted on branch `fix/email-authz-msg-hardening`** (git worktree at
+   `../Lesson3-codexfix`, off clean `main`; typecheck + unit green): **#1** email endpoint now
+   authorizes the version BEFORE spending the shared `emailRecipient`/`emailGlobal` caps (per-user cap
+   stays first as the anti-probe deterrent) — unauthorized probes can no longer burn pooled quota;
+   **#2** `/messages` mark-read now skips when `Sec-Fetch-Site: cross-site` (blocks CSRF-via-navigation
+   clearing unread, keeps "viewing is reading" for same-origin/none/absent — no `/read` endpoint
+   reintroduced); **#3** the `messagePing` enqueue is wrapped in try/catch so a queue failure can't roll
+   back the message create; **#4** `USER_GUIDE.md` refreshed to mirror the current `/guide`.
+   Codex **#6** (esbuild dev advisories) and **#7** (fidelity probes not in CI) stay deferred (tracked).
+
+**Deeper verification not yet run for stream 2** (int/http, browser): needs the app image rebuilt
+from that branch, which would displace the running UI-cleanup preview — deferred to CI on the PR, or a
+local rebuild next session. The `#2` Sec-Fetch-Site behavior in particular is runtime-only.
+
+---
+
 ## 2026-07-03 — §10 PR ③ messaging + notifications built; privacy/UX micro-decisions locked
 
 PR #28 implements the messaging design from the 2026-07-02 Q&A (flat `messages`, content-free ping,

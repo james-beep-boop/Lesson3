@@ -22,6 +22,39 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
+## ▶ RESUME HERE (2026-07-03 late) — ① land the two in-flight branches, then ② the SINGLE-DOCUMENT-FORMAT track
+
+Full write-up in `docs/DECISIONS.md` 2026-07-03 (late). Nothing below was committed (no-commit rule).
+
+**① FIRST: get to a clean tree — commit + merge two uncommitted streams.**
+- **UI cleanup + mobile pass** — uncommitted on **`main`'s working tree** (8 files: lesson-page clean
+  title + `Subject · Grade` context line, styled version-pill selector, mobile touch targets +
+  export-bar/compose wrap, `--danger` token + `.inline-error` class, explicit `viewport` export, a
+  guide typo fix, and the Manage-page mobile chrome fix in `custom.scss`). Plus `.claude/launch.json`
+  gitignored (Codex #5). Verified on a local compose stack (typecheck + unit 51/51; `/admin` pages
+  time out `preview_screenshot`, so verified via computed DOM metrics — see the memory note).
+- **Codex Med/Low fixes** — uncommitted on branch **`fix/email-authz-msg-hardening`** (git worktree at
+  `../Lesson3-codexfix`, off clean `main`; typecheck + unit green): #1 authorize the version BEFORE
+  spending shared email caps; #2 `/messages` skips mark-read on `Sec-Fetch-Site: cross-site`; #3
+  wrap the `messagePing` enqueue in try/catch; #4 `USER_GUIDE.md` refreshed. **Not yet run:** int/http
+  + browser for this branch (needs a rebuild off it; CI will gate the PR). Codex #6/#7 stay deferred.
+- **To do:** commit each stream on its own branch, open/merge PRs (CI is the gate), tidy the worktree
+  (`git worktree remove ../Lesson3-codexfix` once merged). Reach a clean `main`.
+
+**② THEN: the SINGLE-DOCUMENT-FORMAT track (architectural — decided 2026-07-03 late).** Collapse the
+two export formats (`standard` = separate Resource column; `compact` = none) into **ONE** format: the
+**ARES-resources-inline** layout with **NO separate Resource column** (today's `compact` table shape).
+Remove the **"Include ARES Resources"** checkbox and all standard/compact plumbing; KEEP the
+orthogonal `?as=docx|pdf` axis. This deletes real code and simplifies the UX. Resource **links**, when
+present at all (still blocked on Mark), render **inline in the phase rows**, not a column — this
+**supersedes** the old 2026-06-09 "add a Resource column" plan. Touchpoints + exact deletion list are
+in DECISIONS 2026-07-03 (late); start from `grep -rilE "compact|LessonSequenceFormat|ResourcesToggle|Include ARES" app/src`
+(delete `lib/format.ts`, `ResourcesToggle.tsx`; collapse `LessonSequenceFormat` + the `format`
+params threaded through the endpoints/jobs/generator/UI). Open detail (confirm when resource data
+lands): the precise inline placement of a link within a phase row.
+
+---
+
 ## ▶ RESUME HERE (2026-07-03) — §10 features track: ALL THREE PRs SHIPPED (① favorites, ② email-a-doc, ③ messaging)
 
 **Track switch:** production hardening is done; the §10 cross-user features track is active. The
@@ -671,10 +704,12 @@ Editor seeded (ask the user for the passwords — they are NOT in the repo).
 
 ## Open / blocked
 
-- **Resource column from ARES (blocked on Mark).** The blank Resource column is a fidelity gap; the
-  resolved per-lesson resources (video + reading) live only in the Python recommender's output.
-  Plan when it arrives: add `source` to the resource schema (migration), carry via
-  `framework[].resources`, render via `vendor/aresResources.js`. See DECISIONS (2026-06-09).
+- **ARES resource LINKS, inline (blocked on Mark).** The resolved per-lesson resources (video +
+  reading) live only in the Python recommender's output. **Plan CHANGED 2026-07-03 (late):** the old
+  "add a **Resource column**, render via `vendor/aresResources.js`" plan is **superseded** by the
+  single-document-format decision — when the data arrives, render the links **inline in the phase
+  rows**, NOT a separate column. Exact per-row placement is the open detail. (The separate Resource
+  column is being removed regardless, as part of collapsing standard/compact — see the top RESUME.)
 - **ARES confirmation** — awaiting Mark on which data/DOCX are canonical + the resource-data request.
   Not blocking core work.
 - Corpus is expected to grow from 13 to dozens→hundreds (Chemistry/Physics incoming) — informs the

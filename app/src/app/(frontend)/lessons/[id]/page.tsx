@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/session'
 import { isEditorFor, isSubjectAdminFor, toId } from '@/access'
 import { findReadablePlan } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
+import { lessonDisplayName } from '@/lib/substrand'
 import { generateForVersion } from '@/generator/generateForVersion'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
 import type { LessonSequenceFormat } from '@/generator'
@@ -53,7 +54,12 @@ export default async function LessonView({
     depth: 0,
     pagination: false,
     sort: 'createdAt',
-    select: { semver: true, title: true, createdAt: true },
+    select: {
+      semver: true,
+      title: true,
+      createdAt: true,
+      meta: { subject: true, grade: true, substrand_name: true },
+    },
   })
 
   const officialId = relId(plan.officialVersion)
@@ -67,7 +73,16 @@ export default async function LessonView({
   // The version list is already access-gated and scoped to this plan, so `selected` proves the user
   // may read it — no second read needed; `generateForVersion` reads the content for rendering.
   const selectedId = selected.id
-  const title = selected.title ?? plan.title ?? 'Lesson plan'
+  // Match the library: the heading shows the clean sub-strand name, not the shouty stored
+  // "SUBJECT GRADE N:" title (which still appears, faithfully, inside the generated document
+  // preview below). A muted context line carries the subject + grade.
+  const title = lessonDisplayName(selected.meta?.substrand_name, selected.title ?? plan.title)
+  const contextLine = [
+    selected.meta?.subject,
+    selected.meta?.grade != null ? `Grade ${selected.meta.grade}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   // Edit affordances (Stage 2b, working-copy model): Editors (and admins) for this plan's
   // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
@@ -107,7 +122,10 @@ export default async function LessonView({
         ← All lesson plans
       </Link>
       <div className="lesson-heading">
-        <h1>{title}</h1>
+        <div className="lesson-heading__text">
+          <h1>{title}</h1>
+          {contextLine && <p className="lesson-context">{contextLine}</p>}
+        </div>
         <FavoriteToggle planId={plan.id} favoriteId={favoriteId} />
       </div>
 
