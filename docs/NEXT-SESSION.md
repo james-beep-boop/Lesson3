@@ -22,7 +22,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-02) — §10 features track ACTIVE; PRs ① favorites + ② email-a-doc SHIPPED
+## ▶ RESUME HERE (2026-07-03) — §10 features track: ALL THREE PRs SHIPPED (① favorites, ② email-a-doc, ③ messaging)
 
 **Track switch:** production hardening is done; the §10 cross-user features track is active. The
 design was decided via structured Q&A BEFORE any code — full record in DECISIONS 2026-07-02 (top
@@ -61,11 +61,33 @@ translation record keyed `(version, locale)` — human-reviewable, version-pinne
   senders) + `emailGlobal` (1000/day) caps on the same counter table (all three tiers verified
   counting on live); `npm run typecheck` is the reliable local gate; email job cache path
   simplified + parallelized; recipient regex mirrors Payload's. DECISIONS 2026-07-02 (late).
-- **▶ NEXT: PR ③ messaging + notifications** (the big new surface): `messages` collection (sender
-  stamped, recipient, plain-text body, optional plan/version link, `readAt`; flat, no threads),
-  afterChange create hook → content-free email ping job, unread badge server-rendered in AppNav,
-  `/messages` inbox + compose (names-only user picker — the directory relaxation + SPEC amendment
-  land here), message creation rate-limited.
+- **✓ PR ③ Messaging + notifications — MERGED (#28) + Rock-deployed + live-verified 2026-07-03.**
+  `messages` collection (flat/no threads; sender session-stamped — spoofed ids overridden; PRIVATE:
+  read = sender/recipient only, deliberately NO Site Admin read; NO API update/delete — mark-read is
+  a system write by the inbox view, which killed the planned /read endpoint; user deletes cascade
+  sent+received). Notifications: content-free `messagePing` email job (nothing sender-controlled in
+  the mail, sender id on the job row/logs for audit) gated to fire ONLY when the recipient had zero
+  other unread + a per-recipient daily ping budget; per-sender daily `message` create cap (hook-
+  thrown 429; new `consumeRateLimit` primitive). Unread badge: AppNav is an async server component
+  counting its own unread on BOTH surfaces. `/messages` inbox+compose (bodies inline, viewing marks
+  read; names-only picker; lesson page "Message a colleague" hands off ?plan=/?version=). **The
+  names-only roster relaxation + SPEC §8 amendment landed here** — with a NEW `assignments` field
+  read guard (the old self-only collection gate was implicitly hiding it; see DECISIONS 2026-07-03).
+  Migration `20260703_041716_add_messaging` Rock-generated + hand-guarded; Rock `generate:types`
+  byte-identical. CI green (3 fix rounds: stale directory-privacy pin now pins the relaxation;
+  hasMany fields strip to [] not undefined; default-REST unauth create = 403 not 401). Live-verified
+  over REST: unauth 403, spoofed sender stamped, private reads (non-participant admin sees []),
+  PATCH/DELETE 403, roster names-only (email/roles/assignments stripped), badge 1→2→cleared by
+  inbox view, ping fired for msgs 1+3 but NOT 2 (zero-unread gate proven live), `messagePing sent`
+  logged with full attribution. Smoke messages deleted from live afterwards. **Pending: the user's
+  in-browser eyeball (badge, inbox, compose, "Message a colleague" link) — plus the still-pending
+  favorites star eyeball from PR ①.**
+- **▶ NEXT: the §10 track is COMPLETE.** Options for the next session, in rough priority: ① the
+  two pending in-browser eyeballs (above); ② **AI summaries** — deliberately unprioritized until a
+  purpose/placement conversation with the user happens BEFORE any build (DECISIONS 2026-07-02);
+  ③ deferred backlog (Manage/browse pagination at corpus scale, payload-jobs prune, esbuild
+  advisories when upstream moves, operator OPS setup in docs/OPS.md if still unfinished);
+  ④ Swahili translation stays DEFERRED pending real demand.
 
 ---
 
