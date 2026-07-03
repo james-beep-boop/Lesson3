@@ -742,3 +742,79 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
     expect(Number(blocked.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default REST)', () => {
+  // Fixture users' emails are @example.com (RFC 2606 blackhole), so the content-free ping a create
+  // may enqueue is safe on a live stack — same posture as the email-a-doc send test above. The
+  // full hook matrix (zero-unread gate, ping budget, sender cap, cascades) is int-covered; this
+  // block proves the WIRE contract: auth, stamping, private reads, and the closed update/delete.
+  const post = (key: RoleKey | undefined, body: unknown) =>
+    fetch(url('/api/messages'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth(key) },
+      body: JSON.stringify(body),
+    })
+  let messageId: number
+
+  it('without auth → 403 (Payload default REST maps a denied create to Forbidden)', async () => {
+    // Unlike the custom endpoints (which throw an explicit 401), collection REST runs the access
+    // function and answers any denial — unauthenticated included — with 403. Either way: no row.
+    const res = await post(undefined, { recipient: fx.users.editor.id, body: 'hi' })
+    expect(res.status).toBe(403)
+  })
+
+  it('missing recipient/body → 400', async () => {
+    expect((await post('teacher', { body: 'no recipient' })).status).toBe(400)
+    expect((await post('teacher', { recipient: fx.users.editor.id })).status).toBe(400)
+  })
+
+  it('create stamps the sender — a spoofed sender id is overridden — and enqueues the ping', async () => {
+    const res = await post('teacher', {
+      sender: fx.users.editor.id, // hostile: send "as" the editor
+      recipient: fx.users.editor.id,
+      body: `${MARK}wire-hello`,
+    })
+    expect(res.status).toBe(201)
+    const { doc } = (await res.json()) as { doc: { id: number; sender: number | { id: number } } }
+    const senderId = typeof doc.sender === 'object' ? doc.sender.id : doc.sender
+    expect(senderId).toBe(fx.users.teacher.id)
+    messageId = doc.id
+
+    // First unread for this recipient → the content-free ping job exists (retained row).
+    const { docs } = await fx.payload.find({
+      collection: 'payload-jobs',
+      where: { taskSlug: { equals: 'messagePing' } },
+      limit: 100,
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(
+      docs.some((j) => (j.input as { messageId?: number } | undefined)?.messageId === messageId),
+    ).toBe(true)
+  })
+
+  it('messages are private over the wire: a non-participant admin sees nothing', async () => {
+    const list = await fetch(url('/api/messages'), { headers: auth('siteAdmin') })
+    expect(list.status).toBe(200)
+    const body = (await list.json()) as { docs: { id: number }[] }
+    expect(body.docs.map((d) => d.id)).not.toContain(messageId)
+
+    const byId = await fetch(url(`/api/messages/${messageId}`), { headers: auth('subjectAdmin') })
+    expect([403, 404]).toContain(byId.status)
+  })
+
+  it('update and delete are closed — even for the participants', async () => {
+    const patch = await fetch(url(`/api/messages/${messageId}`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth('editor') }, // the recipient
+      body: JSON.stringify({ readAt: new Date().toISOString() }),
+    })
+    expect(patch.status).toBe(403)
+
+    const del = await fetch(url(`/api/messages/${messageId}`), {
+      method: 'DELETE',
+      headers: auth('teacher'), // the sender
+    })
+    expect(del.status).toBe(403)
+  })
+})

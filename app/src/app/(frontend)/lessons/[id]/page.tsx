@@ -144,6 +144,10 @@ export default async function LessonView({
         <DownloadButtons versionId={selectedId} format={format} />
         <EmailDocButton versionId={selectedId} format={format} />
         <ResourcesToggle format={format} />
+        {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
+        <Link className="msg-share-link" href={`/messages?plan=${plan.id}&version=${selectedId}`}>
+          Message a colleague
+        </Link>
       </div>
 
       {viewError ? (

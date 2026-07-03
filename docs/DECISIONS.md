@@ -11,6 +11,50 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-03 — §10 PR ③ messaging + notifications built; privacy/UX micro-decisions locked
+
+PR #28 implements the messaging design from the 2026-07-02 Q&A (flat `messages`, content-free ping,
+server-rendered badge, `/messages` inbox+compose, names-only roster relaxation + SPEC §8 amendment).
+Three product micro-decisions the Q&A had left open, decided with the user before build:
+
+- **Messages are private, full stop:** read = sender/recipient only — NO Site Admin read (unlike
+  favorites' support exception). Ops visibility = retained `messagePing` job rows + structured logs
+  (message id, sender id, recipient id — never bodies).
+- **No user delete path in this iteration.** Flat single-row model means delete-for-one would
+  delete for both; revisit only if inbox clutter becomes real. Update is closed to EVERYONE too —
+  mark-as-read became a system write (overrideAccess) by the inbox page, which **simplified away
+  the planned `POST /messages/:id/read` endpoint entirely**: bodies render inline on `/messages`
+  (no threads), so viewing the inbox IS reading, and everything shown is marked read after the
+  list is captured. Fewer surfaces, same UX. (AppNav's `/messages` link is a plain `<a>` — no Next
+  prefetch, so scrolling a page can never mark things read.)
+- **Ping only from zero:** the email ping fires only when the recipient had zero OTHER unread
+  messages — a burst while they're away emails once, and after they read, the next message pings
+  again. Belt over that suspender: a per-recipient daily ping budget (`messagePingRecipient`,
+  20/day); exhaustion skips the ping, never the message. The ping is CONTENT-FREE per the design —
+  and per the #27 egress lesson, that includes the sender's name: nothing sender-controlled
+  reaches the email; attribution (sender id) lives on the job row and in logs.
+
+Build notes worth keeping:
+
+- **The roster relaxation is only safe because of a NEW field guard.** `assignments` had no field
+  read access — the old self-only collection gate made it implicit. Opening `usersCollectionRead`
+  to `Boolean(user)` without adding `assignmentsReadField` (admins + self) would have published
+  every user's role grants. Rule: before relaxing a collection-level read, enumerate what the old
+  gate was implicitly hiding at field level.
+- **Message creation is rate-limited in a HOOK, not an endpoint** (create is Payload's default
+  REST, Payload-first like favorites): new `consumeRateLimit` primitive on the shared counter
+  returns the raw decision; the hook throws a 429 `APIError`. The existing `enforce*` Response
+  wrappers now build on it.
+- **Fixture emails moved `@test.local` → `@example.com` (RFC 2606):** fixture users now RECEIVE
+  system mail (pings go to the recipient's account address), so on a live stack with SMTP the
+  sends must blackhole safely instead of failing at the relay and leaving failed job rows.
+- Badge = `AppNav` became an async server component that counts its own unread via `getPayload`
+  (both surfaces get it with zero prop plumbing); count is best-effort (failure renders 0).
+- Migration `20260703_041716_add_messaging` Rock-generated + hand-guarded (favorites' table idiom
+  + email-task's enum idiom); Rock `generate:types` byte-identical to the hand-written types.
+
+---
+
 ## 2026-07-02 (late) — Codex audit of §10 ①/② (no Critical/High) + /simplify pass: email egress hardened
 
 External audit of `main` after PRs #25/#26, plus a 4-agent /simplify review of the PR ② diff.

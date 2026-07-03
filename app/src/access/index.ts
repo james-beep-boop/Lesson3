@@ -115,17 +115,13 @@ export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): bo
 // Users collection access
 // ---------------------------------------------------------------------------
 
-/** Directory privacy (tightened per Codex audit 2026-07-01 #4): Site Admins and Subject Admins (who
- *  need the roster for role management) read everyone; everyone else reads ONLY themselves (Where —
- *  scoped, so list reads return just the caller instead of erroring). Emails stay additionally
- *  field-hidden via `emailReadAccess`. NOTE for future §10 attribution features: relax deliberately,
- *  don't just flip this back to `Boolean(user)`. */
-export const usersCollectionRead: Access = ({ req: { user } }) => {
-  const u = asUser(user)
-  if (!u) return false
-  if (isSiteAdmin(u) || isSubjectAdminForAny(u)) return true
-  return { id: { equals: u.id } }
-}
+/** Directory read = names-only roster for ALL authenticated users (SPEC §8 as amended 2026-07-02):
+ *  messaging's user picker needs "any user may message any user" (§10). This is the DELIBERATE
+ *  relaxation the 2026-07-01 tightening anticipated — collection-level only. What keeps it
+ *  names-only is field access: `email` (emailReadAccess), `roles` (siteAdminField) and
+ *  `assignments` (assignmentsReadField) are stripped for non-admins. Server-side decisions on
+ *  admin-only fields must keep using trusted projections (DECISIONS 2026-07-02 round 3). */
+export const usersCollectionRead: Access = ({ req: { user } }) => Boolean(user)
 
 /** Update self, or any user if site admin / a subject admin (field access + the
  *  beforeChange scoping hook then constrain *what* a subject admin may change). */
@@ -162,4 +158,14 @@ export const siteAdminField: FieldAccess = ({ req: { user } }) => isSiteAdmin(as
 export const assignmentsUpdateField: FieldAccess = ({ req: { user } }) => {
   const u = asUser(user)
   return isSiteAdmin(u) || isSubjectAdminForAny(u)
+}
+
+/** Assignments are readable by role managers (Site/Subject Admins) and the user themselves. Before
+ *  the 2026-07-02 roster relaxation the collection read gate made this implicit; now that any
+ *  authenticated user can read user docs, the field guard is what keeps grants non-public
+ *  (SPEC §8: the public roster is display names only). */
+export const assignmentsReadField: FieldAccess = ({ req: { user }, id }) => {
+  const u = asUser(user)
+  if (!u) return false
+  return isSiteAdmin(u) || isSubjectAdminForAny(u) || u.id === id
 }

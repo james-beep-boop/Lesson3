@@ -64,6 +64,13 @@ export default async function UserGuidePage() {
             day.
           </li>
           <li>
+            <strong>Messages:</strong> use Messages in the top bar to send a note to any user of the
+            repository — a lesson page&apos;s &ldquo;Message a colleague&rdquo; link attaches that
+            lesson to your note. Unread messages show as a count on the Messages link, and you get a
+            short email telling you a message is waiting (never its content). Opening Messages marks
+            everything shown as read.
+          </li>
+          <li>
             <strong>Include ARES Resources:</strong> turn the checkbox on for the layout that includes
             links to ARES resources.
           </li>

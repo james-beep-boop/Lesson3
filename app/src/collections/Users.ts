@@ -3,6 +3,7 @@ import type { User } from '../payload-types'
 
 import {
   adminPanelAccess,
+  assignmentsReadField,
   assignmentsUpdateField,
   canManageUsers,
   emailReadAccess,
@@ -20,6 +21,7 @@ import {
 } from '../hooks/userRoles'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
 import { cascadeDeleteUserFavorites } from './Favorites'
+import { cascadeDeleteUserMessages } from './Messages'
 
 /**
  * Users + roles (SPEC §8).
@@ -71,9 +73,10 @@ export const Users: CollectionConfig = {
   hooks: {
     beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
-    // A user's favorites are personal join rows with a NOT NULL user FK — cascade them, or the
-    // delete 23502s (same shape as the lesson-plan cascades). See collections/Favorites.
-    beforeDelete: [cascadeDeleteUserFavorites],
+    // A user's favorites and messages are personal rows with NOT NULL user FKs — cascade them, or
+    // the delete 23502s (same shape as the lesson-plan cascades). See collections/Favorites and
+    // collections/Messages.
+    beforeDelete: [cascadeDeleteUserFavorites, cascadeDeleteUserMessages],
   },
   endpoints: [
     // Narrow, freshness-guarded Editor grant/removal for the Manage Editors widget — replaces the
@@ -125,6 +128,9 @@ export const Users: CollectionConfig = {
           'Per subject-grade grants. Subject Admins may manage only their own subject-grades.',
       },
       access: {
+        // Grants are not public: with the names-only roster relaxation (SPEC §8, 2026-07-02) the
+        // collection read gate no longer hides them, so the field guard must.
+        read: assignmentsReadField,
         // Entry gate; enforceAssignmentScope constrains which rows a subject admin may change.
         update: assignmentsUpdateField,
       },

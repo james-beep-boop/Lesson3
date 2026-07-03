@@ -83,6 +83,20 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_EMAIL_GLOBAL_MAX', 1000),
     windowMs: positiveIntEnv('RATE_LIMIT_EMAIL_GLOBAL_WINDOW_MS', 86_400_000),
   },
+  // Internal messaging (SPEC §10). A DAILY per-user cap like email — the bounded cost is other
+  // users' inboxes, not CPU — but more generous: recipients are registered users, not arbitrary
+  // addresses, and the notification email is content-free (see messagePingRecipient).
+  message: {
+    max: positiveIntEnv('RATE_LIMIT_MESSAGE_MAX', 50),
+    windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_WINDOW_MS', 86_400_000),
+  },
+  // Cap on notification-ping EMAILS one recipient's real inbox can receive per day (keyed by the
+  // recipient user id). The zero-unread gate already bounds pings to the recipient's own read
+  // rate; this is the belt over that suspender. Exhaustion skips the ping, never the message.
+  messagePingRecipient: {
+    max: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_MAX', 20),
+    windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_WINDOW_MS', 86_400_000),
+  },
 } satisfies Record<string, Limit>
 
 type Bucket = keyof typeof LIMITS
@@ -118,6 +132,21 @@ async function take(
 }
 
 /**
+ * Record a hit for `key` under `bucket` and return the raw allow/deny decision — the primitive the
+ * `enforce*` Response wrappers build on. Exported for callers that need the decision WITHOUT an
+ * HTTP Response: collection hooks (which signal errors by throwing, e.g. the messages create cap)
+ * and best-effort consumers that skip work instead of failing (the message-ping recipient cap).
+ */
+export async function consumeRateLimit(
+  req: PayloadRequest,
+  bucket: Bucket,
+  key: string,
+): Promise<{ ok: boolean; retryAfterSec: number }> {
+  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
+  return take(db, `${bucket}:${key}`, LIMITS[bucket], Date.now())
+}
+
+/**
  * Enforce the per-user rate limit for an endpoint. Returns a ready-to-return `429` Response
  * (with `Retry-After`) when the caller is over budget, or `null` when the request may proceed.
  * Keyed by user id so one user can't exhaust another's budget; unauthenticated callers are
@@ -131,9 +160,7 @@ export async function enforceUserRateLimit(
   if (userId === undefined || userId === null) {
     return jsonError('Unauthorized', 401)
   }
-  const limit = LIMITS[bucket]
-  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
-  const { ok, retryAfterSec } = await take(db, `${bucket}:${userId}`, limit, Date.now())
+  const { ok, retryAfterSec } = await consumeRateLimit(req, bucket, String(userId))
   if (ok) return null
   return jsonError(
     `Too many ${bucket} requests — please wait ${retryAfterSec}s and try again.`,
@@ -154,9 +181,7 @@ export async function enforceSharedRateLimit(
   key: string,
   message: string,
 ): Promise<Response | null> {
-  const limit = LIMITS[bucket]
-  const db = (req.payload.db as unknown as { drizzle: DrizzleExec }).drizzle
-  const { ok, retryAfterSec } = await take(db, `${bucket}:${key}`, limit, Date.now())
+  const { ok, retryAfterSec } = await consumeRateLimit(req, bucket, key)
   if (ok) return null
   return jsonError(message, 429, { 'Retry-After': String(retryAfterSec) })
 }

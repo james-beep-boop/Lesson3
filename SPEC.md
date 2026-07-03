@@ -171,6 +171,12 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to Editor for that subject-grade, in one transaction.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
+- **User directory (amended 2026-07-02, with messaging):** every authenticated user may read the
+  roster of user **display names** — messaging's user picker requires it (§10 "any user may message
+  any user"). This deliberately relaxes the earlier self-only read tightening (2026-07-01) at the
+  collection level ONLY: emails stay owner/Site-Admin-visible and roles/assignments stay
+  field-hidden from non-admins, and server-side authorization decisions that depend on admin-only
+  fields keep using trusted server projections, never client-visible data (DECISIONS 2026-07-02).
 
 ---
 
