@@ -199,11 +199,14 @@ describe('names-only roster (SPEC §8 as amended with PR ③)', () => {
       pagination: false,
     })
     const editor = docs.find((u) => u.id === fx.users.editor.id)
+    const admin = docs.find((u) => u.id === fx.users.siteAdmin.id)
     expect(editor).toBeTruthy() // the roster is readable…
     expect(editor!.name).toBe(fx.users.editor.name)
     expect(editor!.email).toBeUndefined() // …but names only
-    expect(editor!.roles).toBeUndefined()
-    expect(editor!.assignments).toBeUndefined()
+    // hasMany/array fields strip to EMPTY containers (not undefined) under field read access —
+    // the values that must not leak are the editor's assignment row and the admin's global role.
+    expect(editor!.assignments ?? []).toHaveLength(0)
+    expect(admin!.roles ?? []).toHaveLength(0)
   })
 
   it('role managers and the user themselves still read assignments', async () => {

@@ -515,34 +515,21 @@ describe('People rules (SPEC §8)', () => {
     expect(unchanged.assignments ?? []).toHaveLength(0)
   })
 
-  it('directory privacy: a non-admin reads ONLY themself; a Subject Admin reads the roster', async () => {
-    // Codex 2026-07-01 #4: user reads are self-scoped for non-admins (Where), roster for admins.
-    const asTeacher = await fx.payload.find({
-      collection: 'users',
-      where: { name: { like: MARK } },
-      overrideAccess: false,
-      user: fx.users.teacher,
-      depth: 0,
-    })
-    expect(asTeacher.docs.map((d) => d.id)).toEqual([fx.users.teacher.id])
-
-    const asEditor = await fx.payload.find({
-      collection: 'users',
-      where: { name: { like: MARK } },
-      overrideAccess: false,
-      user: fx.users.editor,
-      depth: 0,
-    })
-    expect(asEditor.docs.map((d) => d.id)).toEqual([fx.users.editor.id])
-
-    const asSubjectAdmin = await fx.payload.find({
-      collection: 'users',
-      where: { name: { like: MARK } },
-      overrideAccess: false,
-      user: fx.users.subjectAdmin,
-      depth: 0,
-    })
-    // Sees the whole fixture roster (all four seeded users), not just themself.
-    expect(asSubjectAdmin.docs.length).toBe(4)
+  it('directory reads: every authenticated user gets the names-only roster', async () => {
+    // SPEC §8 as amended 2026-07-02 (with PR ③ messaging): the 2026-07-01 self-only tightening
+    // was DELIBERATELY relaxed at the collection level — the messaging user picker needs the
+    // roster. What keeps it names-only is field access; the field-stripping matrix (email /
+    // roles / assignments hidden from non-admins) is pinned in tests/int/messages.int.spec.ts.
+    for (const reader of [fx.users.teacher, fx.users.editor, fx.users.subjectAdmin]) {
+      const { docs } = await fx.payload.find({
+        collection: 'users',
+        where: { name: { like: MARK } },
+        overrideAccess: false,
+        user: reader,
+        depth: 0,
+      })
+      // The whole fixture roster (all four seeded users), whatever the reader's own role.
+      expect(docs.length).toBe(4)
+    }
   })
 })
