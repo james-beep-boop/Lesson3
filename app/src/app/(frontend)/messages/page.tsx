@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 
 import { requireUser } from '@/lib/session'
 import { findReadablePlan } from '@/lib/readBundle'
@@ -75,8 +76,16 @@ export default async function MessagesPage({
 
   // Mark everything just shown as read — AFTER capturing the docs above, so this render still
   // highlights what was new. System write; recipient-scoped by the where.
+  //
+  // Guard: a GET render must not be weaponizable from another origin. `Sec-Fetch-Site: cross-site`
+  // is sent ONLY for navigations a different origin initiated (a link/redirect/script from evil.com),
+  // so skipping the write in that case blocks a malicious page from silently clearing a logged-in
+  // user's unread state (Codex audit 2026-07-03). Genuine in-app clicks (`same-origin`/`same-site`),
+  // typed URLs and bookmarks (`none`), and browsers that omit the header all still mark read — the
+  // "viewing is reading" UX is unchanged for every normal case. No /read endpoint is reintroduced.
+  const secFetchSite = (await headers()).get('sec-fetch-site')
   const hasUnread = received.docs.some((m) => !m.readAt)
-  if (hasUnread) {
+  if (hasUnread && secFetchSite !== 'cross-site') {
     await payload.update({
       collection: 'messages',
       where: { and: [{ recipient: { equals: user.id } }, { readAt: { exists: false } }] },
