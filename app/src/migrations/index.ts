@@ -12,6 +12,7 @@ import * as migration_20260629_213000_add_rate_limit_counters from './20260629_2
 import * as migration_20260702_015014_add_version_author from './20260702_015014_add_version_author';
 import * as migration_20260702_194849_add_favorites from './20260702_194849_add_favorites';
 import * as migration_20260702_230926_add_email_task from './20260702_230926_add_email_task';
+import * as migration_20260703_041716_add_messaging from './20260703_041716_add_messaging';
 
 export const migrations = [
   {
@@ -82,6 +83,11 @@ export const migrations = [
   {
     up: migration_20260702_230926_add_email_task.up,
     down: migration_20260702_230926_add_email_task.down,
-    name: '20260702_230926_add_email_task'
+    name: '20260702_230926_add_email_task',
+  },
+  {
+    up: migration_20260703_041716_add_messaging.up,
+    down: migration_20260703_041716_add_messaging.down,
+    name: '20260703_041716_add_messaging'
   },
 ];
