@@ -35,13 +35,11 @@ afterAll(async () => {
   // Fixture users' rate counters would otherwise orphan (keys are `message:<userId>` etc.).
   const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
     .drizzle
-  const ids = Object.values(fx.users).map((u) => u.id)
-  await db.execute(
-    sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ANY(${ids.flatMap((id) => [
-      `message:${id}`,
-      `messagePingRecipient:${id}`,
-    ])});`,
-  )
+  for (const u of Object.values(fx.users)) {
+    await db.execute(
+      sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" IN (${`message:${u.id}`}, ${`messagePingRecipient:${u.id}`});`,
+    )
+  }
   await fx.teardown()
 })
 
