@@ -39,3 +39,6 @@ Thumbs.db
 
 # Local agent skill mirror — canonical copy is tracked under .claude/skills/
 .agents/
+
+# Per-machine preview/dev launch config (local absolute paths); .claude/settings.json + skills stay tracked.
+.claude/launch.json

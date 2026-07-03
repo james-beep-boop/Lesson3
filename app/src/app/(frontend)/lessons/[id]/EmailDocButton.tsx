@@ -54,7 +54,7 @@ export default function EmailDocButton({
       </button>
       {note && <span className="muted">{note}</span>}
       {error && (
-        <span role="alert" className="muted" style={{ color: '#b00020' }}>
+        <span role="alert" className="inline-error">
           {error}
         </span>
       )}

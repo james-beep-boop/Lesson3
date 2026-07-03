@@ -8,7 +8,15 @@
   --bg-soft: #f6f7f8;
   --accent: #1f5fa8;
   --accent-ink: #fff;
+  --danger: #b00020;
   --radius: 6px;
+}
+
+/* Inline error text (form/action failures). One token, one class — was three copies of a hardcoded
+   red inline style across the lesson-page action components. */
+.inline-error {
+  color: var(--danger);
+  font-size: 0.9rem;
 }
 
 * {
@@ -140,7 +148,7 @@ a {
   cursor: default;
 }
 .msg-compose__error {
-  color: #a33;
+  color: var(--danger);
   font-size: 0.9rem;
 }
 .msg-compose__sent {
@@ -421,7 +429,7 @@ a {
   border-radius: var(--radius);
 }
 .form-error {
-  color: #b00020;
+  color: var(--danger);
   margin: 0;
   font-size: 0.9rem;
 }
@@ -453,8 +461,57 @@ button[type='submit']:disabled {
   justify-content: space-between;
   gap: 1rem;
 }
+.lesson-heading__text {
+  min-width: 0;
+}
 .lesson-heading h1 {
   margin-top: 0;
+}
+/* Muted subject · grade line under the clean lesson title (the shouty stored title stays inside the
+   generated document preview). */
+.lesson-context {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---- Version selector (lesson page): "Version" label + one pill per retained version. Previously
+   unstyled, so the label and pills ran together ("Version1.0.0 · Official1.0.1"). ---- */
+.version-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.9rem;
+}
+.version-label {
+  color: var(--muted);
+  margin-right: 0.1rem;
+}
+.version-pill {
+  /* inline-block (not inline-flex) so the "· Official" separator's whitespace is preserved — a flex
+     pill would collapse it into "1.0.0· Official". */
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.version-pill:hover,
+.version-pill:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.version-pill.is-selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.official-tag {
+  font-weight: 600;
 }
 .export-bar {
   display: flex;
@@ -628,6 +685,39 @@ button[type='submit']:disabled {
   .lesson-heading {
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  /* Action bar: let it breathe when it wraps, and stop "Message a colleague" from being flung to a
+     lonely far-right slot by its desktop `margin-left: auto`. */
+  .export-bar {
+    row-gap: 0.5rem;
+  }
+  .msg-share-link {
+    margin-left: 0;
+  }
+
+  /* Compose actions (Send + status) wrap instead of colliding on a narrow screen. */
+  .msg-compose__actions {
+    flex-wrap: wrap;
+  }
+
+  /* Comfortable tap targets on touch screens — the mouse-sized controls (buttons, version pills,
+     the Resources checkbox, the favorite star) get a ~40px hit area. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+  }
+  .resources-toggle {
+    min-height: 2.5rem;
+  }
+  /* Taller tap target via padding — keeps inline-block so "· Official" spacing survives. */
+  .version-pill {
+    padding: 0.5rem 0.7rem;
+  }
+  .fav-toggle {
+    padding: 0.3rem 0.45rem;
+    font-size: 1.35rem;
   }
 
   /* The generated tables (5 columns) stay legible: keep their natural width and let the

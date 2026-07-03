@@ -18,7 +18,7 @@ export default async function UserGuidePage() {
         <p>
           There are three places: <strong>Lessons</strong> (the library — the one list of every lesson
           plan), the <strong>lesson page</strong> (everything about one lesson: read, versions,
-          download, and — for editing roles — Edit and Make Official), and <strong>Manage</strong>
+          download, and — for editing roles — Edit and Make Official), and <strong>Manage</strong>{' '}
           (housekeeping and people, showing only the functions your role has).
         </p>
       </header>

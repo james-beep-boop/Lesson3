@@ -77,7 +77,7 @@ export default function EditActions({
         </button>
       )}
       {error && (
-        <span role="alert" className="muted" style={{ color: '#b00020' }}>
+        <span role="alert" className="inline-error">
           {error}
         </span>
       )}
