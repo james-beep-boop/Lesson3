@@ -1029,7 +1029,6 @@ export interface CollectionsWidget {
 export interface TaskGenerateVersionArtifact {
   input: {
     versionId: number;
-    format: string;
     kind: string;
   };
   output?: unknown;
@@ -1041,7 +1040,6 @@ export interface TaskGenerateVersionArtifact {
 export interface TaskEmailVersionArtifact {
   input: {
     versionId: number;
-    format: string;
     kind: string;
     to: string;
     requestedByUserId: number;

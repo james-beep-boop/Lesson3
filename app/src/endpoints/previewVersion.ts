@@ -12,7 +12,6 @@
  *   - `POST /api/lesson-bundle-versions/:id/preview` — the editor's CURRENT (possibly UNSAVED)
  *     form state, so an Editor can preview working-copy edits before saving. Values ride in a
  *     `data` field and are OVERLAID onto the stored, access-checked version.
- * Query: `?format=standard|compact` (LessonSequence layout; FE/ST are identical).
  *
  * SECURITY (mirrors previewBundle): GET is READ-gated via `findReadableVersion`. POST is gated
  * HARDER — because it renders caller-supplied content, it requires EDIT authority (`isEditorFor`)
@@ -25,7 +24,6 @@
  */
 import { APIError, Forbidden, type CollectionBeforeChangeHook, type Endpoint, type PayloadRequest } from 'payload'
 
-import { parseLessonSequenceFormat } from './parseFormat'
 import { parsePreviewCandidate, renderPreviewResponse } from './previewShared'
 import { findReadableVersion } from '../lib/readBundle'
 import { enforceUserRateLimit } from '../lib/rateLimit'
@@ -51,9 +49,8 @@ export const previewVersionEndpoint: Endpoint = {
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing version id', 400)
 
-    const format = parseLessonSequenceFormat(req)
     const version = await loadReadable(req, id)
-    return renderPreviewResponse(req, version, format, false)
+    return renderPreviewResponse(req, version, false)
   },
 }
 
@@ -79,7 +76,6 @@ export const previewVersionUnsavedEndpoint: Endpoint = {
     const id = req.routeParams?.id as string | undefined
     if (!id) throw new APIError('Missing version id', 400)
 
-    const format = parseLessonSequenceFormat(req)
     const stored = await loadReadable(req, id)
 
     // 1. Edit-authority gate (not just read): the field-split hook below trusts that update access
@@ -117,6 +113,6 @@ export const previewVersionUnsavedEndpoint: Endpoint = {
       }
       throw e
     }
-    return renderPreviewResponse(req, effective, format, true)
+    return renderPreviewResponse(req, effective, true)
   },
 }

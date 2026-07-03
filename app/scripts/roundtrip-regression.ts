@@ -135,8 +135,11 @@ const run = async () => {
     created.push({ collection: 'lesson-bundle-versions', id: officialVersionId })
     console.log(`Official version → ${officialVersionId}`)
 
-    // 4. Generate from the stored Official version and diff vs the approved DOCX.
-    const out = await generateForVersion(payload, officialVersionId, 'standard')
+    // 4. Generate from the stored Official version and diff vs the approved DOCX. The generator now
+    //    produces the single five-column layout (no Resource column); the diff still passes because
+    //    `compareDoc(..., stripResources=true)` strips the Resource column from the approved
+    //    (six-column) oracle before comparing, so both sides reduce to the same five-column content.
+    const out = await generateForVersion(payload, officialVersionId)
     const results = [
       await compareDoc('LessonSequence (SoW)', out.lessonSequence, approved(APPROVED.lessonSequence), true),
       await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),

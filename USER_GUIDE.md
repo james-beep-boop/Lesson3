@@ -30,8 +30,6 @@ version. Teachers do not use the admin area and do not see editing controls.
   page's "Message a colleague" link attaches that lesson to your note. Unread messages show as a
   count on the Messages link, and you get a short email telling you a message is waiting (never its
   content). Opening Messages marks everything shown as read.
-- **Include ARES Resources:** turn the checkbox on for the layout that includes links to ARES
-  resources.
 
 ## Editors
 

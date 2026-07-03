@@ -17,7 +17,7 @@
 import mammoth from 'mammoth'
 
 import { bundleToAresData } from './adapter'
-import { generateBundleDocx, type GeneratedDocx, type LessonSequenceFormat } from './index'
+import { generateBundleDocx, type GeneratedDocx } from './index'
 import { sanitizePreviewHtml } from '../lib/sanitizeHtml'
 import type { LessonBundleVersion } from '../payload-types'
 
@@ -57,7 +57,6 @@ export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSectio
  */
 export async function renderBundlePreview(
   bundle: LessonBundleVersion,
-  format: LessonSequenceFormat = 'standard',
 ): Promise<PreviewSection[]> {
-  return docxToSections(await generateBundleDocx(bundleToAresData(bundle), format))
+  return docxToSections(await generateBundleDocx(bundleToAresData(bundle)))
 }

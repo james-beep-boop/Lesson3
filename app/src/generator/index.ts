@@ -8,9 +8,8 @@
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { buildSoW, buildFinalExplanation, buildSummaryTable } =
+const { buildFinalExplanation, buildSummaryTable } =
   require('./vendor/lib/build_docs.js') as {
-    buildSoW: (META: unknown, UNIT: unknown, LESSONS: unknown) => Promise<unknown>
     buildFinalExplanation: (META: unknown, FE: unknown) => Promise<unknown>
     buildSummaryTable: (META: unknown, ST: unknown) => Promise<unknown>
   }
@@ -19,17 +18,6 @@ const { buildSoWCompact } =
     buildSoWCompact: (META: unknown, UNIT: unknown, LESSONS: unknown) => Promise<unknown>
   }
 const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Promise<Buffer> } }
-
-/**
- * LessonSequence layout variant, chosen per-export (a presentation choice, never
- * stored on the bundle — SPEC "edit the data, never the document"):
- *  - 'standard' (default): the pristine vendored layout (6-column Section C with
- *    the Resource column; byte-stable fidelity path).
- *  - 'compact': Section C drops the Resource column and re-balances widths
- *    (Phase 1.57", the other four ~1.98"). See buildSowCompact.js.
- * Only the LessonSequence differs; FinalExplanation and SummaryTable are identical.
- */
-export type LessonSequenceFormat = 'standard' | 'compact'
 
 /** The ARES sub-strand data object the generator consumes. */
 export interface AresDataObject {
@@ -49,20 +37,18 @@ export interface GeneratedDocx {
 
 /**
  * Generate the three CBE DOCX from an ARES data object, in-process, as Buffers.
- * The Resource column is intentionally empty (aresResources is not vendored).
  *
- * `format` selects the LessonSequence layout (default 'standard' — the pristine
- * vendored path). 'compact' drops Section C's Resource column and re-balances
- * widths. FinalExplanation and SummaryTable are identical for both.
+ * There is ONE document format (decided 2026-07-03): Section C ("Lesson Implementation
+ * Framework") is the five-column layout with NO separate Resource column — `buildSoWCompact`.
+ * (The vendored six-column `buildSoW`, which carried an always-empty Resource column, is retired
+ * and left byte-pristine but unused in vendor/.) Resource LINKS, when ARES data lands, will render
+ * inline in the phase rows — a later, separate concern. FinalExplanation and SummaryTable are
+ * unchanged.
  */
-export async function generateBundleDocx(
-  data: AresDataObject,
-  format: LessonSequenceFormat = 'standard',
-): Promise<GeneratedDocx> {
+export async function generateBundleDocx(data: AresDataObject): Promise<GeneratedDocx> {
   const { META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE } = data
-  const buildLessonSequence = format === 'compact' ? buildSoWCompact : buildSoW
   return {
-    lessonSequence: await Packer.toBuffer(await buildLessonSequence(META, UNIT, LESSONS)),
+    lessonSequence: await Packer.toBuffer(await buildSoWCompact(META, UNIT, LESSONS)),
     finalExplanation: FINAL_EXPLANATION
       ? await Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION))
       : null,

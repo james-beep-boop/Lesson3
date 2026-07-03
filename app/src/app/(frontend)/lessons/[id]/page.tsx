@@ -9,11 +9,9 @@ import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
 import { generateForVersion } from '@/generator/generateForVersion'
 import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
-import type { LessonSequenceFormat } from '@/generator'
 import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
-import { ResourcesToggle } from './ResourcesToggle'
 import FavoriteToggle from '@/components/FavoriteToggle'
 
 /**
@@ -27,15 +25,11 @@ export default async function LessonView({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ format?: string; version?: string }>
+  searchParams: Promise<{ version?: string }>
 }) {
   const { id } = await params
   const sp = await searchParams
   const { payload, user } = await requireUser()
-
-  // On-screen view defaults to Compact (Standard's Resource column is deferred/blank — see
-  // DECISIONS 2026-06-16); the toggle lets a teacher switch to Standard on demand.
-  const format: LessonSequenceFormat = sp.format === 'standard' ? 'standard' : 'compact'
 
   // Access-gated plan read; not-visible → 404. Real DB/runtime errors propagate.
   const plan = await findReadablePlan(payload, { id, user })
@@ -110,7 +104,7 @@ export default async function LessonView({
   let sections: PreviewSection[] = []
   let viewError: string | null = null
   try {
-    sections = await docxToSections(await generateForVersion(payload, selectedId, format))
+    sections = await docxToSections(await generateForVersion(payload, selectedId))
   } catch (e) {
     payload.logger.error({ err: e, versionId: selectedId, userId: user?.id }, 'lesson render failed')
     viewError = 'Could not render this lesson.'
@@ -138,7 +132,7 @@ export default async function LessonView({
             return (
               <Link
                 key={v.id}
-                href={`/lessons/${plan.id}?version=${v.id}${format === 'standard' ? '&format=standard' : ''}`}
+                href={`/lessons/${plan.id}?version=${v.id}`}
                 className={`version-pill${isSelected ? ' is-selected' : ''}`}
                 aria-current={isSelected ? 'true' : undefined}
               >
@@ -159,9 +153,8 @@ export default async function LessonView({
           />
         )}
         <span className="export-label">Download</span>
-        <DownloadButtons versionId={selectedId} format={format} />
-        <EmailDocButton versionId={selectedId} format={format} />
-        <ResourcesToggle format={format} />
+        <DownloadButtons versionId={selectedId} />
+        <EmailDocButton versionId={selectedId} />
         {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
         <Link className="msg-share-link" href={`/messages?plan=${plan.id}&version=${selectedId}`}>
           Message a colleague

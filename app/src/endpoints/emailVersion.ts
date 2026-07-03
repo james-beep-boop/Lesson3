@@ -2,7 +2,7 @@
  * Email-a-doc endpoint (SPEC §10) — send a version's export zip to any address, server-side.
  *
  *   POST /api/lesson-bundle-versions/:id/email   body: { to: string }
- *   Query: `?format=standard|compact` · `?as=docx|pdf` — the same axes (and parser) as export.
+ *   Query: `?as=docx|pdf` — the same axis (and parser) as export.
  *
  * Same READ gate + spec resolution as export (`authorizeVersionExportRequest`); the send itself is
  * async — the endpoint validates + enqueues `emailVersionArtifact` and returns 202 {queued}. The
@@ -72,7 +72,6 @@ export const emailVersionEndpoint: Endpoint = {
     const user = req.user as User
     const input: EmailVersionArtifactInput = {
       versionId: Number(version.id),
-      format: spec.format,
       kind: spec.kind,
       to,
       // Durable audit trail (Codex audit 2026-07-02): the ID is the stable attribution for this

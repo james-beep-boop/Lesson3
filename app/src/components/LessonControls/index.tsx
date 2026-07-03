@@ -4,13 +4,14 @@
  * LessonControls — the single edit-view control bar for a lesson-plan version (Stage 2 editing model).
  * Replaces the separate PreviewBundle + ExportBundle. One row, left→right:
  *
- *   Edit · Preview · Save · Discard Edits · Download · [☑docx ☐PDF ☐Include ARES Resources]
+ *   Edit · Preview · Save · Discard Edits · Download · [☑docx ☐PDF]
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
  * the Official pointer) and opens it. "Discard Edits" reverts unsaved changes and re-locks.
  * "Preview"/"Download" act on the current form state and share the checkbox row (docx default; both
- * formats allowed → the zip carries both; "Include ARES Resources" drives both preview and export).
+ * kinds allowed → the zip carries both). There is one document layout (single-document-format
+ * collapse, 2026-07-03), so the only download choice is the deliverable kind.
  *
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
@@ -20,7 +21,6 @@ import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@pa
 import { reduceFieldsToValues } from 'payload/shared'
 
 import { downloadExport, type ExportState } from '../exportClient'
-import { formatFromResources } from '../../lib/format'
 import { isSubjectAdminFor, toId } from '../../access'
 import type { User } from '../../payload-types'
 
@@ -41,7 +41,6 @@ export default function LessonControls() {
   )
   const [docx, setDocx] = useState(true)
   const [pdf, setPdf] = useState(false)
-  const [resources, setResources] = useState(false)
   const [saving, setSaving] = useState(false)
   const [exportState, setExportState] = useState<ExportState>('idle')
   const [msg, setMsg] = useState<string | null>(null)
@@ -78,7 +77,6 @@ export default function LessonControls() {
   // No id → unsaved/new document; nothing to act on yet.
   if (!id) return null
 
-  const format = formatFromResources(resources)
   const exporting = exportState === 'preparing' || exportState === 'downloading'
   // "← Back to lesson" (IA redesign PR ④): the editor is entered from a lesson page (or Manage) and
   // exits back to it, viewing THIS version — the loop that replaces the hidden breadcrumb trail.
@@ -139,7 +137,7 @@ export default function LessonControls() {
     // Same-origin hidden-form POST so the endpoint's real HTML (with its CSP) opens in a new tab.
     const form = document.createElement('form')
     form.method = 'POST'
-    form.action = `/api/lesson-bundle-versions/${id}/preview?format=${format}`
+    form.action = `/api/lesson-bundle-versions/${id}/preview`
     form.target = '_blank'
     const input = document.createElement('input')
     input.type = 'hidden'
@@ -160,7 +158,7 @@ export default function LessonControls() {
       return
     }
     for (const kind of kinds) {
-      await downloadExport(`/api/lesson-bundle-versions/${id}/export?format=${format}&as=${kind}`, {
+      await downloadExport(`/api/lesson-bundle-versions/${id}/export?as=${kind}`, {
         onState: (s, m) => {
           setExportState(s)
           if (s === 'error' && m) setMsg(m)
@@ -205,14 +203,6 @@ export default function LessonControls() {
         </label>
         <label className="lesson-controls__chk">
           <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
-        </label>
-        <label className="lesson-controls__chk">
-          <input
-            type="checkbox"
-            checked={resources}
-            onChange={(e) => setResources(e.target.checked)}
-          />{' '}
-          Include ARES Resources
         </label>
         {msg ? (
           <span role="alert" className="lesson-controls__msg">

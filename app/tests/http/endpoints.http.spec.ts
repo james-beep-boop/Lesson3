@@ -60,9 +60,9 @@ async function pollExportReady(statusUrl: string, key: RoleKey, timeoutMs = 150_
   }
 }
 
-/** Full read-gated export handshake for one format/kind → returns the downloaded zip bytes. */
+/** Full read-gated export handshake for one deliverable kind → returns the downloaded zip bytes. */
 async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<Buffer> {
-  const exportUrl = `/api/lesson-bundle-versions/${versionId}/export?format=standard&as=${as}`
+  const exportUrl = `/api/lesson-bundle-versions/${versionId}/export?as=${as}`
 
   // Cold GET (never prepared) is serve-only and must NOT enqueue → 409.
   const cold = await fetch(url(exportUrl), { headers: auth(key) })
@@ -183,7 +183,7 @@ describe('Preview endpoint (SPEC §5)', () => {
 })
 
 describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate', () => {
-  const exportUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/export?format=standard&as=docx`
+  const exportUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/export?as=docx`
 
   it('POST prepare without auth → 401', async () => {
     const res = await fetch(url(exportUrl()), { method: 'POST' })
@@ -206,7 +206,7 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     // only has teeth when NOT ready — so probe a COLD throwaway version: a bogus jobId must 404.
     const cold = await makeColdVersion('cold-status', '8.0.0')
     const res = await fetch(
-      url(`/api/lesson-bundle-versions/${cold.id}/export/status?jobId=999999999&format=standard&as=docx`),
+      url(`/api/lesson-bundle-versions/${cold.id}/export/status?jobId=999999999&as=docx`),
       { headers: auth('teacher') },
     )
     expect(res.status).toBe(404)
@@ -215,11 +215,11 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
 
   it('a repeated cold prepare coalesces onto the same in-flight job (dedupe)', async () => {
     // Cold throwaway version → POST prepare twice back-to-back. The second must coalesce onto the first
-    // job (same {versionId, format, kind}) rather than enqueue a duplicate. autoRun cron is every 3s,
+    // job (same {versionId, kind}) rather than enqueue a duplicate. autoRun cron is every 3s,
     // so both calls land inside the pending window and return the SAME jobId.
     const cold = await makeColdVersion('dedupe', '8.1.0')
     const prepare = () =>
-      fetch(url(`/api/lesson-bundle-versions/${cold.id}/export?format=standard&as=docx`), {
+      fetch(url(`/api/lesson-bundle-versions/${cold.id}/export?as=docx`), {
         method: 'POST',
         headers: auth('teacher'),
       }).then((r) => r.json() as Promise<{ state: string; jobId?: string | number }>)
@@ -681,7 +681,7 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
   // Read the daily budget the way the limiter does, so the exhaustion test tracks env overrides.
   const EMAIL_MAX = Number(process.env.RATE_LIMIT_EMAIL_MAX) || 10
   const emailUrl = (versionId: number | string) =>
-    `/api/lesson-bundle-versions/${versionId}/email?format=standard&as=docx`
+    `/api/lesson-bundle-versions/${versionId}/email?as=docx`
   const post = (versionId: number | string, key: RoleKey | undefined, body: unknown) =>
     fetch(url(emailUrl(versionId)), {
       method: 'POST',

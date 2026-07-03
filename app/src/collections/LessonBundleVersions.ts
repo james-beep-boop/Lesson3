@@ -78,7 +78,7 @@ export const LessonBundleVersions: CollectionConfig = {
     exportVersionPrepareEndpoint,
     // GET /:id/export/status?jobId=… — poll an enqueued export job.
     exportVersionStatusEndpoint,
-    // GET /:id/preview?format=… — READ-gated HTML content view of the stored version (SPEC §5).
+    // GET /:id/preview — READ-gated HTML content view of the stored version (SPEC §5).
     previewVersionEndpoint,
     // POST /:id/preview — same gate; renders the editor's current UNSAVED working-copy state (SPEC §5).
     previewVersionUnsavedEndpoint,

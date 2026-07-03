@@ -10,7 +10,7 @@
 import { APIError, type PayloadRequest } from 'payload'
 
 import { versionScope, type ArtifactSpec } from '../generator/exportArtifacts'
-import { parseLessonSequenceFormat, parseExportKind } from './parseFormat'
+import { parseExportKind } from './parseFormat'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
 
@@ -26,11 +26,10 @@ export async function authorizeVersionExportRequest(
   const id = req.routeParams?.id as string | undefined
   if (!id) throw new APIError('Missing version id', 400)
 
-  const format = parseLessonSequenceFormat(req)
   const kind = parseExportKind(req)
 
   const version = await findReadableVersion(req.payload, { id, user: req.user as User, req })
   if (!version) throw new APIError('Version not found', 404)
 
-  return { version, spec: { scope: versionScope(version.id), format, kind } }
+  return { version, spec: { scope: versionScope(version.id), kind } }
 }

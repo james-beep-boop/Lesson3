@@ -63,7 +63,7 @@ const run = async () => {
   }
 
   // 1. SAVED render — what GET /preview returns.
-  const sections = await renderBundlePreview(version, 'standard')
+  const sections = await renderBundlePreview(version)
   check('saved version renders a non-empty content preview', sections.length > 0 && sections.every((s) => s.html.length > 0))
 
   // 2. UNSAVED render as an Editor — prose applied, structure/admin reverted (field-split whitelist).

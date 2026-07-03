@@ -5,7 +5,7 @@
  *
  * MODEL: a bundle export is up to three deliverables (LessonSequence always; FinalExplanation
  * + SummaryTable for some sub-strands). Generation is content-stable, so each deliverable's
- * bytes are cached by (bundle, lockVersion, format, kind, doc). A small MANIFEST entry —
+ * bytes are cached by (scope, kind, doc). A small MANIFEST entry —
  * written LAST, after every deliverable — records which docs exist and their filenames; its
  * presence is the "this export is fully ready" sentinel the warm path and status poll check.
  *
@@ -16,7 +16,7 @@
 import { createRequire } from 'node:module'
 
 import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
-import type { GeneratedDocx, LessonSequenceFormat } from './index'
+import type { GeneratedDocx } from './index'
 
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip') as new () => {
@@ -30,7 +30,6 @@ export type ExportKind = 'docx' | 'pdf'
 export interface ArtifactSpec {
   /** Opaque, content-stable identity: `version:<id>` (an immutable snapshot — never changes). */
   scope: string
-  format: LessonSequenceFormat
   kind: ExportKind
 }
 
@@ -57,7 +56,7 @@ export const safePrefix = (raw: unknown): string =>
   (typeof raw === 'string' ? raw : '').replace(/[^A-Za-z0-9._-]/g, '_') || 'bundle'
 
 const keyFor = (spec: ArtifactSpec, doc: string): string =>
-  artifactKey({ scope: spec.scope, format: spec.format, kind: spec.kind, doc })
+  artifactKey({ scope: spec.scope, kind: spec.kind, doc })
 
 /** Build the ordered deliverable list (tag + filename stem) from a filePrefix. */
 function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
