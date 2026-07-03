@@ -3,22 +3,15 @@
 /**
  * Email-a-doc control (SPEC §10). Prompts for a recipient and POSTs to
  * `/api/lesson-bundle-versions/:id/email` — the server generates (or reuses) the export zip and
- * mails it from a Jobs Queue task. Sends the DOCX zip (the faithful primary deliverable); the
- * Resource-column layout follows the page's "Include ARES Resources" checkbox via `format`, same
- * as the download buttons. A 202 means QUEUED — delivery is asynchronous.
+ * mails it from a Jobs Queue task. Sends the DOCX zip (the faithful primary deliverable). A 202
+ * means QUEUED — delivery is asynchronous.
  *
  * window.prompt matches the house style for one-value asks (cf. EditActions' window.confirm);
  * state-changing → JS-driven POST (CSRF-guarded by the SameSite=Lax cookie).
  */
 import React, { useState } from 'react'
 
-export default function EmailDocButton({
-  versionId,
-  format,
-}: {
-  versionId: number
-  format: 'standard' | 'compact'
-}) {
+export default function EmailDocButton({ versionId }: { versionId: number }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +23,7 @@ export default function EmailDocButton({
     setNote(null)
     setError(null)
     try {
-      const res = await fetch(`/api/lesson-bundle-versions/${versionId}/email?format=${format}&as=docx`, {
+      const res = await fetch(`/api/lesson-bundle-versions/${versionId}/email?as=docx`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },

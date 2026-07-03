@@ -68,7 +68,7 @@ jobs:
 
       - name: contract probe (ingest contract-drift gate, DB-free)
         # Guards the product's highest-risk domain rule (contract drift is a HARD ingest gate). DB-free
-        # and asset-free. The fidelity probes (ingest-extract/format2/adapter-fidelity) need the
+        # and asset-free. The fidelity probes (ingest-extract/adapter-fidelity) need the
         # stakeholder oracle DOCX (ARES_DEMO_PATH) which isn't in the repo — staging those in CI is a
         # tracked follow-up (pairs with the PDF-fidelity-gate item).
         run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npx tsx scripts/contract-check.ts

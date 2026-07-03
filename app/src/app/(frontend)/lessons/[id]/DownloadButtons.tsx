@@ -10,20 +10,14 @@ import React, { useState } from 'react'
 
 import { downloadExport, type ExportState } from '@/components/exportClient'
 
-// Only the genuine choice — DOCX vs PDF. Whether the Resource column is included follows the
-// page's "Include ARES Resources" checkbox (the `format` prop), not a per-button choice.
+// The only export choice — DOCX vs PDF. There is one document layout (single-document-format
+// collapse, 2026-07-03), so the button set is just the deliverable kind.
 const OPTIONS = [
   { as: 'docx', label: 'DOCX' },
   { as: 'pdf', label: 'PDF' },
 ] as const
 
-export default function DownloadButtons({
-  versionId,
-  format,
-}: {
-  versionId: number
-  format: 'standard' | 'compact'
-}) {
+export default function DownloadButtons({ versionId }: { versionId: number }) {
   const [states, setStates] = useState<Record<string, ExportState>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -55,7 +49,7 @@ export default function DownloadButtons({
             disabled={busy}
             aria-busy={busy}
             onClick={() =>
-              start(key, `/api/lesson-bundle-versions/${versionId}/export?format=${format}&as=${as}`)
+              start(key, `/api/lesson-bundle-versions/${versionId}/export?as=${as}`)
             }
           >
             {text} (.zip)

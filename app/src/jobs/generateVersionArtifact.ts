@@ -26,7 +26,6 @@ import type { LessonBundleVersion } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
   versionId: number
-  format: 'standard' | 'compact'
   kind: 'docx' | 'pdf'
 }
 
@@ -40,16 +39,15 @@ export const generateVersionArtifactTask: TaskConfig<{
   retries: 0,
   inputSchema: [
     { name: 'versionId', type: 'number', required: true },
-    { name: 'format', type: 'text', required: true },
     { name: 'kind', type: 'text', required: true },
   ],
   handler: async ({ input, req }) => {
-    const { versionId, format, kind } = input
+    const { versionId, kind } = input
     try {
-      const spec: ArtifactSpec = { scope: versionScope(versionId), format, kind }
+      const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
       // Generation and the prefix read are independent — run them concurrently.
       const [generated, version] = await Promise.all([
-        generateForVersion(req.payload, versionId, format),
+        generateForVersion(req.payload, versionId),
         req.payload.findByID({
           collection: 'lesson-bundle-versions',
           id: versionId,
@@ -63,7 +61,7 @@ export const generateVersionArtifactTask: TaskConfig<{
       // Surface the failure in the structured log WITH context. The payload-jobs row records the
       // failure too, but without these fields (and isn't in the log stream). Rethrow so the job is
       // still marked failed — `retries: 0`, so a failed export stays failed for the status poll.
-      req.payload.logger.error({ err, versionId, format, kind }, 'generateVersionArtifact failed')
+      req.payload.logger.error({ err, versionId, kind }, 'generateVersionArtifact failed')
       throw err
     }
   },

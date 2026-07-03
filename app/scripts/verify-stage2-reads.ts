@@ -80,7 +80,7 @@ const run = async () => {
       console.warn(`  ⚠ plan ${plan.id} Official version ${officialId} not readable`)
       continue
     }
-    const out = await generateForVersion(payload, officialId, 'compact')
+    const out = await generateForVersion(payload, officialId)
     if (out.lessonSequence?.length) detailOk++
     else console.warn(`  ⚠ plan ${plan.id} generated an empty LessonSequence`)
   }

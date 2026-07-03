@@ -8,7 +8,6 @@
 import { APIError, type PayloadRequest } from 'payload'
 
 import { renderBundlePreview, type PreviewSection } from '../generator/previewBundle'
-import type { parseLessonSequenceFormat } from './parseFormat'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import type { LessonBundleVersion } from '../payload-types'
 
@@ -25,7 +24,6 @@ const escapeHtml = (s: string): string =>
 /** Wrap the rendered sections in a minimal, self-contained, script-free HTML page. */
 function previewPage(
   title: string,
-  format: string,
   sections: PreviewSection[],
   unsaved: boolean,
 ): string {
@@ -51,7 +49,7 @@ function previewPage(
   td, th { border: 1px solid #ccc; padding: 0.4rem 0.55rem; vertical-align: top; text-align: left; }
 </style></head>
 <body>
-  <p class="page-head">Content preview · ${escapeHtml(format)} · ${escapeHtml(provenance)} · not the final document layout</p>
+  <p class="page-head">Content preview · ${escapeHtml(provenance)} · not the final document layout</p>
   <h1>${escapeHtml(title)}</h1>
   ${body}
 </body></html>`
@@ -78,7 +76,6 @@ export const PREVIEW_HEADERS = {
 export async function renderPreviewResponse(
   req: PayloadRequest,
   bundle: LessonBundleVersion,
-  format: ReturnType<typeof parseLessonSequenceFormat>,
   unsaved: boolean,
 ): Promise<Response> {
   const problems = validateGeneratable(bundle)
@@ -89,7 +86,7 @@ export async function renderPreviewResponse(
 
   let sections: PreviewSection[]
   try {
-    sections = await renderBundlePreview(bundle, format)
+    sections = await renderBundlePreview(bundle)
   } catch (err) {
     // Completeness already passed, so a throw here is a real generator/converter failure,
     // not an incomplete draft — log it and surface a 500 instead of masking it as "not ready".
@@ -97,6 +94,6 @@ export async function renderPreviewResponse(
     throw new APIError('Could not render this preview.', 500)
   }
 
-  const html = previewPage(bundle.title ?? 'Lesson plan', format, sections, unsaved)
+  const html = previewPage(bundle.title ?? 'Lesson plan', sections, unsaved)
   return new Response(html, { status: 200, headers: PREVIEW_HEADERS })
 }

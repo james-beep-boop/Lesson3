@@ -8,7 +8,7 @@
  *   - `GET  /api/lesson-bundle-versions/:id/export`  — serve-only (idempotent; warm → zip, cold → 409).
  *   - `POST /api/lesson-bundle-versions/:id/export`  — prepare: warm → 200 {ready}; cold → enqueue + 202.
  *   - `GET  /api/lesson-bundle-versions/:id/export/status?jobId=…` — poll an enqueued job.
- * Query (export): `?format=standard|compact` (default `standard`) · `?as=docx|pdf` (default `docx`).
+ * Query (export): `?as=docx|pdf` (default `docx`).
  *
  * No published gate and no lockVersion drift: a version is immutable, so its cache scope never
  * changes — the bundle path's "bundle changed during export" race cannot occur here.
@@ -61,8 +61,8 @@ async function findPendingExportJob(
     overrideAccess: true,
   })
   const match = docs.find((j) => {
-    const i = j.input as { format?: string; kind?: string } | undefined
-    return jobMatchesVersion(j, input.versionId) && i?.format === input.format && i?.kind === input.kind
+    const i = j.input as { kind?: string } | undefined
+    return jobMatchesVersion(j, input.versionId) && i?.kind === input.kind
   })
   return match ?? null
 }
@@ -75,7 +75,7 @@ export const exportVersionEndpoint: Endpoint = {
     if (!req.user) throw new APIError('Unauthorized', 401)
 
     const { version, spec } = await authorizeVersionExportRequest(req)
-    const { format, kind } = spec
+    const { kind } = spec
 
     const cached = await loadCachedExportZip(spec)
     if (!cached) {
@@ -87,7 +87,7 @@ export const exportVersionEndpoint: Endpoint = {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${prefix}_${format}_${kind}.zip"`,
+        'Content-Disposition': `attachment; filename="${prefix}_${kind}.zip"`,
         'Content-Length': String(cached.length),
       },
     })
@@ -105,21 +105,21 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     if (limited) return limited
 
     const { version, spec } = await authorizeVersionExportRequest(req)
-    const { format, kind } = spec
+    const { kind } = spec
 
     if (await isExportReady(spec)) {
       return json({ state: 'ready' })
     }
 
-    const input: GenerateVersionArtifactInput = { versionId: Number(version.id), format, kind }
+    const input: GenerateVersionArtifactInput = { versionId: Number(version.id), kind }
 
-    // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, format, kind} rather than
+    // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, kind} rather than
     // enqueuing a duplicate (repeated clicks / poll races / two tabs). The artifact cache already makes
     // COMPLETED repeats free (the isExportReady short-circuit above); this guards the in-flight window.
     const existing = await findPendingExportJob(req, input)
     const job = existing ?? (await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req }))
 
-    const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&format=${format}&as=${kind}`
+    const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&as=${kind}`
     return json({ state: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }, 202)
   },
 }

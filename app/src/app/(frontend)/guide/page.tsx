@@ -70,10 +70,6 @@ export default async function UserGuidePage() {
             short email telling you a message is waiting (never its content). Opening Messages marks
             everything shown as read.
           </li>
-          <li>
-            <strong>Include ARES Resources:</strong> turn the checkbox on for the layout that includes
-            links to ARES resources.
-          </li>
         </ul>
       </section>
 

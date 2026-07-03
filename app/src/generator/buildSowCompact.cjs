@@ -1,9 +1,10 @@
 /**
- * buildSowCompact.js — Format 2 LessonSequence (SoW) builder (Lesson3-owned)
+ * buildSowCompact.js — the LessonSequence (SoW) builder (Lesson3-owned)
  * ==========================================================================
- * A second LessonSequence DOCX format, selected per-export (see index.ts).
+ * The single LessonSequence DOCX layout (see index.ts — the standard/compact
+ * two-format system was collapsed to this one on 2026-07-03).
  *
- * It differs from the vendored `buildSoW` in exactly ONE way: Section C
+ * It differs from the retired vendored `buildSoW` in exactly ONE way: Section C
  * ("C. Lesson Implementation Framework") drops the **Resource** column and
  * re-balances the remaining five columns:
  *

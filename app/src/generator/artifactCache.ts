@@ -1,7 +1,7 @@
 /**
  * Artifact cache (SPEC §9) — a bounded on-disk cache of generated DOCX/PDF bytes.
  *
- * WHY: generation is *content-stable* — a given (bundle, version, document, format, kind)
+ * WHY: generation is *content-stable* — a given (bundle, version, document, kind)
  * always produces identical bytes (the same rule that lets §9 reference an artifact by a
  * stable, version-pinned URL). So once generated, the bytes can be served again for free,
  * skipping both the generator and the Gotenberg conversion. This defuses most of the
@@ -39,11 +39,10 @@ const MAX_BYTES = Number(process.env.ARTIFACT_CACHE_MAX_BYTES) || 512 * 1024 * 1
  */
 export function artifactKey(parts: {
   scope: string
-  format: string
   kind: 'docx' | 'pdf'
   doc: string
 }): string {
-  return [parts.scope, parts.format, parts.kind, parts.doc].join('::')
+  return [parts.scope, parts.kind, parts.doc].join('::')
 }
 
 /** Map a key to its on-disk path (sha256 → hex filename; never path-derived from user input). */

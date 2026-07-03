@@ -52,8 +52,8 @@ const run = async () => {
 
   let allOk = true
   for (const kind of ['docx', 'pdf'] as ExportKind[]) {
-    const spec: ArtifactSpec = { scope: versionScope(officialId), format: 'compact', kind }
-    const generated = await generateForVersion(payload, officialId, 'compact')
+    const spec: ArtifactSpec = { scope: versionScope(officialId), kind }
+    const generated = await generateForVersion(payload, officialId)
     const docs = await produceArtifacts(spec, generated, prefix, docxToPdf)
     const ready = await isExportReady(spec)
     const zip = await loadCachedExportZip(spec)

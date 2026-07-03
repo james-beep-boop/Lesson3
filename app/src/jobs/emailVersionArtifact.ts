@@ -27,7 +27,6 @@ import type { LessonBundleVersion } from '../payload-types'
 
 export interface EmailVersionArtifactInput {
   versionId: number
-  format: 'standard' | 'compact'
   kind: 'docx' | 'pdf'
   /** Validated recipient address (parseRecipientEmail ran at enqueue). */
   to: string
@@ -48,16 +47,15 @@ export const emailVersionArtifactTask: TaskConfig<{
   retries: 0,
   inputSchema: [
     { name: 'versionId', type: 'number', required: true },
-    { name: 'format', type: 'text', required: true },
     { name: 'kind', type: 'text', required: true },
     { name: 'to', type: 'text', required: true },
     { name: 'requestedByUserId', type: 'number', required: true },
     { name: 'requestedByName', type: 'text', required: true },
   ],
   handler: async ({ input, req }) => {
-    const { versionId, format, kind, to, requestedByUserId, requestedByName } = input
+    const { versionId, kind, to, requestedByUserId, requestedByName } = input
     try {
-      const spec: ArtifactSpec = { scope: versionScope(versionId), format, kind }
+      const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
 
       // `version` (needed for the email body/filename regardless of cache state) and a first cache
       // read are independent — run them concurrently, same as generateVersionArtifact's Promise.all
@@ -78,25 +76,24 @@ export const emailVersionArtifactTask: TaskConfig<{
       // fault, not a race.
       let zip = cached
       if (!zip) {
-        await produceArtifacts(spec, await generateForVersion(req.payload, versionId, format), prefix, docxToPdf)
+        await produceArtifacts(spec, await generateForVersion(req.payload, versionId), prefix, docxToPdf)
         zip = await loadCachedExportZip(spec)
       }
       if (!zip) throw new Error('export artifacts missing after generation')
 
-      const filename = `${prefix}_${format}_${kind}.zip`
+      const filename = `${prefix}_${kind}.zip`
       const title = version.title ?? 'Lesson plan'
       await req.payload.sendEmail({
         to,
         subject: `Lesson plan: ${title}`,
         text:
           `${requestedByName} sent you a lesson plan from the ARES Lesson Library.\n\n` +
-          `${title}\nVersion ${version.semver ?? ''} (${kind.toUpperCase()}, ` +
-          `${format === 'standard' ? 'with' : 'without'} ARES Resources)\n\n` +
+          `${title}\nVersion ${version.semver ?? ''} (${kind.toUpperCase()})\n\n` +
           `The generated documents are attached as ${filename}.`,
         attachments: [{ filename, content: zip }],
       })
       req.payload.logger.info(
-        { versionId, to, kind, format, requestedByUserId },
+        { versionId, to, kind, requestedByUserId },
         'emailVersionArtifact sent',
       )
       return { output: {} }
@@ -104,7 +101,7 @@ export const emailVersionArtifactTask: TaskConfig<{
       // Same posture as generateVersionArtifact: structured log WITH context, rethrow so the job is
       // marked failed (visible on the payload-jobs row; retries: 0 keeps a failed send failed).
       req.payload.logger.error(
-        { err, versionId, to, kind, format, requestedByUserId },
+        { err, versionId, to, kind, requestedByUserId },
         'emailVersionArtifact failed',
       )
       throw err

@@ -14,13 +14,12 @@
 import type { Payload } from 'payload'
 
 import { bundleToAresData } from './adapter'
-import { generateBundleDocx, type GeneratedDocx, type LessonSequenceFormat } from './index'
+import { generateBundleDocx, type GeneratedDocx } from './index'
 import type { LessonBundleVersion } from '../payload-types'
 
 export async function generateForVersion(
   payload: Payload,
   id: number | string,
-  format: LessonSequenceFormat = 'standard',
 ): Promise<GeneratedDocx> {
   const version = (await payload.findByID({
     collection: 'lesson-bundle-versions',
@@ -29,5 +28,5 @@ export async function generateForVersion(
     overrideAccess: true,
   })) as LessonBundleVersion
 
-  return generateBundleDocx(bundleToAresData(version), format)
+  return generateBundleDocx(bundleToAresData(version))
 }
