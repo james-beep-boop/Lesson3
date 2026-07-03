@@ -73,6 +73,7 @@ export interface Config {
     'subject-grades': SubjectGrade;
     users: User;
     favorites: Favorite;
+    messages: Message;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -87,6 +88,7 @@ export interface Config {
     'subject-grades': SubjectGradesSelect<false> | SubjectGradesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
+    messages: MessagesSelect<false> | MessagesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -108,6 +110,7 @@ export interface Config {
     tasks: {
       generateVersionArtifact: TaskGenerateVersionArtifact;
       emailVersionArtifact: TaskEmailVersionArtifact;
+      messagePing: TaskMessagePing;
       inline: {
         input: unknown;
         output: unknown;
@@ -507,6 +510,21 @@ export interface Favorite {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "messages".
+ */
+export interface Message {
+  id: number;
+  sender: number | User;
+  recipient: number | User;
+  body: string;
+  lessonPlan?: (number | null) | LessonPlan;
+  version?: (number | null) | LessonBundleVersion;
+  readAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -574,7 +592,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact';
+        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing';
         taskID: string;
         input?:
           | {
@@ -607,7 +625,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact') | null;
+  taskSlug?: ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -644,6 +662,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'favorites';
         value: number | Favorite;
+      } | null)
+    | ({
+        relationTo: 'messages';
+        value: number | Message;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -907,6 +929,20 @@ export interface FavoritesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "messages_select".
+ */
+export interface MessagesSelect<T extends boolean = true> {
+  sender?: T;
+  recipient?: T;
+  body?: T;
+  lessonPlan?: T;
+  version?: T;
+  readAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -1010,6 +1046,18 @@ export interface TaskEmailVersionArtifact {
     to: string;
     requestedByUserId: number;
     requestedByName: string;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskMessagePing".
+ */
+export interface TaskMessagePing {
+  input: {
+    messageId: number;
+    recipientUserId: number;
+    senderUserId: number;
   };
   output?: unknown;
 }

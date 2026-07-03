@@ -287,6 +287,23 @@ body {
     }
   }
 
+  .app-nav__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin-left: 0.35rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--theme-success-500);
+    color: var(--theme-base-0);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: text-top;
+  }
+
   .user-menu {
     position: relative;
     display: inline-flex;

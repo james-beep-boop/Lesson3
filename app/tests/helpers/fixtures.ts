@@ -127,12 +127,16 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
     overrideAccess: true,
   })
 
+  // RFC 2606-reserved domain: fixture users can now RECEIVE system email (the §10 message ping
+  // goes to the recipient's account address), so on a live stack with SMTP the sends must go to
+  // example.com's blackhole — same idiom as the email-a-doc http tests — not to a fake TLD that
+  // would fail at the relay and leave failed job rows behind.
   const mkUser = (key: RoleKey, data: Partial<User>) =>
     payload.create({
       collection: 'users',
       data: {
         name: `${MARK}${key}`,
-        email: `${MARK.toLowerCase()}${key.toLowerCase()}@test.local`,
+        email: `${MARK.toLowerCase()}${key.toLowerCase()}@example.com`,
         password,
         ...data,
       } as never,

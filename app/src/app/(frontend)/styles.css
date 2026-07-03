@@ -64,6 +64,136 @@ a {
 .app-nav__link:hover {
   text-decoration: underline;
 }
+.app-nav__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: text-top;
+}
+
+/* ---- Messages (SPEC §10) ---- */
+.messages {
+  max-width: 46rem;
+}
+.msg-compose {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0 2rem;
+}
+.msg-compose h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+.msg-compose__about {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.msg-compose__field {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.msg-compose__field select,
+.msg-compose__field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.msg-compose__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.msg-compose__send {
+  padding: 0.45rem 1.1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.msg-compose__send:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.msg-compose__error {
+  color: #a33;
+  font-size: 0.9rem;
+}
+.msg-compose__sent {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.msg-section h2 {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.msg-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.msg {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+}
+.msg--unread {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-soft);
+}
+.msg-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.msg-new-tag {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.msg-body {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.msg-link {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+.msg-share-link {
+  font-size: 0.9rem;
+  margin-left: auto;
+}
 .user-menu {
   position: relative;
   display: inline-flex;
