@@ -756,9 +756,11 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
     })
   let messageId: number
 
-  it('without auth → 401', async () => {
+  it('without auth → 403 (Payload default REST maps a denied create to Forbidden)', async () => {
+    // Unlike the custom endpoints (which throw an explicit 401), collection REST runs the access
+    // function and answers any denial — unauthenticated included — with 403. Either way: no row.
     const res = await post(undefined, { recipient: fx.users.editor.id, body: 'hi' })
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(403)
   })
 
   it('missing recipient/body → 400', async () => {
