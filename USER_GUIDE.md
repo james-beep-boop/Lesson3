@@ -1,38 +1,53 @@
 # ARES Lesson Library — User Guide
 
-The Lesson Plan Repository stores ARES lesson plans as structured lesson data. Users browse, edit,
-preview, and export that data in the app; the system generates the Word and PDF documents.
+The Lesson Plan Repository stores ARES lesson plans as structured lesson data. You browse, edit,
+preview, and export that data in the app; the system generates the Word and PDF documents for you.
 
-This file mirrors the in-app guide at `/guide`.
+There are three places: **Lessons** (the library — the one list of every lesson plan), the **lesson
+page** (everything about one lesson: read, versions, download, and — for editing roles — Edit and
+Make Official), and **Manage** (housekeeping and people, showing only the functions your role has).
+
+This file mirrors the in-app guide at `/guide`; keep the two in step when either changes.
 
 ## Teachers
 
-Teachers use the Lesson Plans area to find published lesson plans, read them on screen, and download
-the generated documents. Teachers do not use the admin area and do not see editing controls.
+Teachers use the Lessons area to find lesson plans, read them on screen, and download the generated
+documents. Each lesson plan opens at its Official version, with a selector for any other retained
+version. Teachers do not use the admin area and do not see editing controls.
 
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
 - **Search:** use the search box to find a subject, grade, strand, or sub-strand.
+- **Favorites:** click the star on a lesson to pin it to a My favorites list at the top of the home
+  page. Favorites are personal — only you see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Download:** choose DOCX or PDF. Each download contains the generated lesson documents for that
   sub-strand.
+- **Email:** use the Email button to send the generated documents (as a .zip of Word files) to any
+  email address — your own, or a colleague's. Sends are limited per day.
+- **Messages:** use Messages in the top bar to send a note to any user of the repository — a lesson
+  page's "Message a colleague" link attaches that lesson to your note. Unread messages show as a
+  count on the Messages link, and you get a short email telling you a message is waiting (never its
+  content). Opening Messages marks everything shown as read.
 - **Include ARES Resources:** turn the checkbox on for the layout that includes links to ARES
   resources.
 
 ## Editors
 
-Editors can do everything Teachers can do. They also use **Manage** to edit prose fields for the
-subject-grades assigned to them. Their edits create draft changes and version history inside the
-repository; they never edit a Word file directly.
+Editors can do everything Teachers can do, and their role is to edit the prose fields for the
+subject-grades assigned to them — lesson titles, SLO text, overviews, learner experiences, teacher
+moves, sensemaking strategies, formative assessments, teacher reflections, summary-table text, and
+Final Explanation prompts. They never edit a Word file directly.
 
-- **Open Manage:** use the header link to enter the admin area, then open Lesson Bundles.
-- **Edit lesson prose:** update lesson titles, SLO text, overviews, learner experiences, teacher
-  moves, sensemaking strategies, formative assessments, teacher reflections, summary-table prompts,
-  summary-table lesson text, Final Explanation instructions, and Final Explanation section prompts.
-- **Preview drafts:** use Preview before publishing to see the generated content from the current
-  working copy, including unsaved field edits.
-- **Save versions:** every save is tracked as a version of the whole sub-strand bundle.
+- **Edit from the lesson:** open a lesson in the library and press *Edit*. The editing page opens
+  ready to type, showing only the fields you may change; *← Back to lesson* returns you when you are
+  done.
+- **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
+  version you opened is never changed in place. A Subject or Site Administrator marks a saved version
+  Official when it is ready.
+- **Your drafts live in Manage:** *Manage → My saved versions* lists the versions you have saved —
+  click one to continue editing, or delete the ones you no longer need.
 
 ## Subject Administrators
 
@@ -42,20 +57,26 @@ manage the structure and official content controls for those subject-grades.
 - **Manage structure:** add, remove, and reorder lessons and instructional phases.
 - **Edit controlled fields:** update metadata, sub-strand settings, lesson duration, ARES keywords,
   phase choices, assessment exemplars, and rubric rows.
-- **Control official versions:** mark the approved version that Teachers should use.
-- **Manage scoped roles:** assign Editors for the subject-grades they administer.
+- **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —
+  optionally deleting the version it replaces.
+- **Tidy candidates:** *Manage → Candidate versions* lists every saved, non-Official version in their
+  subject-grades, with delete.
+- **Appoint Editors:** *Manage → Editors* promotes a Teacher to Editor (or removes one) per
+  subject-grade.
 
 ## Site Administrators
 
 Site Administrators have full access across the repository. They manage users, curriculum taxonomy,
-ingestion, and all lesson bundles.
+lesson-plan upload/import, and all lesson plans.
 
+- **Everything lives on Manage:** upload lesson plans (each upload creates a lesson plan and its first
+  Official version), repair plans that have no Official version, delete lesson plans (with all their
+  versions), and reach the People and Curriculum lists.
 - **Manage people:** create users, grant Site Administrator access, and assign Editor or Subject
   Administrator roles by subject-grade.
-- **Manage curriculum:** maintain Subjects and Subject Grades before lesson bundles are ingested.
-- **Ingest lesson plans:** upload ARES JSON lesson bundles through the admin upload action.
-- **Review everything:** inspect, edit, publish, export, or delete lesson bundles across all subjects
-  and grades.
+- **Manage curriculum:** maintain Subjects and Subject Grades before lesson plans are uploaded.
+- **Review everything:** inspect, edit, export, mark Official, or delete lesson plans across all
+  subjects and grades.
 
 ## Writing in Fields
 
@@ -72,7 +93,8 @@ export.
 
 - A **subject-grade** is the unit roles attach to, for example Biology Grade 10. Biology Grade 10 and
   Biology Grade 11 are separate scopes.
-- Teachers can read and export published lesson plans.
-- Editors and Subject Administrators can see drafts for the subject-grades assigned to them.
-- Site Administrators can see and manage everything.
+- Every lesson plan has one **Official** version at a time; Teachers see the Official version by
+  default and can still open any other retained version from the selector.
+- Editors and Subject Administrators act only within the subject-grades assigned to them; Site
+  Administrators can see and manage everything.
 - Email addresses are visible only to the account owner and Site Administrators.

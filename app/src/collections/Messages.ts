@@ -99,7 +99,17 @@ const notifyRecipient: CollectionAfterChangeHook = async ({ doc, operation, req 
     // payload-jobs row and in the task's logs, even though the email itself names nobody.
     senderUserId: senderId ?? 0,
   }
-  await req.payload.jobs.queue({ task: MESSAGE_PING_SLUG, input, req })
+  // Best-effort by contract: the reliable delivery path is the in-app message row, so a failure to
+  // ENQUEUE the ping must never fail the create. This afterChange runs on the create's transaction,
+  // so an unguarded throw here would roll the message back (Codex audit 2026-07-03). Swallow + log.
+  try {
+    await req.payload.jobs.queue({ task: MESSAGE_PING_SLUG, input, req })
+  } catch (err) {
+    req.payload.logger.error(
+      { err, messageId: doc.id, recipientUserId: recipientId, senderUserId: senderId },
+      'messagePing enqueue failed (message delivered; ping skipped)',
+    )
+  }
 }
 
 /** beforeDelete on `users`: a user's messages (sent AND received) go with them — required rels

@@ -42,10 +42,18 @@ export const emailVersionEndpoint: Endpoint = {
     const to = parseRecipientEmail(body?.to)
     if (!to) throw new APIError('A valid recipient email address ("to") is required.', 400)
 
+    // Authorize (READ gate + spec) BEFORE spending the SHARED caps. The per-user cap above is the
+    // deliberate anti-probe deterrent (a probe costs the prober their own budget), but the pooled
+    // caps must not be — otherwise an authenticated user could POST a valid `to` against a version
+    // they can't read and burn another recipient's daily quota, or the site-wide ceiling, without
+    // any mail ever being queued (Codex audit 2026-07-03).
+    const { version, spec } = await authorizeVersionExportRequest(req)
+
     // Abuse controls above the per-user cap (Codex audit 2026-07-02): one address may only receive
     // so much from us per day (shared across senders), and the site has a global daily ceiling —
     // many accounts (or a compromised account farm) can't turn us into a mail cannon. Keyed by the
-    // lowercased recipient so case games don't mint fresh budgets.
+    // lowercased recipient so case games don't mint fresh budgets. Spent only once the request is
+    // authorized, so they can't be exhausted by unauthorized probes.
     const recipientLimited = await enforceSharedRateLimit(
       req,
       'emailRecipient',
@@ -60,8 +68,6 @@ export const emailVersionEndpoint: Endpoint = {
       'The site-wide daily email limit has been reached — please try again tomorrow.',
     )
     if (globalLimited) return globalLimited
-
-    const { version, spec } = await authorizeVersionExportRequest(req)
 
     const user = req.user as User
     const input: EmailVersionArtifactInput = {
