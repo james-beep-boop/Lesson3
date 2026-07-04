@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/session'
 import { relId } from '@/lib/relId'
 import FavoriteToggle from '@/components/FavoriteToggle'
+import SearchBox from './SearchBox'
 import {
   groupLessons,
   lessonDisplayName,
@@ -107,15 +108,7 @@ export default async function BrowsePage({
     <section className="lp">
       <h1 className="lp-title">Lesson plans</h1>
 
-      <form className="lp-search" method="get" role="search">
-        <input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder="Search lesson plans"
-          aria-label="Search lesson plans"
-        />
-      </form>
+      <SearchBox initialQuery={q} />
 
       {rows.length === 0 ? (
         <p className="muted">No lesson plans yet.</p>
