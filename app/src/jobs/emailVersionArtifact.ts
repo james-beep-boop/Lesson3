@@ -20,6 +20,7 @@ import {
   safePrefix,
   versionScope,
   type ArtifactSpec,
+  type ExportKind,
 } from '../generator/exportArtifacts'
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
@@ -27,7 +28,7 @@ import type { LessonBundleVersion } from '../payload-types'
 
 export interface EmailVersionArtifactInput {
   versionId: number
-  kind: 'docx' | 'pdf'
+  kind: ExportKind
   /** Validated recipient address (parseRecipientEmail ran at enqueue). */
   to: string
   /** Requesting user's id — the durable audit anchor for this data-egress path (Codex audit

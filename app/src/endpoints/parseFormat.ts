@@ -1,7 +1,10 @@
 import { APIError, type PayloadRequest } from 'payload'
 
-/** The export deliverable kind: the generator's DOCX, or that DOCX converted to PDF. */
-export type ExportKind = 'docx' | 'pdf'
+// The deliverable kind (docx | pdf) is owned by the generator's export layer — reuse it here rather
+// than redefining the union, so the parser and the artifact spec can't drift.
+import type { ExportKind } from '../generator/exportArtifacts'
+
+export type { ExportKind }
 
 const searchParams = (req: PayloadRequest): URLSearchParams =>
   new URL(req.url ?? '', 'http://localhost').searchParams
