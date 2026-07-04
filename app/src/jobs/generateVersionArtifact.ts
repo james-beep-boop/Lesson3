@@ -19,6 +19,7 @@ import {
   safePrefix,
   versionScope,
   type ArtifactSpec,
+  type ExportKind,
 } from '../generator/exportArtifacts'
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
@@ -26,7 +27,7 @@ import type { LessonBundleVersion } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
   versionId: number
-  kind: 'docx' | 'pdf'
+  kind: ExportKind
 }
 
 export const GENERATE_VERSION_ARTIFACT_SLUG = 'generateVersionArtifact' as const
