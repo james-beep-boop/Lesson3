@@ -16,7 +16,7 @@
  *
  * Requires a DB → Rock/CI only (like all of `tests/int`).
  */
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { PayloadRequest } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
@@ -148,6 +148,31 @@ describe('notification ping (zero-unread gate + per-recipient budget)', () => {
     const msg = await send(fx.users.editor, fx.users.teacher.id, `${MARK}ping-capped`)
     expect(await pingJobsFor(msg.id)).toHaveLength(0) // ping skipped…
     expect((await messagesVisibleTo(fx.users.teacher)).map((m) => m.id)).toContain(msg.id) // …message delivered
+  })
+
+  it('a ping enqueue FAILURE does not roll back the message create (best-effort ping)', async () => {
+    // Codex audit 2026-07-03 #3: notifyRecipient wraps `jobs.queue` in try/catch, so a queue outage
+    // must not fail the create. A fresh scratch recipient (zero unread) guarantees the zero-unread
+    // gate passes, so the hook actually ATTEMPTS the enqueue — which we force to reject.
+    const recipient = await fx.payload.create({
+      collection: 'users',
+      data: {
+        name: `${MARK}PingFailRecipient`,
+        email: `${MARK.toLowerCase()}pingfail@example.com`,
+        password: fx.password,
+      },
+      overrideAccess: true,
+    })
+    const spy = vi.spyOn(fx.payload.jobs, 'queue').mockRejectedValue(new Error('queue down'))
+    try {
+      const msg = await send(fx.users.editor, recipient.id, `${MARK}queue-outage`)
+      expect(spy).toHaveBeenCalled() // the enqueue path really fired (and was swallowed)
+      expect((await messagesVisibleTo(recipient)).map((m) => m.id)).toContain(msg.id) // delivered anyway
+    } finally {
+      spy.mockRestore()
+      // Cascade-deletes the scratch message with the user (NOT NULL FK).
+      await fx.payload.delete({ collection: 'users', id: recipient.id, overrideAccess: true })
+    }
   })
 
   it('enforces the sender daily cap — create rejects once the budget is spent', async () => {

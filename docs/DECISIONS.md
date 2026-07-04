@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-03 (latest) — SHIPPED: the single-document-format collapse + both in-flight streams landed
+
+The plan recorded in the 2026-07-03 (late) entry below is now DONE (the "NOT done yet" scope note
+there is historical). Merged to `main` via CI-gated PRs: **#29** UI cleanup + mobile pass, **#30**
+Codex Med/Low fixes, **#31** the single-document-format collapse, **#32** a `/simplify` follow-up
+(single owner for the `ExportKind` union).
+
+The collapse (#31) removed the standard/compact axis end-to-end — deleted `lib/format.ts`,
+`ResourcesToggle.tsx`, `format2-check.ts`, the `LessonSequenceFormat` type, `parseLessonSequenceFormat`,
+the `format` field on both Jobs Queue task inputs, and `format` from `ArtifactSpec`/`artifactKey`; kept
+`?as=docx|pdf`. `generateBundleDocx` now always builds `buildSoWCompact` (five-column, no Resource
+column); the vendored six-column `buildSoW` is retired but byte-pristine. Roundtrip fidelity is
+unaffected — `compareDoc(stripResources=true)` already strips the Resource column from the oracle before
+diffing. `SPEC.md` §9 artifact-identity language was updated to `(version, document, kind)`.
+
+A post-merge external review (2026-07-03) triaged: fixed the inbox mark-read scoping bug (it cleared ALL
+unread but showed only 100 → now marks only the shown ids) and this doc refresh; the rest were
+already-recorded deliberate choices (stateful-GET mark-read, dedupe-20 bound, roster `pagination:false`)
+or tracked deferrals (esbuild advisories, PR #30 regression tests). **Not yet done:** Rock deploy of
+`main` (no migration — see NEXT-SESSION) + the in-browser eyeballs.
+
+---
+
 ## 2026-07-03 (late) — ARCHITECTURAL: collapse to ONE document format (ARES-resources-inline, no Resource column); UI-cleanup + Codex-fix session state
 
 Two parts: (A) an architectural decision to record and act on next session, and (B) the in-flight

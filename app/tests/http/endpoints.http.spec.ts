@@ -21,6 +21,7 @@
  *         -w /app --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { sql } from '@payloadcms/db-postgres'
 
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
 
@@ -33,6 +34,20 @@ const token: Record<string, string> = {}
 const url = (path: string) => (path.startsWith('http') ? path : `${BASE}${path}`)
 const auth = (key?: RoleKey): Record<string, string> =>
   key && token[key] ? { Authorization: `JWT ${token[key]}` } : {}
+
+/** Raw drizzle handle on the same DB the app serves — to observe the `rate_limit_counters` table. */
+const drizzle = () =>
+  (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<{ rows: unknown[] }> } })
+    .drizzle
+
+/** The current count for a rate-limit `bucket_key`, or 0 when the row was never created. */
+async function rateCount(bucketKey: string): Promise<number> {
+  const res = await drizzle().execute(
+    sql`SELECT "count" FROM "rate_limit_counters" WHERE "bucket_key" = ${bucketKey};`,
+  )
+  const rows = res.rows as Array<{ count: number | string }>
+  return rows.length > 0 ? Number(rows[0].count) : 0
+}
 
 /** Log in over HTTP and return the JWT (Payload's REST login returns it in the body). */
 async function login(email: string, password: string): Promise<string> {
@@ -707,6 +722,18 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
     expect(res.status).toBe(404)
   })
 
+  it('an unauthorized email does NOT spend the shared recipient cap (authorize before pooled caps)', async () => {
+    // Codex audit 2026-07-03 #1: the version is authorized (READ gate) BEFORE the pooled
+    // emailRecipient/emailGlobal caps are charged, so a probe against a version the caller can't
+    // read (here: unknown → 404) must not burn another recipient's daily quota. The recipient is
+    // unique to this test, so its counter reflects ONLY this request.
+    const to = `${MARK.toLowerCase()}authz-probe@example.com`
+    const key = `emailRecipient:${to.toLowerCase()}`
+    expect(await rateCount(key)).toBe(0) // untouched before…
+    expect((await post(999_999_999, 'teacher', { to })).status).toBe(404)
+    expect(await rateCount(key)).toBe(0) // …and still untouched: the 404 spent no shared budget.
+  })
+
   it('Teacher emails a version → 202 {queued} and the job is enqueued', async () => {
     // RFC 2606-reserved recipient: on the Rock the send goes to example.com's blackhole; in CI
     // (no SMTP_HOST) the console adapter logs it. The contract under test is queue-and-202.
@@ -816,5 +843,43 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
       headers: auth('teacher'), // the sender
     })
     expect(del.status).toBe(403)
+  })
+})
+
+describe('/messages page (SPEC §10 PR ③) — mark-read is a same-origin-only side effect', () => {
+  // Codex audit 2026-07-03 #2: "viewing is reading" marks shown messages read on GET, but a
+  // cross-origin navigation must not be able to silently clear a logged-in user's unread state.
+  // The page skips the write when `Sec-Fetch-Site: cross-site`. We drive the REAL page render (JWT
+  // header auth works for the server component exactly as for the API endpoints) and check the DB.
+  const getMessages = async (key: RoleKey, secFetchSite?: string) => {
+    const res = await fetch(url('/messages'), {
+      headers: { ...auth(key), ...(secFetchSite ? { 'Sec-Fetch-Site': secFetchSite } : {}) },
+      redirect: 'manual',
+    })
+    await res.text().catch(() => {}) // drain the body → the server component (incl. mark-read) finished
+    return res
+  }
+  const readAtOf = async (id: number) =>
+    (await fx.payload.findByID({ collection: 'messages', id, depth: 0, overrideAccess: true })).readAt
+
+  it('a cross-site GET leaves unread unread; a same-origin GET marks it read', async () => {
+    // Fresh unread to the editor (its own message id, so other inbox state can't confuse the assert).
+    const msg = await fx.payload.create({
+      collection: 'messages',
+      data: { sender: fx.users.teacher.id, recipient: fx.users.editor.id, body: `${MARK}sfs-guard` },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+    try {
+      // Cross-site render → the guard skips the write.
+      expect((await getMessages('editor', 'cross-site')).status).toBe(200)
+      expect(await readAtOf(msg.id)).toBeFalsy()
+
+      // Same-origin render → "viewing is reading" marks the shown message read.
+      expect((await getMessages('editor', 'same-origin')).status).toBe(200)
+      expect(await readAtOf(msg.id)).toBeTruthy()
+    } finally {
+      await fx.payload.delete({ collection: 'messages', id: msg.id, overrideAccess: true })
+    }
   })
 })
