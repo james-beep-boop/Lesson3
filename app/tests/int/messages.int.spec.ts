@@ -20,7 +20,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { PayloadRequest } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
 
@@ -211,6 +211,52 @@ describe('messages cascade with their users (NOT NULL FK → 23502 without it)',
       overrideAccess: true,
     })
     expect(totalDocs).toBe(0)
+  })
+})
+
+describe('context link integrity (§10): a linked version must belong to the linked plan', () => {
+  it('accepts a matching plan+version, rejects a mismatch, rejects a version without a plan', async () => {
+    // A SECOND plan with its own version — the crafted-mismatch case is plan A + version-of-B.
+    const plan2 = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}Plan2`, subjectGrade: fx.subjectGrade.id },
+      overrideAccess: true,
+    })
+    const version2 = await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: plan2.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.0',
+        title: `${MARK}Plan2 v1.0.0`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })
+
+    // `sender` is stamped from `user` server-side; include it so TS picks the create overload (the
+    // stamp hook overrides it to the same id anyway).
+    const send = (extra: Record<string, unknown>) =>
+      fx.payload.create({
+        collection: 'messages',
+        data: { sender: fx.users.teacher.id, recipient: fx.users.editor.id, body: `${MARK}link-check`, ...extra },
+        overrideAccess: false,
+        user: fx.users.teacher,
+      })
+
+    // Matching pair (fx.version belongs to fx.plan) → allowed.
+    const ok = await send({ lessonPlan: fx.plan.id, version: fx.version.id })
+    expect(relId(ok.version)).toBe(fx.version.id)
+
+    // Plan A + version-of-B → rejected.
+    await expect(send({ lessonPlan: fx.plan.id, version: version2.id })).rejects.toThrow(
+      /belong to the linked lesson plan/,
+    )
+    // A version with no plan is ambiguous → rejected.
+    await expect(send({ version: fx.version.id })).rejects.toThrow(/include its lesson plan/)
+
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: version2.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: plan2.id, overrideAccess: true })
   })
 })
 

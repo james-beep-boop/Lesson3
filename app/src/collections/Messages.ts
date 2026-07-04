@@ -59,6 +59,32 @@ const stampSenderAndRateLimit: CollectionBeforeValidateHook = async ({ data, ope
   return { ...data, sender: req.user.id }
 }
 
+/** beforeValidate (create): keep the optional context link internally consistent. `POST /api/messages`
+ *  is open, so — even though the Composer always sends a matching pair — a crafted request could
+ *  attach Plan A with a `version` that belongs to Plan B. The inbox would then silently fall back to
+ *  A's Official version, HIDING the mismatch rather than surfacing it. Enforce it server-side: a
+ *  linked version must belong to the linked plan (and the sender must be able to read it). System
+ *  paths (no `req.user` — fixtures/tests) are trusted. */
+const validateContextLink: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
+  if (operation !== 'create' || !req.user || data?.version == null) return data
+  if (data.lessonPlan == null) {
+    throw new APIError('A linked lesson version must include its lesson plan.', 400)
+  }
+  const version = await req.payload
+    .findByID({
+      collection: 'lesson-bundle-versions',
+      id: data.version as number | string,
+      depth: 0,
+      overrideAccess: false,
+      user: req.user,
+    })
+    .catch(() => null)
+  if (!version || relId(version.lessonPlan) !== relId(data.lessonPlan)) {
+    throw new APIError('A linked lesson version must belong to the linked lesson plan.', 400)
+  }
+  return data
+}
+
 /** afterChange (create): enqueue the content-free email ping for the recipient — but only when
  *  this message is their ONLY unread one (zero-unread gate), and only within the per-recipient
  *  daily ping budget. Both gates SKIP the ping, never fail the message. Runs on `req`, so the
@@ -135,7 +161,7 @@ export const Messages: CollectionConfig = {
     delete: () => false,
   },
   hooks: {
-    beforeValidate: [stampSenderAndRateLimit],
+    beforeValidate: [stampSenderAndRateLimit, validateContextLink],
     afterChange: [notifyRecipient],
   },
   fields: [
