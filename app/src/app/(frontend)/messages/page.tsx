@@ -74,8 +74,13 @@ export default async function MessagesPage({
     }),
   ])
 
-  // Mark everything just shown as read — AFTER capturing the docs above, so this render still
-  // highlights what was new. System write; recipient-scoped by the where.
+  // Mark exactly the unread messages we just SHOWED as read — AFTER capturing the docs above, so
+  // this render still highlights what was new. Scope by the shown ids (not a blanket
+  // recipient+unread where): the inbox fetches only the newest `limit` received, so a blanket update
+  // would silently mark read any unread beyond that window that the user never saw (they'd vanish
+  // from the badge without being displayed). Bounding to the rendered ids keeps unshown unread unread
+  // until pagination surfaces them (the Manage-at-scale backlog). System write (overrideAccess); the
+  // recipient clause stays as defense-in-depth even though the ids are already recipient-scoped.
   //
   // Guard: a GET render must not be weaponizable from another origin. `Sec-Fetch-Site: cross-site`
   // is sent ONLY for navigations a different origin initiated (a link/redirect/script from evil.com),
@@ -84,11 +89,11 @@ export default async function MessagesPage({
   // typed URLs and bookmarks (`none`), and browsers that omit the header all still mark read — the
   // "viewing is reading" UX is unchanged for every normal case. No /read endpoint is reintroduced.
   const secFetchSite = (await headers()).get('sec-fetch-site')
-  const hasUnread = received.docs.some((m) => !m.readAt)
-  if (hasUnread && secFetchSite !== 'cross-site') {
+  const shownUnreadIds = received.docs.filter((m) => !m.readAt).map((m) => m.id)
+  if (shownUnreadIds.length > 0 && secFetchSite !== 'cross-site') {
     await payload.update({
       collection: 'messages',
-      where: { and: [{ recipient: { equals: user.id } }, { readAt: { exists: false } }] },
+      where: { and: [{ recipient: { equals: user.id } }, { id: { in: shownUnreadIds } }] },
       data: { readAt: new Date().toISOString() },
       overrideAccess: true,
     })

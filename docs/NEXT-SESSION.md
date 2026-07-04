@@ -22,6 +22,31 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
+## ▶ RESUME HERE (2026-07-03 latest) — the two branches AND the single-document-format collapse ALL landed
+
+The "① land the two in-flight branches, then ② the single-document-format track" work below is **DONE**
+— merged to `main` via CI-gated PRs (verify HEAD with `git log -1`): **#29** UI cleanup + mobile pass,
+**#30** Codex Med/Low fixes (email authz-before-cap, `/messages` Sec-Fetch-Site guard, ping try/catch),
+**#31** the single-document-format collapse (ONE format = the five-column framework, no Resource column;
+removed the "Include ARES Resources" checkbox + all standard/compact plumbing; kept `?as=docx|pdf`),
+**#32** a `/simplify` follow-up (single owner for the `ExportKind` union). `main` is clean, no worktrees.
+
+**Left to do next session:**
+- **Rock deploy** of current `main` (`git pull` + `docker compose up -d --build`). **No DB migration**
+  for the collapse (job-input/cache-key only); notes: benign one-time artifact-cache cold-start (keys
+  dropped `format`); re-run Rock `generate:types` and confirm byte-identical to the hand-edit of
+  `payload-types.ts` (dropped `format` from the two Task*Artifact input schemas).
+- **In-browser eyeballs** (still pending): favorites star (PR ①), messaging (badge/inbox/compose/
+  "Message a colleague"), and the collapsed download UX (no ARES checkbox; DOCX/PDF only).
+- **Deferred/known** (unchanged): Manage/roster pagination at corpus scale (the `/messages` roster +
+  inbox both load with `pagination:false`/`limit:100` by design; the inbox now marks read only the
+  shown ids, so unshown unread stay unread until pagination lands); export-dedupe scans only the first
+  20 pending jobs (documented best-effort; a miss just enqueues one redundant, cache-bounded job);
+  regression tests for the PR #30 security fixes are not yet pinned; moderate esbuild/drizzle-kit
+  `audit:all` advisories (below the prod gate).
+
+---
+
 ## ▶ RESUME HERE (2026-07-03 late) — ① land the two in-flight branches, then ② the SINGLE-DOCUMENT-FORMAT track
 
 Full write-up in `docs/DECISIONS.md` 2026-07-03 (late). Nothing below was committed (no-commit rule).
