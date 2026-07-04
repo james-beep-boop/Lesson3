@@ -41,9 +41,12 @@ removed the "Include ARES Resources" checkbox + all standard/compact plumbing; k
 - **Deferred/known** (unchanged): Manage/roster pagination at corpus scale (the `/messages` roster +
   inbox both load with `pagination:false`/`limit:100` by design; the inbox now marks read only the
   shown ids, so unshown unread stay unread until pagination lands); export-dedupe scans only the first
-  20 pending jobs (documented best-effort; a miss just enqueues one redundant, cache-bounded job);
-  regression tests for the PR #30 security fixes are not yet pinned; moderate esbuild/drizzle-kit
-  `audit:all` advisories (below the prod gate).
+  20 pending jobs (documented best-effort; a miss just enqueues one redundant, cache-bounded job); the
+  message-ping zero-unread gate is best-effort under concurrent sends (bounded by the per-recipient
+  daily ping cap); moderate esbuild/drizzle-kit `audit:all` advisories (below the prod gate).
+  **The PR #30 security fixes ARE now pinned** (PR #33: email authz-before-shared-cap, `/messages`
+  cross-site mark-read, ping-enqueue-failure), and PR #34's message context links are integrity-checked
+  server-side (a linked version must belong to the linked plan; int-covered).
 
 ---
 

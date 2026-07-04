@@ -6,7 +6,9 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
+    // Default env is node (DB-free logic tests); component tests opt into jsdom per-file via a
+    // `// @vitest-environment jsdom` docblock (e.g. favoriteToggle.spec.tsx).
     environment: 'node',
-    include: ['tests/unit/**/*.spec.ts'],
+    include: ['tests/unit/**/*.spec.{ts,tsx}'],
   },
 })
