@@ -120,7 +120,7 @@ export default async function LessonView({
           <h1>{title}</h1>
           {contextLine && <p className="lesson-context">{contextLine}</p>}
         </div>
-        <FavoriteToggle planId={plan.id} favoriteId={favoriteId} />
+        <FavoriteToggle planId={plan.id} favoriteId={favoriteId} showLabel />
       </div>
 
       {versions.length > 1 && (

@@ -239,12 +239,13 @@ body:has(.collection-edit--lesson-bundle-versions) {
   }
 }
 
-// Dashboard only: hiding the nav collapses Payload's 2-column template grid to `0px 375px`, and the
-// content wrap (the only remaining grid item) auto-places into the now-0-width nav track — crushing
-// every line to one character. Collapse to a single full-width column so the fluid dashboard text
-// fills it. The editor doesn't need this — its content (form fields, controls) has intrinsic widths
-// that fill the track regardless.
-body:has(.lp-admin-dash) .template-default {
+// Hiding the nav collapses Payload's 2-column template grid to `0px <content>`, and the content wrap
+// (the only remaining grid item) auto-places into the now-0-width nav track — crushing every line to
+// one character. Collapse to a single full-width column so the content fills it. This affects BOTH
+// chrome-stripped surfaces: the Manage dashboard AND the version editor (the editor's document form
+// otherwise renders in a ~360px sliver — see the squished-editor report 2026-07-03).
+body:has(.lp-admin-dash) .template-default,
+body:has(.collection-edit--lesson-bundle-versions) .template-default {
   grid-template-columns: 1fr;
 }
 
