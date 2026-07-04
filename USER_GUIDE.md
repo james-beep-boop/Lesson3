@@ -18,18 +18,20 @@ version. Teachers do not use the admin area and do not see editing controls.
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
 - **Search:** use the search box to find a subject, grade, strand, or sub-strand.
-- **Favorites:** click the star on a lesson to pin it to a My favorites list at the top of the home
-  page. Favorites are personal — only you see yours.
+- **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
+  pin a lesson to a My favorites list at the top of the home page. Favorites are personal — only you
+  see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Download:** choose DOCX or PDF. Each download contains the generated lesson documents for that
   sub-strand.
 - **Email:** use the Email button to send the generated documents (as a .zip of Word files) to any
   email address — your own, or a colleague's. Sends are limited per day.
-- **Messages:** use Messages in the top bar to send a note to any user of the repository — a lesson
-  page's "Message a colleague" link attaches that lesson to your note. Unread messages show as a
-  count on the Messages link, and you get a short email telling you a message is waiting (never its
-  content). Opening Messages marks everything shown as read.
+- **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to any
+  user of the repository — a lesson page's "Message a colleague" link attaches that lesson to your
+  note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
+  messages show as a small count on your avatar, and you get a short email telling you a message is
+  waiting (never its content). Opening Messages marks everything shown as read.
 
 ## Editors
 

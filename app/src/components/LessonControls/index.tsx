@@ -17,6 +17,7 @@
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
@@ -29,6 +30,7 @@ export default function LessonControls() {
   const { setDisabled, reset, setModified } = useForm()
   const [fields] = useAllFormFields()
   const { user } = useAuth()
+  const router = useRouter()
 
   // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
   // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
@@ -125,13 +127,15 @@ export default function LessonControls() {
         throw new Error(err.errors?.[0]?.message || `Save failed (${res.status})`)
       }
       const out = (await res.json()) as { adminUrl: string }
-      // The save succeeded — the current form's edits now live in the NEW version, so clear Payload's
-      // "unsaved changes" flag BEFORE navigating. Otherwise its LeaveWithoutSaving guard (a
-      // `beforeunload` listener keyed to `modified`) pops the browser's native "Leave site?" dialog on
-      // our full-page navigation; cancelling it aborts the nav and strands the button on "Saving…".
-      // Defer the navigation a tick so React re-renders and removes the beforeunload listener first.
+      // Navigate CLIENT-SIDE (router.push), not a full-page load. Payload's LeaveWithoutSaving guard
+      // only fires its "Leave site?" browser dialog on a real page unload (`beforeunload`) — a client
+      // transition triggers neither that nor its anchor-click interceptor, so no prompt, whatever the
+      // form's dirty/validity state. (The earlier setModified + setTimeout approach was unreliable: the
+      // beforeunload listener is torn down in a passive effect that need not flush before a deferred
+      // window.location assignment, and it stays armed while the form is invalid.) setModified(false)
+      // stays as correctness hygiene — the save persisted, so the form is no longer dirty.
       setModified(false)
-      setTimeout(() => window.location.assign(out.adminUrl), 0)
+      router.push(out.adminUrl)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
       setSaving(false)

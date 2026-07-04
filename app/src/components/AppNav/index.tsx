@@ -10,16 +10,17 @@ import type { User } from '../../payload-types'
  * The ONE top navigation, rendered identically on both surfaces (the frontend header and the admin
  * header) so they match — same items, order, and styling. Items:
  *
- *   Lessons · Messages(n) · [Manage] · Guide · {avatar dropdown}
+ *   Lessons · [Manage] · Guide · {avatar dropdown}
  *
  * "Manage" appears only for users who can use the admin panel (Editor / Subject Admin / Site Admin);
- * Teachers see Lessons · Messages · Guide · avatar. Plain `<a>` links: the frontend (`/`, `/guide`,
- * `/messages`) and the admin (`/admin`) are separate Next apps, so cross-surface nav must be a full
- * navigation — using `<a>` for every item keeps the markup (and behavior) identical on both surfaces.
+ * Teachers see Lessons · Guide · avatar. Plain `<a>` links: the frontend (`/`, `/guide`, `/messages`)
+ * and the admin (`/admin`) are separate Next apps, so cross-surface nav must be a full navigation —
+ * using `<a>` for every item keeps the markup (and behavior) identical on both surfaces.
  *
- * The Messages badge is the in-app half of the §10 notification model (server-rendered per page
- * load — no websockets/polling; see DECISIONS 2026-07-02). An async server component on both
- * surfaces, so it counts its own unread here instead of prop-plumbing through two layouts.
+ * Messages lives INSIDE the avatar dropdown (below the email, above Log Out), not as a top-level item.
+ * The unread badge is the in-app half of the §10 notification model (server-rendered per page load —
+ * no websockets/polling; see DECISIONS 2026-07-02): counted here and passed to the menu, which shows
+ * it both on the avatar (so unread is visible without opening the menu) and on the Messages item.
  */
 export async function AppNav({ user }: { user: User }) {
   const unread = await countUnread(user)
@@ -28,14 +29,6 @@ export async function AppNav({ user }: { user: User }) {
       {/* eslint-disable @next/next/no-html-link-for-pages */}
       <a className="app-nav__link" href="/">
         Lessons
-      </a>
-      <a className="app-nav__link" href="/messages">
-        Messages
-        {unread > 0 && (
-          <span className="app-nav__badge" aria-label={`${unread} unread`}>
-            {unread}
-          </span>
-        )}
       </a>
       {canUseAdminPanel(user) && (
         <a className="app-nav__link" href="/admin">
@@ -50,6 +43,7 @@ export async function AppNav({ user }: { user: User }) {
         typeLabel={userTypeLabel(user)}
         displayName={user.name ?? user.email}
         loginName={user.email}
+        unread={unread}
       />
     </nav>
   )

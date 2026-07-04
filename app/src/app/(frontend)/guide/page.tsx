@@ -47,8 +47,9 @@ export default async function UserGuidePage() {
             <strong>Search:</strong> use the search box to find a subject, grade, strand, or sub-strand.
           </li>
           <li>
-            <strong>Favorites:</strong> click the star on a lesson to pin it to a My favorites list at
-            the top of the home page. Favorites are personal — only you see yours.
+            <strong>Favorites:</strong> click the star on a library row — or the{' '}
+            <em>☆ Favorite</em> button on a lesson page — to pin a lesson to a My favorites list at the
+            top of the home page. Favorites are personal — only you see yours.
           </li>
           <li>
             <strong>Read on screen:</strong> open a sub-strand to view the Lesson Sequence, Final
@@ -64,11 +65,12 @@ export default async function UserGuidePage() {
             day.
           </li>
           <li>
-            <strong>Messages:</strong> use Messages in the top bar to send a note to any user of the
-            repository — a lesson page&apos;s &ldquo;Message a colleague&rdquo; link attaches that
-            lesson to your note. Unread messages show as a count on the Messages link, and you get a
-            short email telling you a message is waiting (never its content). Opening Messages marks
-            everything shown as read.
+            <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
+            right) to send a note to any user of the repository — a lesson page&apos;s &ldquo;Message a
+            colleague&rdquo; link attaches that lesson to your note. Each message you receive has a{' '}
+            <em>Reply</em> button that opens a box to write straight back. Unread messages show as a
+            small count on your avatar, and you get a short email telling you a message is waiting
+            (never its content). Opening Messages marks everything shown as read.
           </li>
         </ul>
       </section>
