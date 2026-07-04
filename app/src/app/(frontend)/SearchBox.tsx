@@ -7,7 +7,7 @@
  * immediately. It's still a real GET `<form>`, so it also works with JavaScript disabled (plain
  * submit navigates to `/?q=…`).
  */
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const DEBOUNCE_MS = 200
@@ -16,9 +16,28 @@ export default function SearchBox({ initialQuery }: { initialQuery: string }) {
   const router = useRouter()
   const [value, setValue] = useState(initialQuery)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // The trimmed query this box itself last pushed to the URL. Distinguishes our own `?q=` round
+  // trip (the server re-render echoing what we just navigated to) from an EXTERNAL navigation
+  // (some other link changing or clearing `q`) — only the latter should re-sync the input.
+  const lastNavigated = useRef(initialQuery)
+
+  // Re-sync the input when `initialQuery` changes from OUTSIDE this component. Our own
+  // navigation's echo is deliberately ignored: adopting it would revert keystrokes typed while
+  // that request was in flight. An external change also cancels any pending debounce, so a stale
+  // timer can't immediately navigate back to the query the user just left. (An effect, not the
+  // adjust-state-during-render pattern, because it touches refs — the paint-later sync is
+  // imperceptible for a navigation-driven change.)
+  useEffect(() => {
+    if (initialQuery !== lastNavigated.current) {
+      lastNavigated.current = initialQuery
+      clearTimeout(timer.current)
+      setValue(initialQuery)
+    }
+  }, [initialQuery])
 
   const navigate = (q: string) => {
     const trimmed = q.trim()
+    lastNavigated.current = trimmed
     router.replace(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : '/', { scroll: false })
   }
 
@@ -33,6 +52,10 @@ export default function SearchBox({ initialQuery }: { initialQuery: string }) {
     clearTimeout(timer.current)
     navigate(value)
   }
+
+  // A pending debounce must not outlive the box: `navigate` drives the GLOBAL Next router, so a
+  // timer firing after the user clicked into a lesson would yank them back to `/?q=…`.
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   return (
     <form className="lp-search" method="get" action="/" role="search" onSubmit={onSubmit}>

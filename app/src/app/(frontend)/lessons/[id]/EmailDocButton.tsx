@@ -63,7 +63,13 @@ export default function EmailDocButton({ versionId }: { versionId: number }) {
       >
         Email…
       </button>
-      {note && <span className="muted">{note}</span>}
+      {/* role="status" so the queued confirmation is announced to assistive tech (matches the
+          Composer's sent-note); the error above already uses role="alert". */}
+      {note && (
+        <span role="status" className="muted">
+          {note}
+        </span>
+      )}
 
       {open && (
         <Modal title="Email this lesson plan" onClose={close}>

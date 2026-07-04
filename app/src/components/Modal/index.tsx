@@ -24,6 +24,16 @@ export default function Modal({
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Callers pass inline `onClose` handlers whose identity changes every render (e.g. the email
+  // modal re-renders per keystroke). Route the effect through a ref so the mount effect below runs
+  // ONCE per open — otherwise its cleanup/setup would rerun on each keystroke, bouncing focus
+  // (input → trigger → input), re-capturing `previouslyFocused`, and churning the listener +
+  // body-overflow lock.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     // Move focus into the panel (first focusable, else the panel itself).
@@ -33,7 +43,7 @@ export default function Modal({
     ;(focusable ?? panelRef.current)?.focus()
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
     document.addEventListener('keydown', onKey)
     const prevOverflow = document.body.style.overflow
@@ -44,7 +54,7 @@ export default function Modal({
       document.body.style.overflow = prevOverflow
       previouslyFocused?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
