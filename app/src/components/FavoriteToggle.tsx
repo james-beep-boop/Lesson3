@@ -16,14 +16,31 @@ import { useRouter } from 'next/navigation'
 export default function FavoriteToggle({
   planId,
   favoriteId: initialFavoriteId,
+  showLabel = false,
 }: {
   planId: number | string
   /** The caller's favorite row id for this plan, or null when not favorited. */
   favoriteId: number | null
+  /** Render a text label beside the star (used on the lesson page, where the bare glyph is easy to
+   *  miss). Library rows keep just the glyph — space is tight and the column reads as a toggle. */
+  showLabel?: boolean
 }) {
   const router = useRouter()
   const [favoriteId, setFavoriteId] = useState(initialFavoriteId)
   const [busy, setBusy] = useState(false)
+
+  // Re-sync to the server's value whenever it changes (router.refresh / navigation re-renders this
+  // component with a fresh prop). Without this, a SECOND instance of the star for the same plan (the
+  // "My favorites" row and the catalogue row both render one) keeps its stale local id after the
+  // other instance toggled — so its DELETE targets an already-removed row and 404s ("can't
+  // unfavorite"), and its filled/empty state drifts from the server. This is React's sanctioned
+  // "adjust state during render when a prop changes" pattern (no effect, applied before paint).
+  const [syncedFrom, setSyncedFrom] = useState(initialFavoriteId)
+  if (initialFavoriteId !== syncedFrom) {
+    setSyncedFrom(initialFavoriteId)
+    setFavoriteId(initialFavoriteId)
+  }
+
   const isFavorite = favoriteId != null
 
   const onToggle = async () => {
@@ -54,17 +71,19 @@ export default function FavoriteToggle({
     setBusy(false)
   }
 
+  const label = isFavorite ? 'Remove from favorites' : 'Add to favorites'
   return (
     <button
       type="button"
-      className={`fav-toggle${isFavorite ? ' is-favorite' : ''}`}
+      className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}`}
       aria-pressed={isFavorite}
-      aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-      title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+      aria-label={label}
+      title={label}
       disabled={busy}
       onClick={onToggle}
     >
-      {isFavorite ? '★' : '☆'}
+      <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
+      {showLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
     </button>
   )
 }

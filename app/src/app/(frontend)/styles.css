@@ -389,6 +389,23 @@ a {
 .fav-toggle:disabled {
   opacity: 0.5;
 }
+/* Labeled variant (lesson page): a discoverable pill next to the title, not a bare glyph. */
+.fav-toggle--labeled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--theme-elevation-150, #ddd);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.fav-toggle--labeled.is-favorite {
+  border-color: var(--accent);
+}
+.fav-toggle__label {
+  line-height: 1;
+}
 
 /* ---- Login ---- */
 .login {
