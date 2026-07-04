@@ -26,7 +26,7 @@ import type { User } from '../../payload-types'
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
-  const { setDisabled, reset } = useForm()
+  const { setDisabled, reset, setModified } = useForm()
   const [fields] = useAllFormFields()
   const { user } = useAuth()
 
@@ -125,8 +125,13 @@ export default function LessonControls() {
         throw new Error(err.errors?.[0]?.message || `Save failed (${res.status})`)
       }
       const out = (await res.json()) as { adminUrl: string }
-      // Open the new candidate version (loads read-only).
-      window.location.assign(out.adminUrl)
+      // The save succeeded — the current form's edits now live in the NEW version, so clear Payload's
+      // "unsaved changes" flag BEFORE navigating. Otherwise its LeaveWithoutSaving guard (a
+      // `beforeunload` listener keyed to `modified`) pops the browser's native "Leave site?" dialog on
+      // our full-page navigation; cancelling it aborts the nav and strands the button on "Saving…".
+      // Defer the navigation a tick so React re-renders and removes the beforeunload listener first.
+      setModified(false)
+      setTimeout(() => window.location.assign(out.adminUrl), 0)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
       setSaving(false)
