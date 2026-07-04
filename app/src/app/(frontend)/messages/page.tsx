@@ -7,6 +7,7 @@ import { findReadablePlan } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import type { Message } from '@/payload-types'
 import Composer from './Composer'
+import ReplyBox from './ReplyBox'
 
 /**
  * Messages (SPEC §10) — the flat inbox + compose page. One page, no threads, no per-message
@@ -150,6 +151,7 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
       ? (counterpart.name ?? 'A user')
       : 'A user'
   const isNew = direction === 'in' && !m.readAt
+  const senderId = relId(m.sender)
   const planId = relId(m.lessonPlan)
   const versionId = relId(m.version)
   const planTitle =
@@ -172,6 +174,9 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
             {planTitle}
           </Link>
         </p>
+      )}
+      {direction === 'in' && senderId != null && (
+        <ReplyBox recipientId={senderId} recipientName={name} planId={planId} versionId={versionId} />
       )}
     </li>
   )
