@@ -9,6 +9,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { sendMessage } from './sendMessage'
+
 export default function ReplyBox({
   recipientId,
   recipientName,
@@ -32,22 +34,7 @@ export default function ReplyBox({
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch('/api/messages', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: recipientId,
-          body: body.trim(),
-          ...(planId != null ? { lessonPlan: planId } : {}),
-          // Only carry the version when its plan is too — the server rejects a version without its plan.
-          ...(planId != null && versionId != null ? { version: versionId } : {}),
-        }),
-      })
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { errors?: { message?: string }[] } | null
-        throw new Error(payload?.errors?.[0]?.message ?? 'Could not send the reply.')
-      }
+      await sendMessage({ recipient: recipientId, body: body.trim(), lessonPlan: planId, version: versionId })
       setBody('')
       setOpen(false)
       router.refresh()

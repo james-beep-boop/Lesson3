@@ -9,6 +9,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { sendMessage } from './sendMessage'
+
 export default function Composer({
   roster,
   about,
@@ -28,23 +30,12 @@ export default function Composer({
     setBusy(true)
     setNote(null)
     try {
-      const res = await fetch('/api/messages', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: Number(recipient),
-          body: body.trim(),
-          ...(about ? { lessonPlan: about.planId } : {}),
-          ...(about?.versionId != null ? { version: about.versionId } : {}),
-        }),
+      await sendMessage({
+        recipient: Number(recipient),
+        body: body.trim(),
+        lessonPlan: about?.planId,
+        version: about?.versionId,
       })
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as {
-          errors?: { message?: string }[]
-        } | null
-        throw new Error(payload?.errors?.[0]?.message ?? 'Could not send the message.')
-      }
       setBody('')
       setNote({ kind: 'sent', text: 'Message sent.' })
       router.refresh()
