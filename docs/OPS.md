@@ -127,13 +127,43 @@ json-file driver** (`docker-compose.yml`: `max-size 10m`, `max-file 5` per servi
 disk and recent history is retained.
 
 Deliberately **no error-tracking SaaS** (Sentry etc.): keeps everything on-box, no new dep, nothing to
-scrub. Trade-offs we accept: no auto-alerting/grouping, and **no client-side (browser) error capture** —
+scrub. *(Amended 2026-07-05, Phase 5 A4: server-side error tracking now exists, self-hosted and
+env-gated — see "Error tracking (GlitchTip)" below. Logs remain the primary on-box stream; with
+`SENTRY_DSN` unset nothing changes.)* Trade-offs we accept: **no client-side (browser) error capture** —
 post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
 
 - Tail live: `docker compose logs -f app` · errors only: `docker compose logs app | grep '"level":50'`
   (`50`=error, `60`=fatal).
 - Rotation keeps ~5×10 MB per service; logs reset on container recreation (`up --build`). Durable
   cross-deploy log archival (ship to a file/volume) is a noted follow-up — not built (kept simple).
+
+---
+
+## Error tracking (GlitchTip) — SPEC §11, required before real users
+
+Server-side error aggregation/alerting for public exposure (Phase 5 A4). **GlitchTip** (self-hosted,
+Sentry-protocol) is the chosen backend — the client is the standard `@sentry/node` SDK, so a hosted
+Sentry DSN would also work unchanged.
+
+**Entirely opt-in via env** (same pattern as SMTP/backups): with `SENTRY_DSN` unset, every call is a
+no-op and the app runs exactly as before. What reports when enabled:
+
+- Unhandled errors in renders / route handlers / server actions (Next `onRequestError` →
+  `src/instrumentation.ts`), with route context only — request headers/bodies are deliberately
+  dropped (auth cookies never leave the box).
+- Job failures (`generateVersionArtifact`, `emailVersionArtifact`, `messagePing`) at their existing
+  catch/log seams, with ids only (no email addresses).
+
+**Operator setup (one-time):**
+1. Deploy GlitchTip (its own compose stack; NOT part of this app's single-runtime core) or use any
+   Sentry-compatible endpoint. Create a project → copy its DSN.
+2. Add to the app `.env`: `SENTRY_DSN=https://…` (+ optional `SENTRY_ENVIRONMENT`, default
+   `production`).
+3. `docker compose up -d app` and confirm a test error arrives (e.g. hit a route that throws in a
+   staging window, or temporarily lower a rate limit and watch the event).
+
+No client-side (browser) capture — server-only by design; revisit only if real users report
+UI-only failures the server never sees.
 
 ---
 

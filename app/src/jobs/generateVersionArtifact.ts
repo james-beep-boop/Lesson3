@@ -23,6 +23,7 @@ import {
 } from '../generator/exportArtifacts'
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
+import { captureException } from '../lib/errorTracking'
 import type { LessonBundleVersion } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
@@ -63,6 +64,7 @@ export const generateVersionArtifactTask: TaskConfig<{
       // failure too, but without these fields (and isn't in the log stream). Rethrow so the job is
       // still marked failed — `retries: 0`, so a failed export stays failed for the status poll.
       req.payload.logger.error({ err, versionId, kind }, 'generateVersionArtifact failed')
+      captureException(err, { job: 'generateVersionArtifact', versionId, kind })
       throw err
     }
   },
