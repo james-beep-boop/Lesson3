@@ -65,7 +65,7 @@ export default function UploadBundles() {
       setResults(json.bundles)
       // Distinguish new plans from re-ingested revisions (SPEC §7): a revision lands as the next
       // major version, Not Official, awaiting an admin's Make Official.
-      const created = json.bundles.filter((b) => b.action !== 'revised').length
+      const created = json.bundles.filter((b) => b.action === 'created').length
       const revised = json.bundles.length - created
       const parts = [
         created > 0 ? `${created} new (Official 1.0.0)` : '',

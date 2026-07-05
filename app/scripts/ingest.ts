@@ -28,7 +28,7 @@ const run = async () => {
   const payload = await getPayload({ config })
   const results = await ingestPaths(payload, paths)
 
-  const createdN = results.filter((r) => r.action !== 'revised').length
+  const createdN = results.filter((r) => r.action === 'created').length
   const revisedN = results.length - createdN
   console.log(
     `Ingested ${results.length} file(s): ${createdN} new (Official 1.0.0), ` +

@@ -33,6 +33,7 @@ import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
 import { nextMajorForPlan } from '../lib/semver'
+import { relId } from '../lib/relId'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 type IngestReq = Partial<PayloadRequest> & { payload: Payload }
@@ -60,21 +61,21 @@ const substrandIdOf = (raw: Record<string, unknown>): string => {
 }
 
 /**
- * Find the existing lesson plan a re-upload belongs to (SPEC §7). Identity is
+ * Resolve the existing lesson plan a re-upload belongs to (SPEC §7). Identity is
  * `(subjectGrade, META.substrand_id)`: query the subject-grade's versions carrying that substrand_id
- * and collect their distinct parent plans. Returns:
- *   - `{ planId: null }`            → no match: create a NEW plan (1.0.0 Official).
- *   - `{ planId: number }`          → exactly one match: attach as the next MAJOR version.
- *   - `{ ambiguous: [ids] }`        → >1 plan (legacy duplicates): caller fails pre-flight.
- * An empty substrand_id can't be matched, so it is always treated as new (documented, SPEC §7).
+ * and fold to their distinct parent plans. Returns the plan id to attach to as the next MAJOR
+ * version, or `null` for no match → create a NEW plan (1.0.0 Official). An empty substrand_id can't
+ * be matched, so it is always treated as new. **>1 matching plan** (legacy duplicates from before
+ * this feature) THROWS `IngestError` here — the caller has no other response to ambiguity than to
+ * fail pre-flight, so owning the throw keeps the return a plain `number | null`.
  */
 async function findExistingPlan(
   payload: Payload,
   subjectGrade: number,
   substrandId: string,
   req: IngestReq,
-): Promise<{ planId: number | null; ambiguous?: number[] }> {
-  if (!substrandId) return { planId: null }
+): Promise<number | null> {
+  if (!substrandId) return null
   const { docs } = await payload.find({
     collection: LESSON_BUNDLE_VERSIONS,
     where: {
@@ -89,18 +90,15 @@ async function findExistingPlan(
     req,
   })
   const planIds = [
-    ...new Set(
-      docs
-        .map((d) => {
-          const lp = (d as { lessonPlan?: unknown }).lessonPlan
-          return typeof lp === 'object' && lp !== null ? (lp as { id: number }).id : (lp as number)
-        })
-        .filter((id): id is number => typeof id === 'number'),
-    ),
+    ...new Set(docs.map((d) => relId((d as { lessonPlan?: unknown }).lessonPlan)).filter((id): id is number => id != null)),
   ]
-  if (planIds.length === 0) return { planId: null }
-  if (planIds.length > 1) return { planId: null, ambiguous: planIds }
-  return { planId: planIds[0] }
+  if (planIds.length > 1) {
+    throw new IngestError(
+      `sub-strand ${JSON.stringify(substrandId)} matches ${planIds.length} existing lesson plans ` +
+        `(#${planIds.join(', #')}) in this subject-grade — resolve the duplicate before re-ingesting.`,
+    )
+  }
+  return planIds[0] ?? null
 }
 
 /** Resolve the required `subjectGrade` id from META.subject / META.grade (exact match). */
@@ -217,6 +215,19 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
   const errors: string[] = []
+  // Memoize taxonomy resolution across the batch: a directory of sub-strands is typically all one
+  // subject-grade, so without this `resolveSubjectGrade` re-runs its 2 finds for every file.
+  const sgCache = new Map<string, Promise<number>>()
+  const resolveSubjectGradeCached = (raw: Record<string, unknown>): Promise<number> => {
+    const meta = (raw.META ?? {}) as Record<string, unknown>
+    const cacheKey = `${typeof meta.subject === 'string' ? meta.subject.trim() : ''}::${meta.grade}`
+    let hit = sgCache.get(cacheKey)
+    if (!hit) {
+      hit = resolveSubjectGrade(payload, raw, preflightReq)
+      sgCache.set(cacheKey, hit)
+    }
+    return hit
+  }
   for (const { name, extract } of items) {
     try {
       const raw = extract()
@@ -233,23 +244,17 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       if (drift.length > 0) {
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
-      const subjectGrade = await resolveSubjectGrade(payload, raw, preflightReq)
+      const subjectGrade = await resolveSubjectGradeCached(raw)
       const substrandId = substrandIdOf(raw)
-      // Re-ingest resolution (SPEC §7): does a plan for this (subjectGrade, substrand_id) exist?
-      const match = await findExistingPlan(payload, subjectGrade, substrandId, preflightReq)
-      if (match.ambiguous) {
-        throw new IngestError(
-          `sub-strand ${JSON.stringify(substrandId)} matches ${match.ambiguous.length} existing ` +
-            `lesson plans (#${match.ambiguous.join(', #')}) in this subject-grade — resolve the ` +
-            `duplicate before re-ingesting.`,
-        )
-      }
+      // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
+      // create a new plan. >1 match (legacy duplicates) throws inside findExistingPlan.
+      const existingPlanId = await findExistingPlan(payload, subjectGrade, substrandId, preflightReq)
       prepared.push({
         name,
         data,
         subjectGrade,
         substrandId,
-        existingPlanId: match.planId,
+        existingPlanId,
         warnings: deliverableWarnings(data),
       })
     } catch (e) {

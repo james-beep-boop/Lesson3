@@ -20,9 +20,18 @@ import { relId } from '../../src/lib/relId.js'
 let payload: Payload
 const GRADE = 97 // a grade this suite owns, distinct from the shared fixture's 99/98
 
-/** A minimal generatable RAW ARES bundle (UPPERCASE groups) for this suite's subject/grade. */
+/**
+ * A minimal RAW ARES bundle (UPPERCASE groups) for this suite's subject/grade that BOTH passes
+ * `validateGeneratable` AND conforms to `ares-contract.schema.json` — ingest applies contract drift
+ * as a HARD gate, so a bundle missing `schemaVersion` / required UNIT·LESSON fields is rejected in
+ * pre-flight before the re-ingest logic runs. UNIT/FINAL_EXPLANATION/SUMMARY_TABLE are `null` (the
+ * contract's "intentionally absent" signal) to keep the fixture small while conforming; the
+ * always-required LessonSequence carries the full LESSONS shape (number, duration, slo, framework,
+ * summaryTablePrompt).
+ */
 function rawBundle(substrandId: string, titleDoc: string): Record<string, unknown> {
   return {
+    schemaVersion: '1.0.0',
     META: {
       subject: `${MARK}Biology`,
       grade: GRADE,
@@ -30,10 +39,12 @@ function rawBundle(substrandId: string, titleDoc: string): Record<string, unknow
       substrand_name: `${MARK}${substrandId} name`,
       titleDoc: `${MARK}${titleDoc}`,
     },
-    UNIT: {},
+    UNIT: null,
     LESSONS: [
       {
+        number: 1,
         title: `${MARK}Lesson`,
+        duration: '40 minutes',
         slo: { purpose: 'p', knowledge: 'k', skills: 's', attitudes: 'a', keyInquiry: 'q' },
         framework: [
           {
@@ -47,8 +58,8 @@ function rawBundle(substrandId: string, titleDoc: string): Record<string, unknow
         summaryTablePrompt: { observed: 'o', learned: 'l', explained: 'e' },
       },
     ],
-    FINAL_EXPLANATION: {},
-    SUMMARY_TABLE: {},
+    FINAL_EXPLANATION: null,
+    SUMMARY_TABLE: null,
   }
 }
 
