@@ -44,19 +44,33 @@ multiplying). Shipped via CI-gated PRs, all merged (verify HEAD with `git log -1
   set + zero users ⇒ boot REFUSAL (first-register would hand Site Admin to the first visitor —
   proven live; `ALLOW_FIRST_USER_BOOTSTRAP=1` escape hatch). OPS.md **"Going public"** runbook.
 
+**Same-day follow-ups, also all merged + deployed:**
+- **#54** — admin-CSP http test title/code mismatch fixed + the genuinely-unauth `/admin` CSP case
+  added (review catch; the other review item, htmlSectionsCache coalescing, was ALREADY merged code
+  from `0484e85`/#45 — nothing new was adopted).
+- **#55** — the version editor's React #418 on `?edit=1` (LessonControls gated initial state on
+  `typeof window`; now `useSearchParams()`; SSR regression pin). Built in its own spun-off session.
+- **#56** — a SECOND, TZ-dependent #418 that #55 unmasked: `VersionTimestamps` formatted user-local
+  on both server (UTC container) and client → mismatch whenever server TZ ≠ browser TZ. Fixed with
+  two-pass rendering (deterministic UTC-labelled SSR string → post-hydration local swap via
+  `useSyncExternalStore`); `suppressHydrationWarning` was tried and REJECTED by experiment (React 19
+  keeps the server text → readers shown UTC times). Browser timezoneId A/B is the proof. Full story
+  + lessons: DECISIONS 2026-07-05 (TZ hydration).
+
+**DEPLOYED: the Rock is on main `57f2ef3`** (deploy.sh each merge batch, no migrations, verified
+healthy 2026-07-05). The version-editor console is now clean end-to-end.
+
 **Phase 5 remaining = Track B, gated on the host decision:** pick VPS → TLS/reverse proxy → edge
 rate limiting at that proxy → deploy GlitchTip + set `SENTRY_DSN` → execute the Going-public
 runbook (docs/OPS.md) end-to-end. No code is expected to change for exposure day.
 
-**Rock deploy of this batch:** no migrations; the gotenberg image rebuilds once (digest pin) and
-the app image rebuilds. Deploy via `scripts/deploy.sh` as usual.
-
-**Still-pending non-code items:** the in-browser eyeball pass (favorites star, messaging/inbox
-mark-read POST, email modal, live search, cached lesson pages, login) — unchanged from before. (The
-version editor's React #418 hydration error on `?edit=1`, spun off by the CSP A/B, is FIXED — see
-DECISIONS 2026-07-05 "React #418 on every `?edit=1` editor load" and its PR.)
-Incidental: the Mac's local compose stack now has a throwaway Site Admin (`csp-probe@lesson3.local`)
-+ a minimal Biology/G10 probe plan (local-only; delete or keep as seed).
+**Still-pending non-code item:** the in-browser eyeball pass (favorites star, messaging/inbox
+mark-read POST, email modal, live search, cached lesson pages, login) — unchanged from before.
+**Mac-local incidentals** (not on the Rock; irrelevant to other devices): the local compose stack
+runs current main and has a throwaway Site Admin (`csp-probe@lesson3.local`) + a minimal
+Biology/G10 probe plan — useful as local seed, delete if unwanted. Its local DB carries dev-push
+state, so the `migrate` one-shot HANGS on an interactive Payload prompt during `compose up` —
+bypass with `docker compose build app && docker compose up -d --no-deps app`.
 
 ---
 
