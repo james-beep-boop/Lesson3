@@ -39,8 +39,32 @@ and it means a re-upload doesn't change what teachers see until a human confirms
 Int-covered (`tests/int/reingest.int.spec.ts`): create-new, revise→2.0.0/3.0.0 with pointer
 unmoved + old versions retained, intra-batch dup → error + nothing written, empty id → distinct
 plans, ambiguous → error. No schema/migration — ingest logic only. Closes the audit's
-"re-upload silently creates a duplicate plan" gap. **Next: Phase 5 — pre-VPS checklist (its own
-planning session).**
+"re-upload silently creates a duplicate plan" gap.
+
+**Post-merge cleanup (`/simplify`, 4 review agents):** `findExistingPlan` now reuses `relId` and
+owns the ambiguous-match throw (plain `number | null` return, no `{planId, ambiguous}` union);
+pre-flight memoizes subject-grade resolution across the batch; counters use `=== 'created'`.
+Skipped as non-improvements: version-create helper extraction, semver-wrapper flattening, a shared
+CLI/UI count formatter. **Also: `test:int` caught a fixture bug on first CI run** — the spec's raw
+bundle passed `validateGeneratable` but not the `contractDrift` hard gate (missing `schemaVersion`
++ required UNIT/LESSON/FE/ST fields); fixed + now verified locally against both pure checks before
+push. Lesson: `test:int` is DB-only (CI/Rock), so ingest-path fixtures can't be smoke-tested
+locally — validate raw bundles against `contractDrift`/`validateGeneratable` directly (both pure)
+before pushing.
+
+**Deferred (altitude, out of scope — the ALTITUDE reviewer's one real finding):** plan identity
+`(subjectGrade, substrand_id)` is currently derived by querying a *version's* `meta.substrand_id`
+(an unindexed nested-JSON path) and folding to distinct parent plans, and the `ambiguous`
+runtime-handling exists only because identity isn't a structural invariant. The principled form is
+a first-class **indexed `substrandId` column on `lesson-plans`** with a unique
+`(subjectGrade, substrandId)` index — making duplicates impossible by construction and matching a
+single indexed equality. It's a schema change (column + migration + backfill, where backfill itself
+runs this same query once), out of proportion to this bounded feature and with no second consumer
+today. **Trigger to promote it:** the first *other* consumer of substrand-matching (export, dedupe
+tooling, a "find plan by substrand" API). Until then the current derive-from-version approach is
+the correct incremental altitude.
+
+**Next: Phase 5 — pre-VPS checklist (its own planning session).**
 
 ---
 
