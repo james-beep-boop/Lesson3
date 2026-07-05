@@ -27,3 +27,15 @@ export function parseRecipientEmail(raw: unknown): string | null {
   if (!EMAIL_PATTERN.test(to)) return null
   return to
 }
+
+/**
+ * Sanitize free text bound for an email HEADER (e.g. the Subject line built from a stored version
+ * `title`): strip ASCII control characters — CR/LF above all — collapsing runs to a single space.
+ * nodemailer encodes header values, but content that can reach a header should never be able to
+ * carry header-shaped bytes in the first place (audit 2026-07-04; belt over nodemailer's
+ * suspenders). Non-string → ''. Callers supply their own fallback for an empty result.
+ */
+export function sanitizeEmailHeaderText(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  return raw.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/ {2,}/g, ' ').trim()
+}

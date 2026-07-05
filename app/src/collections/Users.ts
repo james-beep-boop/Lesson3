@@ -19,6 +19,7 @@ import {
   grantSiteAdminToFirstUser,
   guardPasswordChange,
 } from '../hooks/userRoles'
+import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserMessages } from './Messages'
@@ -72,6 +73,9 @@ export const Users: CollectionConfig = {
     delete: siteAdminOnly,
   },
   hooks: {
+    // Throttle the unauthenticated auth surface (SPEC §11 "generation, auth"): login and
+    // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
+    beforeOperation: [rateLimitAuthOperations],
     beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
     afterChange: [autoDemotePriorSubjectAdmins],
     // A user's favorites and messages are personal rows with NOT NULL user FKs — cascade them, or
