@@ -57,13 +57,35 @@ describe('renderVersionSectionsCached', () => {
     expect(JSON.parse((buf as Buffer).toString('utf8'))).toEqual(SECTIONS)
   })
 
-  it('CORRUPT entry: falls through to a fresh render', async () => {
+  it('CORRUPT entry: falls through to a fresh render AND rewrites the cache', async () => {
     getArtifact.mockResolvedValue(Buffer.from('not json{'))
 
     const out = await renderVersionSectionsCached(payload, 7)
 
     expect(out).toEqual(SECTIONS)
     expect(generateForVersion).toHaveBeenCalledTimes(1)
+    expect(putArtifact).toHaveBeenCalledTimes(1) // corrupt entry is repaired
+  })
+
+  it('SINGLE-FLIGHT: concurrent misses for one key render once, not N times', async () => {
+    getArtifact.mockResolvedValue(null)
+    // Hold the render open so both calls overlap in flight.
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    generateForVersion.mockImplementation(async () => {
+      await gate
+      return { lessonSequence: Buffer.from('x') }
+    })
+
+    const a = renderVersionSectionsCached(payload, 7)
+    const b = renderVersionSectionsCached(payload, 7)
+    release()
+    const [ra, rb] = await Promise.all([a, b])
+
+    expect(ra).toEqual(SECTIONS)
+    expect(rb).toEqual(SECTIONS)
+    expect(generateForVersion).toHaveBeenCalledTimes(1) // coalesced
+    expect(putArtifact).toHaveBeenCalledTimes(1)
   })
 
   it('cache WRITE failure is swallowed — the render still returns', async () => {

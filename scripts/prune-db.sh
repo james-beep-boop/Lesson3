@@ -21,8 +21,13 @@
 # `payload_jobs_log` child rows cascade (ON DELETE cascade FK — verified in the add_payload_jobs
 # migration), so deleting a parent job row cleans its log too. `generateVersionArtifact` /
 # `emailVersionArtifact` / `messagePing` are the live task slugs; a completed row is one with
-# `completed_at` set. Failed rows (`has_error`) are matched across ALL slugs by created_at so a
-# stuck/never-completed failure is still eventually reclaimed.
+# `completed_at` set.
+#
+# FAILED rows get their OWN (longer) window: the two completed-slug deletes below EXCLUDE
+# `has_error` rows (`has_error IS NOT TRUE`), so a failed job is never reclaimed on the short
+# 14d/180d window — it waits for PRUNE_FAILED_JOB_DAYS (90d), matched across ALL slugs by
+# created_at. This honours the retention policy exactly regardless of whether a terminal failure
+# also carries a completed_at (audit 2026-07-05).
 set -euo pipefail
 
 # Shared PATH + repo-root cd + env_get (reads .env keys without sourcing it). See scripts/lib.sh.
@@ -58,10 +63,12 @@ docker compose exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STO
 BEGIN;
 DELETE FROM "payload_jobs"
   WHERE "task_slug" = 'generateVersionArtifact'
+    AND "has_error" IS NOT TRUE
     AND "completed_at" IS NOT NULL
     AND "completed_at" < now() - interval '${EXPORT_DAYS} days';
 DELETE FROM "payload_jobs"
   WHERE "task_slug" IN ('emailVersionArtifact', 'messagePing')
+    AND "has_error" IS NOT TRUE
     AND "completed_at" IS NOT NULL
     AND "completed_at" < now() - interval '${EMAIL_DAYS} days';
 DELETE FROM "payload_jobs"

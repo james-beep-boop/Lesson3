@@ -63,7 +63,7 @@ env-overridable in `.env` (`PRUNE_EXPORT_JOB_DAYS` 14, `PRUNE_EMAIL_JOB_DAYS` 18
 `PRUNE_FAILED_JOB_DAYS` 90, `PRUNE_RATE_LIMIT_DAYS` 7). Runs nightly, after the backup so a
 pre-prune snapshot always exists:
 
-```
+```cron
 # Lesson3 retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
 30 3 * * *  /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1
 ```

@@ -11,6 +11,43 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 — CodeRabbit follow-ups on Phases 1/3 + mobile touch targets
+
+CodeRabbit review of the merged Phase 1/3 PRs, adjudicated (all accepted), plus a user testing
+report. Follow-up PR (code-review fixes + a mobile a11y fix).
+
+- **prune-db.sh (Major — correctness vs policy):** the two completed-slug deletes now exclude
+  `has_error` rows (`has_error IS NOT TRUE`), so a FAILED job is never reclaimed on the short
+  14d/180d window — it always waits for the 90d failed window. Honours the retention policy
+  regardless of whether a terminal failure also carries a `completed_at`.
+- **HTML cache single-flight:** concurrent cache MISSES for one version key now coalesce onto one
+  in-flight render (in-process `Map`), instead of each running the full generate+render — the exact
+  CPU burst the cache exists to prevent (cold start after a `HTML_RENDER_CACHE_VERSION` bump; a
+  freshly-published version opened by several teachers at once). Unit-pinned (concurrent misses →
+  `generateForVersion` once).
+- **`sanitizeEmailHeaderText` widened** to strip Unicode line separators (NEL U+0085, LS U+2028,
+  PS U+2029) alongside ASCII C0/DEL. nodemailer already MIME-encodes non-ASCII subjects, so this is
+  belt-and-suspenders — broadening is free and matches the function's stated intent. Unit-covered.
+- **Trivia:** corrupt-cache-entry test now asserts the repair write; OPS.md cron fence tagged
+  `cron` (MD040).
+- **Mobile touch targets (user report):** several controls were 26–40px on a 390px viewport (avatar
+  30×30, favorite/edit/download buttons short). The 640px media block now targets **44px** (2.75rem,
+  WCAG 2.5.5): `.btn` min-height, `.user-menu__avatar` + `.fav-toggle` 44×44, `.version-pill` as
+  inline-flex with a real min-height. Dropped the dead `.resources-toggle` rule (that checkbox was
+  removed in the single-document-format collapse). The header-hamburger idea from the report is a
+  bigger nav redesign — DEFERRED to a UI session, not done here.
+
+**On the "no cache speedup" testing note (NOT a bug):** the Phase-3 HTML cache saves server-side
+GENERATION CPU (up to 3 DOCX builds + mammoth), not full-page wall-clock. A single user's page load
+is dominated by DB queries + Next SSR/hydration + network, so caching the generation step is mostly
+invisible to a stopwatch on one browser — and the measured 1831→1980ms delta is within network
+jitter (n=1). The cache's value is CPU under CONCURRENCY (many teachers, one box), which the
+single-flight change above sharpens. To actually observe the hit, time the GET
+`/api/lesson-bundle-versions/:id/preview` endpoint twice (pure server render, no page assets) or add
+a temporary hit/miss log line — offered, not built.
+
+---
+
 ## 2026-07-04 (Phase 3) — scale prep: lesson-page HTML cache, retention prune cron, pagination posture
 
 Phase 3 of the audit plan — the "public VPS + 100+ teachers" readiness work.

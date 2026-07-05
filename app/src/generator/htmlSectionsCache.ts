@@ -34,6 +34,15 @@ const keyFor = (versionId: number | string): string =>
   `html-sections::v${HTML_RENDER_CACHE_VERSION}::version:${versionId}`
 
 /**
+ * Single-flight coalescing map: concurrent cache MISSES for the same key (a cold start after a
+ * HTML_RENDER_CACHE_VERSION bump, or several teachers opening a freshly-published version at once —
+ * the exact CPU bursts this cache exists to prevent) would otherwise each run the full generate +
+ * render. Coalesce them onto one in-flight render per key; the rest await its result. In-process
+ * (fine on the single Rock box; a future multi-instance host still gets per-instance coalescing).
+ */
+const inFlight = new Map<string, Promise<PreviewSection[]>>()
+
+/**
  * Return the sanitized content-HTML sections for a saved version, from cache when present, else
  * generate + render + cache. `generateForVersion` fetches the version with overrideAccess — a
  * TRUSTED SYSTEM read, NOT an authorization boundary: the caller MUST have already enforced the
@@ -57,7 +66,21 @@ export async function renderVersionSectionsCached(
     }
   }
 
-  const sections = await docxToSections(await generateForVersion(payload, versionId))
-  await putArtifact(key, Buffer.from(JSON.stringify(sections))).catch(() => {})
-  return sections
+  // Miss (or corrupt): coalesce concurrent renders of this key onto one in-flight promise.
+  const existing = inFlight.get(key)
+  if (existing) return existing
+
+  const render = (async (): Promise<PreviewSection[]> => {
+    const sections = await docxToSections(await generateForVersion(payload, versionId))
+    await putArtifact(key, Buffer.from(JSON.stringify(sections))).catch(() => {})
+    return sections
+  })()
+  inFlight.set(key, render)
+  try {
+    return await render
+  } finally {
+    // Clear on settle (success OR failure) so a failed render doesn't pin a rejected promise —
+    // the next request retries against the (still-empty) cache.
+    inFlight.delete(key)
+  }
 }
