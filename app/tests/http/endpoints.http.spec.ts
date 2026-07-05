@@ -164,9 +164,16 @@ describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () =>
     expect(nonce2).not.toBe(nonce) // a static nonce is no nonce at all
   })
 
-  it('the admin surface carries the same strict CSP (unauthenticated → redirect still stamped)', async () => {
+  it('the admin surface carries the same strict CSP (authenticated document request)', async () => {
     const res = await fetch(url('/admin'), { redirect: 'manual', headers: auth('siteAdmin') })
-    // Whatever the shell answers for this auth state, the document policy must be present.
+    const csp = res.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("'strict-dynamic'")
+  })
+
+  it('…and on the unauthenticated /admin response (redirect or shell — still a document)', async () => {
+    const res = await fetch(url('/admin'), { redirect: 'manual' })
+    // Whatever the shell answers without auth (redirect to login / unauthorized view), the
+    // middleware must have stamped the document policy on that response.
     const csp = res.headers.get('content-security-policy') ?? ''
     expect(csp).toContain("'strict-dynamic'")
   })
