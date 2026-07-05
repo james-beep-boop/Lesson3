@@ -16,17 +16,12 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: '/admin/login', destination: '/login', permanent: false }]
   },
-  // Baseline security headers (hardening backlog #3). Deliberately NO script-src/default-src in the
-  // baseline CSP: Next.js relies on inline hydration scripts, so a strict global policy needs nonce
-  // plumbing (a separate, larger task). These directives harden without breaking hydration — block
-  // plugins/embeds, base-tag hijack, and clickjacking.
-  //
-  // Two rules, on purpose: a next.config CSP on `/:path*` OVERRIDES (not intersects) a route handler's
-  // own Response CSP — only one CSP header reaches the client (verified by the tests/http e2e + curl,
-  // 2026-06-28). The preview endpoint sets a stricter `default-src 'none'` on its Response, so:
-  //   (1) the non-CSP headers apply to EVERY route (incl. preview), but
-  //   (2) the baseline CSP is applied to every route EXCEPT the preview endpoint (negative-lookahead
-  //       source), leaving the preview's own strict standalone CSP uncontested.
+  // Baseline non-CSP security headers (hardening backlog #3) on every route. The CSP moved to
+  // src/middleware.ts (Phase 5 A3): a strict `default-src`/`script-src` policy needs a per-request
+  // nonce, which static headers() rules can't mint. Middleware covers document routes only and
+  // skips `/api/*`, so the preview endpoint's own strict `default-src 'none'` Response CSP still
+  // reaches the client uncontested (the old negative-lookahead CSP rule here is superseded —
+  // history: a next.config CSP OVERRIDES a route handler's Response CSP, verified 2026-06-28).
   async headers() {
     const baseline = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -34,15 +29,7 @@ const nextConfig: NextConfig = {
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-DNS-Prefetch-Control', value: 'off' },
     ]
-    const baselineCsp = {
-      key: 'Content-Security-Policy',
-      value: "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-    }
-    return [
-      { source: '/:path*', headers: baseline },
-      // Exclude `/api/lesson-bundle-versions/:id/preview` so its Response CSP (default-src 'none') wins.
-      { source: '/((?!api/lesson-bundle-versions/[^/]+/preview).*)', headers: [baselineCsp] },
-    ]
+    return [{ source: '/:path*', headers: baseline }]
   },
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
