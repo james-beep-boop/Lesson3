@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (TZ hydration) — second, TZ-dependent React #418 on the version doc view; two-pass timestamps
+
+Fixing the LessonControls mismatch below unmasked a SECOND, distinct #418 (`args[]=text`) on the
+version document view — both with and without `?edit=1` — that only reproduces when **server TZ ≠
+browser TZ**: a Playwright `timezoneId` A/B against the docker stack (container TZ=UTC) showed a
+UTC-context browser clean and an America/Los_Angeles one erroring every load, while native `next
+start` (server TZ = browser TZ) was always clean — which is exactly how it hid during the #55 A/B.
+Production-relevant: the Rock container runs UTC and real browsers don't.
+
+Culprit: `VersionTimestamps` (the 2026-06-28 sidebar relocation of Last Modified/Created; the
+users doc view has no such component, which was the discriminating hint). It's `'use client'` — so
+it SSRs AND hydrates, unlike the server-component date usages elsewhere — and formatted with
+`toLocaleString(undefined, …)`: server text in container TZ, client text in the reader's zone.
+
+**`suppressHydrationWarning` was tried first and REJECTED by experiment:** React 19 KEEPS the
+server text for the suppressed node (browser A/B showed a Pacific reader stuck on the UTC wall
+time), i.e. it silences the error by displaying the wrong time. The shipped fix is **two-pass
+rendering**: the server pass and the hydration render emit a deterministic string (explicit
+`en-US` locale + explicit `timeZone: 'UTC'` + a " UTC" suffix — trees match by construction
+regardless of either side's TZ/ICU), then the first post-hydration render swaps in the reader's
+true local rendering via a `useSyncExternalStore` is-hydrated snapshot pair (not a mount-effect
+setState — the react-hooks cascading-render lint rejects that, and the store variant is one render
+cheaper). Browser-verified after: 0 pageerrors in both zones AND the Pacific reader sees 10:25 AM
+local, not 5:25 PM UTC.
+
+Pinned by `tests/unit/versionTimestampsTz.spec.tsx`: the server string is exact-match
+TZ-independent, and the mounted client drops the " UTC" suffix (detectable even when the test
+runner's own TZ is UTC, as in CI). Cross-TZ repro is impossible in-process — the browser
+`timezoneId` A/B is the end-to-end evidence.
+
+**Lessons:** (1) hydration bugs can stack — fixing one mismatch un-masks the next, so re-run the
+pageerror probe after every fix rather than assuming one root cause; (2) `suppressHydrationWarning`
+is not a fix for content the user actually needs to be correct — verify what React 19 *displays*
+after suppression, not just that the error is gone; (3) TZ-dependent mismatches are invisible in
+any test rig whose server and browser share a timezone — A/B with an explicit browser `timezoneId`.
+
+---
+
 ## 2026-07-05 — React #418 on every `?edit=1` editor load: never gate INITIAL render state on `typeof window`
 
 The admin version editor threw a deterministic hydration mismatch (`Minified React error #418`,
