@@ -41,15 +41,11 @@ prune cron shipped in Phase 3), tokenExpiration 2h ratified.
 - **#43 Phase 2 — invariant tripwires** (see item 1 below).
 - **#44 Phase 3 — scale prep** (see item 2 below).
 
-**⚠ FIRST THING NEXT SESSION — finish the deploy handoff (started 2026-07-04, status UNCONFIRMED):**
-a Rock deploy of `main` was initiated at end of night but not confirmed here. On the Rock: verify
-`main` is deployed (`git log -1`; `docker compose ps`; app returns 307) — redeploy if not
-(`scripts/deploy.sh`; **no migration** in 1–3, benign `html-sections::v1::…` cache cold-start). Then
-**add the prune cron** (`crontab -e`: `30 3 * * * /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1`
-— see docs/OPS.md "Retention pruning"; nothing prunes until this exists). Then the **in-browser
-eyeballs** (still pending): the Phase-3 HTML cache (a lesson renders identically; repeat view is
-instant), favorites star, messaging, email modal, live search (type then click a lesson fast → you
-stay on it), login still works.
+**Deploy handoff — DONE (2026-07-04):** `main` (Phases 1–3) is deployed on the Rock and the prune
+cron is installed (user-confirmed). No migration was involved. **Still pending: the in-browser
+eyeballs** — the Phase-3 HTML cache (a lesson renders identically; repeat view is instant),
+favorites star, messaging, email modal, live search (type then click a lesson fast → you stay on
+it), login still works. These are a nice-to-have pass, not a blocker for Phase 4.
 
 **Next, in order (per the agreed plan — details in DECISIONS 2026-07-04):**
 1. ~~**Phase 2 — invariant tripwires**~~ **DONE** (merged; DECISIONS 2026-07-04 (Phase 2)):
