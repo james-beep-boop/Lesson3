@@ -11,6 +11,92 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-04 — FULL-CODEBASE AUDIT → five-phase plan; product decisions (re-ingest, retention, exposure); Phase 1 security batch; CodeRabbit adjudication
+
+A deep audit of the whole codebase (all collections/access/hooks/endpoints/libs/ingest/generator/
+jobs/frontend/ops/CI, execution paths traced, claims verified against installed Payload source)
+found **no Critical issues and no data-loss paths**; the sharp edges + the agreed plan are below.
+Decisions were made via structured Q&A with the user BEFORE any code (house convention).
+
+### Product/deployment decisions (user-confirmed)
+
+- **Exposure trajectory: public VPS later, plus local ARES-server deployments — NOT Tailscale-only.**
+  This upgrades two audit findings to pre-launch blockers: (a) unthrottled auth surface (fixed this
+  entry, see Phase 1), (b) per-view DOCX generation on the lesson page (Phase 3 HTML cache). A
+  **Phase 5 pre-VPS checklist** now exists: error tracking (SPEC §11 already requires it), strict
+  CSRF via `SERVER_URL` + Secure-cookie verification, nonce-based CSP with `script-src`, first-user
+  bootstrap before exposure, edge rate limiting, and a re-look at the 2h token under public exposure.
+- **Re-ingest semantics (SPEC §7 amended):** an upload whose `(subjectGrade, META.substrand_id)`
+  matches an existing lesson plan attaches as the next MAJOR version (1.x → `2.0.0`) of that SAME
+  plan and becomes Official automatically (mirrors the 1.0.0 rule); old versions retained; plan
+  title refreshes from the new `META.titleDoc`; multiple matches (legacy duplicates) = actionable
+  pre-flight failure. Implementation is the tracked Phase-4 item — current code still creates a
+  duplicate plan (recorded gap).
+- **Retention policy (SPEC §11 amended):** completed export jobs 14d · email/message-ping job rows
+  180d (the data-egress audit trail) · failed jobs 90d · `rate_limit_counters` rows 7d. Mechanism:
+  a `scripts/prune-db.sh` psql cron beside the backup crons (no app code) — tracked Phase-3.
+- **Session window:** `tokenExpiration` 15 min → **2h** (PR #40) is ratified; SPEC §11 updated to
+  match (it still said 15 min — exactly the doc-drift failure mode the audit flagged).
+
+### The five-phase plan (order user-confirmed)
+
+① security batch (SHIPPED, this entry) → ② invariant tripwires (extract.ts adversarial unit suite;
+`applyEditorFieldSplit` unit suite + a whitelist↔`prose()` drift test — feasible with no code change
+since `prose()` is the only factory attaching `canEditProse`; colocate + rename the
+immutability pair `lessonBundleVersionUpdate`/`enforceVersionImmutable` so the form-render-only
+grant can't be misread as a write grant; taxonomy delete guards — Subject/SubjectGrade have NO
+cascade/guard and 23502 opaquely when referenced) → ③ scale prep (lesson-page HTML cache keyed by
+immutable version id; prune-db cron; browse/roster pagination posture for 100+ teachers — note the
+new live search re-runs the full browse fan-out per debounced keystroke) → ④ re-ingest-as-next-major
+→ ⑤ pre-VPS checklist. Working agreement added by the audit: **every new endpoint lands with
+wire-level 401/403/404 tests**; the `overrideAccess`-after-manual-authz pattern is only as safe as
+that discipline.
+
+### Phase 1 — security batch (this PR)
+
+- **Auth rate limiting** (SPEC §11 "generation, auth" — the one named surface that had none):
+  `hooks/authRateLimit.ts`, a Users `beforeOperation` hook (verified seam: both auth ops run it
+  before any work). Buckets: `login` 20/h per lowercased target identifier + `loginGlobal` 1000/h
+  (Payload's `maxLoginAttempts: 5` lockout still guards single-account brute force; this throttles
+  the hammering + bounds lockout-DoS), `forgotPassword` 5/day per REQUESTED address +
+  `forgotPasswordGlobal` 100/day (unauthenticated outbound mail = same egress class as email-a-doc,
+  same two-tier shape; keyed whether or not the account exists → no existence oracle). All
+  env-tunable (`RATE_LIMIT_LOGIN_*`, `RATE_LIMIT_FORGOT_PASSWORD_*`). Int-covered
+  (`tests/int/authRateLimit.int.spec.ts`), incl. the correct-credentials-still-429 and
+  unknown-address-spends-budget properties.
+- **Email-header hardening:** `sanitizeEmailHeaderText` (lib/emailAddress) strips control chars
+  from the stored version `title` before it reaches the email Subject in `emailVersionArtifact`
+  (admin-gated input, but belt over nodemailer's suspenders). Unit-covered.
+- **Unsaved-preview authority pinning:** `POST /:id/preview` now pins `subjectGrade` + `lessonPlan`
+  from the STORED version in the merge (as save-as-new always did). Before, the posted candidate
+  could name a different subject-grade and be judged by the field-split under THAT grade's role —
+  an Editor here who is Subject Admin elsewhere could preview structural/answer-key edits as
+  unrestricted. Render-only, nothing persisted, no confidentiality gain (versions are
+  all-authenticated-readable) — but it violated the endpoint's own "never show more than the caller
+  could save" invariant.
+- **`nextSemverForPlan` projection:** `select: { semver: true }` — it was loading the FULL content
+  of every retained version of the plan on every save-as-new (and each conflict retry). The
+  counter-row redesign stays deferred; this removes ~95% of the cost.
+
+### CodeRabbit review of PR #40 — adjudicated (PR #41, merged)
+
+4 accepted / 1 rejected. Accepted: Modal effect re-ran per keystroke (inline `onClose` identity →
+now via ref, effect once per open); SearchBox pending debounce survived unmount — **upgraded** from
+the review's "low value": `navigate()` drives the GLOBAL router, so typing then clicking a lesson
+within 200ms yanked the user back to `/?q=…`; SearchBox `initialQuery` re-sync — done
+provenance-aware (adopt EXTERNAL `?q=` changes + cancel the pending debounce; IGNORE the echo of
+our own navigation, which would revert in-flight typing; effect-based because `react-hooks/refs`
+forbids render-time ref reads); `role="status"` on the email queued-note. **Rejected:** "backdrop
+should close on `onClick` not `onMouseDown`" — backwards: per UI Events, mousedown/mouseup on
+different elements dispatch `click` to their nearest common ancestor (the backdrop), so `onClick`
+is the variant that closes on a text-selection drag out of the panel; the current
+mousedown+stopPropagation pattern is the standard defense. `tests/unit/searchBox.spec.tsx` pins all
+three behaviors. **Lesson (general):** review-bot fixes can be directionally wrong even when the
+observation is real — verify the mechanism against the spec/source before applying, and record the
+rejection where the next reader will look.
+
+---
+
 ## 2026-07-03 (latest) — SHIPPED: the single-document-format collapse + both in-flight streams landed
 
 The plan recorded in the 2026-07-03 (late) entry below is now DONE (the "NOT done yet" scope note

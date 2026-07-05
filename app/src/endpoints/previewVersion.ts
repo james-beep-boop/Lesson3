@@ -94,6 +94,13 @@ export const previewVersionUnsavedEndpoint: Endpoint = {
       ...stored,
       ...candidate,
       id: stored.id,
+      // AUTHORITY PINNING (same as save-as-new, audit 2026-07-04): the field-split resolves the
+      // actor's role from `data.subjectGrade`, so the posted candidate must not get to choose
+      // which subject-grade it is judged against (an Editor here who is Subject Admin elsewhere
+      // could otherwise claim that grade and preview structural/answer-key edits as unrestricted).
+      // `lessonPlan` is pinned on the same principle.
+      subjectGrade: stored.subjectGrade,
+      lessonPlan: stored.lessonPlan,
     } as Record<string, unknown>
     let effective: LessonBundleVersion
     try {

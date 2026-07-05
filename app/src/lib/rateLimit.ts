@@ -97,6 +97,32 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_MAX', 20),
     windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_PING_RECIPIENT_WINDOW_MS', 86_400_000),
   },
+  // AUTH operations (SPEC §11 "generation, auth"; audit 2026-07-04) — enforced by the Users
+  // beforeOperation hook (hooks/authRateLimit.ts). Login is keyed by the TARGET identifier
+  // (lowercased email), bounding both distributed guessing and the lockout-DoS blast radius
+  // (Payload's maxLoginAttempts:5 lockout guards single-account brute force; this throttles the
+  // hammering itself). Budgets sit far above legitimate use: a real user logs in a handful of
+  // times per hour, and 5 reset mails per address per day is generous.
+  login: {
+    max: positiveIntEnv('RATE_LIMIT_LOGIN_MAX', 20),
+    windowMs: positiveIntEnv('RATE_LIMIT_LOGIN_WINDOW_MS', 3_600_000),
+  },
+  loginGlobal: {
+    max: positiveIntEnv('RATE_LIMIT_LOGIN_GLOBAL_MAX', 1000),
+    windowMs: positiveIntEnv('RATE_LIMIT_LOGIN_GLOBAL_WINDOW_MS', 3_600_000),
+  },
+  // forgot-password sends REAL outbound mail per request (unauthenticated-triggered) — the same
+  // egress class as email-a-doc, so it gets the same two-tier cap shape: per-target-address and
+  // site-global daily ceilings. Keyed by the REQUESTED address whether or not an account exists,
+  // so the limiter itself can't be used as an account-existence oracle.
+  forgotPassword: {
+    max: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_MAX', 5),
+    windowMs: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_WINDOW_MS', 86_400_000),
+  },
+  forgotPasswordGlobal: {
+    max: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_MAX', 100),
+    windowMs: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_WINDOW_MS', 86_400_000),
+  },
 } satisfies Record<string, Limit>
 
 type Bucket = keyof typeof LIMITS

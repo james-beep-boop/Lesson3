@@ -12,13 +12,45 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is now the §10 CROSS-USER FEATURES** (2026-07-02; hardening is complete — see the
-new RESUME section). The prior hardening context below stands as history. The Official-version cutover is long
+**The chosen track is now the AUDIT-DRIVEN FIVE-PHASE PLAN** (2026-07-04 — see the newest RESUME
+section below and DECISIONS 2026-07-04; the §10 cross-user-features track completed 2026-07-03).
+The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
 retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**, AND **backlog #9 OPS**
 (backups, structured logging, heartbeat, CI) are ALL DONE. The remaining #9 work is **operator setup only**
 (keys/OAuth/cron — see `docs/OPS.md`), plus small deferred follow-ups. See "▶ RESUME HERE".
+
+---
+
+## ▶ RESUME HERE (2026-07-04) — full audit done → five-phase plan; Phase 1 SHIPPED; next = Phase 2
+
+A full-codebase audit ran 2026-07-04 (no Critical findings), followed by a structured Q&A that fixed
+the plan and three product decisions — **read DECISIONS.md 2026-07-04 first**, it has everything:
+public-VPS exposure trajectory, re-ingest = next-major + auto-Official (SPEC §7 amended, build =
+Phase 4), retention policy (SPEC §11 amended, prune cron = Phase 3), tokenExpiration 2h ratified.
+
+**Shipped (merged via CI-gated PRs):** **#41** CodeRabbit follow-ups on the PR-#40 UI (Modal
+effect-per-keystroke fix, SearchBox unmount/echo-sync fixes + unit spec, a11y note; CodeRabbit's
+onMouseDown→onClick suggestion REJECTED as backwards — reasoning on the PR-#40 thread and in
+DECISIONS). **Phase 1 security batch:** auth rate limiting (login + forgot-password buckets via a
+Users `beforeOperation` hook + int spec), email Subject control-char strip (+ unit spec),
+unsaved-preview `subjectGrade`/`lessonPlan` authority pinning, `nextSemverForPlan`
+select-projection.
+
+**Next, in order (per the agreed plan — details in DECISIONS 2026-07-04):**
+1. **Phase 2 — invariant tripwires:** extract.ts adversarial unit suite; `applyEditorFieldSplit`
+   unit suite + whitelist↔`prose()` drift test; colocate/rename the version-immutability pair;
+   Subject/SubjectGrade delete guards (they 23502 opaquely today).
+2. **Phase 3 — scale prep:** lesson-page HTML cache keyed by immutable version id (the page
+   currently regenerates DOCX+mammoth per view — and the new live search re-runs the browse fan-out
+   per debounced keystroke); `scripts/prune-db.sh` + cron (retention values in SPEC §11);
+   pagination posture for 100+ users.
+3. **Phase 4 — re-ingest as next major** (SPEC §7 as amended).
+4. **Phase 5 — pre-VPS checklist** (own planning session when a VPS timeline exists).
+
+**Still pending from before:** Rock deploy of current `main`; the in-browser eyeballs (favorites
+star, messaging, collapsed download UX — plus now the email modal + live search).
 
 ---
 

@@ -24,6 +24,7 @@ import {
 } from '../generator/exportArtifacts'
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
+import { sanitizeEmailHeaderText } from '../lib/emailAddress'
 import type { LessonBundleVersion } from '../payload-types'
 
 export interface EmailVersionArtifactInput {
@@ -83,7 +84,9 @@ export const emailVersionArtifactTask: TaskConfig<{
       if (!zip) throw new Error('export artifacts missing after generation')
 
       const filename = `${prefix}_${kind}.zip`
-      const title = version.title ?? 'Lesson plan'
+      // The stored title is admin-edited content headed into the Subject HEADER — strip control
+      // characters (CR/LF) so it can never carry header-shaped bytes (audit 2026-07-04).
+      const title = sanitizeEmailHeaderText(version.title) || 'Lesson plan'
       await req.payload.sendEmail({
         to,
         subject: `Lesson plan: ${title}`,

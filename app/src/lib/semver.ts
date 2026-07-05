@@ -65,6 +65,9 @@ export async function nextSemverForPlan(
     where: { lessonPlan: { equals: planId } },
     depth: 0,
     pagination: false,
+    // Only the semver column — without this, every save-as-new (and each conflict retry) loads the
+    // FULL content of every retained version of the plan (audit 2026-07-04).
+    select: { semver: true },
     overrideAccess: true,
     req,
   })

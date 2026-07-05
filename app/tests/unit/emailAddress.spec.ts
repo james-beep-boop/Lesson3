@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 
-import { parseRecipientEmail } from '../../src/lib/emailAddress'
+import { parseRecipientEmail, sanitizeEmailHeaderText } from '../../src/lib/emailAddress'
 
 describe('parseRecipientEmail', () => {
   it('accepts a plausible address and trims surrounding whitespace', () => {
@@ -50,5 +50,27 @@ describe('parseRecipientEmail', () => {
     const long = `${'x'.repeat(250)}@example.com`
     expect(long.length).toBeGreaterThan(254)
     expect(parseRecipientEmail(long)).toBeNull()
+  })
+})
+
+describe('sanitizeEmailHeaderText (audit 2026-07-04: stored titles reach the Subject header)', () => {
+  it('passes ordinary titles through unchanged', () => {
+    expect(sanitizeEmailHeaderText('BIOLOGY GRADE 10: Chemicals of Life')).toBe(
+      'BIOLOGY GRADE 10: Chemicals of Life',
+    )
+  })
+
+  it('strips CR/LF and other control characters (header injection)', () => {
+    expect(sanitizeEmailHeaderText('Title\r\nBcc: victim@example.com')).toBe(
+      'Title Bcc: victim@example.com',
+    )
+    expect(sanitizeEmailHeaderText('a\u0000b\tc\u007fd')).toBe('a b c d')
+  })
+
+  it('collapses whitespace runs and trims; non-strings/empties become ""', () => {
+    expect(sanitizeEmailHeaderText('  a \n\n  b  ')).toBe('a b')
+    expect(sanitizeEmailHeaderText('\r\n')).toBe('')
+    expect(sanitizeEmailHeaderText(null)).toBe('')
+    expect(sanitizeEmailHeaderText(42)).toBe('')
   })
 })
