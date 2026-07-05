@@ -44,11 +44,16 @@ select-projection.
    authority hardening; version-immutability colocated in `access/versionImmutability.ts` (renamed
    `versionUpdateGrantForFormRenderOnly`) + wiring test; Subject/SubjectGrade delete guards;
    CLAUDE.md endpoint-test working agreement.
-2. **Phase 3 — scale prep (NEXT):** lesson-page HTML cache keyed by immutable version id (the page
-   currently regenerates DOCX+mammoth per view — and the live search re-runs the browse fan-out
-   per debounced keystroke); `scripts/prune-db.sh` + cron (retention values in SPEC §11);
-   pagination posture for 100+ users.
-3. **Phase 4 — re-ingest as next major** (SPEC §7 as amended).
+2. ~~**Phase 3 — scale prep**~~ **DONE** (merged; DECISIONS 2026-07-04 (Phase 3)): lesson-page HTML
+   cache keyed by immutable version id (`generator/htmlSectionsCache.ts`, wired into the lesson page
+   + GET preview; UNSAVED preview uncached); `scripts/prune-db.sh` + nightly OPS cron; pagination
+   posture assessed = deliberate no-action with documented ~1–2k thresholds. **Deploy note:** new
+   `html-sections::v1::…` cache namespace (benign cold start, no migration); the prune cron needs
+   adding on the Rock (`crontab -e`, 03:30 — see docs/OPS.md "Retention pruning").
+3. **Phase 4 — re-ingest as next major (NEXT)** (SPEC §7 as amended). Match `(subjectGrade,
+   META.substrand_id)` in pre-flight; attach as next MAJOR version + move Official pointer + refresh
+   title; ambiguous (multi-match) = actionable pre-flight failure. Current code still creates a
+   duplicate plan — that's the gap this closes.
 4. **Phase 5 — pre-VPS checklist** (own planning session when a VPS timeline exists).
 
 **Still pending from before:** Rock deploy of current `main`; the in-browser eyeballs (favorites
