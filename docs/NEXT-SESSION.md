@@ -66,14 +66,22 @@ it), login still works. These are a nice-to-have pass, not a blocker for Phase 4
    pre-flight failure; empty substrand_id → new plan. `nextMajorForPlan` helper; `IngestResult.action`
    reporting; int spec. No migration.
 4. **Phase 5 — pre-VPS checklist (NEXT — own planning session when a VPS timeline exists).** Error
-   tracking (Sentry/GlitchTip), strict CSRF via `SERVER_URL` + Secure-cookie check, nonce-based CSP
-   with `script-src`, first-user bootstrap before exposure, edge/proxy rate limiting, and a re-look
-   at the 2h token under public exposure. Host choice (SPEC open decision) shapes several of these,
-   so this phase starts with planning, not code.
+   tracking (Sentry/GlitchTip); **strict CSRF via `SERVER_URL` + Secure-cookie check (Codex #1)**;
+   **nonce-based CSP with `script-src` (Codex #2)**; first-user bootstrap before exposure;
+   edge/proxy rate limiting; a re-look at the 2h token under public exposure; **Subject-Admin
+   uniqueness — grant-path transaction-lock or a partial unique index (Codex #3 / Bucket A #10)**;
+   **`/messages` read-state off GET, or the allow-list Sec-Fetch tightening (Codex #4 — UX tradeoff
+   for header-less browsers, decide with device context)**; **Gotenberg digest pin + font package
+   pin (Codex #8, resolve the digest against the registry)**. Host choice (SPEC open decision)
+   shapes several of these, so this phase starts with planning, not code. Full Codex triage:
+   DECISIONS 2026-07-05 (Codex audit).
 
 **The five-phase audit plan is complete through Phase 4; only Phase 5 (pre-public-exposure) remains,
-gated on a VPS timeline.** The in-browser eyeball pass (favorites/messaging/email modal/live
-search/cached lessons) is still the one outstanding non-code item.
+gated on a VPS timeline.** A 2026-07-05 external (Codex) pass found no Critical issues; its 3 safe
+Low fixes shipped (env fail-fast, stale contract comment, engines pin), the rest are folded into
+Phase 5 above or documented deferrals (#5 preview buffering, #6 export dedupe). The in-browser
+eyeball pass (favorites/messaging/email modal/live search/cached lessons) is still the one
+outstanding non-code item.
 
 ---
 

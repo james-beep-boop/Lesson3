@@ -11,6 +11,63 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (Codex audit) — external security pass triaged: 3 safe fixes shipped, rest mapped to Phase 5 / documented deferrals
+
+Codex reviewed `main` (10 findings; no Critical). Triage + disposition:
+
+**Fixed now (safe, zero-behavior-change — this PR):**
+- **#7 (Low):** `ARTIFACT_CACHE_MAX_BYTES` used `Number(env) || default`, silently swallowing a
+  typo back to 512 MB — unlike the fail-fast rate-limit/prune parsing. Extracted the existing
+  `positiveIntEnv` to a shared `lib/env.ts` and reused it in `artifactCache` (and `rateLimit`), so
+  a malformed value now throws at boot.
+- **#9 (Low):** `contract.ts` header still said drift is "NON-BLOCKING"; ingest promoted it to a
+  HARD gate. Comment corrected (stale doc in a sensitive ingest area).
+- **#10 (Low):** `package.json` engines was `^18.20.2 || >=20.9.0` while Docker (node:22.17.0-alpine)
+  and Volta pin 22.17.0 — tightened to `>=22.17.0` so `engines` stops misleading other hosts.
+  Advisory only (`.npmrc` has no engine-strict), so no install impact.
+
+**Mapped to Phase 5 (pre-public-VPS blockers — already on the checklist, reaffirmed):**
+- **#1 (High):** strict CSRF is opt-in; prod keeps `serverURL` empty for browser compat, so
+  Payload's Origin/Sec-Fetch allowlist is inactive. Set/verify `SERVER_URL` + Secure cookies before
+  public exposure. (Correct for the current internal posture.)
+- **#2 (High/Med):** baseline CSP omits `default-src`/`script-src` (Next inline hydration needs
+  nonce plumbing); a future XSS is weakly contained outside the strict preview path. Nonce-based CSP
+  is Phase 5.
+
+**Documented deferrals — acceptable, reaffirmed (not building now):**
+- **#3 (Med):** ≤1-Subject-Admin-per-grade is hook-enforced, not DB-enforced (this is the audit's
+  own Bucket A #10, deferred 2026-06-28). Concurrent grants could both pass; the demote scan caps at
+  1000. Low likelihood, non-security impact (two legitimately-granted admins until noticed). The
+  structural fix (partial unique index) needs reordering demote-before-insert; the lighter
+  grant-path transaction-lock (like the assign-editor endpoints already do) is the Phase-5 interim.
+- **#5 (Med/Low):** unsaved-preview body cap is best-effort before parse (Content-Length pre-check;
+  `formData()` buffers when the header lies). Authenticated + editor-gated + rate-limited; a hard fix
+  needs a streaming multipart parser. Left as documented.
+- **#6 (Med/Low):** export dedupe scans only 20 pending jobs → a burst can enqueue a redundant job.
+  Queue concurrency caps the box and the artifact cache makes the dup cheap; not a hard single-flight.
+  Left as documented.
+
+**Open decisions surfaced to the user (NOT auto-fixed):**
+- **#4 (Med):** `/messages` marks-read on GET, skipping the write only on `Sec-Fetch-Site:
+  cross-site` (deny-list) — so a header-LESS client (older Safari ≤16.3) still writes, leaving a
+  cross-site integrity edge (clear unread state; no data loss/disclosure). Flipping to an allow-list
+  (`same-origin`/`same-site`/`none`) closes it but stops auto-mark-read for header-less browsers
+  (badge never clears) — a real UX regression for a plausibly-common device population in the ARES
+  context. Alternatively move read-state to a POST (reintroduces the endpoint deliberately removed).
+  Held for the user's call; leaning keep-current given the device-population tradeoff, revisit in
+  Phase 5 with the POST option.
+- **#8 (Low):** Gotenberg base (`gotenberg/gotenberg:8`) + the apt font package aren't
+  digest-pinned. Real supply-chain drift risk, but a correct digest pin must be resolved against the
+  registry (an ops step best done on/near the Rock, where Phase 5's other host work lives). Deferred
+  to Phase 5 rather than guessing a version here.
+
+**Controls Codex verified as solid** (recorded for confidence): JSON-only Site-Admin-gated
+all-or-nothing ingest; AST-based `.js` extraction (no require/eval); version-immutability hook;
+export/email/preview authorize the readable version before trusted generation; job REST surfaces
+locked down incl. `payload-jobs`; preview HTML sanitized at the mammoth seam.
+
+---
+
 ## 2026-07-05 (Phase 4) — re-ingest as next MAJOR version, arriving Not Official
 
 Phase 4 of the audit plan — the first product-behavior change, opened design-first for sign-off
