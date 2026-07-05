@@ -10,7 +10,17 @@
 # `ttf-mscorefonts-installer` (Debian `contrib`) downloads the fonts under Microsoft's redistribution
 # EULA (accepted non-interactively below) at build time — we deliberately do NOT vendor the .ttf
 # files, which that EULA disallows. Build needs outbound network (SourceForge) once per image build.
-FROM gotenberg/gotenberg:8
+#
+# Supply-chain pinning (Codex 2026-07-05 #8): the base image is pinned by its multi-arch INDEX
+# digest (covers amd64 for CI and arm64 for the Rock/Macs) and the font installer package by exact
+# version, so `docker build` cannot silently pick up a different upstream. Both pins fail LOUDLY
+# when upstream moves (Debian archives drop superseded package versions) — that build error is the
+# deliberate re-pin moment, not a bug. To re-pin:
+#   docker buildx imagetools inspect gotenberg/gotenberg:8   → new index digest ("Digest:" line)
+#   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
+# Resolved 2026-07-05: digest = Gotenberg 8.34.0 (Debian trixie); installer 3.8.1. The font
+# binaries themselves are Microsoft's frozen cab files — the installer verifies their checksums.
+FROM gotenberg/gotenberg:8@sha256:67097317623a503ba2a6a7e9ae8db6929a1f7e1bbd88077bacf2d325fbdab923
 
 USER root
 RUN set -eux; \
@@ -20,7 +30,7 @@ RUN set -eux; \
     echo 'ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true' | debconf-set-selections; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ttf-mscorefonts-installer wget cabextract fontconfig; \
+      ttf-mscorefonts-installer=3.8.1 wget cabextract fontconfig; \
     fc-cache -f; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
