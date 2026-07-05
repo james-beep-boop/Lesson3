@@ -11,6 +11,7 @@ import { APIError } from 'payload'
 import { consumeRateLimit } from '../lib/rateLimit'
 import { relId } from '../lib/relId'
 import { MESSAGE_PING_SLUG, type MessagePingInput } from '../jobs/messagePing'
+import { markMessagesReadEndpoint } from '../endpoints/markMessagesRead'
 import type { User } from '../payload-types'
 
 /**
@@ -164,6 +165,11 @@ export const Messages: CollectionConfig = {
     beforeValidate: [stampSenderAndRateLimit, validateContextLink],
     afterChange: [notifyRecipient],
   },
+  endpoints: [
+    // POST /:? — mark-read is a state-changing POST (not the former GET-render write), CSRF-safe by
+    // the SameSite=Lax cookie; scoped server-side to the caller's own messages. See markMessagesRead.
+    markMessagesReadEndpoint,
+  ],
   fields: [
     {
       name: 'sender',

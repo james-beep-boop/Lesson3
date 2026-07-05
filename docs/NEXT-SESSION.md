@@ -70,11 +70,11 @@ it), login still works. These are a nice-to-have pass, not a blocker for Phase 4
    **nonce-based CSP with `script-src` (Codex #2)**; first-user bootstrap before exposure;
    edge/proxy rate limiting; a re-look at the 2h token under public exposure; **Subject-Admin
    uniqueness — grant-path transaction-lock or a partial unique index (Codex #3 / Bucket A #10)**;
-   **`/messages` read-state off GET, or the allow-list Sec-Fetch tightening (Codex #4 — UX tradeoff
-   for header-less browsers, decide with device context)**; **Gotenberg digest pin + font package
-   pin (Codex #8, resolve the digest against the registry)**. Host choice (SPEC open decision)
-   shapes several of these, so this phase starts with planning, not code. Full Codex triage:
-   DECISIONS 2026-07-05 (Codex audit).
+   **Gotenberg digest pin + font package pin (Codex #8, resolve the digest against the registry)**.
+   (Codex #4 — `/messages` read-state off GET — is DONE, shipped 2026-07-05 as `POST
+   /api/messages/mark-read`, not deferred.) Host choice (SPEC open decision) shapes several of
+   these, so this phase starts with planning, not code. Full Codex triage: DECISIONS 2026-07-05
+   (Codex audit).
 
 **The five-phase audit plan is complete through Phase 4; only Phase 5 (pre-public-exposure) remains,
 gated on a VPS timeline.** A 2026-07-05 external (Codex) pass found no Critical issues; its 3 safe

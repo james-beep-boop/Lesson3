@@ -1,6 +1,5 @@
 import React from 'react'
 import Link from 'next/link'
-import { headers } from 'next/headers'
 
 import { requireUser } from '@/lib/session'
 import { findReadablePlan } from '@/lib/readBundle'
@@ -8,15 +7,16 @@ import { relId } from '@/lib/relId'
 import type { Message } from '@/payload-types'
 import Composer from './Composer'
 import ReplyBox from './ReplyBox'
+import MarkShownRead from './MarkShownRead'
 
 /**
  * Messages (SPEC §10) — the flat inbox + compose page. One page, no threads, no per-message
  * routes: received messages render newest-first with their full body inline, so VIEWING the inbox
- * IS reading them — every unread message shown is marked read after the list is captured (the
- * "New" highlights still render this once; the AppNav badge clears on the next page load).
- * Mark-as-read is this system write (overrideAccess): the collection's API update path stays
- * closed. `?plan=`/`?version=` prefill compose with a lesson link (the lesson page's
- * "Message a colleague" affordance).
+ * IS reading them. Mark-as-read is a state-changing POST fired from the client after render
+ * (`MarkShownRead` → POST /api/messages/mark-read), NOT a write during this GET — CSRF-safe for
+ * every browser via the SameSite=Lax cookie (Codex #4, 2026-07-05). The "New" highlights still
+ * render this visit and clear on the next load. `?plan=`/`?version=` prefill compose with a lesson
+ * link (the lesson page's "Message a colleague" affordance).
  */
 export default async function MessagesPage({
   searchParams,
@@ -75,33 +75,15 @@ export default async function MessagesPage({
     }),
   ])
 
-  // Mark exactly the unread messages we just SHOWED as read — AFTER capturing the docs above, so
-  // this render still highlights what was new. Scope by the shown ids (not a blanket
-  // recipient+unread where): the inbox fetches only the newest `limit` received, so a blanket update
-  // would silently mark read any unread beyond that window that the user never saw (they'd vanish
-  // from the badge without being displayed). Bounding to the rendered ids keeps unshown unread unread
-  // until pagination surfaces them (the Manage-at-scale backlog). System write (overrideAccess); the
-  // recipient clause stays as defense-in-depth even though the ids are already recipient-scoped.
-  //
-  // Guard: a GET render must not be weaponizable from another origin. `Sec-Fetch-Site: cross-site`
-  // is sent ONLY for navigations a different origin initiated (a link/redirect/script from evil.com),
-  // so skipping the write in that case blocks a malicious page from silently clearing a logged-in
-  // user's unread state (Codex audit 2026-07-03). Genuine in-app clicks (`same-origin`/`same-site`),
-  // typed URLs and bookmarks (`none`), and browsers that omit the header all still mark read — the
-  // "viewing is reading" UX is unchanged for every normal case. No /read endpoint is reintroduced.
-  const secFetchSite = (await headers()).get('sec-fetch-site')
+  // The unread messages actually SHOWN this render — scoped to the fetched page (not a blanket
+  // recipient+unread), so unread beyond the page limit stay unread until pagination surfaces them
+  // (the Manage-at-scale backlog). Marked read by the client POST below (MarkShownRead), never during
+  // this GET — so the "New" tags render this visit and the write can't be driven cross-site.
   const shownUnreadIds = received.docs.filter((m) => !m.readAt).map((m) => m.id)
-  if (shownUnreadIds.length > 0 && secFetchSite !== 'cross-site') {
-    await payload.update({
-      collection: 'messages',
-      where: { and: [{ recipient: { equals: user.id } }, { id: { in: shownUnreadIds } }] },
-      data: { readAt: new Date().toISOString() },
-      overrideAccess: true,
-    })
-  }
 
   return (
     <article className="messages">
+      <MarkShownRead ids={shownUnreadIds} />
       <Link href="/" className="back-link">
         ← All lesson plans
       </Link>
