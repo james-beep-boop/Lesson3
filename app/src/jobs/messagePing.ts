@@ -14,6 +14,7 @@
  */
 import type { TaskConfig } from 'payload'
 
+import { captureException } from '../lib/errorTracking'
 import type { User } from '../payload-types'
 
 export interface MessagePingInput {
@@ -66,6 +67,7 @@ export const messagePingTask: TaskConfig<{
         { err, messageId, recipientUserId, senderUserId },
         'messagePing failed',
       )
+      captureException(err, { job: 'messagePing', messageId, recipientUserId, senderUserId })
       throw err
     }
   },

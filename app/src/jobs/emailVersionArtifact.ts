@@ -25,6 +25,7 @@ import {
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { sanitizeEmailHeaderText } from '../lib/emailAddress'
+import { captureException } from '../lib/errorTracking'
 import type { LessonBundleVersion } from '../payload-types'
 
 export interface EmailVersionArtifactInput {
@@ -108,6 +109,8 @@ export const emailVersionArtifactTask: TaskConfig<{
         { err, versionId, to, kind, requestedByUserId },
         'emailVersionArtifact failed',
       )
+      // Tracker context deliberately omits `to` (an email address — the log stream keeps it).
+      captureException(err, { job: 'emailVersionArtifact', versionId, kind, requestedByUserId })
       throw err
     }
   },
