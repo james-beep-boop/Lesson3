@@ -49,24 +49,11 @@ export const lessonBundleVersionCreate: Access = ({ req: { user }, data }) => {
   return isSubjectAdminFor(u, subjectGradeIdFor({ data }))
 }
 
-// Stage 2 editing model: a saved version is an IMMUTABLE snapshot — authoring a change creates a NEW
-// candidate via `POST /:id/save-as-new` (a CREATE, via overrideAccess, applying the Editor/Admin
-// field-split against the source); nothing is ever written back to an existing row.
-//
-// This grant does NOT enable in-place edits. It exists ONLY so Payload's admin renders the version
-// edit form as EDITABLE: Payload forces the WHOLE form read-only when the user lacks `update`
-// permission (`readOnly = !hasSavePermission`, from this access). With permission granted, field-level
-// access (`canEditProse` vs `canEditStructure`) + the `structureCondition` hides then gate which fields
-// an Editor may actually touch, and the toolbar "Edit" (form `setDisabled`) can unlock them. The hard
-// immutability guarantee moves to `enforceVersionImmutable` (beforeChange), which REJECTS every
-// `update` operation outright — so a stray/direct API PATCH still fails; only `create` writes.
-// Scope mirrors delete: Editors + Subject Admins in their subject-grades, Site Admin everywhere.
-export const lessonBundleVersionUpdate: Access = ({ req: { user } }) => {
-  const u = user as User | null | undefined
-  if (isSiteAdmin(u)) return true
-  const ids = subjectGradeIdsByRole(u, ['editor', 'subjectAdmin'])
-  return ids.length ? ({ subjectGrade: { in: ids } } satisfies Where) : false
-}
+// Stage 2 editing model: a saved version is an IMMUTABLE snapshot. The `update` access for
+// lesson-bundle-versions is NOT here — it is one half of a two-part mechanism (a form-render-only
+// grant paired with the beforeChange rejection) that lives, deliberately colocated, in
+// `access/versionImmutability.ts` (`versionUpdateGrantForFormRenderOnly` + `enforceVersionImmutable`).
+// Read that module's header before touching anything about version updates.
 
 // Deletion scope (IA redesign 2026-07-01): Site Admin — anything; Subject Admin — any candidate in
 // their subject-grades; Editor — ONLY candidates they personally authored (`author` = self, stamped by

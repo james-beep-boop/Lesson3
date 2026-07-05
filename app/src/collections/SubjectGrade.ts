@@ -1,7 +1,73 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
+import { APIError } from 'payload'
 
-import { authenticated, canManageCurriculum, siteAdminOnly } from '../access'
+import { authenticated, canManageCurriculum, siteAdminOnly, toId } from '../access'
 import type { User } from '../payload-types'
+
+/**
+ * Delete guard (audit 2026-07-04). `lesson_plans.subject_grade_id`, `lesson_bundle_versions.
+ * subject_grade_id` and `users_assignments.subject_grade_id` are all NOT NULL with ON DELETE SET
+ * NULL FKs, so deleting a referenced SubjectGrade raised Postgres 23502 — surfaced in the admin as
+ * the opaque "An unknown error has occurred" (the same trap the plan/user cascades close).
+ *
+ *  - CONTENT blocks the delete with an actionable message: removing lesson plans as a taxonomy
+ *    side effect would be far too destructive to cascade.
+ *  - ROLE ASSIGNMENTS cascade: a grant scoped to a subject-grade that is going away is meaningless,
+ *    so the rows are removed from their holders (same fan-out shape as autoDemotePriorSubjectAdmins;
+ *    `skipAutoDemote` because removing rows can never grant anything).
+ *
+ * Runs on every path incl. system/overrideAccess — same posture as `enforceOfficialNotDeletable`;
+ * callers that legitimately clear a subject-grade (fixture teardown) delete its content first.
+ */
+const guardSubjectGradeDelete: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const plans = await req.payload.count({
+    collection: 'lesson-plans',
+    where: { subjectGrade: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
+  if (plans.totalDocs > 0) {
+    throw new APIError(
+      `${plans.totalDocs} lesson plan(s) still use this subject grade — delete them (Manage → Delete lesson plans) or move them to another subject grade first.`,
+      409,
+    )
+  }
+  // Versions normally go with their plan, but check directly too — an orphaned row would 23502 the
+  // same way, and this message beats that one.
+  const versions = await req.payload.count({
+    collection: 'lesson-bundle-versions',
+    where: { subjectGrade: { equals: id } },
+    overrideAccess: true,
+    req,
+  })
+  if (versions.totalDocs > 0) {
+    throw new APIError(
+      `${versions.totalDocs} lesson plan version(s) still reference this subject grade — delete them first.`,
+      409,
+    )
+  }
+
+  const { docs: holders } = await req.payload.find({
+    collection: 'users',
+    where: { 'assignments.subjectGrade': { equals: id } },
+    depth: 0,
+    limit: 1000,
+    overrideAccess: true,
+    req,
+  })
+  for (const holder of holders) {
+    await req.payload.update({
+      collection: 'users',
+      id: holder.id,
+      data: {
+        assignments: (holder.assignments ?? []).filter((a) => toId(a.subjectGrade) !== Number(id)),
+      },
+      overrideAccess: true,
+      req,
+      context: { skipAutoDemote: true },
+    })
+  }
+}
 
 /**
  * SubjectGrade = subject + integer grade (SPEC §8). The assignable unit roles
@@ -29,6 +95,8 @@ export const SubjectGrade: CollectionConfig = {
     delete: siteAdminOnly,
   },
   hooks: {
+    // Actionable block on referenced content + assignment-row cascade (see guardSubjectGradeDelete).
+    beforeDelete: [guardSubjectGradeDelete],
     beforeValidate: [
       // Friendly duplicate check (the hard guarantee is the compound unique index above).
       async ({ data, req, originalDoc }) => {

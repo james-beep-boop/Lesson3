@@ -39,11 +39,13 @@ unsaved-preview `subjectGrade`/`lessonPlan` authority pinning, `nextSemverForPla
 select-projection.
 
 **Next, in order (per the agreed plan — details in DECISIONS 2026-07-04):**
-1. **Phase 2 — invariant tripwires:** extract.ts adversarial unit suite; `applyEditorFieldSplit`
-   unit suite + whitelist↔`prose()` drift test; colocate/rename the version-immutability pair;
-   Subject/SubjectGrade delete guards (they 23502 opaquely today).
-2. **Phase 3 — scale prep:** lesson-page HTML cache keyed by immutable version id (the page
-   currently regenerates DOCX+mammoth per view — and the new live search re-runs the browse fan-out
+1. ~~**Phase 2 — invariant tripwires**~~ **DONE** (merged; DECISIONS 2026-07-04 (Phase 2)):
+   extract.ts adversarial suite + never-executes proof; prose-whitelist drift test + fieldSplit
+   authority hardening; version-immutability colocated in `access/versionImmutability.ts` (renamed
+   `versionUpdateGrantForFormRenderOnly`) + wiring test; Subject/SubjectGrade delete guards;
+   CLAUDE.md endpoint-test working agreement.
+2. **Phase 3 — scale prep (NEXT):** lesson-page HTML cache keyed by immutable version id (the page
+   currently regenerates DOCX+mammoth per view — and the live search re-runs the browse fan-out
    per debounced keystroke); `scripts/prune-db.sh` + cron (retention values in SPEC §11);
    pagination posture for 100+ users.
 3. **Phase 4 — re-ingest as next major** (SPEC §7 as amended).

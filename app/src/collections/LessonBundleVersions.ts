@@ -4,13 +4,15 @@ import {
   lessonBundleVersionCreate,
   lessonBundleVersionDelete,
   lessonBundleVersionRead,
-  lessonBundleVersionUpdate,
 } from '../access/versioning'
+import {
+  enforceVersionImmutable,
+  versionUpdateGrantForFormRenderOnly,
+} from '../access/versionImmutability'
 import { canEditStructure, systemOnly } from '../access/bundle'
 import {
   enforceBundleVersionGeneratable,
   enforceOfficialNotDeletable,
-  enforceVersionImmutable,
   enforceVersionPlanConsistency,
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
@@ -56,17 +58,19 @@ export const LessonBundleVersions: CollectionConfig = {
   access: {
     read: lessonBundleVersionRead,
     create: lessonBundleVersionCreate,
-    update: lessonBundleVersionUpdate,
+    // NOT a write grant — one half of the immutability mechanism (renders the form editable; every
+    // write it appears to allow is rejected by `enforceVersionImmutable` below). The pair lives,
+    // deliberately colocated, in access/versionImmutability.ts — read its header before touching.
+    update: versionUpdateGrantForFormRenderOnly,
     delete: lessonBundleVersionDelete,
   },
   hooks: {
     beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
-    // Stage 2 model: versions are IMMUTABLE. `update` access is now permissive enough for Payload to
-    // render the edit form editable (so an Editor can actually type + Save-as-new; see
-    // `lessonBundleVersionUpdate`), so the immutability guarantee lives here instead:
-    // `enforceVersionImmutable` rejects every in-place `update` (a stray/direct PATCH included).
-    // Authoring goes through the save-as-new endpoint (a CREATE, applying the field-split + stale-check
-    // itself). `enforceVersionFieldSplit` still exists for the preview endpoint's direct use; not wired here.
+    // Stage 2 model: versions are IMMUTABLE — `enforceVersionImmutable` rejects every authenticated
+    // in-place `update` (a stray/direct PATCH included); it pairs with the form-render-only update
+    // grant above (see access/versionImmutability.ts). Authoring goes through the save-as-new
+    // endpoint (a CREATE, applying the field-split + stale-check itself). `enforceVersionFieldSplit`
+    // still exists for the preview endpoint's direct use; not wired here.
     beforeChange: [enforceVersionImmutable],
     // Retention: the Official version cannot be deleted (would orphan the plan pointer).
     beforeDelete: [enforceOfficialNotDeletable],
