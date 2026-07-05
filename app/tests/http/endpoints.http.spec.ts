@@ -142,6 +142,41 @@ describe('GraphQL disabled (backlog #7 regression)', () => {
   })
 })
 
+describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () => {
+  it('GET /login → strict nonce CSP; the nonce reaches the rendered scripts; fresh per request', async () => {
+    const res = await fetch(url('/login'))
+    expect(res.status).toBe(200)
+    const csp = res.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("default-src 'self'")
+    expect(csp).toContain("'strict-dynamic'")
+    expect(csp).toContain("object-src 'none'") // old baseline directives carried over
+    expect(csp).not.toContain('unsafe-eval') // dev-only allowance must never ship
+    const nonce = /'nonce-([^']+)'/.exec(csp)?.[1]
+    expect(nonce).toBeTruthy()
+    // Next's renderer must pick the nonce up from the forwarded request header and stamp it onto
+    // its inline/framework scripts — a CSP whose nonce never reaches the <script> tags would block
+    // hydration everywhere.
+    expect(await res.text()).toContain(nonce!)
+
+    const res2 = await fetch(url('/login'))
+    const nonce2 = /'nonce-([^']+)'/.exec(res2.headers.get('content-security-policy') ?? '')?.[1]
+    expect(nonce2).toBeTruthy()
+    expect(nonce2).not.toBe(nonce) // a static nonce is no nonce at all
+  })
+
+  it('the admin surface carries the same strict CSP (unauthenticated → redirect still stamped)', async () => {
+    const res = await fetch(url('/admin'), { redirect: 'manual', headers: auth('siteAdmin') })
+    // Whatever the shell answers for this auth state, the document policy must be present.
+    const csp = res.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("'strict-dynamic'")
+  })
+
+  it('API routes carry no middleware CSP (documents only; preview keeps its own strict one)', async () => {
+    const res = await fetch(url('/api/users/me'))
+    expect(res.headers.get('content-security-policy')).toBeNull()
+  })
+})
+
 describe('Preview endpoint (SPEC §5)', () => {
   const previewUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/preview`
 
