@@ -11,6 +11,53 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-04 (Phase 2) — invariant tripwires: extract.ts adversarial suite, prose-whitelist drift test, immutability colocation, taxonomy delete guards
+
+Phase 2 of the audit plan — mechanical guards around the fragile-but-correct mechanisms, so a
+future "simplification" fails fast instead of silently widening a boundary.
+
+- **extract.ts adversarial suite** (`tests/unit/extract.spec.ts`): pins the parse-never-execute
+  contract in CI (was review-only). Covers the ARES conventions that MUST extract (const-by-name,
+  `+`-fold, plain templates); every dynamic/executable construct that MUST throw (call, identifier,
+  member access, `new`, template-with-expr, spread, computed key, getter, method, non-`+` operator,
+  `+` on non-primitives, regex/bigint, sparse array, `__proto__` in data AND at the export layer,
+  malformed export shapes); and a **never-executes proof** — a module whose inert statements would
+  set a global marker if evaluated, asserted not to. Also the JSON sibling's structural guards.
+- **prose-whitelist drift test** (`tests/unit/proseWhitelistDrift.spec.ts`): the Editor/Admin
+  boundary is the `*_PROSE` whitelist in `fieldSplit.ts`, hand-kept in sync with `lessonContent.ts`
+  by comment. Made mechanical with ZERO production change: `prose()` is the only factory attaching
+  `access.update === canEditProse`, so "intended Editor prose" is computable by walking the field
+  tree; the walk must equal the whitelist per container. Exported the `*_PROSE` constants for the
+  test. Drift now fails named + fast, not as a silently-dropped edit (or a newly Editor-writable
+  admin field).
+- **fieldSplit authority hardening:** `applyEditorFieldSplit` now resolves the actor's subject-grade
+  from `originalDoc.subjectGrade` FIRST (data only as a fallback for pre-stripped callers) — same
+  class as the Phase-1 preview pin: a submission must not name a grade the caller administers
+  elsewhere to escape the whitelist. On the update-only path the original's grade is always present.
+- **Immutability colocation** (`access/versionImmutability.ts`): the audit's "most misreadable
+  mechanism". The form-render-only `access.update` grant and the `enforceVersionImmutable`
+  beforeChange rejection now live in ONE module with a pair-warning header; the grant is renamed
+  `versionUpdateGrantForFormRenderOnly` so its name carries the "not a write grant" warning to every
+  call site. `tests/unit/versionImmutabilityWiring.spec.ts` asserts the wiring itself
+  (`access.update` IS the render grant; the hook IS in `beforeChange`; the hook 403s an authenticated
+  update, passes system/create) — DB-free, so a mis-wire fails instantly instead of as a later
+  behavioural symptom the int suite catches.
+- **Taxonomy delete guards** (`collections/Subject`, `SubjectGrade`): deleting a referenced
+  SubjectGrade/Subject raised the opaque 23502 the plan/user cascades already close elsewhere.
+  SubjectGrade delete now BLOCKS on referenced content (lesson plans/versions) with an actionable
+  409 (cascading content would be far too destructive) and CASCADES dangling role assignments off
+  their holders; Subject delete BLOCKS while it still has SubjectGrades. Int-covered
+  (`tests/int/taxonomyDelete.int.spec.ts`); fixture teardown is unaffected (it deletes content →
+  users → subject-grades → subjects, so the guards see an empty scope).
+- **Working agreement added to CLAUDE.md:** every custom endpoint / auth-affecting hook lands with
+  wire-level 401/403/404 tests in the same PR — the standing guard for the authorize-then-
+  overrideAccess-write pattern that could not be enforced structurally.
+
+test:unit 80/80 · lint 0 errors (1 pre-existing `any` warning) · typecheck clean; the two new int
+specs ride CI. **Next: Phase 3 — scale prep (lesson-page HTML cache, prune-db cron, pagination).**
+
+---
+
 ## 2026-07-04 — FULL-CODEBASE AUDIT → five-phase plan; product decisions (re-ingest, retention, exposure); Phase 1 security batch; CodeRabbit adjudication
 
 A deep audit of the whole codebase (all collections/access/hooks/endpoints/libs/ingest/generator/

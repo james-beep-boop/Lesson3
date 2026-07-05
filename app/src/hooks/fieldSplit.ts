@@ -38,14 +38,16 @@ const sameSequence = (
 ): boolean => a.length === b.length && a.every((v, i) => v === b[i])
 
 // Editor-editable prose fields, by container. Anything NOT listed is admin/system and is preserved
-// from the original. Keep in sync with the `prose()` fields in fields/lessonContent.ts.
-const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
-const SLO_PROSE = ['purpose', 'knowledge', 'skills', 'attitudes', 'keyInquiry', 'purposeInStoryline', 'safetyNotes']
-const FRAMEWORK_PROSE = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment']
-const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
-const FINAL_EXPLANATION_PROSE = ['instructions']
-const SECTION_PROSE = ['prompt']
-const SUMMARY_LESSON_PROSE = ['title', 'observed', 'learned', 'explained']
+// from the original. Must stay in sync with the `prose()` fields in fields/lessonContent.ts —
+// exported so tests/unit/proseWhitelistDrift.spec.ts can enforce that sync mechanically (a field is
+// "intended Editor prose" exactly when its factory attached `canEditProse`).
+export const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
+export const SLO_PROSE = ['purpose', 'knowledge', 'skills', 'attitudes', 'keyInquiry', 'purposeInStoryline', 'safetyNotes']
+export const FRAMEWORK_PROSE = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment']
+export const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
+export const FINAL_EXPLANATION_PROSE = ['instructions']
+export const SECTION_PROSE = ['prompt']
+export const SUMMARY_LESSON_PROSE = ['title', 'observed', 'learned', 'explained']
 
 /** Return a copy of `base` with only `proseKeys` overlaid from `sub` (when present). */
 const overlayProse = (base: Doc, sub: Doc | undefined, proseKeys: string[]): Doc => {
@@ -90,7 +92,12 @@ export const applyEditorFieldSplit = ({
   editorTopLevelKeys: Set<string>
 }): Doc | undefined => {
   if (operation !== 'update' || !originalDoc || !data) return data
-  const subjectGradeId = toId((data.subjectGrade ?? originalDoc.subjectGrade) as never)
+  // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
+  // the subject-grade the document actually belongs to, never one the submission claims — a caller
+  // who is Subject Admin elsewhere must not be able to name THAT grade and bypass the whitelist.
+  // (`data.subjectGrade` is only a fallback for callers that pre-strip the original; on this
+  // update-only path `originalDoc.subjectGrade` is required data and always present.)
+  const subjectGradeId = toId((originalDoc.subjectGrade ?? data.subjectGrade) as never)
   // Subject Admins are unrestricted. A missing user = trusted system / overrideAccess call
   // (unauthenticated updates are denied at collection access) — treat as trusted too.
   if (!req.user || isSubjectAdminFor(req.user as User, subjectGradeId)) return data
