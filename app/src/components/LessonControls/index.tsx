@@ -17,7 +17,7 @@
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
@@ -31,16 +31,17 @@ export default function LessonControls() {
   const [fields] = useAllFormFields()
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
   // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
   // Edit button) so a user who clicked "Edit" lands unlocked instead of on a locked form hunting for
   // a second button. Any other entry (e.g. opened to preview/download) starts read-only.
-  const [editing, setEditing] = useState<boolean>(
-    () =>
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('edit') === '1',
-  )
+  // Must come from useSearchParams, NOT window.location: the admin route renders per-request, so
+  // the server sees the param too and SSR matches hydration — a window-gated read renders locked
+  // HTML on the server and unlocked on the client, a hydration mismatch (React #418) on every
+  // ?edit=1 load.
+  const [editing, setEditing] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [docx, setDocx] = useState(true)
   const [pdf, setPdf] = useState(false)
   const [saving, setSaving] = useState(false)
