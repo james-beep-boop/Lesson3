@@ -1,5 +1,6 @@
 import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
 import { Forbidden } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
@@ -105,24 +106,63 @@ export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({
 }) => {
   if (context?.skipAutoDemote) return doc
 
-  const grantedSubjectGradeIds = (doc.assignments ?? [])
-    .filter((a: Assignment) => a.role === 'subjectAdmin')
-    .map((a: Assignment) => toId(a.subjectGrade))
-    .filter((id: number | undefined): id is number => id != null)
+  const grantedSubjectGradeIds = [
+    ...new Set<number>(
+      (doc.assignments ?? [])
+        .filter((a: Assignment) => a.role === 'subjectAdmin')
+        .map((a: Assignment) => toId(a.subjectGrade))
+        .filter((id: number | undefined): id is number => id != null),
+    ),
+  ].sort((a, b) => a - b)
+
+  if (grantedSubjectGradeIds.length === 0) return doc
+
+  // Serialize concurrent grants for the same subject-grade (Codex 2026-07-05 #3 / Bucket A #10,
+  // Phase 5 A2): two transactions granting DIFFERENT users the same grade each run the scan below
+  // before the other commits — under READ COMMITTED neither sees the other's uncommitted grant, so
+  // neither demotes and both commit: two Subject Admins. Row-locking the granted subject_grades
+  // rows first makes the second transaction block HERE until the first commits; its scan then sees
+  // the committed grant and demotes it. Locks are taken in ascending id order so a save granting
+  // multiple grades can't deadlock a concurrent one. The tx-bound-connection lookup mirrors
+  // endpoints/userAssignments.ts (verified there against installed @payloadcms/drizzle source);
+  // outside a transaction the lock is a harmless no-op, as there.
+  const adapter = req.payload.db as unknown as {
+    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
+    drizzle: { execute: (q: unknown) => Promise<unknown> }
+  }
+  const txDb =
+    (req.transactionID != null
+      ? adapter.sessions?.[String(await req.transactionID)]?.db
+      : undefined) ?? adapter.drizzle
+  for (const sgId of grantedSubjectGradeIds) {
+    await txDb.execute(sql`SELECT id FROM "subject_grades" WHERE id = ${sgId} FOR UPDATE`)
+  }
 
   for (const sgId of grantedSubjectGradeIds) {
     // depth: 0 → assignment.subjectGrade comes back as raw IDs (no normalization needed).
-    const others = await req.payload.find({
-      collection: 'users',
-      depth: 0,
-      limit: 1000,
-      where: {
-        and: [{ id: { not_equals: doc.id } }, { 'assignments.subjectGrade': { equals: sgId } }],
-      },
-      req,
-    })
+    // Paginate the full holder set — the old single find silently capped the demote scan at
+    // 1000 users. Post-lock we are the only writer for this grade, so collecting every page
+    // before demoting is race-free.
+    const holders: User[] = []
+    let page = 1
+    for (;;) {
+      const res = await req.payload.find({
+        collection: 'users',
+        depth: 0,
+        limit: 200,
+        page,
+        sort: 'id',
+        where: {
+          and: [{ id: { not_equals: doc.id } }, { 'assignments.subjectGrade': { equals: sgId } }],
+        },
+        req,
+      })
+      holders.push(...res.docs)
+      if (!res.hasNextPage) break
+      page += 1
+    }
 
-    for (const other of others.docs) {
+    for (const other of holders) {
       let changed = false
       const assignments = (other.assignments ?? []).map((a) => {
         if (toId(a.subjectGrade) === sgId && a.role === 'subjectAdmin') {
