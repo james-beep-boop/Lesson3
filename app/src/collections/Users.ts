@@ -20,6 +20,7 @@ import {
   guardPasswordChange,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
+import { isHttpsServerUrl } from '../lib/publicPosture'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserMessages } from './Messages'
@@ -45,6 +46,11 @@ export const Users: CollectionConfig = {
     // session (even with the tab open) still clears itself. Active editors get one prompt per
     // window; explicit Log Out is immediate. IdleLogout enforces the deadline on stale tabs.
     tokenExpiration: 7200,
+    // Secure derives from the public posture (Phase 5 A5): an https SERVER_URL means the auth
+    // cookie refuses plaintext transport — Codex #1's "Secure-cookie check" made structural.
+    // Internal hosts (SERVER_URL empty/http) keep today's behavior; sameSite stays Payload's
+    // Lax default (the CSRF property the mark-read POST relies on).
+    cookies: { secure: isHttpsServerUrl(process.env.SERVER_URL) },
     // Build the reset link from ADMIN_URL (falling back to SERVER_URL). serverURL is
     // intentionally '' on the internal host (see payload.config.ts) so it can't be used
     // for the email base there.

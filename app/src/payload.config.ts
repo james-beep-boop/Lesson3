@@ -18,6 +18,7 @@ import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
 import { messagePingTask } from './jobs/messagePing'
 import { isSiteAdmin } from './access'
+import { firstUserBootRefusal } from './lib/publicPosture'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -162,6 +163,26 @@ export default buildConfig({
     disable: true,
   },
   secret: payloadSecret,
+  // Public-posture boot guard (Phase 5 A5): with SERVER_URL set and ZERO users, Payload's
+  // unauthenticated first-register would hand Site Admin to the first visitor (verified live
+  // 2026-07-05) — refuse to boot instead. The count is skipped when it can't be taken (the very
+  // first migrate runs before the users table exists — enforcement must not brick schema
+  // creation). Escape hatch for one deliberate bootstrap boot: ALLOW_FIRST_USER_BOOTSTRAP=1.
+  // Decision logic + rationale: lib/publicPosture.ts; runbook: docs/OPS.md "Going public".
+  onInit: async (payload) => {
+    let userCount: number | null = null
+    try {
+      userCount = (await payload.count({ collection: 'users' })).totalDocs
+    } catch {
+      return // pre-schema boot (first migrate) — nothing to guard yet
+    }
+    const refusal = firstUserBootRefusal({
+      serverUrl: process.env.SERVER_URL,
+      userCount,
+      allowBootstrap: process.env.ALLOW_FIRST_USER_BOOTSTRAP === '1',
+    })
+    if (refusal) throw new Error(refusal)
+  },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
