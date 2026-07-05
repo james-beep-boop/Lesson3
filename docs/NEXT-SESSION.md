@@ -23,29 +23,35 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-04, end of night) — Phases 1–3 all MERGED; next = deploy-confirm then Phase 4
+## ▶ RESUME HERE (2026-07-05) — Phases 1–4 + all review/Codex follow-ups MERGED & DEPLOYED; only Phase 5 remains
 
-A full-codebase audit ran 2026-07-04 (no Critical findings), followed by a structured Q&A that fixed
-the plan and three product decisions — **read DECISIONS.md 2026-07-04 first** (four entries: the
-audit/plan, then Phase 1 / Phase 2 / Phase 3): public-VPS exposure trajectory, re-ingest =
-next-major + auto-Official (SPEC §7 amended, build = Phase 4), retention policy (SPEC §11 amended,
-prune cron shipped in Phase 3), tokenExpiration 2h ratified.
+A full-codebase audit ran 2026-07-04 (no Critical findings) → a five-phase plan; an external Codex
+pass ran 2026-07-05 (no Critical). **Read DECISIONS.md 2026-07-04 + 2026-07-05 entries first** — the
+audit/plan, the four phases, and the Codex triage all live there. Standing product decisions:
+public-VPS exposure trajectory; re-ingest = next-major, **Not Official** (SPEC §7); retention policy
+(SPEC §11, prune cron live); tokenExpiration 2h.
 
-**Shipped this session, all merged to `main` via CI-gated PRs #41–#44:**
-- **#41** CodeRabbit follow-ups on the PR-#40 UI (Modal effect-per-keystroke fix, SearchBox
-  unmount/echo-sync + unit spec, a11y note; the onMouseDown→onClick suggestion was REJECTED as
-  backwards — reasoning on the PR-#40 thread + DECISIONS).
-- **#42 Phase 1 — security batch:** auth rate limiting (login + forgot-password buckets via a Users
-  `beforeOperation` hook + int spec), email Subject control-char strip (+ unit spec), unsaved-preview
-  `subjectGrade`/`lessonPlan` authority pinning, `nextSemverForPlan` select-projection.
-- **#43 Phase 2 — invariant tripwires** (see item 1 below).
-- **#44 Phase 3 — scale prep** (see item 2 below).
+**Everything through Phase 4 + all follow-ups is MERGED and DEPLOYED to the Rock (main `8b4236a`,
+deployed + verified 2026-07-05).** Shipped this arc via CI-gated PRs #41–#48:
+- **#41** CodeRabbit UI follow-ups (Modal/SearchBox/a11y).
+- **#42 Phase 1** — auth rate limiting (login + forgot-password), email header strip, preview
+  authority pinning, semver projection.
+- **#43 Phase 2** — invariant tripwires (extract adversarial suite, prose-whitelist drift test,
+  version-immutability colocation + wiring test, taxonomy delete guards, endpoint-test agreement).
+- **#44 Phase 3** — lesson-page HTML cache, `scripts/prune-db.sh` + cron, pagination posture.
+- **#45** review follow-ups (mobile 44px touch targets, email sanitizer widened, prune has_error fix).
+- **#46 Phase 4** — re-ingest as next major, Not Official.
+- **#47** Codex safe wins (cache-env fail-fast, stale contract comment, engines pin).
+- **#48** Codex #4 — `/messages` read-state moved to a CSRF-safe `POST /api/messages/mark-read`.
 
-**Deploy handoff — DONE (2026-07-04):** `main` (Phases 1–3) is deployed on the Rock and the prune
-cron is installed (user-confirmed). No migration was involved. **Still pending: the in-browser
-eyeballs** — the Phase-3 HTML cache (a lesson renders identically; repeat view is instant),
-favorites star, messaging, email modal, live search (type then click a lesson fast → you stay on
-it), login still works. These are a nice-to-have pass, not a blocker for Phase 4.
+**Ops state (Rock):** backups ARE configured, so `scripts/deploy.sh` always takes its pre-migration
+snapshot (the `ALLOW_UNBACKED_DEPLOY` fallback is never needed there); the retention prune cron is
+installed. Deploys this arc were all no-migration.
+
+**Outstanding non-code item:** the in-browser eyeball pass — favorites star, messaging (incl. the
+inbox now that mark-read is a POST: open a message, badge clears on next navigation), email modal,
+live search (type then click a lesson fast → you stay on it), cached lesson pages, login. Nice-to-have,
+not blocking.
 
 **Next, in order (per the agreed plan — details in DECISIONS 2026-07-04):**
 1. ~~**Phase 2 — invariant tripwires**~~ **DONE** (merged; DECISIONS 2026-07-04 (Phase 2)):
