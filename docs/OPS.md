@@ -188,3 +188,45 @@ pinger: the Rock pings OUT on a schedule; if pings stop, the provider alerts. Sa
 - **App-alive heartbeat:** `scripts/heartbeat.sh` probes the app (`HEARTBEAT_APP_URL`, default
   `http://localhost:3001/`) and pings `HEALTHCHECK_APP_URL` ONLY when the app responds — so if the app or
   the box is down, the pings stop and the provider alerts. Set that check's period to ~5–15 min + grace.
+
+---
+
+## Going public (pre-VPS checklist — Phase 5, 2026-07-05)
+
+The audit's pre-exposure checklist, in execution order. The host-independent code (items marked ✓)
+shipped in Phase 5 Track A; what remains here is **operator configuration on the public host**.
+`SERVER_URL` is the single public-posture switch: setting it enables strict CSRF AND (when https)
+Secure auth cookies AND the empty-users boot guard — the checklist can't be half-applied.
+
+**Standing decisions (2026-07-05):** error tracker = self-hosted GlitchTip; `tokenExpiration`
+stays 2h under public exposure (ratified — strict CSRF + Secure cookies + SameSite=Lax + auth rate
+limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = grant-path lock
+(structural index deferred; trigger = assignment write paths multiplying).
+
+1. **TLS + reverse proxy (host decision executes here).** Terminate TLS in front (Caddy is the
+   low-config option; nginx/Cloudflare fine too). The proxy must forward `Host` and
+   `X-Forwarded-Proto: https`.
+2. **Edge rate limiting** at that proxy — connection/request throttles in front of the app-level
+   Postgres limiter (which stays; it's the inner wall). Start conservative (e.g. Caddy
+   `rate_limit`/nginx `limit_req` ~10 r/s per IP with burst, tighter on `/api/users/login` and
+   `/api/users/forgot-password`) and tune from logs.
+3. **Seed users BEFORE DNS points at the box.** On an empty DB, Payload's unauthenticated
+   first-register hands Site Admin to the FIRST visitor (verified live 2026-07-05). ✓ The app now
+   REFUSES to boot with `SERVER_URL` set and zero users. Either restore a backup first, create the
+   admin while unexposed (boot without `SERVER_URL`, register, then set it), or run ONE deliberate
+   bootstrap boot with `ALLOW_FIRST_USER_BOOTSTRAP=1` and unset it after registering.
+4. **Set `SERVER_URL=https://…` in `.env`** → strict CSRF (Payload Origin/Sec-Fetch allowlist,
+   Codex #1) + ✓ Secure auth cookies derive automatically (lib/publicPosture.ts). Note the
+   documented trade-off: browsers that send neither Origin nor Sec-Fetch-Site on same-origin
+   requests (older Safari ≤16.x) get bounced to login under strict CSRF — acceptable for public
+   exposure, revisit only if real users hit it.
+5. **Error tracking:** deploy GlitchTip, set `SENTRY_DSN` (see "Error tracking (GlitchTip)"
+   above ✓), confirm a test event arrives.
+6. **Verify, over the public URL:**
+   - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per
+     request ✓ (shipped: middleware CSP), `Set-Cookie` on login carries `Secure`.
+   - `test:http` against the public base (`E2E_BASE_URL=https://…`) — the suite asserts the CSP,
+     auth gates, and rate limits over the wire.
+   - Backups + heartbeat crons live (sections above); Gotenberg image digest-pinned ✓.
+7. **Local ARES-server deployments** (SPEC's offline box): keep `SERVER_URL` EMPTY (or http) —
+   they stay on the internal posture (Lax-cookie CSRF, no Secure flag over plaintext) by design.
