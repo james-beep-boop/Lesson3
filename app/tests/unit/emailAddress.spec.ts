@@ -67,6 +67,10 @@ describe('sanitizeEmailHeaderText (audit 2026-07-04: stored titles reach the Sub
     expect(sanitizeEmailHeaderText('a\u0000b\tc\u007fd')).toBe('a b c d')
   })
 
+  it('strips Unicode line/paragraph separators (NEL, LS, PS) too', () => {
+    expect(sanitizeEmailHeaderText('a\u0085b\u2028c\u2029d')).toBe('a b c d')
+  })
+
   it('collapses whitespace runs and trims; non-strings/empties become ""', () => {
     expect(sanitizeEmailHeaderText('  a \n\n  b  ')).toBe('a b')
     expect(sanitizeEmailHeaderText('\r\n')).toBe('')

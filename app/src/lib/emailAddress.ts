@@ -30,12 +30,14 @@ export function parseRecipientEmail(raw: unknown): string | null {
 
 /**
  * Sanitize free text bound for an email HEADER (e.g. the Subject line built from a stored version
- * `title`): strip ASCII control characters — CR/LF above all — collapsing runs to a single space.
- * nodemailer encodes header values, but content that can reach a header should never be able to
- * carry header-shaped bytes in the first place (audit 2026-07-04; belt over nodemailer's
- * suspenders). Non-string → ''. Callers supply their own fallback for an empty result.
+ * `title`): strip line-break-capable characters — ASCII C0/DEL (CR/LF above all) AND the Unicode
+ * separators some parsers treat as newlines (NEL U+0085, LS U+2028, PS U+2029) — collapsing runs to
+ * a single space. nodemailer MIME-encodes non-ASCII subjects (encoded-word), which already
+ * neutralizes these, but content that can reach a header should never be able to carry
+ * header-shaped bytes in the first place (audit 2026-07-04; belt over nodemailer's suspenders, so
+ * broaden freely). Non-string → ''. Callers supply their own fallback for an empty result.
  */
 export function sanitizeEmailHeaderText(raw: unknown): string {
   if (typeof raw !== 'string') return ''
-  return raw.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/ {2,}/g, ' ').trim()
+  return raw.replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim()
 }
