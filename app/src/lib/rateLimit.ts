@@ -24,29 +24,13 @@ import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import type { User } from '../payload-types'
+import { positiveIntEnv } from './env'
 
 interface Limit {
   /** Max requests allowed within the window. */
   max: number
   /** Fixed window length in milliseconds. */
   windowMs: number
-}
-
-/**
- * Read a positive-integer env override, FAILING FAST on a malformed one. `Number(env) || default`
- * silently swallowed `0`/`NaN`/garbage back to the default — so an operator who set
- * `RATE_LIMIT_EXPORT_MAX=0` (intending to lock it down) would unknowingly get the generous default.
- * Unset → use the default; set-but-not-a-positive-integer → throw at boot (same fail-fast posture as
- * the empty-PAYLOAD_SECRET guard) so the misconfiguration is loud, not silent.
- */
-const positiveIntEnv = (name: string, fallback: number): number => {
-  const raw = process.env[name]
-  if (raw == null || raw === '') return fallback
-  const n = Number(raw)
-  if (!Number.isInteger(n) || n < 1) {
-    throw new Error(`${name} must be a positive integer (got "${raw}")`)
-  }
-  return n
 }
 
 /**

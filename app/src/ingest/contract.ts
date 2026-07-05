@@ -4,9 +4,10 @@
  * Validates a RAW ARES data object (the UPPERCASE `META`/`UNIT`/`LESSONS`/`FINAL_EXPLANATION`/
  * `SUMMARY_TABLE` shape, BEFORE `rawToBundle`) against the canonical contract we proposed to
  * ARES — `ares-contract.schema.json`, the single source of truth shared with them and enforced
- * here. It returns a list of human-readable DRIFT messages (`[]` = conforms); ingest reports them
- * NON-BLOCKING for now (current ARES output doesn't conform — that's the drift we're reporting),
- * to be promoted to a hard gate once ARES adopts the contract. See docs/ARES-DATA-REQUEST.md.
+ * here. It returns a list of human-readable DRIFT messages (`[]` = conforms). Ingest treats drift
+ * as a HARD GATE — any divergence fails pre-flight and nothing is written (see `ingestItems` in
+ * ingest/index.ts; the warn-only → hard-gate promotion is recorded in docs/DECISIONS.md). See also
+ * docs/ARES-DATA-REQUEST.md.
  *
  * This is a deliberately small, dependency-free validator covering ONLY the JSON-Schema keywords
  * our own schema uses (type / required / properties / additionalProperties:false / items /

@@ -23,10 +23,14 @@ import { createHash, randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
+import { positiveIntEnv } from '../lib/env'
+
 const CACHE_DIR =
   process.env.ARTIFACT_CACHE_DIR || path.join(process.cwd(), '.artifact-cache')
 
-const MAX_BYTES = Number(process.env.ARTIFACT_CACHE_MAX_BYTES) || 512 * 1024 * 1024 // 512 MB
+// Fail fast on a malformed override rather than the old `Number(env) || default`, which would
+// silently ignore a typo and keep the 512 MB default (audit 2026-07-05, Codex #7).
+const MAX_BYTES = positiveIntEnv('ARTIFACT_CACHE_MAX_BYTES', 512 * 1024 * 1024) // 512 MB
 
 /**
  * Build a stable cache key from its parts. Each part is coerced to a string and joined with
