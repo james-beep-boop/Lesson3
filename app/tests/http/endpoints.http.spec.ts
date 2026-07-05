@@ -846,40 +846,64 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
   })
 })
 
-describe('/messages page (SPEC §10 PR ③) — mark-read is a same-origin-only side effect', () => {
-  // Codex audit 2026-07-03 #2: "viewing is reading" marks shown messages read on GET, but a
-  // cross-origin navigation must not be able to silently clear a logged-in user's unread state.
-  // The page skips the write when `Sec-Fetch-Site: cross-site`. We drive the REAL page render (JWT
-  // header auth works for the server component exactly as for the API endpoints) and check the DB.
-  const getMessages = async (key: RoleKey, secFetchSite?: string) => {
-    const res = await fetch(url('/messages'), {
-      headers: { ...auth(key), ...(secFetchSite ? { 'Sec-Fetch-Site': secFetchSite } : {}) },
-      redirect: 'manual',
+describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-read', () => {
+  // Read-state moved OFF the GET render onto a state-changing POST — CSRF-safe for every browser via
+  // the SameSite=Lax cookie (a cross-site POST arrives unauthenticated → 401), replacing the old
+  // Sec-Fetch heuristic. The write is hard-scoped to the caller's OWN messages, so foreign ids in the
+  // body match nothing. Drive the real endpoint over the wire and check the DB.
+  const markRead = (key: RoleKey | undefined, ids: unknown) =>
+    fetch(url('/api/messages/mark-read'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth(key) },
+      body: JSON.stringify({ ids }),
     })
-    await res.text().catch(() => {}) // drain the body → the server component (incl. mark-read) finished
-    return res
-  }
   const readAtOf = async (id: number) =>
     (await fx.payload.findByID({ collection: 'messages', id, depth: 0, overrideAccess: true })).readAt
 
-  it('a cross-site GET leaves unread unread; a same-origin GET marks it read', async () => {
-    // Fresh unread to the editor (its own message id, so other inbox state can't confuse the assert).
-    const msg = await fx.payload.create({
+  const mkMsg = (recipient: RoleKey, tag: string) =>
+    fx.payload.create({
       collection: 'messages',
-      data: { sender: fx.users.teacher.id, recipient: fx.users.editor.id, body: `${MARK}sfs-guard` },
-      overrideAccess: false,
-      user: fx.users.teacher,
+      data: { sender: fx.users.teacher.id, recipient: fx.users[recipient].id, body: `${MARK}${tag}` },
+      overrideAccess: true,
     })
-    try {
-      // Cross-site render → the guard skips the write.
-      expect((await getMessages('editor', 'cross-site')).status).toBe(200)
-      expect(await readAtOf(msg.id)).toBeFalsy()
 
-      // Same-origin render → "viewing is reading" marks the shown message read.
-      expect((await getMessages('editor', 'same-origin')).status).toBe(200)
+  it('without auth → 401 (a forged cross-site POST carries no SameSite cookie)', async () => {
+    expect((await markRead(undefined, [1])).status).toBe(401)
+  })
+
+  it('marks the caller’s own shown messages read', async () => {
+    const msg = await mkMsg('editor', 'mr-own')
+    try {
+      expect(await readAtOf(msg.id)).toBeFalsy()
+      const res = await markRead('editor', [msg.id])
+      expect(res.status).toBe(200)
+      expect((await res.json()).updated).toBe(1)
       expect(await readAtOf(msg.id)).toBeTruthy()
     } finally {
       await fx.payload.delete({ collection: 'messages', id: msg.id, overrideAccess: true })
     }
+  })
+
+  it('cannot mark ANOTHER user’s message read — the recipient scope ignores foreign ids', async () => {
+    const mine = await mkMsg('editor', 'mr-mine')
+    const theirs = await mkMsg('subjectAdmin', 'mr-theirs')
+    try {
+      // The editor tries to mark BOTH its own and the subject-admin's message read.
+      const res = await markRead('editor', [mine.id, theirs.id])
+      expect(res.status).toBe(200)
+      expect((await res.json()).updated).toBe(1) // only its own counted
+      expect(await readAtOf(mine.id)).toBeTruthy()
+      expect(await readAtOf(theirs.id)).toBeFalsy() // untouched
+    } finally {
+      await fx.payload.delete({ collection: 'messages', id: mine.id, overrideAccess: true })
+      await fx.payload.delete({ collection: 'messages', id: theirs.id, overrideAccess: true })
+    }
+  })
+
+  it('an empty / absent id list is a no-op 200', async () => {
+    expect((await markRead('editor', [])).status).toBe(200)
+    const res = await markRead('editor', 'not-an-array')
+    expect(res.status).toBe(200)
+    expect((await res.json()).updated).toBe(0)
   })
 })

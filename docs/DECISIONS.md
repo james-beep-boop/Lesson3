@@ -47,15 +47,21 @@ Codex reviewed `main` (10 findings; no Critical). Triage + disposition:
   Queue concurrency caps the box and the artifact cache makes the dup cheap; not a hard single-flight.
   Left as documented.
 
-**Open decisions surfaced to the user (NOT auto-fixed):**
-- **#4 (Med):** `/messages` marks-read on GET, skipping the write only on `Sec-Fetch-Site:
-  cross-site` (deny-list) — so a header-LESS client (older Safari ≤16.3) still writes, leaving a
-  cross-site integrity edge (clear unread state; no data loss/disclosure). Flipping to an allow-list
-  (`same-origin`/`same-site`/`none`) closes it but stops auto-mark-read for header-less browsers
-  (badge never clears) — a real UX regression for a plausibly-common device population in the ARES
-  context. Alternatively move read-state to a POST (reintroduces the endpoint deliberately removed).
-  Held for the user's call; leaning keep-current given the device-population tradeoff, revisit in
-  Phase 5 with the POST option.
+**#4 (Med) — FIXED with the solid long-term fix (user's call, 2026-07-05).** `/messages` marked-read
+during the GET render, guarded only by a `Sec-Fetch-Site: cross-site` deny-list, so header-less
+clients (older Safari ≤16.3) still wrote — a cross-site integrity edge. Offered: keep-current, the
+allow-list patch, or move read-state to a POST. The user chose the POST (prefers solid fixes over
+short-term patches; not in production; few Safari users) — and since it's NOT host-dependent (unlike
+the other Phase 5 items) I did it now, not Phase 5. New `POST /api/messages/mark-read`
+(`endpoints/markMessagesRead.ts`): auth-required, hard-scoped to `recipient = session user AND id IN
+shown AND unread`. CSRF-safe for EVERY browser by construction — the SameSite=Lax auth cookie isn't
+sent on a cross-site POST, so a forged request is unauthenticated (401); no header sniffing. The
+inbox fires it on mount (`MarkShownRead`, fire-and-forget, no refresh), preserving the "New tags this
+visit, cleared next load" UX and the shown-ids scoping. Removed the GET-render write + the
+`next/headers` Sec-Fetch guard. http-covered (401 unauth, marks own, foreign/other-user ids ignored,
+empty no-op). No migration.
+
+**Still open / deferred:**
 - **#8 (Low):** Gotenberg base (`gotenberg/gotenberg:8`) + the apt font package aren't
   digest-pinned. Real supply-chain drift risk, but a correct digest pin must be resolved against the
   registry (an ops step best done on/near the Rock, where Phase 5's other host work lives). Deferred
