@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-04 (Phase 3) — scale prep: lesson-page HTML cache, retention prune cron, pagination posture
+
+Phase 3 of the audit plan — the "public VPS + 100+ teachers" readiness work.
+
+- **Lesson-page HTML cache** (`generator/htmlSectionsCache.ts`). The lesson detail page and the GET
+  `/preview` endpoint were regenerating up to 3 DOCX (`Packer.toBuffer`) → mammoth → DOMPurify on
+  EVERY view — seconds of CPU on the Rock's 2-CPU cap, on the most-trafficked path. Versions are
+  immutable, so the sanitized `PreviewSection[]` is cached by version id in the SAME store as the
+  DOCX/PDF artifact cache (dir/LRU/size-cap reused; small HTML entries age out). First view of a
+  version generates + writes; every later view (any user) is a disk read. `renderVersionSectionsCached`
+  is wired into the lesson page and the SAVED preview path; the UNSAVED (working-copy) POST preview
+  is deliberately NOT cached. **Deploy note:** a new cache namespace (`html-sections::v1::…`) — benign
+  one-time cold start, no migration. Render-logic changes (mammoth/sanitizer/generator) must bump
+  `HTML_RENDER_CACHE_VERSION` in the same commit — it is baked into the key, so a bump bypasses every
+  stale entry (the one thing that can invalidate an immutable version's HTML is our own render code).
+  Unit-covered (hit/miss/corrupt/write-fail/read-fail).
+- **Retention prune** (`scripts/prune-db.sh` + OPS cron). Implements the 2026-07-04 retention policy:
+  completed export jobs 14d, email+ping jobs 180d (egress audit trail), failed jobs 90d,
+  `rate_limit_counters` 7d. One transactional psql pass inside the postgres container, env-tunable
+  windows with the same positive-int fail-fast guard as backup-db.sh, idempotent/no-op when caught
+  up. Cron'd nightly at 03:30 (after the 02:00 backup, so a pre-prune snapshot always exists).
+  `payload_jobs_log` cascades on the parent delete (verified FK). No app code — matches the ops-script
+  pattern rather than adding an in-app job.
+- **Pagination posture (assessed; deliberate NON-action).** The known unbounded reads — browse
+  catalogue (`pagination:false`), lesson-page version list (`pagination:false`), messaging roster
+  (`pagination:false`), inbox (`limit:100`) — stay as-is. At the real corpus (13 plans) and even a
+  few hundred plans / 100+ users they are cheap light-projection queries; completeness (whole grouped
+  catalogue, no fragmented strands) is the right UX and the audit classed this corpus-gated. The live
+  search re-runs the browse fan-out per 200ms-debounced keystroke — bounded to ~5/s, acceptable at
+  hundreds. **Thresholds to revisit (documented so the trigger is explicit):** paginate/virtualize the
+  browse catalogue and the roster when plans or users reach ~1–2k; paginate the inbox when a user can
+  plausibly hold >100 messages (the mark-read is already scoped to shown ids, so unshown unread stay
+  unread — correct under the cap). The HTML cache above removed the one genuine per-view CPU cost;
+  what remains is DB-query volume, which Postgres handles far past current scale.
+
+test:unit 85/85 · lint 0 errors · typecheck clean. **Next: Phase 4 — re-ingest as next major.**
+
+---
+
 ## 2026-07-04 (Phase 2) — invariant tripwires: extract.ts adversarial suite, prose-whitelist drift test, immutability colocation, taxonomy delete guards
 
 Phase 2 of the audit plan — mechanical guards around the fragile-but-correct mechanisms, so a

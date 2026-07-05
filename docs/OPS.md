@@ -55,6 +55,23 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    20 2 1 * *  /srv/lesson3/scripts/backup-db.sh --label monthly >> /srv/lesson3/out/backup.log 2>&1
    ```
 
+### Retention pruning (SPEC §11 retention policy)
+
+`scripts/prune-db.sh` trims the two monotonically-growing bookkeeping tables (`payload_jobs`,
+`rate_limit_counters`); it is idempotent, transactional, and a no-op once caught up. Windows are
+env-overridable in `.env` (`PRUNE_EXPORT_JOB_DAYS` 14, `PRUNE_EMAIL_JOB_DAYS` 180,
+`PRUNE_FAILED_JOB_DAYS` 90, `PRUNE_RATE_LIMIT_DAYS` 7). Runs nightly, after the backup so a
+pre-prune snapshot always exists:
+
+```
+# Lesson3 retention prune (completed export jobs 14d / email+ping jobs 180d / failed 90d / rate counters 7d)
+30 3 * * *  /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1
+```
+
+Manual/dry check: run `scripts/prune-db.sh` once by hand and read `out/prune.log` (it prints the
+windows it applied); counts before/after via
+`docker compose exec postgres psql -U lesson3 -d lesson3 -c "SELECT count(*) FROM payload_jobs;"`.
+
 ### Run / verify
 
 - Manual backup: `scripts/backup-db.sh` (writes to `daily/`).

@@ -7,8 +7,8 @@ import { isEditorFor, isSubjectAdminFor, toId } from '@/access'
 import { findReadablePlan } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
-import { generateForVersion } from '@/generator/generateForVersion'
-import { docxToSections, type PreviewSection } from '@/generator/previewBundle'
+import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
+import { type PreviewSection } from '@/generator/previewBundle'
 import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
@@ -100,11 +100,13 @@ export default async function LessonView({
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,
-  // so the rendered HTML carries no executable markup. FE/ST may be legitimately absent.
+  // so the rendered HTML carries no executable markup. FE/ST may be legitimately absent. Cached by
+  // the immutable version id (Phase 3) — the access-gated `selected` above proves READ, so the
+  // cache's overrideAccess system fetch on a miss is safe.
   let sections: PreviewSection[] = []
   let viewError: string | null = null
   try {
-    sections = await docxToSections(await generateForVersion(payload, selectedId))
+    sections = await renderVersionSectionsCached(payload, selectedId)
   } catch (e) {
     payload.logger.error({ err: e, versionId: selectedId, userId: user?.id }, 'lesson render failed')
     viewError = 'Could not render this lesson.'

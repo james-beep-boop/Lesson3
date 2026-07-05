@@ -8,6 +8,7 @@
 import { APIError, type PayloadRequest } from 'payload'
 
 import { renderBundlePreview, type PreviewSection } from '../generator/previewBundle'
+import { renderVersionSectionsCached } from '../generator/htmlSectionsCache'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import type { LessonBundleVersion } from '../payload-types'
 
@@ -86,7 +87,11 @@ export async function renderPreviewResponse(
 
   let sections: PreviewSection[]
   try {
-    sections = await renderBundlePreview(bundle)
+    // SAVED preview → cache by the immutable version id (Phase 3), shared with the lesson page.
+    // UNSAVED preview renders caller-submitted working-copy content and must never be cached.
+    sections = unsaved
+      ? await renderBundlePreview(bundle)
+      : await renderVersionSectionsCached(req.payload, bundle.id)
   } catch (err) {
     // Completeness already passed, so a throw here is a real generator/converter failure,
     // not an incomplete draft — log it and surface a 500 instead of masking it as "not ready".
