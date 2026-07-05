@@ -11,6 +11,39 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 — React #418 on every `?edit=1` editor load: never gate INITIAL render state on `typeof window`
+
+The admin version editor threw a deterministic hydration mismatch (`Minified React error #418`,
+args[]=HTML) on every load of `…/lesson-bundle-versions/{id}?edit=1` — the deep link the lesson
+page's Edit button uses. This closes the follow-up spun off by the Phase 5 CSP A/B (entry below),
+which had proven it pre-existing on main.
+
+**Cause (confirmed with the dev build's full diff, which named `<LessonControls>`):** the Edit-UX #6
+unlock (2026-07-01) initialised `editing` from
+`typeof window !== 'undefined' && new URLSearchParams(window.location.search)`. The server pass has
+no `window`, so SSR always rendered the LOCKED bar (notice + enabled Edit); a `?edit=1` client
+hydrated UNLOCKED → mismatched tree → React discards and re-renders client-side. Console error +
+wasted render; page still worked, which is why it survived eyeballing.
+
+**Fix:** derive the initial state from `next/navigation`'s `useSearchParams()` — the admin route
+renders per-request, so the server sees `edit=1` too and SSR now equals hydration (first paint lands
+unlocked; no flash, unlike a mount-effect fix). Payload's own `SearchParamsProvider` is deprecated in
+favour of exactly this hook. Verified: prod-build A/B before/after (error → clean, both with and
+without the param), locked/unlocked behaviour preserved.
+
+**Rule:** in a SSR'd client component, anything that changes the FIRST render (state initialisers,
+conditional chrome) must read request-derivable inputs (props, `useSearchParams`, cookies via
+context) — never `window`. A `typeof window` guard in an initialiser is a hydration mismatch by
+construction. Pinned by `tests/unit/lessonControlsSsr.spec.tsx` (node-env `renderToString`: server
+markup with `?edit=1` must already be unlocked; fails on the old code).
+
+**Debugging note:** React 19's recoverable hydration errors surface via `reportError`
+(`pageerror`), NOT `console.error` — browser-console scraping shows nothing. Playwright's
+`page.on('pageerror')` catches them; the dev (non-minified) build then prints the exact component
+diff.
+
+---
+
 ## 2026-07-05 (Phase 5) — Track A shipped: the host-independent pre-VPS half (PRs #49–#53)
 
 Phase 5 planning session + build. **Standing decisions (user-confirmed):** no VPS timeline yet →

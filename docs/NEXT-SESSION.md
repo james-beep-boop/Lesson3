@@ -52,9 +52,9 @@ runbook (docs/OPS.md) end-to-end. No code is expected to change for exposure day
 the app image rebuilds. Deploy via `scripts/deploy.sh` as usual.
 
 **Still-pending non-code items:** the in-browser eyeball pass (favorites star, messaging/inbox
-mark-read POST, email modal, live search, cached lesson pages, login) — unchanged from before; plus
-a NEW tracked follow-up: the version editor logs a **pre-existing React #418 hydration error** on
-`?edit=1` (A/B-proven pre-existing, NOT from the CSP change — see DECISIONS 2026-07-05 (Phase 5)).
+mark-read POST, email modal, live search, cached lesson pages, login) — unchanged from before. (The
+version editor's React #418 hydration error on `?edit=1`, spun off by the CSP A/B, is FIXED — see
+DECISIONS 2026-07-05 "React #418 on every `?edit=1` editor load" and its PR.)
 Incidental: the Mac's local compose stack now has a throwaway Site Admin (`csp-probe@lesson3.local`)
 + a minimal Biology/G10 probe plan (local-only; delete or keep as seed).
 
