@@ -11,6 +11,73 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (Phase 5) — Track A shipped: the host-independent pre-VPS half (PRs #49–#53)
+
+Phase 5 planning session + build. **Standing decisions (user-confirmed):** no VPS timeline yet →
+the checklist split into **Track A** (host-independent, build now so exposure day is config-only)
+and **Track B** (host-gated: TLS/proxy, edge rate limiting, GlitchTip deployment, executing the
+runbook); error tracker = **GlitchTip, self-hosted**; **tokenExpiration 2h ratified** under public
+exposure (strict CSRF + Secure cookies + Lax + auth rate limits + IdleLogout are the compensating
+controls); Subject-Admin uniqueness = **grant-path transaction lock**, the structural partial
+unique index stays deferred (needs demote-before-insert inversion + beforeSchemaInit registration
++ 23505 translation — disproportionate; trigger to revisit = assignment write paths multiplying).
+
+**A1 (#49) Gotenberg pins (Codex #8).** Base pinned by multi-arch INDEX digest (resolved against
+Docker Hub: Gotenberg 8.34.0, Debian trixie — index covers CI amd64 + Rock arm64);
+`ttf-mscorefonts-installer=3.8.1`. Both pins fail LOUDLY when upstream moves; re-pin procedure in
+the Dockerfile header. Local build verified real Arial present.
+
+**A2 (#50) Subject-Admin grant lock (Codex #3 / Bucket A #10).** `autoDemotePriorSubjectAdmins`
+had a read-then-write race: two transactions granting different users the same grade both scanned
+before either committed (READ COMMITTED → neither sees the other's uncommitted grant) → two
+Subject Admins. Fix: `SELECT … FOR UPDATE` on the granted `subject_grades` rows BEFORE the scan,
+ascending order (deadlock-free for multi-grade grants), tx-bound connection mirroring
+userAssignments.ts. Also removed the silent `limit: 1000` demote-scan cap (paginates; race-free
+post-lock). Wiring pinned by `tests/unit/subjectAdminDemoteLock.spec.ts`; sanity-flip proven.
+
+**A3 (#51) Nonce-based CSP (Codex #2).** New `src/middleware.ts`: per-request nonce;
+`default-src 'self'; script-src 'self' 'nonce-…' 'strict-dynamic'` + old baseline directives;
+policy forwarded as a REQUEST header because Next's renderer reads the nonce from it (verified in
+installed next@16 app-render.js). Matcher covers documents only — `/api/*` excluded so the preview
+endpoint's own `default-src 'none'` still wins (supersedes the next.config negative-lookahead CSP
+rule, removed). **Found by the browser sweep:** Payload's admin avatar defaults to GRAVATAR — an
+external fetch that violated `img-src 'self'` AND leaked admin email hashes; switched to
+`avatar: 'default'` (initials). Verified in a real browser on a local compose stack: all real
+routes (both surfaces incl. version editor + live search) hydrate with ZERO violations.
+**Accepted caveat** (documented in middleware.ts): the build-time `_not-found`/`_global-error`
+shells are the only nonce-less HTML → a direct load of an unknown URL shows the pure-text 404
+unhydrated. **Lesson (A/B discipline):** the version editor's React #418 on `?edit=1` looked like
+a CSP regression; a native-vs-native A/B against main (same DB) proved it PRE-EXISTING → spun off
+as its own follow-up, not chased here. First A/B attempt compared docker-standalone vs native and
+gave a FALSE positive on the plain doc view — control the runtime mode when A/B-ing hydration.
+
+**A4 (#52) Error tracking (SPEC §11).** `@sentry/node` (pinned) + `src/instrumentation.ts`
+(register/onRequestError, shape verified against installed next@16); job-failure capture at the
+three existing catch/log seams. Entirely inert without `SENTRY_DSN`; request headers are
+deliberately dropped (auth cookies never leave the box) and email addresses stay out of tracker
+payloads. GlitchTip is Sentry-protocol, so the SDK works unchanged. pino remains primary.
+docs/OPS.md gained the "Error tracking (GlitchTip)" section; the old "deliberately no
+error-tracking SaaS" note amended.
+
+**A5 (#53) Public-posture guards + runbook.** `SERVER_URL` is now the single public-posture
+switch: (a) auth-cookie `Secure` DERIVES from an https SERVER_URL (Codex #1's cookie check made
+structural, `lib/publicPosture.ts`); (b) boot REFUSES when SERVER_URL is set and the users table
+is EMPTY — **empirical basis, verified live on a fresh local DB:** unauthenticated REST create is
+403 even at zero users, but `/admin/create-first-user` renders and `POST /api/users/first-register`
+returns 200 + `roles:['siteAdmin']` → on a public host the first visitor would own the site.
+Count-unavailable (first migrate, pre-schema) skips enforcement; `ALLOW_FIRST_USER_BOOTSTRAP=1` is
+the one-boot escape hatch (ALLOW_UNBACKED_DEPLOY pattern). docs/OPS.md "Going public" runbook
+records the execution order for exposure day. Refusal matrix + cookie wiring pinned by
+`tests/unit/publicPosture.spec.ts`.
+
+All five merged via CI-gated PRs; merged main green locally (typecheck, unit 103/103). **Left in
+Phase 5 (Track B, host-gated):** choose host → TLS/reverse proxy + edge rate limiting → deploy
+GlitchTip + set `SENTRY_DSN` → execute the Going-public runbook. **Incidental state:** the Mac's
+local compose stack got a throwaway Site Admin (`csp-probe@lesson3.local`) + a minimal
+Biology/G10 probe plan for the browser verification — harmless, delete or keep as local seed.
+
+---
+
 ## 2026-07-05 (Codex audit) — external security pass triaged: 3 safe fixes shipped, rest mapped to Phase 5 / documented deferrals
 
 Codex reviewed `main` (10 findings; no Critical). Triage + disposition:

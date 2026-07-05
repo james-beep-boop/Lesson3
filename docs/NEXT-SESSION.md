@@ -23,7 +23,44 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-05) — Phases 1–4 + all review/Codex follow-ups MERGED & DEPLOYED; only Phase 5 remains
+## ▶ RESUME HERE (2026-07-05 late) — Phase 5 Track A (host-independent pre-VPS half) MERGED; Track B is host-gated config
+
+**Phase 5 was planned and its host-independent half BUILT this session** (decisions + full detail:
+DECISIONS 2026-07-05 (Phase 5)). Standing decisions: **no VPS timeline yet**; error tracker =
+**GlitchTip (self-hosted)**; **2h token ratified** for public exposure; Subject-Admin uniqueness =
+**grant-path lock** (partial unique index stays deferred; trigger = assignment write paths
+multiplying). Shipped via CI-gated PRs, all merged (verify HEAD with `git log -1`):
+- **#49 A1** — Gotenberg base pinned by multi-arch index digest (8.34.0/trixie) + font installer
+  3.8.1 (Codex #8). Pins fail loudly on upstream movement; re-pin procedure in the Dockerfile.
+- **#50 A2** — Subject-Admin grant race closed: `SELECT … FOR UPDATE` on the granted subject-grade
+  rows before the demote scan (+ scan pagination, was silently capped at 1000). Codex #3/Bucket A #10.
+- **#51 A3** — strict nonce CSP via `src/middleware.ts` (`script-src 'nonce-…' 'strict-dynamic'`,
+  documents only, `/api/*` excluded so preview's own CSP survives); admin avatar gravatar→initials
+  (CSP + email-hash leak). Browser-verified zero violations on all real routes, both surfaces.
+  Accepted caveat: the static 404/error shells load unhydrated (pure text) on direct hits.
+- **#52 A4** — env-gated server-side error tracking (`@sentry/node` + instrumentation.ts +
+  job-seam capture); inert without `SENTRY_DSN`; no cookies/emails in payloads. OPS.md section added.
+- **#53 A5** — `SERVER_URL` is THE public-posture switch: https ⇒ Secure auth cookies (derived);
+  set + zero users ⇒ boot REFUSAL (first-register would hand Site Admin to the first visitor —
+  proven live; `ALLOW_FIRST_USER_BOOTSTRAP=1` escape hatch). OPS.md **"Going public"** runbook.
+
+**Phase 5 remaining = Track B, gated on the host decision:** pick VPS → TLS/reverse proxy → edge
+rate limiting at that proxy → deploy GlitchTip + set `SENTRY_DSN` → execute the Going-public
+runbook (docs/OPS.md) end-to-end. No code is expected to change for exposure day.
+
+**Rock deploy of this batch:** no migrations; the gotenberg image rebuilds once (digest pin) and
+the app image rebuilds. Deploy via `scripts/deploy.sh` as usual.
+
+**Still-pending non-code items:** the in-browser eyeball pass (favorites star, messaging/inbox
+mark-read POST, email modal, live search, cached lesson pages, login) — unchanged from before; plus
+a NEW tracked follow-up: the version editor logs a **pre-existing React #418 hydration error** on
+`?edit=1` (A/B-proven pre-existing, NOT from the CSP change — see DECISIONS 2026-07-05 (Phase 5)).
+Incidental: the Mac's local compose stack now has a throwaway Site Admin (`csp-probe@lesson3.local`)
++ a minimal Biology/G10 probe plan (local-only; delete or keep as seed).
+
+---
+
+## ▶ Older resume (2026-07-05) — Phases 1–4 + all review/Codex follow-ups MERGED & DEPLOYED; only Phase 5 remains
 
 A full-codebase audit ran 2026-07-04 (no Critical findings) → a five-phase plan; an external Codex
 pass ran 2026-07-05 (no Critical). **Read DECISIONS.md 2026-07-04 + 2026-07-05 entries first** — the
