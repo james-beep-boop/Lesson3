@@ -23,20 +23,33 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-04) — full audit done → five-phase plan; Phase 1 SHIPPED; next = Phase 2
+## ▶ RESUME HERE (2026-07-04, end of night) — Phases 1–3 all MERGED; next = deploy-confirm then Phase 4
 
 A full-codebase audit ran 2026-07-04 (no Critical findings), followed by a structured Q&A that fixed
-the plan and three product decisions — **read DECISIONS.md 2026-07-04 first**, it has everything:
-public-VPS exposure trajectory, re-ingest = next-major + auto-Official (SPEC §7 amended, build =
-Phase 4), retention policy (SPEC §11 amended, prune cron = Phase 3), tokenExpiration 2h ratified.
+the plan and three product decisions — **read DECISIONS.md 2026-07-04 first** (four entries: the
+audit/plan, then Phase 1 / Phase 2 / Phase 3): public-VPS exposure trajectory, re-ingest =
+next-major + auto-Official (SPEC §7 amended, build = Phase 4), retention policy (SPEC §11 amended,
+prune cron shipped in Phase 3), tokenExpiration 2h ratified.
 
-**Shipped (merged via CI-gated PRs):** **#41** CodeRabbit follow-ups on the PR-#40 UI (Modal
-effect-per-keystroke fix, SearchBox unmount/echo-sync fixes + unit spec, a11y note; CodeRabbit's
-onMouseDown→onClick suggestion REJECTED as backwards — reasoning on the PR-#40 thread and in
-DECISIONS). **Phase 1 security batch:** auth rate limiting (login + forgot-password buckets via a
-Users `beforeOperation` hook + int spec), email Subject control-char strip (+ unit spec),
-unsaved-preview `subjectGrade`/`lessonPlan` authority pinning, `nextSemverForPlan`
-select-projection.
+**Shipped this session, all merged to `main` via CI-gated PRs #41–#44:**
+- **#41** CodeRabbit follow-ups on the PR-#40 UI (Modal effect-per-keystroke fix, SearchBox
+  unmount/echo-sync + unit spec, a11y note; the onMouseDown→onClick suggestion was REJECTED as
+  backwards — reasoning on the PR-#40 thread + DECISIONS).
+- **#42 Phase 1 — security batch:** auth rate limiting (login + forgot-password buckets via a Users
+  `beforeOperation` hook + int spec), email Subject control-char strip (+ unit spec), unsaved-preview
+  `subjectGrade`/`lessonPlan` authority pinning, `nextSemverForPlan` select-projection.
+- **#43 Phase 2 — invariant tripwires** (see item 1 below).
+- **#44 Phase 3 — scale prep** (see item 2 below).
+
+**⚠ FIRST THING NEXT SESSION — finish the deploy handoff (started 2026-07-04, status UNCONFIRMED):**
+a Rock deploy of `main` was initiated at end of night but not confirmed here. On the Rock: verify
+`main` is deployed (`git log -1`; `docker compose ps`; app returns 307) — redeploy if not
+(`scripts/deploy.sh`; **no migration** in 1–3, benign `html-sections::v1::…` cache cold-start). Then
+**add the prune cron** (`crontab -e`: `30 3 * * * /srv/lesson3/scripts/prune-db.sh >> /srv/lesson3/out/prune.log 2>&1`
+— see docs/OPS.md "Retention pruning"; nothing prunes until this exists). Then the **in-browser
+eyeballs** (still pending): the Phase-3 HTML cache (a lesson renders identically; repeat view is
+instant), favorites star, messaging, email modal, live search (type then click a lesson fast → you
+stay on it), login still works.
 
 **Next, in order (per the agreed plan — details in DECISIONS 2026-07-04):**
 1. ~~**Phase 2 — invariant tripwires**~~ **DONE** (merged; DECISIONS 2026-07-04 (Phase 2)):
@@ -56,8 +69,11 @@ select-projection.
    duplicate plan — that's the gap this closes.
 4. **Phase 5 — pre-VPS checklist** (own planning session when a VPS timeline exists).
 
-**Still pending from before:** Rock deploy of current `main`; the in-browser eyeballs (favorites
-star, messaging, collapsed download UX — plus now the email modal + live search).
+**Note for Phase 4 (agreed process):** it is the first product-behavior change and touches the
+ingest path (the codebase's highest-risk surface), so OPEN IT WITH A SHORT WRITTEN DESIGN for
+sign-off before writing code — matching key `(subjectGrade, META.substrand_id)`, next-major
+numbering, the Official-pointer move + title refresh, and the ambiguous-match pre-flight failure —
+rather than coding straight through as Phases 1–3 allowed.
 
 ---
 
