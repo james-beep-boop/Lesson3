@@ -11,6 +11,39 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (Phase 4) — re-ingest as next MAJOR version, arriving Not Official
+
+Phase 4 of the audit plan — the first product-behavior change, opened design-first for sign-off
+(per the working agreement, since it touches the ingest path). SPEC §7 updated to match.
+
+**Decision refinement:** the 2026-07-04 design had a re-ingested major become Official
+automatically; on review the user chose **Not Official** — a re-upload lands as a candidate an admin
+promotes via Make Official. Rationale: nothing should silently supersede the live Official content;
+the review gate is cheap (the Manage "candidate versions" list is exactly where the admin finds it),
+and it means a re-upload doesn't change what teachers see until a human confirms.
+
+**Behaviour (`ingestItems`, shared by the CLI + Site-Admin upload):**
+- Identity = `(subjectGrade, META.substrand_id)`. Pre-flight queries the subject-grade's versions
+  carrying that substrand_id and collects distinct parent plans: 0 → new plan (1.0.0 Official,
+  unchanged); 1 → attach as next major; >1 → ambiguous, actionable pre-flight failure.
+- Next major = max semver across the plan bumped major (`nextMajorForPlan`, sibling of
+  `nextSemverForPlan`); the `(lessonPlan, semver)` unique index is the backstop.
+- Re-ingest write: create the version under the existing plan, Not Official — **pointer NOT moved,
+  title NOT refreshed** (both track the Official content, unchanged until promotion; expanding
+  Make-Official to refresh title is out of scope). No `sourceVersion` (ingest, not a fork).
+- Guards: intra-batch duplicate (two files, same key) → pre-flight failure (else they'd race for the
+  plan); empty `substrand_id` → always new (can't dedupe). Batch stays all-or-nothing.
+- Reporting: `IngestResult.action` = `'created' | 'revised'`; the upload panel + CLI say
+  "N new (Official 1.0.0); M revised (Not Official — promote via Make Official)".
+
+Int-covered (`tests/int/reingest.int.spec.ts`): create-new, revise→2.0.0/3.0.0 with pointer
+unmoved + old versions retained, intra-batch dup → error + nothing written, empty id → distinct
+plans, ambiguous → error. No schema/migration — ingest logic only. Closes the audit's
+"re-upload silently creates a duplicate plan" gap. **Next: Phase 5 — pre-VPS checklist (its own
+planning session).**
+
+---
+
 ## 2026-07-05 — CodeRabbit follow-ups on Phases 1/3 + mobile touch targets
 
 CodeRabbit review of the merged Phase 1/3 PRs, adjudicated (all accepted), plus a user testing
