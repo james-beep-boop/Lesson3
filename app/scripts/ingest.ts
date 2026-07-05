@@ -28,10 +28,16 @@ const run = async () => {
   const payload = await getPayload({ config })
   const results = await ingestPaths(payload, paths)
 
-  console.log(`Imported ${results.length} lesson plan(s) as Official 1.0.0:`)
+  const createdN = results.filter((r) => r.action === 'created').length
+  const revisedN = results.length - createdN
+  console.log(
+    `Ingested ${results.length} file(s): ${createdN} new (Official 1.0.0), ` +
+      `${revisedN} revised (next major, Not Official — promote via Make Official):`,
+  )
   let warningCount = 0
   for (const r of results) {
-    console.log(`  ${r.file} → plan ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · Official`)
+    const label = r.action === 'revised' ? 'revised → Not Official' : 'new → Official'
+    console.log(`  ${r.file} → plan ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · ${label}`)
     for (const w of r.warnings) {
       warningCount++
       console.warn(`     ⚠ ${w}`)

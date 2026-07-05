@@ -59,17 +59,21 @@ it), login still works. These are a nice-to-have pass, not a blocker for Phase 4
    posture assessed = deliberate no-action with documented ~1–2k thresholds. **Deploy note:** new
    `html-sections::v1::…` cache namespace (benign cold start, no migration); the prune cron needs
    adding on the Rock (`crontab -e`, 03:30 — see docs/OPS.md "Retention pruning").
-3. **Phase 4 — re-ingest as next major (NEXT)** (SPEC §7 as amended). Match `(subjectGrade,
-   META.substrand_id)` in pre-flight; attach as next MAJOR version + move Official pointer + refresh
-   title; ambiguous (multi-match) = actionable pre-flight failure. Current code still creates a
-   duplicate plan — that's the gap this closes.
-4. **Phase 5 — pre-VPS checklist** (own planning session when a VPS timeline exists).
+3. ~~**Phase 4 — re-ingest as next major**~~ **DONE** (merged; DECISIONS 2026-07-05 (Phase 4)):
+   match `(subjectGrade, META.substrand_id)` → attach as next MAJOR version, **Not Official**
+   (pointer NOT moved, title NOT refreshed — admin promotes via Make Official; refined from the
+   original auto-Official design on 2026-07-05 sign-off); ambiguous + intra-batch dup → actionable
+   pre-flight failure; empty substrand_id → new plan. `nextMajorForPlan` helper; `IngestResult.action`
+   reporting; int spec. No migration.
+4. **Phase 5 — pre-VPS checklist (NEXT — own planning session when a VPS timeline exists).** Error
+   tracking (Sentry/GlitchTip), strict CSRF via `SERVER_URL` + Secure-cookie check, nonce-based CSP
+   with `script-src`, first-user bootstrap before exposure, edge/proxy rate limiting, and a re-look
+   at the 2h token under public exposure. Host choice (SPEC open decision) shapes several of these,
+   so this phase starts with planning, not code.
 
-**Note for Phase 4 (agreed process):** it is the first product-behavior change and touches the
-ingest path (the codebase's highest-risk surface), so OPEN IT WITH A SHORT WRITTEN DESIGN for
-sign-off before writing code — matching key `(subjectGrade, META.substrand_id)`, next-major
-numbering, the Official-pointer move + title refresh, and the ambiguous-match pre-flight failure —
-rather than coding straight through as Phases 1–3 allowed.
+**The five-phase audit plan is complete through Phase 4; only Phase 5 (pre-public-exposure) remains,
+gated on a VPS timeline.** The in-browser eyeball pass (favorites/messaging/email modal/live
+search/cached lessons) is still the one outstanding non-code item.
 
 ---
 

@@ -20,6 +20,7 @@ type UploadResult = {
   title: string
   semver: string
   official: boolean
+  action: 'created' | 'revised'
   warnings: string[]
 }
 
@@ -62,7 +63,15 @@ export default function UploadBundles() {
         return
       }
       setResults(json.bundles)
-      toast.success(`Uploaded ${json.count} lesson plan(s) as Official 1.0.0.`)
+      // Distinguish new plans from re-ingested revisions (SPEC §7): a revision lands as the next
+      // major version, Not Official, awaiting an admin's Make Official.
+      const created = json.bundles.filter((b) => b.action === 'created').length
+      const revised = json.bundles.length - created
+      const parts = [
+        created > 0 ? `${created} new (Official 1.0.0)` : '',
+        revised > 0 ? `${revised} revised (new version, Not Official — promote via Make Official)` : '',
+      ].filter(Boolean)
+      toast.success(`Uploaded ${json.count} file(s): ${parts.join('; ')}.`)
       // Reset the picker so the button returns to its disabled "Upload" state and the same
       // files can't be re-submitted by accident. (Clearing state alone won't clear the native
       // input's "N files" label — reset its value too.)
@@ -106,9 +115,10 @@ export default function UploadBundles() {
       </div>
       {results.length > 0 && (
         <ul style={{ margin: '0.75rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-          {results.map((r) => (
-            <li key={String(r.id)}>
-              #{r.id} · {r.title} ({r.semver}, {r.official ? 'Official' : 'Not Official'})
+          {results.map((r, i) => (
+            <li key={`${r.id}-${i}`}>
+              {r.action === 'revised' ? 'Revised' : 'New'} · #{r.id} · {r.title} ({r.semver},{' '}
+              {r.official ? 'Official' : 'Not Official'})
               {r.warnings.length > 0 && (
                 <span style={{ color: 'var(--theme-warning-600, #a60)' }}> · Warning: {r.warnings.length} deliverable warning(s)</span>
               )}

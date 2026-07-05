@@ -58,7 +58,30 @@ export function isSemverConflict(e: unknown): boolean {
 export async function nextSemverForPlan(
   payload: Payload,
   planId: number | string,
-  req?: PayloadRequest,
+  req?: Partial<PayloadRequest>,
+): Promise<string> {
+  return nextSemverForPlanBumped(payload, planId, 'patch', req)
+}
+
+/**
+ * Next free MAJOR for a plan: (max existing semver) bumped major — `2.3.1` → `3.0.0`. Used by
+ * re-ingest (SPEC §7): a re-uploaded sub-strand attaches to its existing plan as the next major
+ * version (Not Official; an admin promotes it). Shares the max-semver scan + unique-index backstop
+ * with the patch path.
+ */
+export async function nextMajorForPlan(
+  payload: Payload,
+  planId: number | string,
+  req?: Partial<PayloadRequest>,
+): Promise<string> {
+  return nextSemverForPlanBumped(payload, planId, 'major', req)
+}
+
+async function nextSemverForPlanBumped(
+  payload: Payload,
+  planId: number | string,
+  bump: 'major' | 'minor' | 'patch',
+  req?: Partial<PayloadRequest>,
 ): Promise<string> {
   const { docs } = await payload.find({
     collection: 'lesson-bundle-versions',
@@ -74,5 +97,5 @@ export async function nextSemverForPlan(
   const max = docs
     .map((d) => (d as { semver?: string | null }).semver ?? '0.0.0')
     .reduce((acc, s) => (compareSemver(s, acc) > 0 ? s : acc), '0.0.0')
-  return bumpSemver(max, 'patch')
+  return bumpSemver(max, bump)
 }

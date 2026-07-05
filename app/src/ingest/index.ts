@@ -32,6 +32,8 @@ import { IngestError } from './errors'
 import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
+import { nextMajorForPlan } from '../lib/semver'
+import { relId } from '../lib/relId'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
 type IngestReq = Partial<PayloadRequest> & { payload: Payload }
@@ -45,8 +47,58 @@ export interface IngestResult {
   subjectGrade: number
   semver: string
   official: boolean
+  /** 'created' = new lesson plan at 1.0.0 Official; 'revised' = next-major version of an existing
+   *  plan (SPEC §7 re-ingest), arriving Not Official for admin review. */
+  action: 'created' | 'revised'
   /** Non-blocking deliverable warnings (e.g. missing FINAL_EXPLANATION / SUMMARY_TABLE). */
   warnings: string[]
+}
+
+/** The sub-strand identity within a subject-grade: `META.substrand_id`, trimmed ('' = absent). */
+const substrandIdOf = (raw: Record<string, unknown>): string => {
+  const meta = (raw.META ?? {}) as Record<string, unknown>
+  return typeof meta.substrand_id === 'string' ? meta.substrand_id.trim() : ''
+}
+
+/**
+ * Resolve the existing lesson plan a re-upload belongs to (SPEC §7). Identity is
+ * `(subjectGrade, META.substrand_id)`: query the subject-grade's versions carrying that substrand_id
+ * and fold to their distinct parent plans. Returns the plan id to attach to as the next MAJOR
+ * version, or `null` for no match → create a NEW plan (1.0.0 Official). An empty substrand_id can't
+ * be matched, so it is always treated as new. **>1 matching plan** (legacy duplicates from before
+ * this feature) THROWS `IngestError` here — the caller has no other response to ambiguity than to
+ * fail pre-flight, so owning the throw keeps the return a plain `number | null`.
+ */
+async function findExistingPlan(
+  payload: Payload,
+  subjectGrade: number,
+  substrandId: string,
+  req: IngestReq,
+): Promise<number | null> {
+  if (!substrandId) return null
+  const { docs } = await payload.find({
+    collection: LESSON_BUNDLE_VERSIONS,
+    where: {
+      and: [
+        { subjectGrade: { equals: subjectGrade } },
+        { 'meta.substrand_id': { equals: substrandId } },
+      ],
+    },
+    depth: 0,
+    pagination: false,
+    select: { lessonPlan: true },
+    req,
+  })
+  const planIds = [
+    ...new Set(docs.map((d) => relId((d as { lessonPlan?: unknown }).lessonPlan)).filter((id): id is number => id != null)),
+  ]
+  if (planIds.length > 1) {
+    throw new IngestError(
+      `sub-strand ${JSON.stringify(substrandId)} matches ${planIds.length} existing lesson plans ` +
+        `(#${planIds.join(', #')}) in this subject-grade — resolve the duplicate before re-ingesting.`,
+    )
+  }
+  return planIds[0] ?? null
 }
 
 /** Resolve the required `subjectGrade` id from META.subject / META.grade (exact match). */
@@ -126,6 +178,10 @@ type Prepared = {
   name: string
   data: IngestBundleData
   subjectGrade: number
+  /** The sub-strand identity, for intra-batch duplicate detection. */
+  substrandId: string
+  /** Existing plan to attach to as the next major (SPEC §7 re-ingest), or null to create a new one. */
+  existingPlanId: number | null
   warnings: string[]
 }
 
@@ -159,6 +215,19 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
   const errors: string[] = []
+  // Memoize taxonomy resolution across the batch: a directory of sub-strands is typically all one
+  // subject-grade, so without this `resolveSubjectGrade` re-runs its 2 finds for every file.
+  const sgCache = new Map<string, Promise<number>>()
+  const resolveSubjectGradeCached = (raw: Record<string, unknown>): Promise<number> => {
+    const meta = (raw.META ?? {}) as Record<string, unknown>
+    const cacheKey = `${typeof meta.subject === 'string' ? meta.subject.trim() : ''}::${meta.grade}`
+    let hit = sgCache.get(cacheKey)
+    if (!hit) {
+      hit = resolveSubjectGrade(payload, raw, preflightReq)
+      sgCache.set(cacheKey, hit)
+    }
+    return hit
+  }
   for (const { name, extract } of items) {
     try {
       const raw = extract()
@@ -175,17 +244,42 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       if (drift.length > 0) {
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
-      const subjectGrade = await resolveSubjectGrade(payload, raw, preflightReq)
+      const subjectGrade = await resolveSubjectGradeCached(raw)
+      const substrandId = substrandIdOf(raw)
+      // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
+      // create a new plan. >1 match (legacy duplicates) throws inside findExistingPlan.
+      const existingPlanId = await findExistingPlan(payload, subjectGrade, substrandId, preflightReq)
       prepared.push({
         name,
         data,
         subjectGrade,
+        substrandId,
+        existingPlanId,
         warnings: deliverableWarnings(data),
       })
     } catch (e) {
       errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
+
+  // Intra-batch duplicate guard (SPEC §7): two files targeting the SAME (subjectGrade, substrand_id)
+  // in one upload would race for the plan/pointer — reject the batch instead. Only non-empty
+  // substrand_ids are keyed (an empty one is always a distinct new plan, so it can't collide).
+  const seen = new Map<string, string>()
+  for (const p of prepared) {
+    if (!p.substrandId) continue
+    const key = `${p.subjectGrade}::${p.substrandId}`
+    const prior = seen.get(key)
+    if (prior) {
+      errors.push(
+        `${p.name}: duplicate of "${prior}" in this batch — both target sub-strand ` +
+          `${JSON.stringify(p.substrandId)} in the same subject-grade. Upload one at a time.`,
+      )
+    } else {
+      seen.set(key, p.name)
+    }
+  }
+
   if (errors.length > 0) {
     throw new IngestError(
       `Pre-flight failed (${errors.length}/${items.length} file(s)); nothing was written:\n  - ${errors.join('\n  - ')}`,
@@ -197,7 +291,39 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
   await initTransaction(req)
   try {
     const results: IngestResult[] = []
-    for (const { name, data, subjectGrade, warnings } of prepared) {
+    for (const { name, data, subjectGrade, existingPlanId, warnings } of prepared) {
+      if (existingPlanId != null) {
+        // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
+        // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
+        // canonical (Official) content is unchanged until a Subject/Site Admin promotes this
+        // candidate via Make Official (deliberate review gate, decided 2026-07-05). No sourceVersion
+        // (this is an ingest, not a fork). nextMajorForPlan sees the plan's committed versions;
+        // the unique (lessonPlan, semver) index is the backstop.
+        const semver = await nextMajorForPlan(payload, existingPlanId, req)
+        await payload.create({
+          collection: LESSON_BUNDLE_VERSIONS,
+          data: {
+            ...data,
+            lessonPlan: existingPlanId,
+            subjectGrade,
+            semver,
+          } as never,
+          req,
+        })
+        results.push({
+          file: name,
+          id: existingPlanId,
+          title: data.title,
+          subjectGrade,
+          semver,
+          official: false,
+          action: 'revised',
+          warnings,
+        })
+        continue
+      }
+
+      // NEW plan: version 1.0.0, made Official immediately (ingest order: plan → version → pointer).
       const plan = await payload.create({
         collection: LESSON_PLANS,
         data: {
@@ -231,6 +357,7 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         subjectGrade,
         semver: '1.0.0',
         official: true,
+        action: 'created',
         warnings,
       })
     }
