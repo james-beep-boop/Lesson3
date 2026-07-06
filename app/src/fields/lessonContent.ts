@@ -101,7 +101,13 @@ export const lessonContentFields: Field[] = [
         name: 'subject',
         type: 'text',
         access: { create: siteAdminOnly, update: siteAdminOnly },
-        admin: { description: 'Site Admin only — repair field.' },
+        admin: {
+          description: 'Site Admin only — repair field.',
+          // Constrained input: a dropdown over the live `subjects` taxonomy (the data stays a plain
+          // string — generator grammar unchanged). See the component header for why there is no
+          // server-side validate.
+          components: { Field: '@/components/SubjectSelectField#default' },
+        },
       },
       {
         name: 'grade',
