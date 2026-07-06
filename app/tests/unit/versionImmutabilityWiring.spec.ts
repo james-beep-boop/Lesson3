@@ -17,6 +17,7 @@ import {
   enforceVersionImmutable,
   versionUpdateGrantForFormRenderOnly,
 } from '../../src/access/versionImmutability'
+import { systemOnly } from '../../src/access/bundle'
 
 describe('lesson-bundle-versions immutability wiring', () => {
   it('access.update is exactly the form-render-only grant (never a bare write grant)', () => {
@@ -45,5 +46,25 @@ describe('lesson-bundle-versions immutability wiring', () => {
     const run = (args: unknown) => (enforceVersionImmutable as (a: unknown) => unknown)(args)
     expect(() => run({ operation: 'update', req: { user: null } })).not.toThrow()
     expect(() => run({ operation: 'create', req: { user: { id: 1 } } })).not.toThrow()
+  })
+})
+
+describe('sourceVersion field-access wiring (system-set provenance, PR #57)', () => {
+  // The create half is behaviour-proven in tests/int (spoofed value stripped). The UPDATE half is
+  // unreachable over any real write path — `enforceVersionImmutable` throws on every authenticated
+  // update before field access runs, and system updates (overrideAccess) bypass field access — so it
+  // exists solely as defense-in-depth for the day that hook is mis-wired. Unreachable ≠ untestable:
+  // this pins the wiring itself, the same way the hook pair above is pinned.
+  const sourceVersion = LessonBundleVersions.fields.find(
+    (f) => 'name' in f && f.name === 'sourceVersion',
+  ) as { access?: { create?: unknown; update?: unknown }; admin?: { readOnly?: boolean } }
+
+  it('create and update are exactly systemOnly (no authenticated write path)', () => {
+    expect(sourceVersion?.access?.create).toBe(systemOnly)
+    expect(sourceVersion?.access?.update).toBe(systemOnly)
+  })
+
+  it('renders read-only in the admin form (no misleading dropdown)', () => {
+    expect(sourceVersion?.admin?.readOnly).toBe(true)
   })
 })
