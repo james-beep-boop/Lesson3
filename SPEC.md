@@ -203,7 +203,8 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
-- **Favorites** (per user, per bundle).
+- **Favorites** (per user, **per version** — favoriting a version pins that snapshot; it does not
+  follow a later Official change. Decided 2026-07-06; design in DECISIONS "version browser design").
 - **Translation** (e.g. Swahili) and **AI features** (summaries, etc.) — server-side outbound
   services behind endpoints/jobs, rate-limited (§11); AI uses the current Claude API/models.
 

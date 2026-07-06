@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * FavoriteToggle regression (eyeball fix 2026-07-03): the SAME plan renders two stars — the
+ * FavoriteToggle regression (eyeball fix 2026-07-03): the SAME version renders two stars — the
  * "My favorites" row and its catalogue row. When one toggles, the server re-renders (router.refresh)
  * and hands the OTHER instance a fresh `favoriteId` prop; the component must reconcile its local
  * state to that prop, or it keeps a stale (deleted) id and its DELETE 404s ("can't unfavorite").
@@ -20,16 +20,16 @@ afterEach(cleanup)
 
 describe('FavoriteToggle re-syncs to the server favoriteId prop', () => {
   it('reflects a prop change on the same instance (no remount)', () => {
-    const { rerender } = render(<FavoriteToggle planId={1} favoriteId={5} />)
+    const { rerender } = render(<FavoriteToggle versionId={1} favoriteId={5} />)
     const btn = screen.getByRole('button')
     expect(btn.getAttribute('aria-pressed')).toBe('true') // favorited (row id 5)
 
     // Server hands this SAME instance a fresh prop after another star deleted the row.
-    rerender(<FavoriteToggle planId={1} favoriteId={null} />)
+    rerender(<FavoriteToggle versionId={1} favoriteId={null} />)
     expect(btn.getAttribute('aria-pressed')).toBe('false') // reconciled → unfavorited
 
     // And back again (a fresh favorite row id).
-    rerender(<FavoriteToggle planId={1} favoriteId={9} />)
+    rerender(<FavoriteToggle versionId={1} favoriteId={9} />)
     expect(btn.getAttribute('aria-pressed')).toBe('true')
   })
 })

@@ -207,8 +207,17 @@ export interface LessonBundleVersion {
   title: string;
   subjectGrade: number | SubjectGrade;
   meta?: {
+    /**
+     * Site Admin only — repair field.
+     */
     subject?: string | null;
+    /**
+     * Site Admin only — repair field.
+     */
     grade?: number | null;
+    /**
+     * Site Admin only — re-uploads of this sub-strand match on it.
+     */
     substrand_id?: string | null;
     substrand_name?: string | null;
     outputDir?: string | null;
@@ -504,7 +513,7 @@ export interface User {
 export interface Favorite {
   id: number;
   user: number | User;
-  lessonPlan: number | LessonPlan;
+  version: number | LessonBundleVersion;
   updatedAt: string;
   createdAt: string;
 }
@@ -923,7 +932,7 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface FavoritesSelect<T extends boolean = true> {
   user?: T;
-  lessonPlan?: T;
+  version?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -1,18 +1,21 @@
 /**
- * Favorites integration tests (§10 PR ①). Drives Payload's Local API with `overrideAccess: false`
- * + an explicit `user`, proving the collection's whole security model server-side:
+ * Favorites integration tests (§10, per-version — redesign PR ① 2026-07-06). Drives Payload's Local
+ * API with `overrideAccess: false` + an explicit `user`, proving the collection's whole security
+ * model server-side:
  *
  *   - `user` is STAMPED from the session on create — nobody favorites on someone else's behalf.
  *   - Rows are own-only for read AND delete (Site Admin excepted).
  *   - The compound unique index rejects a double-favorite at the DB.
- *   - Deleting a parent lesson plan / user cascades its favorites rows (required relationship =
- *     NOT NULL column + ON DELETE SET NULL FK → 23502 without the cascade hooks).
+ *   - Deleting a referenced version / user cascades its favorites rows (required relationship =
+ *     NOT NULL column + ON DELETE SET NULL FK → 23502 without the cascade hooks). The version hook
+ *     lives on `lesson-bundle-versions`, so a PLAN delete cascades favorites transitively (plan →
+ *     versions → favorites) — both the direct and the transitive path are pinned below.
  *
  * Requires a DB → Rock/CI only (like all of `tests/int`).
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let fx: RoleFixture
@@ -37,11 +40,27 @@ async function favoritesVisibleTo(user: RoleFixture['users'][keyof RoleFixture['
   return docs
 }
 
-describe('favorites (§10): stamped ownership, own-only rows, unique per plan', () => {
+/** A version on `planId` (defaults to the fixture plan, where a non-1.0.0 semver makes it a
+ *  NON-Official, deletable sibling — the Official one is not deletable). */
+async function createVersion(semver: string, planId: number = fx.plan.id, titleBase = 'Plan') {
+  return fx.payload.create({
+    collection: 'lesson-bundle-versions',
+    data: {
+      lessonPlan: planId,
+      subjectGrade: fx.subjectGrade.id,
+      semver,
+      title: `${MARK}${titleBase} v${semver}`,
+      ...minimalBundleContent(),
+    } as never,
+    overrideAccess: true,
+  })
+}
+
+describe('favorites (§10): stamped ownership, own-only rows, unique per version', () => {
   it('stamps `user` from the session — a supplied foreign user id is overridden', async () => {
     const fav = await fx.payload.create({
       collection: 'favorites',
-      data: { lessonPlan: fx.plan.id, user: fx.users.editor.id }, // hostile: favorite "as" the editor
+      data: { version: fx.version.id, user: fx.users.editor.id }, // hostile: favorite "as" the editor
       overrideAccess: false,
       user: fx.users.teacher,
     })
@@ -55,11 +74,11 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per plan', 
     expect((await favoritesVisibleTo(fx.users.siteAdmin)).map((f) => f.id)).toContain(fav.id)
   })
 
-  it('rejects a double-favorite of the same plan (compound unique index)', async () => {
+  it('rejects a double-favorite of the same version (compound unique index)', async () => {
     await expect(
       fx.payload.create({
         collection: 'favorites',
-        data: { lessonPlan: fx.plan.id, user: fx.users.teacher.id },
+        data: { version: fx.version.id, user: fx.users.teacher.id },
         overrideAccess: false,
         user: fx.users.teacher,
       }),
@@ -91,7 +110,7 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per plan', 
   it('rejects an update — a favorite either exists or it does not', async () => {
     const fav = await fx.payload.create({
       collection: 'favorites',
-      data: { lessonPlan: fx.plan.id, user: fx.users.editor.id },
+      data: { version: fx.version.id, user: fx.users.editor.id },
       overrideAccess: false,
       user: fx.users.editor,
     })
@@ -99,7 +118,7 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per plan', 
       fx.payload.update({
         collection: 'favorites',
         id: fav.id,
-        data: { lessonPlan: fx.plan.id },
+        data: { version: fx.version.id },
         overrideAccess: false,
         user: fx.users.editor,
       }),
@@ -109,15 +128,36 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per plan', 
 })
 
 describe('favorites cascade with their parents (NOT NULL FK → 23502 without it)', () => {
-  it('deleting a lesson plan removes its favorites rows first', async () => {
+  it('deleting a version removes its favorites rows first (the direct hook)', async () => {
+    const candidate = await createVersion('1.0.1')
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: candidate.id, user: fx.users.teacher.id },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+
+    await expect(
+      fx.payload.delete({ collection: 'lesson-bundle-versions', id: candidate.id, overrideAccess: true }),
+    ).resolves.toBeTruthy()
+    const { totalDocs } = await fx.payload.count({
+      collection: 'favorites',
+      where: { version: { equals: candidate.id } },
+      overrideAccess: true,
+    })
+    expect(totalDocs).toBe(0)
+  })
+
+  it('deleting a lesson plan removes its versions favorites rows (transitive: plan → versions → favorites)', async () => {
     const plan = await fx.payload.create({
       collection: 'lesson-plans',
       data: { title: `${MARK}FavCascadePlan`, subjectGrade: fx.subjectGrade.id },
       overrideAccess: true,
     })
+    const version = await createVersion('1.0.0', plan.id, 'FavCascadePlan')
     await fx.payload.create({
       collection: 'favorites',
-      data: { lessonPlan: plan.id, user: fx.users.teacher.id },
+      data: { version: version.id, user: fx.users.teacher.id },
       overrideAccess: false,
       user: fx.users.teacher,
     })
@@ -127,7 +167,7 @@ describe('favorites cascade with their parents (NOT NULL FK → 23502 without it
     ).resolves.toBeTruthy()
     const { totalDocs } = await fx.payload.count({
       collection: 'favorites',
-      where: { lessonPlan: { equals: plan.id } },
+      where: { version: { equals: version.id } },
       overrideAccess: true,
     })
     expect(totalDocs).toBe(0)
@@ -145,7 +185,7 @@ describe('favorites cascade with their parents (NOT NULL FK → 23502 without it
     })
     await fx.payload.create({
       collection: 'favorites',
-      data: { lessonPlan: fx.plan.id, user: user.id },
+      data: { version: fx.version.id, user: user.id },
       overrideAccess: false,
       user,
     })

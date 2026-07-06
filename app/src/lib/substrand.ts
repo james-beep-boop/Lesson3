@@ -21,6 +21,8 @@ export interface LessonRow {
   status?: 'draft' | 'published'
   /** Official version's semver (e.g. "1.0.0"); only the admin Manage view sets/uses this. */
   semver?: string
+  /** Official version's id — what the browse page's favorite star toggles (§10, per-version). */
+  versionId?: number
 }
 
 export interface StrandGroup {
