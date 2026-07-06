@@ -308,13 +308,19 @@ describe('Server-side invariants (Bucket A)', () => {
   it('sourceVersion is system-only: an authenticated create cannot set it (stripped, not stored)', async () => {
     // Provenance is stamped by save-as-new (overrideAccess), never taken from a caller — field access
     // is create/update systemOnly, so a spoofed value on a direct admin create is silently stripped.
-    // The system path setting it is exercised by makeWorkingCopy above.
+    // The system path setting it is exercised by makeWorkingCopy above. Own throwaway plan: semver is
+    // ALSO create-stripped now (audit 2026-07-06), so this create lands as 1.0.0 — on the fixture
+    // plan that would collide with its existing 1.0.0 on the unique (lessonPlan, semver) index.
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}src-spoof-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
     const v = (await fx.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
-        lessonPlan: fx.plan.id,
+        lessonPlan: p.id,
         subjectGrade: fx.subjectGrade.id,
-        semver: '9.2.0',
         sourceVersion: fx.version.id, // spoof attempt
         title: `${MARK}src-spoof`,
         ...minimalBundleContent(),
@@ -330,6 +336,7 @@ describe('Server-side invariants (Bucket A)', () => {
     })) as { sourceVersion?: unknown }
     expect(stored.sourceVersion ?? null).toBeNull()
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
   it('semver is system-only on CREATE too: a forged value is stripped → 1.0.0 default (audit 2026-07-06)', async () => {
