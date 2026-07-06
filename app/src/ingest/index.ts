@@ -26,6 +26,7 @@ import path from 'node:path'
 
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
 import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
+import { sql } from 'drizzle-orm'
 
 import { contractDrift } from './contract'
 import { IngestError } from './errors'
@@ -52,6 +53,33 @@ export interface IngestResult {
   action: 'created' | 'revised'
   /** Non-blocking deliverable warnings (e.g. missing FINAL_EXPLANATION / SUMMARY_TABLE). */
   warnings: string[]
+}
+
+/**
+ * Serialize concurrent ingests per subject-grade: `SELECT … FOR UPDATE` on the subject_grades rows
+ * inside the write transaction (audit 2026-07-06 #2). Without it, two simultaneous uploads of the
+ * same NEW non-empty substrand_id both preflight to "no existing plan" and both create Official
+ * 1.0.0 plans — every later upload of that sub-strand then hits the duplicate-plan ambiguity guard.
+ * Locks are taken in ascending id order so two batches over different grade sets can't deadlock;
+ * the tx-bound-connection lookup mirrors hooks/userRoles.ts (PR #50, verified there against the
+ * installed @payloadcms/drizzle source). Outside a transaction the lock is a harmless no-op there
+ * and here. Exported for the wiring spec (true concurrency can't be pinned in a unit test).
+ */
+export async function lockSubjectGrades(
+  payload: Payload,
+  transactionID: PayloadRequest['transactionID'],
+  subjectGradeIds: number[],
+): Promise<void> {
+  const adapter = payload.db as unknown as {
+    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
+    drizzle: { execute: (q: unknown) => Promise<unknown> }
+  }
+  const txDb =
+    (transactionID != null ? adapter.sessions?.[String(await transactionID)]?.db : undefined) ??
+    adapter.drizzle
+  for (const sgId of [...new Set(subjectGradeIds)].sort((a, b) => a - b)) {
+    await txDb.execute(sql`SELECT id FROM "subject_grades" WHERE id = ${sgId} FOR UPDATE`)
+  }
 }
 
 /** The sub-strand identity within a subject-grade: `META.substrand_id`, trimmed ('' = absent). */
@@ -290,8 +318,16 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
   const req: IngestReq = { payload }
   await initTransaction(req)
   try {
+    // Serialize against concurrent ingests of the same subject-grade BEFORE any read/write, then
+    // re-resolve each file's plan inside the transaction: the preflight lookup above ran outside
+    // it, so a concurrent upload committing between preflight and here could otherwise duplicate a
+    // "new" sub-strand's plan (audit 2026-07-06 #2). Post-lock, the re-check is race-free.
+    await lockSubjectGrades(payload, req.transactionID, prepared.map((p) => p.subjectGrade))
     const results: IngestResult[] = []
-    for (const { name, data, subjectGrade, existingPlanId, warnings } of prepared) {
+    for (const { name, data, subjectGrade, substrandId, warnings, ...p } of prepared) {
+      const existingPlanId =
+        p.existingPlanId ??
+        (substrandId ? await findExistingPlan(payload, subjectGrade, substrandId, req) : null)
       if (existingPlanId != null) {
         // RE-INGEST (SPEC §7): attach as the next MAJOR version of the existing plan, arriving
         // Not Official. The Official pointer is NOT moved and the plan title is NOT refreshed — the
