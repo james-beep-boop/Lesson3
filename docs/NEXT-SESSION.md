@@ -23,7 +23,50 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-05 late) — Phase 5 Track A (host-independent pre-VPS half) MERGED; Track B is host-gated config
+## ▶ RESUME HERE (2026-07-05 night) — eyeball-pass fixes + version compare: PRs #57–#62 ALL merged + deployed
+
+**The user's in-browser eyeball pass started and immediately paid for itself** — it surfaced a
+misleading editor affordance, a field-permission redesign, a UI nit, and drove two new features.
+All six PRs were CI-gated, merged same-session, and **the Rock is on main `d0078f0`** (one deploy
+per merge batch, verified healthy; **no migrations all session** — everything is app-level).
+Full reasoning: DECISIONS 2026-07-05 (version compare) + (META identity).
+
+- **#57 + #58** — `sourceVersion` rendered as an editable dropdown over EVERY version (and a direct
+  admin create could forge provenance). Now `systemOnly` + `readOnly`, mirroring `author`; int test
+  pins the create-path strip, wiring test pins the field-access contract (the update half is
+  unreachable behind the immutability hook — pinned as WIRING, deliberately not behaviour; #58 is
+  the CodeRabbit follow-up explaining why).
+- **#59 META identity is Site-Admin-only** (user decision): `meta.subject`/`grade`/`substrand_id`
+  are corruption-REPAIR fields, not curation — subject/grade only label the printed document (the
+  `subjectGrade` relationship is the categorization truth) and substrand_id is the re-ingest
+  matching key. **SPEC §5 amended.** KEY LESSON (recorded in DECISIONS): field access alone cannot
+  enforce version-field rules — save-as-new writes via `overrideAccess` — so enforcement is
+  two-layer: `siteAdminOnly` field access (form render + direct writes) AND a Subject-Admin
+  carve-out in `applyEditorFieldSplit` (the layer that actually holds). Rest of META stays
+  Subject-Admin. Pinned by `metaIdentitySplit.spec.ts` + two wire-level save-as-new cases.
+- **#60** — Edit/Make Official buttons missed the export-bar flex gap (wrapper span); now a
+  fragment like DownloadButtons.
+- **#61** — `meta.subject` input is a dropdown over the live `subjects` taxonomy
+  (`SubjectSelectField`; data stays a plain string — generator grammar untouched). Deliberately NO
+  server-side validate (would block saves of legacy versions after a taxonomy rename — the split
+  restores the stored value into non-Site-Admin saves); a stored value missing from the taxonomy
+  renders as a flagged "(not in taxonomy)" option, never blanked.
+- **#62 version compare** — `/lessons/{id}/compare`: Payload's compare VIEW is native-versions-only
+  and unexported, but its diff ENGINE is public API (`HtmlDiff`,
+  `@payloadcms/ui/elements/HTMLDiff/diff`). We diff the two versions' CACHED RENDERED DOCUMENT HTML
+  (`renderVersionSectionsCached` — immutable, sanitized) into two panes: removals red left,
+  additions green right; pickers navigate via GET; Compare button in the version bar (left of the
+  pills, only when >1 version). Engine output contract pinned by `htmlDiffContract.spec.ts` so a
+  Payload bump fails fast. Guide sentence added.
+
+**Next:** ① the user's eyeball pass CONTINUES (now including: source-version read-only, META
+identity read-only for Subject Admins, subject dropdown for Site Admins, button spacing, Compare) —
+findings come back here; ② Phase 5 Track B stays host-gated (next section); ③ deferred backlog
+unchanged.
+
+---
+
+## ▶ Older resume (2026-07-05 late) — Phase 5 Track A (host-independent pre-VPS half) MERGED; Track B is host-gated config
 
 **Phase 5 was planned and its host-independent half BUILT this session** (decisions + full detail:
 DECISIONS 2026-07-05 (Phase 5)). Standing decisions: **no VPS timeline yet**; error tracker =
