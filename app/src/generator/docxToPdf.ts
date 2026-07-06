@@ -12,6 +12,8 @@
  * another without touching the export path.
  */
 
+import { positiveIntEnv } from '../lib/env'
+
 /** Thrown when the conversion sidecar is unreachable or returns a non-2xx response. */
 export class PdfConversionError extends Error {
   constructor(message: string) {
@@ -45,7 +47,7 @@ export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promi
   // a separate process; a dead socket would otherwise block forever). This is the floor-level
   // safety net — per-user rate-limiting + a Jobs Queue for the heavy path are the tracked
   // follow-ups. Default sits at the sidecar's own --api-timeout (120s); override via env.
-  const timeoutMs = Number(process.env.GOTENBERG_TIMEOUT_MS) || 120_000
+  const timeoutMs = positiveIntEnv('GOTENBERG_TIMEOUT_MS', 120_000)
   let res: Response
   try {
     res = await fetch(`${base}/forms/libreoffice/convert`, {

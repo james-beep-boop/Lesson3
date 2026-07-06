@@ -332,6 +332,51 @@ describe('Server-side invariants (Bucket A)', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
   })
 
+  it('semver is system-only on CREATE too: a forged value is stripped → 1.0.0 default (audit 2026-07-06)', async () => {
+    // A privileged direct create previously accepted any semver ("banana", "999.0.0"), corrupting
+    // ordering and future bump allocation. Field access is now create+update systemOnly, so an
+    // authenticated create has the submitted value stripped and the 1.0.0 default applied. Fresh
+    // throwaway plan (the fixture plan already has a 1.0.0 — the unique index would reject).
+    const p = await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: `${MARK}semver-forge-plan`, subjectGrade: fx.subjectGrade.id } as never,
+      overrideAccess: true,
+    })
+    const v = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: p.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '999.0.0', // forge attempt
+        title: `${MARK}semver-forge`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: false,
+      user: fx.users.subjectAdmin,
+    })) as { id: number | string; semver?: string }
+    expect(v.semver).toBe('1.0.0')
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
+  })
+
+  it('semver validate rejects non-x.y.z even on the system path', async () => {
+    // Defense-in-depth behind the field access: nextSemverForPlan parses malformed pieces loosely,
+    // so garbage must never land — not even via overrideAccess (which bypasses access, not validation).
+    await expect(
+      fx.payload.create({
+        collection: 'lesson-bundle-versions',
+        data: {
+          lessonPlan: fx.plan.id,
+          subjectGrade: fx.subjectGrade.id,
+          semver: 'banana',
+          title: `${MARK}semver-banana`,
+          ...minimalBundleContent(),
+        } as never,
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow()
+  })
+
   it('#4 nextSemverForPlan returns the next free patch across the plan (not a blind source bump)', async () => {
     // Fixture plan already has its Official 1.0.0; add a 1.0.1, then the next free patch is 1.0.2.
     const v101 = (await fx.payload.create({

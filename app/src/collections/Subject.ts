@@ -37,13 +37,25 @@ const refreshSubjectGradeTitles: CollectionAfterChangeHook = async ({
   req,
 }) => {
   if (operation !== 'update' || doc.name === previousDoc?.name) return doc
-  const { docs } = await req.payload.find({
-    collection: 'subject-grades',
-    where: { subject: { equals: doc.id } },
-    limit: 1000,
-    depth: 0,
-    req,
-  })
+  // Paginated (the old single find silently capped the refresh at 1000 subject-grades — stale
+  // display names past the cap). displayName updates don't affect the `subject` match, so
+  // collecting all pages first is consistent within this transaction.
+  const docs: { id: number | string; grade: number }[] = []
+  let page = 1
+  for (;;) {
+    const res = await req.payload.find({
+      collection: 'subject-grades',
+      where: { subject: { equals: doc.id } },
+      limit: 200,
+      page,
+      sort: 'id',
+      depth: 0,
+      req,
+    })
+    docs.push(...res.docs)
+    if (!res.hasNextPage) break
+    page += 1
+  }
   for (const sg of docs) {
     await req.payload.update({
       collection: 'subject-grades',
