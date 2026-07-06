@@ -66,8 +66,10 @@ export default function EditActions({
     }
   }
 
+  // A fragment, not a wrapper (same idiom as DownloadButtons): the buttons must be DIRECT children
+  // of the .export-bar flex row to pick up its gap — a wrapping span left them flush together.
   return (
-    <span className="edit-actions">
+    <>
       <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
         Edit
       </button>
@@ -81,6 +83,6 @@ export default function EditActions({
           {error}
         </span>
       )}
-    </span>
+    </>
   )
 }
