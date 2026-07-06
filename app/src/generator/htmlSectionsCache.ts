@@ -27,8 +27,11 @@ import { getArtifact, putArtifact } from './artifactCache'
 import { generateForVersion } from './generateForVersion'
 import { docxToSections, type PreviewSection } from './previewBundle'
 
-/** Bump in lockstep with any change to generator / mammoth / sanitizer render output. */
-const HTML_RENDER_CACHE_VERSION = 1
+/** Bump in lockstep with any change to generator / mammoth / sanitizer render output. Exported
+ *  because the compare-diff cache (htmlDiffCache.ts) derives from this render output, so a bump
+ *  must invalidate its entries too — and a Payload bump that changes the HtmlDiff engine's output
+ *  (htmlDiffContract.spec.ts catches that) warrants a bump for the same reason. */
+export const HTML_RENDER_CACHE_VERSION = 1
 
 const keyFor = (versionId: number | string): string =>
   `html-sections::v${HTML_RENDER_CACHE_VERSION}::version:${versionId}`

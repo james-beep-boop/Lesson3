@@ -42,6 +42,14 @@ const sameSequence = (
 // from the original. Must stay in sync with the `prose()` fields in fields/lessonContent.ts —
 // exported so tests/unit/proseWhitelistDrift.spec.ts can enforce that sync mechanically (a field is
 // "intended Editor prose" exactly when its factory attached `canEditProse`).
+// META identity — Site-Admin-only corruption-repair fields (decided 2026-07-05): subject/grade only
+// label the printed document (the plan's subjectGrade relationship is the categorization truth) and
+// substrand_id is the re-ingest matching key. SINGLE SOURCE for the rule's key list: the carve-out
+// below loops it, the three `siteAdminField` markers in fields/lessonContent.ts mirror it, and
+// tests/unit/metaIdentitySplit.spec.ts asserts the two layers agree (a field marked identity in the
+// schema but missing here would LEAK write access — the hook is the write-time authority).
+export const META_IDENTITY_KEYS = ['subject', 'grade', 'substrand_id'] as const
+
 export const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
 export const SLO_PROSE = ['purpose', 'knowledge', 'skills', 'attitudes', 'keyInquiry', 'purposeInStoryline', 'safetyNotes']
 export const FRAMEWORK_PROSE = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment']
@@ -102,19 +110,16 @@ export const applyEditorFieldSplit = ({
   // Site Admins (and trusted system / overrideAccess calls — a missing user; unauthenticated
   // updates are denied at collection access) are unrestricted.
   if (!req.user || isSiteAdmin(req.user as User)) return data
-  // Subject Admins are unrestricted EXCEPT the META identity fields (subject / grade /
-  // substrand_id — Site-Admin-only repair data, decided 2026-07-05): those are restored from the
-  // stored doc, the same silent-preserve idiom as the Editor whitelist below. The rest of META
-  // (titleDoc, column labels, …) stays Subject-Admin-editable per SPEC §5.
+  // Subject Admins are unrestricted EXCEPT the META identity fields (META_IDENTITY_KEYS —
+  // Site-Admin-only repair data, decided 2026-07-05): those are restored from the stored doc, the
+  // same silent-preserve idiom as the Editor whitelist below. The rest of META (titleDoc, column
+  // labels, …) stays Subject-Admin-editable per SPEC §5.
   if (isSubjectAdminFor(req.user as User, subjectGradeId)) {
     const origMeta = originalDoc.meta as Doc | undefined
     if (origMeta) {
-      data.meta = {
-        ...((data.meta as Doc | undefined) ?? {}),
-        subject: origMeta.subject,
-        grade: origMeta.grade,
-        substrand_id: origMeta.substrand_id,
-      }
+      const meta = { ...((data.meta as Doc | undefined) ?? {}) }
+      for (const key of META_IDENTITY_KEYS) meta[key] = origMeta[key]
+      data.meta = meta
     }
     return data
   }

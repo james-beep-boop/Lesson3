@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { requireUser } from '@/lib/session'
 import { isEditorFor, isSubjectAdminFor, toId } from '@/access'
-import { findReadablePlan } from '@/lib/readBundle'
+import { findReadablePlan, findReadableVersions } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
@@ -35,26 +35,10 @@ export default async function LessonView({
   const plan = await findReadablePlan(payload, { id, user })
   if (!plan) notFound()
 
-  // All retained versions of this plan (for the selector), oldest → newest. Access-gated.
-  // `pagination: false`: a plan's version set is naturally bounded (dozens — candidates get pruned
-  // via save-as-new/make-official cleanup), and the old `limit: 100` could false-404 a valid
-  // `?version=` or even the Official once a plan exceeded it (Codex round-2 #3). Completeness over
-  // truncation, same call as the browse page (hardening #8); light projection keeps it cheap.
-  const { docs: versions } = await payload.find({
-    collection: 'lesson-bundle-versions',
-    where: { lessonPlan: { equals: plan.id } },
-    overrideAccess: false,
-    user,
-    depth: 0,
-    pagination: false,
-    sort: 'createdAt',
-    select: {
-      semver: true,
-      title: true,
-      createdAt: true,
-      meta: { subject: true, grade: true, substrand_name: true },
-    },
-  })
+  // All retained versions of this plan (for the selector), oldest → newest. The shared
+  // access-gated list (lib/readBundle) — also the compare page's READ proof, so the visibility
+  // rule lives in one place.
+  const versions = await findReadableVersions(payload, { planId: plan.id, user })
 
   const officialId = relId(plan.officialVersion)
   // Selected version: an explicit, valid `?version=` that belongs to this plan, else Official.

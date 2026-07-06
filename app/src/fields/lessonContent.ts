@@ -1,7 +1,7 @@
 import type { Field } from 'payload'
 
-import { canEditStructure, siteAdminOnly, systemOnly } from '../access/bundle'
-import { isSubjectAdminFor, toId } from '../access'
+import { canEditStructure, systemOnly } from '../access/bundle'
+import { isSubjectAdminFor, siteAdminField, toId } from '../access'
 import { prose, proseAdmin, structureText } from './bundleFields'
 import { PHASE_OPTIONS } from './phases'
 import type { User } from '../payload-types'
@@ -93,14 +93,16 @@ export const lessonContentFields: Field[] = [
     label: 'META',
     access: { update: canEditStructure },
     fields: [
-      // META identity (subject / grade / substrand_id) is Site-Admin-only corruption repair, never
-      // curation (2026-07-05): subject/grade only label the printed document (the plan's subjectGrade
-      // relationship is the categorization truth), and substrand_id is the re-ingest matching key.
-      // Renders read-only for Subject Admins; hooks/fieldSplit.ts enforces it on save-as-new.
+      // META identity (META_IDENTITY_KEYS in hooks/fieldSplit.ts — the single source) is
+      // Site-Admin-only corruption repair, never curation (2026-07-05): subject/grade only label the
+      // printed document (the plan's subjectGrade relationship is the categorization truth), and
+      // substrand_id is the re-ingest matching key. These `siteAdminField` markers cover the form
+      // render + direct writes; the fieldSplit carve-out enforces it on save-as-new. A drift test
+      // (metaIdentitySplit.spec.ts) asserts the two layers name the same fields.
       {
         name: 'subject',
         type: 'text',
-        access: { create: siteAdminOnly, update: siteAdminOnly },
+        access: { create: siteAdminField, update: siteAdminField },
         admin: {
           description: 'Site Admin only — repair field.',
           // Constrained input: a dropdown over the live `subjects` taxonomy (the data stays a plain
@@ -112,13 +114,13 @@ export const lessonContentFields: Field[] = [
       {
         name: 'grade',
         type: 'number',
-        access: { create: siteAdminOnly, update: siteAdminOnly },
+        access: { create: siteAdminField, update: siteAdminField },
         admin: { description: 'Site Admin only — repair field.' },
       },
       {
         name: 'substrand_id',
         type: 'text',
-        access: { create: siteAdminOnly, update: siteAdminOnly },
+        access: { create: siteAdminField, update: siteAdminField },
         admin: { description: 'Site Admin only — re-uploads of this sub-strand match on it.' },
       },
       { name: 'substrand_name', type: 'text' },

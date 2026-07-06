@@ -16,18 +16,21 @@
 import type { OptionObject, TextFieldClientProps } from 'payload'
 
 import React, { useEffect, useState } from 'react'
-import { SelectInput, useField } from '@payloadcms/ui'
+import { SelectInput, useConfig, useField } from '@payloadcms/ui'
 
+import { apiBaseFrom } from '../../lib/apiBase'
 import { buildSubjectOptions } from './options'
 
 export default function SubjectSelectField(props: TextFieldClientProps) {
   const { field, path, readOnly } = props
   const { value, setValue, showError } = useField<string | null>({ path })
+  const { config } = useConfig()
+  const apiBase = apiBaseFrom(config)
   const [subjects, setSubjects] = useState<string[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/subjects?limit=200&sort=name&depth=0', {
+    fetch(`${apiBase}/subjects?limit=200&sort=name&depth=0`, {
       credentials: 'same-origin',
       signal: controller.signal,
     })
@@ -37,7 +40,7 @@ export default function SubjectSelectField(props: TextFieldClientProps) {
       })
       .catch(() => {}) // aborted / offline — the stored value still renders via the extra option
     return () => controller.abort()
-  }, [])
+  }, [apiBase])
 
   const options = buildSubjectOptions(subjects, value)
 
