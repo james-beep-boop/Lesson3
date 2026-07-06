@@ -41,6 +41,13 @@ export async function findReadablePlan(
   }
 }
 
+/** What {@link findReadableVersions} actually fetches — the `select` projection, not the full
+ *  document. Typed exactly so a caller reading e.g. `subjectGrade` off a row is a compile error,
+ *  not a silent runtime `undefined`. Widen the `select` and this type together. */
+export type ReadableVersionListItem = Pick<LessonBundleVersion, 'id' | 'semver' | 'title' | 'createdAt'> & {
+  meta?: Pick<NonNullable<LessonBundleVersion['meta']>, 'subject' | 'grade' | 'substrand_name'>
+}
+
 /**
  * The access-gated version list for one plan, oldest → newest — shared by the lesson page and the
  * compare page. This list is LOAD-BEARING as the READ proof: both pages render version content via
@@ -52,7 +59,7 @@ export async function findReadablePlan(
 export async function findReadableVersions(
   payload: Payload,
   args: { planId: number | string; user: User | null },
-): Promise<LessonBundleVersion[]> {
+): Promise<ReadableVersionListItem[]> {
   const { docs } = await payload.find({
     collection: 'lesson-bundle-versions',
     where: { lessonPlan: { equals: args.planId } },
@@ -68,7 +75,7 @@ export async function findReadableVersions(
       meta: { subject: true, grade: true, substrand_name: true },
     },
   })
-  return docs as LessonBundleVersion[]
+  return docs as ReadableVersionListItem[]
 }
 
 /**
