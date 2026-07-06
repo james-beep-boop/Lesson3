@@ -24,29 +24,31 @@ export default function ComparePickers({
   const go = (from: number, to: number) =>
     router.push(`/lessons/${planId}/compare?from=${from}&to=${to}`)
 
-  const select = (which: 'from' | 'to', value: number) => (
-    <select
-      className="compare-picker"
-      aria-label={which === 'from' ? 'Compare from version' : 'Compare to version'}
-      value={value}
-      onChange={(e) => {
-        const picked = Number(e.target.value)
-        go(which === 'from' ? picked : fromId, which === 'to' ? picked : toId)
-      }}
-    >
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  )
+  const opts = options.map((o) => (
+    <option key={o.id} value={o.id}>
+      {o.label}
+    </option>
+  ))
 
   return (
     <div className="compare-controls">
-      {select('from', fromId)}
+      <select
+        className="compare-picker"
+        aria-label="Compare from version"
+        value={fromId}
+        onChange={(e) => go(Number(e.target.value), toId)}
+      >
+        {opts}
+      </select>
       <span aria-hidden="true">→</span>
-      {select('to', toId)}
+      <select
+        className="compare-picker"
+        aria-label="Compare to version"
+        value={toId}
+        onChange={(e) => go(fromId, Number(e.target.value))}
+      >
+        {opts}
+      </select>
     </div>
   )
 }

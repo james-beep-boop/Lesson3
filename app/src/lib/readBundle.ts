@@ -42,6 +42,36 @@ export async function findReadablePlan(
 }
 
 /**
+ * The access-gated version list for one plan, oldest → newest — shared by the lesson page and the
+ * compare page. This list is LOAD-BEARING as the READ proof: both pages render version content via
+ * overrideAccess system reads (`renderVersionSectionsCached`), authorized by the version appearing
+ * in this caller-scoped list — so the visibility rule must live in exactly one place. Light
+ * projection (the union of both pages' needs); `pagination: false` because a plan's version set is
+ * naturally bounded and a cap could false-404 a valid selection (Codex round-2 #3).
+ */
+export async function findReadableVersions(
+  payload: Payload,
+  args: { planId: number | string; user: User | null },
+): Promise<LessonBundleVersion[]> {
+  const { docs } = await payload.find({
+    collection: 'lesson-bundle-versions',
+    where: { lessonPlan: { equals: args.planId } },
+    overrideAccess: false,
+    user: args.user,
+    depth: 0,
+    pagination: false,
+    sort: 'createdAt',
+    select: {
+      semver: true,
+      title: true,
+      createdAt: true,
+      meta: { subject: true, grade: true, substrand_name: true },
+    },
+  })
+  return docs as LessonBundleVersion[]
+}
+
+/**
  * findByID for an immutable LessonBundleVersion with the CALLER's access (overrideAccess:false +
  * user). Returns null only for not-visible cases (404/403). There is no draft/published axis on
  * versions — every retained version is a valid snapshot — so this has no `draft` flag.

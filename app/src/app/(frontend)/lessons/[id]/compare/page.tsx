@@ -1,20 +1,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-// Payload's own version-compare ENGINE (a pure vendored html-diff class, public `./elements/*`
-// export — verified in the installed 3.85.1 source). Payload's compare VIEW itself only works on
-// its native versions system, which this project deliberately does not use (versions are first-class
-// `lesson-bundle-versions` documents), so we reuse the engine on our own rendered document HTML.
-// Output contract (`data-match-type="create"|"delete"` annotations) is pinned by
-// tests/unit/htmlDiffContract.spec.ts so a Payload bump that changes it fails fast.
-import { HtmlDiff } from '@payloadcms/ui/elements/HTMLDiff/diff'
 
 import { requireUser } from '@/lib/session'
-import { findReadablePlan } from '@/lib/readBundle'
+import { findReadablePlan, findReadableVersions } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
-import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
-import { type PreviewSection } from '@/generator/previewBundle'
+// Payload's compare VIEW only works on its native versions system (ours are first-class documents),
+// so the cache diffs with its exported ENGINE instead — see htmlDiffCache.ts for the full story.
+import { diffVersionSectionsCached, type CompareDiffSection } from '@/generator/htmlDiffCache'
 import ComparePickers from './ComparePickers'
 
 /**
@@ -39,18 +33,9 @@ export default async function CompareView({
   const plan = await findReadablePlan(payload, { id, user })
   if (!plan) notFound()
 
-  // Access-gated version list (same shape as the lesson page — it doubles as the READ proof for the
-  // cached render below). Oldest → newest.
-  const { docs: versions } = await payload.find({
-    collection: 'lesson-bundle-versions',
-    where: { lessonPlan: { equals: plan.id } },
-    overrideAccess: false,
-    user,
-    depth: 0,
-    pagination: false,
-    sort: 'createdAt',
-    select: { semver: true, title: true, meta: { substrand_name: true } },
-  })
+  // The shared access-gated version list (lib/readBundle) — it doubles as the READ proof for the
+  // cached render below. Oldest → newest.
+  const versions = await findReadableVersions(payload, { planId: plan.id, user })
   if (versions.length < 2) notFound() // nothing to compare
 
   const officialId = relId(plan.officialVersion)
@@ -71,14 +56,13 @@ export default async function CompareView({
   const label = (v: (typeof versions)[number]) =>
     `${v.semver ?? `v${v.id}`}${v.id === officialId ? ' · Official' : ''}`
 
-  let fromSections: PreviewSection[] = []
-  let toSections: PreviewSection[] = []
+  // Cached per-pair diff (immutable inputs → immutable output; see htmlDiffCache.ts). The
+  // access-gated `versions` list above proves READ on both ids, so the cache's overrideAccess
+  // renders underneath are authorized.
+  let diffs: CompareDiffSection[] = []
   let viewError: string | null = null
   try {
-    ;[fromSections, toSections] = await Promise.all([
-      renderVersionSectionsCached(payload, from.id),
-      renderVersionSectionsCached(payload, to.id),
-    ])
+    diffs = await diffVersionSectionsCached(payload, from.id, to.id)
   } catch (e) {
     payload.logger.error(
       { err: e, fromId: from.id, toId: to.id, userId: user?.id },
@@ -86,20 +70,6 @@ export default async function CompareView({
     )
     viewError = 'Could not render this comparison.'
   }
-
-  // Section-by-section diff over the label union ("to" order first — it's the newer document —
-  // then any section only the "from" version has). A section missing on one side diffs against
-  // empty, i.e. shows as fully added / fully removed.
-  const labels = [
-    ...toSections.map((s) => s.label),
-    ...fromSections.filter((s) => !toSections.some((t) => t.label === s.label)).map((s) => s.label),
-  ]
-  const diffs = labels.map((sectionLabel) => {
-    const fromHtml = fromSections.find((s) => s.label === sectionLabel)?.html ?? ''
-    const toHtml = toSections.find((s) => s.label === sectionLabel)?.html ?? ''
-    const [oldHtml, newHtml] = new HtmlDiff(fromHtml, toHtml).getSideBySideContents()
-    return { label: sectionLabel, oldHtml, newHtml }
-  })
 
   return (
     <article className="lesson lesson--compare">
