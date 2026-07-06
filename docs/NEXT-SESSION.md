@@ -23,7 +23,39 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-05 night) — eyeball-pass fixes + version compare: PRs #57–#62 ALL merged + deployed
+## ▶ RESUME HERE (2026-07-06) — NEXT TASK: version-browser redesign (DESIGN LOCKED); this session's fixes all merged + deployed
+
+**START HERE:** the next build is the **version-browser redesign — design is fully locked, no code yet.**
+Read **DECISIONS 2026-07-06 (version browser design)** for the complete spec + reasoning; build in the
+three-PR order it gives. One-line summary: versions surface through a **reusable floating `VersionsPanel`**
+opened by a **`[N versions ▾]` chip** (catalogue row, only when 2+ versions; and on the lesson page,
+REPLACING the pill bar). **Favorites become PER-VERSION** (schema change + migration — PR ① of three,
+also amends SPEC §10). Every version list orders **Official-pinned then newest→oldest**; the star toggles
+inside the panel; Compare relocates to its own lesson-page button (not in the panel). Build order:
+① favorites→per-version → ② VersionsPanel + catalogue chip → ③ lesson-page pill→chip swap.
+
+**Everything below the design task is DONE this session — PRs #57–#67, all CI-gated, merged, and
+deployed; the Rock is on main `6933380` (verify with `git log -1`), no migrations all session.** After
+the #57–#62 arc (see the next section) came a review/audit cleanup run:
+- **#63** — /simplify over the #57–#62 arc: `META_IDENTITY_KEYS` single-sourced + a fails-unsafe drift
+  guard, per-pair compare-diff cache (`htmlDiffCache.ts`), `findReadableVersions` extraction.
+- **#64** — projection-accurate return type for `findReadableVersions` (a `select` cast to the full
+  interface lied about unfetched fields). CI needed an empty-commit retrigger — GitHub never fired the
+  `pull_request` event.
+- **#65** — audit safe wins: `semver` now system-owned on create+update (was create-open → forgeable
+  "banana"/"999.0.0") + strict x.y.z validate; two `limit:1000` fan-outs paginated (SubjectGrade delete
+  guard was fails-unsafe); `JOBS_AUTORUN_LIMIT`/`GOTENBERG_TIMEOUT_MS` → `positiveIntEnv`.
+- **#66** — concurrent first-ingest of one sub-strand can no longer duplicate plans: `lockSubjectGrades`
+  (SELECT … FOR UPDATE, PR #50 pattern) + in-transaction re-resolve.
+- **#67** — duplicate Edit tab on the version editor: the hide rule targeted `[title='Edit']` but Payload
+  renders `aria-label` (dead selector). Swept all custom.scss Payload-internal selectors vs installed
+  markup — this was the only broken one.
+Full reasoning: DECISIONS 2026-07-06 (audit batch). The in-browser eyeball pass is ongoing (it drove
+#57–#67); the version-browser redesign is the next deliberate build.
+
+---
+
+## ▶ Older resume (2026-07-05 night) — eyeball-pass fixes + version compare: PRs #57–#62 ALL merged + deployed
 
 **The user's in-browser eyeball pass started and immediately paid for itself** — it surfaced a
 misleading editor affordance, a field-permission redesign, a UI nit, and drove two new features.

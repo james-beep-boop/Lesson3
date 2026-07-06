@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-06 (version browser design — DESIGN LOCKED, NOT YET BUILT) — per-version favorites + reusable VersionsPanel
+
+Designed with the user over a long brainstorm; **no code written — the next session builds it.** The
+problem: "we expect many versions" and today there is no scalable way to see them all. The catalogue
+(one row per sub-strand across ~5–8 subjects × 3 grades × 5–15 sub-strands = ~150–300 rows) is already
+long, and the lesson page's version **pill bar** wraps into an unreadable block past ~15 versions.
+
+**Options weighed (UI-first):**
+- *Always-open versions table on the lesson page* — rejected: the lesson page already renders the full
+  document, so a 30-row table on top makes a heavy page heavier.
+- *Inline-expand under the catalogue row* (user's first idea) — rejected: it LENGTHENS the app's longest
+  page (the catalogue) and shifts everything below the expanded plan; counterproductive to the length goal.
+- **CHOSEN — a floating panel (overlay) opened on demand.** Costs ZERO permanent page height on either
+  surface, and gives version access straight from the catalogue without navigating away.
+
+**The locked design:**
+- **Catalogue row gains one element, only when a plan has 2+ versions:** a `[N versions ▾]` chip to the
+  RIGHT of the plain-text "N lessons" count. **Do NOT overload "N lessons"** as the trigger — it's a
+  content count, not a versions control; making it open a version list is the label≠behaviour confusion
+  we otherwise hunt down. Clicking the chip opens the panel and stops propagation; clicking anywhere else
+  on the row opens the Official version (unchanged). A 1-version plan shows no chip — the row just opens.
+- **The panel:** a reusable `VersionsPanel` component, one line per version, `Version · Author · Created
+  date · ★`. **Ordering (applies to EVERY version list app-wide): Official pinned at top, then most-recent
+  → oldest.** Clicking a line (except the star) opens/switches to that version (`?version=X`). Escape /
+  click-outside closes. NO Compare in the panel (needs two selections + a full-width view — stays a
+  lesson-page button).
+- **Favorites become PER-VERSION** (was per-plan — SPEC §10 "per user, per bundle"). The star **toggles
+  inside the panel**, one per version. The catalogue row shows a filled-star **indicator only** (not a
+  toggle) when any version of that plan is favorited. "My favorites" becomes a list of VERSIONS
+  (`Animal Nutrition — 1.0.2`, links straight to that version). Accepted semantic: favoriting 1.0.2 pins
+  THAT version — it does not follow a later Official change (that's the point of per-version).
+- **Reuse everywhere (user priority — familiarity + sturdiness):** the lesson page's pill bar is REPLACED
+  by the same `[N versions ▾]` chip → the same `VersionsPanel`. On the lesson page the panel also
+  highlights the currently-viewed version (an optional "current" marker the catalogue doesn't use).
+  **Compare relocates** from the (retired) pill bar to its own button beside the chip:
+  `Version 1.0.2 · Official   [N versions ▾]   [Compare]`.
+
+**Build order (each its own CI-gated PR):**
+1. **Favorites → per-version.** Re-key the `favorites` collection from `(user, lessonPlan)` to
+   `(user, version)`; cascade on VERSION delete (versions die via save-as-new deleteSource,
+   make-official delete-previous, plan cascade); migrate existing rows → each plan's current Official
+   version; update "My favorites" + the favorite endpoints/toggle. **Migration required** (schema change).
+   Amend **SPEC §10** ("Favorites (per user, per bundle)") to per-version in the same PR.
+2. **`VersionsPanel` component + catalogue chip.** Panel lazy-loads a plan's versions on open (author
+   NAME is safe to show — the names-only roster from PR ③ exposes names without emails; date; the
+   caller's per-version favorites). Keeps the catalogue page light (it loads only Official versions today).
+3. **Lesson-page swap.** Replace the pill bar with the chip+panel; relocate Compare to its own button;
+   add the "currently viewing" highlight. Stopping after ② leaves the pills working — nothing breaks — but
+   ③ is recommended for the consistency the user asked for.
+
 ## 2026-07-06 (audit batch) — semver system-owned on create; ingest sub-strand race locked; capped fan-outs paginated
 
 An external audit (5 findings: 2 Medium, 3 Low) landed as PRs #64–#66, all merged + deployed. Also
