@@ -305,6 +305,33 @@ describe('Server-side invariants (Bucket A)', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 
+  it('sourceVersion is system-only: an authenticated create cannot set it (stripped, not stored)', async () => {
+    // Provenance is stamped by save-as-new (overrideAccess), never taken from a caller — field access
+    // is create/update systemOnly, so a spoofed value on a direct admin create is silently stripped.
+    // The system path setting it is exercised by makeWorkingCopy above.
+    const v = (await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '9.2.0',
+        sourceVersion: fx.version.id, // spoof attempt
+        title: `${MARK}src-spoof`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: false,
+      user: fx.users.subjectAdmin,
+    })) as { id: number | string }
+    const stored = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: v.id,
+      depth: 0,
+      overrideAccess: true,
+    })) as { sourceVersion?: unknown }
+    expect(stored.sourceVersion ?? null).toBeNull()
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+  })
+
   it('#4 nextSemverForPlan returns the next free patch across the plan (not a blind source bump)', async () => {
     // Fixture plan already has its Official 1.0.0; add a 1.0.1, then the next free patch is 1.0.2.
     const v101 = (await fx.payload.create({

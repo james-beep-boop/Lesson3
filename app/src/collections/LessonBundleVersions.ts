@@ -106,11 +106,16 @@ export const LessonBundleVersions: CollectionConfig = {
       },
     },
     {
+      // Provenance, not content: save-as-new stamps the actual source itself (a submitted value is
+      // in its DROP_KEYS) via overrideAccess. System-set only — no authenticated create/update may
+      // set or change it (before 2026-07-05 this rendered as an editable dropdown over EVERY version).
       name: 'sourceVersion',
       type: 'relationship',
       relationTo: 'lesson-bundle-versions' as CollectionSlug,
+      access: { create: systemOnly, update: systemOnly },
       admin: {
         position: 'sidebar',
+        readOnly: true,
         description: 'Version this snapshot was edited from. Empty for uploaded 1.0.0.',
       },
     },
