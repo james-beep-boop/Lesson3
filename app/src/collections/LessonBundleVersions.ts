@@ -143,12 +143,19 @@ export const LessonBundleVersions: CollectionConfig = {
       required: true,
       defaultValue: '1.0.0',
       index: true,
-      // Server-immutable identity: set once on create (ingest 1.0.0; fork via overrideAccess computes
-      // the next free patch). `update: false` blocks any authenticated edit from mutating it (Payload
-      // preserves the original); overrideAccess system paths bypass it. `readOnly` only hid it in the UI.
+      // System-owned identity, on BOTH writes (audit 2026-07-06 — create was previously open, so a
+      // privileged direct create could forge "banana"/"999.0.0" and corrupt ordering + future bump
+      // allocation): only overrideAccess system paths (ingest 1.0.0 / re-ingest next-major /
+      // save-as-new next-patch) may set it. An authenticated direct create has any submitted value
+      // stripped → the 1.0.0 default (right for a fresh plan; a dup on an existing plan is rejected
+      // by the unique (lessonPlan, semver) index). `validate` backstops even the system paths to
+      // strict x.y.z — nextSemverForPlan parses malformed pieces loosely, so garbage must never land.
       access: {
-        update: () => false,
+        create: systemOnly,
+        update: systemOnly,
       },
+      validate: (value: null | string | undefined) =>
+        /^\d+\.\d+\.\d+$/.test(value ?? '') || 'Version must be numeric x.y.z',
       admin: {
         position: 'sidebar',
         readOnly: true,

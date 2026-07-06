@@ -47,14 +47,27 @@ const guardSubjectGradeDelete: CollectionBeforeDeleteHook = async ({ id, req }) 
     )
   }
 
-  const { docs: holders } = await req.payload.find({
-    collection: 'users',
-    where: { 'assignments.subjectGrade': { equals: id } },
-    depth: 0,
-    limit: 1000,
-    overrideAccess: true,
-    req,
-  })
+  // Collect EVERY holder before writing (paginated, mirroring autoDemotePriorSubjectAdmins): the
+  // old single find silently capped at 1000, and leftovers past the cap would hit the very
+  // FK/not-null failure this guard exists to prevent. Collect-then-write, not walk-and-write —
+  // each update removes the holder from the match set, which would skip rows mid-walk.
+  const holders: User[] = []
+  let page = 1
+  for (;;) {
+    const res = await req.payload.find({
+      collection: 'users',
+      where: { 'assignments.subjectGrade': { equals: id } },
+      depth: 0,
+      limit: 200,
+      page,
+      sort: 'id',
+      overrideAccess: true,
+      req,
+    })
+    holders.push(...res.docs)
+    if (!res.hasNextPage) break
+    page += 1
+  }
   for (const holder of holders) {
     await req.payload.update({
       collection: 'users',

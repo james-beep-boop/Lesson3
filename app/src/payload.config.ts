@@ -19,6 +19,7 @@ import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
 import { messagePingTask } from './jobs/messagePing'
 import { isSiteAdmin } from './access'
 import { firstUserBootRefusal } from './lib/publicPosture'
+import { positiveIntEnv } from './lib/env'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -155,7 +156,7 @@ export default buildConfig({
       {
         cron: process.env.JOBS_AUTORUN_CRON || '*/3 * * * * *', // every 3s (6-field: leading seconds)
         queue: 'default',
-        limit: Number(process.env.JOBS_AUTORUN_LIMIT) || 2,
+        limit: positiveIntEnv('JOBS_AUTORUN_LIMIT', 2),
       },
     ],
   },
