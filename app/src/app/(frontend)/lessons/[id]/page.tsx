@@ -69,11 +69,12 @@ export default async function LessonView({
   const canEdit = isEditorFor(user, sgId)
   const canMakeOfficial = isSubjectAdminFor(user, sgId)
 
-  // The caller's favorite row for this plan (§10) — own-rows-only by access, plan-level (the star
-  // follows the lesson, not the selected version). Presence + row id drive the heading star.
+  // The caller's favorite row for the VIEWED version (§10, per-version by design 2026-07-06:
+  // favoriting 1.0.2 pins that snapshot). Own-rows-only by access; presence + row id drive the
+  // heading star, which follows the version selector.
   const { docs: favRows } = await payload.find({
     collection: 'favorites',
-    where: { lessonPlan: { equals: plan.id } },
+    where: { version: { equals: selectedId } },
     overrideAccess: false,
     user,
     depth: 0,
@@ -106,7 +107,7 @@ export default async function LessonView({
           <h1>{title}</h1>
           {contextLine && <p className="lesson-context">{contextLine}</p>}
         </div>
-        <FavoriteToggle planId={plan.id} favoriteId={favoriteId} showLabel />
+        <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
       </div>
 
       {versions.length > 1 && (

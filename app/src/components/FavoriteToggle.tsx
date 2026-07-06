@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * Favorite star (SPEC §10) — toggles a per-user favorite on a lesson PLAN via Payload's default
- * REST (POST /api/favorites / DELETE /api/favorites/:id; `user` is stamped server-side, rows are
- * own-only). Used on the library rows and the lesson page. State-changing → JS-driven POST/DELETE
+ * Favorite star (SPEC §10) — toggles a per-user favorite on a lesson-plan VERSION via Payload's
+ * default REST (POST /api/favorites / DELETE /api/favorites/:id; `user` is stamped server-side,
+ * rows are own-only). Used on the library rows (keyed to the row's Official version) and the
+ * lesson page (keyed to the viewed version). State-changing → JS-driven POST/DELETE
  * (CSRF-guarded by the SameSite=Lax cookie), like EditActions.
  *
  * The server renders the current favorite id (or null); the toggle updates it optimistically from
@@ -14,12 +15,12 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function FavoriteToggle({
-  planId,
+  versionId,
   favoriteId: initialFavoriteId,
   showLabel = false,
 }: {
-  planId: number | string
-  /** The caller's favorite row id for this plan, or null when not favorited. */
+  versionId: number | string
+  /** The caller's favorite row id for this version, or null when not favorited. */
   favoriteId: number | null
   /** Render a text label beside the star (used on the lesson page, where the bare glyph is easy to
    *  miss). Library rows keep just the glyph — space is tight and the column reads as a toggle. */
@@ -30,7 +31,7 @@ export default function FavoriteToggle({
   const [busy, setBusy] = useState(false)
 
   // Re-sync to the server's value whenever it changes (router.refresh / navigation re-renders this
-  // component with a fresh prop). Without this, a SECOND instance of the star for the same plan (the
+  // component with a fresh prop). Without this, a SECOND instance of the star for the same version (the
   // "My favorites" row and the catalogue row both render one) keeps its stale local id after the
   // other instance toggled — so its DELETE targets an already-removed row and 404s ("can't
   // unfavorite"), and its filled/empty state drifts from the server. This is React's sanctioned
@@ -58,7 +59,7 @@ export default function FavoriteToggle({
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lessonPlan: planId }),
+          body: JSON.stringify({ version: versionId }),
         })
         if (!res.ok) throw new Error()
         const body = (await res.json()) as { doc?: { id?: number } }

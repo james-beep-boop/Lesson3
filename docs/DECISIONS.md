@@ -11,7 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-06 (version browser design — DESIGN LOCKED, NOT YET BUILT) — per-version favorites + reusable VersionsPanel
+## 2026-07-06 (redesign PR ① built: per-version favorites) — fail-safe migration; Codex triage; NODE_ENV int-test gotcha
+
+**PR #68 (`feat/favorites-per-version`) implements build-step ① of the version-browser redesign**
+(design entry below). Decisions and lessons from the build:
+
+- **The version-delete cascade covers plan deletion too — one hook, not two.** All three ways a
+  version dies (save-as-new `deleteSource`, make-official `deletePrevious`, and
+  `cascadeDeleteLessonPlanVersions`' bulk where-delete) go through `payload.delete`, which runs the
+  collection's `beforeDelete` per matched row (the same fact `enforceOfficialNotDeletable` already
+  relies on). So `cascadeDeleteVersionFavorites` on `lesson-bundle-versions` replaces the plan-level
+  favorites cascade entirely; both the direct and the transitive path are int-pinned.
+- **Migrations that map data must fail loudly, not delete quietly (Codex 2026-07-06 #1, adopted).**
+  The first draft deleted favorites whose plan had no Official version to map to. Replaced with a
+  `RAISE EXCEPTION` carrying the row count: the transaction rolls back, favorites survive, the
+  operator repairs and re-runs. Proven on a seeded scratch DB (abort → rows intact → repair →
+  success). Live preflight on the Rock: 0 unmappable rows. The `down` keeps its pragmatic delete —
+  blocking a rollback under duress is worse — and its keep-newest dedupe is a semantic necessity of
+  the old unique `(user, plan)` index, not data loss to fix.
+- **Migration generation no longer needs the Rock.** `migrate:create` ran locally: scratch DB in the
+  compose Postgres + the `lesson3-migrate` builder image bind-mounted over live source (`-v /app/node_modules`
+  anon volume), `expect` answering drizzle's rename-vs-create TTY prompt. Same deps image pattern as
+  the Rock procedure; `generate:types` verified the hand-edit byte-identically the same way.
+- **`test:int` inside the builder image needs `NODE_ENV=development`** — the image bakes
+  `production`, which disables Payload's dev `push`, so the schema never builds and every spec fails
+  with "relation does not exist" (42P01). Cost a debugging round. A `test:int:local` wrapper script
+  is a flagged follow-up (Codex #3).
+- **Stale-guard posture (Codex #2, declined):** `save-as-new`'s equal-or-newer `updatedAt` check is
+  a consent/UX guard, not a security boundary — the endpoint only ever creates a new candidate, so a
+  forged future timestamp merely skips a warning protecting the forger's own save (a reload achieves
+  the same legitimately). Exact-equality would add false-409 serialization risk for zero gain.
+- **Committed `payload-types.ts` had drifted**: the META repair-field `admin.description`s from
+  #59/#61 were never regenerated into it. The regen in #68 trues it up; nothing behavioural.
+- **Codex triage summary:** #1 adopted (above); #2 declined with posture recorded (above); #3
+  local int-test harness + #4 HTML-cache-version drift test flagged as follow-up task chips;
+  #5 `.env.example` sync + payload-jobs prune stays on the deferred backlog (already tracked).
+- **Post-build /simplify pass** (three agents converged on one mechanism): the catalogue's star
+  state moved from a side-effect-populated parallel `starByPlan` map (with a "can't happen" guard)
+  to an intrinsic `versionId` field on `LessonRow` + one sparse `favByVersion` map; the favorites
+  fetch dropped a corpus-sized `where version in officialIds` (own-rows access already scopes it —
+  O(user's favorites), and non-Official favorites just miss the rows' Official-id lookups) and now
+  runs in `Promise.all` with the plans fetch.
+
+## 2026-07-06 (version browser design — DESIGN LOCKED, PR ① BUILT as #68) — per-version favorites + reusable VersionsPanel
 
 Designed with the user over a long brainstorm; **no code written — the next session builds it.** The
 problem: "we expect many versions" and today there is no scalable way to see them all. The catalogue

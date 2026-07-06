@@ -19,8 +19,9 @@ version. Teachers do not use the admin area and do not see editing controls.
   curriculum order.
 - **Search:** use the search box to find a subject, grade, strand, or sub-strand.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
-  pin a lesson to a My favorites list at the top of the home page. Favorites are personal — only you
-  see yours.
+  pin that version of the lesson to a My favorites list at the top of the home page. A favorite keeps
+  pointing at the version you starred, even if a newer one later becomes Official. Favorites are
+  personal — only you see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Download:** choose DOCX or PDF. Each download contains the generated lesson documents for that

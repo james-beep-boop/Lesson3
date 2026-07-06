@@ -23,9 +23,32 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-06) — NEXT TASK: version-browser redesign (DESIGN LOCKED); this session's fixes all merged + deployed
+## ▶ RESUME HERE (2026-07-06 late) — redesign PR ① (per-version favorites) is OPEN as #68; then build PR ②
 
-**START HERE:** the next build is the **version-browser redesign — design is fully locked, no code yet.**
+**STATE:** the version-browser redesign is underway. **PR ① — favorites → per-version — is built and
+open as #68** (`feat/favorites-per-version`; CI is the gate). Full build notes + Codex triage:
+DECISIONS 2026-07-06 (redesign PR ① built). Once #68 merges: **the deploy has ONE migration**
+(`favorites_per_version` — maps favorites to Official versions, ABORTS loudly if any can't map; a
+live preflight already showed 0 unmappable rows) — `deploy.sh` snapshots first as usual, no new env.
+
+**THEN build PR ② — `VersionsPanel` + catalogue `[N versions ▾]` chip** (full design in the entry
+below + DECISIONS): reusable floating panel, lazy-loads on open (`Version · Author · Created · ★`
+per line, author NAME only), ordering **Official-pinned then newest→oldest** (shared sort helper —
+today's `findReadableVersions` sorts ascending), chip only when 2+ versions (needs a per-plan version
+count next to the catalogue's Official-only fetch), the row star becomes a non-toggle any-version
+indicator, per-version toggles live in the panel, "My favorites" becomes a list of versions. **PR ②
+also closes PR ①'s documented interim gap** (a favorite on a non-Official version doesn't surface on
+the home page yet). Then **PR ③**: lesson-page pill bar → chip+panel, Compare → its own button,
+"currently viewing" highlight.
+
+**Follow-up chips flagged (Codex 2026-07-06 triage):** a `test:int:local` one-command harness (recipe
+in DECISIONS — note the `NODE_ENV=development` builder-image gotcha) and an HTML-cache-version drift
+test. Codex #5 (`.env.example` sync + payload-jobs prune) stays on the deferred backlog.
+
+---
+
+## ▶ Older resume (2026-07-06) — the version-browser DESIGN, as locked (PR ① above implements step ①)
+
 Read **DECISIONS 2026-07-06 (version browser design)** for the complete spec + reasoning; build in the
 three-PR order it gives. One-line summary: versions surface through a **reusable floating `VersionsPanel`**
 opened by a **`[N versions ▾]` chip** (catalogue row, only when 2+ versions; and on the lesson page,

@@ -4,8 +4,9 @@ import { isSiteAdmin } from '../access'
 import type { User } from '../payload-types'
 
 /**
- * Favorites (SPEC §10) — a per-user bookmark on a lesson PLAN (not a version: you favorite the
- * lesson, and the Official pointer moves underneath it). A pure personal join table:
+ * Favorites (SPEC §10) — a per-user bookmark on a lesson-plan VERSION (per-version by design,
+ * 2026-07-06: favoriting 1.0.2 pins THAT snapshot; it does not follow a later Official change).
+ * A pure personal join table:
  *
  *  - Toggled from The App via Payload's default REST (POST /api/favorites, DELETE /api/favorites/:id)
  *    — no custom endpoint needed (Payload-first, SPEC §13).
@@ -16,8 +17,11 @@ import type { User } from '../payload-types'
  *  - Not admin-managed content → hidden from the admin panel entirely (§13 minimal UI).
  *
  * Parent deletions: both relationships are required (NOT NULL columns with ON DELETE SET NULL FKs),
- * so deleting a referenced lesson plan or user must cascade-delete its favorites rows first — see
- * `cascadeDeleteLessonPlanFavorites` / `cascadeDeleteUserFavorites` on the parent collections.
+ * so deleting a referenced version or user must cascade-delete its favorites rows first — see
+ * `cascadeDeleteVersionFavorites` / `cascadeDeleteUserFavorites` on the parent collections. The
+ * version hook covers EVERY way a version dies (save-as-new deleteSource, make-official
+ * deletePrevious, and the plan-delete cascade — all `payload.delete` calls that run the version's
+ * own beforeDelete hooks per row), so no separate lesson-plan hook is needed.
  */
 
 /** Own rows only; Site Admin sees all (global role, per SPEC §8). */
@@ -46,7 +50,7 @@ const stampFavoriteUser: CollectionBeforeValidateHook = ({ data, operation, req 
  * the parent delete's transaction (`req`) with overrideAccess.
  */
 const cascadeDeleteFavoritesBy =
-  (field: 'lessonPlan' | 'user'): CollectionBeforeDeleteHook =>
+  (field: 'version' | 'user'): CollectionBeforeDeleteHook =>
   async ({ id, req }) => {
     await req.payload.delete({
       collection: 'favorites',
@@ -56,8 +60,9 @@ const cascadeDeleteFavoritesBy =
     })
   }
 
-/** beforeDelete on `lesson-plans`. */
-export const cascadeDeleteLessonPlanFavorites = cascadeDeleteFavoritesBy('lessonPlan')
+/** beforeDelete on `lesson-bundle-versions` — runs per row even for bulk (where-based) deletes,
+ *  so the plan-delete version cascade is covered too. */
+export const cascadeDeleteVersionFavorites = cascadeDeleteFavoritesBy('version')
 /** beforeDelete on `users`. */
 export const cascadeDeleteUserFavorites = cascadeDeleteFavoritesBy('user')
 
@@ -66,7 +71,7 @@ export const Favorites: CollectionConfig = {
   admin: {
     hidden: true,
   },
-  indexes: [{ fields: ['user', 'lessonPlan'], unique: true }],
+  indexes: [{ fields: ['user', 'version'], unique: true }],
   access: {
     read: ownFavorites,
     create: ({ req: { user } }) => Boolean(user),
@@ -85,9 +90,9 @@ export const Favorites: CollectionConfig = {
       index: true,
     },
     {
-      name: 'lessonPlan',
+      name: 'version',
       type: 'relationship',
-      relationTo: 'lesson-plans',
+      relationTo: 'lesson-bundle-versions',
       required: true,
       index: true,
     },
