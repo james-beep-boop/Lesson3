@@ -749,6 +749,65 @@ button[type='submit']:disabled {
   margin: 1.25rem 0 0.5rem;
 }
 
+/* ---- Version compare (2026-07-05) ---- */
+/* The Compare affordance in the version bar: pill-shaped like its siblings, visually an action. */
+.compare-link {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  text-decoration: none;
+}
+.compare-link:hover,
+.compare-link:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.compare-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0 1.5rem;
+}
+.compare-picker {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.9rem;
+}
+/* Two panes side by side ("two windows"); each scrolls its own wide tables. */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.compare-pane {
+  min-width: 0; /* let the grid track shrink so .doc-preview's overflow-x can engage */
+}
+.compare-pane__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* Diff annotations (Payload's HtmlDiff output contract, pinned by htmlDiffContract.spec.ts):
+   deletions red in the left pane, additions green in the right. */
+.compare-diff [data-match-type='delete'] {
+  background: #fde8e8;
+  color: #9b1c1c;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  border-radius: 3px;
+}
+.compare-diff [data-match-type='create'] {
+  background: #def7e4;
+  color: #046c4e;
+  border-radius: 3px;
+}
+
 /* ---- User guide ---- */
 .guide {
   max-width: 760px;
@@ -858,6 +917,11 @@ button[type='submit']:disabled {
      lonely far-right slot by its desktop `margin-left: auto`. */
   .export-bar {
     row-gap: 0.5rem;
+  }
+
+  /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers. */
+  .compare-grid {
+    grid-template-columns: 1fr;
   }
   .msg-share-link {
     margin-left: 0;

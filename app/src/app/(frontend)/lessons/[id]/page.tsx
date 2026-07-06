@@ -128,6 +128,11 @@ export default async function LessonView({
       {versions.length > 1 && (
         <nav className="version-bar" aria-label="Versions">
           <span className="version-label">Version</span>
+          {/* Version diff (2026-07-05): sits left of the lowest-numbered pill; only exists when
+              there is more than one version to compare. */}
+          <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
+            Compare
+          </Link>
           {versions.map((v) => {
             const isSelected = v.id === selectedId
             const isOfficial = v.id === officialId

@@ -11,6 +11,29 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (version compare) — diff the RENDERED DOCUMENT via Payload's exported HtmlDiff engine
+
+The user asked for a compare button on the lesson page ("two windows, red/green"), assuming a
+standard Payload function. **Reviewed against installed 3.85.1 source first (knowledge-currency
+rule): the assumption doesn't hold for our data model.** Payload's version-compare VIEW works only
+on its NATIVE versions system (`versions: true` → `_versions` table) — ours are first-class
+`lesson-bundle-versions` documents by design — and the view's internals (`RenderDiff`,
+`buildVersionFields`) are not in `@payloadcms/next`'s export map. But the diff ENGINE under it IS
+public API: `HtmlDiff` (`@payloadcms/ui/elements/HTMLDiff/diff`, via the `./elements/*` wildcard
+export) — a pure, dependency-free vendored html-diff whose `getSideBySideContents()` returns
+[old, new] HTML annotated `data-match-type="delete"/"create"` (+ its own `data-seq` attrs on block
+tags). Handles tables; no React/CSS baggage, so it runs in a server component.
+
+**Decision: diff the rendered document, not field-by-field form data.** `/lessons/{id}/compare`
+(READ-gated exactly like the lesson page) pulls both versions' cached content HTML
+(`renderVersionSectionsCached` — immutable per version, already sanitized; HtmlDiff only re-wraps
+it) and renders two panes — removals red left, additions green right; pickers navigate via GET.
+It compares what teachers actually read, and reuses the Phase-3 cache instead of a second renderer.
+Field-by-field would mean vendoring unexported internals — rejected. The engine's output contract
+is pinned by `tests/unit/htmlDiffContract.spec.ts` so a Payload bump that changes the annotation
+format fails fast instead of the page silently losing its highlighting. The Compare button lives in
+the version bar (left of the pills), only when a plan has >1 version.
+
 ## 2026-07-05 (META identity) — META.subject/grade/substrand_id become Site-Admin-only repair fields
 
 The user's in-browser eyeball pass raised two related findings on the version editor, both the same
