@@ -1,6 +1,6 @@
 import type { Field } from 'payload'
 
-import { canEditStructure, systemOnly } from '../access/bundle'
+import { canEditStructure, siteAdminOnly, systemOnly } from '../access/bundle'
 import { isSubjectAdminFor, toId } from '../access'
 import { prose, proseAdmin, structureText } from './bundleFields'
 import { PHASE_OPTIONS } from './phases'
@@ -93,9 +93,28 @@ export const lessonContentFields: Field[] = [
     label: 'META',
     access: { update: canEditStructure },
     fields: [
-      { name: 'subject', type: 'text' },
-      { name: 'grade', type: 'number' },
-      { name: 'substrand_id', type: 'text' },
+      // META identity (subject / grade / substrand_id) is Site-Admin-only corruption repair, never
+      // curation (2026-07-05): subject/grade only label the printed document (the plan's subjectGrade
+      // relationship is the categorization truth), and substrand_id is the re-ingest matching key.
+      // Renders read-only for Subject Admins; hooks/fieldSplit.ts enforces it on save-as-new.
+      {
+        name: 'subject',
+        type: 'text',
+        access: { create: siteAdminOnly, update: siteAdminOnly },
+        admin: { description: 'Site Admin only — repair field.' },
+      },
+      {
+        name: 'grade',
+        type: 'number',
+        access: { create: siteAdminOnly, update: siteAdminOnly },
+        admin: { description: 'Site Admin only — repair field.' },
+      },
+      {
+        name: 'substrand_id',
+        type: 'text',
+        access: { create: siteAdminOnly, update: siteAdminOnly },
+        admin: { description: 'Site Admin only — re-uploads of this sub-strand match on it.' },
+      },
       { name: 'substrand_name', type: 'text' },
       { name: 'outputDir', type: 'text' },
       { name: 'filePrefix', type: 'text' },

@@ -3,8 +3,9 @@
  * values, preserving all structure / admin / system fields from the original. Enforces the Editor/
  * Admin boundary for the `lesson-bundle-versions` working copies (via `enforceVersionFieldSplit`).
  *
- * Subject Admins / Site Admins (and trusted system / overrideAccess calls with no `req.user`) are
- * unrestricted. For an Editor this:
+ * Site Admins (and trusted system / overrideAccess calls with no `req.user`) are unrestricted.
+ * Subject Admins are unrestricted EXCEPT the META identity fields (subject / grade / substrand_id),
+ * which are Site-Admin-only repair data and preserved from the original. For an Editor this:
  *   1. Rejects any change to array cardinality or order (Editors edit values, not structure).
  *   2. Writes = the original with ONLY the Editor-editable *prose* fields overlaid from the
  *      submission. Everything not on the prose whitelist (META, phase, durations, answer keys,
@@ -23,7 +24,7 @@ import type { CollectionBeforeChangeHook } from 'payload'
 import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
-import { isSubjectAdminFor, toId } from '../access'
+import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
 
 type Doc = Record<string, any>
 type Row = { id?: string | number }
@@ -98,9 +99,25 @@ export const applyEditorFieldSplit = ({
   // (`data.subjectGrade` is only a fallback for callers that pre-strip the original; on this
   // update-only path `originalDoc.subjectGrade` is required data and always present.)
   const subjectGradeId = toId((originalDoc.subjectGrade ?? data.subjectGrade) as never)
-  // Subject Admins are unrestricted. A missing user = trusted system / overrideAccess call
-  // (unauthenticated updates are denied at collection access) — treat as trusted too.
-  if (!req.user || isSubjectAdminFor(req.user as User, subjectGradeId)) return data
+  // Site Admins (and trusted system / overrideAccess calls — a missing user; unauthenticated
+  // updates are denied at collection access) are unrestricted.
+  if (!req.user || isSiteAdmin(req.user as User)) return data
+  // Subject Admins are unrestricted EXCEPT the META identity fields (subject / grade /
+  // substrand_id — Site-Admin-only repair data, decided 2026-07-05): those are restored from the
+  // stored doc, the same silent-preserve idiom as the Editor whitelist below. The rest of META
+  // (titleDoc, column labels, …) stays Subject-Admin-editable per SPEC §5.
+  if (isSubjectAdminFor(req.user as User, subjectGradeId)) {
+    const origMeta = originalDoc.meta as Doc | undefined
+    if (origMeta) {
+      data.meta = {
+        ...((data.meta as Doc | undefined) ?? {}),
+        subject: origMeta.subject,
+        grade: origMeta.grade,
+        substrand_id: origMeta.substrand_id,
+      }
+    }
+    return data
+  }
 
   const reject = (): never => {
     throw new Forbidden(req.t)

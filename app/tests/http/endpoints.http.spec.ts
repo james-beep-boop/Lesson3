@@ -392,6 +392,60 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(res.status).toBeLessThan(500)
   })
 
+  it("Subject Admin's META identity edit is silently preserved (Site-Admin-only repair fields)", async () => {
+    // subject / grade / substrand_id are corruption-repair data (decided 2026-07-05): the split
+    // restores them from the source; the rest of META (titleDoc here) stays Subject-Admin-editable.
+    const srcMeta = (fx.version as any).meta ?? {}
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({
+        ...(fx.version as any),
+        meta: {
+          ...srcMeta,
+          subject: 'Chemistry',
+          grade: 12,
+          substrand_id: `${MARK}wrong-key`,
+          titleDoc: `${MARK}ADMIN-TITLEDOC`,
+        },
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as any
+    expect(created.meta.subject).toBe(srcMeta.subject) // preserved
+    expect(created.meta.grade).toBe(srcMeta.grade) // preserved
+    expect(created.meta.substrand_id).toBe(srcMeta.substrand_id) // preserved (re-ingest key)
+    expect(created.meta.titleDoc).toBe(`${MARK}ADMIN-TITLEDOC`) // legitimate META edit kept
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
+  it('Site Admin CAN change META identity (the corruption-repair path)', async () => {
+    const srcMeta = (fx.version as any).meta ?? {}
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('siteAdmin'),
+      body: dataForm({
+        ...(fx.version as any),
+        meta: { ...srcMeta, subject: `${MARK}Repaired`, grade: 7 },
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as any
+    expect(created.meta.subject).toBe(`${MARK}Repaired`)
+    expect(created.meta.grade).toBe(7)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
   it('stale base updatedAt → 409 (source changed since opened)', async () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',

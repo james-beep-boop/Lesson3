@@ -2,7 +2,7 @@ import type { FieldAccess } from 'payload'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from './index'
-import { isEditorFor, isSubjectAdminFor, toId } from './index'
+import { isEditorFor, isSiteAdmin, isSubjectAdminFor, toId } from './index'
 
 /**
  * Field-level access for the lesson-plan content fields (SPEC §5), shared by the
@@ -33,3 +33,10 @@ export const canEditStructure: FieldAccess = ({ req: { user }, doc, data }) =>
 /** System-only: the resource column and lesson numbers are never user-editable; they
  *  are set by ingest/order via the structural hook (which runs after field access). */
 export const systemOnly: FieldAccess = () => false
+
+/** Site Admin only — META identity (subject / grade / substrand_id) is corruption-repair data, not
+ *  curation (decided 2026-07-05): editing it re-labels the printed document against the plan's real
+ *  subject-grade, and substrand_id silently redirects future re-ingest matching. This covers the
+ *  form render + direct create/update; the save-as-new path enforces the same rule in
+ *  hooks/fieldSplit.ts (it writes via overrideAccess, which bypasses field access). */
+export const siteAdminOnly: FieldAccess = ({ req: { user } }) => isSiteAdmin(user as User)
