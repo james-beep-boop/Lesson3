@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-05 (META identity) — META.subject/grade/substrand_id become Site-Admin-only repair fields
+
+The user's in-browser eyeball pass raised two related findings on the version editor, both the same
+class of defect — a form affordance implying an edit the system either ignores or shouldn't allow:
+
+1. **`sourceVersion` (PR #57 + #58).** The field rendered as an editable relationship dropdown over
+   EVERY version in the corpus. The edit path was never at risk (save-as-new DROP_KEYS the submitted
+   value and stamps the real source; `enforceVersionImmutable` rejects in-place updates), but a
+   direct authenticated create could forge provenance. Now `systemOnly` + `readOnly`, mirroring
+   `author`; int test pins the create-path strip, wiring test pins the field-access contract (the
+   update half is unreachable behind the immutability hook — pinned as wiring, not behaviour).
+2. **META identity (this entry, user decision 2026-07-05).** "Why would someone change the subject
+   or the grade of a lesson plan? Only if it was corrupted." `META.subject`/`META.grade` only label
+   the printed document — the plan's `subjectGrade` RELATIONSHIP (fixed at ingest by exact match) is
+   the categorization/RBAC truth, so a Subject Admin edit could only create document-vs-library
+   drift. `META.substrand_id` is worse: it's the re-ingest matching key, so a wrong edit silently
+   redirects future re-uploads. All three are now **Site-Admin-only** (scope confirmed with the user,
+   substrand_id included). The REST of META (titleDoc, subtitleDoc, column labels, filePrefix…)
+   stays Subject-Admin per SPEC §5 — those are genuine document curation.
+
+**Mechanism note (the lesson):** field-level `access` alone does NOT enforce this — the real write
+path (`save-as-new`) writes via `overrideAccess`, which bypasses field access entirely. Enforcement
+is two-layer: `siteAdminOnly` field access (renders the fields read-only in the form + guards direct
+create/update) AND a Subject-Admin carve-out in `applyEditorFieldSplit` (identity restored from the
+stored doc, the same silent-preserve idiom as the Editor prose whitelist). Any future "role X may
+not edit field Y" rule on versions must land in BOTH places; the split is the one that holds.
+SPEC §5 amended in the same commit. Pinned by `tests/unit/metaIdentitySplit.spec.ts` (split
+behaviour + field-access wiring) and two wire-level save-as-new cases in
+`tests/http/endpoints.http.spec.ts` (Subject Admin preserved, Site Admin passes).
+
 ## 2026-07-05 (TZ hydration) — second, TZ-dependent React #418 on the version doc view; two-pass timestamps
 
 Fixing the LessonControls mismatch below unmasked a SECOND, distinct #418 (`args[]=text`) on the

@@ -128,7 +128,8 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 ### Field-level edit permissions (maps directly to Payload field access control)
 - **Editor (teacher):** prose values — `slo.*`, `overview`, `framework[].{learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment}`, `teacherReflection`, `summaryTablePrompt.*`, `SUMMARY_TABLE.lessons[].{observed, learned, explained}`, lesson `title`, `FINAL_EXPLANATION.instructions`, `sections[].prompt`.
-- **Subject Admin only:** `META.*`, `aresKeywords`, `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
+- **Subject Admin only:** `META.*` (except the identity fields below), `aresKeywords`, `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
+- **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
 - **System (never editable):** the auto-generated Resource column; `LESSONS[].number` (set by order).
 
 ---
