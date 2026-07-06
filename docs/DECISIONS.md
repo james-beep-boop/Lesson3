@@ -11,6 +11,38 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-06 (audit batch) — semver system-owned on create; ingest sub-strand race locked; capped fan-outs paginated
+
+An external audit (5 findings: 2 Medium, 3 Low) landed as PRs #64–#66, all merged + deployed. Also
+in the batch: #63 (/simplify over the #57–#62 arc — META_IDENTITY_KEYS single-sourcing + fails-
+unsafe drift guard, per-pair compare-diff cache, findReadableVersions extraction) and #64 (a
+projection-accurate return type for that helper — a `select` projection cast to the full interface
+lies about unfetched fields; type the projection, and typecheck doubles as proof callers stay
+within it).
+
+- **Medium #1 — semver forgeable on direct create (#65).** The field was update-immutable but
+  create-open: a privileged direct create could store "banana"/"999.0.0", corrupting ordering and
+  future bump allocation (`nextSemverForPlan` parses malformed pieces loosely). Now create+update
+  `systemOnly` (forged values strip to the 1.0.0 default; a dup on an existing plan is rejected by
+  the unique index) PLUS a strict x.y.z `validate` that binds even overrideAccess system writes.
+  Int tests pin both layers. LESSON (cost one CI round): a create-path field-access strip changes
+  what OTHER tests' authenticated creates store — the #57 sourceVersion spoof spec created on the
+  fixture plan with an explicit semver, which now strips to 1.0.0 and collides with the fixture's
+  own 1.0.0. Give such specs their own throwaway plan.
+- **Medium #2 — concurrent first ingest of one sub-strand duplicated plans (#66).** The preflight
+  identity lookup ran OUTSIDE the write transaction with no lock: two simultaneous uploads of the
+  same NEW substrand_id both saw "no plan" and both created Official 1.0.0 plans, poisoning later
+  uploads with the ambiguity guard. Fix = the PR #50 grant-race pattern: `lockSubjectGrades`
+  (SELECT … FOR UPDATE on the batch's subject_grades rows, deduped ascending, tx-bound connection)
+  at the top of the write transaction + per-file re-resolve INSIDE it — a plan committed since
+  preflight now attaches as next-major ('revised') instead of duplicating. Wiring spec pins the
+  lock mechanics (rows/order/connection/fallback), same stance as subjectAdminDemoteLock.spec.ts.
+- **Lows (#65):** `guardSubjectGradeDelete` + `refreshSubjectGradeTitles` each capped their fan-out
+  at a single limit:1000 find (the delete guard fails-unsafe past the cap — the exact FK failure it
+  guards against) → paginated with the autoDemote idiom (collect-then-write where writes shrink the
+  match set). `JOBS_AUTORUN_LIMIT`/`GOTENBERG_TIMEOUT_MS` moved off `Number(env) || default` onto
+  `positiveIntEnv` (malformed → loud boot failure).
+
 ## 2026-07-05 (version compare) — diff the RENDERED DOCUMENT via Payload's exported HtmlDiff engine
 
 The user asked for a compare button on the lesson page ("two windows, red/green"), assuming a
