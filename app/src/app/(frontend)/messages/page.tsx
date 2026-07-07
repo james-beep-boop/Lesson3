@@ -26,63 +26,66 @@ export default async function MessagesPage({
   const sp = await searchParams
   const { payload, user } = await requireUser()
 
-  // Compose context from the lesson page — only attached when the plan is real and readable by
-  // the SENDER (a bogus/foreign ?plan= just composes without context).
+  // Compose context from the lesson page — only attached when the plan is real and readable by the
+  // SENDER (a bogus/foreign ?plan= just composes without context), and the version link only when it's
+  // a readable version that actually BELONGS to the plan (mirroring the server-side validateContextLink
+  // guard in Messages.ts, so a stale/manipulated URL can't prefill a broken cross-plan context; a
+  // missing/foreign/mismatched version just drops to null). The plan→version fetches are sequential by
+  // necessity (the ownership check needs the plan id), but the whole resolution is INDEPENDENT of the
+  // inbox/roster batch below, so it runs concurrently with it — one wave, not three.
   const aboutPlanId = sp.plan && Number.isInteger(Number(sp.plan)) ? Number(sp.plan) : null
-  const aboutPlan = aboutPlanId ? await findReadablePlan(payload, { id: String(aboutPlanId), user }) : null
-
-  // The version link is only carried when it's a readable version that actually BELONGS to the plan —
-  // mirroring the server-side validateContextLink guard (Messages.ts) so a stale/manipulated URL can't
-  // prefill a broken cross-plan context. A missing/foreign/mismatched version just drops to null.
-  let aboutVersionId: number | null = null
-  if (aboutPlan && sp.version && Number.isInteger(Number(sp.version))) {
-    const version = await findReadableVersion(payload, { id: Number(sp.version), user })
-    if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
-  }
-
-  const about = aboutPlan
-    ? {
-        planId: aboutPlan.id,
-        versionId: aboutVersionId,
-        title: aboutPlan.title ?? 'Lesson plan',
-      }
-    : null
+  const contextPromise = (async () => {
+    const aboutPlan = aboutPlanId
+      ? await findReadablePlan(payload, { id: String(aboutPlanId), user })
+      : null
+    let aboutVersionId: number | null = null
+    if (aboutPlan && sp.version && Number.isInteger(Number(sp.version))) {
+      const version = await findReadableVersion(payload, { id: Number(sp.version), user })
+      if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
+    }
+    return aboutPlan
+      ? { planId: aboutPlan.id, versionId: aboutVersionId, title: aboutPlan.title ?? 'Lesson plan' }
+      : null
+  })()
 
   // The names-only roster for the recipient picker (SPEC §8 as amended: any authenticated user
   // reads display names; email/roles/assignments are field-stripped). Self excluded — the picker
   // is for messaging colleagues.
-  const [{ docs: roster }, received, sent] = await Promise.all([
-    payload.find({
-      collection: 'users',
-      where: { id: { not_equals: user.id } },
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      sort: 'name',
-      select: { name: true },
-    }),
-    // depth 1 populates the counterpart's name (roster read) and the linked plan/version labels,
-    // under the READER's access. Newest 100 each — plenty for a flat personal inbox; pagination
-    // joins the Manage-at-scale backlog if real usage ever nears it.
-    payload.find({
-      collection: 'messages',
-      where: { recipient: { equals: user.id } },
-      overrideAccess: false,
-      user,
-      depth: 1,
-      sort: '-createdAt',
-      limit: 100,
-    }),
-    payload.find({
-      collection: 'messages',
-      where: { sender: { equals: user.id } },
-      overrideAccess: false,
-      user,
-      depth: 1,
-      sort: '-createdAt',
-      limit: 100,
-    }),
+  const [about, [{ docs: roster }, received, sent]] = await Promise.all([
+    contextPromise,
+    Promise.all([
+      payload.find({
+        collection: 'users',
+        where: { id: { not_equals: user.id } },
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        sort: 'name',
+        select: { name: true },
+      }),
+      // depth 1 populates the counterpart's name (roster read) and the linked plan/version labels,
+      // under the READER's access. Newest 100 each — plenty for a flat personal inbox; pagination
+      // joins the Manage-at-scale backlog if real usage ever nears it.
+      payload.find({
+        collection: 'messages',
+        where: { recipient: { equals: user.id } },
+        overrideAccess: false,
+        user,
+        depth: 1,
+        sort: '-createdAt',
+        limit: 100,
+      }),
+      payload.find({
+        collection: 'messages',
+        where: { sender: { equals: user.id } },
+        overrideAccess: false,
+        user,
+        depth: 1,
+        sort: '-createdAt',
+        limit: 100,
+      }),
+    ]),
   ])
 
   // The unread messages actually SHOWN this render — scoped to the fetched page (not a blanket
@@ -168,7 +171,12 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
         </p>
       )}
       {direction === 'in' && senderId != null && (
-        <ReplyBox recipientId={senderId} recipientName={name} planId={planId} versionId={versionId} />
+        <ReplyBox
+          recipientId={senderId}
+          recipientName={name}
+          planId={planId}
+          versionId={versionId}
+        />
       )}
     </li>
   )
