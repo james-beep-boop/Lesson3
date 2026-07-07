@@ -40,6 +40,12 @@ Full reasoning + a reversal-of-decision note: **DECISIONS 2026-07-07 (review-fin
 - **DEFERRED [P3]:** the messagePing zero-unread gate can double-fire under concurrent first-unread
   creates (bounded by the daily ping cap) — stays on the backlog; a fix needs a FOR-UPDATE lock.
 
+**OUTSTANDING (operator, both yours):**
+1. **Deploy** current `main` to the Rock via `scripts/deploy.sh` — no migration, low-risk.
+2. **Rotate the GitHub PAT** used from this Mac on 2026-07-07 (pasted into a Claude Code chat to push
+   #69/#70 + docs) — it was never persisted to git config, but treat any chat-pasted token as exposed.
+   Fine-grained, Lesson3-only, Contents R/W + Pull requests R/W is the scope to re-issue if needed.
+
 **THEN: the version-browser redesign resumes — build PR ② (`VersionsPanel` + catalogue chip),** per
 the block just below (PR ① / #68 is already merged + deployed).
 
