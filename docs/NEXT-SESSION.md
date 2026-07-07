@@ -23,10 +23,32 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-06 late) — redesign PR ① (per-version favorites) is OPEN as #68; then build PR ②
+## ▶ RESUME HERE (2026-07-07) — review-finding batch merged (#69/#70); then resume the redesign (PR ② below)
 
-**STATE:** the version-browser redesign is underway. **PR ① — favorites → per-version — is built and
-open as #68** (`feat/favorites-per-version`; CI is the gate). Full build notes + Codex triage:
+**STATE:** a three-item review pass landed via two stacked CI-gated PRs, both merged to `main`
+(**#69** `525ac42`, **#70** `3fdb1b6`; verify HEAD with `git log -1`). **App-level only — NO
+migration.** Rock deploy is the usual `scripts/deploy.sh` (pull → pre-migration snapshot → compose up)
+when convenient.
+Full reasoning + a reversal-of-decision note: **DECISIONS 2026-07-07 (review-finding batch)**.
+- **#69** — [P2] save-as-new stale-source guard tightened to EXACT equality (`baseMs !== srcMs`),
+  closing a forged-future-`updatedAt` bypass (+ wire test). **This REVERSES the 2026-07-06 Codex #2
+  "declined" decision** — see the annotated bullet there; the serialization worry was disproven
+  (CI-confirmed). Plus [P3] compose `?version=` is now validated (readable + belongs to plan) before
+  prefill, mirroring `validateContextLink`.
+- **#70** — `/simplify` perf follow-up: compose-context resolution overlaps the inbox/roster batch
+  (three serial waves → one); behaviour unchanged.
+- **DEFERRED [P3]:** the messagePing zero-unread gate can double-fire under concurrent first-unread
+  creates (bounded by the daily ping cap) — stays on the backlog; a fix needs a FOR-UPDATE lock.
+
+**THEN: the version-browser redesign resumes — build PR ② (`VersionsPanel` + catalogue chip),** per
+the block just below (PR ① / #68 is already merged + deployed).
+
+---
+
+## ▶ Older resume (2026-07-06 late) — redesign PR ① (per-version favorites) — now MERGED as #68; then build PR ②
+
+**STATE:** the version-browser redesign is underway. **PR ① — favorites → per-version — is MERGED as
+#68** (`feat/favorites-per-version`). Full build notes + Codex triage:
 DECISIONS 2026-07-06 (redesign PR ① built). Once #68 merges: **the deploy has ONE migration**
 (`favorites_per_version` — maps favorites to Official versions, ABORTS loudly if any can't map; a
 live preflight already showed 0 unmappable rows) — `deploy.sh` snapshots first as usual, no new env.

@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-07 (review-finding batch) — stale-guard tightened to EXACT equality (REVERSES 2026-07-06 Codex #2); compose `?version=` validated; context-fetch overlap
+
+A three-item review pass (P2 + two P3s) landed via two stacked, CI-gated PRs, both merged to `main`
+(**#69** `525ac42`, **#70** `3fdb1b6`; app-level only, **no migration** — Rock deploy is the usual
+`scripts/deploy.sh`, which pulls, takes a pre-migration snapshot, then `docker compose up -d --build`).
+
+- **#69 [P2] — the save-as-new stale-source guard is now EXACT equality (`baseMs !== srcMs` → 409),
+  reversing the 2026-07-06 Codex #2 decision below.** That entry declined exact-equality on two
+  grounds: (a) not a security boundary — the endpoint only ever creates a *candidate*, so a forged
+  future `updatedAt` only skips a warning protecting the forger's own save; (b) exact-equality would
+  add "false-409 serialization risk for zero gain." **We reversed it because the reasoning behind (b)
+  is disproven and (a) undervalues the contract.** The old guard rejected only `baseMs < srcMs`, so a
+  forged/buggy *future* timestamp (`2999-…`) sailed through and let a stale client branch from stale
+  form state — defeating the stated reload-before-branching contract even if "only" for a candidate.
+  On the serialization worry: Payload stores `updatedAt` at millisecond precision (`timestamp(3)`),
+  and the value round-trips through the editor form as the same string, so equality holds on the real
+  path — **empirically confirmed**: the happy-path http test posts the fixture's actual `updatedAt`
+  and still returns 200 under `!==` (CI green). A forged FUTURE timestamp → 409 is now pinned by a new
+  wire-level case beside the existing past-timestamp one.
+  - **LESSON (recorded to private memory too): before implementing a review finding, grep
+    `docs/DECISIONS.md` for that exact area — a prior deliberate decision may already have weighed it.**
+    This finding had been explicitly declined the day before; the reversal is fine *because it is
+    argued and evidenced*, but it should have been surfaced as a reversal from the start, not
+    discovered while writing it up.
+- **#69 [P3] — the messages compose `?version=` is validated before prefill.** The page passed any
+  numeric `?version=` straight to the Composer. The send path was already safe (`validateContextLink`
+  in `Messages.ts` rejects a mismatched plan/version pair), so this was only a broken *prefilled UI*
+  from a stale/manipulated URL. The page now keeps the version link only when it's a readable version
+  belonging to the linked plan — mirroring the server hook via the already-shared `findReadableVersion`
+  + `relId` (the visibility rule stays single-sourced in `readBundle.ts`; only a two-line divergent-
+  behaviour comparison is "duplicated", which `/simplify`'s altitude pass confirmed is the right depth,
+  not an extractable helper).
+- **#69 [P3, DEFERRED] — the messagePing zero-unread gate can double-fire under concurrent first-unread
+  creates.** Left as the documented, cap-bounded limitation (two simultaneous sends to an empty inbox
+  can both observe zero other-unread and both enqueue a ping; bounded by the per-recipient daily ping
+  cap). A correct fix needs a `SELECT … FOR UPDATE` recipient lock — disproportionate machinery for a
+  worst case of one extra content-free email. Stays on the deferred backlog.
+- **#70 (perf follow-up, surfaced by `/simplify`) — compose-context resolution overlaps the inbox
+  batch.** The page resolved the compose context (`findReadablePlan` → `findReadableVersion`) in its
+  own serial wave ahead of the independent `roster/received/sent` `Promise.all`. The plan→version
+  fetches stay sequential (the ownership check needs the plan id), but the whole resolution is
+  independent of the inbox batch, so it now runs concurrently with it (three serial waves → one).
+  Behaviour unchanged. The other `/simplify` angles (reuse, simplification) found the diff clean.
+- **Ops note on this Mac:** pushing worked by passing a human-pasted fine-grained PAT inline in the
+  push URL (`https://x-access-token:${TOK}@github.com/…`, not persisted to git config) and opening/
+  merging PRs via the REST API (no `gh` CLI here). CI (`.github/workflows/ci.yml`) triggers only on
+  `pull_request`/`push` to `main`, so a stacked PR (#70, based on #69's branch) got **no runs** until
+  its base was retargeted to `main` AND it was closed+reopened to fire a `reopened` event — a
+  base-change alone does not fire the default `pull_request` trigger.
+
 ## 2026-07-06 (redesign PR ① built: per-version favorites) — fail-safe migration; Codex triage; NODE_ENV int-test gotcha
 
 **PR #68 (`feat/favorites-per-version`) implements build-step ① of the version-browser redesign**
@@ -37,10 +87,14 @@ from corrections. Committed to git (unlike the assistant's private cross-session
   `production`, which disables Payload's dev `push`, so the schema never builds and every spec fails
   with "relation does not exist" (42P01). Cost a debugging round. A `test:int:local` wrapper script
   is a flagged follow-up (Codex #3).
-- **Stale-guard posture (Codex #2, declined):** `save-as-new`'s equal-or-newer `updatedAt` check is
-  a consent/UX guard, not a security boundary — the endpoint only ever creates a new candidate, so a
-  forged future timestamp merely skips a warning protecting the forger's own save (a reload achieves
-  the same legitimately). Exact-equality would add false-409 serialization risk for zero gain.
+- **Stale-guard posture (Codex #2, declined) — ⚠ SUPERSEDED 2026-07-07 (see top entry #69).** At the
+  time: `save-as-new`'s equal-or-newer `updatedAt` check is a consent/UX guard, not a security
+  boundary — the endpoint only ever creates a new candidate, so a forged future timestamp merely skips
+  a warning protecting the forger's own save (a reload achieves the same legitimately); exact-equality
+  would add false-409 serialization risk for zero gain. **Later reversed:** the serialization risk is
+  disproven (ms-precision round-trip → exact equality on the real path, CI-confirmed by the happy-path
+  test), and rejecting a forged *future* base is worth the contract clarity. The guard is now
+  `baseMs !== srcMs`.
 - **Committed `payload-types.ts` had drifted**: the META repair-field `admin.description`s from
   #59/#61 were never regenerated into it. The regen in #68 trues it up; nothing behavioural.
 - **Codex triage summary:** #1 adopted (above); #2 declined with posture recorded (above); #3
