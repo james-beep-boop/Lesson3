@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 
 import { requireUser } from '@/lib/session'
-import { findReadablePlan } from '@/lib/readBundle'
+import { findReadablePlan, findReadableVersion } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import type { Message } from '@/payload-types'
 import Composer from './Composer'
@@ -30,10 +30,20 @@ export default async function MessagesPage({
   // the SENDER (a bogus/foreign ?plan= just composes without context).
   const aboutPlanId = sp.plan && Number.isInteger(Number(sp.plan)) ? Number(sp.plan) : null
   const aboutPlan = aboutPlanId ? await findReadablePlan(payload, { id: String(aboutPlanId), user }) : null
+
+  // The version link is only carried when it's a readable version that actually BELONGS to the plan —
+  // mirroring the server-side validateContextLink guard (Messages.ts) so a stale/manipulated URL can't
+  // prefill a broken cross-plan context. A missing/foreign/mismatched version just drops to null.
+  let aboutVersionId: number | null = null
+  if (aboutPlan && sp.version && Number.isInteger(Number(sp.version))) {
+    const version = await findReadableVersion(payload, { id: Number(sp.version), user })
+    if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
+  }
+
   const about = aboutPlan
     ? {
         planId: aboutPlan.id,
-        versionId: sp.version && Number.isInteger(Number(sp.version)) ? Number(sp.version) : null,
+        versionId: aboutVersionId,
         title: aboutPlan.title ?? 'Lesson plan',
       }
     : null

@@ -455,6 +455,18 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(res.status).toBe(409)
   })
 
+  it('forged FUTURE base updatedAt → 409 (must equal the source, not just be >=)', async () => {
+    // A base timestamp newer than the source is not evidence of a fresh load — it can only come from
+    // a stale/forged client. The guard is exact equality, so a "2999" timestamp cannot slip past the
+    // reload-before-branching contract.
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any), updatedAt: '2999-01-01T00:00:00.000Z' }),
+    })
+    expect(res.status).toBe(409)
+  })
+
   it('?deleteSource=true atomically deletes a NON-Official source the editor AUTHORED', async () => {
     // A throwaway candidate the editor authored (author stamped at creation); saving with deleteSource
     // should create the new one AND remove this source in one request.

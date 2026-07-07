@@ -80,17 +80,19 @@ export const saveAsNewEndpoint: Endpoint = {
     // parser — this is an authenticated endpoint accepting large nested content.
     const edited = await parsePreviewCandidate(req)
 
-    // Stale-source guard (mandatory): the submitted base `updatedAt` must be present, valid, and not
-    // predate the source's current value. A missing/garbage base is rejected (400) rather than silently
-    // skipped — this is the write boundary, so the contract is enforced, not optional; if the source has
-    // advanced since the editor opened it, reject (409) so they reload instead of branching from stale
-    // content. (Equal-or-newer is allowed, tolerant of timestamp serialization.)
+    // Stale-source guard (mandatory): the submitted base `updatedAt` must be present, valid, and MATCH
+    // the source's current value. A missing/garbage base is rejected (400) rather than silently skipped —
+    // this is the write boundary, so the contract is enforced, not optional. Any mismatch → 409, reload
+    // before branching. We reject a base that is NEWER than the source too, not just older: a forged
+    // future timestamp (e.g. "2999-…") must not be a way to slip past the reload-before-branching
+    // contract with stale form state. ISO-millisecond timestamps round-trip exactly, so equality is the
+    // correct contract; there is no serialization slack to tolerate.
     const baseMs = Date.parse(String(edited.updatedAt ?? ''))
     const srcMs = Date.parse(String(source.updatedAt))
     if (!Number.isFinite(baseMs)) {
       throw new APIError('Missing or invalid base version timestamp — reload before saving.', 400)
     }
-    if (Number.isFinite(srcMs) && baseMs < srcMs) {
+    if (Number.isFinite(srcMs) && baseMs !== srcMs) {
       throw new APIError('This version changed since you opened it — reload before saving.', 409)
     }
 
