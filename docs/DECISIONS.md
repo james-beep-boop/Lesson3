@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-07 (eyeball: dup-Edit + version window) — two user-flagged items triaged; both deferred to a later session
+
+The user eyeballed the live Rock and reported two things "absent," asking whether they were never coded
+or never deployed. Triaged against code + history (no code changed this pass — recorded for the next
+session; the user chose to defer both).
+
+- **Duplicate top-right "Edit" button on the version editor — ROOT CAUSE CONFIRMED: the selector is
+  scoped as a DESCENDANT of a wrapper that is not its ancestor.** Coded ✓, deployed ✓, compiled into the
+  served CSS ✓ — it simply can't match. The hide-rule in `app/src/app/(payload)/custom.scss` (~L470) is
+  nested under `.collection-edit--lesson-bundle-versions` as `.doc-tab[aria-label='Edit'] {display:none}`,
+  i.e. `.collection-edit--lesson-bundle-versions .doc-tab[aria-label='Edit']`. **Live-Rock verified
+  2026-07-07** (HEAD `2d8ce7b`, image fresh): `docker compose exec app grep …` found BOTH `aria-label=Edit]`
+  and `lesson-bundle-versions` in `.next/static/…css`, so the rule is deployed and served — yet the button
+  persists. **Installed Payload source pins why:** in `@payloadcms/next/dist/views/Document/index.js`
+  (~L355) the `DocumentHeader` (which renders the `.doc-tab` tabs) is a *preceding sibling* of the edit
+  `View`; the `.collection-edit--{slug}` class lives inside that `View`. So the `.doc-tab` is NOT a
+  descendant of `.collection-edit--lesson-bundle-versions` and the descendant combinator can never match.
+  The sibling rule in the same block, `.doc-controls .form-submit`, works only because the controls bar
+  *is* inside the `View`. **Live DOM inspect (2026-07-07) closes it definitively:** the element is
+  `<div aria-label="Edit" title="Edit" class="btn doc-tab doc-tab--active … btn--disabled" disabled>` —
+  it satisfies `.doc-tab[aria-label='Edit']` (and `[title='Edit']`) exactly; only the ancestor chain
+  lacks `.collection-edit--lesson-bundle-versions`. The `body:has()` fix is guaranteed to match because
+  the co-located `body:has(.collection-edit--lesson-bundle-versions) .template-default` chrome-hide rule
+  already fires on this view (no Payload sidebar renders), proving the wrapper class is present.
+  - **The `title`→`aria-label` swap in #67 was a NO-OP, and the "title never matched" premise was
+    FALSE.** `@payloadcms/ui` `Button/index.js` sets BOTH `'aria-label': ariaLabel` (L91) and
+    `title: ariaLabel` (L100) on the same element, and the Edit tab's label is `({t}) => t('general:edit')`
+    = "Edit" (tabs config). So `[title='Edit']` and `[aria-label='Edit']` were always equivalent; the
+    attribute was never the problem — the scoping was, in both attempts.
+  - **FIX APPLIED (2026-07-07, this session): one line — moved it out of the `.collection-edit--`
+    nesting to the `body:has()` ancestor pattern already proven on `.template-default` in this same
+    file:** `body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] { display: none; }`.
+  - **LESSON (reinforced, now with a mechanism): a CSS hide-rule against framework-internal (Payload)
+    markup is not "done" until an in-browser check proves it hides the RENDERED element.** The specific
+    trap here: reading a component's source (`TabLink.js`) tells you what one component emits, but NOT
+    where it sits in the overall view tree — so a *scoping* (combinator) bug is invisible to source-only
+    review and only shows up in the assembled DOM. Two consecutive misses on this exact rule. Treat
+    "hide an internal element via selector" as requiring browser verification of BOTH the element AND its
+    ancestor chain, same tier as an authz change requiring a wire test.
+- **Version-picker WINDOW — NOT built; only designed.** The user expected clicking a multi-version
+  lesson to open a window listing its versions. That is PR ②/③ of the version-browser redesign whose
+  design was locked 2026-07-06 (① per-version favorites → ② `VersionsPanel` + `[N versions ▾]` chip →
+  ③ swap the lesson-page pill bar for chip+panel). **Only PR ① (#68) merged — it is the backend schema
+  change (favorites → per-version), no UI window.** There is no `VersionsPanel` component in the tree.
+  What exists today is the pre-redesign inline **pill bar** on the lesson detail page
+  (`lessons/[id]/page.tsx` ~L113, rendered only when a plan has 2+ versions), which is why the two
+  versions of "Chemicals of life" are reachable as pills but not via a popup. Next-session work = build
+  PR ② then ③ per the locked design.
+- **Net answer to "not coded or not deployed?":** dup-Edit = coded + deployed but ineffective (selector
+  wrong); version window = never coded (design + backend only). Neither is a lost/partial deploy.
+
+---
+
 ## 2026-07-07 (review-finding batch) — stale-guard tightened to EXACT equality (REVERSES 2026-07-06 Codex #2); compose `?version=` validated; context-fetch overlap
 
 A three-item review pass (P2 + two P3s) landed via two stacked, CI-gated PRs, both merged to `main`

@@ -23,6 +23,35 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
+## ▶ RESUME HERE (2026-07-07 later) — dup-Edit button FIXED; version-picker window is the next BUILD
+
+**User did an in-browser eyeball of the LIVE Rock (2026-07-07) and flagged two things as missing.**
+Investigation (code + history; full write-up: DECISIONS 2026-07-07 (eyeball: dup-Edit + version window)):
+neither was a lost deploy. **Item 1 is now FIXED this session; item 2 (the version-picker window) is the
+next deliberate BUILD.**
+
+1. **Duplicate top-right "Edit" button on the version editor — FIXED (2026-07-07, this session).** Root
+   cause (confirmed three ways — compiled-CSS grep on the live Rock, Payload view-tree source, and a live
+   DOM inspect): the hide-rule was scoped as a DESCENDANT of `.collection-edit--lesson-bundle-versions`,
+   but Payload renders the `.doc-tab` "Edit" tab in `DocumentHeader`, a *preceding sibling* of the edit
+   `View` (see `@payloadcms/next` `views/Document/index.js` ~L355) — never a descendant, so the combinator
+   could never match. Both prior attempts (`[title='Edit']`, then #67's `[aria-label='Edit']`) failed for
+   THIS reason, not the attribute — `<Button>` sets `title` AND `aria-label` to the same "Edit" label, so
+   the swap was a no-op. **Fix: re-pointed the rule via the `body:has(.collection-edit--lesson-bundle-versions)
+   .doc-tab[aria-label='Edit']` ancestor pattern** (the same one the chrome-strip block uses, proven to
+   fire on this view). Shipped in `custom.scss` this session; verify HEAD with `git log -1`.
+2. **The version-picker WINDOW does not exist yet — it was designed, not built. THIS IS THE NEXT BUILD.**
+   The 3-PR version-browser redesign (design locked DECISIONS 2026-07-06) is: ① per-version favorites → ②
+   `VersionsPanel` + `[N versions ▾]` chip → ③ swap the lesson-page pill bar for the chip+panel. **Only
+   PR ① (#68, backend schema) merged.** There is NO `VersionsPanel` component in the tree; PR ②/③ were
+   never coded. What ships today is the older inline **pill bar** on the lesson DETAIL page
+   (`lessons/[id]/page.tsx` ~L113, only when 2+ versions) — e.g. Biology G10 "Chemicals of life"
+   1.0.0 / 1.0.2 appear as pills there, not a popup. **BUILD NEXT: PR ② then PR ③ per the locked design.**
+
+**THEN** the operator items + redesign-continuation context below still stand.
+
+---
+
 ## ▶ RESUME HERE (2026-07-07) — review-finding batch merged (#69/#70); then resume the redesign (PR ② below)
 
 **STATE:** a three-item review pass landed via two stacked CI-gated PRs, both merged to `main`
