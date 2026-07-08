@@ -34,11 +34,19 @@ signed off on every item below.
    `attachment`. The zip stays as a secondary "Download all". Buttons appear BOTH on catalogue rows
    (a per-document strip: "Lesson plan [PDF] [Word]" etc.) AND on the lesson page (replacing the
    zip-only bar; zip demoted to secondary link).
-3. **Pre-warm on Official designation.** Enqueue `generateVersionArtifact` (docx+pdf) inside the
-   make-official transaction and on first-ingest (v1.0.0 → Official) — so a teacher never hits the
-   cold 202/poll path. Cold DOCX ≈1–2s, cold PDF = Gotenberg seconds; warm = disk read. Enqueue is
-   try/caught (a prewarm failure never fails the promotion — messagePing precedent). Eviction of an
-   Official artifact (LRU 512 MB) just means one rare regeneration; pinning deferred until it matters.
+3. **Pre-warm on Official designation.** Enqueue `generateVersionArtifact` (docx+pdf) whenever a
+   version becomes Official — so a teacher never hits the cold 202/poll path. Cold DOCX ≈1–2s, cold
+   PDF = Gotenberg seconds; warm = disk read. Enqueue is try/caught (a prewarm failure never fails
+   the promotion — messagePing precedent). Eviction of an Official artifact (LRU 512 MB) just means
+   one rare regeneration; pinning deferred until it matters.
+   - **REFINED at build time (same session, /simplify altitude pass):** the original wording named
+     two call sites (make-official + first-ingest), but a third pointer-moving path exists — the
+     Site-Admin **Official-pointer repair form** (the lesson-plans document view) — and per-call-site
+     wiring taxes every future mover. Shipped shape: a lesson-plans `afterChange` hook
+     (`prewarmOfficialArtifacts`) fires on every **authenticated** pointer change (`req.user` gate =
+     the same system-path carve-out as `validateOfficialVersionPointer`, so fixtures/migrations
+     don't mass-enqueue), and **ingest keeps one explicit call** as the sole system path that wants
+     warming. Same intent, full coverage, one mechanism per caller class.
 4. **Versions UI is Editor+ only** (amends the locked 2026-07-06 VersionsPanel design, which put the
    `[N versions ▾]` chip on rows for everyone): Teachers see Official only — no chip, no pill bar, no
    "show additional versions" checkbox (explicitly rejected). The chip/panel renders only for

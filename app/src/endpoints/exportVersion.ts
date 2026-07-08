@@ -19,19 +19,20 @@ import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { json } from './respond'
 import {
-  DELIVERABLE_TAGS,
   isExportReady,
   loadCachedDeliverable,
   loadCachedExportZip,
+  mimeFor,
   safePrefix,
-  type DeliverableTag,
 } from '../generator/exportArtifacts'
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
+  findPendingExportJob,
+  jobMatchesVersion,
   type GenerateVersionArtifactInput,
 } from '../jobs/generateVersionArtifact'
-import { findPendingExportJob, jobMatchesVersion } from '../jobs/prewarmVersionArtifacts'
 import { authorizeVersionExportRequest } from './exportAuth'
+import { parseDeliverableTag } from './parseFormat'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import type { PayloadJob } from '../payload-types'
 
@@ -62,8 +63,6 @@ export const exportVersionEndpoint: Endpoint = {
   },
 }
 
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-
 /**
  * GET /:id/export/doc — serve ONE deliverable (teacher-first track T1, DECISIONS 2026-07-08).
  * Serve-only like the zip GET (never generates; cold → 409, the client prepares via the same POST).
@@ -78,13 +77,9 @@ export const exportVersionDocEndpoint: Endpoint = {
     if (!req.user) throw new APIError('Unauthorized', 401)
 
     const { spec } = await authorizeVersionExportRequest(req)
+    const tag = parseDeliverableTag(req)
 
-    const rawDoc = typeof req.query?.doc === 'string' ? req.query.doc : ''
-    if (!(DELIVERABLE_TAGS as readonly string[]).includes(rawDoc)) {
-      throw new APIError(`Unknown doc — expected one of: ${DELIVERABLE_TAGS.join(', ')}`, 400)
-    }
-
-    const doc = await loadCachedDeliverable(spec, rawDoc as DeliverableTag)
+    const doc = await loadCachedDeliverable(spec, tag)
     if (doc.state === 'cold') {
       return json({ state: 'not_prepared', message: 'Export not ready — prepare it first.' }, 409)
     }
@@ -92,12 +87,14 @@ export const exportVersionDocEndpoint: Endpoint = {
       throw new APIError('This lesson plan has no such document.', 404)
     }
 
-    const isPdf = spec.kind === 'pdf'
-    return new Response(new Uint8Array(doc.bytes), {
+    // A zero-copy view over the cached Buffer (the copying Uint8Array(buffer) constructor would
+    // memcpy the whole deliverable on every download of this teacher-facing hot path).
+    const body = new Uint8Array(doc.bytes.buffer, doc.bytes.byteOffset, doc.bytes.byteLength)
+    return new Response(body, {
       status: 200,
       headers: {
-        'Content-Type': isPdf ? 'application/pdf' : DOCX_MIME,
-        'Content-Disposition': `${isPdf ? 'inline' : 'attachment'}; filename="${doc.filename}"`,
+        'Content-Type': mimeFor(spec.kind),
+        'Content-Disposition': `${spec.kind === 'pdf' ? 'inline' : 'attachment'}; filename="${doc.filename}"`,
         'Content-Length': String(doc.bytes.length),
       },
     })
@@ -126,7 +123,7 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, kind} rather than
     // enqueuing a duplicate (repeated clicks / poll races / two tabs). The artifact cache already makes
     // COMPLETED repeats free (the isExportReady short-circuit above); this guards the in-flight window.
-    const existing = await findPendingExportJob(req, input)
+    const existing = await findPendingExportJob(req.payload, input)
     const job = existing ?? (await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req }))
 
     const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&as=${kind}`

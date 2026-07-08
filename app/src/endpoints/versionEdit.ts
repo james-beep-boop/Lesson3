@@ -24,7 +24,6 @@ import { json } from './respond'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
-import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { parsePreviewCandidate } from './previewParse'
 import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
@@ -264,9 +263,6 @@ export const makeOfficialEndpoint: Endpoint = {
         previousDeleted = true
       }
 
-      // Pre-warm docx+pdf for the NEW Official (teacher-first track T1) — teachers then hit a warm
-      // cache instead of the cold 202/poll path. Never throws; job rows commit with this transaction.
-      await prewarmVersionArtifacts(req, Number(version.id))
 
       if (shouldCommit) await commitTransaction(req)
       return json({ ok: true, officialVersion: version.id, previousOfficialId, previousDeleted })

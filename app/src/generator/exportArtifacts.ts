@@ -38,7 +38,7 @@ export const versionScope = (versionId: number | string): string => `version:${v
 
 /** One deliverable's stable cache tag + its download filename stem (no extension). */
 interface DocMeta {
-  tag: string
+  tag: DeliverableTag
   name: string
 }
 
@@ -54,6 +54,12 @@ export const DELIVERABLE_TAGS = ['lessonSequence', 'finalExplanation', 'summaryT
 export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
 
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
+
+/** The kind→MIME mapping, beside its kind→extension sibling — the single owner of both axes. */
+export const mimeFor = (kind: ExportKind): string =>
+  kind === 'pdf'
+    ? 'application/pdf'
+    : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /** Strip a stored filePrefix to a safe bare filename component (no path/traversal). */
 export const safePrefix = (raw: unknown): string =>

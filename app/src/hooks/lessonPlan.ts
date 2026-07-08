@@ -1,7 +1,13 @@
-import type { CollectionBeforeDeleteHook, CollectionBeforeValidateHook, CollectionSlug } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeDeleteHook,
+  CollectionBeforeValidateHook,
+  CollectionSlug,
+} from 'payload'
 import { ValidationError } from 'payload'
 
 import { toId } from '../access'
+import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 
 const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
 
@@ -105,4 +111,21 @@ export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async
     overrideAccess: true,
     req,
   })
+}
+
+/**
+ * Pre-warm docx+pdf whenever an AUTHENTICATED write moves the Official pointer — make-official,
+ * the admin repair form (the lesson-plans document view), and any future admin path — so teachers
+ * hit a warm artifact cache, never the cold 202/poll flow (teacher-first T1, DECISIONS 2026-07-08).
+ * The `req.user` gate is the same system-path carve-out as `validateOfficialVersionPointer`:
+ * fixtures/migrations don't mass-enqueue; ingest (a system path that DOES want warming) calls
+ * `prewarmVersionArtifacts` explicitly. Never throws; job rows ride the caller's transaction.
+ */
+export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
+  if (!req.user) return doc
+  const newId = idFrom((doc as { officialVersion?: unknown }).officialVersion)
+  if (newId == null) return doc
+  if (newId === idFrom((previousDoc as { officialVersion?: unknown } | undefined)?.officialVersion)) return doc
+  await prewarmVersionArtifacts(req, newId)
+  return doc
 }

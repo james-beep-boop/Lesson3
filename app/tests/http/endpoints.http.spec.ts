@@ -23,7 +23,14 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
+import {
+  MARK,
+  enqueuedKindsFor,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+  type RoleKey,
+} from '../helpers/fixtures.js'
 
 const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
@@ -76,6 +83,19 @@ async function pollExportReady(statusUrl: string, key: RoleKey, timeoutMs = 150_
 }
 
 /** Full read-gated export handshake for one deliverable kind → returns the downloaded zip bytes. */
+/** POST prepare (+ poll if cold) until the (version, kind) export is ready to serve. */
+async function prepareExport(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<void> {
+  const prep = await fetch(url(`/api/lesson-bundle-versions/${versionId}/export?as=${as}`), {
+    method: 'POST',
+    headers: auth(key),
+  })
+  expect([200, 202]).toContain(prep.status)
+  if (prep.status === 202) {
+    const { statusUrl } = (await prep.json()) as { statusUrl: string }
+    await pollExportReady(statusUrl, key)
+  }
+}
+
 async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<Buffer> {
   const exportUrl = `/api/lesson-bundle-versions/${versionId}/export?as=${as}`
 
@@ -83,13 +103,7 @@ async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 
   const cold = await fetch(url(exportUrl), { headers: auth(key) })
   expect(cold.status).toBe(409)
 
-  // POST prepare: warm → 200 {ready}; cold → 202 + a status URL to poll.
-  const prep = await fetch(url(exportUrl), { method: 'POST', headers: auth(key) })
-  expect([200, 202]).toContain(prep.status)
-  if (prep.status === 202) {
-    const { statusUrl } = (await prep.json()) as { statusUrl: string }
-    await pollExportReady(statusUrl, key)
-  }
+  await prepareExport(versionId, key, as)
 
   // GET serve now warm → the zip.
   const dl = await fetch(url(exportUrl), { headers: auth(key) })
@@ -293,36 +307,6 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   const docUrl = (id: number | string, doc: string, as: 'docx' | 'pdf') =>
     `/api/lesson-bundle-versions/${id}/export/doc?doc=${doc}&as=${as}`
 
-  /** Warm the (fixture version, kind) cache if cold — POST prepare + poll. Unlike `exportZip` it
-   *  does not insist on starting cold, so it is safe whatever earlier tests already warmed. */
-  async function warmExport(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<void> {
-    const prep = await fetch(url(`/api/lesson-bundle-versions/${versionId}/export?as=${as}`), {
-      method: 'POST',
-      headers: auth(key),
-    })
-    expect([200, 202]).toContain(prep.status)
-    if (prep.status === 202) {
-      const { statusUrl } = (await prep.json()) as { statusUrl: string }
-      await pollExportReady(statusUrl, key)
-    }
-  }
-
-  /** The prewarm jobs' kinds enqueued for `versionId` (reads payload-jobs via the Local API). */
-  async function prewarmKindsFor(versionId: number | string): Promise<Set<string>> {
-    const { docs } = await fx.payload.find({
-      collection: 'payload-jobs',
-      where: { taskSlug: { equals: 'generateVersionArtifact' } },
-      limit: 100,
-      depth: 0,
-      overrideAccess: true,
-    })
-    return new Set(
-      docs
-        .filter((j) => String((j.input as { versionId?: unknown })?.versionId ?? '') === String(versionId))
-        .map((j) => String((j.input as { kind?: string }).kind)),
-    )
-  }
-
   it('401 without auth', async () => {
     const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')))
     expect(res.status).toBe(401)
@@ -346,7 +330,7 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   })
 
   it('a Teacher gets a warm DOCX deliverable → attachment', async () => {
-    await warmExport(fx.version.id, 'teacher', 'docx')
+    await prepareExport(fx.version.id, 'teacher', 'docx')
     const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')), { headers: auth('teacher') })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe(
@@ -360,7 +344,7 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   })
 
   it('a Teacher gets a warm PDF deliverable → INLINE (opens in the browser)', async () => {
-    await warmExport(fx.version.id, 'teacher', 'pdf')
+    await prepareExport(fx.version.id, 'teacher', 'pdf')
     const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'pdf')), { headers: auth('teacher') })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('application/pdf')
@@ -372,7 +356,7 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   })
 
   it('404 when the version has no such deliverable (fixture has no Final Explanation)', async () => {
-    await warmExport(fx.version.id, 'teacher', 'docx')
+    await prepareExport(fx.version.id, 'teacher', 'docx')
     const res = await fetch(url(docUrl(fx.version.id, 'finalExplanation', 'docx')), { headers: auth('teacher') })
     expect(res.status).toBe(404)
   })
@@ -384,7 +368,7 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
       { method: 'POST', headers: auth('subjectAdmin') },
     )
     expect(promote.status).toBe(200)
-    expect(await prewarmKindsFor(cold.id)).toEqual(new Set(['docx', 'pdf']))
+    expect(await enqueuedKindsFor(fx.payload, cold.id)).toEqual(new Set(['docx', 'pdf']))
 
     // Restore the fixture Official, then drop the throwaway (deletable only once non-Official).
     const restore = await fetch(

@@ -14,7 +14,7 @@ import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
-import { MARK, MARK_BASE, purgeMarked } from '../helpers/fixtures.js'
+import { MARK, MARK_BASE, enqueuedKindsFor, purgeMarked } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
@@ -115,17 +115,8 @@ describe('re-ingest (SPEC §7)', () => {
     const [r] = await ingestItems(payload, [item('pw.json', rawBundle('97.6', 'Prewarm'))])
     expect(r.action).toBe('created')
     const versionId = await officialOf(r.id)
-    const { docs } = await payload.find({
-      collection: 'payload-jobs',
-      where: { taskSlug: { equals: 'generateVersionArtifact' } },
-      limit: 100,
-      depth: 0,
-      overrideAccess: true,
-    })
-    const kinds = docs
-      .filter((j) => String((j.input as { versionId?: unknown })?.versionId ?? '') === String(versionId))
-      .map((j) => String((j.input as { kind?: string }).kind))
-    expect(new Set(kinds)).toEqual(new Set(['docx', 'pdf']))
+    expect(versionId).not.toBeNull()
+    expect(await enqueuedKindsFor(payload, versionId as number)).toEqual(new Set(['docx', 'pdf']))
   })
 
   it('re-upload of the same sub-strand attaches as 2.0.0, Not Official, Official pointer unmoved', async () => {

@@ -13,6 +13,7 @@
  */
 
 import { positiveIntEnv } from '../lib/env'
+import { mimeFor } from './exportArtifacts'
 
 /** Thrown when the conversion sidecar is unreachable or returns a non-2xx response. */
 export class PdfConversionError extends Error {
@@ -36,9 +37,7 @@ export async function docxToPdf(docx: Buffer, filename = 'document.docx'): Promi
   // A Blob over a fresh Uint8Array view avoids leaking the Buffer's backing pool.
   form.append(
     'files',
-    new Blob([new Uint8Array(docx)], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    }),
+    new Blob([new Uint8Array(docx)], { type: mimeFor('docx') }),
     filename.endsWith('.docx') ? filename : `${filename}.docx`,
   )
 

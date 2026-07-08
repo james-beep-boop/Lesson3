@@ -12,7 +12,7 @@
  * TRUST: runs as a system path. Authorization (caller READ access) is enforced at ENQUEUE time
  * by the version export endpoint; the task itself uses overrideAccess.
  */
-import type { TaskConfig } from 'payload'
+import type { Payload, TaskConfig } from 'payload'
 
 import {
   produceArtifacts,
@@ -24,7 +24,7 @@ import {
 import { generateForVersion } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { captureException } from '../lib/errorTracking'
-import type { LessonBundleVersion } from '../payload-types'
+import type { LessonBundleVersion, PayloadJob } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
   versionId: number
@@ -68,4 +68,54 @@ export const generateVersionArtifactTask: TaskConfig<{
       throw err
     }
   },
+}
+
+/**
+ * Is `job` a `generateVersionArtifact` job for `versionId`? `payload-jobs.input` is a JSON column, so
+ * read `versionId` off it as a scalar (not a Payload relationship — `relId`/`toId` don't apply). Shared
+ * by the export status-binding check, the prepare dedupe, and pre-warm — homed here beside the task
+ * symbols it interrogates.
+ */
+export function jobMatchesVersion(job: PayloadJob | null | undefined, versionId: number | string): boolean {
+  const input = job?.input as { versionId?: number | string } | undefined
+  return (
+    job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
+    String(input?.versionId ?? '') === String(versionId)
+  )
+}
+
+/** Does `job` target this exact {versionId, kind} spec? */
+export function jobMatchesSpec(job: PayloadJob, input: GenerateVersionArtifactInput): boolean {
+  const i = job.input as { kind?: string } | undefined
+  return jobMatchesVersion(job, input.versionId) && i?.kind === input.kind
+}
+
+/**
+ * All in-flight `generateVersionArtifact` jobs (not completed, not in a terminal error state).
+ * `payload-jobs.input` is a JSON column, so callers match specs in-memory over the (few) pending
+ * rows rather than via a nested-JSON `where`. The pending set for one task slug is tiny — autoRun
+ * drains it every ~3s and the prepare dedupe coalesces repeats — so a small bound comfortably
+ * covers any realistic in-flight window.
+ */
+export async function findPendingExportJobs(payload: Payload): Promise<PayloadJob[]> {
+  const { docs } = await payload.find({
+    collection: 'payload-jobs',
+    where: {
+      taskSlug: { equals: GENERATE_VERSION_ARTIFACT_SLUG },
+      completedAt: { exists: false },
+      hasError: { not_equals: true },
+    },
+    limit: 20,
+    depth: 0,
+    overrideAccess: true,
+  })
+  return docs
+}
+
+/** The in-flight job matching this exact spec, or null. */
+export async function findPendingExportJob(
+  payload: Payload,
+  input: GenerateVersionArtifactInput,
+): Promise<PayloadJob | null> {
+  return (await findPendingExportJobs(payload)).find((j) => jobMatchesSpec(j, input)) ?? null
 }
