@@ -74,11 +74,11 @@ Full reasoning + a reversal-of-decision note: **DECISIONS 2026-07-07 (review-fin
 **OUTSTANDING (operator):**
 1. ~~**Deploy** current `main` to the Rock~~ **DONE 2026-07-07** — the #71 deploy pulled all of `main`,
    so #69/#70 are now live on the Rock too (`e87d522`, no migration).
-2. **Rotate the GitHub PAT** used from this Mac on 2026-07-07 (pasted into a Claude Code chat to push
-   #69/#70 + docs) — it was never persisted to git config, but treat any chat-pasted token as exposed.
-   Fine-grained, Lesson3-only, Contents R/W + Pull requests R/W is the scope to re-issue if needed.
-   (Note: PR #71 was pushed/merged this session using the git credential-helper token already cached on
-   this Mac — same exposure class if that token is the pasted one; rotate covers both.)
+2. ~~**Rotate the GitHub PAT** used from this Mac on 2026-07-07~~ **DONE 2026-07-08** — the user
+   revoked the chat-pasted PAT. A subsequent push from this Mac still succeeded on the
+   credential-helper (osxkeychain) token, proving the cached token is a DIFFERENT credential than
+   the revoked one — it was never chat-pasted, so no further rotation is needed. (If a chat-visible
+   token is ever needed again: fine-grained, Lesson3-only, Contents R/W + Pull requests R/W.)
 
 **THEN: the version-browser redesign resumes — build PR ② (`VersionsPanel` + catalogue chip),** per
 the block just below (PR ① / #68 is already merged + deployed).
