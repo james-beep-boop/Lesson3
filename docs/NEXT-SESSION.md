@@ -30,16 +30,18 @@ Investigation (code + history; full write-up: DECISIONS 2026-07-07 (eyeball: dup
 neither was a lost deploy. **Item 1 is now FIXED this session; item 2 (the version-picker window) is the
 next deliberate BUILD.**
 
-1. **Duplicate top-right "Edit" button on the version editor — FIXED (2026-07-07, this session).** Root
-   cause (confirmed three ways — compiled-CSS grep on the live Rock, Payload view-tree source, and a live
-   DOM inspect): the hide-rule was scoped as a DESCENDANT of `.collection-edit--lesson-bundle-versions`,
-   but Payload renders the `.doc-tab` "Edit" tab in `DocumentHeader`, a *preceding sibling* of the edit
-   `View` (see `@payloadcms/next` `views/Document/index.js` ~L355) — never a descendant, so the combinator
-   could never match. Both prior attempts (`[title='Edit']`, then #67's `[aria-label='Edit']`) failed for
-   THIS reason, not the attribute — `<Button>` sets `title` AND `aria-label` to the same "Edit" label, so
-   the swap was a no-op. **Fix: re-pointed the rule via the `body:has(.collection-edit--lesson-bundle-versions)
+1. **Duplicate top-right "Edit" button on the version editor — FIXED, DEPLOYED, and USER-CONFIRMED
+   IN-BROWSER (2026-07-07). DONE.** Merged as **PR #71** (`e87d522`), deployed to the Rock via
+   `scripts/deploy.sh`, and the user confirmed the button is gone. Root cause (confirmed three ways —
+   compiled-CSS grep on the live Rock, Payload view-tree source, and a live DOM inspect): the hide-rule
+   was scoped as a DESCENDANT of `.collection-edit--lesson-bundle-versions`, but Payload renders the
+   `.doc-tab` "Edit" tab in `DocumentHeader`, a *preceding sibling* of the edit `View` (see
+   `@payloadcms/next` `views/Document/index.js` ~L355) — never a descendant, so the combinator could
+   never match. Both prior attempts (`[title='Edit']`, then #67's `[aria-label='Edit']`) failed for THIS
+   reason, not the attribute — `<Button>` sets `title` AND `aria-label` to the same "Edit" label, so the
+   swap was a no-op. **Fix: re-pointed the rule via the `body:has(.collection-edit--lesson-bundle-versions)
    .doc-tab[aria-label='Edit']` ancestor pattern** (the same one the chrome-strip block uses, proven to
-   fire on this view). Shipped in `custom.scss` this session; verify HEAD with `git log -1`.
+   fire on this view).
 2. **The version-picker WINDOW does not exist yet — it was designed, not built. THIS IS THE NEXT BUILD.**
    The 3-PR version-browser redesign (design locked DECISIONS 2026-07-06) is: ① per-version favorites → ②
    `VersionsPanel` + `[N versions ▾]` chip → ③ swap the lesson-page pill bar for the chip+panel. **Only
@@ -69,11 +71,14 @@ Full reasoning + a reversal-of-decision note: **DECISIONS 2026-07-07 (review-fin
 - **DEFERRED [P3]:** the messagePing zero-unread gate can double-fire under concurrent first-unread
   creates (bounded by the daily ping cap) — stays on the backlog; a fix needs a FOR-UPDATE lock.
 
-**OUTSTANDING (operator, both yours):**
-1. **Deploy** current `main` to the Rock via `scripts/deploy.sh` — no migration, low-risk.
+**OUTSTANDING (operator):**
+1. ~~**Deploy** current `main` to the Rock~~ **DONE 2026-07-07** — the #71 deploy pulled all of `main`,
+   so #69/#70 are now live on the Rock too (`e87d522`, no migration).
 2. **Rotate the GitHub PAT** used from this Mac on 2026-07-07 (pasted into a Claude Code chat to push
    #69/#70 + docs) — it was never persisted to git config, but treat any chat-pasted token as exposed.
    Fine-grained, Lesson3-only, Contents R/W + Pull requests R/W is the scope to re-issue if needed.
+   (Note: PR #71 was pushed/merged this session using the git credential-helper token already cached on
+   this Mac — same exposure class if that token is the pasted one; rotate covers both.)
 
 **THEN: the version-browser redesign resumes — build PR ② (`VersionsPanel` + catalogue chip),** per
 the block just below (PR ① / #68 is already merged + deployed).

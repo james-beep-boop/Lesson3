@@ -40,9 +40,13 @@ session; the user chose to defer both).
     `title: ariaLabel` (L100) on the same element, and the Edit tab's label is `({t}) => t('general:edit')`
     = "Edit" (tabs config). So `[title='Edit']` and `[aria-label='Edit']` were always equivalent; the
     attribute was never the problem — the scoping was, in both attempts.
-  - **FIX APPLIED (2026-07-07, this session): one line — moved it out of the `.collection-edit--`
-    nesting to the `body:has()` ancestor pattern already proven on `.template-default` in this same
-    file:** `body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] { display: none; }`.
+  - **FIX APPLIED + SHIPPED (2026-07-07, this session): PR #71 (`e87d522`), CI-green, deployed to the
+    Rock via `scripts/deploy.sh`, and USER-CONFIRMED in-browser (the button is gone).** One line — moved
+    it out of the `.collection-edit--` nesting to the `body:has()` ancestor pattern already proven on
+    `.template-default` in this same file:
+    `body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] { display: none; }`.
+    The `.doc-controls .form-submit` (native Save) rule stayed nested — it genuinely is a descendant of
+    the View.
   - **LESSON (reinforced, now with a mechanism): a CSS hide-rule against framework-internal (Payload)
     markup is not "done" until an in-browser check proves it hides the RENDERED element.** The specific
     trap here: reading a component's source (`TabLink.js`) tells you what one component emits, but NOT
