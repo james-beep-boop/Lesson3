@@ -189,6 +189,13 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - **PDF = convert the generated DOCX, never a parallel renderer** (one source of layout truth — the same rule that limits the mammoth view to a *content* preview). A semantic converter (Pandoc, HTML→PDF) reinterprets layout and would not match the approved DOCX, so it is disqualified for the exact artifact.
 - **PDF converter — OPEN decision (do not lock in; decide by fidelity test).** Constraints (locked 2026-06-14): must be **faithful** (reproduces the generator's tables/merges/shading/widths), **free / no paid or commercial service**, **fully offline / no cloud** (rules out MS Graph and metered APIs), and self-hostable. That narrows the field to a **local office engine** (LibreOffice headless, or OnlyOffice/Collabora) — the bulk (~0.4–1 GB) is the intrinsic price of faithful DOCX layout; fine on the Rock's NVMe. **Preferred packaging: a separate sidecar container** (e.g. Gotenberg wrapping LibreOffice — multi-arch/arm64, offline) so the app image stays slim. PDF is **slow → Jobs Queue (async)**. The engine is chosen by a golden-file fidelity test (Word's own DOCX→PDF as oracle) when the PDF slice is built; code calls it behind a swappable `docxToPdf(buffer)` seam.
 - Generation can take seconds for large bundles — run it without blocking the UI and show progress; stream/queue as appropriate on the chosen host.
+- **Per-document serving + pre-warm (teacher-first track, 2026-07-08).** Besides the whole-export
+  .zip, each deliverable is individually downloadable at its (version, document, kind) URL
+  (`GET /:id/export/doc?doc=<tag>&as=docx|pdf`), served from the artifact cache: **PDF inline**
+  (opens in the browser — the teacher-facing default), DOCX as attachment. When a version becomes
+  Official (make-official or first ingest), both kinds are **pre-warmed** into the cache via the
+  Jobs Queue, so teachers effectively read stored official PDFs/DOCX; the cache stays a disposable
+  optimization, never a storage layer of record.
 
 ---
 

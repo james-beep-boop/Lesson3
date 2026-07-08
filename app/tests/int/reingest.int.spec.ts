@@ -111,6 +111,23 @@ describe('re-ingest (SPEC §7)', () => {
     expect(await officialOf(r.id)).not.toBeNull()
   })
 
+  it('a NEW plan pre-warms its Official artifacts (docx+pdf jobs enqueued in the ingest transaction)', async () => {
+    const [r] = await ingestItems(payload, [item('pw.json', rawBundle('97.6', 'Prewarm'))])
+    expect(r.action).toBe('created')
+    const versionId = await officialOf(r.id)
+    const { docs } = await payload.find({
+      collection: 'payload-jobs',
+      where: { taskSlug: { equals: 'generateVersionArtifact' } },
+      limit: 100,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const kinds = docs
+      .filter((j) => String((j.input as { versionId?: unknown })?.versionId ?? '') === String(versionId))
+      .map((j) => String((j.input as { kind?: string }).kind))
+    expect(new Set(kinds)).toEqual(new Set(['docx', 'pdf']))
+  })
+
   it('re-upload of the same sub-strand attaches as 2.0.0, Not Official, Official pointer unmoved', async () => {
     const planId = (await ingestItems(payload, [item('b1.json', rawBundle('97.2', 'V1'))]))[0].id
     const officialBefore = await officialOf(planId)

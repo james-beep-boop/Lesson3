@@ -34,6 +34,7 @@ import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
 import { nextMajorForPlan } from '../lib/semver'
+import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
@@ -386,6 +387,9 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         } as never,
         req,
       })
+      // Pre-warm docx+pdf for the new Official (teacher-first track T1) — same as make-official.
+      // Never throws; queued rows commit with this ingest transaction.
+      await prewarmVersionArtifacts(req, Number(version.id))
       results.push({
         file: name,
         id: plan.id,
