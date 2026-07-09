@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-09 (catalogue perf) — browsing goes CLIENT-side: a filter click was a ~1s server round-trip
+
+**User-reported on the live Rock: the T2 filter buttons take a full second.** Root cause: the chips
+were server LINKS — every click re-ran the entire catalogue render server-side (four Payload
+queries, including the T2/PR-② widened selects: the deliverable-group joins and the corpus-wide
+version stubs) plus an RSC navigation round-trip. Search paid the same tax per debounce.
+
+**Fix: the catalogue is ONE loaded dataset, so browsing it is now fully client-side.** The server
+page keeps the four queries (one render) and hands serialized rows to a new `LibraryBrowser`
+client component that owns search + subject/grade state and filters in memory (`filterRows` in
+lib/substrand — pure, unit-pinned, AND-composed). A chip click or keystroke is now a local
+re-render (~ms).
+
+- **URL contract unchanged** (`?q/&subject/&grade` — shareable, SSR renders a shared URL
+  pre-filtered) but written via `history.replaceState` (debounced 250ms; NO RSC re-fetch) and read
+  back on `popstate` for back/forward.
+- **`SearchBox` is deleted, and its unit spec with it** — the whole bug class that spec pinned
+  (debounce-cancel-on-unmount, own-echo vs external `?q=` change) existed only because typing
+  NAVIGATED the global router; with filtering synchronous and the URL write side-effect-only,
+  those hazards are structurally gone. FavoritesSection/Catalogue/SearchResults/SubstrandRow moved
+  into LibraryBrowser unchanged (markup/classNames identical).
+- Favorites still re-render via `router.refresh` → fresh props flow into the client component;
+  filter state survives (component identity is stable).
+
+---
+
 ## 2026-07-09 (redesign PR ② build notes) — VersionsPanel via standard REST; two argued deviations from the 2026-07-06 lock
 
 PR ② of the version-browser redesign (design locked 2026-07-06; PR ① = #68), built AFTER the

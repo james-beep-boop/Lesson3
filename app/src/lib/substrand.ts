@@ -211,3 +211,24 @@ export function matchesQuery(r: LessonRow, query: string): boolean {
   const text = bundleSearchText(r)
   return tokens.every((t) => text.includes(t))
 }
+
+/**
+ * The library's combined display filter (perf fix 2026-07-09): subject/grade chips AND the search
+ * query applied in one pure pass — the client browser filters IN MEMORY (the whole catalogue is
+ * already loaded), so chips and typing are instant instead of a server round-trip per click.
+ */
+export function filterRows(
+  rows: readonly LessonRow[],
+  criteria: { q?: string; subject?: string; grade?: number | null },
+): LessonRow[] {
+  const q = (criteria.q ?? '').trim()
+  const subject = criteria.subject ?? ''
+  const grade = criteria.grade ?? null
+  return rows.filter(
+    (r) =>
+      (!subject || r.subjectName === subject) &&
+      (grade == null || r.grade === grade) &&
+      (!q || matchesQuery(r, q)),
+  )
+}
+
