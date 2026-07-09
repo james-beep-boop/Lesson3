@@ -1,23 +1,12 @@
 import React from 'react'
-import Link from 'next/link'
 
 import { requireUser } from '@/lib/session'
 import { relId } from '@/lib/relId'
-import FavoriteToggle from '@/components/FavoriteToggle'
-import DocStrip from '@/components/DocStrip'
-import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 import { isEditorFor, toId } from '@/access'
 import type { User } from '@/payload-types'
-import SearchBox from './SearchBox'
-import {
-  groupLessons,
-  lessonDisplayName,
-  matchesQuery,
-  orderLessons,
-  type LessonRow,
-  type SubjectGradeGroup,
-} from '@/lib/substrand'
+import LibraryBrowser from './LibraryBrowser'
+import { lessonDisplayName, type LessonRow } from '@/lib/substrand'
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
@@ -190,222 +179,18 @@ export default async function BrowsePage({
     }
   }
 
-  // T2 filter chips: URL-driven (?subject=&grade=), combinable with search. Options derive from
-  // the data — grades are 10/11/12 today, but nothing here hardcodes that.
-  const subjects = [...new Set(rows.map((r) => r.subjectName))].sort((a, b) => a.localeCompare(b))
-  const grades = [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort(
-    (a, b) => a - b,
-  )
-  const gradeNum = grade ? Number(grade) : null
-  const filtered = rows.filter(
-    (r) => (!subject || r.subjectName === subject) && (gradeNum == null || r.grade === gradeNum),
-  )
-
   return (
     <section className="lp">
       <h1 className="lp-title">Lesson plans</h1>
-
-      <SearchBox initialQuery={q} />
-      <FilterBar subjects={subjects} grades={grades} subject={subject} grade={grade} q={q} />
-
-      {filtered.length === 0 ? (
-        <p className="muted">
-          {rows.length === 0 ? 'No lesson plans yet.' : 'No lesson plans match these filters.'}
-        </p>
-      ) : q ? (
-        <SearchResults
-          rows={orderLessons(filtered.filter((r) => matchesQuery(r, q)))}
-          query={q}
-          favByVersion={favByVersion}
-        />
-      ) : (
-        <>
-          <FavoritesSection
-            rows={orderLessons([
-              ...filtered.filter((r) => r.versionId != null && favByVersion.has(r.versionId)),
-              ...pinnedRows.filter(
-                (r) =>
-                  (!subject || r.subjectName === subject) &&
-                  (gradeNum == null || r.grade === gradeNum),
-              ),
-            ])}
-            favByVersion={favByVersion}
-          />
-          <Catalogue groups={groupLessons(filtered)} favByVersion={favByVersion} />
-        </>
-      )}
+      {/* Browsing (search + subject/grade chips) is fully CLIENT-side — the catalogue is one
+          loaded dataset, so filtering must not cost a server round-trip per click (perf fix
+          2026-07-09). The URL still carries ?q/&subject/&grade for shareable views. */}
+      <LibraryBrowser
+        rows={rows}
+        pinnedRows={pinnedRows}
+        favPairs={[...favByVersion]}
+        initial={{ q, subject, grade }}
+      />
     </section>
-  )
-}
-
-/**
- * URL-driven filter chips (T2): subject and grade, combinable with each other and with search.
- * Server-rendered links — shareable URLs, no client state. A group renders only when the data
- * offers a real choice.
- */
-function FilterBar({
-  subjects,
-  grades,
-  subject,
-  grade,
-  q,
-}: {
-  subjects: string[]
-  grades: number[]
-  subject: string
-  grade: string
-  q: string
-}) {
-  if (subjects.length < 2 && grades.length < 2) return null
-
-  const href = (s: string | null, g: string | null): string => {
-    const p = new URLSearchParams()
-    if (q) p.set('q', q)
-    if (s) p.set('subject', s)
-    if (g) p.set('grade', g)
-    const qs = p.toString()
-    return qs ? `/?${qs}` : '/'
-  }
-  const chip = (key: string, label: string, target: string, active: boolean) => (
-    <Link
-      key={key}
-      href={target}
-      className={`filter-chip${active ? ' is-active' : ''}`}
-      aria-current={active ? 'true' : undefined}
-    >
-      {label}
-    </Link>
-  )
-
-  return (
-    <div className="filter-bar">
-      {subjects.length > 1 && (
-        <div className="filter-group" role="group" aria-label="Filter by subject">
-          {chip('all-subjects', 'All subjects', href(null, grade || null), !subject)}
-          {subjects.map((s) => chip(`s-${s}`, s, href(s, grade || null), subject === s))}
-        </div>
-      )}
-      {grades.length > 1 && (
-        <div className="filter-group" role="group" aria-label="Filter by grade">
-          {chip('all-grades', 'All grades', href(subject || null, null), !grade)}
-          {grades.map((g) =>
-            chip(`g-${g}`, `Grade ${g}`, href(subject || null, String(g)), grade === String(g)),
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** version id → the caller's favorite row id (sparse: only favorited versions appear). */
-type FavByVersion = Map<number, number>
-
-/** The caller's favorited lessons, pinned above the catalogue (§10). Hidden while empty — the star
- *  on each row is the affordance, an empty shell would just be clutter (§13 minimal UI). */
-function FavoritesSection({ rows, favByVersion }: { rows: LessonRow[]; favByVersion: FavByVersion }) {
-  if (rows.length === 0) return null
-  return (
-    <div className="sg-section fav-section">
-      <h2 className="sg-head">My favorites</h2>
-      <ul className="substrand-list">
-        {rows.map((r) => (
-          <SubstrandRow key={r.versionId ?? r.id} row={r} favByVersion={favByVersion} showContext />
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Full catalogue: subject-grade → strand → numbered sub-strands, in curriculum order. */
-function Catalogue({ groups, favByVersion }: { groups: SubjectGradeGroup[]; favByVersion: FavByVersion }) {
-  return (
-    <>
-      {groups.map((sg) => (
-        <div key={sg.key} className="sg-section">
-          <h2 className="sg-head">{sg.label}</h2>
-          {sg.strands.map((st) => (
-            <div key={st.key} className="strand-section">
-              <h3 className="strand-head">{st.label}</h3>
-              <ul className="substrand-list">
-                {st.rows.map((r) => (
-                  <SubstrandRow key={r.id} row={r} favByVersion={favByVersion} />
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      ))}
-    </>
-  )
-}
-
-/** Search view: a flat list of matches (grouping only makes sense for the full catalogue). */
-function SearchResults({
-  rows,
-  query,
-  favByVersion,
-}: {
-  rows: LessonRow[]
-  query: string
-  favByVersion: FavByVersion
-}) {
-  if (rows.length === 0) {
-    return <p className="muted">No lesson plans match “{query}”.</p>
-  }
-  return (
-    <ul className="substrand-list">
-      {rows.map((r) => (
-        <SubstrandRow key={r.id} row={r} favByVersion={favByVersion} showContext />
-      ))}
-    </ul>
-  )
-}
-
-function SubstrandRow({
-  row,
-  favByVersion,
-  showContext = false,
-}: {
-  row: LessonRow
-  favByVersion: FavByVersion
-  showContext?: boolean
-}) {
-  const context = [row.subjectName, row.grade != null ? `Grade ${row.grade}` : null, row.strandName]
-    .filter(Boolean)
-    .join(' · ')
-  return (
-    <li className="substrand-row">
-      <div className="substrand-main">
-        <Link href={row.href ?? `/lessons/${row.id}`} className="substrand-link">
-          {row.substrandId && <span className="substrand-num">{row.substrandId}</span>}
-          <span className="substrand-name">
-            {row.substrandName}
-            {row.pinnedSemver && <span className="pinned-tag"> · v{row.pinnedSemver} (pinned)</span>}
-            {showContext && context && <span className="substrand-context">{context}</span>}
-          </span>
-        </Link>
-        <span className="substrand-count">
-          {row.status === 'draft' && <span className="status-pill">Draft</span>}
-          {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
-        </span>
-        {/* PR ② (Editor+-only per the 2026-07-08 amendment): the versions chip, only when there
-            is a real choice. Pinned-favorite rows skip it — their plan's main row carries it. */}
-        {row.canEdit && (row.versionCount ?? 1) > 1 && row.versionId != null && !row.pinnedSemver && (
-          <VersionsChip
-            planId={row.id}
-            officialVersionId={row.versionId}
-            versionCount={row.versionCount ?? 0}
-            panelLabel={row.substrandName}
-          />
-        )}
-        {row.versionId != null && (
-          <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
-        )}
-      </div>
-      {/* The T2 document strip: the teacher's one-click PDF/Word per deliverable. */}
-      {row.versionId != null && row.deliverables && (
-        <DocStrip versionId={row.versionId} tags={row.deliverables} />
-      )}
-    </li>
   )
 }
