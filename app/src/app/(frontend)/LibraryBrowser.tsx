@@ -71,9 +71,14 @@ export default function LibraryBrowser({
     }, 250)
   }
 
-  // Back/forward restores whatever state that history entry carried.
+  // Back/forward restores whatever state that history entry carried. A pending debounced URL
+  // write must die with the navigation — firing after popstate would overwrite the restored URL
+  // with the pre-navigation criteria, desyncing the address bar from the view.
   useEffect(() => {
-    const onPop = () => setCriteria(criteriaFromLocation())
+    const onPop = () => {
+      clearTimeout(urlTimer.current)
+      setCriteria(criteriaFromLocation())
+    }
     window.addEventListener('popstate', onPop)
     return () => {
       window.removeEventListener('popstate', onPop)
@@ -125,7 +130,14 @@ export default function LibraryBrowser({
           {rows.length === 0 ? 'No lesson plans yet.' : 'No lesson plans match these filters.'}
         </p>
       ) : q ? (
-        <SearchResults rows={orderLessons(filtered)} query={q} favByVersion={favByVersion} />
+        // Pinned favorites are searchable too — they passed the same filter, and omitting them
+        // here contradicted the empty-check above (a query matching ONLY a pinned favorite
+        // rendered "No lesson plans match").
+        <SearchResults
+          rows={orderLessons([...filtered, ...filteredPinned])}
+          query={q}
+          favByVersion={favByVersion}
+        />
       ) : (
         <>
           <FavoritesSection
