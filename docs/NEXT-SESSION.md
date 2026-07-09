@@ -61,7 +61,10 @@ this track.
   multi-version rows as editor, panel lines/stars, pinned favorites surfacing, lesson-page
   version line, none of it visible as teacher).
 
-**BACKLOG (user, 2026-07-08): login page needs "Sign up" + "Forgot password?".** Use STANDARD
+~~**BACKLOG (user, 2026-07-08): login page needs "Sign up" + "Forgot password?".**~~ **BUILT
+2026-07-09 (open registration per user decision — see the PR + DECISIONS "open registration");
+the remaining hardening follow-up is email VERIFICATION (`auth.verify` = a `_verified`
+Rock-generated migration).** Original note: Use STANDARD
 Payload machinery: `forgot-password`/`reset-password` are native auth operations (REST
 `POST /api/users/forgot-password` + `/reset-password`; auth rate limiting from #42 ALREADY covers
 forgot-password) — the work is frontend pages + the reset-email template + a sign-up policy

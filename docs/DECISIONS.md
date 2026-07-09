@@ -35,6 +35,17 @@ Forgot password. Maximum standard-Payload per the user's instruction — no cust
 - Frontend: `/signup`, `/forgot-password` (same response whether or not the account exists — no
   oracle), `/reset-password` (Payload signs the user in on success); login page links to both.
   SPEC §8 amended; guide copy added.
+- **/simplify pass (this + the catalogue-perf diff): applied** — signup folded into
+  `rateLimitAuthOperations`' operation→buckets dispatch as a third row (was an early-return fork
+  duplicating the lowercase/'invalid' key rule — a security-relevant invariant that must not
+  drift), hook docblock updated to cover signup + the Local-API budget note; the users create
+  policy moved to `access/index.ts` (`usersCollectionCreate`) beside its read/update siblings —
+  a policy hiding in the collection file is what the next audit misses. **Skipped by decision:**
+  a shared fetch helper across the four auth forms (their error semantics genuinely differ; the
+  shared part is one fetch call — the fileResponse two-call-site ruling applies) and a one-owner
+  serializer for LibraryBrowser's three small adjacent URL-param sites (optional per review).
+  Efficiency angle reviewed clean (deliberate no-useMemo: criteria is the only state, a memo
+  would never hit; the RSC payload doubling is the accepted cost of client-side filtering).
 ## 2026-07-09 (catalogue perf) — browsing goes CLIENT-side: a filter click was a ~1s server round-trip
 
 **User-reported on the live Rock: the T2 filter buttons take a full second.** Root cause: the chips

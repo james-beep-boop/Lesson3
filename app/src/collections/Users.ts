@@ -7,10 +7,10 @@ import {
   assignmentsUpdateField,
   canManageUsers,
   emailReadAccess,
-  isSiteAdmin,
   selfOrSiteAdminField,
   siteAdminField,
   siteAdminOnly,
+  usersCollectionCreate,
   usersCollectionRead,
   usersCollectionUpdate,
 } from '../access'
@@ -77,11 +77,9 @@ export const Users: CollectionConfig = {
   access: {
     admin: adminPanelAccess,
     read: usersCollectionRead,
-    // Open self-registration (user decision 2026-07-09, SPEC §8): anonymous visitors may create
-    // an account (rate-capped in hooks/authRateLimit; privileged fields are create-gated below,
-    // so a hostile signup body cannot smuggle roles/assignments). An AUTHENTICATED non-admin has
-    // no business creating users — only Site Admins keep that (people management on Manage).
-    create: ({ req }) => !req.user || isSiteAdmin(req.user as User),
+    // Open self-registration or Site-Admin people management — policy + rationale live with
+    // their read/update siblings in access/index.ts (usersCollectionCreate, 2026-07-09).
+    create: usersCollectionCreate,
     update: usersCollectionUpdate,
     delete: siteAdminOnly,
   },

@@ -121,6 +121,15 @@ export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): bo
  *  names-only is field access: `email` (emailReadAccess), `roles` (siteAdminField) and
  *  `assignments` (assignmentsReadField) are stripped for non-admins. Server-side decisions on
  *  admin-only fields must keep using trusted projections (DECISIONS 2026-07-02 round 3). */
+/**
+ * Users create = OPEN self-registration (user decision 2026-07-09, SPEC §8) or Site-Admin people
+ * management. Anonymous visitors may create an account (rate-capped in hooks/authRateLimit;
+ * `roles`/`assignments` are create-gated at field level, so a hostile signup body strips to a
+ * plain Teacher). An AUTHENTICATED non-admin has no business creating users.
+ */
+export const usersCollectionCreate: Access = ({ req: { user } }) =>
+  !user || isSiteAdmin(asUser(user))
+
 export const usersCollectionRead: Access = ({ req: { user } }) => Boolean(user)
 
 /** Update self, or any user if site admin / a subject admin (field access + the

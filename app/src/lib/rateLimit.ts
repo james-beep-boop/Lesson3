@@ -127,7 +127,7 @@ const LIMITS = {
   },
 } satisfies Record<string, Limit>
 
-type Bucket = keyof typeof LIMITS
+export type Bucket = keyof typeof LIMITS
 
 /** Minimal view of the postgres adapter's drizzle handle — enough to run a parameterised statement. */
 type DrizzleExec = { execute: (q: unknown) => Promise<{ rows: Array<{ count: number | string }> }> }
