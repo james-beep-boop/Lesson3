@@ -55,6 +55,18 @@ export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
 
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
 
+/**
+ * Runtime guard for the job/task boundary, where `kind` arrives as arbitrary `text` from a
+ * payload-jobs row (Codex 2026-07-08 P3): a bad value would silently write artifacts under an
+ * arbitrary cache namespace while being treated as DOCX-like. Endpoints validate via
+ * `parseExportKind`; this is the equivalent for trusted-path job inputs.
+ */
+export function assertExportKind(value: unknown): asserts value is ExportKind {
+  if (value !== 'docx' && value !== 'pdf') {
+    throw new Error(`Invalid export kind "${String(value)}" — expected docx|pdf`)
+  }
+}
+
 /** The kind→MIME mapping, beside its kind→extension sibling — the single owner of both axes. */
 export const mimeFor = (kind: ExportKind): string =>
   kind === 'pdf'

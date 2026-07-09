@@ -28,7 +28,7 @@ import {
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
   findPendingExportJob,
-  jobMatchesVersion,
+  jobMatchesSpec,
   type GenerateVersionArtifactInput,
 } from '../jobs/generateVersionArtifact'
 import { authorizeVersionExportRequest } from './exportAuth'
@@ -153,8 +153,9 @@ export const exportVersionStatusEndpoint: Endpoint = {
     // no cached artifact to report.
     if (await isExportReady(spec)) return json({ state: 'ready' })
 
-    // Not ready → the jobId must name a real generateVersionArtifact job for THIS version (no probing
-    // another version's job), else 404.
+    // Not ready → the jobId must name a real generateVersionArtifact job for THIS version AND this
+    // kind (no probing another version's job; and a DOCX job must not report state for a PDF poll —
+    // the kinds are separate jobs/cache specs; Codex 2026-07-08 P2), else 404.
     let job: PayloadJob | null = null
     try {
       job = await req.payload.findByID({
@@ -166,7 +167,7 @@ export const exportVersionStatusEndpoint: Endpoint = {
     } catch {
       job = null
     }
-    if (!job || !jobMatchesVersion(job, version.id)) {
+    if (!job || !jobMatchesSpec(job, { versionId: Number(version.id), kind: spec.kind })) {
       return json({ state: 'error', message: 'Export job not found.' }, 404)
     }
     if (job.hasError) {

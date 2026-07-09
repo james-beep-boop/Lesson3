@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-08 (Codex post-T1 audit) — status jobId binds to {version, kind}; job-boundary kind guard
+
+An external Codex pass over merged T1 (#72) found no Critical/High; two accepted findings, both
+fixed in one CI-gated PR. DECISIONS was grepped first (standing rule): the 2026-06-28
+"readiness is VERSION-scoped" entry governs the *ready short-circuit*, not the not-ready jobId
+binding, so neither finding had been previously declined.
+
+- **[P2] The export status poll's not-ready jobId binding was version-only — a DOCX job's id could
+  report `preparing`/`expired` for a PDF poll on the same version.** Pre-existing (the version-only
+  `jobMatchesVersion` check predates T1 — kinds were separate jobs before T1 too), but T1's per-kind
+  pre-warm makes mixed-kind job rows routine. Now binds with `jobMatchesSpec` ({versionId, kind}).
+  The ready short-circuit stays spec-scoped and jobId-agnostic per the 2026-06-28 contract. Pinned
+  by a wire test (DOCX jobId + `as=pdf` on a cold version → 404).
+- **[P3] The artifact task boundary accepted `kind` as arbitrary text** (`inputSchema` `text`; the
+  handlers treated non-`pdf` as DOCX-like), so a Site-Admin/system enqueue with a bad value would
+  write artifacts under an arbitrary cache namespace. Not teacher-reachable (external job CRUD is
+  locked down) — hardened anyway: `assertExportKind` (in `exportArtifacts.ts`, the `ExportKind`
+  owner) now runs at the top of BOTH task handlers (`generateVersionArtifact`,
+  `emailVersionArtifact`) before any cache write; a bad row fails its job. Unit-pinned
+  (`exportKind.spec.ts`). Endpoints keep `parseExportKind` — this is its trusted-path counterpart.
+- **Noted, not actioned:** Next 16 deprecates the `middleware` filename in favour of `proxy` (build
+  warning) — upstream rename, fold into the next deliberate Next bump.
+
+---
+
 ## 2026-07-08 (teacher-first track) — DESIGN LOCK: the teacher experience is the next build arc; it REORDERS ahead of VersionsPanel PR ②/③
 
 **Context (user decision):** ~95% of users are Teachers with no editing/admin interest. The system must
