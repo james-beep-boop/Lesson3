@@ -74,6 +74,13 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_MESSAGE_MAX', 50),
     windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_WINDOW_MS', 86_400_000),
   },
+  // "Request editing access" (teacher-first T3): ONE request per user per subject-grade per day —
+  // the key is `${userId}:${subjectGradeId}` via enforceSharedRateLimit, so asking about Biology
+  // G10 doesn't block asking about Chemistry G11. Bounds admin-inbox noise, not CPU.
+  editRequest: {
+    max: positiveIntEnv('RATE_LIMIT_EDIT_REQUEST_MAX', 1),
+    windowMs: positiveIntEnv('RATE_LIMIT_EDIT_REQUEST_WINDOW_MS', 86_400_000),
+  },
   // Cap on notification-ping EMAILS one recipient's real inbox can receive per day (keyed by the
   // recipient user id). The zero-unread gate already bounds pings to the recipient's own read
   // rate; this is the belt over that suspender. Exhaustion skips the ping, never the message.

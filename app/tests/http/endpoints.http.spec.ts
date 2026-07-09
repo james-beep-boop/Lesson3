@@ -1064,6 +1064,62 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
   })
 })
 
+describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/request-editing', () => {
+  const reqUrl = (id: number | string) => `/api/lesson-plans/${id}/request-editing`
+
+  afterAll(async () => {
+    // Drop the request messages this block created (sender = the fixture teacher).
+    await fx.payload.delete({
+      collection: 'messages',
+      where: { sender: { equals: fx.users.teacher.id } },
+      overrideAccess: true,
+    })
+  })
+
+  it('401 without auth', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404 on a nonexistent plan', async () => {
+    const res = await fetch(url(reqUrl(999999999)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(404)
+  })
+
+  it('409 for a caller who already has edit rights', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('editor') })
+    expect(res.status).toBe(409)
+  })
+
+  it('a Teacher request messages the Subject Admin + Site Admin (server-resolved recipients)', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { sent: number }
+    expect(body.sent).toBe(2) // the fixture sg's Subject Admin + the one Site Admin
+
+    const { docs } = await fx.payload.find({
+      collection: 'messages',
+      where: { sender: { equals: fx.users.teacher.id } },
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(docs).toHaveLength(2)
+    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(
+      new Set([String(fx.users.subjectAdmin.id), String(fx.users.siteAdmin.id)]),
+    )
+    for (const m of docs) {
+      expect(String(m.body)).toContain('editing access')
+      expect(String(m.lessonPlan)).toBe(String(fx.plan.id))
+    }
+  })
+
+  it('a repeat request the same day → 429 (one per user per subject-grade)', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBeTruthy()
+  })
+})
+
 describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-read', () => {
   // Read-state moved OFF the GET render onto a state-changing POST — CSRF-safe for every browser via
   // the SameSite=Lax cookie (a cross-site POST arrives unauthenticated → 401), replacing the old

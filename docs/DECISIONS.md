@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-08 (T3 build notes) — request-editing: privileged step is recipient RESOLUTION only; messages are created as the caller
+
+T3 of the teacher-first track (lock §6). Build-time decisions:
+
+- **The endpoint's ONE privileged act is knowing who the admins are** (roster is names-only, SPEC
+  §8): `resolveRecipients` looks up Site Admins + the sg's Subject Admin with overrideAccess (the
+  grant-holder query mirrors the demote scan's `assignments.subjectGrade` + in-memory role filter —
+  two dot-path conditions can't be pinned to one array element), deduped, requester excluded. The
+  results are never RETURNED to the caller — only messaged.
+- **The messages are created `overrideAccess: false` as the caller** — sender stamping, the
+  per-sender daily message cap, context-link validation, and the zero-unread ping run exactly as
+  for a hand-written message; the standing "authorize-then-overrideAccess-write" caution doesn't
+  even arise for the message writes. All-or-nothing: creates run in one transaction so a mid-loop
+  failure can't half-notify the admin set.
+- **Throttle = `editRequest` bucket, key `${userId}:${sgId}`, 1/day** (env-overridable) via
+  `enforceSharedRateLimit` — per subject-grade, so asking about Biology G10 doesn't block
+  Chemistry G11. Checked before any work (probing spends budget — email precedent). Already-editors
+  get 409, not a message.
+- **Body carries no requester name** — the message's sender relation already attributes it; the
+  body is the ask + scope (`Subject · Grade N`) + a Manage → Editors pointer, with the plan as the
+  context link.
+- Wire tests per the standing agreement: 401 / 404 / 409-editor / 200 happy (recipient set ==
+  {Subject Admin, Site Admin}, body + plan link asserted via Local API) / 429 repeat.
+
+---
+
 ## 2026-07-08 (T2 build notes) — teacher catalogue: strip/filters/cards; the projection widenings and their costs
 
 T2 of the teacher-first track (design lock below). Build-time decisions worth recording:

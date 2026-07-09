@@ -14,6 +14,7 @@ import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
 import FavoriteToggle from '@/components/FavoriteToggle'
 import DocStrip from '@/components/DocStrip'
+import RequestEditingButton from '@/components/RequestEditingButton'
 import { versionDeliverables } from '@/generator/adapter'
 
 /**
@@ -153,6 +154,8 @@ export default async function LessonView({
             officialVersionId={officialId ?? null}
           />
         )}
+        {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
+        {!canEdit && <RequestEditingButton planId={plan.id} />}
         <span className="export-label">Download all</span>
         <DownloadButtons versionId={selectedId} />
         <EmailDocButton versionId={selectedId} />

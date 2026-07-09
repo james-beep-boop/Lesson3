@@ -10,6 +10,7 @@ import {
 import { canEditStructure } from '../access/bundle'
 import { cascadeDeleteLessonPlanVersions, validateOfficialVersionPointer, prewarmOfficialArtifacts } from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
+import { requestEditingEndpoint } from '../endpoints/requestEditing'
 
 export const LessonPlans: CollectionConfig = {
   slug: 'lesson-plans',
@@ -44,6 +45,8 @@ export const LessonPlans: CollectionConfig = {
   endpoints: [
     // POST /api/lesson-plans/upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
     uploadBundlesEndpoint,
+    // POST /api/lesson-plans/:id/request-editing — message the sg's admins for Editor access (T3).
+    requestEditingEndpoint,
   ],
   fields: [
     {
