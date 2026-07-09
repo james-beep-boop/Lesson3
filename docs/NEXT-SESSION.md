@@ -8,13 +8,15 @@ end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
-(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~1600 lines) — skim
+(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~4500 lines) — skim
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is now the TEACHER-FIRST TRACK** (2026-07-08 — see the newest RESUME section
-below and DECISIONS 2026-07-08; the audit-driven five-phase plan completed through Phase 4, with
-Phase 5 Track B host-gated; the §10 cross-user-features track completed 2026-07-03).
+**No track is currently in flight** (2026-07-09 — see the newest RESUME section below). The
+teacher-first track (2026-07-08) and the version-browser redesign (2026-07-06) are BOTH complete;
+the audit-driven five-phase plan completed through Phase 4 with Phase 5 Track B host-gated; the
+§10 cross-user-features track completed 2026-07-03. Next work = operator deploy/eyeball, then
+pick from the queue in the newest RESUME block.
 The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
@@ -24,7 +26,50 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-08) — TEACHER-FIRST TRACK is the active arc (design locked; REORDERS ahead of VersionsPanel PR ②/③)
+## ▶ RESUME HERE (2026-07-09 end of day) — both arcs COMPLETE + perf fix + open registration + findings; deploy #79–#81, then pick next
+
+**Everything queued is merged; `main` is clean at PR #81's merge. Session arc (all CI-gated, ZERO
+migrations all week):**
+- **Teacher-first T1–T4** (#72–#76, 2026-07-08) and the **version-browser redesign ①–③**
+  (#68 / #77 / **#78**, completed 2026-07-09) — see the Older-resume block below for detail.
+- **#79 — catalogue browsing went CLIENT-side** (user-reported ~1s filter clicks on the live Rock;
+  DECISIONS 2026-07-09 "catalogue perf"). Chips + search are now in-memory re-renders;
+  `?q/&subject/&grade` still shareable via history.replaceState/popstate. SearchBox deleted with
+  its spec (its bug class was structural to router-navigation search).
+- **#80 — OPEN self-registration + native password reset** (user decisions: open, not invite;
+  standard Payload; DECISIONS 2026-07-09 "open registration"). Login page gained Sign up / Forgot
+  password; `/signup`, `/forgot-password`, `/reset-password` pages; reset email now links the
+  FRONTEND page. Security find shipped with it: `roles`/`assignments` had no create-axis field
+  gate — now gated + wire-pinned (hostile signup strips to plain Teacher). Signup caps 3/day/email
+  + 100/day global. A /simplify pass was applied (signup folded into the auth-throttle dispatch;
+  `usersCollectionCreate` named in access/index.ts; skips recorded).
+- **#81 — four review findings on the #77–#80 arc** (DECISIONS 2026-07-09 "browse/panel review
+  findings"): panel stars re-fetch on every open; search includes pinned favorites; NaN `?grade=`
+  = no filter; popstate clears the pending URL debounce. All pinned (unit + component tests).
+
+**OPERATOR NEXT:**
+1. **Rock deploy** — pending: **#79 + #80 + #81** (the user's 2026-07-09 morning deploy carried
+   everything through #78). Usual `scripts/deploy.sh`, no migration.
+2. **In-browser eyeball** (accumulated list): filter chips + search respond INSTANTLY; sign up a
+   fresh account → lands as plain Teacher (no Manage, no version chips); Forgot password
+   end-to-end (email links the app's reset page, not /admin); as editor — versions chip/panel on
+   multi-version rows + lesson page, toggle a star in the panel then close/reopen (stays correct),
+   pinned favorites appear in My favorites AND in search; plus the still-standing T2/T3/T4 items
+   in the Older-resume block if not yet checked.
+
+**QUEUE (pick with the user):**
+- **Email verification on signup** (`auth.verify` → `_verified` column = Rock-generated migration;
+  the one recorded hardening before public exposure).
+- **Phase 5 Track B** (host-gated: VPS → TLS/proxy → edge rate limiting → GlitchTip → Going-public
+  runbook, docs/OPS.md) — now more relevant with open registration.
+- Deferred backlog: Manage/roster pagination at corpus scale; payload-jobs prune;
+  `test:int:local` harness + HTML-cache-version drift test (Codex 2026-07-06 chips); messagePing
+  FOR-UPDATE double-fire; Next 16 `middleware`→`proxy` (ride the next framework bump).
+- **AI summaries** stay deliberately unprioritized (purpose conversation first — 2026-07-02).
+
+---
+
+## ▶ Older resume (2026-07-08) — TEACHER-FIRST TRACK is the active arc (design locked; REORDERS ahead of VersionsPanel PR ②/③)
 
 **The user re-prioritized: ~95% of users are Teachers; the teacher experience comes first.** Full
 design lock: **DECISIONS 2026-07-08 (teacher-first track)** — read it before touching this arc. The
@@ -55,7 +100,7 @@ this track.
   follower stars survive promote-and-delete-previous; no migration (DECISIONS T4 build notes).
 - ~~**THEN (next build)**: VersionsPanel PR ② + ③~~ **DONE 2026-07-09 — PR ② merged as #77;
   PR ③ merged same day (chip+panel on the lesson page, Compare its own button, pills retired).
-  The 2026-07-06 version-browser redesign is COMPLETE (①=#68, ②=#77, ③).** Build notes +
+  The 2026-07-06 version-browser redesign is COMPLETE (①=#68, ②=#77, ③=#78).** Build notes +
   argued deviations: DECISIONS 2026-07-09 (redesign PR ② build notes). Editor+-only throughout;
   no migrations. **Not yet deployed — fold into the next Rock deploy + eyeball** (chip on
   multi-version rows as editor, panel lines/stars, pinned favorites surfacing, lesson-page
@@ -72,8 +117,9 @@ decision (open registration vs invite; new users default to Teacher per SPEC §8
 bootstrap guard #53 already handles the empty-DB case). Not scheduled yet; next build below.
 
 **THE TEACHER-FIRST TRACK (T1–T4) IS COMPLETE — all four PRs merged 2026-07-08, ZERO migrations.**
-**Operator next: ① Rock deploy** (T3 + T4 are not yet deployed; T1/T2 went out in the user's
-2026-07-08 deploy) — usual `scripts/deploy.sh`, no migration; **② the in-browser eyeball**: T2
+**Operator next *(SUPERSEDED — the 2026-07-09 morning deploy carried T3/T4/#77/#78; see the
+newest RESUME block for what is pending now)*: ① Rock deploy** — usual
+`scripts/deploy.sh`, no migration; **② the in-browser eyeball**: T2
 (strip both surfaces, PDF new-tab, Word download, chips, mobile cards, no pills as teacher) +
 T3 (Request editing access button → admin inboxes) + T4 (teacher star follows a Make Official).
 

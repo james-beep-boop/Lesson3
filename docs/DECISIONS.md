@@ -124,7 +124,7 @@ teacher-first track — which changed two of its premises. Deviations, argued:
    single-version plans (orientation); chip+Compare appear only with 2+. Pill CSS retired (desktop
    + the mobile 44px rule, which the Compare button inherits instead); guide copy updated. The
    compare page's own pickers are untouched (oldest-first `findReadableVersions`, deliberate).
-   **This completes the 2026-07-06 version-browser redesign (①=#68, ②=#77, ③=this PR).**
+   **This completes the 2026-07-06 version-browser redesign (①=#68, ②=#77, ③=#78).**
 
 ---
 
