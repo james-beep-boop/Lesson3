@@ -8,7 +8,12 @@ import {
   lessonPlanUpdate,
 } from '../access/versioning'
 import { canEditStructure } from '../access/bundle'
-import { cascadeDeleteLessonPlanVersions, validateOfficialVersionPointer, prewarmOfficialArtifacts } from '../hooks/lessonPlan'
+import {
+  cascadeDeleteLessonPlanVersions,
+  prewarmOfficialArtifacts,
+  retargetFollowerFavorites,
+  validateOfficialVersionPointer,
+} from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { requestEditingEndpoint } from '../endpoints/requestEditing'
 
@@ -35,8 +40,9 @@ export const LessonPlans: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [validateOfficialVersionPointer],
-    // Any authenticated Official-pointer move pre-warms that version's export artifacts (T1).
-    afterChange: [prewarmOfficialArtifacts],
+    // Any authenticated Official-pointer move pre-warms that version's export artifacts (T1);
+    // any pointer move re-points follower (non-editor) favorites to the new Official (T4).
+    afterChange: [prewarmOfficialArtifacts, retargetFollowerFavorites],
     // Deleting a plan must first remove its child versions (NOT NULL lesson_plan_id + ON DELETE SET
     // NULL FK → Postgres 23502 otherwise, shown as "An unknown error has occurred"). SPEC §6.
     // Favorites are per-version (§10) and cascade from the version delete itself.

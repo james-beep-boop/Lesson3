@@ -6,8 +6,10 @@ import type {
 } from 'payload'
 import { ValidationError } from 'payload'
 
-import { toId } from '../access'
+import { isEditorFor, toId } from '../access'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
+import { relId } from '../lib/relId'
+import type { User } from '../payload-types'
 
 const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
 
@@ -129,3 +131,81 @@ export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({ doc,
   await prewarmVersionArtifacts(req, newId)
   return doc
 }
+
+/**
+ * Teacher stars follow the Official (teacher-first T4, DECISIONS 2026-07-08 §7): when the
+ * Official pointer MOVES, favorites on the OLD Official belonging to users WITHOUT edit rights
+ * on this subject-grade are re-pointed to the new Official; editors' favorites stay put (theirs
+ * are deliberate per-version pins, the 2026-07-06 semantics). A follower who already starred the
+ * new Official just loses the now-redundant old row (the compound unique index would reject the
+ * re-point). Running inside the pointer-move transaction ALSO means the re-point lands before
+ * make-official's optional delete-previous — so follower stars survive promote-and-delete.
+ *
+ * No `req.user` gate (unlike the prewarm sibling): this is data consistency, owed on system
+ * pointer moves too. Per-row best-effort — a favorites hiccup must never fail a promotion; a
+ * skipped row at worst falls to the delete-previous cascade (the pre-T4 behavior).
+ */
+export const retargetFollowerFavorites: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
+  const newId = idFrom((doc as { officialVersion?: unknown }).officialVersion)
+  const prevId = idFrom((previousDoc as { officialVersion?: unknown } | undefined)?.officialVersion)
+  if (newId == null || prevId == null || newId === prevId) return doc
+  const sgId = idFrom((doc as { subjectGrade?: unknown }).subjectGrade)
+
+  const { docs: favs } = await req.payload.find({
+    collection: 'favorites',
+    where: { version: { equals: prevId } },
+    depth: 0,
+    pagination: false, // bounded by the user count
+    overrideAccess: true,
+    req,
+  })
+  if (favs.length === 0) return doc
+
+  // Batch the owners (to split followers from editor-pinners) and the already-starred-new set.
+  const ownerIds = [...new Set(favs.map((f) => relId(f.user)).filter((id) => id != null))]
+  const [{ docs: owners }, { docs: onNew }] = await Promise.all([
+    req.payload.find({
+      collection: 'users',
+      where: { id: { in: ownerIds } },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    }),
+    req.payload.find({
+      collection: 'favorites',
+      where: { version: { equals: newId } },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    }),
+  ])
+  const ownerById = new Map(owners.map((u) => [String(u.id), u as User]))
+  const alreadyOnNew = new Set(onNew.map((f) => String(relId(f.user))))
+
+  for (const fav of favs) {
+    try {
+      const owner = ownerById.get(String(relId(fav.user)))
+      if (!owner || isEditorFor(owner, sgId)) continue // an editor's pin is deliberate — keep it
+      if (alreadyOnNew.has(String(owner.id))) {
+        await req.payload.delete({ collection: 'favorites', id: fav.id, overrideAccess: true, req })
+      } else {
+        await req.payload.update({
+          collection: 'favorites',
+          id: fav.id,
+          data: { version: newId },
+          overrideAccess: true,
+          req,
+        })
+      }
+    } catch (err) {
+      req.payload.logger.error(
+        { err, favoriteId: fav.id, prevOfficialId: prevId, newOfficialId: newId },
+        'retargetFollowerFavorites: row skipped',
+      )
+    }
+  }
+  return doc
+}
+
