@@ -32,10 +32,13 @@ VersionsPanel PR ②/③ build is POSTPONED (and amended: versions UI becomes Ed
 this track.
 
 **Build order (each its own CI-gated PR):**
-- **T1 — backend: per-deliverable export + pre-warm** *(in progress 2026-07-08)*. New
-  `GET /:id/export/doc?doc=<tag>&as=docx|pdf` serving ONE deliverable from the existing artifact
-  cache (PDF inline → opens in browser; DOCX attachment); pre-warm docx+pdf on make-official and on
-  first-ingest Official. Wire-level authz tests per the standing agreement.
+- ~~**T1 — backend: per-deliverable export + pre-warm**~~ **DONE — PR #72 merged (`0984a37`),
+  CI green, 2026-07-08.** `GET /:id/export/doc?doc=<tag>&as=docx|pdf` serves ONE deliverable from
+  the artifact cache (PDF inline → opens in browser; DOCX attachment); pre-warm ships as a
+  lesson-plans `afterChange` hook on every AUTHENTICATED Official-pointer move (make-official +
+  admin repair form) + one explicit ingest call (see the DECISIONS 2026-07-08 item-3 refinement).
+  Wire tests per the standing agreement; a /simplify pass was applied post-build. **No migration;
+  Rock deploy pending** (fold into the next deploy — the new endpoint is inert until T2's UI).
 - **T2 — teacher-first catalogue**: responsive rows→cards, per-document strip (PDF/Word buttons per
   deliverable), grade filter buttons (10/11/12, data-derived) + subject filter, lesson-page export
   bar → per-document buttons + secondary "Download all (.zip)", version pills hidden from
