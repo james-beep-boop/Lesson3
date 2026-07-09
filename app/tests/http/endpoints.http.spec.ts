@@ -1067,11 +1067,19 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
 describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/request-editing', () => {
   const reqUrl = (id: number | string) => `/api/lesson-plans/${id}/request-editing`
 
+  // Only THIS feature's messages — the earlier messaging block leaves teacher-sent rows behind,
+  // so both the assertion and the cleanup must scope by content, not just sender.
+  const requestMessagesWhere = {
+    and: [
+      { sender: { equals: fx.users.teacher.id } },
+      { body: { like: 'editing access' } },
+    ],
+  }
+
   afterAll(async () => {
-    // Drop the request messages this block created (sender = the fixture teacher).
     await fx.payload.delete({
       collection: 'messages',
-      where: { sender: { equals: fx.users.teacher.id } },
+      where: requestMessagesWhere,
       overrideAccess: true,
     })
   })
@@ -1099,7 +1107,7 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
 
     const { docs } = await fx.payload.find({
       collection: 'messages',
-      where: { sender: { equals: fx.users.teacher.id } },
+      where: requestMessagesWhere,
       depth: 0,
       overrideAccess: true,
     })
