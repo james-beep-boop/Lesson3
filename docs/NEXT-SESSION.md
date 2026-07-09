@@ -50,9 +50,17 @@ this track.
   2026-07-08** (two CI rounds on test-scoping/laziness bugs, feature untouched — DECISIONS T3
   build notes). Server-resolved recipients; messages created as the caller; 1/day/sg throttle;
   wire tests. **No migration; not yet deployed.**
-- **T4 — teacher stars track Official** *(in progress 2026-07-08)*: re-point hook on the
-  Official-pointer move (DECISIONS T4 build notes); editors keep per-version pinning.
-- **THEN**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended Editor+-only.
+- ~~**T4 — teacher stars track Official**~~ **DONE — PR #76 merged (`f026fcd`), CI green,
+  2026-07-08.** Re-point hook on the Official-pointer move; editors keep per-version pinning;
+  follower stars survive promote-and-delete-previous; no migration (DECISIONS T4 build notes).
+- **THEN (next build)**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended
+  Editor+-only (chip/panel render only for `isEditorFor`, into the T2 catalogue layout).
+
+**THE TEACHER-FIRST TRACK (T1–T4) IS COMPLETE — all four PRs merged 2026-07-08, ZERO migrations.**
+**Operator next: ① Rock deploy** (T3 + T4 are not yet deployed; T1/T2 went out in the user's
+2026-07-08 deploy) — usual `scripts/deploy.sh`, no migration; **② the in-browser eyeball**: T2
+(strip both surfaces, PDF new-tab, Word download, chips, mobile cards, no pills as teacher) +
+T3 (Request editing access button → admin inboxes) + T4 (teacher star follows a Make Official).
 
 **Also verified 2026-07-08 (no code change):** Make Official gating already matches the user's intent
 at all three layers (button + endpoint enforce `isSubjectAdminFor`, i.e. Site Admin any / Subject
