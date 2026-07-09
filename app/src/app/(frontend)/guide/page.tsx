@@ -74,6 +74,11 @@ export default async function UserGuidePage() {
             day.
           </li>
           <li>
+            <strong>Want to edit?</strong> use <em>Request editing access</em> on any lesson page —
+            it messages the right administrators for you (once per subject per day). If they grant
+            it, the editing controls appear for that subject-grade.
+          </li>
+          <li>
             <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
             right) to send a note to any user of the repository — a lesson page&apos;s &ldquo;Message a
             colleague&rdquo; link attaches that lesson to your note. Each message you receive has a{' '}

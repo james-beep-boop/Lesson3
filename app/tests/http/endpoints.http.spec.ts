@@ -21,6 +21,7 @@
  *         -w /app --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import type { Where } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import {
@@ -1061,6 +1062,71 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
       headers: auth('teacher'), // the sender
     })
     expect(del.status).toBe(403)
+  })
+})
+
+describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/request-editing', () => {
+  const reqUrl = (id: number | string) => `/api/lesson-plans/${id}/request-editing`
+
+  // Only THIS feature's messages — the earlier messaging block leaves teacher-sent rows behind,
+  // so both the assertion and the cleanup must scope by content, not just sender. Lazy (a
+  // function, not a const): the describe body is collected BEFORE beforeAll populates `fx`.
+  const requestMessagesWhere = (): Where => ({
+    and: [
+      { sender: { equals: fx.users.teacher.id } },
+      { body: { like: 'editing access' } },
+    ],
+  })
+
+  afterAll(async () => {
+    await fx.payload.delete({
+      collection: 'messages',
+      where: requestMessagesWhere(),
+      overrideAccess: true,
+    })
+  })
+
+  it('401 without auth', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404 on a nonexistent plan', async () => {
+    const res = await fetch(url(reqUrl(999999999)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(404)
+  })
+
+  it('409 for a caller who already has edit rights', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('editor') })
+    expect(res.status).toBe(409)
+  })
+
+  it('a Teacher request messages the Subject Admin + Site Admin (server-resolved recipients)', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { sent: number }
+    expect(body.sent).toBe(2) // the fixture sg's Subject Admin + the one Site Admin
+
+    const { docs } = await fx.payload.find({
+      collection: 'messages',
+      where: requestMessagesWhere(),
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(docs).toHaveLength(2)
+    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(
+      new Set([String(fx.users.subjectAdmin.id), String(fx.users.siteAdmin.id)]),
+    )
+    for (const m of docs) {
+      expect(String(m.body)).toContain('editing access')
+      expect(String(m.lessonPlan)).toBe(String(fx.plan.id))
+    }
+  })
+
+  it('a repeat request the same day → 429 (one per user per subject-grade)', async () => {
+    const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBeTruthy()
   })
 })
 
