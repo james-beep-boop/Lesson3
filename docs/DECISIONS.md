@@ -36,6 +36,13 @@ teacher-first track — which changed two of its premises. Deviations, argued:
    compare-picker callers rely on oldest-first).
 5. The catalogue adds ONE projected fetch (whole-corpus version→plan ids) for the per-plan count
    behind the chip — same corpus-size posture + revisit thresholds as the existing fetches.
+6. **PR ③ (same day):** the lesson-page pill bar is REPLACED by the same chip+panel —
+   `Version 1.0.2 · Official  [N versions ▾]  [Compare]` — with the panel's "viewing" marker;
+   Compare keeps its own button (unchanged target). The version line now shows for editors even on
+   single-version plans (orientation); chip+Compare appear only with 2+. Pill CSS retired (desktop
+   + the mobile 44px rule, which the Compare button inherits instead); guide copy updated. The
+   compare page's own pickers are untouched (oldest-first `findReadableVersions`, deliberate).
+   **This completes the 2026-07-06 version-browser redesign (①=#68, ②=#77, ③=this PR).**
 
 ---
 

@@ -15,6 +15,7 @@ import EditActions from './EditActions'
 import FavoriteToggle from '@/components/FavoriteToggle'
 import DocStrip from '@/components/DocStrip'
 import RequestEditingButton from '@/components/RequestEditingButton'
+import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 
 /**
@@ -114,31 +115,30 @@ export default async function LessonView({
       </div>
 
       {/* Versions are an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): teachers
-          see the Official only — no pills, no Compare. The read gate is unchanged; a teacher with
-          a direct ?version= link can still open it. */}
-      {canEdit && versions.length > 1 && (
+          see the Official only — no versions UI, no Compare. The read gate is unchanged; a teacher
+          with a direct ?version= link can still open it. Redesign PR ③ (design 2026-07-06): the
+          pill bar is REPLACED by the same chip+panel the catalogue uses — `Version 1.0.2 ·
+          Official  [N versions ▾]  [Compare]` — with the panel marking the version being viewed. */}
+      {canEdit && (
         <nav className="version-bar" aria-label="Versions">
-          <span className="version-label">Version</span>
-          {/* Version diff (2026-07-05): sits left of the lowest-numbered pill; only exists when
-              there is more than one version to compare. */}
-          <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
-            Compare
-          </Link>
-          {versions.map((v) => {
-            const isSelected = v.id === selectedId
-            const isOfficial = v.id === officialId
-            return (
-              <Link
-                key={v.id}
-                href={`/lessons/${plan.id}?version=${v.id}`}
-                className={`version-pill${isSelected ? ' is-selected' : ''}`}
-                aria-current={isSelected ? 'true' : undefined}
-              >
-                {v.semver ?? `v${v.id}`}
-                {isOfficial && <span className="official-tag"> · Official</span>}
+          <span className="version-label">
+            Version {selected.semver ?? `v${selectedId}`}
+            {selectedId === officialId && <span className="official-tag"> · Official</span>}
+          </span>
+          {versions.length > 1 && (
+            <>
+              <VersionsChip
+                planId={plan.id}
+                officialVersionId={officialId ?? null}
+                versionCount={versions.length}
+                currentVersionId={selectedId}
+                panelLabel={title}
+              />
+              <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
+                Compare
               </Link>
-            )
-          })}
+            </>
+          )}
         </nav>
       )}
 
