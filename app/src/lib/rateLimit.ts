@@ -74,6 +74,17 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_MESSAGE_MAX', 50),
     windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_WINDOW_MS', 86_400_000),
   },
+  // Open self-registration (2026-07-09): same two-tier shape as forgot-password — per requested
+  // email (case games don't mint budgets) + a site-global daily ceiling on new accounts. There is
+  // no email verification yet (a schema change — deferred), so these caps are the abuse bound.
+  signup: {
+    max: positiveIntEnv('RATE_LIMIT_SIGNUP_MAX', 3),
+    windowMs: positiveIntEnv('RATE_LIMIT_SIGNUP_WINDOW_MS', 86_400_000),
+  },
+  signupGlobal: {
+    max: positiveIntEnv('RATE_LIMIT_SIGNUP_GLOBAL_MAX', 100),
+    windowMs: positiveIntEnv('RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS', 86_400_000),
+  },
   // "Request editing access" (teacher-first T3): ONE request per user per subject-grade per day —
   // the key is `${userId}:${subjectGradeId}` via enforceSharedRateLimit, so asking about Biology
   // G10 doesn't block asking about Chemistry G11. Bounds admin-inbox noise, not CPU.

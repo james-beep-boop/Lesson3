@@ -35,6 +35,24 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   operation,
   req,
 }) => {
+  // Open self-registration (2026-07-09): an UNAUTHENTICATED create is a signup — same
+  // unauthenticated-surface treatment as login/forgot-password (per-email + global caps).
+  // Authenticated creates (Site Admin) and trusted Local-API paths with a user stay uncapped.
+  if (operation === 'create' && !req.user) {
+    const rawEmail = (args as AuthArgs).data?.email
+    const key =
+      typeof rawEmail === 'string' && rawEmail.trim() !== '' ? rawEmail.trim().toLowerCase() : 'invalid'
+    const perTarget = await consumeRateLimit(req, 'signup', key)
+    if (!perTarget.ok) {
+      throw new APIError('Too many sign-up attempts for this address — please try again tomorrow.', 429)
+    }
+    const globalHit = await consumeRateLimit(req, 'signupGlobal', 'all')
+    if (!globalHit.ok) {
+      throw new APIError('Sign-ups are temporarily paused — please try again tomorrow.', 429)
+    }
+    return args
+  }
+
   if (operation !== 'login' && operation !== 'forgotPassword') return args
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email

@@ -7,6 +7,7 @@ import {
   assignmentsUpdateField,
   canManageUsers,
   emailReadAccess,
+  isSiteAdmin,
   selfOrSiteAdminField,
   siteAdminField,
   siteAdminOnly,
@@ -58,7 +59,9 @@ export const Users: CollectionConfig = {
       generateEmailHTML: (args) => {
         const token = (args as { token?: string } | undefined)?.token ?? ''
         const base = process.env.ADMIN_URL || process.env.SERVER_URL || ''
-        const url = `${base}/admin/reset/${token}`
+        // The FRONTEND reset page (2026-07-09) — /admin/reset would bounce non-admins off the
+        // gated panel after resetting; the app page works for every role.
+        const url = `${base}/reset-password?token=${token}`
         return `<p>You requested a password reset for the ARES Lesson Library.</p>
 <p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
 <p>If you didn't request this, ignore this email.</p>`
@@ -74,7 +77,11 @@ export const Users: CollectionConfig = {
   access: {
     admin: adminPanelAccess,
     read: usersCollectionRead,
-    create: siteAdminOnly,
+    // Open self-registration (user decision 2026-07-09, SPEC §8): anonymous visitors may create
+    // an account (rate-capped in hooks/authRateLimit; privileged fields are create-gated below,
+    // so a hostile signup body cannot smuggle roles/assignments). An AUTHENTICATED non-admin has
+    // no business creating users — only Site Admins keep that (people management on Manage).
+    create: ({ req }) => !req.user || isSiteAdmin(req.user as User),
     update: usersCollectionUpdate,
     delete: siteAdminOnly,
   },
@@ -124,7 +131,11 @@ export const Users: CollectionConfig = {
         description: 'Global Site Administrator grant. Leave empty for non-admins.',
       },
       access: {
-        // Only site admins may grant/revoke the global admin role.
+        // Only site admins may grant/revoke the global admin role. `create` matters since open
+        // registration (2026-07-09): the collection create gate no longer implies a trusted
+        // caller, so a signup body's `roles` must strip here (first-user bootstrap still works —
+        // grantSiteAdminToFirstUser runs AFTER the strip). System paths bypass via overrideAccess.
+        create: siteAdminField,
         read: siteAdminField,
         update: siteAdminField,
       },
@@ -142,6 +153,8 @@ export const Users: CollectionConfig = {
         // Grants are not public: with the names-only roster relaxation (SPEC §8, 2026-07-02) the
         // collection read gate no longer hides them, so the field guard must.
         read: assignmentsReadField,
+        // Like `roles` above: open registration makes the create axis load-bearing too.
+        create: assignmentsUpdateField,
         // Entry gate; enforceAssignmentScope constrains which rows a subject admin may change.
         update: assignmentsUpdateField,
       },

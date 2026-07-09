@@ -161,6 +161,13 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 ## 8. Roles & authorization
 
+- **Open self-registration (decided 2026-07-09):** anyone may create an account from the login
+  page's Sign up link (standard Payload create); new accounts are plain **Teachers** — the
+  privileged fields (`roles`, `assignments`) are create-gated, and signups are rate-capped per
+  address + site-globally. Password reset is Payload's native forgot/reset flow, emailed to the
+  frontend `/reset-password` page. Email VERIFICATION is a deferred hardening (needs a
+  `_verified` schema migration).
+
 | Role | Scope |
 |---|---|
 | Teacher | Global (any signed-in user) — view/export only |

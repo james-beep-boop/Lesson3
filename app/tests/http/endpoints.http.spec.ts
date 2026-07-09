@@ -1065,6 +1065,82 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
   })
 })
 
+describe('open self-registration (2026-07-09) — POST /api/users', () => {
+  const signupEmail = (tag: string) => `${MARK.toLowerCase()}${tag}@signup.test`
+  const signupName = (tag: string) => `${MARK}signup-${tag}`
+  const post = (body: Record<string, unknown>) =>
+    fetch(url('/api/users'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+  afterAll(async () => {
+    await fx.payload.delete({
+      collection: 'users',
+      where: { name: { like: `${MARK}signup-` } },
+      overrideAccess: true,
+    })
+  })
+
+  it('an anonymous visitor can register; hostile roles/assignments are STRIPPED', async () => {
+    const email = signupEmail('a')
+    const res = await post({
+      name: signupName('a'),
+      email,
+      password: 'signup-pass-1',
+      // Hostile payload: privilege smuggling must strip at the field create gates.
+      roles: ['siteAdmin'],
+      assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'subjectAdmin' }],
+    })
+    expect([200, 201]).toContain(res.status)
+
+    const { docs } = await fx.payload.find({
+      collection: 'users',
+      where: { email: { equals: email } },
+      depth: 0,
+      overrideAccess: true,
+    })
+    expect(docs).toHaveLength(1)
+    expect(docs[0].roles ?? []).toEqual([])
+    expect(docs[0].assignments ?? []).toEqual([])
+  })
+
+  it('the new account signs in as a plain Teacher', async () => {
+    const res = await fetch(url('/api/users/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: signupEmail('a'), password: 'signup-pass-1' }),
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { token?: string; user?: { roles?: string[] } }
+    expect(body.token).toBeTruthy()
+    expect(body.user?.roles ?? []).toEqual([])
+  })
+
+  it('an AUTHENTICATED non-admin cannot create users → 403', async () => {
+    const res = await fetch(url('/api/users'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth('teacher') },
+      body: JSON.stringify({ name: signupName('x'), email: signupEmail('x'), password: 'signup-pass-2' }),
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('the per-address signup cap bites on the 4th attempt → 429', async () => {
+    const email = signupEmail('capped')
+    const first = await post({ name: signupName('capped'), email, password: 'signup-pass-3' })
+    expect([200, 201]).toContain(first.status)
+    // Attempts 2–3 fail as duplicates (400) but still spend signup budget (probing is not free).
+    for (let i = 0; i < 2; i++) {
+      const dup = await post({ name: signupName('capped'), email, password: 'signup-pass-3' })
+      expect(dup.status).toBe(400)
+    }
+    const fourth = await post({ name: signupName('capped'), email, password: 'signup-pass-3' })
+    expect(fourth.status).toBe(429)
+  })
+})
+
 describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/request-editing', () => {
   const reqUrl = (id: number | string) => `/api/lesson-plans/${id}/request-editing`
 

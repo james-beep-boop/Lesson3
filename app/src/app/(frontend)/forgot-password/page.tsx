@@ -3,21 +3,20 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/session'
-import { LoginForm } from './LoginForm'
+import { ForgotPasswordForm } from './ForgotPasswordForm'
 
-export const metadata = { title: 'Sign in — Lesson Plan Repository' }
+export const metadata = { title: 'Forgot password — Lesson Plan Repository' }
 
-export default async function LoginPage() {
+export default async function ForgotPasswordPage() {
   const { user } = await getSession()
   if (user) redirect('/')
   return (
     <section className="login">
       <h1 className="login-title">Lesson Plan Repository</h1>
-      <p className="login-subtitle">Sign in</p>
-      <LoginForm />
+      <p className="login-subtitle">Reset your password</p>
+      <ForgotPasswordForm />
       <p className="login-links">
-        <Link href="/signup">Sign up</Link>
-        <Link href="/forgot-password">Forgot password?</Link>
+        <Link href="/login">Back to sign in</Link>
       </p>
     </section>
   )
