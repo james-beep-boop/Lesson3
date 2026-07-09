@@ -11,6 +11,41 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-09 (open registration + password reset) — Payload-native everywhere; the create axis on privileged fields became load-bearing
+
+**User decision: OPEN registration** (vs invite-only) for the login page's new Sign up link, plus
+Forgot password. Maximum standard-Payload per the user's instruction — no custom auth endpoints:
+
+- **Sign up = default REST `POST /api/users` + the standard login op.** Opening
+  `access.create` (was Site-Admin-only) exposed a latent gap: `roles`/`assignments` had NO
+  create-axis field access (safe only because the collection gate implied a trusted caller). Both
+  now carry `create: siteAdminField`/`assignmentsUpdateField`, so a hostile signup body's
+  privilege smuggling STRIPS — wire-pinned. First-user bootstrap unaffected
+  (`grantSiteAdminToFirstUser` runs after the strip; #53's boot refusal still guards exposure).
+  An authenticated NON-admin still cannot create users (403, pinned) — only anonymous signup and
+  Site Admin people-management.
+- **Signup throttling rides the existing auth seam** (`rateLimitAuthOperations`, the #42
+  `beforeOperation` hook): an unauthenticated create = a signup → per-email (3/day) + site-global
+  (100/day) buckets, env-overridable. With email VERIFICATION deferred (Payload `auth.verify`
+  adds a `_verified` column = Rock-generated migration — noted as follow-up hardening), these
+  caps are the abuse bound.
+- **Forgot/reset = Payload's native ops**, already rate-capped (#42). One change:
+  `generateEmailHTML` now links the FRONTEND `/reset-password?token=` page — the old
+  `/admin/reset/${token}` bounced non-admins off the gated panel after resetting.
+- Frontend: `/signup`, `/forgot-password` (same response whether or not the account exists — no
+  oracle), `/reset-password` (Payload signs the user in on success); login page links to both.
+  SPEC §8 amended; guide copy added.
+- **/simplify pass (this + the catalogue-perf diff): applied** — signup folded into
+  `rateLimitAuthOperations`' operation→buckets dispatch as a third row (was an early-return fork
+  duplicating the lowercase/'invalid' key rule — a security-relevant invariant that must not
+  drift), hook docblock updated to cover signup + the Local-API budget note; the users create
+  policy moved to `access/index.ts` (`usersCollectionCreate`) beside its read/update siblings —
+  a policy hiding in the collection file is what the next audit misses. **Skipped by decision:**
+  a shared fetch helper across the four auth forms (their error semantics genuinely differ; the
+  shared part is one fetch call — the fileResponse two-call-site ruling applies) and a one-owner
+  serializer for LibraryBrowser's three small adjacent URL-param sites (optional per review).
+  Efficiency angle reviewed clean (deliberate no-useMemo: criteria is the only state, a memo
+  would never hit; the RSC payload doubling is the accepted cost of client-side filtering).
 ## 2026-07-09 (catalogue perf) — browsing goes CLIENT-side: a filter click was a ~1s server round-trip
 
 **User-reported on the live Rock: the T2 filter buttons take a full second.** Root cause: the chips

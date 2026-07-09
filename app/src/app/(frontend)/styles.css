@@ -768,6 +768,19 @@ a {
   color: var(--muted);
   margin: 0.1rem 0 1.5rem;
 }
+.login-links {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+.login-note {
+  max-width: 22rem;
+  margin: 0.5rem auto;
+  text-align: center;
+  color: var(--muted);
+}
 .login-form {
   display: flex;
   flex-direction: column;

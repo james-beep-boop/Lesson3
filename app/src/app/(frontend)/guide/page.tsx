@@ -44,6 +44,11 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
+            <strong>Your account:</strong> create one from the sign-in page&apos;s <em>Sign up</em>{' '}
+            link — new accounts can read and download everything. <em>Forgot password?</em> on the
+            same page emails you a reset link.
+          </li>
+          <li>
             <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade, strand,
             and sub-strand in curriculum order.
           </li>
