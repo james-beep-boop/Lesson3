@@ -11,6 +11,34 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-09 (redesign PR ② build notes) — VersionsPanel via standard REST; two argued deviations from the 2026-07-06 lock
+
+PR ② of the version-browser redesign (design locked 2026-07-06; PR ① = #68), built AFTER the
+teacher-first track — which changed two of its premises. Deviations, argued:
+
+1. **The catalogue row star STAYS a toggle on the Official (design said: indicator-only when any
+   version is favorited).** The indicator design solved "which version would the row star toggle?"
+   — but T4 answered that definitively (teachers' stars = follow-the-Official toggles, shipped
+   behavior), and splitting one control's behavior by role is worse than the ambiguity it avoided.
+   The gap the indicator also served (pinned favorites invisible on the home page) is closed the
+   other way the design specified: **"My favorites" is now a list of VERSIONS** — a pinned
+   non-Official favorite renders as its own row, suffixed `· vX (pinned)`, linking straight to
+   `?version=`. Editors' per-version toggles live in the panel as designed.
+2. **Chip + panel are Editor+-only** — not a new deviation, the 2026-07-08 teacher-first lock §4
+   amendment. Teachers see no versions UI anywhere; server-side `isEditorFor` per row decides.
+3. **Panel data = STANDARD Payload REST, no custom endpoint** (§13 Payload-first): versions via
+   `GET /api/lesson-bundle-versions?where[lessonPlan][equals]=…&select…&depth=1` (author resolves
+   through the names-only roster projection), favorites via own-rows-only default REST. No new
+   authz surface → no new wire tests owed; the panel is gated by the same collection access the
+   suites already pin.
+4. **Ordering:** the app-wide Official-first/newest→oldest order ships as `lib/versionsOrder.ts`
+   (unit-pinned) applied at the PRESENTATION edge; `findReadableVersions` stays ascending (its
+   compare-picker callers rely on oldest-first).
+5. The catalogue adds ONE projected fetch (whole-corpus version→plan ids) for the per-plan count
+   behind the chip — same corpus-size posture + revisit thresholds as the existing fetches.
+
+---
+
 ## 2026-07-08 (T4 build notes) — teacher stars follow the Official via a RE-POINT hook; no schema change
 
 T4 of the teacher-first track (lock §7 left the mechanism to build time). **Chosen mechanism: an

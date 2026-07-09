@@ -56,6 +56,13 @@ this track.
 - **THEN (next build)**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended
   Editor+-only (chip/panel render only for `isEditorFor`, into the T2 catalogue layout).
 
+**BACKLOG (user, 2026-07-08): login page needs "Sign up" + "Forgot password?".** Use STANDARD
+Payload machinery: `forgot-password`/`reset-password` are native auth operations (REST
+`POST /api/users/forgot-password` + `/reset-password`; auth rate limiting from #42 ALREADY covers
+forgot-password) — the work is frontend pages + the reset-email template + a sign-up policy
+decision (open registration vs invite; new users default to Teacher per SPEC §8 — first-user
+bootstrap guard #53 already handles the empty-DB case). Not scheduled yet; next build below.
+
 **THE TEACHER-FIRST TRACK (T1–T4) IS COMPLETE — all four PRs merged 2026-07-08, ZERO migrations.**
 **Operator next: ① Rock deploy** (T3 + T4 are not yet deployed; T1/T2 went out in the user's
 2026-07-08 deploy) — usual `scripts/deploy.sh`, no migration; **② the in-browser eyeball**: T2

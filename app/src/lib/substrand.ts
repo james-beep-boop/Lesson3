@@ -27,6 +27,15 @@ export interface LessonRow {
   versionId?: number
   /** The Official version's deliverables (T2 document strip); from `versionDeliverables`. */
   deliverables?: DeliverableTag[]
+  /** Total versions of this plan (PR ②) — drives the `[N versions ▾]` chip (only when 2+). */
+  versionCount?: number
+  /** Whether the CALLER may edit this row's subject-grade (PR ②) — the chip is Editor+-only. */
+  canEdit?: boolean
+  /** "My favorites" as a list of VERSIONS (PR ②): set on a row representing a PINNED non-Official
+   *  favorite — display suffix + the ?version= link target. */
+  pinnedSemver?: string
+  /** Overrides the row's link target (used by pinned-favorite rows: /lessons/{id}?version=X). */
+  href?: string
 }
 
 export interface StrandGroup {

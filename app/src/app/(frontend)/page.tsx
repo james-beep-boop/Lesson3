@@ -5,7 +5,10 @@ import { requireUser } from '@/lib/session'
 import { relId } from '@/lib/relId'
 import FavoriteToggle from '@/components/FavoriteToggle'
 import DocStrip from '@/components/DocStrip'
+import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
+import { isEditorFor, toId } from '@/access'
+import type { User } from '@/payload-types'
 import SearchBox from './SearchBox'
 import {
   groupLessons,
@@ -45,7 +48,10 @@ export default async function BrowsePage({
   // key their star to the plan's OFFICIAL version (the version the row opens), so a favorite on a
   // non-Official version (saved from the lesson page) simply never matches a row's lookup here —
   // deliberately not surfaced yet; the versions-panel redesign PR ② adds the any-version indicator.
-  const [{ docs: plans }, { docs: favorites }] = await Promise.all([
+  // The third fetch (PR ②) is the whole corpus' version→plan mapping, projected to ONE relationship
+  // column — it feeds the per-plan version COUNT behind the `[N versions ▾]` chip. Same corpus-size
+  // posture as the plans fetch (revisit with the documented ~1–2k thresholds).
+  const [{ docs: plans }, { docs: favorites }, { docs: versionStubs }] = await Promise.all([
     payload.find({
       collection: 'lesson-plans',
       overrideAccess: false,
@@ -62,7 +68,20 @@ export default async function BrowsePage({
       pagination: false,
       select: { version: true },
     }),
+    payload.find({
+      collection: 'lesson-bundle-versions',
+      overrideAccess: false,
+      user,
+      depth: 0,
+      pagination: false,
+      select: { lessonPlan: true },
+    }),
   ])
+  const versionCountByPlan = new Map<number, number>()
+  for (const v of versionStubs) {
+    const pid = relId(v.lessonPlan)
+    if (pid != null) versionCountByPlan.set(pid, (versionCountByPlan.get(pid) ?? 0) + 1)
+  }
   const officialIds = plans.map((p) => relId(p.officialVersion)).filter((id): id is number => id != null)
 
   // version id → the caller's favorite row id (drives the star's filled state + DELETE target).
@@ -116,9 +135,60 @@ export default async function BrowsePage({
         lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
         status: 'published',
         deliverables: versionDeliverables(v),
+        versionCount: versionCountByPlan.get(planId) ?? 1,
+        canEdit: isEditorFor(user as User, toId(sg as never)),
       },
     ]
   })
+
+  // PR ②: "My favorites" is a list of VERSIONS. A favorite on a non-Official version (an editor's
+  // pin — teachers' stars follow the Official by T4) has no catalogue row, so resolve those
+  // versions into pseudo rows: same display shape, suffixed `· vX (pinned)`, linking straight to
+  // `?version=`. This closes PR ①'s documented gap (pinned favorites were invisible here).
+  const officialIdSet = new Set(officialIds)
+  const pinnedIds = [...favByVersion.keys()].filter((vid) => !officialIdSet.has(vid))
+  const pinnedRows: LessonRow[] = []
+  if (pinnedIds.length > 0) {
+    const { docs: pinned } = await payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { id: { in: pinnedIds } },
+      overrideAccess: false,
+      user,
+      depth: 2,
+      pagination: false,
+      select: {
+        title: true,
+        semver: true,
+        subjectGrade: true,
+        lessonPlan: true,
+        meta: { substrand_id: true, substrand_name: true },
+        unit: { strand: true },
+        lessons: { id: true },
+        finalExplanation: true,
+        summaryTable: true,
+      },
+    })
+    for (const v of pinned) {
+      const planId = relId(v.lessonPlan)
+      if (planId == null) continue
+      const sg = typeof v.subjectGrade === 'object' ? v.subjectGrade : null
+      const subject = sg && typeof sg.subject === 'object' ? sg.subject : null
+      pinnedRows.push({
+        id: planId,
+        versionId: v.id,
+        subjectName: subject?.name ?? 'Unknown subject',
+        grade: sg?.grade ?? null,
+        substrandId: v.meta?.substrand_id ?? '',
+        substrandName: lessonDisplayName(v.meta?.substrand_name, v.title),
+        strandName: v.unit?.strand ?? null,
+        lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
+        status: 'published',
+        deliverables: versionDeliverables(v),
+        pinnedSemver: v.semver ?? undefined,
+        href: `/lessons/${planId}?version=${v.id}`,
+      })
+    }
+  }
 
   // T2 filter chips: URL-driven (?subject=&grade=), combinable with search. Options derive from
   // the data — grades are 10/11/12 today, but nothing here hardcodes that.
@@ -151,9 +221,14 @@ export default async function BrowsePage({
       ) : (
         <>
           <FavoritesSection
-            rows={orderLessons(
-              filtered.filter((r) => r.versionId != null && favByVersion.has(r.versionId)),
-            )}
+            rows={orderLessons([
+              ...filtered.filter((r) => r.versionId != null && favByVersion.has(r.versionId)),
+              ...pinnedRows.filter(
+                (r) =>
+                  (!subject || r.subjectName === subject) &&
+                  (gradeNum == null || r.grade === gradeNum),
+              ),
+            ])}
             favByVersion={favByVersion}
           />
           <Catalogue groups={groupLessons(filtered)} favByVersion={favByVersion} />
@@ -234,7 +309,7 @@ function FavoritesSection({ rows, favByVersion }: { rows: LessonRow[]; favByVers
       <h2 className="sg-head">My favorites</h2>
       <ul className="substrand-list">
         {rows.map((r) => (
-          <SubstrandRow key={r.id} row={r} favByVersion={favByVersion} showContext />
+          <SubstrandRow key={r.versionId ?? r.id} row={r} favByVersion={favByVersion} showContext />
         ))}
       </ul>
     </div>
@@ -301,10 +376,11 @@ function SubstrandRow({
   return (
     <li className="substrand-row">
       <div className="substrand-main">
-        <Link href={`/lessons/${row.id}`} className="substrand-link">
+        <Link href={row.href ?? `/lessons/${row.id}`} className="substrand-link">
           {row.substrandId && <span className="substrand-num">{row.substrandId}</span>}
           <span className="substrand-name">
             {row.substrandName}
+            {row.pinnedSemver && <span className="pinned-tag"> · v{row.pinnedSemver} (pinned)</span>}
             {showContext && context && <span className="substrand-context">{context}</span>}
           </span>
         </Link>
@@ -312,6 +388,16 @@ function SubstrandRow({
           {row.status === 'draft' && <span className="status-pill">Draft</span>}
           {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
         </span>
+        {/* PR ② (Editor+-only per the 2026-07-08 amendment): the versions chip, only when there
+            is a real choice. Pinned-favorite rows skip it — their plan's main row carries it. */}
+        {row.canEdit && (row.versionCount ?? 1) > 1 && row.versionId != null && !row.pinnedSemver && (
+          <VersionsChip
+            planId={row.id}
+            officialVersionId={row.versionId}
+            versionCount={row.versionCount ?? 0}
+            panelLabel={row.substrandName}
+          />
+        )}
         {row.versionId != null && (
           <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
         )}

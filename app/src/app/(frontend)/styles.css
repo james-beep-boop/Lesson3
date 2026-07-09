@@ -508,6 +508,133 @@ a {
   padding: 0.1rem 0.55rem;
   font-size: 0.8rem;
 }
+/* PR ②: the [N versions ▾] chip (Editor+-only) and its floating VersionsPanel. */
+.versions-chip {
+  flex-shrink: 0;
+  padding: 0.08rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.versions-chip:hover,
+.versions-chip:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.vp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.vp-panel {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  width: min(34rem, 100%);
+  max-height: min(70vh, 34rem);
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1rem;
+}
+.vp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.vp-title {
+  font-weight: 600;
+}
+.vp-close {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+}
+.vp-close:hover,
+.vp-close:focus-visible {
+  color: var(--accent);
+}
+.vp-note {
+  margin: 0.4rem 0;
+}
+.vp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.vp-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+.vp-line:last-child {
+  border-bottom: none;
+}
+.vp-line.is-current {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.vp-line-open {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0.45rem 0.2rem;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.vp-line-open:hover .vp-semver,
+.vp-line-open:focus-visible .vp-semver {
+  color: var(--accent);
+}
+.vp-semver {
+  min-width: 7.5rem;
+  font-variant-numeric: tabular-nums;
+}
+.vp-current-tag {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+.vp-author {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.vp-date {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+/* Pinned-favorite rows ("My favorites" as versions, PR ②). */
+.pinned-tag {
+  color: var(--muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
 /* T2 filter chips: subject + grade rows under the search box; URL-driven links. */
 .filter-bar {
   display: flex;
@@ -997,6 +1124,19 @@ button[type='submit']:disabled {
     align-items: center;
     min-height: 2.75rem;
     padding: 0.3rem 0.9rem;
+  }
+  /* The versions chip + panel lines reach the same 44px touch bar. */
+  .versions-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.3rem 0.8rem;
+  }
+  .vp-line-open {
+    min-height: 2.75rem;
+  }
+  .vp-author {
+    display: none; /* keep semver + date readable on a narrow panel */
   }
 
   /* Lesson page: title and Edit/Make Official stack instead of fighting for one row. */
