@@ -39,10 +39,13 @@ this track.
   admin repair form) + one explicit ingest call (see the DECISIONS 2026-07-08 item-3 refinement).
   Wire tests per the standing agreement; a /simplify pass was applied post-build. **No migration;
   Rock deploy pending** (fold into the next deploy — the new endpoint is inert until T2's UI).
-- **T2 — teacher-first catalogue**: responsive rows→cards, per-document strip (PDF/Word buttons per
-  deliverable), grade filter buttons (10/11/12, data-derived) + subject filter, lesson-page export
-  bar → per-document buttons + secondary "Download all (.zip)", version pills hidden from
-  non-editors. Guide copy.
+- ~~**T2 — teacher-first catalogue**~~ **DONE — PR #74 merged (`a97179e`), CI green, 2026-07-08.**
+  Per-document strip on rows + lesson page (PDF opens in a new tab, Word downloads), URL-driven
+  subject/grade filter chips, versions UI editor-gated, mobile cards, zip demoted, guide copy.
+  Build notes + costs: DECISIONS 2026-07-08 (T2 build notes). **No migration. NOT browser-verified
+  (no Docker on the build Mac) — the user's in-browser eyeball after the next Rock deploy is the
+  outstanding check** (strip both surfaces, PDF new-tab, Word download, chips, mobile cards,
+  teacher sees no pills).
 - **T3 — "Request editing privileges"**: teacher-only button → endpoint messaging the subject-grade's
   Subject Admin + Site Admins (server-resolved recipients, 1/day/user/sg dedupe) via §10 messaging.
 - **T4 — teacher stars track Official** (favorites amendment; editors keep per-version pinning).
