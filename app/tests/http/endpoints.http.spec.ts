@@ -21,6 +21,7 @@
  *         -w /app --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import type { Where } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import {
@@ -1069,7 +1070,7 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
 
   // Only THIS feature's messages — the earlier messaging block leaves teacher-sent rows behind,
   // so both the assertion and the cleanup must scope by content, not just sender.
-  const requestMessagesWhere = {
+  const requestMessagesWhere: Where = {
     and: [
       { sender: { equals: fx.users.teacher.id } },
       { body: { like: 'editing access' } },
