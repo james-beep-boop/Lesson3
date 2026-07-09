@@ -1069,18 +1069,19 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
   const reqUrl = (id: number | string) => `/api/lesson-plans/${id}/request-editing`
 
   // Only THIS feature's messages — the earlier messaging block leaves teacher-sent rows behind,
-  // so both the assertion and the cleanup must scope by content, not just sender.
-  const requestMessagesWhere: Where = {
+  // so both the assertion and the cleanup must scope by content, not just sender. Lazy (a
+  // function, not a const): the describe body is collected BEFORE beforeAll populates `fx`.
+  const requestMessagesWhere = (): Where => ({
     and: [
       { sender: { equals: fx.users.teacher.id } },
       { body: { like: 'editing access' } },
     ],
-  }
+  })
 
   afterAll(async () => {
     await fx.payload.delete({
       collection: 'messages',
-      where: requestMessagesWhere,
+      where: requestMessagesWhere(),
       overrideAccess: true,
     })
   })
@@ -1108,7 +1109,7 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
 
     const { docs } = await fx.payload.find({
       collection: 'messages',
-      where: requestMessagesWhere,
+      where: requestMessagesWhere(),
       depth: 0,
       overrideAccess: true,
     })
