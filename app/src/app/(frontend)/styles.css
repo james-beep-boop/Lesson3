@@ -467,12 +467,76 @@ a {
 }
 .substrand-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.3rem;
   padding: 0.6rem 0.1rem;
   border-bottom: 1px solid var(--line);
   font-size: 0.9rem;
+}
+/* The row's title line (T2: the row itself stacks a document strip under this). */
+.substrand-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+/* T2 per-document strip: quiet label + small PDF/Word buttons per deliverable, indented past
+   the number column so it reads as the row's detail line. */
+.doc-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 2.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.6rem;
+}
+.doc-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.doc-strip-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.doc-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.btn-doc {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.8rem;
+}
+/* T2 filter chips: subject + grade rows under the search box; URL-driven links. */
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.8rem 0 1.1rem;
+}
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.filter-chip {
+  padding: 0.18rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.filter-chip:hover,
+.filter-chip:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 /* Titles read as ink (not link-blue); the accent is reserved for hover/focus. */
 .substrand-link {
@@ -895,8 +959,19 @@ button[type='submit']:disabled {
     padding: 1rem 0.9rem 3rem;
   }
 
-  /* Library rows: let the lesson count drop under the name instead of crushing it. */
+  /* Library rows read as CARDS on small screens (T2): bordered, self-contained, with the
+     document strip stacked full-width — friendlier to tap than a dense table of rows. */
+  .substrand-list {
+    border-top: none;
+  }
   .substrand-row {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.65rem;
+    gap: 0.5rem;
+  }
+  .substrand-main {
     flex-wrap: wrap;
     row-gap: 0.15rem;
   }
@@ -905,6 +980,23 @@ button[type='submit']:disabled {
   }
   .substrand-count {
     margin-left: 2.6rem; /* aligns under the name, past the number column */
+  }
+  /* The strip loses its desktop indent and stacks one document per line, buttons right. */
+  .doc-strip {
+    padding-left: 0;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .doc-strip-item {
+    width: 100%;
+    justify-content: space-between;
+  }
+  /* Filter chips get the 44px hit area like every other touch control. */
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.3rem 0.9rem;
   }
 
   /* Lesson page: title and Edit/Make Official stack instead of fighting for one row. */

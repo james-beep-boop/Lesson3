@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/session'
 import { relId } from '@/lib/relId'
 import FavoriteToggle from '@/components/FavoriteToggle'
+import DocStrip from '@/components/DocStrip'
+import { versionDeliverables } from '@/generator/adapter'
 import SearchBox from './SearchBox'
 import {
   groupLessons,
@@ -23,10 +25,13 @@ import {
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; subject?: string; grade?: string }>
 }) {
   const { payload, user } = await requireUser()
-  const q = ((await searchParams).q ?? '').trim()
+  const params = await searchParams
+  const q = (params.q ?? '').trim()
+  const subject = (params.subject ?? '').trim()
+  const grade = (params.grade ?? '').trim()
 
   // 1. Access-gated plans (every authenticated user reads all plans). We only need each plan's id +
   //    its Official version pointer; the listable content lives on that version.
@@ -85,6 +90,10 @@ export default async function BrowsePage({
           meta: { substrand_id: true, substrand_name: true },
           unit: { strand: true },
           lessons: { id: true },
+          // The two OPTIONAL deliverable groups — only to decide the row's document strip (T2)
+          // via `versionDeliverables`. Revisit if the corpus reaches the documented ~1–2k range.
+          finalExplanation: true,
+          summaryTable: true,
         },
       })
     : { docs: [] }
@@ -106,34 +115,110 @@ export default async function BrowsePage({
         strandName: v.unit?.strand ?? null,
         lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
         status: 'published',
+        deliverables: versionDeliverables(v),
       },
     ]
   })
+
+  // T2 filter chips: URL-driven (?subject=&grade=), combinable with search. Options derive from
+  // the data — grades are 10/11/12 today, but nothing here hardcodes that.
+  const subjects = [...new Set(rows.map((r) => r.subjectName))].sort((a, b) => a.localeCompare(b))
+  const grades = [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort(
+    (a, b) => a - b,
+  )
+  const gradeNum = grade ? Number(grade) : null
+  const filtered = rows.filter(
+    (r) => (!subject || r.subjectName === subject) && (gradeNum == null || r.grade === gradeNum),
+  )
 
   return (
     <section className="lp">
       <h1 className="lp-title">Lesson plans</h1>
 
       <SearchBox initialQuery={q} />
+      <FilterBar subjects={subjects} grades={grades} subject={subject} grade={grade} q={q} />
 
-      {rows.length === 0 ? (
-        <p className="muted">No lesson plans yet.</p>
+      {filtered.length === 0 ? (
+        <p className="muted">
+          {rows.length === 0 ? 'No lesson plans yet.' : 'No lesson plans match these filters.'}
+        </p>
       ) : q ? (
         <SearchResults
-          rows={orderLessons(rows.filter((r) => matchesQuery(r, q)))}
+          rows={orderLessons(filtered.filter((r) => matchesQuery(r, q)))}
           query={q}
           favByVersion={favByVersion}
         />
       ) : (
         <>
           <FavoritesSection
-            rows={orderLessons(rows.filter((r) => r.versionId != null && favByVersion.has(r.versionId)))}
+            rows={orderLessons(
+              filtered.filter((r) => r.versionId != null && favByVersion.has(r.versionId)),
+            )}
             favByVersion={favByVersion}
           />
-          <Catalogue groups={groupLessons(rows)} favByVersion={favByVersion} />
+          <Catalogue groups={groupLessons(filtered)} favByVersion={favByVersion} />
         </>
       )}
     </section>
+  )
+}
+
+/**
+ * URL-driven filter chips (T2): subject and grade, combinable with each other and with search.
+ * Server-rendered links — shareable URLs, no client state. A group renders only when the data
+ * offers a real choice.
+ */
+function FilterBar({
+  subjects,
+  grades,
+  subject,
+  grade,
+  q,
+}: {
+  subjects: string[]
+  grades: number[]
+  subject: string
+  grade: string
+  q: string
+}) {
+  if (subjects.length < 2 && grades.length < 2) return null
+
+  const href = (s: string | null, g: string | null): string => {
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    if (s) p.set('subject', s)
+    if (g) p.set('grade', g)
+    const qs = p.toString()
+    return qs ? `/?${qs}` : '/'
+  }
+  const chip = (key: string, label: string, target: string, active: boolean) => (
+    <Link
+      key={key}
+      href={target}
+      className={`filter-chip${active ? ' is-active' : ''}`}
+      aria-current={active ? 'true' : undefined}
+    >
+      {label}
+    </Link>
+  )
+
+  return (
+    <div className="filter-bar">
+      {subjects.length > 1 && (
+        <div className="filter-group" role="group" aria-label="Filter by subject">
+          {chip('all-subjects', 'All subjects', href(null, grade || null), !subject)}
+          {subjects.map((s) => chip(`s-${s}`, s, href(s, grade || null), subject === s))}
+        </div>
+      )}
+      {grades.length > 1 && (
+        <div className="filter-group" role="group" aria-label="Filter by grade">
+          {chip('all-grades', 'All grades', href(subject || null, null), !grade)}
+          {grades.map((g) =>
+            chip(`g-${g}`, `Grade ${g}`, href(subject || null, String(g)), grade === String(g)),
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -215,19 +300,25 @@ function SubstrandRow({
     .join(' · ')
   return (
     <li className="substrand-row">
-      <Link href={`/lessons/${row.id}`} className="substrand-link">
-        {row.substrandId && <span className="substrand-num">{row.substrandId}</span>}
-        <span className="substrand-name">
-          {row.substrandName}
-          {showContext && context && <span className="substrand-context">{context}</span>}
+      <div className="substrand-main">
+        <Link href={`/lessons/${row.id}`} className="substrand-link">
+          {row.substrandId && <span className="substrand-num">{row.substrandId}</span>}
+          <span className="substrand-name">
+            {row.substrandName}
+            {showContext && context && <span className="substrand-context">{context}</span>}
+          </span>
+        </Link>
+        <span className="substrand-count">
+          {row.status === 'draft' && <span className="status-pill">Draft</span>}
+          {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
         </span>
-      </Link>
-      <span className="substrand-count">
-        {row.status === 'draft' && <span className="status-pill">Draft</span>}
-        {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
-      </span>
-      {row.versionId != null && (
-        <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
+        {row.versionId != null && (
+          <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
+        )}
+      </div>
+      {/* The T2 document strip: the teacher's one-click PDF/Word per deliverable. */}
+      {row.versionId != null && row.deliverables && (
+        <DocStrip versionId={row.versionId} tags={row.deliverables} />
       )}
     </li>
   )

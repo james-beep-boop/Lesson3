@@ -8,12 +8,13 @@
  * submit navigates to `/?q=…`).
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const DEBOUNCE_MS = 200
 
 export default function SearchBox({ initialQuery }: { initialQuery: string }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [value, setValue] = useState(initialQuery)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   // The trimmed query this box itself last pushed to the URL. Distinguishes our own `?q=` round
@@ -38,7 +39,12 @@ export default function SearchBox({ initialQuery }: { initialQuery: string }) {
   const navigate = (q: string) => {
     const trimmed = q.trim()
     lastNavigated.current = trimmed
-    router.replace(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : '/', { scroll: false })
+    // Merge with the current params so typing a query keeps the T2 subject/grade filter chips.
+    const p = new URLSearchParams(searchParams.toString())
+    if (trimmed) p.set('q', trimmed)
+    else p.delete('q')
+    const qs = p.toString()
+    router.replace(qs ? `/?${qs}` : '/', { scroll: false })
   }
 
   const onChange = (q: string) => {

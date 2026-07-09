@@ -11,6 +11,38 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-08 (T2 build notes) — teacher catalogue: strip/filters/cards; the projection widenings and their costs
+
+T2 of the teacher-first track (design lock below). Build-time decisions worth recording:
+
+- **The strip's deliverable list derives from the generator's own decision.** `versionDeliverables`
+  (adapter.ts) applies the same clean→hasContent rule `bundleToAresData` uses for
+  `FINAL_EXPLANATION`/`SUMMARY_TABLE`, and `deliverables.spec.ts` pins the mirror by asserting tag
+  presence == the adapter's emission per fixture — a drift means a button that 404s.
+- **Two deliberate projection widenings, both bounded:** the catalogue query and
+  `findReadableVersions` now select `finalExplanation` + `summaryTable` (nested groups → extra
+  joins) solely to decide strip buttons. Catalogue = whole corpus (hundreds; same documented
+  ~1–2k revisit threshold as pagination); readable-versions = one plan's naturally-bounded set.
+  The alternative (a stored derived flag) needs a migration — not worth it at this scale.
+- **Filters are URL-driven server links** (`?subject=&grade=`), not client state — shareable,
+  combinable with `?q=`, options derived from data (nothing hardcodes grades 10–12). SearchBox now
+  merges instead of replacing params; side effect: URLSearchParams encodes space as `+` (was
+  `%20`) — identical server-side decode, unit pin updated with a comment.
+- **PDF-in-new-tab is popup-blocker-safe:** the tab opens SYNCHRONOUSLY in the click handler
+  showing "Preparing document…", then navigates when `ensureExportReady` (extracted from
+  `downloadExport`, single owner of the prepare+poll handshake) resolves; on failure it closes and
+  the error lands inline.
+- **Zip demoted, not removed:** "Download all" (DOCX/PDF .zip) moved into the action bar; the
+  per-document strip is the primary surface on BOTH catalogue rows and the lesson page.
+- **Versions UI now editor-gated** (lesson-page pill bar + Compare render only for `isEditorFor`),
+  per lock §4. The read gate is untouched — a teacher with a direct `?version=` link still opens it.
+- **NOT verified in a live browser this session** — Docker daemon isn't running on this Mac, and
+  CI renders no frontend pages. Gates: typecheck/lint/unit local + CI build/int/http. **The user's
+  in-browser eyeball after the next Rock deploy is the outstanding verification** (strip on rows +
+  lesson page, PDF new-tab, Word download, filter chips, mobile cards, teacher sees no pills).
+
+---
+
 ## 2026-07-08 (Codex post-T1 audit) — status jobId binds to {version, kind}; job-boundary kind guard
 
 An external Codex pass over merged T1 (#72) found no Critical/High; two accepted findings, both
