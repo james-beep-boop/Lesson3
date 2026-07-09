@@ -6,6 +6,8 @@
  *
  * Mounted on the lesson-bundle-versions collection:
  *   - `GET  /api/lesson-bundle-versions/:id/export`  — serve-only (idempotent; warm → zip, cold → 409).
+ *   - `GET  /api/lesson-bundle-versions/:id/export/doc?doc=<tag>` — serve ONE deliverable (teacher-first
+ *     track T1): PDF inline (opens in the browser), DOCX attachment. Same warm-only contract.
  *   - `POST /api/lesson-bundle-versions/:id/export`  — prepare: warm → 200 {ready}; cold → enqueue + 202.
  *   - `GET  /api/lesson-bundle-versions/:id/export/status?jobId=…` — poll an enqueued job.
  * Query (export): `?as=docx|pdf` (default `docx`).
@@ -16,56 +18,23 @@
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { json } from './respond'
-import { isExportReady, loadCachedExportZip, safePrefix } from '../generator/exportArtifacts'
+import {
+  isExportReady,
+  loadCachedDeliverable,
+  loadCachedExportZip,
+  mimeFor,
+  safePrefix,
+} from '../generator/exportArtifacts'
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
+  findPendingExportJob,
+  jobMatchesVersion,
   type GenerateVersionArtifactInput,
 } from '../jobs/generateVersionArtifact'
 import { authorizeVersionExportRequest } from './exportAuth'
+import { parseDeliverableTag } from './parseFormat'
 import { enforceUserRateLimit } from '../lib/rateLimit'
 import type { PayloadJob } from '../payload-types'
-
-/**
- * Is `job` a `generateVersionArtifact` job for `versionId`? `payload-jobs.input` is a JSON column, so
- * read `versionId` off it as a scalar (not a Payload relationship — `relId`/`toId` don't apply). Shared
- * by the status-binding check and the dedupe lookup.
- */
-function jobMatchesVersion(job: PayloadJob | null | undefined, versionId: number | string): boolean {
-  const input = job?.input as { versionId?: number | string } | undefined
-  return (
-    job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
-    String(input?.versionId ?? '') === String(versionId)
-  )
-}
-
-/**
- * Find an in-flight `generateVersionArtifact` job matching this exact spec, or null. A job is
- * "in-flight" if it has not completed and is not in a terminal error state. `payload-jobs.input` is a
- * JSON column, so match in-memory over the (few) pending rows rather than via a nested-JSON `where`.
- */
-async function findPendingExportJob(
-  req: PayloadRequest,
-  input: GenerateVersionArtifactInput,
-): Promise<PayloadJob | null> {
-  const { docs } = await req.payload.find({
-    collection: 'payload-jobs',
-    where: {
-      taskSlug: { equals: GENERATE_VERSION_ARTIFACT_SLUG },
-      completedAt: { exists: false },
-      hasError: { not_equals: true },
-    },
-    // The pending set for one task slug is tiny — autoRun drains it every ~3s and dedupe coalesces
-    // repeats — so a small bound comfortably covers any realistic in-flight window.
-    limit: 20,
-    depth: 0,
-    overrideAccess: true,
-  })
-  const match = docs.find((j) => {
-    const i = j.input as { kind?: string } | undefined
-    return jobMatchesVersion(j, input.versionId) && i?.kind === input.kind
-  })
-  return match ?? null
-}
 
 /** GET — serve-only download. Idempotent, side-effect free; never enqueues. */
 export const exportVersionEndpoint: Endpoint = {
@@ -94,6 +63,44 @@ export const exportVersionEndpoint: Endpoint = {
   },
 }
 
+/**
+ * GET /:id/export/doc — serve ONE deliverable (teacher-first track T1, DECISIONS 2026-07-08).
+ * Serve-only like the zip GET (never generates; cold → 409, the client prepares via the same POST).
+ * PDF is `Content-Disposition: inline` so it opens in a browser tab — the whole point of the
+ * per-document button; DOCX stays `attachment`. 404 when the export is ready but this version has
+ * no such document (not every sub-strand has a Final Explanation / Summary Table).
+ */
+export const exportVersionDocEndpoint: Endpoint = {
+  path: '/:id/export/doc',
+  method: 'get',
+  handler: async (req: PayloadRequest): Promise<Response> => {
+    if (!req.user) throw new APIError('Unauthorized', 401)
+
+    const { spec } = await authorizeVersionExportRequest(req)
+    const tag = parseDeliverableTag(req)
+
+    const doc = await loadCachedDeliverable(spec, tag)
+    if (doc.state === 'cold') {
+      return json({ state: 'not_prepared', message: 'Export not ready — prepare it first.' }, 409)
+    }
+    if (doc.state === 'absent') {
+      throw new APIError('This lesson plan has no such document.', 404)
+    }
+
+    // A zero-copy view over the cached Buffer (the copying Uint8Array(buffer) constructor would
+    // memcpy the whole deliverable on every download of this teacher-facing hot path).
+    const body = new Uint8Array(doc.bytes.buffer, doc.bytes.byteOffset, doc.bytes.byteLength)
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': mimeFor(spec.kind),
+        'Content-Disposition': `${spec.kind === 'pdf' ? 'inline' : 'attachment'}; filename="${doc.filename}"`,
+        'Content-Length': String(doc.bytes.length),
+      },
+    })
+  },
+}
+
 /** POST — prepare. The only state-changing export op (CSRF-guarded by the SameSite=Lax cookie). */
 export const exportVersionPrepareEndpoint: Endpoint = {
   path: '/:id/export',
@@ -116,7 +123,7 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, kind} rather than
     // enqueuing a duplicate (repeated clicks / poll races / two tabs). The artifact cache already makes
     // COMPLETED repeats free (the isExportReady short-circuit above); this guards the in-flight window.
-    const existing = await findPendingExportJob(req, input)
+    const existing = await findPendingExportJob(req.payload, input)
     const job = existing ?? (await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req }))
 
     const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&as=${kind}`

@@ -38,7 +38,7 @@ export const versionScope = (versionId: number | string): string => `version:${v
 
 /** One deliverable's stable cache tag + its download filename stem (no extension). */
 interface DocMeta {
-  tag: string
+  tag: DeliverableTag
   name: string
 }
 
@@ -49,7 +49,17 @@ interface Manifest {
 
 const MANIFEST_DOC = '__manifest__'
 
+/** Every deliverable tag a version export can contain (the manifest lists which exist). */
+export const DELIVERABLE_TAGS = ['lessonSequence', 'finalExplanation', 'summaryTable'] as const
+export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
+
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
+
+/** The kind→MIME mapping, beside its kind→extension sibling — the single owner of both axes. */
+export const mimeFor = (kind: ExportKind): string =>
+  kind === 'pdf'
+    ? 'application/pdf'
+    : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /** Strip a stored filePrefix to a safe bare filename component (no path/traversal). */
 export const safePrefix = (raw: unknown): string =>
@@ -112,15 +122,8 @@ export async function produceArtifacts(
  * generates or converts — a pure cache read, so it can't tie up a worker.
  */
 export async function loadCachedExportZip(spec: ArtifactSpec): Promise<Buffer | null> {
-  const manifestBytes = await getArtifact(keyFor(spec, MANIFEST_DOC))
-  if (!manifestBytes) return null
-
-  let manifest: Manifest
-  try {
-    manifest = JSON.parse(manifestBytes.toString('utf8')) as Manifest
-  } catch {
-    return null // corrupt manifest → treat as a miss; the cold path will rewrite it
-  }
+  const manifest = await readManifest(spec)
+  if (!manifest) return null
 
   const ext = extFor(spec.kind)
   const entries: { name: string; bytes: Buffer }[] = []
@@ -139,14 +142,46 @@ export async function loadCachedExportZip(spec: ArtifactSpec): Promise<Buffer | 
  * Mirrors exactly what `loadCachedExportZip` requires, but cheaply (existence checks, no byte reads).
  */
 export async function isExportReady(spec: ArtifactSpec): Promise<boolean> {
-  const manifestBytes = await getArtifact(keyFor(spec, MANIFEST_DOC))
-  if (!manifestBytes) return false
-  let manifest: Manifest
-  try {
-    manifest = JSON.parse(manifestBytes.toString('utf8')) as Manifest
-  } catch {
-    return false
-  }
+  const manifest = await readManifest(spec)
+  if (!manifest) return false
   const present = await Promise.all(manifest.docs.map((d) => hasArtifact(keyFor(spec, d.tag))))
   return present.every(Boolean)
+}
+
+/** Read + parse the manifest sentinel, or null when missing/corrupt (a miss either way — the cold
+ *  path rewrites it). Single owner for the read the zip/ready/deliverable paths all share. */
+async function readManifest(spec: ArtifactSpec): Promise<Manifest | null> {
+  const manifestBytes = await getArtifact(keyFor(spec, MANIFEST_DOC))
+  if (!manifestBytes) return null
+  try {
+    return JSON.parse(manifestBytes.toString('utf8')) as Manifest
+  } catch {
+    return null
+  }
+}
+
+/** One deliverable's serve-ready bytes, or why not: `cold` = manifest/bytes missing (prepare
+ *  first — indistinguishable from eviction, same remedy), `absent` = the export is ready and this
+ *  version genuinely has no such document (e.g. no Final Explanation for this sub-strand). */
+export type DeliverableResult =
+  | { state: 'ready'; filename: string; bytes: Buffer }
+  | { state: 'cold' }
+  | { state: 'absent' }
+
+/**
+ * WARM PATH (per-document endpoint): serve ONE deliverable from the cache (teacher-first track T1,
+ * DECISIONS 2026-07-08). Same never-generates contract as `loadCachedExportZip`; the filename comes
+ * from the manifest so it matches the zip's entry name exactly.
+ */
+export async function loadCachedDeliverable(
+  spec: ArtifactSpec,
+  tag: DeliverableTag,
+): Promise<DeliverableResult> {
+  const manifest = await readManifest(spec)
+  if (!manifest) return { state: 'cold' }
+  const doc = manifest.docs.find((d) => d.tag === tag)
+  if (!doc) return { state: 'absent' }
+  const bytes = await getArtifact(keyFor(spec, doc.tag))
+  if (!bytes) return { state: 'cold' } // evicted → incomplete; a re-prepare rewrites it
+  return { state: 'ready', filename: `${doc.name}.${extFor(spec.kind)}`, bytes }
 }

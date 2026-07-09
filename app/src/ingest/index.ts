@@ -34,10 +34,12 @@ import { extractAresData, extractAresJson } from './extract'
 import { rawToBundle, type IngestBundleData } from './toBundle'
 import { deliverableWarnings, validateGeneratable } from './validateGeneratable'
 import { nextMajorForPlan } from '../lib/semver'
+import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 
 /** A minimal Local-API request carrier (no user = trusted system path). */
-type IngestReq = Partial<PayloadRequest> & { payload: Payload }
+/** A minimal Local-API request carrier — also the shape `prewarmVersionArtifacts` accepts. */
+export type IngestReq = Partial<PayloadRequest> & { payload: Payload }
 const LESSON_PLANS = 'lesson-plans' as CollectionSlug
 const LESSON_BUNDLE_VERSIONS = 'lesson-bundle-versions' as CollectionSlug
 
@@ -386,6 +388,10 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         } as never,
         req,
       })
+      // Pre-warm docx+pdf for the new Official (teacher-first track T1). Ingest is a system path
+      // (no req.user), so the lesson-plans prewarm hook deliberately does not fire — this explicit
+      // opt-in is the one system caller that wants warming. Never throws; rides this transaction.
+      await prewarmVersionArtifacts(req, Number(version.id))
       results.push({
         file: name,
         id: plan.id,

@@ -12,8 +12,9 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**The chosen track is now the AUDIT-DRIVEN FIVE-PHASE PLAN** (2026-07-04 — see the newest RESUME
-section below and DECISIONS 2026-07-04; the §10 cross-user-features track completed 2026-07-03).
+**The chosen track is now the TEACHER-FIRST TRACK** (2026-07-08 — see the newest RESUME section
+below and DECISIONS 2026-07-08; the audit-driven five-phase plan completed through Phase 4, with
+Phase 5 Track B host-gated; the §10 cross-user-features track completed 2026-07-03).
 The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
@@ -23,7 +24,34 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-07 later) — dup-Edit button FIXED; version-picker window is the next BUILD
+## ▶ RESUME HERE (2026-07-08) — TEACHER-FIRST TRACK is the active arc (design locked; REORDERS ahead of VersionsPanel PR ②/③)
+
+**The user re-prioritized: ~95% of users are Teachers; the teacher experience comes first.** Full
+design lock: **DECISIONS 2026-07-08 (teacher-first track)** — read it before touching this arc. The
+VersionsPanel PR ②/③ build is POSTPONED (and amended: versions UI becomes Editor+-only) until after
+this track.
+
+**Build order (each its own CI-gated PR):**
+- **T1 — backend: per-deliverable export + pre-warm** *(in progress 2026-07-08)*. New
+  `GET /:id/export/doc?doc=<tag>&as=docx|pdf` serving ONE deliverable from the existing artifact
+  cache (PDF inline → opens in browser; DOCX attachment); pre-warm docx+pdf on make-official and on
+  first-ingest Official. Wire-level authz tests per the standing agreement.
+- **T2 — teacher-first catalogue**: responsive rows→cards, per-document strip (PDF/Word buttons per
+  deliverable), grade filter buttons (10/11/12, data-derived) + subject filter, lesson-page export
+  bar → per-document buttons + secondary "Download all (.zip)", version pills hidden from
+  non-editors. Guide copy.
+- **T3 — "Request editing privileges"**: teacher-only button → endpoint messaging the subject-grade's
+  Subject Admin + Site Admins (server-resolved recipients, 1/day/user/sg dedupe) via §10 messaging.
+- **T4 — teacher stars track Official** (favorites amendment; editors keep per-version pinning).
+- **THEN**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended Editor+-only.
+
+**Also verified 2026-07-08 (no code change):** Make Official gating already matches the user's intent
+at all three layers (button + endpoint enforce `isSubjectAdminFor`, i.e. Site Admin any / Subject
+Admin scoped; Editors 403 server-side).
+
+---
+
+## ▶ Older resume (2026-07-07 later) — dup-Edit button FIXED; version-picker window is the next BUILD
 
 **User did an in-browser eyeball of the LIVE Rock (2026-07-07) and flagged two things as missing.**
 Investigation (code + history; full write-up: DECISIONS 2026-07-07 (eyeball: dup-Edit + version window)):

@@ -23,7 +23,14 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
+import {
+  MARK,
+  enqueuedKindsFor,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+  type RoleKey,
+} from '../helpers/fixtures.js'
 
 const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
@@ -76,6 +83,19 @@ async function pollExportReady(statusUrl: string, key: RoleKey, timeoutMs = 150_
 }
 
 /** Full read-gated export handshake for one deliverable kind → returns the downloaded zip bytes. */
+/** POST prepare (+ poll if cold) until the (version, kind) export is ready to serve. */
+async function prepareExport(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<void> {
+  const prep = await fetch(url(`/api/lesson-bundle-versions/${versionId}/export?as=${as}`), {
+    method: 'POST',
+    headers: auth(key),
+  })
+  expect([200, 202]).toContain(prep.status)
+  if (prep.status === 202) {
+    const { statusUrl } = (await prep.json()) as { statusUrl: string }
+    await pollExportReady(statusUrl, key)
+  }
+}
+
 async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<Buffer> {
   const exportUrl = `/api/lesson-bundle-versions/${versionId}/export?as=${as}`
 
@@ -83,13 +103,7 @@ async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 
   const cold = await fetch(url(exportUrl), { headers: auth(key) })
   expect(cold.status).toBe(409)
 
-  // POST prepare: warm → 200 {ready}; cold → 202 + a status URL to poll.
-  const prep = await fetch(url(exportUrl), { method: 'POST', headers: auth(key) })
-  expect([200, 202]).toContain(prep.status)
-  if (prep.status === 202) {
-    const { statusUrl } = (await prep.json()) as { statusUrl: string }
-    await pollExportReady(statusUrl, key)
-  }
+  await prepareExport(versionId, key, as)
 
   // GET serve now warm → the zip.
   const dl = await fetch(url(exportUrl), { headers: auth(key) })
@@ -285,6 +299,83 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     expect(a.state).toBe('preparing')
     expect(b.state).toBe('preparing')
     expect(String(b.jobId)).toBe(String(a.jobId))
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+  })
+})
+
+describe('per-document export (teacher-first T1) — GET /:id/export/doc', () => {
+  const docUrl = (id: number | string, doc: string, as: 'docx' | 'pdf') =>
+    `/api/lesson-bundle-versions/${id}/export/doc?doc=${doc}&as=${as}`
+
+  it('401 without auth', async () => {
+    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')))
+    expect(res.status).toBe(401)
+  })
+
+  it('400 on an unknown doc tag', async () => {
+    const res = await fetch(url(docUrl(fx.version.id, 'notADoc', 'docx')), { headers: auth('teacher') })
+    expect(res.status).toBe(400)
+  })
+
+  it('404 on a nonexistent version (read gate)', async () => {
+    const res = await fetch(url(docUrl(999999999, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    expect(res.status).toBe(404)
+  })
+
+  it('409 cold — serve-only, never generates', async () => {
+    const cold = await makeColdVersion('doc-cold', '8.2.0')
+    const res = await fetch(url(docUrl(cold.id, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    expect(res.status).toBe(409)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+  })
+
+  it('a Teacher gets a warm DOCX deliverable → attachment', async () => {
+    await prepareExport(fx.version.id, 'teacher', 'docx')
+    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
+    const disposition = res.headers.get('content-disposition') ?? ''
+    expect(disposition.startsWith('attachment; filename="')).toBe(true)
+    expect(disposition.endsWith('.docx"')).toBe(true)
+    const buf = Buffer.from(await res.arrayBuffer())
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK') // docx = zip container magic
+  })
+
+  it('a Teacher gets a warm PDF deliverable → INLINE (opens in the browser)', async () => {
+    await prepareExport(fx.version.id, 'teacher', 'pdf')
+    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'pdf')), { headers: auth('teacher') })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    const disposition = res.headers.get('content-disposition') ?? ''
+    expect(disposition.startsWith('inline; filename="')).toBe(true)
+    expect(disposition.endsWith('.pdf"')).toBe(true)
+    const buf = Buffer.from(await res.arrayBuffer())
+    expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+
+  it('404 when the version has no such deliverable (fixture has no Final Explanation)', async () => {
+    await prepareExport(fx.version.id, 'teacher', 'docx')
+    const res = await fetch(url(docUrl(fx.version.id, 'finalExplanation', 'docx')), { headers: auth('teacher') })
+    expect(res.status).toBe(404)
+  })
+
+  it('make-official pre-warms BOTH kinds (jobs committed with the promotion)', async () => {
+    const cold = await makeColdVersion('doc-prewarm', '8.3.0')
+    const promote = await fetch(
+      url(`/api/lesson-bundle-versions/${cold.id}/make-official?deletePrevious=false`),
+      { method: 'POST', headers: auth('subjectAdmin') },
+    )
+    expect(promote.status).toBe(200)
+    expect(await enqueuedKindsFor(fx.payload, cold.id)).toEqual(new Set(['docx', 'pdf']))
+
+    // Restore the fixture Official, then drop the throwaway (deletable only once non-Official).
+    const restore = await fetch(
+      url(`/api/lesson-bundle-versions/${fx.version.id}/make-official?deletePrevious=false`),
+      { method: 'POST', headers: auth('subjectAdmin') },
+    )
+    expect(restore.status).toBe(200)
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
   })
 })

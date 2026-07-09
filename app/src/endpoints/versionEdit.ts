@@ -263,6 +263,7 @@ export const makeOfficialEndpoint: Endpoint = {
         previousDeleted = true
       }
 
+
       if (shouldCommit) await commitTransaction(req)
       return json({ ok: true, officialVersion: version.id, previousOfficialId, previousDeleted })
     } catch (e) {

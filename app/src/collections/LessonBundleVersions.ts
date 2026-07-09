@@ -17,6 +17,7 @@ import {
   numberBundleVersionRows,
 } from '../hooks/bundleVersion'
 import {
+  exportVersionDocEndpoint,
   exportVersionEndpoint,
   exportVersionPrepareEndpoint,
   exportVersionStatusEndpoint,
@@ -81,6 +82,8 @@ export const LessonBundleVersions: CollectionConfig = {
   endpoints: [
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
     exportVersionEndpoint,
+    // GET /:id/export/doc?doc=<tag> — serve ONE deliverable: PDF inline, DOCX attachment (T1).
+    exportVersionDocEndpoint,
     // POST /:id/export — prepare: warm → 200 {ready}; cold → 202 + enqueue generateVersionArtifact.
     exportVersionPrepareEndpoint,
     // GET /:id/export/status?jobId=… — poll an enqueued export job.

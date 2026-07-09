@@ -14,7 +14,7 @@ import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
-import { MARK, MARK_BASE, purgeMarked } from '../helpers/fixtures.js'
+import { MARK, MARK_BASE, enqueuedKindsFor, purgeMarked } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
@@ -109,6 +109,14 @@ describe('re-ingest (SPEC §7)', () => {
     expect(r.semver).toBe('1.0.0')
     expect(r.official).toBe(true)
     expect(await officialOf(r.id)).not.toBeNull()
+  })
+
+  it('a NEW plan pre-warms its Official artifacts (docx+pdf jobs enqueued in the ingest transaction)', async () => {
+    const [r] = await ingestItems(payload, [item('pw.json', rawBundle('97.6', 'Prewarm'))])
+    expect(r.action).toBe('created')
+    const versionId = await officialOf(r.id)
+    expect(versionId).not.toBeNull()
+    expect(await enqueuedKindsFor(payload, versionId as number)).toEqual(new Set(['docx', 'pdf']))
   })
 
   it('re-upload of the same sub-strand attaches as 2.0.0, Not Official, Official pointer unmoved', async () => {

@@ -11,6 +11,67 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-08 (teacher-first track) — DESIGN LOCK: the teacher experience is the next build arc; it REORDERS ahead of VersionsPanel PR ②/③
+
+**Context (user decision):** ~95% of users are Teachers with no editing/admin interest. The system must
+be extremely friendly for them: hide every editing/management affordance, surface Official documents
+with one-click PDF (opens in browser) / Word (downloads) per deliverable, modelled on the clean ARES
+demo page (`demo.aresedu.dev/modules/Curriculum_Teacher_Aids/PDF/`: search bar → subject filter →
+per-document lines with two small buttons). All decided in structured discussion 2026-07-08; the user
+signed off on every item below.
+
+**Decisions (locked):**
+1. **Make Official gating — VERIFIED ALREADY CORRECT, no change.** The user asked that Make Official
+   be Site-Admin (any doc) / Subject-Admin (their subject-grades) only, never mere `canEdit`. Checked
+   three layers: button renders under `canMakeOfficial = isSubjectAdminFor` (page.tsx L70,
+   EditActions L77), and the endpoint independently enforces `authorize(req,'admin')` →
+   `isSubjectAdminFor` (versionEdit.ts L202). Editors get 403 on a hand-crafted POST. Matches intent.
+2. **Per-deliverable export, served from the EXISTING artifact cache** (not a new storage layer — the
+   "store official PDFs/DOCX on the server" ask is already satisfied by the on-disk content-addressed
+   cache; artifacts stay derivable + disposable). New `GET /:id/export/doc?doc=<tag>&as=docx|pdf`
+   serves ONE deliverable: PDF `Content-Disposition: inline` (opens in a browser tab — this alone
+   fixes "PDF doesn't open in browser"; the zip wrapper was the cause, not regeneration), DOCX
+   `attachment`. The zip stays as a secondary "Download all". Buttons appear BOTH on catalogue rows
+   (a per-document strip: "Lesson plan [PDF] [Word]" etc.) AND on the lesson page (replacing the
+   zip-only bar; zip demoted to secondary link).
+3. **Pre-warm on Official designation.** Enqueue `generateVersionArtifact` (docx+pdf) whenever a
+   version becomes Official — so a teacher never hits the cold 202/poll path. Cold DOCX ≈1–2s, cold
+   PDF = Gotenberg seconds; warm = disk read. Enqueue is try/caught (a prewarm failure never fails
+   the promotion — messagePing precedent). Eviction of an Official artifact (LRU 512 MB) just means
+   one rare regeneration; pinning deferred until it matters.
+   - **REFINED at build time (same session, /simplify altitude pass):** the original wording named
+     two call sites (make-official + first-ingest), but a third pointer-moving path exists — the
+     Site-Admin **Official-pointer repair form** (the lesson-plans document view) — and per-call-site
+     wiring taxes every future mover. Shipped shape: a lesson-plans `afterChange` hook
+     (`prewarmOfficialArtifacts`) fires on every **authenticated** pointer change (`req.user` gate =
+     the same system-path carve-out as `validateOfficialVersionPointer`, so fixtures/migrations
+     don't mass-enqueue), and **ingest keeps one explicit call** as the sole system path that wants
+     warming. Same intent, full coverage, one mechanism per caller class.
+4. **Versions UI is Editor+ only** (amends the locked 2026-07-06 VersionsPanel design, which put the
+   `[N versions ▾]` chip on rows for everyone): Teachers see Official only — no chip, no pill bar, no
+   "show additional versions" checkbox (explicitly rejected). The chip/panel renders only for
+   `isEditorFor` on that row's subject-grade.
+5. **Catalogue redesign:** responsive one-DOM layout — rows-with-document-strip on desktop, cards on
+   mobile; grade filter buttons (10/11/12, derived from data, not hardcoded) + subject filter; the
+   existing search stays. 44px touch targets per the standing mobile pass.
+6. **"Request editing privileges" button** (teacher-only, on the lesson page): a dedicated endpoint
+   composes a standard message — "«Name» requests editing access for «Subject · Grade N»" with a plan
+   context link — to the subject-grade's Subject Admin + all Site Admins, resolved server-side
+   (teachers can't know who admins are; roster is names-only). Dedupe: one request per user per
+   subject-grade per day. The grant itself stays manual (Manage → Editors widget). Reuses the §10
+   messaging plumbing (inbox, ping, caps).
+7. **Teacher stars track Official.** Favorites are per-version (PR ① #68) — right for editors, wrong
+   for teachers, who'd silently pin an outdated snapshot when the Official moves. Decision: a plain
+   teacher's star follows the plan's CURRENT Official; mechanism decided at build (PR T4).
+8. **REORDER (supersedes "build VersionsPanel PR ② next"):** the panel's premises changed (editor-only
+   + must sit in a catalogue layout that doesn't exist yet) — building it into today's markup then
+   redoing the catalogue is exactly the churn the working agreements prohibit. **New order: T1 backend
+   (per-doc endpoint + pre-warm) → T2 catalogue redesign (layout/strip/filters/role-gating) → T3
+   request-editing → T4 teacher stars → THEN the amended VersionsPanel ②/③.** Also serves 95% of
+   users first.
+
+---
+
 ## 2026-07-07 (eyeball: dup-Edit + version window) — two user-flagged items triaged; both deferred to a later session
 
 The user eyeballed the live Rock and reported two things "absent," asking whether they were never coded
