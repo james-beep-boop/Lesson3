@@ -16,7 +16,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 const { replace } = vi.hoisted(() => ({ replace: vi.fn() }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }))
+// useSearchParams: empty params — the filter-preservation merge (T2) is a no-op here, so the
+// existing URL assertions stay exact.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 import SearchBox from '@/app/(frontend)/SearchBox'
 
@@ -38,7 +43,9 @@ describe('SearchBox', () => {
     fireEvent.change(input(), { target: { value: 'cell walls' } })
     expect(replace).not.toHaveBeenCalled() // still inside the debounce window
     vi.advanceTimersByTime(250)
-    expect(replace).toHaveBeenCalledWith('/?q=cell%20walls', { scroll: false })
+    // URLSearchParams (the T2 filter-preserving merge) encodes a space as '+', not '%20' — both
+    // decode to a space in Next's searchParams, so the server sees the identical query.
+    expect(replace).toHaveBeenCalledWith('/?q=cell+walls', { scroll: false })
   })
 
   it('cancels a pending debounce on unmount (no stray navigation after leaving the page)', () => {

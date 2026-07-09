@@ -47,27 +47,14 @@ async function messageFrom(res: Response, fallback: string): Promise<string> {
 }
 
 /**
- * Download an export. Prepares via POST (ready immediately, or 202 → poll), then downloads via a
- * GET of the now-warm .zip. Resolves once the download has been triggered; rejects with a
- * user-facing message on failure (incl. 429 rate-limit and job errors). Drives `onState` through
- * preparing → downloading.
+ * Ensure the (version, kind) export named by `exportUrl` is warm: prepare via POST (ready
+ * immediately, or 202 → poll status until ready). Resolves once artifacts are cached; rejects
+ * with a user-facing message on failure (incl. 429 rate-limit and job errors). Drives `onState`
+ * through 'preparing' and 'error' only — what happens next (zip download, per-document open) is
+ * the caller's. Shared by `downloadExport` and the per-document buttons (teacher-first T2).
  */
-export async function downloadExport(exportUrl: string, opts: DownloadOpts = {}): Promise<void> {
+export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = {}): Promise<void> {
   const { onState = () => {}, maxPolls = 60 } = opts
-  const fallbackName = 'export.zip'
-
-  // Download the (now-warm) zip via the idempotent GET. Shared by the ready and polled paths.
-  const fetchAndSave = async (): Promise<void> => {
-    onState('downloading')
-    const dl = await fetch(exportUrl, { credentials: 'same-origin' })
-    if (dl.status !== 200) {
-      const msg = await messageFrom(dl, 'Export could not be downloaded.')
-      onState('error', msg)
-      throw new Error(msg)
-    }
-    saveBlob(await dl.blob(), filenameFrom(dl, fallbackName))
-    onState('idle')
-  }
 
   // Phase 1: prepare via POST — the only state-changing call (CSRF-guarded by SameSite=Lax).
   onState('preparing')
@@ -90,13 +77,10 @@ export async function downloadExport(exportUrl: string, opts: DownloadOpts = {})
     retryAfterMs?: number
   }
 
-  // WARM: artifacts already cached — download straight away.
-  if (prep.status === 200 && prepBody.state === 'ready') {
-    await fetchAndSave()
-    return
-  }
+  // WARM: artifacts already cached.
+  if (prep.status === 200 && prepBody.state === 'ready') return
 
-  // COLD (202): poll the status URL until the artifacts are ready, then download.
+  // COLD (202): poll the status URL until the artifacts are ready.
   const cadence = prepBody.retryAfterMs ?? 1500
   const statusUrl = prepBody.statusUrl
   if (!statusUrl) {
@@ -109,10 +93,7 @@ export async function downloadExport(exportUrl: string, opts: DownloadOpts = {})
     await sleep(cadence)
     const poll = await fetch(statusUrl, { credentials: 'same-origin' })
     const body = (await poll.json().catch(() => ({}))) as { state?: string; message?: string }
-    if (body.state === 'ready') {
-      await fetchAndSave()
-      return
-    }
+    if (body.state === 'ready') return
     if (body.state === 'error') {
       const msg = body.message ?? 'Export failed — please try again.'
       onState('error', msg)
@@ -124,4 +105,24 @@ export async function downloadExport(exportUrl: string, opts: DownloadOpts = {})
   const timeoutMsg = 'Export is taking longer than expected — please try again.'
   onState('error', timeoutMsg)
   throw new Error(timeoutMsg)
+}
+
+/**
+ * Download an export .zip. Ensures the artifacts are warm (`ensureExportReady`), then downloads
+ * via the idempotent GET. Resolves once the download has been triggered; rejects with a
+ * user-facing message on failure. Drives `onState` through preparing → downloading.
+ */
+export async function downloadExport(exportUrl: string, opts: DownloadOpts = {}): Promise<void> {
+  const { onState = () => {} } = opts
+  await ensureExportReady(exportUrl, opts)
+
+  onState('downloading')
+  const dl = await fetch(exportUrl, { credentials: 'same-origin' })
+  if (dl.status !== 200) {
+    const msg = await messageFrom(dl, 'Export could not be downloaded.')
+    onState('error', msg)
+    throw new Error(msg)
+  }
+  saveBlob(await dl.blob(), filenameFrom(dl, 'export.zip'))
+  onState('idle')
 }

@@ -22,6 +22,7 @@
  * `updatedAt`, `title`, `subjectGrade`, `lessonPlan`) are simply not read.
  */
 import type { LessonBundleVersion } from '../payload-types'
+import type { DeliverableTag } from './exportArtifacts'
 import type { AresDataObject } from './index'
 
 /** True if any leaf string under `value` is non-empty (used to prune empty groups). */
@@ -61,6 +62,23 @@ function clean(value: unknown): unknown {
     return out
   }
   return value
+}
+
+/**
+ * Which deliverables this version's export will contain (teacher-first T2) — the UI's
+ * per-document buttons must show EXACTLY what `bundleToAresData` below will emit, so this
+ * applies the same clean→hasContent decision to the same two optional groups. LessonSequence
+ * always exists.
+ */
+export function versionDeliverables(
+  bundle: Pick<LessonBundleVersion, 'finalExplanation' | 'summaryTable'>,
+): DeliverableTag[] {
+  const has = (group: unknown): boolean => hasContent(clean(group ?? {}))
+  return [
+    'lessonSequence',
+    ...(has(bundle.finalExplanation) ? (['finalExplanation'] as const) : []),
+    ...(has(bundle.summaryTable) ? (['summaryTable'] as const) : []),
+  ]
 }
 
 /** Map a stored version snapshot to the ARES generator's data object. */

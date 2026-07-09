@@ -46,7 +46,9 @@ export default async function UserGuidePage() {
             and sub-strand in curriculum order.
           </li>
           <li>
-            <strong>Search:</strong> use the search box to find a subject, grade, strand, or sub-strand.
+            <strong>Search &amp; filter:</strong> use the search box to find a subject, grade, strand,
+            or sub-strand, and the subject / grade buttons under it to narrow the whole list. They
+            combine — e.g. filter to Biology Grade 10, then search within it.
           </li>
           <li>
             <strong>Favorites:</strong> click the star on a library row — or the{' '}
@@ -60,8 +62,11 @@ export default async function UserGuidePage() {
             Explanation, and Summary Table when those documents are present.
           </li>
           <li>
-            <strong>Download:</strong> choose DOCX or PDF. Each download contains the generated lesson
-            documents for that sub-strand.
+            <strong>Open or download a document:</strong> every lesson row (and every lesson page)
+            lists its documents — Lesson plan, and where present Final explanation and Summary table —
+            each with two small buttons. <em>PDF</em> opens the document in a new browser tab;{' '}
+            <em>Word</em> downloads the .docx to your device. <em>Download all</em> on a lesson page
+            fetches every document at once as a .zip.
           </li>
           <li>
             <strong>Email:</strong> use the Email button to send the generated documents (as a .zip of

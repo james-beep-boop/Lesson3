@@ -44,7 +44,10 @@ export async function findReadablePlan(
 /** What {@link findReadableVersions} actually fetches — the `select` projection, not the full
  *  document. Typed exactly so a caller reading e.g. `subjectGrade` off a row is a compile error,
  *  not a silent runtime `undefined`. Widen the `select` and this type together. */
-export type ReadableVersionListItem = Pick<LessonBundleVersion, 'id' | 'semver' | 'title' | 'createdAt'> & {
+export type ReadableVersionListItem = Pick<
+  LessonBundleVersion,
+  'id' | 'semver' | 'title' | 'createdAt' | 'finalExplanation' | 'summaryTable'
+> & {
   meta?: Pick<NonNullable<LessonBundleVersion['meta']>, 'subject' | 'grade' | 'substrand_name'>
 }
 
@@ -73,6 +76,10 @@ export async function findReadableVersions(
       title: true,
       createdAt: true,
       meta: { subject: true, grade: true, substrand_name: true },
+      // The two OPTIONAL deliverable groups — the lesson page's T2 document strip decides its
+      // buttons from them (`versionDeliverables`). A plan's version set is naturally bounded.
+      finalExplanation: true,
+      summaryTable: true,
     },
   })
   return docs as ReadableVersionListItem[]

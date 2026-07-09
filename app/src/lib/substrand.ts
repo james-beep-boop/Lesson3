@@ -8,6 +8,8 @@
  */
 
 /** A bundle reduced to just what the list renders/orders/searches. */
+import type { DeliverableTag } from '../generator/exportArtifacts'
+
 export interface LessonRow {
   id: number | string
   subjectName: string
@@ -23,6 +25,8 @@ export interface LessonRow {
   semver?: string
   /** Official version's id — what the browse page's favorite star toggles (§10, per-version). */
   versionId?: number
+  /** The Official version's deliverables (T2 document strip); from `versionDeliverables`. */
+  deliverables?: DeliverableTag[]
 }
 
 export interface StrandGroup {

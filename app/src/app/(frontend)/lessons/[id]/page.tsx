@@ -13,6 +13,8 @@ import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
 import FavoriteToggle from '@/components/FavoriteToggle'
+import DocStrip from '@/components/DocStrip'
+import { versionDeliverables } from '@/generator/adapter'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -110,7 +112,10 @@ export default async function LessonView({
         <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
       </div>
 
-      {versions.length > 1 && (
+      {/* Versions are an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): teachers
+          see the Official only — no pills, no Compare. The read gate is unchanged; a teacher with
+          a direct ?version= link can still open it. */}
+      {canEdit && versions.length > 1 && (
         <nav className="version-bar" aria-label="Versions">
           <span className="version-label">Version</span>
           {/* Version diff (2026-07-05): sits left of the lowest-numbered pill; only exists when
@@ -136,6 +141,10 @@ export default async function LessonView({
         </nav>
       )}
 
+      {/* T2: the teacher's primary download surface — one line per document, PDF opens in a
+          browser tab, Word downloads. The whole-export .zip demotes to the action bar below. */}
+      <DocStrip versionId={selectedId} tags={versionDeliverables(selected)} />
+
       <div className="export-bar">
         {canEdit && (
           <EditActions
@@ -144,7 +153,7 @@ export default async function LessonView({
             officialVersionId={officialId ?? null}
           />
         )}
-        <span className="export-label">Download</span>
+        <span className="export-label">Download all</span>
         <DownloadButtons versionId={selectedId} />
         <EmailDocButton versionId={selectedId} />
         {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
