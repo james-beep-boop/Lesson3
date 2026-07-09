@@ -35,10 +35,12 @@ export default async function UserGuidePage() {
         <h2>Teachers</h2>
         <p>
           Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
-          the generated documents. Each lesson plan opens at its Official version, with a selector for
-          any other retained version — and, when there is more than one, a <em>Compare</em> button
-          that shows two versions side by side with removals in red and additions in green. Teachers
-          do not use the admin area and do not see editing controls.
+          the generated documents. Each lesson plan opens at its Official version. For editors and
+          administrators, a <em>N versions</em> chip (on library rows and the lesson page) opens a
+          panel listing every retained version — newest first, Official pinned on top, with each
+          version&apos;s author, date, and favorite star — and, when there is more than one, a{' '}
+          <em>Compare</em> button shows two versions side by side with removals in red and additions
+          in green. Teachers see only the Official version and no editing controls.
         </p>
         <ul className="guide-list">
           <li>

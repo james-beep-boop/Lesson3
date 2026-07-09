@@ -53,8 +53,13 @@ this track.
 - ~~**T4 — teacher stars track Official**~~ **DONE — PR #76 merged (`f026fcd`), CI green,
   2026-07-08.** Re-point hook on the Official-pointer move; editors keep per-version pinning;
   follower stars survive promote-and-delete-previous; no migration (DECISIONS T4 build notes).
-- **THEN (next build)**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended
-  Editor+-only (chip/panel render only for `isEditorFor`, into the T2 catalogue layout).
+- ~~**THEN (next build)**: VersionsPanel PR ② + ③~~ **DONE 2026-07-09 — PR ② merged as #77;
+  PR ③ merged same day (chip+panel on the lesson page, Compare its own button, pills retired).
+  The 2026-07-06 version-browser redesign is COMPLETE (①=#68, ②=#77, ③).** Build notes +
+  argued deviations: DECISIONS 2026-07-09 (redesign PR ② build notes). Editor+-only throughout;
+  no migrations. **Not yet deployed — fold into the next Rock deploy + eyeball** (chip on
+  multi-version rows as editor, panel lines/stars, pinned favorites surfacing, lesson-page
+  version line, none of it visible as teacher).
 
 **BACKLOG (user, 2026-07-08): login page needs "Sign up" + "Forgot password?".** Use STANDARD
 Payload machinery: `forgot-password`/`reset-password` are native auth operations (REST

@@ -847,27 +847,6 @@ button[type='submit']:disabled {
   color: var(--muted);
   margin-right: 0.1rem;
 }
-.version-pill {
-  /* inline-block (not inline-flex) so the "· Official" separator's whitespace is preserved — a flex
-     pill would collapse it into "1.0.0· Official". */
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  color: var(--ink);
-  text-decoration: none;
-  font-variant-numeric: tabular-nums;
-}
-.version-pill:hover,
-.version-pill:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.version-pill.is-selected {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-ink);
-}
 .official-tag {
   font-weight: 600;
 }
@@ -1186,12 +1165,12 @@ button[type='submit']:disabled {
     padding: 0.3rem 0.45rem;
     font-size: 1.35rem;
   }
-  /* Version pills as flex so min-height gives a real 44px target ("· Official" spacing survives). */
-  .version-pill {
+  /* The Compare button joins the 44px touch bar (the chip already does above). */
+  .compare-link {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
-    padding: 0.4rem 0.7rem;
+    padding: 0.4rem 0.8rem;
   }
 
   /* The generated tables (5 columns) stay legible: keep their natural width and let the
