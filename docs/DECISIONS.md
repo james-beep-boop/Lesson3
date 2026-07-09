@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-09 (browse/panel review findings) — panel stars re-fetch on open; search includes pinned favorites; NaN grade is no filter
+
+An external review of the #77–#80 arc surfaced three accepted findings plus a PR-#79 line comment
+(DECISIONS grepped first — no prior rulings). All fixed in one CI-gated PR, each pinned:
+
+- **[P2] VersionsChip re-fetches on EVERY panel open** (was first-open-only): favorites toggle
+  INSIDE the panel and `FavoriteToggle` never writes back to the chip's map, so a close/reopen
+  re-mounted the stars from the first-open snapshot — wrong filled state, wrong next toggle. Soft
+  refresh (the shown list stays visible during the re-fetch). Component-pinned (reopen fetches
+  both reads again).
+- **[P2] Search includes pinned non-Official favorite rows**: `filteredPinned` participated in the
+  empty-check but never reached `SearchResults` — a query matching ONLY a pinned favorite rendered
+  "No lesson plans match". Component-pinned.
+- **[P3] A NaN grade (hand-edited `?grade=abc`) now means NO grade filter** in `filterRows` —
+  matching NaN against rows silently emptied the catalogue while no chip showed active. Unit-pinned.
+- **[Minor, PR #79 comment] `popstate` clears the pending URL debounce** — a debounced
+  `replaceState` firing after back/forward overwrote the restored URL with pre-navigation
+  criteria, desyncing the address bar from the view.
+
+---
+
 ## 2026-07-09 (open registration + password reset) — Payload-native everywhere; the create axis on privileged fields became load-bearing
 
 **User decision: OPEN registration** (vs invite-only) for the login page's new Sign up link, plus

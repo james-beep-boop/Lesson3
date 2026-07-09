@@ -40,4 +40,8 @@ describe('filterRows', () => {
   it('treats a whitespace query and null grade as absent', () => {
     expect(filterRows(ROWS, { q: '   ', grade: null })).toHaveLength(3)
   })
+
+  it('treats a NaN grade (hand-edited ?grade=abc) as NO grade filter, not an empty catalogue', () => {
+    expect(filterRows(ROWS, { grade: Number('abc') })).toHaveLength(3)
+  })
 })

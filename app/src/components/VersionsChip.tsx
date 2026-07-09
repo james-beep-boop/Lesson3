@@ -50,7 +50,9 @@ export default function VersionsChip({
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   const load = useCallback(async () => {
-    setState('loading')
+    // Soft refresh: when data is already shown, keep it visible while the re-fetch runs (no
+    // flicker); only a first/failed load shows the loading note.
+    setState((s) => (s === 'ready' ? s : 'loading'))
     try {
       const vRes = await fetch(
         `/api/lesson-bundle-versions?where[lessonPlan][equals]=${planId}&depth=1&pagination=false` +
@@ -89,7 +91,11 @@ export default function VersionsChip({
     e.preventDefault()
     e.stopPropagation()
     setOpen(true)
-    if (state === 'idle' || state === 'error') void load()
+    // Re-fetch on EVERY open, not just the first: the caller's favorites change INSIDE the panel
+    // (FavoriteToggle owns its own toggle state and never writes back to this map), so a
+    // close/reopen with the first-open snapshot would re-mount the stars from stale data — wrong
+    // filled state, wrong next toggle. Both reads are small and lazy anyway.
+    void load()
   }
 
   // Escape closes; focus the panel on open so keyboard users land inside the dialog.

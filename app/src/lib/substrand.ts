@@ -227,7 +227,9 @@ export function filterRows(
   return rows.filter(
     (r) =>
       (!subject || r.subjectName === subject) &&
-      (grade == null || r.grade === grade) &&
+      // NaN (e.g. a hand-edited ?grade=abc) means NO grade filter — matching it against rows
+      // would silently empty the catalogue while no chip shows active.
+      (grade == null || Number.isNaN(grade) || r.grade === grade) &&
       (!q || matchesQuery(r, q)),
   )
 }
