@@ -46,9 +46,12 @@ this track.
   (no Docker on the build Mac) — the user's in-browser eyeball after the next Rock deploy is the
   outstanding check** (strip both surfaces, PDF new-tab, Word download, chips, mobile cards,
   teacher sees no pills).
-- **T3 — "Request editing privileges"**: teacher-only button → endpoint messaging the subject-grade's
-  Subject Admin + Site Admins (server-resolved recipients, 1/day/user/sg dedupe) via §10 messaging.
-- **T4 — teacher stars track Official** (favorites amendment; editors keep per-version pinning).
+- ~~**T3 — "Request editing privileges"**~~ **DONE — PR #75 merged (`1872824`), CI green,
+  2026-07-08** (two CI rounds on test-scoping/laziness bugs, feature untouched — DECISIONS T3
+  build notes). Server-resolved recipients; messages created as the caller; 1/day/sg throttle;
+  wire tests. **No migration; not yet deployed.**
+- **T4 — teacher stars track Official** *(in progress 2026-07-08)*: re-point hook on the
+  Official-pointer move (DECISIONS T4 build notes); editors keep per-version pinning.
 - **THEN**: VersionsPanel PR ② + ③ per the 2026-07-06 locked design, amended Editor+-only.
 
 **Also verified 2026-07-08 (no code change):** Make Official gating already matches the user's intent

@@ -4,9 +4,11 @@ import { isSiteAdmin } from '../access'
 import type { User } from '../payload-types'
 
 /**
- * Favorites (SPEC §10) — a per-user bookmark on a lesson-plan VERSION (per-version by design,
- * 2026-07-06: favoriting 1.0.2 pins THAT snapshot; it does not follow a later Official change).
- * A pure personal join table:
+ * Favorites (SPEC §10) — a per-user bookmark on a lesson-plan VERSION. Two semantics by role
+ * (teacher-first T4, 2026-07-08): for users with edit rights on the subject-grade, a favorite is
+ * a deliberate per-version PIN (the 2026-07-06 semantics — 1.0.2 stays 1.0.2); for everyone else
+ * it FOLLOWS the Official — `retargetFollowerFavorites` (hooks/lessonPlan.ts) re-points follower
+ * rows whenever the pointer moves. A pure personal join table:
  *
  *  - Toggled from The App via Payload's default REST (POST /api/favorites, DELETE /api/favorites/:id)
  *    — no custom endpoint needed (Payload-first, SPEC §13).

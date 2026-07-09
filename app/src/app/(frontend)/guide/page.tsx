@@ -52,9 +52,10 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Favorites:</strong> click the star on a library row — or the{' '}
-            <em>☆ Favorite</em> button on a lesson page — to pin that version of the lesson to a My
-            favorites list at the top of the home page. A favorite keeps pointing at the version you
-            starred, even if a newer one later becomes Official. Favorites are personal — only you
+            <em>☆ Favorite</em> button on a lesson page — to keep that lesson in a My favorites
+            list at the top of the home page. Your star always shows the lesson&apos;s current
+            Official version, even when a newer one is promoted later. (For editors the star works
+            differently: it pins the exact version you starred.) Favorites are personal — only you
             see yours.
           </li>
           <li>

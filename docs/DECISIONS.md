@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-08 (T4 build notes) — teacher stars follow the Official via a RE-POINT hook; no schema change
+
+T4 of the teacher-first track (lock §7 left the mechanism to build time). **Chosen mechanism: an
+`afterChange` re-point hook on lesson-plans** (`retargetFollowerFavorites`, beside T1's prewarm
+hook) — when the Official pointer MOVES, favorites on the old Official belonging to users WITHOUT
+edit rights on that subject-grade are re-pointed to the new one; editors' rows stay (their
+favorites remain the deliberate per-version pins of 2026-07-06).
+
+- **Why re-point, not schema:** the alternatives — a nullable `lessonPlan` ref for tracking
+  favorites, or a `pinned` flag — need a migration, and the flag variant STILL loses teacher stars
+  on promote-and-delete-previous (the row keeps referencing the deleted version). Re-pointing keeps
+  the `{user, version}` row shape, needs no migration, and lands inside the pointer-move
+  transaction — i.e. BEFORE make-official's optional delete of the previous Official, so follower
+  stars survive promote-and-delete (int-pinned).
+- **Dedupe:** a follower already starred on the new Official just loses the redundant old row (the
+  compound unique index would reject the re-point).
+- **No `req.user` gate** (unlike prewarm): this is data consistency, owed on system pointer moves
+  too. Per-row best-effort with logging — a favorites hiccup must never fail a promotion; a skipped
+  row at worst falls to the delete-previous cascade (pre-T4 behavior).
+- **Accepted softness:** "follower vs pinner" is evaluated at MOVE time from the owner's role — a
+  user demoted from Editor later keeps old pins; a promoted teacher's stars stop following. Fine.
+- SPEC §10 favorites bullet amended (role-split semantics); guide copy updated; int tests pin
+  follow / pin-stays / dedupe / survives-delete-previous. Two prior-blocks-leak-state lessons
+  applied: the new describe starts from a clean favorites table.
+
+---
+
 ## 2026-07-08 (T3 build notes) — request-editing: privileged step is recipient RESOLUTION only; messages are created as the caller
 
 T3 of the teacher-first track (lock §6). Build-time decisions:

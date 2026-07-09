@@ -210,8 +210,11 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 - **Internal messaging + notifications** — any user may message any user, optionally attaching/linking a
   bundle; the recipient is notified of waiting messages. (Supersedes Lesson2's inbox; a
   deletion-request flow can ride on the same messaging substrate if wanted.)
-- **Favorites** (per user, **per version** — favoriting a version pins that snapshot; it does not
-  follow a later Official change. Decided 2026-07-06; design in DECISIONS "version browser design").
+- **Favorites** (per user, **per version**, with role-split semantics — teacher-first T4,
+  2026-07-08): for users with edit rights on the subject-grade a favorite **pins that snapshot**
+  (decided 2026-07-06); for everyone else the star **follows the plan's current Official** — the
+  row is re-pointed when the pointer moves (and so survives promote-and-delete-previous). Design
+  in DECISIONS "version browser design" + "T4 build notes".
 - **Translation** (e.g. Swahili) and **AI features** (summaries, etc.) — server-side outbound
   services behind endpoints/jobs, rate-limited (§11); AI uses the current Claude API/models.
 

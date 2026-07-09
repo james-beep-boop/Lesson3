@@ -127,6 +127,108 @@ describe('favorites (§10): stamped ownership, own-only rows, unique per version
   })
 })
 
+describe('follower stars track the Official; editor pins stay (teacher-first T4)', () => {
+  beforeAll(async () => {
+    // Exact-array assertions below need a clean slate — earlier blocks may leave favorites behind.
+    await fx.payload.delete({ collection: 'favorites', where: { id: { exists: true } }, overrideAccess: true })
+  })
+
+  /** Move the fixture plan's Official pointer (system path — the retarget hook has no user gate). */
+  const movePointer = (versionId: number) =>
+    fx.payload.update({
+      collection: 'lesson-plans',
+      id: fx.plan.id,
+      data: { officialVersion: versionId } as never,
+      overrideAccess: true,
+    })
+
+  /** The version each of `user`'s favorites points at. */
+  async function favoriteVersionsOf(user: RoleFixture['users'][keyof RoleFixture['users']]) {
+    return (await favoritesVisibleTo(user)).map((f) => relId(f.version))
+  }
+
+  afterAll(async () => {
+    // Restore the fixture pointer and drop this block's favorites + versions.
+    await movePointer(fx.version.id)
+    await fx.payload.delete({ collection: 'favorites', where: { id: { exists: true } }, overrideAccess: true })
+  })
+
+  it("a teacher's star follows a pointer move; an editor's pin does not", async () => {
+    const v2 = await createVersion('9.0.0')
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: fx.version.id, user: fx.users.teacher.id },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: fx.version.id, user: fx.users.editor.id },
+      overrideAccess: false,
+      user: fx.users.editor,
+    })
+
+    await movePointer(v2.id)
+
+    expect(await favoriteVersionsOf(fx.users.teacher)).toEqual([v2.id]) // followed
+    expect(await favoriteVersionsOf(fx.users.editor)).toEqual([fx.version.id]) // pinned
+
+    // Move back — the follower returns too; the pin still holds.
+    await movePointer(fx.version.id)
+    expect(await favoriteVersionsOf(fx.users.teacher)).toEqual([fx.version.id])
+    expect(await favoriteVersionsOf(fx.users.editor)).toEqual([fx.version.id])
+    await fx.payload.delete({ collection: 'favorites', where: { id: { exists: true } }, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v2.id, overrideAccess: true })
+  })
+
+  it('a follower already starred on the NEW Official just loses the redundant old row (unique index)', async () => {
+    const v2 = await createVersion('9.1.0')
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: fx.version.id, user: fx.users.teacher.id },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: v2.id, user: fx.users.teacher.id },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+
+    await movePointer(v2.id)
+
+    expect(await favoriteVersionsOf(fx.users.teacher)).toEqual([v2.id]) // exactly one row survives
+
+    await movePointer(fx.version.id)
+    await fx.payload.delete({ collection: 'favorites', where: { id: { exists: true } }, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v2.id, overrideAccess: true })
+  })
+
+  it("a follower star SURVIVES promote-and-delete-previous (re-point lands before the cascade)", async () => {
+    // Simulate make-official?deletePrevious=true's ordering: pointer move, THEN delete the old
+    // Official. Pre-T4 the delete cascade would have taken the teacher's favorite with it.
+    const v1 = await createVersion('9.2.0')
+    const v2 = await createVersion('9.3.0')
+    await movePointer(v1.id)
+    await fx.payload.create({
+      collection: 'favorites',
+      data: { version: v1.id, user: fx.users.teacher.id },
+      overrideAccess: false,
+      user: fx.users.teacher,
+    })
+
+    await movePointer(v2.id)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v1.id, overrideAccess: true })
+
+    expect(await favoriteVersionsOf(fx.users.teacher)).toEqual([v2.id])
+
+    await movePointer(fx.version.id)
+    await fx.payload.delete({ collection: 'favorites', where: { id: { exists: true } }, overrideAccess: true })
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v2.id, overrideAccess: true })
+  })
+})
+
 describe('favorites cascade with their parents (NOT NULL FK → 23502 without it)', () => {
   it('deleting a version removes its favorites rows first (the direct hook)', async () => {
     const candidate = await createVersion('1.0.1')
