@@ -284,6 +284,25 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
   })
 
+  it("a DOCX job's id cannot report status for a PDF poll (kind-scoped binding)", async () => {
+    // The kinds are separate jobs/cache specs — polling status with a mismatched `as` must 404
+    // rather than echo the other kind's state (Codex 2026-07-08 P2). Cold throwaway version:
+    // enqueue a DOCX job, then poll its jobId with as=pdf (pdf is NOT ready → binding has teeth).
+    const cold = await makeColdVersion('kind-bind', '8.4.0')
+    const prep = await fetch(url(`/api/lesson-bundle-versions/${cold.id}/export?as=docx`), {
+      method: 'POST',
+      headers: auth('teacher'),
+    })
+    expect(prep.status).toBe(202)
+    const { jobId } = (await prep.json()) as { jobId: string | number }
+    const res = await fetch(
+      url(`/api/lesson-bundle-versions/${cold.id}/export/status?jobId=${jobId}&as=pdf`),
+      { headers: auth('teacher') },
+    )
+    expect(res.status).toBe(404)
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+  })
+
   it('a repeated cold prepare coalesces onto the same in-flight job (dedupe)', async () => {
     // Cold throwaway version → POST prepare twice back-to-back. The second must coalesce onto the first
     // job (same {versionId, kind}) rather than enqueue a duplicate. autoRun cron is every 3s,

@@ -15,6 +15,7 @@
 import type { Payload, TaskConfig } from 'payload'
 
 import {
+  assertExportKind,
   produceArtifacts,
   safePrefix,
   versionScope,
@@ -46,6 +47,7 @@ export const generateVersionArtifactTask: TaskConfig<{
   handler: async ({ input, req }) => {
     const { versionId, kind } = input
     try {
+      assertExportKind(kind) // the inputSchema is `text` — reject a bad row before any cache write
       const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
       // Generation and the prefix read are independent — run them concurrently.
       const [generated, version] = await Promise.all([

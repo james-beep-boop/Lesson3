@@ -15,6 +15,7 @@
 import type { TaskConfig } from 'payload'
 
 import {
+  assertExportKind,
   loadCachedExportZip,
   produceArtifacts,
   safePrefix,
@@ -58,6 +59,7 @@ export const emailVersionArtifactTask: TaskConfig<{
   handler: async ({ input, req }) => {
     const { versionId, kind, to, requestedByUserId, requestedByName } = input
     try {
+      assertExportKind(kind) // the inputSchema is `text` — reject a bad row before any cache write
       const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
 
       // `version` (needed for the email body/filename regardless of cache state) and a first cache
