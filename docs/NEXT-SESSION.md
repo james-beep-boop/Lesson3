@@ -26,10 +26,42 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-09 end of day) — both arcs COMPLETE + perf fix + open registration + findings; deploy #79–#81, then pick next
+## ▶ RESUME HERE (2026-07-10) — email verification + Codex round done; #79–#81 ARE DEPLOYED; PR → CI → merge → deploy the migration
 
-**Everything queued is merged; `main` is clean at PR #81's merge. Session arc (all CI-gated, ZERO
-migrations all week):**
+**The #79–#81 Rock deploy is DONE (user, 2026-07-10).** The email-verification build below then
+took a Codex review round — three accepted findings, all fixed pre-PR (full record: DECISIONS
+2026-07-10 "email-verification Codex round"): ① email changes are now SITE-ADMIN-ONLY (self-service
+change would bypass verification — SPEC §8 amended); ② the verify endpoint is throttled via a
+custom endpoint that SHADOWS Payload's native `POST /verify/:id` (new `verifyEmailGlobal` bucket,
+300/day; the http 429 test IS the shadowing proof) and the token column is indexed (migration
+regenerated offline, same name — now columns + index + backfill); ③ the backfill has an executable
+regression test (`tests/int/verifyBackfill.int.spec.ts` runs the real `up()` against the live
+schema). Gates: typecheck ✓, unit 156/156 ✓, new files lint-clean, payload-types re-verified
+byte-identical. **Next: PR → CI green → merge → Rock deploy** (the deploy applies
+`20260710_041621_add_email_verification`; deploy.sh snapshots first). Then the verification
+eyeball items below.
+
+## ▶ Older resume (2026-07-09 night) — EMAIL VERIFICATION built (uncommitted; branch/PR next); then deploy #79–#81 + it
+
+**Email verification on signup is BUILT this session** (the queue pick; full record: DECISIONS
+2026-07-09 "email verification"). Payload-native `auth.verify`; frontend `/verify-email` page +
+check-your-email signup flow + a distinct unverified-login message; `_verified` field access
+tightened (create/update Site-Admin-only — Payload's default is ANY authenticated user; wire- and
+wiring-pinned); **the week's FIRST migration** `20260710_041621_add_email_verification`, whose
+`_verified = true` backfill is LOAD-BEARING (the JWT strategy rejects falsy `_verified` — a plain
+column-add would lock out every existing account). **Procedure discovery: migrations AND types
+generate OFFLINE on this Mac** (`disableDBConnect` + `payload.db.createMigration` /
+`generateTypes`; the payload-types hand-edit verified BYTE-IDENTICAL locally — no Rock step).
+Local gates green (typecheck, unit 153/153, lint clean on changed files); int/http are CI's (no
+Docker locally — CI's stack-up RUNS the new migration before the http suite, which covers the
+verify flow end-to-end). **State: UNCOMMITTED on `main`'s working tree (no-commit rule). Next:
+commit on `feat/email-verification`, PR, CI gates, merge.** Deploy carries a migration —
+`scripts/deploy.sh` snapshots first, as always. **Eyeball adds:** sign up → check-your-email note
+→ emailed link → verified page → sign in works; BEFORE verifying, sign-in says "isn't verified
+yet" (not "invalid password"); an existing account still signs in (backfill).
+
+**Prior state (2026-07-09 end of day): everything below is merged; `main` clean at PR #81's merge.
+Session arc (all CI-gated, ZERO migrations before the verification one above):**
 - **Teacher-first T1–T4** (#72–#76, 2026-07-08) and the **version-browser redesign ①–③**
   (#68 / #77 / **#78**, completed 2026-07-09) — see the Older-resume block below for detail.
 - **#79 — catalogue browsing went CLIENT-side** (user-reported ~1s filter clicks on the live Rock;
@@ -49,7 +81,9 @@ migrations all week):**
 
 **OPERATOR NEXT:**
 1. **Rock deploy** — pending: **#79 + #80 + #81** (the user's 2026-07-09 morning deploy carried
-   everything through #78). Usual `scripts/deploy.sh`, no migration.
+   everything through #78). Usual `scripts/deploy.sh`, no migration — UNLESS the email-verification
+   PR (above) has merged by then, in which case the deploy also applies its migration (deploy.sh
+   snapshots first).
 2. **In-browser eyeball** (accumulated list): filter chips + search respond INSTANTLY; sign up a
    fresh account → lands as plain Teacher (no Manage, no version chips); Forgot password
    end-to-end (email links the app's reset page, not /admin); as editor — versions chip/panel on
@@ -58,8 +92,8 @@ migrations all week):**
    in the Older-resume block if not yet checked.
 
 **QUEUE (pick with the user):**
-- **Email verification on signup** (`auth.verify` → `_verified` column = Rock-generated migration;
-  the one recorded hardening before public exposure).
+- ~~**Email verification on signup**~~ **BUILT 2026-07-09 night — see the newest RESUME block**
+  (and the migration generated LOCALLY, not on the Rock — the recorded procedure improved).
 - **Phase 5 Track B** (host-gated: VPS → TLS/proxy → edge rate limiting → GlitchTip → Going-public
   runbook, docs/OPS.md) — now more relevant with open registration.
 - Deferred backlog: Manage/roster pagination at corpus scale; payload-jobs prune;

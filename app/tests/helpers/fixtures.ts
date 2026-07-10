@@ -44,6 +44,24 @@ export const MARK = `${MARK_BASE}${randomUUID()}_`
 
 export type RoleKey = 'siteAdmin' | 'subjectAdmin' | 'editor' | 'teacher'
 
+/**
+ * Every Local-API user create in specs goes through here (auth.verify, 2026-07-09): seeded users
+ * are born `_verified: true` — the JWT strategy rejects falsy `_verified` — and never send the
+ * verification email (a relay bounce on a fixture address would fail the create itself). One
+ * owner so the next scratch-user spec can't forget the flags; a caller testing unverified
+ * behavior overrides `_verified` via `data`.
+ */
+export const createUserVerified = (
+  payload: Payload,
+  data: Partial<User> & { email: string; name: string; password: string },
+): Promise<User> =>
+  payload.create({
+    collection: 'users',
+    data: { _verified: true, ...data } as never,
+    disableVerificationEmail: true,
+    overrideAccess: true,
+  })
+
 export interface RoleFixture {
   payload: Payload
   subject: Subject
@@ -131,17 +149,14 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
   // RFC 2606-reserved domain: fixture users can now RECEIVE system email (the §10 message ping
   // goes to the recipient's account address), so on a live stack with SMTP the sends must go to
   // example.com's blackhole — same idiom as the email-a-doc http tests — not to a fake TLD that
-  // would fail at the relay and leave failed job rows behind.
+  // would fail at the relay and leave failed job rows behind. createUserVerified supplies the
+  // auth.verify defaults (born verified, no verification email).
   const mkUser = (key: RoleKey, data: Partial<User>) =>
-    payload.create({
-      collection: 'users',
-      data: {
-        name: `${MARK}${key}`,
-        email: `${MARK.toLowerCase()}${key.toLowerCase()}@example.com`,
-        password,
-        ...data,
-      } as never,
-      overrideAccess: true,
+    createUserVerified(payload, {
+      ...data,
+      name: `${MARK}${key}`,
+      email: `${MARK.toLowerCase()}${key.toLowerCase()}@example.com`,
+      password,
     })
 
   const users: Record<RoleKey, User> = {

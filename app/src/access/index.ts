@@ -153,7 +153,8 @@ export const emailReadAccess: FieldAccess = ({ req: { user }, id }) => {
   return isSiteAdmin(u) || u.id === id
 }
 
-/** Self or site admin may change a personal field (name, email). */
+/** Self or site admin may change a personal field (name — email became Site-Admin-only with
+ *  verification, 2026-07-10: a self-service change would bypass address ownership). */
 export const selfOrSiteAdminField: FieldAccess = ({ req: { user }, id }) => {
   const u = asUser(user)
   if (!u) return false

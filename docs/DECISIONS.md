@@ -11,6 +11,99 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-10 (email-verification Codex round) — email changes are Site-Admin-only; the verify endpoint gets a shadow throttle + token index; the backfill gets an executable test
+
+Three accepted findings on the (then-uncommitted) email-verification diff, fixed before the PR:
+
+- **[P2] Email self-update bypassed verification.** Payload verifies ONLY at create — an update
+  neither clears `_verified` nor mints a token, so a verified account could PATCH itself onto any
+  unregistered address without proving ownership. **Decision: `email.update` = Site-Admin-only**
+  (the simpler of Codex's two options; a re-verify-on-change flow is real machinery — token mint +
+  send + a self-lockout-on-typo failure mode — build it only if users actually need self-service
+  address changes). SPEC §8 amended; wiring-pinned.
+- **[P2] The native verify endpoint is unthrottled and the token column was unindexed.** The
+  verify op runs NO collection hooks (installed source), so the #42 `beforeOperation` seam can't
+  cover it. **Fix: a custom Users endpoint SHADOWS `POST /verify/:id`** — sanitize.js pushes
+  built-in auth endpoints AFTER custom ones and handleEndpoints takes the first match — consuming
+  a new site-global `verifyEmailGlobal` bucket (300/day default; no per-target key exists for a
+  token-only public route and no reliable IP until the Phase-5 edge proxy) before delegating to
+  Payload's own exported `verifyEmailOperation` (token semantics never fork). **The http 429 test
+  doubles as the shadowing proof** — a 429 can only come from our handler, so a Payload bump that
+  renames the built-in path fails CI instead of silently serving the unthrottled native endpoint.
+  The token column is indexed via a `_verificationToken` field override (`index: true` — base
+  access/hidden/hooks survive the merge) so the migration was REGENERATED offline to carry
+  columns + index + backfill in one file (same stable name).
+- **[P3] The load-bearing backfill had no executable test.** `tests/int/verifyBackfill.int.spec.ts`
+  simulates the pre-migration state (raw-SQL `_verified = NULL` — exactly what a plain ADD COLUMN
+  leaves) and runs the migration's REAL exported `up()` against the live push-built schema:
+  NULL → true (and that account then logs in via `payload.login`), `false` survives un-flipped
+  (the WHERE NULL guard), and completing at all proves the idempotency guards.
+
+---
+
+## 2026-07-09 (email verification) — signup needs the emailed link; the `_verified` backfill is load-bearing; migrations + types now generate OFFLINE
+
+The recorded #80 follow-up hardening, built the same day (queue pick with the user). Payload-native
+throughout: `auth.verify` on users, the verification email linking the FRONTEND `/verify-email`
+page (same reasoning as the #80 reset-link fix — Payload's default is an /admin route teachers
+can't use), the native `POST /api/users/verify/:token` op, no custom endpoints. Signup now ends in
+a check-your-email note (a login attempt would 403 `UnverifiedEmail`); the login form surfaces
+that 403 distinctly, or a fresh signup reads "invalid password" and resets in circles.
+
+- **The `_verified` base field ships with `defaultAccess` (any authenticated user) on ALL THREE
+  axes** (installed auth/baseFields/verification.js) — under open registration the create axis is
+  load-bearing, the same lesson as #80's roles/assignments: without an override, a signup body
+  carrying `_verified: true` self-verifies. Overridden to `siteAdminField` create/update +
+  `emailReadAccess` read; the verify op writes via `db.updateOne` and registerFirstUser via
+  overrideAccess, so neither is affected. Pinned at wire level (http strip test) AND as DB-free
+  wiring (`verifiedFieldWiring.spec.ts`, which also pins the frontend link in the email).
+- **THE BACKFILL TRAP (the reason the migration is more than a column-add):** with verify enabled,
+  the JWT strategy rejects any user whose `_verified` is FALSY — not just `false` (jwt.js:72;
+  login.js only rejects `=== false`), and resetPassword coerces NULL→false. A plain ADD COLUMN
+  (NULL for existing rows) would therefore lock out EVERY existing account on its next request
+  while a naive login test still passed. `20260710_041621_add_email_verification` backfills
+  `_verified = true` WHERE NULL (the NULL guard keeps a re-run from verifying post-migration
+  unverified signups), idempotent guards per project rule.
+- **Migration + types generation ran OFFLINE on this Mac — no Rock, no Docker, no DB.** The CLI
+  hang is ONLY the connect step (compose `postgres` hostname): `getPayload({ disableDBConnect,
+  disableOnInit })` then `payload.db.createMigration(...)` — buildCreateMigration (installed
+  @payloadcms/drizzle) diffs the config-built schema against the latest committed .json snapshot,
+  nothing touches a database. Same shape for `generateTypes` (pure configToJSONSchema): generate
+  to a scratch path via `PAYLOAD_TS_OUTPUT_PATH`, diff → the payload-types.ts hand-edit verified
+  **byte-identical** locally, closing what used to be the Rock byte-compare step. Run the script
+  with `npx tsx` + `.env` sourced — `payload run` fails here (its vendored tsx breaks under this
+  Mac's Node 25, and module resolution needs the script inside the app tree). Snapshot sanity
+  check: the new .json diffs from the previous one by EXACTLY the two users columns; the
+  zero-UUID `prevId` matches the existing snapshots' convention.
+- **Every Local-API user create needed touching:** fixture/seeded users are born
+  `_verified: true` (JWT strategy) with `disableVerificationEmail: true` (a relay bounce on a
+  fixture address would fail the create itself); the signup http tests moved to the example.com
+  blackhole idiom because REST signups now send REAL mail on a live stack.
+- **No resend-verification endpoint in v1 (deliberate):** Payload has none natively; the 3/day
+  signup cap bounds abuse and is also the verification-mail budget (one send per create). A stuck
+  unverified account is a Site-Admin remedy (PATCH `_verified`). Build a throttled custom endpoint
+  (with its owed wire tests) only if this bites real users.
+- **First-user note:** /admin's create-first-user auto-verifies (registerFirstUser, in source); a
+  FRONTEND first signup on a fresh DB needs the emailed link — console-logged when SMTP_HOST is
+  unset, and #53's boot refusal still guards the public-exposure case.
+- **/simplify pass (4-angle): applied.** ① The altitude review's real catch: the per-site
+  `_verified`/`disableVerificationEmail` spray had ALREADY missed `scripts/verify-rbac.ts` (three
+  `.test.local` creates that would attempt real sends on the SMTP-configured Rock — a bounce fails
+  the create). Fixed there, and the class is closed by `createUserVerified` in tests/helpers
+  (fixtures' mkUser, seedUser, and every ad-hoc spec create route through it; a spec testing
+  unverified behavior overrides via `data`). ② LoginForm discriminates UnverifiedEmail by
+  `res.status === 403` — the login op's ONLY 403 (creds/lockout 401, throttle 429; verified in
+  installed errors/) — instead of regexing Payload's i18n copy, which a locale change or upgrade
+  would silently break; the http test keeps asserting the message as an upstream-copy canary.
+  ③ The email-link base (`ADMIN_URL || SERVER_URL || ''`) had grown a THIRD prose-linked copy —
+  past the two-call-site ruling — so it's now `lib/emailLinkBase.ts`, used by the reset +
+  verification emails and the message ping. **Skipped:** extracting a shared page shell for
+  verify-email/reset-password (two sites, differing copy — the two-call-site ruling holds);
+  efficiency review returned clean (the signup change is a net win — it deleted the auto-login
+  POST).
+
+---
+
 ## 2026-07-09 (browse/panel review findings) — panel stars re-fetch on open; search includes pinned favorites; NaN grade is no filter
 
 An external review of the #77–#80 arc surfaced three accepted findings plus a PR-#79 line comment

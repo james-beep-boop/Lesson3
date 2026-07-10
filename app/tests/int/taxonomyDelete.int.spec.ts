@@ -13,7 +13,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, createUserVerified, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { toId } from '../../src/access/index.js'
 
 let fx: RoleFixture
@@ -51,15 +51,11 @@ describe('SubjectGrade delete guard', () => {
       data: { subject: fx.subject.id, grade: 98 },
       overrideAccess: true,
     })
-    const holder = await fx.payload.create({
-      collection: 'users',
-      data: {
-        name: `${MARK}sgDeleteEditor`,
-        email: `${MARK.toLowerCase()}sgdel@example.com`,
-        password: 'test1234',
-        assignments: [{ subjectGrade: sg.id, role: 'editor' }],
-      } as never,
-      overrideAccess: true,
+    const holder = await createUserVerified(fx.payload, {
+      name: `${MARK}sgDeleteEditor`,
+      email: `${MARK.toLowerCase()}sgdel@example.com`,
+      password: 'test1234',
+      assignments: [{ subjectGrade: sg.id, role: 'editor' }],
     })
 
     await fx.payload.delete({ collection: 'subject-grades', id: sg.id, overrideAccess: true })

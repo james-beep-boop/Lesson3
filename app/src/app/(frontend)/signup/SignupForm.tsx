@@ -2,18 +2,19 @@
 
 /**
  * Open self-registration (2026-07-09). Standard Payload REST end to end: POST /api/users creates
- * the account (server strips any privileged fields; new users are plain Teachers), then the same
- * login POST the sign-in form uses starts the session. Server-side signup caps surface as 429s.
+ * the account (server strips any privileged fields; new users are plain Teachers). With email
+ * verification on (auth.verify), the account can't sign in until the emailed link is used — so
+ * success shows a check-your-email note instead of starting a session (a login attempt here
+ * would just 403 UnverifiedEmail). Server-side signup caps surface as 429s.
  */
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export function SignupForm() {
-  const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -39,25 +40,22 @@ export function SignupForm() {
         )
         return
       }
-      // Account created → start the session with the standard login op, then land on the library.
-      const login = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      })
-      if (!login.ok) {
-        // Created but not signed in (e.g. the login throttle) — the account still works.
-        router.replace('/login')
-        return
-      }
-      router.replace('/')
-      router.refresh()
+      // Account created — unverified until the emailed link is used, so no login attempt here.
+      setDone(true)
     } catch {
       setError('Sign-up failed — please try again.')
     } finally {
       setBusy(false)
     }
+  }
+
+  if (done) {
+    return (
+      <p className="login-note">
+        Account created — we&apos;ve emailed a verification link to <strong>{email}</strong>. Follow
+        it to activate your account, then sign in.
+      </p>
+    )
   }
 
   return (
