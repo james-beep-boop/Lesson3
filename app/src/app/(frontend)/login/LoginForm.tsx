@@ -22,7 +22,15 @@ export function LoginForm() {
         body: JSON.stringify({ email, password }),
       })
       if (!res.ok) {
-        setError('Invalid email or password.')
+        // Payload rejects unverified accounts with the login op's ONLY 403 (UnverifiedEmail; bad
+        // credentials and lockout are 401, the throttle 429 — verified in installed errors/).
+        // Surface it, or a just-signed-up teacher reads "invalid password" and resets in circles.
+        // Status, not message text: the copy is i18n and shifts with Payload upgrades.
+        setError(
+          res.status === 403
+            ? 'This account isn’t verified yet — use the verification link we emailed you, then sign in.'
+            : 'Invalid email or password.',
+        )
         return
       }
       router.replace('/')

@@ -15,6 +15,7 @@ import { getPayload, type Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
+import { createUserVerified } from '../helpers/fixtures.js'
 
 // Per-run addresses so counters/users never collide across runs or with real users.
 const RUN = `authrl-${Date.now()}`
@@ -31,9 +32,12 @@ let userId: number | undefined
 
 beforeAll(async () => {
   payload = await getPayload({ config })
-  const user = await payload.create({
-    collection: 'users',
-    data: { email: USER_EMAIL, password: PASSWORD, name: `Auth RL ${RUN}` },
+  // createUserVerified: this spec exercises LOGIN, which 403s unverified accounts before the
+  // throttle question even arises (auth.verify, 2026-07-09).
+  const user = await createUserVerified(payload, {
+    email: USER_EMAIL,
+    password: PASSWORD,
+    name: `Auth RL ${RUN}`,
   })
   userId = user.id
 }, 60_000)

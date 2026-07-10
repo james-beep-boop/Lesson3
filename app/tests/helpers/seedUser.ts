@@ -1,5 +1,6 @@
 import { getPayload } from 'payload'
 import config from '../../src/payload.config.js'
+import { createUserVerified } from './fixtures.js'
 
 export const testUser = {
   name: 'Dev User',
@@ -24,11 +25,8 @@ export async function seedTestUser(): Promise<void> {
     },
   })
 
-  // Create fresh test user
-  await payload.create({
-    collection: 'users',
-    data: testUser,
-  })
+  // Create fresh test user (born verified, no verification email — see createUserVerified).
+  await createUserVerified(payload, testUser)
 }
 
 /**

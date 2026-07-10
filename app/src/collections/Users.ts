@@ -21,8 +21,10 @@ import {
   guardPasswordChange,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
+import { emailLinkBase } from '../lib/emailLinkBase'
 import { isHttpsServerUrl } from '../lib/publicPosture'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
+import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserMessages } from './Messages'
 
@@ -52,20 +54,31 @@ export const Users: CollectionConfig = {
     // Internal hosts (SERVER_URL empty/http) keep today's behavior; sameSite stays Payload's
     // Lax default (the CSRF property the mark-read POST relies on).
     cookies: { secure: isHttpsServerUrl(process.env.SERVER_URL) },
-    // Build the reset link from ADMIN_URL (falling back to SERVER_URL). serverURL is
-    // intentionally '' on the internal host (see payload.config.ts) so it can't be used
-    // for the email base there.
     forgotPassword: {
       generateEmailHTML: (args) => {
         const token = (args as { token?: string } | undefined)?.token ?? ''
-        const base = process.env.ADMIN_URL || process.env.SERVER_URL || ''
         // The FRONTEND reset page (2026-07-09) — /admin/reset would bounce non-admins off the
         // gated panel after resetting; the app page works for every role.
-        const url = `${base}/reset-password?token=${token}`
+        const url = `${emailLinkBase()}/reset-password?token=${token}`
         return `<p>You requested a password reset for the ARES Lesson Library.</p>
 <p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
 <p>If you didn't request this, ignore this email.</p>`
       },
+    },
+    // Email verification on signup (2026-07-09 follow-up hardening to open registration): a new
+    // account cannot log in until its address is verified — Payload enforces this in BOTH the
+    // login op (UnverifiedEmail 403) and the JWT strategy. The link targets the FRONTEND page for
+    // the same reason as the reset link above. Payload's default link would point at
+    // /admin/users/verify/<token> — a panel route teachers can't use.
+    verify: {
+      generateEmailHTML: (args) => {
+        const token = (args as { token?: string } | undefined)?.token ?? ''
+        const url = `${emailLinkBase()}/verify-email?token=${token}`
+        return `<p>Welcome to the ARES Lesson Library.</p>
+<p><a href="${url}">Verify your email address</a> (or paste this link): ${url}</p>
+<p>You'll be able to sign in once your address is verified. If you didn't create this account, ignore this email.</p>`
+      },
+      generateEmailSubject: () => 'Verify your email — ARES Lesson Library',
     },
   },
   admin: {
@@ -99,6 +112,9 @@ export const Users: CollectionConfig = {
     // widget's full-array PATCH (lost-update hazard on authorization data). See endpoints/userAssignments.
     assignEditorEndpoint,
     unassignEditorEndpoint,
+    // SHADOWS the native POST /verify/:id (custom endpoints match first) to add the site-global
+    // rate cap the native op has no hook seam for. See endpoints/verifyEmail.
+    verifyEmailThrottledEndpoint,
   ],
   fields: [
     {
@@ -115,8 +131,36 @@ export const Users: CollectionConfig = {
       type: 'email',
       access: {
         read: emailReadAccess,
-        update: selfOrSiteAdminField,
+        // Site-Admin-only since email verification (Codex 2026-07-10): Payload verifies only on
+        // CREATE — an update neither clears `_verified` nor mints a token, so a self-service
+        // change would let a verified account claim any unregistered address without proving
+        // ownership. Changing an address is a Site-Admin action until a re-verify flow exists.
+        update: siteAdminField,
       },
+    },
+    {
+      // Override auth.verify's `_verified` base field: Payload's default gives EVERY authenticated
+      // user create/read/update on it (defaultAccess, verified in installed
+      // auth/baseFields/verification.js). Open registration made the create axis load-bearing
+      // (same lesson as `roles` below, 2026-07-09): a signup body carrying `_verified: true` must
+      // strip, or verification is self-service. The verify op itself writes via db.updateOne and
+      // registerFirstUser via overrideAccess, so neither is affected by this gate.
+      name: '_verified',
+      type: 'checkbox',
+      access: {
+        create: siteAdminField,
+        read: emailReadAccess, // self or Site Admin — verification status is personal, like email
+        update: siteAdminField, // manual verify = Site-Admin repair action
+      },
+    },
+    {
+      // Override auth.verify's `_verificationToken` base field ONLY to index it (Codex
+      // 2026-07-10): the public verify endpoint looks a token up per request, and without an
+      // index every bogus token scans the users table. Base access (create/update: () => false),
+      // hidden, and the token-clearing hook all survive the merge — this adds one key.
+      name: '_verificationToken',
+      type: 'text',
+      index: true,
     },
     {
       name: 'roles',

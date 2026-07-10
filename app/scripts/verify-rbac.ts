@@ -58,7 +58,11 @@ const run = async () => {
           email: `${P.toLowerCase()}a@test.local`,
           password: 'test1234',
           assignments: [{ subjectGrade: sg.id, role: 'subjectAdmin' }],
+          // auth.verify (2026-07-09): born verified, and never email a .test.local address —
+          // a relay bounce on an SMTP-configured stack would fail the create itself.
+          _verified: true,
         },
+        disableVerificationEmail: true,
       }),
     )
     const userB = track(
@@ -70,7 +74,9 @@ const run = async () => {
           email: `${P.toLowerCase()}b@test.local`,
           password: 'test1234',
           assignments: [{ subjectGrade: sg.id, role: 'subjectAdmin' }],
+          _verified: true,
         },
+        disableVerificationEmail: true,
       }),
     )
     const aAfter = await payload.findByID({ collection: 'users', id: userA.id, depth: 0 })
@@ -98,7 +104,9 @@ const run = async () => {
           email: `${P.toLowerCase()}e@test.local`,
           password: 'test1234',
           assignments: [{ subjectGrade: sg.id, role: 'editor' }],
+          _verified: true,
         },
+        disableVerificationEmail: true,
       }),
     )
     const editorUser = await payload.findByID({ collection: 'users', id: editor.id })

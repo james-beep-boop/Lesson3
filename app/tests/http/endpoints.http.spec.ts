@@ -32,6 +32,7 @@ import {
   type RoleFixture,
   type RoleKey,
 } from '../helpers/fixtures.js'
+import { consumeRateLimit } from '../../src/lib/rateLimit.js'
 
 const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
@@ -1066,7 +1067,10 @@ describe('messaging (SPEC §10 PR ③) — POST /api/messages (Payload default R
 })
 
 describe('open self-registration (2026-07-09) — POST /api/users', () => {
-  const signupEmail = (tag: string) => `${MARK.toLowerCase()}${tag}@signup.test`
+  // example.com blackhole (RFC 2606), same idiom as the fixture users: with auth.verify on, every
+  // REST signup here sends a REAL verification email on a live stack — a fake TLD could be
+  // rejected at the relay and fail the create itself.
+  const signupEmail = (tag: string) => `${MARK.toLowerCase()}${tag}-signup@example.com`
   const signupName = (tag: string) => `${MARK}signup-${tag}`
   const post = (body: Record<string, unknown>) =>
     fetch(url('/api/users'), {
@@ -1074,6 +1078,23 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+  const login = (email: string, password: string) =>
+    fetch(url('/api/users/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+  /** The emailed single-use token, read server-side (hidden field → showHiddenFields). */
+  const tokenOf = async (email: string) => {
+    const { docs } = await fx.payload.find({
+      collection: 'users',
+      where: { email: { equals: email } },
+      depth: 0,
+      overrideAccess: true,
+      showHiddenFields: true,
+    })
+    return (docs[0] as { _verificationToken?: string | null } | undefined)?._verificationToken
+  }
 
   afterAll(async () => {
     await fx.payload.delete({
@@ -1083,15 +1104,17 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
     })
   })
 
-  it('an anonymous visitor can register; hostile roles/assignments are STRIPPED', async () => {
+  it('an anonymous visitor can register; hostile roles/assignments/_verified are STRIPPED', async () => {
     const email = signupEmail('a')
     const res = await post({
       name: signupName('a'),
       email,
       password: 'signup-pass-1',
-      // Hostile payload: privilege smuggling must strip at the field create gates.
+      // Hostile payload: privilege smuggling must strip at the field create gates —
+      // _verified included, or verification is self-service (auth.verify, 2026-07-09).
       roles: ['siteAdmin'],
       assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'subjectAdmin' }],
+      _verified: true,
     })
     expect([200, 201]).toContain(res.status)
 
@@ -1104,18 +1127,55 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
     expect(docs).toHaveLength(1)
     expect(docs[0].roles ?? []).toEqual([])
     expect(docs[0].assignments ?? []).toEqual([])
+    expect(docs[0]._verified ?? false).toBe(false) // the smuggled flag stripped
   })
 
-  it('the new account signs in as a plain Teacher', async () => {
-    const res = await fetch(url('/api/users/login'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: signupEmail('a'), password: 'signup-pass-1' }),
-    })
+  it('login before verification → 403 (UnverifiedEmail)', async () => {
+    const res = await login(signupEmail('a'), 'signup-pass-1')
+    expect(res.status).toBe(403)
+    const body = (await res.json()) as { errors?: { message?: string }[] }
+    expect(body.errors?.[0]?.message ?? '').toMatch(/verify your email/i)
+  })
+
+  it('a bogus verification token → 403, account stays unverified', async () => {
+    const res = await fetch(url('/api/users/verify/not-a-real-token'), { method: 'POST' })
+    expect(res.status).toBe(403)
+    expect((await login(signupEmail('a'), 'signup-pass-1')).status).toBe(403)
+  })
+
+  it('verifying with the emailed token unlocks login as a plain Teacher', async () => {
+    const email = signupEmail('a')
+    const token = await tokenOf(email)
+    expect(token).toBeTruthy()
+    const verify = await fetch(url(`/api/users/verify/${token}`), { method: 'POST' })
+    expect(verify.status).toBe(200)
+
+    const res = await login(email, 'signup-pass-1')
     expect(res.status).toBe(200)
     const body = (await res.json()) as { token?: string; user?: { roles?: string[] } }
     expect(body.token).toBeTruthy()
     expect(body.user?.roles ?? []).toEqual([])
+  })
+
+  it('over the site-global budget the verify endpoint 429s — proof the throttled custom endpoint SHADOWS the native one', async () => {
+    // Payload's native verify handler has no throttle at all, so a 429 can only come from our
+    // shadow endpoint (endpoints/verifyEmail.ts). If a Payload bump renames the built-in path out
+    // from under the shadow, this assertion is what fails. Budget drains through the SAME
+    // Postgres counter the app reads (shared DB), then the row is deleted so nothing leaks into
+    // other tests.
+    const req = { payload: fx.payload } as never
+    const VERIFY_MAX = Number(process.env.RATE_LIMIT_VERIFY_EMAIL_GLOBAL_MAX) || 300
+    try {
+      for (let i = 0; i < VERIFY_MAX; i++) {
+        await consumeRateLimit(req, 'verifyEmailGlobal', 'all')
+      }
+      const res = await fetch(url('/api/users/verify/throttle-probe-token'), { method: 'POST' })
+      expect(res.status).toBe(429)
+    } finally {
+      const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
+        .drizzle
+      await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ${'verifyEmailGlobal:all'};`)
+    }
   })
 
   it('an AUTHENTICATED non-admin cannot create users → 403', async () => {

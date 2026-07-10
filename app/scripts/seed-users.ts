@@ -102,8 +102,12 @@ const run = async () => {
         email: s.email,
         password: s.password,
         roles: [], // never a Site Admin via this script
+        // Seeded dev/demo users are born verified (auth.verify, 2026-07-09) — they have no real
+        // inbox to click a link from, and no email is sent for them.
+        _verified: true,
         ...(s.assignmentRole ? { assignments: [{ subjectGrade: sg.id, role: s.assignmentRole }] } : {}),
       },
+      disableVerificationEmail: true,
     })
     created.push({
       label: s.label,

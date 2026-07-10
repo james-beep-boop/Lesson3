@@ -14,8 +14,9 @@
  *    authentication required — the same egress class the email-a-doc caps guard — so it gets the
  *    same two-tier shape (per-recipient + site ceiling).
  *  - SIGNUP (open self-registration, 2026-07-09): an UNAUTHENTICATED users create. Per requested
- *    email + a site-global daily ceiling on new accounts — with email verification deferred,
- *    these caps are the abuse bound.
+ *    email + a site-global daily ceiling on new accounts. These caps also bound the verification
+ *    emails signup sends (auth.verify, added later the same day): one per create, so the signup
+ *    budget IS the verification-mail budget — no separate bucket needed.
  *
  * Existence-oracle safety: budgets are keyed by the REQUESTED identifier whether or not an account
  * exists, and the 429 text names only the request rate — so neither the limit nor its message

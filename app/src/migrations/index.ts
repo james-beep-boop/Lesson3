@@ -14,6 +14,7 @@ import * as migration_20260702_194849_add_favorites from './20260702_194849_add_
 import * as migration_20260702_230926_add_email_task from './20260702_230926_add_email_task';
 import * as migration_20260703_041716_add_messaging from './20260703_041716_add_messaging';
 import * as migration_20260706_175339_favorites_per_version from './20260706_175339_favorites_per_version';
+import * as migration_20260710_041621_add_email_verification from './20260710_041621_add_email_verification';
 
 export const migrations = [
   {
@@ -94,6 +95,11 @@ export const migrations = [
   {
     up: migration_20260706_175339_favorites_per_version.up,
     down: migration_20260706_175339_favorites_per_version.down,
-    name: '20260706_175339_favorites_per_version'
+    name: '20260706_175339_favorites_per_version',
+  },
+  {
+    up: migration_20260710_041621_add_email_verification.up,
+    down: migration_20260710_041621_add_email_verification.down,
+    name: '20260710_041621_add_email_verification'
   },
 ];

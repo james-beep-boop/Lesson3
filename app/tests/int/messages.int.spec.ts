@@ -20,7 +20,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { PayloadRequest } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, createUserVerified, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
 
@@ -154,14 +154,10 @@ describe('notification ping (zero-unread gate + per-recipient budget)', () => {
     // Codex audit 2026-07-03 #3: notifyRecipient wraps `jobs.queue` in try/catch, so a queue outage
     // must not fail the create. A fresh scratch recipient (zero unread) guarantees the zero-unread
     // gate passes, so the hook actually ATTEMPTS the enqueue — which we force to reject.
-    const recipient = await fx.payload.create({
-      collection: 'users',
-      data: {
-        name: `${MARK}PingFailRecipient`,
-        email: `${MARK.toLowerCase()}pingfail@example.com`,
-        password: fx.password,
-      },
-      overrideAccess: true,
+    const recipient = await createUserVerified(fx.payload, {
+      name: `${MARK}PingFailRecipient`,
+      email: `${MARK.toLowerCase()}pingfail@example.com`,
+      password: fx.password,
     })
     const spy = vi.spyOn(fx.payload.jobs, 'queue').mockRejectedValue(new Error('queue down'))
     try {
@@ -190,14 +186,10 @@ describe('notification ping (zero-unread gate + per-recipient budget)', () => {
 
 describe('messages cascade with their users (NOT NULL FK → 23502 without it)', () => {
   it('deleting a user removes messages they sent AND messages they received', async () => {
-    const scratch = await fx.payload.create({
-      collection: 'users',
-      data: {
-        name: `${MARK}MsgCascadeUser`,
-        email: `${MARK.toLowerCase()}msgcascade@example.com`,
-        password: fx.password,
-      },
-      overrideAccess: true,
+    const scratch = await createUserVerified(fx.payload, {
+      name: `${MARK}MsgCascadeUser`,
+      email: `${MARK.toLowerCase()}msgcascade@example.com`,
+      password: fx.password,
     })
     const sent = await send(scratch, fx.users.teacher.id, `${MARK}from-scratch`)
     const received = await send(fx.users.teacher, scratch.id, `${MARK}to-scratch`)

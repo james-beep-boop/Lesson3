@@ -15,6 +15,7 @@
 import type { TaskConfig } from 'payload'
 
 import { captureException } from '../lib/errorTracking'
+import { emailLinkBase } from '../lib/emailLinkBase'
 import type { User } from '../payload-types'
 
 export interface MessagePingInput {
@@ -47,9 +48,9 @@ export const messagePingTask: TaskConfig<{
         overrideAccess: true,
       })) as User
 
-      // Same base-URL source as the password-reset email (Users auth config): ADMIN_URL, falling
-      // back to SERVER_URL (deliberately '' on the internal host — the path alone still orients).
-      const base = process.env.ADMIN_URL || process.env.SERVER_URL || ''
+      // Shared email-link base (lib/emailLinkBase) — '' on the internal host, where the path
+      // alone still orients.
+      const base = emailLinkBase()
       await req.payload.sendEmail({
         to: recipient.email,
         subject: 'You have a new message — ARES Lesson Library',

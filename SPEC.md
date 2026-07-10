@@ -163,10 +163,15 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 - **Open self-registration (decided 2026-07-09):** anyone may create an account from the login
   page's Sign up link (standard Payload create); new accounts are plain **Teachers** — the
-  privileged fields (`roles`, `assignments`) are create-gated, and signups are rate-capped per
-  address + site-globally. Password reset is Payload's native forgot/reset flow, emailed to the
-  frontend `/reset-password` page. Email VERIFICATION is a deferred hardening (needs a
-  `_verified` schema migration).
+  privileged fields (`roles`, `assignments`, `_verified`) are create-gated, and signups are
+  rate-capped per address + site-globally. Password reset is Payload's native forgot/reset flow,
+  emailed to the frontend `/reset-password` page. **Email verification (added 2026-07-09,
+  Payload `auth.verify`):** a new account cannot sign in until the emailed link (frontend
+  `/verify-email` page) is used; manual verify/unverify is a Site-Admin repair action. There is
+  deliberately no resend endpoint in v1 — the signup caps bound abuse, and a lost email is a
+  Site-Admin remedy. **Changing an account's email is Site-Admin-only** (verification happens
+  only at create, so a self-service change would claim an unproven address); the verify
+  endpoint is rate-capped site-globally.
 
 | Role | Scope |
 |---|---|

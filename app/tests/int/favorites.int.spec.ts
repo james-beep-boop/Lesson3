@@ -15,7 +15,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, createUserVerified, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let fx: RoleFixture
@@ -276,14 +276,10 @@ describe('favorites cascade with their parents (NOT NULL FK → 23502 without it
   })
 
   it('deleting a user removes their favorites rows first', async () => {
-    const user = await fx.payload.create({
-      collection: 'users',
-      data: {
-        name: `${MARK}FavCascadeUser`,
-        email: `${MARK.toLowerCase()}favcascade@test.local`,
-        password: fx.password,
-      },
-      overrideAccess: true,
+    const user = await createUserVerified(fx.payload, {
+      name: `${MARK}FavCascadeUser`,
+      email: `${MARK.toLowerCase()}favcascade@test.local`,
+      password: fx.password,
     })
     await fx.payload.create({
       collection: 'favorites',

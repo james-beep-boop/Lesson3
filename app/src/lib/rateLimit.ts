@@ -125,6 +125,15 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_MAX', 100),
     windowMs: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_WINDOW_MS', 86_400_000),
   },
+  // Email-verification attempts (Codex 2026-07-10): the verify endpoint is public and token-only,
+  // so there is no per-target identifier to key on (an attacker varies the token) and no reliable
+  // IP without the Phase-5 edge proxy — a site-global daily ceiling is the honest app-level bound.
+  // Sized ~3× signupGlobal: every legitimate verify follows a signup, plus retries. Per-IP
+  // throttling lands with Phase 5 Track B edge rate limiting.
+  verifyEmailGlobal: {
+    max: positiveIntEnv('RATE_LIMIT_VERIFY_EMAIL_GLOBAL_MAX', 300),
+    windowMs: positiveIntEnv('RATE_LIMIT_VERIFY_EMAIL_GLOBAL_WINDOW_MS', 86_400_000),
+  },
 } satisfies Record<string, Limit>
 
 export type Bucket = keyof typeof LIMITS
