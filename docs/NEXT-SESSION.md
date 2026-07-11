@@ -12,7 +12,7 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**No track is currently in flight** (2026-07-09 — see the newest RESUME section below). The
+**One small branch is currently in flight** (2026-07-11 — see the newest RESUME section below). The
 teacher-first track (2026-07-08) and the version-browser redesign (2026-07-06) are BOTH complete;
 the audit-driven five-phase plan completed through Phase 4 with Phase 5 Track B host-gated; the
 §10 cross-user-features track completed 2026-07-03. Next work = operator deploy/eyeball, then
@@ -23,6 +23,38 @@ done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD wit
 retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**, AND **backlog #9 OPS**
 (backups, structured logging, heartbeat, CI) are ALL DONE. The remaining #9 work is **operator setup only**
 (keys/OAuth/cron — see `docs/OPS.md`), plus small deferred follow-ups. See "▶ RESUME HERE".
+
+---
+
+## ▶ RESUME HERE (2026-07-11) — finish async-export feedback branch; then deploy + verify the email migration
+
+**Live Git state when this handoff was written:** `main` / `origin/main` = `69dcec9` (PR #82,
+email verification, MERGED); current pushed branch `codex/export-ux-resilience` = `f9a67a9`, one
+commit ahead. The older 2026-07-10 block below is superseded: the email-verification PR/CI/merge are
+DONE. What is NOT established by the repository is whether its migration has been deployed on the
+Rock.
+
+**Current branch:** hardens the shared async export client. Network failures now reach visible UI
+error state; non-OK status polls fail immediately with the server message; and the default client
+wait grows from ~90s to ~150s so it cannot time out before Gotenberg's allowed 120s conversion.
+`tests/unit/exportClient.spec.ts` covers cold prepare-to-ready, a status HTTP failure, and a failed
+final ZIP fetch. Full reasoning: newest DECISIONS entry, "async export feedback".
+
+**Branch review/gates:** manual review found no blocking issue. Local gates are green: lint 0 errors
+(70 pre-existing warnings), typecheck clean, unit 159/159. CodeRabbit 0.6.4 is installed but signed
+out, so its review is not a green gate. Commit this handoff/decision update on
+`codex/export-ux-resilience`; push/open PR/merge only under the normal explicit-user workflow.
+
+**Operator next after merge:** deploy current `main` with `scripts/deploy.sh` (schema change: applies
+`20260710_041621_add_email_verification`, snapshot first), then browser-check: existing-user login;
+new signup/check-email/unverified-login/verify-link/login; password reset; and one cold export plus
+an observable export failure. Record the actual Rock SHA and migration/eyeball outcome here.
+
+**Then pick the next track with the user:** Phase 5 Track B / going-public operator setup is the
+recommended substantive priority now that registration is open. Deferred code work remains:
+messagePing `FOR UPDATE` concurrency, a local integration-test harness + HTML-cache-version drift
+test, and Manage/roster pagination only when scale justifies it. AI summaries remain deliberately
+unprioritized.
 
 ---
 

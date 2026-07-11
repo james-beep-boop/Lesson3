@@ -11,7 +11,7 @@ export type ExportState = 'idle' | 'preparing' | 'downloading' | 'error'
 
 interface DownloadOpts {
   onState?: (state: ExportState, message?: string) => void
-  /** Max status polls before giving up (default ~90s at the endpoint's suggested 1.5s cadence). */
+  /** Max status polls before giving up (default ~150s at the endpoint's suggested 1.5s cadence). */
   maxPolls?: number
 }
 
@@ -46,6 +46,21 @@ async function messageFrom(res: Response, fallback: string): Promise<string> {
   }
 }
 
+/** Turn transport failures into the same visible error state as HTTP/job failures. */
+async function fetchExport(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  onState: NonNullable<DownloadOpts['onState']>,
+): Promise<Response> {
+  try {
+    return await fetch(input, init)
+  } catch {
+    const msg = 'Could not reach the export service — check your connection and try again.'
+    onState('error', msg)
+    throw new Error(msg)
+  }
+}
+
 /**
  * Ensure the (version, kind) export named by `exportUrl` is warm: prepare via POST (ready
  * immediately, or 202 → poll status until ready). Resolves once artifacts are cached; rejects
@@ -54,11 +69,17 @@ async function messageFrom(res: Response, fallback: string): Promise<string> {
  * the caller's. Shared by `downloadExport` and the per-document buttons (teacher-first T2).
  */
 export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = {}): Promise<void> {
-  const { onState = () => {}, maxPolls = 60 } = opts
+  // Gotenberg may legitimately spend up to 120s converting one PDF; leave queue/startup headroom
+  // and match the HTTP suite's 150s cold-export budget instead of timing out first at ~90s.
+  const { onState = () => {}, maxPolls = 100 } = opts
 
   // Phase 1: prepare via POST — the only state-changing call (CSRF-guarded by SameSite=Lax).
   onState('preparing')
-  const prep = await fetch(exportUrl, { method: 'POST', credentials: 'same-origin' })
+  const prep = await fetchExport(
+    exportUrl,
+    { method: 'POST', credentials: 'same-origin' },
+    onState,
+  )
 
   if (prep.status === 429) {
     const msg = await messageFrom(prep, 'Too many requests — please wait and try again.')
@@ -91,14 +112,26 @@ export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = 
 
   for (let i = 0; i < maxPolls; i++) {
     await sleep(cadence)
-    const poll = await fetch(statusUrl, { credentials: 'same-origin' })
-    const body = (await poll.json().catch(() => ({}))) as { state?: string; message?: string }
-    if (body.state === 'ready') return
+    const poll = await fetchExport(statusUrl, { credentials: 'same-origin' }, onState)
+    const body = (await poll.json().catch(() => ({}))) as {
+      errors?: { message?: string }[]
+      state?: string
+      message?: string
+    }
     if (body.state === 'error') {
       const msg = body.message ?? 'Export failed — please try again.'
       onState('error', msg)
       throw new Error(msg)
     }
+    if (!poll.ok) {
+      const msg =
+        body.errors?.[0]?.message ??
+        body.message ??
+        `Could not check export status (${poll.status}).`
+      onState('error', msg)
+      throw new Error(msg)
+    }
+    if (body.state === 'ready') return
     // else 'preparing' → keep polling
   }
 
@@ -117,7 +150,7 @@ export async function downloadExport(exportUrl: string, opts: DownloadOpts = {})
   await ensureExportReady(exportUrl, opts)
 
   onState('downloading')
-  const dl = await fetch(exportUrl, { credentials: 'same-origin' })
+  const dl = await fetchExport(exportUrl, { credentials: 'same-origin' }, onState)
   if (dl.status !== 200) {
     const msg = await messageFrom(dl, 'Export could not be downloaded.')
     onState('error', msg)

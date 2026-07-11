@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-11 (async export feedback) — transport/status failures surface immediately; the client wait budget matches Gotenberg
+
+The shared export client previously handled explicit job failures and rate limits, but a rejected
+`fetch` (offline/network/proxy failure) bypassed `onState('error')`, and a non-OK status response
+without the expected job-error body could keep polling until the generic timeout. The default poll
+budget was also about 90 seconds even though Gotenberg is allowed 120 seconds, so a legitimate cold
+PDF conversion could make the browser give up before the server did.
+
+- All prepare, status, and final-download requests now pass through one `fetchExport` wrapper. A
+  transport rejection sets the visible error state and throws the same actionable message consumed
+  by ZIP callers and the per-document PDF/Word controls.
+- Status polling parses the response once, preserves the endpoint's explicit job-error message, and
+  otherwise fails immediately on non-2xx responses instead of treating them as `preparing`.
+- The default budget is 100 polls at the endpoint's 1.5-second cadence (~150 seconds), matching the
+  HTTP suite's cold-export allowance and leaving startup headroom above Gotenberg's 120-second cap.
+- `tests/unit/exportClient.spec.ts` pins cold prepare-to-ready, status HTTP failure, and a transport
+  failure during the final ZIP GET. Manual review found no Critical/Warning issue. CodeRabbit was not
+  available for the corroborating pass because its CLI was signed out. Local gates: lint 0 errors
+  (70 pre-existing warnings), typecheck clean, unit 159/159.
+
+---
+
 ## 2026-07-10 (email-verification Codex round) — email changes are Site-Admin-only; the verify endpoint gets a shadow throttle + token index; the backfill gets an executable test
 
 Three accepted findings on the (then-uncommitted) email-verification diff, fixed before the PR:
