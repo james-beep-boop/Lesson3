@@ -1053,9 +1053,23 @@ button[type='submit']:disabled {
   background: var(--bg-soft);
 }
 .guide-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: 2rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
+}
+.guide-footer__credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.guide-footer__donate {
+  display: inline-block;
 }
 
 /* ---- Reading-first mobile pass (IA redesign PR ⑤): the library, lesson pages, and Guide must be
