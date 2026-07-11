@@ -16,10 +16,11 @@ export default async function UserGuidePage() {
           and export that data in the app; the system generates the Word and PDF documents for you.
         </p>
         <p>
-          There are three places: <strong>Lessons</strong> (the library — the one list of every lesson
-          plan), the <strong>lesson page</strong> (everything about one lesson: read, versions,
-          download, and — for editing roles — Edit and Make Official), and <strong>Manage</strong>{' '}
-          (housekeeping and people, showing only the functions your role has).
+          The main areas are <strong>Lessons</strong> (the library — the one list of every lesson
+          plan), the <strong>lesson page</strong> (read, favorite, download, email, and share one
+          lesson), <strong>Manage</strong> (editing, housekeeping, and people functions available to
+          your role), and <strong>Messages</strong> (notes between repository users). Editing roles
+          also see version and comparison controls on the library and lesson pages.
         </p>
       </header>
 
@@ -202,6 +203,22 @@ export default async function UserGuidePage() {
 
       <footer className="guide-footer">
         <Link href="/">Back to lesson plans</Link>
+        <div className="guide-footer__credit">
+          <span>
+            Lesson Plans by{' '}
+            <a href="https://areseducation.org" target="_blank" rel="noopener noreferrer">
+              ARES Education
+            </a>
+          </span>
+          <a
+            className="btn guide-footer__donate"
+            href="https://areseducation.org/donate.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Donate
+          </a>
+        </div>
       </footer>
     </article>
   )

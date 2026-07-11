@@ -3,31 +3,39 @@
 The Lesson Plan Repository stores ARES lesson plans as structured lesson data. You browse, edit,
 preview, and export that data in the app; the system generates the Word and PDF documents for you.
 
-There are three places: **Lessons** (the library — the one list of every lesson plan), the **lesson
-page** (everything about one lesson: read, versions, download, and — for editing roles — Edit and
-Make Official), and **Manage** (housekeeping and people, showing only the functions your role has).
+The main areas are **Lessons** (the library — the one list of every lesson plan), the **lesson page**
+(read, favorite, download, email, and share one lesson), **Manage** (editing, housekeeping, and
+people functions available to your role), and **Messages** (notes between repository users). Editing
+roles also see version and comparison controls on the library and lesson pages.
 
 This file mirrors the in-app guide at `/guide`; keep the two in step when either changes.
 
 ## Teachers
 
 Teachers use the Lessons area to find lesson plans, read them on screen, and download the generated
-documents. Each lesson plan opens at its Official version, with a selector for any other retained
-version. Teachers do not use the admin area and do not see editing controls.
+documents. Each lesson plan opens at its Official version. Editors and administrators also see an
+_N versions_ panel and Compare control; Teachers do not use Manage or see version/editing controls.
 
+- **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
+  link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
-- **Search:** use the search box to find a subject, grade, strand, or sub-strand.
+- **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
+  the subject and grade buttons to narrow the list. Search and filters work together.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
-  pin that version of the lesson to a My favorites list at the top of the home page. A favorite keeps
-  pointing at the version you starred, even if a newer one later becomes Official. Favorites are
+  keep that lesson in My favorites at the top of the home page. For Teachers, the favorite follows
+  the lesson's current Official version when a newer one is promoted. For editing roles, a favorite
+  pins the exact version starred and a non-Official pin is labelled `vX (pinned)`. Favorites are
   personal — only you see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
-- **Download:** choose DOCX or PDF. Each download contains the generated lesson documents for that
-  sub-strand.
+- **Open or download a document:** each available document has a _PDF_ button, which opens it in a
+  new tab, and a _Word_ button, which downloads its `.docx`. _Download all_ on the lesson page
+  downloads all generated documents together as a `.zip`.
 - **Email:** use the Email button to send the generated documents (as a .zip of Word files) to any
   email address — your own, or a colleague's. Sends are limited per day.
+- **Want to edit?** use _Request editing access_ on a lesson page. The app messages the appropriate
+  administrators for that subject-grade; requests are limited to once per subject-grade per day.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to any
   user of the repository — a lesson page's "Message a colleague" link attaches that lesson to your
   note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
@@ -99,3 +107,7 @@ export.
 - Editors and Subject Administrators act only within the subject-grades assigned to them; Site
   Administrators can see and manage everything.
 - Email addresses are visible only to the account owner and Site Administrators.
+
+---
+
+Lesson Plans by [ARES Education](https://areseducation.org) — [Donate](https://areseducation.org/donate.html)
