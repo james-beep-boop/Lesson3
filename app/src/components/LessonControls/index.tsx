@@ -26,6 +26,7 @@ import { reduceFieldsToValues } from 'payload/shared'
 import { downloadExport, type ExportState } from '../exportClient'
 import { isSubjectAdminFor, toId } from '../../access'
 import type { User } from '../../payload-types'
+import EditJumpNav from './EditJumpNav'
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
@@ -235,6 +236,9 @@ export default function LessonControls() {
           </span>
         ) : null}
       </div>
+      {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
+          already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
+      <EditJumpNav />
     </div>
   )
 }
