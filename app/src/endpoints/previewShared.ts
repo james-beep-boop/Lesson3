@@ -81,7 +81,7 @@ function previewPage(
   .doc-section h2 { color: #666; font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.04em; }
   .doc { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  td, th { border: 1px solid #ccc; padding: 0.4rem 0.55rem; vertical-align: top; text-align: left; }
+  td, th { border: 1px solid #8c8c8c; padding: 0.4rem 0.55rem; vertical-align: top; text-align: left; } /* 3:1 gridlines (D6) */
 </style></head>
 <body>
   <p class="page-head">Content preview · ${escapeHtml(provenance)} · not the final document layout</p>

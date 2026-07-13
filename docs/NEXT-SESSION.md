@@ -26,39 +26,28 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-12) — DESIGN TRACK D1–D6 is the active arc (D1 built); Rock deploy still pending
+## ▶ RESUME HERE (2026-07-13) — DESIGN TRACK D1–D6 COMPLETE; next = Rock deploy + eyeball, then pick from the queue
 
-**The design critique (`docs/DESIGN-CRITIQUE-2026-07-12.md`) became a six-PR design track, planned
-and decision-locked with the user — read DECISIONS 2026-07-12 first** (three user decisions: admin
-= light reskin; export strip = demote FE/ST behind a disclosure, revising T2; lesson layout =
-sticky nav only, semantic-transform rejected under SPEC §5). The 2026-07-11 block below is
-superseded: its branch merged as PR #83; **the Rock deploy of current main (carries the
-`20260710_041621_add_email_verification` migration + its eyeball list below) is STILL the pending
-operator item.**
+**The whole six-PR design track is DONE** — D1 #85, D2 #86, D3 #87, D4 #88, D5 #89 merged; D6 #90
+(WCAG AA pass) merged last. All app-level, ZERO migrations. Full reasoning + build notes:
+DECISIONS 2026-07-12 (one entry, D1–D6 subsections — includes the three user decisions, two
+stale-critique findings, two declined items, and the a11y audit results). Every PR was
+browser-verified on the LOCAL compose stack (this Mac) before merge; the Rock has none of it yet.
 
-**Track order (each its own CI-gated PR, all app-level, no migrations):**
-- **D1 — in-page lesson navigation — BUILT this session** (`lib/lessonAnchors.ts` post-cache
-  anchor transform + drift-pinning spec; sticky lesson toolbar = action bar + jump nav; preview
-  page CSS-only sticky nav; Guide TOC sticky). See DECISIONS 2026-07-12 for the build notes.
-- **D2 — editing-surface light reskin**: Payload theme CSS vars in `custom.scss` (app blue accent,
-  Save button) + branded app header on Manage and the version editor; Manage page adopts the
-  dashboard row pattern; Delete becomes a confirm-gated button.
-- **D3 — version-editor toolbar + role-lock pattern**: group LessonControls by function, Save gets
-  primary weight; remaining gray provenance fields restyle as explicit read-only display (lock +
-  tooltip only where genuinely role-gated — SPEC §13 nuance recorded in DECISIONS).
-- **D4 — dashboard export strip**: Lesson-plan PDF/Word one-click, FE/ST behind "More"; export
-  buttons stop sharing the filter-pill treatment; fixed-width version-chip column; favorites empty
-  state; search clear/no-results affordances.
-- **D5 — consistency batch**: unread-message treatment becomes the app-wide "needs attention"
-  pattern; badge unification; Log Out separation; Messages inbox above collapsed compose +
-  recipient-scope hint; display-level title-casing helper; login branding/centering; preview title
-  de-duplication; Guide copy conventions.
-- **D6 — accessibility pass (LAST)**: `design:accessibility-review` WCAG 2.1 AA audit; centralize
-  gray-text tokens in `styles.css`; keyboard operability; touch targets.
+**OPERATOR NEXT (accumulated): one Rock deploy + eyeball.**
+1. `scripts/deploy.sh` — pulls everything since #78, applies `20260710_041621_add_email_verification`
+   (snapshot first, as always). Everything else in the batch is app-level.
+2. **Eyeball list** = the 2026-07-11 block's email-verification items below, PLUS the design track:
+   lesson page sticky toolbar + numbered lesson jumps (desktop AND phone); preview-tab jump nav;
+   sticky Guide TOC; branded admin header + blue Save on Manage/version editor; editor toolbar
+   Edit⇄Save/Discard swap + "read-only" chips in edit mode; catalogue rows' "More documents"
+   disclosure + aligned stars; collapsed Messages compose (+ auto-open from "Message a colleague");
+   title-cased message links/preview heading; login page branding.
 
-**Operator (unchanged, accumulate into next deploy):** `scripts/deploy.sh` (snapshot first — the
-email-verification migration applies), then the 2026-07-11 eyeball list below + D1's: lesson page
-sticky toolbar + lesson number jumps (desktop + phone), preview-tab jump nav, sticky Guide TOC.
+**QUEUE after deploy (pick with the user):** Phase 5 Track B / going-public operator setup
+(docs/OPS.md) remains the recommended substantive priority. Deferred code work unchanged:
+messagePing `FOR UPDATE`, local int-test harness + HTML-cache-version drift test, Manage/roster
+pagination at scale. AI summaries stay deliberately unprioritized.
 
 ---
 
