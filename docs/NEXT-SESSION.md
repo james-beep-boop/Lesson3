@@ -26,7 +26,43 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-11) — finish async-export feedback branch; then deploy + verify the email migration
+## ▶ RESUME HERE (2026-07-12) — DESIGN TRACK D1–D6 is the active arc (D1 built); Rock deploy still pending
+
+**The design critique (`docs/DESIGN-CRITIQUE-2026-07-12.md`) became a six-PR design track, planned
+and decision-locked with the user — read DECISIONS 2026-07-12 first** (three user decisions: admin
+= light reskin; export strip = demote FE/ST behind a disclosure, revising T2; lesson layout =
+sticky nav only, semantic-transform rejected under SPEC §5). The 2026-07-11 block below is
+superseded: its branch merged as PR #83; **the Rock deploy of current main (carries the
+`20260710_041621_add_email_verification` migration + its eyeball list below) is STILL the pending
+operator item.**
+
+**Track order (each its own CI-gated PR, all app-level, no migrations):**
+- **D1 — in-page lesson navigation — BUILT this session** (`lib/lessonAnchors.ts` post-cache
+  anchor transform + drift-pinning spec; sticky lesson toolbar = action bar + jump nav; preview
+  page CSS-only sticky nav; Guide TOC sticky). See DECISIONS 2026-07-12 for the build notes.
+- **D2 — editing-surface light reskin**: Payload theme CSS vars in `custom.scss` (app blue accent,
+  Save button) + branded app header on Manage and the version editor; Manage page adopts the
+  dashboard row pattern; Delete becomes a confirm-gated button.
+- **D3 — version-editor toolbar + role-lock pattern**: group LessonControls by function, Save gets
+  primary weight; remaining gray provenance fields restyle as explicit read-only display (lock +
+  tooltip only where genuinely role-gated — SPEC §13 nuance recorded in DECISIONS).
+- **D4 — dashboard export strip**: Lesson-plan PDF/Word one-click, FE/ST behind "More"; export
+  buttons stop sharing the filter-pill treatment; fixed-width version-chip column; favorites empty
+  state; search clear/no-results affordances.
+- **D5 — consistency batch**: unread-message treatment becomes the app-wide "needs attention"
+  pattern; badge unification; Log Out separation; Messages inbox above collapsed compose +
+  recipient-scope hint; display-level title-casing helper; login branding/centering; preview title
+  de-duplication; Guide copy conventions.
+- **D6 — accessibility pass (LAST)**: `design:accessibility-review` WCAG 2.1 AA audit; centralize
+  gray-text tokens in `styles.css`; keyboard operability; touch targets.
+
+**Operator (unchanged, accumulate into next deploy):** `scripts/deploy.sh` (snapshot first — the
+email-verification migration applies), then the 2026-07-11 eyeball list below + D1's: lesson page
+sticky toolbar + lesson number jumps (desktop + phone), preview-tab jump nav, sticky Guide TOC.
+
+---
+
+## ▶ Older resume (2026-07-11) — finish async-export feedback branch; then deploy + verify the email migration
 
 **Live Git state when this handoff was written:** `main` / `origin/main` = `69dcec9` (PR #82,
 email verification, MERGED); current pushed branch `codex/export-ux-resilience` = `f9a67a9`, one

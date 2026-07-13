@@ -11,6 +11,55 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-12 (design track locked + D1) — critique triage, three user decisions, and the in-page lesson nav
+
+A structured design critique of the live app (`docs/DESIGN-CRITIQUE-2026-07-12.md`, reviewed as
+Teacher and Editor) drives a six-PR design track, planned with the user this session. Build order:
+**D1** in-page lesson navigation → **D2** editing-surface light reskin → **D3** version-editor
+toolbar + role-lock pattern → **D4** dashboard export-strip consolidation → **D5** consistency
+batch → **D6** app-wide WCAG 2.1 AA pass (last, so it measures the final colors). All app-level;
+no migrations anywhere in the track.
+
+**Three user decisions (2026-07-12):**
+- **Editing surface = LIGHT RESKIN**, not full pixel-match and not scoped-as-unstyled: Payload
+  theme CSS variables in `custom.scss` (accent, Save button) + the app's branded header on
+  `/admin` views. Rationale: ~90% of the visual unity without fighting Payload internals across
+  the pinned-version upgrade cadence.
+- **Dashboard export strip: DEMOTE Final Explanation / Summary Table behind a "More" disclosure;
+  Lesson-plan PDF/Word stay one-click.** This deliberately REVISES the teacher-first T2 strip
+  (2026-07-08): the critique found six buttons per row heavy to scan; the middle option keeps
+  T2's zero-clicks-to-export intent for the primary document.
+- **Lesson detail long-document fix = STICKY NAV ONLY.** The critique's "semantic
+  `<section>`/`<h2>` instead of table rows" suggestion collides with SPEC §5 (the content view is
+  mammoth-converted generator DOCX — never a parallel renderer); a post-processing transform was
+  considered and REJECTED for now (transform layer + cache-version bump + fidelity-drift risk for
+  a screen-reader gain nobody has asked for yet). Revisit only with a concrete accessibility
+  driver.
+
+**Critique items resolved as NO ACTION** (prior decisions already answer them): the login page's
+Sign up link (open registration was the explicit 2026-07-09 decision); scope switching in the
+account menu (the catalogue's filter chips cover multi-scope browsing); the preview tab's missing
+way-back (it is deliberately a separate tab).
+
+**D1 build notes (this session):**
+- Lesson boundaries in the rendered document are NOT headings — the generator's `fullHeader` emits
+  a table row, which mammoth renders as `<p><strong>LESSON <n> (<duration>): <title></strong></p>`
+  (probed against the real chain). `lib/lessonAnchors.ts` injects `id="lesson-<n>"` there and
+  reports the anchors; the sticky toolbar on the lesson page (action bar + jump nav) and the
+  standalone preview page (CSS-only sticky nav — that page is script-free by CSP) both build from
+  it, and the Guide's existing role TOC went sticky with the same treatment.
+- **The transform is post-cache by design**: it runs on the already-sanitized HTML each request
+  (microseconds of regex on ~5 KB), so cached entries are untouched and
+  `HTML_RENDER_CACHE_VERSION` does not move — no cold start on deploy.
+- **The mammoth output shape is pinned** by `tests/unit/lessonAnchors.spec.ts`, which runs the
+  REAL generator → mammoth chain on a two-lesson bundle: a `docx`/mammoth/generator bump that
+  changes the header markup fails CI instead of silently dropping the nav (same fail-fast posture
+  as `htmlDiffContract.spec.ts`).
+- Mobile: the sticky toolbar's two bars stay one row each (`overflow-x: auto`, no wrap) so the
+  toolbar never eats a phone viewport; jump links keep the 44px touch bar.
+
+---
+
 ## 2026-07-11 (async export feedback) — transport/status failures surface immediately; the client wait budget matches Gotenberg
 
 The shared export client previously handled explicit job failures and rate limits, but a rejected
