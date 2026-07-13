@@ -7,7 +7,7 @@
  * document preview itself) keeps the faithful stored casing.
  */
 export function displayTitle(title: string): string {
-  const letters = title.replace(/[^a-zA-Z]/g, '')
-  if (letters.length === 0 || letters !== letters.toUpperCase()) return title
+  // Any lowercase letter = deliberate casing; no uppercase at all = nothing to soften.
+  if (/[a-z]/.test(title) || !/[A-Z]/.test(title)) return title
   return title.toLowerCase().replace(/(^|[^a-zA-Z])([a-z])/g, (_, pre: string, c: string) => pre + c.toUpperCase())
 }

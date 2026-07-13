@@ -9,7 +9,7 @@ import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
-import { annotateLessonAnchors, docSectionId } from '@/lib/lessonAnchors'
+import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors'
 import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
@@ -103,12 +103,10 @@ export default async function LessonView({
   }
 
   // In-page navigation (critique 2026-07-12): inject per-lesson anchor ids into the Lesson
-  // Sequence HTML (post-cache string transform — the cached entry itself is untouched) and
-  // collect the jump targets for the sticky nav below.
-  const annotatedSections = sections.map((s) => {
-    const { html, anchors } = annotateLessonAnchors(s.html)
-    return { label: s.label, html, anchors }
-  })
+  // Sequence HTML (post-cache string transform — the cached entry itself is untouched). The nav
+  // items come from the shared cross-surface model so this page and the preview page can't drift.
+  const annotatedSections = annotateSections(sections)
+  const navItems = docNavItems(annotatedSections)
 
   return (
     <article className="lesson">
@@ -176,33 +174,29 @@ export default async function LessonView({
             Message a colleague
           </Link>
         </div>
-        {annotatedSections.length > 0 && (
+        {navItems.length > 0 && (
           <nav className="doc-nav" aria-label="Jump to section">
-            {annotatedSections.map((s) => {
-              const isSequence = s.label === 'Lesson Sequence'
-              return (
-                <React.Fragment key={s.label}>
-                  {/* The Lesson Sequence opens with the sub-strand overview table, so its section
-                      link reads "Overview"; the per-lesson chips follow it. */}
-                  <a href={`#${docSectionId(s.label)}`}>{isSequence ? 'Overview' : s.label}</a>
-                  {isSequence && s.anchors.length > 0 && (
-                    <span className="doc-nav__label">Lessons</span>
-                  )}
-                  {isSequence &&
-                    s.anchors.map((a) => (
-                      <a
-                        key={a.id}
-                        className="doc-nav__lesson"
-                        href={`#${a.id}`}
-                        title={`Lesson ${a.number}: ${a.title}`}
-                        aria-label={`Lesson ${a.number}: ${a.title}`}
-                      >
-                        {a.number}
-                      </a>
-                    ))}
-                </React.Fragment>
-              )
-            })}
+            {navItems.map((item, i) =>
+              item.kind === 'lessons-label' ? (
+                <span key={`label-${i}`} className="doc-nav__label">
+                  {item.text}
+                </span>
+              ) : item.kind === 'lesson' ? (
+                <a
+                  key={item.href}
+                  className="doc-nav__lesson"
+                  href={item.href}
+                  title={item.tooltip}
+                  aria-label={item.tooltip}
+                >
+                  {item.text}
+                </a>
+              ) : (
+                <a key={item.href} href={item.href}>
+                  {item.text}
+                </a>
+              ),
+            )}
           </nav>
         )}
       </div>

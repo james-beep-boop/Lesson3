@@ -5,7 +5,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { annotateLessonAnchors, docSectionId } from '@/lib/lessonAnchors'
+import {
+  annotateLessonAnchors,
+  annotateSections,
+  docNavItems,
+  docSectionId,
+} from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
 
 /** The exact shape mammoth emits for the generator's `fullHeader` lesson row (probed 2026-07-12). */
@@ -44,6 +49,35 @@ describe('annotateLessonAnchors', () => {
     expect(docSectionId('Lesson Sequence')).toBe('doc-lesson-sequence')
     expect(docSectionId('Final Explanation')).toBe('doc-final-explanation')
     expect(docSectionId('Summary Table')).toBe('doc-summary-table')
+  })
+})
+
+describe('docNavItems — the one cross-surface jump-nav model (lesson page + preview page)', () => {
+  it('renames the Lesson Sequence link to Overview and chips its lessons after a label', () => {
+    const sections = annotateSections([
+      { label: 'Lesson Sequence', html: header('1', 'Cells') + header('2', 'Osmosis') },
+      { label: 'Summary Table', html: '<table></table>' },
+    ])
+    expect(docNavItems(sections)).toEqual([
+      { kind: 'section', href: '#doc-lesson-sequence', text: 'Overview' },
+      { kind: 'lessons-label', text: 'Lessons' },
+      { kind: 'lesson', href: '#lesson-1', text: '1', tooltip: 'Lesson 1: Cells' },
+      { kind: 'lesson', href: '#lesson-2', text: '2', tooltip: 'Lesson 2: Osmosis' },
+      { kind: 'section', href: '#doc-summary-table', text: 'Summary Table' },
+    ])
+  })
+
+  it('omits the Lessons label and chips when no anchors matched, and only scans the sequence', () => {
+    // A LESSON-shaped header in a NON-sequence section must not be scanned or linked.
+    const sections = annotateSections([
+      { label: 'Lesson Sequence', html: '<p>no headers here</p>' },
+      { label: 'Final Explanation', html: header('9', 'Should not match') },
+    ])
+    expect(sections[1]!.html).not.toContain('id="lesson-9"')
+    expect(docNavItems(sections)).toEqual([
+      { kind: 'section', href: '#doc-lesson-sequence', text: 'Overview' },
+      { kind: 'section', href: '#doc-final-explanation', text: 'Final Explanation' },
+    ])
   })
 })
 

@@ -38,10 +38,9 @@ export default function DocStrip({
   tags: DeliverableTag[]
   condensed?: boolean
 }) {
-  const primary = tags.filter((t) => t === 'lessonSequence')
   const secondary = tags.filter((t) => t !== 'lessonSequence')
 
-  if (!condensed || secondary.length === 0 || primary.length === 0) {
+  if (!condensed || secondary.length === 0 || !tags.includes('lessonSequence')) {
     return (
       <ul className="doc-strip">
         {tags.map((tag) => (
@@ -54,9 +53,7 @@ export default function DocStrip({
   return (
     <div className="doc-strip-condensed">
       <ul className="doc-strip">
-        {primary.map((tag) => (
-          <StripItem key={tag} versionId={versionId} tag={tag} />
-        ))}
+        <StripItem versionId={versionId} tag="lessonSequence" />
       </ul>
       <details className="doc-strip-more">
         <summary>More documents ({secondary.length})</summary>

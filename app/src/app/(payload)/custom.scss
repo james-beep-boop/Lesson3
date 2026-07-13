@@ -13,6 +13,8 @@ body {
 // via CSS variables and additive rules only, never restyled Payload components, so the pinned
 // Payload version can move without a re-theme. The app accent (#1f5fa8) is the frontend's
 // `--accent` token (src/app/(frontend)/styles.css); keep the two in sync by hand.
+// Contrast note (D6): secondary text throughout this file uses elevation-600, never 500 —
+// elevation-500 on white is 3.95:1 and fails WCAG AA (4.5:1).
 .btn--style-primary {
   --bg-color: #1f5fa8;
   --hover-bg: #17497f;
@@ -44,7 +46,7 @@ body {
   &__scope {
     font-size: 0.9rem;
     margin: 0.15rem 0 0;
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
   }
 
   &__section {
@@ -86,7 +88,7 @@ body {
     display: block;
     font-size: 0.9rem;
     margin-top: 0.1rem;
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
   }
 }
 
@@ -98,11 +100,11 @@ body {
   &__desc {
     font-size: 0.9rem;
     margin: 0.15rem 0 0.75rem;
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
   }
 
   .muted {
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
     font-size: 0.9rem;
   }
 
@@ -146,7 +148,7 @@ body {
     align-items: center;
     gap: 0.6rem;
     flex-shrink: 0;
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
     font-size: 0.85rem;
     white-space: nowrap;
   }
@@ -622,7 +624,7 @@ body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-version
     flex-direction: column;
   }
   &__label {
-    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
+    color: var(--theme-elevation-600);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;

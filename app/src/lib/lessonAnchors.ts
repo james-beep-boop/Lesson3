@@ -55,3 +55,62 @@ export function annotateLessonAnchors(html: string): { html: string; anchors: Le
   })
   return { html: annotated, anchors }
 }
+
+/** The one section label whose HTML carries lesson headers (docxToSections' LessonSequence). */
+export const LESSON_SEQUENCE_LABEL = 'Lesson Sequence'
+
+export interface AnnotatedSection {
+  label: string
+  html: string
+  anchors: LessonAnchor[]
+}
+
+/**
+ * Annotate a rendered version's sections for the jump nav: only the Lesson Sequence can carry
+ * lesson headers, so only it is scanned — the other documents pass through with no anchors.
+ */
+export function annotateSections(
+  sections: { label: string; html: string }[],
+): AnnotatedSection[] {
+  return sections.map((s) =>
+    s.label === LESSON_SEQUENCE_LABEL
+      ? { label: s.label, ...annotateLessonAnchors(s.html) }
+      : { label: s.label, html: s.html, anchors: [] },
+  )
+}
+
+export type DocNavItem =
+  | { kind: 'section'; href: string; text: string }
+  | { kind: 'lessons-label'; text: string }
+  | { kind: 'lesson'; href: string; text: string; tooltip: string }
+
+/**
+ * THE cross-surface jump-nav model — the lesson page (JSX) and the standalone preview page
+ * (HTML string) both render exactly this item list, so the rules (the Lesson Sequence link reads
+ * "Overview" because that document opens with the sub-strand overview table; the "Lessons" label
+ * and numbered chips appear only when anchors matched) live in one place and cannot drift
+ * between surfaces.
+ */
+export function docNavItems(sections: AnnotatedSection[]): DocNavItem[] {
+  const items: DocNavItem[] = []
+  for (const s of sections) {
+    const isSequence = s.label === LESSON_SEQUENCE_LABEL
+    items.push({
+      kind: 'section',
+      href: `#${docSectionId(s.label)}`,
+      text: isSequence ? 'Overview' : s.label,
+    })
+    if (isSequence && s.anchors.length > 0) {
+      items.push({ kind: 'lessons-label', text: 'Lessons' })
+      for (const a of s.anchors) {
+        items.push({
+          kind: 'lesson',
+          href: `#${a.id}`,
+          text: String(a.number),
+          tooltip: `Lesson ${a.number}: ${a.title}`,
+        })
+      }
+    }
+  }
+  return items
+}

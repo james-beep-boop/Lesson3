@@ -9,7 +9,7 @@ import { APIError, type PayloadRequest } from 'payload'
 
 import { renderBundlePreview, type PreviewSection } from '../generator/previewBundle'
 import { renderVersionSectionsCached } from '../generator/htmlSectionsCache'
-import { annotateLessonAnchors, docSectionId } from '../lib/lessonAnchors'
+import { annotateSections, docNavItems, docSectionId } from '../lib/lessonAnchors'
 import { displayTitle } from '../lib/displayTitle'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import type { LessonBundleVersion } from '../payload-types'
@@ -30,29 +30,18 @@ function previewPage(
   sections: PreviewSection[],
   unsaved: boolean,
 ): string {
-  // In-page navigation (critique 2026-07-12), shared shape with the lesson detail page: inject
-  // per-lesson anchor ids (a pure string transform on already-sanitized HTML) and build a sticky,
-  // CSS-only jump nav — this page is script-free by CSP, and anchors need no script.
-  const annotated = sections.map((s) => {
-    const { html, anchors } = annotateLessonAnchors(s.html)
-    return { label: s.label, html, anchors }
-  })
-  const nav = annotated
-    .map((s) => {
-      // Label-based, matching the lesson page exactly (one cross-surface contract): the Lesson
-      // Sequence's link reads "Overview" even if no lesson anchors matched.
-      const isSequence = s.label === 'Lesson Sequence'
-      const sectionLink = `<a href="#${docSectionId(s.label)}">${escapeHtml(isSequence ? 'Overview' : s.label)}</a>`
-      const lessonLinks = s.anchors
-        .map(
-          (a) =>
-            `<a class="doc-nav-lesson" href="#${a.id}" title="Lesson ${a.number}: ${escapeHtml(a.title)}" aria-label="Lesson ${a.number}: ${escapeHtml(a.title)}">${a.number}</a>`,
-        )
-        .join('')
-      return isSequence && s.anchors.length > 0
-        ? `${sectionLink}<span class="doc-nav-label">Lessons</span>${lessonLinks}`
-        : sectionLink
-    })
+  // In-page navigation (critique 2026-07-12): anchor injection + the nav item list come from the
+  // shared cross-surface model (lib/lessonAnchors), rendered here as a sticky, CSS-only nav —
+  // this page is script-free by CSP, and anchors need no script.
+  const annotated = annotateSections(sections)
+  const nav = docNavItems(annotated)
+    .map((item) =>
+      item.kind === 'lessons-label'
+        ? `<span class="doc-nav-label">${escapeHtml(item.text)}</span>`
+        : item.kind === 'lesson'
+          ? `<a class="doc-nav-lesson" href="${item.href}" title="${escapeHtml(item.tooltip)}" aria-label="${escapeHtml(item.tooltip)}">${item.text}</a>`
+          : `<a href="${item.href}">${escapeHtml(item.text)}</a>`,
+    )
     .join('')
   const body = annotated
     .map(
