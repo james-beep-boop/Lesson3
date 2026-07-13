@@ -34,13 +34,16 @@ function previewPage(
   // shared cross-surface model (lib/lessonAnchors), rendered here as a sticky, CSS-only nav —
   // this page is script-free by CSP, and anchors need no script.
   const annotated = annotateSections(sections)
+  // Every interpolated value is escaped, in a script-free CSP-locked page: the model's values are
+  // safe today (hrefs are slugged fragments, lesson text is a number), but this endpoint's whole
+  // contract is no-injection — don't leave that resting on the model never changing.
   const nav = docNavItems(annotated)
     .map((item) =>
       item.kind === 'lessons-label'
         ? `<span class="doc-nav-label">${escapeHtml(item.text)}</span>`
         : item.kind === 'lesson'
-          ? `<a class="doc-nav-lesson" href="${item.href}" title="${escapeHtml(item.tooltip)}" aria-label="${escapeHtml(item.tooltip)}">${item.text}</a>`
-          : `<a href="${item.href}">${escapeHtml(item.text)}</a>`,
+          ? `<a class="doc-nav-lesson" href="${escapeHtml(item.href)}" title="${escapeHtml(item.tooltip)}" aria-label="${escapeHtml(item.tooltip)}">${escapeHtml(item.text)}</a>`
+          : `<a href="${escapeHtml(item.href)}">${escapeHtml(item.text)}</a>`,
     )
     .join('')
   const body = annotated
