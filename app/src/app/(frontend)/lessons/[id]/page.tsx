@@ -9,7 +9,7 @@ import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
-import { annotateLessonAnchors, docSectionId, type LessonAnchor } from '@/lib/lessonAnchors'
+import { annotateLessonAnchors, docSectionId } from '@/lib/lessonAnchors'
 import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
@@ -109,8 +109,6 @@ export default async function LessonView({
     const { html, anchors } = annotateLessonAnchors(s.html)
     return { label: s.label, html, anchors }
   })
-  const lessonAnchors: LessonAnchor[] =
-    annotatedSections.find((s) => s.anchors.length > 0)?.anchors ?? []
 
   return (
     <article className="lesson">
@@ -187,11 +185,11 @@ export default async function LessonView({
                   {/* The Lesson Sequence opens with the sub-strand overview table, so its section
                       link reads "Overview"; the per-lesson chips follow it. */}
                   <a href={`#${docSectionId(s.label)}`}>{isSequence ? 'Overview' : s.label}</a>
-                  {isSequence && lessonAnchors.length > 0 && (
+                  {isSequence && s.anchors.length > 0 && (
                     <span className="doc-nav__label">Lessons</span>
                   )}
                   {isSequence &&
-                    lessonAnchors.map((a) => (
+                    s.anchors.map((a) => (
                       <a
                         key={a.id}
                         className="doc-nav__lesson"

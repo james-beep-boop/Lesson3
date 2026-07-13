@@ -38,7 +38,9 @@ function previewPage(
   })
   const nav = annotated
     .map((s) => {
-      const isSequence = s.anchors.length > 0
+      // Label-based, matching the lesson page exactly (one cross-surface contract): the Lesson
+      // Sequence's link reads "Overview" even if no lesson anchors matched.
+      const isSequence = s.label === 'Lesson Sequence'
       const sectionLink = `<a href="#${docSectionId(s.label)}">${escapeHtml(isSequence ? 'Overview' : s.label)}</a>`
       const lessonLinks = s.anchors
         .map(
@@ -46,7 +48,7 @@ function previewPage(
             `<a class="doc-nav-lesson" href="#${a.id}" title="Lesson ${a.number}: ${escapeHtml(a.title)}">${a.number}</a>`,
         )
         .join('')
-      return isSequence
+      return isSequence && s.anchors.length > 0
         ? `${sectionLink}<span class="doc-nav-label">Lessons</span>${lessonLinks}`
         : sectionLink
     })
