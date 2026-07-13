@@ -44,14 +44,14 @@ way-back (it is deliberately a separate tab).
 **D1 build notes (this session):**
 - Lesson boundaries in the rendered document are NOT headings — the generator's `fullHeader` emits
   a table row, which mammoth renders as `<p><strong>LESSON <n> (<duration>): <title></strong></p>`
-  (probed against the real chain). `lib/lessonAnchors.ts` injects `id="lesson-<n>"` there and
+  (probed against the real chain). `app/src/lib/lessonAnchors.ts` injects `id="lesson-<n>"` there and
   reports the anchors; the sticky toolbar on the lesson page (action bar + jump nav) and the
   standalone preview page (CSS-only sticky nav — that page is script-free by CSP) both build from
   it, and the Guide's existing role TOC went sticky with the same treatment.
 - **The transform is post-cache by design**: it runs on the already-sanitized HTML each request
   (microseconds of regex on ~5 KB), so cached entries are untouched and
   `HTML_RENDER_CACHE_VERSION` does not move — no cold start on deploy.
-- **The mammoth output shape is pinned** by `tests/unit/lessonAnchors.spec.ts`, which runs the
+- **The mammoth output shape is pinned** by `app/tests/unit/lessonAnchors.spec.ts`, which runs the
   REAL generator → mammoth chain on a two-lesson bundle: a `docx`/mammoth/generator bump that
   changes the header markup fails CI instead of silently dropping the nav (same fail-fast posture
   as `htmlDiffContract.spec.ts`).

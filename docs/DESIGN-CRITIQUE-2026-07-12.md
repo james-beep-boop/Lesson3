@@ -11,6 +11,15 @@
 
 Each surface below follows the standard critique framework (First Impression, Usability, Visual Hierarchy, Consistency, Accessibility). Findings are tagged 🔴 Critical / 🟡 Moderate / 🟢 Minor. Two issues recur across multiple surfaces and are the highest-leverage fixes — see **Cross-Cutting Issues** before diving into individual pages.
 
+> **STATUS (2026-07-13): this critique has been triaged and actioned — it is a historical
+> snapshot, not a to-do list.** The design track it drove (D1–D6, PRs #85–#90) is merged; the
+> dispositions live in `docs/DECISIONS.md` (2026-07-12 entry). Notably: the semantic
+> `<section>`/`<h2>` conversion suggested under Cross-Cutting Issue #2 (and echoed in §3/§9) was
+> **rejected** under SPEC §5 in favor of sticky anchor navigation only; several §7 Manage-page
+> findings described the then-stale Rock deployment rather than `main`; and the app-wide gray
+> contrast worry (#4) was audited and passed — only the admin's elevation-500 text and document
+> gridlines needed fixes.
+
 ---
 
 ## Cross-Cutting Issues (fix once, benefits multiple pages)

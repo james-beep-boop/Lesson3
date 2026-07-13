@@ -46,7 +46,7 @@ function previewPage(
       const lessonLinks = s.anchors
         .map(
           (a) =>
-            `<a class="doc-nav-lesson" href="#${a.id}" title="Lesson ${a.number}: ${escapeHtml(a.title)}">${a.number}</a>`,
+            `<a class="doc-nav-lesson" href="#${a.id}" title="Lesson ${a.number}: ${escapeHtml(a.title)}" aria-label="Lesson ${a.number}: ${escapeHtml(a.title)}">${a.number}</a>`,
         )
         .join('')
       return isSequence && s.anchors.length > 0
