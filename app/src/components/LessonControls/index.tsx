@@ -2,9 +2,11 @@
 
 /**
  * LessonControls — the single edit-view control bar for a lesson-plan version (Stage 2 editing model).
- * Replaces the separate PreviewBundle + ExportBundle. One row, left→right:
+ * Replaces the separate PreviewBundle + ExportBundle. One row, two functional groups (design track
+ * D3), the edit lifecycle swapping with the mode so no disabled lifecycle button ever shows:
  *
- *   Edit · Preview · Save · Discard Edits · Download · [☑docx ☐PDF]
+ *   view mode:  [ Edit ]                    │  Preview · Download · [☑docx ☐PDF]
+ *   edit mode:  [ Save · Discard Edits ]    │  Preview · Download · [☑docx ☐PDF]
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
@@ -192,28 +194,41 @@ export default function LessonControls() {
           You’re viewing this version. Click <strong>Edit</strong> to make changes.
         </div>
       ) : null}
+      {/* Grouped by function (design track D3, critique §8): the EDIT LIFECYCLE on the left —
+          which swaps Edit ⇄ Save/Discard with the mode, so the bar never shows a disabled
+          lifecycle button (§13 posture) and Save can't be mistaken for its neighbours — and the
+          OUTPUT actions (Preview / Download + kind) on the right, past a divider. */}
       <div className="lesson-controls">
-        <Button buttonStyle="primary" size="small" onClick={onEdit} disabled={editing}>
-          Edit
-        </Button>
-        <Button buttonStyle="secondary" size="small" onClick={onPreview}>
-          Preview
-        </Button>
-        <Button buttonStyle="primary" size="small" onClick={onSave} disabled={!editing || saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-        <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={!editing}>
-          Discard Edits
-        </Button>
-        <Button buttonStyle="secondary" size="small" onClick={onDownload} disabled={exporting}>
-          {exporting ? 'Preparing…' : 'Download'}
-        </Button>
-        <label className="lesson-controls__chk">
-          <input type="checkbox" checked={docx} onChange={(e) => setDocx(e.target.checked)} /> docx
-        </label>
-        <label className="lesson-controls__chk">
-          <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
-        </label>
+        <div className="lesson-controls__group">
+          {!editing ? (
+            <Button buttonStyle="primary" size="small" onClick={onEdit}>
+              Edit
+            </Button>
+          ) : (
+            <>
+              <Button buttonStyle="primary" size="small" onClick={onSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+              <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
+                Discard Edits
+              </Button>
+            </>
+          )}
+        </div>
+        <div className="lesson-controls__group lesson-controls__group--output">
+          <Button buttonStyle="secondary" size="small" onClick={onPreview}>
+            Preview
+          </Button>
+          <Button buttonStyle="secondary" size="small" onClick={onDownload} disabled={exporting}>
+            {exporting ? 'Preparing…' : 'Download'}
+          </Button>
+          <label className="lesson-controls__chk">
+            <input type="checkbox" checked={docx} onChange={(e) => setDocx(e.target.checked)} /> docx
+          </label>
+          <label className="lesson-controls__chk">
+            <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
+          </label>
+        </div>
         {msg ? (
           <span role="alert" className="lesson-controls__msg">
             {msg}
