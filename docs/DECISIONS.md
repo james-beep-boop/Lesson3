@@ -75,6 +75,21 @@ way-back (it is deliberately a separate tab).
   that way). The blue Save also delivers half of D3's "Save gets distinct weight" — it is now the
   only filled control in the editor toolbar.
 
+**D3 build notes (same session): the toolbar's edit lifecycle SWAPS with the mode; role-locks get
+a chip only when the distinction is real.**
+- LessonControls regrouped into two functional groups with a divider: the edit lifecycle
+  (view mode `[Edit]` ⇄ edit mode `[Save · Discard Edits]` — a swap, not disabling, so no dead
+  lifecycle button ever renders, extending the §13 posture to mode-gating) and the output group
+  (`Preview · Download · kind checkboxes`). The SSR pin (`lessonControlsSsr.spec.tsx`) now asserts
+  the swap (`?edit=1` server-renders Save/Discard, no Edit).
+- **Role-locked fields:** a `read-only` label chip renders ONLY while the form is unlocked, via
+  `body:not(:has(.lesson-controls__notice))` — in view mode EVERY field is read-only and the
+  notice already explains it, so chips would be noise; in edit mode a still-locked field is locked
+  by ROLE, exactly the case worth labelling. Relationship fields spell Payload's modifier
+  `relationship--read-only` (installed source), so both spellings are covered; read-only VALUES
+  darken to elevation-800 everywhere (the gray-on-gray was the critique's likely AA failure —
+  the value is information even when uneditable).
+
 ---
 
 ## 2026-07-11 (async export feedback) — transport/status failures surface immediately; the client wait budget matches Gotenberg

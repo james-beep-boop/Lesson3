@@ -546,6 +546,23 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
   align-items: center;
   gap: 0.6rem;
 
+  // Functional groups (D3): edit lifecycle | output. The divider makes the boundary visible
+  // without adding chrome; it drops away when the bar wraps on a narrow screen.
+  &__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  &__group--output {
+    padding-left: 0.85rem;
+    border-left: 1px solid var(--theme-elevation-150);
+
+    @media (max-width: 640px) {
+      padding-left: 0;
+      border-left: none;
+    }
+  }
+
   &__chk {
     display: inline-flex;
     align-items: center;
@@ -556,6 +573,40 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
   &__msg {
     color: var(--theme-error-500, #b00020);
     font-size: 0.8rem;
+  }
+}
+
+// Role-locked fields, made explicit (D3, critique cross-cutting #3): while the form is UNLOCKED
+// (no view-mode notice in the DOM — same :has() signal pattern as the chrome strip above), any
+// field still read-only is locked by ROLE, not by mode, so its label grows a quiet "read-only"
+// chip. In view mode everything is read-only and the notice already says so — no chips. The
+// `read-only` wrapper class is Payload's own (verified @payloadcms/ui fields/*/input.js).
+body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-versions {
+  // Relationship fields spell the modifier `relationship--read-only` (installed @payloadcms/ui).
+  .field-type.read-only > .field-label::after,
+  .field-type.read-only > label.field-label::after,
+  .field-type.relationship--read-only > .field-label::after {
+    content: 'read-only';
+    margin-left: 0.45rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid var(--theme-elevation-200);
+    color: var(--theme-elevation-600);
+    font-size: 0.7rem;
+    font-weight: 400;
+    vertical-align: middle;
+  }
+}
+
+// Read-only inputs everywhere in the version editor: the default gray-on-gray disabled styling
+// was a likely AA contrast failure (critique §8) — the VALUE is still information the user came
+// to read, so darken it while keeping the muted field background as the "not editable" cue.
+.collection-edit--lesson-bundle-versions .field-type.read-only,
+.collection-edit--lesson-bundle-versions .field-type.relationship--read-only {
+  input,
+  textarea,
+  .rs__single-value {
+    color: var(--theme-elevation-800);
   }
 }
 
