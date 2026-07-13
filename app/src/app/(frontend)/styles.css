@@ -490,7 +490,12 @@ a {
   border-radius: var(--radius);
   background: var(--bg);
 }
-/* Explicit clear affordance (D4) — the native search ✕ is WebKit/Blink-only. */
+/* Explicit clear affordance (D4) — the native search ✕ is WebKit/Blink-only. Suppress that
+   native one so Chrome/Safari don't show two ✕'s (CodeRabbit on #89). */
+.lp-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
 .lp-search__clear {
   position: absolute;
   top: 50%;

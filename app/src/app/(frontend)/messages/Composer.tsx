@@ -51,7 +51,15 @@ export default function Composer({
 
   if (!open) {
     return (
-      <button type="button" className="msg-compose-open" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="msg-compose-open"
+        // Clear any stale send-status note from the previous open (CodeRabbit on #89).
+        onClick={() => {
+          setNote(null)
+          setOpen(true)
+        }}
+      >
         New message
       </button>
     )
