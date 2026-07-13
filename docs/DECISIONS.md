@@ -90,6 +90,23 @@ a chip only when the distinction is real.**
   darken to elevation-800 everywhere (the gray-on-gray was the critique's likely AA failure —
   the value is information even when uneditable).
 
+**D4 build notes (same session): the T2 strip demotes FE/ST behind a native disclosure; blue is
+reserved for state + CTAs; one declined item.**
+- `DocStrip` gains `condensed` (catalogue rows only): Lesson plan PDF/Word stay one-click (the
+  teacher-first intent survives); Final explanation / Summary table fold into a `<details>`
+  disclosure — no script, so the strip stays a server component. The lesson page keeps the full
+  strip (a detail page has the room, and it is the primary download surface).
+- Doc buttons go NEUTRAL (line border/ink; accent only on hover; `.btn.btn-doc` — plain
+  `.btn-doc` loses to the later `.btn` rule at equal specificity) — the blue outline visually
+  competed with the active filter pill; blue now means "selected state or primary CTA".
+- Editor rows always render a fixed-width `.substrand-versions` slot so the star column stops
+  shifting with version history (the critique's alignment find); teacher rows never had chips, so
+  they're untouched. Search gets an explicit clear button (`type=search`'s native ✕ is
+  WebKit/Blink-only); the no-results states already existed.
+- **DECLINED: a "My favorites" empty state.** The section renders only when non-empty by design —
+  §13 minimal-UI argues against a permanent placeholder block for every teacher who never stars,
+  and the Guide documents the feature. Revisit only on real user confusion.
+
 ---
 
 ## 2026-07-11 (async export feedback) — transport/status failures surface immediately; the client wait budget matches Gotenberg

@@ -114,6 +114,17 @@ export default function LibraryBrowser({
           placeholder="Search lesson plans"
           aria-label="Search lesson plans"
         />
+        {/* Explicit clear (D4): type="search" only gives a native ✕ in WebKit/Blink. */}
+        {criteria.q !== '' && (
+          <button
+            type="button"
+            className="lp-search__clear"
+            aria-label="Clear search"
+            onClick={() => apply({ q: '' })}
+          >
+            ×
+          </button>
+        )}
       </form>
 
       <FilterBar
@@ -292,22 +303,29 @@ function SubstrandRow({
           {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
         </span>
         {/* PR ② (Editor+-only): the versions chip, only when there is a real choice. Pinned rows
-            skip it — their plan's main row carries it. */}
-        {row.canEdit && (row.versionCount ?? 1) > 1 && row.versionId != null && !row.pinnedSemver && (
-          <VersionsChip
-            planId={row.id}
-            officialVersionId={row.versionId}
-            versionCount={row.versionCount ?? 0}
-            panelLabel={row.substrandName}
-          />
+            skip it — their plan's main row carries it. The slot span is ALWAYS rendered for
+            editor rows (D4): reserving the column keeps the star aligned whether or not a row
+            has version history. */}
+        {row.canEdit && !row.pinnedSemver && (
+          <span className="substrand-versions">
+            {(row.versionCount ?? 1) > 1 && row.versionId != null && (
+              <VersionsChip
+                planId={row.id}
+                officialVersionId={row.versionId}
+                versionCount={row.versionCount ?? 0}
+                panelLabel={row.substrandName}
+              />
+            )}
+          </span>
         )}
         {row.versionId != null && (
           <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
         )}
       </div>
-      {/* The T2 document strip: the teacher's one-click PDF/Word per deliverable. */}
+      {/* The T2 document strip, condensed on catalogue rows (D4): Lesson plan one-click, the
+          secondary documents behind a disclosure. */}
       {row.versionId != null && row.deliverables && (
-        <DocStrip versionId={row.versionId} tags={row.deliverables} />
+        <DocStrip versionId={row.versionId} tags={row.deliverables} condensed />
       )}
     </li>
   )
