@@ -4,6 +4,9 @@
   --ink: #1a1a1a;
   --muted: #666;
   --line: #e2e2e2;
+  /* Gridlines that carry document structure (rendered lesson tables) — WCAG 1.4.11 wants 3:1 for
+     meaningful graphics; hairline dividers stay --line. #8c8c8c is 3.35:1 on white. (D6) */
+  --line-strong: #8c8c8c;
   --bg: #fff;
   --bg-soft: #f6f7f8;
   --accent: #1f5fa8;
@@ -1102,7 +1105,7 @@ button[type='submit']:disabled {
 }
 .doc-preview td,
 .doc-preview th {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong); /* document gridlines, not hairlines (D6) */
   padding: 0.4rem 0.55rem;
   vertical-align: top;
   text-align: left;

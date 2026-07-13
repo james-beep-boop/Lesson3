@@ -90,6 +90,24 @@ a chip only when the distinction is real.**
   darken to elevation-800 everywhere (the gray-on-gray was the critique's likely AA failure —
   the value is information even when uneditable).
 
+**D6 build notes (2026-07-13): the WCAG 2.1 AA pass — run INLINE (computed ratios), three real
+findings; the critique's pervasive-gray fear did NOT materialize.**
+- **Audit method**: WCAG relative-luminance math over every text/background token pair in both
+  stylesheets, plus keyboard/focus/touch checks (no `outline: none` anywhere; the sticky navs,
+  disclosure, and menu are natively keyboard-operable; 44px targets shipped in prior passes).
+  The frontend's pervasive `--muted` #666 PASSES everywhere (5.74:1 on white, 5.35:1 on
+  `--bg-soft`) — the critique's app-wide worry checked out clean, so no token sweep was needed.
+- **Finding 1 — admin `--theme-elevation-500` text = 3.95:1 (FAIL).** All six `color:` uses in
+  custom.scss (scope lines, descriptions, meta, timestamp labels) bumped to `elevation-600`
+  (5.83:1). Elevation values verified from installed `@payloadcms/ui` colors.scss.
+- **Finding 2 — rendered-document table gridlines** (`--line` #e2e2e2 / preview #ccc, ~1.6:1).
+  Gridlines in the 5-column framework tables carry document structure (WCAG 1.4.11 wants 3:1 for
+  meaningful graphics) — new `--line-strong` #8c8c8c (3.35:1) for `.doc-preview` and the preview
+  page; hairline dividers deliberately stay `--line`.
+- **Finding 3 — the user menu claimed `role="menu"`/`aria-haspopup` without arrow-key nav.**
+  Switched to the APG disclosure pattern (aria-expanded button + toggled region, plain tab
+  order) — honest semantics for a two-item dropdown instead of half-implemented menu ARIA.
+
 **D5 build notes (2026-07-13): the consistency batch.**
 - **Messages**: compose collapses behind a `New message` button (reading the inbox is the page's
   job); it auto-opens when the `?plan=` handoff signals compose intent. The recipient picker gets

@@ -44,7 +44,7 @@ body {
   &__scope {
     font-size: 0.9rem;
     margin: 0.15rem 0 0;
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
   }
 
   &__section {
@@ -86,7 +86,7 @@ body {
     display: block;
     font-size: 0.9rem;
     margin-top: 0.1rem;
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
   }
 }
 
@@ -98,11 +98,11 @@ body {
   &__desc {
     font-size: 0.9rem;
     margin: 0.15rem 0 0.75rem;
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
   }
 
   .muted {
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
     font-size: 0.9rem;
   }
 
@@ -146,7 +146,7 @@ body {
     align-items: center;
     gap: 0.6rem;
     flex-shrink: 0;
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
     font-size: 0.85rem;
     white-space: nowrap;
   }
@@ -622,7 +622,7 @@ body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-version
     flex-direction: column;
   }
   &__label {
-    color: var(--theme-elevation-500);
+    color: var(--theme-elevation-600); // D6: elevation-500 text is 3.95:1 on white — AA needs 4.5
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;

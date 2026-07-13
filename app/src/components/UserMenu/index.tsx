@@ -64,7 +64,6 @@ export function UserMenu({
       <button
         type="button"
         className="user-menu__avatar"
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-label={unread > 0 ? `Account menu, ${unread} unread messages` : 'Account menu'}
         title={loginName}
@@ -73,16 +72,20 @@ export function UserMenu({
         {initials(displayName)}
         {unread > 0 && <span className="user-menu__avatar-badge" aria-hidden="true">{unread}</span>}
       </button>
+      {/* Disclosure pattern, NOT ARIA menu roles (D6): role="menu"/aria-haspopup promise arrow-key
+          navigation this never implemented — for two items, plain tab order through a toggled
+          region is the honest semantics (APG disclosure-navigation pattern). Escape + outside
+          click close it above. */}
       {open && (
-        <div className="user-menu__dropdown" role="menu">
+        <div className="user-menu__dropdown">
           <div className="user-menu__type">{typeLabel}</div>
           <div className="user-menu__name">{loginName}</div>
           {/* Cross-surface (admin → frontend) → a plain <a>, like the rest of the nav. */}
-          <a className="user-menu__item" role="menuitem" href="/messages">
+          <a className="user-menu__item" href="/messages">
             Messages
             {unread > 0 && <span className="user-menu__badge">{unread}</span>}
           </a>
-          <button type="button" className="user-menu__logout" role="menuitem" onClick={onLogout}>
+          <button type="button" className="user-menu__logout" onClick={onLogout}>
             Log Out
           </button>
         </div>
