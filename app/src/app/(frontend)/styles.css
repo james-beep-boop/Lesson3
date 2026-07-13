@@ -132,18 +132,19 @@ a {
 .app-nav__link:hover {
   text-decoration: underline;
 }
+/* One badge look app-wide (D5): dimensions match .user-menu__badge and .user-menu__avatar-badge. */
 .app-nav__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.15rem;
-  height: 1.15rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
   margin-left: 0.35rem;
   padding: 0 0.3rem;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
   vertical-align: text-top;
@@ -153,12 +154,50 @@ a {
 .messages {
   max-width: 46rem;
 }
+/* Collapsed-compose affordance (D5): reading the inbox is the page's job; composing is one
+   button away. Styled like the app's outline actions. */
+.msg-compose-open {
+  display: inline-flex;
+  align-items: center;
+  margin: 1rem 0 1.5rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.msg-compose-open:hover,
+.msg-compose-open:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
 .msg-compose {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-soft);
   padding: 1rem 1.25rem;
   margin: 1rem 0 2rem;
+}
+.msg-compose__hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.msg-compose__cancel {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.msg-compose__cancel:hover {
+  text-decoration: underline;
 }
 .msg-compose h2 {
   margin: 0 0 0.5rem;
@@ -231,6 +270,9 @@ a {
   border-radius: var(--radius);
   padding: 0.6rem 0.9rem;
 }
+/* THE app-standard "needs attention" treatment (D5, critique §6 — its strongest-rated signal):
+   accent left border + soft tint (+ a small accent pill, .msg-new-tag). Reuse this trio for any
+   future unread/pending/attention state instead of inventing a new visual. */
 .msg--unread {
   border-left: 3px solid var(--accent);
   background: var(--bg-soft);
@@ -327,20 +369,21 @@ a {
   font-weight: 600;
   cursor: pointer;
 }
-/* Unread indicator on the avatar, so a waiting message shows without opening the menu. */
+/* Unread indicator on the avatar, so a waiting message shows without opening the menu.
+   One badge look app-wide (D5): these dimensions match .user-menu__badge and .app-nav__badge. */
 .user-menu__avatar-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 1rem;
-  height: 1rem;
-  padding: 0 0.22rem;
+  top: -5px;
+  right: -5px;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.3rem;
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  line-height: 1rem;
+  line-height: 1.1rem;
   text-align: center;
 }
 .user-menu__dropdown {
@@ -404,7 +447,9 @@ a {
   text-align: left;
   font: inherit;
   font-size: 0.85rem;
-  color: var(--accent);
+  /* Ink, not link-blue (D5): ending the session is a different kind of action than the Messages
+     content link above it — the divider plus a neutral color keep them from reading as siblings. */
+  color: var(--ink);
   cursor: pointer;
 }
 .user-menu__logout:hover {
@@ -819,22 +864,39 @@ a {
 /* ---- Login ---- */
 .login {
   max-width: 360px;
-  margin: 4rem auto 0;
+  /* Anchored, not adrift (D5, critique §1): the form sits at a deliberate height on tall
+     viewports instead of floating in the top third of empty space. */
+  margin: clamp(3rem, 16vh, 9rem) auto 0;
 }
-/* Brand + prompt share one size (the top scale step); hierarchy comes from weight/colour. */
+/* Product name carries the identity (D5): a clear size/weight step above the "Sign in" prompt,
+   with the accent underline standing in for a logo. */
 .login-title,
 .login-subtitle {
-  font-size: 1.4rem;
   text-align: center;
 }
 .login-title {
-  font-weight: 600;
-  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.6rem;
+  position: relative;
+}
+.login-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3.5rem;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 .login-subtitle {
+  font-size: 1.05rem;
   font-weight: 400;
   color: var(--muted);
-  margin: 0.1rem 0 1.5rem;
+  margin: 0.35rem 0 1.5rem;
 }
 .login-links {
   display: flex;
