@@ -9,6 +9,7 @@ import { relId } from '@/lib/relId'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
+import { annotateLessonAnchors, docSectionId } from '@/lib/lessonAnchors'
 import DownloadButtons from './DownloadButtons'
 import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
@@ -101,6 +102,14 @@ export default async function LessonView({
     viewError = 'Could not render this lesson.'
   }
 
+  // In-page navigation (critique 2026-07-12): inject per-lesson anchor ids into the Lesson
+  // Sequence HTML (post-cache string transform — the cached entry itself is untouched) and
+  // collect the jump targets for the sticky nav below.
+  const annotatedSections = sections.map((s) => {
+    const { html, anchors } = annotateLessonAnchors(s.html)
+    return { label: s.label, html, anchors }
+  })
+
   return (
     <article className="lesson">
       <Link href="/" className="back-link">
@@ -146,30 +155,63 @@ export default async function LessonView({
           browser tab, Word downloads. The whole-export .zip demotes to the action bar below. */}
       <DocStrip versionId={selectedId} tags={versionDeliverables(selected)} />
 
-      <div className="export-bar">
-        {canEdit && (
-          <EditActions
-            versionId={selectedId}
-            canMakeOfficial={canMakeOfficial}
-            officialVersionId={officialId ?? null}
-          />
+      {/* Sticky while reading (critique 2026-07-12): the action bar plus the in-page jump nav
+          stay reachable through an 8-lesson scroll instead of vanishing after the first screen. */}
+      <div className="lesson-toolbar">
+        <div className="export-bar">
+          {canEdit && (
+            <EditActions
+              versionId={selectedId}
+              canMakeOfficial={canMakeOfficial}
+              officialVersionId={officialId ?? null}
+            />
+          )}
+          {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
+          {!canEdit && <RequestEditingButton planId={plan.id} />}
+          <span className="export-label">Download all</span>
+          <DownloadButtons versionId={selectedId} />
+          <EmailDocButton versionId={selectedId} />
+          {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
+          <Link className="msg-share-link" href={`/messages?plan=${plan.id}&version=${selectedId}`}>
+            Message a colleague
+          </Link>
+        </div>
+        {annotatedSections.length > 0 && (
+          <nav className="doc-nav" aria-label="Jump to section">
+            {annotatedSections.map((s) => {
+              const isSequence = s.label === 'Lesson Sequence'
+              return (
+                <React.Fragment key={s.label}>
+                  {/* The Lesson Sequence opens with the sub-strand overview table, so its section
+                      link reads "Overview"; the per-lesson chips follow it. */}
+                  <a href={`#${docSectionId(s.label)}`}>{isSequence ? 'Overview' : s.label}</a>
+                  {isSequence && s.anchors.length > 0 && (
+                    <span className="doc-nav__label">Lessons</span>
+                  )}
+                  {isSequence &&
+                    s.anchors.map((a) => (
+                      <a
+                        key={a.id}
+                        className="doc-nav__lesson"
+                        href={`#${a.id}`}
+                        title={`Lesson ${a.number}: ${a.title}`}
+                        aria-label={`Lesson ${a.number}: ${a.title}`}
+                      >
+                        {a.number}
+                      </a>
+                    ))}
+                </React.Fragment>
+              )
+            })}
+          </nav>
         )}
-        {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
-        {!canEdit && <RequestEditingButton planId={plan.id} />}
-        <span className="export-label">Download all</span>
-        <DownloadButtons versionId={selectedId} />
-        <EmailDocButton versionId={selectedId} />
-        {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
-        <Link className="msg-share-link" href={`/messages?plan=${plan.id}&version=${selectedId}`}>
-          Message a colleague
-        </Link>
       </div>
 
       {viewError ? (
         <p className="muted">{viewError}</p>
       ) : (
-        sections.map((s) => (
-          <section key={s.label} className="doc-section">
+        annotatedSections.map((s) => (
+          <section key={s.label} id={docSectionId(s.label)} className="doc-section">
             <h2 className="doc-section-title">{s.label}</h2>
             <div className="doc-preview" dangerouslySetInnerHTML={{ __html: s.html }} />
           </section>

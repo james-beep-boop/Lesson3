@@ -863,6 +863,57 @@ button[type='submit']:disabled {
 .official-tag {
   font-weight: 600;
 }
+/* ---- Sticky lesson toolbar (design critique 2026-07-12): the action bar and the in-page jump
+   nav stay on screen through the whole document scroll. ---- */
+.lesson-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.4rem 0 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+.lesson-toolbar .export-bar {
+  margin: 0 0 0.45rem;
+}
+.doc-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.35rem;
+  font-size: 0.85rem;
+}
+.doc-nav a {
+  text-decoration: none;
+  color: var(--accent);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius);
+}
+.doc-nav a:hover,
+.doc-nav a:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.doc-nav__label {
+  color: var(--muted);
+  margin-left: 0.35rem;
+}
+.doc-nav__lesson {
+  min-width: 1.7rem;
+  text-align: center;
+  border: 1px solid var(--line);
+}
+/* Land jump targets below the sticky toolbar, not underneath it. */
+.doc-section,
+.doc-preview [id^='lesson-'] {
+  scroll-margin-top: 6.5rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 .export-bar {
   display: flex;
   align-items: center;
@@ -1019,6 +1070,11 @@ button[type='submit']:disabled {
   margin: 0 0 0.8rem;
 }
 .guide-toc {
+  /* Sticky (critique 2026-07-12): switching role sections shouldn't require scrolling back up. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
@@ -1039,6 +1095,7 @@ button[type='submit']:disabled {
   padding-top: 1.25rem;
   margin-top: 1.25rem;
   border-top: 1px solid var(--line);
+  scroll-margin-top: 3.5rem; /* land below the sticky TOC */
 }
 .guide-list {
   margin: 0;
@@ -1155,6 +1212,28 @@ button[type='submit']:disabled {
      lonely far-right slot by its desktop `margin-left: auto`. */
   .export-bar {
     row-gap: 0.5rem;
+  }
+
+  /* Inside the sticky lesson toolbar the bars stay ONE row each and scroll sideways — a wrapped
+     multi-row toolbar would eat a phone viewport. Jump links keep the 44px touch bar. */
+  .lesson-toolbar .export-bar,
+  .doc-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .doc-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+  .doc-section,
+  .doc-preview [id^='lesson-'] {
+    scroll-margin-top: 8rem;
+  }
+  /* The guide TOC wraps to two rows at phone width — clear its taller sticky footprint. */
+  .guide-section {
+    scroll-margin-top: 6rem;
   }
 
   /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers. */
