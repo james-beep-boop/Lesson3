@@ -29,6 +29,12 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
         />
       )}
       <header className="lp-admin-header">
+        {/* Same brand wordmark as the frontend header (design track D2 — the editing surface
+            previously had the nav links but no product identity). Plain <a>: cross-surface nav. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/" className="brand">
+          Lesson Plan Repository
+        </a>
         <AppNav user={user} />
       </header>
     </>
