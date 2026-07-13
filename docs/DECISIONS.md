@@ -58,6 +58,23 @@ way-back (it is deliberately a separate tab).
 - Mobile: the sticky toolbar's two bars stay one row each (`overflow-x: auto`, no wrap) so the
   toolbar never eats a phone viewport; jump links keep the 44px touch bar.
 
+**D2 build notes (same session): two critique findings were STALE, and the reskin is three rules.**
+- Verified against current main on the local stack before building: the critique's Manage-page
+  "Delete is bare text with no confirm" and "rows don't match the dashboard pattern" describe the
+  STALE Rock deployment — on main, Delete is already a confirm-gated Payload error-style button,
+  and the desktop dashboard uses the same divider-list row idiom Manage does (cards are
+  mobile-only). Neither was changed. **Lesson: the critique reviewed the live Rock, which lags
+  main; re-verify each finding against main before coding.**
+- What WAS real: no brand wordmark on the admin header, near-black default primary buttons, and
+  the Manage panel hugging the left edge. Fix (additive only, no restyled Payload components):
+  `AdminHeaderMenu` now renders the same `.brand` wordmark as the frontend header
+  (space-between + `--theme-elevation-50` tint = the frontend's `--bg-soft` posture);
+  `.btn--style-primary` gets the app accent (`--bg-color: #1f5fa8` / hover `#17497f` — keep in
+  sync with `--accent` in the frontend styles.css by hand); `.lp-admin-dash` gains
+  `margin-inline: auto` (the 40rem settings-panel width is deliberate; centering makes it read
+  that way). The blue Save also delivers half of D3's "Save gets distinct weight" — it is now the
+  only filled control in the editor toolbar.
+
 ---
 
 ## 2026-07-11 (async export feedback) — transport/status failures surface immediately; the client wait budget matches Gotenberg

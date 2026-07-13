@@ -8,12 +8,25 @@ body {
   font-size: 15px;
 }
 
+// ---- Light reskin (design track D2, decision 2026-07-12): the editing surface carries the app's
+// visual identity — the app-blue accent on primary actions and the brand wordmark in the header —
+// via CSS variables and additive rules only, never restyled Payload components, so the pinned
+// Payload version can move without a re-theme. The app accent (#1f5fa8) is the frontend's
+// `--accent` token (src/app/(frontend)/styles.css); keep the two in sync by hand.
+.btn--style-primary {
+  --bg-color: #1f5fa8;
+  --hover-bg: #17497f;
+}
+
 // Custom admin dashboard (src/components/AdminDashboard) — quiet, additive landing that replaces
 // Payload's redundant collection-card boxes. Scoped to .lp-admin-dash so nothing else in the admin
 // is re-themed. Type scale mirrors the public Lesson Plans page (22 / 18 / 16 / 14); colours use
 // Payload theme elevation variables so it follows light/dark mode.
 .lp-admin-dash {
   max-width: 40rem;
+  // Centered settings-panel posture (D2): the narrow width is deliberate, but hugging the left
+  // edge of a wide viewport read as unfinished (critique 2026-07-12 §7).
+  margin-inline: auto;
 
   &__title {
     font-size: 1.4rem;
@@ -292,10 +305,24 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
 // (src/app/(frontend)/styles.css) so the two surfaces look identical.
 .lp-admin-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between; // brand left, nav right — mirrors the frontend .app-header
+  gap: 1rem;
   align-items: center;
   padding: 0.5rem 1.25rem;
   border-bottom: 1px solid var(--theme-elevation-150);
+  background: var(--theme-elevation-50); // the admin analogue of the frontend's --bg-soft
+
+  // The frontend's .brand wordmark (D2): same weight/size, themed for light/dark.
+  .brand {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--theme-elevation-1000);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 
   .app-nav {
     display: flex;
