@@ -90,6 +90,26 @@ a chip only when the distinction is real.**
   darken to elevation-800 everywhere (the gray-on-gray was the critique's likely AA failure —
   the value is information even when uneditable).
 
+**D5 build notes (2026-07-13): the consistency batch.**
+- **Messages**: compose collapses behind a `New message` button (reading the inbox is the page's
+  job); it auto-opens when the `?plan=` handoff signals compose intent. The recipient picker gets
+  a scope hint (the roster is every account, names only — SPEC §8). The unread treatment (accent
+  left border + tint + `New` pill) is DECLARED the app-standard "needs attention" pattern in a
+  styles.css comment — no other surface has such a state today, so no dead utility CSS shipped.
+- **Casing**: `lib/displayTitle.ts` renders shouty stored titles as Title Case in page CHROME only
+  (messages lesson links, the `?plan=` about-line, the preview page h1/`<title>`); a mixed-case
+  title passes through untouched, and generator-rendered CONTENT keeps the faithful stored casing
+  (SPEC §4 — the stored value is generator input and is never rewritten).
+- **Menu/badges**: Log Out goes ink (ending the session is not a content link — Messages above it
+  stays accent); the three unread badges (avatar, nav, menu item) unify on one geometry.
+- **Login**: brand gets a real hierarchy step (1.5rem/700 + accent underline bar standing in for a
+  logo) over a smaller muted "Sign in"; the form anchors at `clamp(3rem, 16vh, 9rem)` instead of
+  floating in the top third.
+- **Guide**: the version-chip/Compare mechanics moved from the Teachers intro (which itself says
+  Teachers see only Official) to a new Editors bullet. The guide's existing convention — `<em>`
+  for UI element names, `<strong>` for bullet lead-ins — was checked and already consistent; no
+  sweep needed.
+
 **D4 build notes (same session): the T2 strip demotes FE/ST behind a native disclosure; blue is
 reserved for state + CTAs; one declined item.**
 - `DocStrip` gains `condensed` (catalogue rows only): Lesson plan PDF/Word stay one-click (the

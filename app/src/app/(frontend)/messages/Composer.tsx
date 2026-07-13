@@ -23,6 +23,10 @@ export default function Composer({
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<{ kind: 'sent' | 'error'; text: string } | null>(null)
+  // Collapsed by default (design track D5, critique §6): reading the inbox is the page's primary
+  // job; composing is a secondary action behind one button. Arriving with a lesson handoff
+  // (?plan=… from "Message a colleague") means compose intent, so the form opens ready.
+  const [open, setOpen] = useState(about != null)
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,6 +47,14 @@ export default function Composer({
       setNote({ kind: 'error', text: err instanceof Error ? err.message : 'Could not send the message.' })
     }
     setBusy(false)
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="msg-compose-open" onClick={() => setOpen(true)}>
+        New message
+      </button>
+    )
   }
 
   return (
@@ -73,6 +85,10 @@ export default function Composer({
             </option>
           ))}
         </select>
+        {/* Who's eligible (D5): the roster is every repository account, names only (SPEC §8). */}
+        <span className="msg-compose__hint">
+          Anyone with a repository account — everyone is listed by name.
+        </span>
       </label>
       <label className="msg-compose__field">
         Message
@@ -89,6 +105,14 @@ export default function Composer({
       <div className="msg-compose__actions">
         <button type="submit" className="msg-compose__send" disabled={busy || !recipient || !body.trim()}>
           {busy ? 'Sending…' : 'Send'}
+        </button>
+        <button
+          type="button"
+          className="msg-compose__cancel"
+          disabled={busy}
+          onClick={() => setOpen(false)}
+        >
+          Close
         </button>
         {note && (
           <span className={note.kind === 'error' ? 'msg-compose__error' : 'msg-compose__sent'} role="status">

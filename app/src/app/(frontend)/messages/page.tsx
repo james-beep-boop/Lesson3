@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/session'
 import { findReadablePlan, findReadableVersion } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
+import { displayTitle } from '@/lib/displayTitle'
 import type { Message } from '@/payload-types'
 import Composer from './Composer'
 import ReplyBox from './ReplyBox'
@@ -44,7 +45,7 @@ export default async function MessagesPage({
       if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
     }
     return aboutPlan
-      ? { planId: aboutPlan.id, versionId: aboutVersionId, title: aboutPlan.title ?? 'Lesson plan' }
+      ? { planId: aboutPlan.id, versionId: aboutVersionId, title: displayTitle(aboutPlan.title ?? 'Lesson plan') }
       : null
   })()
 
@@ -166,7 +167,7 @@ function MessageCard({ message: m, direction }: { message: Message; direction: '
       {planId != null && planTitle != null && (
         <p className="msg-link">
           <Link href={`/lessons/${planId}${versionId != null ? `?version=${versionId}` : ''}`}>
-            {planTitle}
+            {displayTitle(planTitle)}
           </Link>
         </p>
       )}

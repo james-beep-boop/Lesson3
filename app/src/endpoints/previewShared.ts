@@ -10,6 +10,7 @@ import { APIError, type PayloadRequest } from 'payload'
 import { renderBundlePreview, type PreviewSection } from '../generator/previewBundle'
 import { renderVersionSectionsCached } from '../generator/htmlSectionsCache'
 import { annotateLessonAnchors, docSectionId } from '../lib/lessonAnchors'
+import { displayTitle } from '../lib/displayTitle'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 import type { LessonBundleVersion } from '../payload-types'
 
@@ -133,6 +134,6 @@ export async function renderPreviewResponse(
     throw new APIError('Could not render this preview.', 500)
   }
 
-  const html = previewPage(bundle.title ?? 'Lesson plan', sections, unsaved)
+  const html = previewPage(displayTitle(bundle.title ?? 'Lesson plan'), sections, unsaved)
   return new Response(html, { status: 200, headers: PREVIEW_HEADERS })
 }

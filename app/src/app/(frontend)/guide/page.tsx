@@ -34,14 +34,13 @@ export default async function UserGuidePage() {
 
       <section id="teachers" className="guide-section">
         <h2>Teachers</h2>
+        {/* Version-history mechanics live in the Editors section (critique 2026-07-12 §4) — the
+            guide itself says Teachers see only the Official version, so the chip/Compare
+            explanation was noise here. */}
         <p>
           Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
-          the generated documents. Each lesson plan opens at its Official version. For editors and
-          administrators, a <em>N versions</em> chip (on library rows and the lesson page) opens a
-          panel listing every retained version — newest first, Official pinned on top, with each
-          version&apos;s author, date, and favorite star — and, when there is more than one, a{' '}
-          <em>Compare</em> button shows two versions side by side with removals in red and additions
-          in green. Teachers see only the Official version and no editing controls.
+          the generated documents. Each lesson plan opens at its Official version — the one current,
+          approved copy. Teachers see only the Official version and no editing controls.
         </p>
         <ul className="guide-list">
           <li>
@@ -122,6 +121,13 @@ export default async function UserGuidePage() {
             <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists the
             versions you have saved — click one to continue editing, or delete the ones you no longer
             need.
+          </li>
+          <li>
+            <strong>Browse version history:</strong> a <em>N versions</em> chip (on library rows and
+            the lesson page) opens a panel listing every retained version — newest first, Official
+            pinned on top, with each version&apos;s author, date, and favorite star. When there is
+            more than one version, a <em>Compare</em> button shows two versions side by side with
+            removals in red and additions in green.
           </li>
         </ul>
       </section>
