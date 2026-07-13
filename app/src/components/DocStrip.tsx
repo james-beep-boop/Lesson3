@@ -56,7 +56,7 @@ export default function DocStrip({
         <StripItem versionId={versionId} tag="lessonSequence" />
       </ul>
       <details className="doc-strip-more">
-        <summary>More documents ({secondary.length})</summary>
+        <summary>Supporting documents ({secondary.length})</summary>
         <ul className="doc-strip">
           {secondary.map((tag) => (
             <StripItem key={tag} versionId={versionId} tag={tag} />

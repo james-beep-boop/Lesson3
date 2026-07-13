@@ -32,8 +32,12 @@ export default function EditActions({
   // Edit opens the admin editor for THIS version with edit intent (`?edit=1`), so the form lands
   // unlocked — LessonControls honours the param instead of the read-only default. No fork-on-open —
   // Save creates the candidate. (Server access still gates the actual write via save-as-new.)
+  // Carry the lesson the reader was on (the jump nav sets `#lesson-<n>`) as `?lesson=<n>` so the
+  // editor's in-form jump nav opens at that same lesson.
   const onEdit = () => {
-    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}?edit=1`
+    const m = /^#lesson-(\d+)$/.exec(window.location.hash)
+    const lessonParam = m ? `&lesson=${m[1]}` : ''
+    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}?edit=1${lessonParam}`
   }
 
   const onMakeOfficial = async () => {

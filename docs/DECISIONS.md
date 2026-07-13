@@ -11,6 +11,42 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-13 (edit-page jump nav) — the version editor gets the lesson page's floating nav; "Supporting documents"
+
+Two user edits after the design track:
+
+- **"More documents" → "Supporting documents"** on the condensed catalogue strip (D4). One word.
+- **The version editor gets a floating in-form jump nav** — the edit-page counterpart to the lesson
+  page's `.doc-nav` — with a deep link so editing opens on the lesson the reader was viewing.
+  Component: `components/LessonControls/EditJumpNav.tsx`, rendered inside `LessonControls`.
+
+Build notes:
+- **It floats for free.** Payload's `.doc-controls` (which wraps the injected `LessonControls`) is
+  already `position: sticky; top: 0` (verified against installed @payloadcms/next), so a nav
+  rendered there pins with the toolbar — no new sticky wrapper, matching the view page's behaviour
+  exactly as the user asked.
+- **Targets are Payload's own stable DOM ids** (verified payload@3.85.1): lesson rows are
+  `#lessons-row-<index>`, the groups `#field-finalExplanation` / `#field-summaryTable`, top is
+  `#field-title`. The lesson LIST (count, number, title) comes from FORM STATE
+  (`useAllFormFields`), reactive and role-safe — META/UNIT are admin-only and absent for editors,
+  so "Overview" is a plain "Top". `editJumpNav.spec.tsx` pins the form-state parsing (incl. not
+  mistaking the nested `summaryTable.lessons.*` array for lesson rows).
+- **The scroll fought lazy rendering.** The editor form is ~90 000px and Payload lazy-renders field
+  content as it nears the viewport, so its height grows for seconds after load AND a target can
+  reach the top early then DRIFT down as the rows above it finish laying out. Manual
+  position math and a single `scrollIntoView` both landed short/drifted. The reliable fix
+  (`scrollToField`): `scrollIntoView({block:'start'})` + a `scroll-margin-top` (7rem, clears the
+  floating toolbar), RE-PINNED on a 150ms interval until the document height has settled (rendering
+  done) AND the target is at the top — a 12s hard cap covers a target legitimately too near the
+  document end. Instant, not smooth (a 90 000px smooth animation is disorienting and fights the
+  re-pin). Collapsed rows are expanded before the jump. This is DOM/timing behaviour, verified
+  in-browser, not unit-tested.
+- **Deep link:** the lesson page's Edit button forwards the reader's current lesson (its jump nav
+  sets `#lesson-<n>`) as `?lesson=<n>`; EditJumpNav scrolls there once the row exists. Verified
+  end to end (view page jump-to-lesson-3 → Edit → editor opens on lesson 3).
+
+---
+
 ## 2026-07-12 (design track locked + D1) — critique triage, three user decisions, and the in-page lesson nav
 
 A structured design critique of the live app (`docs/DESIGN-CRITIQUE-2026-07-12.md`, reviewed as

@@ -576,6 +576,69 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
     color: var(--theme-error-500, #b00020);
     font-size: 0.8rem;
   }
+
+  // In-form jump nav (2026-07-13): the edit-page counterpart to the lesson page's .doc-nav, and
+  // visually matched to it — blue text-links (Top / Final explanation / Summary table), bordered
+  // number chips per lesson, a gray "Lessons" label. Buttons, not anchors: they scroll (and expand)
+  // form fields, which needs JS. It floats with the toolbar (the enclosing .doc-controls is sticky).
+  &__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.4rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--theme-elevation-150);
+  }
+  &__nav-link {
+    border: none;
+    background: none;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    color: #1f5fa8; // app accent (D2) — AA on the toolbar background
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+  &__nav-label {
+    color: var(--theme-elevation-600);
+    margin-left: 0.25rem;
+    font-size: 0.85rem;
+  }
+  &__nav-chip {
+    min-width: 1.9rem;
+    padding: 0.2rem 0.45rem;
+    border: 1px solid var(--theme-elevation-200);
+    border-radius: 4px;
+    background: var(--theme-elevation-0);
+    color: var(--theme-elevation-1000);
+    font: inherit;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      border-color: #1f5fa8;
+      color: #1f5fa8;
+    }
+  }
+}
+
+// Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
+// overflowing nav row cover ~7rem, so its scroll destinations clear it.
+.collection-edit--lesson-bundle-versions {
+  #field-title,
+  #field-finalExplanation,
+  #field-summaryTable,
+  [id^='lessons-row-'] {
+    scroll-margin-top: 7rem;
+  }
 }
 
 // Role-locked fields, made explicit (D3, critique cross-cutting #3): while the form is UNLOCKED
