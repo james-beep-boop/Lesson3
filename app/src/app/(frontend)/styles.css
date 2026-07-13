@@ -135,14 +135,16 @@ a {
 .app-nav__link:hover {
   text-decoration: underline;
 }
-/* One badge look app-wide (D5): dimensions match .user-menu__badge and .user-menu__avatar-badge. */
-.app-nav__badge {
+/* ONE badge geometry app-wide (D5): the nav badge, the menu count, and the avatar dot share this
+   rule — tweak it here and all three move together. Per-site rules below carry only placement. */
+.app-nav__badge,
+.user-menu__badge,
+.user-menu__avatar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 1.1rem;
   height: 1.1rem;
-  margin-left: 0.35rem;
   padding: 0 0.3rem;
   border-radius: 999px;
   background: var(--accent);
@@ -150,6 +152,9 @@ a {
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
+}
+.app-nav__badge {
+  margin-left: 0.35rem;
   vertical-align: text-top;
 }
 
@@ -373,21 +378,11 @@ a {
   cursor: pointer;
 }
 /* Unread indicator on the avatar, so a waiting message shows without opening the menu.
-   One badge look app-wide (D5): these dimensions match .user-menu__badge and .app-nav__badge. */
+   Geometry comes from the shared badge rule (header section); only placement lives here. */
 .user-menu__avatar-badge {
   position: absolute;
   top: -5px;
   right: -5px;
-  min-width: 1.1rem;
-  height: 1.1rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.1rem;
-  text-align: center;
 }
 .user-menu__dropdown {
   position: absolute;
@@ -428,19 +423,7 @@ a {
 .user-menu__item:hover {
   text-decoration: underline;
 }
-.user-menu__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.1rem;
-  height: 1.1rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 700;
-}
+/* .user-menu__badge: geometry entirely from the shared badge rule (header section). */
 .user-menu__logout {
   margin-top: 0.45rem;
   padding-top: 0.45rem;
