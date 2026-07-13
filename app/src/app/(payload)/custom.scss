@@ -13,8 +13,9 @@ body {
 // via CSS variables and additive rules only, never restyled Payload components, so the pinned
 // Payload version can move without a re-theme. The app accent (#1f5fa8) is the frontend's
 // `--accent` token (src/app/(frontend)/styles.css); keep the two in sync by hand.
-// Contrast note (D6): secondary text throughout this file uses elevation-600, never 500 —
-// elevation-500 on white is 3.95:1 and fails WCAG AA (4.5:1).
+// Contrast note (D6): the audited muted-text rules use elevation-600, never 500 — elevation-500 on
+// white is 3.95:1 and fails WCAG AA (4.5:1). (Darker text — elevation-700/800 — is used elsewhere
+// and is unaffected.)
 .btn--style-primary {
   --bg-color: #1f5fa8;
   --hover-bg: #17497f;
