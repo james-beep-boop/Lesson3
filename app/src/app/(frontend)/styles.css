@@ -430,16 +430,41 @@ a {
   margin: 0 0 1rem;
 }
 .lp-search {
+  position: relative;
   margin: 0 0 1.75rem;
 }
 .lp-search input {
   width: 100%;
-  padding: 0.5rem 0.7rem;
+  padding: 0.5rem 2.2rem 0.5rem 0.7rem; /* room for the clear button */
   font-size: 1rem;
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg);
+}
+/* Explicit clear affordance (D4) — the native search ✕ is WebKit/Blink-only. */
+.lp-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.lp-search__clear:hover,
+.lp-search__clear:focus-visible {
+  background: var(--bg-soft);
+  color: var(--ink);
 }
 
 .sg-section + .sg-section {
@@ -504,9 +529,52 @@ a {
   align-items: center;
   gap: 0.35rem;
 }
-.btn-doc {
+/* Neutral until hover (D4): the blue outline visually competed with the active filter pill —
+   blue is reserved for selected state and primary CTAs; downloads are quiet row furniture. */
+.btn.btn-doc {
   padding: 0.1rem 0.55rem;
   font-size: 0.8rem;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.btn.btn-doc:hover,
+.btn.btn-doc:focus-visible {
+  background: none;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Condensed catalogue strip (D4): Lesson plan stays one-click; the secondary documents fold
+   behind a native disclosure aligned with the strip's indent. */
+.doc-strip-condensed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.doc-strip-more {
+  padding-left: 2.6rem;
+}
+.doc-strip-more summary {
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: fit-content;
+}
+.doc-strip-more summary:hover,
+.doc-strip-more summary:focus-visible {
+  color: var(--accent);
+}
+.doc-strip-more[open] summary {
+  margin-bottom: 0.3rem;
+}
+.doc-strip-more .doc-strip {
+  padding-left: 0.9rem;
+}
+/* D4: reserved chip column on editor rows — the star stays put with or without version history. */
+.substrand-versions {
+  flex-shrink: 0;
+  display: inline-flex;
+  justify-content: flex-end;
+  min-width: 6.5rem;
 }
 /* PR ②: the [N versions ▾] chip (Editor+-only) and its floating VersionsPanel. */
 .versions-chip {
@@ -1180,6 +1248,27 @@ button[type='submit']:disabled {
   .doc-strip-item {
     width: 100%;
     justify-content: space-between;
+  }
+  /* The condensed strip's disclosure follows the same de-indent, with a 44px summary target. */
+  .doc-strip-more {
+    padding-left: 0;
+  }
+  .doc-strip-more summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+  .doc-strip-more .doc-strip {
+    padding-left: 0;
+  }
+  .lp-search__clear {
+    width: 2.75rem;
+    height: 2.75rem;
+    right: 0;
+  }
+  /* The reserved chip column has no value on a stacked card row. */
+  .substrand-versions {
+    min-width: 0;
   }
   /* Filter chips get the 44px hit area like every other touch control. */
   .filter-chip {
