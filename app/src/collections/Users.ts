@@ -60,7 +60,7 @@ export const Users: CollectionConfig = {
         // The FRONTEND reset page (2026-07-09) — /admin/reset would bounce non-admins off the
         // gated panel after resetting; the app page works for every role.
         const url = `${emailLinkBase()}/reset-password?token=${token}`
-        return `<p>You requested a password reset for the ARES Lesson Library.</p>
+        return `<p>You requested a password reset for Kenya Lesson Plans.</p>
 <p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
 <p>If you didn't request this, ignore this email.</p>`
       },
@@ -74,11 +74,11 @@ export const Users: CollectionConfig = {
       generateEmailHTML: (args) => {
         const token = (args as { token?: string } | undefined)?.token ?? ''
         const url = `${emailLinkBase()}/verify-email?token=${token}`
-        return `<p>Welcome to the ARES Lesson Library.</p>
+        return `<p>Welcome to Kenya Lesson Plans.</p>
 <p><a href="${url}">Verify your email address</a> (or paste this link): ${url}</p>
 <p>You'll be able to sign in once your address is verified. If you didn't create this account, ignore this email.</p>`
       },
-      generateEmailSubject: () => 'Verify your email — ARES Lesson Library',
+      generateEmailSubject: () => 'Verify your email — Kenya Lesson Plans',
     },
   },
   admin: {
