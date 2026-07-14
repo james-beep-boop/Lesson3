@@ -81,6 +81,42 @@ Build notes:
 
 ---
 
+## 2026-07-13 (design-track review + /simplify follow-ups) — #91, #92, #94
+
+Three cleanup PRs on the merged design track (D1–D6), grouped here with the track they refine.
+
+- **#91 — CodeRabbit triage from the D-track PRs.** Composer showed a stale "Message sent" note on
+  reopen (the collapse persists component state) → cleared on the New-message click; `type="search"`
+  rendered a second native ✕ next to D4's explicit clear button → native one suppressed
+  (`::-webkit-search-cancel-button`); the preview page's lesson links gained `aria-label` to match
+  the lesson page. (The isSequence cross-surface divergence CodeRabbit flagged was already fixed on
+  the #85 branch pre-merge, commit `080efdb`.)
+- **#92 — the design-track `/simplify` pass (4 agents; two hit the session limit, so reuse +
+  altitude were done inline).** The substantive win: **one cross-surface jump-nav model.** The
+  lesson page (JSX) and the preview page (HTML string) had each duplicated the nav rules — the
+  `'Lesson Sequence'` magic label, the "Overview" rename, the "Lessons" label, the chip tooltip
+  format — enforced only by eyeball. `annotateSections` + `docNavItems` moved into
+  `lib/lessonAnchors.ts`; both surfaces now render the same item list, and only the Lesson Sequence
+  section is scanned for anchors. Also: `DocStrip`'s single-value `primary` filter/map collapsed to
+  `tags.includes` + a direct item; the three unread badges deduped onto one shared CSS rule (was
+  "keep in sync by hand"); `displayTitle` used two regex predicates instead of a stripped-string
+  allocation; six pasted D6 contrast comments became one. **Skipped with reasons (the altitude
+  angle's real value):** the `:has()` read-only-chip coupling (matches the stylesheet's established
+  chrome-strip pattern; a component-level alternative means threading form state through Payload
+  field components), the `#1f5fa8` accent duplicated across the two style roots (separate
+  stylesheets load them — a shared token layer is churn for two constants; sync-by-hand documented
+  at both sites), and `displayTitle`'s call-site placement (chrome-only by SPEC §4). **Efficiency
+  angle measured, not guessed:** the per-request anchor transform is 0.066ms on a 327KB document
+  (riding a path whose cache miss costs seconds), and the real-render drift spec adds ~60ms to the
+  unit gate — both endorsed as designed. Behaviour unchanged throughout.
+- **#94 — CodeRabbit on #92.** Narrowed the D6 contrast comment (it claimed elevation-600
+  "throughout this file", but elevation-700/800 are used elsewhere — scoped to the audited
+  muted-text rules); escaped `item.href`/`item.text` in the preview nav branches for consistency (a
+  no-op on real values — slugged fragment hrefs, numeric lesson text — but this CSP-locked endpoint's
+  contract is no-injection, so it shouldn't rest on the nav model never changing).
+
+---
+
 ## 2026-07-12 (design track locked + D1) — critique triage, three user decisions, and the in-page lesson nav
 
 A structured design critique of the live app (`docs/DESIGN-CRITIQUE-2026-07-12.md`, reviewed as
