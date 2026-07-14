@@ -1357,14 +1357,32 @@ button[type='submit']:disabled {
   }
 
   /* Inside the sticky lesson toolbar the bars stay ONE row each and scroll sideways — a wrapped
-     multi-row toolbar would eat a phone viewport. Jump links keep the 44px touch bar. */
+     multi-row toolbar would eat a phone viewport. Jump links keep the 44px touch bar. The right-edge
+     fade is the scroll affordance (Codex #3): it signals there's more to swipe to, where a hidden
+     mobile scrollbar gave no hint. It softens only the trailing gutter, so nothing becomes
+     unreachable — swiping brings the faded control fully into view. */
   .lesson-toolbar .export-bar,
   .doc-nav {
     flex-wrap: nowrap;
     overflow-x: auto;
     white-space: nowrap;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
   }
   .doc-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  /* Secondary text links reach the ~44px touch bar on phones too (Codex #5): the catalogue/lesson
+     controls already do, but these auth, message and navigation links were left small. */
+  .login-links a,
+  .back-link,
+  .msg-link a,
+  .msg-share-link a,
+  .msg-reply-toggle,
+  .msg-reply__cancel {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;

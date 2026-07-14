@@ -543,6 +543,29 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
   }
 }
 
+// Official / Not-Official status chip (Codex #4): a working copy in the editor should never read as
+// authoritative — the pointer, not the open version, decides. `Official` uses the success token; a
+// candidate uses a quiet neutral chip (it's normal, not an error).
+.lesson-controls__official {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+
+  &--is {
+    color: var(--theme-success-600, #2b7a2b);
+    background: var(--theme-success-100, #e6f4e6);
+  }
+  &--not {
+    color: var(--theme-elevation-700);
+    background: var(--theme-elevation-100);
+    border-color: var(--theme-elevation-200);
+  }
+}
+
 .lesson-controls {
   display: flex;
   flex-wrap: wrap;
@@ -695,5 +718,54 @@ body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-version
   }
   &__value {
     color: var(--theme-elevation-800);
+  }
+}
+
+// ── Mobile (Codex #1 + #5) ────────────────────────────────────────────────────────────────────
+// The version editor is a desktop-first power-user surface, but it must not break on a phone.
+@media (max-width: 640px) {
+  // #1 — Payload's `.doc-controls` is sticky. On a phone the control bar + jump nav wrap into a tall
+  // block, and a tall sticky block pins itself OVER the Title field as the page scrolls. Below the
+  // phone breakpoint let the bar scroll away with the page instead (the frontend lesson page keeps a
+  // sticky jump nav for READING; this is the editor). Field scroll-margins shrink to match — with no
+  // sticky toolbar there is nothing to clear.
+  .collection-edit--lesson-bundle-versions {
+    .doc-controls {
+      position: static;
+    }
+    #field-title,
+    #field-finalExplanation,
+    #field-summaryTable,
+    [id^='lessons-row-'] {
+      scroll-margin-top: 1rem;
+    }
+  }
+  // #1 — the native document title truncates with an ellipsis (`.doc-header__title` is nowrap); a
+  // lesson title is long, so let it wrap on a narrow screen rather than showing three words. The
+  // title lives in Payload's `DocumentHeader`, a PRECEDING SIBLING of the `.collection-edit--…`
+  // view (see the Edit-tab note above), so it needs the `body:has()` ancestor pattern — a descendant
+  // rule can never reach it.
+  body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
+    white-space: normal;
+  }
+
+  // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
+  // already do; these Payload small buttons did not). Explicit px, NOT rem: the admin root font is
+  // 15px, so 2.75rem would fall 3px short of the 44px target. Covers the Editors widget AND the
+  // Site-Admin "Delete lesson plans" panel (DeletePlansPanel): its destructive button + search sit
+  // in `.lp-admin-list__bar`, and each selectable plan is a `.lp-manage__pick` label whose whole
+  // row should be tappable, not just the 13px checkbox.
+  .lp-manage__row .btn,
+  .lp-manage__editors-add .btn,
+  .lp-admin-list__bar .btn {
+    min-height: 44px;
+  }
+  .lp-admin-list__search {
+    min-height: 44px;
+  }
+  .lp-manage__pick {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
   }
 }

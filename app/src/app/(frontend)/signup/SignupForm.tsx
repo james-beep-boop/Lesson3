@@ -51,7 +51,7 @@ export function SignupForm() {
 
   if (done) {
     return (
-      <p className="login-note">
+      <p className="login-note" role="status">
         Account created — we&apos;ve emailed a verification link to <strong>{email}</strong>. Follow
         it to activate your account, then sign in.
       </p>
@@ -94,7 +94,11 @@ export function SignupForm() {
           disabled={busy}
         />
       </label>
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Creating account…' : 'Create account'}
       </button>

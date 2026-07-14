@@ -95,7 +95,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                 <li key={u.id} className="lp-manage__row">
                   <span>{u.name}</span>
                   <Button
-                    buttonStyle="secondary"
+                    buttonStyle="error"
                     size="small"
                     disabled={busy}
                     onClick={() => onRemove(group, u)}

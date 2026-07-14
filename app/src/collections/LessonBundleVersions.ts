@@ -41,7 +41,8 @@ export const LessonBundleVersions: CollectionConfig = {
     useAsTitle: 'title',
     group: 'Lesson plans',
     description:
-      'Immutable lesson-plan snapshots. The parent Lesson Plan chooses one snapshot as Official.',
+      'Each version is a permanent snapshot — editing never changes it, Save writes your edits as a ' +
+      'new version. The parent Lesson Plan marks one version as Official.',
     components: {
       // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
       // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is

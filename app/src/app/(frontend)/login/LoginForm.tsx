@@ -66,7 +66,11 @@ export function LoginForm() {
           disabled={busy}
         />
       </label>
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>

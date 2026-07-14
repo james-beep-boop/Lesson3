@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <p className="login-note">
+      <p className="login-note" role="status">
         If an account exists for that address, a reset link is on its way. Check your inbox.
       </p>
     )
@@ -56,7 +56,11 @@ export function ForgotPasswordForm() {
           disabled={busy}
         />
       </label>
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={busy}>
         {busy ? 'Sending…' : 'Email me a reset link'}
       </button>
