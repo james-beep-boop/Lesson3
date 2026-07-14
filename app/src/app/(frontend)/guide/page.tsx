@@ -47,7 +47,8 @@ export default async function UserGuidePage() {
             <strong>Your account:</strong> create one from the sign-in page&apos;s <em>Sign up</em>{' '}
             link, then follow the verification link we email you before signing in — verified
             accounts can read and download everything. <em>Forgot password?</em> on the same page
-            emails you a reset link.
+            emails you a reset link. For security your session ends after a while and signs you out
+            automatically — just sign in again to continue.
           </li>
           <li>
             <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade, strand,
@@ -109,8 +110,10 @@ export default async function UserGuidePage() {
         <ul className="guide-list">
           <li>
             <strong>Edit from the lesson:</strong> open a lesson in the library and press
-            <em> Edit</em>. The editing page opens ready to type, showing only the fields you may
-            change; <em>← Back to lesson</em> returns you when you are done.
+            <em> Edit</em>. The editing page opens ready to type: the fields you can change are
+            editable, and any you cannot are shown but marked <em>read-only</em>. <em>Preview</em>{' '}
+            shows the formatted document before you save, and <em>← Back to lesson</em> returns you
+            when you are done.
           </li>
           <li>
             <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new
