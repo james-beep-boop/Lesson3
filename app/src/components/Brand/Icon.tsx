@@ -17,7 +17,7 @@ export default function Icon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       role="img"
-      aria-label="Lesson Plan Repository"
+      aria-label="Kenya Lesson Plans"
     >
       <path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
       <path d="M14 3v5h5" />
