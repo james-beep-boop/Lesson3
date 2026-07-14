@@ -497,6 +497,28 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   .doc-controls .form-submit {
     display: none;
   }
+
+  // Move the LessonControls bar from the top-RIGHT to the LEFT, above the fields it edits.
+  // Payload injects `beforeDocumentControls` into the right-aligned `.doc-controls__controls`; the
+  // reason it lands on the right is that the sibling `.doc-controls__content` (the native meta row,
+  // hidden just above for this collection) still carries `flex-grow: 1` and pushes the controls
+  // across the bar. Collapse that growth so the empty content takes no space and the control bar
+  // hugs the left edge — over `.document-fields__main` (Title, Subject Grade) rather than the
+  // sidebar. Let the bar wrap onto multiple rows instead of overflowing horizontally.
+  .doc-controls__content {
+    flex-grow: 0;
+  }
+  .doc-controls__controls {
+    flex-wrap: wrap;
+  }
+  // Payload sizes `.doc-controls__wrapper` to a FIXED single-row height (`--doc-controls-height`).
+  // Our bar is several rows tall (notice · status chip · lifecycle+output buttons · jump nav), so on
+  // the left it overflowed the fixed box and overlapped the Title field below. Let the wrapper grow
+  // to its content and top-align it, so the fields start cleanly beneath the whole bar.
+  .doc-controls__wrapper {
+    height: auto;
+    align-items: flex-start;
+  }
 }
 
 // The "Edit" document tab, however, is rendered by Payload's `DocumentHeader`, which is a PRECEDING

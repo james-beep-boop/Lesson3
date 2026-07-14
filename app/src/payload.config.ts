@@ -44,7 +44,7 @@ if (process.env.NODE_ENV === 'production' && !isNextBuild && !payloadSecret) {
 const smtpPort = Number(process.env.SMTP_PORT) || 465
 const email = process.env.SMTP_HOST
   ? await nodemailerAdapter({
-      defaultFromName: process.env.EMAIL_FROM_NAME || 'Kenya Lesson Plans',
+      defaultFromName: process.env.EMAIL_FROM_NAME || 'ARES Lesson Plans',
       defaultFromAddress:
         process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER || 'no-reply@localhost',
       skipVerify: true,
@@ -81,11 +81,11 @@ export default buildConfig({
     // third party. 'default' renders Payload's built-in initials avatar instead; the app's own nav
     // avatar (AppNav) was always initials-based. Surfaced by the Phase 5 A3 browser check.
     avatar: 'default',
-    // Brand the admin as "Kenya Lesson Plans": titleSuffix sets the browser tab; the Icon
+    // Brand the admin as "ARES Lesson Plans": titleSuffix sets the browser tab; the Icon
     // graphic replaces the nav mark. (The login-page Logo graphic is gone — /admin/login now
     // redirects to the single frontend login, so it was never seen.)
     meta: {
-      titleSuffix: ' — Kenya Lesson Plans',
+      titleSuffix: ' — ARES Lesson Plans',
     },
     components: {
       graphics: {

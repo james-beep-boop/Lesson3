@@ -94,7 +94,7 @@ export const emailVersionArtifactTask: TaskConfig<{
         to,
         subject: `Lesson plan: ${title}`,
         text:
-          `${requestedByName} sent you a lesson plan from Kenya Lesson Plans.\n\n` +
+          `${requestedByName} sent you a lesson plan from ARES Lesson Plans.\n\n` +
           `${title}\nVersion ${version.semver ?? ''} (${kind.toUpperCase()})\n\n` +
           `The generated documents are attached as ${filename}.`,
         attachments: [{ filename, content: zip }],

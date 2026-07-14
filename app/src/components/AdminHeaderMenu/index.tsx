@@ -33,7 +33,7 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
             previously had the nav links but no product identity). Plain <a>: cross-surface nav. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className="brand">
-          Kenya Lesson Plans
+          ARES Lesson Plans
         </a>
         <AppNav user={user} />
       </header>

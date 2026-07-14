@@ -53,9 +53,9 @@ export const messagePingTask: TaskConfig<{
       const base = emailLinkBase()
       await req.payload.sendEmail({
         to: recipient.email,
-        subject: 'You have a new message — Kenya Lesson Plans',
+        subject: 'You have a new message — ARES Lesson Plans',
         text:
-          'You have a message waiting in Kenya Lesson Plans.\n\n' +
+          'You have a message waiting in ARES Lesson Plans.\n\n' +
           `Sign in to read it: ${base}/messages`,
       })
       req.payload.logger.info(

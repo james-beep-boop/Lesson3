@@ -10,7 +10,7 @@ export default async function UserGuidePage() {
     <article className="guide">
       <header className="guide-intro">
         <p className="guide-kicker">User guide</p>
-        <h1>Kenya Lesson Plans</h1>
+        <h1>ARES Lesson Plans</h1>
         <p>
           The repository stores ARES lesson plans as structured lesson data. You browse, edit, preview,
           and export that data in the app; the system generates the Word and PDF documents for you.
