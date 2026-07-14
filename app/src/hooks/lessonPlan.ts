@@ -4,7 +4,7 @@ import type {
   CollectionBeforeValidateHook,
   CollectionSlug,
 } from 'payload'
-import { ValidationError } from 'payload'
+import { NotFound, ValidationError } from 'payload'
 
 import { isEditorFor, toId } from '../access'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
@@ -200,10 +200,24 @@ export const retargetFollowerFavorites: CollectionAfterChangeHook = async ({ doc
         })
       }
     } catch (err) {
-      req.payload.logger.error(
-        { err, favoriteId: fav.id, prevOfficialId: prevId, newOfficialId: newId },
-        'retargetFollowerFavorites: row skipped',
-      )
+      // A row that vanished mid-loop (the owner un-favorited concurrently) is a genuine best-effort
+      // skip: Payload throws NotFound BEFORE issuing failing SQL, so the shared transaction is
+      // intact and the loop can continue. ANY OTHER error — notably a compound-unique violation
+      // when a follower starred the new Official in a concurrent request — has already POISONED the
+      // Postgres transaction (every later statement fails with 25P02, and a COMMIT silently rolls
+      // back). Swallowing that would let make-official return {ok:true} on a promotion Postgres
+      // actually rolled back (false success). So re-throw: the endpoint's killTransaction runs and
+      // it reports failure; a retry converges (the racing star is now visible, so its old row is
+      // DELETED, not re-pointed — no constraint hit). Best-effort truly per-row would need a
+      // savepoint per row (deferred — see NEXT-SESSION); this at least never lies about success.
+      if (err instanceof NotFound) {
+        req.payload.logger.warn(
+          { favoriteId: fav.id, prevOfficialId: prevId, newOfficialId: newId },
+          'retargetFollowerFavorites: favorite row vanished mid-retarget, skipped',
+        )
+        continue
+      }
+      throw err
     }
   }
   return doc
