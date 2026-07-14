@@ -11,6 +11,66 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-13 (Codex mobile/a11y round) — six mobile/accessibility findings fixed; two selector/units lessons
+
+An external Codex mobile pass (tested at 390×844) returned eight findings; #1–#6 fixed this session
+(#7 mobile reading-mode and #8 catalogue-scale prep are agreed FUTURE, already on the backlog). The
+work spans two surfaces — the teacher-facing **frontend** (`styles.css`, 16px root) and the
+Editor/Subject-Admin **Payload admin** (`custom.scss`, 15px root). All six were browser-verified live
+on the local compose stack (subject-admin login), not review-only. No endpoints/hooks changed, so no
+wire tests were owed; typecheck + lint + unit 176/176 green.
+
+- **#2 (real, highest value) — login/signup/forgot/reset errors weren't announced to AT.** The
+  `.form-error` `<p>` was conditionally inserted with no live-region role, so a screen reader never
+  spoke it — a just-signed-up teacher hitting the unverified-login message would reset in circles.
+  Added `role="alert"` (assertive) to all four error paragraphs, and `role="status"` (polite) to the
+  signup/forgot success notes. Verified: submitting bad creds, the error node reports `role=alert`.
+- **#1 — the version-editor toolbar overlapped the Title on a phone.** LessonControls mounts via
+  `beforeDocumentControls`, INSIDE Payload's sticky `.doc-controls`; at 390px the control bar + jump
+  nav wrap into a tall block, and a tall *sticky* block pins itself over the first field on scroll.
+  Fix: below 640px, `.collection-edit--lesson-bundle-versions .doc-controls { position: static }` —
+  the bar scrolls away with the page (the frontend lesson page keeps its own sticky jump nav for
+  reading; this is the editor). Also un-truncated the document title (`.doc-header__title` is
+  `nowrap` + ellipsis → `white-space: normal` on mobile). **LESSON (re-encountered): `.doc-header__title`
+  lives in Payload's `DocumentHeader`, a PRECEDING SIBLING of the `.collection-edit--…` view — the
+  same trap that killed the Edit-tab hide rule (2026-07-06/07). A descendant rule silently no-ops;
+  it needs the `body:has(.collection-edit--…) .doc-header__title` ancestor pattern.** First attempt
+  used the descendant form and browser-verified as `nowrap` (unchanged) — caught only because the
+  fix was checked live, not assumed.
+- **#5 — leftover small touch targets.** The D6 pass already gave 44px to catalogue/lesson controls;
+  it missed auth text links, message reply/context/share links, and the admin Manage/Delete buttons.
+  Extended the 44px min-height to those — including, after a follow-up consistency check, the
+  **Site-Admin-only `DeletePlansPanel`** (its destructive button + search live in `.lp-admin-list__bar`,
+  outside the `.lp-manage__row` rule, and its plan-select rows are `.lp-manage__pick` labels whose
+  whole row should be tappable, not the 13px checkbox). That panel never rendered during the
+  Subject-Admin eyeball, so its 27px button/34px search/20px rows were only caught by logging in as
+  Site Admin and measuring — **role-gated surfaces need verifying under the role that sees them.**
+  **LESSON: the Payload admin root font is 15px, so
+  `min-height: 2.75rem` = 41.25px, 3px short of the 44px target — use explicit `44px` in `custom.scss`,
+  not `rem`. The frontend (16px root) keeps `2.75rem` = 44px.** Also caught only by measuring live
+  (41px), not by assuming rem math.
+- **#3 — mobile action rows scroll sideways with no affordance.** The sticky toolbar's `.export-bar`
+  and `.doc-nav` deliberately switch to `overflow-x: auto` on phones (a wrapped multi-row toolbar
+  would eat the viewport — kept). Added the discoverability cue Codex asked for: a right-edge
+  `mask-image` fade. It softens only the trailing 1.5rem gutter, so nothing becomes unreachable.
+  Verified both rows overflow (593/777px into 361px) and carry the fade.
+- **#4 — "Immutable snapshots" + a Save button read as a contradiction, and nothing labelled the
+  working copy Not Official.** The description is technically right (Save = save-as-new, a fork) but
+  unexplained. Reworded the collection description to say editing writes a NEW version, and added an
+  Official / Not-Official status chip to the editor (reusing LessonControls' existing
+  `sourceIsOfficial` fetch). Verified both variants render (v1 → "Official version", v43 → "Not
+  Official").
+- **#6 — the Editors "Remove" button lacked destructive distinction.** It was `buttonStyle="secondary"`
+  (grey); CandidateList's Delete is already `"error"` (red) with a confirm. Note Codex's "confirmation
+  unverified" caveat was already satisfied — both paths use `window.confirm`. Changed Remove to
+  `buttonStyle="error"` to match. Verified it renders `btn--style-error`.
+
+**Meta-lesson:** two of six fixes were wrong on the first pass (descendant selector; rem units) and
+both were caught by browser-measuring the result rather than trusting the edit — the "verify, never
+assume" rule paid for itself directly here.
+
+---
+
 ## 2026-07-13 (Codex review batch) — favorites-transaction false success; upload endpoint gets its owed wire tests; UI/wording nits
 
 An external Codex pass surfaced seven findings; all triaged, six fixed, one advisory. Frontend/docs

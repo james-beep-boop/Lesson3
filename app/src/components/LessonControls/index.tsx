@@ -190,6 +190,18 @@ export default function LessonControls() {
           ← Back to lesson
         </a>
       )}
+      {/* Make the version's status explicit next to the Save button (Codex #4): editing here Saves a
+          NEW version, which is Not Official until an admin promotes it — so a working copy shouldn't
+          read as authoritative. Hidden until the plan's pointer is known (leaves `null`). */}
+      {sourceIsOfficial != null && (
+        <span
+          className={`lesson-controls__official lesson-controls__official--${
+            sourceIsOfficial ? 'is' : 'not'
+          }`}
+        >
+          {sourceIsOfficial ? 'Official version' : 'Not Official'}
+        </span>
+      )}
       {!editing ? (
         <div className="lesson-controls__notice" role="status">
           You’re viewing this version. Click <strong>Edit</strong> to make changes.
