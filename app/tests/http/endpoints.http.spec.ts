@@ -1327,3 +1327,109 @@ describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-r
     expect((await res.json()).updated).toBe(0)
   })
 })
+
+/**
+ * Site-Admin upload endpoint (SPEC §7 deviation) — the wire-level authorization coverage the
+ * standing rule (CLAUDE.md) owes every custom endpoint, added retroactively (Codex 2026-07-13, P2:
+ * the endpoint had none). Proves the server-side gate — NOT the hidden UI button — is the boundary:
+ * unauthenticated → 401, any non-Site-Admin → 403, and only then the validation + happy path.
+ */
+describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () => {
+  const UPLOAD = '/api/lesson-plans/upload'
+
+  /** A valid ARES raw-JSON export (all five groups; UNIT/FE/ST null) resolving to the fixture's
+   *  subject-grade, as a multipart File. A unique substrand_id → a fresh plan, never a re-ingest. */
+  const jsonFile = (name: string, substrandId: string): File => {
+    const raw = {
+      schemaVersion: '1.0.0',
+      META: {
+        subject: `${MARK}Biology`,
+        grade: 99,
+        substrand_id: substrandId,
+        substrand_name: `${MARK}${substrandId}`,
+        titleDoc: `${MARK}Upload ${substrandId}`,
+      },
+      UNIT: null,
+      LESSONS: [
+        {
+          number: 1,
+          title: `${MARK}Lesson`,
+          duration: '40 minutes',
+          slo: { purpose: 'p', knowledge: 'k', skills: 's', attitudes: 'a', keyInquiry: 'q' },
+          framework: [
+            {
+              phase: 'Predict Phase',
+              learnerExperience: 'x',
+              teacherMoves: 'y',
+              sensemakingStrategy: 'z',
+              formativeAssessment: 'w',
+            },
+          ],
+          summaryTablePrompt: { observed: 'o', learned: 'l', explained: 'e' },
+        },
+      ],
+      FINAL_EXPLANATION: null,
+      SUMMARY_TABLE: null,
+    }
+    return new File([JSON.stringify(raw)], name, { type: 'application/json' })
+  }
+
+  const post = (role: RoleKey | undefined, build: (f: FormData) => void) => {
+    const form = new FormData()
+    build(form)
+    return fetch(url(UPLOAD), { method: 'POST', headers: auth(role), body: form })
+  }
+
+  it('401 without auth', async () => {
+    const res = await post(undefined, (f) => f.append('files', jsonFile('a.json', '90.1')))
+    expect(res.status).toBe(401)
+  })
+
+  it('403 for a Teacher (server-side gate, not the hidden button)', async () => {
+    const res = await post('teacher', (f) => f.append('files', jsonFile('a.json', '90.2')))
+    expect(res.status).toBe(403)
+  })
+
+  it('403 for an Editor and a Subject Admin (only Site Admin may upload)', async () => {
+    expect((await post('editor', (f) => f.append('files', jsonFile('a.json', '90.3')))).status).toBe(403)
+    expect((await post('subjectAdmin', (f) => f.append('files', jsonFile('a.json', '90.4')))).status).toBe(
+      403,
+    )
+  })
+
+  it('400 when no "files" field is present', async () => {
+    const res = await post('siteAdmin', (f) => f.append('other', 'x'))
+    expect(res.status).toBe(400)
+  })
+
+  it('400 on a non-.json file (JSON-only web surface)', async () => {
+    const res = await post('siteAdmin', (f) =>
+      f.append('files', new File(['x = 1'], 'evil.js', { type: 'text/javascript' })),
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('422 on a well-formed-but-invalid bundle (pre-flight rejects, nothing written)', async () => {
+    // Valid JSON, all five groups, but LESSONS empty → validateGeneratable fails in pre-flight.
+    const bad = JSON.stringify({
+      META: { subject: `${MARK}Biology`, grade: 99, substrand_id: '90.5' },
+      UNIT: null,
+      LESSONS: [],
+      FINAL_EXPLANATION: null,
+      SUMMARY_TABLE: null,
+    })
+    const res = await post('siteAdmin', (f) =>
+      f.append('files', new File([bad], 'empty.json', { type: 'application/json' })),
+    )
+    expect(res.status).toBe(422)
+    expect((await res.json()).ok).toBe(false)
+  })
+
+  it('a Site Admin uploads a valid bundle → 200, one plan created', async () => {
+    const res = await post('siteAdmin', (f) => f.append('files', jsonFile('good.json', '90.9')))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+    expect(body.count).toBe(1)
+  })
+})

@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-13 (Codex review batch) — favorites-transaction false success; upload endpoint gets its owed wire tests; UI/wording nits
+
+An external Codex pass surfaced seven findings; all triaged, six fixed, one advisory. Frontend/docs
+half in one PR (#95), backend half in the next. The two P2s and the lessons in them:
+
+- **[P2] `retargetFollowerFavorites` reported false success on a favorite race.** The hook re-points
+  follower favorites during a make-official pointer move, INSIDE that transaction, and swallowed
+  per-row errors "so a favorites hiccup never fails a promotion". But a compound-unique violation
+  (a follower who starred the incoming version concurrently) POISONS the Postgres transaction —
+  every later statement 25P02s and a COMMIT silently rolls back. With `deletePrevious=false` the
+  swallow let `make-official` return `{ok:true}` on a promotion Postgres had rolled back (verified
+  by tracing `versionEdit.ts`). **Lesson: per-row best-effort is impossible inside a single PG
+  transaction — the first constraint error is terminal.** Fix: catch only `NotFound` (a vanished
+  row throws before any SQL, so the transaction is intact) and re-throw everything else, so a
+  poisoned transaction fails honestly (a retry converges — the racing star is now visible, so its
+  old row is DELETED not re-pointed). Pinned DB-free by `retargetFavoritesTxn.spec.ts` (NotFound →
+  skipped; any other error → propagates). **Deferred:** restoring TRUE per-row best-effort needs a
+  savepoint per row or post-commit retargeting — a separate redesign (NEXT-SESSION queue).
+- **[P2] The Site-Admin upload endpoint had no wire tests**, violating the CLAUDE.md standing rule
+  (every custom endpoint ships 401/403/404 + happy-path `tests/http` coverage). No bypass found —
+  just missing coverage. Added an "Upload endpoint" block to `endpoints.http.spec.ts`: 401 (no
+  auth), 403 (Teacher / Editor / Subject Admin — the server gate, not the hidden button), 400 (no
+  files / non-.json), 422 (valid JSON but empty LESSONS → pre-flight rejects), 200 (Site Admin
+  uploads a valid five-group ARES JSON → one plan). Runs on CI's live stack (http is CI-only).
+
+**P3s (in #95):** `displayTitle` no longer treats `'` as a word boundary (DON'T → Don't);
+`UserMenu` Escape returns focus to the avatar trigger (APG disclosure); the `deliverableWarnings`
+FE/ST messages no longer claim "SPEC §3 expects all three documents" (§3 permits single-document
+sub-strands); `EditJumpNav` timers are tracked + cancelled (no competing scroll chains). **Advisory
+(no action):** the esbuild@0.18.20 advisory reaches only drizzle-kit dev tooling, no deployed path —
+already a tracked deferred item.
+
+---
+
 ## 2026-07-13 (edit-page jump nav) — the version editor gets the lesson page's floating nav; "Supporting documents"
 
 Two user edits after the design track:
