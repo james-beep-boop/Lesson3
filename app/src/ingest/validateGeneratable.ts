@@ -101,7 +101,7 @@ export function deliverableWarnings(bundle: Bundleish): string[] {
   const feSections = isObject(fe) ? fe.sections : undefined
   if (!Array.isArray(feSections) || feSections.length === 0) {
     warnings.push(
-      'FINAL_EXPLANATION has no sections — the FinalExplanation document will be skipped (SPEC §3 expects all three documents).',
+      'FINAL_EXPLANATION has no sections — the FinalExplanation document will be skipped (legitimate for single-document sub-strands; SPEC §3).',
     )
   }
 
@@ -109,7 +109,7 @@ export function deliverableWarnings(bundle: Bundleish): string[] {
   const stLessons = isObject(st) ? st.lessons : undefined
   if (!Array.isArray(stLessons) || stLessons.length === 0) {
     warnings.push(
-      'SUMMARY_TABLE has no lesson rows — the SummaryTable document will be skipped (SPEC §3 expects all three documents).',
+      'SUMMARY_TABLE has no lesson rows — the SummaryTable document will be skipped (legitimate for single-document sub-strands; SPEC §3).',
     )
   }
 

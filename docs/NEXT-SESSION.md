@@ -26,13 +26,15 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-13) — DESIGN TRACK D1–D6 COMPLETE; next = Rock deploy + eyeball, then pick from the queue
+## ▶ RESUME HERE (2026-07-13) — DESIGN TRACK + FOLLOW-UPS COMPLETE; next = Rock deploy + eyeball, then pick from the queue
 
-**The whole six-PR design track is DONE** — D1 #85, D2 #86, D3 #87, D4 #88, D5 #89 merged; D6 #90
-(WCAG AA pass) merged last. All app-level, ZERO migrations. Full reasoning + build notes:
-DECISIONS 2026-07-12 (one entry, D1–D6 subsections — includes the three user decisions, two
-stale-critique findings, two declined items, and the a11y audit results). Every PR was
-browser-verified on the LOCAL compose stack (this Mac) before merge; the Rock has none of it yet.
+**The six-PR design track AND its follow-ups are all merged** — D1 #85, D2 #86, D3 #87, D4 #88,
+D5 #89, D6 #90 (WCAG AA); review triage #91; `/simplify` pass #92; edit-page floating jump nav +
+"Supporting documents" #93; Codex UI/escaping follow-ups #94. Then a Codex-review batch (this
+session — see below). All app-level, ZERO new migrations. Build notes: DECISIONS 2026-07-12 (D1–D6)
++ 2026-07-13 (edit-page jump nav) + the Codex-followups entry. Every PR was browser-verified on the
+LOCAL compose stack (this Mac) before merge; **the Rock still has none of it** — deploy is the one
+pending operator step (I cannot deploy; record the deployed SHA + migration outcome here once done).
 
 **OPERATOR NEXT (accumulated): one Rock deploy + eyeball.**
 1. `scripts/deploy.sh` — pulls everything since #78, applies `20260710_041621_add_email_verification`
@@ -40,14 +42,20 @@ browser-verified on the LOCAL compose stack (this Mac) before merge; the Rock ha
 2. **Eyeball list** = the 2026-07-11 block's email-verification items below, PLUS the design track:
    lesson page sticky toolbar + numbered lesson jumps (desktop AND phone); preview-tab jump nav;
    sticky Guide TOC; branded admin header + blue Save on Manage/version editor; editor toolbar
-   Edit⇄Save/Discard swap + "read-only" chips in edit mode; catalogue rows' "More documents"
-   disclosure + aligned stars; collapsed Messages compose (+ auto-open from "Message a colleague");
-   title-cased message links/preview heading; login page branding.
+   Edit⇄Save/Discard swap + "read-only" chips in edit mode; catalogue rows' **"Supporting
+   documents"** disclosure + aligned stars; collapsed Messages compose (+ auto-open from "Message a
+   colleague"); title-cased message links/preview heading; login page branding; **the version
+   editor's floating in-form jump nav (Top · Lessons · FE · ST) + "Edit" from a lesson opening on
+   that same lesson (`?lesson=N`).**
 
 **QUEUE after deploy (pick with the user):** Phase 5 Track B / going-public operator setup
 (docs/OPS.md) remains the recommended substantive priority. Deferred code work unchanged:
 messagePing `FOR UPDATE`, local int-test harness + HTML-cache-version drift test, Manage/roster
-pagination at scale. AI summaries stay deliberately unprioritized.
+pagination at scale. AI summaries stay deliberately unprioritized. **One Codex P2 deferred as a
+deliberate redesign, not a quick fix:** `retargetFollowerFavorites` best-effort favorites can't be
+truly per-row inside one Postgres transaction (a constraint error poisons it); this session made it
+fail honestly instead of false-succeeding, but a savepoint-per-row or post-commit-retarget redesign
+to restore true best-effort is a separate task.
 
 ---
 

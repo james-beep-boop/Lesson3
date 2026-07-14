@@ -32,6 +32,7 @@ export function UserMenu({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -39,7 +40,12 @@ export function UserMenu({
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+        // Escape is a keyboard dismissal — return focus to the trigger so the user isn't dropped
+        // at the top of the document (APG disclosure pattern). Outside-CLICK deliberately doesn't.
+        triggerRef.current?.focus()
+      }
     }
     document.addEventListener('mousedown', onPointer)
     document.addEventListener('keydown', onKey)
@@ -62,6 +68,7 @@ export function UserMenu({
   return (
     <div className="user-menu" ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         className="user-menu__avatar"
         aria-expanded={open}

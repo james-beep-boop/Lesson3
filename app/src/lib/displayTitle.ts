@@ -9,5 +9,9 @@
 export function displayTitle(title: string): string {
   // Any lowercase letter = deliberate casing; no uppercase at all = nothing to soften.
   if (/[a-z]/.test(title) || !/[A-Z]/.test(title)) return title
-  return title.toLowerCase().replace(/(^|[^a-zA-Z])([a-z])/g, (_, pre: string, c: string) => pre + c.toUpperCase())
+  // Capitalize the first letter of each word. An apostrophe (straight or curly) is NOT a word
+  // boundary, so DON'T → Don't and TEACHER'S → Teacher's, not Don'T / Teacher'S.
+  return title
+    .toLowerCase()
+    .replace(/(^|[^a-zA-Z'’])([a-z])/g, (_, pre: string, c: string) => pre + c.toUpperCase())
 }
