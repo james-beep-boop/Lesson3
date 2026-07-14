@@ -13,6 +13,12 @@ describe('displayTitle (D5 display-level casing)', () => {
     )
   })
 
+  it('does not treat an apostrophe as a word boundary', () => {
+    expect(displayTitle("BIOLOGY: WHY DON'T CELLS BURST?")).toBe("Biology: Why Don't Cells Burst?")
+    expect(displayTitle("TEACHER'S NOTES")).toBe("Teacher's Notes")
+    expect(displayTitle('IT’S ALIVE')).toBe('It’s Alive')
+  })
+
   it('passes mixed-case titles through untouched (deliberate casing)', () => {
     expect(displayTitle('Plant Transport in C4 plants')).toBe('Plant Transport in C4 plants')
     expect(displayTitle('pH and buffers')).toBe('pH and buffers')
