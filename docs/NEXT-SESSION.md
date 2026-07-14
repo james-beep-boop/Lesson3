@@ -26,7 +26,65 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-14, later) — Codex mobile/a11y batch (#99) + "Kenya Lesson Plans" rename (#100) MERGED & DEPLOYED
+## ▶ RESUME HERE (2026-07-14, evening) — branding + UI polish session; ALL on `main`, CI green, DEPLOY PENDING
+
+**A UI/branding polish session, all app-level, NO migration.** `main` = **`83f0c4e`** (verify with
+`git log -1`). Four commits, each browser-verified on the local compose stack AND CI-green:
+`b5dfd3f` (rename + login link + edit-controls) → `a3373f3` (guide) → `f1fef03` (row redesign) →
+`83f0c4e` (/simplify cleanup). Full reasoning: **DECISIONS 2026-07-14 (branding + row redesign)**.
+
+**Workflow note — committed DIRECT TO MAIN this session, at the user's explicit choice.** We discussed
+it: the repo is PUBLIC (so GitHub Actions minutes AND CodeRabbit's open-source tier are both free and
+unlimited), the CI `gate` fires on `push:` to main as well as on PRs, and for a solo owner shipping
+low-risk, already-browser-verified UI changes the only thing the PR flow adds is "CI runs *before*
+main moves" + CodeRabbit review. The user accepted that trade for this session. Each push was
+CI-watched to green. (Default back to the PR flow for anything with real correctness/security surface.)
+
+**What shipped:**
+1. **Rename "Kenya Lesson Plans" → "ARES Lesson Plans"** across every UI + email string (reverses
+   #100; `EMAIL_FROM_NAME` env still overrides the sender). Docs (`DECISIONS.md`/this file) left as
+   historical record on purpose.
+2. **Login splash** — the visible "Sign in" subtitle became "By **ARES Education**" linking
+   areseducation.org (new tab). Tab-title "Sign in — …" left alone.
+3. **Version-editor control bar moved RIGHT→LEFT** (`custom.scss`, scoped to
+   `.collection-edit--lesson-bundle-versions`). Payload injects `beforeDocumentControls` into the
+   right-aligned `.doc-controls__controls`; the empty-but-`flex-grow:1` `.doc-controls__content`
+   pushed it right, so `flex-grow:0` collapses it and the bar hugs the left, over the main fields.
+   Also `.doc-controls__wrapper{height:auto;align-items:flex-start}` — the fixed single-row height
+   was clipping/overlapping the taller bar onto the Title field.
+4. **Guide accuracy pass** — corrected the stale "editor sees only editable fields" (D3 shows ALL
+   fields, non-editable ones marked read-only) + added Preview + an auto-sign-out note.
+5. **Library catalogue ROW REDESIGN (Option B, user-chosen).** (a) the lesson name now reads as a
+   LINK AT REST (accent colour) — the old neutral-until-hover styling hid that it was clickable; (b)
+   the primary Lesson plan PDF/Word moved inline onto the title line → the common row is one line
+   (`num · name · N lessons · ★ · PDF · Word`); secondary docs stay folded under "Supporting
+   documents". `DocStrip`'s `condensed` mode now renders ONLY that disclosure.
+6. **/simplify cleanup** — single-sourced the primary/secondary deliverable split into a new
+   dependency-free **`generator/deliverables.ts`** (`PRIMARY_DELIVERABLE` + `secondaryDeliverables`),
+   imported by both `SubstrandRow` and `DocStrip`. LESSON: `exportArtifacts.ts` is SERVER-ONLY
+   (`node:module`, `jszip`, artifactCache) — client components may only `import type` from it; a
+   runtime value import leaks server deps into the client bundle. The new module type-imports
+   `DeliverableTag` (erased) so it stays client-safe. Verified by the production build, not just tsc.
+
+**OPERATOR NEXT — DEPLOY `main` (`83f0c4e`) to the Rock.** Usual `scripts/deploy.sh`, **no migration**
+(UI strings + CSS/markup only; `generate:types` unaffected — no schema change).
+
+**EYEBALL (post-deploy):** login reads "ARES Lesson Plans" + "By ARES Education" link works; header /
+admin brand / a reset-or-welcome email say "ARES Lesson Plans"; a version editor's control bar sits
+on the LEFT above the fields (view AND edit modes); the Guide's editor + auto-sign-out wording; and the
+catalogue rows — blue clickable names, one-line rows with inline PDF/Word, "Supporting documents"
+disclosure, all correct on phone width too.
+
+**Local-dev-only note (NOT the Rock):** to verify the editor layout this session I reset the LOCAL
+`admin@example.com` password, then re-randomised it — that local account now has no known password
+(reseed or reset if you need local admin). Nothing on the Rock touched.
+
+**QUEUE after deploy (unchanged):** Phase 5 Track B / going-public operator setup (docs/OPS.md) is the
+recommended substantive priority; deferred code work + the two future Codex items (#7/#8) still stand.
+
+---
+
+## ▶ Older resume (2026-07-14, later) — Codex mobile/a11y batch (#99) + "Kenya Lesson Plans" rename (#100) MERGED & DEPLOYED
 
 **Two PRs shipped and the operator has DEPLOYED `main` to the Rock (2026-07-14).** `main` = `dc2613f`;
 **app-level only, NO migration** (UI strings + CSS/markup). Both were browser-verified on the local

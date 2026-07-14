@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-14 (branding + row redesign) — ARES rename, editor-controls left, Guide fixes, catalogue row redesign; a client-boundary lesson
+
+A UI/branding polish session (all app-level, no migration; `main` `83f0c4e`). Committed DIRECT TO
+MAIN at the user's explicit choice — see the reasoning captured in NEXT-SESSION's newest block (public
+repo → free unlimited Actions + CodeRabbit; CI `gate` fires on `push:` to main too; low-risk,
+browser-verified UI only). Each push was watched to CI-green. Default remains the PR flow for anything
+with correctness/security surface.
+
+- **Rename "Kenya Lesson Plans" → "ARES Lesson Plans"** across every UI + email string (reverses the
+  #100 rename). `EMAIL_FROM_NAME` env still overrides the sender line. Historical docs left unchanged.
+- **Login splash** — the on-page "Sign in" subtitle became "By **ARES Education**" (link to
+  areseducation.org, new tab). The browser-tab title "Sign in — …" was deliberately left.
+- **Version-editor control bar moved RIGHT → LEFT.** Payload renders `beforeDocumentControls` inside
+  the right-aligned `.doc-controls__controls`; the sibling `.doc-controls__content` (its native meta
+  row, hidden for this collection) still held `flex-grow:1` and pushed the bar right. Fix (scoped to
+  `.collection-edit--lesson-bundle-versions`): `.doc-controls__content{flex-grow:0}` so the empty
+  content collapses and the bar hugs the left over `.document-fields__main`. Follow-on: the bar is
+  several rows tall but Payload sizes `.doc-controls__wrapper` to a FIXED single-row
+  `--doc-controls-height`, so on the left it overlapped the Title field — `height:auto` +
+  `align-items:flex-start` lets it reserve its true height. Same Payload-internal-override pattern as
+  the rest of `custom.scss` (documented, accepted altitude).
+- **Guide accuracy pass.** Corrected the stale "the editing page shows only the fields you may change"
+  — since the D3 redesign the editor shows ALL fields, with role-locked ones marked "read-only" (the
+  `.field-type.read-only` chip), not hidden. Added the editor Preview button + a Teacher note that
+  sessions auto-sign-out (IdleLogout at the token deadline).
+- **Catalogue ROW REDESIGN (Option B).** Two usability issues the user raised, discussed before
+  building (pros/cons of name-as-link vs name-as-button vs explicit "View plan"):
+  1. **Name now reads as a link AT REST** (`--accent`, underline on hover) — the prior
+     neutral-until-hover styling meant new users couldn't tell the name was clickable. Kept it an
+     `<a>` (not a `<button>`) to preserve new-tab / middle-click / screen-reader link semantics.
+  2. **Primary Lesson-plan PDF/Word moved inline onto the title line**, so the common row is one line;
+     secondary documents stay folded behind the "Supporting documents" disclosure. `DocStrip`'s
+     `condensed` mode was reduced to render ONLY that disclosure (primary now lives on the row).
+     Rejected the name-as-button trio: long curriculum names look wrong in buttons, a page of buttons
+     scans worse than a titled-link index, and it swallows the number + context affordances.
+- **/simplify (4-agent pass) → LESSON worth keeping.** The one substantive finding: the
+  "lessonSequence is primary, the rest are secondary" split was encoded independently in `SubstrandRow`
+  and `DocStrip`. Single-sourced into a new **`generator/deliverables.ts`** (`PRIMARY_DELIVERABLE` +
+  `secondaryDeliverables`). **Gotcha:** the obvious home, `exportArtifacts.ts`, is SERVER-ONLY
+  (`node:module`, `jszip`, artifactCache) — importing a runtime VALUE from it into a client component
+  drags those into the client bundle. The prior code only ever `import type`d from it (erased). The new
+  module type-imports `DeliverableTag` (also erased) so it carries no server deps and is client-safe.
+  Caught before shipping by remembering tsc does NOT enforce the RSC boundary — the Next production
+  build does. Skipped findings: `custom.scss` Payload overrides (correct altitude, file convention);
+  the duplicated ARES external anchor across login/guide (a single plain `<a>`, not worth a component).
+
+---
+
 ## 2026-07-13 (Codex mobile/a11y round) — six mobile/accessibility findings fixed; two selector/units lessons
 
 An external Codex mobile pass (tested at 390×844) returned eight findings; #1–#6 fixed this session
