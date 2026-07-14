@@ -26,7 +26,46 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-14) — DESIGN TRACK + FOLLOW-UPS MERGED; operator deployed once, redeploying `main` HEAD for #96
+## ▶ RESUME HERE (2026-07-14, later) — Codex mobile/a11y batch (#99) + "Kenya Lesson Plans" rename (#100) MERGED & DEPLOYED
+
+**Two PRs shipped and the operator has DEPLOYED `main` to the Rock (2026-07-14).** `main` = `dc2613f`;
+**app-level only, NO migration** (UI strings + CSS/markup). Both were browser-verified on the local
+compose stack before merge; CI (gate + CodeRabbit) green on both.
+
+- **#99 — Codex mobile/a11y findings #1–#6** (390×844 pass). Full record + two reusable lessons:
+  **DECISIONS 2026-07-13 (Codex mobile/a11y round)**. Fixes: ① version-editor sticky toolbar no longer
+  overlaps the Title on a phone (`.doc-controls` drops sticky <640px) + title un-truncates; ② auth
+  errors/success get `role=alert`/`role=status` (login/signup/forgot/reset); ③ right-edge fade
+  affordance on the overflowing mobile action + jump-nav rows; ④ reworded the "immutable snapshots"
+  description + an Official / Not-Official chip in the editor; ⑤ 44px touch targets on auth/message
+  links (frontend) AND the Manage buttons incl. the **Site-Admin `DeletePlansPanel`** (admin uses
+  explicit `44px`, not `rem` — admin root font is 15px); ⑥ Editors "Remove" → `buttonStyle="error"`.
+  **Codex #7 (mobile reading mode) + #8 (catalogue scale prep) were triaged as FUTURE** — on the
+  backlog, not built. Lessons: `.doc-header__title` is a DocumentHeader SIBLING (needs `body:has()`,
+  not a descendant rule); role-gated surfaces must be verified under the role that renders them.
+- **#100 — app renamed "Lesson Plan Repository" → "Kenya Lesson Plans"** across all user-facing
+  strings (17 UI spots + 8 email spots — the email brand "ARES Lesson Library" was aligned too, per
+  user decision; `EMAIL_FROM_NAME` still overrides the sender). No DECISIONS entry (self-documenting
+  rename). Note: the email TEMPLATES now say Kenya Lesson Plans, but the operator's deployed
+  `EMAIL_FROM_NAME` env (if set) still wins for the sender line — confirm it during the eyeball.
+
+**OPERATOR EYEBALL (post-deploy, on the live Rock — phone width for the a11y items):** login page +
+header read "Kenya Lesson Plans"; trigger a login error (screen reader announces it / `role=alert`
+present); a lesson page's sticky toolbar scrolls sideways with a visible right-edge fade; open a
+non-Official version in the editor → "Not Official" chip (and an Official one → "Official version");
+as Site Admin, the Manage "Delete lesson plans" panel controls feel tappable (~44px); a
+password-reset / welcome email reads "Kenya Lesson Plans" (and check the sender name matches your
+intent given `EMAIL_FROM_NAME`).
+
+**QUEUE after deploy (pick with the user):** unchanged from the block below — Phase 5 Track B /
+going-public operator setup (docs/OPS.md) remains the recommended substantive priority; deferred
+code work (messagePing `FOR UPDATE`, local int-test harness + HTML-cache drift test, Manage/roster
+pagination at scale, the favorites best-effort savepoint redesign) and the two future Codex items
+(#7 mobile reading mode, #8 catalogue scale prep) all stand.
+
+---
+
+## ▶ Older resume (2026-07-14) — DESIGN TRACK + FOLLOW-UPS MERGED; operator deployed once, redeploying `main` HEAD for #96
 
 **The six-PR design track AND its follow-ups are all merged** — D1 #85, D2 #86, D3 #87, D4 #88,
 D5 #89, D6 #90 (WCAG AA); review triage #91; `/simplify` pass #92; edit-page floating jump nav +
