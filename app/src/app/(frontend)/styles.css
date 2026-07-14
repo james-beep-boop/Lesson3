@@ -565,6 +565,11 @@ a {
   align-items: center;
   gap: 0.35rem;
 }
+/* Option B: the primary Lesson plan buttons ride the title line — keep them from shrinking or
+   getting stranded from the star. */
+.substrand-main .doc-buttons {
+  flex-shrink: 0;
+}
 /* Neutral until hover (D4): the blue outline visually competed with the active filter pill —
    blue is reserved for selected state and primary CTAs; downloads are quiet row furniture. */
 .btn.btn-doc {
@@ -579,13 +584,8 @@ a {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* Condensed catalogue strip (D4): Lesson plan stays one-click; the secondary documents fold
-   behind a native disclosure aligned with the strip's indent. */
-.doc-strip-condensed {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
+/* Catalogue rows fold the secondary documents behind a native disclosure, indented under the name
+   (Option B: the primary Lesson plan buttons now live inline on the title line). */
 .doc-strip-more {
   padding-left: 2.6rem;
 }
@@ -770,17 +770,20 @@ a {
   color: var(--accent-ink);
 }
 /* Titles read as ink (not link-blue); the accent is reserved for hover/focus. */
+/* The name is the primary navigation to the lesson page. It reads as a link AT REST — accent
+   colour, so new users see it's clickable without hovering (2026-07-14) — and underlines the name
+   on hover/focus. The leading number stays muted (its own rule below). */
 .substrand-link {
   display: flex;
   align-items: baseline;
   flex: 1;
   min-width: 0;
-  color: var(--ink);
+  color: var(--accent);
   text-decoration: none;
 }
-.substrand-link:hover,
-.substrand-link:focus-visible {
-  color: var(--accent);
+.substrand-link:hover .substrand-name,
+.substrand-link:focus-visible .substrand-name {
+  text-decoration: underline;
 }
 .substrand-num {
   flex-shrink: 0;

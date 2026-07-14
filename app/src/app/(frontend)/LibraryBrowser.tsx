@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 
 import FavoriteToggle from '@/components/FavoriteToggle'
+import DocButtons from '@/components/DocButtons'
 import DocStrip from '@/components/DocStrip'
 import VersionsChip from '@/components/VersionsChip'
 import {
@@ -321,9 +322,14 @@ function SubstrandRow({
         {row.versionId != null && (
           <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
         )}
+        {/* Row redesign (Option B, 2026-07-14): the primary Lesson plan's PDF/Word sit inline on
+            the title line — one-click download next to the (now clearly-linked) name. */}
+        {row.versionId != null && row.deliverables?.includes('lessonSequence') && (
+          <DocButtons versionId={row.versionId} tag="lessonSequence" />
+        )}
       </div>
-      {/* The T2 document strip, condensed on catalogue rows (D4): Lesson plan one-click, the
-          secondary documents behind a disclosure. */}
+      {/* Secondary documents (Final explanation / Summary table) fold behind a disclosure below;
+          the primary Lesson plan buttons moved up to the title line (Option B). */}
       {row.versionId != null && row.deliverables && (
         <DocStrip versionId={row.versionId} tags={row.deliverables} condensed />
       )}

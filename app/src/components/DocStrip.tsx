@@ -4,10 +4,12 @@
  * and on the lesson page; `tags` comes from `versionDeliverables`, so the strip always matches
  * exactly what the export will contain.
  *
- * `condensed` (design track D4, decision 2026-07-12): catalogue rows keep the Lesson plan's
- * PDF/Word one click away (the teacher-first intent) but fold Final explanation / Summary table
- * behind a native <details> disclosure — six buttons per row was heavy to scan. The lesson page
- * keeps the full strip. <details>/<summary> needs no script, so this stays a server component.
+ * `condensed` (design track D4 → row redesign 2026-07-14, "Option B"): on catalogue rows the
+ * PRIMARY Lesson plan's PDF/Word buttons now sit inline on the row's title line (rendered by the
+ * row itself), so this component renders ONLY the SECONDARY documents (Final explanation, Summary
+ * table) folded behind a native <details> disclosure — and nothing at all when there are none. The
+ * lesson page keeps the full strip (one line per deliverable). <details>/<summary> needs no script,
+ * so this stays a server component.
  */
 import React from 'react'
 
@@ -40,21 +42,11 @@ export default function DocStrip({
 }) {
   const secondary = tags.filter((t) => t !== 'lessonSequence')
 
-  if (!condensed || secondary.length === 0 || !tags.includes('lessonSequence')) {
+  // Condensed (catalogue rows): the primary Lesson plan buttons render inline on the title line,
+  // so here we only surface the secondary documents behind a disclosure — nothing if there are none.
+  if (condensed) {
+    if (secondary.length === 0) return null
     return (
-      <ul className="doc-strip">
-        {tags.map((tag) => (
-          <StripItem key={tag} versionId={versionId} tag={tag} />
-        ))}
-      </ul>
-    )
-  }
-
-  return (
-    <div className="doc-strip-condensed">
-      <ul className="doc-strip">
-        <StripItem versionId={versionId} tag="lessonSequence" />
-      </ul>
       <details className="doc-strip-more">
         <summary>Supporting documents ({secondary.length})</summary>
         <ul className="doc-strip">
@@ -63,6 +55,15 @@ export default function DocStrip({
           ))}
         </ul>
       </details>
-    </div>
+    )
+  }
+
+  // Full strip (lesson page): one line per deliverable.
+  return (
+    <ul className="doc-strip">
+      {tags.map((tag) => (
+        <StripItem key={tag} versionId={versionId} tag={tag} />
+      ))}
+    </ul>
   )
 }
