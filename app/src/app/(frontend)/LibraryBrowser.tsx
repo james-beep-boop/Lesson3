@@ -17,6 +17,7 @@ import FavoriteToggle from '@/components/FavoriteToggle'
 import DocButtons from '@/components/DocButtons'
 import DocStrip from '@/components/DocStrip'
 import VersionsChip from '@/components/VersionsChip'
+import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
 import {
   filterRows,
   groupLessons,
@@ -324,8 +325,8 @@ function SubstrandRow({
         )}
         {/* Row redesign (Option B, 2026-07-14): the primary Lesson plan's PDF/Word sit inline on
             the title line — one-click download next to the (now clearly-linked) name. */}
-        {row.versionId != null && row.deliverables?.includes('lessonSequence') && (
-          <DocButtons versionId={row.versionId} tag="lessonSequence" />
+        {row.versionId != null && row.deliverables?.includes(PRIMARY_DELIVERABLE) && (
+          <DocButtons versionId={row.versionId} tag={PRIMARY_DELIVERABLE} />
         )}
       </div>
       {/* Secondary documents (Final explanation / Summary table) fold behind a disclosure below;

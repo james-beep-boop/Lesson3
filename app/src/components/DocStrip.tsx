@@ -15,6 +15,7 @@ import React from 'react'
 
 import DocButtons from './DocButtons'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
+import { secondaryDeliverables } from '@/generator/deliverables'
 
 const DOC_LABELS: Record<DeliverableTag, string> = {
   lessonSequence: 'Lesson plan',
@@ -40,7 +41,7 @@ export default function DocStrip({
   tags: DeliverableTag[]
   condensed?: boolean
 }) {
-  const secondary = tags.filter((t) => t !== 'lessonSequence')
+  const secondary = secondaryDeliverables(tags)
 
   // Condensed (catalogue rows): the primary Lesson plan buttons render inline on the title line,
   // so here we only surface the secondary documents behind a disclosure — nothing if there are none.
