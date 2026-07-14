@@ -26,20 +26,25 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-13) — DESIGN TRACK + FOLLOW-UPS COMPLETE; next = Rock deploy + eyeball, then pick from the queue
+## ▶ RESUME HERE (2026-07-14) — DESIGN TRACK + FOLLOW-UPS MERGED; operator deployed once, redeploying at `9a21e67` for #96
 
 **The six-PR design track AND its follow-ups are all merged** — D1 #85, D2 #86, D3 #87, D4 #88,
 D5 #89, D6 #90 (WCAG AA); review triage #91; `/simplify` pass #92; edit-page floating jump nav +
-"Supporting documents" #93; Codex UI/escaping follow-ups #94. Then a Codex-review batch (this
-session — see below). All app-level, ZERO new migrations. Build notes: DECISIONS 2026-07-12 (D1–D6)
-+ 2026-07-13 (edit-page jump nav) + the Codex-followups entry. Every PR was browser-verified on the
-LOCAL compose stack (this Mac) before merge; **the Rock still has none of it** — deploy is the one
-pending operator step (I cannot deploy; record the deployed SHA + migration outcome here once done).
+"Supporting documents" #93; Codex UI/escaping follow-ups #94; Codex review batch #95 (UI/docs) +
+#96 (backend: favorites-transaction honesty + upload wire tests). Build notes: DECISIONS 2026-07-12
+(D1–D6) + 2026-07-13 (edit-page jump nav) + 2026-07-13 (Codex review batch). Every PR was
+browser-verified on the LOCAL compose stack before merge; the http suite (incl. the new upload
+tests) runs on CI.
 
-**OPERATOR NEXT (accumulated): one Rock deploy + eyeball.**
-1. `scripts/deploy.sh` — pulls everything since #78, applies `20260710_041621_add_email_verification`
-   (snapshot first, as always). Everything else in the batch is app-level.
-2. **Eyeball list** = the 2026-07-11 block's email-verification items below, PLUS the design track:
+**DEPLOY STATE (2026-07-14):** the operator deployed the Rock once — that deploy carried everything
+through **#95** and applied the week's one migration, `20260710_041621_add_email_verification`
+(deploy.sh snapshots first). The operator is **redeploying at `main` = `9a21e67`** (PR #96 merge) to
+pick up the backend fixes — **app-level, NO new migration**. ⚠️ *Fill in on next session: confirm the
+email-verification migration applied cleanly on the first deploy, and record any eyeball findings —
+those are operator-only facts not yet captured here.*
+
+**OPERATOR EYEBALL (post-redeploy):** the 2026-07-11 block's email-verification items below, PLUS
+the design track:
    lesson page sticky toolbar + numbered lesson jumps (desktop AND phone); preview-tab jump nav;
    sticky Guide TOC; branded admin header + blue Save on Manage/version editor; editor toolbar
    Edit⇄Save/Discard swap + "read-only" chips in edit mode; catalogue rows' **"Supporting
