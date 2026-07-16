@@ -10,14 +10,15 @@ import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
 import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors'
-import DownloadButtons from './DownloadButtons'
-import EmailDocButton from './EmailDocButton'
 import EditActions from './EditActions'
+import ShareMenu from './ShareMenu'
 import FavoriteToggle from '@/components/FavoriteToggle'
+import DocButtons from '@/components/DocButtons'
 import DocStrip from '@/components/DocStrip'
 import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
+import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -88,6 +89,9 @@ export default async function LessonView({
   })
   const favoriteId = favRows[0]?.id ?? null
 
+  // What the export will contain — drives the Documents line + supporting-docs disclosure.
+  const deliverables = versionDeliverables(selected)
+
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
   // Derived from the generator, never a parallel renderer. Plain-string prose → mammoth escapes it,
   // so the rendered HTML carries no executable markup. FE/ST may be legitimately absent. Cached by
@@ -116,42 +120,44 @@ export default async function LessonView({
       <div className="lesson-heading">
         <div className="lesson-heading__text">
           <h1>{title}</h1>
-          {contextLine && <p className="lesson-context">{contextLine}</p>}
+          {/* One merged meta line (declutter L3, 2026-07-15): subject · grade · version · Official,
+              read by everyone — the semver + Official text is a static trust marker. The versions
+              UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
+              Compare render only for editors, and only when there is a real choice. */}
+          <p className="lesson-context">
+            {contextLine && `${contextLine} · `}Version {selected.semver ?? `v${selectedId}`}
+            {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
+            {canEdit && versions.length > 1 && (
+              <>
+                {' '}
+                <VersionsChip
+                  planId={plan.id}
+                  officialVersionId={officialId ?? null}
+                  versionCount={versions.length}
+                  currentVersionId={selectedId}
+                  panelLabel={title}
+                />{' '}
+                <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
+                  Compare
+                </Link>
+              </>
+            )}
+          </p>
         </div>
         <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
       </div>
 
-      {/* Versions are an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): teachers
-          see the Official only — no versions UI, no Compare. The read gate is unchanged; a teacher
-          with a direct ?version= link can still open it. Redesign PR ③ (design 2026-07-06): the
-          pill bar is REPLACED by the same chip+panel the catalogue uses — `Version 1.0.2 ·
-          Official  [N versions ▾]  [Compare]` — with the panel marking the version being viewed. */}
-      {canEdit && (
-        <nav className="version-bar" aria-label="Versions">
-          <span className="version-label">
-            Version {selected.semver ?? `v${selectedId}`}
-            {selectedId === officialId && <span className="official-tag"> · Official</span>}
-          </span>
-          {versions.length > 1 && (
-            <>
-              <VersionsChip
-                planId={plan.id}
-                officialVersionId={officialId ?? null}
-                versionCount={versions.length}
-                currentVersionId={selectedId}
-                panelLabel={title}
-              />
-              <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
-                Compare
-              </Link>
-            </>
-          )}
-        </nav>
+      {/* One Documents line (declutter L1): the primary Lesson plan's PDF/Word stay one-click on
+          their own line; Final explanation / Summary table fold behind the same "Supporting
+          documents" disclosure the catalogue rows use (DocStrip condensed) — one pattern on both
+          surfaces. Revises the 2026-07-13 "detail page keeps the full strip" call (user, 2026-07-15). */}
+      {deliverables.includes(PRIMARY_DELIVERABLE) && (
+        <div className="docs-line">
+          <span className="docs-line__label">Lesson plan</span>
+          <DocButtons versionId={selectedId} tag={PRIMARY_DELIVERABLE} />
+        </div>
       )}
-
-      {/* T2: the teacher's primary download surface — one line per document, PDF opens in a
-          browser tab, Word downloads. The whole-export .zip demotes to the action bar below. */}
-      <DocStrip versionId={selectedId} tags={versionDeliverables(selected)} />
+      <DocStrip versionId={selectedId} tags={deliverables} condensed />
 
       {/* Sticky while reading (critique 2026-07-12): the action bar plus the in-page jump nav
           stay reachable through an 8-lesson scroll instead of vanishing after the first screen. */}
@@ -166,13 +172,10 @@ export default async function LessonView({
           )}
           {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
           {!canEdit && <RequestEditingButton planId={plan.id} />}
-          <span className="export-label">Download all</span>
-          <DownloadButtons versionId={selectedId} />
-          <EmailDocButton versionId={selectedId} />
-          {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
-          <Link className="msg-share-link" href={`/messages?plan=${plan.id}&version=${selectedId}`}>
-            Message a colleague
-          </Link>
+          {/* Share ▾ (declutter L2): Download-all zips + Email + Message fold into one menu. A
+              left border on .share-wrap divides it from the edit/request group (matching the
+              editor bar's --output group divider). */}
+          <ShareMenu planId={plan.id} versionId={selectedId} semver={selected.semver} />
         </div>
         {navItems.length > 0 && (
           <nav className="doc-nav" aria-label="Jump to section">

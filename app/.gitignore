@@ -48,3 +48,6 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Runtime cache of generated DOCX/PDF bytes (a named volume in Docker; lands here on host dev runs)
+/.artifact-cache/

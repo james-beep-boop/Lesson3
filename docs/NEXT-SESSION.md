@@ -26,7 +26,39 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-14, evening) — branding + UI polish session; ALL on `main`, CI green, DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-15) — lesson-page + version-editor DECLUTTER; UNCOMMITTED in the working tree
+
+**A UI declutter session (all app-level, no migration), scope agreed via an approved HTML mockup
+first.** NOT yet committed — the changes sit in the working tree awaiting your review. Full reasoning:
+**DECISIONS 2026-07-15 (declutter redesign)**. Browser-verified on a host dev stack across all four
+render branches (editor + teacher lesson pages; version editor view⇄edit; catalogue) with no console
+errors; `test:unit` 176/176, typecheck + lint clean.
+
+**What changed (13 files):**
+1. **Version editor (`LessonControls` + `custom.scss`):** collapsed to ONE header row —
+   `[← Back to lesson]  Viewing:/Editing: <title>  [Official chip] │ [Edit]⇄[Save · Cancel] · [Preview]`.
+   Removed the Download button + docx/PDF checkboxes (they exported the SAVED version = identical to
+   the lesson page's downloads; only Preview needs the live form). Bold **Viewing:/Editing:** prefix
+   replaced the view-mode notice AND Payload's native H1 (hidden for this collection). "Discard Edits"
+   → "Cancel". Role-lock read-only chips now key on a new `.lesson-controls-wrap--editing` modifier
+   (was the now-removed notice's absence). Collection description shortened to one line.
+2. **Lesson page (`page.tsx` + new `ShareMenu.tsx`, `styles.css`):** merged meta line
+   (`subject · grade · Version x · Official` + editor-only chip/Compare); one-line
+   `Lesson plan [PDF][Word]` + "Supporting documents" disclosure (DocStrip condensed — revises the
+   2026-07-13 "detail page keeps full strip" call); new **Share ▾** menu absorbing Download-all zips +
+   Email + Message a colleague (deleted `DownloadButtons.tsx` + `EmailDocButton.tsx`). Quieter jump nav.
+3. **Catalogue (`styles.css`):** C1 spacing only (row padding, strand gap). Icon-button variant was
+   mocked and declined.
+4. Guide page + `USER_GUIDE.md` wording; `lessonControlsSsr.spec.tsx` re-pinned; `payload-types.ts`
+   regenerated from the shortened description; `app/.gitignore` ignores the runtime `.artifact-cache/`.
+
+**NEXT:** review the working-tree diff → commit (PR flow or direct-to-main per the workflow note
+below) → deploy to the Rock (no migration; UI/markup/CSS + a description string only). To re-eyeball
+locally see [[local-dev-node22]] (host tooling needs `node@22` on PATH).
+
+---
+
+## (2026-07-14, evening) — branding + UI polish session; ALL on `main`, CI green, DEPLOY PENDING
 
 **A UI/branding polish session, all app-level, NO migration.** `main` = **`83f0c4e`** (verify with
 `git log -1`). Four commits, each browser-verified on the local compose stack AND CI-green:

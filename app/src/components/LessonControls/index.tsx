@@ -2,18 +2,20 @@
 
 /**
  * LessonControls — the single edit-view control bar for a lesson-plan version (Stage 2 editing model).
- * Replaces the separate PreviewBundle + ExportBundle. One row, two functional groups (design track
- * D3), the edit lifecycle swapping with the mode so no disabled lifecycle button ever shows:
+ * One header row (declutter redesign 2026-07-15), the edit lifecycle swapping with the mode so no
+ * disabled lifecycle button ever shows:
  *
- *   view mode:  [ Edit ]                    │  Preview · Download · [☑docx ☐PDF]
- *   edit mode:  [ Save · Discard Edits ]    │  Preview · Download · [☑docx ☐PDF]
+ *   view mode:  [← Back to lesson]  Viewing: <title>  [Official chip]  │  [ Edit ]           · Preview
+ *   edit mode:  [← Back to lesson]  Editing: <title>  [Official chip]  │  [ Save · Cancel ]  · Preview
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
- * the Official pointer) and opens it. "Discard Edits" reverts unsaved changes and re-locks.
- * "Preview"/"Download" act on the current form state and share the checkbox row (docx default; both
- * kinds allowed → the zip carries both). There is one document layout (single-document-format
- * collapse, 2026-07-03), so the only download choice is the deliverable kind.
+ * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Preview" acts
+ * on the current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
+ * exported the SAVED version — identical to the lesson page's downloads — so the editor keeps only
+ * the one output action that needs the live form (Preview). The bold Viewing:/Editing: prefix is the
+ * mode signal, replacing the old read-only notice line; Payload's native H1 (the same title) is
+ * hidden in custom.scss for this collection.
  *
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
@@ -23,8 +25,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
-import { downloadExport, type ExportState } from '../exportClient'
 import { isSubjectAdminFor, toId } from '../../access'
+import { displayTitle } from '../../lib/displayTitle'
 import type { User } from '../../payload-types'
 import EditJumpNav from './EditJumpNav'
 
@@ -39,16 +41,13 @@ export default function LessonControls() {
   // Local mirror of edit/view mode — drives our buttons; the effect below drives the form fields.
   // Initial value honours an explicit edit-intent deep link (`?edit=1`, set by the lesson page's
   // Edit button) so a user who clicked "Edit" lands unlocked instead of on a locked form hunting for
-  // a second button. Any other entry (e.g. opened to preview/download) starts read-only.
+  // a second button. Any other entry (e.g. opened to preview) starts read-only.
   // Must come from useSearchParams, NOT window.location: the admin route renders per-request, so
   // the server sees the param too and SSR matches hydration — a window-gated read renders locked
   // HTML on the server and unlocked on the client, a hydration mismatch (React #418) on every
   // ?edit=1 load.
   const [editing, setEditing] = useState<boolean>(() => searchParams.get('edit') === '1')
-  const [docx, setDocx] = useState(true)
-  const [pdf, setPdf] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [exportState, setExportState] = useState<ExportState>('idle')
   const [msg, setMsg] = useState<string | null>(null)
 
   // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
@@ -56,7 +55,7 @@ export default function LessonControls() {
   const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
 
   // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
-  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Discard buttons flip it).
+  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
   useEffect(() => {
     setDisabled(!editing)
   }, [editing, setDisabled])
@@ -83,11 +82,13 @@ export default function LessonControls() {
   // No id → unsaved/new document; nothing to act on yet.
   if (!id) return null
 
-  const exporting = exportState === 'preparing' || exportState === 'downloading'
   // "← Back to lesson" (IA redesign PR ④): the editor is entered from a lesson page (or Manage) and
   // exits back to it, viewing THIS version — the loop that replaces the hidden breadcrumb trail.
   // Cross-root-layout navigation (admin → frontend), so a plain <a> like AppNav's links.
   const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
+  // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
+  // untouched (it is generator input).
+  const title = typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
 
   // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
   const onEdit = () => {
@@ -162,57 +163,39 @@ export default function LessonControls() {
     form.remove()
   }
 
-  const onDownload = async () => {
-    if (exporting) return
-    setMsg(null)
-    const kinds = ([docx && 'docx', pdf && 'pdf'].filter(Boolean) as ('docx' | 'pdf')[])
-    if (kinds.length === 0) {
-      setMsg('Choose docx and/or PDF to download.')
-      return
-    }
-    for (const kind of kinds) {
-      await downloadExport(`/api/lesson-bundle-versions/${id}/export?as=${kind}`, {
-        onState: (s, m) => {
-          setExportState(s)
-          if (s === 'error' && m) setMsg(m)
-        },
-      }).catch(() => {
-        /* state/error already surfaced via onState */
-      })
-    }
-    setExportState('idle')
-  }
-
   return (
-    <div className="lesson-controls-wrap">
-      {planId != null && (
-        <a className="lesson-controls__back" href={`/lessons/${planId}?version=${id}`}>
-          ← Back to lesson
-        </a>
-      )}
-      {/* Make the version's status explicit next to the Save button (Codex #4): editing here Saves a
-          NEW version, which is Not Official until an admin promotes it — so a working copy shouldn't
-          read as authoritative. Hidden until the plan's pointer is known (leaves `null`). */}
-      {sourceIsOfficial != null && (
-        <span
-          className={`lesson-controls__official lesson-controls__official--${
-            sourceIsOfficial ? 'is' : 'not'
-          }`}
-        >
-          {sourceIsOfficial ? 'Official version' : 'Not Official'}
-        </span>
-      )}
-      {!editing ? (
-        <div className="lesson-controls__notice" role="status">
-          You’re viewing this version. Click <strong>Edit</strong> to make changes.
-        </div>
-      ) : null}
-      {/* Grouped by function (design track D3, critique §8): the EDIT LIFECYCLE on the left —
-          which swaps Edit ⇄ Save/Discard with the mode, so the bar never shows a disabled
-          lifecycle button (§13 posture) and Save can't be mistaken for its neighbours — and the
-          OUTPUT actions (Preview / Download + kind) on the right, past a divider. */}
+    // The --editing modifier is the CSS signal for edit mode (role-locked "read-only" label chips in
+    // custom.scss key off it — the old signal was the absence of the removed view-mode notice).
+    <div className={`lesson-controls-wrap${editing ? ' lesson-controls-wrap--editing' : ''}`}>
+      {/* One header row (declutter 2026-07-15): exit · what you're looking at · status · divider ·
+          lifecycle · output. The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead
+          lifecycle button ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
       <div className="lesson-controls">
         <div className="lesson-controls__group">
+          {planId != null && (
+            <a className="lesson-controls__back" href={`/lessons/${planId}?version=${id}`}>
+              ← Back to lesson
+            </a>
+          )}
+          {title && (
+            <span className="lesson-controls__title">
+              <strong>{editing ? 'Editing:' : 'Viewing:'}</strong> {title}
+            </span>
+          )}
+          {/* Version status stays explicit next to the lifecycle (Codex #4): editing here Saves a
+              NEW version, Not Official until an admin promotes it — a working copy shouldn't read
+              as authoritative. Hidden until the plan's pointer is known (leaves `null`). */}
+          {sourceIsOfficial != null && (
+            <span
+              className={`lesson-controls__official lesson-controls__official--${
+                sourceIsOfficial ? 'is' : 'not'
+              }`}
+            >
+              {sourceIsOfficial ? 'Official version' : 'Not Official'}
+            </span>
+          )}
+        </div>
+        <div className="lesson-controls__group lesson-controls__group--output">
           {!editing ? (
             <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
@@ -223,24 +206,13 @@ export default function LessonControls() {
                 {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
-                Discard Edits
+                Cancel
               </Button>
             </>
           )}
-        </div>
-        <div className="lesson-controls__group lesson-controls__group--output">
           <Button buttonStyle="secondary" size="small" onClick={onPreview}>
             Preview
           </Button>
-          <Button buttonStyle="secondary" size="small" onClick={onDownload} disabled={exporting}>
-            {exporting ? 'Preparing…' : 'Download'}
-          </Button>
-          <label className="lesson-controls__chk">
-            <input type="checkbox" checked={docx} onChange={(e) => setDocx(e.target.checked)} /> docx
-          </label>
-          <label className="lesson-controls__chk">
-            <input type="checkbox" checked={pdf} onChange={(e) => setPdf(e.target.checked)} /> PDF
-          </label>
         </div>
         {msg ? (
           <span role="alert" className="lesson-controls__msg">

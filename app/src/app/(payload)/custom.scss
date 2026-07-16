@@ -533,34 +533,52 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
   display: none;
 }
 
+// Declutter 2026-07-15: the control bar now names the open document ("Viewing:/Editing: <title>"),
+// so the native H1 — the same title, one line above — is redundant chrome and is hidden. Same
+// `body:has()` ancestor pattern as the Edit tab above (the title lives in DocumentHeader, a
+// preceding SIBLING of the `.collection-edit--…` wrapper). The API doc-tab (Site-Admins) survives:
+// only the title element is hidden, not the header.
+body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
+  display: none;
+}
+
 // The single edit-view control bar (LessonControls), injected before the document controls.
+// Declutter 2026-07-15: ONE header row (back · Viewing/Editing: title · status chip · | · lifecycle
+// · Preview) — the old stacked back-link / chip / notice rows collapsed into it, and the bold
+// Viewing:/Editing: prefix replaced the view-mode notice as the mode signal.
 .lesson-controls-wrap {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-// Read-only notice: shown when the form is locked, so a version opened for viewing doesn't read as
-// "broken / no permission". Points the user at the Edit button that unlocks the form.
-.lesson-controls__notice {
-  padding: 0.4rem 0.6rem;
-  border-left: 3px solid var(--theme-elevation-400);
-  background: var(--theme-elevation-50);
-  color: var(--theme-elevation-700);
-  font-size: 0.85rem;
-  border-radius: 2px;
-}
-
-// "← Back to lesson" — the editor's exit, replacing the hidden breadcrumb trail (PR ④).
+// "← Back to lesson" — the editor's exit, replacing the hidden breadcrumb trail (PR ④). A plain
+// cross-layout <a>, dressed as a quiet secondary button so it sits naturally in the control row.
 .lesson-controls__back {
-  align-self: flex-start;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: 4px;
   font-size: 0.85rem;
-  color: var(--theme-elevation-600);
+  color: var(--theme-elevation-800);
   text-decoration: none;
+  white-space: nowrap;
 
   &:hover,
   &:focus-visible {
-    text-decoration: underline;
+    border-color: var(--theme-elevation-400);
+    color: var(--theme-elevation-1000);
+  }
+}
+
+// "Viewing:/Editing: <title>" — names the open lesson plan in the bar (the native doc-header H1 is
+// hidden below for this collection); the bold prefix is the mode signal.
+.lesson-controls__title {
+  font-size: 0.95rem;
+  color: var(--theme-elevation-800);
+  min-width: 0;
+  overflow-wrap: anywhere;
+
+  strong {
     color: var(--theme-elevation-1000);
   }
 }
@@ -569,7 +587,6 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
 // authoritative — the pointer, not the open version, decides. `Official` uses the success token; a
 // candidate uses a quiet neutral chip (it's normal, not an error).
 .lesson-controls__official {
-  align-self: flex-start;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   font-size: 0.72rem;
@@ -611,13 +628,6 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
     }
   }
 
-  &__chk {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.85rem;
-    white-space: nowrap;
-  }
   &__msg {
     color: var(--theme-error-500, #b00020);
     font-size: 0.8rem;
@@ -688,11 +698,12 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-tab[aria-label='Edit'] {
 }
 
 // Role-locked fields, made explicit (D3, critique cross-cutting #3): while the form is UNLOCKED
-// (no view-mode notice in the DOM — same :has() signal pattern as the chrome strip above), any
-// field still read-only is locked by ROLE, not by mode, so its label grows a quiet "read-only"
-// chip. In view mode everything is read-only and the notice already says so — no chips. The
+// (the control bar carries the --editing modifier — same :has() signal pattern as the chrome strip
+// above; previously keyed on the absence of the removed view-mode notice), any field still
+// read-only is locked by ROLE, not by mode, so its label grows a quiet "read-only" chip. In view
+// mode everything is read-only and the bold "Viewing:" prefix already says so — no chips. The
 // `read-only` wrapper class is Payload's own (verified @payloadcms/ui fields/*/input.js).
-body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-versions {
+body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-versions {
   // Relationship fields spell the modifier `relationship--read-only` (installed @payloadcms/ui).
   .field-type.read-only > .field-label::after,
   .field-type.read-only > label.field-label::after,
@@ -762,14 +773,8 @@ body:not(:has(.lesson-controls__notice)) .collection-edit--lesson-bundle-version
       scroll-margin-top: 1rem;
     }
   }
-  // #1 — the native document title truncates with an ellipsis (`.doc-header__title` is nowrap); a
-  // lesson title is long, so let it wrap on a narrow screen rather than showing three words. The
-  // title lives in Payload's `DocumentHeader`, a PRECEDING SIBLING of the `.collection-edit--…`
-  // view (see the Edit-tab note above), so it needs the `body:has()` ancestor pattern — a descendant
-  // rule can never reach it.
-  body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
-    white-space: normal;
-  }
+  // (The old #1 mobile title-wrap rule is gone with the native title itself — the control bar's
+  // "Viewing:/Editing: <title>" wraps naturally via overflow-wrap.)
 
   // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
   // already do; these Payload small buttons did not). Explicit px, NOT rem: the admin root font is

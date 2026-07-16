@@ -75,13 +75,14 @@ export default async function UserGuidePage() {
             <strong>Open or download a document:</strong> every lesson row (and every lesson page)
             lists its documents — Lesson plan, and where present Final explanation and Summary table —
             each with two small buttons. <em>PDF</em> opens the document in a new browser tab;{' '}
-            <em>Word</em> downloads the .docx to your device. <em>Download all</em> on a lesson page
-            fetches every document at once as a .zip.
+            <em>Word</em> downloads the .docx to your device. On a lesson page the supporting
+            documents sit behind a <em>Supporting documents</em> line, and the <em>Share</em> menu
+            fetches every document at once as a Word or PDF .zip.
           </li>
           <li>
-            <strong>Email:</strong> use the Email button to send the generated documents (as a .zip of
-            Word files) to any email address — your own, or a colleague&apos;s. Sends are limited per
-            day.
+            <strong>Email:</strong> choose <em>Share → Email to an address…</em> on a lesson page to
+            send the generated documents (as a .zip of Word files) to any email address — your own,
+            or a colleague&apos;s. Sends are limited per day.
           </li>
           <li>
             <strong>Want to edit?</strong> use <em>Request editing access</em> on any lesson page —
@@ -90,8 +91,8 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
-            right) to send a note to any user of the repository — a lesson page&apos;s &ldquo;Message a
-            colleague&rdquo; link attaches that lesson to your note. Each message you receive has a{' '}
+            right) to send a note to any user of the repository — a lesson page&apos;s{' '}
+            <em>Share → Message a colleague</em> item attaches that lesson to your note. Each message you receive has a{' '}
             <em>Reply</em> button that opens a box to write straight back. Unread messages show as a
             small count on your avatar, and you get a short email telling you a message is waiting
             (never its content). Opening Messages marks everything shown as read.

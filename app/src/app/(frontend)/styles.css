@@ -353,10 +353,6 @@ a {
 .msg-reply__cancel:hover {
   text-decoration: underline;
 }
-.msg-share-link {
-  font-size: 0.9rem;
-  margin-left: auto;
-}
 .user-menu {
   position: relative;
   display: inline-flex;
@@ -511,13 +507,14 @@ a {
   font-weight: 600;
   margin: 0 0 0.75rem;
 }
+/* Breathing room between strand groups (declutter C1). */
 .strand-section + .strand-section {
-  margin-top: 1.25rem;
+  margin-top: 1.6rem;
 }
 .strand-head {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.35rem;
 }
 
 .substrand-list {
@@ -530,7 +527,8 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  padding: 0.6rem 0.1rem;
+  /* 0.6 → 0.75rem (declutter C1): rows get air without the list losing its density. */
+  padding: 0.75rem 0.1rem;
   border-bottom: 1px solid var(--line);
   font-size: 0.9rem;
 }
@@ -969,22 +967,11 @@ button[type='submit']:disabled {
   font-size: 0.95rem;
 }
 
-/* ---- Version selector (lesson page): "Version" label + one pill per retained version. Previously
-   unstyled, so the label and pills ran together ("Version1.0.0 · Official1.0.1"). ---- */
-.version-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.35rem 0 0.75rem;
-  font-size: 0.9rem;
-}
-.version-label {
-  color: var(--muted);
-  margin-right: 0.1rem;
-}
+/* "· Official" trust marker — in the merged lesson meta line (declutter L3) and the versions
+   panel (VersionsChip). Bold + ink so it stands out of the muted line around it. */
 .official-tag {
   font-weight: 600;
+  color: var(--ink);
 }
 /* ---- Sticky lesson toolbar (design critique 2026-07-12): the action bar and the in-page jump
    nav stay on screen through the whole document scroll. ---- */
@@ -1000,17 +987,19 @@ button[type='submit']:disabled {
 .lesson-toolbar .export-bar {
   margin: 0 0 0.45rem;
 }
+/* Quieter than the action row above it (declutter L4): same targets, one type-scale step down —
+   the nav is wayfinding furniture, not a call to action. */
 .doc-nav {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.25rem 0.35rem;
-  font-size: 0.85rem;
+  gap: 0.2rem 0.3rem;
+  font-size: 0.8rem;
 }
 .doc-nav a {
   text-decoration: none;
   color: var(--accent);
-  padding: 0.2rem 0.5rem;
+  padding: 0.15rem 0.45rem;
   border-radius: var(--radius);
 }
 .doc-nav a:hover,
@@ -1022,7 +1011,7 @@ button[type='submit']:disabled {
   margin-left: 0.35rem;
 }
 .doc-nav__lesson {
-  min-width: 1.7rem;
+  min-width: 1.45rem;
   text-align: center;
   border: 1px solid var(--line);
 }
@@ -1044,9 +1033,80 @@ button[type='submit']:disabled {
   flex-wrap: wrap;
   margin: 0.75rem 0 1.5rem;
 }
-.export-label {
-  color: var(--muted);
+/* ---- Documents line (declutter L1): "Lesson plan [PDF] [Word]" one-click on its own line; the
+   secondary docs fold behind DocStrip's condensed disclosure, flush left here (the 2.6rem indent
+   is the catalogue rows' number-column alignment). ---- */
+.docs-line {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.9rem 0 0.2rem;
   font-size: 0.9rem;
+}
+.docs-line__label {
+  color: var(--muted);
+}
+.lesson .doc-strip-more {
+  padding-left: 0;
+}
+
+/* ---- Share ▾ menu (declutter L2): the whole-version share/export actions behind one disclosure —
+   an anchored panel, list-styled buttons/links, and a quiet scope footnote. ---- */
+.share-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  /* Hairline divider from the edit/request group to its left (declutter L2) — a border on the
+     Share group itself, matching the editor bar's `--output` group divider, so no throwaway
+     spacer element is needed. */
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--line);
+}
+.share-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 14rem;
+  padding: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.share-menu button,
+.share-menu a {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.share-menu button:hover,
+.share-menu button:focus-visible,
+.share-menu a:hover,
+.share-menu a:focus-visible {
+  background: var(--bg-soft);
+  color: var(--accent);
+}
+.share-menu button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.share-menu__note {
+  margin: 0.15rem 0 0.2rem;
+  padding: 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 /* One global control: with the Resource column or not — drives the view and every download. */
 .resources-toggle {
@@ -1352,18 +1412,24 @@ button[type='submit']:disabled {
     gap: 0.25rem;
   }
 
-  /* Action bar: let it breathe when it wraps, and stop "Message a colleague" from being flung to a
-     lonely far-right slot by its desktop `margin-left: auto`. */
+  /* Action bar: let it breathe when it wraps. The Share divider drops away when the bar wraps —
+     a border at the start of a wrapped line reads as noise (matches the editor bar's --output
+     group, which drops its divider at this breakpoint too). */
   .export-bar {
     row-gap: 0.5rem;
   }
+  .share-wrap {
+    padding-left: 0;
+    border-left: none;
+  }
 
-  /* Inside the sticky lesson toolbar the bars stay ONE row each and scroll sideways — a wrapped
-     multi-row toolbar would eat a phone viewport. Jump links keep the 44px touch bar. The right-edge
+  /* Inside the sticky lesson toolbar the JUMP NAV stays ONE row and scrolls sideways — a wrapped
+     multi-row nav would eat a phone viewport. Jump links keep the 44px touch bar. The right-edge
      fade is the scroll affordance (Codex #3): it signals there's more to swipe to, where a hidden
      mobile scrollbar gave no hint. It softens only the trailing gutter, so nothing becomes
-     unreachable — swiping brings the faded control fully into view. */
-  .lesson-toolbar .export-bar,
+     unreachable — swiping brings the faded control fully into view. The action bar LEFT this rule
+     with the declutter (2026-07-15): it is down to ≤4 compact controls (so wrapping is a non-issue
+     again), and `overflow-x: auto` would CLIP the absolutely-positioned Share ▾ dropdown inside it. */
   .doc-nav {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1382,7 +1448,6 @@ button[type='submit']:disabled {
   .login-links a,
   .back-link,
   .msg-link a,
-  .msg-share-link a,
   .msg-reply-toggle,
   .msg-reply__cancel {
     display: inline-flex;
@@ -1402,10 +1467,6 @@ button[type='submit']:disabled {
   .compare-grid {
     grid-template-columns: 1fr;
   }
-  .msg-share-link {
-    margin-left: 0;
-  }
-
   /* Compose actions (Send + status) wrap instead of colliding on a narrow screen. */
   .msg-compose__actions {
     flex-wrap: wrap;

@@ -30,31 +30,37 @@ vi.mock('@payloadcms/ui', () => ({
   ),
   useAllFormFields: () => [{}],
   useAuth: () => ({ user: null }),
-  useDocumentInfo: () => ({ id: 1, savedDocumentData: { lessonPlan: 2 } }),
+  useDocumentInfo: () => ({
+    id: 1,
+    savedDocumentData: { lessonPlan: 2, title: 'BIOLOGY GRADE 10: CELL STRUCTURE' },
+  }),
   useForm: () => ({ setDisabled: vi.fn(), reset: vi.fn(), setModified: vi.fn() }),
 }))
 
 vi.mock('payload/shared', () => ({ reduceFieldsToValues: () => ({}) }))
-vi.mock('@/components/exportClient', () => ({ downloadExport: vi.fn() }))
 
 import LessonControls from '@/components/LessonControls'
 
 describe('LessonControls server render honours the ?edit=1 intent (hydration-consistent)', () => {
   // Since the D3 regroup the edit-lifecycle group SWAPS with the mode (no disabled lifecycle
-  // buttons): unlocked shows Save/Discard and no Edit; locked shows Edit, the notice, and no Save.
+  // buttons): unlocked shows Save/Cancel and no Edit; locked shows Edit and no Save. The mode
+  // signal (declutter 2026-07-15) is the bold Editing:/Viewing: title prefix plus the wrap's
+  // --editing modifier, which gates the role-lock "read-only" label chips in custom.scss.
   it('renders UNLOCKED on the server when the URL carries edit=1', () => {
     mocks.search = 'edit=1'
     const html = renderToString(<LessonControls />)
-    expect(html).not.toContain('lesson-controls__notice')
+    expect(html).toContain('lesson-controls-wrap--editing')
+    expect(html).toContain('Editing:')
     expect(html).toMatch(/<button[^>]*>Save<\/button>/)
-    expect(html).toMatch(/<button[^>]*>Discard Edits<\/button>/)
+    expect(html).toMatch(/<button[^>]*>Cancel<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Edit<\/button>/)
   })
 
   it('renders LOCKED on the server without the edit intent', () => {
     mocks.search = ''
     const html = renderToString(<LessonControls />)
-    expect(html).toContain('lesson-controls__notice')
+    expect(html).not.toContain('lesson-controls-wrap--editing')
+    expect(html).toContain('Viewing:')
     expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
   })

@@ -30,15 +30,17 @@ _N versions_ panel and Compare control; Teachers do not use Manage or see versio
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Open or download a document:** each available document has a _PDF_ button, which opens it in a
-  new tab, and a _Word_ button, which downloads its `.docx`. _Download all_ on the lesson page
-  downloads all generated documents together as a `.zip`.
-- **Email:** use the Email button to send the generated documents (as a .zip of Word files) to any
-  email address — your own, or a colleague's. Sends are limited per day.
+  new tab, and a _Word_ button, which downloads its `.docx`. On the lesson page the supporting
+  documents sit behind a _Supporting documents_ line, and the _Share_ menu downloads all generated
+  documents together as a Word or PDF `.zip`.
+- **Email:** choose _Share → Email to an address…_ on a lesson page to send the generated documents
+  (as a .zip of Word files) to any email address — your own, or a colleague's. Sends are limited per
+  day.
 - **Want to edit?** use _Request editing access_ on a lesson page. The app messages the appropriate
   administrators for that subject-grade; requests are limited to once per subject-grade per day.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to any
-  user of the repository — a lesson page's "Message a colleague" link attaches that lesson to your
-  note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
+  user of the repository — a lesson page's _Share → Message a colleague_ item attaches that lesson
+  to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread
   messages show as a small count on your avatar, and you get a short email telling you a message is
   waiting (never its content). Opening Messages marks everything shown as read.
 

@@ -11,6 +11,65 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-15 (declutter redesign) — lesson-page Share menu + one-line docs; version-editor single header row
+
+A UI declutter session, all app-level, no migration. Scope was agreed via an **interactive HTML
+mockup built and approved before any code** (both pages + the catalogue variants, working Share
+menu and mode swap) — a cheap way to settle wording, ordering, and grouping arguments up front.
+Design decisions, each user-approved:
+
+- **Lesson page action hierarchy (L2): a `Share ▾` disclosure menu** (new
+  `lessons/[id]/ShareMenu.tsx`) absorbs Download all — Word/PDF .zips, **Email…** (the whole
+  EmailDocButton modal moved in), and **Message a colleague**. DownloadButtons.tsx +
+  EmailDocButton.tsx deleted. Edit / Make Official / Request editing access stay visible — Make
+  Official is deliberately NOT in a menu (the page's one consequential admin action). APG
+  disclosure pattern (aria-expanded + panel, outside-click/Escape close), the app standard since D6.
+- **Lesson page documents (L1): one "Lesson plan [PDF][Word]" line + the same "Supporting
+  documents" disclosure the catalogue rows use** (`DocStrip condensed`). This deliberately REVISES
+  the 2026-07-13 D4 call that "the lesson page keeps the full strip (a detail page has the room)"
+  — with the action bar beside it the page showed ~14 controls above the fold; the user chose the
+  fold (2026-07-15). One pattern on both surfaces now; the disclosure sits flush left on the lesson
+  page (`.lesson .doc-strip-more{padding-left:0}` — the 2.6rem indent is catalogue row alignment).
+- **Lesson page meta (L3): one merged muted line** `subject · grade · Version x.y.z · Official`
+  under the H1, with the versions chip + Compare inline (still editor-only — the teacher-first
+  lock, 2026-07-08 §4, is unchanged; the static semver+Official text now shows to everyone as a
+  trust marker). The separate `.version-bar` band is gone.
+- **Version editor: ONE header row** — `[← Back to lesson] Viewing:/Editing: <title> [Official
+  chip] │ [Edit]⇄[Save · Cancel] · [Preview]`. The **bold Viewing:/Editing: prefix replaces the
+  view-mode notice line** as the mode signal (user ask), and Payload's native H1 (the same title)
+  is hidden for this collection — the bar names the document. "Discard Edits" renamed **"Cancel"**.
+  Collection description shortened to one line ("Save writes your edits as a new version —
+  existing versions are never changed.").
+- **Editor Download button + docx/PDF checkboxes REMOVED** (user ask, verified safe first): they
+  exported the SAVED version via `/export` — byte-identical to the lesson page's downloads. Only
+  **Preview** posts the live form state, so it is the one output action the editor keeps.
+- **CSS signal handover:** the role-lock "read-only" label chips were gated on
+  `body:not(:has(.lesson-controls__notice))`; with the notice gone the gate keys on the new
+  `.lesson-controls-wrap--editing` modifier (positive signal > absence-of-element signal).
+  `lessonControlsSsr.spec.tsx` now pins the modifier + prefix + Save/Cancel swap.
+- **Mobile regression avoided, rule revised:** the 2026-07-13 phone rule kept BOTH toolbar bars
+  `overflow-x:auto` one-liners. `overflow-x:auto` CLIPS an absolutely-positioned child, so the
+  Share dropdown forced the action bar OUT of that rule — safe now it holds ≤4 compact controls;
+  the jump nav keeps the scroll+fade treatment.
+- **Catalogue C1 spacing only:** row padding 0.6→0.75rem, strand gap 1.25→1.6rem. The icon-button
+  variant (C2-B) was mocked and DECLINED in favour of keeping labelled PDF/Word buttons
+  (self-explanatory beats compact). Jump nav quieter one type step (L4). Deferred: collapsible
+  per-lesson `<details>` in the rendered document (L5) — same fidelity-transform risk the
+  2026-07-12 triage rejected; the jump nav covers navigation.
+- Guide page + USER_GUIDE.md updated in step (Share menu wording, supporting-docs line).
+- **/simplify (4-agent pass) applied two altitude fixes:** (a) the email compose form was extracted
+  from ShareMenu into its own composed **`EmailModal.tsx`** (owns its recipient/sending/error state),
+  so ShareMenu stays a thin coordinator and download errors can't bleed into the compose form; (b)
+  the `.toolbar-sep` empty-span divider became a `border-left` on `.share-wrap` (matching the editor
+  bar's `--output` group divider — no throwaway element). Plus a stale `DocStrip` docstring fix.
+  **Skipped (out of diff scope):** extracting a shared `useDisclosure` hook and a `.menu-panel` CSS
+  base — both real duplication (ShareMenu/UserMenu/VersionsChip hand-roll the same outside-click
+  disclosure; `.share-menu`/`.user-menu__dropdown` share a panel shell) but the fix needs rewiring
+  UserMenu + VersionsChip, outside this change. Worth a dedicated follow-up. Efficiency + the other
+  simplification checks came back clean.
+
+---
+
 ## 2026-07-14 (branding + row redesign) — ARES rename, editor-controls left, Guide fixes, catalogue row redesign; a client-boundary lesson
 
 A UI/branding polish session (all app-level, no migration; `main` `83f0c4e`). Committed DIRECT TO
