@@ -26,15 +26,17 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-15) — lesson-page + version-editor DECLUTTER; UNCOMMITTED in the working tree
+## ▶ RESUME HERE (2026-07-16) — lesson-page + version-editor DECLUTTER; ON `main`, CI green, DEPLOY PENDING
 
 **A UI declutter session (all app-level, no migration), scope agreed via an approved HTML mockup
-first.** NOT yet committed — the changes sit in the working tree awaiting your review. Full reasoning:
+first.** Shipped **direct to `main` = `81c38e1`** (one commit; verify with `git log -1`), CI-watched
+to green (run passed `test:int` + `test:http`, not just the local unit run). Full reasoning:
 **DECISIONS 2026-07-15 (declutter redesign)**. Browser-verified on a host dev stack across all four
 render branches (editor + teacher lesson pages; version editor view⇄edit; catalogue) with no console
-errors; `test:unit` 176/176, typecheck + lint clean.
+errors; `test:unit` 176/176, typecheck + lint clean. Direct-to-main was appropriate here per the
+workflow note below: low-risk, browser-verified UI, no correctness/security surface.
 
-**What changed (13 files):**
+**What shipped (18 files):**
 1. **Version editor (`LessonControls` + `custom.scss`):** collapsed to ONE header row —
    `[← Back to lesson]  Viewing:/Editing: <title>  [Official chip] │ [Edit]⇄[Save · Cancel] · [Preview]`.
    Removed the Download button + docx/PDF checkboxes (they exported the SAVED version = identical to
@@ -49,12 +51,24 @@ errors; `test:unit` 176/176, typecheck + lint clean.
    Email + Message a colleague (deleted `DownloadButtons.tsx` + `EmailDocButton.tsx`). Quieter jump nav.
 3. **Catalogue (`styles.css`):** C1 spacing only (row padding, strand gap). Icon-button variant was
    mocked and declined.
-4. Guide page + `USER_GUIDE.md` wording; `lessonControlsSsr.spec.tsx` re-pinned; `payload-types.ts`
+4. **`/simplify` (4-agent) follow-ups (same commit):** the email compose form extracted from ShareMenu
+   into its own composed **`EmailModal.tsx`**; the `.toolbar-sep` empty-span divider became a
+   `border-left` on `.share-wrap`; a stale `DocStrip` docstring fixed. **Deferred (out of diff scope,
+   flagged as a background task):** extract a shared `useDisclosure` hook — ShareMenu/UserMenu/
+   VersionsChip hand-roll the same outside-click disclosure, and `.share-menu`/`.user-menu__dropdown`
+   share a panel shell worth a `.menu-panel` base.
+5. Guide page + `USER_GUIDE.md` wording; `lessonControlsSsr.spec.tsx` re-pinned; `payload-types.ts`
    regenerated from the shortened description; `app/.gitignore` ignores the runtime `.artifact-cache/`.
 
-**NEXT:** review the working-tree diff → commit (PR flow or direct-to-main per the workflow note
-below) → deploy to the Rock (no migration; UI/markup/CSS + a description string only). To re-eyeball
-locally see [[local-dev-node22]] (host tooling needs `node@22` on PATH).
+**OPERATOR NEXT — DEPLOY `main` (`81c38e1`) to the Rock.** Usual `scripts/deploy.sh`, **no migration**
+(UI markup/CSS + a description string only; `generate:types` unaffected — no schema change). This is
+still stacked on top of the 2026-07-14 branding deploy below if that hasn't shipped yet.
+
+**EYEBALL (post-deploy):** lesson page — one meta line, one-line Lesson plan + "Supporting documents"
+disclosure, `[Edit]│[Share ▾]` with the Share menu's 4 items + footnote, Email opens the modal; version
+editor — one header row, Viewing⇄Editing swap on Edit, Save/Cancel, no Download/checkboxes; catalogue
+spacing. To re-eyeball locally see [[local-dev-node22]] (host tooling needs `node@22` on PATH; the
+local compose stack + its seed volume were torn down at session end).
 
 ---
 
