@@ -26,7 +26,25 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-16) — lesson-page + version-editor DECLUTTER; ON `main`, CI green, DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-16, later) — UI audit follow-up: mobile favorite label; `main` `8511228`, DEPLOY PENDING
+
+**A small UI-audit follow-up sits on top of the declutter.** `main` = **`8511228`** (verify
+`git log -1`); app-level, **no migration**. Full record: **DECISIONS 2026-07-16 (UI audit)**.
+- **Shipped:** the catalogue favorite reveals its label (`☆ Favorite` / `★ Favorited`) at **≤640px
+  only**; desktop is unchanged (bare, aligned star). Browser-verified desktop 1280 (alignment spread 0)
+  + mobile 390 (44px, labelled, aria-labels intact); no console errors.
+- **Deliberately NOT done:** the "cap content width on wide desktop" idea was **rejected** — `.app-main`
+  already caps at 960px, so the diagnosis was wrong (DECISIONS has the correction + lesson). Two UI
+  items stay on the backlog, unbuilt: mobile **reflow of the wide generated framework tables** (needs a
+  prototype + a11y/DOCX-fidelity gate — a design experiment, not a quick fix) and **mobile
+  sticky-header height** (action bar + jump nav both pin).
+- **DEPLOY:** one `scripts/deploy.sh` for `main` (`8511228`) now covers the declutter **and** this —
+  app-level, no migration. Eyeball add: on a phone, catalogue cards show a labelled Favorite control
+  (desktop rows stay a bare aligned star).
+
+---
+
+## ▶ Older resume (2026-07-16) — lesson-page + version-editor DECLUTTER; ON `main`, CI green, DEPLOY PENDING
 
 **A UI declutter session (all app-level, no migration), scope agreed via an approved HTML mockup
 first.** Shipped **direct to `main` = `81c38e1`** (one commit; verify with `git log -1`), CI-watched

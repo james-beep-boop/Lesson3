@@ -11,6 +11,50 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-16 (UI audit → mobile favorite label; a max-width correction worth keeping)
+
+A role×viewport audit of the catalogue + lesson-detail pages after the declutter (Teacher / Editor /
+Subject-Admin / Site-Admin × 390 / 768 / 800 / 1280 / 1440). **No defects** — the declutter left the UI
+in good shape. Four refinement/experiment opportunities surfaced; **one shipped**, one was **rejected as
+factually wrong**, two are **deferred**.
+
+- **SHIPPED — favorite label on mobile only (`8511228`).** The catalogue favorite was a bare star:
+  visually icon-only and, on a stacked mobile card, a floating glyph where touch ambiguity is highest.
+  Now it reveals its label (`☆ Favorite` / `★ Favorited`) at **≤640px only**; desktop is unchanged.
+  **Measurement-first:** desktop alignment was already perfect (favorite `left` spread **0** at
+  768/1280/1440, across chip and no-chip rows — the D4 reserved column handles it), so this is
+  mobile-only. Implemented as a `labelOnMobile` prop whose label span is **always in the DOM and
+  CSS-hidden on desktop** (no SSR/hydration branch; zero effect on the desktop column). 44px touch
+  target + full aria-label preserved. Only catalogue rows change (they favorite the **Official**
+  version); the lesson-page control is untouched.
+
+- **REJECTED — "cap content width on wide desktop" (a CORRECTION, logged per the working-process rule).**
+  The proposal claimed the page had no max-width and rows stretched edge-to-edge. **Wrong:** `.app-main`
+  already has `max-width: 960px; margin: 0 auto` (`styles.css`), confirmed by measuring the live column
+  (960px, centred, 240px margins at 1440). The mistake: I inferred "full-bleed" from **DPR-scaled
+  browser screenshots** instead of reading the CSS or measuring `getBoundingClientRect` — the exact
+  "verify, don't infer from the visual" discipline I'd apply to anyone else. An external (Codex) review
+  caught it. **LESSON: never diagnose a width/layout issue from a screenshot; read the rule or measure
+  the computed box.** The apparent title→actions gap is the row's `flex:1` title + `space-between`, a
+  deliberate, scannable right-aligned action column — not a defect.
+
+- **Favorite treatment refined by the same review.** Rejected "labelled pill on every row": it would
+  reintroduce the `Favorite ×20` density the declutter removed AND could **mask a real semantic
+  difference** — the catalogue star favorites the plan's **Official** version, while the lesson-page
+  control favorites the **viewed** version (which can be Not Official for an editor/admin). Keeping the
+  label mobile-only preserves that distinction. (The star was already accessible — aria-label, title,
+  pressed state, 44px — so this was discoverability polish, not an a11y fix.)
+
+- **DEFERRED (candidates, not built).** (1) Mobile readability of the wide generated framework tables:
+  they scroll inside `.doc-preview` (`overflow-x:auto`, body does NOT scroll horizontally — reachable,
+  not clipped), but scrolling right pushes the row label off-screen. A reflow/pinned-label needs the
+  **prototype + a11y + DOCX-fidelity gate** per the standing "don't restructure generated content"
+  rule — a design experiment, not a quick fix. (2) Mobile sticky-header height: the action bar +
+  jump-nav both pin on a phone; scoping stickiness to the nav would reclaim reading height. No
+  max-width work — the 960px cap stays.
+
+---
+
 ## 2026-07-15 (declutter redesign) — lesson-page Share menu + one-line docs; version-editor single header row
 
 A UI declutter session, all app-level, no migration. Scope was agreed via an **interactive HTML
