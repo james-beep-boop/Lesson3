@@ -18,6 +18,7 @@ export default function FavoriteToggle({
   versionId,
   favoriteId: initialFavoriteId,
   showLabel = false,
+  labelOnMobile = false,
 }: {
   versionId: number | string
   /** The caller's favorite row id for this version, or null when not favorited. */
@@ -25,6 +26,10 @@ export default function FavoriteToggle({
   /** Render a text label beside the star (used on the lesson page, where the bare glyph is easy to
    *  miss). Library rows keep just the glyph — space is tight and the column reads as a toggle. */
   showLabel?: boolean
+  /** Catalogue rows: keep the bare aligned glyph on desktop, but reveal the label at ≤640px, where a
+   *  stacked card has room and a bare icon is most ambiguous on touch. The label text is always in
+   *  the DOM and hidden with CSS on desktop, so it never affects the desktop column alignment. */
+  labelOnMobile?: boolean
 }) {
   const router = useRouter()
   const [favoriteId, setFavoriteId] = useState(initialFavoriteId)
@@ -73,10 +78,13 @@ export default function FavoriteToggle({
   }
 
   const label = isFavorite ? 'Remove from favorites' : 'Add to favorites'
+  const withLabel = showLabel || labelOnMobile
   return (
     <button
       type="button"
-      className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}`}
+      className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}${
+        labelOnMobile && !showLabel ? ' fav-toggle--label-mobile' : ''
+      }`}
       aria-pressed={isFavorite}
       aria-label={label}
       title={label}
@@ -84,7 +92,7 @@ export default function FavoriteToggle({
       onClick={onToggle}
     >
       <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
-      {showLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
+      {withLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
     </button>
   )
 }

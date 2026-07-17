@@ -851,6 +851,11 @@ a {
 .fav-toggle__label {
   line-height: 1;
 }
+/* Catalogue rows (Variant B): the label rides in the DOM but is hidden on desktop, so the star stays
+   a bare, column-aligned glyph exactly as before; the ≤640px block below reveals it on cards. */
+.fav-toggle--label-mobile .fav-toggle__label {
+  display: none;
+}
 
 /* ---- Login ---- */
 .login {
@@ -1493,6 +1498,18 @@ button[type='submit']:disabled {
     min-height: 2.75rem;
     padding: 0.3rem 0.45rem;
     font-size: 1.35rem;
+  }
+  /* Variant B: on cards the catalogue favorite reveals its label and becomes a compact labelled
+     control — still ≥44px tall for touch; min-width drops so the width follows star + text, and the
+     smaller font balances the glyph against the word. */
+  .fav-toggle--label-mobile {
+    gap: 0.3rem;
+    min-width: 0;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.95rem;
+  }
+  .fav-toggle--label-mobile .fav-toggle__label {
+    display: inline;
   }
   /* The Compare button joins the 44px touch bar (the chip already does above). */
   .compare-link {

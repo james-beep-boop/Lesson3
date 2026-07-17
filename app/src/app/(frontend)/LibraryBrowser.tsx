@@ -321,7 +321,11 @@ function SubstrandRow({
           </span>
         )}
         {row.versionId != null && (
-          <FavoriteToggle versionId={row.versionId} favoriteId={favByVersion.get(row.versionId) ?? null} />
+          <FavoriteToggle
+            versionId={row.versionId}
+            favoriteId={favByVersion.get(row.versionId) ?? null}
+            labelOnMobile
+          />
         )}
         {/* Row redesign (Option B, 2026-07-14): the primary Lesson plan's PDF/Word sit inline on
             the title line — one-click download next to the (now clearly-linked) name. */}
