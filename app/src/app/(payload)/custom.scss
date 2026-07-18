@@ -16,9 +16,25 @@ body {
 // Contrast note (D6): the audited muted-text rules use elevation-600, never 500 — elevation-500 on
 // white is 3.95:1 and fails WCAG AA (4.5:1). (Darker text — elevation-700/800 — is used elsewhere
 // and is unaffected.)
+// Both states must be restated here (2026-07-17): Payload's own button rules live in
+// @layer payload-default, and unlayered rules like these beat a layer regardless of specificity —
+// so overriding --bg-color alone ALSO painted DISABLED primaries app-blue while they kept
+// Payload's dark disabled text (near-black on dark blue, illegible — the Manage "Add" buttons sit
+// disabled until a name is picked). Enabled: white on app blue (#fff on #1f5fa8 ≈ 7.5:1, AA) in
+// both admin themes (--color is pinned, not elevation-mapped, since the bg no longer flips).
+// Disabled: Payload's own light-gray/dark-text combo, restated so it wins the layer war too.
 .btn--style-primary {
   --bg-color: #1f5fa8;
   --hover-bg: #17497f;
+  --color: #fff;
+  --hover-color: #fff;
+
+  &.btn--disabled {
+    --bg-color: var(--theme-elevation-200);
+    --color: var(--theme-elevation-800);
+    --hover-bg: var(--theme-elevation-200);
+    --hover-color: var(--theme-elevation-800);
+  }
 }
 
 // Custom admin dashboard (src/components/AdminDashboard) — quiet, additive landing that replaces
@@ -518,6 +534,23 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   .doc-controls__wrapper {
     height: auto;
     align-items: flex-start;
+  }
+}
+
+// "Hide details" (LessonControls, 2026-07-17): collapse the right-hand sidebar on demand. The
+// body class is set client-side by the toggle; the rules mirror Payload's OWN empty-sidebar
+// collapse exactly (installed @payloadcms/ui DocumentFields/index.scss, the
+// `:has(.render-fields:empty)` branch sets --main-width:100% / --main-border:none /
+// --main-field-margin:initial), so the main column widens by the same contract Payload uses —
+// plus display:none on the wrap, since our sidebar has fields and :has() can't fire.
+body.lp-details-hidden .collection-edit--lesson-bundle-versions {
+  .document-fields--has-sidebar {
+    --main-width: 100%;
+    --main-border: none;
+    --main-field-margin: initial;
+  }
+  .document-fields__sidebar-wrap {
+    display: none;
   }
 }
 

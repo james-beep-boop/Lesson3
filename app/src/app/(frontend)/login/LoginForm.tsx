@@ -3,6 +3,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import PasswordInput from '@/components/PasswordInput'
+
 export function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -57,8 +59,7 @@ export function LoginForm() {
       </label>
       <label>
         Password
-        <input
-          type="password"
+        <PasswordInput
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

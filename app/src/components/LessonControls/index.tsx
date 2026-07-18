@@ -50,6 +50,18 @@ export default function LessonControls() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
+  // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
+  // is useful context but wide; this collapses it on demand (user, 2026-07-17). Deliberately
+  // per-page state, ALWAYS shown on open — no persistence, so SSR and first paint agree and
+  // there's no hydration branch (the ?edit=1 lesson). The effect drives a body class because this
+  // bar renders inside .doc-controls, not as an ancestor of .document-fields; custom.scss turns
+  // the class into Payload's own empty-sidebar collapse recipe.
+  const [detailsShown, setDetailsShown] = useState(true)
+  useEffect(() => {
+    document.body.classList.toggle('lp-details-hidden', !detailsShown)
+    return () => document.body.classList.remove('lp-details-hidden')
+  }, [detailsShown])
+
   // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
   // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
   const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
@@ -212,6 +224,11 @@ export default function LessonControls() {
           )}
           <Button buttonStyle="secondary" size="small" onClick={onPreview}>
             Preview
+          </Button>
+          {/* Toggle for the details sidebar; the changing label carries the state (no aria-pressed
+              on top — label-swap and pressed-state together read as contradictory to AT). */}
+          <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>
+            {detailsShown ? 'Hide details' : 'Show details'}
           </Button>
         </div>
         {msg ? (

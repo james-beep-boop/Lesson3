@@ -13,12 +13,9 @@ import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors
 import EditActions from './EditActions'
 import ShareMenu from './ShareMenu'
 import FavoriteToggle from '@/components/FavoriteToggle'
-import DocButtons from '@/components/DocButtons'
-import DocStrip from '@/components/DocStrip'
 import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
-import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -89,7 +86,7 @@ export default async function LessonView({
   })
   const favoriteId = favRows[0]?.id ?? null
 
-  // What the export will contain — drives the Documents line + supporting-docs disclosure.
+  // What the export will contain — drives the Share menu's per-document download list.
   const deliverables = versionDeliverables(selected)
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
@@ -147,17 +144,10 @@ export default async function LessonView({
         <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
       </div>
 
-      {/* One Documents line (declutter L1): the primary Lesson plan's PDF/Word stay one-click on
-          their own line; Final explanation / Summary table fold behind the same "Supporting
-          documents" disclosure the catalogue rows use (DocStrip condensed) — one pattern on both
-          surfaces. Revises the 2026-07-13 "detail page keeps the full strip" call (user, 2026-07-15). */}
-      {deliverables.includes(PRIMARY_DELIVERABLE) && (
-        <div className="docs-line">
-          <span className="docs-line__label">Lesson plan</span>
-          <DocButtons versionId={selectedId} tag={PRIMARY_DELIVERABLE} />
-        </div>
-      )}
-      <DocStrip versionId={selectedId} tags={deliverables} condensed />
+      {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
+          revising declutter L1): the catalogue row already offers exactly those one-click downloads,
+          so on the detail page every download lives in ONE place — the Share menu below, which
+          gained a per-document section so nothing was lost. */}
 
       {/* Sticky while reading (critique 2026-07-12): the action bar plus the in-page jump nav
           stay reachable through an 8-lesson scroll instead of vanishing after the first screen. */}
@@ -172,10 +162,15 @@ export default async function LessonView({
           )}
           {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
           {!canEdit && <RequestEditingButton planId={plan.id} />}
-          {/* Share ▾ (declutter L2): Download-all zips + Email + Message fold into one menu. A
-              left border on .share-wrap divides it from the edit/request group (matching the
-              editor bar's --output group divider). */}
-          <ShareMenu planId={plan.id} versionId={selectedId} semver={selected.semver} />
+          {/* Share ▾ (declutter L2): Download-all zips + per-document downloads + Email + Message
+              fold into one menu. A left border on .share-wrap divides it from the edit/request
+              group (matching the editor bar's --output group divider). */}
+          <ShareMenu
+            planId={plan.id}
+            versionId={selectedId}
+            semver={selected.semver}
+            deliverables={deliverables}
+          />
         </div>
         {navItems.length > 0 && (
           <nav className="doc-nav" aria-label="Jump to section">

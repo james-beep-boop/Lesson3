@@ -9,6 +9,8 @@
  */
 import React, { useState } from 'react'
 
+import PasswordInput from '@/components/PasswordInput'
+
 export function SignupForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -84,8 +86,7 @@ export function SignupForm() {
       </label>
       <label>
         Password
-        <input
-          type="password"
+        <PasswordInput
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

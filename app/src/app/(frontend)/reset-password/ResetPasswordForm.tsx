@@ -8,6 +8,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import PasswordInput from '@/components/PasswordInput'
+
 export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter()
   const [password, setPassword] = useState('')
@@ -42,8 +44,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <form className="login-form" onSubmit={onSubmit}>
       <label>
         New password
-        <input
-          type="password"
+        <PasswordInput
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

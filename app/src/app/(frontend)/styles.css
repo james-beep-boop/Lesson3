@@ -925,6 +925,37 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
+/* Password show/hide (PasswordInput): the input keeps the form styling above; the eye overlays its
+   right edge, with input padding reserving the space so text never runs under the button. */
+.pw-field {
+  position: relative;
+  display: block;
+}
+.pw-field .pw-field__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2.6rem;
+}
+.pw-field__toggle {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.1rem;
+  min-height: 2.1rem;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pw-field__toggle:hover,
+.pw-field__toggle:focus-visible,
+.pw-field__toggle[aria-pressed='true'] {
+  color: var(--accent);
+}
 .form-error {
   color: var(--danger);
   margin: 0;
@@ -1038,22 +1069,8 @@ button[type='submit']:disabled {
   flex-wrap: wrap;
   margin: 0.75rem 0 1.5rem;
 }
-/* ---- Documents line (declutter L1): "Lesson plan [PDF] [Word]" one-click on its own line; the
-   secondary docs fold behind DocStrip's condensed disclosure, flush left here (the 2.6rem indent
-   is the catalogue rows' number-column alignment). ---- */
-.docs-line {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0.9rem 0 0.2rem;
-  font-size: 0.9rem;
-}
-.docs-line__label {
-  color: var(--muted);
-}
-.lesson .doc-strip-more {
-  padding-left: 0;
-}
+/* The Documents line + its disclosure de-indent were removed 2026-07-17 (downloads consolidated
+   into the Share menu — see .share-menu__docs below). */
 
 /* ---- Share ▾ menu (declutter L2): the whole-version share/export actions behind one disclosure —
    an anchored panel, list-styled buttons/links, and a quiet scope footnote. ---- */
@@ -1112,6 +1129,46 @@ button[type='submit']:disabled {
   padding: 0 0.6rem;
   color: var(--muted);
   font-size: 0.78rem;
+}
+/* Per-document section inside Share (2026-07-17): hairline-bounded group between "Download all"
+   and Email/Message. The generic `.share-menu button` flat-menu-item rule above would flatten the
+   strip's PDF/Word pills (block, full-width, borderless), so the pill look is restated scoped. */
+.share-menu__docs {
+  margin: 0.2rem 0;
+  padding: 0.3rem 0 0.4rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.share-menu__group-label {
+  margin: 0 0 0.3rem;
+  padding: 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.share-menu .doc-strip {
+  padding: 0 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.share-menu .doc-strip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  width: 100%;
+}
+.share-menu .doc-buttons .btn {
+  display: inline-flex;
+  width: auto;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.share-menu .doc-buttons .btn:hover,
+.share-menu .doc-buttons .btn:focus-visible {
+  border-color: var(--accent);
 }
 /* One global control: with the Resource column or not — drives the view and every download. */
 .resources-toggle {
