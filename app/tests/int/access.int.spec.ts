@@ -181,6 +181,32 @@ describe('Teacher cannot write versions', () => {
   })
 })
 
+// Edit-view cleanup (2026-07-18): NO caller-access create path exists — versions are born only via
+// system paths (ingest / re-ingest / save-as-new, all overrideAccess). Denying direct create also
+// removes Payload's "Create New" + "Duplicate" document-controls actions. Pin the tightening: even a
+// privileged admin cannot direct-create through their own access (a fixture create with
+// overrideAccess:true still works — that is the system path and is exercised throughout).
+describe('No caller-access version create (Create New / Duplicate removed)', () => {
+  it.each(['siteAdmin', 'subjectAdmin', 'editor'] as const)(
+    'rejects a %s creating a version directly',
+    async (role) => {
+      await expect(
+        fx.payload.create({
+          collection: 'lesson-bundle-versions',
+          data: {
+            lessonPlan: fx.plan.id,
+            subjectGrade: fx.subjectGrade.id,
+            title: `${MARK}${role}-direct-create`,
+            ...minimalBundleContent(),
+          } as never,
+          overrideAccess: false,
+          user: fx.users[role],
+        }),
+      ).rejects.toThrow()
+    },
+  )
+})
+
 describe('Server-side invariants (Bucket A)', () => {
   it('#2 rejects an authenticated update that clears the Official pointer; system clear is allowed', async () => {
     // Throwaway plan + its OWN Official version, assembled the only legal way: create the plan, create
@@ -305,66 +331,13 @@ describe('Server-side invariants (Bucket A)', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 
-  it('sourceVersion is system-only: an authenticated create cannot set it (stripped, not stored)', async () => {
-    // Provenance is stamped by save-as-new (overrideAccess), never taken from a caller — field access
-    // is create/update systemOnly, so a spoofed value on a direct admin create is silently stripped.
-    // The system path setting it is exercised by makeWorkingCopy above. Own throwaway plan: semver is
-    // ALSO create-stripped now (audit 2026-07-06), so this create lands as 1.0.0 — on the fixture
-    // plan that would collide with its existing 1.0.0 on the unique (lessonPlan, semver) index.
-    const p = await fx.payload.create({
-      collection: 'lesson-plans',
-      data: { title: `${MARK}src-spoof-plan`, subjectGrade: fx.subjectGrade.id } as never,
-      overrideAccess: true,
-    })
-    const v = (await fx.payload.create({
-      collection: 'lesson-bundle-versions',
-      data: {
-        lessonPlan: p.id,
-        subjectGrade: fx.subjectGrade.id,
-        sourceVersion: fx.version.id, // spoof attempt
-        title: `${MARK}src-spoof`,
-        ...minimalBundleContent(),
-      } as never,
-      overrideAccess: false,
-      user: fx.users.subjectAdmin,
-    })) as { id: number | string }
-    const stored = (await fx.payload.findByID({
-      collection: 'lesson-bundle-versions',
-      id: v.id,
-      depth: 0,
-      overrideAccess: true,
-    })) as { sourceVersion?: unknown }
-    expect(stored.sourceVersion ?? null).toBeNull()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
-    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
-  })
-
-  it('semver is system-only on CREATE too: a forged value is stripped → 1.0.0 default (audit 2026-07-06)', async () => {
-    // A privileged direct create previously accepted any semver ("banana", "999.0.0"), corrupting
-    // ordering and future bump allocation. Field access is now create+update systemOnly, so an
-    // authenticated create has the submitted value stripped and the 1.0.0 default applied. Fresh
-    // throwaway plan (the fixture plan already has a 1.0.0 — the unique index would reject).
-    const p = await fx.payload.create({
-      collection: 'lesson-plans',
-      data: { title: `${MARK}semver-forge-plan`, subjectGrade: fx.subjectGrade.id } as never,
-      overrideAccess: true,
-    })
-    const v = (await fx.payload.create({
-      collection: 'lesson-bundle-versions',
-      data: {
-        lessonPlan: p.id,
-        subjectGrade: fx.subjectGrade.id,
-        semver: '999.0.0', // forge attempt
-        title: `${MARK}semver-forge`,
-        ...minimalBundleContent(),
-      } as never,
-      overrideAccess: false,
-      user: fx.users.subjectAdmin,
-    })) as { id: number | string; semver?: string }
-    expect(v.semver).toBe('1.0.0')
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
-    await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
-  })
+  // NOTE (2026-07-18): the former "sourceVersion/semver forged on an authenticated CREATE are stripped"
+  // tests lived here (audit #65). They exercised a direct admin create that SUCCEEDED with the forged
+  // fields stripped. Caller-access create is now denied outright ('No caller-access version create'
+  // block above), which is a strictly STRONGER guarantee than field-stripping — a forged value can't
+  // reach the row because the create itself is refused. The `systemOnly` field guards on semver /
+  // sourceVersion remain (dormant defense-in-depth); the system-path semver validation is still pinned
+  // below.
 
   it('semver validate rejects non-x.y.z even on the system path', async () => {
     // Defense-in-depth behind the field access: nextSemverForPlan parses malformed pieces loosely,

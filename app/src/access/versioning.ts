@@ -38,16 +38,16 @@ export const canSetOfficialVersion: FieldAccess = ({ req: { user }, data, doc })
 
 export const lessonBundleVersionRead: Access = ({ req: { user } }) => Boolean(user)
 
-// Creating a version row directly is an admin action. The Editor working-copy path does NOT create
-// here — the fork endpoint copies the source via overrideAccess (a trusted faithful snapshot, not
-// Editor-authored content), so Editors need no create access (which would let them set admin-only
-// fields on a brand-new row, where the field-split has no original to protect). Ingest/migration use
-// overrideAccess and are unaffected.
-export const lessonBundleVersionCreate: Access = ({ req: { user }, data }) => {
-  const u = user as User | null | undefined
-  if (isSiteAdmin(u)) return true
-  return isSubjectAdminFor(u, subjectGradeIdFor({ data }))
-}
+// NO caller-access create path exists — a version only ever comes into being through a SYSTEM path
+// (SPEC §7): ingest → 1.0.0, re-ingest → next major, edit+Save → next patch (the save-as-new
+// endpoint). All three run `overrideAccess: true` and so bypass this gate entirely. A blank direct
+// create has no legitimate place in the model and is actively harmful — `semver`/`author`/
+// `sourceVersion` are systemOnly, so it lands as a provenance-less default 1.0.0 that trips the unique
+// (lessonPlan, semver) index or corrupts version ordering (the class the 2026-07-06 semver audit,
+// DECISIONS #65, had to harden). Denying it here also removes Payload's "Create New" / "Duplicate"
+// document-controls actions, which those defaults gate on create permission (2026-07-18 edit-view
+// cleanup — the kebab is replaced by an explicit Delete button in LessonControls).
+export const lessonBundleVersionCreate: Access = () => false
 
 // Stage 2 editing model: a saved version is an IMMUTABLE snapshot. The `update` access for
 // lesson-bundle-versions is NOT here — it is one half of a two-part mechanism (a form-render-only
@@ -78,3 +78,28 @@ export const deletableVersionsWhere = (u: User | null | undefined): Where | bool
 
 export const lessonBundleVersionDelete: Access = ({ req: { user } }) =>
   deletableVersionsWhere(user as User | null | undefined)
+
+/**
+ * Per-DOCUMENT form of `deletableVersionsWhere` — the SAME policy evaluated against one version's
+ * fields instead of as a query (Site Admin → any; Subject Admin → any in their sg; Editor → ONLY a
+ * version they authored in their editor sg). The client (LessonControls) can't run a `Where`, so it
+ * uses this to decide whether to OFFER Delete; keeping both forms here, adjacent, is what the
+ * "never drift" invariant above requires. Authorship ALONE is not enough — a since-demoted author who
+ * is no longer an Editor for the sg is refused, matching the server. The Official-not-deletable rule
+ * is separate (`enforceOfficialNotDeletable`); callers gate on that too.
+ */
+export const canDeleteVersionDoc = (
+  u: User | null | undefined,
+  version: { subjectGrade?: unknown; author?: unknown },
+): boolean => {
+  const sgId = toId(version.subjectGrade as Assignment['subjectGrade'])
+  // Site Admin (any sg) or Subject Admin of this sg → any candidate.
+  if (isSubjectAdminFor(u, sgId)) return true
+  // Editor of this sg → only a candidate they authored.
+  return (
+    sgId != null &&
+    subjectGradeIdsByRole(u, ['editor']).includes(sgId) &&
+    u?.id != null &&
+    toId(version.author as Assignment['subjectGrade']) === u.id
+  )
+}

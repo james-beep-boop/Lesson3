@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-18 (version edit-view cleanup + type hierarchy)
+
+User-requested polish on the lesson-plan **version editor** and the page-title hierarchy. All
+app-level, **no migration**. Browser-verified on the local stack (both the frontend and `/admin`).
+
+- **"Create New" + "Duplicate" removed from the version editor.** They were Payload's stock
+  document-controls kebab actions, and both contradict the model (SPEC §7): a version is born ONLY
+  via a system path — ingest → `1.0.0`, re-ingest → next major, edit+Save → next patch (save-as-new),
+  all `overrideAccess`. A blank/cloned version lands a provenance-less default `1.0.0` (systemOnly
+  `semver`/`author`/`sourceVersion`) that collides on the unique `(lessonPlan, semver)` index — the
+  exact class the #65 semver audit hardened. **Fix: deny caller-access create** (`lessonBundleVersionCreate`
+  → `() => false`; `disableDuplicate: true` as belt-and-suspenders / API guard). Payload gates BOTH
+  kebab actions on create permission, so denying it removes both. No legitimate path breaks — every
+  real create is `overrideAccess`. This **reverses** the 2026-07-06 note that "creating a version row
+  directly is an admin action": direct create is now denied outright, a strictly STRONGER guarantee
+  than the field-stripping the #65 audit settled for (so the two "forged semver/sourceVersion on an
+  authenticated create are stripped" int tests were superseded by a new "no caller-access create"
+  block; the systemOnly field guards remain as dormant defense-in-depth).
+- **Delete promoted out of the kebab into an explicit button** (LessonControls, view mode only, red
+  danger-outline). Shown only for a deletable version (reuses the existing `canDelete` = non-Official
+  + admin-in-scope-or-author gate that the Save "delete the source" flow already computed); the server
+  re-gates (`lessonBundleVersionDelete` + `enforceOfficialNotDeletable`). With Create New/Duplicate
+  gone and Delete relocated, the whole native `.doc-controls__popup` is hidden in custom.scss — no
+  three-dots menu remains. Delete calls the default REST `DELETE` then returns to the lesson page.
+- **Toolbar hairline spacing** — the jump nav sat flush (~1px) against the native
+  `.doc-controls__divider` (the line above the fields); added padding on `.lesson-controls-wrap` so it
+  clears. The nav's own top border was already well-spaced (left as-is).
+- **Page-title hierarchy** — the brand wordmark ("ARES Lesson Plans", 1rem) is persistent chrome and
+  stays quiet; the two page titles ("Lesson Plans" catalogue H1 and the lesson H1) are PEERS and now
+  share one `--page-title-size` token (1.9rem/700). Before, the lesson H1 was the browser default
+  (~2rem) while the catalogue H1 was an arbitrary 1.4rem/600. Rejected both "make all three equal"
+  (brand is identity, not a page title) and "reverse the order" (brand-biggest is a marketing/masthead
+  instinct, wrong for a repeat-use tool — content-first wins). Also capitalized "Lesson plans" →
+  "Lesson Plans" (matches the brand).
+
+**Review follow-ups (GPT pass on the branch):**
+- **Delete eligibility drift (fixed).** The client `canDelete` permitted authorship ALONE, but the
+  server's `deletableVersionsWhere` requires the author to STILL be an Editor for the version's sg — so
+  a since-demoted author would see a Delete button that 403s. Fixed at the root: extracted
+  `canDeleteVersionDoc` (the per-document form of `deletableVersionsWhere`, kept adjacent to it as the
+  single source the "never drift" invariant demands), used by both the Delete button and the Save
+  "delete the source" prompt. DB-free unit test pins the role-loss case. (This drift pre-existed in the
+  save prompt; surfacing it in the new button is what caught it.)
+- **`verify-stage2b-edit.ts` retired.** That manual Rock script modelled the superseded MUTABLE
+  working-copy flow (direct create + in-place update) — obsolete since the immutable save-as-new model,
+  and now failing at its create step under the create-deny. Its coverage lives in `access.int` +
+  `endpoints.http`; deleted and the live pointer in `verify-rbac.ts` redirected (historical CHANGELOG
+  entries left as point-in-time records).
+- **Wire test added.** `endpoints.http.spec.ts` now pins REST create → 4xx + duplicate → 4xx over the
+  wire (curl-confirmed 403/403, nothing persisted), complementing the Local-API int coverage.
+
+---
+
 ## 2026-07-17/18 (UI batch + no-op save guard + review follow-ups)
 
 Six user-requested changes (one declined) + a save-integrity guard + two rounds of external review

@@ -514,6 +514,15 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     display: none;
   }
 
+  // Edit-view cleanup (2026-07-18): the native document-controls kebab (`.doc-controls__popup`, the
+  // "⋮" menu) is redundant here. Create New + Duplicate are already gone (both gated on create
+  // permission, which this collection denies), and Delete is promoted into an explicit button in
+  // LessonControls — but `showDotMenu` still renders the popup for the delete permission, so hide the
+  // whole trigger. Scoped to this collection.
+  .doc-controls__popup {
+    display: none;
+  }
+
   // Move the LessonControls bar from the top-RIGHT to the LEFT, above the fields it edits.
   // Payload injects `beforeDocumentControls` into the right-aligned `.doc-controls__controls`; the
   // reason it lands on the right is that the sibling `.doc-controls__content` (the native meta row,
@@ -583,6 +592,29 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  // Breathing room around the toolbar's hairlines (2026-07-18): a little above the bar, and enough
+  // below the jump nav that it clears the native `.doc-controls__divider` (the line above the fields),
+  // which the nav was sitting flush against (~1px). The jump nav's own top border keeps its spacing.
+  padding-top: 0.4rem;
+  padding-bottom: 0.9rem;
+}
+
+// Explicit Delete button (edit-view cleanup 2026-07-18) — a destructive-styled button replacing the
+// removed kebab. Payload's stock `error` button renders flat/dark here, so state it as a danger
+// outline (fills on hover): prominent and unmistakably destructive, set slightly apart from the safe
+// actions. Unlayered app rule, so it beats Payload's `@layer` button styles without `!important`.
+.collection-edit--lesson-bundle-versions .lesson-controls .btn--style-error {
+  margin-left: 0.5rem;
+  color: var(--theme-error-500, #b00020);
+  border: 1px solid var(--theme-error-500, #b00020);
+  background: transparent;
+  border-radius: 4px;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    background: var(--theme-error-500, #b00020);
+  }
 }
 
 // "← Back to lesson" — the editor's exit, replacing the hidden breadcrumb trail (PR ④). A plain

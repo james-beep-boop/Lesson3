@@ -32,10 +32,18 @@ import {
 } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
-import { isSubjectAdminFor, toId } from '../../access'
+import { toId } from '../../access'
+import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
 import type { User } from '../../payload-types'
 import EditJumpNav from './EditJumpNav'
+
+/** The server's error message from a failed Payload REST response, or a labelled status fallback.
+ *  Shared by the Save (save-as-new) and Delete flows so their `!res.ok` branches stay in step. */
+async function errorMessage(res: Response, label: string): Promise<string> {
+  const body = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
+  return body.errors?.[0]?.message || `${label} failed (${res.status})`
+}
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
@@ -114,6 +122,19 @@ export default function LessonControls() {
   // untouched (it is generator input).
   const title = typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
 
+  // Whether the CALLER may delete THIS version — the per-doc form of the server's deletion scope
+  // (`canDeleteVersionDoc` == `deletableVersionsWhere`, single source), gated on it being a candidate
+  // (non-Official). The server re-checks (delete access + `enforceOfficialNotDeletable`), so this only
+  // decides whether to OFFER the action; `sourceIsOfficial === null` (pointer unknown / still loading)
+  // → not offered. Drives both the explicit Delete button (view mode) and the Save "also delete the
+  // source" prompt below.
+  const canDelete =
+    sourceIsOfficial === false &&
+    canDeleteVersionDoc(user as User | null, {
+      subjectGrade: savedDocumentData?.subjectGrade,
+      author: savedDocumentData?.author,
+    })
+
   // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
   const onEdit = () => {
     setEditing(true)
@@ -132,15 +153,10 @@ export default function LessonControls() {
   const onSave = async () => {
     if (saving) return
     // Decide up front whether to also delete the version being edited — offered only for a deletable
-    // (non-Official) candidate the CALLER may delete (admins in scope; an Editor only their own-authored
-    // source — mirrors `lessonBundleVersionDelete` and the server-side gate in save-as-new). Asking
-    // before the request lets save-as-new create + delete atomically in one handler.
-    const canDeleteSource =
-      sourceIsOfficial === false &&
-      (isSubjectAdminFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never)) ||
-        (user != null && toId((savedDocumentData?.author ?? null) as never) === user.id))
+    // (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the server re-gates
+    // in save-as-new). Asking before the request lets save-as-new create + delete atomically.
     const deleteSource =
-      canDeleteSource &&
+      canDelete &&
       window.confirm('Save your edits as a new version and delete the one you are editing?')
     setSaving(true)
     setMsg(null)
@@ -151,10 +167,7 @@ export default function LessonControls() {
         `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
         { method: 'POST', body, credentials: 'same-origin' },
       )
-      if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { errors?: { message?: string }[] }
-        throw new Error(err.errors?.[0]?.message || `Save failed (${res.status})`)
-      }
+      if (!res.ok) throw new Error(await errorMessage(res, 'Save'))
       const out = (await res.json()) as { adminUrl: string }
       // Navigate CLIENT-SIDE (router.push), not a full-page load. Payload's LeaveWithoutSaving guard
       // only fires its "Leave site?" browser dialog on a real page unload (`beforeunload`) — a client
@@ -167,6 +180,32 @@ export default function LessonControls() {
       router.push(out.adminUrl)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
+      setSaving(false)
+    }
+  }
+
+  // Explicit Delete (edit-view cleanup 2026-07-18) — promoted out of the native document-controls
+  // kebab into a prominent button (view mode only; the kebab is hidden in custom.scss). Only rendered
+  // when `canDelete`, but the server is the authority: DELETE is gated by `lessonBundleVersionDelete`
+  // + `enforceOfficialNotDeletable`, so a raced Official/scope change is rejected there. On success we
+  // leave the (now-gone) admin doc and return to the lesson, which still shows its Official version.
+  const onDelete = async () => {
+    if (saving) return
+    if (!window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)) {
+      return
+    }
+    setSaving(true)
+    setMsg(null)
+    try {
+      const res = await fetch(`/api/lesson-bundle-versions/${id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
+      if (!res.ok) throw new Error(await errorMessage(res, 'Delete'))
+      // Cross-root-layout navigation (admin → frontend), so a full load like the "Back to lesson" <a>.
+      window.location.assign(planId != null ? `/lessons/${planId}` : '/')
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Delete failed')
       setSaving(false)
     }
   }
@@ -248,6 +287,13 @@ export default function LessonControls() {
           <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>
             {detailsShown ? 'Hide details' : 'Show details'}
           </Button>
+          {/* Explicit destructive action (view mode only), replacing the native document-controls
+              kebab. Shown only for a version the caller may delete; the server re-gates. */}
+          {!editing && canDelete && (
+            <Button buttonStyle="error" size="small" onClick={onDelete} disabled={saving}>
+              Delete
+            </Button>
+          )}
         </div>
         {msg ? (
           <span role="alert" className="lesson-controls__msg">
