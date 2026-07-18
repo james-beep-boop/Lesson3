@@ -34,4 +34,10 @@ describe('canonicalJson (no-op-save comparator)', () => {
   it('null is preserved (a cleared field is not the same as an absent one)', () => {
     expect(canonicalJson({ a: null })).not.toBe(canonicalJson({}))
   })
+
+  it('undefined input does not throw and compares distinctly (CodeRabbit robustness)', () => {
+    expect(() => canonicalJson(undefined)).not.toThrow()
+    expect(canonicalJson(undefined)).not.toBe(canonicalJson(null))
+    expect(canonicalJson(undefined)).not.toBe(canonicalJson({}))
+  })
 })
