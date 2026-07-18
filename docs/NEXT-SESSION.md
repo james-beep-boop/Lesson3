@@ -26,7 +26,44 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-16, later) — UI audit follow-up: mobile favorite label; `main` `8511228`, DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI + robustness batch (PR #101 merged); `main` `7ed7b19`, DEPLOY PENDING
+
+**A batch of user-requested UI changes + a save-integrity guard, all on `main` (`7ed7b19`), CI-green,
+app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-17 (UI batch + no-op save guard) and
+2026-07-18 (review follow-ups)**. Shipped as several direct-to-main commits + one CI-gated PR (#101,
+the endpoint change). Every UI item was browser-verified on the local stack.
+
+**What shipped (one deploy covers all of it):**
+1. **Password show/hide "eye"** on login / signup / reset (shared `components/PasswordInput`).
+2. **Lesson-page download declutter:** the page's Documents line + Supporting-documents disclosure were
+   REMOVED (they duplicated the catalogue row); ALL downloads now live in the **Share** menu, which
+   gained a **"Download one document"** per-document section. Revises the teacher-first "one-click on
+   both surfaces" call — the catalogue row keeps its one-click; the lesson page routes through Share.
+3. **Admin button contrast fix:** our unlayered `.btn--style-primary` override beat Payload's `@layer`
+   rules even on DISABLED buttons (dark text on app-blue = the illegible Manage "Add"); both states now
+   restated (enabled white-on-blue ≈7.5:1, disabled Payload's own gray/dark).
+4. **Version editor "Hide details / Show details"** toggles the right sidebar via a body class that
+   mirrors Payload's own empty-sidebar collapse recipe. Per-page, shown on open, no persistence.
+5. **No-op save guard (PR #101):** a Save with zero edits used to mint a byte-identical version.
+   Server 400s on identical content (`comparableContent` + `lib/canonicalJson`, unit- + http-pinned);
+   client disables Save on a pristine form (`useFormModified`).
+6. **Review follow-ups (07-18):** CodeRabbit `canonicalJson(undefined)` guard; GPT-flagged guide drift
+   (lesson-page download wording in the in-app guide + `USER_GUIDE.md`, + stale branding); **a11y:**
+   `Modal` focus trap (Tab cycles in-panel) + `FavoriteToggle` surfaces failed toggles (`role=alert`).
+
+**Deliberately NOT changed:** the forgot-password "uniform success" is intentional anti-enumeration
+(Payload returns 200 for unknown emails); the reviewer's 5xx-error fix would reintroduce an oracle —
+left for a server-side going-public decision. Deferred: a component test of the real form serialization
+(`reduceFieldsToValues`) for the no-op boundary; the guide is otherwise current.
+
+**DEPLOY:** one `scripts/deploy.sh` for `main` (`7ed7b19`) — **NO migration** (all app-level).
+**Eyeball:** password eye on the three auth forms; lesson page has NO doc rows (downloads under Share →
+Download one document / Download all); Manage "Add" buttons legible enabled+disabled; editor Hide/Show
+details; in the editor, Save is disabled until you actually change something.
+
+---
+
+## ▶ Older resume (2026-07-16, later) — UI audit follow-up: mobile favorite label; `main` `8511228`, DEPLOY PENDING
 
 **A small UI-audit follow-up sits on top of the declutter.** `main` = **`8511228`** (verify
 `git log -1`); app-level, **no migration**. Full record: **DECISIONS 2026-07-16 (UI audit)**.

@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-17/18 (UI batch + no-op save guard + review follow-ups)
+
+Six user-requested changes (one declined) + a save-integrity guard + two rounds of external review
+(CodeRabbit on the PR, GPT on the branch). All app-level, no migration. UI shipped direct-to-main
+(browser-verified); the endpoint change went via CI-gated **PR #101** per the correctness-surface rule.
+
+- **Password "eye"** — shared `components/PasswordInput` (a thin `<input>` wrapper; icon-only toggle
+  with aria-label/title/aria-pressed, following FavoriteToggle's convention). On login, signup, reset.
+- **Lesson-page download declutter (user)** — REMOVED the page's Documents line + Supporting-documents
+  disclosure (they duplicated the catalogue row) and folded ALL downloads into the **Share** menu,
+  which gained a per-document "Download one document" section (the full `DocStrip` — same DocButtons
+  flow). **Revises** the 2026-07-08 teacher-first "primary PDF/Word one-click on both surfaces" +
+  the 2026-07-16 audit constraint: the catalogue row keeps one-click; the lesson page is Share-only.
+- **Admin primary-button contrast (confirmed defect)** — LESSON: an **unlayered** override beats
+  Payload's `@layer payload-default` rules regardless of specificity, so overriding `--bg-color`
+  alone also repainted DISABLED primaries app-blue while they kept Payload's dark disabled text
+  (illegible Manage "Add"). Fix restates BOTH states under `.btn--style-primary` (enabled white-on-blue
+  ≈7.5:1; disabled Payload's own `--theme-elevation-200`/`800`). The whole `custom.scss` is unlayered
+  by convention — matching, not introducing a bandaid.
+- **Editor "Hide details" sidebar toggle (user)** — a body class (`lp-details-hidden`) whose
+  `custom.scss` rules mirror Payload's OWN empty-sidebar collapse (`--main-width:100%` etc.), since
+  the bar isn't a `:has()` ancestor of `.document-fields`. Per-page, shown-on-open, no persistence →
+  no hydration branch (the `?edit=1` lesson).
+- **No-op save guard (user; PR #101)** — a Save with zero edits minted a byte-identical version.
+  Server (authoritative): `comparableContent(merged) === comparableContent(source)` → **400**, before
+  the transaction. `comparableContent` = content keys only (drop identity metadata + server-owned rels)
+  → `stripIds` → **`lib/canonicalJson`** (key-order-insensitive JSON; extracted + unit-pinned during
+  /simplify because the http test only round-trips the same object and can't catch a canonicalization
+  regression). Client: Save disabled while `useFormModified()` is false. Note: three existing
+  `?deleteSource=true` http tests posted their source UNCHANGED — the guard correctly 400s that now, so
+  they gained a real prose edit (`withProseEdit` helper); the guard was the CI failure, not a code bug.
+- **DECLINED — forgot-password "false success" (GPT)** — the uniform "check your inbox" is DELIBERATE
+  anti-enumeration: Payload returns 200 for unknown emails (`if (!user) return null`), so there is no
+  existence oracle today. The proposed "show a generic error on non-2xx" would REINTRODUCE one — a 5xx
+  can only occur for a KNOWN email whose send failed, making error-vs-success distinguishable. The real
+  UX kernel (a genuinely-failed send looks successful) is a server-side concern (don't surface send
+  failures as 5xx), folded into the going-public email hardening, not a client patch. LESSON: a
+  reviewer's "false success" can be a security feature — verify the enumeration model before "fixing".
+- **Review follow-ups (07-18)** — CodeRabbit: `canonicalJson(undefined)` guarded (unreachable, but the
+  util is exported/`unknown`-typed). GPT: guide drift fixed (the in-app guide + `USER_GUIDE.md` still
+  described lesson-page doc rows this session's declutter removed; + stale "Lesson Plan Repository"
+  branding). a11y (both pre-existing, folded in): `Modal` Tab focus-trap (cycles in-panel, recovers
+  escaped focus; `aria-modal` already covered AT); `FavoriteToggle` now surfaces a failed toggle
+  (`role=alert`) instead of looking unresponsive. Deferred: a component test posting real
+  `reduceFieldsToValues` output for the no-op boundary (client-disable already mitigates).
+
+---
+
 ## 2026-07-16 (UI audit → mobile favorite label; a max-width correction worth keeping)
 
 A role×viewport audit of the catalogue + lesson-detail pages after the declutter (Teacher / Editor /
