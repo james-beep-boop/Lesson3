@@ -1158,17 +1158,16 @@ button[type='submit']:disabled {
   gap: 0.55rem;
   width: 100%;
 }
+/* Only the flattening is undone — display/width/border-WIDTH (`.share-menu button` sets
+   `border: 0`) and the radius/centering. Padding and border COLOUR stay `.btn.btn-doc`'s
+   (its higher-specificity base + hover rules keep working, so no restated hover here). */
 .share-menu .doc-buttons .btn {
   display: inline-flex;
   width: auto;
-  padding: 0.1rem 0.55rem;
-  border: 1px solid var(--line);
+  border-width: 1px;
+  border-style: solid;
   border-radius: var(--radius);
   text-align: center;
-}
-.share-menu .doc-buttons .btn:hover,
-.share-menu .doc-buttons .btn:focus-visible {
-  border-color: var(--accent);
 }
 /* One global control: with the Resource column or not — drives the view and every download. */
 .resources-toggle {
