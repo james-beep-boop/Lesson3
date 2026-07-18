@@ -216,6 +216,14 @@ DreamHost routes outbound through MailChannels and DKIM-signs automatically — 
 `EMAIL_FROM_ADDRESS` must match `SMTP_USER` (a real mailbox; an alias can't authenticate), or
 SPF/DKIM alignment breaks.
 
+**Email links (reset + verify) come from `ADMIN_URL`** (fallback `SERVER_URL`), via
+`lib/emailLinkBase`. **If BOTH are unset the links render RELATIVE** (`/reset-password?token=…`) and
+are unusable from a mail client — hit for real 2026-07-18 when a `.env` edit dropped `ADMIN_URL` and
+every reset email shipped a dead link. On the internal host `ADMIN_URL` is the Tailscale URL (clickable
+on-tailnet only); **before real users, set it (or `SERVER_URL`) to the PUBLIC URL** or every reset /
+verification link points somewhere only tailnet devices can reach. Always send one real reset email
+after changing email config and confirm the link is absolute.
+
 **Deliverability — verified 2026-07-18 via DNS (DNS + mail both at DreamHost):**
 - **MX** → `mx1/mx2.dreamhost.com` ✓
 - **SPF** → `v=spf1 mx include:netblocks.dreamhost.com include:relay.mailchannels.net -all` ✓ (strict)
