@@ -37,6 +37,28 @@ const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'author', 'createdAt
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
 const SEMVER_CONFLICT_RETRIES = 4
 
+/** Relationship keys the server sets from the SOURCE on create (never from the submission). They
+ *  carry no edit signal, and their representation varies with fetch depth (id vs populated doc), so
+ *  the no-op comparison excludes them on both sides. */
+const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
+
+/** Key-order-insensitive JSON for the no-op comparison: a JSON round-trip first (normalizes Dates
+ *  to ISO strings, drops undefined), then every object rebuilt with sorted keys — so two objects
+ *  that differ only in key order (client round-trip vs DB read) stringify identically. */
+const canonicalJson = (value: unknown): string => {
+  const sort = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(sort)
+      : v && typeof v === 'object'
+        ? Object.fromEntries(
+            Object.keys(v as Record<string, unknown>)
+              .sort()
+              .map((k) => [k, sort((v as Record<string, unknown>)[k])]),
+          )
+        : v
+  return JSON.stringify(sort(JSON.parse(JSON.stringify(value))))
+}
+
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
   req: PayloadRequest,
@@ -111,6 +133,29 @@ export const saveAsNewEndpoint: Endpoint = {
     const content = stripIds(
       Object.fromEntries(Object.entries(merged).filter(([k]) => !DROP_KEYS.has(k))),
     ) as Record<string, unknown>
+
+    // No-op guard (user decision 2026-07-17): identical content must not mint a new version — there
+    // is no reason for two byte-identical snapshots. The SOURCE is normalized through the exact same
+    // pipeline as the submission (DROP_KEYS filter + stripIds); the server-owned relationship keys
+    // are excluded on both sides (create() takes them from the source regardless). Canonical
+    // key-sorted JSON so object key order can't fake a difference. 400, not 409: the request is
+    // well-formed, it just asks for nothing. The client disables Save on a pristine form; this is
+    // the authoritative backstop (it also catches typed-then-reverted content the client can't).
+    const noopStrip = (o: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(o).filter(([k]) => !SERVER_REL_KEYS.has(k)))
+    const sourceComparable = stripIds(
+      Object.fromEntries(
+        Object.entries(source as unknown as Record<string, unknown>).filter(
+          ([k]) => !DROP_KEYS.has(k),
+        ),
+      ),
+    ) as Record<string, unknown>
+    if (canonicalJson(noopStrip(content)) === canonicalJson(noopStrip(sourceComparable))) {
+      throw new APIError(
+        'No changes to save — the content is identical to the version you opened.',
+        400,
+      )
+    }
 
     // Create the candidate and (optionally) delete the source in ONE DB transaction, so "replace this
     // draft with my edits" is genuinely atomic: if either step fails, nothing persists. The Official is

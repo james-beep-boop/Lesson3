@@ -492,6 +492,31 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(res.status).toBeLessThan(500)
   })
 
+  it('no-op save (identical content) → 400, no new version minted (2026-07-17 guard)', async () => {
+    // The exact working-copy round-trip: the client opens the version and Saves without editing.
+    // The endpoint must refuse (400) and create NOTHING — identical snapshots are pointless rows.
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any) }),
+    })
+    expect(res.status).toBe(400)
+    const after = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    expect(after.totalDocs).toBe(before.totalDocs)
+
+    // Same for an admin (the field-split passes admin content through unchanged — the guard must
+    // fire on that path too, not just on the editor prose-overlay path).
+    const resAdmin = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({ ...(fx.version as any) }),
+    })
+    expect(resAdmin.status).toBe(400)
+    const afterAdmin = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    expect(afterAdmin.totalDocs).toBe(before.totalDocs)
+  })
+
   it("Editor's structural change is rejected (prose-only field-split) → 4xx", async () => {
     const lessons = [...((fx.version as any).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
