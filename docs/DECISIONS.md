@@ -56,6 +56,15 @@ Six user-requested changes (one declined) + a save-integrity guard + two rounds 
   escaped focus; `aria-modal` already covered AT); `FavoriteToggle` now surfaces a failed toggle
   (`role=alert`) instead of looking unresponsive. Deferred: a component test posting real
   `reduceFieldsToValues` output for the no-op boundary (client-disable already mitigates).
+- **DECLINED — "login has no custom field validation" (reviewer, 2026-07-18).** Accurate observation:
+  the login/signup/reset forms use NATIVE browser validation for empty/malformed fields (`required` +
+  `type="email"`) and app-level inline errors only for server results (wrong credentials, unverified,
+  network). This is NOT a silent failure and is KEPT AS-IS: native validation auto-localizes to the
+  browser's language (real value for the Kenyan/multilingual audience — the custom frontend has NO i18n,
+  so app-level messages would be English-only for everyone), is a11y-complete (focus + SR announcement +
+  submit-blocking for free), and zero-maintenance. Client-side constraints (native) vs server results
+  (app inline) is a deliberate split, not an inconsistency. Revisit ONLY if the frontend gains an i18n
+  layer, at which point localized app-level messages become worthwhile.
 
 ---
 
