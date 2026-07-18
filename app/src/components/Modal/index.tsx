@@ -3,10 +3,12 @@
 /**
  * A small accessible modal dialog for The App — a backdrop + centered panel used in place of the
  * browser's native prompt()/confirm() for anything more than a bare yes/no. Handles the dialog
- * basics: `role="dialog"` + `aria-modal`, a title wired via `aria-labelledby`, Escape and
- * backdrop-click to close (both routed through `onClose`, so a caller can veto while busy), and
- * focus moved into the panel on open + restored to the trigger on close. Body scroll is locked
- * while open. Keep the contents (fields, buttons) in the caller.
+ * basics: `role="dialog"` + `aria-modal` (the ARIA signal that the background is inert to assistive
+ * tech), a title wired via `aria-labelledby`, Escape and backdrop-click to close (both routed
+ * through `onClose`, so a caller can veto while busy), focus moved into the panel on open + restored
+ * to the trigger on close, and a Tab FOCUS TRAP so keyboard focus cycles within the panel instead
+ * of escaping to the controls behind it (GPT review 2026-07-17). Body scroll is locked while open.
+ * Keep the contents (fields, buttons) in the caller.
  */
 import React, { useEffect, useId, useRef } from 'react'
 
@@ -43,7 +45,37 @@ export default function Modal({
     ;(focusable ?? panelRef.current)?.focus()
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current()
+      if (e.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+      // Focus trap: keep Tab / Shift+Tab cycling inside the panel. Recomputed per keystroke because
+      // the panel's focusable set changes (fields disable while sending, error rows appear). Skips
+      // disabled/hidden nodes so focus never lands on an untabbable control.
+      const panel = panelRef.current
+      if (!panel) return
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'input, textarea, select, button, [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !(el as HTMLButtonElement).disabled && el.offsetParent !== null)
+      if (focusables.length === 0) {
+        e.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+      const outside = !panel.contains(active)
+      if (e.shiftKey && (active === first || outside)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (active === last || outside)) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
     const prevOverflow = document.body.style.overflow

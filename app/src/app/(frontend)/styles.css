@@ -851,6 +851,11 @@ a {
 .fav-toggle__label {
   line-height: 1;
 }
+/* Failed-toggle message (rare — usually an expired session). Small, so a row/card degrades gently
+   when it appears next to the star; role="alert" carries it to assistive tech. */
+.fav-toggle__error {
+  font-size: 0.8rem;
+}
 /* Catalogue rows (Variant B): the label rides in the DOM but is hidden on desktop, so the star stays
    a bare, column-aligned glyph exactly as before; the ≤640px block below reveals it on cards. */
 .fav-toggle--label-mobile .fav-toggle__label {

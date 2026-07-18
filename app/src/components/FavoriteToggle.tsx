@@ -34,6 +34,7 @@ export default function FavoriteToggle({
   const router = useRouter()
   const [favoriteId, setFavoriteId] = useState(initialFavoriteId)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Re-sync to the server's value whenever it changes (router.refresh / navigation re-renders this
   // component with a fresh prop). Without this, a SECOND instance of the star for the same version (the
@@ -51,6 +52,7 @@ export default function FavoriteToggle({
 
   const onToggle = async () => {
     setBusy(true)
+    setError(null)
     try {
       if (isFavorite) {
         const res = await fetch(`/api/favorites/${favoriteId}`, {
@@ -72,7 +74,10 @@ export default function FavoriteToggle({
       }
       router.refresh()
     } catch {
-      // A failed toggle (e.g. expired session) just leaves the star as-is; nothing to roll back.
+      // Surface the failure instead of looking unresponsive (GPT review 2026-07-17): the star was
+      // never optimistically flipped (state changes only after a 2xx), so there is nothing to roll
+      // back — just tell the user. The usual cause is an expired session. role="alert" announces it.
+      setError('Couldn’t update favorite — you may need to sign in again.')
     }
     setBusy(false)
   }
@@ -80,19 +85,26 @@ export default function FavoriteToggle({
   const label = isFavorite ? 'Remove from favorites' : 'Add to favorites'
   const withLabel = showLabel || labelOnMobile
   return (
-    <button
-      type="button"
-      className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}${
-        labelOnMobile && !showLabel ? ' fav-toggle--label-mobile' : ''
-      }`}
-      aria-pressed={isFavorite}
-      aria-label={label}
-      title={label}
-      disabled={busy}
-      onClick={onToggle}
-    >
-      <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
-      {withLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
-    </button>
+    <>
+      <button
+        type="button"
+        className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}${
+          labelOnMobile && !showLabel ? ' fav-toggle--label-mobile' : ''
+        }`}
+        aria-pressed={isFavorite}
+        aria-label={label}
+        title={label}
+        disabled={busy}
+        onClick={onToggle}
+      >
+        <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
+        {withLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
+      </button>
+      {error && (
+        <span role="alert" className="inline-error fav-toggle__error">
+          {error}
+        </span>
+      )}
+    </>
   )
 }
