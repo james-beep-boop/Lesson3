@@ -26,11 +26,13 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, later) — version edit-view cleanup + type hierarchy; app-level, NO migration, DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-18, later) — version edit-view cleanup + type hierarchy; MERGED (#102), app DEPLOY PENDING (NO migration)
 
-**A small polish batch, all app-level, NO migration. Verified on the local stack** (frontend + `/admin`,
-Site-Admin login): `npx tsc` clean, `test:unit` (183) + full `test:int` (68) green against a throwaway
-test Postgres. Full reasoning: **DECISIONS 2026-07-18 (version edit-view cleanup + type hierarchy)**.
+**A small polish batch, all app-level, NO migration — MERGED to `main` via PR #102 (squash `aa4dec9`;
+`main` now `f58f844`).** CI `gate` green (unit/int/**http**/**e2e**/`next build`), CodeRabbit pass. Also
+verified on the local stack (frontend + `/admin`, Site-Admin login): `npx tsc` clean, `test:unit` (190)
++ full `test:int` (68) green, create/duplicate rejection curl-confirmed over the wire (403/403). Full
+reasoning: **DECISIONS 2026-07-18 (version edit-view cleanup + type hierarchy)**.
 
 **What changed:**
 1. **Version editor: "Create New" + "Duplicate" removed** — both are Payload kebab actions that
@@ -51,13 +53,26 @@ the obsolete `verify-stage2b-edit.ts` (superseded by the immutable model + autom
 the `verify-rbac.ts` pointer; (c) added an HTTP wire test pinning REST create/duplicate → 4xx
 (curl-confirmed 403/403 on the running app).
 
-**Status: UNCOMMITTED in the working tree** (changes span an authz tightening + UI). Land per policy —
-the create-deny is a correctness surface, so **PR + CI** is the fit (the http suite runs on the Rock/CI,
-not locally — but the new create/duplicate rejections were curl-verified over the wire); the pure-UI/CSS
-bits could go direct-to-main. **Not yet deployed.** Files: `access/versioning.ts`,
-`collections/LessonBundleVersions.ts`, `components/LessonControls/index.tsx`, `app/(payload)/custom.scss`,
-`app/(frontend)/styles.css` + `page.tsx`, `tests/{int/access,http/endpoints}.spec.ts`,
-`tests/unit/canDeleteVersionDoc.spec.ts`; deleted `scripts/verify-stage2b-edit.ts`, edited `scripts/verify-rbac.ts`.
+**Status: MERGED (PR #102, squash `aa4dec9`), on `main` `f58f844`, feature branch deleted.** APP-CODE
+**DEPLOY PENDING** — one `scripts/deploy.sh` for `main`, **NO migration** (all app-level). Stacks on
+top of the 07-17/18 batch below if that Rock deploy hadn't already run. **Eyeball after deploy** (on
+`/admin`, a non-Official version): no three-dots kebab; a red **Delete** button (view mode; hidden on
+the Official version); jump-nav spacing; on the frontend, "Lesson Plans" (cap P) and the lesson title
+now the same size; brand stays small.
+
+**DISCUSSED, NOT BUILT (next pickup, agreed direction):**
+- **Site-Admin avatar** — the "SA" avatar can't be told apart from a Subject Admin's. `UserMenu` already
+  gets `typeLabel` (the role), so add an `isSiteAdmin`/`--site-admin` modifier and style it **accent-blue
+  fill** (rejected red = danger semantics, italic = fiddly, bold = too subtle). Tiny.
+- **Preview "View as PDF"** — the flat HTML preview (mammoth, styling dropped) KEEPS its use (fast
+  structural check); ADD a **View as PDF** button (the accurate, formatted rendering) **in the editor
+  toolbar next to Preview**, NOT on the preview page (that page is a script-free one-shot render with no
+  working-copy JSON to re-submit). Saved version → link the existing export PDF (already served inline);
+  UNSAVED working copy → reuse the DOCX the preview endpoint already generates (`generateBundleDocx`),
+  run through `docxToPdf` (gotenberg, already running). PDF, not HTML — mammoth drops styling by design,
+  so faithful HTML is harder than the PDF, which IS the real rendered document. A "Compare from here"
+  (fixed-left compare) was considered but is a SEPARATE feature (answers "what changed", not formatting) —
+  deferred.
 
 ---
 
