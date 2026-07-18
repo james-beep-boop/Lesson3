@@ -72,12 +72,12 @@ export default async function UserGuidePage() {
             Explanation, and Summary Table when those documents are present.
           </li>
           <li>
-            <strong>Open or download a document:</strong> every lesson row (and every lesson page)
-            lists its documents — Lesson plan, and where present Final explanation and Summary table —
-            each with two small buttons. <em>PDF</em> opens the document in a new browser tab;{' '}
-            <em>Word</em> downloads the .docx to your device. On a lesson page the supporting
-            documents sit behind a <em>Supporting documents</em> line, and the <em>Share</em> menu
-            fetches every document at once as a Word or PDF .zip.
+            <strong>Open or download a document:</strong> on the home page, every lesson row has{' '}
+            <em>PDF</em> and <em>Word</em> buttons for its lesson plan — <em>PDF</em> opens in a new
+            browser tab, <em>Word</em> downloads the .docx — and any Final explanation or Summary
+            table sit behind a <em>Supporting documents</em> line. On a lesson page, all downloads
+            live in the <em>Share</em> menu: each document on its own under{' '}
+            <em>Download one document</em>, plus <em>Download all</em> as a Word or PDF .zip.
           </li>
           <li>
             <strong>Email:</strong> choose <em>Share → Email to an address…</em> on a lesson page to

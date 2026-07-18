@@ -1,6 +1,6 @@
 # ARES Lesson Library — User Guide
 
-The Lesson Plan Repository stores ARES lesson plans as structured lesson data. You browse, edit,
+ARES Lesson Plans stores ARES lesson plans as structured lesson data. You browse, edit,
 preview, and export that data in the app; the system generates the Word and PDF documents for you.
 
 The main areas are **Lessons** (the library — the one list of every lesson plan), the **lesson page**
@@ -29,10 +29,11 @@ _N versions_ panel and Compare control; Teachers do not use Manage or see versio
   personal — only you see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
-- **Open or download a document:** each available document has a _PDF_ button, which opens it in a
-  new tab, and a _Word_ button, which downloads its `.docx`. On the lesson page the supporting
-  documents sit behind a _Supporting documents_ line, and the _Share_ menu downloads all generated
-  documents together as a Word or PDF `.zip`.
+- **Open or download a document:** on the home page, each lesson row has a _PDF_ button (opens in a
+  new tab) and a _Word_ button (downloads its `.docx`) for the lesson plan, with any Final
+  Explanation or Summary Table behind a _Supporting documents_ line. On a lesson page, all downloads
+  live in the _Share_ menu: each document on its own under _Download one document_, plus
+  _Download all_ as a Word or PDF `.zip`.
 - **Email:** choose _Share → Email to an address…_ on a lesson page to send the generated documents
   (as a .zip of Word files) to any email address — your own, or a colleague's. Sends are limited per
   day.
