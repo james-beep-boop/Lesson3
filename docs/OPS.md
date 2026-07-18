@@ -191,6 +191,50 @@ pinger: the Rock pings OUT on a schedule; if pings stop, the provider alerts. Sa
 
 ---
 
+## Email (SMTP + deliverability)
+
+Outgoing mail — password resets, signup verification, and the content-free "you have a message" ping
+— is **opt-in via env**: with `SMTP_HOST` unset the app boots and logs "Email attempted without being
+configured" instead of sending (fine for dev). Setting the SMTP vars turns on real delivery. No code,
+no migration — it's `.env` + a redeploy. Config lives in `app/src/payload.config.ts` (the
+`nodemailerAdapter` block); port 465 selects implicit TLS automatically (`secure: port === 465`).
+
+**Production sender: DreamHost, domain `kenyalessons.org`.** Send from a dedicated mailbox (e.g.
+`notifications@kenyalessons.org`) rather than a human `admin@`, and ideally forward that mailbox to
+`admin@` so bounces/replies aren't lost. The `.env` block:
+
+```
+SMTP_HOST=smtp.dreamhost.com
+SMTP_PORT=465
+SMTP_USER=notifications@kenyalessons.org
+SMTP_PASS=<mailbox password — .env only, never committed>
+EMAIL_FROM_ADDRESS=notifications@kenyalessons.org   # keep == SMTP_USER (SPF/DKIM alignment)
+EMAIL_FROM_NAME=ARES Lesson Plans                    # display name; this env OVERRIDES the app default
+```
+
+DreamHost routes outbound through MailChannels and DKIM-signs automatically — nothing to enable.
+`EMAIL_FROM_ADDRESS` must match `SMTP_USER` (a real mailbox; an alias can't authenticate), or
+SPF/DKIM alignment breaks.
+
+**Deliverability — verified 2026-07-18 via DNS (DNS + mail both at DreamHost):**
+- **MX** → `mx1/mx2.dreamhost.com` ✓
+- **SPF** → `v=spf1 mx include:netblocks.dreamhost.com include:relay.mailchannels.net -all` ✓ (strict)
+- **DKIM** → live, auto-published, selector `dreamhost` (`dreamhost._domainkey.kenyalessons.org`) ✓
+- **DMARC** → add a TXT record, host `_dmarc`, value
+  `v=DMARC1; p=none; rua=mailto:admin@kenyalessons.org` (monitor-only; tighten to
+  `p=quarantine`/`reject` later once reports confirm legit mail passes).
+
+**Verify after deploy:** trigger a real email (forgot-password on a known account, or a fresh signup's
+verification link) and confirm it lands in the inbox and reads `ARES Lesson Plans
+<notifications@kenyalessons.org>`; in Gmail's "Show original" both `SPF` and `DKIM` show **PASS**. A
+mail-tester.com run scores SPF/DKIM/DMARC in one shot.
+
+**Not changed on the client (deliberate):** the forgot-password form shows the same "check your inbox"
+whether or not the account exists — intentional anti-enumeration (Payload 200s unknown emails). Do NOT
+"fix" it to surface send errors: a 5xx only occurs for a KNOWN email, so that would reintroduce an
+existence oracle. If a failed *send* must be handled honestly, do it server-side (don't surface send
+failures as 5xx), not in the client. See DECISIONS 2026-07-17/18.
+
 ## Going public (pre-VPS checklist — Phase 5, 2026-07-05)
 
 The audit's pre-exposure checklist, in execution order. The host-independent code (items marked ✓)
