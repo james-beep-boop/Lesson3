@@ -26,7 +26,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI batch + no-op guard + email→domain migration; `main` `91194a5` (code `7ed7b19`), app DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI batch + no-op guard + email→domain migration; `main` `91194a5` (code `7ed7b19`), app DEPLOYED
 
 **A batch of user-requested UI changes + a save-integrity guard, all on `main` (`7ed7b19`), CI-green,
 app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-17 (UI batch + no-op save guard) and
@@ -66,10 +66,10 @@ Email (SMTP + deliverability)**. ⚠️ Going-public note: `ADMIN_URL` is still 
 (`rock5b.tail49b05.ts.net`), so email links only open on the tailnet — it (or `SERVER_URL`) must become
 the PUBLIC URL before real off-network users.
 
-**DEPLOY (app code) — STILL PENDING:** one `scripts/deploy.sh` for `main` (last code `7ed7b19`; HEAD
-`91194a5` is docs-only on top) — **NO migration** (all app-level). This is separate from the email
-change above, which was a Rock `.env` edit and is already live.
-**Eyeball after deploy:** password eye on the three auth forms; lesson page has NO doc rows (downloads
+**DEPLOY (app code) — DONE (2026-07-18):** `main` deployed to the Rock via `scripts/deploy.sh` (last
+code `7ed7b19`; HEAD `91194a5` is docs-only on top) — **NO migration** (all app-level). Separate from
+the email `.env` change above, which was already live.
+**Eyeball on the live Rock:** password eye on the three auth forms; lesson page has NO doc rows (downloads
 under Share → Download one document / Download all); Manage "Add" buttons legible enabled+disabled;
 editor Hide/Show details; in the editor, Save is disabled until you actually change something.
 
