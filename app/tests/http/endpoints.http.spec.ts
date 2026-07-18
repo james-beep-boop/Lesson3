@@ -444,6 +444,17 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     f.set('data', JSON.stringify(content))
     return f
   }
+  // A minimal REAL prose edit (editor-editable key), for tests whose subject is something other
+  // than the content — since the no-op guard (2026-07-17), posting a doc back unchanged is 400.
+  const withProseEdit = (doc: unknown) => {
+    const d = doc as { lessons?: { overview?: string }[] }
+    return {
+      ...(d as object),
+      lessons: (d.lessons ?? []).map((l, i) =>
+        i === 0 ? { ...l, overview: `${l.overview ?? ''} ${MARK}prose-edit` } : l,
+      ),
+    }
+  }
 
   it('Editor saves a new candidate — Official pointer unchanged, source unchanged', async () => {
     const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
@@ -623,7 +634,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(candDoc),
+      body: dataForm(withProseEdit(candDoc)),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
@@ -656,7 +667,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(candDoc),
+      body: dataForm(withProseEdit(candDoc)),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
@@ -683,7 +694,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`${saveUrl()}?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any) }),
+      body: dataForm(withProseEdit({ ...(fx.version as any) })),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceIsOfficial: boolean; sourceDeleted: boolean }

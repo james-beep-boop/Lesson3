@@ -27,6 +27,7 @@ import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
 import { parsePreviewCandidate } from './previewParse'
 import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
+import { canonicalJson } from '../lib/canonicalJson'
 import { findReadableVersion } from '../lib/readBundle'
 import type { LessonBundleVersion, User } from '../payload-types'
 
@@ -42,22 +43,17 @@ const SEMVER_CONFLICT_RETRIES = 4
  *  the no-op comparison excludes them on both sides. */
 const SERVER_REL_KEYS = new Set(['lessonPlan', 'subjectGrade'])
 
-/** Key-order-insensitive JSON for the no-op comparison: a JSON round-trip first (normalizes Dates
- *  to ISO strings, drops undefined), then every object rebuilt with sorted keys — so two objects
- *  that differ only in key order (client round-trip vs DB read) stringify identically. */
-const canonicalJson = (value: unknown): string => {
-  const sort = (v: unknown): unknown =>
-    Array.isArray(v)
-      ? v.map(sort)
-      : v && typeof v === 'object'
-        ? Object.fromEntries(
-            Object.keys(v as Record<string, unknown>)
-              .sort()
-              .map((k) => [k, sort((v as Record<string, unknown>)[k])]),
-          )
-        : v
-  return JSON.stringify(sort(JSON.parse(JSON.stringify(value))))
-}
+/** The no-op comparison's canonical form: content keys only (no identity metadata, no server-owned
+ *  rels), row ids stripped, key-order-insensitive. Applied identically to the merged submission and
+ *  the source, so ONE definition decides what counts as "the same content". */
+const comparableContent = (doc: Record<string, unknown>): string =>
+  canonicalJson(
+    stripIds(
+      Object.fromEntries(
+        Object.entries(doc).filter(([k]) => !DROP_KEYS.has(k) && !SERVER_REL_KEYS.has(k)),
+      ),
+    ),
+  )
 
 /** Load the version with the caller's READ access, then require `role` authority for its grade. */
 async function authorize(
@@ -135,22 +131,12 @@ export const saveAsNewEndpoint: Endpoint = {
     ) as Record<string, unknown>
 
     // No-op guard (user decision 2026-07-17): identical content must not mint a new version — there
-    // is no reason for two byte-identical snapshots. The SOURCE is normalized through the exact same
-    // pipeline as the submission (DROP_KEYS filter + stripIds); the server-owned relationship keys
-    // are excluded on both sides (create() takes them from the source regardless). Canonical
-    // key-sorted JSON so object key order can't fake a difference. 400, not 409: the request is
-    // well-formed, it just asks for nothing. The client disables Save on a pristine form; this is
-    // the authoritative backstop (it also catches typed-then-reverted content the client can't).
-    const noopStrip = (o: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(o).filter(([k]) => !SERVER_REL_KEYS.has(k)))
-    const sourceComparable = stripIds(
-      Object.fromEntries(
-        Object.entries(source as unknown as Record<string, unknown>).filter(
-          ([k]) => !DROP_KEYS.has(k),
-        ),
-      ),
-    ) as Record<string, unknown>
-    if (canonicalJson(noopStrip(content)) === canonicalJson(noopStrip(sourceComparable))) {
+    // is no reason for two byte-identical snapshots. `comparableContent` normalizes the merged
+    // submission and the SOURCE identically, so the equality below is exactly "same content".
+    // 400, not 409: the request is well-formed, it just asks for nothing. The client disables Save
+    // on a pristine form; this is the authoritative backstop (it also catches typed-then-reverted
+    // content the client can't see).
+    if (comparableContent(merged) === comparableContent(source as unknown as Record<string, unknown>)) {
       throw new APIError(
         'No changes to save — the content is identical to the version you opened.',
         400,
