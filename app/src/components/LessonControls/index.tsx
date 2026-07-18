@@ -22,7 +22,14 @@
  */
 import React, { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button, useAllFormFields, useAuth, useDocumentInfo, useForm } from '@payloadcms/ui'
+import {
+  Button,
+  useAllFormFields,
+  useAuth,
+  useDocumentInfo,
+  useForm,
+  useFormModified,
+} from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
 import { isSubjectAdminFor, toId } from '../../access'
@@ -33,6 +40,11 @@ import EditJumpNav from './EditJumpNav'
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
   const { setDisabled, reset, setModified } = useForm()
+  // Pristine-form Save gate (user decision 2026-07-17, "disabled" variant): an untouched form has
+  // nothing to save, so Save is disabled with a tooltip saying why. Payload's `modified` means
+  // "touched", not "different" — type a char and delete it and the form counts as modified — so the
+  // save-as-new endpoint's identical-content 400 remains the authoritative backstop.
+  const modified = useFormModified()
   const [fields] = useAllFormFields()
   const { user } = useAuth()
   const router = useRouter()
@@ -214,7 +226,13 @@ export default function LessonControls() {
             </Button>
           ) : (
             <>
-              <Button buttonStyle="primary" size="small" onClick={onSave} disabled={saving}>
+              <Button
+                buttonStyle="primary"
+                size="small"
+                onClick={onSave}
+                disabled={saving || !modified}
+                tooltip={!saving && !modified ? 'No changes to save' : undefined}
+              >
                 {saving ? 'Saving…' : 'Save'}
               </Button>
               <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>

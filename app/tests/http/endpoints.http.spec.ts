@@ -444,6 +444,17 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     f.set('data', JSON.stringify(content))
     return f
   }
+  // A minimal REAL prose edit (editor-editable key), for tests whose subject is something other
+  // than the content — since the no-op guard (2026-07-17), posting a doc back unchanged is 400.
+  const withProseEdit = (doc: unknown) => {
+    const d = doc as { lessons?: { overview?: string }[] }
+    return {
+      ...(d as object),
+      lessons: (d.lessons ?? []).map((l, i) =>
+        i === 0 ? { ...l, overview: `${l.overview ?? ''} ${MARK}prose-edit` } : l,
+      ),
+    }
+  }
 
   it('Editor saves a new candidate — Official pointer unchanged, source unchanged', async () => {
     const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
@@ -490,6 +501,31 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
+  })
+
+  it('no-op save (identical content) → 400, no new version minted (2026-07-17 guard)', async () => {
+    // The exact working-copy round-trip: the client opens the version and Saves without editing.
+    // The endpoint must refuse (400) and create NOTHING — identical snapshots are pointless rows.
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({ ...(fx.version as any) }),
+    })
+    expect(res.status).toBe(400)
+    const after = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    expect(after.totalDocs).toBe(before.totalDocs)
+
+    // Same for an admin (the field-split passes admin content through unchanged — the guard must
+    // fire on that path too, not just on the editor prose-overlay path).
+    const resAdmin = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({ ...(fx.version as any) }),
+    })
+    expect(resAdmin.status).toBe(400)
+    const afterAdmin = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    expect(afterAdmin.totalDocs).toBe(before.totalDocs)
   })
 
   it("Editor's structural change is rejected (prose-only field-split) → 4xx", async () => {
@@ -598,7 +634,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(candDoc),
+      body: dataForm(withProseEdit(candDoc)),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
@@ -631,7 +667,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(candDoc),
+      body: dataForm(withProseEdit(candDoc)),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
@@ -658,7 +694,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`${saveUrl()}?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any) }),
+      body: dataForm(withProseEdit({ ...(fx.version as any) })),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceIsOfficial: boolean; sourceDeleted: boolean }

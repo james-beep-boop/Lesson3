@@ -13,7 +13,7 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
-const mocks = vi.hoisted(() => ({ search: '' }))
+const mocks = vi.hoisted(() => ({ search: '', modified: false }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -35,6 +35,7 @@ vi.mock('@payloadcms/ui', () => ({
     savedDocumentData: { lessonPlan: 2, title: 'BIOLOGY GRADE 10: CELL STRUCTURE' },
   }),
   useForm: () => ({ setDisabled: vi.fn(), reset: vi.fn(), setModified: vi.fn() }),
+  useFormModified: () => mocks.modified,
 }))
 
 vi.mock('payload/shared', () => ({ reduceFieldsToValues: () => ({}) }))
@@ -63,5 +64,19 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('Viewing:')
     expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+  })
+
+  // Pristine-form Save gate (2026-07-17): an untouched form has nothing to save, so Save renders
+  // DISABLED until the form reports modified. (The identical-content 400 in save-as-new is the
+  // authoritative server backstop; this pins the client half.)
+  it('renders Save disabled while the form is pristine, enabled once modified', () => {
+    mocks.search = 'edit=1'
+    mocks.modified = false
+    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*disabled[^>]*>Save<\/button>/)
+    mocks.modified = true
+    expect(renderToString(<LessonControls />)).not.toMatch(
+      /<button[^>]*disabled[^>]*>Save<\/button>/,
+    )
+    mocks.modified = false
   })
 })
