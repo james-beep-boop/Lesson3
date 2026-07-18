@@ -13,6 +13,10 @@
   --accent-ink: #fff;
   --danger: #b00020;
   --radius: 6px;
+  /* Page-title size — the primary <h1> of a page ("Lesson Plans", "Cell Structure"). Shared token so
+     the catalogue and the lesson view stay the SAME size (they are peers in the hierarchy); the brand
+     wordmark stays quiet at 1rem above them, section headings sit below. (Type-hierarchy pass.) */
+  --page-title-size: 1.9rem;
 }
 
 /* Inline error text (form/action failures). One token, one class — was three copies of a hardcoded
@@ -450,10 +454,11 @@ a {
 }
 
 /* ---- Lesson Plans (browse) ---- */
-/* Four-step type scale: page title (22) > subject-grade (18) > strand (16) > sub-strand (14). */
+/* Four-step type scale: page title (30, --page-title-size) > subject-grade (18) > strand (16) > sub-strand (14). */
 .lp-title {
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: var(--page-title-size);
+  /* 700 to match .lesson-heading h1 — the two page titles read as one treatment (was 600). */
+  font-weight: 700;
   margin: 0 0 1rem;
 }
 .lp-search {
@@ -999,6 +1004,10 @@ button[type='submit']:disabled {
 }
 .lesson-heading h1 {
   margin-top: 0;
+  /* Same token as the catalogue's .lp-title — the two page titles are peers, so they share one size
+     (was the browser-default h1, which made the lesson title arbitrarily larger than the catalogue). */
+  font-size: var(--page-title-size);
+  font-weight: 700;
 }
 /* Muted subject · grade line under the clean lesson title (the shouty stored title stays inside the
    generated document preview). */

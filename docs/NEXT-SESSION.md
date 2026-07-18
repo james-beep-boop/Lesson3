@@ -26,7 +26,42 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI batch + no-op guard + email→domain migration; `main` `91194a5` (code `7ed7b19`), app DEPLOYED
+## ▶ RESUME HERE (2026-07-18, later) — version edit-view cleanup + type hierarchy; app-level, NO migration, DEPLOY PENDING
+
+**A small polish batch, all app-level, NO migration. Verified on the local stack** (frontend + `/admin`,
+Site-Admin login): `npx tsc` clean, `test:unit` (183) + full `test:int` (68) green against a throwaway
+test Postgres. Full reasoning: **DECISIONS 2026-07-18 (version edit-view cleanup + type hierarchy)**.
+
+**What changed:**
+1. **Version editor: "Create New" + "Duplicate" removed** — both are Payload kebab actions that
+   contradict SPEC §7 (versions are born only via ingest / re-ingest / save-as-new, all overrideAccess).
+   Fix = **deny caller-access create** (`lessonBundleVersionCreate` → `() => false`) + `disableDuplicate`.
+   Reverses the old "direct create is an admin action" note (now denied outright — stronger than the #65
+   field-strip). New int block pins it; the two superseded semver/sourceVersion field-strip tests removed.
+2. **Delete promoted to an explicit red button** in `LessonControls` (view mode, deletable versions
+   only; server re-gates). Native `.doc-controls__popup` kebab hidden — no three-dots menu remains.
+3. **Toolbar hairline spacing** — jump nav now clears the bottom divider (`.lesson-controls-wrap` padding).
+4. **Page-title hierarchy** — brand stays 1rem; the two page titles share `--page-title-size`
+   (1.9rem/700); "Lesson plans" → "Lesson Plans".
+
+**Review follow-ups (GPT pass, all applied — see DECISIONS):** (a) fixed a Delete-eligibility drift —
+client `canDelete` now uses `canDeleteVersionDoc` (per-doc form of `deletableVersionsWhere`, single
+source; a since-demoted author no longer sees a 403-ing Delete), DB-free unit test added; (b) retired
+the obsolete `verify-stage2b-edit.ts` (superseded by the immutable model + automated suites), redirected
+the `verify-rbac.ts` pointer; (c) added an HTTP wire test pinning REST create/duplicate → 4xx
+(curl-confirmed 403/403 on the running app).
+
+**Status: UNCOMMITTED in the working tree** (changes span an authz tightening + UI). Land per policy —
+the create-deny is a correctness surface, so **PR + CI** is the fit (the http suite runs on the Rock/CI,
+not locally — but the new create/duplicate rejections were curl-verified over the wire); the pure-UI/CSS
+bits could go direct-to-main. **Not yet deployed.** Files: `access/versioning.ts`,
+`collections/LessonBundleVersions.ts`, `components/LessonControls/index.tsx`, `app/(payload)/custom.scss`,
+`app/(frontend)/styles.css` + `page.tsx`, `tests/{int/access,http/endpoints}.spec.ts`,
+`tests/unit/canDeleteVersionDoc.spec.ts`; deleted `scripts/verify-stage2b-edit.ts`, edited `scripts/verify-rbac.ts`.
+
+---
+
+## ▶ Older resume (2026-07-18) — 07-17/18 UI batch + no-op guard + email→domain migration; `main` `91194a5` (code `7ed7b19`), app DEPLOYED
 
 **A batch of user-requested UI changes + a save-integrity guard, all on `main` (`7ed7b19`), CI-green,
 app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-17 (UI batch + no-op save guard) and

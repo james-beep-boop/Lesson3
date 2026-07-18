@@ -181,7 +181,7 @@ export default async function BrowsePage({
 
   return (
     <section className="lp">
-      <h1 className="lp-title">Lesson plans</h1>
+      <h1 className="lp-title">Lesson Plans</h1>
       {/* Browsing (search + subject/grade chips) is fully CLIENT-side — the catalogue is one
           loaded dataset, so filtering must not cost a server round-trip per click (perf fix
           2026-07-09). The URL still carries ?q/&subject/&grade for shareable views. */}
