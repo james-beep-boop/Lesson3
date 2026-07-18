@@ -26,7 +26,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI + robustness batch (PR #101 merged); `main` `7ed7b19`, DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-18) — 07-17/18 UI batch + no-op guard + email→domain migration; `main` `91194a5` (code `7ed7b19`), app DEPLOY PENDING
 
 **A batch of user-requested UI changes + a save-integrity guard, all on `main` (`7ed7b19`), CI-green,
 app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-17 (UI batch + no-op save guard) and
@@ -56,10 +56,27 @@ the endpoint change). Every UI item was browser-verified on the local stack.
 left for a server-side going-public decision. Deferred: a component test of the real form serialization
 (`reduceFieldsToValues`) for the no-op boundary; the guide is otherwise current.
 
-**DEPLOY:** one `scripts/deploy.sh` for `main` (`7ed7b19`) — **NO migration** (all app-level).
-**Eyeball:** password eye on the three auth forms; lesson page has NO doc rows (downloads under Share →
-Download one document / Download all); Manage "Add" buttons legible enabled+disabled; editor Hide/Show
-details; in the editor, Save is disabled until you actually change something.
+**Email — MIGRATED to the domain sender (operator, DONE on the Rock 2026-07-18; CONFIG ONLY, not in
+this repo).** Outgoing mail now sends from `notifications@kenyalessons.org` (DreamHost SMTP), not
+`clinicvim@gmail.com`. Verified on a live password-reset email: **SPF/DKIM/DMARC all PASS**, inbox
+delivery, correct From, and (after fixing a `.env` that was missing `ADMIN_URL` — which had made reset
+links render RELATIVE/dead) the reset link is now absolute. The leaked Gmail App Password was revoked;
+the Gmail block is commented out in `.env`. Full runbook + the `ADMIN_URL` gotcha: **`docs/OPS.md` →
+Email (SMTP + deliverability)**. ⚠️ Going-public note: `ADMIN_URL` is still the **Tailscale** URL
+(`rock5b.tail49b05.ts.net`), so email links only open on the tailnet — it (or `SERVER_URL`) must become
+the PUBLIC URL before real off-network users.
+
+**DEPLOY (app code) — STILL PENDING:** one `scripts/deploy.sh` for `main` (last code `7ed7b19`; HEAD
+`91194a5` is docs-only on top) — **NO migration** (all app-level). This is separate from the email
+change above, which was a Rock `.env` edit and is already live.
+**Eyeball after deploy:** password eye on the three auth forms; lesson page has NO doc rows (downloads
+under Share → Download one document / Download all); Manage "Add" buttons legible enabled+disabled;
+editor Hide/Show details; in the editor, Save is disabled until you actually change something.
+
+**Likely next-session work (pick with the user):** Phase 5 Track B / going-public operator setup
+(`docs/OPS.md`) is now the natural priority — email is done, so what remains is the public host: TLS +
+reverse proxy, `SERVER_URL`/`ADMIN_URL` → public URL, edge rate limiting, GlitchTip. Deferred code work
+also stands: the no-op-boundary component test (`reduceFieldsToValues`), plus the older backlog.
 
 ---
 
