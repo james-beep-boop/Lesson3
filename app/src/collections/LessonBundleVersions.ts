@@ -30,6 +30,13 @@ import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
   slug: 'lesson-bundle-versions',
+  // Edit-view cleanup (2026-07-18): "Duplicate" makes no sense here — every Save already writes a new
+  // version (save-as-new), and a clone would land a provenance-less default 1.0.0 (systemOnly
+  // semver/author) that collides on the unique (lessonPlan, semver) index. Denying it from ALL APIs
+  // (not just hiding the button) is the honest guard. "Create New" is likewise gone (access.create is
+  // denied — Payload gates both actions on create permission); Delete is promoted out of the native
+  // kebab into an explicit LessonControls button, and the now-empty popup is hidden in custom.scss.
+  disableDuplicate: true,
   // Invariant #4 backstop: semver is unique per plan. `nextSemverForPlan` computes the next free
   // patch on fork, but this compound unique index is the hard guarantee against a race (two forks of
   // the same source persisting concurrently). Realised by the generated migration.

@@ -401,6 +401,46 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   })
 })
 
+describe('Version create/duplicate denied over HTTP (edit-view cleanup 2026-07-18)', () => {
+  // The version editor's "Create New" + "Duplicate" removal is enforced server-side, not just hidden:
+  // `lessonBundleVersionCreate → () => false` refuses a direct REST create (versions are born only via
+  // system paths — ingest/re-ingest/save-as-new, all overrideAccess), and `disableDuplicate` blocks the
+  // duplicate action from all APIs. Pin both over the wire, as the highest-privilege caller.
+  it('authenticated REST create of a version → rejected (4xx), nothing persisted', async () => {
+    const title = `${MARK}http-version-create`
+    const res = await fetch(url('/api/lesson-bundle-versions'), {
+      method: 'POST',
+      headers: { ...auth('siteAdmin'), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        title,
+        ...minimalBundleContent(),
+      }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    const { totalDocs } = await fx.payload.count({
+      collection: 'lesson-bundle-versions',
+      where: { title: { equals: title } },
+      overrideAccess: true,
+    })
+    expect(totalDocs).toBe(0)
+  })
+
+  it('REST duplicate of a version → rejected (disableDuplicate), no new row', async () => {
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions', overrideAccess: true })
+    const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/duplicate`), {
+      method: 'POST',
+      headers: { ...auth('siteAdmin'), 'Content-Type': 'application/json' },
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    const after = await fx.payload.count({ collection: 'lesson-bundle-versions', overrideAccess: true })
+    expect(after.totalDocs).toBe(before.totalDocs)
+  })
+})
+
 describe('Bucket-A server invariants over HTTP', () => {
   it('⓪ authenticated CREATE with an officialVersion pointer → rejected (4xx)', async () => {
     const res = await fetch(url('/api/lesson-plans'), {

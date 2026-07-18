@@ -4,9 +4,12 @@
  * admin auto-demote, and the password/assignment guards (SPEC §8). Exercises them against the real
  * DB, then deletes every record it created (try/finally). Marker prefix keeps test data identifiable.
  *
- * The lesson-content field-level RBAC (Editor prose vs admin structure/answer-keys, read scoping,
- * the Official-version working-copy rules) lives in `verify-stage2b-edit.ts` — it moved there with
- * the Official-version model when the legacy `lesson-bundles` collection was retired (Stage 3).
+ * The lesson-content field-level RBAC (Editor prose vs admin structure/answer-keys, read scoping) and
+ * the version-immutability / save-as-new / make-official rules are now covered by the automated suites
+ * (`tests/int/access.int.spec.ts` + `tests/http/endpoints.http.spec.ts`). The former manual companion
+ * `verify-stage2b-edit.ts` was RETIRED 2026-07-18 — it modelled the superseded MUTABLE working-copy
+ * flow (direct create + in-place update), which the immutable save-as-new model and the create-deny
+ * both now reject.
  */
 import { getPayload } from 'payload'
 import config from '@payload-config'
