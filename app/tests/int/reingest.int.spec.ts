@@ -14,6 +14,7 @@ import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
+import { rawToBundle } from '../../src/ingest/toBundle.js'
 import { MARK, MARK_BASE, enqueuedKindsFor, minimalResourceLinks, purgeMarked } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
@@ -186,7 +187,9 @@ describe('re-ingest (SPEC §7)', () => {
           semver: '1.0.0',
           title: `${MARK}${t} v1`,
           meta: { subject: `${MARK}Biology`, grade: GRADE, substrand_id: '97.9' },
-          lessons: rawBundle('97.9', 't').LESSONS,
+          // A direct Local-API create bypasses ingest, so apply its external-map → child-rows
+          // conversion; the generatable hook validates the stored five-row form.
+          lessons: rawToBundle(rawBundle('97.9', 't') as never).lessons,
         } as never,
         overrideAccess: true,
       })

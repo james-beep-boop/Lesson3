@@ -336,132 +336,32 @@ export interface LessonBundleVersion {
          * Resolved upstream and versioned exactly; never user-editable.
          */
         resourceLinks: {
-          predict: {
-            video?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            reading?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            fallback_search_url: string;
+          phase: 'predict' | 'observe' | 'explain' | 'dqb' | 'model';
+          video?: {
+            title?: string | null;
+            source?: string | null;
+            content_type?: string | null;
+            direct_url?: string | null;
+            search_url?: string | null;
+            search_terms?: string | null;
+            exact_search_url?: string | null;
+            has_transcript?: boolean | null;
+            tier?: number | null;
           };
-          observe: {
-            video?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            reading?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            fallback_search_url: string;
+          reading?: {
+            title?: string | null;
+            source?: string | null;
+            content_type?: string | null;
+            direct_url?: string | null;
+            search_url?: string | null;
+            search_terms?: string | null;
+            exact_search_url?: string | null;
+            has_transcript?: boolean | null;
+            tier?: number | null;
           };
-          explain: {
-            video?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            reading?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            fallback_search_url: string;
-          };
-          dqb: {
-            video?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            reading?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            fallback_search_url: string;
-          };
-          model: {
-            video?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            reading?: {
-              title?: string | null;
-              source?: string | null;
-              content_type?: string | null;
-              direct_url?: string | null;
-              search_url?: string | null;
-              search_terms?: string | null;
-              exact_search_url?: string | null;
-              has_transcript?: boolean | null;
-              tier?: number | null;
-            };
-            fallback_search_url: string;
-          };
-        };
+          fallback_search_url: string;
+          id?: string | null;
+        }[];
         framework?:
           | {
               /**
@@ -915,161 +815,35 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
         resourceLinks?:
           | T
           | {
-              predict?:
+              phase?: T;
+              video?:
                 | T
                 | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    fallback_search_url?: T;
+                    title?: T;
+                    source?: T;
+                    content_type?: T;
+                    direct_url?: T;
+                    search_url?: T;
+                    search_terms?: T;
+                    exact_search_url?: T;
+                    has_transcript?: T;
+                    tier?: T;
                   };
-              observe?:
+              reading?:
                 | T
                 | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    fallback_search_url?: T;
+                    title?: T;
+                    source?: T;
+                    content_type?: T;
+                    direct_url?: T;
+                    search_url?: T;
+                    search_terms?: T;
+                    exact_search_url?: T;
+                    has_transcript?: T;
+                    tier?: T;
                   };
-              explain?:
-                | T
-                | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    fallback_search_url?: T;
-                  };
-              dqb?:
-                | T
-                | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    fallback_search_url?: T;
-                  };
-              model?:
-                | T
-                | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          source?: T;
-                          content_type?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                          search_terms?: T;
-                          exact_search_url?: T;
-                          has_transcript?: T;
-                          tier?: T;
-                        };
-                    fallback_search_url?: T;
-                  };
+              fallback_search_url?: T;
+              id?: T;
             };
         framework?:
           | T

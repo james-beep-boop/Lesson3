@@ -34,6 +34,7 @@ import {
   type RoleKey,
 } from '../helpers/fixtures.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
+import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
 
 const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
@@ -1618,11 +1619,29 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     expect((await res.json()).ok).toBe(false)
   })
 
-  it('a Site Admin uploads a valid bundle → 200, one plan created', async () => {
+  it('a Site Admin uploads and reads a full resource bundle without the Postgres argument-limit 500', async () => {
     const res = await post('siteAdmin', (f) => f.append('files', jsonFile('good.json', '90.9')))
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as {
+      ok: boolean
+      count: number
+      bundles: Array<{ id: number | string }>
+    }
     expect(body.ok).toBe(true)
     expect(body.count).toBe(1)
+
+    // Regression for the 2026-07-19 production failure: the old five-group representation put
+    // 95 resource columns on the parent lesson row, so Payload's read-after-create generated a
+    // json_build_array call with >100 arguments and PostgreSQL rolled the transaction back.
+    const { docs } = await fx.payload.find({
+      collection: 'lesson-bundle-versions',
+      where: { lessonPlan: { equals: body.bundles[0]!.id } },
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+    })
+    const rows = docs[0]?.lessons?.[0]?.resourceLinks ?? []
+    expect(rows).toHaveLength(RESOURCE_PHASE_KEYS.length)
+    expect(rows.map((row) => row.phase)).toEqual([...RESOURCE_PHASE_KEYS])
   })
 })

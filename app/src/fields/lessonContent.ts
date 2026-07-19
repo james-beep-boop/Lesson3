@@ -229,20 +229,29 @@ export const lessonContentFields: Field[] = [
       prose('overview', 'Overview'),
       {
         name: 'resourceLinks',
-        type: 'group',
+        type: 'array',
         label: 'ARES resource links',
         required: true,
+        minRows: RESOURCE_PHASE_KEYS.length,
+        maxRows: RESOURCE_PHASE_KEYS.length,
         access: { create: systemOnly, update: systemOnly },
         admin: {
           hidden: true,
           description: 'Resolved upstream and versioned exactly; never user-editable.',
         },
-        fields: RESOURCE_PHASE_KEYS.map((phase) => ({
-          name: phase,
-          type: 'group' as const,
-          required: true,
-          fields: resourcePhaseFields(),
-        })),
+        // Store the five buckets as child rows instead of flattening 95 columns onto the parent
+        // lesson row. Payload's Postgres adapter reconstructs each array row with
+        // json_build_array(), whose hard 100-argument limit the flattened representation exceeded.
+        // Ingest/export adapters preserve the definitive external object keyed by phase.
+        fields: [
+          {
+            name: 'phase',
+            type: 'select',
+            options: [...RESOURCE_PHASE_KEYS],
+            required: true,
+          },
+          ...resourcePhaseFields(),
+        ],
       },
       {
         name: 'framework',

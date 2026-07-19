@@ -4,8 +4,11 @@ import { createRequire } from 'node:module'
 
 import {
   RESOURCE_PHASE_KEYS,
+  aresResourceLinksToRows,
   isSafeHttpUrl,
   toAresResourceLinks,
+  type AresResourceLinks,
+  type StoredResourceLinkRow,
   validateResourceLinks,
 } from '../../src/ingest/resourceLinks'
 import { preserveLessonResourceLinks } from '../../src/hooks/fieldSplit'
@@ -28,7 +31,7 @@ const record = (suffix: string) => ({
   tier: 0,
 })
 
-const links = () =>
+const links = (): AresResourceLinks =>
   Object.fromEntries(
     RESOURCE_PHASE_KEYS.map((phase) => [
       phase,
@@ -38,23 +41,40 @@ const links = () =>
         fallback_search_url: `http://ares.local/fallback/${phase}`,
       },
     ]),
-  )
+  ) as AresResourceLinks
+
+const storedLinks = () => aresResourceLinksToRows(links())
 
 describe('definitive lesson resourceLinks contract', () => {
-  it('accepts the full five-bucket ARES map', () => {
-    expect(validateResourceLinks(links())).toEqual([])
+  it('accepts five native rows converted from the full ARES map', () => {
+    expect(validateResourceLinks(storedLinks())).toEqual([])
+  })
+
+  it('uses the enclosing map key as the authoritative stored phase', () => {
+    const value = links() as unknown as Record<string, Record<string, unknown>>
+    value.predict!.phase = 'model'
+    const rows = aresResourceLinksToRows(value) as StoredResourceLinkRow[]
+    expect(rows[0]!.phase).toBe('predict')
   })
 
   it('allows explicit null recommendations but never a missing bucket', () => {
-    const value = links()
-    value.predict.video = null as never
-    value.predict.reading = null as never
+    const value = storedLinks()
+    value[0]!.video = null
+    value[0]!.reading = null
     expect(validateResourceLinks(value)).toEqual([])
 
-    delete (value as Record<string, unknown>).model
+    value.pop()
     expect(validateResourceLinks(value)).toContain(
-      'resourceLinks.model: required phase resource group is missing.',
+      'resourceLinks.model: required phase resource row is missing.',
     )
+  })
+
+  it('rejects duplicate phases even when the array still has five rows', () => {
+    const value = storedLinks()
+    value[4] = { ...value[0]! }
+    const problems = validateResourceLinks(value)
+    expect(problems).toContain('resourceLinks[4].phase: duplicate resource phase "predict".')
+    expect(problems).toContain('resourceLinks.model: required phase resource row is missing.')
   })
 
   it('rejects executable and non-HTTP hyperlink schemes', () => {
@@ -63,16 +83,17 @@ describe('definitive lesson resourceLinks contract', () => {
     expect(isSafeHttpUrl('javascript:alert(1)')).toBe(false)
     expect(isSafeHttpUrl('data:text/html,boom')).toBe(false)
 
-    const value = links()
-    value.observe.video.direct_url = 'javascript:alert(1)'
+    const value = storedLinks()
+    value[1]!.video!.direct_url = 'javascript:alert(1)'
     expect(validateResourceLinks(value)).toContain(
       'resourceLinks.observe.video.direct_url: must be an http:// or https:// URL.',
     )
   })
 
   it('round-trips populated records and restores empty Payload groups to null', () => {
-    const value = links()
-    value.dqb.video = {
+    const value = storedLinks()
+    const dqb = value.find((row) => row.phase === 'dqb')!
+    dqb.video = {
       title: null,
       source: null,
       content_type: null,
@@ -86,15 +107,20 @@ describe('definitive lesson resourceLinks contract', () => {
 
     const out = toAresResourceLinks(value)
     expect(out.dqb.video).toBeNull()
-    expect(out.predict).toEqual(value.predict)
+    const predict = value.find((row) => row.phase === 'predict')!
+    expect(out.predict).toEqual({
+      video: predict.video,
+      reading: predict.reading,
+      fallback_search_url: predict.fallback_search_url,
+    })
   })
 })
 
 describe('resourceLinks save-as-new boundary', () => {
   it('restores existing lesson maps and strips caller-supplied maps from new lessons', () => {
-    const stored = links()
-    const forged = links()
-    forged.predict.video.title = 'forged'
+    const stored = storedLinks()
+    const forged = storedLinks()
+    forged[0]!.video!.title = 'forged'
     const data = {
       lessons: [
         { id: 'existing', title: 'Edited title', resourceLinks: forged },
@@ -127,8 +153,8 @@ describe('pure-Node generator resource bridge', () => {
     const barrier = new Promise<void>((resolve) => (release = resolve))
     const first = links()
     const second = links()
-    first.predict.video.title = 'first build'
-    second.predict.video.title = 'second build'
+    first.predict.video!.title = 'first build'
+    second.predict.video!.title = 'second build'
 
     const a = withStoredResourceLinks([{ resourceLinks: first }], async () => {
       await barrier

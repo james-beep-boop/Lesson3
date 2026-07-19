@@ -24,7 +24,7 @@ import os from 'node:os'
 import { extractAresData, extractAresJson } from '../src/ingest/extract'
 import { IngestError } from '../src/ingest/errors'
 import { rawToBundle } from '../src/ingest/toBundle'
-import { RESOURCE_PHASE_KEYS } from '../src/ingest/resourceLinks'
+import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../src/ingest/resourceLinks'
 import { deliverableWarnings, validateGeneratable } from '../src/ingest/validateGeneratable'
 
 const require = createRequire(import.meta.url)
@@ -209,7 +209,7 @@ expectReject(
 {
   const legacy = rawToBundle(extractAresData(require('node:fs').readFileSync(BIO, 'utf8')))
   const legacyProblems = validateGeneratable(legacy)
-  if (legacyProblems.some((problem) => /resourceLinks map is missing/.test(problem))) {
+  if (legacyProblems.some((problem) => /resourceLinks rows are missing/.test(problem))) {
     ok('completeness: former fixture without resourceLinks is rejected')
   } else {
     bad('completeness: former fixture without resourceLinks is rejected', legacyProblems.join('; '))
@@ -223,15 +223,17 @@ expectReject(
   }
   const current = structuredClone(legacy) as { lessons: Array<Record<string, unknown>> }
   for (const lesson of current.lessons) {
-    lesson.resourceLinks = Object.fromEntries(
-      RESOURCE_PHASE_KEYS.map((phase) => [
-        phase,
-        {
-          video: resourceRecord,
-          reading: resourceRecord,
-          fallback_search_url: `http://ares.local/search/${phase}`,
-        },
-      ]),
+    lesson.resourceLinks = aresResourceLinksToRows(
+      Object.fromEntries(
+        RESOURCE_PHASE_KEYS.map((phase) => [
+          phase,
+          {
+            video: resourceRecord,
+            reading: resourceRecord,
+            fallback_search_url: `http://ares.local/search/${phase}`,
+          },
+        ]),
+      ),
     )
   }
   const problems = validateGeneratable(current)

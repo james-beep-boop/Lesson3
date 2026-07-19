@@ -12,8 +12,10 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**Current next work is Rock deployment and verification of the implemented ARES `resourceLinks`
-cutover documented on 2026-07-19.** The old lesson corpus has been permanently deleted and the
+**Current next work is Rock deployment and verification of the corrected ARES `resourceLinks`
+child-row model documented on 2026-07-19.** The first smoke upload exposed PostgreSQL's 100-function-
+argument limit in the original flattened Payload model; that upload rolled back. The old lesson corpus
+has been permanently deleted and the
 replacement corpus must not be uploaded until the migration and DB-dependent gates pass. The
 teacher-first track
 (2026-07-08), version-browser redesign (2026-07-06), audit-driven phases through Track B, and §10
@@ -28,18 +30,22 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-19, newest) — ARES `resourceLinks` cutover BUILT + LOCAL GATES GREEN; ROCK DEPLOY PENDING
+## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE UPLOAD 500 FIXED LOCALLY; CORRECTIVE ROCK MIGRATION PENDING
 
-**Outcome so far:** the newly generated ARES JSON corpus is now the sole Lesson3 upload contract in
-the local code, and the generator reproduces the current upstream five-column DOCX layout with the
-supplied resource hyperlinks. Nothing has been committed, pushed, deployed, migrated, or uploaded.
+**Outcome so far:** the newly generated ARES JSON corpus remains the sole Lesson3 upload contract. The
+first Rock smoke upload proved the initial five-group storage model exceeded PostgreSQL's 100-argument
+function limit during Payload's read-after-create. The fix keeps the same external object but stores
+five native child rows per lesson; local corpus and fidelity gates are green. The corrective work is
+not committed, pushed, deployed, migrated, or smoke-tested on the Rock.
 
-**Next operator sequence:** confirm the Rock has no residual `lesson_plans`,
-`lesson_bundle_versions`, or lesson rows; take a backup; deploy only after explicit approval; review
-and apply `20260719_185124_ares_resource_links_cutover`; run DB-dependent int/http/e2e/build gates;
-smoke-test upload and DOCX/PDF; then upload all 42 replacement files and verify 42 plans / 42 Official
-1.0.0 versions / 384 lessons plus sampled hyperlinks. The migration itself aborts if the corpus is not
-empty.
+**Next operator sequence:** confirm the Rock still has zero `lesson_plans`,
+`lesson_bundle_versions`, and lesson rows; take a backup; deploy only after explicit approval; inspect
+`payload_migrations` to confirm `20260719_185124_ares_resource_links_cutover`, then review and apply
+`20260719_210359_resource_links_child_rows`; run DB-dependent int/http/e2e/build gates; smoke-test the
+exact Physics 4.2 file that produced the database 500 and verify its stored five-phase rows, then run
+DOCX/PDF fidelity against the established Physics 4.1 fixture/oracle; finally upload all 42 replacement
+files and verify 42 plans / 42 Official 1.0.0 versions / 384 lessons plus sampled hyperlinks. The
+corrective migration aborts if any lesson plans, versions, or lesson rows remain.
 
 **Locked decisions (do not reopen during coding):**
 
@@ -50,10 +56,12 @@ empty.
    `model`; each bucket has `video`, `reading`, and `fallback_search_url`. Preserve the full upstream
    record, including search metadata/transcript/tier. Validate all nested keys and only permit
    `http`/`https` hyperlinks. A `video` or `reading` may be `null` when ARES found none.
-3. Store the map losslessly as system-only native Payload fields. Do not distribute it into
-   `framework[]`; repeated/missing framework phase rows make that transformation lossy. Remove the
-   unused legacy `framework[].resources` seam after verifying the reset left no values that require
-   preservation.
+3. Store the map losslessly as system-only native Payload fields: five phase-discriminated child rows
+   under each lesson, converted back to the exact external object by the adapter. Do not distribute it
+   into `framework[]`; repeated/missing framework phase rows make that transformation lossy. Do not
+   flatten all five buckets onto the lesson row; that exceeds PostgreSQL's function-argument ceiling.
+   Remove the unused legacy `framework[].resources` seam after verifying the reset left no values that
+   require preservation.
 4. Lesson3 consumes resolved data and never runs the Python recommender or SQLite index.
 5. One document format only: current upstream Section C widths `[1520, 3040, 3040, 3040, 3040]`, with
    video/reading links beneath the phase label in the first cell. “Standard/compact” is historical
@@ -77,10 +85,11 @@ Item 8 is the remaining work.
    missing, wrong-type, or unsafe-URL values at their precise JSON paths. Add fixtures proving the new
    shape passes and the former shape fails. Keep the upload size/count protections unchanged unless a
    measured corpus file exceeds them (the current files do not).
-3. **Model the data natively in Payload.** Reusable system-only resource fields now live under each
+3. **Model the data natively in Payload.** Reusable system-only resource child rows now live under each
    lesson; editor/Subject-Admin submissions cannot add, alter, or erase them. The old
-   `framework[].resources` seam is retired. Payload types and the migration were generated through
-   Payload's offline API and reviewed locally; applying them and verifying the database assumptions
+   `framework[].resources` seam is retired. Payload types and both migrations were generated through
+   Payload's offline API and reviewed locally; the corrective migration exists because the first
+   flattened model failed the Rock upload smoke test. Applying it and verifying the database behavior
    remain Rock work under pinned Node 22.
 4. **Carry resources losslessly through every boundary.** Update raw contract types, ingest mapping,
    Payload normalization, adapter/output types, field-split preservation, previews, and exports. Add
@@ -116,9 +125,10 @@ Item 8 is the remaining work.
 - Local and Rock gates pass, the database contains only the replacement corpus, and each initial upload
   is Official 1.0.0.
 
-**Local verification recorded 2026-07-19:** 42/42 JSON files and 384/384 lessons validate and
-round-trip; contract 16/16; ingest extraction 25/25; unit 199; TypeScript clean; DOCX oracle 4/4;
-adapter/oracle 6/6; lint 0 errors (83 existing/generated warnings); production audit 0 high/critical
+**Corrective child-row local verification after the Rock 500 (2026-07-19):** 42/42 JSON files and
+384/384 lessons validate and round-trip; contract 16/16; ingest extraction 25/25; unit 201;
+TypeScript clean; DOCX oracle 4/4;
+adapter/oracle 6/6; lint 0 errors (87 existing/generated warnings); production audit 0 high/critical
 (5 moderate transitive `esbuild` findings, no available fix). The five widths, striping, page breaks,
 resource text, and 140 hyperlink targets are checked. `USER_GUIDE.md` remains unchanged because the
 feature has not yet been deployed to the live user workflow. The final review also made migration

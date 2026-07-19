@@ -26,7 +26,7 @@ import config from '../../src/payload.config.js'
 
 import type { LessonBundleVersion, LessonPlan, Subject, SubjectGrade, User } from '../../src/payload-types.js'
 import { jobMatchesVersion } from '../../src/jobs/generateVersionArtifact.js'
-import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
+import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks.js'
 
 /**
  * Stable namespace prefix shared by every fixture run. Used ONLY for the crashed-run safety sweep at
@@ -102,6 +102,11 @@ export function minimalResourceLinks() {
   )
 }
 
+/** The native child-row form used when a fixture writes a LessonBundleVersion directly. */
+export function minimalStoredResourceLinks() {
+  return aresResourceLinksToRows(minimalResourceLinks())
+}
+
 /**
  * The smallest bundle that satisfies `validateGeneratable`: META present, ≥1 lesson carrying an
  * `slo` group, a `summaryTablePrompt` group, a complete `resourceLinks` map, and ≥1 framework phase
@@ -147,7 +152,7 @@ export function minimalBundleContent() {
           learned: 'Learned the fixture.',
           explained: 'Explained the fixture.',
         },
-        resourceLinks: minimalResourceLinks(),
+        resourceLinks: minimalStoredResourceLinks(),
       },
     ],
     finalExplanation: {},
