@@ -5,22 +5,23 @@
  * One header row (declutter redesign 2026-07-15), the edit lifecycle swapping with the mode so no
  * disabled lifecycle button ever shows:
  *
- *   view mode:  [← Back to lesson]  Viewing: <title>  [Official chip]  │  [ Edit ]           · Preview
- *   edit mode:  [← Back to lesson]  Editing: <title>  [Official chip]  │  [ Save · Cancel ]  · Preview
+ *   view mode:  [← Back to lesson]  Viewing: <title>  [Official chip]  │  [ Edit ]           · Preview · View as PDF
+ *   edit mode:  [← Back to lesson]  Editing: <title>  [Official chip]  │  [ Save · Cancel ]  · Preview · View as PDF
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
- * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Preview" acts
- * on the current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
- * exported the SAVED version — identical to the lesson page's downloads — so the editor keeps only
- * the one output action that needs the live form (Preview). The bold Viewing:/Editing: prefix is the
+ * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Preview" (fast
+ * mammoth HTML, structure only) and "View as PDF" (the accurate DOCX→PDF rendering — cached export
+ * PDF when pristine, generated from the live form when there are unsaved edits) both act on the
+ * current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
+ * exported the SAVED version — identical to the lesson page's downloads. The bold Viewing:/Editing: prefix is the
  * mode signal, replacing the old read-only notice line; Payload's native H1 (the same title) is
  * hidden in custom.scss for this collection.
  *
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -35,7 +36,11 @@ import { reduceFieldsToValues } from 'payload/shared'
 import { toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
+import { DELIVERABLE_LABELS } from '../../generator/deliverables'
+import { versionDeliverables } from '../../generator/adapter'
+import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
+import { openPreparedPdfInNewTab } from '../exportClient'
 import EditJumpNav from './EditJumpNav'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
@@ -68,7 +73,23 @@ export default function LessonControls() {
   // ?edit=1 load.
   const [editing, setEditing] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
+  const pdfMenuRef = useRef<HTMLDivElement>(null)
   const [msg, setMsg] = useState<string | null>(null)
+
+  // Which deliverables this plan has (Lesson plan always; Final Explanation / Summary Table only
+  // when they carry content), from the SAME rule the generator/export use (`versionDeliverables`).
+  // Drives the "View as PDF" menu. Derived from the STABLE `savedDocumentData`, NOT live form
+  // fields: `reduceFieldsToValues(fields)` walks the whole (very tall) form and `fields` changes on
+  // every keystroke, so keying off it would re-scan the entire form per character (editor-lag
+  // regression). Presence is a structural property Editors can't change via prose edits; the rare
+  // case of an admin adding an FE/ST section then previewing it before saving isn't offered in the
+  // menu, and the endpoint re-checks presence on the posted content anyway (404 if absent).
+  const pdfTags = useMemo<DeliverableTag[]>(
+    () => versionDeliverables((savedDocumentData ?? {}) as never),
+    [savedDocumentData],
+  )
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
   // is useful context but wide; this collapses it on demand (user, 2026-07-17). Deliberately
@@ -81,6 +102,23 @@ export default function LessonControls() {
     document.body.classList.toggle('lp-details-hidden', !detailsShown)
     return () => document.body.classList.remove('lp-details-hidden')
   }, [detailsShown])
+
+  // Close the "View as PDF ▾" menu on outside click / Escape (APG disclosure pattern, matching UserMenu).
+  useEffect(() => {
+    if (!pdfMenuOpen) return
+    const onPointer = (e: MouseEvent) => {
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node)) setPdfMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPdfMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pdfMenuOpen])
 
   // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
   // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
@@ -210,11 +248,13 @@ export default function LessonControls() {
     }
   }
 
-  const onPreview = () => {
-    // Same-origin hidden-form POST so the endpoint's real HTML (with its CSP) opens in a new tab.
+  // Same-origin hidden-form POST of the current form state, opening the endpoint's response (its own
+  // CSP intact) in a new tab. Shared by Preview (HTML) and the unsaved "View as PDF" — the only
+  // difference is the endpoint path.
+  const postCurrentContentToNewTab = (path: string) => {
     const form = document.createElement('form')
     form.method = 'POST'
-    form.action = `/api/lesson-bundle-versions/${id}/preview`
+    form.action = `/api/lesson-bundle-versions/${id}/${path}`
     form.target = '_blank'
     const input = document.createElement('input')
     input.type = 'hidden'
@@ -224,6 +264,41 @@ export default function LessonControls() {
     document.body.appendChild(form)
     form.submit()
     form.remove()
+  }
+
+  const onPreview = () => postCurrentContentToNewTab('preview')
+
+  // "View as PDF" — the accurate, formatted rendering (the generator's DOCX through Gotenberg) of the
+  // chosen deliverable `tag`, opened inline in a new tab. Two paths by whether the form is dirty:
+  //   • pristine → reuse the EXISTING export pipeline (cache + make-official pre-warm) via the shared
+  //     openPreparedPdfInNewTab, the same dance as the teacher-facing DocButtons.
+  //   • unsaved → POST the current form state to /preview-pdf?doc=<tag>, which generates + converts the
+  //     working copy on the fly and returns the PDF inline (same mechanism as onPreview).
+  // Preview (HTML) stays the fast structural check; this is the one that shows real formatting.
+  const onViewPdf = async (tag: DeliverableTag) => {
+    if (pdfBusy) return
+    setPdfMenuOpen(false)
+    setMsg(null)
+    if (modified) {
+      // The hidden-form POST is fire-and-forget (it opens a new tab; there's no completion to await),
+      // so gate re-entrancy with a short busy window — enough to stop accidental double-submits. The
+      // server's conversion semaphore is the authoritative concurrency bound.
+      setPdfBusy(true)
+      postCurrentContentToNewTab(`preview-pdf?doc=${tag}`)
+      window.setTimeout(() => setPdfBusy(false), 3000)
+      return
+    }
+    setPdfBusy(true)
+    try {
+      await openPreparedPdfInNewTab(
+        `/api/lesson-bundle-versions/${id}/export?as=pdf`,
+        `/api/lesson-bundle-versions/${id}/export/doc?doc=${tag}&as=pdf`,
+      )
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not open the PDF.')
+    } finally {
+      setPdfBusy(false)
+    }
   }
 
   return (
@@ -282,6 +357,48 @@ export default function LessonControls() {
           <Button buttonStyle="secondary" size="small" onClick={onPreview}>
             Preview
           </Button>
+          {/* The accurate, formatted rendering (real DOCX→PDF), next to the fast HTML Preview.
+              Pristine → the cached export PDF; unsaved → generated from the current form state. One
+              plain button when the plan has a single document; a menu when it also has a Final
+              Explanation / Summary Table, so you can preview whichever you're working on. */}
+          {pdfTags.length <= 1 ? (
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              onClick={() => onViewPdf(pdfTags[0] ?? 'lessonSequence')}
+              disabled={pdfBusy}
+              aria-busy={pdfBusy}
+            >
+              {pdfBusy ? 'Preparing…' : 'View as PDF'}
+            </Button>
+          ) : (
+            <div className="lesson-controls__pdf" ref={pdfMenuRef}>
+              <Button
+                buttonStyle="secondary"
+                size="small"
+                onClick={() => setPdfMenuOpen((o) => !o)}
+                disabled={pdfBusy}
+                aria-busy={pdfBusy}
+                aria-expanded={pdfMenuOpen}
+              >
+                {pdfBusy ? 'Preparing…' : 'View as PDF ▾'}
+              </Button>
+              {pdfMenuOpen && (
+                <div className="lesson-controls__pdf-menu">
+                  {pdfTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className="lesson-controls__pdf-item"
+                      onClick={() => onViewPdf(tag)}
+                    >
+                      {DELIVERABLE_LABELS[tag]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {/* Toggle for the details sidebar; the changing label carries the state (no aria-pressed
               on top — label-swap and pressed-state together read as contradictory to AT). */}
           <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>

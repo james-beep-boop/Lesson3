@@ -22,7 +22,11 @@ import {
   exportVersionPrepareEndpoint,
   exportVersionStatusEndpoint,
 } from '../endpoints/exportVersion'
-import { previewVersionEndpoint, previewVersionUnsavedEndpoint } from '../endpoints/previewVersion'
+import {
+  previewVersionEndpoint,
+  previewVersionPdfEndpoint,
+  previewVersionUnsavedEndpoint,
+} from '../endpoints/previewVersion'
 import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { cascadeDeleteVersionFavorites } from './Favorites'
@@ -98,6 +102,9 @@ export const LessonBundleVersions: CollectionConfig = {
     previewVersionEndpoint,
     // POST /:id/preview — same gate; renders the editor's current UNSAVED working-copy state (SPEC §5).
     previewVersionUnsavedEndpoint,
+    // POST /:id/preview-pdf?doc=<tag> — same gate; the FORMATTED (DOCX→PDF) view of the unsaved
+    // working copy, ONE chosen deliverable, served inline (SPEC §5/§9).
+    previewVersionPdfEndpoint,
     // POST /:id/save-as-new — save the editor's form content as a new candidate version (no pointer move).
     saveAsNewEndpoint,
     // POST /:id/make-official — point this version's plan at it (no content copy). Admin-gated.

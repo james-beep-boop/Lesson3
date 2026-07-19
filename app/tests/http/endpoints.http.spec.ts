@@ -255,6 +255,90 @@ describe('Preview endpoint (SPEC §5)', () => {
   })
 })
 
+describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved preview, per-document PDF', () => {
+  const pdfUrl = (doc = 'lessonSequence') =>
+    `/api/lesson-bundle-versions/${fx.version.id}/preview-pdf?doc=${doc}`
+  // POST the given lessons overlay as an Editor; return the raw Response.
+  const postOverlay = (lessons: unknown, doc = 'lessonSequence') => {
+    const form = new FormData()
+    form.set('data', JSON.stringify({ lessons }))
+    return fetch(url(pdfUrl(doc)), { method: 'POST', headers: auth('editor'), body: form })
+  }
+
+  it('POST without auth → 401', async () => {
+    const res = await fetch(url(pdfUrl()), { method: 'POST', body: new FormData() })
+    expect(res.status).toBe(401)
+  })
+
+  it('Editor POST with a missing/invalid ?doc → 400', async () => {
+    const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/preview-pdf`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: new FormData(),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('Teacher POST → 404 (EDIT-gated, not just read)', async () => {
+    const form = new FormData()
+    form.set('data', JSON.stringify({ lessons: (fx.version as any).lessons ?? [] }))
+    const res = await fetch(url(pdfUrl()), { method: 'POST', headers: auth('teacher'), body: form })
+    expect(res.status).toBe(404)
+  })
+
+  it('Editor POST for a deliverable the plan lacks (no Final Explanation) → 404', async () => {
+    const res = await postOverlay((fx.version as any).lessons ?? [], 'finalExplanation')
+    expect(res.status).toBe(404)
+  })
+
+  it('Editor POST with a STRUCTURAL change → 422 (field boundary)', async () => {
+    const lessons = [...((fx.version as any).lessons ?? [])]
+    lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
+    const res = await postOverlay(lessons)
+    expect(res.status).toBe(422)
+  })
+
+  it('Editor POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
+    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+      i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY` } : l,
+    )
+    const res = await postOverlay(lessons)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(res.headers.get('content-disposition')).toContain('inline')
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    expect(bytes.length).toBeGreaterThan(0)
+    // A real PDF starts with the %PDF- magic bytes — proves Gotenberg produced a document.
+    expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+  })
+
+  it('the UNSAVED edit actually reaches the PDF (more text in → a larger PDF)', async () => {
+    // The central promise: the endpoint renders the SUBMITTED working copy, not the stored version.
+    // Proven WITHOUT a PDF text-extraction dependency by comparing byte LENGTHS: a small overlay vs a
+    // large, low-redundancy overlay (distinct tokens resist compression). PDF metadata timestamps are
+    // length-stable, so a substantial text difference dominates the size — if the endpoint ignored the
+    // form both would be the same size. (A byte-inequality check would be unsound: LibreOffice may
+    // stamp a per-conversion CreationDate, so two PDFs can differ without any content difference.)
+    const overlay = (text: string) =>
+      ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+        i === 0 ? { ...l, overview: text } : l,
+      )
+    const bigText = Array.from({ length: 1200 }, (_, i) => `token${i}`).join(' ')
+    const [small, big] = await Promise.all([
+      postOverlay(overlay(`${MARK}x`)),
+      postOverlay(overlay(bigText)),
+    ])
+    expect(small.status).toBe(200)
+    expect(big.status).toBe(200)
+    const [sLen, bLen] = [
+      (await small.arrayBuffer()).byteLength,
+      (await big.arrayBuffer()).byteLength,
+    ]
+    // ~1200 distinct tokens (~8 KB of text) must enlarge the PDF well beyond any timestamp jitter.
+    expect(bLen).toBeGreaterThan(sLen + 2000)
+  })
+})
+
 describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate', () => {
   const exportUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/export?as=docx`
 
@@ -1313,11 +1397,43 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
     expect(res.status).toBe(409)
   })
 
-  it('a Teacher request messages the Subject Admin + Site Admin (server-resolved recipients)', async () => {
+  it('a Teacher request messages every Site Admin + the sg Subject Admin (server-resolved recipients)', async () => {
+    // Derive the EXPECTED recipient set from live DB state, mirroring the endpoint
+    // (`resolveRecipients`): every `roles contains 'siteAdmin'` + the subject-grade's Subject
+    // Admins, minus the requester. Hardcoding "2" assumed exactly one Site Admin and failed against a
+    // populated DB (production correctly notifies ALL Site Admins) — this stays correct either way.
+    const sgId = String(fx.subjectGrade.id)
+    const [siteAdmins, holders] = await Promise.all([
+      fx.payload.find({
+        collection: 'users',
+        where: { roles: { contains: 'siteAdmin' } },
+        depth: 0,
+        limit: 1000,
+        overrideAccess: true,
+      }),
+      fx.payload.find({
+        collection: 'users',
+        where: { 'assignments.subjectGrade': { equals: sgId } },
+        depth: 0,
+        limit: 1000,
+        overrideAccess: true,
+      }),
+    ])
+    const subjectAdmins = holders.docs.filter((u) =>
+      (u.assignments ?? []).some(
+        (a) => String((a as { subjectGrade?: unknown }).subjectGrade) === sgId && (a as { role?: string }).role === 'subjectAdmin',
+      ),
+    )
+    const expected = new Set([...siteAdmins.docs, ...subjectAdmins].map((u) => String(u.id)))
+    expected.delete(String(fx.users.teacher.id)) // the requester is never messaged
+    // Sanity: the fixture's two admins must be in the derived set (guards the derivation itself).
+    expect(expected.has(String(fx.users.subjectAdmin.id))).toBe(true)
+    expect(expected.has(String(fx.users.siteAdmin.id))).toBe(true)
+
     const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { sent: number }
-    expect(body.sent).toBe(2) // the fixture sg's Subject Admin + the one Site Admin
+    expect(body.sent).toBe(expected.size)
 
     const { docs } = await fx.payload.find({
       collection: 'messages',
@@ -1325,10 +1441,8 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
       depth: 0,
       overrideAccess: true,
     })
-    expect(docs).toHaveLength(2)
-    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(
-      new Set([String(fx.users.subjectAdmin.id), String(fx.users.siteAdmin.id)]),
-    )
+    expect(docs).toHaveLength(expected.size)
+    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(expected)
     for (const m of docs) {
       expect(String(m.body)).toContain('editing access')
       expect(String(m.lessonPlan)).toBe(String(fx.plan.id))

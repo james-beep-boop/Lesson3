@@ -113,8 +113,9 @@ export default async function UserGuidePage() {
             <strong>Edit from the lesson:</strong> open a lesson in the library and press
             <em> Edit</em>. The editing page opens ready to type: the fields you can change are
             editable, and any you cannot are shown but marked <em>read-only</em>. <em>Preview</em>{' '}
-            shows the formatted document before you save, and <em>← Back to lesson</em> returns you
-            when you are done.
+            gives a quick check of your content and structure, while <em>View as PDF</em> shows the
+            fully formatted document — both work before you save, so you can see your unsaved edits.
+            <em> ← Back to lesson</em> returns you when you are done.
           </li>
           <li>
             <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new

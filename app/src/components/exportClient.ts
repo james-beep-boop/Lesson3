@@ -141,6 +141,30 @@ export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = 
 }
 
 /**
+ * Open an export PDF inline in a NEW TAB: warm the (version, kind) cache (`ensureExportReady`), then
+ * navigate the tab to `docUrl` (served `Content-Disposition: inline`). The tab is opened SYNCHRONOUSLY
+ * so popup blockers allow it, shows a "Preparing…" note while the cache warms, and is closed on
+ * failure (the error is re-thrown for the caller to surface). Shared by the teacher-facing per-document
+ * button (`DocButtons`) and the editor toolbar's "View as PDF" (pristine path).
+ */
+export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string): Promise<void> {
+  // Synchronous open — inside the click handler, so popup blockers allow it.
+  const tab = window.open('', '_blank')
+  if (tab) {
+    tab.document.title = 'Preparing document…'
+    tab.document.body.textContent = 'Preparing document…'
+  }
+  try {
+    await ensureExportReady(exportUrl)
+    if (tab) tab.location.href = docUrl
+    else window.open(docUrl, '_blank') // popup was blocked; retry now that no wait is needed
+  } catch (e) {
+    tab?.close()
+    throw e
+  }
+}
+
+/**
  * Download an export .zip. Ensures the artifacts are warm (`ensureExportReady`), then downloads
  * via the idempotent GET. Resolves once the download has been triggered; rejects with a
  * user-facing message on failure. Drives `onState` through preparing → downloading.

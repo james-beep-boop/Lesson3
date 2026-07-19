@@ -26,7 +26,61 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, latest) — cross-surface consistency (shared tokens, Manage aligned, Messages header); MERGED (#103), app DEPLOY PENDING (NO migration)
+## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); PR #104 OPEN on `feat/editor-view-as-pdf` (NO migration)
+
+**Built the pre-agreed "View as PDF" editor button** (see the "DISCUSSED, NOT BUILT" block further
+down), ran a **`/simplify` (4-agent) pass**, then applied **two review rounds** (per-document scope +
+concurrency bound; then a perf fix + CodeRabbit + test hermeticity). App-level, **no migration**. Full
+reasoning: **DECISIONS 2026-07-18 (latest) — editor "View as PDF"**.
+
+**What changed (16 files under `app/`: 15 modified + new `src/lib/conversionLimit.ts`; + 3 docs
+DECISIONS/NEXT-SESSION/USER_GUIDE):**
+1. **New endpoint `POST /:id/preview-pdf?doc=<tag>`** (`src/endpoints/previewVersion.ts`) — the PDF twin
+   of the unsaved HTML preview: same authz/field boundary (shared `resolveUnsavedEffective`) + shared
+   completeness gate (`assertPreviewable`), then `generateDeliverableDocx(data, tag)` → `docxToPdf` →
+   **inline PDF**. Validated `?doc` (`parseDeliverableTag`); 404 for a deliverable the plan lacks.
+   Registered in `LessonBundleVersions.ts`.
+2. **Toolbar control** (`components/LessonControls/index.tsx`) next to Preview — **`View as PDF ▾`
+   dropdown** of the present deliverables (`versionDeliverables`), or a plain button when there's one.
+   Branches on `useFormModified()`: **pristine** → shared `openPreparedPdfInNewTab` (cached
+   `…/export/doc?doc=<tag>&as=pdf`); **unsaved** → shared `postCurrentContentToNewTab('preview-pdf?doc=<tag>')`.
+3. **Throttling:** dedicated `previewPdf` rate bucket + a non-blocking in-process **concurrency semaphore**
+   (`src/lib/conversionLimit.ts`, default 2 = `jobs.limit`) → **503** when saturated; client `pdfBusy`
+   gates both branches. (This path runs Gotenberg IN the request, unlike the async export path.)
+4. **HTTP wire tests** — 401 / missing-`?doc` 400 / Teacher 404 / absent-deliverable 404 / structural 422 /
+   Editor 200 `application/pdf`; **+ a "more text in → larger PDF" test** proving the unsaved edit reaches
+   the PDF without a PDF-text dep (Gotenberg is nondeterministic byte-wise — length is the stable signal).
+5. **Shared-helper extractions (`/simplify` + review, behavior-preserving):** `assertPreviewable`;
+   `generate{LessonSequence,FinalExplanation,SummaryTable}Docx` + `generateDeliverableDocx`;
+   `openPreparedPdfInNewTab` + `postCurrentContentToNewTab`; `deliverableStem` + `DELIVERABLE_LABELS`
+   (`DocStrip` reuses the labels); `mimeFor('pdf')` + zero-copy response body.
+
+**Scope:** PER-DOCUMENT (revised from the initial primary-only cut after review — someone editing the
+Summary Table shouldn't get a Lesson Sequence PDF).
+
+**Verified** on the local compose stack (Gotenberg live): per-`?doc` 200/400/404; Teacher 404; structural
+422; **6 concurrent → exactly 2×200 + 4×503**; big-text overlay → +4651-byte PDF; dropdown lists the
+present docs and each item requests the right `?doc`. `tsc` clean; `test:unit` **190**; **lint 0 errors** —
+within the CHANGED files the only warnings are in the HTTP test (its existing `(fx.version as any)` style);
+the new source files are warning-clean. (Repo-wide lint carries ~79 PRE-EXISTING warnings across unrelated
+files — not introduced here.) http/e2e run in CI (can't run the http suite locally — needs the isolated
+`lesson3_test` DB). Browser-automation caveat in DECISIONS (form-POST-to-`_blank` → GET in the pane; hits
+the shipped Preview button too — not a regression).
+
+**Status: COMMITTED + PUSHED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) OPEN**
+on `feat/editor-view-as-pdf` (base `main`). First CI run went green (gate + CodeRabbit); a follow-up
+commit applies the second review round (perf + CodeRabbit + test hermeticity) — re-running. Next: CI green
+→ merge → fold into the pending Rock deploy below (**no migration**). Eyeball after deploy: editor toolbar
+shows **View as PDF** (a `▾` menu when the plan has FE/ST); pristine opens the formatted doc; after an edit
+it reflects the unsaved change.
+**Fixed in the second review round:** the request-editing HTTP test now derives its expected recipient set
+from live DB state (no longer assumes one Site Admin), so it's hermetic against a populated DB.
+**Not fixed (pre-existing, unrelated):** the ≤640px Manage-vs-frontend padding difference.
+**Still deferred:** Site-Admin avatar (accent-blue) — see the #102 block below.
+
+---
+
+## ▶ Older resume (2026-07-18, latest) — cross-surface consistency (shared tokens, Manage aligned, Messages header); MERGED (#103), app DEPLOY PENDING (NO migration)
 
 **A UI consistency pass making the Payload admin Manage view read as the same app as the frontend, all
 app-level, NO migration — MERGED to `main` via PR #103 (squash `ebbe1ff`; `main` now `ebbe1ff`).** CI
@@ -98,7 +152,9 @@ now the same size; brand stays small.
 - **Site-Admin avatar** — the "SA" avatar can't be told apart from a Subject Admin's. `UserMenu` already
   gets `typeLabel` (the role), so add an `isSiteAdmin`/`--site-admin` modifier and style it **accent-blue
   fill** (rejected red = danger semantics, italic = fiddly, bold = too subtle). Tiny.
-- **Preview "View as PDF"** — the flat HTML preview (mammoth, styling dropped) KEEPS its use (fast
+- ~~**Preview "View as PDF"**~~ **BUILT 2026-07-18 — see the newest RESUME block at the top.** Design
+  as recorded below (primary deliverable; saved→export cache, unsaved→generate+docxToPdf). Original note:
+  the flat HTML preview (mammoth, styling dropped) KEEPS its use (fast
   structural check); ADD a **View as PDF** button (the accurate, formatted rendering) **in the editor
   toolbar next to Preview**, NOT on the preview page (that page is a script-free one-shot render with no
   working-copy JSON to re-submit). Saved version → link the existing export PDF (already served inline);

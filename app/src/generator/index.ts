@@ -45,15 +45,59 @@ export interface GeneratedDocx {
  * inline in the phase rows — a later, separate concern. FinalExplanation and SummaryTable are
  * unchanged.
  */
+/**
+ * Per-deliverable builders, each generating ONE DOCX (the primary always exists; FE/ST return null
+ * when the bundle has no such content — matching `GeneratedDocx`'s null contract). Split out so a
+ * caller that consumes a single deliverable — the editor's "View as PDF" preview — need not build and
+ * discard the other two, and so each deliverable has ONE build definition that `generateBundleDocx`
+ * and `generateDeliverableDocx` both compose.
+ */
+export async function generateLessonSequenceDocx(data: AresDataObject): Promise<Buffer> {
+  const { META, UNIT, LESSONS } = data
+  return Packer.toBuffer(await buildSoWCompact(META, UNIT, LESSONS))
+}
+
+export async function generateFinalExplanationDocx(data: AresDataObject): Promise<Buffer | null> {
+  const { META, FINAL_EXPLANATION } = data
+  return FINAL_EXPLANATION ? Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION)) : null
+}
+
+export async function generateSummaryTableDocx(data: AresDataObject): Promise<Buffer | null> {
+  const { META, SUMMARY_TABLE } = data
+  return SUMMARY_TABLE ? Packer.toBuffer(await buildSummaryTable(META, SUMMARY_TABLE)) : null
+}
+
 export async function generateBundleDocx(data: AresDataObject): Promise<GeneratedDocx> {
-  const { META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE } = data
   return {
-    lessonSequence: await Packer.toBuffer(await buildSoWCompact(META, UNIT, LESSONS)),
-    finalExplanation: FINAL_EXPLANATION
-      ? await Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION))
-      : null,
-    summaryTable: SUMMARY_TABLE
-      ? await Packer.toBuffer(await buildSummaryTable(META, SUMMARY_TABLE))
-      : null,
+    lessonSequence: await generateLessonSequenceDocx(data),
+    finalExplanation: await generateFinalExplanationDocx(data),
+    summaryTable: await generateSummaryTableDocx(data),
+  }
+}
+
+/**
+ * Generate a SINGLE deliverable DOCX by tag — the editor "View as PDF" per-document path. Returns
+ * null for an absent FE/ST (the caller 404s), Buffer otherwise. Tag values match `DeliverableTag`
+ * (the export layer's union) by construction (`keyof GeneratedDocx`), kept decoupled so this module
+ * needs no import from the export/cache layer.
+ */
+export async function generateDeliverableDocx(
+  data: AresDataObject,
+  tag: keyof GeneratedDocx,
+): Promise<Buffer | null> {
+  switch (tag) {
+    case 'lessonSequence':
+      return generateLessonSequenceDocx(data)
+    case 'finalExplanation':
+      return generateFinalExplanationDocx(data)
+    case 'summaryTable':
+      return generateSummaryTableDocx(data)
+    default: {
+      // Unreachable for a `keyof GeneratedDocx` tag — the `never` assignment keeps this switch
+      // COMPILE-TIME exhaustive (a new tag would fail to type-check here), and the throw is runtime
+      // insurance against an untyped boundary passing a bad value.
+      const unknown: never = tag
+      throw new Error(`Unknown deliverable tag: ${String(unknown)}`)
+    }
   }
 }

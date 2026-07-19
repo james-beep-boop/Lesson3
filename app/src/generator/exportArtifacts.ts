@@ -80,11 +80,22 @@ export const safePrefix = (raw: unknown): string =>
 const keyFor = (spec: ArtifactSpec, doc: string): string =>
   artifactKey({ scope: spec.scope, kind: spec.kind, doc })
 
+/** Per-deliverable filename-stem suffix — the single owner of the export naming convention. */
+const STEM_SUFFIX: Record<DeliverableTag, string> = {
+  lessonSequence: 'CBE_LessonSequence',
+  finalExplanation: 'FinalExplanation',
+  summaryTable: 'SummaryTable',
+}
+
+/** One deliverable's download filename stem (no extension) from a safe filePrefix. */
+export const deliverableStem = (tag: DeliverableTag, prefix: string): string =>
+  `${prefix}_${STEM_SUFFIX[tag]}`
+
 /** Build the ordered deliverable list (tag + filename stem) from a filePrefix. */
 function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
-  const docs: DocMeta[] = [{ tag: 'lessonSequence', name: `${prefix}_CBE_LessonSequence` }]
-  if (docx.finalExplanation) docs.push({ tag: 'finalExplanation', name: `${prefix}_FinalExplanation` })
-  if (docx.summaryTable) docs.push({ tag: 'summaryTable', name: `${prefix}_SummaryTable` })
+  const docs: DocMeta[] = [{ tag: 'lessonSequence', name: deliverableStem('lessonSequence', prefix) }]
+  if (docx.finalExplanation) docs.push({ tag: 'finalExplanation', name: deliverableStem('finalExplanation', prefix) })
+  if (docx.summaryTable) docs.push({ tag: 'summaryTable', name: deliverableStem('summaryTable', prefix) })
   return docs
 }
 
