@@ -34,7 +34,7 @@ import { assertPreviewable, parsePreviewCandidate, renderPreviewResponse } from 
 import { parseDeliverableTag } from './parseFormat'
 import { findReadableVersion } from '../lib/readBundle'
 import { enforceUserRateLimit } from '../lib/rateLimit'
-import { acquireConversionSlot, releaseConversionSlot } from '../lib/conversionLimit'
+import { runWithConversionSlot } from '../lib/conversionLimit'
 import { isEditorFor, toId } from '../access'
 import { enforceVersionFieldSplit } from '../hooks/bundleVersion'
 import { bundleToAresData, versionDeliverables } from '../generator/adapter'
@@ -156,7 +156,7 @@ export const previewVersionUnsavedEndpoint: Endpoint = {
  *
  * THROTTLING (two layers, since this runs Gotenberg IN the request, unlike the async export path):
  *   - RATE: the dedicated `previewPdf` bucket (tighter than `export`).
- *   - CONCURRENCY: a non-blocking in-process slot (`acquireConversionSlot`) — a full slot table → 503,
+ *   - CONCURRENCY: the heavy work runs inside `runWithConversionSlot` — a full slot table → 503,
  *     so a burst can't pin many multi-second conversions and exhaust request slots.
  *
  * The SAVED-version path is not here: a stored version's formatted PDF is served by the existing
@@ -186,21 +186,18 @@ export const previewVersionPdfEndpoint: Endpoint = {
     }
 
     // Filename stem mirrors the export naming (single-sourced via `deliverableStem`) so the inline
-    // PDF's suggested name matches a downloaded copy of the same document. Computed BEFORE taking a
-    // slot so a throw here can't leak one (nothing between acquire and the try/finally).
+    // PDF's suggested name matches a downloaded copy of the same document.
     const stem = deliverableStem(tag, safePrefix(effective.meta?.filePrefix))
 
-    // Concurrency bound (see lib/conversionLimit): refuse rather than pile up when saturated.
-    if (!acquireConversionSlot()) {
-      throw new APIError('The PDF preview service is busy — please try again in a moment.', 503)
-    }
-
-    let pdf: Buffer
+    // Concurrency bound (lib/conversionLimit): the heavy build+convert runs inside a limited slot,
+    // released on completion or throw; `null` means every slot is busy → 503. Builds ONLY the
+    // requested deliverable (not all three). Presence was checked above, so `docx` is a Buffer here.
+    let pdf: Buffer | null
     try {
-      // Build ONLY the requested deliverable (not all three), then convert it.
-      const docx = await generateDeliverableDocx(bundleToAresData(effective), tag)
-      // Presence was checked above, so a non-primary tag resolves to a Buffer here.
-      pdf = await docxToPdf(docx as Buffer, `${stem}.docx`)
+      pdf = await runWithConversionSlot(async () => {
+        const docx = await generateDeliverableDocx(bundleToAresData(effective), tag)
+        return docxToPdf(docx as Buffer, `${stem}.docx`)
+      })
     } catch (err) {
       if (err instanceof PdfConversionError) {
         req.payload.logger.error({ err, docId: effective.id }, 'preview-pdf conversion failed')
@@ -209,8 +206,9 @@ export const previewVersionPdfEndpoint: Endpoint = {
       // Completeness already passed, so a throw here is a real generator failure, not a draft.
       req.payload.logger.error({ err, docId: effective.id }, 'preview-pdf render failed')
       throw new APIError('Could not render this preview.', 500)
-    } finally {
-      releaseConversionSlot()
+    }
+    if (pdf === null) {
+      throw new APIError('The PDF preview service is busy — please try again in a moment.', 503)
     }
 
     // A zero-copy view over the Buffer (it owns a dedicated ArrayBuffer from docxToPdf's

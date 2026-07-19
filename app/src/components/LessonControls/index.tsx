@@ -303,9 +303,10 @@ export default function LessonControls() {
       setPdfMenuOpen(false)
       return
     }
+    // `versionDeliverables` always includes the Lesson plan, so a length-1 result has tags[0] defined.
     const tags = versionDeliverables(currentContent() as never)
     if (tags.length <= 1) {
-      void onViewPdf(tags[0] ?? 'lessonSequence')
+      void onViewPdf(tags[0])
       return
     }
     setPdfMenuTags(tags)
