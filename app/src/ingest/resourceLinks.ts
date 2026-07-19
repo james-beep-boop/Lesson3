@@ -51,6 +51,9 @@ export interface StoredResourceLinkRow extends AresPhaseResources {
 export const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
+export const isResourcePhaseKey = (value: unknown): value is ResourcePhaseKey =>
+  RESOURCE_PHASE_KEYS.includes(value as ResourcePhaseKey)
+
 // The ingest safe-URL gate (boolean predicate). The generator bridge keeps a semantically identical
 // CommonJS copy (`safeHttpUrl` in generator/vendor/aresResources.js) as a render-time re-check —
 // the two must agree on what counts as a safe hyperlink; keep them in step.
@@ -92,10 +95,14 @@ function validateResourceRecord(value: unknown, path: string, problems: string[]
   }
 }
 
-const STORED_ROW_KEYS = ['id', 'phase', 'video', 'reading', 'fallback_search_url'] as const
+/** The stored row's allowed keys (`id` is Payload's row id). Pinned to the field definition in
+ *  `fields/lessonContent.ts` by `tests/unit/resourceRowDrift.spec.ts`. */
+export const STORED_ROW_KEYS = ['id', 'phase', 'video', 'reading', 'fallback_search_url'] as const
 
 /** Convert the definitive external map to Payload's five native child rows. Invalid non-object
  * input is returned unchanged so the shared generatable gate can report it during pre-flight. */
+export function aresResourceLinksToRows(value: AresResourceLinks): StoredResourceLinkRow[]
+export function aresResourceLinksToRows(value: unknown): unknown
 export function aresResourceLinksToRows(value: unknown): unknown {
   if (!isObject(value)) return value
   return RESOURCE_PHASE_KEYS.map((phase) => {
@@ -128,15 +135,15 @@ export function validateResourceLinks(value: unknown, path = 'resourceLinks'): s
       problems.push(`${rowPath}.${key}: unexpected phase resource field.`)
     }
     const phase = phaseValue.phase
-    if (!RESOURCE_PHASE_KEYS.includes(phase as ResourcePhaseKey)) {
+    if (!isResourcePhaseKey(phase)) {
       problems.push(`${rowPath}.phase: invalid resource phase ${JSON.stringify(phase)}.`)
       return
     }
-    if (seen.has(phase as ResourcePhaseKey)) {
+    if (seen.has(phase)) {
       problems.push(`${rowPath}.phase: duplicate resource phase ${JSON.stringify(phase)}.`)
       return
     }
-    seen.add(phase as ResourcePhaseKey)
+    seen.add(phase)
     const phasePath = `${path}.${phase}`
     validateResourceRecord(phaseValue.video, `${phasePath}.video`, problems)
     validateResourceRecord(phaseValue.reading, `${phasePath}.reading`, problems)
@@ -174,8 +181,8 @@ export function toAresResourceLinks(value: unknown): AresResourceLinks {
   }
   const rows = new Map<ResourcePhaseKey, Record<string, unknown>>()
   for (const item of value) {
-    if (!isObject(item) || !RESOURCE_PHASE_KEYS.includes(item.phase as ResourcePhaseKey)) continue
-    rows.set(item.phase as ResourcePhaseKey, item)
+    if (!isObject(item) || !isResourcePhaseKey(item.phase)) continue
+    rows.set(item.phase, item)
   }
   return Object.fromEntries(
     RESOURCE_PHASE_KEYS.map((phase) => {

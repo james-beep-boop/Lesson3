@@ -7,6 +7,7 @@ import {
   aresResourceLinksToRows,
   isSafeHttpUrl,
   toAresResourceLinks,
+  type AresResourceLinks,
   type StoredResourceLinkRow,
   validateResourceLinks,
 } from '../../src/ingest/resourceLinks'
@@ -30,7 +31,7 @@ const record = (suffix: string) => ({
   tier: 0,
 })
 
-const links = () =>
+const links = (): AresResourceLinks =>
   Object.fromEntries(
     RESOURCE_PHASE_KEYS.map((phase) => [
       phase,
@@ -40,9 +41,9 @@ const links = () =>
         fallback_search_url: `http://ares.local/fallback/${phase}`,
       },
     ]),
-  )
+  ) as AresResourceLinks
 
-const storedLinks = () => aresResourceLinksToRows(links()) as StoredResourceLinkRow[]
+const storedLinks = () => aresResourceLinksToRows(links())
 
 describe('definitive lesson resourceLinks contract', () => {
   it('accepts five native rows converted from the full ARES map', () => {
@@ -152,8 +153,8 @@ describe('pure-Node generator resource bridge', () => {
     const barrier = new Promise<void>((resolve) => (release = resolve))
     const first = links()
     const second = links()
-    first.predict.video.title = 'first build'
-    second.predict.video.title = 'second build'
+    first.predict.video!.title = 'first build'
+    second.predict.video!.title = 'second build'
 
     const a = withStoredResourceLinks([{ resourceLinks: first }], async () => {
       await barrier
