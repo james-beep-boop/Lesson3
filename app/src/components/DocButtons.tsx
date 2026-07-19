@@ -12,7 +12,7 @@
  */
 import React, { useState } from 'react'
 
-import { ensureExportReady } from './exportClient'
+import { ensureExportReady, openPreparedPdfInNewTab } from './exportClient'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 
 type Kind = 'docx' | 'pdf'
@@ -29,21 +29,11 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
     if (busy) return
     setBusy('pdf')
     setError(null)
-    // Synchronous open — inside the click handler, so popup blockers allow it.
-    const tab = window.open('', '_blank')
-    if (tab) {
-      tab.document.title = 'Preparing document…'
-      tab.document.body.textContent = 'Preparing document…'
-    }
     try {
-      await ensureExportReady(exportUrl('pdf'))
-      const href = docUrl('pdf')
-      if (tab) tab.location.href = href
-      else window.open(href, '_blank') // popup was blocked; retry now that no wait is needed
-      setBusy(null)
+      await openPreparedPdfInNewTab(exportUrl('pdf'), docUrl('pdf'))
     } catch (e) {
-      tab?.close()
       setError(e instanceof Error ? e.message : 'Could not open the PDF.')
+    } finally {
       setBusy(null)
     }
   }

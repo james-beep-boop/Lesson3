@@ -15,3 +15,11 @@ export const PRIMARY_DELIVERABLE: DeliverableTag = 'lessonSequence'
 
 export const secondaryDeliverables = (tags: DeliverableTag[]): DeliverableTag[] =>
   tags.filter((t) => t !== PRIMARY_DELIVERABLE)
+
+/** Human labels for each deliverable, shared by the lesson-page strip and the editor's PDF menu so
+ *  the two surfaces name the documents identically. */
+export const DELIVERABLE_LABELS: Record<DeliverableTag, string> = {
+  lessonSequence: 'Lesson plan',
+  finalExplanation: 'Final explanation',
+  summaryTable: 'Summary table',
+}

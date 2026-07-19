@@ -101,16 +101,26 @@ export const PREVIEW_HEADERS = {
  * incomplete draft (422, with the specific reasons) from an UNEXPECTED render failure (500);
  * `validateGeneratable` is the same completeness gate the publish/version hooks use.
  */
-export async function renderPreviewResponse(
-  req: PayloadRequest,
-  bundle: LessonBundleVersion,
-  unsaved: boolean,
-): Promise<Response> {
+/**
+ * The shared "can this be previewed yet?" gate: an EXPECTED incomplete draft → 422 with the specific
+ * reasons (distinct from an unexpected render failure). Shared by every preview verb (HTML + PDF) so
+ * they can't drift on the wording or the saved/unsaved phrasing. `validateGeneratable` is the same
+ * completeness gate the publish/version hooks use.
+ */
+export function assertPreviewable(bundle: LessonBundleVersion, unsaved: boolean): void {
   const problems = validateGeneratable(bundle)
   if (problems.length > 0) {
     const fix = unsaved ? 'fill in' : 'fill in and save'
     throw new APIError(`This lesson plan can’t be previewed yet — ${fix}: ${problems.join(' ')}`, 422)
   }
+}
+
+export async function renderPreviewResponse(
+  req: PayloadRequest,
+  bundle: LessonBundleVersion,
+  unsaved: boolean,
+): Promise<Response> {
+  assertPreviewable(bundle, unsaved)
 
   let sections: PreviewSection[]
   try {

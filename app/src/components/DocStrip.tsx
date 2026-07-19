@@ -16,18 +16,12 @@ import React from 'react'
 
 import DocButtons from './DocButtons'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
-import { secondaryDeliverables } from '@/generator/deliverables'
-
-const DOC_LABELS: Record<DeliverableTag, string> = {
-  lessonSequence: 'Lesson plan',
-  finalExplanation: 'Final explanation',
-  summaryTable: 'Summary table',
-}
+import { DELIVERABLE_LABELS, secondaryDeliverables } from '@/generator/deliverables'
 
 function StripItem({ versionId, tag }: { versionId: number; tag: DeliverableTag }) {
   return (
     <li className="doc-strip-item">
-      <span className="doc-strip-label">{DOC_LABELS[tag]}</span>
+      <span className="doc-strip-label">{DELIVERABLE_LABELS[tag]}</span>
       <DocButtons versionId={versionId} tag={tag} />
     </li>
   )

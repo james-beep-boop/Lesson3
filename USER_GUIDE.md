@@ -53,8 +53,9 @@ moves, sensemaking strategies, formative assessments, teacher reflections, summa
 Final Explanation prompts. They never edit a Word file directly.
 
 - **Edit from the lesson:** open a lesson in the library and press *Edit*. The editing page opens
-  ready to type, showing only the fields you may change; *← Back to lesson* returns you when you are
-  done.
+  ready to type, showing only the fields you may change. *Preview* gives a quick check of your
+  content and structure, while *View as PDF* shows the fully formatted document — both work on your
+  unsaved edits, before you save. *← Back to lesson* returns you when you are done.
 - **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
   version you opened is never changed in place. A Subject or Site Administrator marks a saved version
   Official when it is ready.

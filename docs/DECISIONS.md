@@ -11,6 +11,69 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-18 (latest) — editor "View as PDF" (accurate formatted preview)
+
+App-level, **no migration**. The version-editor toolbar had only **Preview** (mammoth HTML, styling
+dropped — a fast *structural* check). Added a **View as PDF** button next to it: the accurate, formatted
+rendering — the generator's own DOCX run through Gotenberg (`docxToPdf`), the same engine the export uses.
+Pre-agreed in the 2026-07-18 NEXT-SESSION "DISCUSSED, NOT BUILT" block.
+
+- **Scope = PER-DOCUMENT (revised after review — see below).** A `View as PDF ▾` menu lists the
+  deliverables the plan actually has (`versionDeliverables`: Lesson plan always; Final Explanation /
+  Summary Table when present); a plan with only one document shows a plain `View as PDF` button. The
+  endpoint takes a validated `?doc=<tag>`. (The first cut was PRIMARY-ONLY — chosen via a planning
+  question — but review rightly flagged that someone editing the Summary Table then got a Lesson Sequence
+  PDF; per-document is the fix. A merged full-document PDF was the considered alternative.)
+- **Two paths, branched on `useFormModified()`** (already used for the Save gate):
+  - **pristine → reuse the existing export pipeline.** `openPreparedPdfInNewTab` (shared with the
+    teacher-facing `DocButtons`) → `ensureExportReady(…/export?as=pdf)` then open
+    `…/export/doc?doc=<tag>&as=pdf` inline. Reuses the artifact cache + make-official pre-warm, so an
+    Official opens without re-converting.
+  - **unsaved → new `POST /:id/preview-pdf?doc=<tag>`** endpoint. The PDF twin of the unsaved HTML
+    preview: **identical authorization + field boundary** (shared `resolveUnsavedEffective` in
+    `previewVersion.ts` so the verbs can't drift — read-gate → `isEditorFor` → `enforceVersionFieldSplit`),
+    then `generateDeliverableDocx(data, tag)` → `docxToPdf` → inline PDF. Opened via the shared
+    `postCurrentContentToNewTab` (hidden-form POST to `_blank`, same mechanism as `onPreview`).
+    404 for a tag the plan lacks (checked via `versionDeliverables` BEFORE taking a conversion slot).
+- **Throttling — TWO layers (added after review).** The synchronous unsaved path runs Gotenberg IN the
+  request (unlike exports, which use the jobs queue's global cap). So: (1) RATE — a dedicated `previewPdf`
+  bucket, tighter than `export`; (2) CONCURRENCY — a non-blocking in-process semaphore
+  (`lib/conversionLimit.ts`, default 2, matching `jobs.limit`) that returns **503** when saturated, so a
+  burst can't pin many multi-second conversions and exhaust request slots. Single-container today =
+  effectively global; a cross-instance (Postgres) bound is a follow-up if the app ever scales out. The
+  client also gates re-clicks with `pdfBusy` on BOTH branches (the fire-and-forget POST branch uses a
+  short busy window; the server semaphore is the authoritative bound).
+- **Errors:** completeness gate → 422 (shared `assertPreviewable`); absent deliverable → 404; saturated →
+  503; `PdfConversionError` → 502; other post-validate throw → 500. Headers on the API `Response` directly
+  — the baseline security-header rule skips `/api/*` (`next.config.ts`), so no next.config change.
+- **Verified on the local stack** (Gotenberg live): per-`?doc` behaviour — `lessonSequence`/present FE/ST →
+  200 `application/pdf` (real `%PDF-1.7`, export-matching filename); missing/bogus `?doc` → 400; absent
+  deliverable → 404; Teacher → 404; structural change → 422. 6 concurrent → exactly 2×200 + 4×503 (the
+  cap holds). The dropdown lists exactly the present documents and each item requests the right `?doc`.
+  `tsc` clean; `test:unit` 190; **lint 0 errors** (30 `any` warnings, ALL in the HTTP test file, matching
+  its existing `(fx.version as any)` style — the new source files are warning-clean). http/e2e run in CI.
+  - **Test — proving unsaved edits reach the PDF WITHOUT a PDF-text dep:** Gotenberg output is
+    **nondeterministic** (identical input → same length, DIFFERENT bytes: a per-conversion timestamp), so a
+    byte-inequality check would be unsound. Instead the test asserts a large low-redundancy overlay yields a
+    materially larger PDF than a tiny one (verified locally: +4651 bytes for ~1200 distinct tokens) — a
+    timestamp-stable signal that the SUBMITTED content drives the output.
+  - **Browser-automation caveat:** a hidden-form POST with `target=_blank` degrades to a **top-frame GET**
+    when the pane blocks the popup — so `/preview-pdf` shows a GET 404 there. Confirmed it hits the *shipped*
+    Preview button identically (GET `/preview` → 200 only because it has a GET handler). Not a regression —
+    the POST path is proven by curl; real browsers submit the form.
+- **`/simplify` (4-agent) + review shared-helper extractions (behavior-preserving):**
+  `assertPreviewable` (→ `previewShared.ts`, one completeness-gate owner for HTML+PDF);
+  `generateLessonSequenceDocx` / `generateFinalExplanationDocx` / `generateSummaryTableDocx` +
+  `generateDeliverableDocx(data, tag)` (→ `generator/index.ts`, per-deliverable builds so the PDF path
+  builds ONLY the requested document; `generateBundleDocx` composes them);
+  `openPreparedPdfInNewTab` + `postCurrentContentToNewTab` (shared popup/POST helpers, dedup with
+  `DocButtons`/`onPreview`); `deliverableStem(tag, prefix)` + `DELIVERABLE_LABELS` (→ `exportArtifacts.ts`
+  / `deliverables.ts`, single-sourced naming + labels, `DocStrip` reuses the labels); `mimeFor('pdf')` and
+  a zero-copy `Uint8Array` response body.
+- **Not fixed here (pre-existing, unrelated to this diff, flagged in review):** the Site-Admin-notify HTTP
+  test assumes exactly one Site Admin (fails only against a populated non-isolated DB; passes in CI's
+  `lesson3_test`); and the ≤640px Manage vs frontend content-padding difference. Left for separate work.
+
 ## 2026-07-18 (later) — cross-surface consistency: shared design tokens, Manage aligned to the frontend, Messages header
 
 App-level UI consistency pass, **no migration**. Makes the Payload admin **Manage** view read as the same

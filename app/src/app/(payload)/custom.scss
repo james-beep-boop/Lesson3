@@ -685,6 +685,45 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
+// "View as PDF ▾" menu (shown when the plan has more than one deliverable) — a small disclosure
+// dropdown listing the present documents, styled to match the admin surface tokens.
+.lesson-controls__pdf {
+  position: relative;
+  display: inline-flex;
+}
+
+.lesson-controls__pdf-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  background: var(--theme-elevation-0);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.lesson-controls__pdf-item {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--theme-elevation-800);
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--theme-elevation-100);
+    color: var(--theme-elevation-1000);
+  }
+}
+
 .lesson-controls {
   display: flex;
   flex-wrap: wrap;

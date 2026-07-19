@@ -255,6 +255,90 @@ describe('Preview endpoint (SPEC §5)', () => {
   })
 })
 
+describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved preview, per-document PDF', () => {
+  const pdfUrl = (doc = 'lessonSequence') =>
+    `/api/lesson-bundle-versions/${fx.version.id}/preview-pdf?doc=${doc}`
+  // POST the given lessons overlay as an Editor; return the raw Response.
+  const postOverlay = (lessons: unknown, doc = 'lessonSequence') => {
+    const form = new FormData()
+    form.set('data', JSON.stringify({ lessons }))
+    return fetch(url(pdfUrl(doc)), { method: 'POST', headers: auth('editor'), body: form })
+  }
+
+  it('POST without auth → 401', async () => {
+    const res = await fetch(url(pdfUrl()), { method: 'POST', body: new FormData() })
+    expect(res.status).toBe(401)
+  })
+
+  it('Editor POST with a missing/invalid ?doc → 400', async () => {
+    const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/preview-pdf`), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: new FormData(),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('Teacher POST → 404 (EDIT-gated, not just read)', async () => {
+    const form = new FormData()
+    form.set('data', JSON.stringify({ lessons: (fx.version as any).lessons ?? [] }))
+    const res = await fetch(url(pdfUrl()), { method: 'POST', headers: auth('teacher'), body: form })
+    expect(res.status).toBe(404)
+  })
+
+  it('Editor POST for a deliverable the plan lacks (no Final Explanation) → 404', async () => {
+    const res = await postOverlay((fx.version as any).lessons ?? [], 'finalExplanation')
+    expect(res.status).toBe(404)
+  })
+
+  it('Editor POST with a STRUCTURAL change → 422 (field boundary)', async () => {
+    const lessons = [...((fx.version as any).lessons ?? [])]
+    lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
+    const res = await postOverlay(lessons)
+    expect(res.status).toBe(422)
+  })
+
+  it('Editor POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
+    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+      i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY` } : l,
+    )
+    const res = await postOverlay(lessons)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/pdf')
+    expect(res.headers.get('content-disposition')).toContain('inline')
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    expect(bytes.length).toBeGreaterThan(0)
+    // A real PDF starts with the %PDF- magic bytes — proves Gotenberg produced a document.
+    expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+  })
+
+  it('the UNSAVED edit actually reaches the PDF (more text in → a larger PDF)', async () => {
+    // The central promise: the endpoint renders the SUBMITTED working copy, not the stored version.
+    // Proven WITHOUT a PDF text-extraction dependency by comparing byte LENGTHS: a small overlay vs a
+    // large, low-redundancy overlay (distinct tokens resist compression). PDF metadata timestamps are
+    // length-stable, so a substantial text difference dominates the size — if the endpoint ignored the
+    // form both would be the same size. (A byte-inequality check would be unsound: LibreOffice may
+    // stamp a per-conversion CreationDate, so two PDFs can differ without any content difference.)
+    const overlay = (text: string) =>
+      ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+        i === 0 ? { ...l, overview: text } : l,
+      )
+    const bigText = Array.from({ length: 1200 }, (_, i) => `token${i}`).join(' ')
+    const [small, big] = await Promise.all([
+      postOverlay(overlay(`${MARK}x`)),
+      postOverlay(overlay(bigText)),
+    ])
+    expect(small.status).toBe(200)
+    expect(big.status).toBe(200)
+    const [sLen, bLen] = [
+      (await small.arrayBuffer()).byteLength,
+      (await big.arrayBuffer()).byteLength,
+    ]
+    // ~1200 distinct tokens (~8 KB of text) must enlarge the PDF well beyond any timestamp jitter.
+    expect(bLen).toBeGreaterThan(sLen + 2000)
+  })
+})
+
 describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate', () => {
   const exportUrl = () => `/api/lesson-bundle-versions/${fx.version.id}/export?as=docx`
 

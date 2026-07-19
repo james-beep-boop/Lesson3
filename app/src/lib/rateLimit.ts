@@ -46,6 +46,13 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_PREVIEW_MAX', 40),
     windowMs: positiveIntEnv('RATE_LIMIT_PREVIEW_WINDOW_MS', 60_000),
   },
+  // Synchronous unsaved "View as PDF" (editor): each call runs Gotenberg IN the request, so it is
+  // tighter than both `preview` (mammoth, cheap) and `export` (async via the jobs queue). Rate here,
+  // concurrency in `lib/conversionLimit.ts` — the two together bound the heavy synchronous path.
+  previewPdf: {
+    max: positiveIntEnv('RATE_LIMIT_PREVIEW_PDF_MAX', 10),
+    windowMs: positiveIntEnv('RATE_LIMIT_PREVIEW_PDF_WINDOW_MS', 60_000),
+  },
   // Email-a-doc (SPEC §10) sends OUTBOUND mail to arbitrary addresses on the user's behalf, so its
   // budget is a DAILY CAP, not a burst window: 10 sends per user per 24h fixed window by default.
   // Deliberately much tighter than export/preview — the cost being bounded is other people's
