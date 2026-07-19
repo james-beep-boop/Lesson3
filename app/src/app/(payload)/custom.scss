@@ -1,3 +1,8 @@
+// Shared design tokens (single source with the frontend — see ../app-tokens.scss). Gives this file
+// --app-page-title-size / --app-content-width / --app-content-pad / --app-accent so the Manage view
+// can't drift from the frontend pages. `@use` must lead the file.
+@use '../app-tokens';
+
 // Scale the whole admin up one comfortable step for legibility (Payload's default ~13px reads
 // small next to the 16px frontend). Override the rem root AND the body size: most of Payload's
 // layout is rem-relative to <html>, and its body text is a fixed size, so setting both scales text
@@ -11,8 +16,8 @@ body {
 // ---- Light reskin (design track D2, decision 2026-07-12): the editing surface carries the app's
 // visual identity — the app-blue accent on primary actions and the brand wordmark in the header —
 // via CSS variables and additive rules only, never restyled Payload components, so the pinned
-// Payload version can move without a re-theme. The app accent (#1f5fa8) is the frontend's
-// `--accent` token (src/app/(frontend)/styles.css); keep the two in sync by hand.
+// Payload version can move without a re-theme. The app accent is the shared `--app-accent` token
+// (src/app/app-tokens.scss), used by both this file and the frontend's `--accent` — one source, no hand-sync.
 // Contrast note (D6): the audited muted-text rules use elevation-600, never 500 — elevation-500 on
 // white is 3.95:1 and fails WCAG AA (4.5:1). (Darker text — elevation-700/800 — is used elsewhere
 // and is unaffected.)
@@ -24,7 +29,7 @@ body {
 // both admin themes (--color is pinned, not elevation-mapped, since the bg no longer flips).
 // Disabled: Payload's own light-gray/dark-text combo, restated so it wins the layer war too.
 .btn--style-primary {
-  --bg-color: #1f5fa8;
+  --bg-color: var(--app-accent);
   --hover-bg: #17497f;
   --color: #fff;
   --hover-color: #fff;
@@ -39,17 +44,25 @@ body {
 
 // Custom admin dashboard (src/components/AdminDashboard) — quiet, additive landing that replaces
 // Payload's redundant collection-card boxes. Scoped to .lp-admin-dash so nothing else in the admin
-// is re-themed. Type scale mirrors the public Lesson Plans page (22 / 18 / 16 / 14); colours use
+// is re-themed. Type scale mirrors the public Lesson Plans page (title via the shared
+// --app-page-title-size, then 18 / 16 / 14); colours use
 // Payload theme elevation variables so it follows light/dark mode.
 .lp-admin-dash {
-  max-width: 40rem;
-  // Centered settings-panel posture (D2): the narrow width is deliberate, but hugging the left
-  // edge of a wide viewport read as unfinished (critique 2026-07-12 §7).
+  // Match the frontend content column (shared --app-content-width) so Manage reads as the same app as
+  // the catalogue/lesson pages, centered on wide viewports (revised 2026-07-18 — the earlier narrower
+  // 40rem "settings-panel" width made this page feel like a different surface).
+  max-width: var(--app-content-width);
   margin-inline: auto;
+  // This element IS Payload's <Gutter>, which adds a larger `--gutter-h` inset than the frontend's
+  // .app-main (1.25rem). Override the horizontal padding to match so the two content columns line up
+  // exactly (unlayered → beats Gutter's `@layer payload-default` padding); shared pad token.
+  padding-inline: var(--app-content-pad);
 
   &__title {
-    font-size: 1.4rem;
-    font-weight: 600;
+    // Same size/weight as the frontend page titles (.lp-title / .lesson-heading h1), via the shared
+    // token — so "Manage" sits at the same level in the hierarchy as "Lesson Plans".
+    font-size: var(--app-page-title-size);
+    font-weight: 700;
     margin: 0 0 0.75rem;
     color: var(--theme-elevation-1000);
   }
@@ -111,13 +124,15 @@ body {
 
 // Manage page additions (src/components/AdminDashboard — the role-scoped functions page, IA
 // redesign 2026-07-01). Extends the .lp-admin-dash scale; interactive lists share one row idiom.
+// (Page width now comes from .lp-admin-dash == the shared --app-content-width; the former 46rem cap
+// here was overriding it and is dropped — descriptive text is capped per-element below instead.)
 .lp-manage {
-  max-width: 46rem;
-
   &__desc {
     font-size: 0.9rem;
     margin: 0.15rem 0 0.75rem;
     color: var(--theme-elevation-600);
+    // Keep prose to a readable measure even though the page column is now full-width.
+    max-width: 46rem;
   }
 
   .muted {
@@ -406,7 +421,7 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     height: 1rem;
     padding: 0 0.22rem;
     border-radius: 999px;
-    background: #1f5fa8; // matches the frontend --accent so the badge reads the same on both surfaces
+    background: var(--app-accent); // shared brand accent (app-tokens) — same on both surfaces
     color: #fff;
     font-size: 0.62rem;
     font-weight: 700;
@@ -465,7 +480,7 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     height: 1.1rem;
     padding: 0 0.3rem;
     border-radius: 999px;
-    background: #1f5fa8;
+    background: var(--app-accent);
     color: #fff;
     font-size: 0.68rem;
     font-weight: 700;
@@ -715,7 +730,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     background: none;
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
-    color: #1f5fa8; // app accent (D2) — AA on the toolbar background
+    color: var(--app-accent); // app accent (D2) — AA on the toolbar background
     font: inherit;
     font-size: 0.85rem;
     cursor: pointer;
@@ -745,8 +760,8 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
     &:hover,
     &:focus-visible {
-      border-color: #1f5fa8;
-      color: #1f5fa8;
+      border-color: var(--app-accent);
+      color: var(--app-accent);
     }
   }
 }

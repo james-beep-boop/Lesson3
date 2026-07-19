@@ -26,7 +26,36 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, later) — version edit-view cleanup + type hierarchy; MERGED (#102), app DEPLOY PENDING (NO migration)
+## ▶ RESUME HERE (2026-07-18, latest) — cross-surface consistency (shared tokens, Manage aligned, Messages header); app-level, NO migration
+
+**A UI consistency pass making the Payload admin Manage view read as the same app as the frontend, all
+app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-18 (later) — cross-surface consistency**.
+Two rounds of external review applied (a `/simplify` pass + a follow-up findings pass).
+
+**What changed:**
+1. **Shared design tokens** — new `app/src/app/app-tokens.scss` (single source: `--app-page-title-size`
+   [rem, scale-relative], `--app-content-width` 960px + `--app-content-pad` 20px [px, pixel-identical],
+   `--app-accent` #1f5fa8). Imported by the frontend layout AND `@use`d by `custom.scss`; the admin layout
+   is Payload-auto-generated so `custom.scss` is the only hook. Kills value drift between the two stylesheets.
+2. **Accent single-sourced** — six hardcoded `#1f5fa8` in `custom.scss` now use `var(--app-accent)`;
+   supersedes the old "keep in sync by hand" note (button contrast fix unchanged, value-identical).
+3. **Manage aligned to the frontend** — 960px column, title at `--app-page-title-size`, left edge matches
+   the catalogue (overrode Payload's `Gutter` pad → `--app-content-pad`; dropped a stale `.lp-manage`
+   46rem cap).
+4. **Back-link** removed on /messages (redundant + mislabeled); kept on the lesson page + `← Back to lesson`.
+5. **Messages header** — `New message` button inline with the "Messages" heading (`Composer.tsx`).
+
+**Verified:** `tsc` clean · `test:unit` **190** · sass compiles · both content columns measured
+pixel-identical (20px pad / 960px) · admin accent resolves (#1f5fa8, enabled primary = accent). **http/e2e
+run in CI** (can't run locally).
+
+**Status: UNCOMMITTED → opening a PR** (UI + shared-CSS infra + a component refactor; PR to run the full
+CI incl. e2e/build). NOT deployed. Stacks on the #102 batch below — one Rock deploy covers both, no migration.
+**Still deferred (next pickup):** Site-Admin avatar (accent-blue) + preview "View as PDF" — see the block below.
+
+---
+
+## ▶ Older resume (2026-07-18, later) — version edit-view cleanup + type hierarchy; MERGED (#102), app DEPLOY PENDING (NO migration)
 
 **A small polish batch, all app-level, NO migration — MERGED to `main` via PR #102 (squash `aa4dec9`;
 `main` now `f58f844`).** CI `gate` green (unit/int/**http**/**e2e**/`next build`), CodeRabbit pass. Also
@@ -43,8 +72,9 @@ field-strip). New int block pins it; the two superseded semver/sourceVersion fie
 2. **Delete promoted to an explicit red button** in `LessonControls` (view mode, deletable versions
 only; server re-gates). Native `.doc-controls__popup` kebab hidden — no three-dots menu remains.
 3. **Toolbar hairline spacing** — jump nav now clears the bottom divider (`.lesson-controls-wrap` padding).
-4. **Page-title hierarchy** — brand stays 1rem; the two page titles share `--page-title-size`
-(1.9rem/700); "Lesson plans" → "Lesson Plans".
+4. **Page-title hierarchy** — brand stays 1rem; the two page titles share `--app-page-title-size`
+(1.9rem/700; the token was renamed from `--page-title-size` in the later shared-tokens work below);
+"Lesson plans" → "Lesson Plans".
 
 **Review follow-ups (GPT pass, all applied — see DECISIONS):** (a) fixed a Delete-eligibility drift —
 client `canDelete` now uses `canDeleteVersionDoc` (per-doc form of `deletableVersionsWhere`, single

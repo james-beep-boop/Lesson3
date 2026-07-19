@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { AppNav } from '@/components/AppNav'
 
+import '../app-tokens.scss'
 import './styles.css'
 
 export const metadata = {

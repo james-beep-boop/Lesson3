@@ -49,85 +49,91 @@ export default function Composer({
     setBusy(false)
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="msg-compose-open"
-        // Clear any stale send-status note from the previous open (CodeRabbit on #89).
-        onClick={() => {
-          setNote(null)
-          setOpen(true)
-        }}
-      >
-        New message
-      </button>
-    )
-  }
-
   return (
-    <form className="msg-compose" onSubmit={onSubmit}>
-      <h2>Send a message</h2>
-      {about && (
-        <p className="msg-compose__about">
-          About: <strong>{about.title}</strong>{' '}
-          <a href="/messages" className="msg-compose__clear">
-            (clear)
-          </a>
-        </p>
-      )}
-      <label className="msg-compose__field">
-        To
-        <select
-          value={recipient}
-          onChange={(e) => setRecipient(e.target.value)}
-          required
-          disabled={busy}
-        >
-          <option value="" disabled>
-            Choose a recipient…
-          </option>
-          {roster.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-        {/* Who's eligible (D5): the roster is every repository account, names only (SPEC §8). */}
-        <span className="msg-compose__hint">
-          Anyone with a repository account — everyone is listed by name.
-        </span>
-      </label>
-      <label className="msg-compose__field">
-        Message
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={4}
-          maxLength={5000}
-          required
-          disabled={busy}
-          placeholder="Write a note…"
-        />
-      </label>
-      <div className="msg-compose__actions">
-        <button type="submit" className="msg-compose__send" disabled={busy || !recipient || !body.trim()}>
-          {busy ? 'Sending…' : 'Send'}
-        </button>
-        <button
-          type="button"
-          className="msg-compose__cancel"
-          disabled={busy}
-          onClick={() => setOpen(false)}
-        >
-          Close
-        </button>
-        {note && (
-          <span className={note.kind === 'error' ? 'msg-compose__error' : 'msg-compose__sent'} role="status">
-            {note.text}
-          </span>
+    <>
+      {/* Heading row: the page title with the New-message button INLINE (declutter 2026-07-18) — saves
+          the vertical gap of a stacked button. When compose is open the form renders below this row. */}
+      <div className="msg-head">
+        <h1 className="msg-title">Messages</h1>
+        {!open && (
+          <button
+            type="button"
+            className="msg-compose-open"
+            // Clear any stale send-status note from the previous open (CodeRabbit on #89).
+            onClick={() => {
+              setNote(null)
+              setOpen(true)
+            }}
+          >
+            New message
+          </button>
         )}
       </div>
-    </form>
+      {open && (
+        <form className="msg-compose" onSubmit={onSubmit}>
+          <h2>Send a message</h2>
+          {about && (
+            <p className="msg-compose__about">
+              About: <strong>{about.title}</strong>{' '}
+              <a href="/messages" className="msg-compose__clear">
+                (clear)
+              </a>
+            </p>
+          )}
+          <label className="msg-compose__field">
+            To
+            <select
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              required
+              disabled={busy}
+            >
+              <option value="" disabled>
+                Choose a recipient…
+              </option>
+              {roster.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            {/* Who's eligible (D5): the roster is every repository account, names only (SPEC §8). */}
+            <span className="msg-compose__hint">
+              Anyone with a repository account — everyone is listed by name.
+            </span>
+          </label>
+          <label className="msg-compose__field">
+            Message
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={4}
+              maxLength={5000}
+              required
+              disabled={busy}
+              placeholder="Write a note…"
+            />
+          </label>
+          <div className="msg-compose__actions">
+            <button type="submit" className="msg-compose__send" disabled={busy || !recipient || !body.trim()}>
+              {busy ? 'Sending…' : 'Send'}
+            </button>
+            <button
+              type="button"
+              className="msg-compose__cancel"
+              disabled={busy}
+              onClick={() => setOpen(false)}
+            >
+              Close
+            </button>
+            {note && (
+              <span className={note.kind === 'error' ? 'msg-compose__error' : 'msg-compose__sent'} role="status">
+                {note.text}
+              </span>
+            )}
+          </div>
+        </form>
+      )}
+    </>
   )
 }

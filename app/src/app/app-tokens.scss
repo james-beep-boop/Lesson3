@@ -1,0 +1,18 @@
+/*
+ * Shared design tokens — one source used by BOTH the frontend (`(frontend)/styles.css`, imported in
+ * that route group's layout) and the Payload admin custom views (`(payload)/custom.scss`, via `@use`),
+ * so the values below don't drift between the two surfaces.
+ *
+ * `px` values are pixel-identical on both surfaces. `rem` values are scale-relative: the admin uses a
+ * 15px rem root vs the frontend's 16px, so a `rem` token renders ~6% smaller in the admin ON PURPOSE
+ * (it stays proportional to the admin's own scale). Per-surface palettes stay native (frontend
+ * `--line`/`--muted`, admin `--theme-*`); only the brand accent is shared here.
+ */
+:root {
+  --app-page-title-size: 1.9rem; /* primary <h1> — scale-relative (see note above) */
+  --app-content-width: 960px; /* max content-column width — pixel-identical */
+  --app-content-pad: 20px; /* content-column horizontal padding — px (NOT rem) so the two columns'
+                              content edges align EXACTLY: 1.25rem would be 20px on the frontend but
+                              18.75px in the admin's 15px-root, a 1.25px drift that defeats the token. */
+  --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
+}
