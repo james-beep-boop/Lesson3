@@ -1,61 +1,58 @@
 # Vendored ARES generator — provenance
 
-These files are **copied byte-verbatim** from the ARES CBE generation system and
-**must not be edited**. All Lesson3-specific integration lives one level up in
-`app/src/generator/` (e.g. `index.ts`), never inside `vendor/`. Keeping these files
-identical to upstream is what makes re-syncing a future version a clean diff.
+The three files under `lib/` are copied byte-verbatim from the ARES CBE generation system and must
+not be edited locally. Lesson3 integration remains outside those files. The fidelity gates, not the
+commit label alone, are the acceptance proof for this pin.
 
-## Source
+## Current source pin
 
-- **Repo:** `markknit/cbe-generation-system` (mirrored on `james-beep-boop/cbe-generation-system`)
-- **Branch:** `claude/setup-cbe-generation-ZKiIi` (unmerged at time of vendoring)
-- **Pinned commit:** `529be408618e6748df5d666dd98d0bfbc6cc1032` (the branch tip as of 2026-06-08)
-- **Mirror tag (insurance against the bot branch being force-pushed/deleted):**
-  `lesson3-vendor-529be40` on `james-beep-boop/cbe-generation-system`
-- **Vendored:** 2026-06-08
-- **Note:** initially pinned at `212da91` (then-tip of a stale fork). Re-pinned to the real
-  branch tip `529be40`; the four intervening commits touched only docs/content/output DOCX —
-  the three vendored lib files are **byte-identical** at both commits (verified), so this
-  re-pin is provenance-only with no functional change. Earlier tag `lesson3-vendor-212da91`
-  also still points at the equivalent lib bytes.
+- **Repository:** `markknit/cbe-generation-system`
+- **Branch:** `main`
+- **Pinned commit:** `742c8a96637377abbec37af32073210b9f87465b`
+- **Vendored:** 2026-07-19
+- **Reason:** definitive ARES 1.0.0 JSON/resource-link cutover; this pin supplies the current
+  five-column Section C layout, inline resource rendering, and page-break behavior.
+- **Mirror tag:** none created for this local change. Create one only as a separately approved
+  upstream-repository operation.
 
-## Files (each byte-identical to the pinned commit)
+## Pristine files
 
-| Vendored path        | Upstream path                     |
-| -------------------- | --------------------------------- |
-| `lib/build_docs.js`  | `generators/lib/build_docs.js`    |
-| `lib/sections.js`    | `generators/lib/sections.js`      |
-| `lib/docx_kit.js`    | `generators/lib/docx_kit.js`      |
+| Lesson3 path | Upstream path | SHA-256 |
+| --- | --- | --- |
+| `lib/build_docs.js` | `generators/lib/build_docs.js` | `291d62483be608989a8256b428e8d5215dd4ad1d242e0d8a5bdfb428ed5061b1` |
+| `lib/sections.js` | `generators/lib/sections.js` | `5ceef695daeac38ffcfdccf545213544e28ec729b6e718be01634a3c9c210d03` |
+| `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `ba74ef7036a06f02a7b6966a90d53350d3f751aacd7adfe96851991f93d73679` |
 
-## Upstream `aresResources.js` NOT vendored — replaced by a Lesson3 shim
+## Lesson3-owned resource bridge
 
-`generators/aresResources.js` shells out to Python (`execSync('python3' …)`) against a
-SQLite DB to populate the Section-C **Resource column**. Lesson3 is **single-runtime
-(Node only)** and must **never invoke the Python recommender live** (SPEC §0 / CLAUDE.md),
-so the upstream file is **not vendored**.
+Upstream `generators/aresResources.js` invokes a Python recommender backed by SQLite. It is not
+vendored. A Lesson3-owned CommonJS module at `vendor/aresResources.js` occupies the fixed require
+location used by pristine `sections.js` and supplies the already-resolved `LESSONS[].resourceLinks`
+stored in Payload.
 
-`sections.js` `try`-requires `../aresResources` and, when it cannot resolve, falls back to
-emitting a `(ARES resources unavailable)` placeholder in every Resource cell. Rather than
-ship that placeholder in real exports, Lesson3 provides its **own pure-Node shim** at
-`vendor/aresResources.js` (the fixed require path, sibling of `lib/`) — `getAllPhaseResources
-→ {}`, `buildResourceParagraphs → [para('')]` — so the column **renders blank** while the
-table structure is preserved. This matches the DEFERRED-resources decision (see
-`docs/DECISIONS.md`), guarantees **zero Python**, and is deterministic.
+The bridge is pure Node and uses `AsyncLocalStorage` to isolate each build's lesson-resource queue.
+It reproduces upstream safe-input paragraph/link formatting, filters hyperlink targets to `http` and
+`https`, and never invokes Python, a subprocess, the recommender, or SQLite. Unlike the former blank
+shim, resource output is included in both semantic and package/XML fidelity checks.
 
-**`vendor/aresResources.js` is Lesson3-authored, NOT pristine vendored code** — it is the one
-file under `vendor/` that we own and may edit. `scripts/vendor-generator.sh` copies only the
-three `lib/` files, so the shim survives a generator re-pin untouched. The fidelity diff
-excludes the Resource column on both sides, so the shim does not affect the proof.
+`vendor/aresResources.js` and `vendor/package.json` are Lesson3-owned integration files. The latter
+marks the directory as CommonJS so the ESM application can load the pristine sources via
+`createRequire`.
 
-## `package.json` marker
+## Re-sync procedure
 
-`vendor/package.json` declares `{"type":"commonjs"}`. The vendored files are CommonJS,
-but the Lesson3 app is `"type":"module"` (ESM); without this marker Node would mis-parse
-the `.js` files as ESM. Lesson3 code imports the builders from ESM via `createRequire`.
+From the Lesson3 repository root:
 
-## Re-syncing a new upstream version
+```sh
+scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
+```
 
-Run `scripts/vendor-generator.sh <path-to-clone> <commit-sha>` from the repo root, then
-**re-run the fidelity regression** (`app/scripts/fidelity-spike.ts`). The regression diff
-— not a silent SHA bump — is the acceptance gate for adopting any new generator version.
-Update the pinned commit / date above and push a new mirror tag.
+Then update this record and run, from `app/`:
+
+```sh
+npx tsx scripts/fidelity-spike.ts
+npx tsx scripts/adapter-fidelity.ts
+```
+
+Also bump `GENERATOR_RENDER_VERSION` when output can change so cached DOCX, PDF, and HTML previews
+cannot serve bytes from the previous renderer.

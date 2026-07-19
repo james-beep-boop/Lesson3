@@ -83,6 +83,26 @@ const overlayRows = (
 }
 
 /**
+ * `resourceLinks` is system-owned for every authenticated role. Save-as-new creates through an
+ * overrideAccess server path after applying this split, so Payload field access is not sufficient:
+ * restore the stored map on existing lessons and discard a caller-supplied map on a new lesson.
+ * The latter then fails the generatable gate until a trusted ARES ingest supplies resources.
+ */
+export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void => {
+  if (!Array.isArray(data.lessons)) return
+  const originals = new Map<string | number | undefined, Doc>(
+    (originalDoc.lessons ?? []).map((lesson: Doc) => [lesson.id, lesson] as const),
+  )
+  data.lessons = data.lessons.map((lesson: Doc) => {
+    const out = { ...lesson }
+    const original = originals.get(lesson.id)
+    if (original) out.resourceLinks = original.resourceLinks
+    else delete out.resourceLinks
+    return out
+  })
+}
+
+/**
  * Apply the Editor whitelist to `data` (an UPDATE candidate), parameterised by the top-level keys an
  * Editor may influence on this collection. Mutates and returns `data`. Caller is responsible for any
  * numbering/versioning that should run for ALL users (kept out of here).
@@ -101,6 +121,7 @@ export const applyEditorFieldSplit = ({
   editorTopLevelKeys: Set<string>
 }): Doc | undefined => {
   if (operation !== 'update' || !originalDoc || !data) return data
+  if (req.user) preserveLessonResourceLinks(data, originalDoc)
   // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
   // the subject-grade the document actually belongs to, never one the submission claims — a caller
   // who is Subject Admin elsewhere must not be able to name THAT grade and bypass the whitelist.
@@ -108,7 +129,8 @@ export const applyEditorFieldSplit = ({
   // update-only path `originalDoc.subjectGrade` is required data and always present.)
   const subjectGradeId = toId((originalDoc.subjectGrade ?? data.subjectGrade) as never)
   // Site Admins (and trusted system / overrideAccess calls — a missing user; unauthenticated
-  // updates are denied at collection access) are unrestricted.
+  // updates are denied at collection access) are unrestricted apart from the system-owned
+  // resourceLinks preservation already applied above.
   if (!req.user || isSiteAdmin(req.user as User)) return data
   // Subject Admins are unrestricted EXCEPT the META identity fields (META_IDENTITY_KEYS —
   // Site-Admin-only repair data, decided 2026-07-05): those are restored from the stored doc, the

@@ -14,7 +14,7 @@ import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
-import { MARK, MARK_BASE, enqueuedKindsFor, purgeMarked } from '../helpers/fixtures.js'
+import { MARK, MARK_BASE, enqueuedKindsFor, minimalResourceLinks, purgeMarked } from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
@@ -27,7 +27,7 @@ const GRADE = 97 // a grade this suite owns, distinct from the shared fixture's 
  * pre-flight before the re-ingest logic runs. UNIT/FINAL_EXPLANATION/SUMMARY_TABLE are `null` (the
  * contract's "intentionally absent" signal) to keep the fixture small while conforming; the
  * always-required LessonSequence carries the full LESSONS shape (number, duration, slo, framework,
- * summaryTablePrompt).
+ * summaryTablePrompt, resourceLinks).
  */
 function rawBundle(substrandId: string, titleDoc: string): Record<string, unknown> {
   return {
@@ -56,6 +56,7 @@ function rawBundle(substrandId: string, titleDoc: string): Record<string, unknow
           },
         ],
         summaryTablePrompt: { observed: 'o', learned: 'l', explained: 'e' },
+        resourceLinks: minimalResourceLinks(),
       },
     ],
     FINAL_EXPLANATION: null,

@@ -8,6 +8,41 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## BUILT + LOCALLY VERIFIED 2026-07-19 — definitive ARES JSON 1.0.0 resource-link cutover (deploy pending)
+
+The old Lesson3 lesson corpus has been permanently deleted and will be replaced by the current ARES
+JSON exports. The clean cutover is now implemented locally; Rock migration/deployment and replacement
+corpus upload remain pending.
+
+- `schemaVersion: "1.0.0"` is intentionally re-baselined as the only supported contract; this is a
+  clean cutover, not a backward-compatible extension. Old files without resource data will be rejected.
+- Every lesson must carry strict lesson-level `resourceLinks` for the five ARES phase buckets. Lesson3
+  stores the complete upstream metadata as system-only native Payload fields and does not run the
+  Python/SQLite recommender.
+- The one LessonSequence layout remains a five-column table with resources inline beneath the phase
+  name—never a separate Resource column and never a user-facing standard/compact choice.
+- Implemented the strict contract, native system-only Payload fields, preservation boundary, lossless
+  adapter, clean migration retiring `framework[].resources`, current generator re-pin, pure-Node
+  stored-resource bridge, and explicit render-cache revision.
+- Added corpus and DOCX gates. Local results: 42/42 files (384 lessons) conform and round-trip;
+  contract 16/16; extraction 25/25; unit 197; TypeScript clean; current DOCX oracle 4/4; adapter/oracle
+  6/6; lint 0 errors; production audit 0 high/critical (5 moderate transitive `esbuild`, no fix).
+  Resource text, five-column widths, striping, page breaks, and 140 hyperlink targets are checked.
+
+**Claude review + `/simplify` + follow-up fixes (2026-07-19, after the Codex build):** a full code audit
+(correctness/contract, security/RBAC/migration, fidelity/generator) found no P1/P2 defects; a 4-agent
+`/simplify` pass applied behaviour-preserving cleanups (single-sourced key lists + `isObject`, a
+named-path guard, a shared `scripts/lib/payloadRowIds.ts`). Two follow-up fixes from a further review:
+(1) the migration `down()` now refuses rollback on a non-empty corpus (the legacy schema can't preserve
+`resourceLinks`, so a blind rollback would destroy data) — SQL guard only, snapshot JSON unchanged;
+(2) `getAllPhaseResources` now throws on an over-read so a "called twice" vendor drift fails loudly
+instead of returning blank resources, with unit regressions added. Local DB-less gates re-run green: lint
+0 errors, `tsc` clean, unit 199, contract 16/16, ingest-extract 25/25, fidelity-spike 4/4, adapter-fidelity
+6/6, `git diff --check` clean. DB-dependent (int/http/e2e), migration apply, and corpus upload were NOT run.
+
+**Status:** code and migration generated locally, not committed, pushed, deployed, or applied. Rock
+preflight and DB-dependent gates must pass before uploading the replacement corpus.
+
 ## SHIPPED + DEPLOYED + VERIFIED 2026-06-25 (Stage 2b finish + Stage 3 retire `lesson-bundles`)
 
 Cutover complete. Code `d1bb614`; Rock-generated types + drop migration `1959daf`. Rock-verified

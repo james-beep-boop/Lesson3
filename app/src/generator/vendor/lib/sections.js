@@ -140,7 +140,13 @@ function sectionC(lesson, config = {}) {
   const col3Label = config.col3Label || 'Teacher Moves';
   const col5Label = config.col5Label || 'Formative Assessment Strategy';
 
-  const cw = [900, 2300, 2556, 3324, 2300, 2300];
+  // 5-column layout (DXA, sums to W = 13680):
+  //   [0] Phase + ARES resources stacked beneath the phase label  — 1.056" (~half a content col)
+  //   [1] Learner Experience                                      — 2.111"
+  //   [2] Teacher Moves (col3Label)                               — 2.111"
+  //   [3] Sensemaking Strategy                                    — 2.111"
+  //   [4] Formative Assessment Strategy (col5Label)               — 2.111"
+  const cw = [1520, 3040, 3040, 3040, 3040];
 
   const aresTopic = lesson.aresKeywords || lesson.title || '';
   const aresRes   = getAllPhaseResources({
@@ -149,6 +155,7 @@ function sectionC(lesson, config = {}) {
     subject,
   });
 
+  lesson.resourceLinks = aresRes;   // Added 2026-07: makes resource links reach the JSON export
   const PHASE_KEY = {
     'Predict Phase':                          'predict',
     'Observe Phase':                          'observe',
@@ -157,25 +164,29 @@ function sectionC(lesson, config = {}) {
     'Model Building Phase':                   'model',
   };
 
+  // Build the Phase cell: phase label on top, then resource links stacked below.
+  const phaseCell = (ph) => {
+    const out = [para(ph.phase, { bold: true, size: SZ, after: 40 })];
+    const resPara = buildResourceParagraphs(aresRes[PHASE_KEY[ph.phase] || 'observe'], ph.phase);
+    return out.concat(resPara);
+  };
+
   return makeTable([
-    fullHeader('C. LESSON IMPLEMENTATION FRAMEWORK', C.teal, 'FFFFFF', SZ_H, 6),
+    fullHeader('C. LESSON IMPLEMENTATION FRAMEWORK', C.teal, 'FFFFFF', SZ_H, 5),
     new TableRow({ children: [
-      cell('Phase',         { fill: C.darkBlue, bold: true, color: 'FFFFFF', w: cw[0], size: SZ }),
-      cell('Learner Experience', { fill: C.medBlue, bold: true, color: 'FFFFFF', w: cw[1], size: SZ }),
-      cell('Resource',      { fill: C.teal,    bold: true, color: 'FFFFFF', w: cw[2], size: SZ }),
-      cell(col3Label,       { fill: C.medBlue, bold: true, color: 'FFFFFF', w: cw[3], size: SZ }),
-      cell('Sensemaking Strategy', { fill: C.teal, bold: true, color: 'FFFFFF', w: cw[4], size: SZ }),
-      cell(col5Label,       { fill: C.medBlue, bold: true, color: 'FFFFFF', w: cw[5], size: SZ }),
+      cell('Phase',                { fill: C.darkBlue, bold: true, color: 'FFFFFF', w: cw[0], size: SZ }),
+      cell('Learner Experience',   { fill: C.medBlue,  bold: true, color: 'FFFFFF', w: cw[1], size: SZ }),
+      cell(col3Label,              { fill: C.medBlue,  bold: true, color: 'FFFFFF', w: cw[2], size: SZ }),
+      cell('Sensemaking Strategy', { fill: C.teal,     bold: true, color: 'FFFFFF', w: cw[3], size: SZ }),
+      cell(col5Label,              { fill: C.medBlue,  bold: true, color: 'FFFFFF', w: cw[4], size: SZ }),
     ]}),
     ...lesson.framework.map(ph => new TableRow({ children: [
-      cell(ph.phase,
-           { fill: PHASE_COLOUR[ph.phase] || C.grey, bold: true, w: cw[0], size: SZ }),
+      cell(phaseCell(ph),
+           { fill: PHASE_COLOUR[ph.phase] || C.grey, w: cw[0] }),
       cell(ph.learnerExperience,    { fill: C.white, w: cw[1], size: SZ }),
-      cell(buildResourceParagraphs(aresRes[PHASE_KEY[ph.phase] || 'observe'], ph.phase),
-           { fill: C.grey, w: cw[2] }),
-      cell(ph.teacherMoves,         { fill: C.white, w: cw[3], size: SZ }),
-      cell(ph.sensemakingStrategy,  { fill: C.grey,  w: cw[4], size: SZ }),
-      cell(ph.formativeAssessment,  { fill: C.white, w: cw[5], size: SZ }),
+      cell(ph.teacherMoves,         { fill: C.grey,  w: cw[2], size: SZ }),
+      cell(ph.sensemakingStrategy,  { fill: C.white, w: cw[3], size: SZ }),
+      cell(ph.formativeAssessment,  { fill: C.grey,  w: cw[4], size: SZ }),
     ]})),
   ], cw);
 }

@@ -33,7 +33,7 @@ This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 
 
 - **Edit the data, never the document.** DOCX/PDF are regenerated build artifacts; there is no Word round-trip.
 - **Content is structured JSON** (the sub-strand bundle: `META, UNIT, LESSONS[], FINAL_EXPLANATION, SUMMARY_TABLE`). Model it as **native Payload nested fields**, not a JSON blob.
-- **The editor's grammar must stay a subset of the generator's input grammar.** Prose fields are plain strings: `\n` = paragraph; a leading `- ` = bullet; **no inline markup**. `framework[].phase` is a controlled dropdown. The Resource column is auto-generated and never editable.
+- **The editor's grammar must stay a subset of the generator's input grammar.** Prose fields are plain strings: `\n` = paragraph; a leading `- ` = bullet; **no inline markup**. `framework[].phase` is a controlled dropdown. Required lesson-level `resourceLinks` are resolved upstream, stored losslessly as system-only fields, and rendered inline beneath the phase label; they are never editable, and Lesson3 never runs the Python recommender.
 - **Versioning:** whole-bundle immutable snapshots; first ingested = `1.0.0`; default bump = patch; one official version per bundle.
 - **Ingest extracts `.js` → JSON. Never `require()`/execute an uploaded `.js`** (RCE risk).
 - **Field-level permissions:** Editor = prose values; Subject Admin = `META`/`aresKeywords`/`phase`/structure/answer-keys; see `SPEC.md` §5.

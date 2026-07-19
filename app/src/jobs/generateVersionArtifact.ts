@@ -4,8 +4,9 @@
  * Same async/throttled contract (a cold export ENQUEUES this and returns 202; the in-process
  * `autoRun` runner picks it up, bounded by the queue `limit`), but keyed on an immutable
  * `lesson-bundle-version` instead of a legacy bundle + lockVersion. Because a version never
- * changes, its cache scope (`version:<id>`) needs no cache-buster, so there is no stale-key
- * drift to reason about (unlike the bundle job). The job writes artifacts + manifest into the
+ * changes, the cache scope includes the explicit renderer revision
+ * (`render:<generatorVersion>:version:<id>`), so a generator re-pin invalidates old artifacts.
+ * The job writes artifacts + manifest into the
  * cache; the status poll and warm path then serve them. Output carries nothing (bytes live only
  * in the cache, never the DB).
  *

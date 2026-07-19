@@ -71,15 +71,20 @@ Sub-strand bundle
 │   ├── number, title, duration, substrand, aresKeywords
 │   ├── slo { purpose, knowledge, skills, attitudes, keyInquiry, purposeInStoryline, safetyNotes }
 │   ├── overview
+│   ├── resourceLinks    # required map: predict / observe / explain / dqb / model
+│   │   └── each { video, reading, fallback_search_url }
 │   ├── framework[]      # ordered instructional phases (Predict / Observe / Explain / DQB / Model Building …)
-│   │   └── { phase, learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment, resources? }
+│   │   └── { phase, learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment }
 │   ├── teacherReflection
 │   └── summaryTablePrompt { observed, learned, explained }
 ├── FINAL_EXPLANATION    # { subjectLabel, instructions, sections[{title, prompt, exemplar}], rubric[] }
 └── SUMMARY_TABLE        # { subStrand, drivingQuestion, lessons[{number, title, observed, learned, explained}] }
 ```
 
-Authoritative schema: `cbe-generation-system/generators/data/SCHEMA.md` (see `docs/EXTERNAL-DEPENDENCIES.md`).
+Authoritative Lesson3 upload schema: `app/src/ingest/ares-contract.schema.json`, aligned to the
+current generated ARES JSON artifacts (see `docs/EXTERNAL-DEPENDENCIES.md`). Upstream's prose schema
+is useful provenance, but it is not the enforceable downstream contract when it differs from emitted
+JSON.
 
 **Generates up to three documents per bundle:** `*_CBE_LessonSequence.docx`, `*_FinalExplanation.docx`, `*_SummaryTable.docx` (plus PDF). All regenerate from the one bundle.
 
@@ -87,15 +92,30 @@ Authoritative schema: `cbe-generation-system/generators/data/SCHEMA.md` (see `do
 
 ### Modeling rules
 - Model the bundle as **native Payload nested fields** (groups/arrays), **not a JSON blob** — native fields are what unlock free per-field validation, field-level access control, and versioning. A blob forfeits the reuse Payload is chosen for.
-- **Canonical storage format is JSON.** The ARES `.js` data modules are CommonJS code; ingest must **extract them to JSON**.
+- **Canonical production interchange and storage format is JSON.** ARES `.js` data modules are
+  authoring inputs, not complete Lesson3 uploads unless they already contain the same mandatory 1.0.0
+  fields. Any supported development extraction path must still produce and validate the complete JSON
+  contract; uploaded code is never executed.
 - **`summaryTablePrompt` (in `LESSONS`) and `SUMMARY_TABLE.lessons` are distinct content** serving different documents — not duplicates. Both are edited; label each by the document it feeds.
 
-### Resource column (optional; resolved at ingest, not generation)
-The LessonSequence's per-phase **Resource column** is *not* in the ARES data file. Upstream it is produced at DOCX-build time by a **Python recommender** (`src/ares_recommender.py`) querying a **SQLite content index** (`data/ares_index/ares_content.db`) — i.e. it needs Python + a large DB, not just Node. See `docs/EXTERNAL-DEPENDENCIES.md`.
+### ARES resource links (mandatory lesson data; resolved upstream)
 
-Decision:
-- **Resolve resources once, at ingest** (run the recommender), and **store the result in the bundle** as `framework[].resources` (`{ video, reading }` with `title`/`direct_url`/`search_url`). Generation then reads stored data only — **pure Node, byte-stable, versioned**. The heavy Python + SQLite are needed only where ingest runs (a one-off/batch step, possibly upstream on the ARES side), never in the live app.
-- **The resource column is OPTIONAL and currently DEFERRED** (decided 2026-06-08; the Python recommender is out of scope — not live and not at ingest — see `docs/DECISIONS.md`). There is a real chance we generate these documents *without* it. The model, generator integration, and templates must work **with or without** `framework[].resources` present. Do not make any code path assume resources exist. The optional `framework[].resources` field is retained as the future seam (links would be sourced from ARES-produced documents, not the live recommender).
+The definitive 1.0.0 JSON contract includes **`LESSONS[].resourceLinks`**. It is required for every
+lesson and has exactly five buckets: `predict`, `observe`, `explain`, `dqb`, and `model`. Each bucket
+contains `video`, `reading`, and `fallback_search_url`; a video/reading value is either a complete
+resource record or `null` when ARES found no recommendation. A resource record preserves ARES's full
+metadata: `title`, `source`, `content_type`, `direct_url`, `search_url`, `search_terms`,
+`exact_search_url`, `has_transcript`, and `tier`.
+
+ARES resolves these links before it writes the downstream JSON artifact. Lesson3 **does not run** the
+Python recommender or its SQLite index at upload or render time. It strictly validates the supplied
+map, stores it losslessly as system-only native Payload fields on each immutable version, and renders
+the stored links. Only `http` and `https` URL schemes may become document hyperlinks.
+
+The lesson-level map must not be normalized into `framework[]`: framework phase rows may repeat or omit
+a canonical phase, while `resourceLinks` still carries all five buckets. The former optional
+`framework[].resources` seam and separate Resource-column plan are retired by the clean-slate 2026-07-19
+cutover.
 
 ---
 
@@ -107,7 +127,9 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
 - `\n` → a new paragraph.
 - A line beginning with **`- ` or `• `** → a bullet (the generator adds its own marker).
 - **No inline markup** is parsed (`**bold**`, `*italic*`, `>`, `#` render literally). All styling, tables, colours, and numbering are applied by the generator, never from content.
-- The **Resource column** (LessonSequence, Section C) is **resolved at ingest and stored** in `framework[].resources` (see §3); generation reads that stored data — it does **not** call Python/SQLite live, and the column is **never user-editable**. It is **optional** (may be omitted entirely — currently deferred, see §3 and `docs/DECISIONS.md`); the generator must render correctly when it is absent.
+- The required lesson-level **ARES resource links** are read from stored `resourceLinks` (see §3) and
+  rendered beneath the phase label inside Section C's first cell. There is no separate Resource column,
+  no live Python/SQLite lookup, and no user-editable resource field.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
 
 Because `generateOne()` is deterministic on the stored strings, **regeneration is byte-stable** — store the field strings, and the document reproduces exactly. Integrate the generator via a Payload hook/endpoint; refactor ARES's `generateOne()` to accept a data object instead of a file on disk.
@@ -130,7 +152,7 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - **Editor (teacher):** prose values — `slo.*`, `overview`, `framework[].{learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment}`, `teacherReflection`, `summaryTablePrompt.*`, `SUMMARY_TABLE.lessons[].{observed, learned, explained}`, lesson `title`, `FINAL_EXPLANATION.instructions`, `sections[].prompt`.
 - **Subject Admin only:** `META.*` (except the identity fields below), `aresKeywords`, `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
-- **System (never editable):** the auto-generated Resource column; `LESSONS[].number` (set by order).
+- **System (never editable):** `LESSONS[].resourceLinks`; `LESSONS[].number` (set by order).
 
 ---
 
@@ -147,15 +169,21 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 ## 7. Upload / import
 
-- Accept ARES output and create the first version as **1.0.0 Official**.
+- Accept only the definitive ARES JSON contract and create the first version as **1.0.0 Official**.
+- **Clean contract cutover (2026-07-19):** `schemaVersion: "1.0.0"` is intentionally re-baselined to
+  the new mandatory-`resourceLinks` shape because the old Lesson3 corpus was permanently deleted before
+  replacement. There is no legacy compatibility mode or backfill: a former 1.0.0 file without
+  `LESSONS[].resourceLinks` fails pre-flight. Any later contract change after this baseline is live must
+  receive a new schema version.
 - **Two entry points, both trusted:** (1) a **dev-only CLI** (`app/scripts/ingest.ts`, `payload run`) accepting `.js` and `.json`; and (2) a **Site-Administrator-only web upload** (`POST /api/lesson-plans/upload`, `.json` only) — a Lesson3-owned collection endpoint + a self-hiding list-view panel. **Still never teacher-facing.** *(DEVIATION 2026-06-13 from the original "never an HTTP/upload surface" rule — see `docs/DECISIONS.md`. It is now safe because uploads are never executed: `.json` → `JSON.parse`; `.js` stays CLI-only. The web surface is JSON-only to keep the attack surface minimal. Authorization is enforced server-side in the endpoint (`isSiteAdmin`), not just by hiding the button.)*
 - **Extract `.js`/`.json` data to canonical JSON. Never `require()`/execute an uploaded `.js`** (arbitrary code execution). ARES's `extract_generator_data.py` is the model for safe extraction. The `.js` path (`app/src/ingest/extract.ts` → `extractAresData`) is a static **`acorn` AST parse that evaluates ONLY pure data literals** — strings/numbers/booleans/null/arrays/objects, plus **constant folding of `+` string concatenation** (the ARES `'a\n' + 'b\n'` multi-line-prose pattern; operands are themselves evaluated as literals, so nothing dynamic slips in) — and **rejects** anything executable or dynamic (a call, identifier reference, member access, non-`+` operator, template-with-expression, spread, getter, `__proto__` key). No `require`/`vm`/`eval`/`Function`. The `.json` path (`extractAresJson`) is `JSON.parse` (no execution surface) with matching structural guards (non-object root, recursive `__proto__` rejection, required groups). Both share the same downstream pipeline. Highest-risk surface → security-reviewed (re-review the web upload before exposing it).
 - **Resolve `subjectGrade` by EXACT `(META.subject, META.grade)` match;** missing taxonomy is a hard, actionable failure. Upload/import never auto-creates Subjects/SubjectGrades (keeps that curated junction list clean). Seed taxonomy before uploading/importing.
 - Create the Lesson Plan and version snapshot via Payload's Local API **in one all-or-nothing transaction**; bulk import supported (point at a file or directory). A read-only **pre-flight** validates+resolves every file first and reports all problems before any write.
 - **Upload/import creates version 1.0.0 as Official.** Later edits create additional Not Official versions by default. Site Admins and matching Subject Admins can make any retained version Official; doing so only moves the official pointer and does not duplicate content.
 - **Re-ingest of an existing sub-strand (decided 2026-07-04, refined 2026-07-05; implemented — `app/src/ingest/index.ts`).** An upload whose **`(subjectGrade, META.substrand_id)`** matches an existing lesson plan attaches to that SAME plan as the **next MAJOR version** (a 1.x plan gets `2.0.0`, a 2.x plan gets `3.0.0`), arriving **Not Official**. It is a candidate for review: a Subject/Site Admin promotes it via **Make Official** when ready, so a re-upload never silently supersedes the live Official content, and the library keeps showing the current Official until promotion. All prior versions are retained (never overwritten); the plan `title` is **not** refreshed on re-ingest (it mirrors the Official content, which is unchanged until promotion). Pre-flight fails (actionably, all-or-nothing) when the key matches **more than one** existing plan (legacy duplicates — resolve first) or when **two files in one batch** target the same key. An **empty `META.substrand_id`** can't be matched, so it always creates a new plan.
-- **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo` and `summaryTablePrompt` groups and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
-- **Resource resolution (optional, §3):** if the resource column is enabled, run the ARES recommender (Python + `ares_content.db`) **once at ingest** and store the resolved `framework[].resources` in the bundle. Generation never calls Python/SQLite live. If the column is disabled (DEFERRED — see §3/`docs/DECISIONS.md`), skip this step; ingest carries `framework[].resources` through if present, else omits it.
+- **Validate against the schema on upload/import, plus a generator-completeness gate (same rules as §5).** Schema-required fields are not sufficient — the generator dereferences groups the schema leaves optional. `validateGeneratable` (`app/src/ingest/validateGeneratable.ts`) requires: `META` present; each lesson has `slo`, `summaryTablePrompt`, a complete and valid `resourceLinks` map, and ≥1 framework phase; every `framework[].phase` ∈ the controlled vocabulary. Enforced before any version is saved; export then trusts validated-in data.
+- **Resource handling (§3):** validate and store the already-resolved `LESSONS[].resourceLinks` exactly;
+  do not run the recommender, infer missing buckets, or silently drop unknown/malformed resource fields.
 
 ---
 
@@ -197,7 +225,7 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 ## 9. Generation, export & sharing
 
 - Export any version, Official or Not Official, as **DOCX** (all three documents) and **PDF**, via the embedded generator.
-- Print, save-as-PDF/DOCX, and email-as-attachment are in scope. **PDF, email-out, and message links/attachments are confirmed in scope** (see §10): a lesson artifact is referenced by **(version, document, kind)** where `kind` is `docx | pdf` — a stable, access-gated, version-pinned URL (generation is content-stable, so it resolves deterministically). There is a **single document layout** (the earlier standard/compact "layout"/`format` axis was removed 2026-07-03 — one five-column framework table, no separate Resource column); only the deliverable `kind` varies. Email attaches freshly-generated bytes; messages link the URL. Persisting/caching artifacts is a later optimization, not required first (generate-on-demand behind stable URLs avoids reintroducing a media/storage layer).
+- Print, save-as-PDF/DOCX, and email-as-attachment are in scope. **PDF, email-out, and message links/attachments are confirmed in scope** (see §10): a lesson artifact is referenced by **(version, document, kind)** where `kind` is `docx | pdf` — a stable, access-gated, version-pinned URL (generation is content-stable, so it resolves deterministically). There is a **single document layout** (the earlier standard/compact "layout"/`format` axis was removed 2026-07-03): one five-column framework table, no separate Resource column, with the stored ARES video/reading links rendered inline beneath the phase label. Only the deliverable `kind` varies. Email attaches freshly-generated bytes; messages link the URL. Persisting/caching artifacts is a later optimization, not required first (generate-on-demand behind stable URLs avoids reintroducing a media/storage layer).
 - **PDF = convert the generated DOCX, never a parallel renderer** (one source of layout truth — the same rule that limits the mammoth view to a *content* preview). A semantic converter (Pandoc, HTML→PDF) reinterprets layout and would not match the approved DOCX, so it is disqualified for the exact artifact.
 - **PDF converter — OPEN decision (do not lock in; decide by fidelity test).** Constraints (locked 2026-06-14): must be **faithful** (reproduces the generator's tables/merges/shading/widths), **free / no paid or commercial service**, **fully offline / no cloud** (rules out MS Graph and metered APIs), and self-hostable. That narrows the field to a **local office engine** (LibreOffice headless, or OnlyOffice/Collabora) — the bulk (~0.4–1 GB) is the intrinsic price of faithful DOCX layout; fine on the Rock's NVMe. **Preferred packaging: a separate sidecar container** (e.g. Gotenberg wrapping LibreOffice — multi-arch/arm64, offline) so the app image stays slim. PDF is **slow → Jobs Queue (async)**. The engine is chosen by a golden-file fidelity test (Word's own DOCX→PDF as oracle) when the PDF slice is built; code calls it behind a swappable `docxToPdf(buffer)` seam.
 - Generation can take seconds for large bundles — run it without blocking the UI and show progress; stream/queue as appropriate on the chosen host.

@@ -1,59 +1,64 @@
 /**
- * Phase 1 fidelity spike (GATE) — standalone, no Lesson3 DB.
+ * Current ARES generator fidelity gate — standalone, no Lesson3 DB.
  *
- * Proves the pinned vendored generator regenerates the three approved bio_1_4 DOCX
- * with CONTENT identical to the originals, EXCEPT the Section-C Resource column
- * (which Lesson3 leaves empty — single-runtime, no Python recommender).
- *
- * Run:  cd app && npx tsx scripts/fidelity-spike.ts
- *
- * Diff method: DOCX → HTML via mammoth (the sanctioned DOCX→text tool) → DOM via jsdom →
- * ordered list of block texts (paragraphs + table cells). For the LessonSequence we drop
- * the Resource column from both sides before comparing. We aim for content-identity, not
- * byte/zip-identity (styling/metadata legitimately differ).
+ * Uses the replacement Physics 4.1 JSON and its matching upstream DOCX outputs. Resources are part
+ * of the comparison: no column or paragraph is stripped.
  */
-import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import os from 'node:os'
-import { generateBundleDocx } from '../src/generator/index'
-import { compareDoc } from './lib/docxDiff'
+import path from 'node:path'
 
-const require = createRequire(import.meta.url)
+import { generateBundleDocx, type AresDataObject } from '../src/generator/index'
+import { extractAresJson } from '../src/ingest/extract'
+import { compareDoc, compareLessonSequencePackage } from './lib/docxDiff'
 
-// Defaults to the local convention; override with ARES_DEMO_PATH on CI / the Rock.
-const DEMO = process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
-// Trusted demo asset (NOT untrusted ingest — the never-execute rule is Phase 3).
-const data = require(path.join(DEMO, 'bio_1_4_data.js'))
+const JSON_PATH =
+  process.env.ARES_FIDELITY_JSON ??
+  path.join(os.homedir(), 'Desktop', 'ares-json', 'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json')
+const ORACLE_DIR =
+  process.env.ARES_FIDELITY_ORACLE_DIR ??
+  path.join(
+    os.homedir(),
+    'Documents',
+    'GitHub',
+    'cbe-generation-system',
+    'data',
+    'outputs',
+    'v2',
+    'Physics',
+    'SS4.1_Greenhouse_Effect_and_Climate_Change',
+  )
 
 const APPROVED = {
-  lessonSequence: 'Biology_Chemicals_of_Life_CBE_LessonSequence.docx',
-  finalExplanation: 'Biology_Chemicals_of_Life_FinalExplanation.docx',
-  summaryTable: 'Biology_Chemicals_of_Life_SummaryTable.docx',
+  lessonSequence: 'Physics_Greenhouse_Effect_and_Climate_Change_CBE_LessonSequence.docx',
+  finalExplanation: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation.docx',
+  summaryTable: 'Physics_Greenhouse_Effect_and_Climate_Change_SummaryTable.docx',
 } as const
 
-const approved = (file: string) => readFileSync(path.join(DEMO, file))
+const approved = (file: string) => readFileSync(path.join(ORACLE_DIR, file))
 
 async function main() {
-  console.log('Phase 1 fidelity spike — bio_1_4 (Chemicals of Life)')
-  console.log(`META.filePrefix = ${data.META?.filePrefix} | lessons = ${data.LESSONS?.length}`)
+  const data = extractAresJson(readFileSync(JSON_PATH, 'utf8')) as unknown as AresDataObject
+  console.log('Current ARES fidelity gate — Physics 4.1 (Greenhouse Effect and Climate Change)')
+  console.log(`lessons = ${data.LESSONS.length}`)
 
   const out = await generateBundleDocx(data)
-
+  const lessonOracle = approved(APPROVED.lessonSequence)
   const results = [
-    await compareDoc('LessonSequence (SoW)', out.lessonSequence, approved(APPROVED.lessonSequence), true),
+    await compareDoc('LessonSequence (resources included)', out.lessonSequence, lessonOracle, false),
+    await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data.LESSONS),
     await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
     await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
   ]
 
   const passed = results.filter(Boolean).length
   console.log(`\n${'='.repeat(50)}`)
-  console.log(`GATE: ${passed}/${results.length} documents content-identical (except Resource column)`)
+  console.log(`GATE: ${passed}/${results.length} content/package checks match current upstream output`)
   if (passed !== results.length) process.exit(1)
-  console.log('✓ Phase 1 GATE PASSED')
+  console.log('✓ CURRENT ARES FIDELITY GATE PASSED')
 }
 
-main().catch((e) => {
-  console.error(e)
+main().catch((error) => {
+  console.error(error)
   process.exit(1)
 })

@@ -11,7 +11,100 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-18 (latest) — editor "View as PDF" (accurate formatted preview)
+## 2026-07-19 (latest) — re-baseline ARES JSON 1.0.0 with mandatory lesson-level `resourceLinks`
+
+**Implemented locally; Rock migration/deployment and corpus upload remain pending.** The former
+Lesson3 corpus has been permanently deleted, and it will be replaced entirely by the newly generated
+ARES JSON corpus. We therefore have no product requirement to accept the superseded JSON shape.
+
+- **`schemaVersion: "1.0.0"` remains the production version.** Although adding a required field would
+  normally justify `1.1.0`, semantic versioning only identifies a contract relative to supported prior
+  contracts. Because Lesson3 is making a clean cutover before repopulation, `1.0.0` is intentionally
+  re-baselined to mean the new and only supported contract. This is not backward-compatible with the old
+  files, and the documentation must not imply that it is. If ARES changes this contract after the new
+  baseline is live, that later change must receive a new schema version.
+- **`LESSONS[].resourceLinks` is mandatory and strictly validated.** It is a lesson-level map with the
+  five keys `predict`, `observe`, `explain`, `dqb`, and `model`. Each entry contains the resolved
+  `video`, `reading`, and `fallback_search_url` values emitted by ARES. Resource records retain the
+  complete upstream fields (`title`, `source`, `content_type`, `direct_url`, `search_url`,
+  `search_terms`, `exact_search_url`, `has_transcript`, and `tier`) rather than being reduced to the
+  former three-field Lesson3 seam. URLs accepted as hyperlinks are limited to `http`/`https`; the
+  current ARES-local `http://ares...` links remain valid.
+- **No old-format compatibility path.** Do not make `resourceLinks` optional, add a legacy adapter, or
+  infer it from `framework[]`. An old 1.0.0 file without the field must fail pre-flight with an
+  actionable contract error. There is no database backfill because there is no retained old lesson
+  content to migrate. Before repopulation, verify that deletion left no orphan lesson-plan identities or
+  version rows that would turn a fresh upload into a re-ingest.
+- **Store the upstream shape losslessly as native Payload fields.** Add a system-only lesson-level
+  `resourceLinks` group to the immutable version snapshot. Do not flatten it into
+  `framework[].resources`: the map is independent of framework array order, and real files can repeat a
+  phase while still carrying all five resource buckets. Retire the unused legacy
+  `framework[].resources` field during the clean-slate schema migration after confirming it contains no
+  retained values.
+- **One document layout, with links inline.** “Standard” and “compact” were former rendering choices,
+  not two JSON contracts. The product continues to have one LessonSequence layout: Section C is the
+  current ARES five-column table, and video/reading links appear beneath the phase name inside the first
+  cell. There is no separate Resource column and no user-facing format toggle.
+- **Lesson3 never runs the Python recommender.** ARES has already resolved the resources and embedded
+  them in the JSON interchange artifact. Lesson3 validates, stores, versions, and renders those values;
+  it does not shell out, query the SQLite content index, or attempt to refresh recommendations.
+- **Generator update is deliberate and fidelity-gated.** The current pin is upstream
+  `markknit/cbe-generation-system` commit `742c8a96637377abbec37af32073210b9f87465b`. The three
+  pristine Node generator files are vendored with a Lesson3-owned bridge that supplies the stored
+  `lesson.resourceLinks`; never vendor or execute the Python-spawning resource loader. The new Physics
+  Grade 10 sub-strand 4.1 JSON/DOCX output is the first byte/layout oracle. Because the same immutable
+  content will render different bytes after this generator update, include a generator-render version
+  in artifact-cache identity and bump the HTML-preview render version.
+- **Cutover acceptance is corpus-wide, not sample-only.** The 42 supplied JSON files contain 384
+  lessons; all currently identify as 1.0.0 and all carry `resourceLinks`. Implementation must prove:
+  strict acceptance of all 42; rejection of the old shape; exact raw→Payload→adapter round-trip of every
+  resource field; link-scheme safety; five-column DOCX layout and inline hyperlinks matching the current
+  upstream oracle; no Python execution; and the normal local/Rock gates. Only after the migration and
+  deployment pass should the replacement corpus be uploaded.
+
+**Implementation record (2026-07-19):** the contract, native Payload model, system-only save
+boundary, adapter, pure-Node resource bridge, generator re-pin, render-cache revision, Payload types,
+and clean-corpus migration are implemented. The migration deliberately aborts if any `lesson_plans`,
+`lesson_bundle_versions`, or lesson rows remain; it does not manufacture a backfill. Local evidence:
+42/42 files and 384/384 lessons validate and round-trip; contract gate 16/16; ingest extraction 25/25;
+unit tests 197; TypeScript clean; DOCX oracle 4/4; adapter/oracle 6/6. The oracle permits only the
+measured `ares.edu` → `ares.local` host migration while requiring identical path, port, query, count,
+order, and exact agreement with the supplied JSON. Deployment, DB-dependent gates, migration apply,
+and replacement upload are intentionally still outstanding.
+
+**Claude review + `/simplify` pass (2026-07-19, after the Codex build).** A full code audit (correctness/
+contract, security/RBAC/migration, fidelity/generator) found **no P1/P2 defects**: `resourceLinks` is
+system-only across four layers, URL safety is enforced at ingest AND re-checked at the render bridge, the
+migration guard is complete, and cache invalidation (`GENERATOR_RENDER_VERSION`) reaches DOCX/PDF + HTML
+previews. A 4-agent `/simplify` pass then applied behaviour-preserving cleanups: single-sourced
+`RESOURCE_RECORD_KEYS`/`RESOURCE_PHASE_KEYS`/`isObject`, a named-path guard in `toAresResourceLinks`, a
+shared `scripts/lib/payloadRowIds.ts`, and comment/cross-reference fixes.
+
+**Two follow-up fixes (2026-07-19, Codex review of the review):**
+1. **Migration rollback made data-safe.** `down()` in `20260719_185124_ares_resource_links_cutover.ts` now
+   carries the SAME empty-corpus guard as `up()`: it RAISEs and refuses rollback if any `lesson_plans` /
+   `lesson_bundle_versions` / lessons rows remain, because the legacy six-column framework schema cannot
+   represent the new lesson-level `resourceLinks` and a blind rollback would silently destroy resource
+   data. No data is fabricated/partially-mapped into the legacy columns. SQL-only guard — the migration
+   snapshot JSON is unchanged.
+2. **Generator count guard now catches too-MANY lookups, not just too-few.** `getAllPhaseResources`
+   (`aresResources.js`) previously returned `EMPTY_ALL` on an over-read, so a "called twice" vendor drift
+   slipped past the post-build `index === queue.length` check. It now THROWS the moment the queue is
+   over-read; the post-build check still catches too-few. Comments corrected to state that the count
+   guards detect call-COUNT drift only — iteration ORDER remains the DOCX fidelity oracle's job. Unit
+   regressions added (`resourceLinks.spec.ts`): one lesson + two lookups throws; under-read throws; the
+   concurrent AsyncLocalStorage isolation test is retained.
+
+**Gates actually run for these fixes (local, Node 25, DB-less):** lint 0 errors/83 warnings · `tsc` clean ·
+unit **199** · contract-check 16/16 · ingest-extract-check 25/25 · fidelity-spike 4/4 · adapter-fidelity
+6/6 · `git diff --check` clean. **NOT run here** (need Docker/Postgres or the Rock): int/http/e2e, the
+migration apply, and the corpus upload — those remain the Rock deployment steps.
+
+This supersedes the 2026-06-08/09 optional `framework[].resources` / Resource-column plan, the
+2026-07-03 “blocked on Mark” status, and any description of the JSON export as an exact mirror of the
+upstream authoring `.js` module.
+
+## 2026-07-18 — editor "View as PDF" (accurate formatted preview)
 
 App-level, **no migration**. The version-editor toolbar had only **Preview** (mammoth HTML, styling
 dropped — a fast *structural* check). Added a **View as PDF** button next to it: the accurate, formatted

@@ -2,15 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/james-beep-boop/Lesson3/main/app/src/ingest/ares-contract.schema.json",
   "title": "ARES CBE Lesson Bundle",
-  "description": "DRAFT canonical contract for generators/data/*_data.(js|json), contributed by the Lesson3 team and derived from the current 13 data files. Goal: ONE name per field (aliases collapsed), explicit required/optional, and additionalProperties:false so typos (e.g. 'safety3otes') and stray keys are rejected on emit. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
+  "description": "Definitive Lesson3 production interchange contract for current ARES JSON outputs. schemaVersion 1.0.0 is intentionally re-baselined after the former corpus was deleted. Every lesson includes a complete lesson-level resourceLinks map. All prose strings use the shared grammar: '\\n' starts a new paragraph; a line beginning '- ' is a bullet; no inline markup.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "META", "UNIT", "LESSONS", "FINAL_EXPLANATION", "SUMMARY_TABLE"],
   "properties": {
     "schemaVersion": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semantic version of THIS contract the file conforms to, e.g. \"1.0.0\"."
+      "enum": ["1.0.0"],
+      "description": "Definitive clean-cutover contract version. Former 1.0.0 files without resourceLinks are unsupported."
     },
 
     "META": {
@@ -63,7 +63,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["number", "title", "duration", "slo", "framework"],
+        "required": ["number", "title", "duration", "slo", "resourceLinks", "framework", "summaryTablePrompt"],
         "properties": {
           "number": { "type": "integer", "minimum": 1 },
           "title": { "type": "string" },
@@ -71,6 +71,7 @@
           "substrand": { "type": "string", "description": "For ARES resource lookup." },
           "aresKeywords": { "type": "string", "description": "ARES search terms." },
           "overview": { "type": "string" },
+          "resourceLinks": { "$ref": "#/$defs/resourceLinks" },
           "slo": {
             "type": "object",
             "additionalProperties": false,
@@ -107,11 +108,7 @@
                 "learnerExperience": { "type": "string" },
                 "teacherMoves": { "type": "string" },
                 "sensemakingStrategy": { "type": "string" },
-                "formativeAssessment": { "type": "string" },
-                "resource": {
-                  "type": "string",
-                  "$comment": "Currently a single free-text string. P3 ask: replace with a structured 'resources' object carrying the resolved video/reading (title, source, direct_url|search_url) so the Resource column can populate."
-                }
+                "formativeAssessment": { "type": "string" }
               }
             }
           },
@@ -191,6 +188,56 @@
             }
           }
         }
+      }
+    }
+  },
+  "$defs": {
+    "resourceRecordOrNull": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "source",
+        "content_type",
+        "direct_url",
+        "search_url",
+        "search_terms",
+        "exact_search_url",
+        "has_transcript",
+        "tier"
+      ],
+      "properties": {
+        "title": { "type": "string" },
+        "source": { "type": "string" },
+        "content_type": { "type": "string" },
+        "direct_url": { "type": "string", "pattern": "^https?://" },
+        "search_url": { "type": "string", "pattern": "^https?://" },
+        "search_terms": { "type": "string" },
+        "exact_search_url": { "type": "string", "pattern": "^https?://" },
+        "has_transcript": { "type": "boolean" },
+        "tier": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "phaseResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["video", "reading", "fallback_search_url"],
+      "properties": {
+        "video": { "$ref": "#/$defs/resourceRecordOrNull" },
+        "reading": { "$ref": "#/$defs/resourceRecordOrNull" },
+        "fallback_search_url": { "type": "string", "pattern": "^https?://" }
+      }
+    },
+    "resourceLinks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predict", "observe", "explain", "dqb", "model"],
+      "properties": {
+        "predict": { "$ref": "#/$defs/phaseResources" },
+        "observe": { "$ref": "#/$defs/phaseResources" },
+        "explain": { "$ref": "#/$defs/phaseResources" },
+        "dqb": { "$ref": "#/$defs/phaseResources" },
+        "model": { "$ref": "#/$defs/phaseResources" }
       }
     }
   }

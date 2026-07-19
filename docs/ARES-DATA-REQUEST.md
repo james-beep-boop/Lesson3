@@ -1,5 +1,12 @@
 # Request to the ARES CBE generation team (`markknit/cbe-generation-system`)
 
+> **FULFILLED / SUPERSEDED 2026-07-19.** The current generated JSON corpus is now the definitive
+> Lesson3 production interchange artifact. Every lesson carries the required five-bucket
+> `resourceLinks` map, and Lesson3 intentionally re-baselines that complete contract as
+> `schemaVersion: "1.0.0"` after permanently deleting the former corpus. The request below is retained
+> as historical provenance; do not use its descriptions of missing/optional resources as current
+> implementation guidance. Current rules: `SPEC.md` §3/§7 and `docs/DECISIONS.md` 2026-07-19.
+
 **From:** the Lesson3 team (ARES Lesson Library)
 **Re:** Stabilising the lesson-data contract so downstream ingestion is clean, complete, and reproducible at scale
 **Attachment:** [`ares-contract.schema.json`](../app/src/ingest/ares-contract.schema.json) — a first-pass JSON Schema we drafted from your current 13 data files, offered as a starting point for the canonical contract. (It lives in our ingest source because we validate every ingest against it; see below.)

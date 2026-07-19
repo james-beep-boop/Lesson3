@@ -14,7 +14,7 @@
  * The minimal bundle deliberately carries NO FINAL_EXPLANATION / SUMMARY_TABLE content — per SPEC §3
  * (resolved 2026-06-26) single-document sub-strands are legitimate, and an empty FE/ST is skipped by
  * the generator, so the bundle still passes `validateGeneratable` (META + 1 lesson with SLO,
- * summaryTablePrompt, and 1 valid framework phase).
+ * summaryTablePrompt, resourceLinks, and 1 valid framework phase).
  *
  * NOTE: requires a database → runs on the Rock only (like all of `tests/int`).
  */
@@ -26,6 +26,7 @@ import config from '../../src/payload.config.js'
 
 import type { LessonBundleVersion, LessonPlan, Subject, SubjectGrade, User } from '../../src/payload-types.js'
 import { jobMatchesVersion } from '../../src/jobs/generateVersionArtifact.js'
+import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
 
 /**
  * Stable namespace prefix shared by every fixture run. Used ONLY for the crashed-run safety sweep at
@@ -75,9 +76,36 @@ export interface RoleFixture {
   teardown: () => Promise<void>
 }
 
+/** A complete definitive-1.0.0 resource map suitable for DB-backed fixture lessons. */
+export function minimalResourceLinks() {
+  const record = (phase: string, kind: 'video' | 'reading') => ({
+    title: `${MARK}${phase} ${kind}`,
+    source: 'ARES fixture',
+    content_type: kind === 'video' ? 'video' : 'html',
+    direct_url: `https://ares.example/${phase}/${kind}`,
+    search_url: `https://ares.example/search/${phase}/${kind}`,
+    search_terms: `${phase} ${kind}`,
+    exact_search_url: `https://ares.example/exact/${phase}/${kind}`,
+    has_transcript: kind === 'video',
+    tier: 0,
+  })
+
+  return Object.fromEntries(
+    RESOURCE_PHASE_KEYS.map((phase) => [
+      phase,
+      {
+        video: record(phase, 'video'),
+        reading: record(phase, 'reading'),
+        fallback_search_url: `https://ares.example/search/${phase}`,
+      },
+    ]),
+  )
+}
+
 /**
  * The smallest bundle that satisfies `validateGeneratable`: META present, ≥1 lesson carrying an
- * `slo` group, a `summaryTablePrompt` group, and ≥1 framework phase from the controlled vocabulary.
+ * `slo` group, a `summaryTablePrompt` group, a complete `resourceLinks` map, and ≥1 framework phase
+ * from the controlled vocabulary.
  * FINAL_EXPLANATION / SUMMARY_TABLE intentionally omitted (legitimate single-doc bundle, SPEC §3).
  */
 export function minimalBundleContent() {
@@ -119,6 +147,7 @@ export function minimalBundleContent() {
           learned: 'Learned the fixture.',
           explained: 'Explained the fixture.',
         },
+        resourceLinks: minimalResourceLinks(),
       },
     ],
     finalExplanation: {},
@@ -286,4 +315,3 @@ export async function enqueuedKindsFor(payload: Payload, versionId: number | str
     docs.filter((j) => jobMatchesVersion(j, versionId)).map((j) => String((j.input as { kind?: string }).kind)),
   )
 }
-

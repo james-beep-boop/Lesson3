@@ -10,6 +10,7 @@
  *     • `lesson.slo.purpose`              → `slo` group must be present   (sections.js:112)
  *     • `lesson.summaryTablePrompt.observed` → group must be present       (sections.js:198)
  *     • `lesson.framework.map(…)`         → `framework` must be an array   (sections.js:170)
+ *     • `lesson.resourceLinks`            → required stored ARES links      (sections.js:170)
  *     • `META.col3Label` / titleBlock     → `META` must be present         (build_docs.js:52)
  *   SILENT DEGRADE:
  *     • a lesson with 0 phases            → empty Section C
@@ -24,9 +25,7 @@
  * the `rawToBundle` output, which is identical).
  */
 import { PHASE_VALUES, isPhase } from '../fields/phases'
-
-const isObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
+import { isObject, validateResourceLinks } from './resourceLinks'
 
 type Bundleish = {
   meta?: unknown
@@ -64,6 +63,7 @@ export function validateGeneratable(bundle: Bundleish): string[] {
         `Lesson ${n}: missing summaryTablePrompt group (the generator reads .observed/.learned/.explained).`,
       )
     }
+    problems.push(...validateResourceLinks(lesson.resourceLinks, `Lesson ${n}.resourceLinks`))
 
     const framework = lesson.framework
     if (!Array.isArray(framework) || framework.length === 0) {

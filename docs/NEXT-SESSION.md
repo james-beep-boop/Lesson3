@@ -12,11 +12,13 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**One small branch is currently in flight** (2026-07-11 — see the newest RESUME section below). The
-teacher-first track (2026-07-08) and the version-browser redesign (2026-07-06) are BOTH complete;
-the audit-driven five-phase plan completed through Phase 4 with Phase 5 Track B host-gated; the
-§10 cross-user-features track completed 2026-07-03. Next work = operator deploy/eyeball, then
-pick from the queue in the newest RESUME block.
+**Current next work is Rock deployment and verification of the implemented ARES `resourceLinks`
+cutover documented on 2026-07-19.** The old lesson corpus has been permanently deleted and the
+replacement corpus must not be uploaded until the migration and DB-dependent gates pass. The
+teacher-first track
+(2026-07-08), version-browser redesign (2026-07-06), audit-driven phases through Track B, and §10
+cross-user-features track are complete. Earlier deploy/eyeball notes remain below as operational
+history; follow the newest RESUME block first.
 The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
@@ -26,7 +28,106 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); MERGED (#104 + #105), app DEPLOY PENDING (NO migration)
+## ▶ RESUME HERE (2026-07-19, newest) — ARES `resourceLinks` cutover BUILT + LOCAL GATES GREEN; ROCK DEPLOY PENDING
+
+**Outcome so far:** the newly generated ARES JSON corpus is now the sole Lesson3 upload contract in
+the local code, and the generator reproduces the current upstream five-column DOCX layout with the
+supplied resource hyperlinks. Nothing has been committed, pushed, deployed, migrated, or uploaded.
+
+**Next operator sequence:** confirm the Rock has no residual `lesson_plans`,
+`lesson_bundle_versions`, or lesson rows; take a backup; deploy only after explicit approval; review
+and apply `20260719_185124_ares_resource_links_cutover`; run DB-dependent int/http/e2e/build gates;
+smoke-test upload and DOCX/PDF; then upload all 42 replacement files and verify 42 plans / 42 Official
+1.0.0 versions / 384 lessons plus sampled hyperlinks. The migration itself aborts if the corpus is not
+empty.
+
+**Locked decisions (do not reopen during coding):**
+
+1. Keep `schemaVersion: "1.0.0"` and intentionally re-baseline it. This is the first supported
+   production contract after the clean reset, not compatibility with the deleted files. A missing
+   `LESSONS[].resourceLinks` is an error, not a legacy mode.
+2. `resourceLinks` is required at lesson level with exactly `predict`, `observe`, `explain`, `dqb`, and
+   `model`; each bucket has `video`, `reading`, and `fallback_search_url`. Preserve the full upstream
+   record, including search metadata/transcript/tier. Validate all nested keys and only permit
+   `http`/`https` hyperlinks. A `video` or `reading` may be `null` when ARES found none.
+3. Store the map losslessly as system-only native Payload fields. Do not distribute it into
+   `framework[]`; repeated/missing framework phase rows make that transformation lossy. Remove the
+   unused legacy `framework[].resources` seam after verifying the reset left no values that require
+   preservation.
+4. Lesson3 consumes resolved data and never runs the Python recommender or SQLite index.
+5. One document format only: current upstream Section C widths `[1520, 3040, 3040, 3040, 3040]`, with
+   video/reading links beneath the phase label in the first cell. “Standard/compact” is historical
+   rendering terminology, not JSON-schema terminology.
+6. Generator target: `markknit/cbe-generation-system` commit
+   `742c8a96637377abbec37af32073210b9f87465b`. Keep vendored source byte-pristine; supply stored
+   resources through Lesson3-owned glue, never through the upstream Python-spawning loader.
+
+### Original ordered plan and implementation record
+
+Items 1–7 below are implemented and locally verified except for the explicitly Rock-only preflight.
+Item 8 is the remaining work.
+
+1. **Freeze fixtures and pre-flight the empty state.** Add the supplied Physics Grade 10 sub-strand
+   4.1 JSON plus its current upstream DOCX output as contract/fidelity fixtures (or document a stable
+   test-fixture fetch if repository size policy forbids the DOCX). Inventory all 42 replacement files
+   and record the 384-lesson baseline. Before any upload, query the Rock for orphan
+   `lesson-plans`/`lesson-bundle-versions`; stop and resolve any remnants that would trigger re-ingest.
+2. **Make the JSON contract exact.** Update `ares-contract.schema.json`, contract typing, and
+   completeness validation so 1.0.0 requires the full lesson-level map and rejects additional,
+   missing, wrong-type, or unsafe-URL values at their precise JSON paths. Add fixtures proving the new
+   shape passes and the former shape fails. Keep the upload size/count protections unchanged unless a
+   measured corpus file exceeds them (the current files do not).
+3. **Model the data natively in Payload.** Reusable system-only resource fields now live under each
+   lesson; editor/Subject-Admin submissions cannot add, alter, or erase them. The old
+   `framework[].resources` seam is retired. Payload types and the migration were generated through
+   Payload's offline API and reviewed locally; applying them and verifying the database assumptions
+   remain Rock work under pinned Node 22.
+4. **Carry resources losslessly through every boundary.** Update raw contract types, ingest mapping,
+   Payload normalization, adapter/output types, field-split preservation, previews, and exports. Add
+   exact deep-equality tests across raw JSON → validated data → Payload snapshot → generator adapter,
+   including null resources, all metadata, duplicate framework phases, and malicious URL schemes.
+5. **Adopt current upstream rendering.** Re-vendor the three generator library files from the pinned
+   commit using the existing vendor script and update provenance. Change only Lesson3-owned bridge code
+   so the vendored Section C builder receives `lesson.resourceLinks`. Confirm there is no
+   `execSync`, Python, recommender, or SQLite dependency on the runtime path. Match current link text,
+   icons/style, first-cell placement, five widths, striping, and page-break behavior.
+6. **Invalidate derived artifacts.** Add/bump an explicit generator-render version in DOCX/PDF artifact
+   cache keys and bump the HTML-preview render-cache version, because previously cached bytes for an
+   unchanged immutable lesson version are no longer valid after the layout change.
+7. **Prove contract and fidelity before deployment.** Run lint, TypeScript, unit tests,
+   `ingest-extract-check`, `contract-check`, `adapter-fidelity`, production dependency audit, and a
+   42/42 corpus validation/round-trip sweep. Compare the generated Physics 4.1 DOCX against the current
+   upstream oracle at both semantic and package/XML levels: five columns/widths, hyperlink relationships
+   and targets, phase placement, table striping, and page breaks. Any unavoidable byte variance must be
+   identified and bounded—not waved through.
+8. **Rock verification and repopulation.** Push/merge only after explicit user approval, then deploy via
+   the schema-change runbook: backup, pull, generate/review/apply migration, run DB-dependent int/http/e2e
+   and build gates, and smoke-test Site-Admin upload plus teacher DOCX/PDF access. Upload the replacement
+   corpus only after these pass. With a truly empty plan/version database, every file creates a fresh
+   Official 1.0.0; verify counts and sample resource hyperlinks after import.
+
+### Final completion criteria (local criteria met; Rock/deployment criteria pending)
+
+- All 42 current JSON files validate and round-trip without dropping or inventing resource data.
+- A former-format 1.0.0 file fails with a clear `resourceLinks` error; there is no compatibility branch.
+- Resources are system-only and survive editor/admin saves unchanged.
+- Generated Section C matches current ARES layout and hyperlink targets with no Python/SQLite execution.
+- Cache identities prevent stale pre-cutover DOCX/PDF/preview artifacts.
+- Local and Rock gates pass, the database contains only the replacement corpus, and each initial upload
+  is Official 1.0.0.
+
+**Local verification recorded 2026-07-19:** 42/42 JSON files and 384/384 lessons validate and
+round-trip; contract 16/16; ingest extraction 25/25; unit 199; TypeScript clean; DOCX oracle 4/4;
+adapter/oracle 6/6; lint 0 errors (83 existing/generated warnings); production audit 0 high/critical
+(5 moderate transitive `esbuild` findings, no available fix). The five widths, striping, page breaks,
+resource text, and 140 hyperlink targets are checked. `USER_GUIDE.md` remains unchanged because the
+feature has not yet been deployed to the live user workflow. The final review also made migration
+rollback data-safe by refusing a populated corpus and made the generator resource bridge throw on
+over-read; regression tests cover both over-read and under-read count drift.
+
+---
+
+## ▶ Older resume (2026-07-18) — editor "View as PDF" (accurate formatted preview); MERGED (#104 + #105), app DEPLOY PENDING (NO migration)
 
 **Built the pre-agreed "View as PDF" editor button** (see the "DISCUSSED, NOT BUILT" block further
 down), ran a **`/simplify` (4-agent) pass**, then applied **two review rounds** (per-document scope +
@@ -926,7 +1027,7 @@ two export formats (`standard` = separate Resource column; `compact` = none) int
 **ARES-resources-inline** layout with **NO separate Resource column** (today's `compact` table shape).
 Remove the **"Include ARES Resources"** checkbox and all standard/compact plumbing; KEEP the
 orthogonal `?as=docx|pdf` axis. This deletes real code and simplifies the UX. Resource **links**, when
-present at all (still blocked on Mark), render **inline in the phase rows**, not a column — this
+present, render **inline in the phase rows**, not a column — this
 **supersedes** the old 2026-06-09 "add a Resource column" plan. Touchpoints + exact deletion list are
 in DECISIONS 2026-07-03 (late); start from `grep -rilE "compact|LessonSequenceFormat|ResourcesToggle|Include ARES" app/src`
 (delete `lib/format.ts`, `ResourcesToggle.tsx`; collapse `LessonSequenceFormat` + the `format`
@@ -1584,13 +1685,11 @@ Editor seeded (ask the user for the passwords — they are NOT in the repo).
 
 ## Open / blocked
 
-- **ARES resource LINKS, inline (blocked on Mark).** The resolved per-lesson resources (video +
-  reading) live only in the Python recommender's output. **Plan CHANGED 2026-07-03 (late):** the old
-  "add a **Resource column**, render via `vendor/aresResources.js`" plan is **superseded** by the
-  single-document-format decision — when the data arrives, render the links **inline in the phase
-  rows**, NOT a separate column. Exact per-row placement is the open detail. (The separate Resource
-  column is being removed regardless, as part of collapsing standard/compact — see the top RESUME.)
-- **ARES confirmation** — awaiting Mark on which data/DOCX are canonical + the resource-data request.
-  Not blocking core work.
+- **ARES resource data — RESOLVED 2026-07-19.** The replacement JSON corpus now includes mandatory
+  lesson-level `resourceLinks`, and current upstream code establishes their exact inline placement
+  beneath the phase label. Follow the newest RESUME plan; do not revive the Python recommender or a
+  separate Resource column.
+- **ARES contract baseline — RESOLVED 2026-07-19.** The new JSON artifacts are the definitive Lesson3
+  production interchange contract, intentionally re-baselined as schema 1.0.0.
 - Corpus is expected to grow from 13 to dozens→hundreds (Chemistry/Physics incoming) — informs the
   pagination item and any browse/search work.

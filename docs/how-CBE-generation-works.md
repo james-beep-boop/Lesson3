@@ -167,23 +167,23 @@ a style/format exemplar.
      resumable via `--resume`) or in **batch mode** (`--batch`/
      `--collect --wait`, using the Anthropic Message Batches API at 50%
      cost — the README claims ~$114 for the full 2,000-lesson target).
-5. Output is written to **`generators/data/<name>_data.js`** — a
+5. Claude-authored output is written to **`generators/data/<name>_data.js`** — a
    CommonJS module exporting `schemaVersion, META, UNIT, LESSONS,
-   FINAL_EXPLANATION, SUMMARY_TABLE`. This file is the **canonical
-   source of truth**; nothing downstream hand-edits it except explicit
-   patch scripts (`scripts/patch_lesson.js`, `scripts/patch_fe.js`).
+   FINAL_EXPLANATION, SUMMARY_TABLE`. This is the upstream authoring
+   source, but it is not necessarily the complete downstream interchange
+   artifact because the build augments lessons with resolved resources.
 6. **`generators/generate.js`** loads that module and calls `run()` in
    **`generators/lib/build_docs.js`**, which uses section builders in
    **`generators/lib/sections.js`** (title block, sub-strand overview
    table, Sections A–E, differentiation table) and low-level formatting
    primitives in **`generators/lib/docx_kit.js`** (colors, fonts,
    paragraph/table helpers, built on the `docx` npm package) to render
-   three Word documents per sub-strand into
-   `data/outputs/docx/Grade 10 <Subject>/`:
+   three Word documents per sub-strand into the configured subtree under
+   `data/outputs/Grade 10 <Subject>/`:
    - `*_CBE_LessonSequence.docx` — the full lesson sequence
    - `*_FinalExplanation.docx` — student assessment document
    - `*_SummaryTable.docx` — teacher reference table
-7. While rendering Section C specifically, **`generators/aresResources.js`**
+7. Before/while rendering Section C, **`generators/aresResources.js`**
    shells out (subprocess, 20s timeout, fails silently on error) to
    **`src/ares_recommender.py`**, which runs a **keyword-based full-text
    search** (SQLite FTS, not embeddings) against a **1.55M-item content
@@ -191,7 +191,9 @@ a style/format exemplar.
    tier (Khan Academy/CK-12/MIT rank highest), storage/URL availability,
    content-type preference, and keyword-hit count. This replaces the
    teacher's "Reading HERE"/"Video HERE" placeholders with real,
-   hyperlinked video/reading recommendations.
+   hyperlinked video/reading recommendations. The current builder assigns
+   that resolved map to `lesson.resourceLinks`, so the JSON written at the
+   end of the run carries the same data used for the document.
 
 ## 4. Where the ARES resource links actually land
 
@@ -212,7 +214,8 @@ const cw = [1520, 3040, 3040, 3040, 3040];
 (`col3Label`/`col5Label` are subject-configurable relabels, e.g. differ
 between Chemistry and Physics.)
 
-The ARES resource paragraphs are stacked **inside the first cell (Phase,
+The ARES resource paragraphs, built from the lesson's resolved
+`resourceLinks`, are stacked **inside the first cell (Phase,
 only 1520 of ~13680 twips wide)**, directly below the bold phase-name
 paragraph:
 
@@ -232,9 +235,15 @@ attribution) are packed into the same narrow Phase cell as the phase
 label, one set per phase row. The `resource` field named in `SCHEMA.md`
 appears to be either vestigial documentation or a field Claude's schema
 could populate that the current renderer simply doesn't read for
-placement, since resources are instead looked up live at render time.
+placement; the current complete downstream data is instead the lesson-level
+`resourceLinks` map.
 
-## 4a. Correction: some already-rendered outputs *with real links* are committed to the public repo
+## 4a. Historical correction: older committed outputs had links only in DOCX
+
+**Point-in-time note, superseded for current v2 outputs:** this section records what was true of the
+older committed sample inspected before the July 2026 upstream change. It explains the provenance of
+the former Lesson3 assumptions, but it does not describe the current replacement JSON corpus, which
+does contain `LESSONS[].resourceLinks`.
 
 The upstream repo's `.gitignore` lists:
 
@@ -268,15 +277,14 @@ http://ares.edu/www2/search.php?searchstring=valence+electrons+octet+rule+video&
 — a direct Kolibri-content link plus a fallback keyword-search link
 (with channel-source filters), repeated per lesson phase.
 
-**This does not contradict §5 below** — it confirms it. The sibling
+At the time of that snapshot, the sibling
 `Chemistry_Chemical_Bonding_data.json` from that same folder was checked
 directly: every `framework` phase object has exactly the keys `phase,
 learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment`
-— no `resource` key. The links exist only inside the rendered `.docx`
-XML, never in that sub-strand's own JSON, exactly as §5 describes.
+— no `resource` key. In that older output, links existed only inside the
+rendered `.docx` XML. Current v2 JSON exports supersede that behavior.
 
-**Practical implications for anyone wanting these links (e.g. for
-Lesson3):**
+**Historical implications of those older outputs:**
 
 - **Coverage is partial.** Only sub-strands with a committed output
   folder have real links available at all — a handful, not the full
@@ -294,46 +302,38 @@ Lesson3):**
   embedded Kolibri **topic IDs** and the fallback search **query
   terms/channel filters** are portable metadata regardless of whether the
   hostname itself resolves for a given reader.
-- **The live-lookup path (`ares_recommender.py` + `ares_content.db`) is
-  still unavailable** — this doesn't change the assessment in §4 or in
-  `docs/EXTERNAL-DEPENDENCIES.md` that the underlying 1.55M-item SQLite
-  index is not published and was deliberately not vendored into Lesson3.
-  What changed is narrower: a *sample* of real, already-computed links
-  exists in the public repo for the sub-strands that happen to have
-  committed output, recoverable only by parsing those specific `.docx`
-  files directly.
+- The live-lookup path (`ares_recommender.py` + `ares_content.db`) was not
+  available to Lesson3 and remains deliberately outside its runtime. That
+  no longer blocks resource rendering: the current upstream build performs
+  the lookup and embeds the resolved values in its JSON output.
 
-## 5. The `.js` source file vs. the `.json` export — one is upstream, one is a disposable mirror
+## 5. The `.js` authoring source vs. the complete `.json` interchange artifact
 
-These are not two independent copies of the content; the relationship is
-strictly one-directional:
+These are related but no longer byte-for-field mirrors:
 
-- **`generators/data/<name>_data.js`** — the canonical source, written
+- **`generators/data/<name>_data.js`** — the upstream authoring source, written
   once by `generate_substrand.py` (§3, step 5). A CommonJS module
   (`module.exports = { schemaVersion, META, UNIT, LESSONS,
   FINAL_EXPLANATION, SUMMARY_TABLE }`). This is what you'd hand-edit to
-  fix content.
+  fix Claude-authored content.
 - **`{filePrefix}_data.json`** — written by `build_docs.js`'s `run()`,
   as the **last** step, strictly after all three `.docx` files:
 
   ```js
-  const jsonPath = path.join(outBase, `${META.filePrefix}_data.json`);
-  fs.writeFileSync(jsonPath, JSON.stringify(
-    { schemaVersion, META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE },
-    null, 2
-  ));
+  // During the build, each lesson receives its resolved ARES map:
+  lesson.resourceLinks = aresRes;
+  // The final JSON export serializes the now-augmented LESSONS array.
   ```
 
-  It's a plain `JSON.stringify` of the exact same five fields the `.js`
-  module exports — no transformation — just stripped of CommonJS syntax.
-  It's written into the **output directory**
+  It serializes the same main content groups, but `LESSONS[]` has been
+  augmented with required `resourceLinks`. It is written into the **output directory**
   (`data/outputs/docx/Grade 10 <Subject>/...`), not next to the source
   `.js` file in `generators/data/`.
 
-In short: `.js` is upstream and authoritative; `.json` is a
-regenerated-every-run, disposable mirror for downstream tools that want
-plain data without `require()`-ing a JS module. Edit the `.js`, rerun the
-generator, and a fresh `.json` snapshot falls out automatically.
+In short: `.js` is the upstream authoring input; the generated `.json` is
+the complete downstream interchange artifact because it also captures the
+resolved resource data used in the rendered document. Lesson3 validates and
+uploads the JSON and never executes the CommonJS source.
 
 ## 6. Summary table: who supplies what
 
@@ -344,9 +344,9 @@ generator, and a fresh `.json` snapshot falls out automatically.
 | One phenomenon idea, driving question(s), rough per-lesson bullet outline, resource placeholders | Individual teacher, filling in the template |
 | Full per-lesson SLOs, prose overviews, 5-phase teacher-moves framework, reflections | Generated de novo by Claude, constrained by the above |
 | Final Explanation (assessment + rubric), Summary Table | Generated de novo by Claude — no teacher-template counterpart exists at all |
-| Resource links (video/reading) | Separate SQLite FTS lookup against the ARES content DB at DOCX-render time — not from KICD, templates, or Claude, and never written into the `.js`/`.json` data. A partial sample of real, already-computed links *is* recoverable from the handful of already-rendered `.docx` files committed to the public repo (see §4a), by parsing hyperlink relationships directly — not from any JSON export |
+| Resource links (video/reading) | Separate SQLite FTS lookup against the ARES content DB during the upstream build; the resolved five-bucket map is assigned to `LESSONS[].resourceLinks`, used by the DOCX renderer, and included in the complete JSON interchange artifact. Lesson3 consumes that stored result and does not run the lookup. |
 | `.docx` formatting/layout | Node.js renderer (`docx_kit.js`, `sections.js`, `build_docs.js`) |
-| `.json` data export | Mechanical `JSON.stringify` of the `.js` source, written once per render |
+| `.json` data export | Complete downstream artifact written after resource resolution; main authored groups plus augmented `LESSONS[].resourceLinks` |
 
 ## References
 

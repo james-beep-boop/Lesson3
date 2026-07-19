@@ -6,9 +6,9 @@
  * (`slo.purpose`, `framework[].phase`, `sections[].exemplar`, …), so this is a pure
  * top-level rename plus deriving the human `title` from `META.titleDoc`.
  *
- * `framework[].resources` is carried through if present, omitted otherwise (the Resource
- * column is DEFERRED — see docs/DECISIONS.md). Lesson `number`s are left as-is; the
- * `numberBundleVersionRows` hook re-derives them from array order on write.
+ * Required `LESSONS[].resourceLinks` stays inside each lesson and is carried through losslessly.
+ * Lesson `number`s are left as-is; the `numberBundleVersionRows` hook re-derives them from array
+ * order on write.
  */
 import type { AresRawBundle } from './extract'
 
