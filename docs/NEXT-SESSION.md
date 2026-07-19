@@ -26,7 +26,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); MERGED (#104), app DEPLOY PENDING (NO migration)
+## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); MERGED (#104 + #105), app DEPLOY PENDING (NO migration)
 
 **Built the pre-agreed "View as PDF" editor button** (see the "DISCUSSED, NOT BUILT" block further
 down), ran a **`/simplify` (4-agent) pass**, then applied **two review rounds** (per-document scope +
@@ -67,10 +67,12 @@ files — not introduced here.) http/e2e run in CI (can't run the http suite loc
 `lesson3_test` DB). Browser-automation caveat in DECISIONS (form-POST-to-`_blank` → GET in the pane; hits
 the shipped Preview button too — not a regression).
 
-**Status: MERGED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) squashed to `main`
-as `7a93515`; branch deleted.** CI green on the final commit (gate + CodeRabbit); two review rounds
-applied (CodeRabbit slot-leak/exhaustive-default; then perf + test hermeticity). **App-code DEPLOY
-PENDING** — folds into the pending Rock deploy below, **no migration**. Eyeball after deploy: editor
+**Status: MERGED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) (squash `7a93515`)
++ follow-up [#105](https://github.com/james-beep-boop/Lesson3/pull/105) (squash `dba897c`), both on
+`main`; branches deleted.** CI green on both (gate + CodeRabbit). Review rounds applied: CodeRabbit
+slot-leak/exhaustive-default; perf + test hermeticity; then #105 = the fresh-on-click document picker
+(fixes the stale-`savedDocumentData` menu). **App-code DEPLOY PENDING** — folds into the pending Rock
+deploy below, **no migration**. Eyeball after deploy: editor
 toolbar shows **View as PDF** (a `▾` menu when the plan has FE/ST; a plain button otherwise); pristine
 opens the formatted doc inline; after an edit it reflects the unsaved change; a single-document plan is
 one-click, a multi-document plan opens a picker (computed on click, so an admin's unsaved add/remove of a
