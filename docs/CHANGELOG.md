@@ -8,6 +8,35 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## FIXED + LOCALLY VERIFIED 2026-07-19 — resource-link upload PostgreSQL 100-argument failure (Rock migration pending)
+
+The first Rock smoke upload of a definitive ARES JSON file returned 500 and rolled back. The file was
+valid; the deployed Payload schema flattened five resource buckets (95 resource leaves) onto each
+`lesson_bundle_versions_lessons` row. Payload's Postgres read-after-create query reconstructed that
+wide row with `json_build_array(...)`, exceeding PostgreSQL's hard 100-function-argument limit. This
+was a release-blocking defect missed because the previous review ran only DB-free gates; the documented
+Rock upload smoke test had not been run.
+
+- Kept the external `LESSONS[].resourceLinks` object and every locked contract decision unchanged.
+  Internally, each lesson now stores exactly five native child rows (`phase`, `video`, `reading`, and
+  `fallback_search_url`). The generator adapter restores the exact phase-keyed ARES object.
+- Generated `20260719_210359_resource_links_child_rows`, which creates the child table and removes the
+  95 flattened parent columns. Both directions require zero lesson plans, versions, and lesson rows,
+  preventing silent resource loss; the Rock currently reports zero plans and versions after the failed
+  upload.
+- Strengthened the HTTP regression to upload and then read a full resource bundle, covering the exact
+  read-after-create operation that failed in production.
+- Local evidence: all 42 files / 384 lessons conform and round-trip; unit 201/201; contract 16/16;
+  extraction 25/25; TypeScript clean; lint 0 errors; current DOCX fidelity 4/4; adapter fidelity 6/6;
+  `git diff --check` clean.
+- **Full audit (Claude, same day): the DB-backed gates were then RUN LOCALLY** against a scratch
+  compose environment (fresh DB; the dev DB left untouched): full migration chain incl.
+  `185124 → 210359` applied clean; http 88/88; int 68/68 (after fixing one fixture that bypassed
+  ingest's map→rows conversion in `reingest.int.spec.ts` — product code was correct); a REAL Physics
+  4.1 corpus file uploaded over HTTP → Official 1.0.0, stored resources deep-compared byte-equal to
+  the source, DOCX+PDF exported with all source hyperlinks present. Remaining Rock steps: backup,
+  deploy, apply `210359`, re-run gates there, then upload the 42-file corpus.
+
 ## BUILT + LOCALLY VERIFIED 2026-07-19 — definitive ARES JSON 1.0.0 resource-link cutover (deploy pending)
 
 The old Lesson3 lesson corpus has been permanently deleted and will be replaced by the current ARES

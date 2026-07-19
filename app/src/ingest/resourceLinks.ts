@@ -2,9 +2,10 @@
  * Definitive ARES 1.0.0 lesson-resource contract.
  *
  * Raw JSON is checked by `ares-contract.schema.json`; this module applies the same invariant to the
- * native Payload representation, where an optional `group` may come back as an object whose leaves
- * are all null. `toAresResourceLinks` restores those empty groups to the explicit JSON `null` used by
- * ARES, while preserving every populated field exactly.
+ * native Payload representation. The external contract is an object keyed by phase; storage uses
+ * five native child-array rows so Payload/Postgres never flattens all 95 resource leaves into one
+ * lesson row (PostgreSQL functions accept at most 100 arguments). `toAresResourceLinks` restores
+ * those rows and empty optional groups to the exact ARES JSON shape.
  */
 
 export const RESOURCE_PHASE_KEYS = ['predict', 'observe', 'explain', 'dqb', 'model'] as const
@@ -41,6 +42,11 @@ export interface AresPhaseResources {
 }
 
 export type AresResourceLinks = Record<ResourcePhaseKey, AresPhaseResources>
+
+export interface StoredResourceLinkRow extends AresPhaseResources {
+  phase: ResourcePhaseKey
+  id?: string | null
+}
 
 export const isObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -86,30 +92,60 @@ function validateResourceRecord(value: unknown, path: string, problems: string[]
   }
 }
 
-/** Validate the native/stored representation. Empty Payload groups are invalid at lesson level. */
+const STORED_ROW_KEYS = ['id', 'phase', 'video', 'reading', 'fallback_search_url'] as const
+
+/** Convert the definitive external map to Payload's five native child rows. Invalid non-object
+ * input is returned unchanged so the shared generatable gate can report it during pre-flight. */
+export function aresResourceLinksToRows(value: unknown): unknown {
+  if (!isObject(value)) return value
+  return RESOURCE_PHASE_KEYS.map((phase) => {
+    const phaseValue = value[phase]
+    // The enclosing object key is authoritative. Assign it after the raw bucket so an unexpected
+    // nested `phase` property cannot redirect or duplicate a stored row before contract drift is
+    // reported against the raw JSON.
+    return isObject(phaseValue) ? { ...phaseValue, phase } : { phase }
+  })
+}
+
+/** Validate the native/stored five-row representation. Empty Payload groups are invalid. */
 export function validateResourceLinks(value: unknown, path = 'resourceLinks'): string[] {
   const problems: string[] = []
-  if (!isObject(value)) return [`${path}: required resourceLinks map is missing.`]
-
-  for (const key of unexpectedKeys(value, RESOURCE_PHASE_KEYS)) {
-    problems.push(`${path}.${key}: unexpected phase bucket.`)
+  if (!Array.isArray(value)) return [`${path}: required resourceLinks rows are missing.`]
+  if (value.length !== RESOURCE_PHASE_KEYS.length) {
+    problems.push(
+      `${path}: expected exactly ${RESOURCE_PHASE_KEYS.length} phase rows; found ${value.length}.`,
+    )
   }
 
-  for (const phase of RESOURCE_PHASE_KEYS) {
-    const phaseValue = value[phase]
-    const phasePath = `${path}.${phase}`
+  const seen = new Set<ResourcePhaseKey>()
+  value.forEach((phaseValue, index) => {
+    const rowPath = `${path}[${index}]`
     if (!isObject(phaseValue)) {
-      problems.push(`${phasePath}: required phase resource group is missing.`)
-      continue
+      problems.push(`${rowPath}: expected a phase resource row.`)
+      return
     }
-    for (const key of unexpectedKeys(phaseValue, ['video', 'reading', 'fallback_search_url'])) {
-      problems.push(`${phasePath}.${key}: unexpected phase resource field.`)
+    for (const key of unexpectedKeys(phaseValue, STORED_ROW_KEYS)) {
+      problems.push(`${rowPath}.${key}: unexpected phase resource field.`)
     }
+    const phase = phaseValue.phase
+    if (!RESOURCE_PHASE_KEYS.includes(phase as ResourcePhaseKey)) {
+      problems.push(`${rowPath}.phase: invalid resource phase ${JSON.stringify(phase)}.`)
+      return
+    }
+    if (seen.has(phase as ResourcePhaseKey)) {
+      problems.push(`${rowPath}.phase: duplicate resource phase ${JSON.stringify(phase)}.`)
+      return
+    }
+    seen.add(phase as ResourcePhaseKey)
+    const phasePath = `${path}.${phase}`
     validateResourceRecord(phaseValue.video, `${phasePath}.video`, problems)
     validateResourceRecord(phaseValue.reading, `${phasePath}.reading`, problems)
     if (!isSafeHttpUrl(phaseValue.fallback_search_url)) {
       problems.push(`${phasePath}.fallback_search_url: must be an http:// or https:// URL.`)
     }
+  })
+  for (const phase of RESOURCE_PHASE_KEYS) {
+    if (!seen.has(phase)) problems.push(`${path}.${phase}: required phase resource row is missing.`)
   }
   return problems
 }
@@ -131,16 +167,23 @@ function toResourceRecord(value: unknown): AresResourceRecord | null {
   ) as unknown as AresResourceRecord
 }
 
-/** Convert a validated Payload resource group back to the exact ARES JSON shape. */
+/** Convert validated Payload resource rows back to the exact ARES JSON shape. */
 export function toAresResourceLinks(value: unknown): AresResourceLinks {
-  const links = value as Record<ResourcePhaseKey, Record<string, unknown>>
+  if (!Array.isArray(value)) {
+    throw new Error('resourceLinks: missing stored phase rows during generation.')
+  }
+  const rows = new Map<ResourcePhaseKey, Record<string, unknown>>()
+  for (const item of value) {
+    if (!isObject(item) || !RESOURCE_PHASE_KEYS.includes(item.phase as ResourcePhaseKey)) continue
+    rows.set(item.phase as ResourcePhaseKey, item)
+  }
   return Object.fromEntries(
     RESOURCE_PHASE_KEYS.map((phase) => {
-      const item = links[phase]
+      const item = rows.get(phase)
       if (!isObject(item)) {
-        // Unreachable for validated/stored data (all five buckets are required and present); fail
+        // Unreachable for validated/stored data (all five rows are required and present); fail
         // with a named path instead of a cryptic property-access error if that ever changes.
-        throw new Error(`resourceLinks.${phase}: missing phase bucket during generation.`)
+        throw new Error(`resourceLinks.${phase}: missing phase row during generation.`)
       }
       return [
         phase,

@@ -11,7 +11,60 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-19 (latest) — re-baseline ARES JSON 1.0.0 with mandatory lesson-level `resourceLinks`
+## 2026-07-19 (latest) — store required resource links as native child rows, not one flattened lesson group
+
+**Correction to the earlier same-day review:** the definitive ARES file was valid, but the initial
+native Payload model was not viable on PostgreSQL. Five phase groups placed 95 resource leaves directly
+on each lesson array row. Together with the ordinary lesson fields, Payload 3.85.1 generated a
+`json_build_array(...)` call with roughly 115 arguments when reading the version after creation;
+PostgreSQL rejects any function call with more than 100 arguments. The transaction rolled back and the
+upload endpoint returned 500. The earlier “no P1/P2 defects” conclusion was therefore wrong in the
+DB-backed deployment context: migration apply and upload/http gates had explicitly not been run.
+
+- **The interchange contract does not change.** ARES still supplies the mandatory object keyed by
+  `predict`, `observe`, `explain`, `dqb`, and `model`, and Lesson3 exports that exact lossless shape.
+- **The native storage shape is normalized.** `resourceLinks` is a system-only Payload child array with
+  exactly five rows. Each row carries a required phase discriminator plus native `video`, `reading`,
+  and fallback fields. Ingest maps object → rows; validation enforces five unique required phases; the
+  generator adapter maps rows → object in canonical phase order. This preserves native fields and
+  keeps both the lesson row and each resource row safely below PostgreSQL's argument ceiling.
+- **The corrective migration is intentionally empty-corpus-only.** Migration
+  `20260719_210359_resource_links_child_rows` creates the child table, removes the 95 flattened columns,
+  and refuses both upgrade and rollback when lesson plans, versions, or lesson rows exist. That is
+  appropriate for this clean corpus reset and prevents a schema transition from silently dropping
+  resources.
+- **A real database read is the required regression.** The Site-Admin HTTP upload test now reads the
+  newly created version and asserts all five phase rows. DB-free object/adapter fidelity remains useful,
+  but it cannot prove that Payload's generated SQL is executable. Future wide nested-field changes must
+  run the Rock HTTP/int gate before being described as deployment-ready.
+
+**Corrective child-row run (after the Rock 500):** unit 201/201; lint 0 errors / 87 warnings
+(generated migrations and existing test/script warnings); TypeScript clean; contract 16/16; ingest
+extraction 25/25; 42 files / 384 lessons conform and round-trip; DOCX fidelity 4/4; adapter fidelity
+6/6; production audit 0 high/critical (the same 5 moderate transitive `esbuild` findings, no fix).
+
+**Claude full audit (2026-07-19, after the Codex fix) — DB-backed gates RUN LOCALLY this time.** The
+review stood up a parallel scratch environment on the Mac's compose stack (fresh `lesson3_audit` DB +
+a new-code app container on the same network; the dev DB with the old corpus was dumped to a safety
+snapshot and left untouched): the FULL migration chain applied cleanly including `185124 → 210359` in
+sequence; **http 88/88** over the wire (incl. the new upload/read-back regression, exports, preview
+PDFs); **int 68/68** after one fix; and a REAL corpus file
+(`physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json`) uploaded over HTTP → 200,
+Official 1.0.0, all 35 stored phase buckets (70 populated records) deep-compared byte-equal to the
+source JSON, DOCX (97 KB) + PDF (50 pp) exported with every source `direct_url` present in the DOCX
+relationships. **One defect found and fixed:** `tests/int/reingest.int.spec.ts` ("ambiguous match")
+seeded a version DIRECTLY with the external phase-keyed map, bypassing ingest's map→rows conversion —
+the generatable hook now rightly rejects that; the fixture now routes through `rawToBundle` (the
+production conversion). Product code was correct; the bug would have failed CI/Rock. Lesson repeated:
+a fixture that bypasses an ingest boundary must apply the same conversions that boundary applies.
+
+**Product direction noted (2026-07-19, user):** in-app editing of resource links by Editors is LIKELY
+WANTED later (e.g. swapping in better links as they appear). Not built or spec'd; it will amend the
+"never editable" rule (SPEC §5 + CLAUDE.md + locked decision #3 wording) when picked up. The child-row
+native model was chosen partly to keep that door open — `validateResourceLinks` already enforces the
+five-unique-phases/scheme-safety invariants that become the load-bearing defense once edits exist.
+
+## 2026-07-19 — re-baseline ARES JSON 1.0.0 with mandatory lesson-level `resourceLinks`
 
 **Implemented locally; Rock migration/deployment and corpus upload remain pending.** The former
 Lesson3 corpus has been permanently deleted, and it will be replaced entirely by the newly generated
@@ -35,10 +88,11 @@ ARES JSON corpus. We therefore have no product requirement to accept the superse
   actionable contract error. There is no database backfill because there is no retained old lesson
   content to migrate. Before repopulation, verify that deletion left no orphan lesson-plan identities or
   version rows that would turn a fresh upload into a re-ingest.
-- **Store the upstream shape losslessly as native Payload fields.** Add a system-only lesson-level
-  `resourceLinks` group to the immutable version snapshot. Do not flatten it into
+- **Store the upstream shape losslessly as native Payload fields.** Add system-only lesson-level
+  `resourceLinks` fields to the immutable version snapshot. Do not flatten the data into
   `framework[].resources`: the map is independent of framework array order, and real files can repeat a
-  phase while still carrying all five resource buckets. Retire the unused legacy
+  phase while still carrying all five resource buckets. The later corrective decision above records why
+  the five buckets use child rows rather than one wide group. Retire the unused legacy
   `framework[].resources` field during the clean-slate schema migration after confirming it contains no
   retained values.
 - **One document layout, with links inline.** “Standard” and “compact” were former rendering choices,
@@ -95,10 +149,11 @@ shared `scripts/lib/payloadRowIds.ts`, and comment/cross-reference fixes.
    regressions added (`resourceLinks.spec.ts`): one lesson + two lookups throws; under-read throws; the
    concurrent AsyncLocalStorage isolation test is retained.
 
-**Gates actually run for these fixes (local, Node 25, DB-less):** lint 0 errors/83 warnings · `tsc` clean ·
-unit **199** · contract-check 16/16 · ingest-extract-check 25/25 · fidelity-spike 4/4 · adapter-fidelity
-6/6 · `git diff --check` clean. **NOT run here** (need Docker/Postgres or the Rock): int/http/e2e, the
-migration apply, and the corpus upload — those remain the Rock deployment steps.
+**Earlier flattened-model review run, before the Rock smoke upload and child-row correction (local,
+Node 25, DB-less):** lint 0 errors/83 warnings · `tsc` clean · unit **199** · contract-check 16/16 ·
+ingest-extract-check 25/25 · fidelity-spike 4/4 · adapter-fidelity 6/6 · `git diff --check` clean.
+**NOT run in that earlier review** (needed Docker/Postgres or the Rock): int/http/e2e, migration apply,
+and corpus upload. Those omissions are exactly why the 100-argument database failure was not detected.
 
 This supersedes the 2026-06-08/09 optional `framework[].resources` / Resource-column plan, the
 2026-07-03 “blocked on Mark” status, and any description of the JSON export as an exact mirror of the
