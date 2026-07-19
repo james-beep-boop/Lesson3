@@ -26,11 +26,13 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, latest) — cross-surface consistency (shared tokens, Manage aligned, Messages header); app-level, NO migration
+## ▶ RESUME HERE (2026-07-18, latest) — cross-surface consistency (shared tokens, Manage aligned, Messages header); MERGED (#103), app DEPLOY PENDING (NO migration)
 
 **A UI consistency pass making the Payload admin Manage view read as the same app as the frontend, all
-app-level, NO migration.** Full reasoning: **DECISIONS 2026-07-18 (later) — cross-surface consistency**.
-Two rounds of external review applied (a `/simplify` pass + a follow-up findings pass).
+app-level, NO migration — MERGED to `main` via PR #103 (squash `ebbe1ff`; `main` now `ebbe1ff`).** CI
+`gate` green (unit/int/http/e2e/`next build`), CodeRabbit pass. Full reasoning: **DECISIONS 2026-07-18
+(later) — cross-surface consistency**. Two rounds of external review applied (a `/simplify` pass + a
+follow-up findings pass).
 
 **What changed:**
 1. **Shared design tokens** — new `app/src/app/app-tokens.scss` (single source: `--app-page-title-size`
@@ -49,8 +51,10 @@ Two rounds of external review applied (a `/simplify` pass + a follow-up findings
 pixel-identical (20px pad / 960px) · admin accent resolves (#1f5fa8, enabled primary = accent). **http/e2e
 run in CI** (can't run locally).
 
-**Status: UNCOMMITTED → opening a PR** (UI + shared-CSS infra + a component refactor; PR to run the full
-CI incl. e2e/build). NOT deployed. Stacks on the #102 batch below — one Rock deploy covers both, no migration.
+**Status: MERGED (PR #103, squash `ebbe1ff`), on `main`, branch deleted. App DEPLOY PENDING** — stacks on
+the #102 batch below; **one Rock deploy covers both, no migration**. Post-deploy eyeball: Manage page reads
+like the frontend (960px column, big title, left-aligned); Messages has the New-message button inline with
+the heading + no back-link; admin primary buttons still app-blue.
 **Still deferred (next pickup):** Site-Admin avatar (accent-blue) + preview "View as PDF" — see the block below.
 
 ---
