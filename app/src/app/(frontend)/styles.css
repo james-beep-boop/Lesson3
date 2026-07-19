@@ -9,14 +9,10 @@
   --line-strong: #8c8c8c;
   --bg: #fff;
   --bg-soft: #f6f7f8;
-  --accent: #1f5fa8;
+  --accent: var(--app-accent); /* shared brand token (app-tokens.scss) */
   --accent-ink: #fff;
   --danger: #b00020;
   --radius: 6px;
-  /* Page-title size — the primary <h1> of a page ("Lesson Plans", "Cell Structure"). Shared token so
-     the catalogue and the lesson view stay the SAME size (they are peers in the hierarchy); the brand
-     wordmark stays quiet at 1rem above them, section headings sit below. (Type-hierarchy pass.) */
-  --page-title-size: 1.9rem;
 }
 
 /* Inline error text (form/action failures). One token, one class — was three copies of a hardcoded
@@ -166,12 +162,25 @@ a {
 .messages {
   max-width: 46rem;
 }
+/* Heading row: "Messages" title with the New-message button inline on the right (2026-07-18). */
+.msg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.5rem;
+}
+.msg-title {
+  font-size: var(--app-page-title-size);
+  font-weight: 700;
+  margin: 0;
+}
 /* Collapsed-compose affordance (D5): reading the inbox is the page's job; composing is one
-   button away. Styled like the app's outline actions. */
+   button away. Styled like the app's outline actions. Inline in .msg-head, so no stacking margin. */
 .msg-compose-open {
   display: inline-flex;
   align-items: center;
-  margin: 1rem 0 1.5rem;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--accent);
   border-radius: var(--radius);
@@ -444,9 +453,10 @@ a {
 
 /* ---- Main ---- */
 .app-main {
-  max-width: 960px;
+  max-width: var(--app-content-width);
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 4rem;
+  /* Horizontal pad shared with the admin Manage column (app-tokens) so the two align. */
+  padding: 1.5rem var(--app-content-pad) 4rem;
 }
 
 .muted {
@@ -454,9 +464,9 @@ a {
 }
 
 /* ---- Lesson Plans (browse) ---- */
-/* Four-step type scale: page title (30, --page-title-size) > subject-grade (18) > strand (16) > sub-strand (14). */
+/* Four-step type scale: page title (--app-page-title-size) > subject-grade (18) > strand (16) > sub-strand (14). */
 .lp-title {
-  font-size: var(--page-title-size);
+  font-size: var(--app-page-title-size);
   /* 700 to match .lesson-heading h1 — the two page titles read as one treatment (was 600). */
   font-weight: 700;
   margin: 0 0 1rem;
@@ -1006,7 +1016,7 @@ button[type='submit']:disabled {
   margin-top: 0;
   /* Same token as the catalogue's .lp-title — the two page titles are peers, so they share one size
      (was the browser-default h1, which made the lesson title arbitrarily larger than the catalogue). */
-  font-size: var(--page-title-size);
+  font-size: var(--app-page-title-size);
   font-weight: 700;
 }
 /* Muted subject · grade line under the clean lesson title (the shouty stored title stays inside the

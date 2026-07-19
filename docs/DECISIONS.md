@@ -11,6 +11,40 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-18 (later) — cross-surface consistency: shared design tokens, Manage aligned to the frontend, Messages header
+
+App-level UI consistency pass, **no migration**. Makes the Payload admin **Manage** view read as the same
+app as the frontend pages, via a single source of truth for the values that must match.
+
+- **Shared tokens — `app/src/app/app-tokens.scss`.** The frontend (`(frontend)/styles.css`) and the admin
+  (`(payload)/custom.scss`) are **two separate Next.js route groups** with their own layouts/bundles, and
+  the admin layout is Payload-**auto-generated** (can't be edited) — so a full stylesheet merge is out.
+  One SCSS file, imported by the frontend layout AND `@use`d by `custom.scss`, is the minimal correct fix:
+  edit a value once, both surfaces move. **Unit discipline:** alignment tokens are **px** (`--app-content-width`
+  960px, `--app-content-pad` 20px) so they're pixel-identical; the page-title token is **rem**
+  (`--app-page-title-size` 1.9rem) and stays scale-relative (admin's 15px root renders it ~6% smaller than
+  the frontend's 16px, on purpose). `--app-content-pad` was px-corrected after review — `1.25rem` drifted
+  20px↔18.75px across the two rem roots, defeating the token's whole purpose.
+- **Accent single-sourced.** `--app-accent` (#1f5fa8) replaces the six hardcoded `#1f5fa8` literals in
+  `custom.scss` (primary button, badges, jump-nav). This **supersedes the former "keep the two in sync by
+  hand"** note on the admin accent — the frontend `--accent` and the admin now share one source. (The
+  load-bearing primary-button contrast fix is unchanged — value-identical swap; disabled state still gray.)
+- **Manage widened to match the frontend** (960px column, title at `--app-page-title-size`, left edge aligned).
+  Had to override Payload's `Gutter` horizontal padding (to `--app-content-pad`) and drop a stale
+  `.lp-manage { max-width: 46rem }` that was clamping the width — using the same unlayered-beats-`@layer`
+  precedence already load-bearing for the button rules (not a new hack). The earlier "settings-panel" 40rem
+  posture was revisited in favour of whole-app consistency.
+- **Back-links:** removed the `← All lesson plans` on **/messages** (redundant with the Lessons nav AND
+  mislabeled — Messages isn't under lesson plans). Kept it on the lesson page (natural "up") and the
+  contextual `← Back to lesson` (editor/compare).
+- **Messages header:** the `New message` button now sits **inline** with the "Messages" heading (a small
+  client header row in `Composer.tsx`; the `<h1>` moved into the client component so it can share the row
+  with the stateful button — presentation-driven, acceptable at one page).
+- Verified: CI-green in the earlier merge pattern applies; local `tsc`/`test:unit` (190) clean, sass compiles,
+  both surfaces' content columns measured pixel-identical (20px pad, 960px), admin accent resolves.
+
+---
+
 ## 2026-07-18 (version edit-view cleanup + type hierarchy)
 
 User-requested polish on the lesson-plan **version editor** and the page-title hierarchy. All

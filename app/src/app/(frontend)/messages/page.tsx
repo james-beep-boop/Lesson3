@@ -98,11 +98,8 @@ export default async function MessagesPage({
   return (
     <article className="messages">
       <MarkShownRead ids={shownUnreadIds} />
-      <Link href="/" className="back-link">
-        ← All lesson plans
-      </Link>
-      <h1>Messages</h1>
-
+      {/* Composer renders the page's "Messages" heading with the New-message button inline (the "Lessons"
+          nav already covers the former "← All lesson plans" back-link, which was also mislabeled here). */}
       <Composer
         roster={roster.map((u) => ({ id: u.id, name: u.name ?? `User ${u.id}` }))}
         about={about}
