@@ -30,13 +30,20 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE UPLOAD 500 FIXED LOCALLY; CORRECTIVE ROCK MIGRATION PENDING
+## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE UPLOAD 500 FIX **MERGED (#108, `main` `17da012`)**; ROCK DEPLOY IS THE REMAINING WORK
 
-**Outcome so far:** the newly generated ARES JSON corpus remains the sole Lesson3 upload contract. The
-first Rock smoke upload proved the initial five-group storage model exceeded PostgreSQL's 100-argument
-function limit during Payload's read-after-create. The fix keeps the same external object but stores
-five native child rows per lesson; local corpus and fidelity gates are green. The corrective work is
-not committed, pushed, deployed, migrated, or smoke-tested on the Rock.
+**Outcome:** the child-row fix is MERGED — PR [#108](https://github.com/james-beep-boop/Lesson3/pull/108)
+(squash `17da012`), CI gate green, branch deleted. It repairs #107 (`f73abf7`), which had been merged
+**on a red CI** (its `test:int` failed with exactly this defect) and deployed, producing the Rock 500s.
+Process lesson recorded in DECISIONS: the CI gate only protects `main` when red blocks merge. #108 also
+carries the full-audit evidence (local scratch-DB run: migration chain, http 88/88, int 68/68, real-file
+upload byte-equal round-trip) and a `/simplify` pass (row-shape drift spec `resourceRowDrift.spec.ts`,
+typed conversion; unit now 206). **The Mac dev stack was rebuilt post-cutover** (fresh volumes, full
+migration chain, 42-plan corpus ingested: 42/42 Official 1.0.0, 384 lessons, 1920 resource rows;
+seeded logins `admin|teacher|editor|subjectadmin@lesson3.local`). The old-corpus local DB was wiped
+by user decision.
+
+**Remaining: the Rock deploy below (operator).**
 
 **Next operator sequence:** confirm the Rock still has zero `lesson_plans`,
 `lesson_bundle_versions`, and lesson rows; take a backup; deploy only after explicit approval; inspect

@@ -11,7 +11,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-19 (latest) — store required resource links as native child rows, not one flattened lesson group
+## 2026-07-19 (latest) — process lesson: #107 was merged on a RED CI gate
+
+The cutover PR [#107](https://github.com/james-beep-boop/Lesson3/pull/107)'s CI run FAILED at
+`test:int` — the DB-backed step that exercises exactly the `json_build_array` defect — and the PR was
+merged and deployed anyway, which is how the 500 reached the Rock. The gate did its job; the merge
+ignored it. **Rule: a red `gate` check blocks merge, no exceptions** — if the failure looks unrelated
+or flaky, prove that on the PR (rerun or diagnose in the run log) before merging, never after. The fix
+merged as [#108](https://github.com/james-beep-boop/Lesson3/pull/108) (squash `17da012`, gate green),
+which also carries the audit evidence and the `/simplify` drift spec (`resourceRowDrift.spec.ts`).
+
+## 2026-07-19 — store required resource links as native child rows, not one flattened lesson group
 
 **Correction to the earlier same-day review:** the definitive ARES file was valid, but the initial
 native Payload model was not viable on PostgreSQL. Five phase groups placed 95 resource leaves directly
