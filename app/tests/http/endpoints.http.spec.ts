@@ -28,6 +28,7 @@ import {
   MARK,
   enqueuedKindsFor,
   minimalBundleContent,
+  minimalResourceLinks,
   setupRoleFixture,
   type RoleFixture,
   type RoleKey,
@@ -1527,8 +1528,9 @@ describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-r
 describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () => {
   const UPLOAD = '/api/lesson-plans/upload'
 
-  /** A valid ARES raw-JSON export (all five groups; UNIT/FE/ST null) resolving to the fixture's
-   *  subject-grade, as a multipart File. A unique substrand_id → a fresh plan, never a re-ingest. */
+  /** A valid definitive-1.0.0 ARES raw-JSON export (all five groups, complete resourceLinks;
+   *  UNIT/FE/ST null) resolving to the fixture's subject-grade, as a multipart File. A unique
+   *  substrand_id → a fresh plan, never a re-ingest. */
   const jsonFile = (name: string, substrandId: string): File => {
     const raw = {
       schemaVersion: '1.0.0',
@@ -1555,6 +1557,7 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
               formativeAssessment: 'w',
             },
           ],
+          resourceLinks: minimalResourceLinks(),
           summaryTablePrompt: { observed: 'o', learned: 'l', explained: 'e' },
         },
       ],

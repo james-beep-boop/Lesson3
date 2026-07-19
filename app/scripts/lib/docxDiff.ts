@@ -3,12 +3,12 @@
  *
  * Diff method: DOCX → HTML via mammoth (the sanctioned DOCX→text tool) → DOM via jsdom →
  * ordered list of block texts (paragraphs + table cells). We compare CONTENT, not byte/zip
- * identity (styling/metadata legitimately differ). For the LessonSequence the Section-C
- * Resource column is dropped from both sides before comparing (Lesson3 leaves it empty —
- * single-runtime, no Python recommender).
+ * identity (styling/metadata legitimately differ). Current gates compare resource paragraphs in
+ * full; the optional legacy column-strip parameter remains only for historical oracle tooling.
  */
 import mammoth from 'mammoth'
 import { JSDOM } from 'jsdom'
+import JSZip from 'jszip'
 
 export const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
 
@@ -118,4 +118,139 @@ export async function compareDoc(
   console.log(`      generated: ${JSON.stringify(d.generated)?.slice(0, 300)}`)
   console.log(`      approved : ${JSON.stringify(d.approved)?.slice(0, 300)}`)
   return false
+}
+
+type LessonWithResources = {
+  framework?: Array<{ phase?: string }>
+  resourceLinks?: Record<string, {
+    video?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
+    reading?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
+    fallback_search_url?: string
+  }>
+}
+
+const PHASE_KEY: Record<string, string> = {
+  'Predict Phase': 'predict',
+  'Observe Phase': 'observe',
+  'Explain Phase': 'explain',
+  'Driving Question Board (DQB) Creation': 'dqb',
+  'Model Building Phase': 'model',
+}
+
+async function packageXml(buffer: Buffer): Promise<{ document: string; relationships: string }> {
+  const zip = await JSZip.loadAsync(buffer)
+  const document = await zip.file('word/document.xml')?.async('string')
+  const relationships = await zip.file('word/_rels/document.xml.rels')?.async('string')
+  if (!document || !relationships) throw new Error('DOCX is missing document XML or relationships')
+  return { document, relationships }
+}
+
+function implementationTables(xml: string): string[] {
+  return [...xml.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>/g)]
+    .map((match) => match[0])
+    .filter((table) => table.includes('LESSON IMPLEMENTATION FRAMEWORK'))
+}
+
+function tableWidths(table: string): number[] {
+  const grid = /<w:tblGrid>([\s\S]*?)<\/w:tblGrid>/.exec(table)?.[1] ?? ''
+  return [...grid.matchAll(/<w:gridCol[^>]*w:w="(\d+)"[^>]*\/?\s*>/g)].map((match) => Number(match[1]))
+}
+
+function tableFills(table: string): string[] {
+  return [...table.matchAll(/<w:shd[^>]*w:fill="([A-Fa-f0-9]+)"[^>]*\/?\s*>/g)].map((match) => match[1]!.toUpperCase())
+}
+
+function hyperlinkTargets(relsXml: string): string[] {
+  const doc = new JSDOM(relsXml, { contentType: 'text/xml' }).window.document
+  return Array.from(doc.getElementsByTagName('Relationship'))
+    .filter((node) => node.getAttribute('Type')?.endsWith('/hyperlink'))
+    .map((node) => node.getAttribute('Target') ?? '')
+    .sort()
+}
+
+function expectedHyperlinks(lessons: LessonWithResources[]): string[] {
+  const targets: string[] = []
+  for (const lesson of lessons) {
+    for (const row of lesson.framework ?? []) {
+      const phase = lesson.resourceLinks?.[PHASE_KEY[row.phase ?? ''] ?? 'observe']
+      if (!phase) continue
+      for (const resource of [phase.video, phase.reading]) {
+        if (resource) {
+          targets.push(resource.direct_url || resource.exact_search_url || phase.fallback_search_url || '')
+          targets.push(resource.search_url || '')
+        } else {
+          targets.push(phase.fallback_search_url || '')
+        }
+      }
+    }
+  }
+  return targets.filter(Boolean).sort()
+}
+
+/**
+ * Package-level current-ARES proof: exact Section-C grids/striping, page breaks, hyperlink targets,
+ * and the targets implied by the input JSON. This catches layout/relationship drift that mammoth's
+ * semantic text comparison intentionally cannot see.
+ */
+export async function compareLessonSequencePackage(
+  generated: Buffer,
+  approved: Buffer,
+  lessonValues: unknown[],
+): Promise<boolean> {
+  const lessons = lessonValues as LessonWithResources[]
+  const [gen, oracle] = await Promise.all([packageXml(generated), packageXml(approved)])
+  const genTables = implementationTables(gen.document)
+  const oracleTables = implementationTables(oracle.document)
+  const expectedWidths = [1520, 3040, 3040, 3040, 3040]
+  const widthsMatch =
+    genTables.length === lessons.length &&
+    genTables.every((table) => JSON.stringify(tableWidths(table)) === JSON.stringify(expectedWidths)) &&
+    JSON.stringify(genTables.map(tableWidths)) === JSON.stringify(oracleTables.map(tableWidths))
+  const fillsMatch =
+    genTables.length === oracleTables.length &&
+    JSON.stringify(genTables.map(tableFills)) === JSON.stringify(oracleTables.map(tableFills))
+
+  const pageBreaks = (xml: string) => (xml.match(/<w:br[^>]*w:type="page"[^>]*\/?\s*>/g) ?? []).length
+  const breaksMatch = pageBreaks(gen.document) === pageBreaks(oracle.document)
+  const generatedTargets = hyperlinkTargets(gen.relationships)
+  const oracleTargets = hyperlinkTargets(oracle.relationships)
+  const expectedTargets = expectedHyperlinks(lessons)
+  const linksMatch = JSON.stringify(generatedTargets) === JSON.stringify(oracleTargets)
+  // The committed upstream DOCX oracle predates the JSON host rename (`ares.edu` → `ares.local`).
+  // Bound that known deployment-host variance only; paths, ports, queries, counts, and ordering must
+  // still match. The generated links themselves must exactly match the supplied JSON below.
+  const normalizeAresHost = (target: string): string => {
+    const url = new URL(target)
+    if (url.hostname === 'ares.local') url.hostname = 'ares.edu'
+    return url.toString()
+  }
+  const hostOnlyLinksMatch =
+    JSON.stringify(generatedTargets.map(normalizeAresHost)) ===
+    JSON.stringify(oracleTargets.map(normalizeAresHost))
+  const inputLinksMatch = JSON.stringify(generatedTargets) === JSON.stringify(expectedTargets)
+  const safeLinks = generatedTargets.every((target) => /^https?:\/\//.test(target))
+
+  console.log('\n── LessonSequence package structure ────────────')
+  console.log(`  ${widthsMatch ? '✓' : '✗'} ${genTables.length} Section-C tables use exact 1520/3040×4 widths`)
+  console.log(`  ${fillsMatch ? '✓' : '✗'} Section-C fills/striping match upstream`)
+  console.log(`  ${breaksMatch ? '✓' : '✗'} page-break count matches upstream (${pageBreaks(gen.document)})`)
+  console.log(
+    `  ${linksMatch || hostOnlyLinksMatch ? '✓' : '✗'} hyperlink targets match upstream` +
+      `${hostOnlyLinksMatch && !linksMatch ? ' except bounded ares.edu→ares.local host migration' : ''}` +
+      ` (${generatedTargets.length})`,
+  )
+  if (!linksMatch && !hostOnlyLinksMatch) {
+    const index = Math.max(generatedTargets.length, oracleTargets.length) > 0
+      ? Array.from({ length: Math.max(generatedTargets.length, oracleTargets.length) })
+          .findIndex((_, i) => generatedTargets[i] !== oracleTargets[i])
+      : -1
+    console.log(`      generated=${generatedTargets.length} upstream=${oracleTargets.length}; first diff #${index}`)
+    if (index >= 0) {
+      console.log(`      generated: ${JSON.stringify(generatedTargets[index])}`)
+      console.log(`      upstream : ${JSON.stringify(oracleTargets[index])}`)
+    }
+  }
+  console.log(`  ${inputLinksMatch ? '✓' : '✗'} hyperlink targets match the supplied resourceLinks data`)
+  console.log(`  ${safeLinks ? '✓' : '✗'} every emitted hyperlink is http(s)`)
+  return widthsMatch && fillsMatch && breaksMatch && (linksMatch || hostOnlyLinksMatch) && inputLinksMatch && safeLinks
 }

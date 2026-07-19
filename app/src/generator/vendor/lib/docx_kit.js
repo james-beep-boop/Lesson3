@@ -12,7 +12,7 @@
 const {
   Paragraph, TextRun, Table, TableRow, TableCell,
   WidthType, AlignmentType, ShadingType, VerticalAlign,
-  BorderStyle, TableLayoutType,
+  BorderStyle, TableLayoutType, PageBreak,
 } = require('docx');
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -47,8 +47,9 @@ const PHASE_COLOUR = {
   'Model Building Phase':                   C.lightBlue,
 };
 
-// ── Spacer ────────────────────────────────────────────────────────────────────
-const SPACE = () => new Paragraph({ spacing: { after: 120 }, children: [new TextRun('')] });
+// ── Spacer / page break ───────────────────────────────────────────────────────
+const SPACE      = () => new Paragraph({ spacing: { after: 120 }, children: [new TextRun('')] });
+const PAGE_BREAK = () => new Paragraph({ children: [new PageBreak()] });
 
 // ── Paragraph helpers ─────────────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ function makeTable(rows, columnWidths = [W]) {
 
 module.exports = {
   // Constants
-  W, FONT, SZ, SZ_H, SZ_T, C, PHASE_COLOUR, SPACE,
+  W, FONT, SZ, SZ_H, SZ_T, C, PHASE_COLOUR, SPACE, PAGE_BREAK,
   // Helpers
   para, mixedPara, bullet, cell, fullHeader, labelRow, makeTable,
 };

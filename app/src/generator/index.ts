@@ -8,14 +8,15 @@
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { buildFinalExplanation, buildSummaryTable } =
+const { buildSoW, buildFinalExplanation, buildSummaryTable } =
   require('./vendor/lib/build_docs.js') as {
+    buildSoW: (META: unknown, UNIT: unknown, LESSONS: unknown[]) => Promise<unknown>
     buildFinalExplanation: (META: unknown, FE: unknown) => Promise<unknown>
     buildSummaryTable: (META: unknown, ST: unknown) => Promise<unknown>
   }
-const { buildSoWCompact } =
-  require('./buildSowCompact.cjs') as {
-    buildSoWCompact: (META: unknown, UNIT: unknown, LESSONS: unknown) => Promise<unknown>
+const { withStoredResourceLinks } =
+  require('./vendor/aresResources.js') as {
+    withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
   }
 const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Promise<Buffer> } }
 
@@ -38,12 +39,10 @@ export interface GeneratedDocx {
 /**
  * Generate the three CBE DOCX from an ARES data object, in-process, as Buffers.
  *
- * There is ONE document format (decided 2026-07-03): Section C ("Lesson Implementation
- * Framework") is the five-column layout with NO separate Resource column — `buildSoWCompact`.
- * (The vendored six-column `buildSoW`, which carried an always-empty Resource column, is retired
- * and left byte-pristine but unused in vendor/.) Resource LINKS, when ARES data lands, will render
- * inline in the phase rows — a later, separate concern. FinalExplanation and SummaryTable are
- * unchanged.
+ * There is ONE document format: the current pristine ARES five-column Section C. Required stored
+ * resourceLinks render beneath each phase label through the Lesson3-owned pure-Node bridge. The
+ * bridge never invokes Python/SQLite and uses AsyncLocalStorage so concurrent builds cannot exchange
+ * resource maps. FinalExplanation and SummaryTable use the same pinned upstream builders.
  */
 /**
  * Per-deliverable builders, each generating ONE DOCX (the primary always exists; FE/ST return null
@@ -54,7 +53,8 @@ export interface GeneratedDocx {
  */
 export async function generateLessonSequenceDocx(data: AresDataObject): Promise<Buffer> {
   const { META, UNIT, LESSONS } = data
-  return Packer.toBuffer(await buildSoWCompact(META, UNIT, LESSONS))
+  const document = await withStoredResourceLinks(LESSONS, () => buildSoW(META, UNIT, LESSONS))
+  return Packer.toBuffer(document)
 }
 
 export async function generateFinalExplanationDocx(data: AresDataObject): Promise<Buffer | null> {

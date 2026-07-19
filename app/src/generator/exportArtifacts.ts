@@ -17,6 +17,7 @@ import { createRequire } from 'node:module'
 
 import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
 import type { GeneratedDocx } from './index'
+import { GENERATOR_RENDER_VERSION } from './renderVersion'
 
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip') as new () => {
@@ -28,13 +29,14 @@ export type ExportKind = 'docx' | 'pdf'
 
 /** The inputs that fully determine an export's artifacts (its cache identity). */
 export interface ArtifactSpec {
-  /** Opaque, content-stable identity: `version:<id>` (an immutable snapshot — never changes). */
+  /** Opaque identity: immutable version id plus generator-render version. */
   scope: string
   kind: ExportKind
 }
 
-/** Cache scope for an immutable version snapshot (no cache-buster — the bytes never change). */
-export const versionScope = (versionId: number | string): string => `version:${versionId}`
+/** Cache scope for an immutable snapshot under the current deterministic renderer. */
+export const versionScope = (versionId: number | string): string =>
+  `render:${GENERATOR_RENDER_VERSION}:version:${versionId}`
 
 /** One deliverable's stable cache tag + its download filename stem (no extension). */
 interface DocMeta {

@@ -5,6 +5,7 @@ import { isSubjectAdminFor, siteAdminField, toId } from '../access'
 import { prose, proseAdmin, structureText } from './bundleFields'
 import { PHASE_OPTIONS } from './phases'
 import type { User } from '../payload-types'
+import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
 
 /**
  * Shared lesson-plan CONTENT fields (SPEC §3) — the structured sub-strand bundle that generates
@@ -19,7 +20,7 @@ import type { User } from '../payload-types'
  * data verbatim.
  *
  * Field-level access (SPEC §5): Editors edit prose; Subject Admins edit META / aresKeywords / phase /
- * duration / structure / answer keys; the resource column and lesson numbers are system-only.
+ * duration / structure / answer keys; lesson-level ARES resources and lesson numbers are system-only.
  *
  * IMPORTANT — the authority for the Editor/admin split is the field-split hook (`applyEditorFieldSplit`,
  * via `enforceVersionFieldSplit`), NOT Payload field-level access (which can't gate array rows and
@@ -33,21 +34,41 @@ import type { User } from '../payload-types'
  *   • Editing a container's array via the API requires submitting the FULL array (same rows/order);
  *     the hook rejects cardinality/order changes by Editors.
  *
- * The per-phase Resource column is OPTIONAL (SPEC §3/§4): resolved at ingest if enabled, absent
- * otherwise. Every path must tolerate empty `resources`.
+ * `LESSONS[].resourceLinks` is required by the definitive ARES 1.0.0 contract (SPEC §3/§4). It is
+ * resolved upstream, stored losslessly, hidden from the form, and protected again in fieldSplit
+ * because save-as-new ultimately writes through a trusted Local API path.
  */
 
-// Resource sub-link (system-generated): title + direct/search URLs.
-const resourceLink = (name: string, label: string) => ({
-  name,
-  type: 'group' as const,
-  label,
-  fields: [
-    { name: 'title', type: 'text' as const },
-    { name: 'direct_url', type: 'text' as const },
-    { name: 'search_url', type: 'text' as const },
-  ],
-})
+const validateHttpUrl = (value: unknown): true | string =>
+  isSafeHttpUrl(value) || 'Must be an http:// or https:// URL.'
+
+const validateOptionalHttpUrl = (value: unknown): true | string =>
+  value == null || value === '' ? true : validateHttpUrl(value)
+
+const resourceRecordFields = (): Field[] => [
+  // Optional at the Payload-column layer so the enclosing video/reading group can represent
+  // ARES's explicit null. validateGeneratable requires every field when the record is populated.
+  { name: 'title', type: 'text' },
+  { name: 'source', type: 'text' },
+  { name: 'content_type', type: 'text' },
+  { name: 'direct_url', type: 'text', validate: validateOptionalHttpUrl },
+  { name: 'search_url', type: 'text', validate: validateOptionalHttpUrl },
+  { name: 'search_terms', type: 'text' },
+  { name: 'exact_search_url', type: 'text', validate: validateOptionalHttpUrl },
+  { name: 'has_transcript', type: 'checkbox' },
+  { name: 'tier', type: 'number', min: 0 },
+]
+
+const resourcePhaseFields = (): Field[] => [
+  { name: 'video', type: 'group', fields: resourceRecordFields() },
+  { name: 'reading', type: 'group', fields: resourceRecordFields() },
+  {
+    name: 'fallback_search_url',
+    type: 'text',
+    required: true,
+    validate: validateHttpUrl,
+  },
+]
 
 // Collapsed-row label config for an array: shows "<noun> N — <first line of `field`>" via the
 // shared RowLabel component (registered once in admin/importMap.js). Pure per-array config.
@@ -207,6 +228,23 @@ export const lessonContentFields: Field[] = [
       },
       prose('overview', 'Overview'),
       {
+        name: 'resourceLinks',
+        type: 'group',
+        label: 'ARES resource links',
+        required: true,
+        access: { create: systemOnly, update: systemOnly },
+        admin: {
+          hidden: true,
+          description: 'Resolved upstream and versioned exactly; never user-editable.',
+        },
+        fields: RESOURCE_PHASE_KEYS.map((phase) => ({
+          name: phase,
+          type: 'group' as const,
+          required: true,
+          fields: resourcePhaseFields(),
+        })),
+      },
+      {
         name: 'framework',
         type: 'array',
         label: 'Instructional framework',
@@ -231,17 +269,6 @@ export const lessonContentFields: Field[] = [
           prose('teacherMoves', 'Teacher moves'),
           prose('sensemakingStrategy', 'Sensemaking strategy'),
           prose('formativeAssessment', 'Formative assessment'),
-          {
-            name: 'resources',
-            type: 'group',
-            label: 'Resource column (system-generated)',
-            admin: {
-              readOnly: true,
-              description: 'Auto-resolved at ingest; never user-editable. May be empty.',
-            },
-            access: { create: systemOnly, update: systemOnly },
-            fields: [resourceLink('video', 'Video'), resourceLink('reading', 'Reading')],
-          },
         ],
       },
       prose('teacherReflection', 'Teacher reflection'),

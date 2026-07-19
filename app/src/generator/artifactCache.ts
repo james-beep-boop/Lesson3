@@ -12,8 +12,8 @@
  * seam, so it can later be swapped for object storage without touching callers.
  *
  * KEY: callers build a stable key string from the cache-busting inputs; we hash it to a
- * safe filename. `lockVersion` is the cache-buster — it increments on every bundle update
- * (edit or republish), so stale bytes are never served for a changed bundle.
+ * safe filename. Immutable-version scopes include the generator-render version, so a deliberate
+ * generator upgrade cannot serve bytes produced by the prior renderer.
  *
  * LOCATION: `ARTIFACT_CACHE_DIR` (on the Rock, a bind-mounted host dir under
  * `/srv/lesson3/out` so entries survive container `--rm`). Falls back to a local dir for
@@ -36,10 +36,9 @@ const MAX_BYTES = positiveIntEnv('ARTIFACT_CACHE_MAX_BYTES', 512 * 1024 * 1024) 
  * Build a stable cache key from its parts. Each part is coerced to a string and joined with
  * a delimiter that cannot appear inside the structured parts (scope, enums, filenames).
  *
- * `scope` is an opaque, content-stable identity string chosen by the caller — `version:<id>`
- * for an immutable version snapshot (no cache-buster needed), or `bundle:<id>:<lockVersion>`
- * for the legacy bundle path (the lockVersion is the cache-buster). Keeping the cache key
- * generator-agnostic lets both the version and bundle export paths share one cache.
+ * `scope` is an opaque identity string chosen by the caller —
+ * `render:<generatorVersion>:version:<id>` for an immutable snapshot. Keeping the cache key
+ * generator-agnostic keeps storage mechanics separate from renderer identity.
  */
 export function artifactKey(parts: {
   scope: string

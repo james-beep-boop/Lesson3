@@ -24,6 +24,7 @@ import os from 'node:os'
 import { extractAresData, extractAresJson } from '../src/ingest/extract'
 import { IngestError } from '../src/ingest/errors'
 import { rawToBundle } from '../src/ingest/toBundle'
+import { RESOURCE_PHASE_KEYS } from '../src/ingest/resourceLinks'
 import { deliverableWarnings, validateGeneratable } from '../src/ingest/validateGeneratable'
 
 const require = createRequire(import.meta.url)
@@ -203,15 +204,39 @@ expectReject(
   expectRejectJson('json reject: missing required group(s)', '{"META":{},"UNIT":{}}')
 }
 
-// 3. COMPLETENESS GATE — validateGeneratable on real + broken data.
+// 3. COMPLETENESS GATE — the former fixture is now deliberately incomplete; adding the definitive
+// resourceLinks shape makes the otherwise-identical content generatable.
 {
-  const oracle = require(BIO) as Record<string, unknown>
-  const problems = validateGeneratable(
-    rawToBundle(extractAresData(require('node:fs').readFileSync(BIO, 'utf8'))),
-  )
-  if (problems.length === 0) ok('completeness: bio_1_4 is generatable (0 problems)')
-  else bad('completeness: bio_1_4 is generatable', `unexpected problems: ${problems.join('; ')}`)
-  void oracle
+  const legacy = rawToBundle(extractAresData(require('node:fs').readFileSync(BIO, 'utf8')))
+  const legacyProblems = validateGeneratable(legacy)
+  if (legacyProblems.some((problem) => /resourceLinks map is missing/.test(problem))) {
+    ok('completeness: former fixture without resourceLinks is rejected')
+  } else {
+    bad('completeness: former fixture without resourceLinks is rejected', legacyProblems.join('; '))
+  }
+
+  const resourceRecord = {
+    title: 'ARES resource', source: 'ARES', content_type: 'html',
+    direct_url: 'http://ares.local/content', search_url: 'http://ares.local/search',
+    search_terms: 'terms', exact_search_url: 'https://ares.example/exact',
+    has_transcript: false, tier: 0,
+  }
+  const current = structuredClone(legacy) as { lessons: Array<Record<string, unknown>> }
+  for (const lesson of current.lessons) {
+    lesson.resourceLinks = Object.fromEntries(
+      RESOURCE_PHASE_KEYS.map((phase) => [
+        phase,
+        {
+          video: resourceRecord,
+          reading: resourceRecord,
+          fallback_search_url: `http://ares.local/search/${phase}`,
+        },
+      ]),
+    )
+  }
+  const problems = validateGeneratable(current)
+  if (problems.length === 0) ok('completeness: required resourceLinks shape is generatable (0 problems)')
+  else bad('completeness: required resourceLinks shape is generatable', `unexpected problems: ${problems.join('; ')}`)
 
   // A lesson missing `slo` / a phase outside the vocab must be flagged.
   const broken = validateGeneratable({

@@ -12,9 +12,8 @@
  *   3. Converts `null` → `''` — Payload returns `null` for empty optional strings, but
  *      the generator's `cell()`/`para()` assume strings (a raw `null` would break docx).
  *      ARES data files never contain `null`; this restores that invariant.
- *   4. Drops empty `framework[].resources` (the Resource column is DEFERRED — see
- *      docs/DECISIONS.md). The optional field is retained as the future seam: a
- *      *populated* `resources` is carried through untouched.
+ *   4. Restores Payload's nullable native groups to the exact required lesson-level
+ *      `resourceLinks` JSON shape (`video` / `reading` empty groups → explicit `null`).
  *   5. Omits `FINAL_EXPLANATION` / `SUMMARY_TABLE` when the bundle has none, so the
  *      generator skips those documents (matches `generateBundleDocx`'s null contract).
  *
@@ -24,6 +23,7 @@
 import type { LessonBundleVersion } from '../payload-types'
 import type { DeliverableTag } from './exportArtifacts'
 import type { AresDataObject } from './index'
+import { toAresResourceLinks } from '../ingest/resourceLinks'
 
 /** True if any leaf string under `value` is non-empty (used to prune empty groups). */
 function hasContent(value: unknown): boolean {
@@ -44,8 +44,8 @@ function asArray(value: unknown): unknown[] {
 }
 
 /**
- * Deep copy that drops Payload's row `id`, normalises `null` → `''`, and prunes empty
- * `resources` groups. Pure (does not mutate the input).
+ * Deep copy that drops Payload's row `id` and normalises ordinary `null` → `''`. The required
+ * resourceLinks map is handled as a typed exception so its explicit null records survive.
  */
 function clean(value: unknown): unknown {
   if (value === null || value === undefined) return ''
@@ -54,10 +54,11 @@ function clean(value: unknown): unknown {
     const out: Record<string, unknown> = {}
     for (const [key, v] of Object.entries(value)) {
       if (key === 'id') continue
-      const cleaned = clean(v)
-      // Resource column deferred: drop when empty, carry through when populated.
-      if (key === 'resources' && !hasContent(cleaned)) continue
-      out[key] = cleaned
+      if (key === 'resourceLinks') {
+        out[key] = toAresResourceLinks(v)
+        continue
+      }
+      out[key] = clean(v)
     }
     return out
   }
@@ -85,7 +86,7 @@ export function versionDeliverables(
 export function bundleToAresData(bundle: LessonBundleVersion): AresDataObject {
   const lessons = asArray(bundle.lessons).map((lesson) => {
     const l = lesson as Record<string, unknown>
-    // `clean` already stripped ids / pruned empty resources inside each framework row;
+    // `clean` already stripped row ids and restored the exact resourceLinks union;
     // re-assert framework is an array so a null/missing value can't crash the generator.
     l.framework = Array.isArray(l.framework) ? l.framework : []
     return l

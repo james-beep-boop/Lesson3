@@ -1,126 +1,92 @@
 /**
- * End-to-end round-trip regression (GATE) — the full DB path in one self-cleaning command.
+ * End-to-end definitive-1.0.0 round-trip gate (requires Postgres).
  *
- * Proves the architecture stays content-faithful through the *stored* path, not just the
- * standalone generator (that is `fidelity-spike.ts`, DB-less). The chain mirrors the manual
- * Phase-4 proof, fully in-process so it needs no Mac round-trip:
+ * Current Physics JSON → hard contract/ingest → immutable Official version → Payload adapter →
+ * current generator → semantic and package/XML comparison with the upstream DOCX oracle. The raw
+ * fixture's substrand_id is changed to a unique test-only value so the gate never revises a real
+ * Physics 4.1 plan; that identity is not rendered into the documents.
  *
- *   seed taxonomy (if missing) → ingest bio_1_4_data.js → 1.0.0 draft → publish → generate
- *   from the DB → diff vs the approved DOCX (LessonSequence Resource column excluded).
- *
- * SELF-CLEANING: every record it creates is tracked and deleted in a `finally` (reverse
- * order), so a pass or a crash both leave the DB as they found it. It is NON-DESTRUCTIVE to
- * existing data — it seeds Biology / Grade 10 only if absent (and then deletes only what it
- * seeded), and ingest always creates a NEW draft, so the live published bundle is untouched.
- *
- * Run (needs a DB — on the Rock, or any host with DATABASE_URI):
+ * Run on the Rock after applying the resource-link migration:
  *   cd app && npx payload run scripts/roundtrip-regression.ts
- *
- * Assets come from ARES_DEMO_PATH (default ~/Desktop/ares-docx-fidelity-demo): the trusted
- * `bio_1_4_data.js` + its three approved `Biology_Chemicals_of_Life_*` DOCX. Set ARES_DEMO_PATH
- * to relocate them on the Rock / CI.
- *
- * Exit 0 only when all three documents are content-identical (Resource column excluded);
- * non-zero otherwise.
  */
+import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
 import { getPayload, type CollectionSlug } from 'payload'
 import config from '@payload-config'
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import os from 'node:os'
 
-import { ingestPaths } from '../src/ingest'
 import { generateForVersion } from '../src/generator/generateForVersion'
-import { compareDoc } from './lib/docxDiff'
+import { ingestItems, type IngestItem } from '../src/ingest'
+import { extractAresJson } from '../src/ingest/extract'
+import { compareDoc, compareLessonSequencePackage } from './lib/docxDiff'
 
-// bio_1_4's META (verified): the data file resolves to this taxonomy on ingest.
-const SUBJECT = 'Biology'
+const SUBJECT = 'Physics'
 const GRADE = 10
-const DATA_FILE = 'bio_1_4_data.js'
+const JSON_PATH =
+  process.env.ARES_FIDELITY_JSON ??
+  path.join(os.homedir(), 'Desktop', 'ares-json', 'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json')
+const ORACLE_DIR =
+  process.env.ARES_FIDELITY_ORACLE_DIR ??
+  path.join(
+    os.homedir(), 'Documents', 'GitHub', 'cbe-generation-system', 'data', 'outputs', 'v2',
+    'Physics', 'SS4.1_Greenhouse_Effect_and_Climate_Change',
+  )
 const APPROVED = {
-  lessonSequence: 'Biology_Chemicals_of_Life_CBE_LessonSequence.docx',
-  finalExplanation: 'Biology_Chemicals_of_Life_FinalExplanation.docx',
-  summaryTable: 'Biology_Chemicals_of_Life_SummaryTable.docx',
+  lessonSequence: 'Physics_Greenhouse_Effect_and_Climate_Change_CBE_LessonSequence.docx',
+  finalExplanation: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation.docx',
+  summaryTable: 'Physics_Greenhouse_Effect_and_Climate_Change_SummaryTable.docx',
 } as const
 
-const DEMO =
-  process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
-const approved = (file: string) => readFileSync(path.join(DEMO, file))
+const approved = (file: string) => readFileSync(path.join(ORACLE_DIR, file))
 
 const run = async () => {
   const payload = await getPayload({ config })
-
-  // Records we create — torn down in reverse in the finally below.
   const created: { collection: CollectionSlug; id: number | string }[] = []
-  let passed = 0
   let cleanupFailed = false
-  const total = 3
-
-  // Reuse a pre-existing taxonomy row, or create it and track it for cleanup. The find/create
-  // calls stay at the call site (literal collection slugs = type-safe); this only factors the
-  // shared reuse-vs-create-then-track-then-log tail the two seed steps share.
-  const reuseOrSeed = async (
-    collection: 'subjects' | 'subject-grades',
-    noun: string,
-    existing: { id: number | string } | undefined,
-    create: () => Promise<{ id: number | string }>,
-  ): Promise<number | string> => {
-    if (existing) {
-      console.log(`Taxonomy: ${noun} exists (id ${existing.id}) — reusing.`)
-      return existing.id
-    }
-    const doc = await create()
-    created.push({ collection, id: doc.id })
-    console.log(`Taxonomy: created ${noun} (id ${doc.id}).`)
-    return doc.id
-  }
+  let passed = 0
+  const total = 4
 
   try {
-    // 1. Seed taxonomy IF MISSING (track only what we create — leave pre-existing rows alone).
-    const subjectId = await reuseOrSeed(
-      'subjects',
-      `Subject "${SUBJECT}"`,
-      (
-        await payload.find({
-          collection: 'subjects',
-          where: { name: { equals: SUBJECT } },
-          limit: 1,
-          depth: 0,
-          overrideAccess: true,
-        })
-      ).docs[0],
-      () => payload.create({ collection: 'subjects', data: { name: SUBJECT }, overrideAccess: true }),
-    )
+    const subjectResult = await payload.find({
+      collection: 'subjects',
+      where: { name: { equals: SUBJECT } },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const subject = subjectResult.docs[0] ?? await payload.create({
+      collection: 'subjects',
+      data: { name: SUBJECT },
+      overrideAccess: true,
+    })
+    if (!subjectResult.docs[0]) created.push({ collection: 'subjects', id: subject.id })
 
-    await reuseOrSeed(
-      'subject-grades',
-      `SubjectGrade "${SUBJECT} — Grade ${GRADE}"`,
-      (
-        await payload.find({
-          collection: 'subject-grades',
-          where: { and: [{ subject: { equals: subjectId } }, { grade: { equals: GRADE } }] },
-          limit: 1,
-          depth: 0,
-          overrideAccess: true,
-        })
-      ).docs[0],
-      () =>
-        payload.create({
-          // subjectId is a real (numeric) row id; the relationship field is typed number|Subject.
-          collection: 'subject-grades',
-          data: { subject: subjectId as number, grade: GRADE },
-          overrideAccess: true,
-        }),
-    )
+    const subjectGradeResult = await payload.find({
+      collection: 'subject-grades',
+      where: { and: [{ subject: { equals: subject.id } }, { grade: { equals: GRADE } }] },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const subjectGrade = subjectGradeResult.docs[0] ?? await payload.create({
+      collection: 'subject-grades',
+      data: { subject: subject.id, grade: GRADE },
+      overrideAccess: true,
+    })
+    if (!subjectGradeResult.docs[0]) created.push({ collection: 'subject-grades', id: subjectGrade.id })
 
-    // 2. Ingest the trusted demo data file → a fresh LessonPlan + Official 1.0.0 version (never
-    //    touches existing data — ingest always creates a new plan). Track BOTH for cleanup.
-    const [ingested] = await ingestPaths(payload, [path.join(DEMO, DATA_FILE)])
-    if (!ingested) throw new Error(`Ingest produced no plan for ${DATA_FILE}`)
+    const raw = structuredClone(extractAresJson(readFileSync(JSON_PATH, 'utf8')))
+    const meta = raw.META as Record<string, unknown>
+    meta.substrand_id = `4.1-roundtrip-${randomUUID()}`
+    const item: IngestItem = { name: path.basename(JSON_PATH), extract: () => raw }
+    const [ingested] = await ingestItems(payload, [item])
+    if (!ingested || ingested.action !== 'created') {
+      throw new Error(`Expected a fresh test plan; got ${ingested?.action ?? 'no ingest result'}`)
+    }
     created.push({ collection: 'lesson-plans', id: ingested.id })
-    console.log(`Imported ${DATA_FILE} → plan ${ingested.id} · "${ingested.title}" · ${ingested.semver} · Official`)
 
-    // 3. Resolve the plan's Official version snapshot (the immutable doc we generate from).
     const plan = await payload.findByID({
       collection: 'lesson-plans',
       id: ingested.id,
@@ -131,64 +97,48 @@ const run = async () => {
       typeof plan.officialVersion === 'object' && plan.officialVersion
         ? plan.officialVersion.id
         : plan.officialVersion
-    if (officialVersionId == null) throw new Error('Ingested plan has no Official version')
+    if (officialVersionId == null) throw new Error('Ingested test plan has no Official version')
     created.push({ collection: 'lesson-bundle-versions', id: officialVersionId })
-    console.log(`Official version → ${officialVersionId}`)
 
-    // 4. Generate from the stored Official version and diff vs the approved DOCX. The generator now
-    //    produces the single five-column layout (no Resource column); the diff still passes because
-    //    `compareDoc(..., stripResources=true)` strips the Resource column from the approved
-    //    (six-column) oracle before comparing, so both sides reduce to the same five-column content.
     const out = await generateForVersion(payload, officialVersionId)
+    const lessonOracle = approved(APPROVED.lessonSequence)
     const results = [
-      await compareDoc('LessonSequence (SoW)', out.lessonSequence, approved(APPROVED.lessonSequence), true),
+      await compareDoc('LessonSequence (resources included)', out.lessonSequence, lessonOracle, false),
+      await compareLessonSequencePackage(
+        out.lessonSequence,
+        lessonOracle,
+        raw.LESSONS as unknown[],
+      ),
       await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
       await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
     ]
     passed = results.filter(Boolean).length
   } finally {
-    // 5. Break the plan↔version mutual relationship before deleting, then tear down newest-first
-    //    (version → plan → SubjectGrade → Subject). LessonPlan.officialVersion and
-    //    LessonBundleVersion.lessonPlan reference each other, so null the pointer first or the
-    //    first delete can trip the FK.
-    for (const { collection, id } of created) {
-      if (collection === 'lesson-plans') {
-        try {
-          await payload.update({ collection, id, data: { officialVersion: null }, overrideAccess: true })
-        } catch {
-          /* best-effort — the delete below reports any real failure */
-        }
+    for (const record of created) {
+      if (record.collection === 'lesson-plans') {
+        await payload.update({
+          collection: 'lesson-plans', id: record.id, data: { officialVersion: null }, overrideAccess: true,
+        }).catch(() => {})
       }
     }
     for (const { collection, id } of created.reverse()) {
       try {
         await payload.delete({ collection, id, overrideAccess: true })
-        console.log(`Cleanup: deleted ${collection} ${id}`)
-      } catch (e) {
+      } catch (error) {
         cleanupFailed = true
-        console.warn(`Cleanup: FAILED to delete ${collection} ${id}: ${e instanceof Error ? e.message : e}`)
+        console.warn(`Cleanup failed for ${collection} ${id}: ${error instanceof Error ? error.message : error}`)
       }
     }
   }
 
   console.log(`\n${'='.repeat(50)}`)
-  console.log(`ROUND-TRIP GATE: ${passed}/${total} documents content-identical (except Resource column)`)
-  if (passed !== total) {
-    console.error('✗ ROUND-TRIP GATE FAILED')
-    process.exit(1)
-  }
-  // A self-cleaning gate that leaves state behind is a failed gate, even if the diff matched —
-  // otherwise CI/Rock runs silently accumulate test rows and hide a cleanup regression.
-  if (cleanupFailed) {
-    console.error('✗ ROUND-TRIP GATE FAILED — diff matched but cleanup left records behind (see above)')
-    process.exit(1)
-  }
-  console.log('✓ ROUND-TRIP GATE PASSED (seed → ingest → publish → generate → diff, self-cleaned)')
+  console.log(`CURRENT ROUND-TRIP GATE: ${passed}/${total}`)
+  if (passed !== total || cleanupFailed) process.exit(1)
+  console.log('✓ CURRENT ROUND-TRIP GATE PASSED (ingest → DB → adapter → generator → diff)')
 }
 
-// Top-level await — `payload run` only awaits module evaluation (see scripts/ingest.ts).
-await run().catch((e) => {
-  console.error(e instanceof Error ? e.message : e)
+await run().catch((error) => {
+  console.error(error instanceof Error ? error.message : error)
   process.exit(1)
 })
 process.exit(0)

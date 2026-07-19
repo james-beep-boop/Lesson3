@@ -10,8 +10,8 @@
  * docs/ARES-DATA-REQUEST.md.
  *
  * This is a deliberately small, dependency-free validator covering ONLY the JSON-Schema keywords
- * our own schema uses (type / required / properties / additionalProperties:false / items /
- * minItems / minimum / enum / pattern). We don't pull in a general validator (ajv): the keyword
+ * our own schema uses (`$defs` / local `$ref` / type / required / properties /
+ * additionalProperties:false / items / minItems / minimum / enum / pattern). We don't pull in a general validator (ajv): the keyword
  * set is fixed and authored by us, the project pins deps deliberately, and a bespoke checker lets
  * us emit ACTIONABLE messages (alias-of / likely-typo hints) instead of generic schema errors.
  * It is matched by a DB-less gate (scripts/contract-check.ts) so the hand-rolled logic is proven.
@@ -19,6 +19,8 @@
 import schemaJson from './ares-contract.schema.json'
 
 type Schema = {
+  $ref?: string
+  $defs?: Record<string, Schema>
   type?: string | string[]
   required?: string[]
   properties?: Record<string, Schema>
@@ -68,6 +70,8 @@ function matchesType(value: unknown, types: string[]): boolean {
         return typeof value === 'number'
       case 'string':
         return typeof value === 'string'
+      case 'boolean':
+        return typeof value === 'boolean'
       case 'null':
         return value === null
       default:
@@ -76,8 +80,18 @@ function matchesType(value: unknown, types: string[]): boolean {
   })
 }
 
+/** Resolve the local `#/$defs/<name>` references used to keep resource schemas single-sourced. */
+function resolveNode(node: Schema): Schema {
+  if (!node.$ref) return node
+  const match = /^#\/\$defs\/([^/]+)$/.exec(node.$ref)
+  const resolved = match ? schema.$defs?.[match[1]!] : undefined
+  if (!resolved) throw new Error(`Unsupported or missing contract schema reference: ${node.$ref}`)
+  return resolved
+}
+
 /** Recursively collect drift messages for `value` against `node`, prefixing paths with `path`. */
 function walk(value: unknown, node: Schema, path: string, out: string[]): void {
+  node = resolveNode(node)
   const types = node.type ? (Array.isArray(node.type) ? node.type : [node.type]) : []
   if (types.length && !matchesType(value, types)) {
     out.push(`${path}: expected ${types.join('|')}, got ${jsonType(value)}`)

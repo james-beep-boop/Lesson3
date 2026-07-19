@@ -332,6 +332,136 @@ export interface LessonBundleVersion {
          * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
          */
         overview?: string | null;
+        /**
+         * Resolved upstream and versioned exactly; never user-editable.
+         */
+        resourceLinks: {
+          predict: {
+            video?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            reading?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            fallback_search_url: string;
+          };
+          observe: {
+            video?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            reading?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            fallback_search_url: string;
+          };
+          explain: {
+            video?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            reading?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            fallback_search_url: string;
+          };
+          dqb: {
+            video?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            reading?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            fallback_search_url: string;
+          };
+          model: {
+            video?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            reading?: {
+              title?: string | null;
+              source?: string | null;
+              content_type?: string | null;
+              direct_url?: string | null;
+              search_url?: string | null;
+              search_terms?: string | null;
+              exact_search_url?: string | null;
+              has_transcript?: boolean | null;
+              tier?: number | null;
+            };
+            fallback_search_url: string;
+          };
+        };
         framework?:
           | {
               /**
@@ -362,21 +492,6 @@ export interface LessonBundleVersion {
                * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
                */
               formativeAssessment?: string | null;
-              /**
-               * Auto-resolved at ingest; never user-editable. May be empty.
-               */
-              resources?: {
-                video?: {
-                  title?: string | null;
-                  direct_url?: string | null;
-                  search_url?: string | null;
-                };
-                reading?: {
-                  title?: string | null;
-                  direct_url?: string | null;
-                  search_url?: string | null;
-                };
-              };
               id?: string | null;
             }[]
           | null;
@@ -797,6 +912,165 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
               safetyNotes?: T;
             };
         overview?: T;
+        resourceLinks?:
+          | T
+          | {
+              predict?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    fallback_search_url?: T;
+                  };
+              observe?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    fallback_search_url?: T;
+                  };
+              explain?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    fallback_search_url?: T;
+                  };
+              dqb?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    fallback_search_url?: T;
+                  };
+              model?:
+                | T
+                | {
+                    video?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    reading?:
+                      | T
+                      | {
+                          title?: T;
+                          source?: T;
+                          content_type?: T;
+                          direct_url?: T;
+                          search_url?: T;
+                          search_terms?: T;
+                          exact_search_url?: T;
+                          has_transcript?: T;
+                          tier?: T;
+                        };
+                    fallback_search_url?: T;
+                  };
+            };
         framework?:
           | T
           | {
@@ -805,24 +1079,6 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
               teacherMoves?: T;
               sensemakingStrategy?: T;
               formativeAssessment?: T;
-              resources?:
-                | T
-                | {
-                    video?:
-                      | T
-                      | {
-                          title?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                        };
-                    reading?:
-                      | T
-                      | {
-                          title?: T;
-                          direct_url?: T;
-                          search_url?: T;
-                        };
-                  };
               id?: T;
             };
         teacherReflection?: T;

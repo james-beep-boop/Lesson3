@@ -26,7 +26,7 @@
 const path     = require('path');
 const fs       = require('fs');
 const { Document, Packer, PageOrientation } = require('docx');
-const { W, C, SZ, SZ_H, SPACE, para, cell, fullHeader, labelRow, makeTable } = require('./docx_kit');
+const { W, C, SZ, SZ_H, SPACE, PAGE_BREAK, para, cell, fullHeader, labelRow, makeTable } = require('./docx_kit');
 const { TableRow } = require('docx');
 const {
   titleBlock, subStrandOverview,
@@ -62,7 +62,7 @@ async function buildSoW(META, UNIT, LESSONS) {
 
   for (const lesson of LESSONS) {
     body.push(
-      SPACE(),
+      PAGE_BREAK(),
       sectionA(lesson),
       SPACE(),
       sectionB(lesson),
@@ -72,11 +72,10 @@ async function buildSoW(META, UNIT, LESSONS) {
       sectionD(lesson),
       SPACE(),
       sectionE(lesson),
-      SPACE(),
     );
   }
 
-  body.push(SPACE(), differentiationTable(META.differentiationRows));
+  body.push(PAGE_BREAK(), differentiationTable(META.differentiationRows));
 
   return new Document({
     sections: [{ properties: pageProps(), children: body }],
@@ -223,9 +222,9 @@ async function buildSummaryTable(META, ST) {
 // ── Runner — generates and saves all three files ──────────────────────────────
 
 async function run(dataModule) {
-  const { META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE } = dataModule;
+  const { schemaVersion, META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE } = dataModule;
 
-  const outBase = path.join(__dirname, '..', '..', 'data', 'outputs', 'docx', META.outputDir);
+  const outBase = path.join(__dirname, '..', '..', 'data', 'outputs', META.outputDir);
   if (!fs.existsSync(outBase)) fs.mkdirSync(outBase, { recursive: true });
 
   const files = [];
@@ -254,6 +253,15 @@ async function run(dataModule) {
     files.push(stPath);
     console.log(`    Saved: ${stPath}  (${Math.round(fs.statSync(stPath).size / 1024)} KB)`);
   }
+
+  // 4. JSON export — canonical structured data for downstream tools
+  const jsonPath = path.join(outBase, `${META.filePrefix}_data.json`);
+  fs.writeFileSync(jsonPath, JSON.stringify(
+    { schemaVersion, META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE },
+    null, 2
+  ));
+  files.push(jsonPath);
+  console.log(`    Saved: ${jsonPath}  (${Math.round(fs.statSync(jsonPath).size / 1024)} KB)`);
 
   return files;
 }
