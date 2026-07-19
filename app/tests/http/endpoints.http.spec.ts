@@ -1397,11 +1397,43 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
     expect(res.status).toBe(409)
   })
 
-  it('a Teacher request messages the Subject Admin + Site Admin (server-resolved recipients)', async () => {
+  it('a Teacher request messages every Site Admin + the sg Subject Admin (server-resolved recipients)', async () => {
+    // Derive the EXPECTED recipient set from live DB state, mirroring the endpoint
+    // (`resolveRecipients`): every `roles contains 'siteAdmin'` + the subject-grade's Subject
+    // Admins, minus the requester. Hardcoding "2" assumed exactly one Site Admin and failed against a
+    // populated DB (production correctly notifies ALL Site Admins) — this stays correct either way.
+    const sgId = String(fx.subjectGrade.id)
+    const [siteAdmins, holders] = await Promise.all([
+      fx.payload.find({
+        collection: 'users',
+        where: { roles: { contains: 'siteAdmin' } },
+        depth: 0,
+        limit: 1000,
+        overrideAccess: true,
+      }),
+      fx.payload.find({
+        collection: 'users',
+        where: { 'assignments.subjectGrade': { equals: sgId } },
+        depth: 0,
+        limit: 1000,
+        overrideAccess: true,
+      }),
+    ])
+    const subjectAdmins = holders.docs.filter((u) =>
+      (u.assignments ?? []).some(
+        (a) => String((a as { subjectGrade?: unknown }).subjectGrade) === sgId && (a as { role?: string }).role === 'subjectAdmin',
+      ),
+    )
+    const expected = new Set([...siteAdmins.docs, ...subjectAdmins].map((u) => String(u.id)))
+    expected.delete(String(fx.users.teacher.id)) // the requester is never messaged
+    // Sanity: the fixture's two admins must be in the derived set (guards the derivation itself).
+    expect(expected.has(String(fx.users.subjectAdmin.id))).toBe(true)
+    expect(expected.has(String(fx.users.siteAdmin.id))).toBe(true)
+
     const res = await fetch(url(reqUrl(fx.plan.id)), { method: 'POST', headers: auth('teacher') })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { sent: number }
-    expect(body.sent).toBe(2) // the fixture sg's Subject Admin + the one Site Admin
+    expect(body.sent).toBe(expected.size)
 
     const { docs } = await fx.payload.find({
       collection: 'messages',
@@ -1409,10 +1441,8 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
       depth: 0,
       overrideAccess: true,
     })
-    expect(docs).toHaveLength(2)
-    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(
-      new Set([String(fx.users.subjectAdmin.id), String(fx.users.siteAdmin.id)]),
-    )
+    expect(docs).toHaveLength(expected.size)
+    expect(new Set(docs.map((m) => String(m.recipient)))).toEqual(expected)
     for (const m of docs) {
       expect(String(m.body)).toContain('editing access')
       expect(String(m.lessonPlan)).toBe(String(fx.plan.id))

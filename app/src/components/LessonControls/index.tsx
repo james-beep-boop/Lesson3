@@ -78,13 +78,17 @@ export default function LessonControls() {
   const pdfMenuRef = useRef<HTMLDivElement>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
-  // Which deliverables this working copy actually has (Lesson plan always; Final Explanation /
-  // Summary Table only when they carry content), from the SAME rule the generator/export use
-  // (`versionDeliverables`). Drives the "View as PDF" menu; recomputed from live form fields so it
-  // reflects unsaved structural changes. `fields` is the stable dep (currentContent() derives from it).
+  // Which deliverables this plan has (Lesson plan always; Final Explanation / Summary Table only
+  // when they carry content), from the SAME rule the generator/export use (`versionDeliverables`).
+  // Drives the "View as PDF" menu. Derived from the STABLE `savedDocumentData`, NOT live form
+  // fields: `reduceFieldsToValues(fields)` walks the whole (very tall) form and `fields` changes on
+  // every keystroke, so keying off it would re-scan the entire form per character (editor-lag
+  // regression). Presence is a structural property Editors can't change via prose edits; the rare
+  // case of an admin adding an FE/ST section then previewing it before saving isn't offered in the
+  // menu, and the endpoint re-checks presence on the posted content anyway (404 if absent).
   const pdfTags = useMemo<DeliverableTag[]>(
-    () => versionDeliverables(reduceFieldsToValues(fields, true) as never),
-    [fields],
+    () => versionDeliverables((savedDocumentData ?? {}) as never),
+    [savedDocumentData],
   )
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)

@@ -26,14 +26,14 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); UNCOMMITTED on `main` working tree (NO migration)
+## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); PR #104 OPEN on `feat/editor-view-as-pdf` (NO migration)
 
 **Built the pre-agreed "View as PDF" editor button** (see the "DISCUSSED, NOT BUILT" block further
-down), ran a **`/simplify` (4-agent) pass**, then applied a **review round** (per-document scope +
-concurrency bound). App-level, **no migration**. Full reasoning: **DECISIONS 2026-07-18 (latest) —
-editor "View as PDF"**.
+down), ran a **`/simplify` (4-agent) pass**, then applied **two review rounds** (per-document scope +
+concurrency bound; then a perf fix + CodeRabbit + test hermeticity). App-level, **no migration**. Full
+reasoning: **DECISIONS 2026-07-18 (latest) — editor "View as PDF"**.
 
-**What changed (15 files under `app/`: 14 modified + new `src/lib/conversionLimit.ts`; + 3 docs
+**What changed (16 files under `app/`: 15 modified + new `src/lib/conversionLimit.ts`; + 3 docs
 DECISIONS/NEXT-SESSION/USER_GUIDE):**
 1. **New endpoint `POST /:id/preview-pdf?doc=<tag>`** (`src/endpoints/previewVersion.ts`) — the PDF twin
    of the unsaved HTML preview: same authz/field boundary (shared `resolveUnsavedEffective`) + shared
@@ -60,18 +60,22 @@ Summary Table shouldn't get a Lesson Sequence PDF).
 
 **Verified** on the local compose stack (Gotenberg live): per-`?doc` 200/400/404; Teacher 404; structural
 422; **6 concurrent → exactly 2×200 + 4×503**; big-text overlay → +4651-byte PDF; dropdown lists the
-present docs and each item requests the right `?doc`. `tsc` clean; `test:unit` **190**; **lint 0 errors**
-(30 `any` warnings, ALL in the HTTP test file, matching its existing `(fx.version as any)` style — the new
-source files are warning-clean). http/e2e run in CI (can't run the http suite locally — needs the isolated
+present docs and each item requests the right `?doc`. `tsc` clean; `test:unit` **190**; **lint 0 errors** —
+within the CHANGED files the only warnings are in the HTTP test (its existing `(fx.version as any)` style);
+the new source files are warning-clean. (Repo-wide lint carries ~79 PRE-EXISTING warnings across unrelated
+files — not introduced here.) http/e2e run in CI (can't run the http suite locally — needs the isolated
 `lesson3_test` DB). Browser-automation caveat in DECISIONS (form-POST-to-`_blank` → GET in the pane; hits
 the shipped Preview button too — not a regression).
 
-**Status: UNCOMMITTED on `main`'s working tree** (no-commit rule). Next: commit on a feature branch → PR →
-CI → merge (the new endpoint + concurrency logic tilt it toward the PR flow over direct-to-main). Then fold
-into the pending Rock deploy below (**no migration**). Eyeball: editor toolbar shows **View as PDF** (a `▾`
-menu when the plan has FE/ST); pristine opens the formatted doc; after an edit it reflects the unsaved change.
-**Not fixed (pre-existing, unrelated):** the Site-Admin-notify HTTP test assumes one Site Admin (passes in
-CI's isolated DB; fails only against a populated DB); the ≤640px Manage-vs-frontend padding difference.
+**Status: COMMITTED + PUSHED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) OPEN**
+on `feat/editor-view-as-pdf` (base `main`). First CI run went green (gate + CodeRabbit); a follow-up
+commit applies the second review round (perf + CodeRabbit + test hermeticity) — re-running. Next: CI green
+→ merge → fold into the pending Rock deploy below (**no migration**). Eyeball after deploy: editor toolbar
+shows **View as PDF** (a `▾` menu when the plan has FE/ST); pristine opens the formatted doc; after an edit
+it reflects the unsaved change.
+**Fixed in the second review round:** the request-editing HTTP test now derives its expected recipient set
+from live DB state (no longer assumes one Site Admin), so it's hermetic against a populated DB.
+**Not fixed (pre-existing, unrelated):** the ≤640px Manage-vs-frontend padding difference.
 **Still deferred:** Site-Admin avatar (accent-blue) — see the #102 block below.
 
 ---

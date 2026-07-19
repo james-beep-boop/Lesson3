@@ -18,12 +18,19 @@ dropped — a fast *structural* check). Added a **View as PDF** button next to i
 rendering — the generator's own DOCX run through Gotenberg (`docxToPdf`), the same engine the export uses.
 Pre-agreed in the 2026-07-18 NEXT-SESSION "DISCUSSED, NOT BUILT" block.
 
-- **Scope = PER-DOCUMENT (revised after review — see below).** A `View as PDF ▾` menu lists the
-  deliverables the plan actually has (`versionDeliverables`: Lesson plan always; Final Explanation /
-  Summary Table when present); a plan with only one document shows a plain `View as PDF` button. The
-  endpoint takes a validated `?doc=<tag>`. (The first cut was PRIMARY-ONLY — chosen via a planning
-  question — but review rightly flagged that someone editing the Summary Table then got a Lesson Sequence
-  PDF; per-document is the fix. A merged full-document PDF was the considered alternative.)
+- **Scope = PER-DOCUMENT via an explicit dropdown (a deliberate UX decision, not one-click-what-you-see).**
+  A `View as PDF ▾` menu lists the deliverables the plan actually has (`versionDeliverables`: Lesson plan
+  always; Final Explanation / Summary Table when present); a plan with only one document shows a plain
+  one-click `View as PDF` button. The endpoint takes a validated `?doc=<tag>`.
+  - **Decision trail:** the first cut was PRIMARY-ONLY (chosen via a planning question); review flagged
+    that someone editing the Summary Table then got a Lesson Sequence PDF. The three fixes considered were
+    **(a) detect the visible editor section and preview that**, **(b) a merged full-document PDF**, and
+    **(c) an explicit per-document dropdown**. The user chose **(c)**. Rationale: the editor is ONE long
+    form with a jump-nav, not discrete document tabs, so "the section you're viewing" has no crisp
+    definition — scroll/active-section heuristics (a) are fragile and a lower-altitude mechanism; the
+    dropdown is reliable and needs no such tracking. This is intentional, and it means the control is NOT
+    one-click when a plan has 2–3 documents (one click to open the menu, one to pick) — an accepted trade
+    for reliability. (Merged (b) stays a possible future if a single combined PDF is ever wanted.)
 - **Two paths, branched on `useFormModified()`** (already used for the Save gate):
   - **pristine → reuse the existing export pipeline.** `openPreparedPdfInNewTab` (shared with the
     teacher-facing `DocButtons`) → `ensureExportReady(…/export?as=pdf)` then open
@@ -70,9 +77,20 @@ Pre-agreed in the 2026-07-18 NEXT-SESSION "DISCUSSED, NOT BUILT" block.
   `DocButtons`/`onPreview`); `deliverableStem(tag, prefix)` + `DELIVERABLE_LABELS` (→ `exportArtifacts.ts`
   / `deliverables.ts`, single-sourced naming + labels, `DocStrip` reuses the labels); `mimeFor('pdf')` and
   a zero-copy `Uint8Array` response body.
-- **Not fixed here (pre-existing, unrelated to this diff, flagged in review):** the Site-Admin-notify HTTP
-  test assumes exactly one Site Admin (fails only against a populated non-isolated DB; passes in CI's
-  `lesson3_test`); and the ≤640px Manage vs frontend content-padding difference. Left for separate work.
+- **Second review round (feature-level) — applied on the PR:**
+  - **Perf:** the `View as PDF ▾` menu's present-deliverables list was `useMemo(versionDeliverables(
+    reduceFieldsToValues(fields)), [fields])` — which walks the whole (very tall) form on EVERY keystroke
+    (`fields` changes per character). Now derived from the stable `savedDocumentData`, so no per-keystroke
+    full-form scan. (Presence is structural; the endpoint re-checks it on the posted content anyway.)
+  - **CodeRabbit:** compute the PDF filename stem BEFORE `acquireConversionSlot` (a throw in
+    `deliverableStem`/`safePrefix` can no longer leak a slot); add a `never`-assertion `default` to
+    `generateDeliverableDocx` (keeps compile-time exhaustiveness + runtime insurance).
+  - **Test hermeticity (fixed):** the request-editing test derived `sent`/recipients from a hardcoded "2"
+    (one Site Admin). Now it computes the expected set from live DB state the way the endpoint does (all
+    Site Admins + the sg's Subject Admins, minus the requester), so it passes against a populated DB too —
+    not just CI's isolated `lesson3_test`.
+- **Still not fixed (pre-existing, unrelated to this diff):** the ≤640px Manage vs frontend content-padding
+  difference. Left for separate work.
 
 ## 2026-07-18 (later) — cross-surface consistency: shared design tokens, Manage aligned to the frontend, Messages header
 
