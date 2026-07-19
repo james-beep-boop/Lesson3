@@ -26,7 +26,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); PR #104 OPEN on `feat/editor-view-as-pdf` (NO migration)
+## ▶ RESUME HERE (2026-07-18, newest) — editor "View as PDF" (accurate formatted preview); MERGED (#104), app DEPLOY PENDING (NO migration)
 
 **Built the pre-agreed "View as PDF" editor button** (see the "DISCUSSED, NOT BUILT" block further
 down), ran a **`/simplify` (4-agent) pass**, then applied **two review rounds** (per-document scope +
@@ -67,12 +67,13 @@ files — not introduced here.) http/e2e run in CI (can't run the http suite loc
 `lesson3_test` DB). Browser-automation caveat in DECISIONS (form-POST-to-`_blank` → GET in the pane; hits
 the shipped Preview button too — not a regression).
 
-**Status: COMMITTED + PUSHED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) OPEN**
-on `feat/editor-view-as-pdf` (base `main`). First CI run went green (gate + CodeRabbit); a follow-up
-commit applies the second review round (perf + CodeRabbit + test hermeticity) — re-running. Next: CI green
-→ merge → fold into the pending Rock deploy below (**no migration**). Eyeball after deploy: editor toolbar
-shows **View as PDF** (a `▾` menu when the plan has FE/ST); pristine opens the formatted doc; after an edit
-it reflects the unsaved change.
+**Status: MERGED — PR [#104](https://github.com/james-beep-boop/Lesson3/pull/104) squashed to `main`
+as `7a93515`; branch deleted.** CI green on the final commit (gate + CodeRabbit); two review rounds
+applied (CodeRabbit slot-leak/exhaustive-default; then perf + test hermeticity). **App-code DEPLOY
+PENDING** — folds into the pending Rock deploy below, **no migration**. Eyeball after deploy: editor
+toolbar shows **View as PDF** (a `▾` menu when the plan has FE/ST; a plain button otherwise); pristine
+opens the formatted doc inline; after an edit it reflects the unsaved change; a plan with only a Lesson
+Sequence is one-click.
 **Fixed in the second review round:** the request-editing HTTP test now derives its expected recipient set
 from live DB state (no longer assumes one Site Admin), so it's hermetic against a populated DB.
 **Not fixed (pre-existing, unrelated):** the ≤640px Manage-vs-frontend padding difference.
