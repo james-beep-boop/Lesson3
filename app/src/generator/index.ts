@@ -92,5 +92,12 @@ export async function generateDeliverableDocx(
       return generateFinalExplanationDocx(data)
     case 'summaryTable':
       return generateSummaryTableDocx(data)
+    default: {
+      // Unreachable for a `keyof GeneratedDocx` tag — the `never` assignment keeps this switch
+      // COMPILE-TIME exhaustive (a new tag would fail to type-check here), and the throw is runtime
+      // insurance against an untyped boundary passing a bad value.
+      const unknown: never = tag
+      throw new Error(`Unknown deliverable tag: ${String(unknown)}`)
+    }
   }
 }

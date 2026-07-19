@@ -185,14 +185,15 @@ export const previewVersionPdfEndpoint: Endpoint = {
       throw new APIError('This lesson plan has no such document.', 404)
     }
 
+    // Filename stem mirrors the export naming (single-sourced via `deliverableStem`) so the inline
+    // PDF's suggested name matches a downloaded copy of the same document. Computed BEFORE taking a
+    // slot so a throw here can't leak one (nothing between acquire and the try/finally).
+    const stem = deliverableStem(tag, safePrefix(effective.meta?.filePrefix))
+
     // Concurrency bound (see lib/conversionLimit): refuse rather than pile up when saturated.
     if (!acquireConversionSlot()) {
       throw new APIError('The PDF preview service is busy — please try again in a moment.', 503)
     }
-
-    // Filename stem mirrors the export naming (single-sourced via `deliverableStem`) so the inline
-    // PDF's suggested name matches a downloaded copy of the same document.
-    const stem = deliverableStem(tag, safePrefix(effective.meta?.filePrefix))
 
     let pdf: Buffer
     try {
