@@ -76,28 +76,25 @@ export async function generateBundleDocx(data: AresDataObject): Promise<Generate
 }
 
 /**
+ * The per-deliverable builder for each `GeneratedDocx` key. Typing it `Record<keyof GeneratedDocx, …>`
+ * makes it COMPILE-TIME exhaustive: adding a deliverable to `GeneratedDocx` fails to type-check until a
+ * builder is registered here — no runtime `default`/`throw` scaffolding needed.
+ */
+const DELIVERABLE_BUILDERS: Record<keyof GeneratedDocx, (data: AresDataObject) => Promise<Buffer | null>> = {
+  lessonSequence: generateLessonSequenceDocx,
+  finalExplanation: generateFinalExplanationDocx,
+  summaryTable: generateSummaryTableDocx,
+}
+
+/**
  * Generate a SINGLE deliverable DOCX by tag — the editor "View as PDF" per-document path. Returns
  * null for an absent FE/ST (the caller 404s), Buffer otherwise. Tag values match `DeliverableTag`
  * (the export layer's union) by construction (`keyof GeneratedDocx`), kept decoupled so this module
  * needs no import from the export/cache layer.
  */
-export async function generateDeliverableDocx(
+export function generateDeliverableDocx(
   data: AresDataObject,
   tag: keyof GeneratedDocx,
 ): Promise<Buffer | null> {
-  switch (tag) {
-    case 'lessonSequence':
-      return generateLessonSequenceDocx(data)
-    case 'finalExplanation':
-      return generateFinalExplanationDocx(data)
-    case 'summaryTable':
-      return generateSummaryTableDocx(data)
-    default: {
-      // Unreachable for a `keyof GeneratedDocx` tag — the `never` assignment keeps this switch
-      // COMPILE-TIME exhaustive (a new tag would fail to type-check here), and the throw is runtime
-      // insurance against an untyped boundary passing a bad value.
-      const unknown: never = tag
-      throw new Error(`Unknown deliverable tag: ${String(unknown)}`)
-    }
-  }
+  return DELIVERABLE_BUILDERS[tag](data)
 }

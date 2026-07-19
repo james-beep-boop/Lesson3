@@ -13,8 +13,9 @@
  * global today; a multi-instance deployment would want a shared (Postgres) bound, like the rate
  * limiter — tracked as a follow-up, not built while there is one instance.
  *
- * Non-blocking by design: `acquire()` returns false immediately when saturated (the caller returns a
- * 503) rather than queueing, so waiters can't themselves pile up and hold request slots.
+ * Non-blocking by design: when all slots are taken, `runWithConversionSlot` returns `null` immediately
+ * (the caller returns a 503) rather than queueing, so waiters can't themselves pile up and hold request
+ * slots. The acquire/release pairing lives HERE, not in callers, so a slot can never leak.
  */
 import { positiveIntEnv } from './env'
 
@@ -22,14 +23,18 @@ const maxConcurrent = (): number => positiveIntEnv('PREVIEW_PDF_MAX_CONCURRENT',
 
 let active = 0
 
-/** Try to take a conversion slot. Returns false (do not proceed) when already at the cap. */
-export function acquireConversionSlot(): boolean {
-  if (active >= maxConcurrent()) return false
+/**
+ * Run `fn` while holding one of the limited conversion slots, releasing it on completion OR throw.
+ * Returns `fn`'s result, or `null` when every slot is already taken (the caller should surface a 503).
+ * Owning the try/finally here means no call site can forget to release. `async` by design so the future
+ * cross-instance (Postgres-lease) bound is a change to this module alone, not to every call site.
+ */
+export async function runWithConversionSlot<T>(fn: () => Promise<T>): Promise<T | null> {
+  if (active >= maxConcurrent()) return null
   active++
-  return true
-}
-
-/** Release a slot taken by `acquireConversionSlot`. Safe to call once per successful acquire. */
-export function releaseConversionSlot(): void {
-  if (active > 0) active--
+  try {
+    return await fn()
+  } finally {
+    active--
+  }
 }
