@@ -78,10 +78,14 @@ Pre-agreed in the 2026-07-18 NEXT-SESSION "DISCUSSED, NOT BUILT" block.
   / `deliverables.ts`, single-sourced naming + labels, `DocStrip` reuses the labels); `mimeFor('pdf')` and
   a zero-copy `Uint8Array` response body.
 - **Second review round (feature-level) — applied on the PR:**
-  - **Perf:** the `View as PDF ▾` menu's present-deliverables list was `useMemo(versionDeliverables(
+  - **Perf + freshness:** the `View as PDF` menu's present-deliverables list was `useMemo(versionDeliverables(
     reduceFieldsToValues(fields)), [fields])` — which walks the whole (very tall) form on EVERY keystroke
-    (`fields` changes per character). Now derived from the stable `savedDocumentData`, so no per-keystroke
-    full-form scan. (Presence is structural; the endpoint re-checks it on the posted content anyway.)
+    (`fields` changes per character). Interim fix keyed off the stable `savedDocumentData` (no per-keystroke
+    scan) but went STALE for an admin's unsaved structural add/remove (a just-added FE/ST missing from the
+    menu; a just-emptied one left as a stale item that 404s). **Final:** compute the deliverables ONCE, in
+    the button's click handler, from the live working copy — fresh AND off the typing hot path — then
+    preview the sole document directly or open the picker. So there's now a single `View as PDF` button
+    (no render-time `▾`); the menu appears only when there's more than one document.
   - **CodeRabbit:** compute the PDF filename stem BEFORE `acquireConversionSlot` (a throw in
     `deliverableStem`/`safePrefix` can no longer leak a slot); add a `never`-assertion `default` to
     `generateDeliverableDocx` (keeps compile-time exhaustiveness + runtime insurance).

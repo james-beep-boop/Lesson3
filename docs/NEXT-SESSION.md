@@ -72,8 +72,9 @@ as `7a93515`; branch deleted.** CI green on the final commit (gate + CodeRabbit)
 applied (CodeRabbit slot-leak/exhaustive-default; then perf + test hermeticity). **App-code DEPLOY
 PENDING** — folds into the pending Rock deploy below, **no migration**. Eyeball after deploy: editor
 toolbar shows **View as PDF** (a `▾` menu when the plan has FE/ST; a plain button otherwise); pristine
-opens the formatted doc inline; after an edit it reflects the unsaved change; a plan with only a Lesson
-Sequence is one-click.
+opens the formatted doc inline; after an edit it reflects the unsaved change; a single-document plan is
+one-click, a multi-document plan opens a picker (computed on click, so an admin's unsaved add/remove of a
+Final Explanation / Summary Table is reflected).
 **Fixed in the second review round:** the request-editing HTTP test now derives its expected recipient set
 from live DB state (no longer assumes one Site Admin), so it's hermetic against a populated DB.
 **Not fixed (pre-existing, unrelated):** the ≤640px Manage-vs-frontend padding difference.

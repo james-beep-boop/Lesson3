@@ -21,7 +21,7 @@
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -75,21 +75,12 @@ export default function LessonControls() {
   const [saving, setSaving] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
+  // Deliverables offered in the open "View as PDF" menu — computed ONCE when the button is pressed
+  // (see onViewPdfClick), never on render. Keeps a stale/omitted document out of the menu after an
+  // admin's unsaved structural add/remove, without re-scanning the (very tall) form per keystroke.
+  const [pdfMenuTags, setPdfMenuTags] = useState<DeliverableTag[]>([])
   const pdfMenuRef = useRef<HTMLDivElement>(null)
   const [msg, setMsg] = useState<string | null>(null)
-
-  // Which deliverables this plan has (Lesson plan always; Final Explanation / Summary Table only
-  // when they carry content), from the SAME rule the generator/export use (`versionDeliverables`).
-  // Drives the "View as PDF" menu. Derived from the STABLE `savedDocumentData`, NOT live form
-  // fields: `reduceFieldsToValues(fields)` walks the whole (very tall) form and `fields` changes on
-  // every keystroke, so keying off it would re-scan the entire form per character (editor-lag
-  // regression). Presence is a structural property Editors can't change via prose edits; the rare
-  // case of an admin adding an FE/ST section then previewing it before saving isn't offered in the
-  // menu, and the endpoint re-checks presence on the posted content anyway (404 if absent).
-  const pdfTags = useMemo<DeliverableTag[]>(
-    () => versionDeliverables((savedDocumentData ?? {}) as never),
-    [savedDocumentData],
-  )
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
   // is useful context but wide; this collapses it on demand (user, 2026-07-17). Deliberately
@@ -301,6 +292,27 @@ export default function LessonControls() {
     }
   }
 
+  // The "View as PDF" button press: compute the available deliverables ONCE, now, from the live
+  // working copy (so an admin's unsaved add/remove of a Final Explanation / Summary Table is
+  // reflected — no stale menu item that would 404, no missing one), then either preview the sole
+  // document directly or open the picker. The one full-form scan happens here on click, never on
+  // render or per keystroke.
+  const onViewPdfClick = () => {
+    if (pdfBusy) return
+    if (pdfMenuOpen) {
+      setPdfMenuOpen(false)
+      return
+    }
+    const tags = versionDeliverables(currentContent() as never)
+    if (tags.length <= 1) {
+      void onViewPdf(tags[0] ?? 'lessonSequence')
+      return
+    }
+    setPdfMenuTags(tags)
+    setMsg(null)
+    setPdfMenuOpen(true)
+  }
+
   return (
     // The --editing modifier is the CSS signal for edit mode (role-locked "read-only" label chips in
     // custom.scss key off it — the old signal was the absence of the removed view-mode notice).
@@ -359,46 +371,35 @@ export default function LessonControls() {
           </Button>
           {/* The accurate, formatted rendering (real DOCX→PDF), next to the fast HTML Preview.
               Pristine → the cached export PDF; unsaved → generated from the current form state. One
-              plain button when the plan has a single document; a menu when it also has a Final
-              Explanation / Summary Table, so you can preview whichever you're working on. */}
-          {pdfTags.length <= 1 ? (
+              press computes the available documents (fresh, on click): a single-document plan opens
+              straight away; a plan with a Final Explanation / Summary Table opens a picker so you can
+              choose whichever you're working on. */}
+          <div className="lesson-controls__pdf" ref={pdfMenuRef}>
             <Button
               buttonStyle="secondary"
               size="small"
-              onClick={() => onViewPdf(pdfTags[0] ?? 'lessonSequence')}
+              onClick={onViewPdfClick}
               disabled={pdfBusy}
               aria-busy={pdfBusy}
+              aria-expanded={pdfMenuOpen}
             >
               {pdfBusy ? 'Preparing…' : 'View as PDF'}
             </Button>
-          ) : (
-            <div className="lesson-controls__pdf" ref={pdfMenuRef}>
-              <Button
-                buttonStyle="secondary"
-                size="small"
-                onClick={() => setPdfMenuOpen((o) => !o)}
-                disabled={pdfBusy}
-                aria-busy={pdfBusy}
-                aria-expanded={pdfMenuOpen}
-              >
-                {pdfBusy ? 'Preparing…' : 'View as PDF ▾'}
-              </Button>
-              {pdfMenuOpen && (
-                <div className="lesson-controls__pdf-menu">
-                  {pdfTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className="lesson-controls__pdf-item"
-                      onClick={() => onViewPdf(tag)}
-                    >
-                      {DELIVERABLE_LABELS[tag]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            {pdfMenuOpen && (
+              <div className="lesson-controls__pdf-menu">
+                {pdfMenuTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className="lesson-controls__pdf-item"
+                    onClick={() => onViewPdf(tag)}
+                  >
+                    {DELIVERABLE_LABELS[tag]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Toggle for the details sidebar; the changing label carries the state (no aria-pressed
               on top — label-swap and pressed-state together read as contradictory to AT). */}
           <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>
