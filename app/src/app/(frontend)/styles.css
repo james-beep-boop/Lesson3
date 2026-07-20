@@ -642,37 +642,19 @@ a {
   border-color: var(--accent);
   color: var(--accent);
 }
-.vp-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-.vp-panel {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-  width: min(34rem, 100%);
-  max-height: min(70vh, 34rem);
-  overflow-y: auto;
-  padding: 0.9rem 1rem 1rem;
-}
-.vp-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-.vp-title {
-  font-weight: 600;
+/* The versions dialog is the shared `Modal` (L3-10) — backdrop, panel, focus trap, focus
+   restoration and scroll lock all come from `.modal-backdrop`/`.modal`. This modifier only restores
+   what the version LIST needs beyond the default modal: a wider panel, and `position: relative` so
+   the close control can sit in the corner. Scrolling lives on `.vp-list`, not here, so the close
+   button stays visible however long the list is. */
+.modal--versions {
+  max-width: 34rem;
+  position: relative;
 }
 .vp-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
   border: none;
   background: none;
   color: var(--muted);
@@ -692,6 +674,9 @@ a {
   list-style: none;
   margin: 0;
   padding: 0;
+  /* Scroll the LIST, not the panel, so the heading + close control stay put (was `.vp-panel`). */
+  max-height: min(60vh, 30rem);
+  overflow-y: auto;
 }
 .vp-line {
   display: flex;

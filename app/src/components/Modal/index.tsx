@@ -15,12 +15,17 @@ import React, { useEffect, useId, useRef } from 'react'
 export default function Modal({
   title,
   onClose,
+  className,
   children,
 }: {
   title: string
   /** Called on Escape or backdrop click. The caller decides whether to actually close (e.g. ignore
    *  while a request is in flight). */
   onClose: () => void
+  /** Optional modifier appended to `.modal`, for callers needing a different size/shape (e.g.
+   *  `modal--versions`, a wider panel for the version list). Purely presentational — the dialog
+   *  semantics and focus behaviour above are identical for every caller. */
+  className?: string
   children: React.ReactNode
 }) {
   const titleId = useId()
@@ -92,7 +97,7 @@ export default function Modal({
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
         ref={panelRef}
-        className="modal"
+        className={className ? `modal ${className}` : 'modal'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

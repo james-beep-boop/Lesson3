@@ -11,13 +11,21 @@
  * roster projection) and the caller's own favorites on them. One line per version —
  * `semver · author · created · ★` — ordered Official-first then newest→oldest (the shared
  * app-wide order). Clicking a line opens that version; the star toggles the caller's
- * per-version favorite (editors' pins). Escape / click-outside closes. Compare deliberately
- * stays OUT of the panel (a lesson-page button).
+ * per-version favorite (editors' pins). Compare deliberately stays OUT of the panel (a
+ * lesson-page button).
+ *
+ * The dialog is the SHARED `Modal` (audit 2026-07-20, L3-10). This panel previously hand-rolled
+ * its own `role="dialog"` with Escape-only handling — no Tab focus trap, no focus restoration to
+ * the trigger, no body-scroll lock — so keyboard and assistive-tech users could tab straight out
+ * behind the open panel. Composing `Modal` deletes that second implementation and inherits all
+ * three behaviours. Only the LIST scrolls (`.vp-list`), not the panel, so the close control stays
+ * reachable however long the version list gets.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import FavoriteToggle from './FavoriteToggle'
+import Modal from './Modal'
 import { sortVersionsOfficialFirst } from '@/lib/versionsOrder'
 
 interface PanelVersion {
@@ -47,7 +55,6 @@ export default function VersionsChip({
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [versions, setVersions] = useState<PanelVersion[]>([])
   const [favByVersion, setFavByVersion] = useState<Map<number, number>>(new Map())
-  const panelRef = useRef<HTMLDivElement | null>(null)
 
   const load = useCallback(async () => {
     // Soft refresh: when data is already shown, keep it visible while the re-fetch runs (no
@@ -98,16 +105,8 @@ export default function VersionsChip({
     void load()
   }
 
-  // Escape closes; focus the panel on open so keyboard users land inside the dialog.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    panelRef.current?.focus()
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open])
+  // Escape, backdrop click, focus-in/restore, the Tab trap and the body-scroll lock all live in the
+  // shared `Modal` — nothing to hand-roll here.
 
   const openVersion = (versionId: number) => {
     setOpen(false)
@@ -123,54 +122,47 @@ export default function VersionsChip({
         {versionCount} versions ▾
       </button>
       {open && (
-        <div className="vp-overlay" onClick={() => setOpen(false)}>
-          <div
-            ref={panelRef}
-            className="vp-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Versions of ${panelLabel}`}
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="vp-head">
-              <span className="vp-title">{panelLabel}</span>
-              <button type="button" className="vp-close" aria-label="Close" onClick={() => setOpen(false)}>
-                ×
-              </button>
-            </div>
-            {state === 'loading' && <p className="muted vp-note">Loading versions…</p>}
-            {state === 'error' && (
-              <p className="inline-error vp-note" role="alert">
-                Could not load versions — close and try again.
-              </p>
-            )}
-            {state === 'ready' && (
-              <ul className="vp-list">
-                {versions.map((v) => {
-                  const isOfficial = officialVersionId != null && v.id === officialVersionId
-                  const isCurrent = currentVersionId != null && v.id === currentVersionId
-                  return (
-                    <li key={v.id} className={`vp-line${isCurrent ? ' is-current' : ''}`}>
-                      <button type="button" className="vp-line-open" onClick={() => openVersion(v.id)}>
-                        <span className="vp-semver">
-                          {v.semver ?? `v${v.id}`}
-                          {isOfficial && <span className="official-tag"> · Official</span>}
-                          {isCurrent && <span className="vp-current-tag"> · viewing</span>}
-                        </span>
-                        <span className="vp-author">{authorName(v)}</span>
-                        <span className="vp-date">
-                          {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : ''}
-                        </span>
-                      </button>
-                      <FavoriteToggle versionId={v.id} favoriteId={favByVersion.get(v.id) ?? null} />
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        </div>
+        // `Versions of <name>` keeps the exact accessible name the hand-rolled `aria-label` had —
+        // Modal wires its heading via `aria-labelledby`, so the name is now also the visible title.
+        <Modal
+          title={`Versions of ${panelLabel}`}
+          onClose={() => setOpen(false)}
+          className="modal--versions"
+        >
+          <button type="button" className="vp-close" aria-label="Close" onClick={() => setOpen(false)}>
+            ×
+          </button>
+          {state === 'loading' && <p className="muted vp-note">Loading versions…</p>}
+          {state === 'error' && (
+            <p className="inline-error vp-note" role="alert">
+              Could not load versions — close and try again.
+            </p>
+          )}
+          {state === 'ready' && (
+            <ul className="vp-list">
+              {versions.map((v) => {
+                const isOfficial = officialVersionId != null && v.id === officialVersionId
+                const isCurrent = currentVersionId != null && v.id === currentVersionId
+                return (
+                  <li key={v.id} className={`vp-line${isCurrent ? ' is-current' : ''}`}>
+                    <button type="button" className="vp-line-open" onClick={() => openVersion(v.id)}>
+                      <span className="vp-semver">
+                        {v.semver ?? `v${v.id}`}
+                        {isOfficial && <span className="official-tag"> · Official</span>}
+                        {isCurrent && <span className="vp-current-tag"> · viewing</span>}
+                      </span>
+                      <span className="vp-author">{authorName(v)}</span>
+                      <span className="vp-date">
+                        {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : ''}
+                      </span>
+                    </button>
+                    <FavoriteToggle versionId={v.id} favoriteId={favByVersion.get(v.id) ?? null} />
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Modal>
       )}
     </>
   )
