@@ -8,6 +8,21 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## DEPLOYED + LIVE-VERIFIED 2026-07-20 — routing 404s fixed (`/lessons`, `/manage`)
+
+`https://test.kenyalessons.org/lessons` and `/manage` returned 404. The top-nav labels "Lessons" and
+"Manage" are not routes — the canonical routes are `/` (catalogue) and `/admin` (Payload manage) — so
+typing the visible label as a URL 404'd. Fix (PR #114, `app/next.config.ts`): two config-level
+redirects, `/lessons` → `/` and `/manage` → `/admin`, using the same routing-layer mechanism as the
+existing `/admin/login` → `/login`. `source: '/lessons'` is an exact match, so the `/lessons/[id]`
+lesson pages are untouched; 307 (temporary) so `/` and `/admin` stay canonical.
+
+Deployed to the Rock via `scripts/deploy.sh` (app-level, NO migration); Rock now on `main` `9a1049a`.
+Live-verified on test.kenyalessons.org: `/lessons` → `/` → 200 catalogue (authed), `/manage` → `/admin`
+→ 200 (authed), `/lessons/143` still routes to the lesson page (not swept to `/`), `/lessonsX` still
+404. Operational note: the production build sets a Secure host-scoped auth cookie, so curl-over-http
+drops it — use `Authorization: JWT <token>` for authed API checks.
+
 ## VERIFIED ON THE ROCK 2026-07-20 — resource-links cutover live and healthy in production
 
 Direct SSH inspection of the Rock (`david@rock5b`, `/srv/lesson3`) confirmed the deployment the prior

@@ -31,9 +31,19 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-20, newest) — RESOURCE-LINKS CUTOVER VERIFIED LIVE ON THE ROCK; the multi-session resourceLinks arc is DONE
+## ▶ RESUME HERE (2026-07-20, newest) — ROUTING FIX DEPLOYED + LIVE-VERIFIED; resourceLinks cutover DONE. Rock on `main` `9a1049a`
 
-**The cutover is complete and confirmed in production.** Direct SSH inspection (`david@rock5b`,
+**Routing 404s fixed (#114).** `https://test.kenyalessons.org/lessons` and `/manage` were 404ing: the
+top-nav LABELS ("Lessons", "Manage") aren't routes — the canonical routes are `/` (catalogue) and
+`/admin` (Payload manage). Added two config redirects in `app/next.config.ts` (`/lessons` → `/`,
+`/manage` → `/admin`; same routing-layer mechanism as the existing `/admin/login` → `/login`;
+`source:'/lessons'` is EXACT so `/lessons/[id]` pages are unaffected; 307 temporary). Deployed via
+`scripts/deploy.sh` (app-level, NO migration) and verified LIVE on test.kenyalessons.org — `/lessons` →
+`/` → 200 catalogue, `/manage` → `/admin` → 200, `/lessons/143` still routes to the lesson page,
+`/lessonsX` still 404. **Rock is now on `main` `9a1049a`.** (Live authed API checks: prod uses a Secure
+host-scoped cookie, so curl-over-http drops it — use `Authorization: JWT <token>`.)
+
+**The resourceLinks cutover is complete and confirmed in production.** Direct SSH inspection (`david@rock5b`,
 `/srv/lesson3`) on 2026-07-20 closed the "unverified" gap the block below described. Full evidence:
 `docs/CHANGELOG.md` → "VERIFIED ON THE ROCK 2026-07-20". Summary: Rock on `main` `2db0570`; both
 migrations (`185124` → `210359`) applied; lesson row de-flattened to 20 columns + child table present;
