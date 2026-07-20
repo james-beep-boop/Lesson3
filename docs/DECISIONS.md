@@ -144,7 +144,7 @@ previews. A 4-agent `/simplify` pass then applied behaviour-preserving cleanups:
 `RESOURCE_RECORD_KEYS`/`RESOURCE_PHASE_KEYS`/`isObject`, a named-path guard in `toAresResourceLinks`, a
 shared `scripts/lib/payloadRowIds.ts`, and comment/cross-reference fixes.
 
-**Two follow-up fixes (2026-07-19, Codex review of the review):**
+**Follow-up fixes (2026-07-19, Codex review of the review):**
 1. **Migration rollback made data-safe.** `down()` in `20260719_185124_ares_resource_links_cutover.ts` now
    carries the SAME empty-corpus guard as `up()`: it RAISEs and refuses rollback if any `lesson_plans` /
    `lesson_bundle_versions` / lessons rows remain, because the legacy six-column framework schema cannot
@@ -158,6 +158,13 @@ shared `scripts/lib/payloadRowIds.ts`, and comment/cross-reference fixes.
    guards detect call-COUNT drift only — iteration ORDER remains the DOCX fidelity oracle's job. Unit
    regressions added (`resourceLinks.spec.ts`): one lesson + two lookups throws; under-read throws; the
    concurrent AsyncLocalStorage isolation test is retained.
+3. **Subject-Admin lesson duplication preserves only server-proven resources.** A later audit found the
+   remaining P2: SPEC §5 allows Subject Administrators to add lesson rows, but the save boundary deleted
+   `resourceLinks` for every new row, making the supported action unsaveable. Payload's installed array
+   reducer deep-copies hidden nested fields and gives duplicated rows fresh ids. The boundary now ignores
+   those ids, accepts only a resource value exactly present in the source version, and restores the stored
+   server copy. Modified/invented values are still removed and fail the generatable gate. This does not
+   permit new Lesson Plan creation (Site-Admin upload/import only) or make resource fields user-editable.
 
 **Earlier flattened-model review run, before the Rock smoke upload and child-row correction (local,
 Node 25, DB-less):** lint 0 errors/83 warnings · `tsc` clean · unit **199** · contract-check 16/16 ·

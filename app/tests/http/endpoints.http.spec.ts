@@ -35,9 +35,21 @@ import {
 } from '../helpers/fixtures.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
 import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
+import { stripIds } from '../../src/lib/stripIds.js'
 
 const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
+
+type HttpResourceLinkRow = Record<string, unknown> & {
+  id?: string | number
+  fallback_search_url: string
+}
+type HttpLesson = Record<string, unknown> & {
+  id?: string | number
+  title?: string
+  resourceLinks: HttpResourceLinkRow[]
+}
+type HttpVersion = Record<string, unknown> & { lessons?: HttpLesson[] }
 
 let fx: RoleFixture
 const token: Record<string, string> = {}
@@ -664,6 +676,62 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
+  })
+
+  it('Subject Admin adds a duplicated lesson row with server-preserved resource links', async () => {
+    const version = fx.version as unknown as HttpVersion
+    const sourceLesson = structuredClone(version.lessons![0]!)
+    const duplicatedLesson = {
+      ...sourceLesson,
+      id: undefined,
+      title: `${MARK}duplicated-lesson`,
+      // Payload may assign client-side ids while duplicating nested rows. They are not provenance;
+      // the server compares values without ids and restores the stored source rows.
+      resourceLinks: sourceLesson.resourceLinks.map((row, index) => ({
+        ...row,
+        id: `client-copy-${index}`,
+      })),
+    }
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({
+        ...version,
+        lessons: [...(version.lessons ?? []), duplicatedLesson],
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as unknown as HttpVersion
+    const added = created.lessons?.at(-1)
+    expect(added?.title).toBe(`${MARK}duplicated-lesson`)
+    expect(stripIds(added?.resourceLinks)).toEqual(stripIds(sourceLesson.resourceLinks))
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
+  it('Subject Admin cannot invent resource links for a new lesson row', async () => {
+    const version = fx.version as unknown as HttpVersion
+    const sourceLesson = structuredClone(version.lessons![0]!)
+    sourceLesson.id = undefined
+    sourceLesson.title = `${MARK}forged-resource-lesson`
+    sourceLesson.resourceLinks[0].fallback_search_url = 'https://example.org/invented'
+    const before = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('subjectAdmin'),
+      body: dataForm({
+        ...version,
+        lessons: [...(version.lessons ?? []), sourceLesson],
+      }),
+    })
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBeLessThan(500)
+    const after = await fx.payload.count({ collection: 'lesson-bundle-versions' })
+    expect(after.totalDocs).toBe(before.totalDocs)
   })
 
   it("Subject Admin's META identity edit is silently preserved (Site-Admin-only repair fields)", async () => {

@@ -117,14 +117,15 @@ describe('definitive lesson resourceLinks contract', () => {
 })
 
 describe('resourceLinks save-as-new boundary', () => {
-  it('restores existing lesson maps and strips caller-supplied maps from new lessons', () => {
+  it('restores existing lesson maps and accepts an exact stored map for a duplicated lesson', () => {
     const stored = storedLinks()
     const forged = storedLinks()
     forged[0]!.video!.title = 'forged'
+    const duplicated = stored.map((row, index) => ({ ...row, id: `client-copy-${index}` }))
     const data = {
       lessons: [
         { id: 'existing', title: 'Edited title', resourceLinks: forged },
-        { id: 'new', title: 'New lesson', resourceLinks: forged },
+        { id: 'new-copy', title: 'Duplicated lesson', resourceLinks: duplicated },
       ],
     }
     const original = { lessons: [{ id: 'existing', title: 'Old title', resourceLinks: stored }] }
@@ -132,7 +133,19 @@ describe('resourceLinks save-as-new boundary', () => {
     preserveLessonResourceLinks(data, original)
 
     expect(data.lessons[0]!.resourceLinks).toBe(stored)
-    expect(data.lessons[1]).not.toHaveProperty('resourceLinks')
+    expect(data.lessons[1]!.resourceLinks).toBe(stored)
+  })
+
+  it('strips invented or modified resource maps from a new lesson', () => {
+    const stored = storedLinks()
+    const forged = storedLinks()
+    forged[0]!.video!.title = 'forged'
+    const data = { lessons: [{ id: 'new', title: 'New lesson', resourceLinks: forged }] }
+    const original = { lessons: [{ id: 'existing', title: 'Old title', resourceLinks: stored }] }
+
+    preserveLessonResourceLinks(data, original)
+
+    expect(data.lessons[0]).not.toHaveProperty('resourceLinks')
   })
 })
 

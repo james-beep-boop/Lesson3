@@ -67,7 +67,9 @@ Final Explanation prompts. They never edit a Word file directly.
 Subject Administrators can do everything Editors can do for their assigned subject-grades. They also
 manage the structure and official content controls for those subject-grades.
 
-- **Manage structure:** add, remove, and reorder lessons and instructional phases.
+- **Manage structure:** add, remove, and reorder lessons and instructional phases. To add a lesson,
+  duplicate an existing lesson row, then edit the copy; this safely carries forward the hidden,
+  system-managed ARES resource links. A blank new lesson cannot be saved without those links.
 - **Edit controlled fields:** update metadata, sub-strand settings, lesson duration, ARES keywords,
   phase choices, assessment exemplars, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —

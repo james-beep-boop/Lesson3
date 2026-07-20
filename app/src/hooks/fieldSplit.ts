@@ -25,6 +25,8 @@ import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
+import { canonicalJson } from '../lib/canonicalJson'
+import { stripIds } from '../lib/stripIds'
 
 type Doc = Record<string, any>
 type Row = { id?: string | number }
@@ -85,19 +87,33 @@ const overlayRows = (
 /**
  * `resourceLinks` is system-owned for every authenticated role. Save-as-new creates through an
  * overrideAccess server path after applying this split, so Payload field access is not sufficient:
- * restore the stored map on existing lessons and discard a caller-supplied map on a new lesson.
- * The latter then fails the generatable gate until a trusted ARES ingest supplies resources.
+ * restore the stored map on existing lessons. Subject Admins may also duplicate a lesson row (SPEC
+ * §5); that new row may reuse an EXACT resourceLinks value already present in the source version.
+ * Match after stripping Payload row ids, then restore the server copy so callers can neither alter
+ * resource values nor smuggle row ids into the new snapshot. Any other caller-supplied map is dropped
+ * and the generatable gate rejects the new lesson rather than storing invented system data.
  */
 export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void => {
   if (!Array.isArray(data.lessons)) return
+  const originalLessons = (originalDoc.lessons ?? []) as Doc[]
   const originals = new Map<string | number | undefined, Doc>(
-    (originalDoc.lessons ?? []).map((lesson: Doc) => [lesson.id, lesson] as const),
+    originalLessons.map((lesson) => [lesson.id, lesson] as const),
   )
+  const storedResources = new Map<string, unknown>()
+  for (const lesson of originalLessons) {
+    if (Array.isArray(lesson.resourceLinks)) {
+      storedResources.set(canonicalJson(stripIds(lesson.resourceLinks)), lesson.resourceLinks)
+    }
+  }
   data.lessons = data.lessons.map((lesson: Doc) => {
     const out = { ...lesson }
     const original = originals.get(lesson.id)
     if (original) out.resourceLinks = original.resourceLinks
-    else delete out.resourceLinks
+    else if (Array.isArray(lesson.resourceLinks)) {
+      const stored = storedResources.get(canonicalJson(stripIds(lesson.resourceLinks)))
+      if (stored) out.resourceLinks = stored
+      else delete out.resourceLinks
+    } else delete out.resourceLinks
     return out
   })
 }

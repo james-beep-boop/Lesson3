@@ -197,7 +197,11 @@ export const lessonContentFields: Field[] = [
     type: 'array',
     label: 'LESSONS',
     labels: { singular: 'Lesson', plural: 'Lessons' },
-    admin: rowLabel('title', 'Lesson'),
+    admin: {
+      ...rowLabel('title', 'Lesson'),
+      description:
+        'Subject Admins may duplicate an existing lesson to add a row. Its system-managed ARES resource links are copied from the source lesson and cannot be edited.',
+    },
     // A bundle must have ≥1 lesson (native; skipped for drafts). The generator-
     // completeness gate (validateGeneratable) is the create-time authority.
     minRows: 1,
