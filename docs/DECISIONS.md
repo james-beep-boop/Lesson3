@@ -63,6 +63,17 @@ Measured on the Rock (8-core aarch64), 12-lesson document:
   ~1.5–2× faster single-core (≈3–4 s) — an improvement that does **not** fix the defect.
 - The HTML Preview button (~1.7 s) shares the fire-and-forget pattern but is a much weaker case.
 
+**Node version — the documented pin was not enforced.** `AGENTS.md` stated Node is "pinned to
+22.17.0 via `.nvmrc` + volta", but **no `.nvmrc` existed** and volta is not installed on the operator's
+Mac; `engines.node` is `">=22.17.0"`, a floor that happily accepts anything newer. The Mac had drifted
+to **Node 25.8.1** (odd-numbered → never LTS, ~6-month life), four majors ahead of production. Effect:
+`npm run generate:types` fails locally with `ENOENT … node:path?tsx-namespace=…`. This does NOT affect
+production or CI — both run `node:22.17.0-alpine` from the Dockerfile (Rock container verified at
+22.17.0) — but it means the 2026-07-09 note that "migrations AND types generate OFFLINE on this Mac"
+holds **only under Node 22**. A real `.nvmrc` is now committed so the documented pin binds.
+Follow-up: consider tightening `engines` to a range (`>=22.17.0 <23`) so npm warns on drift, and plan a
+deliberate Node 22 → 24 upgrade before 22 leaves support (verify current LTS status at nodejs.org).
+
 **Method note (correction discipline).** Several claims in this session were wrong and were corrected
 by review before they became decisions: an HTML-preview timing quoted from an n=2 sample that included
 a cold start; a cap attributed to `JOBS_AUTORUN_LIMIT` instead of `PREVIEW_PDF_MAX_CONCURRENT`; a claim
