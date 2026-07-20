@@ -11,7 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-20 (latest) — audit session: shared-computer deployment, session-expiry work loss, PDF preview
+## 2026-07-20 (latest) — retire the unsafe legacy e2e fixture and the broken PDF pixel gate
+
+Two deletions from the audit's remediation sequence (PR C). Both remove hazards rather than features.
+
+**1. `tests/e2e/admin.e2e.spec.ts` + `tests/helpers/seedUser.ts` — DELETED (L3-06).**
+`seedTestUser()` **deleted and recreated a FIXED identity** (`dev@payloadcms.com`) via the Local API,
+where `overrideAccess` defaults to true — so collection access offered no protection. Pointed at a
+persistent database through `DATABASE_URI` it would destroy a real account of that name. The spec also
+navigated hardcoded `http://localhost:3000` URLs despite `playwright.config.ts` supporting remote mode.
+- **Deleted rather than rewritten** because the three tests were untouched `create-payload-app`
+  scaffolding asserting *Payload's own* dashboard/list/edit views render — near-zero regression value
+  for Lesson3, and `tests/e2e/manage.e2e.spec.ts` already drives the real custom admin surface for all
+  three roles using the safe MARK-tagged, self-cleaning, `E2E_BASE_URL`-derived fixture. Login and
+  `/admin` load are covered there, so no coverage is lost. `tests/helpers/login.ts` is KEPT (manage
+  uses it); only the fixed-account helper goes.
+- **No disposable-environment guard was added**, deliberately. The MARK fixture's bounded
+  `like`-delete against the live DB is an existing, documented design decision (the http suite runs
+  that way on purpose); a hard disposable-only guard would contradict it. The hazard was the
+  fixed-identity delete, and that is now gone.
+
+**2. `scripts/pdf-fidelity-check.ts` — DELETED (L3-08a).** Two independent reasons:
+- **The methodology was already abandoned.** It pixel-compared our LibreOffice/Gotenberg PDF against a
+  Word-exported oracle. Different rendering engines legitimately differ; this can never be a clean
+  pass/fail.
+- **The parser was broken.** `compare -metric AE` writes `1234 (0.0188217)` to stderr — absolute count
+  AND normalised fraction. The code did `stderr.replace(/[^0-9.eE+-]/g, '')`, concatenating them into
+  `12340.0188217`, so it emitted impossible percentages. **Any failure it reported was an artefact,
+  never a product-fidelity result** — including the "0/3" a recent external audit correctly discounted.
+- A *broken* gate is worse than no gate: it invites either false alarm or false confidence. **DOCX
+  remains the authoritative layout deliverable and IS gated** (`fidelity-spike` 4/4,
+  `adapter-fidelity` 6/6, plus real Gotenberg conversion exercised by CI's http suite).
+- **If a PDF regression gate is ever wanted it must be SAME-ENGINE** — compare our own Gotenberg output
+  across builds — not Word-vs-LibreOffice.
+- Active pointers removed so the repo stops instructing anyone to run a deleted gate:
+  `src/generator/docxToPdf.ts` comment, and the NEXT-SESSION "In-flight follow-ups" item + the
+  "Finish PDF (§9)" track. **Historical CHANGELOG/DECISIONS references are deliberately left intact
+  as history.**
+
+## 2026-07-20 — audit session: shared-computer deployment, session-expiry work loss, PDF preview
 
 A read-only audit session (no product code changed) during an external review window. Three durable
 decisions plus measured facts worth keeping.

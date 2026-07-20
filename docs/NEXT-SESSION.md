@@ -1580,16 +1580,22 @@ so a future session knows they exist.
    notifications, favorites, translation (Swahili), AI (summaries). All ordinary Payload
    collections/endpoints/hooks + the **now-live Jobs Queue**; none touches the generator/versioning
    core. SPEC §10. *Pick this for forward product progress instead of hardening.*
-3. **Finish PDF (§9)** — only the **formal PDF fidelity gate** remains (audit #12). Small, Rock-side
-   ops; can ride along with any track. See in-flight follow-ups.
+3. ~~**Finish PDF (§9)**~~ — **CLOSED 2026-07-20.** The one remaining item was the formal PDF fidelity
+   gate, now RETIRED as broken + methodologically abandoned (see in-flight follow-ups). PDF conversion
+   itself is proven and exercised in CI; DOCX remains the authoritative layout deliverable.
 
 ## In-flight follow-ups (small, already scoped)
 
-- **Formal PDF fidelity gate** (`app/scripts/pdf-fidelity-check.ts`) — conversion is proven; the
-  layout-vs-Word measurement hasn't run. Needs, on the Rock: **ImageMagick** installed (poppler is
-  present); **3 Word oracle PDFs** staged as `<name>.oracle.pdf` in `/srv/lesson3/out/ares-demo` (open
-  each approved DOCX in Word → Save as PDF); and a path to reach the **port-less** `gotenberg` (expose
-  it temporarily, or run the script in a tooling image on the `lesson3_default` network).
+- ~~**Formal PDF fidelity gate**~~ **RETIRED 2026-07-20 — do not attempt to run or restage it.**
+  `app/scripts/pdf-fidelity-check.ts` is DELETED. Two independent reasons: its Word-vs-LibreOffice
+  pixel comparison was already documented as an abandoned methodology (different engines legitimately
+  differ), and its parser was broken — it stripped non-numerics from ImageMagick's `compare -metric AE`
+  stderr, concatenating the absolute count and the normalised fraction (`1234 (0.0188)` → `12340.0188`)
+  and producing impossible percentages. Any "0/3 failure" it reported was an artefact, never a
+  product-fidelity result. **DOCX remains the authoritative layout deliverable**, and it IS gated
+  (`fidelity-spike` 4/4, `adapter-fidelity` 6/6, plus real Gotenberg conversion exercised in CI). If a
+  PDF regression gate is ever wanted, it must be **same-engine** (compare our own Gotenberg output
+  across builds), not Word-vs-LibreOffice. See DECISIONS 2026-07-20.
 - **Row-label doubling** (cosmetic) — lesson rows read "Lesson 1 — Lesson 1 — …" because `RowLabel`
   prepends `Lesson N —` while the stored `title` already begins with its own. Fix in
   `components/RowLabel` (strip a leading `Lesson N —` for the lessons array, or drop its prefix).

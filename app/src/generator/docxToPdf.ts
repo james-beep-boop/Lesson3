@@ -8,8 +8,10 @@
  * The engine lives in a sidecar container (Gotenberg wrapping headless LibreOffice —
  * faithful, free, fully offline; see docker-compose.yml + SPEC §9). This module is the
  * only place that knows the engine; callers depend on `docxToPdf(buffer) -> buffer`, so
- * the engine can be swapped if the fidelity test (scripts/pdf-fidelity-check.ts) favours
- * another without touching the export path.
+ * the engine can be swapped without touching the export path. (The old pixel-diff gate that
+ * would have compared engines, `scripts/pdf-fidelity-check.ts`, was RETIRED 2026-07-20 — its
+ * Word-vs-LibreOffice methodology had already been abandoned and its parser was broken. DOCX
+ * remains the authoritative layout deliverable; see DECISIONS 2026-07-20.)
  */
 
 import { positiveIntEnv } from '../lib/env'
