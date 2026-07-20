@@ -11,7 +11,68 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-20 (latest) — `main` is a PROTECTED branch; nav-label routes redirect; #111 audit record
+## 2026-07-20 (latest) — audit session: shared-computer deployment, session-expiry work loss, PDF preview
+
+A read-only audit session (no product code changed) during an external review window. Three durable
+decisions plus measured facts worth keeping.
+
+**1. Shared computers are the deployment default — this is now a design constraint.** The operator
+confirmed shared school computers are "basically universal" in Kenya. Consequences that must inform
+every future auth/storage decision:
+- **No client-side persistence of user content.** `localStorage`/IndexedDB drafts persist in the
+  browser profile across logout and users; the next person at that machine can read them with devtools.
+  Namespacing by user id prevents an accidental *restore*, not *exposure*. (This REVERSES an earlier
+  same-session recommendation of a `localStorage` draft — it was wrong for this deployment.)
+- **`admin.autoRefresh` stays OFF and the 2 h `tokenExpiration` stays.** The walk-away case IS the
+  normal case on shared hardware, and the next person at the keyboard may be a student, not a
+  colleague. The risk is mostly misattribution and accident rather than malice, but an indefinitely
+  self-refreshing session on a shared box is the wrong direction. An idea to enable `autoRefresh` as a
+  cheap mitigation for the work-loss defect below was raised and **rejected** for this reason.
+- **Clearing the editor off screen at expiry is itself a privacy control**, not merely a side effect.
+
+**2. Session expiry silently destroys unsaved lesson edits (L3-13) — confirmed by source trace.**
+Payload's `forceLogOutTimeout` → `redirectToInactivityRoute()` → **`router.replace()`**, a programmatic
+client-side navigation. Payload's dirty-form guard `usePreventLeave` registers **only** a `beforeunload`
+listener and a document **click** listener, so it cannot intercept programmatic navigation. The editor
+unmounts and unsaved work is gone; `replace` also drops the page from history. There is no autosave and
+no draft persistence anywhere. Two distinct paths exist: foreground (Payload's timer → destructive
+unmount) and backgrounded-then-refocused (our `IdleLogout` → `logOut()`, which does NOT navigate,
+leaving a **zombie editor**: work on screen, session dead — a privacy leak on shared hardware).
+- **`IdleLogout`'s docstring is factually wrong** (`components/IdleLogout/index.tsx:15`): it claims
+  `logOut()` performs a "logout + redirect"; `logOut()` performs no navigation. Fix when touched.
+- The fix direction is **capture the working copy, then clear the screen** — NOT "stop unmounting".
+- Design drafted in `docs/DESIGN-working-drafts.md` (a user-owned, server-side `working-drafts`
+  collection). Not implemented; warrants a SPEC amendment before it is.
+
+**3. PDF preview — the teacher path is healthy; the editor's unsaved preview has a client-side defect.**
+Measured on the Rock (8-core aarch64), 12-lesson document:
+- **Teacher path** (`/export/doc?as=pdf`, artifact cache): **121 ms**, uncapped, unaffected by the
+  conversion semaphore. This is what teachers use — no glitch risk found.
+- **Editor unsaved preview** (`POST /preview-pdf`, synchronous Gotenberg): **5.3–6.9 s**, and **11.3 s**
+  queued behind a busy slot. The client's `pdfBusy` window is a fixed **3 s**, so the button falsely
+  signals readiness on **100 % of production previews**, inviting a re-click that consumes the second
+  conversion slot; a third attempt renders a **raw JSON 503 in a new browser tab** (every error path on
+  that endpoint does, because it is a form-POST targeting `_blank`).
+- **The cap of 2 (`PREVIEW_PDF_MAX_CONCURRENT`) is CORRECT and must not be raised** — Gotenberg
+  saturates a full core per conversion against a `cpus=2.0` allocation, so raising it only slows
+  everything. **The defect is entirely client-side feedback, not capacity.**
+- Fix direction: make completion observable — open the tab synchronously on click, then `fetch`, then
+  point that tab at the blob (NOT `fetch → window.open`, which popup blockers reject); keep `pdfBusy`
+  until the request settles; render errors in the existing inline alert.
+- Cost split: DOCX generation + mammoth ≈ 1.7 s; LibreOffice ≈ 3.5–4 s (~70 %). A ~$20/mo VPS would be
+  ~1.5–2× faster single-core (≈3–4 s) — an improvement that does **not** fix the defect.
+- The HTML Preview button (~1.7 s) shares the fire-and-forget pattern but is a much weaker case.
+
+**Method note (correction discipline).** Several claims in this session were wrong and were corrected
+by review before they became decisions: an HTML-preview timing quoted from an n=2 sample that included
+a cold start; a cap attributed to `JOBS_AUTORUN_LIMIT` instead of `PREVIEW_PDF_MAX_CONCURRENT`; a claim
+that L3-03's false-success reaches the ordinary editor save (it does not — `versionEdit.ts` is properly
+transactional); and a claim that re-login returns the user to the editor (it does not —
+`login/LoginForm.tsx:38` is a hardcoded `router.replace('/')` with no redirect handling). **Rule:
+measure to steady state before quoting a number, and check how THIS app overrides a library before
+reasoning from library source.**
+
+## 2026-07-20 — `main` is a PROTECTED branch; nav-label routes redirect; #111 audit record
 
 Three items from the 2026-07-20 session.
 
