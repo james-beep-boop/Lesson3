@@ -12,12 +12,13 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**Current next work is Rock deployment and verification of the corrected ARES `resourceLinks`
-child-row model documented on 2026-07-19.** The first smoke upload exposed PostgreSQL's 100-function-
-argument limit in the original flattened Payload model; that upload rolled back. The old lesson corpus
-has been permanently deleted and the
-replacement corpus must not be uploaded until the migration and DB-dependent gates pass. The
-teacher-first track
+**Current next work is Rock post-deploy verification and replacement-corpus upload for the corrected
+ARES `resourceLinks` child-row model documented on 2026-07-19.** The operator reported a successful
+deployment of `main` `2db0570` on 2026-07-19. This session did not independently verify the Rock's
+migration ledger, DB-dependent gates, smoke tests, or corpus counts. The first smoke upload exposed
+PostgreSQL's 100-function-argument limit in the original flattened Payload model; that upload rolled
+back. The old lesson corpus has been permanently deleted and the replacement corpus must not be
+uploaded until the migration and DB-dependent gates pass. The teacher-first track
 (2026-07-08), version-browser redesign (2026-07-06), audit-driven phases through Track B, and §10
 cross-user-features track are complete. Earlier deploy/eyeball notes remain below as operational
 history; follow the newest RESUME block first.
@@ -30,7 +31,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE UPLOAD 500 FIX **MERGED (#108, `main` `17da012`)**; ROCK DEPLOY IS THE REMAINING WORK
+## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE FIXES MERGED; ROCK DEPLOY REPORTED SUCCESSFUL AT `2db0570`; VERIFICATION/CORPUS STATUS UNRECORDED
 
 **Outcome:** the child-row fix is MERGED — PR [#108](https://github.com/james-beep-boop/Lesson3/pull/108)
 (squash `17da012`), CI gate green, branch deleted. It repairs #107 (`f73abf7`), which had been merged
@@ -43,17 +44,22 @@ migration chain, 42-plan corpus ingested: 42/42 Official 1.0.0, 384 lessons, 192
 seeded logins `admin|teacher|editor|subjectadmin@lesson3.local`). The old-corpus local DB was wiped
 by user decision.
 
-**Remaining: the Rock deploy below (operator).**
+**Deployment status:** the operator reported that the Rock deployment of current `main` `2db0570`
+succeeded. The GitHub `main` gate passed at that SHA. Codex could not independently inspect the Rock
+because the private SSH key was not unlocked in its agent, so the migration ledger, Rock-only gates,
+smoke tests, and replacement-corpus state remain unverified in this record.
 
-**Post-merge P2 fix awaiting this same deploy:** Subject Administrators can now add a lesson row by
-duplicating an existing row. The save boundary accepts only resource data exactly present in the source
-version (Payload row ids ignored), then restores the server-owned copy; forged/modified links still fail.
-Unit/local DB-free gates are green, and two new HTTP cases must pass in CI/Rock.
+**Post-merge P2 fix included in the reported deployment (#111):** Subject Administrators can now add a
+lesson row by duplicating an existing row. The save boundary accepts only resource data exactly present
+in the source version (Payload row ids ignored), then restores the server-owned copy; forged/modified
+links still fail. Unit/local DB-free gates are green, and the two new HTTP cases passed in GitHub CI;
+Rock verification is not recorded.
 
-**Next operator sequence:** confirm the Rock still has zero `lesson_plans`,
-`lesson_bundle_versions`, and lesson rows; take a backup; deploy only after explicit approval; inspect
-`payload_migrations` to confirm `20260719_185124_ares_resource_links_cutover`, then review and apply
-`20260719_210359_resource_links_child_rows`; run DB-dependent int/http/e2e/build gates; smoke-test the
+**Remaining operator verification (skip only steps already completed and evidenced):** confirm the Rock
+is running `2db0570` and that the pre-migration backup exists; inspect `payload_migrations` to confirm
+`20260719_185124_ares_resource_links_cutover` and `20260719_210359_resource_links_child_rows`; confirm
+zero `lesson_plans`, `lesson_bundle_versions`, and lesson rows unless the replacement corpus has already
+been uploaded; run DB-dependent int/http/e2e/build gates; smoke-test the
 exact Physics 4.2 file that produced the database 500 and verify its stored five-phase rows, then run
 DOCX/PDF fidelity against the established Physics 4.1 fixture/oracle; finally upload all 42 replacement
 files and verify 42 plans / 42 Official 1.0.0 versions / 384 lessons plus sampled hyperlinks. The
@@ -86,7 +92,8 @@ corrective migration aborts if any lesson plans, versions, or lesson rows remain
 ### Original ordered plan and implementation record
 
 Items 1–7 below are implemented and locally verified except for the explicitly Rock-only preflight.
-Item 8 is the remaining work.
+Item 8's deployment step is operator-reported complete; its verification and repopulation status is
+not recorded.
 
 1. **Freeze fixtures and pre-flight the empty state.** Add the supplied Physics Grade 10 sub-strand
    4.1 JSON plus its current upstream DOCX output as contract/fidelity fixtures (or document a stable
@@ -103,8 +110,8 @@ Item 8 is the remaining work.
    lesson may reuse only an exact resource value already stored in the source version. The old
    `framework[].resources` seam is retired. Payload types and both migrations were generated through
    Payload's offline API and reviewed locally; the corrective migration exists because the first
-   flattened model failed the Rock upload smoke test. Applying it and verifying the database behavior
-   remain Rock work under pinned Node 22.
+   flattened model failed the Rock upload smoke test. Its application and database behavior remain
+   unverified in this record after the operator-reported deployment.
 4. **Carry resources losslessly through every boundary.** Update raw contract types, ingest mapping,
    Payload normalization, adapter/output types, field-split preservation, previews, and exports. Add
    exact deep-equality tests across raw JSON → validated data → Payload snapshot → generator adapter,
@@ -129,7 +136,7 @@ Item 8 is the remaining work.
    corpus only after these pass. With a truly empty plan/version database, every file creates a fresh
    Official 1.0.0; verify counts and sample resource hyperlinks after import.
 
-### Final completion criteria (local criteria met; Rock/deployment criteria pending)
+### Final completion criteria (local criteria met; Rock deploy reported complete; Rock verification/corpus status unrecorded)
 
 - All 42 current JSON files validate and round-trip without dropping or inventing resource data.
 - A former-format 1.0.0 file fails with a clear `resourceLinks` error; there is no compatibility branch.
@@ -144,8 +151,8 @@ Item 8 is the remaining work.
 TypeScript clean; DOCX oracle 4/4;
 adapter/oracle 6/6; lint 0 errors (87 existing/generated warnings); production audit 0 high/critical
 (5 moderate transitive `esbuild` findings, no available fix). The five widths, striping, page breaks,
-resource text, and 140 hyperlink targets are checked. `USER_GUIDE.md` remains unchanged because the
-feature has not yet been deployed to the live user workflow. The final review also made migration
+resource text, and 140 hyperlink targets are checked. `USER_GUIDE.md` and `/guide` now include the
+Subject-Administrator duplicated-row workflow delivered in #111. The final review also made migration
 rollback data-safe by refusing a populated corpus and made the generator resource bridge throw on
 over-read; regression tests cover both over-read and under-read count drift.
 

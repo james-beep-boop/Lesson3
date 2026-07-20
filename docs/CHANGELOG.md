@@ -8,6 +8,19 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## DEPLOYED (OPERATOR-REPORTED) 2026-07-19 — current `main` through resource-row preservation fix
+
+The operator reported a successful Rock deployment of `main` `2db0570` (through PR #111). GitHub's
+post-merge `main` CI gate passed at the same SHA, and the local checkout was clean and synchronized
+before deployment. This release includes the normalized child-row `resourceLinks` correction from
+#108 and the Subject-Administrator duplicated-lesson resource preservation fix from #111, together
+with all intervening merged work.
+
+This session did not independently inspect the Rock after deployment because the SSH private key was
+not unlocked in the assistant's agent. Treat the migration ledger, Rock int/http/e2e/build gates,
+Physics smoke/fidelity checks, and replacement-corpus counts as unverified until operator evidence is
+recorded in `docs/NEXT-SESSION.md`.
+
 ## FIXED + LOCALLY VERIFIED 2026-07-19 — Subject-Admin duplicated lesson rows retain system resources
 
 A post-merge audit found one P2 in the resource-link save boundary: Subject Administrators are allowed
