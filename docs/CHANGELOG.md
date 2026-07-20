@@ -8,6 +8,29 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## VERIFIED ON THE ROCK 2026-07-20 — resource-links cutover live and healthy in production
+
+Direct SSH inspection of the Rock (`david@rock5b`, `/srv/lesson3`) confirmed the deployment the prior
+entry could only report second-hand. The corpus was already uploaded and the child-row model is
+working in production:
+
+- **Code/schema:** Rock on `main` `2db0570`; `payload_migrations` newest two are
+  `20260719_185124_ares_resource_links_cutover` then `20260719_210359_resource_links_child_rows`. The
+  de-flattening is real: `lesson_bundle_versions_lessons` is back to 20 columns and the child table
+  `lesson_bundle_versions_lessons_resource_links` exists.
+- **Corpus:** 42 lesson plans, each with an Official `1.0.0`; the 42 Official versions hold exactly 384
+  lessons (the expected baseline). One extra `1.0.1` Not-Official draft exists on plan 143 (an editor
+  save-as-new; both its versions have 6 lessons, so no row was added and the Official pointer did not
+  move) — accounting for the 43-version / 390-lesson totals.
+- **Resource data:** 1,950 resource rows (390 lessons × 5 phases); every row has a populated video
+  `direct_url`, reading `direct_url`, and `fallback_search_url`; 0 non-`http(s)` URLs.
+- **Runtime:** app healthy (`/` → 307); Teacher auth OK; a Teacher DOCX export returned 200
+  (97,474 B, valid OOXML, 140 embedded `ares.local` hyperlinks) and PDF 200 (470,428 B, valid `%PDF`)
+  for Physics 4.1 (v200) — proving the generator reads the child-row storage end to end.
+
+The only remaining Rock-only items intentionally NOT run this pass are the full DB-backed
+int/http/e2e suites (CI already runs these on every push and the gate was green at `2db0570`).
+
 ## DEPLOYED (OPERATOR-REPORTED) 2026-07-19 — current `main` through resource-row preservation fix
 
 The operator reported a successful Rock deployment of `main` `2db0570` (through PR #111). GitHub's

@@ -31,7 +31,33 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-19, newest) — RESOURCE FIXES MERGED; ROCK DEPLOY REPORTED SUCCESSFUL AT `2db0570`; VERIFICATION/CORPUS STATUS UNRECORDED
+## ▶ RESUME HERE (2026-07-20, newest) — RESOURCE-LINKS CUTOVER VERIFIED LIVE ON THE ROCK; the multi-session resourceLinks arc is DONE
+
+**The cutover is complete and confirmed in production.** Direct SSH inspection (`david@rock5b`,
+`/srv/lesson3`) on 2026-07-20 closed the "unverified" gap the block below described. Full evidence:
+`docs/CHANGELOG.md` → "VERIFIED ON THE ROCK 2026-07-20". Summary: Rock on `main` `2db0570`; both
+migrations (`185124` → `210359`) applied; lesson row de-flattened to 20 columns + child table present;
+42 plans, each Official `1.0.0`, 384 lessons in the Official versions; 1,950 resource rows all
+populated with 0 unsafe URLs; app healthy; Teacher DOCX (140 hyperlinks) + PDF export work end to end.
+One benign `1.0.1` Not-Official editor draft exists on plan 143 (no row added, Official pointer intact).
+**Also this session:** a full 5-agent `/code-review` of #111 (the Subject-Admin duplicate-lesson
+resource-preservation fix) found no security/RBAC/CLAUDE.md/correctness issue — verdict posted to
+[PR #111](https://github.com/james-beep-boop/Lesson3/pull/111); CodeRabbit had been rate-limited and
+never reviewed it, so this is its only substantive review. One non-blocking robustness follow-up noted
+(below).
+
+**Likely next work (pick with the user):** the resourceLinks arc no longer has open items, so the
+natural priorities are (a) the optional #111 hardening — a reorder/serialization regression test for
+the byte-exact duplicate-match in `preserveLessonResourceLinks`, or strip ids inside the function; and
+(b) Phase 5 Track B / going-public operator setup (`docs/OPS.md`): public host TLS + reverse proxy,
+`SERVER_URL`/`ADMIN_URL` → the public URL (still the Tailscale URL), edge rate limiting, GlitchTip.
+
+**Note — `main` is now a PROTECTED branch (2026-07-19).** Direct `git push origin main` is rejected;
+every change (incl. docs) needs a PR + green `gate`. The old direct-to-main allowance is retired.
+
+---
+
+## ▶ Prior block (2026-07-19) — kept for provenance; SUPERSEDED by the Rock verification above
 
 **Outcome:** the child-row fix is MERGED — PR [#108](https://github.com/james-beep-boop/Lesson3/pull/108)
 (squash `17da012`), CI gate green, branch deleted. It repairs #107 (`f73abf7`), which had been merged
