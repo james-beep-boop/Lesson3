@@ -13,8 +13,19 @@ const nextConfig: NextConfig = {
   // config redirect fires at the routing layer BEFORE the /admin routes resolve, so it can't 404
   // and needs no middleware. Everyone lands on The App home after signing in; admins use the
   // "Admin" link in the header to enter /admin.
+  //
+  // Backward-compat aliases for the two nav LABELS ("Lessons", "Manage"). The canonical routes are
+  // `/` (the catalogue) and `/admin` (Payload manage), but users type the visible label as a path
+  // and 404. These redirects land them on the real pages. `source: '/lessons'` matches ONLY the
+  // exact path, so the `/lessons/[id]` lesson pages are unaffected. Temporary (307) on purpose: `/`
+  // and `/admin` stay canonical, and nothing gets permanently cached in case a real `/lessons`
+  // index is ever added.
   async redirects() {
-    return [{ source: '/admin/login', destination: '/login', permanent: false }]
+    return [
+      { source: '/admin/login', destination: '/login', permanent: false },
+      { source: '/lessons', destination: '/', permanent: false },
+      { source: '/manage', destination: '/admin', permanent: false },
+    ]
   },
   // Baseline non-CSP security headers (hardening backlog #3) on every route. The CSP moved to
   // src/middleware.ts (Phase 5 A3): a strict `default-src`/`script-src` policy needs a per-request
