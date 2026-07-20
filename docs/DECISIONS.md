@@ -11,7 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-19 (latest) — process lesson: #107 was merged on a RED CI gate
+## 2026-07-20 (latest) — `main` is a PROTECTED branch; nav-label routes redirect; #111 audit record
+
+Three items from the 2026-07-20 session.
+
+**1. `main` is now a PROTECTED branch — the direct-to-main allowance is RETIRED.** A direct
+`git push origin main` is rejected with `GH006: Protected branch update failed` ("Changes must be made
+through a pull request" + required status check `gate`). This supersedes the 2026-07-14 workflow note
+below and every "shipped direct-to-main" description in the older entries: **every change now needs a
+branch → PR → green `gate` → merge, including docs-only commits.** Protection was enabled sometime
+after `b77310e`. Practical consequence: don't plan a "commit straight to main" step for small doc
+fixes — it will fail mid-task.
+
+**2. Nav-label routes are REDIRECTS, not aliases (#114).** `/lessons` and `/manage` returned 404 on
+the live host. The two top-nav LABELS are "Lessons" and "Manage", but the canonical routes are `/`
+(the catalogue) and `/admin` (Payload manage) — there is a `lessons/[id]` dynamic route but no
+`lessons/` index, and no `/manage` at all — so users typing the visible label as a URL 404'd.
+- **Chose redirects over restoring aliases.** An alias would mean a second catalogue page to keep in
+  sync with `/`; the app has ONE canonical catalogue, so a redirect keeps a single source of truth.
+- **Config-level (`next.config.ts` `redirects()`), not middleware** — the same routing-layer mechanism
+  already used for `/admin/login` → `/login`: it fires BEFORE route resolution, so it cannot 404, and
+  the CSP middleware stays untouched.
+- **`source: '/lessons'` is an EXACT match**, so `/lessons/[id]` lesson pages are unaffected. Verified:
+  `/lessons/143` still routes to the lesson page and `/lessonsX` still 404s (no prefix sweep).
+- **307 temporary, not 308 permanent**, deliberately: `/` and `/admin` stay canonical, and nothing is
+  permanently cached in browsers in case a real `/lessons` index is ever added.
+- Deployed and verified live on test.kenyalessons.org (CHANGELOG 2026-07-20).
+- **Operational gotcha worth keeping:** the production build sets a **Secure, host-scoped** auth
+  cookie, so `curl` over plain http silently drops it and every authed call 401s. Use
+  `Authorization: JWT <token>` for authed API checks against the Rock — a 401 there is usually the
+  transport, not a regression.
+
+**3. #111 (Subject-Admin duplicated-lesson resource preservation) — post-merge audit record.** A
+5-agent `/code-review` (CLAUDE.md compliance, bug scan, git history, prior-PR comments, code-comment
+compliance) found **no security/RBAC/CLAUDE.md/correctness issue**. This matters because **CodeRabbit
+was rate-limited on #111 and never posted a review** — that audit is the change's only substantive
+review. Confirmed properties: only server-stored resource values can persist (the caller's submission
+is a lookup key, never persisted); the Editor cardinality check still rejects added rows *after* the
+preservation runs (covered by the pre-existing wire test at `endpoints.http.spec.ts:669`); foreign row
+ids are stripped before create. **Open, non-blocking follow-up:** the duplicate-match is byte-exact
+(`canonicalJson(stripIds(...))`), so a reordered-but-phase-complete or re-serialized `resourceLinks`
+array would miss the match and fall through to the generatable gate. It **fails safe** and is not
+reachable via the current Payload duplicate-row UI (which preserves order), so it was scored below the
+reporting bar — but a reorder/serialization regression test, or stripping ids inside
+`preserveLessonResourceLinks` itself, would harden it if the array shape ever changes.
+
+## 2026-07-19 — process lesson: #107 was merged on a RED CI gate
 
 The cutover PR [#107](https://github.com/james-beep-boop/Lesson3/pull/107)'s CI run FAILED at
 `test:int` — the DB-backed step that exercises exactly the `json_build_array` defect — and the PR was
