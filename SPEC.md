@@ -154,6 +154,36 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
 - **System (never editable):** `LESSONS[].resourceLinks`; `LESSONS[].number` (set by order).
 
+### Unsaved-work durability — recoverable working drafts (amended 2026-07-20)
+
+**Invariant: a teacher's in-progress edits must survive session expiry, browser crash, forced
+refresh, device sleep and accidental tab close.** This is a product guarantee, not a nicety.
+
+It is not currently met. Payload's session-expiry logout navigates via a *programmatic*
+`router.replace()`, and Payload's dirty-form guard intercepts only `beforeunload` and link clicks —
+so the editor unmounts and unsaved work is destroyed with no prompt and no recovery copy
+(`docs/DECISIONS.md` 2026-07-20; full design in `docs/DESIGN-working-drafts.md`).
+
+- **Drafts are stored SERVER-side**, in a user-owned `working-drafts` collection — never in
+  `localStorage`/IndexedDB. Shared computers are the deployment norm (§13), so browser-resident
+  drafts would be readable by the next person at that machine.
+- **A draft is not a version.** `working-drafts` is a separate mutable collection; it creates no
+  `lesson-bundle-versions` rows, so the immutable-version model (§6) is untouched and no version
+  churn is introduced.
+- **Draft content is limited to editor-writable keys** (`lessons`, `finalExplanation`,
+  `summaryTable`). System-owned data — notably `resourceLinks` — is never written to a draft. A
+  draft must not become a second, weaker channel for data the field-split protects; on restore it
+  supplies prose only, and the field-split remains the write-time authority.
+- **Restore is always offered, never automatic**, and is refused (view/discard only) when the draft's
+  schema version or base source version no longer matches.
+- **Expiry still clears the screen.** Clearing the editor at logout is itself a privacy control on a
+  shared machine, so the rule is *capture the working copy, then clear* — never "stop unmounting".
+- **Retention:** drafts expire **30 days** after last touch, and are deleted on successful save, on
+  explicit discard, and when the source version is deleted. Per-user draft **count and size are
+  capped**.
+- **Cross-device recovery is intended:** a draft follows the account, so work started on a school
+  machine can be resumed elsewhere — surfaced through the same explicit restore prompt.
+
 ---
 
 ## 6. Versioning
@@ -297,6 +327,16 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
   Teacher view in particular is view/export-only and uncluttered. This is consistent across all
   roles. It is a presentation rule **layered on top of** the server-side access control (§5, §8),
   never a substitute for it — hiding ≠ securing; access is still enforced server-side.
+- **Shared computers are the deployment norm (confirmed 2026-07-20).** Teachers overwhelmingly work
+  on shared school machines. Two standing consequences:
+  1. **Never persist user content client-side** (`localStorage`, `sessionStorage`, IndexedDB). Such
+     data outlives logout inside the browser profile and is readable by the next person at that
+     machine; namespacing by user id prevents an accidental *restore*, not *exposure*.
+  2. **Session expiry stays, and must clear the screen.** The walk-away case is the normal case, and
+     the next person at the keyboard may be a student rather than a colleague — so the 2-hour token
+     and `admin.autoRefresh: off` are deliberate, and an indefinitely self-refreshing session is
+     explicitly rejected. Durability of unsaved work is solved by server-side drafts (§5), never by
+     weakening expiry.
 - **Payload-first.** Before adding any new custom endpoint, editor, permission layer, workflow,
   or persistence code, first check whether Payload already provides it — through collection
   config, access control, field/collection hooks, versions/drafts, admin config, the Jobs Queue,

@@ -125,13 +125,19 @@ a scheduled job. Also delete when the source version is deleted (the save-as-new
 **Concurrency.** Two tabs, same user, same source: last write wins on the upsert, and the restore
 prompt makes divergence visible rather than silent. Acceptable for v1; note it explicitly.
 
-## 6. Open questions for the operator
+## 6. Operator decisions (ANSWERED 2026-07-20)
 
-1. **TTL** — 30 days proposed. Shorter is safer on shared infrastructure.
-2. **Storage ceiling** — cap draft size / count per user? A 12-lesson plan's editor content is
-   non-trivial; unbounded drafts across many users is a growth vector.
-3. **Should a Site Admin see that a draft exists** (count only, never content) for support purposes?
-4. **Cross-device** — this design gives it for free. Confirm it is wanted, not a surprise.
+1. **TTL — 30 days** after last touch. Long enough for a teacher to return to a plan weeks later;
+   beyond that it is almost certainly abandoned.
+2. **Storage ceiling — capped.** Per-user draft count is bounded (~20) and a single oversized draft
+   is refused. Bounds growth as users x corpus grow.
+3. **Site Admin sees EXISTENCE ONLY** — count/metadata, never content. Enough to answer "the teacher
+   says they lost work, is there a draft?" during support without reading private unsaved work.
+   Access to draft CONTENT stays owner-only, with no admin bypass.
+4. **Cross-device recovery — YES**, surfaced through the same explicit restore prompt (never
+   auto-applied), so resuming on another machine cannot surprise anyone or silently overwrite.
+
+Now recorded in `SPEC.md` §5 (durability invariant) and §13 (shared-computer constraint).
 
 ## 7. Verification matrix (required before calling this done)
 
