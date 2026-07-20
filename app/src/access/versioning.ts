@@ -15,11 +15,20 @@ const subjectGradeIdFor = (args: { data?: unknown; doc?: unknown }): number | un
 
 export const lessonPlanRead: Access = ({ req: { user } }) => Boolean(user)
 
-export const lessonPlanCreate: Access = ({ req: { user }, data }) => {
-  const u = user as User | null | undefined
-  if (isSiteAdmin(u)) return true
-  return isSubjectAdminFor(u, subjectGradeIdFor({ data }))
-}
+// NO caller-access create path exists — same reasoning as `lessonBundleVersionCreate` below, applied
+// to the plan (audit 2026-07-20). A plan is only ever born from a SYSTEM path: ingest creates
+// plan → 1.0.0 version → Official pointer in one transaction (`ingest/index.ts`), which runs on the
+// Local API where `overrideAccess` defaults to true and so bypasses this gate entirely — exactly as
+// version creation already does under the `() => false` below.
+//
+// A caller-access create was actively harmful: `officialVersion` is legitimately absent at create
+// (the pointer is set a step later — `hooks/lessonPlan.ts` accepts that), so a Subject Admin could
+// POST an in-scope plan with no pointer and mint an unlimited number of PERMANENTLY UNUSABLE rows —
+// invisible in the library (which lists via the Official version), unrepairable by any normal version
+// path (caller version-create is denied), and undeletable by the Subject Admin who made them
+// (`lessonPlanDelete` is Site-Admin-only). `update` stays open so the Manage → Repair
+// Official-pointer form keeps working.
+export const lessonPlanCreate: Access = () => false
 
 export const lessonPlanUpdate: Access = ({ req: { user } }) => {
   const u = user as User | null | undefined

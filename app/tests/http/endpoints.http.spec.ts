@@ -539,6 +539,40 @@ describe('Version create/duplicate denied over HTTP (edit-view cleanup 2026-07-1
   })
 })
 
+describe('Lesson-plan create denied over HTTP (audit 2026-07-20, L3-04)', () => {
+  // `lessonPlanCreate → () => false`. A plan is born ONLY from ingest (plan → 1.0.0 → Official
+  // pointer, one transaction, Local API where overrideAccess defaults to true). Before this, a
+  // Subject Admin could POST an in-scope plan WITHOUT `officialVersion` — legitimately absent at
+  // create — and mint permanently unusable rows: invisible in the library (it lists via the Official
+  // version), unrepairable (caller version-create is denied), and undeletable by them
+  // (`lessonPlanDelete` is Site-Admin-only). Pinned for BOTH privileged roles: the Subject Admin is
+  // the actual reported vector, the Site Admin proves the deny is unconditional rather than scoped.
+  for (const role of ['siteAdmin', 'subjectAdmin'] as const) {
+    it(`${role} REST create of a bare lesson-plan → rejected (4xx), nothing persisted`, async () => {
+      const title = `${MARK}http-plan-create-${role}`
+      const res = await fetch(url('/api/lesson-plans'), {
+        method: 'POST',
+        headers: { ...auth(role), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, subjectGrade: fx.subjectGrade.id }),
+      })
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(res.status).toBeLessThan(500)
+      const { totalDocs } = await fx.payload.count({
+        collection: 'lesson-plans',
+        where: { title: { equals: title } },
+        overrideAccess: true,
+      })
+      expect(totalDocs).toBe(0)
+    })
+  }
+
+  // The one real risk of this change — that the deny also blocks INGEST — is already covered by the
+  // Site-Admin upload test in the "Upload endpoint (SPEC §7)" block below, which creates a plan end
+  // to end and would fail outright if the gate applied. Ingest runs on the Local API, where
+  // `overrideAccess` defaults to true, so it bypasses this gate exactly as version creation already
+  // does under its own `() => false`. Not duplicated here (an extra upload is slow in CI).
+})
+
 describe('Bucket-A server invariants over HTTP', () => {
   it('⓪ authenticated CREATE with an officialVersion pointer → rejected (4xx)', async () => {
     const res = await fetch(url('/api/lesson-plans'), {
