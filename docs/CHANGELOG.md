@@ -8,6 +8,25 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## FIXED + LOCALLY VERIFIED 2026-07-19 — Subject-Admin duplicated lesson rows retain system resources
+
+A post-merge audit found one P2 in the resource-link save boundary: Subject Administrators are allowed
+to add lesson rows, but every new row lost its hidden `resourceLinks` and then failed the generatable
+gate. Payload's installed `DUPLICATE_ROW` implementation deep-copies the complete row state (including
+hidden nested fields) while assigning fresh row ids, so duplicating an existing lesson is the safe
+authoring path.
+
+- The server now accepts a new lesson's resource data only when it exactly matches a `resourceLinks`
+  value already stored in the source version, ignoring Payload row ids. It then restores the stored
+  server copy. Invented or modified resource data is still stripped and rejected by validation.
+- Existing lessons still always receive their stored resources; Editors still cannot change lesson
+  cardinality; new Lesson Plans remain Site-Admin-only through trusted upload/import.
+- Added unit coverage plus two Rock HTTP regressions (allowed exact duplicate; denied forged links),
+  and synchronized the admin field description, `USER_GUIDE.md`, and `/guide` instructions.
+- Local evidence: unit 207/207; TypeScript clean; lint 0 errors/87 warnings; ingest 25/25; contract
+  16/16; adapter/fidelity 6/6; production audit 0 high/critical; `git diff --check` clean. The two new
+  DB-backed HTTP cases remain for CI/Rock.
+
 ## FIXED + LOCALLY VERIFIED 2026-07-19 — resource-link upload PostgreSQL 100-argument failure (Rock migration pending)
 
 The first Rock smoke upload of a definitive ARES JSON file returned 500 and rolled back. The file was

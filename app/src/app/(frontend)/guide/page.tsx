@@ -146,6 +146,9 @@ export default async function UserGuidePage() {
         <ul className="guide-list">
           <li>
             <strong>Manage structure:</strong> add, remove, and reorder lessons and instructional phases.
+            To add a lesson, duplicate an existing lesson row, then edit the copy; this safely carries
+            forward the hidden, system-managed ARES resource links. A blank new lesson cannot be saved
+            without those links.
           </li>
           <li>
             <strong>Edit controlled fields:</strong> update metadata, sub-strand settings, lesson

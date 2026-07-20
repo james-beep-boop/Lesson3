@@ -45,6 +45,11 @@ by user decision.
 
 **Remaining: the Rock deploy below (operator).**
 
+**Post-merge P2 fix awaiting this same deploy:** Subject Administrators can now add a lesson row by
+duplicating an existing row. The save boundary accepts only resource data exactly present in the source
+version (Payload row ids ignored), then restores the server-owned copy; forged/modified links still fail.
+Unit/local DB-free gates are green, and two new HTTP cases must pass in CI/Rock.
+
 **Next operator sequence:** confirm the Rock still has zero `lesson_plans`,
 `lesson_bundle_versions`, and lesson rows; take a backup; deploy only after explicit approval; inspect
 `payload_migrations` to confirm `20260719_185124_ares_resource_links_cutover`, then review and apply
@@ -68,7 +73,8 @@ corrective migration aborts if any lesson plans, versions, or lesson rows remain
    into `framework[]`; repeated/missing framework phase rows make that transformation lossy. Do not
    flatten all five buckets onto the lesson row; that exceeds PostgreSQL's function-argument ceiling.
    Remove the unused legacy `framework[].resources` seam after verifying the reset left no values that
-   require preservation.
+   require preservation. Existing values are never user-editable; a duplicated new lesson row may reuse
+   only an exact resource value already stored in its source version, restored from the server copy.
 4. Lesson3 consumes resolved data and never runs the Python recommender or SQLite index.
 5. One document format only: current upstream Section C widths `[1520, 3040, 3040, 3040, 3040]`, with
    video/reading links beneath the phase label in the first cell. “Standard/compact” is historical
@@ -93,7 +99,8 @@ Item 8 is the remaining work.
    shape passes and the former shape fails. Keep the upload size/count protections unchanged unless a
    measured corpus file exceeds them (the current files do not).
 3. **Model the data natively in Payload.** Reusable system-only resource child rows now live under each
-   lesson; editor/Subject-Admin submissions cannot add, alter, or erase them. The old
+   lesson; Editor/Subject-Admin submissions cannot alter or erase existing values. A duplicated new
+   lesson may reuse only an exact resource value already stored in the source version. The old
    `framework[].resources` seam is retired. Payload types and both migrations were generated through
    Payload's offline API and reviewed locally; the corrective migration exists because the first
    flattened model failed the Rock upload smoke test. Applying it and verifying the database behavior
