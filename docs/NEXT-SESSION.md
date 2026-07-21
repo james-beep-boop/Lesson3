@@ -29,16 +29,28 @@ oracle closed server-side by queueing delivery (#124 — carries a migration)**;
 made completion-aware (#125); and **#126 — a P1 correction to #124**: mixed-case/padded addresses
 minted a live reset token but queued no email (recovery silently dead). Verified fixed in production.
 
+Since then, all shipped, merged, deployed and live-verified: **#128/#129 — the browser e2e suite is a
+CI gate (L3-07)**, on a glibc Playwright image built like every other CI image; **#130 — unread
+messages made reachable so the badge can converge (L3-05)**, via an unread-first split query; and
+**#131 — L3-03 settled**, moving best-effort enqueues off the caller's transaction (see below).
+
 **Remaining queue (nothing is blocking):**
-1. **PR D — messages pagination (L3-05).** Needs a short design pass FIRST: cursor vs page, whether
-   unread sorts first, `MarkShownRead` behaviour across pages, and a searchable recipient roster.
-2. **Working drafts** — the only confirmed silent work-loss path. Spec'd (SPEC §5/§13) and designed
-   (`docs/DESIGN-working-drafts.md`, operator decisions answered). Multi-session project.
-3. **L3-03 transaction design decision** — swallowed queue errors returning false success. A DECISION
-   (fail-loud vs savepoint/outbox), not a mechanical fix.
-4. **L3-07 browser CI** — unblocked now that #120 removed the unsafe fixture. Rising in value: recent
-   UI work leaned on manual browser verification CI cannot reproduce.
-5. Deferred: catalogue/admin pagination at scale, Node 22 → 24 upgrade, edge rate limiting/GlitchTip.
+1. **Working drafts** — *the only confirmed silent work-loss path, and the top priority.* Spec'd
+   (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
+   Multi-session project; start from the design doc.
+2. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
+   unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
+   GlitchTip).
+3. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
+   `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
+
+**Two things worth carrying forward from #131** (full write-up in `docs/DECISIONS.md`):
+- Payload's `jobs.queue` joins the caller's transaction **whenever `req` is passed**. Combined with
+  drizzle's `commitTransaction` (a failed commit rolls back *without rethrowing*), a swallowed
+  enqueue error can silently discard the primary write. Audit any new `jobs.queue` call for this.
+- **A test for a transactional failure must be run against the unfixed code.** #131's first draft
+  mocked the enqueue to reject and passed against the bug — a JS throw never touches the database,
+  so nothing gets poisoned. Real fault injection means a real failing statement.
 
 The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list

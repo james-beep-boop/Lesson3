@@ -8,6 +8,24 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-21 — L3-03: best-effort enqueues moved out of the caller's transaction (#131)
+
+### Fixed
+- **A failed job enqueue could silently discard the write it rode on.** `messagePing` and
+  `prewarmVersionArtifacts` passed `req` to `jobs.queue`, enlisting the job insert in the caller's
+  transaction. A failed insert aborted it, the catch swallowed the error, and drizzle's
+  `commitTransaction` turned the doomed commit into a rollback **without rethrowing** — producing a
+  201 with the document in the response body and nothing persisted. Both now omit `req`, so the
+  insert runs on its own connection.
+- `messagePing` confirms the message still exists before emailing (jobs are no longer atomic with
+  the write, so an unrelated rollback can orphan one).
+- `passwordResetEmail` gained the `logger.error` + `captureException` wrapper its sibling jobs have.
+
+### Tests
+- `tests/int/bestEffortEnqueue.int.spec.ts` — fault-injects a **real** failing statement on the
+  caller's transaction. An earlier mock-only draft passed against the broken code; this one fails
+  there with `expected +0 to be 1`. int suite 68 → 70.
+
 ## SHIPPED + DEPLOYED 2026-07-20/21 — audit remediation (#119–#126), incl. a same-day security correction
 
 All merged through the protected-branch gate and deployed to the Rock, which now runs `main` `5d50c24`.
