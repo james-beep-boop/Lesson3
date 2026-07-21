@@ -10,7 +10,6 @@
  * not a caller-driven surface. Runs inside the caller's transaction (`req`), so the queued job rows
  * commit or roll back atomically with the promotion itself.
  */
-import type { PayloadRequest } from 'payload'
 
 import { isExportReady, versionScope } from '../generator/exportArtifacts'
 import {
@@ -41,11 +40,19 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
       if (ready[i]) continue
       const input: GenerateVersionArtifactInput = { versionId, kind }
       if (pending.some((j) => jobMatchesSpec(j, input))) continue
-      // Sequential on purpose: the queue inserts share the caller's transaction connection.
+      // `req` DELIBERATELY OMITTED (L3-03, 2026-07-21): passing it enlisted this insert in the
+      // caller's transaction — ingest or make-official — so a failed enqueue aborted that
+      // transaction, and the swallow below turned a rolled-back ingest into a reported success.
+      // (Installed drizzle `commitTransaction` is `try { resolve() } catch { reject() }` — a failed
+      // commit rolls back without rethrowing.) A pre-warm is a pure optimisation; it must never be
+      // able to lose the content write it rides on. Enqueued on its own connection, it cannot.
+      //
+      // Orphan case (primary write rolls back after we enqueue) is harmless here: the artifact job
+      // findByID's the version and fails cleanly if it is gone, and a missing pre-warm just means
+      // the teacher takes the normal cold 202/poll path.
       await req.payload.jobs.queue({
         task: GENERATE_VERSION_ARTIFACT_SLUG,
         input,
-        req: req as PayloadRequest,
       })
     }
   } catch (err) {

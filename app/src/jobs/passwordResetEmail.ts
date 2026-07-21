@@ -32,6 +32,7 @@
 import type { TaskConfig } from 'payload'
 
 import { emailLinkBase } from '../lib/emailLinkBase'
+import { captureException } from '../lib/errorTracking'
 
 export type PasswordResetEmailInput = {
   /** The user to email. Deliberately NOT the token — see the module header. */
@@ -72,13 +73,22 @@ export const passwordResetEmailTask: TaskConfig<{
     // Same link target and copy as the former inline `Users.auth.forgotPassword.generateEmailHTML`:
     // the FRONTEND reset page, because /admin/reset bounces non-admins off the gated panel.
     const url = `${emailLinkBase()}/reset-password?token=${user.resetPasswordToken}`
-    await req.payload.sendEmail({
-      to: user.email,
-      subject: 'Reset your password — ARES Lesson Plans',
-      html: `<p>You requested a password reset for ARES Lesson Plans.</p>
+    try {
+      await req.payload.sendEmail({
+        to: user.email,
+        subject: 'Reset your password — ARES Lesson Plans',
+        html: `<p>You requested a password reset for ARES Lesson Plans.</p>
 <p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
 <p>If you didn't request this, ignore this email.</p>`,
-    })
-    return { output: {} }
+      })
+      return { output: {} }
+    } catch (err) {
+      // Matches `messagePing` / `generateVersionArtifact`: log + capture, then RETHROW so the job
+      // retries. Rethrowing matters most here — retries are the reason the endpoint can honestly
+      // promise "a reset link is on its way". (Consistency gap noted in the 2026-07-21 review.)
+      req.payload.logger.error({ err, userId }, 'passwordResetEmail failed')
+      captureException(err, { job: 'passwordResetEmail', userId })
+      throw err
+    }
   },
 }
