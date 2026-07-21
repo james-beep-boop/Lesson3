@@ -645,8 +645,7 @@ a {
 /* The versions dialog is the shared `Modal` (L3-10) — backdrop, panel, focus trap, focus
    restoration and scroll lock all come from `.modal-backdrop`/`.modal`. This modifier only restores
    what the version LIST needs beyond the default modal: a wider panel, and `position: relative` so
-   the close control can sit in the corner. Scrolling lives on `.vp-list`, not here, so the close
-   button stays visible however long the list is. */
+   the close control can sit in the corner. (Scroll rationale lives on `.vp-list` below.) */
 .modal--versions {
   max-width: 34rem;
   position: relative;
