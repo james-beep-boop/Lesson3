@@ -2,17 +2,14 @@
  * Queued password-reset email (audit 2026-07-20, L3-R1).
  *
  * WHY THIS EXISTS — it is a SECURITY fix, not a reliability nicety. Payload's native
- * forgot-password sends inline and unguarded:
+ * forgot-password sends inline, and that send is what leaked account existence. **The full proof
+ * lives in the `endpoints/forgotPassword.ts` header — deliberately not restated here, so there is
+ * one copy to keep in step with Payload's internals.** Moving delivery OFF the request path is what
+ * lets that endpoint answer identically for both branches; because this job retries, the
+ * "a reset link is on its way" message is also TRUE rather than merely uniform.
  *
- *   unknown address -> `if (!user) return null`   — returns EARLY, no send is attempted  => 200
- *   real account    -> `await email.sendEmail(...)` — unguarded                          => THROWS
- *                                                     on SMTP failure                    => non-2xx
- *
- * So during any SMTP outage the HTTP status discriminated registered addresses perfectly, on an
- * unauthenticated endpoint — an account-existence oracle visible to a direct API caller, with or
- * without our UI. Moving delivery OFF the request path means the endpoint can answer identically
- * for both branches (see `endpoints/forgotPassword.ts`), AND — because the job retries — the
- * "a reset link is on its way" message becomes TRUE rather than merely uniform.
+ * What this module owns, and what is documented nowhere else, is below: why the input is a user id
+ * rather than the token, and why a token that is still PRESENT may nonetheless be dead.
  *
  * THE INPUT IS A USER ID, NEVER THE TOKEN. Successful jobs are removed (Payload's
  * `deleteJobOnComplete` defaults to true and we do not override it — verified empirically: the row

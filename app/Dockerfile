@@ -23,6 +23,18 @@ RUN \
 
 
 # Rebuild the source code only when needed
+# Browser-test runner for CI `test:e2e`. Deliberately NOT `base` (node:22-alpine) — Playwright needs
+# glibc — and deliberately NOT `mcr.microsoft.com/playwright`, which ships Node 24 while this repo
+# pins 22.17.0; CI must reproduce the runtime we actually ship. `.npmrc` is copied for the same
+# legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at BUILD time so
+# the test step doesn't redo them on every run, matching how `deps` front-loads installs for the
+# other test steps.
+FROM node:22.17.0-bookworm AS e2e
+WORKDIR /app
+COPY package.json package-lock.json* .npmrc* ./
+RUN npm ci --include=dev
+RUN npx playwright install --with-deps chromium
+
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules

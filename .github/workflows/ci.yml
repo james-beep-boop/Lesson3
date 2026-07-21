@@ -43,6 +43,9 @@ jobs:
       - name: Build deps image (test/lint/audit runner)
         run: docker build --target deps -t lesson3-deps ./app
 
+      - name: Build e2e image (browser runner — glibc + pinned Node + chromium)
+        run: docker build --target e2e -t lesson3-e2e ./app
+
       - name: Stack up (postgres → migrate → app + gotenberg)
         # `up --build` also runs `next build` (builder stage) + applies migrations to `lesson3`, so a
         # build break or migration failure fails CI here.
@@ -97,25 +100,19 @@ jobs:
         # (which leave Local-API and HTTP behaviour intact) reached production on manually-reported
         # verification alone.
         #
-        # WHY NOT the `lesson3-deps` image: it is node:22-alpine and Playwright needs glibc.
-        # WHY NOT `mcr.microsoft.com/playwright`: it ships Node 24, and this repo pins 22.17.0 — CI
-        # must reproduce the runtime we actually ship, not a different one.
-        # So: the PINNED node image + `playwright install`.
+        # Runner image is the Dockerfile's `e2e` stage (see it for why not alpine / not the official
+        # Playwright image); deps + chromium are baked in there rather than installed per run.
         #
         # Runs INSIDE the compose network because the spec needs BOTH the app (`app:3000`) and the
         # DB — it seeds its MARK-tagged, self-cleaning role fixture through the Local API, and
         # postgres is deliberately not published to the host.
         #
-        # `--include=dev` is REQUIRED: `.env` carries NODE_ENV=production, which otherwise makes
-        # `npm ci` skip devDependencies and silently omit Playwright itself (the same gotcha
-        # documented for test:int). `npm run test:e2e` (not bare `npx playwright test`) is likewise
-        # required — the script sets `--import=tsx/esm`, without which the config's JSON import
-        # fails with "needs an import attribute of type: json".
+        # `npm run test:e2e` (NOT bare `npx playwright test`): the script sets `--import=tsx/esm`,
+        # without which the config's JSON import fails with "needs an import attribute of type: json".
         run: |
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
             --env-file .env -e E2E_BASE_URL=http://app:3000 -e CI=true \
-            node:22.17.0-bookworm \
-            sh -c "npm ci --include=dev --no-audit --no-fund && npx playwright install --with-deps chromium && npm run test:e2e -- --reporter=line"
+            lesson3-e2e npm run test:e2e -- --reporter=line
 
       - name: Dump logs on failure
         if: failure()
