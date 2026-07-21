@@ -11,7 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — L3-03 SETTLED: best-effort enqueues run OUTSIDE the caller's transaction
+## 2026-07-21 (latest) — the forgot-password oracle was still open, through TIMING (#133)
+
+**Byte-identical is not indistinguishable.** #124 made both branches return the same status and body,
+and I treated the oracle as closed. It was not. The branches do very different database work — an
+unknown address returns after one lookup; a real one updates a token, queries it back, and inserts a
+job — and that is measurable from outside.
+
+Measured on the Rock against real Postgres, n=20 per branch:
+
+| branch | median | range |
+|---|---|---|
+| unknown | ~25 ms | 22.9–29.3 ms (very tight) |
+| registered | ~90 ms | 60–140 ms |
+
+The distributions barely overlapped, so a SINGLE request classified an address. The 5-per-target
+daily cap is irrelevant against a signal that needs one sample. **Codex flagged this as "probable but
+not timing-tested"; measuring turned it from a hypothesis into a confirmed, large leak.** The lesson
+generalises: a uniformity claim about a response covers the bytes, and says nothing about the clock,
+the job table, or anything else observable. State which channel was equalised.
+
+**Fix: a fixed response-time floor** (400 ms, ~3x the slowest observed, env-tunable). The alternative
+— equalising the WORK — was rejected because the asymmetry begins inside `forgotPasswordOperation`
+(only a real account gets a token UPDATE), so matching it would mean mirroring Payload's internals,
+the exact coupling the #126 token-lookup fix removed. Verified after deploy by re-running the same
+probe: median gap **65 ms -> 0.2 ms**, ranges fully overlapping.
+
+Honest limit: this narrows the channel, it does not provably eliminate it. Under load heavy enough
+to push the known branch past the floor, signal returns. Hence the 3x headroom.
+
+**A measurement trap worth remembering.** The first verification run appeared to show the fix making
+things WORSE (known ~18 ms, unknown ~409 ms). The probe had already spent the 5/day budget on the
+known accounts, so they were returning an unpadded 429 — thrown paths skip the padding. I was
+measuring the throttle, not the handler. Clear the `forgotPassword%` rate-limit counters before
+timing this endpoint. A result that looks dramatic and backwards is usually instrumentation.
+
+**Also settled in #133** (all from the CodeRabbit/Codex review of #130–#131):
+- Three comments in `prewarmVersionArtifacts`, `lessonPlan` and `Messages` still said job rows ride
+  the caller's transaction — the opposite of what #131 had just done. Changing behaviour and leaving
+  the prose is worse than either alone: it would have told a future reader atomicity was guaranteed
+  after it was deliberately given up.
+- `prewarmVersionArtifacts` had NO durability test; only the messages half of L3-03 was pinned, and
+  prewarm is the half where a lost write costs a promotion or a 42-file ingest. Verified load-bearing
+  by reinstating `req` there and watching that specific test fail.
+- Adding a role fixture to that spec exhausted the shared **global signup budget** and broke six
+  unrelated int suites — invisible when the file runs alone, because `fileParallelism: false` puts
+  all the damage downstream. A suite that spends a shared budget must hand it back.
+- The reset migration's `down()` cast job rows into a reduced enum, failing on any retained
+  `passwordResetEmail` job — i.e. most likely during the very SMTP outage the task exists to survive.
+- PDF preview could resolve having opened nothing: the post-`await` `window.open` retry was unchecked,
+  so a popup-blocked preview reported success with no error. Silent success is the worst failure mode
+  for the feature the operator called most-used.
+
+## 2026-07-21 — L3-03 SETTLED: best-effort enqueues run OUTSIDE the caller's transaction
 
 **The defect, confirmed at source.** `messagePing` and `prewarmVersionArtifacts` both promised in
 comments that a failure to ENQUEUE could never fail the primary write. **It could, and the promise was
