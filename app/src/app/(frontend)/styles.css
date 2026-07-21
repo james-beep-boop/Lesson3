@@ -317,6 +317,12 @@ a {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* Truncation notice under a message list ("Showing 100 of 143. Show older messages"). */
+.msg-more {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+}
+
 .msg-link {
   margin: 0.4rem 0 0;
   font-size: 0.9rem;
