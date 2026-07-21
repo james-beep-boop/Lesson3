@@ -22,9 +22,14 @@ import MarkShownRead from './MarkShownRead'
 export default async function MessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string; version?: string }>
+  searchParams: Promise<{ plan?: string; version?: string; older?: string }>
 }) {
   const sp = await searchParams
+  // "Show older" widens the window instead of introducing cursor/page state: an inbox is read
+  // newest-first, so one widen covers any realistic personal history, and the page stays a plain
+  // server render with a shareable URL. `?older=1` is the only state.
+  const showingOlder = sp.older === '1'
+  const pageSize = showingOlder ? 500 : 100
   const { payload, user } = await requireUser()
 
   // Compose context from the lesson page — only attached when the plan is real and readable by the
@@ -52,7 +57,7 @@ export default async function MessagesPage({
   // The names-only roster for the recipient picker (SPEC §8 as amended: any authenticated user
   // reads display names; email/roles/assignments are field-stripped). Self excluded — the picker
   // is for messaging colleagues.
-  const [about, [{ docs: roster }, received, sent]] = await Promise.all([
+  const [about, [{ docs: roster }, unread, readMsgs, sent]] = await Promise.all([
     contextPromise,
     Promise.all([
       payload.find({
@@ -65,17 +70,35 @@ export default async function MessagesPage({
         sort: 'name',
         select: { name: true },
       }),
-      // depth 1 populates the counterpart's name (roster read) and the linked plan/version labels,
-      // under the READER's access. Newest 100 each — plenty for a flat personal inbox; pagination
-      // joins the Manage-at-scale backlog if real usage ever nears it.
+      // UNREAD FIRST, then newest read — fetched as two queries rather than one sort (audit L3-05).
+      //
+      // The bug this fixes: the nav badge counts EVERY unread message, but the inbox rendered only
+      // the newest 100 by date. Unread older than that could never render, so `MarkShownRead` could
+      // never mark them, and the badge stayed non-zero FOREVER with nothing the user could click.
+      // Fetching unread first makes every unread reachable, so the badge converges monotonically —
+      // each visit marks the shown unread read, and the next visit surfaces the next batch. That
+      // holds even with more unread than the window.
+      //
+      // Two queries, not `sort: ['readAt', '-createdAt']`: "nulls first" is the property we need and
+      // it is dialect-dependent (Postgres puts NULLs last on ASC), so an explicit split says what we
+      // mean and cannot silently inv­ert on a database change.
       payload.find({
         collection: 'messages',
-        where: { recipient: { equals: user.id } },
+        where: { and: [{ recipient: { equals: user.id } }, { readAt: { exists: false } }] },
         overrideAccess: false,
         user,
         depth: 1,
         sort: '-createdAt',
-        limit: 100,
+        limit: pageSize,
+      }),
+      payload.find({
+        collection: 'messages',
+        where: { and: [{ recipient: { equals: user.id } }, { readAt: { exists: true } }] },
+        overrideAccess: false,
+        user,
+        depth: 1,
+        sort: '-createdAt',
+        limit: pageSize,
       }),
       payload.find({
         collection: 'messages',
@@ -84,16 +107,22 @@ export default async function MessagesPage({
         user,
         depth: 1,
         sort: '-createdAt',
-        limit: 100,
+        limit: pageSize,
       }),
     ]),
   ])
 
-  // The unread messages actually SHOWN this render — scoped to the fetched page (not a blanket
-  // recipient+unread), so unread beyond the page limit stay unread until pagination surfaces them
-  // (the Manage-at-scale backlog). Marked read by the client POST below (MarkShownRead), never during
-  // this GET — so the "New" tags render this visit and the write can't be driven cross-site.
-  const shownUnreadIds = received.docs.filter((m) => !m.readAt).map((m) => m.id)
+  // Unread first, then read — both newest-first within their group.
+  const inbox = [...unread.docs, ...readMsgs.docs]
+  /** True when the store holds more than this render shows, so the UI can say so instead of
+   *  silently truncating (the previous behaviour, which is how the badge bug stayed invisible). */
+  const inboxTruncated = unread.totalDocs + readMsgs.totalDocs > inbox.length
+  const sentTruncated = sent.totalDocs > sent.docs.length
+
+  // The unread actually SHOWN this render. Still scoped to what rendered — never a blanket
+  // recipient+unread update — so the "New" tags appear this visit and the write cannot be driven
+  // cross-site. Because unread are fetched FIRST, this now drains the backlog monotonically.
+  const shownUnreadIds = unread.docs.map((m) => m.id)
 
   return (
     <article className="messages">
@@ -107,14 +136,17 @@ export default async function MessagesPage({
 
       <section className="msg-section" aria-label="Inbox">
         <h2>Inbox</h2>
-        {received.docs.length === 0 ? (
+        {inbox.length === 0 ? (
           <p className="muted">No messages yet.</p>
         ) : (
-          <ul className="msg-list">
-            {received.docs.map((m) => (
-              <MessageCard key={m.id} message={m} direction="in" />
-            ))}
-          </ul>
+          <>
+            <ul className="msg-list">
+              {inbox.map((m) => (
+                <MessageCard key={m.id} message={m} direction="in" />
+              ))}
+            </ul>
+            {inboxTruncated && <ShowOlder shown={inbox.length} total={unread.totalDocs + readMsgs.totalDocs} />}
+          </>
         )}
       </section>
 
@@ -129,8 +161,25 @@ export default async function MessagesPage({
             ))}
           </ul>
         )}
+        {sentTruncated && <ShowOlder shown={sent.docs.length} total={sent.totalDocs} />}
       </section>
     </article>
+  )
+}
+
+/** Truncation notice + widen link. Renders ONLY when the store holds more than we showed, so a
+ *  complete inbox stays uncluttered. Says the real numbers rather than hinting, because silent
+ *  truncation is what hid the unread-badge bug (L3-05). */
+function ShowOlder({ shown, total }: { shown: number; total: number }) {
+  return (
+    <p className="muted msg-more">
+      Showing {shown} of {total}.{' '}
+      {shown < total && (
+        <Link href="/messages?older=1" prefetch={false}>
+          Show older messages
+        </Link>
+      )}
+    </p>
   )
 }
 
