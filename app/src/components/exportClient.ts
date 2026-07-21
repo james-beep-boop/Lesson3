@@ -140,6 +140,33 @@ export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = 
   throw new Error(timeoutMsg)
 }
 
+/** Message shown when the browser refuses BOTH the synchronous open and the post-await retry. */
+const POPUP_BLOCKED_MESSAGE =
+  'Your browser blocked the preview window. Allow pop-ups for this site, then try again.'
+
+/**
+ * Hand `url` to the placeholder tab opened during the click gesture, or — if that open was blocked —
+ * try once more now.
+ *
+ * THE RETRY MUST BE CHECKED. It runs after an `await`, which is exactly the case popup blockers
+ * reject, so it is EXPECTED to fail under strict blocking. Both callers previously ignored its
+ * result, which meant a blocked preview resolved successfully: the caller cleared its busy state and
+ * the user saw nothing at all, with no error to explain it. Silent success is the worst outcome for
+ * this feature, so a blocked retry throws and the caller surfaces it.
+ *
+ * Shared because the two `open*InNewTab` functions are deliberate twins. When only one of them was
+ * fixed (2026-07-21) the other kept the silent-success bug AND the stale comment claiming the retry
+ * was fine — with the divergence invisible, since the mirroring is asserted in prose rather than
+ * structure. One helper is what actually keeps them mirrored.
+ */
+function deliverToTab(tab: Window | null, url: string): void {
+  if (tab) {
+    tab.location.href = url
+    return
+  }
+  if (!window.open(url, '_blank')) throw new Error(POPUP_BLOCKED_MESSAGE)
+}
+
 /**
  * Open an export PDF inline in a NEW TAB: warm the (version, kind) cache (`ensureExportReady`), then
  * navigate the tab to `docUrl` (served `Content-Disposition: inline`). The tab is opened SYNCHRONOUSLY
@@ -156,13 +183,13 @@ export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string)
   }
   try {
     await ensureExportReady(exportUrl)
-    if (tab) tab.location.href = docUrl
-    else window.open(docUrl, '_blank') // popup was blocked; retry now that no wait is needed
+    deliverToTab(tab, docUrl)
   } catch (e) {
     tab?.close()
     throw e
   }
 }
+
 
 /**
  * Open a GENERATED (not cached) PDF in a new tab — the unsaved working-copy twin of
@@ -195,22 +222,11 @@ export async function openGeneratedPdfInNewTab(url: string, body: FormData): Pro
     const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin' })
     if (!res.ok) throw new Error(await messageFrom(res, `Could not prepare the PDF (${res.status}).`))
     const blobUrl = URL.createObjectURL(await res.blob())
-    if (tab) {
-      tab.location.href = blobUrl
-    } else {
-      // The synchronous open was blocked. Retrying here is worth one attempt but is EXPECTED to fail
-      // under strict blocking — this is past an `await`, precisely the case the header above says is
-      // rejected. So the result must be CHECKED: leaving it unchecked (as this did until the
-      // 2026-07-21 review) meant a blocked preview resolved successfully, the caller cleared its
-      // busy state, and the user was shown nothing at all with no error to explain it. A silent
-      // no-op is the worst outcome for the feature; an actionable message is the least-bad one.
-      const retry = window.open(blobUrl, '_blank')
-      if (!retry) {
-        URL.revokeObjectURL(blobUrl) // nothing will load it; don't leak the blob for a minute
-        throw new Error(
-          'Your browser blocked the preview window. Allow pop-ups for this site, then try again.',
-        )
-      }
+    try {
+      deliverToTab(tab, blobUrl)
+    } catch (e) {
+      URL.revokeObjectURL(blobUrl) // nothing will load it; don't leak the blob for a minute
+      throw e
     }
     // Revoke on a delay, never immediately: the tab still has to LOAD from this URL, and revoking
     // before it does leaves a blank tab. A minute is far longer than any load and bounds the leak.

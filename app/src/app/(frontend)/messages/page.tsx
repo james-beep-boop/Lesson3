@@ -30,6 +30,10 @@ export default async function MessagesPage({
   // server render with a shareable URL. `?older=1` is the only state.
   const showingOlder = sp.older === '1'
   const pageSize = showingOlder ? 500 : 100
+  // The whole widening scheme lives HERE, in these two lines. `ShowOlder` renders whatever link this
+  // hands it and knows no URLs, so replacing widening with real pagination later touches this spot
+  // rather than the component, its prop polarity, and every call site.
+  const widerHref = showingOlder ? null : '/messages?older=1'
   const { payload, user } = await requireUser()
 
   // Compose context from the lesson page — only attached when the plan is real and readable by the
@@ -149,7 +153,7 @@ export default async function MessagesPage({
               <ShowOlder
                 shown={inbox.length}
                 total={unread.totalDocs + readMsgs.totalDocs}
-                expandable={!showingOlder}
+                widerHref={widerHref}
               />
             )}
           </>
@@ -168,7 +172,7 @@ export default async function MessagesPage({
           </ul>
         )}
         {sentTruncated && (
-          <ShowOlder shown={sent.docs.length} total={sent.totalDocs} expandable={!showingOlder} />
+          <ShowOlder shown={sent.docs.length} total={sent.totalDocs} widerHref={widerHref} />
         )}
       </section>
     </article>
@@ -179,26 +183,24 @@ export default async function MessagesPage({
  *  complete inbox stays uncluttered. Says the real numbers rather than hinting, because silent
  *  truncation is what hid the unread-badge bug (L3-05).
  *
- *  `expandable` is false once we are ALREADY on `?older=1`, where the link would point at the page
- *  the user is looking at — a dead control that re-renders the identical 500 rows (flagged in the
- *  2026-07-21 review). Past 500 the widen strategy is simply out of room, so we say so plainly
- *  instead of offering an affordance that does nothing. Lifting that ceiling needs real cursor/page
- *  state, which is tracked as its own task — deliberately not bolted on here as a third fixed
- *  widening, because that just moves the same dead end to 2000. The fallback copy must not send the
- *  user to a search box — the messages page has none. */
-function ShowOlder({ shown, total, expandable }: { shown: number; total: number; expandable: boolean }) {
-  const truncated = shown < total
+ *  `widerHref` is null once we are ALREADY on `?older=1`, where a link would point at the page the
+ *  user is looking at — a dead control that re-renders the identical 500 rows (flagged in the
+ *  2026-07-21 review). Past 500 the widen strategy is out of room, so we say so plainly rather than
+ *  offer an affordance that does nothing. Lifting that ceiling needs real cursor/page state, tracked
+ *  as its own task and deliberately NOT bolted on here as a third fixed widening, which would just
+ *  move the same dead end to 2000. The fallback copy must not send the user to a search box — the
+ *  messages page has none. Callers already gate on `*Truncated`, so this does not re-check it. */
+function ShowOlder({ shown, total, widerHref }: { shown: number; total: number; widerHref: string | null }) {
   return (
     <p className="muted msg-more">
       Showing {shown} of {total}.{' '}
-      {truncated &&
-        (expandable ? (
-          <Link href="/messages?older=1" prefetch={false}>
-            Show older messages
-          </Link>
-        ) : (
-          <>Older messages aren&rsquo;t reachable yet.</>
-        ))}
+      {widerHref ? (
+        <Link href={widerHref} prefetch={false}>
+          Show older messages
+        </Link>
+      ) : (
+        <>Older messages aren&rsquo;t reachable yet.</>
+      )}
     </p>
   )
 }

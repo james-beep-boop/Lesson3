@@ -9,6 +9,7 @@ import type {
 import { APIError } from 'payload'
 
 import { consumeRateLimit } from '../lib/rateLimit'
+import { enqueueDetached } from '../lib/enqueue'
 import { relId } from '../lib/relId'
 import { MESSAGE_PING_SLUG, type MessagePingInput } from '../jobs/messagePing'
 import { markMessagesReadEndpoint } from '../endpoints/markMessagesRead'
@@ -88,16 +89,9 @@ const validateContextLink: CollectionBeforeValidateHook = async ({ data, operati
 
 /** afterChange (create): enqueue the content-free email ping for the recipient — but only when
  *  this message is their ONLY unread one (zero-unread gate), and only within the per-recipient
- *  daily ping budget. Both gates SKIP the ping, never fail the message.
- *
- *  The enqueue deliberately does NOT receive `req` (L3-03, 2026-07-21). Passing it enlisted the job
- *  insert in the create's transaction, so a failed insert aborted it — and the catch below then
- *  swallowed the error, turning the commit into a silent rollback that discarded the message while
- *  returning 201. Running the enqueue on its own connection is what makes "best-effort" true.
- *
- *  The trade: a ping is no longer atomic with the message, so a later rollback could leave a job for
- *  a message that does not exist. `messagePing` therefore re-checks existence before emailing —
- *  announcing a message nobody can open is worse than staying silent. */
+ *  daily ping budget. Both gates SKIP the ping, never fail the message — and neither can the enqueue,
+ *  which runs outside the create's transaction via `enqueueDetached` (L3-03; mechanism and the
+ *  orphan trade are documented once in `lib/enqueue.ts`). */
 const notifyRecipient: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (operation !== 'create') return
   const recipientId = relId(doc.recipient)
@@ -135,25 +129,12 @@ const notifyRecipient: CollectionAfterChangeHook = async ({ doc, operation, req 
     senderUserId: senderId ?? 0,
   }
   // Best-effort by contract: the reliable delivery path is the in-app message row, so a failure to
-  // ENQUEUE the ping must never fail the create.
-  //
-  // `req` is DELIBERATELY OMITTED (L3-03, 2026-07-21) — that is what actually makes the guarantee
-  // true. Passing it enlisted the job insert in THIS create's transaction, so a failed insert
-  // aborted the transaction; the catch below then swallowed the error, the hook returned normally,
-  // and Payload committed — except the installed drizzle `commitTransaction` is
-  // `try { resolve() } catch { reject() }`, i.e. it rolls back and swallows too. Net effect: HTTP
-  // 201 with the message in the response body and NOTHING PERSISTED. The swallow was not protecting
-  // the message; it was hiding the message's death.
-  //
-  // Without `req`, `jobs.queue` does `args.req ?? createLocalReq({}, payload)` — a fresh connection
-  // with no transaction — so an enqueue failure is isolated and the catch means what it says.
-  //
-  // The trade, stated plainly: the job row is no longer atomic with the message. If the create rolls
-  // back for an UNRELATED reason after we enqueue, the ping is orphaned — so `messagePing` verifies
-  // the message still exists before emailing (a "you have a new message" mail for a message that
-  // does not exist would be worse than sending nothing).
+  // ENQUEUE the ping must never fail the create. `enqueueDetached` is what makes that TRUE rather
+  // than merely intended — it keeps the job insert off this create's transaction, so a failed insert
+  // cannot abort the transaction and have the catch below quietly turn the commit into a rollback.
+  // Full mechanism, and the orphan trade it buys, in `lib/enqueue.ts` (L3-03, 2026-07-21).
   try {
-    await req.payload.jobs.queue({ task: MESSAGE_PING_SLUG, input })
+    await enqueueDetached(req.payload, { task: MESSAGE_PING_SLUG, input })
   } catch (err) {
     req.payload.logger.error(
       { err, messageId: doc.id, recipientUserId: recipientId, senderUserId: senderId },
