@@ -165,6 +165,48 @@ export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string)
 }
 
 /**
+ * Open a GENERATED (not cached) PDF in a new tab — the unsaved working-copy twin of
+ * `openPreparedPdfInNewTab` above, whose tab choreography it deliberately mirrors.
+ *
+ * WHY THIS EXISTS (audit 2026-07-20, L3-12). The unsaved "View as PDF" previously submitted a
+ * hidden form to `_blank` — fire-and-forget, so the client could not observe completion and gated
+ * re-clicks on a FIXED 3-SECOND timer. Measured on the Rock, a 12-lesson conversion takes
+ * **5.3–6.9 s** (11.3 s queued behind a busy slot), so the button re-enabled mid-conversion on
+ * essentially every production preview. A user staring at an apparently-ready button clicks again,
+ * that second click consumes the other conversion slot, and a third attempt renders the endpoint's
+ * raw JSON 503 as the whole page of a new tab.
+ *
+ * Fetching instead makes completion observable: the caller can hold its busy state until the request
+ * SETTLES, show a real spinner for the full 5–11 s, and render errors inline rather than as a raw
+ * JSON tab. The conversion cap of 2 is NOT the problem and is not touched — Gotenberg saturates a
+ * core per conversion against a `cpus=2.0` budget, so raising it would only make everything slower.
+ *
+ * The tab MUST be opened synchronously inside the click gesture (as here) — `window.open` after an
+ * `await` is blocked by popup blockers, which is why this cannot simply be `fetch().then(open)`.
+ */
+export async function openGeneratedPdfInNewTab(url: string, body: FormData): Promise<void> {
+  // Synchronous open — inside the click handler, so popup blockers allow it.
+  const tab = window.open('', '_blank')
+  if (tab) {
+    tab.document.title = 'Preparing document…'
+    tab.document.body.textContent = 'Preparing document…'
+  }
+  try {
+    const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin' })
+    if (!res.ok) throw new Error(await messageFrom(res, `Could not prepare the PDF (${res.status}).`))
+    const blobUrl = URL.createObjectURL(await res.blob())
+    if (tab) tab.location.href = blobUrl
+    else window.open(blobUrl, '_blank') // popup was blocked; retry now that no wait is needed
+    // Revoke on a delay, never immediately: the tab still has to LOAD from this URL, and revoking
+    // before it does leaves a blank tab. A minute is far longer than any load and bounds the leak.
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+  } catch (e) {
+    tab?.close() // don't strand a "Preparing…" tab the user has to clean up
+    throw e
+  }
+}
+
+/**
  * Download an export .zip. Ensures the artifacts are warm (`ensureExportReady`), then downloads
  * via the idempotent GET. Resolves once the download has been triggered; rejects with a
  * user-facing message on failure. Drives `onState` through preparing → downloading.

@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-21 (latest) — forgot-password oracle closed server-side; PDF preview made completion-aware
+
+Two fixes completing threads opened by the 2026-07-20 audit.
+
+**1. Forgot-password: the oracle is closed at the SERVER (L3-R1).** The 2026-07-20 revert stopped our
+UI displaying the difference but left the leak open to a direct API caller — the server still answered
+200 for an unknown address and non-2xx for a real one whose SMTP send threw. A shadowing
+`POST /forgot-password` (`endpoints/forgotPassword.ts`, same mechanism as `endpoints/verifyEmail.ts`)
+now runs the operation with **`disableEmail: true`** — so no send can throw in-request — and hands
+delivery to a retrying `passwordResetEmail` job. Both branches return an identical 200 and body.
+- Because delivery retries, "a reset link is on its way" is now TRUE, not merely uniform — which also
+  resolves the false-success complaint that motivated the reverted #119. The right fix was never in
+  the client.
+- **The throttle survives the shadow.** Unlike verify (whose native op runs no hooks), the
+  forgot-password OPERATION runs collection `beforeOperation` hooks, so `rateLimitAuthOperations`
+  still fires. Proven over the wire: 5×200 then 429. This was the main risk of shadowing.
+- **The job takes a user id, never the token.** Succeeded jobs are deleted, but jobs that exhaust
+  retries are RETAINED — exactly the SMTP-outage case — so a token in the input would persist a live
+  reset credential precisely when delivery was failing. The handler reads the current
+  `resetPasswordToken` off the user row, which already holds it and clears it on use.
+- The email template moved out of `Users.auth.forgotPassword.generateEmailHTML` into the job; a
+  generator left there would be dead code, since the endpoint disables inline send.
+- **Corrected a stale comment** in `payload.config.ts` claiming completed jobs are retained. Payload's
+  `deleteJobOnComplete` defaults to TRUE and is not overridden — verified empirically (row present
+  immediately after enqueue, gone after autoRun). I designed against that false claim before checking
+  it; it is fixed rather than left to mislead the next reader.
+
+**2. PDF preview is completion-aware (L3-12).** The unsaved "View as PDF" submitted a hidden form to
+`_blank` — fire-and-forget, so the client could not observe completion and gated re-clicks on a FIXED
+3-SECOND timer. Measured on the Rock, a 12-lesson conversion takes **5.3–6.9 s** (11.3 s queued), so
+the button re-enabled mid-conversion on effectively every production preview; a user seeing an
+apparently-ready button clicks again, fills the second conversion slot, and a third attempt renders the
+endpoint's raw JSON 503 as an entire browser tab.
+- Now `fetch`-based (`openGeneratedPdfInNewTab`), mirroring the tab choreography of the existing
+  `openPreparedPdfInNewTab`: **open the tab synchronously inside the click gesture** (a `window.open`
+  after an `await` is popup-blocked — this is why it cannot be `fetch().then(open)`), show
+  "Preparing…", then point that tab at a blob URL, closing it and surfacing the message inline on
+  failure. `pdfBusy` is now held until the request SETTLES.
+- Browser-verified: the button reads "Preparing…" and is disabled for the real conversion duration,
+  then releases on completion. **The old fixed 3 s was wrong in BOTH directions** — too long locally
+  (dead button after the PDF was ready) and far too short on the Rock.
+- **The conversion cap of 2 is CORRECT and untouched.** Gotenberg saturates a core per conversion
+  against a `cpus=2.0` budget; raising it would only make every conversion slower. The defect was
+  entirely client-side feedback, never capacity — "we're getting 503s, raise the limit" is the
+  tempting wrong fix.
+- The HTML **Preview** button keeps the form-POST: at ~1.7 s it is a far weaker case and does not
+  provoke the re-click cascade. Deliberately not changed.
+
 ## 2026-07-20 (latest) — REVERTED: the forgot-password `res.ok` fix created an enumeration oracle
 
 **A same-day correction of my own change, and a lesson about overturning recorded decisions.**
