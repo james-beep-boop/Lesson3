@@ -25,6 +25,7 @@ import { emailLinkBase } from '../lib/emailLinkBase'
 import { isHttpsServerUrl } from '../lib/publicPosture'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
 import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
+import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserMessages } from './Messages'
 
@@ -54,17 +55,12 @@ export const Users: CollectionConfig = {
     // Internal hosts (SERVER_URL empty/http) keep today's behavior; sameSite stays Payload's
     // Lax default (the CSRF property the mark-read POST relies on).
     cookies: { secure: isHttpsServerUrl(process.env.SERVER_URL) },
-    forgotPassword: {
-      generateEmailHTML: (args) => {
-        const token = (args as { token?: string } | undefined)?.token ?? ''
-        // The FRONTEND reset page (2026-07-09) — /admin/reset would bounce non-admins off the
-        // gated panel after resetting; the app page works for every role.
-        const url = `${emailLinkBase()}/reset-password?token=${token}`
-        return `<p>You requested a password reset for ARES Lesson Plans.</p>
-<p><a href="${url}">Reset your password</a> (or paste this link): ${url}</p>
-<p>If you didn't request this, ignore this email.</p>`
-      },
-    },
+    // NOTE: there is deliberately no `forgotPassword.generateEmailHTML` here any more (L3-R1,
+    // 2026-07-20). The reset email is no longer sent inline by the operation — the shadowing
+    // `forgotPasswordQueuedEndpoint` runs it with `disableEmail: true` and hands delivery to the
+    // retrying `passwordResetEmail` job, which now owns the template. Re-adding a generator here
+    // would be dead code on the app's own path (the endpoint disables it), so if you need to change
+    // the reset email, change `jobs/passwordResetEmail.ts`.
     // Email verification on signup (2026-07-09 follow-up hardening to open registration): a new
     // account cannot log in until its address is verified — Payload enforces this in BOTH the
     // login op (UnverifiedEmail 403) and the JWT strategy. The link targets the FRONTEND page for
@@ -112,6 +108,9 @@ export const Users: CollectionConfig = {
     // widget's full-array PATCH (lost-update hazard on authorization data). See endpoints/userAssignments.
     assignEditorEndpoint,
     unassignEditorEndpoint,
+    // Shadows Payload's native POST /forgot-password so the response cannot differ between a
+    // registered and an unknown address (L3-R1). Delivery moves to the retrying job below.
+    forgotPasswordQueuedEndpoint,
     // SHADOWS the native POST /verify/:id (custom endpoints match first) to add the site-global
     // rate cap the native op has no hook seam for. See endpoints/verifyEmail.
     verifyEmailThrottledEndpoint,

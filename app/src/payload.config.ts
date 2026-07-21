@@ -17,6 +17,7 @@ import { Messages } from './collections/Messages'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
 import { messagePingTask } from './jobs/messagePing'
+import { passwordResetEmailTask } from './jobs/passwordResetEmail'
 import { isSiteAdmin } from './access'
 import { firstUserBootRefusal } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
@@ -121,10 +122,18 @@ export default buildConfig({
   // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,
   // per installed-source guidance — fine on the Rock). `limit` is the GLOBAL concurrency cap on
   // heavy conversions: at most this many run per tick regardless of how many users enqueued.
-  // Completed jobs are kept (not auto-deleted) so the status poll can surface failures; periodic
-  // cleanup is a follow-up. Cadence/limit are env-tunable for the host's CPU/Gotenberg budget.
+  // Payload's `deleteJobOnComplete` defaults to TRUE and is not overridden here, so SUCCEEDED jobs
+  // are removed; jobs that exhaust their retries are retained for diagnosis. (Corrected 2026-07-20 —
+  // this comment previously claimed completed jobs were kept, which is not what the default does.)
+  // Periodic cleanup of retained failures is a follow-up. Cadence/limit are env-tunable for the
+  // host's CPU/Gotenberg budget.
   jobs: {
-    tasks: [generateVersionArtifactTask, emailVersionArtifactTask, messagePingTask],
+    tasks: [
+      generateVersionArtifactTask,
+      emailVersionArtifactTask,
+      messagePingTask,
+      passwordResetEmailTask,
+    ],
     // LOCK DOWN the job surface (Payload's defaults are permissive). Without this, the
     // `run` endpoint defaults to `() => true` (callable UNAUTHENTICATED), and `queue`/`cancel`
     // default to any-logged-in-user. Restrict all three to Site Admins. This does NOT affect

@@ -1630,6 +1630,71 @@ describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-r
  * the endpoint had none). Proves the server-side gate — NOT the hidden UI button — is the boundary:
  * unauthenticated → 401, any non-Site-Admin → 403, and only then the validation + happy path.
  */
+describe('forgot-password (L3-R1) — responses must not reveal whether an account exists', () => {
+  // The oracle this closes: Payload's native operation returns EARLY for an unknown address (no send
+  // attempted => 200) but falls through to an UNGUARDED `sendEmail` for a real one (=> non-2xx when
+  // SMTP fails). Status therefore discriminated registered users on an UNAUTHENTICATED endpoint.
+  // `endpoints/forgotPassword.ts` shadows it, runs the operation with `disableEmail: true` (so no
+  // send can throw in-request) and queues delivery instead.
+  const forgot = (email: string) =>
+    fetch(url('/api/users/forgot-password'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+
+  const clearBudget = async (email: string) => {
+    const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
+      .drizzle
+    await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${'forgotPassword%'};`)
+    void email
+  }
+
+  it('a REGISTERED and an UNKNOWN address return byte-identical status AND body', async () => {
+    await clearBudget('')
+    const unknownRes = await forgot(`${MARK}absolutely-no-such-account@example.invalid`)
+    const knownRes = await forgot(fx.users.teacher.email)
+
+    expect(unknownRes.status).toBe(200)
+    expect(knownRes.status).toBe(unknownRes.status)
+    expect(await knownRes.text()).toBe(await unknownRes.text())
+  })
+
+  it('queues a delivery job for a REGISTERED address and none for an unknown one', async () => {
+    // Delivery is off the request path — that is what lets the two branches answer identically.
+    // Count immediately: succeeded jobs are removed (`deleteJobOnComplete` defaults true).
+    await clearBudget('')
+    const countJobs = async () => {
+      const { totalDocs } = await fx.payload.count({
+        collection: 'payload-jobs' as never,
+        where: { taskSlug: { equals: 'passwordResetEmail' } } as never,
+        overrideAccess: true,
+      })
+      return totalDocs
+    }
+
+    const before = await countJobs()
+    await forgot(`${MARK}still-no-such-account@example.invalid`)
+    expect(await countJobs()).toBe(before) // unknown → nothing queued
+
+    await forgot(fx.users.editor.email)
+    expect(await countJobs()).toBeGreaterThan(before) // registered → queued
+  })
+
+  it('the per-address cap still bites → 429, proving the shadow did NOT lose the throttle', async () => {
+    // The one real risk of shadowing. Unlike the verify endpoint (whose native op runs no hooks and
+    // needed the limit re-applied by hand), forgotPasswordOperation DOES run collection
+    // `beforeOperation` hooks, so `rateLimitAuthOperations` still fires through our endpoint. If a
+    // Payload bump changed that, this is the assertion that fails.
+    await clearBudget('')
+    const email = `${MARK}throttle-probe@example.invalid`
+    const MAX = Number(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX) || 5
+    for (let i = 0; i < MAX; i++) expect((await forgot(email)).status).toBe(200)
+    expect((await forgot(email)).status).toBe(429)
+    await clearBudget('')
+  })
+})
+
 describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () => {
   const UPLOAD = '/api/lesson-plans/upload'
 
