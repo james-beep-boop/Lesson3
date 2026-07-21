@@ -195,8 +195,23 @@ export async function openGeneratedPdfInNewTab(url: string, body: FormData): Pro
     const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin' })
     if (!res.ok) throw new Error(await messageFrom(res, `Could not prepare the PDF (${res.status}).`))
     const blobUrl = URL.createObjectURL(await res.blob())
-    if (tab) tab.location.href = blobUrl
-    else window.open(blobUrl, '_blank') // popup was blocked; retry now that no wait is needed
+    if (tab) {
+      tab.location.href = blobUrl
+    } else {
+      // The synchronous open was blocked. Retrying here is worth one attempt but is EXPECTED to fail
+      // under strict blocking — this is past an `await`, precisely the case the header above says is
+      // rejected. So the result must be CHECKED: leaving it unchecked (as this did until the
+      // 2026-07-21 review) meant a blocked preview resolved successfully, the caller cleared its
+      // busy state, and the user was shown nothing at all with no error to explain it. A silent
+      // no-op is the worst outcome for the feature; an actionable message is the least-bad one.
+      const retry = window.open(blobUrl, '_blank')
+      if (!retry) {
+        URL.revokeObjectURL(blobUrl) // nothing will load it; don't leak the blob for a minute
+        throw new Error(
+          'Your browser blocked the preview window. Allow pop-ups for this site, then try again.',
+        )
+      }
+    }
     // Revoke on a delay, never immediately: the tab still has to LOAD from this URL, and revoking
     // before it does leaves a blank tab. A minute is far longer than any load and bounds the leak.
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)

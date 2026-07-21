@@ -121,7 +121,9 @@ export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async
  * hit a warm artifact cache, never the cold 202/poll flow (teacher-first T1, DECISIONS 2026-07-08).
  * The `req.user` gate is the same system-path carve-out as `validateOfficialVersionPointer`:
  * fixtures/migrations don't mass-enqueue; ingest (a system path that DOES want warming) calls
- * `prewarmVersionArtifacts` explicitly. Never throws; job rows ride the caller's transaction.
+ * `prewarmVersionArtifacts` explicitly. Never throws — and, since L3-03, never enlists its job rows
+ * in the caller's transaction either, so a failed enqueue cannot roll back the pointer move it
+ * follows (see `prewarmVersionArtifacts` for the full mechanism).
  */
 export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
   if (!req.user) return doc

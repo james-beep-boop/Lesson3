@@ -1683,6 +1683,34 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     expect(await countJobs()).toBeGreaterThan(before) // registered → queued
   })
 
+  it('answers in uniform TIME, not just uniform bytes (timing-oracle regression)', async () => {
+    // MEASURED, not theorised. On the Rock against real Postgres (2026-07-21, n=20 per branch) the
+    // unknown branch answered in a tight 23-29 ms and the known branch in 60-140 ms — barely
+    // overlapping, so a SINGLE request classified an address. Byte-identical responses did not close
+    // the oracle; they only moved it from the status code to the clock. The handler now pads every
+    // response to a fixed floor.
+    //
+    // This asserts the FLOOR rather than comparing the two branches to each other, because a
+    // comparison across two samples on shared CI hardware is noise-dominated and would flake. The
+    // floor is the actual mechanism: while both branches are pinned beneath it, neither can be
+    // distinguished, and if someone removes the padding this fails immediately and deterministically.
+    await clearBudget()
+    const floorMs = Number(process.env.FORGOT_PASSWORD_RESPONSE_FLOOR_MS ?? 400)
+    const tolerance = 40 // timer granularity + scheduling slop; far below the ~65 ms signal we closed
+
+    const timed = async (email: string): Promise<number> => {
+      const t0 = Date.now()
+      await forgot(email)
+      return Date.now() - t0
+    }
+
+    const unknownMs = await timed(`${MARK}timing-no-such-account@example.invalid`)
+    const knownMs = await timed(fx.users.subjectAdmin.email)
+
+    expect(unknownMs).toBeGreaterThanOrEqual(floorMs - tolerance)
+    expect(knownMs).toBeGreaterThanOrEqual(floorMs - tolerance)
+  })
+
   it('a MIXED-CASE / whitespace-padded registered address still queues delivery (regression)', async () => {
     // The bug this pins (2026-07-21): Payload finds the account with a NORMALISED email
     // (`.toLowerCase().trim()`), but the endpoint's follow-up lookup originally re-matched the RAW
