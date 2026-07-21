@@ -363,21 +363,26 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
 
       // NEW plan: version 1.0.0, made Official immediately (ingest order: plan → version → pointer).
       //
-      // ⚠️ LOAD-BEARING: both creates below are only permitted because the LOCAL API defaults
-      // `overrideAccess` to TRUE and `req` here carries NO `user`. Caller access denies both
-      // outright — `lessonPlanCreate` and `lessonBundleVersionCreate` are `() => false`
-      // (`access/versioning.ts`, so a bare plan with no Official pointer can't be minted, and a
-      // provenance-less version can't be created). Ingest is the ONLY sanctioned way either row is
-      // born. If you ever attach a `user` to this `req` (e.g. to record who uploaded), you will
-      // silently start failing these access checks and uploads will 403 — pass an explicit
-      // `overrideAccess: true` at that point. The end-to-end guard is the Site-Admin upload test in
-      // `tests/http/endpoints.http.spec.ts`, which exercises this path over the wire.
+      // ⚠️ LOAD-BEARING: caller access DENIES both creates below outright — `lessonPlanCreate` and
+      // `lessonBundleVersionCreate` are `() => false` (`access/versioning.ts`), so a bare plan with
+      // no Official pointer cannot be minted and a provenance-less version cannot be created.
+      // Ingest is the only sanctioned way either row is born, and it gets through because the LOCAL
+      // API defaults `overrideAccess` to TRUE. `overrideAccess: true` is passed EXPLICITLY below so
+      // that stays visible at the point of risk rather than riding a library default.
+      //
+      // (Corrected 2026-07-21: an earlier version of this comment claimed the creates succeed
+      // because `req` carries no `user`, and that attaching one would cause a 403. That is wrong —
+      // `overrideAccess` is what bypasses access, independently of `req.user`. The absence of a user
+      // matters for a DIFFERENT reason: `hooks/fieldSplit.ts` treats a user-less request as a system
+      // path and lets it write system-owned fields. Both facts are load-bearing; they are not the
+      // same fact.)
       const plan = await payload.create({
         collection: LESSON_PLANS,
         data: {
           title: data.title,
           subjectGrade,
         } as never,
+        overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
         req,
       })
       const version = await payload.create({
@@ -388,6 +393,7 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
           subjectGrade,
           semver: '1.0.0',
         } as never,
+        overrideAccess: true, // explicit: caller access is `() => false` (see the note above)
         req,
       })
       await payload.update({

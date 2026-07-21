@@ -8,6 +8,36 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## SHIPPED + DEPLOYED 2026-07-20/21 — audit remediation (#119–#125) and a same-day security correction
+
+All merged through the protected-branch gate and deployed to the Rock, which now runs `main` `82379e4`.
+
+- **#119 — caller lesson-plan create denied** (`lessonPlanCreate: () => false`), mirroring the existing
+  version-create deny. A Subject Admin could previously mint unlimited pointerless, invisible,
+  unrepairable, self-undeletable plans. Ingest is unaffected (Local API `overrideAccess`).
+- **#120 — two hazards retired, −238 lines.** The legacy e2e fixture deleted and recreated a FIXED
+  account (`dev@payloadcms.com`) via the Local API and would have destroyed a real user of that name
+  on a persistent DB. The PDF pixel gate was both methodologically abandoned (Word vs LibreOffice) and
+  arithmetically broken (it concatenated ImageMagick's absolute and normalised values), so every
+  number it ever produced was garbage.
+- **#121 — VersionsChip composed onto the shared Modal**, gaining a real Tab focus trap, focus
+  restoration and body-scroll lock for keyboard/AT users.
+- **#122 — REVERTED #119's forgot-password half.** Surfacing `!res.ok` created an account-existence
+  oracle; the reasoning that justified it was half-true and the missing half was fatal.
+- **#123 — `/simplify` follow-ups**: de-duplicated comments; documented the ingest access coupling.
+- **#124 — the forgot-password oracle closed SERVER-side.** The revert only stopped our UI showing the
+  difference; a direct API caller still saw 200 vs non-2xx. A shadowing endpoint now runs the operation
+  with `disableEmail: true` and queues delivery to a retrying job, so both branches answer identically
+  AND "a reset link is on its way" became true. **Carries a migration** (task-slug enum).
+- **#125 — PDF preview made completion-aware.** A fixed 3 s busy timer against 5.3–6.9 s Rock
+  conversions meant the button re-enabled mid-conversion on essentially every production preview.
+
+**Same-day correction (2026-07-21):** #124's follow-up lookup re-matched the RAW request email while
+Payload finds the account with a normalised one, so a mixed-case address minted a live reset token and
+queued nothing — recovery silently dead, and invisible to a wire suite whose fixtures are all
+lowercase. Now resolved by the returned token, which cannot drift from upstream normalisation, with a
+mixed-case/whitespace regression test.
+
 ## DEPLOYED + LIVE-VERIFIED 2026-07-20 — routing 404s fixed (`/lessons`, `/manage`)
 
 `https://test.kenyalessons.org/lessons` and `/manage` returned 404. The top-nav labels "Lessons" and

@@ -20,8 +20,13 @@
  * its retries is retained for diagnosis — and that is exactly the SMTP-outage case this task exists
  * to survive. A token in the input would therefore persist a live password-reset credential in
  * `payload_jobs` precisely when delivery was failing. The handler instead reads the CURRENT
- * `resetPasswordToken` off the user row at send time; that row already holds the token by design and
- * clears it on use, so nothing is duplicated at rest under any outcome.
+ * `resetPasswordToken` off the user row at send time — the one place that token already lives by
+ * design — so no second copy is created under any outcome.
+ *
+ * Precisely: consuming a reset does NOT erase the stored token. Installed `resetPassword.js` sets
+ * `resetPasswordExpiration = now` (line 63) and leaves `resetPasswordToken` in place, so the value
+ * persists but is dead. That is why the handler below checks the EXPIRATION rather than trusting the
+ * token's presence — a used token is still readable, and emailing it again would send a dead link.
  *
  * A consequence worth knowing: if a second reset is requested before this job runs, the token has
  * rotated and this job sends the NEWEST link. That is correct — the newest link is the one that
