@@ -32,9 +32,10 @@
  */
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import { getPayload, type Payload } from 'payload'
-import { sql } from 'drizzle-orm'
+import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
+import { clearRateLimitBuckets } from '../helpers/db.js'
 import {
   MARK,
   MARK_BASE,
@@ -59,7 +60,6 @@ const newRecipient = async (): Promise<{ id: number }> =>
     email: `${MARK}enq-recipient-${seq}@example.test`.toLowerCase(),
     password: 'enqueue-probe-pass',
   })) as unknown as { id: number }
-
 
 /**
  * Replace `jobs.queue` with one that reproduces a FAILED JOB INSERT — the real fault, not a mocked
@@ -87,6 +87,26 @@ function mockFailingEnqueue() {
 }
 
 /**
+ * Run `write` with a failing enqueue installed, reporting how many enqueues it attempted.
+ *
+ * The attempt count is read BEFORE `mockRestore()`, which also CLEARS the recorded calls — asserting
+ * after it silently reads zero (an earlier draft of this file did, and "failed" for that reason
+ * rather than for anything about the product). Owning that ordering here means the two durability
+ * tests cannot get it wrong independently; each keeps its own assertions, which is the part that
+ * says what it proves.
+ */
+async function withFailingEnqueue<T>(
+  write: () => Promise<T>,
+): Promise<{ result: T; enqueueAttempts: number }> {
+  const queueSpy = mockFailingEnqueue()
+  try {
+    return { result: await write(), enqueueAttempts: queueSpy.mock.calls.length }
+  } finally {
+    queueSpy.mockRestore()
+  }
+}
+
+/**
  * Release the SHARED global sign-up budget.
  *
  * This suite creates users (a sender, a fresh recipient per test, and `setupRoleFixture`'s four
@@ -100,10 +120,7 @@ function mockFailingEnqueue() {
  * the way out (handing the budget back). Only the GLOBAL bucket is touched — per-target rows are
  * left alone so nothing here can weaken what `authRateLimit.int.spec.ts` asserts.
  */
-async function releaseSignupBudget(p: Payload) {
-  const db = (p.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }).drizzle
-  await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE 'signupGlobal%';`)
-}
+const releaseSignupBudget = (p: Payload) => clearRateLimitBuckets(p, 'signupGlobal%')
 
 beforeAll(async () => {
   // ORDER MATTERS: purge BEFORE building the fixture. `purgeMarked` sweeps the whole `MARK_BASE`
@@ -134,25 +151,16 @@ describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
     const recipient = await newRecipient()
     const body = `${MARK}survives-a-failed-enqueue`
 
-    // If the caller passed `req` (the bug), this poisons the create's own transaction and its commit
-    // silently becomes a rollback. See `mockFailingEnqueue`.
-    const queueSpy = mockFailingEnqueue()
-
-    let created: { id: number | string } | undefined
-    let enqueueAttempts = 0
-    try {
-      created = (await payload.create({
-        collection: 'messages',
-        data: { sender: sender.id, recipient: recipient.id, body } as never,
-        overrideAccess: true,
-      })) as unknown as { id: number | string }
-    } finally {
-      // Read the call count BEFORE restoring — `mockRestore()` also clears the recorded calls, so
-      // asserting after it silently reads zero (an earlier draft of this test did, and "failed" for
-      // that reason rather than for anything about the product).
-      enqueueAttempts = queueSpy.mock.calls.length
-      queueSpy.mockRestore()
-    }
+    // If the caller passed `req` (the bug), the failing enqueue poisons the create's own transaction
+    // and its commit silently becomes a rollback. See `mockFailingEnqueue`.
+    const { result: created, enqueueAttempts } = await withFailingEnqueue(
+      () =>
+        payload.create({
+          collection: 'messages',
+          data: { sender: sender.id, recipient: recipient.id, body } as never,
+          overrideAccess: true,
+        }) as Promise<{ id: number | string }>,
+    )
 
     // GUARD AGAINST A VACUOUS PASS: if the hook skipped the enqueue (it only pings a recipient's
     // FIRST unread), the mock never fires and this test would "pass" while proving nothing. An
@@ -193,22 +201,17 @@ describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
       overrideAccess: true,
     })
 
-    const queueSpy = mockFailingEnqueue()
-    let enqueueAttempts = 0
-    try {
-      // `user` is REQUIRED: `prewarmOfficialArtifacts` returns early without `req.user`, so an
-      // unauthenticated update would skip the enqueue entirely and pass while proving nothing.
-      await payload.update({
+    // `user` is REQUIRED: `prewarmOfficialArtifacts` returns early without `req.user`, so an
+    // unauthenticated update would skip the enqueue entirely and pass while proving nothing.
+    const { enqueueAttempts } = await withFailingEnqueue(() =>
+      payload.update({
         collection: 'lesson-plans',
         id: fx.plan.id,
         data: { officialVersion: version.id } as never,
         overrideAccess: true,
         user: fx.users.siteAdmin,
-      })
-    } finally {
-      enqueueAttempts = queueSpy.mock.calls.length
-      queueSpy.mockRestore()
-    }
+      }),
+    )
 
     // Guard against a vacuous pass, exactly as above.
     expect(enqueueAttempts).toBeGreaterThan(0)

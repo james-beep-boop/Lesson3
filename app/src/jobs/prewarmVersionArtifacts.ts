@@ -9,15 +9,12 @@
  * TRUST: called from already-authorized admin/system paths. Deliberately NOT rate-limited — it is
  * not a caller-driven surface.
  *
- * ENQUEUES OUTSIDE THE CALLER'S TRANSACTION (L3-03, 2026-07-21). `req` is deliberately NOT passed to
- * `jobs.queue`. It used to be, and the job rows then rode the promotion's transaction — which meant a
- * failed job INSERT aborted that transaction, and because the failure was caught and swallowed, the
- * commit degraded into a silent rollback: the promotion reported success and persisted nothing.
- * Warming is side work and must never be able to undo the pointer move it follows. The cost is that
- * a job is no longer atomic with the promotion and can be orphaned by a later rollback; that is
- * harmless here, because a missing prewarm just means the next reader takes the cold path.
+ * ENQUEUES OUTSIDE THE CALLER'S TRANSACTION via `enqueueDetached` (L3-03) — warming is side work and
+ * must never be able to undo the pointer move or ingest it follows. Mechanism and the orphan trade
+ * live in `lib/enqueue.ts`; the local consequence is noted at the call below.
  */
 
+import { enqueueDetached } from '../lib/enqueue'
 import { isExportReady, versionScope } from '../generator/exportArtifacts'
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
@@ -43,25 +40,22 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
       Promise.all(KINDS.map((kind) => isExportReady({ scope: versionScope(versionId), kind }))),
       findPendingExportJobs(req.payload),
     ])
-    for (const [i, kind] of KINDS.entries()) {
-      if (ready[i]) continue
-      const input: GenerateVersionArtifactInput = { versionId, kind }
-      if (pending.some((j) => jobMatchesSpec(j, input))) continue
-      // `req` DELIBERATELY OMITTED (L3-03, 2026-07-21): passing it enlisted this insert in the
-      // caller's transaction — ingest or make-official — so a failed enqueue aborted that
-      // transaction, and the swallow below turned a rolled-back ingest into a reported success.
-      // (Installed drizzle `commitTransaction` is `try { resolve() } catch { reject() }` — a failed
-      // commit rolls back without rethrowing.) A pre-warm is a pure optimisation; it must never be
-      // able to lose the content write it rides on. Enqueued on its own connection, it cannot.
-      //
-      // Orphan case (primary write rolls back after we enqueue) is harmless here: the artifact job
-      // findByID's the version and fails cleanly if it is gone, and a missing pre-warm just means
-      // the teacher takes the normal cold 202/poll path.
-      await req.payload.jobs.queue({
-        task: GENERATE_VERSION_ARTIFACT_SLUG,
-        input,
-      })
-    }
+    // ORPHAN CASE (the primary write rolls back after we enqueue) is tolerable here: a missing
+    // pre-warm just means the teacher takes the normal cold 202/poll path. Note the artifact job
+    // currently treats a vanished version as a captured, rethrown error rather than a quiet no-op —
+    // benign but noisy, tracked as a follow-up rather than changed unreviewed here.
+    //
+    // Concurrent, not sequential: before L3-03 these inserts shared the caller's transaction
+    // connection and HAD to serialise. `enqueueDetached` gives each its own, so the round trips
+    // overlap — two per version, and this runs once per file across a 42-file ingest.
+    const wanted = KINDS.map((kind) => ({ kind, input: { versionId, kind } as GenerateVersionArtifactInput }))
+      .filter(({ kind }) => !ready[KINDS.indexOf(kind)])
+      .filter(({ input }) => !pending.some((j) => jobMatchesSpec(j, input)))
+    await Promise.all(
+      wanted.map(({ input }) =>
+        enqueueDetached(req.payload, { task: GENERATE_VERSION_ARTIFACT_SLUG, input }),
+      ),
+    )
   } catch (err) {
     req.payload.logger.error({ err, versionId }, 'prewarmVersionArtifacts enqueue failed')
     captureException(err, { job: 'prewarmVersionArtifacts', versionId })

@@ -35,10 +35,9 @@ export default async function UserGuidePage() {
       <section id="teachers" className="guide-section">
         <h2>Teachers</h2>
         {/* Version-history mechanics live in the Editors section (critique 2026-07-12 §4) — Teachers
-            have no version selector, so the chip/Compare explanation was noise here. Note the copy
-            below says Teachers see no version CONTROLS, not that other versions are forbidden:
-            versions are not access-gated (see `lessons/[id]/page.tsx`), and claiming otherwise
-            described a permission boundary that does not exist (2026-07-21 review). */}
+            have no version selector, so the chip/Compare explanation was noise here. Say CONTROLS,
+            not access: versions are not access-gated (see `lessons/[id]/page.tsx`), so the previous
+            wording described a permission boundary that does not exist (2026-07-21 review). */}
         <p>
           Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
           the generated documents. Each lesson plan opens at its Official version — the one current,

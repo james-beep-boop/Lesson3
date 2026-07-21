@@ -29,6 +29,7 @@
 import { APIError, forgotPasswordOperation, type Endpoint } from 'payload'
 
 import { json } from './respond'
+import { enqueueDetached } from '../lib/enqueue'
 import { positiveIntEnv } from '../lib/env'
 import { PASSWORD_RESET_EMAIL_SLUG } from '../jobs/passwordResetEmail'
 
@@ -114,7 +115,8 @@ export const forgotPasswordQueuedEndpoint: Endpoint = {
         })
         const userId = docs[0]?.id
         if (userId != null) {
-          await req.payload.jobs.queue({
+          // Detached from any caller transaction, like every other best-effort enqueue (L3-03).
+          await enqueueDetached(req.payload, {
             task: PASSWORD_RESET_EMAIL_SLUG,
             input: { userId: Number(userId) },
           })

@@ -46,14 +46,12 @@ export const messagePingTask: TaskConfig<{
       // a create that later rolled back for an unrelated reason — so confirm the message is really
       // there before announcing it. Telling someone they have a new message that does not exist is
       // worse than sending nothing. A no-op, not a failure: there is nothing to retry.
-      const stillExists = await req.payload
-        .count({
-          collection: 'messages',
-          where: { id: { equals: messageId } },
-          overrideAccess: true,
-        })
-        .then(({ totalDocs }) => totalDocs > 0)
-      if (!stillExists) {
+      const { totalDocs } = await req.payload.count({
+        collection: 'messages',
+        where: { id: { equals: messageId } },
+        overrideAccess: true,
+      })
+      if (totalDocs === 0) {
         req.payload.logger.info(
           { messageId, recipientUserId },
           'messagePing skipped — message no longer exists (create rolled back after enqueue)',
