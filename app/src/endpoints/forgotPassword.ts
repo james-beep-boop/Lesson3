@@ -50,6 +50,19 @@ const padToFloor = async (startedAt: number): Promise<void> => {
   if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
 }
 
+/*
+ * THROWN paths (the 400 for a missing field, the 429 from the rate limiter) are deliberately NOT
+ * padded: they answer fast. That is safe because neither depends on whether the account exists — the
+ * limiter is keyed by the submitted address, so a sixth request about a nonexistent address is
+ * throttled exactly like a sixth about a real one.
+ *
+ * It is, however, a very effective way to fool a MEASUREMENT, and it fooled the first verification
+ * run of this fix: the probe had already spent the 5/day budget on the known accounts, so they
+ * returned an unpadded 429 in ~18 ms while unknown addresses sat at the 409 ms floor — the gap
+ * appeared to invert and widen. Clear `rate_limit_counters` for the `forgotPassword%` buckets before
+ * timing this endpoint, or you will measure the throttle instead of the handler.
+ */
+
 export const forgotPasswordQueuedEndpoint: Endpoint = {
   path: '/forgot-password',
   method: 'post',

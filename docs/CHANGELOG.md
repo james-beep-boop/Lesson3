@@ -8,6 +8,26 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-21 — forgot-password timing oracle closed + review follow-ups (#133)
+
+### Security
+- **Forgot-password leaked account existence through response TIME** even with byte-identical
+  replies. Measured on the Rock (n=20/branch): unknown 23–29 ms vs registered 60–140 ms — one request
+  sufficed to classify an address. Responses are now padded to a fixed floor (400 ms, env-tunable via
+  `FORGOT_PASSWORD_RESPONSE_FLOOR_MS`). Re-measured after deploy: gap 65 ms → **0.2 ms**, overlapping.
+
+### Fixed
+- "Show older messages" was a dead link once already on `?older=1`.
+- PDF preview could resolve without opening anything when a popup blocker rejected the retry.
+- The password-reset migration's `down()` failed if any reset job row survived.
+- Three comments claimed job rows ride the caller's transaction, contradicting #131.
+- USER_GUIDE / in-app guide contradicted each other and the code on Teacher version access.
+
+### Tests
+- Durability test for the `prewarmVersionArtifacts` half of L3-03 (int 70 → 71).
+- Wire test pinning the forgot-password response floor.
+- The enqueue suite now returns the shared global signup budget it consumes.
+
 ## 2026-07-21 — L3-03: best-effort enqueues moved out of the caller's transaction (#131)
 
 ### Fixed
