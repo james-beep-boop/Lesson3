@@ -35,10 +35,19 @@ import { getPayload, type Payload } from 'payload'
 import { sql } from 'drizzle-orm'
 
 import config from '../../src/payload.config.js'
-import { MARK, MARK_BASE, createUserVerified, purgeMarked } from '../helpers/fixtures.js'
+import {
+  MARK,
+  MARK_BASE,
+  createUserVerified,
+  minimalBundleContent,
+  purgeMarked,
+  setupRoleFixture,
+  type RoleFixture,
+} from '../helpers/fixtures.js'
 
 let payload: Payload
 let sender: { id: number }
+let fx: RoleFixture
 let seq = 0
 
 /** A FRESH recipient per test. The ping hook only fires on the recipient's FIRST unread message
@@ -51,9 +60,62 @@ const newRecipient = async (): Promise<{ id: number }> =>
     password: 'enqueue-probe-pass',
   })) as unknown as { id: number }
 
+
+/**
+ * Replace `jobs.queue` with one that reproduces a FAILED JOB INSERT — the real fault, not a mocked
+ * one. When handed a `req`, it runs an invalid statement on THAT transaction's connection, which is
+ * what aborts the caller's transaction in Postgres; then it throws, as a failing enqueue would.
+ *
+ * Mocking the rejection alone is not enough and was the bug in this file's first draft: a rejected
+ * promise never touches the database, so nothing is poisoned and the test passes against the broken
+ * code. Everything below depends on this running real SQL.
+ */
+function mockFailingEnqueue() {
+  const adapter = payload.db as unknown as {
+    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
+  }
+  return vi
+    .spyOn(payload.jobs, 'queue')
+    .mockImplementation(async (args: { req?: { transactionID?: unknown } }) => {
+      const txId = args?.req?.transactionID
+      if (txId != null) {
+        const txDb = adapter.sessions?.[String(await txId)]?.db
+        if (txDb) await txDb.execute(sql`SELECT 1/0`).catch(() => undefined)
+      }
+      throw new Error('simulated queue insert failure')
+    })
+}
+
+/**
+ * Release the SHARED global sign-up budget.
+ *
+ * This suite creates users (a sender, a fresh recipient per test, and `setupRoleFixture`'s four
+ * roles) purely as scaffolding — it is not testing the limiter. But `signupGlobal` is a single
+ * site-wide bucket with a daily cap, so those creates spend budget that every LATER suite needs:
+ * adding the role fixture here was enough to make six unrelated int files die in setup with
+ * "Sign-ups are temporarily paused". `fileParallelism: false` means the damage is strictly
+ * downstream and invisible when this file is run alone, which is exactly how it got missed.
+ *
+ * So we clear the global counter on the way in (guaranteeing headroom for our own fixture) and on
+ * the way out (handing the budget back). Only the GLOBAL bucket is touched — per-target rows are
+ * left alone so nothing here can weaken what `authRateLimit.int.spec.ts` asserts.
+ */
+async function releaseSignupBudget(p: Payload) {
+  const db = (p.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }).drizzle
+  await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE 'signupGlobal%';`)
+}
+
 beforeAll(async () => {
-  payload = await getPayload({ config })
-  await purgeMarked(payload, MARK_BASE)
+  // ORDER MATTERS: purge BEFORE building the fixture. `purgeMarked` sweeps the whole `MARK_BASE`
+  // prefix, which `setupRoleFixture` also uses — running it second deletes the plan and subject-grade
+  // this suite is about to reference, and the prewarm test then dies in setup with a bare `NotFound`
+  // that looks like a product bug rather than a fixture-ordering one.
+  const bootstrap = await getPayload({ config })
+  await purgeMarked(bootstrap, MARK_BASE)
+  await releaseSignupBudget(bootstrap)
+
+  fx = await setupRoleFixture()
+  payload = fx.payload
   sender = (await createUserVerified(payload, {
     name: `${MARK}enq-sender`,
     email: `${MARK}enq-sender@example.test`.toLowerCase(),
@@ -64,6 +126,7 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.restoreAllMocks()
   await purgeMarked(payload, MARK_BASE)
+  await releaseSignupBudget(payload) // hand the shared budget back to the suites that run after us
 })
 
 describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
@@ -71,23 +134,9 @@ describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
     const recipient = await newRecipient()
     const body = `${MARK}survives-a-failed-enqueue`
 
-    // Fault-inject a REAL failed statement on whatever transaction the enqueue was handed — this is
-    // what a failing job insert actually does to Postgres. If the caller passed `req` (the bug), the
-    // create's own transaction is poisoned and its commit becomes a silent rollback.
-    const adapter = payload.db as unknown as {
-      sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
-    }
-    const queueSpy = vi
-      .spyOn(payload.jobs, 'queue')
-      .mockImplementation(async (args: { req?: { transactionID?: unknown } }) => {
-        const txId = args?.req?.transactionID
-        if (txId != null) {
-          const txDb = adapter.sessions?.[String(await txId)]?.db
-          // Deliberately invalid — errors on the SHARED connection, aborting the caller's tx.
-          if (txDb) await txDb.execute(sql`SELECT 1/0`).catch(() => undefined)
-        }
-        throw new Error('simulated queue insert failure')
-      })
+    // If the caller passed `req` (the bug), this poisons the create's own transaction and its commit
+    // silently becomes a rollback. See `mockFailingEnqueue`.
+    const queueSpy = mockFailingEnqueue()
 
     let created: { id: number | string } | undefined
     let enqueueAttempts = 0
@@ -124,7 +173,60 @@ describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
     expect(totalDocs).toBe(1)
   })
 
-  it('the enqueue is issued WITHOUT the caller req, so it cannot join that transaction', async () => {
+  /**
+   * The SECOND best-effort enqueue site. `messagePing` above and `prewarmVersionArtifacts` here share
+   * the mechanism but nothing else, and this is the one where a silent rollback actually hurts: it
+   * rides make-official and first-ingest, so the write that vanishes is a promotion or a 42-file
+   * corpus load rather than one chat message. Covering only the messages path (as this file did until
+   * the 2026-07-21 review) left the more costly half of L3-03 unpinned.
+   */
+  it('an official-pointer promotion still persists when its prewarm enqueue throws', async () => {
+    const version = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '9.9.9',
+        title: `${MARK}prewarm-durability`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })
+
+    const queueSpy = mockFailingEnqueue()
+    let enqueueAttempts = 0
+    try {
+      // `user` is REQUIRED: `prewarmOfficialArtifacts` returns early without `req.user`, so an
+      // unauthenticated update would skip the enqueue entirely and pass while proving nothing.
+      await payload.update({
+        collection: 'lesson-plans',
+        id: fx.plan.id,
+        data: { officialVersion: version.id } as never,
+        overrideAccess: true,
+        user: fx.users.siteAdmin,
+      })
+    } finally {
+      enqueueAttempts = queueSpy.mock.calls.length
+      queueSpy.mockRestore()
+    }
+
+    // Guard against a vacuous pass, exactly as above.
+    expect(enqueueAttempts).toBeGreaterThan(0)
+
+    // The promotion must have actually landed — re-read rather than trusting the returned document.
+    const plan = await payload.findByID({
+      collection: 'lesson-plans',
+      id: fx.plan.id,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const official = (plan as { officialVersion?: unknown }).officialVersion
+    expect(String(typeof official === 'object' ? (official as { id: unknown }).id : official)).toBe(
+      String(version.id),
+    )
+  })
+
+  it('every best-effort enqueue is issued WITHOUT the caller req', async () => {
     // Belt-and-braces on the mechanism itself: passing `req` is what enlisted the insert in the
     // caller's transaction. Asserting this alone would be a weak test (see the header), but paired
     // with the durability check above it names the specific property that keeps it true.

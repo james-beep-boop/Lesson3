@@ -7,8 +7,15 @@
  * `req.user`, so it opts in explicitly).
  *
  * TRUST: called from already-authorized admin/system paths. Deliberately NOT rate-limited — it is
- * not a caller-driven surface. Runs inside the caller's transaction (`req`), so the queued job rows
- * commit or roll back atomically with the promotion itself.
+ * not a caller-driven surface.
+ *
+ * ENQUEUES OUTSIDE THE CALLER'S TRANSACTION (L3-03, 2026-07-21). `req` is deliberately NOT passed to
+ * `jobs.queue`. It used to be, and the job rows then rode the promotion's transaction — which meant a
+ * failed job INSERT aborted that transaction, and because the failure was caught and swallowed, the
+ * commit degraded into a silent rollback: the promotion reported success and persisted nothing.
+ * Warming is side work and must never be able to undo the pointer move it follows. The cost is that
+ * a job is no longer atomic with the promotion and can be orphaned by a later rollback; that is
+ * harmless here, because a missing prewarm just means the next reader takes the cold path.
  */
 
 import { isExportReady, versionScope } from '../generator/exportArtifacts'

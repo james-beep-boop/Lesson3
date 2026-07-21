@@ -145,7 +145,13 @@ export default async function MessagesPage({
                 <MessageCard key={m.id} message={m} direction="in" />
               ))}
             </ul>
-            {inboxTruncated && <ShowOlder shown={inbox.length} total={unread.totalDocs + readMsgs.totalDocs} />}
+            {inboxTruncated && (
+              <ShowOlder
+                shown={inbox.length}
+                total={unread.totalDocs + readMsgs.totalDocs}
+                expandable={!showingOlder}
+              />
+            )}
           </>
         )}
       </section>
@@ -161,7 +167,9 @@ export default async function MessagesPage({
             ))}
           </ul>
         )}
-        {sentTruncated && <ShowOlder shown={sent.docs.length} total={sent.totalDocs} />}
+        {sentTruncated && (
+          <ShowOlder shown={sent.docs.length} total={sent.totalDocs} expandable={!showingOlder} />
+        )}
       </section>
     </article>
   )
@@ -169,16 +177,28 @@ export default async function MessagesPage({
 
 /** Truncation notice + widen link. Renders ONLY when the store holds more than we showed, so a
  *  complete inbox stays uncluttered. Says the real numbers rather than hinting, because silent
- *  truncation is what hid the unread-badge bug (L3-05). */
-function ShowOlder({ shown, total }: { shown: number; total: number }) {
+ *  truncation is what hid the unread-badge bug (L3-05).
+ *
+ *  `expandable` is false once we are ALREADY on `?older=1`, where the link would point at the page
+ *  the user is looking at — a dead control that re-renders the identical 500 rows (flagged in the
+ *  2026-07-21 review). Past 500 the widen strategy is simply out of room, so we say so plainly
+ *  instead of offering an affordance that does nothing. Lifting that ceiling needs real cursor/page
+ *  state, which is tracked as its own task — deliberately not bolted on here as a third fixed
+ *  widening, because that just moves the same dead end to 2000. The fallback copy must not send the
+ *  user to a search box — the messages page has none. */
+function ShowOlder({ shown, total, expandable }: { shown: number; total: number; expandable: boolean }) {
+  const truncated = shown < total
   return (
     <p className="muted msg-more">
       Showing {shown} of {total}.{' '}
-      {shown < total && (
-        <Link href="/messages?older=1" prefetch={false}>
-          Show older messages
-        </Link>
-      )}
+      {truncated &&
+        (expandable ? (
+          <Link href="/messages?older=1" prefetch={false}>
+            Show older messages
+          </Link>
+        ) : (
+          <>Older messages aren&rsquo;t reachable yet.</>
+        ))}
     </p>
   )
 }

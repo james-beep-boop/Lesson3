@@ -108,8 +108,10 @@ export.
 
 - A **subject-grade** is the unit roles attach to, for example Biology Grade 10. Biology Grade 10 and
   Biology Grade 11 are separate scopes.
-- Every lesson plan has one **Official** version at a time; Teachers see the Official version by
-  default and can still open any other retained version from the selector.
+- Every lesson plan has one **Official** version at a time. Teachers open the Official version and do
+  not get the version selector — but versions are not access-gated, so a direct link to a specific
+  version still opens for any signed-in user. Official is the default and the trust marker, not a
+  permission boundary.
 - Editors and Subject Administrators act only within the subject-grades assigned to them; Site
   Administrators can see and manage everything.
 - Email addresses are visible only to the account owner and Site Administrators.

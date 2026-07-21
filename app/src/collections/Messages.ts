@@ -88,8 +88,16 @@ const validateContextLink: CollectionBeforeValidateHook = async ({ data, operati
 
 /** afterChange (create): enqueue the content-free email ping for the recipient — but only when
  *  this message is their ONLY unread one (zero-unread gate), and only within the per-recipient
- *  daily ping budget. Both gates SKIP the ping, never fail the message. Runs on `req`, so the
- *  enqueue rides the create's transaction (a rolled-back message pings nobody). */
+ *  daily ping budget. Both gates SKIP the ping, never fail the message.
+ *
+ *  The enqueue deliberately does NOT receive `req` (L3-03, 2026-07-21). Passing it enlisted the job
+ *  insert in the create's transaction, so a failed insert aborted it — and the catch below then
+ *  swallowed the error, turning the commit into a silent rollback that discarded the message while
+ *  returning 201. Running the enqueue on its own connection is what makes "best-effort" true.
+ *
+ *  The trade: a ping is no longer atomic with the message, so a later rollback could leave a job for
+ *  a message that does not exist. `messagePing` therefore re-checks existence before emailing —
+ *  announcing a message nobody can open is worse than staying silent. */
 const notifyRecipient: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (operation !== 'create') return
   const recipientId = relId(doc.recipient)

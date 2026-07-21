@@ -29,15 +29,33 @@
 import { APIError, forgotPasswordOperation, type Endpoint } from 'payload'
 
 import { json } from './respond'
+import { positiveIntEnv } from '../lib/env'
 import { PASSWORD_RESET_EMAIL_SLUG } from '../jobs/passwordResetEmail'
 
 /** One body for every outcome. Must never vary on whether the account exists. */
 const UNIFORM_MESSAGE = 'If an account exists for that address, a reset link is on its way.'
 
+/**
+ * Uniform-response-time floor. Every answer from this endpoint takes at least this long, so the
+ * work a real account triggers cannot be read off the clock (see the note at the return statement).
+ *
+ * 400 ms is ~3x the slowest response measured on the Rock (140 ms) — headroom for a loaded host,
+ * while staying well inside what feels instant for a once-in-a-while recovery action. Overridable
+ * so an operator can re-tune after measuring their own hardware rather than editing code.
+ */
+const RESPONSE_FLOOR_MS = positiveIntEnv('FORGOT_PASSWORD_RESPONSE_FLOOR_MS', 400)
+
+const padToFloor = async (startedAt: number): Promise<void> => {
+  const remaining = RESPONSE_FLOOR_MS - (Date.now() - startedAt)
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
+}
+
 export const forgotPasswordQueuedEndpoint: Endpoint = {
   path: '/forgot-password',
   method: 'post',
   handler: async (req) => {
+    // Captured FIRST so the floor covers the whole handler, parsing included.
+    const startedAt = Date.now()
     const body = (await req.json?.()) as { email?: unknown } | undefined
     const email = typeof body?.email === 'string' ? body.email : ''
     // A MISSING field is a malformed request, not an account signal — the native operation 400s on
@@ -103,6 +121,25 @@ export const forgotPasswordQueuedEndpoint: Endpoint = {
     }
 
     // Identical status and body for BOTH branches. Do not add a condition to this line.
+    //
+    // ...but identical BYTES are not enough: the two branches do very different amounts of database
+    // work, and that was measurable. Measured on the Rock against real Postgres (2026-07-21, n=20
+    // per branch): unknown accounts answered in a tight 23–29 ms, known accounts in 60–140 ms. The
+    // distributions barely overlap, so ONE request classified an address — the daily cap of 5 per
+    // target is no defence against a signal that only needs a single sample. That is the same
+    // enumeration oracle L3-R1 closed, re-entering through the clock instead of the status code.
+    //
+    // So the handler also answers in uniform TIME, by padding every response out to a fixed floor
+    // that sits above the slowest branch observed. Equalising the work itself was the alternative and
+    // was rejected: the asymmetry starts inside `forgotPasswordOperation` (only a real account gets a
+    // token UPDATE), so matching it would mean mirroring Payload's internals — the precise coupling
+    // the token-lookup fix above exists to avoid.
+    //
+    // HONEST LIMIT: this narrows the channel rather than provably eliminating it. Under load heavy
+    // enough to push the known-account branch past the floor, some signal returns. The floor is set
+    // with ~3x headroom over the slowest measured response for that reason, and the rate limits
+    // remain the backstop. Re-measure with `docs/OPS.md`'s timing probe if this endpoint changes.
+    await padToFloor(startedAt)
     return json({ message: UNIFORM_MESSAGE })
   },
 }
