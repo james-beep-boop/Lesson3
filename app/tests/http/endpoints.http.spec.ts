@@ -555,8 +555,10 @@ describe('Lesson-plan create denied over HTTP (audit 2026-07-20, L3-04)', () => 
         headers: { ...auth(role), 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, subjectGrade: fx.subjectGrade.id }),
       })
-      expect(res.status).toBeGreaterThanOrEqual(400)
-      expect(res.status).toBeLessThan(500)
+      // Pin 403 exactly (L3-R3): the submitted plan is VALID, so the only reason to reject it is the
+      // access deny. A broad 4xx would also be satisfied by an unrelated future validation error,
+      // silently turning this authorization test into a false positive.
+      expect(res.status).toBe(403)
       const { totalDocs } = await fx.payload.count({
         collection: 'lesson-plans',
         where: { title: { equals: title } },

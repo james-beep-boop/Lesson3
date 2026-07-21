@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-20 (latest) — REVERTED: the forgot-password `res.ok` fix created an enumeration oracle
+
+**A same-day correction of my own change, and a lesson about overturning recorded decisions.**
+
+#119 added a `!res.ok` branch to `ForgotPasswordForm` so that server failures surfaced instead of a
+false "a reset link is on its way". It shipped and deployed. **It was a security regression and is now
+reverted.**
+
+**Why it was wrong.** I justified overturning the deliberate 2026-07-17 posture with: *"Payload returns
+200 for an unknown address, so a non-OK status means a SERVER failure, never 'no such account'."* That
+is half-true, and the missing half is fatal. In installed
+`payload/dist/auth/operations/forgotPassword.js`:
+
+- unknown address → `if (!user) { commitTransaction(); return null }` — returns EARLY, **no email is
+  ever attempted** ⇒ HTTP **200**
+- real account → falls through to an **unguarded** `await email.sendEmail(...)` ⇒ **throws** on SMTP
+  failure ⇒ **non-2xx**
+
+Server failure therefore happens **only for addresses that exist**. During any SMTP outage the status
+code discriminates registered users perfectly, on an **unauthenticated** endpoint. The per-address (5)
+and global (100/day) caps bound enumeration volume but do not remove the oracle. Credit to the external
+review for catching this.
+
+**The general rule this earns:** when overturning a recorded decision, the burden is to disprove the
+ORIGINAL reasoning against the actual implementation — not to construct a plausible-sounding argument
+that the objection no longer applies. The 2026-07-17 decision was better founded than I credited, and
+one `grep` into the installed operation would have shown it. *Read the dependency's control flow before
+asserting what its status codes mean.*
+
+**Where this leaves us.** The known cost is back: a genuine send failure is reported to the user as
+success. **That cannot be fixed in the client at all** — the client can only echo what the server's
+status already leaked. The real fix must make the SERVER's responses indistinguishable:
+
+- **Preferred — queue the reset email** through the existing jobs queue with retry/outbox semantics.
+  Then `sendEmail` never runs inline, both branches return 200 identically, AND "a reset link is on its
+  way" becomes *true* rather than merely uniform. The project already has an email task
+  (`20260702_230926_add_email_task`), so the machinery exists.
+- Acceptable alternative: shadow the endpoint (the project already shadows `POST /verify/:id`) and
+  catch send failures server-side, always returning 200 while logging + alerting the operator.
+- A global SMTP-health signal is only safe if it is computed independently of whether the account
+  exists.
+
+Tracked as a follow-up; **not** attempted in the revert, which is deliberately minimal.
+
+**Two test-quality fixes from the same review:**
+- The anti-enumeration assertion submitted the SAME address twice, so it only proved two mocked 200s
+  render alike. It now submits a **distinct unknown vs registered address with distinct statuses
+  (200 vs 500)** — the exact pairing that leaked — and asserts identical output. Verified to FAIL when
+  the oracle branch is reinstated (5 of 8 cases).
+- The plan-create wire test accepted any 4xx; it now pins **403** exactly. The submitted plan is valid,
+  so the only legitimate rejection is the access deny — a broad 4xx would let an unrelated future
+  validation error silently satisfy an authorization test.
+
 ## 2026-07-20 (latest) — retire the unsafe legacy e2e fixture and the broken PDF pixel gate
 
 Two deletions from the audit's remediation sequence (PR C). Both remove hazards rather than features.
