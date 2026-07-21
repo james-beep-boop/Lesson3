@@ -11,7 +11,38 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — mixed-case emails broke reset delivery; three Payload-behaviour comments corrected
+## 2026-07-21 (latest) — browser tests are now a CI gate (L3-07)
+
+The canonical gate ran unit + lint + audit + contract + int + http, but **no browser**. Role-specific
+UI, admin customisations, retired-route redirects and the edit-view shell had no automated coverage at
+all, so a browser-only regression — one that leaves Local-API and HTTP behaviour intact — could reach
+production. Three separate reviews flagged that the assistant's browser verification was
+manually reported and not independently reproducible; this session alone shipped two UI changes
+(#121, #125) on that basis. Unblocked by #120, which removed the destructive fixed-account fixture.
+
+`tests/e2e/manage.e2e.spec.ts` (6 tests, MARK-tagged and self-cleaning) now runs in CI. Three
+constraints forced the exact shape, each verified by hitting it:
+
+- **Not the `lesson3-deps` image** — it is `node:22-alpine`, and Playwright requires glibc.
+- **Not `mcr.microsoft.com/playwright`** — it ships **Node 24** while this repo pins **22.17.0**. CI
+  must reproduce the runtime we ship, not a different one. (A first attempt on that image failed, and
+  the failure was initially misdiagnosed as a Node-24 incompatibility — it reproduced identically on
+  Node 22, so the real cause was the missing tsx loader. Testing BOTH is what caught the wrong
+  diagnosis before it was written down.)
+- **Inside the compose network**, because the spec needs the app AND the database: it seeds its role
+  fixture through the Local API, and postgres is deliberately unpublished.
+
+Two non-obvious invocation requirements, both discovered empirically:
+- **`npm ci --include=dev`** — `.env` carries `NODE_ENV=production`, so a plain `npm ci` silently omits
+  devDependencies and Playwright itself is never installed. Same class as the documented `test:int`
+  `NODE_ENV` gotcha; the failure mode is `npx` quietly fetching a temporary Playwright instead.
+- **`npm run test:e2e`, never bare `npx playwright test`** — the script sets `--import=tsx/esm`, and
+  without it the config's JSON import dies with "needs an import attribute of type: json".
+
+Cost: roughly +2–3 min of CI (npm ci + a chromium download) for the first automated coverage of the
+admin UI. Verified locally against the live compose stack before wiring: **6 passed in 20.5s**.
+
+## 2026-07-21 — mixed-case emails broke reset delivery; three Payload-behaviour comments corrected
 
 **The regression.** #124's endpoint resolved the user for enqueue with the RAW request email
 (`email: { equals: email }`), but the operation above it finds the account with a NORMALISED one —
