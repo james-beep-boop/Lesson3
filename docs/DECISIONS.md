@@ -11,7 +11,55 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — browser tests are now a CI gate (L3-07)
+## 2026-07-21 (latest) — L3-03 SETTLED: best-effort enqueues run OUTSIDE the caller's transaction
+
+**The defect, confirmed at source.** `messagePing` and `prewarmVersionArtifacts` both promised in
+comments that a failure to ENQUEUE could never fail the primary write. **It could, and the promise was
+backwards.** Both passed `req` to `jobs.queue`, enlisting the insert in the caller's transaction, so a
+failed insert ABORTED it. The surrounding catch swallowed the error, the hook returned normally, and
+Payload committed — except installed drizzle's `commitTransaction` is:
+
+```js
+try   { await session.resolve() }   // COMMIT — throws, transaction is aborted
+catch { await session.reject()  }   // ROLLBACK, error swallowed
+```
+
+A failed commit rolls back **without rethrowing**. Net effect: HTTP 201 with the created document in
+the response body and NOTHING PERSISTED. The swallow was not protecting the message; it was hiding the
+message's death. The stated "best-effort" semantics were never delivered.
+
+**Decision: enqueue on a separate connection (omit `req`).** Three options were weighed:
+- *Fail loud* (delete the catches) — honest, but abandons the intent: a ping hiccup would fail a
+  message send, and a prewarm blip could fail a 42-file ingest.
+- *Savepoint* — delivers the intent, but reaches into drizzle internals and is upgrade-fragile.
+- **Chosen: omit `req`.** `jobs.queue` does `args.req ?? createLocalReq({}, payload)`, so omitting it
+  runs the insert on a fresh connection that cannot poison the caller. Payload's own API, no internals,
+  and it makes the existing catches mean what they always claimed.
+
+**The trade, stated plainly:** the job row is no longer atomic with the primary write. If that write
+rolls back for an unrelated reason after we enqueue, the job is orphaned. Accepted for side work, with
+the handlers made tolerant: `messagePing` now confirms the message still exists before announcing it
+(a "you have a new message" email for a message that does not exist is worse than silence), and the
+artifact job already fails cleanly on a missing version — a lost prewarm just means the cold path.
+
+**THE TESTING LESSON — the most transferable part.** The first regression test mocked `jobs.queue` to
+reject, and **it passed against the broken code**. A rejected mock is a JavaScript throw; it never
+touches the database, so nothing poisons the transaction. Reproducing this bug requires a REAL failed
+statement on the caller's transaction connection — the test now executes `SELECT 1/0` on
+`args.req`'s transaction when a `req` is passed. Only then does it discriminate: against the pre-fix
+code the durability assertion fails with `expected +0 to be 1`, i.e. the row genuinely vanished.
+
+Two near-misses on the way, both caught by testing the test rather than trusting a green run: an
+earlier draft passed vacuously because the ping only fires on a recipient's FIRST unread (so the mock
+never fired at all), and another read `queueSpy.mock.calls` AFTER `mockRestore()`, which clears them.
+**Rule: a test for a transactional failure must fail against the unfixed code, and you only know that
+by running it there.**
+
+Also fixed alongside: `passwordResetEmail` lacked the `logger.error` + `captureException` wrapper its
+sibling jobs have (flagged in the 2026-07-21 review). Rethrow is retained — retries are what let the
+forgot-password endpoint honestly promise delivery.
+
+## 2026-07-21 — browser tests are now a CI gate (L3-07)
 
 The canonical gate ran unit + lint + audit + contract + int + http, but **no browser**. Role-specific
 UI, admin customisations, retired-route redirects and the edit-view shell had no automated coverage at

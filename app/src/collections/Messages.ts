@@ -127,10 +127,25 @@ const notifyRecipient: CollectionAfterChangeHook = async ({ doc, operation, req 
     senderUserId: senderId ?? 0,
   }
   // Best-effort by contract: the reliable delivery path is the in-app message row, so a failure to
-  // ENQUEUE the ping must never fail the create. This afterChange runs on the create's transaction,
-  // so an unguarded throw here would roll the message back (Codex audit 2026-07-03). Swallow + log.
+  // ENQUEUE the ping must never fail the create.
+  //
+  // `req` is DELIBERATELY OMITTED (L3-03, 2026-07-21) — that is what actually makes the guarantee
+  // true. Passing it enlisted the job insert in THIS create's transaction, so a failed insert
+  // aborted the transaction; the catch below then swallowed the error, the hook returned normally,
+  // and Payload committed — except the installed drizzle `commitTransaction` is
+  // `try { resolve() } catch { reject() }`, i.e. it rolls back and swallows too. Net effect: HTTP
+  // 201 with the message in the response body and NOTHING PERSISTED. The swallow was not protecting
+  // the message; it was hiding the message's death.
+  //
+  // Without `req`, `jobs.queue` does `args.req ?? createLocalReq({}, payload)` — a fresh connection
+  // with no transaction — so an enqueue failure is isolated and the catch means what it says.
+  //
+  // The trade, stated plainly: the job row is no longer atomic with the message. If the create rolls
+  // back for an UNRELATED reason after we enqueue, the ping is orphaned — so `messagePing` verifies
+  // the message still exists before emailing (a "you have a new message" mail for a message that
+  // does not exist would be worse than sending nothing).
   try {
-    await req.payload.jobs.queue({ task: MESSAGE_PING_SLUG, input, req })
+    await req.payload.jobs.queue({ task: MESSAGE_PING_SLUG, input })
   } catch (err) {
     req.payload.logger.error(
       { err, messageId: doc.id, recipientUserId: recipientId, senderUserId: senderId },

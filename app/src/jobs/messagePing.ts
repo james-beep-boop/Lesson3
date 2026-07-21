@@ -41,6 +41,26 @@ export const messagePingTask: TaskConfig<{
   handler: async ({ input, req }) => {
     const { messageId, recipientUserId, senderUserId } = input
     try {
+      // The ping is enqueued OUTSIDE the message-create transaction (see Messages.ts), which is what
+      // stops a failed enqueue from rolling the message back. The cost is that this job can outlive
+      // a create that later rolled back for an unrelated reason — so confirm the message is really
+      // there before announcing it. Telling someone they have a new message that does not exist is
+      // worse than sending nothing. A no-op, not a failure: there is nothing to retry.
+      const stillExists = await req.payload
+        .count({
+          collection: 'messages',
+          where: { id: { equals: messageId } },
+          overrideAccess: true,
+        })
+        .then(({ totalDocs }) => totalDocs > 0)
+      if (!stillExists) {
+        req.payload.logger.info(
+          { messageId, recipientUserId },
+          'messagePing skipped — message no longer exists (create rolled back after enqueue)',
+        )
+        return { output: {} }
+      }
+
       const recipient = (await req.payload.findByID({
         collection: 'users',
         id: recipientUserId,
