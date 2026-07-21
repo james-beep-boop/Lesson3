@@ -1643,15 +1643,25 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
       body: JSON.stringify({ email }),
     })
 
-  const clearBudget = async (email: string) => {
-    const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
-      .drizzle
-    await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${'forgotPassword%'};`)
-    void email
+  /** Drop this endpoint's per-address + global budget so ordering between `it`s can't cause a 429. */
+  const clearBudget = async () => {
+    await drizzle().execute(
+      sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${'forgotPassword%'};`,
+    )
+  }
+
+  /** Queued (not yet run) delivery jobs. Counted immediately — succeeded jobs are auto-deleted. */
+  const countJobs = async (): Promise<number> => {
+    const { totalDocs } = await fx.payload.count({
+      collection: 'payload-jobs' as never,
+      where: { taskSlug: { equals: 'passwordResetEmail' } } as never,
+      overrideAccess: true,
+    })
+    return totalDocs
   }
 
   it('a REGISTERED and an UNKNOWN address return byte-identical status AND body', async () => {
-    await clearBudget('')
+    await clearBudget()
     const unknownRes = await forgot(`${MARK}absolutely-no-such-account@example.invalid`)
     const knownRes = await forgot(fx.users.teacher.email)
 
@@ -1663,15 +1673,7 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
   it('queues a delivery job for a REGISTERED address and none for an unknown one', async () => {
     // Delivery is off the request path — that is what lets the two branches answer identically.
     // Count immediately: succeeded jobs are removed (`deleteJobOnComplete` defaults true).
-    await clearBudget('')
-    const countJobs = async () => {
-      const { totalDocs } = await fx.payload.count({
-        collection: 'payload-jobs' as never,
-        where: { taskSlug: { equals: 'passwordResetEmail' } } as never,
-        overrideAccess: true,
-      })
-      return totalDocs
-    }
+    await clearBudget()
 
     const before = await countJobs()
     await forgot(`${MARK}still-no-such-account@example.invalid`)
@@ -1687,15 +1689,7 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     // request value. `Teacher@School.org` therefore returned 200 and minted a live reset token while
     // queueing NOTHING — recovery silently dead for anyone who capitalises their address. Every wire
     // test passed because all fixture emails are lowercase, which is exactly why this case exists.
-    await clearBudget('')
-    const countJobs = async () => {
-      const { totalDocs } = await fx.payload.count({
-        collection: 'payload-jobs' as never,
-        where: { taskSlug: { equals: 'passwordResetEmail' } } as never,
-        overrideAccess: true,
-      })
-      return totalDocs
-    }
+    await clearBudget()
     const before = await countJobs()
     const shouty = `  ${fx.users.teacher.email.toUpperCase()}  ` // upper-cased AND padded
     const res = await forgot(shouty)
@@ -1709,12 +1703,12 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     // needed the limit re-applied by hand), forgotPasswordOperation DOES run collection
     // `beforeOperation` hooks, so `rateLimitAuthOperations` still fires through our endpoint. If a
     // Payload bump changed that, this is the assertion that fails.
-    await clearBudget('')
+    await clearBudget()
     const email = `${MARK}throttle-probe@example.invalid`
     const MAX = Number(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX) || 5
     for (let i = 0; i < MAX; i++) expect((await forgot(email)).status).toBe(200)
     expect((await forgot(email)).status).toBe(429)
-    await clearBudget('')
+    await clearBudget()
   })
 })
 
