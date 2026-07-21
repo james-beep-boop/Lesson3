@@ -8,6 +8,22 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-21 — /simplify follow-ups + sharp security bump (#135, #136)
+
+### Security
+- **sharp 0.34.2 → 0.35.3** (forced major; `<0.35.0` has no patch) for the libvips CVEs
+  (GHSA-f88m-g3jw-g9cj); also clears the `next` finding that was only `via: ["sharp"]`. Native binary
+  exercised on the Rock post-deploy (libvips 8.18.3).
+
+### Fixed
+- **PDF preview silent-success bug in the twin `openPreparedPdfInNewTab`** — the teacher per-document
+  button and editor "View as PDF" still had the unchecked popup retry #133 fixed only in its sibling.
+
+### Changed (quality)
+- `enqueueDetached` centralises the L3-03 "no caller transaction" invariant and makes passing `req` a
+  compile error; three sites adopt it.
+- prewarm enqueues now run concurrently; messages widening owned in one place; shared `tests/helpers/db.ts`.
+
 ## 2026-07-21 — forgot-password timing oracle closed + review follow-ups (#133)
 
 ### Security

@@ -11,7 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — the forgot-password oracle was still open, through TIMING (#133)
+## 2026-07-21 (latest) — /simplify follow-ups, and a forced sharp major bump (#135, #136)
+
+**A /simplify pass that caught a real bug, not just tidied.** Four cleanup angles ran over the L3-03
+and timing-oracle work. Two independently flagged the same thing: `openPreparedPdfInNewTab` still had
+the unchecked post-`await` `window.open` retry that #133 fixed only in its twin — and that one is the
+teacher-facing per-document button and the editor's pristine "View as PDF", the MORE used path. A
+blocked popup there resolved as success having opened nothing. The lesson: fixing one of two
+deliberately-mirrored functions and trusting a prose "these are twins" comment is not enough; the
+mirror has to be structural. Both now share `deliverToTab`.
+
+**`enqueueDetached` — making the L3-03 invariant unrepresentable.** Three sites (Messages, prewarm,
+and by #133 forgotPassword) each hand-omitted `req` from `jobs.queue` to keep the insert off the
+caller's transaction. One token's difference, and the wrong one loses a write silently and remotely.
+The helper takes no `req` parameter and derives its argument type from Payload's own signature with
+`req` omitted, so passing one is now a COMPILE error (verified with a probe). The two required-contract
+sites (export, email) still call `jobs.queue` directly, so the contracts read as visibly different
+rather than differing by an optional key. Deliberately did NOT fold the try/catch in — the three catch
+scopes genuinely differ, so centralising would silently change what each guards.
+
+Also from the pass: prewarm enqueues now run concurrently (they were serial only because they shared
+the caller's transaction connection — I deleted the comment saying so in #131 without removing the
+serialisation); the messages widening scheme lives in one `widerHref` instead of a boolean re-derived
+at two sites; a shared `tests/helpers/db.ts` replaces a drizzle cast hand-rolled and already drifting
+at six sites; and I corrected a FALSE claim I wrote in #131 (the artifact job does not "fail cleanly"
+on a vanished version — it captures and rethrows; flagged as a follow-up, not changed unreviewed).
+
+**Forced sharp major bump (#136), and how the two-PR split was decided.** Two HIGH advisories landed
+mid-review: sharp's inherited libvips CVEs, and a `next` finding that was only `via: ["sharp"]`. The
+advisory range is `<0.35.0`, so there was no 0.34.x patch — 0.35 was the ONLY forward option, a forced
+major. Rather than bury a native-dependency major bump inside a quality-cleanup PR, I surfaced it to
+the maintainer, who chose to land it as its own security PR first and rebase the cleanup on top. This
+is the "upgrade deliberately, not on the weekly release train" rule working as intended: even a forced
+bump gets its own reviewable change. Verified node (>=20.9.0 vs our 22.17.0) and the arm64 prebuilt
+before bumping; after deploy, exercised the native binary on the Rock (`sharp 0.35.3 / libvips 8.18.3`
+encoded a PNG) rather than trusting a clean boot — loading is not working.
+
+**Recurring pattern worth a standing note:** this session hit FOUR newly-published transitive
+advisories going red on `audit:prod` (js-yaml, fast-uri, immutable, sharp/next), none related to the
+PR under review. The gate is doing its job, but reactively patching each mid-PR is friction. If it
+keeps up, consider a scheduled deps-audit job so these surface on their own cadence instead of
+ambushing unrelated work.
+
+## 2026-07-21 — the forgot-password oracle was still open, through TIMING (#133)
 
 **Byte-identical is not indistinguishable.** #124 made both branches return the same status and body,
 and I treated the oracle as closed. It was not. The branches do very different database work — an
