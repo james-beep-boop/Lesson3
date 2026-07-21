@@ -38,9 +38,14 @@ messages made reachable so the badge can converge (L3-05)**, via an unread-first
 1. **Working drafts** — *the only confirmed silent work-loss path, and the top priority.* Spec'd
    (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
    Multi-session project; start from the design doc.
-2. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
+2. **(small, spawned)** `generateVersionArtifact` treats a vanished version as a captured + rethrown
+   error. Since L3-03 that orphan case is benign (a prewarm outliving a rolled-back write), and it
+   should be a quiet `logger.info` no-op like `messagePing`'s existence guard — not an error-tracker
+   alert. Update the follow-up comment in `prewarmVersionArtifacts.ts` when done.
+3. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
    unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
-   GlitchTip).
+   GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
+   went red on the gate mid-PR this session.
 3. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
 
