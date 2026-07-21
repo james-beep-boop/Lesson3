@@ -17,6 +17,7 @@ import * as migration_20260706_175339_favorites_per_version from './20260706_175
 import * as migration_20260710_041621_add_email_verification from './20260710_041621_add_email_verification';
 import * as migration_20260719_185124_ares_resource_links_cutover from './20260719_185124_ares_resource_links_cutover';
 import * as migration_20260719_210359_resource_links_child_rows from './20260719_210359_resource_links_child_rows';
+import * as migration_20260721_025518_add_password_reset_email_task from './20260721_025518_add_password_reset_email_task';
 
 export const migrations = [
   {
@@ -113,5 +114,10 @@ export const migrations = [
     up: migration_20260719_210359_resource_links_child_rows.up,
     down: migration_20260719_210359_resource_links_child_rows.down,
     name: '20260719_210359_resource_links_child_rows',
+  },
+  {
+    up: migration_20260721_025518_add_password_reset_email_task.up,
+    down: migration_20260721_025518_add_password_reset_email_task.down,
+    name: '20260721_025518_add_password_reset_email_task'
   },
 ];

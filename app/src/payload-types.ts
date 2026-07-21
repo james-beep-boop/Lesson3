@@ -111,6 +111,7 @@ export interface Config {
       generateVersionArtifact: TaskGenerateVersionArtifact;
       emailVersionArtifact: TaskEmailVersionArtifact;
       messagePing: TaskMessagePing;
+      passwordResetEmail: TaskPasswordResetEmail;
       inline: {
         input: unknown;
         output: unknown;
@@ -285,6 +286,9 @@ export interface LessonBundleVersion {
      */
     storylineThread?: string | null;
   };
+  /**
+   * Subject Admins may duplicate an existing lesson to add a row. Its system-managed ARES resource links are copied from the source lesson and cannot be edited.
+   */
   lessons?:
     | {
         /**
@@ -618,7 +622,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing';
+        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail';
         taskID: string;
         input?:
           | {
@@ -651,7 +655,9 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing') | null;
+  taskSlug?:
+    | ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail')
+    | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1099,6 +1105,16 @@ export interface TaskMessagePing {
     messageId: number;
     recipientUserId: number;
     senderUserId: number;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskPasswordResetEmail".
+ */
+export interface TaskPasswordResetEmail {
+  input: {
+    userId: number;
   };
   output?: unknown;
 }
