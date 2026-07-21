@@ -40,7 +40,7 @@ import { DELIVERABLE_LABELS } from '../../generator/deliverables'
 import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
-import { openPreparedPdfInNewTab } from '../exportClient'
+import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import EditJumpNav from './EditJumpNav'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
@@ -270,22 +270,32 @@ export default function LessonControls() {
     if (pdfBusy) return
     setPdfMenuOpen(false)
     setMsg(null)
-    if (modified) {
-      // The hidden-form POST is fire-and-forget (it opens a new tab; there's no completion to await),
-      // so gate re-entrancy with a short busy window — enough to stop accidental double-submits. The
-      // server's conversion semaphore is the authoritative concurrency bound.
-      setPdfBusy(true)
-      postCurrentContentToNewTab(`preview-pdf?doc=${tag}`)
-      window.setTimeout(() => setPdfBusy(false), 3000)
-      return
-    }
     setPdfBusy(true)
     try {
-      await openPreparedPdfInNewTab(
-        `/api/lesson-bundle-versions/${id}/export?as=pdf`,
-        `/api/lesson-bundle-versions/${id}/export/doc?doc=${tag}&as=pdf`,
-      )
+      if (modified) {
+        // Unsaved working copy — generate + convert on the fly. `openGeneratedPdfInNewTab` FETCHES
+        // (rather than the old fire-and-forget form POST), so `pdfBusy` can be held until the
+        // request actually settles. That matters: a 12-lesson conversion measures 5.3–6.9 s on the
+        // Rock (11.3 s when queued), so the previous fixed 3 s window re-enabled the button
+        // mid-conversion on effectively every preview, inviting the re-click that consumed the
+        // second conversion slot and opened a raw JSON 503 in a tab.
+        const body = new FormData()
+        body.set('data', JSON.stringify(currentContent()))
+        await openGeneratedPdfInNewTab(
+          `/api/lesson-bundle-versions/${id}/preview-pdf?doc=${tag}`,
+          body,
+        )
+      } else {
+        // Pristine — reuse the EXISTING export pipeline (cache + make-official pre-warm), the same
+        // dance as the teacher-facing DocButtons.
+        await openPreparedPdfInNewTab(
+          `/api/lesson-bundle-versions/${id}/export?as=pdf`,
+          `/api/lesson-bundle-versions/${id}/export/doc?doc=${tag}&as=pdf`,
+        )
+      }
     } catch (e) {
+      // Inline, in the toolbar's existing role="alert" — NOT a raw JSON body rendered as a new tab,
+      // which is what every error on this endpoint used to look like.
       setMsg(e instanceof Error ? e.message : 'Could not open the PDF.')
     } finally {
       setPdfBusy(false)
