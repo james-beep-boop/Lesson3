@@ -18,15 +18,16 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is on `main` `82379e4`** (verify with `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`).
+**The live Rock is on `main` `5d50c24`** — always CONFIRM rather than trust this line, it goes stale on
+every deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
 VersionsChip composed onto the shared accessible Modal (#121); the forgot-password `res.ok` client
 change REVERTED as an enumeration oracle (#122); `/simplify` follow-ups (#123); **the forgot-password
 oracle closed server-side by queueing delivery (#124 — carries a migration)**; and the PDF preview
-made completion-aware (#125). Plus a mixed-case regression fix on top of #124 (see the newest
-DECISIONS entry).
+made completion-aware (#125); and **#126 — a P1 correction to #124**: mixed-case/padded addresses
+minted a live reset token but queued no email (recovery silently dead). Verified fixed in production.
 
 **Remaining queue (nothing is blocking):**
 1. **PR D — messages pagination (L3-05).** Needs a short design pass FIRST: cursor vs page, whether
@@ -48,7 +49,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ (2026-07-20) — routing fix deployed; resourceLinks cutover done. SUPERSEDED: the Rock has moved on to `82379e4` — see the current-state summary at the top of this file
+## ▶ (2026-07-20) — routing fix deployed; resourceLinks cutover done. SUPERSEDED: the Rock has moved on — see the current-state summary at the top of this file
 
 **Routing 404s fixed (#114).** `https://test.kenyalessons.org/lessons` and `/manage` were 404ing: the
 top-nav LABELS ("Lessons", "Manage") aren't routes — the canonical routes are `/` (catalogue) and
