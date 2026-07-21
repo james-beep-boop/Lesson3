@@ -59,11 +59,24 @@ export const forgotPasswordQueuedEndpoint: Endpoint = {
 
     if (token) {
       try {
-        // Look the user up to enqueue by id — the job deliberately never carries the token itself
-        // (completed jobs are retained; see jobs/passwordResetEmail.ts).
+        // Resolve the user BY THE TOKEN we just received, never by re-matching the email.
+        //
+        // This is a regression fix (2026-07-21). The first version looked the user up with
+        // `email: { equals: email }` using the RAW request value, while the operation above finds the
+        // account with a NORMALISED one — installed source, line 18:
+        //   `(incomingArgs.data.email || '').toLowerCase().trim()`
+        // So `Teacher@School.org` issued a live reset token and then matched nothing here: HTTP 200,
+        // token minted, NO email queued — account recovery silently dead for anyone who capitalises
+        // their address or leaves a trailing space. Every wire test passed because the fixtures are
+        // all lowercase.
+        //
+        // Copying Payload's `.toLowerCase().trim()` would fix today's symptom but re-create the same
+        // coupling: our normalisation would silently drift from theirs on any upstream change. The
+        // token is the operation's own output and identifies exactly one row, so this cannot drift.
+        // (`resetPasswordToken` is a hidden auth field — `overrideAccess` is what makes it queryable.)
         const { docs } = await req.payload.find({
           collection: 'users',
-          where: { email: { equals: email } },
+          where: { resetPasswordToken: { equals: token } },
           limit: 1,
           depth: 0,
           overrideAccess: true,

@@ -1681,6 +1681,29 @@ describe('forgot-password (L3-R1) — responses must not reveal whether an accou
     expect(await countJobs()).toBeGreaterThan(before) // registered → queued
   })
 
+  it('a MIXED-CASE / whitespace-padded registered address still queues delivery (regression)', async () => {
+    // The bug this pins (2026-07-21): Payload finds the account with a NORMALISED email
+    // (`.toLowerCase().trim()`), but the endpoint's follow-up lookup originally re-matched the RAW
+    // request value. `Teacher@School.org` therefore returned 200 and minted a live reset token while
+    // queueing NOTHING — recovery silently dead for anyone who capitalises their address. Every wire
+    // test passed because all fixture emails are lowercase, which is exactly why this case exists.
+    await clearBudget('')
+    const countJobs = async () => {
+      const { totalDocs } = await fx.payload.count({
+        collection: 'payload-jobs' as never,
+        where: { taskSlug: { equals: 'passwordResetEmail' } } as never,
+        overrideAccess: true,
+      })
+      return totalDocs
+    }
+    const before = await countJobs()
+    const shouty = `  ${fx.users.teacher.email.toUpperCase()}  ` // upper-cased AND padded
+    const res = await forgot(shouty)
+
+    expect(res.status).toBe(200)
+    expect(await countJobs()).toBeGreaterThan(before)
+  })
+
   it('the per-address cap still bites → 429, proving the shadow did NOT lose the throttle', async () => {
     // The one real risk of shadowing. Unlike the verify endpoint (whose native op runs no hooks and
     // needed the limit re-applied by hand), forgotPasswordOperation DOES run collection

@@ -12,16 +12,33 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**Current next work is Rock post-deploy verification and replacement-corpus upload for the corrected
-ARES `resourceLinks` child-row model documented on 2026-07-19.** The operator reported a successful
-deployment of `main` `2db0570` on 2026-07-19. This session did not independently verify the Rock's
-migration ledger, DB-dependent gates, smoke tests, or corpus counts. The first smoke upload exposed
-PostgreSQL's 100-function-argument limit in the original flattened Payload model; that upload rolled
-back. The old lesson corpus has been permanently deleted and the replacement corpus must not be
-uploaded until the migration and DB-dependent gates pass. The teacher-first track
-(2026-07-08), version-browser redesign (2026-07-06), audit-driven phases through Track B, and §10
-cross-user-features track are complete. Earlier deploy/eyeball notes remain below as operational
-history; follow the newest RESUME block first.
+**Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
+migration or re-upload the corpus.** The Rock holds 42 plans, each with an Official 1.0.0, 384 lessons
+in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URLs (verified by direct
+SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
+presents that work as upcoming as HISTORY.
+
+**The live Rock is on `main` `82379e4`** (verify with `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`).
+
+**Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
+plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
+VersionsChip composed onto the shared accessible Modal (#121); the forgot-password `res.ok` client
+change REVERTED as an enumeration oracle (#122); `/simplify` follow-ups (#123); **the forgot-password
+oracle closed server-side by queueing delivery (#124 — carries a migration)**; and the PDF preview
+made completion-aware (#125). Plus a mixed-case regression fix on top of #124 (see the newest
+DECISIONS entry).
+
+**Remaining queue (nothing is blocking):**
+1. **PR D — messages pagination (L3-05).** Needs a short design pass FIRST: cursor vs page, whether
+   unread sorts first, `MarkShownRead` behaviour across pages, and a searchable recipient roster.
+2. **Working drafts** — the only confirmed silent work-loss path. Spec'd (SPEC §5/§13) and designed
+   (`docs/DESIGN-working-drafts.md`, operator decisions answered). Multi-session project.
+3. **L3-03 transaction design decision** — swallowed queue errors returning false success. A DECISION
+   (fail-loud vs savepoint/outbox), not a mechanical fix.
+4. **L3-07 browser CI** — unblocked now that #120 removed the unsafe fixture. Rising in value: recent
+   UI work leaned on manual browser verification CI cannot reproduce.
+5. Deferred: catalogue/admin pagination at scale, Node 22 → 24 upgrade, edge rate limiting/GlitchTip.
+
 The prior context below stands as history. The Official-version cutover is long
 done. **As of 2026-06-30 (all pushed + Rock-verified + CI green; verify HEAD with `git log -1`):** the hardening list
 (Bucket A ⓪–③, deps overrides, #4, #8, Phase-5 residuals), a full **editing-UX redesign**, the **semver
@@ -31,7 +48,7 @@ retry-on-conflict**, the **`vitest` bump**, the **shared Postgres rate limiter**
 
 ---
 
-## ▶ RESUME HERE (2026-07-20, newest) — ROUTING FIX DEPLOYED + LIVE-VERIFIED; resourceLinks cutover DONE. Rock on `main` `9a1049a`
+## ▶ (2026-07-20) — routing fix deployed; resourceLinks cutover done. SUPERSEDED: the Rock has moved on to `82379e4` — see the current-state summary at the top of this file
 
 **Routing 404s fixed (#114).** `https://test.kenyalessons.org/lessons` and `/manage` were 404ing: the
 top-nav LABELS ("Lessons", "Manage") aren't routes — the canonical routes are `/` (catalogue) and

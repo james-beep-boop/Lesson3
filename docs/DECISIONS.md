@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-21 (latest) — mixed-case emails broke reset delivery; three Payload-behaviour comments corrected
+
+**The regression.** #124's endpoint resolved the user for enqueue with the RAW request email
+(`email: { equals: email }`), but the operation above it finds the account with a NORMALISED one —
+installed `forgotPassword.js` line 18: `(incomingArgs.data.email || '').toLowerCase().trim()`. So
+`Teacher@School.org` returned 200, minted a LIVE reset token, and queued NOTHING. Account recovery was
+silently dead for anyone who capitalises their address or leaves a trailing space. Reproduced against
+the real stack before fixing: `200 / token issued / jobs queued: 0`.
+
+**Why the tests missed it, which is the more useful lesson.** All 95 wire tests passed because every
+fixture address is lowercase. The suite only ever exercised the normalisation-agnostic case. *A test
+suite whose fixtures are uniformly well-formed cannot detect a normalisation bug* — the regression test
+added here deliberately submits an UPPER-CASED, whitespace-padded address.
+
+**The fix resolves the user BY THE RETURNED TOKEN, not by re-matching the email.** Copying Payload's
+`.toLowerCase().trim()` would fix today's symptom while re-creating the same class of coupling: our
+normalisation would silently drift from theirs on any upstream change. The token is the operation's own
+output and identifies exactly one row, so it cannot drift. This does NOT reopen the enumeration oracle —
+the response stays uniform — and that was re-verified after the fix.
+
+**Three comments describing Payload behaviour incorrectly (P3) — corrected, because inaccurate
+security reasoning is what produced the bug above.**
+1. `ingest/index.ts` claimed the creates succeed because `req` carries no `user`, and that attaching one
+   would cause a 403. **Wrong.** Local API `overrideAccess` defaults to TRUE and bypasses access
+   independently of `req.user`. The absence of a user matters for a *different* reason —
+   `hooks/fieldSplit.ts` treats a user-less request as a system path. Both facts are load-bearing; they
+   are not the same fact. `overrideAccess: true` is now passed EXPLICITLY on both creates so the
+   dependency is visible at the point of risk rather than riding a default.
+2. `endpoints/forgotPassword.ts` implied completed jobs are retained. Payload's `deleteJobOnComplete`
+   defaults to true; succeeded jobs are removed (retry-exhausted ones are kept).
+3. `jobs/passwordResetEmail.ts` and the prior DECISIONS entry said a consumed reset "clears" the token.
+   Installed `resetPassword.js` sets `resetPasswordExpiration = now` (line 63) and LEAVES
+   `resetPasswordToken` in place — it expires the token rather than erasing it. The handler was already
+   correct (it checks expiry, not mere presence); only the stated reasoning was wrong.
+
+**Standing rule reinforced:** when reasoning about a dependency's behaviour, read its control flow.
+Three of these four items were plausible-sounding claims about Payload that the source contradicts.
+
 ## 2026-07-21 (latest) — forgot-password oracle closed server-side; PDF preview made completion-aware
 
 Two fixes completing threads opened by the 2026-07-20 audit.
