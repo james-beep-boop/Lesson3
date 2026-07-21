@@ -8,9 +8,9 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
-## SHIPPED + DEPLOYED 2026-07-20/21 — audit remediation (#119–#125) and a same-day security correction
+## SHIPPED + DEPLOYED 2026-07-20/21 — audit remediation (#119–#126), incl. a same-day security correction
 
-All merged through the protected-branch gate and deployed to the Rock, which now runs `main` `82379e4`.
+All merged through the protected-branch gate and deployed to the Rock, which now runs `main` `5d50c24`.
 
 - **#119 — caller lesson-plan create denied** (`lessonPlanCreate: () => false`), mirroring the existing
   version-create deny. A Subject Admin could previously mint unlimited pointerless, invisible,

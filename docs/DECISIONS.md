@@ -49,7 +49,7 @@ security reasoning is what produced the bug above.**
 **Standing rule reinforced:** when reasoning about a dependency's behaviour, read its control flow.
 Three of these four items were plausible-sounding claims about Payload that the source contradicts.
 
-## 2026-07-21 (latest) — forgot-password oracle closed server-side; PDF preview made completion-aware
+## 2026-07-21 — forgot-password oracle closed server-side; PDF preview made completion-aware
 
 Two fixes completing threads opened by the 2026-07-20 audit.
 
@@ -97,7 +97,7 @@ endpoint's raw JSON 503 as an entire browser tab.
 - The HTML **Preview** button keeps the form-POST: at ~1.7 s it is a far weaker case and does not
   provoke the re-click cascade. Deliberately not changed.
 
-## 2026-07-20 (latest) — REVERTED: the forgot-password `res.ok` fix created an enumeration oracle
+## 2026-07-20 — REVERTED: the forgot-password `res.ok` fix created an enumeration oracle
 
 **A same-day correction of my own change, and a lesson about overturning recorded decisions.**
 
@@ -150,7 +150,7 @@ Tracked as a follow-up; **not** attempted in the revert, which is deliberately m
   so the only legitimate rejection is the access deny — a broad 4xx would let an unrelated future
   validation error silently satisfy an authorization test.
 
-## 2026-07-20 (latest) — retire the unsafe legacy e2e fixture and the broken PDF pixel gate
+## 2026-07-20 — retire the unsafe legacy e2e fixture and the broken PDF pixel gate
 
 Two deletions from the audit's remediation sequence (PR C). Both remove hazards rather than features.
 
@@ -2310,7 +2310,7 @@ rejection where the next reader will look.
 
 ---
 
-## 2026-07-03 (latest) — SHIPPED: the single-document-format collapse + both in-flight streams landed
+## 2026-07-03 — SHIPPED: the single-document-format collapse + both in-flight streams landed
 
 The plan recorded in the 2026-07-03 (late) entry below is now DONE (the "NOT done yet" scope note
 there is historical). Merged to `main` via CI-gated PRs: **#29** UI cleanup + mobile pass, **#30**
