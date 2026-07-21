@@ -1,18 +1,23 @@
 // @vitest-environment jsdom
 /**
- * Forgot-password must not report success for a SERVER failure (audit 2026-07-20, L3-09).
+ * Forgot-password must NOT leak account existence (audit 2026-07-20, L3-R1).
  *
- * The form previously treated only 429 as failure; every other status fell through to the
- * "a reset link is on its way" note — so an SMTP outage or a 500 told the user recovery was under
- * way when no email had been sent. Success is now gated on `res.ok`.
+ * History, because this test now pins the OPPOSITE of what it originally asserted: #119 added a
+ * `!res.ok` branch so server failures surfaced instead of showing a false success. That was reverted
+ * the same day — it created an enumeration oracle. In installed Payload, an unknown address returns
+ * EARLY (`if (!user) return null`) so no email is attempted => 200, while a real account falls
+ * through to an unguarded `await email.sendEmail(...)` => throws on SMTP failure => non-2xx. So a
+ * non-OK status occurs ONLY for addresses that exist, and showing it discriminates registered users
+ * on an unauthenticated endpoint.
  *
- * The anti-enumeration property is the reason this is a COMPONENT test and not an HTTP wire test:
- * the defect and the fix both live in how the client interprets the response. Payload answers
- * **200** for an unknown address, so a non-OK status can only mean a server failure — the
- * unknown-address case must still land on the identical success note, and that equivalence is
- * asserted here (`unknown address` vs `real address` produce byte-identical output).
+ * The invariant under test: **for any server-side outcome, the rendered result is identical.**
+ * 429 is exempt (it describes the REQUESTER, not the account) and a network rejection is exempt
+ * (it happens client-side, before any account-dependent branch).
  *
- * DB-free component test → jsdom (see docblock); runs in `test:unit`.
+ * The known cost — a genuine send failure looks like success — is NOT fixable here; it needs the
+ * server to stop failing differently (queue the email with retry). See the component header.
+ *
+ * DB-free component test → jsdom; runs in `test:unit`.
  */
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -25,59 +30,56 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-/** Drive the form to submission with a given fetch outcome. */
-async function submit(fetchImpl: () => Promise<Response> | never) {
+/** Submit `address` with a given fetch outcome, and return what the user ends up seeing. */
+async function submitAndRender(
+  address: string,
+  fetchImpl: () => Promise<Response>,
+): Promise<{ role: 'status' | 'alert'; html: string }> {
   vi.stubGlobal('fetch', vi.fn(fetchImpl))
-  render(<ForgotPasswordForm />)
-  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'a@b.test' } })
+  const { container } = render(<ForgotPasswordForm />)
+  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: address } })
   fireEvent.submit(screen.getByRole('button'))
+  // Either outcome renders exactly one live region: role=status (success) or role=alert (error).
+  const el = await waitFor(() => {
+    const found = container.querySelector('[role="status"], [role="alert"]')
+    if (!found) throw new Error('no live region rendered yet')
+    return found as HTMLElement
+  })
+  return { role: el.getAttribute('role') as 'status' | 'alert', html: el.outerHTML }
 }
 
 const jsonResponse = (status: number) => new Response('{}', { status })
 
-describe('forgot-password reports server failures instead of false success', () => {
-  it('200 → success note', async () => {
-    await submit(async () => jsonResponse(200))
-    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy())
-    expect(screen.getByRole('status').textContent).toMatch(/reset link is on its way/i)
+describe('forgot-password never leaks whether an account exists', () => {
+  // The oracle in the wild: SMTP is down. Payload 200s the unknown address (no send attempted) and
+  // 500s the real one (send threw). Distinct addresses AND distinct statuses — the exact pairing
+  // that leaked. The user-visible result must be identical.
+  it('SMTP outage: unknown address (200) and registered address (500) render IDENTICALLY', async () => {
+    const unknown = await submitAndRender('no-such-user@example.invalid', async () => jsonResponse(200))
+    cleanup()
+    const registered = await submitAndRender('real-teacher@lesson3.local', async () => jsonResponse(500))
+
+    expect(registered.role).toBe(unknown.role)
+    expect(registered.html).toBe(unknown.html)
+    expect(unknown.role).toBe('status')
   })
 
-  it('500 → error, NOT the success note', async () => {
-    await submit(async () => jsonResponse(500))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
-    expect(screen.queryByRole('status')).toBeNull()
-    expect(screen.getByRole('alert').textContent).toMatch(/could not send/i)
+  it.each([200, 400, 404, 500, 502])('status %i renders the same success note', async (status) => {
+    const { role, html } = await submitAndRender('someone@example.test', async () => jsonResponse(status))
+    expect(role).toBe('status')
+    expect(html).toMatch(/reset link is on its way/i)
   })
 
-  it('400 (validation) → error, NOT the success note', async () => {
-    await submit(async () => jsonResponse(400))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
-    expect(screen.queryByRole('status')).toBeNull()
+  it('429 is the one server status that may differ — it describes the requester, not the account', async () => {
+    const { role, html } = await submitAndRender('someone@example.test', async () => jsonResponse(429))
+    expect(role).toBe('alert')
+    expect(html).toMatch(/too many/i)
   })
 
-  it('429 → the distinct rate-limit message (unchanged behaviour)', async () => {
-    await submit(async () => jsonResponse(429))
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
-    expect(screen.getByRole('alert').textContent).toMatch(/too many/i)
-  })
-
-  it('network rejection → error, NOT the success note', async () => {
-    await submit(async () => {
+  it('a network rejection may surface — it happens before any account-dependent branch', async () => {
+    const { role } = await submitAndRender('someone@example.test', async () => {
       throw new Error('offline')
     })
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
-    expect(screen.queryByRole('status')).toBeNull()
-  })
-
-  it('ANTI-ENUMERATION: an unknown address is indistinguishable from a real one', async () => {
-    // Payload answers 200 for both, so both must render the identical success note.
-    await submit(async () => jsonResponse(200))
-    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy())
-    const unknown = screen.getByRole('status').outerHTML
-    cleanup()
-
-    await submit(async () => jsonResponse(200))
-    await waitFor(() => expect(screen.getByRole('status')).toBeTruthy())
-    expect(screen.getByRole('status').outerHTML).toBe(unknown)
+    expect(role).toBe('alert')
   })
 })
