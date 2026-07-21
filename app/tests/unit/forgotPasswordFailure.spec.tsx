@@ -3,19 +3,15 @@
  * Forgot-password must NOT leak account existence (audit 2026-07-20, L3-R1).
  *
  * History, because this test now pins the OPPOSITE of what it originally asserted: #119 added a
- * `!res.ok` branch so server failures surfaced instead of showing a false success. That was reverted
- * the same day — it created an enumeration oracle. In installed Payload, an unknown address returns
- * EARLY (`if (!user) return null`) so no email is attempted => 200, while a real account falls
- * through to an unguarded `await email.sendEmail(...)` => throws on SMTP failure => non-2xx. So a
- * non-OK status occurs ONLY for addresses that exist, and showing it discriminates registered users
- * on an unauthenticated endpoint.
+ * `!res.ok` branch so server failures surfaced instead of a false success, and it was reverted the
+ * same day for creating an account-existence oracle (a non-OK status occurs only for addresses that
+ * EXIST). **The full mechanism, and why the real fix is server-side, live in the
+ * `ForgotPasswordForm.tsx` header — deliberately not restated here, so there is one copy to keep in
+ * step with Payload's internals.**
  *
  * The invariant under test: **for any server-side outcome, the rendered result is identical.**
  * 429 is exempt (it describes the REQUESTER, not the account) and a network rejection is exempt
  * (it happens client-side, before any account-dependent branch).
- *
- * The known cost — a genuine send failure looks like success — is NOT fixable here; it needs the
- * server to stop failing differently (queue the email with retry). See the component header.
  *
  * DB-free component test → jsdom; runs in `test:unit`.
  */

@@ -362,6 +362,16 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       }
 
       // NEW plan: version 1.0.0, made Official immediately (ingest order: plan → version → pointer).
+      //
+      // ⚠️ LOAD-BEARING: both creates below are only permitted because the LOCAL API defaults
+      // `overrideAccess` to TRUE and `req` here carries NO `user`. Caller access denies both
+      // outright — `lessonPlanCreate` and `lessonBundleVersionCreate` are `() => false`
+      // (`access/versioning.ts`, so a bare plan with no Official pointer can't be minted, and a
+      // provenance-less version can't be created). Ingest is the ONLY sanctioned way either row is
+      // born. If you ever attach a `user` to this `req` (e.g. to record who uploaded), you will
+      // silently start failing these access checks and uploads will 403 — pass an explicit
+      // `overrideAccess: true` at that point. The end-to-end guard is the Site-Admin upload test in
+      // `tests/http/endpoints.http.spec.ts`, which exercises this path over the wire.
       const plan = await payload.create({
         collection: LESSON_PLANS,
         data: {
