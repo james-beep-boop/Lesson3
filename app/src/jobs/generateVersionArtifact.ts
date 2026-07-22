@@ -49,17 +49,38 @@ export const generateVersionArtifactTask: TaskConfig<{
     const { versionId, kind } = input
     try {
       assertExportKind(kind) // the inputSchema is `text` — reject a bad row before any cache write
+
+      // A VANISHED VERSION IS A NO-OP, NOT A FAILURE (L3-03 follow-up, 2026-07-21).
+      // `prewarmVersionArtifacts` enqueues OUTSIDE the caller's transaction, so a pre-warm job can
+      // legitimately outlive an ingest or promotion that later rolled back, leaving its input pointing
+      // at a version row that no longer exists. The L3-03 design accepts that outcome explicitly; the
+      // right response is to do nothing (there is nothing to generate, and nothing to retry), not to
+      // page someone. Treating it as a failure trains people to ignore this job's captures — which are
+      // also how a GENUINE generator failure surfaces. Same call the `messagePing` task makes when its
+      // message is gone.
+      //
+      // Classified AT THE BOUNDARY: `disableErrors` turns only "no such row" into `null`, so every
+      // other error — including a real generator fault below — still takes the capture + rethrow path.
+      // This gate must precede generation, which is why the prefix read no longer overlaps it:
+      // `generateForVersion` does its own `findByID` and would throw the raw NotFound first. The lost
+      // concurrency is one indexed row read against a multi-second DOCX build.
+      const version = (await req.payload.findByID({
+        collection: 'lesson-bundle-versions',
+        id: versionId,
+        depth: 0,
+        disableErrors: true,
+        overrideAccess: true,
+      })) as LessonBundleVersion | null
+      if (!version) {
+        req.payload.logger.info(
+          { versionId, kind },
+          'generateVersionArtifact skipped — version no longer exists (write rolled back after enqueue)',
+        )
+        return { output: {} }
+      }
+
       const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
-      // Generation and the prefix read are independent — run them concurrently.
-      const [generated, version] = await Promise.all([
-        generateForVersion(req.payload, versionId),
-        req.payload.findByID({
-          collection: 'lesson-bundle-versions',
-          id: versionId,
-          depth: 0,
-          overrideAccess: true,
-        }) as Promise<LessonBundleVersion>,
-      ])
+      const generated = await generateForVersion(req.payload, versionId)
       await produceArtifacts(spec, generated, safePrefix(version.meta?.filePrefix), docxToPdf)
       return { output: {} }
     } catch (err) {

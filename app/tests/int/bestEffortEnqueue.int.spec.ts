@@ -34,7 +34,17 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import { getPayload, type Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
+// `captureException` is a NO-OP unless `SENTRY_DSN` is set, so the only way to observe whether the
+// orphaned-prewarm case would have paged anyone is to stand in for the module. Everything else is the
+// real implementation — nothing else in this file cares about error tracking.
+vi.mock('../../src/lib/errorTracking.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/lib/errorTracking.js')>()),
+  captureException: vi.fn(),
+}))
+
 import config from '../../src/payload.config.js'
+import { captureException } from '../../src/lib/errorTracking.js'
+import { generateVersionArtifactTask } from '../../src/jobs/generateVersionArtifact.js'
 import { clearRateLimitBuckets } from '../helpers/db.js'
 import {
   MARK,
@@ -246,5 +256,68 @@ describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {
       expect((call[0] as { req?: unknown }).req).toBeUndefined()
     }
     queueSpy.mockRestore()
+  })
+})
+
+/**
+ * THE OTHER HALF OF L3-03. Enqueueing outside the caller's transaction bought durability for the
+ * primary write at the price of ORPHANED JOBS: a pre-warm can now outlive the promotion or ingest it
+ * rode on, and its input then names a version row that no longer exists. That is expected and benign
+ * — a missing pre-warm just costs the next teacher the cold 202/poll path — but until 2026-07-21 the
+ * task reported it as a full failure (logger.error + captureException + rethrow).
+ *
+ * Why that mattered enough to pin: `generateVersionArtifact` captures are ALSO how a genuine
+ * generator fault reaches a human. Routine alerts for a condition the design deliberately accepts is
+ * how a real one gets waved off. The test asserts the *classification*, not just the absence of a
+ * throw — a blanket try/catch would satisfy "does not throw" while destroying the property that
+ * makes the capture channel worth watching.
+ */
+describe('an orphaned pre-warm job is a no-op, not a captured failure (L3-03 follow-up)', () => {
+  /** Run the task handler in-process against a real `payload`, as the job runner would. */
+  const runTask = (versionId: number, kind: 'docx' | 'pdf' = 'docx') =>
+    (generateVersionArtifactTask.handler as (args: unknown) => Promise<{ output: object }>)({
+      input: { versionId, kind },
+      req: { payload },
+    })
+
+  it('returns cleanly when its version was deleted after the enqueue', async () => {
+    const version = await payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '9.9.8',
+        title: `${MARK}orphaned-prewarm`,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })
+
+    // The rollback this stands in for: by the time the job runs, the row is simply not there.
+    await payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: version.id,
+      overrideAccess: true,
+    })
+
+    const errorSpy = vi.spyOn(payload.logger, 'error')
+    vi.mocked(captureException).mockClear()
+
+    await expect(runTask(version.id as number)).resolves.toEqual({ output: {} })
+
+    // Not merely "did not throw" — it must not have been reported as a failure either.
+    expect(captureException).not.toHaveBeenCalled()
+    expect(errorSpy).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('still captures and rethrows a real generator failure', async () => {
+    // GUARD AGAINST THE BLANKET SWALLOW. Without this, the test above passes just as well against a
+    // handler that catches everything — which would silence the genuine faults the capture exists for.
+    // A bad `kind` fails inside the same try, on a path that has nothing to do with a missing row.
+    vi.mocked(captureException).mockClear()
+
+    await expect(runTask(fx.version.id as number, 'exe' as never)).rejects.toThrow()
+    expect(captureException).toHaveBeenCalled()
   })
 })
