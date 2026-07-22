@@ -11,7 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — review round 2: enqueue type check, popup twins, orphaned pre-warm (#138, #139)
+## 2026-07-21 (latest) — CodeRabbit round 3: runtime enqueue guard + a #139 race (#141, #142)
+
+Small but two correctness-adjacent points, both found reviewing a CodeRabbit pass (and a dirty working
+tree — see the process note):
+
+- **The `req` guard has to hold at RUNTIME, not just compile time.** TypeScript's excess-property
+  check only fires on fresh object LITERALS; a caller that builds the argument elsewhere and widens it
+  is structurally assignable, so `req` would forward to `jobs.queue` and rejoin the transaction —
+  re-opening the exact silent-rollback bug `enqueueDetached` exists to prevent. Fix: reconstruct
+  `{ task, input }` inside the helper so only those keys can ever reach `queue`; pinned with a
+  non-literal runtime test. The type-level check is necessary but was never sufficient on its own.
+
+- **#139's orphan gate had a residual race.** The gate no-ops on a missing version, but
+  `generateForVersion` then did its own `findByID`, so a delete landing between the two still threw a
+  raw NotFound past the boundary. `generateForVersion` now accepts the already-loaded snapshot; the
+  task passes what it gated on, making that read authoritative (#142). `emailVersionArtifact` reuses
+  its loaded version the same way.
+
+Also corrected a security-adjacent doc comment: "versions are not access-gated" was misleading —
+version reads run under the caller's Payload access (`overrideAccess: false`); "Official" is only the
+absence of an ADDITIONAL role gate, not the absence of access control. Don't let a comment license a
+future authz mistake.
+
+PROCESS: this work arrived as pre-existing uncommitted changes in the main working tree, of mixed
+provenance (the session-start dirty status). Reviewed line-by-line, verified (tsc/lint/unit 225/int
+73), then split into two PRs by concern — the CodeRabbit responses (#141) and the race hardening
+(#142) — rather than committing a mystery blob. When you find a dirty tree you didn't make, read every
+line before committing, and group by concern.
+
+## 2026-07-21 — review round 2: enqueue type check, popup twins, orphaned pre-warm (#138, #139)
 
 Two more review passes on the L3-03 / timing work, plus the spawned follow-up landing.
 

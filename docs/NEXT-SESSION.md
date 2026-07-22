@@ -35,17 +35,18 @@ Since then, all shipped, merged and CI-green: **#128/#129 — the browser e2e su
 settled**, moving best-effort enqueues off the caller's transaction; **#133 — the forgot-password
 TIMING oracle closed** (a fixed response-time floor; byte-identical was not enough); **#135 —
 /simplify follow-ups** incl. `enqueueDetached` and the PDF-preview twin bug; **#136 — sharp 0.34→0.35**
-(forced major, libvips CVEs); **#138 — the enqueue type check restored + popup-twin tests**; and
-**#139 — an orphaned pre-warm is now a no-op, not a captured failure**.
+(forced major, libvips CVEs); **#138 — the enqueue type check restored + popup-twin tests**; **#139 — an orphaned pre-warm is now a no-op, not a captured failure**; **#141 — CodeRabbit round 3**
+(enqueue runtime req-guard, twin test, doc accuracy); and **#142 — a #139 delete-between-reads race fix**.
 
 > **⚠ DEPLOY BLOCKED — read before assuming the Rock is current.** Mid-session the Rock began rejecting
 > SSH (changed host key, then `Permission denied (publickey)` for the key that deployed #136 earlier the
 > same day). The live site stayed healthy (200 via cloudflared) and `rock5b` still resolves to the usual
 > Tailscale IP, so this is the Rock's SSH state changing — not a laptop issue — likely a reboot that
-> regenerated host keys. **The Rock is running the #136 build; #137–#139 are NOT deployed.** #137/#138
-> are docs/tests/compile-time-only (no runtime effect), but **#139 is a real job-handler change** — until
-> it deploys, an orphaned pre-warm on the Rock still emits the noisy capture (alert-noise on a rare path,
-> not a correctness/user issue). FIRST TASK for whoever has Rock access: re-establish SSH (accept the new
+> regenerated host keys. **The Rock is running the #136 build; #137–#142 are NOT deployed.** #137/#138/
+> #140 are docs/tests/compile-time-only, but **#139, #141, #142 carry runtime changes** (the orphan
+> no-op, the `enqueueDetached` runtime `req` guard, and the artifact-generation race fix) — until they
+> deploy, the Rock runs the older job/enqueue behaviour (alert-noise on a rare orphan path; no
+> correctness/user issue). FIRST TASK for whoever has Rock access: re-establish SSH (accept the new
 > host key; confirm the key is authorized — `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`), then
 > `cd /srv/lesson3 && git pull && docker compose build app && docker compose up -d app` and verify live.
 
