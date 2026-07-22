@@ -152,6 +152,16 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
       expect(tab.location.href).toBe('blob:pdf')
     })
 
+    it('opens a fresh tab with the blob when the placeholder was blocked but the retry is allowed', async () => {
+      // The generated twin builds a blob URL (its prepared sibling navigates a static docUrl), so its
+      // retry-success path is a distinct code path and can regress independently.
+      const retry = makeTab()
+      const { open } = stubBrowser([null, retry]) // placeholder blocked, retry allowed
+      readyBlob()
+      await expect(openGeneratedPdfInNewTab('/generate', new FormData())).resolves.toBeUndefined()
+      expect(open).toHaveBeenLastCalledWith('blob:pdf', '_blank')
+    })
+
     it('throws AND revokes the blob when both opens are blocked (no silent success, no leak)', async () => {
       const { revoke } = stubBrowser([null, null])
       readyBlob()
