@@ -33,7 +33,7 @@
     "acorn": "8.16.0",
     "cross-env": "7.0.3",
     "docx": "9.6.1",
-    "dompurify": "3.4.11",
+    "dompurify": "3.4.12",
     "dotenv": "16.4.7",
     "drizzle-orm": "0.45.2",
     "graphql": "16.14.1",
