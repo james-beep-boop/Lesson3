@@ -33,8 +33,8 @@ scopes genuinely differ, so centralising would silently change what each guards.
 Also from the pass: prewarm enqueues now run concurrently (they were serial only because they shared
 the caller's transaction connection — I deleted the comment saying so in #131 without removing the
 serialisation); the messages widening scheme lives in one `widerHref` instead of a boolean re-derived
-at two sites; a shared `tests/helpers/db.ts` replaces a drizzle cast hand-rolled and already drifting
-at six sites; and I corrected a FALSE claim I wrote in #131 (the artifact job does not "fail cleanly"
+at two sites; a shared `tests/helpers/db.ts` for a drizzle cast that was hand-rolled and already
+drifting across six sites (new code uses it; the five pre-existing specs are left as a landing place); and I corrected a FALSE claim I wrote in #131 (the artifact job does not "fail cleanly"
 on a vanished version — it captures and rethrows; flagged as a follow-up, not changed unreviewed).
 
 **Forced sharp major bump (#136), and how the two-PR split was decided.** Two HIGH advisories landed

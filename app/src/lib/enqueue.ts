@@ -29,14 +29,22 @@
  * its readiness reads), and collapsing them here would silently widen or narrow what each one guards.
  * The invariant worth centralising is the connection, not the recovery.
  */
-import type { Payload } from 'payload'
+import type { Payload, TypedJobs } from 'payload'
 
-/** The `task`-shaped half of Payload's queue argument (it is a union with a `workflow` variant),
- *  with `req` REMOVED — so passing one is a compile error rather than a silent lost write. Derived
- *  from the installed signature so task slugs and their input types stay checked, and so a Payload
- *  upgrade that changes the shape surfaces here instead of at three call sites. */
-type DetachedQueueArgs = Omit<Extract<Parameters<Payload['jobs']['queue']>[0], { task: unknown }>, 'req'>
-
-export async function enqueueDetached(payload: Payload, args: DetachedQueueArgs): Promise<void> {
-  await payload.jobs.queue(args)
+/**
+ * GENERIC over the task slug, deliberately — mirroring how `payload.jobs.queue` itself keeps `task`
+ * and `input` correlated (its correlation lives in a type PARAMETER, so `Parameters<>` on it collapses
+ * `input` to the union of every task's input and loses the check). Instantiating per call restores it:
+ * `enqueueDetached(p, { task: 'messagePing', input: { versionId, kind } })` is rejected here exactly as
+ * the native call rejects it.
+ *
+ * The argument shape is `{ task, input }` and nothing else — no `req` (passing one is the silent
+ * lost-write bug this exists to prevent) and no `workflow`. Restricted to tasks; no caller enqueues a
+ * workflow. Both negative cases are pinned in `tests/unit/enqueueDetached.spec.ts`.
+ */
+export async function enqueueDetached<TSlug extends keyof TypedJobs['tasks']>(
+  payload: Payload,
+  args: { task: TSlug; input: TypedJobs['tasks'][TSlug]['input'] },
+): Promise<void> {
+  await payload.jobs.queue(args as Parameters<Payload['jobs']['queue']>[0])
 }
