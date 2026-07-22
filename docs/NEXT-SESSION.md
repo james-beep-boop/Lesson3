@@ -18,8 +18,9 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is on `main` `5d50c24`** — always CONFIRM rather than trust this line, it goes stale on
-every deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
+**The live Rock last deployed the #136 build (`23947db`)** and is now BEHIND main (SSH is down — see
+the deploy-blocker box below). Always CONFIRM rather than trust this line once SSH is back, it goes
+stale on every deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
@@ -29,23 +30,37 @@ oracle closed server-side by queueing delivery (#124 — carries a migration)**;
 made completion-aware (#125); and **#126 — a P1 correction to #124**: mixed-case/padded addresses
 minted a live reset token but queued no email (recovery silently dead). Verified fixed in production.
 
-Since then, all shipped, merged, deployed and live-verified: **#128/#129 — the browser e2e suite is a
-CI gate (L3-07)**, on a glibc Playwright image built like every other CI image; **#130 — unread
-messages made reachable so the badge can converge (L3-05)**, via an unread-first split query; and
-**#131 — L3-03 settled**, moving best-effort enqueues off the caller's transaction (see below).
+Since then, all shipped, merged and CI-green: **#128/#129 — the browser e2e suite is a CI gate
+(L3-07)**; **#130 — unread messages made reachable so the badge can converge (L3-05)**; **#131 — L3-03
+settled**, moving best-effort enqueues off the caller's transaction; **#133 — the forgot-password
+TIMING oracle closed** (a fixed response-time floor; byte-identical was not enough); **#135 —
+/simplify follow-ups** incl. `enqueueDetached` and the PDF-preview twin bug; **#136 — sharp 0.34→0.35**
+(forced major, libvips CVEs); **#138 — the enqueue type check restored + popup-twin tests**; and
+**#139 — an orphaned pre-warm is now a no-op, not a captured failure**.
 
-**Remaining queue (nothing is blocking):**
+> **⚠ DEPLOY BLOCKED — read before assuming the Rock is current.** Mid-session the Rock began rejecting
+> SSH (changed host key, then `Permission denied (publickey)` for the key that deployed #136 earlier the
+> same day). The live site stayed healthy (200 via cloudflared) and `rock5b` still resolves to the usual
+> Tailscale IP, so this is the Rock's SSH state changing — not a laptop issue — likely a reboot that
+> regenerated host keys. **The Rock is running the #136 build; #137–#139 are NOT deployed.** #137/#138
+> are docs/tests/compile-time-only (no runtime effect), but **#139 is a real job-handler change** — until
+> it deploys, an orphaned pre-warm on the Rock still emits the noisy capture (alert-noise on a rare path,
+> not a correctness/user issue). FIRST TASK for whoever has Rock access: re-establish SSH (accept the new
+> host key; confirm the key is authorized — `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`), then
+> `cd /srv/lesson3 && git pull && docker compose build app && docker compose up -d app` and verify live.
+
+**Remaining queue (nothing else is blocking):**
 1. **Working drafts** — *the only confirmed silent work-loss path, and the top priority.* Spec'd
    (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
    Multi-session project; start from the design doc.
-2. **(small, spawned)** `generateVersionArtifact` treats a vanished version as a captured + rethrown
-   error. Since L3-03 that orphan case is benign (a prewarm outliving a rolled-back write), and it
-   should be a quiet `logger.info` no-op like `messagePing`'s existence guard — not an error-tracker
-   alert. Update the follow-up comment in `prewarmVersionArtifacts.ts` when done.
+2. **(small) `emailVersionArtifact.ts` has the same orphan-hard-fail shape** that #139 fixed in
+   `generateVersionArtifact` (`generateForVersion` + a version `findByID`). It is not prewarmed today,
+   so it cannot orphan yet — but if email artifacts ever get the same prewarm treatment, it wants the
+   identical boundary classification. Left as a flagged follow-up, not done in #139.
 3. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
    unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
    GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
-   went red on the gate mid-PR this session.
+   went red on the gate mid-PR this session (js-yaml, fast-uri, immutable, sharp/next).
 4. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
 
