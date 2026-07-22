@@ -49,23 +49,46 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
 > --format '{{.Created}}'`) — a source-string grep of `.next` is unreliable because Next.js minifies.
 
 **Remaining queue (nothing else is blocking):**
-1. **Working drafts** — *the only confirmed silent work-loss path, and the top priority.* Spec'd
-   (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
+1. **Edit-page "View as PDF" is slow (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
+   Confirmed on the Rock 2026-07-22 by direct measurement, not speculation. The two edit-page paths:
+   *unsaved* → `POST …/preview-pdf?doc=<tag>` (already scoped to ONE deliverable); *pristine/saved* →
+   `openPreparedPdfInNewTab` which `ensureExportReady`-warms the WHOLE version (all ≤3 deliverables)
+   then serves the fast `GET …/export/doc`. **The bottleneck is LibreOffice/Gotenberg, not any app
+   route:** measured on the Rock, converting the ~164 KB lessonSequence DOCX → PDF is **~5.5 s** with
+   LibreOffice already warm, plus a **~2.5 s cold-start** when soffice was idle (first small-doc run
+   2487 ms vs 567 ms warm). DOCX gen is ~1.7 s (DECISIONS). So cold ≈ 1.7 + (2.5 cold-start) + 5.5 ≈
+   **~10 s**, worse when queued behind another conversion (Gotenberg is capped at **2 CPUs / 1 GB**,
+   `PREVIEW_PDF_MAX_CONCURRENT=2`). `/export/doc` itself is serve-only (~88 ms warm, 409 cold) — the
+   external probes that blamed it were timing the warm-up before the navigation.
+   **Ranked fixes (impact/effort/risk):**
+   (a) **Keep LibreOffice warm** — a cheap heartbeat (periodic 1-page convert) or Gotenberg config to
+   stop soffice going idle kills the ~2.5 s cold-start. Low effort, low risk, helps every path.
+   (b) **Background pre-warm the pristine edit page** — on load (or when the "View as PDF ▾" menu
+   opens), fire `ensureExportReady` for the version so the click is a ~88 ms warm serve. Biggest
+   perceived win; cost is a wasted conversion if unused (bound it by warming only `lessonSequence`).
+   (c) **Pristine path: warm only the requested deliverable**, not the whole bundle — modest wall-clock
+   (conversions are concurrent, lessonSequence is the long pole) but saves work + slot contention.
+   (d) The **unsaved** path is already single-doc + completion-aware; its floor is the 5.5 s convert.
+   Only (a) helps it. A faster renderer than LibreOffice would threaten byte-fidelity — do NOT.
+   Start with (a)+(b): together they turn the common "open edit page → View as PDF" from ~10 s into
+   sub-second, and neither touches the fidelity path.
+2. **Working drafts** — *the only confirmed silent work-loss path, and the data-integrity priority.*
+   Spec'd (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
    Multi-session project; start from the design doc.
-2. **(small) `emailVersionArtifact.ts` has the same orphan-hard-fail shape** that #139 fixed in
+3. **(small) `emailVersionArtifact.ts` has the same orphan-hard-fail shape** that #139 fixed in
    `generateVersionArtifact` (`generateForVersion` + a version `findByID`). It is not prewarmed today,
    so it cannot orphan yet — but if email artifacts ever get the same prewarm treatment, it wants the
    identical boundary classification. Left as a flagged follow-up, not done in #139.
-3. **Sequential full-codebase code review** — a resumable, Pro-plan-budgeted read of the whole source
+4. **Sequential full-codebase code review** — a resumable, Pro-plan-budgeted read of the whole source
    for correctness/security/invariants, one small unit at a time. Plan + progress table in
    `docs/CODE-REVIEW-PLAN.md`; findings accumulate in `docs/CODE-REVIEW-FINDINGS.md`. Read-only,
    so it is the ideal thing to run WHILE waiting on human reviewers — it complements them rather than
    racing them, and never dirties the tree.
-4. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
+5. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
    unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
    GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
    went red on the gate mid-PR this session (js-yaml, fast-uri, immutable, sharp/next).
-5. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
+6. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
 
 **Two things worth carrying forward from #131** (full write-up in `docs/DECISIONS.md`):
