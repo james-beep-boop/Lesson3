@@ -20,13 +20,20 @@ import type { LessonBundleVersion } from '../payload-types'
 export async function generateForVersion(
   payload: Payload,
   id: number | string,
+  // A caller that already loaded the row (e.g. the `generateVersionArtifact` task's vanished-version
+  // gate) passes it here so generation reuses that exact snapshot instead of issuing a second read —
+  // closing the delete-between-reads race where the gate saw the version but this findByID would then
+  // throw a raw NotFound. When omitted, the `depth: 0` / `overrideAccess: true` read is authoritative.
+  preloaded?: LessonBundleVersion,
 ): Promise<GeneratedDocx> {
-  const version = (await payload.findByID({
-    collection: 'lesson-bundle-versions',
-    id,
-    depth: 0,
-    overrideAccess: true,
-  })) as LessonBundleVersion
+  const version =
+    preloaded ??
+    ((await payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id,
+      depth: 0,
+      overrideAccess: true,
+    })) as LessonBundleVersion)
 
   return generateBundleDocx(bundleToAresData(version))
 }
