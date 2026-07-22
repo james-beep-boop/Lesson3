@@ -46,7 +46,7 @@ messages made reachable so the badge can converge (L3-05)**, via an unread-first
    unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
    GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
    went red on the gate mid-PR this session.
-3. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
+4. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
 
 **Two things worth carrying forward from #131** (full write-up in `docs/DECISIONS.md`):
