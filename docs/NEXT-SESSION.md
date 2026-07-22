@@ -56,11 +56,16 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
    `generateVersionArtifact` (`generateForVersion` + a version `findByID`). It is not prewarmed today,
    so it cannot orphan yet — but if email artifacts ever get the same prewarm treatment, it wants the
    identical boundary classification. Left as a flagged follow-up, not done in #139.
-3. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
+3. **Sequential full-codebase code review** — a resumable, Pro-plan-budgeted read of the whole source
+   for correctness/security/invariants, one small unit at a time. Plan + progress table in
+   `docs/CODE-REVIEW-PLAN.md`; findings accumulate in `docs/CODE-REVIEW-FINDINGS.md`. Read-only,
+   so it is the ideal thing to run WHILE waiting on human reviewers — it complements them rather than
+   racing them, and never dirties the tree.
+4. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
    unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
    GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
    went red on the gate mid-PR this session (js-yaml, fast-uri, immutable, sharp/next).
-4. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
+5. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
 
 **Two things worth carrying forward from #131** (full write-up in `docs/DECISIONS.md`):
