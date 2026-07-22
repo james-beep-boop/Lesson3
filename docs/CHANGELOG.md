@@ -8,6 +8,21 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-21 — CodeRabbit round 3 + a #139 race hardening (#141, #142)
+
+### Fixed
+- **`enqueueDetached` runtime `req` guard** (#141) — the compile-time rejection only bit on object
+  literals; a prebuilt wider object could forward `req`. Now reconstructs `{ task, input }`, with a
+  non-literal runtime test.
+- **delete-between-reads race in artifact generation** (#142) — #139's orphan gate then let
+  `generateForVersion` re-read the row, so a delete in that window threw a raw NotFound past the
+  boundary. `generateForVersion` now takes a `preloaded` snapshot; the task passes what it already
+  gated on. Same reuse applied to `emailVersionArtifact`.
+
+### Docs/tests
+- Generated-PDF twin retry-success test (#141); guide "not access-gated" and messages "500 rows"
+  comments corrected for accuracy (#141).
+
 ## 2026-07-21 — review round 2 + orphaned pre-warm no-op (#138, #139)
 
 ### Fixed
