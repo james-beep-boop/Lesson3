@@ -41,9 +41,10 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
       findPendingExportJobs(req.payload),
     ])
     // ORPHAN CASE (the primary write rolls back after we enqueue) is tolerable here: a missing
-    // pre-warm just means the teacher takes the normal cold 202/poll path. Note the artifact job
-    // currently treats a vanished version as a captured, rethrown error rather than a quiet no-op —
-    // benign but noisy, tracked as a follow-up rather than changed unreviewed here.
+    // pre-warm just means the teacher takes the normal cold 202/poll path. The artifact job
+    // findByID's the version and, since 2026-07-21, treats "gone" as a logged NO-OP rather than a
+    // failure — no error-tracker capture, no failed job row for a benign outcome (same call
+    // `messagePing` makes when its message vanished).
     //
     // Concurrent, not sequential: before L3-03 these inserts shared the caller's transaction
     // connection and HAD to serialise. `enqueueDetached` gives each its own, so the round trips
