@@ -49,29 +49,47 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
 > --format '{{.Created}}'`) — a source-string grep of `.next` is unreliable because Next.js minifies.
 
 **Remaining queue (nothing else is blocking):**
-1. **Edit-page "View as PDF" is slow (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
-   Confirmed on the Rock 2026-07-22 by direct measurement, not speculation. The two edit-page paths:
-   *unsaved* → `POST …/preview-pdf?doc=<tag>` (already scoped to ONE deliverable); *pristine/saved* →
-   `openPreparedPdfInNewTab` which `ensureExportReady`-warms the WHOLE version (all ≤3 deliverables)
-   then serves the fast `GET …/export/doc`. **The bottleneck is LibreOffice/Gotenberg, not any app
-   route:** measured on the Rock, converting the ~164 KB lessonSequence DOCX → PDF is **~5.5 s** with
-   LibreOffice already warm, plus a **~2.5 s cold-start** when soffice was idle (first small-doc run
-   2487 ms vs 567 ms warm). DOCX gen is ~1.7 s (DECISIONS). So cold ≈ 1.7 + (2.5 cold-start) + 5.5 ≈
-   **~10 s**, worse when queued behind another conversion (Gotenberg is capped at **2 CPUs / 1 GB**,
-   `PREVIEW_PDF_MAX_CONCURRENT=2`). `/export/doc` itself is serve-only (~88 ms warm, 409 cold) — the
-   external probes that blamed it were timing the warm-up before the navigation.
-   **Ranked fixes (impact/effort/risk):**
-   (a) **Keep LibreOffice warm** — a cheap heartbeat (periodic 1-page convert) or Gotenberg config to
-   stop soffice going idle kills the ~2.5 s cold-start. Low effort, low risk, helps every path.
-   (b) **Background pre-warm the pristine edit page** — on load (or when the "View as PDF ▾" menu
-   opens), fire `ensureExportReady` for the version so the click is a ~88 ms warm serve. Biggest
-   perceived win; cost is a wasted conversion if unused (bound it by warming only `lessonSequence`).
-   (c) **Pristine path: warm only the requested deliverable**, not the whole bundle — modest wall-clock
-   (conversions are concurrent, lessonSequence is the long pole) but saves work + slot contention.
-   (d) The **unsaved** path is already single-doc + completion-aware; its floor is the 5.5 s convert.
-   Only (a) helps it. A faster renderer than LibreOffice would threaten byte-fidelity — do NOT.
-   Start with (a)+(b): together they turn the common "open edit page → View as PDF" from ~10 s into
-   sub-second, and neither touches the fidelity path.
+1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
+   Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
+   Two edit-page paths, and it's the FIRST that hurts repeatedly:
+   - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the
+     working copy and converts it synchronously. UNCACHEABLE (content isn't saved), so every
+     preview-after-an-edit pays the full cost. This is the recurring pain.
+   - **Pristine** (form clean) → `openPreparedPdfInNewTab`: `ensureExportReady`-warms the version then
+     serves the fast `GET …/export/doc` (~88 ms warm). Fixable to sub-second by pre-warming.
+
+   **The bottleneck is LibreOffice, not any app route.** Measured on the Rock: converting the ~164 KB
+   **lessonSequence** DOCX→PDF is **~5.5 s** with soffice already warm; a small doc is ~0.56 s warm but
+   pays a **~1.8–2.5 s cold-start** on the first convert after idle (2487 ms→567 ms; GPT's Gotenberg log
+   shows 2.411 s→558 ms identically). DOCX gen ~1.7 s. So a cold lessonSequence preview ≈ 1.7 + ~2 +
+   5.5 ≈ **~10 s**; worse when queued (Gotenberg capped **2 CPUs / 1 GB**, `PREVIEW_PDF_MAX_CONCURRENT=2`
+   — see the guards). `/export/doc` is serve-only (~88 ms warm, 409 cold); probes that blamed it timed
+   the warm-up before the navigation. Hermes's "the delay is the View-as-PDF chooser menu" is wrong —
+   that menu is an instant local `versionDeliverables(currentContent())` scan, no network.
+
+   **Honest ceiling:** the ~5.5 s lessonSequence render is the LibreOffice floor and is NOT reducible
+   without swapping the renderer, which we will not do (PDF-from-the-approved-DOCX is the invariant).
+   So "sub-second" is real for the *pristine* path only; the *unsaved first-render-after-edit* floor
+   stays ~5.5 s. (An earlier version of this note over-promised sub-second for both — corrected.)
+
+   **Plan (do in order, measure between):**
+   (a) **`--libreoffice-auto-start=true` on Gotenberg** (docker-compose) — removes the ~1.8–2.5 s
+   cold-start. Cheapest experiment; try first, benchmark before/after. Trade-off: one stateful soffice
+   process serializes conversions (fine for single-preview latency; see guards).
+   (b) **Background pre-warm the pristine edit page** — on load / menu-open, fire `ensureExportReady` so
+   a pristine click is a ~88 ms serve. Biggest win for that path; bound cost by warming only
+   `lessonSequence`.
+   (c) **Short-lived in-memory unsaved-preview cache** — key by `{user, versionId, tag, renderVersion,
+   hash(effective content)}`, bounded TTL, **in memory** (never persist unsaved teacher work). Makes an
+   unchanged re-preview instant; the first preview after any real edit still converts.
+   (d) Only then consider deeper conversion/hardware work — LibreOffice is the floor; any option change
+   must pass the visual/fidelity checks. No HTML-to-PDF shortcut.
+
+   **Guards (things NOT to do):** don't raise `PREVIEW_PDF_MAX_CONCURRENT` — a single LibreOffice
+   serializes, so a higher cap just lengthens the queue, it doesn't speed one preview. A *second*
+   Gotenberg instance would help concurrent-user throughput, not single-preview latency.
+   **Note:** (a) is a compose/ops change and (b)/(c) are runtime changes — this item, unlike recent
+   docs work, needs a deploy.
 2. **Working drafts** — *the only confirmed silent work-loss path, and the data-integrity priority.*
    Spec'd (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
    Multi-session project; start from the design doc.

@@ -11,7 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — CodeRabbit round 3: runtime enqueue guard + a #139 race (#141, #142)
+## 2026-07-22 (latest) — PDF-preview latency: measured, and where the floor actually is
+
+Operator flagged the edit-page "View as PDF" as ~10 s. Investigated with three external agents
+(Nanoclaw, Hermes) plus GPT plus a direct Rock measurement. Recording the conclusion so the wrong fixes
+don't get proposed again.
+
+**The slow thing is LibreOffice, not any app route.** `/export/doc` is serve-only (~88 ms warm, 409
+cold); Nanoclaw's "5 s /export/doc" was timing the `ensureExportReady` warm-up that runs *before* the
+browser navigates there. Hermes's "it's the View-as-PDF chooser menu" is wrong too — that menu is an
+instant local `versionDeliverables(currentContent())` scan with no network. Measured on the Rock:
+
+- lessonSequence DOCX→PDF (the actual preview target, ~164 KB → ~796 KB): **~5.5 s** with soffice warm.
+- a small deliverable: ~0.56 s warm, but the FIRST convert after idle pays **~1.8–2.5 s** LibreOffice
+  cold-start (2487 ms → 567 ms; GPT's Gotenberg 8.34.0 log independently shows 2.411 s → 558/589 ms).
+- DOCX generation ≈ 1.7 s (matches the 2026-… generation-vs-conversion split already recorded here).
+
+So a cold lessonSequence preview ≈ 1.7 + ~2 + 5.5 ≈ **~10 s**. The two client paths differ: the
+**unsaved** editor preview (`POST /preview-pdf`) is uncacheable (content isn't saved) and pays this on
+every preview-after-edit — the recurring pain; the **pristine** path warms the cache then serves
+`/export/doc` fast and can be made sub-second by pre-warming.
+
+**Decisions / non-negotiables for the fix:**
+- The ~5.5 s lessonSequence render is the LibreOffice **floor**. It is NOT reducible without changing
+  the renderer, and we will NOT — PDF-from-the-approved-DOCX is the central fidelity invariant; an
+  HTML-to-PDF shortcut is disqualified. So there is no honest "sub-second" for the *unsaved
+  first-render-after-edit*; sub-second is only for the pristine (pre-warmable) path.
+- **Do first: `--libreoffice-auto-start=true`** on the Gotenberg container — kills the cold-start,
+  cheapest experiment, native. Note it keeps ONE stateful soffice that serializes conversions.
+- **Do NOT raise `PREVIEW_PDF_MAX_CONCURRENT`.** A single LibreOffice serializes; a higher cap just
+  lengthens the queue, it does not speed an individual preview. A *second* Gotenberg helps concurrent
+  users' throughput, not single-preview latency. (This is the standing answer to "why not just bump the
+  cap.")
+- Later levers, in order: background pre-warm the pristine edit page (→ ~88 ms serve); a short-lived
+  **in-memory** unsaved-preview cache keyed by a content hash (never persist unsaved teacher work);
+  only then deeper conversion/hardware work behind fidelity checks.
+
+Full plan + ranked options live in `NEXT-SESSION.md` item 1. This is a product-performance task, not a
+correctness/security defect.
+
+## 2026-07-21 — CodeRabbit round 3: runtime enqueue guard + a #139 race (#141, #142)
 
 Small but two correctness-adjacent points, both found reviewing a CodeRabbit pass (and a dirty working
 tree — see the process note):
