@@ -81,7 +81,8 @@ export const emailVersionArtifactTask: TaskConfig<{
       // fault, not a race.
       let zip = cached
       if (!zip) {
-        await produceArtifacts(spec, await generateForVersion(req.payload, versionId), prefix, docxToPdf)
+        // Reuse the `version` already loaded above rather than re-reading the row inside the generator.
+        await produceArtifacts(spec, await generateForVersion(req.payload, versionId, version), prefix, docxToPdf)
         zip = await loadCachedExportZip(spec)
       }
       if (!zip) throw new Error('export artifacts missing after generation')

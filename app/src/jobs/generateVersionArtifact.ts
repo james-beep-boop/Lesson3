@@ -61,9 +61,9 @@ export const generateVersionArtifactTask: TaskConfig<{
       //
       // Classified AT THE BOUNDARY: `disableErrors` turns only "no such row" into `null`, so every
       // other error — including a real generator fault below — still takes the capture + rethrow path.
-      // This gate must precede generation, which is why the prefix read no longer overlaps it:
-      // `generateForVersion` does its own `findByID` and would throw the raw NotFound first. The lost
-      // concurrency is one indexed row read against a multi-second DOCX build.
+      // This one read is authoritative: the loaded snapshot is passed straight into `generateForVersion`
+      // below, so generation never re-reads the row and a delete landing after this gate cannot turn a
+      // legitimate no-op into a captured NotFound.
       const version = (await req.payload.findByID({
         collection: 'lesson-bundle-versions',
         id: versionId,
@@ -80,7 +80,7 @@ export const generateVersionArtifactTask: TaskConfig<{
       }
 
       const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
-      const generated = await generateForVersion(req.payload, versionId)
+      const generated = await generateForVersion(req.payload, versionId, version)
       await produceArtifacts(spec, generated, safePrefix(version.meta?.filePrefix), docxToPdf)
       return { output: {} }
     } catch (err) {
