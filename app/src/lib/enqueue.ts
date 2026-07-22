@@ -46,5 +46,11 @@ export async function enqueueDetached<TSlug extends keyof TypedJobs['tasks']>(
   payload: Payload,
   args: { task: TSlug; input: TypedJobs['tasks'][TSlug]['input'] },
 ): Promise<void> {
-  await payload.jobs.queue(args as Parameters<Payload['jobs']['queue']>[0])
+  // RECONSTRUCT — never forward the caller's object. Excess-property checking rejects a stray `req`
+  // ONLY on a fresh object literal at the call site; a prebuilt wider object is structurally
+  // assignable to this parameter, and the cast below would then forward its extra `req` to
+  // `jobs.queue` at runtime — re-opening the silent-rollback bug this whole file exists to prevent.
+  // Picking `{ task, input }` off `args` guarantees only those two keys ever reach `queue`.
+  const { task, input } = args
+  await payload.jobs.queue({ task, input } as Parameters<Payload['jobs']['queue']>[0])
 }

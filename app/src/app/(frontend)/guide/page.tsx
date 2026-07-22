@@ -35,9 +35,12 @@ export default async function UserGuidePage() {
       <section id="teachers" className="guide-section">
         <h2>Teachers</h2>
         {/* Version-history mechanics live in the Editors section (critique 2026-07-12 §4) — Teachers
-            have no version selector, so the chip/Compare explanation was noise here. Say CONTROLS,
-            not access: versions are not access-gated (see `lessons/[id]/page.tsx`), so the previous
-            wording described a permission boundary that does not exist (2026-07-21 review). */}
+            have no version selector, so the chip/Compare explanation was noise here. Precisely:
+            version reads still run under the caller's Payload access (`overrideAccess: false` in
+            `lib/readBundle.ts`); "Official" is just the default + trust marker, NOT an extra
+            role/scope gate on top of that. The previous wording ("Teachers see only Official") implied
+            a permission boundary that does not exist — don't restore it, and don't over-correct to
+            "versions are ungated" either (2026-07-21 review). */}
         <p>
           Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
           the generated documents. Each lesson plan opens at its Official version — the one current,
