@@ -184,9 +184,10 @@ export default async function MessagesPage({
  *  truncation is what hid the unread-badge bug (L3-05).
  *
  *  `widerHref` is null once we are ALREADY on `?older=1`, where a link would point at the page the
- *  user is looking at — a dead control that re-renders the same capped result (inbox = unread + read,
- *  each limited to `pageSize`, so up to 1,000 rows at the widened cap; flagged in the 2026-07-21
- *  review). Past that the widen strategy is out of room, so we say so plainly rather than
+ *  user is looking at — a dead control that re-renders the same capped result. (This component is
+ *  shared: the Inbox passes two `pageSize`-capped queries, unread + read, so up to 1,000 rows at the
+ *  widened cap; Sent passes one, so up to 500. Either way `?older=1` is already the widest.) Flagged
+ *  in the 2026-07-21 review. Past that the widen strategy is out of room, so we say so plainly rather than
  *  offer an affordance that does nothing. Lifting that ceiling needs real cursor/page state, tracked
  *  as its own task and deliberately NOT bolted on here as a third fixed widening, which would just
  *  move the same dead end to 2000. The fallback copy must not send the user to a search box — the

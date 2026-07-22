@@ -18,9 +18,10 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock last deployed the #136 build (`23947db`)** and is now BEHIND main (SSH is down — see
-the deploy-blocker box below). Always CONFIRM rather than trust this line once SSH is back, it goes
-stale on every deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
+**The live Rock is deployed at `main` `1a1f5bd`** (2026-07-22 — #137–#143, incl. all runtime
+hardening; SSH recovered, operator redeployed, verified: image rebuilt, source in-container carries
+the changes, site 200/healthy). Always CONFIRM rather than trust this line, it goes stale on every
+deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
@@ -38,17 +39,14 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
 (forced major, libvips CVEs); **#138 — the enqueue type check restored + popup-twin tests**; **#139 — an orphaned pre-warm is now a no-op, not a captured failure**; **#141 — CodeRabbit round 3**
 (enqueue runtime req-guard, twin test, doc accuracy); and **#142 — a #139 delete-between-reads race fix**.
 
-> **⚠ DEPLOY BLOCKED — read before assuming the Rock is current.** Mid-session the Rock began rejecting
-> SSH (changed host key, then `Permission denied (publickey)` for the key that deployed #136 earlier the
-> same day). The live site stayed healthy (200 via cloudflared) and `rock5b` still resolves to the usual
-> Tailscale IP, so this is the Rock's SSH state changing — not a laptop issue — likely a reboot that
-> regenerated host keys. **The Rock is running the #136 build; #137–#142 are NOT deployed.** #137/#138/
-> #140 are docs/tests/compile-time-only, but **#139, #141, #142 carry runtime changes** (the orphan
-> no-op, the `enqueueDetached` runtime `req` guard, and the artifact-generation race fix) — until they
-> deploy, the Rock runs the older job/enqueue behaviour (alert-noise on a rare orphan path; no
-> correctness/user issue). FIRST TASK for whoever has Rock access: re-establish SSH (accept the new
-> host key; confirm the key is authorized — `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`), then
-> `cd /srv/lesson3 && git pull && docker compose build app && docker compose up -d app` and verify live.
+> **✓ DEPLOYED & RESOLVED (2026-07-22).** Earlier this cycle the Rock rejected SSH (changed host key,
+> then publickey denied) — likely a reboot that regenerated host keys — so #137–#142 sat undeployed for
+> a stretch. SSH has since recovered (accept the new host key with `-o StrictHostKeyChecking=accept-new`
+> on first connect; `ssh-add --apple-use-keychain ~/.ssh/id_ed25519` if auth fails), the operator
+> redeployed, and the Rock is verified at `1a1f5bd` with all runtime hardening live. Kept here only as
+> the playbook for next time it happens: `cd /srv/lesson3 && git pull && docker compose build app &&
+> docker compose up -d app`, then confirm the image was actually rebuilt (`docker inspect lesson3-app-1
+> --format '{{.Created}}'`) — a source-string grep of `.next` is unreliable because Next.js minifies.
 
 **Remaining queue (nothing else is blocking):**
 1. **Working drafts** — *the only confirmed silent work-loss path, and the top priority.* Spec'd
