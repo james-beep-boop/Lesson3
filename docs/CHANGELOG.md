@@ -8,6 +8,25 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-21 — review round 2 + orphaned pre-warm no-op (#138, #139)
+
+### Fixed
+- **`enqueueDetached` had lost the task↔input type check** (#138) — a mismatched `{ task, input }`
+  compiled where native `jobs.queue` rejects it. Made the helper generic over the task slug; pinned
+  both negatives (`req`, mismatched input) in `tests/unit/enqueueDetached.spec.ts`.
+- **Orphaned pre-warm reported as a failure** (#139) — `generateVersionArtifact` now treats a vanished
+  version (a benign L3-03 orphan) as a `logger.info` no-op via `disableErrors`, not a
+  captureException + rethrow. Real generator faults still capture and rethrow.
+
+### Tests
+- Permanent coverage for BOTH PDF-preview twins' blocked-popup path (#138) — the silent-success bug
+  had none, and had already recurred once.
+- Orphaned-pre-warm classification test in `bestEffortEnqueue.int.spec.ts` (#139); int 71 → 73.
+
+### Ops
+- **Deploy of #139 is pending** — the Rock began rejecting SSH mid-session (changed host key, then
+  publickey denied). Live site healthy; runtime change not yet deployed. Needs operator attention.
+
 ## 2026-07-21 — /simplify follow-ups + sharp security bump (#135, #136)
 
 ### Security

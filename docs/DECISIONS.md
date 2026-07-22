@@ -11,7 +11,62 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-21 (latest) — /simplify follow-ups, and a forced sharp major bump (#135, #136)
+## 2026-07-21 (latest) — review round 2: enqueue type check, popup twins, orphaned pre-warm (#138, #139)
+
+Two more review passes on the L3-03 / timing work, plus the spawned follow-up landing.
+
+**`enqueueDetached` had QUIETLY lost the task↔input type check (#138).** My first cut typed it as
+`Omit<Extract<Parameters<queue>[0], …>, 'req'>`. That correctly forbade `req`, but `Parameters<>` on
+a GENERIC method instantiates the type parameter at its constraint — so `input` collapsed to the union
+of every task's input, and `{ task: 'messagePing', input: <wrong shape> }` compiled where the native
+`jobs.queue` rejects it. The correlation lives in the method's type PARAMETER, which is exactly what
+`Parameters<>` erases. Fix: make the helper itself generic over the slug
+(`<TSlug extends keyof TypedJobs['tasks']>`), mirroring the native signature so the pair is checked
+again. Pinned in `tests/unit/enqueueDetached.spec.ts` with `@ts-expect-error` on BOTH negatives (a
+passed `req`, and a mismatched input).
+
+A verification lesson from this one: a standalone type probe compiled OUTSIDE the project reported
+`input: JsonObject` and seemed to show the check still missing. That was the probe's fault — it did not
+load the project's `declare module 'payload'` augmentation that wires `TypedJobs` to the generated
+`TaskMessagePing`. The in-project type test is the only valid check. Don't trust a type probe compiled
+without the project's tsconfig.
+
+**The popup-twin fix got permanent coverage (#138).** #133/#135 fixed the unchecked `window.open`
+retry (a blocked popup must throw, never resolve having opened nothing) but the property had no test —
+and this twin divergence had already recurred once. Added tests for BOTH `openPreparedPdfInNewTab` and
+`openGeneratedPdfInNewTab`: opened-tab, blocked-then-retry, both-blocked→throws, and blob-revocation on
+the blocked path. Verified load-bearing — reintroducing the unchecked retry fails both "both blocked"
+tests.
+
+**Orphaned pre-warm is now a no-op, not a captured failure (#139).** The follow-up flagged in the #135
+entry. Since #131, `prewarmVersionArtifacts` enqueues outside the caller's transaction, so a pre-warm
+can outlive an ingest/promotion that rolled back and reference a version row that is gone — a benign,
+expected outcome. `generateVersionArtifact` was reporting it as a full failure (logger.error +
+captureException + rethrow), and those captures are ALSO how a genuine generator fault reaches a human,
+so routine alerts for a design-accepted condition are how a real one gets waved off. Classified at the
+boundary: the version `findByID` runs `disableErrors: true`, a null downgrades to logger.info + no-op,
+every other error still captures + rethrows. This forced splitting the previously-concurrent
+generate‖prefix-read (the gate must precede `generateForVersion`'s own findByID); cost is one indexed
+read no longer overlapping the DOCX build. Test asserts the CLASSIFICATION (captureException NOT
+called), not merely "did not throw"; a sibling test pins that a real failure still captures, so a
+blanket swallow can't pass vacuously. Mutation-checked: `disableErrors: false` fails only the no-op
+test.
+
+Process note — this last change was authored in a SPAWNED session whose worktree had branched at
+`23eaec8`, behind main. Two of its three files had moved under #135/#138, so it was reviewed and
+re-integrated onto current main rather than committed as-is. When a spawned/parallel session's branch
+is behind, integrate its intent, don't replay its diff.
+
+**OPEN OPERATIONAL ISSUE — the Rock is rejecting SSH.** Mid-session `ssh david@rock5b` began failing:
+first a changed host key (`accept-new` got past it), then `Permission denied (publickey)` for the key
+that had deployed #136 earlier the same day. The name still resolves to the usual Tailscale IP and the
+live site stayed healthy throughout (200 via cloudflared), so this is the Rock's SSH state changing —
+likely a reboot regenerating host keys, possibly touched by the parallel session's Rock work — NOT a
+laptop problem. Consequence: **#139 (a runtime job-handler change) is merged + CI-green but NOT
+deployed**; the Rock runs the #136 build, where an orphaned pre-warm still emits the noisy capture.
+This is alert-noise on a rare path, not a correctness/user issue. Needs operator attention on the Rock.
+
+## 2026-07-21 — /simplify follow-ups, and a forced sharp major bump (#135, #136)
 
 **A /simplify pass that caught a real bug, not just tidied.** Four cleanup angles ran over the L3-03
 and timing-oracle work. Two independently flagged the same thing: `openPreparedPdfInNewTab` still had
