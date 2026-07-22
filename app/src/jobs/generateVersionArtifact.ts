@@ -23,7 +23,7 @@ import {
   type ArtifactSpec,
   type ExportKind,
 } from '../generator/exportArtifacts'
-import { generateForVersion } from '../generator/generateForVersion'
+import { generateFromVersionSnapshot } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { captureException } from '../lib/errorTracking'
 import type { LessonBundleVersion, PayloadJob } from '../payload-types'
@@ -61,9 +61,10 @@ export const generateVersionArtifactTask: TaskConfig<{
       //
       // Classified AT THE BOUNDARY: `disableErrors` turns only "no such row" into `null`, so every
       // other error — including a real generator fault below — still takes the capture + rethrow path.
-      // This one read is authoritative: the loaded snapshot is passed straight into `generateForVersion`
-      // below, so generation never re-reads the row and a delete landing after this gate cannot turn a
-      // legitimate no-op into a captured NotFound.
+      // This one read is authoritative: the loaded snapshot is passed straight into
+      // `generateFromVersionSnapshot` below (the pure, fetch-free variant), so generation never
+      // re-reads the row and a delete landing after this gate cannot turn a legitimate no-op into a
+      // captured NotFound.
       const version = (await req.payload.findByID({
         collection: 'lesson-bundle-versions',
         id: versionId,
@@ -80,7 +81,7 @@ export const generateVersionArtifactTask: TaskConfig<{
       }
 
       const spec: ArtifactSpec = { scope: versionScope(versionId), kind }
-      const generated = await generateForVersion(req.payload, versionId, version)
+      const generated = await generateFromVersionSnapshot(version)
       await produceArtifacts(spec, generated, safePrefix(version.meta?.filePrefix), docxToPdf)
       return { output: {} }
     } catch (err) {

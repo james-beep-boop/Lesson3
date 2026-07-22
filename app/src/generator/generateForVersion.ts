@@ -17,23 +17,28 @@ import { bundleToAresData } from './adapter'
 import { generateBundleDocx, type GeneratedDocx } from './index'
 import type { LessonBundleVersion } from '../payload-types'
 
-export async function generateForVersion(
-  payload: Payload,
-  id: number | string,
-  // A caller that already loaded the row (e.g. the `generateVersionArtifact` task's vanished-version
-  // gate) passes it here so generation reuses that exact snapshot instead of issuing a second read —
-  // closing the delete-between-reads race where the gate saw the version but this findByID would then
-  // throw a raw NotFound. When omitted, the `depth: 0` / `overrideAccess: true` read is authoritative.
-  preloaded?: LessonBundleVersion,
-): Promise<GeneratedDocx> {
-  const version =
-    preloaded ??
-    ((await payload.findByID({
-      collection: 'lesson-bundle-versions',
-      id,
-      depth: 0,
-      overrideAccess: true,
-    })) as LessonBundleVersion)
-
+/**
+ * Pure transform: an already-loaded version snapshot → generated DOCX. No fetch, no access check, no
+ * delete-between-reads race — the CALLER owns the row (it loaded and, where relevant, null-gated it).
+ * The two artifact jobs use this: they read the version once for their own gating and hand that exact
+ * snapshot here, so generation can never re-read it and see it vanish.
+ */
+export function generateFromVersionSnapshot(version: LessonBundleVersion): Promise<GeneratedDocx> {
   return generateBundleDocx(bundleToAresData(version))
+}
+
+/**
+ * id-based convenience for callers that hold only an id (e.g. `htmlSectionsCache`): fetch the version
+ * on the trusted system path, then generate. See the module header for the `overrideAccess` contract —
+ * the caller must have already enforced the request's read access.
+ */
+export async function generateForVersion(payload: Payload, id: number | string): Promise<GeneratedDocx> {
+  const version = (await payload.findByID({
+    collection: 'lesson-bundle-versions',
+    id,
+    depth: 0,
+    overrideAccess: true,
+  })) as LessonBundleVersion
+
+  return generateFromVersionSnapshot(version)
 }

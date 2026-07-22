@@ -23,7 +23,7 @@ import {
   type ArtifactSpec,
   type ExportKind,
 } from '../generator/exportArtifacts'
-import { generateForVersion } from '../generator/generateForVersion'
+import { generateFromVersionSnapshot } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { sanitizeEmailHeaderText } from '../lib/emailAddress'
 import { captureException } from '../lib/errorTracking'
@@ -82,7 +82,7 @@ export const emailVersionArtifactTask: TaskConfig<{
       let zip = cached
       if (!zip) {
         // Reuse the `version` already loaded above rather than re-reading the row inside the generator.
-        await produceArtifacts(spec, await generateForVersion(req.payload, versionId, version), prefix, docxToPdf)
+        await produceArtifacts(spec, await generateFromVersionSnapshot(version), prefix, docxToPdf)
         zip = await loadCachedExportZip(spec)
       }
       if (!zip) throw new Error('export artifacts missing after generation')
