@@ -33,6 +33,26 @@ describe('enqueueDetached — types (the reason it exists)', () => {
     expect('req' in arg).toBe(false)
   })
 
+  it('strips req even from a prebuilt wider object (excess-property checking only guards literals)', async () => {
+    const payload = fakePayload()
+    // A caller could build the argument object elsewhere and widen it — TypeScript accepts the extra
+    // `req` structurally (no fresh-literal excess-property check), so the guard must hold at RUNTIME.
+    const sentinelReq = { transactionID: 'tx-should-not-forward' }
+    const prebuilt = {
+      task: 'messagePing' as const,
+      input: { messageId: 1, recipientUserId: 2, senderUserId: 3 },
+      req: sentinelReq,
+    }
+    await enqueueDetached(payload, prebuilt as Parameters<typeof enqueueDetached>[1])
+    const queue = payload.jobs.queue as unknown as ReturnType<typeof vi.fn>
+    const arg = queue.mock.calls[0][0]
+    expect('req' in arg).toBe(false)
+    expect(arg).toEqual({
+      task: 'messagePing',
+      input: { messageId: 1, recipientUserId: 2, senderUserId: 3 },
+    })
+  })
+
   it('rejects a passed req at compile time', () => {
     const payload = fakePayload()
     void (() =>
