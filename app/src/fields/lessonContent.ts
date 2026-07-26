@@ -70,15 +70,27 @@ const resourcePhaseFields = (): Field[] => [
   },
 ]
 
-// Collapsed-row label config for an array: shows "<noun> N — <first line of `field`>" via the
-// shared RowLabel component (registered once in admin/importMap.js). Pure per-array config.
-const rowLabel = (field: string, noun: string) => ({
+// A collapsible bundle array row: shows "<noun> N — <first line of `field`>" via the shared RowLabel
+// component (registered once in admin/importMap.js), and starts COLLAPSED. Pure per-array config,
+// used by every content array in this file.
+//
+// The two halves are one decision, not two (2026-07-25): a dozen fully-expanded lesson rows is the
+// single biggest reason this form reads as intimidating, and collapsing is only safe BECAUSE the row
+// label keeps a collapsed row identifiable. The jump nav expands a row on the way in.
+//
+// NOTE: `initCollapsed` is a FIRST-VISIT default only. `isRowCollapsed` (@payloadcms/ui) resolves
+// in-session form state → stored field preferences → this value, and the preferences tier is gated on
+// mere EXISTENCE — so once an account has toggled any row, this is never consulted and unlisted rows
+// render expanded. Hence scripts/clear-editor-collapse-prefs.ts. See
+// docs/DESIGN-editor-usability-2026-07-25.md §3b/§3c.
+const collapsedRow = (field: string, noun: string) => ({
   components: {
     RowLabel: {
       path: '@/components/RowLabel#default',
       clientProps: { field, noun },
     },
   },
+  initCollapsed: true,
 })
 
 // Admin-form VISIBILITY for the admin-only structure sections (META / UNIT): show them only to whoever
@@ -198,7 +210,7 @@ export const lessonContentFields: Field[] = [
     label: 'LESSONS',
     labels: { singular: 'Lesson', plural: 'Lessons' },
     admin: {
-      ...rowLabel('title', 'Lesson'),
+      ...collapsedRow('title', 'Lesson'),
       description:
         'Subject Admins may duplicate an existing lesson to add a row. Its system-managed ARES resource links are copied from the source lesson and cannot be edited.',
     },
@@ -262,7 +274,7 @@ export const lessonContentFields: Field[] = [
         type: 'array',
         label: 'Instructional framework',
         labels: { singular: 'Phase', plural: 'Phases' },
-        admin: rowLabel('phase', 'Phase'),
+        admin: collapsedRow('phase', 'Phase'),
         // Each lesson needs ≥1 phase or the generator's Section C is empty (native;
         // skipped for drafts — validateGeneratable is the create-time authority).
         minRows: 1,
@@ -310,7 +322,7 @@ export const lessonContentFields: Field[] = [
         name: 'sections',
         type: 'array',
         labels: { singular: 'Section', plural: 'Sections' },
-        admin: rowLabel('title', 'Section'),
+        admin: collapsedRow('title', 'Section'),
         fields: [
           adminOnly(structureText('title', 'Title')),
           prose('prompt', 'Prompt'),
@@ -323,7 +335,7 @@ export const lessonContentFields: Field[] = [
         name: 'rubric',
         type: 'array',
         labels: { singular: 'Rubric row', plural: 'Rubric' },
-        admin: rowLabel('criterion', 'Rubric row'),
+        admin: collapsedRow('criterion', 'Rubric row'),
         access: { update: canEditStructure },
         fields: [
           structureText('criterion', 'Criterion'),
@@ -347,7 +359,7 @@ export const lessonContentFields: Field[] = [
         name: 'lessons',
         type: 'array',
         labels: { singular: 'Lesson row', plural: 'Lesson rows' },
-        admin: rowLabel('title', 'Lesson row'),
+        admin: collapsedRow('title', 'Lesson row'),
         fields: [
           {
             name: 'number',

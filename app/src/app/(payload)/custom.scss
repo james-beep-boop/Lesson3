@@ -803,6 +803,25 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
       color: var(--app-accent);
     }
   }
+  // Active section (2026-07-25): the chip for wherever you are reads as filled, so a long plan says
+  // which lesson you're on at a glance. White on --app-accent is ~7.5:1. Single-sourced accent — do
+  // NOT reintroduce a literal #1f5fa8 here (see the app-tokens note above).
+  //
+  // Styled off `[aria-current]` rather than a modifier class, so the accessible state and the visible
+  // state cannot drift apart — EditJumpNav omits the attribute entirely when inactive (never
+  // `="false"`), which is what makes a presence selector safe. Specificity ties with the `:hover` /
+  // `:focus-visible` rules above (both 0,2,0) and this comes later in source, so the active chip stays
+  // filled under the pointer without restating either pseudo-class.
+  //
+  // ⚠ Keep these declarations SIZE-NEUTRAL. The nav sits inside the element a ResizeObserver watches
+  // for the active-section tracking; adding font-weight/padding/border-width here would resize a chip
+  // on activation, potentially rewrap the toolbar and re-enter that observer. Colour only.
+  &__nav-chip[aria-current],
+  &__nav-link[aria-current] {
+    background: var(--app-accent);
+    border-color: var(--app-accent);
+    color: #fff;
+  }
 }
 
 // Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
