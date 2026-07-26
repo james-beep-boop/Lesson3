@@ -73,10 +73,15 @@ const run = async () => {
     touched += 1
     payload.logger.info(`${doc.key} — clearing collapse state for: ${stripped.join(', ')}`)
     if (apply) {
+      // `user` MUST be resubmitted. It is a REQUIRED polymorphic relationship living in
+      // `payload_preferences_rels`, not a column on the row, and Payload validates the whole document
+      // on update — so a `{ value }`-only patch fails with "The following field is invalid: User"
+      // (hit for real on the Rock, 2026-07-26). `depth: 0` above returns it already in the
+      // `{ relationTo, value }` write shape, so it round-trips as-is.
       await payload.update({
         collection: 'payload-preferences',
         id: doc.id,
-        data: { value } as never,
+        data: { value, user: doc.user } as never,
       })
     }
   }
