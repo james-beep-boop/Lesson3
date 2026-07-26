@@ -11,7 +11,88 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-22 (latest) — PDF-preview latency: measured, and where the floor actually is
+## 2026-07-25 (latest) — editor usability batch PR 1: current-lesson indicator + collapsed rows
+
+User/reviewer feedback on the live editor said it reads as a database form, not a teaching tool. Full
+plan (all three PRs, verdicts, deferrals): `docs/DESIGN-editor-usability-2026-07-25.md`. PR 1 ships the
+operator's top priority — knowing which lesson you are on — plus collapsed-by-default rows.
+
+**Built:** active-section tracking in `EditJumpNav` (the chip bar already existed; it only lacked an
+active state). Filled blue/white chip via `var(--app-accent)`, `aria-current="location"`, focus-beats-
+scroll resolution, and Final Explanation / Summary Table tracked alongside lessons so the last lesson
+doesn't stay lit. The rule and the section-id shapes live in `currentSection.ts` and are unit-pinned;
+the plumbing (a passive rAF-throttled `scroll` listener + a body `ResizeObserver` + measured toolbar
+height) stays in the component. `initCollapsed: true` on the five row arrays.
+
+**Three lessons worth keeping:**
+
+1. **`initCollapsed` is the LAST of three fallbacks, and goes inert once preferences exist.** From
+   `@payloadcms/ui/dist/forms/fieldSchemasToFormState/isRowCollapsed.js`: in-session form state →
+   stored preferences (`collapsedPrefs !== undefined`, then `collapsedPrefs.includes(row.id)`) →
+   `initCollapsed`. The middle tier's *existence* check is the trap: once any preferences entry exists
+   for that array path, `initCollapsed` is never consulted and unlisted rows render EXPANDED. So the
+   one-line default silently does nothing for anyone who has used the editor before — i.e. exactly the
+   users who complained. Hence `scripts/clear-editor-collapse-prefs.ts` (operator chose to clear;
+   current stored state is disposable test data). **General rule: a "default" that sits behind a
+   preferences layer is not a default for existing users — check the precedence before promising the
+   change.** Verification must cover a fresh account AND a previously-used one; testing only the fresh
+   one reports success on a no-op.
+2. **Verify the code path you are actually changing, not an analogous one.** The precedence was first
+   confirmed in the `Collapsible` FIELD, then assumed to cover array rows. `isRowCollapsed.js` turned
+   out to be a different, three-tier implementation, and the consequence was materially worse than the
+   two-tier version suggested. Two review layers (mine, then GPT's) both stated the weaker version.
+3. **The editor jump nav wraps; it does not scroll horizontally.** `flex-wrap: wrap`, no `overflow-x`.
+   The #99 right-edge fade is on the FRONTEND lesson page's `.doc-nav` — a different stylesheet. Both
+   the draft plan and the GPT review misattributed it and specified a scroll-the-active-chip-into-view
+   feature that would have been dead code (and `scrollIntoView` on a chip can yank the page vertically).
+   Dropped before implementation.
+
+**Payload DOM facts, verified against payload@3.85.1 (`fields/Array/ArrayRow.js`)** — the tracking
+depends on them, so they are recorded rather than re-derived: an array row's OUTER wrapper is
+`id={parentPath.split('.').join('-')}-row-{i}` and it encloses the row's whole Collapsible (so a focused
+field really does have a `lessons-row-<i>` ancestor). Dots become dashes, which is *why* the nested
+Summary-Table array (`summaryTable-lessons-row-0`) and phase rows (`lessons-0-framework-row-0`) cannot be
+mistaken for top-level lessons by an `^="lessons-row-"` prefix. The row HEADER carries a separate id
+built from `scrollIdPrefix`, so there is no collision.
+
+**Two defects found in external review (GPT), both fixed here — worth recording because both were
+caused by the collapse change and neither was reachable by the unit tests:**
+
+- **The IntersectionObserver could not see the transition the rule depends on.** IO fires when an
+  element ENTERS or LEAVES the root band; the rule turns on a section's TOP crossing the toolbar line.
+  A row taller than the band stays continuously intersecting while its top crosses, so no callback
+  fires when the answer changes. With adjacent rows the previous row's exit masks this; Payload's
+  inter-row gaps mean it does not, and the chip could stick on the previous lesson for the entire
+  height of an expanded one. Replaced with a passive, rAF-throttled `scroll` listener plus the existing
+  body `ResizeObserver` — the two signals are "position changed" and "position changed without
+  scrolling". **Lesson: an observer that fires on the wrong event is worse than a scroll handler, and
+  a pure-rule unit test cannot detect the plumbing not firing.** The original "observer-driven, NOT a
+  scroll handler" rationale was half right: it correctly identified that scroll alone goes stale
+  through lazy render, and wrongly concluded IO could replace it. Both are needed.
+- **`scrollToField` expanded an unrelated nested row.** It searched a target's whole subtree for the
+  first `.collapsible--collapsed .collapsible__toggle`. Harmless while nested arrays rendered
+  expanded — but this change collapses `framework`, `sections`, `rubric` and `summaryTable.lessons`
+  too, so jumping to an already-open lesson expanded its first phase, and jumping to Final Explanation
+  expanded its first section. Now `ownCollapsedToggle` considers only the target's DIRECT-child
+  collapsible (`:scope >`), so group targets correctly expand nothing. **Lesson: changing a default
+  can activate a latent bug in code that was not touched** — the collapse flag and the jump nav are
+  separate features that only interact through the DOM.
+
+**Correction — the earlier "host is broken" note in this entry was WRONG and has been removed.** It
+claimed `node_modules/.bin` was damaged (missing `tsc`/`eslint`) and that jsdom vitest workers could not
+start. Both symlinks exist and jsdom runs fine; the failing `ls` had been executed from the REPO ROOT
+rather than `app/`, because the shell's working directory had carried over from an earlier command. The
+real, still-unexplained problem is narrower: `npx`/`npm exec` stalls at 0% CPU on this host, while
+invoking the same binaries directly (`node node_modules/typescript/bin/tsc`,
+`node node_modules/.bin/eslint`, `node node_modules/vitest/vitest.mjs`) works. All three gates pass that
+way — tsc 0, lint 0, unit 253/253 across 40 files. **Lesson: check the working directory before
+diagnosing a missing file, and prefer direct binary invocation on this host.** (The 46 duplicate
+`" 2"`-suffixed entries in `node_modules/.bin` are real but demonstrably harmless — suspicious is not
+the same as causal.)
+
+---
+
+## 2026-07-22 — PDF-preview latency: measured, and where the floor actually is
 
 Operator flagged the edit-page "View as PDF" as ~10 s. Investigated with three external agents
 (Nanoclaw, Hermes) plus GPT plus a direct Rock measurement. Recording the conclusion so the wrong fixes

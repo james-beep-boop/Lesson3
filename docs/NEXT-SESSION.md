@@ -48,6 +48,20 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
 > docker compose up -d app`, then confirm the image was actually rebuilt (`docker inspect lesson3-app-1
 > --format '{{.Created}}'`) — a source-string grep of `.next` is unreliable because Next.js minifies.
 
+**IN PROGRESS (2026-07-25) — editor usability batch.** User/reviewer feedback said the editor reads as
+a database form rather than a teaching tool. Plan, verdicts and deferrals:
+**`docs/DESIGN-editor-usability-2026-07-25.md`** (three small PRs); reasoning + lessons in DECISIONS
+2026-07-25. **PR 1 is BUILT, not committed:** the current-lesson indicator (the operator's top
+priority — the jump-nav chip bar already existed and only lacked an active state) plus
+collapsed-by-default array rows. App-level, **no migration**. PR 2 (plain language: kill the 40×
+repeated grammar hint, one Instructions modal, teacher-facing labels, Hide-Details default) and PR 3
+(preview clarity: rename by purpose, "opens in a new tab", **no literal Back link** — it would strand
+unsaved edits in the other tab) are planned, not started.
+⚠ **Ships with an operator step:** `app/scripts/clear-editor-collapse-prefs.ts` (`APPLY=1` to act).
+`initCollapsed` is the LAST of three fallbacks and goes inert once stored preferences exist, so without
+this the collapse default does nothing for anyone who has opened the editor before. Verify on a fresh
+account AND a previously-used one.
+
 **Remaining queue (nothing else is blocking):**
 1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.

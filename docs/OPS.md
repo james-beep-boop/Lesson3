@@ -116,6 +116,46 @@ explicitly.
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".
 
+### One-off: clear stored editor collapse preferences
+
+Run ONCE after deploying the collapsed-by-default editor rows (2026-07-25). Without it the change is
+invisible to everyone who has opened the version editor before — `initCollapsed` is the last of three
+fallbacks in Payload's `isRowCollapsed`, and the stored-preferences tier is gated on mere existence, so
+any account with saved field preferences never consults it and its rows render expanded.
+
+Run it from the **`migrate` service**, not `app`. The prod `app` image is a minimal Next standalone
+without the Payload CLI or `scripts/` source (see the comment on the `migrate` service in
+`docker-compose.yml`); `migrate` is built from the Dockerfile's `builder` stage, so it has both. Run
+from the repo root, where the compose file lives:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/clear-editor-collapse-prefs.ts
+```
+
+Reports only. To actually write, pass `APPLY=1` **into the container with `-e`** — a shell prefix would
+only set it for the local docker CLI, not for the process inside:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/clear-editor-collapse-prefs.ts
+```
+
+Idempotent and safe to repeat. New preferences accumulate again as soon as anyone toggles a row — that
+is intended.
+
+⚠ **Run it when editors are idle, and have anyone with the editor open reload afterwards.** The script
+reads each preference document, strips the collapse state, and writes the snapshot back, so a
+preference saved between those two steps is lost. Worse, an already-open tab holds Payload's in-memory
+preference cache and can write the old collapse values straight back after you finish. A quiet moment
+plus a reload avoids both; neither is a data-integrity risk (this is UI state), just a wasted run.
+
+It is **surgical**: it strips only `value.fields[<path>].collapsed` and preserves every other stored
+preference. It touches only `collection-lesson-bundle-versions-*` keys, so saved LIST columns and sort
+order are unaffected. Safe to keep and re-use after go-live — there is no disposable-test-data
+assumption baked into it.
+
+**Verify both ways:** a fresh account proves the default works; an account that had used the editor
+before proves the clear did. Testing only the fresh one reports success on a no-op.
+
 ---
 
 ## Structured logging
