@@ -108,10 +108,21 @@ grep -q 'HOME/bin' ~/.profile || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.prof
 ## Deploy (with pre-migration snapshot)
 
 Use `scripts/deploy.sh` instead of a bare `docker compose up`: it pulls, takes a `premigrate-<sha>`
-snapshot, then `docker compose up -d --build` (the one-shot `migrate` runs first). **No snapshot, no
+snapshot, builds, then `docker compose up -d` (the one-shot `migrate` runs first). **No snapshot, no
 migrate:** if backups aren't configured yet it REFUSES (so a destructive migration can't run with no
 restore point). To deploy before backups are wired, run `ALLOW_UNBACKED_DEPLOY=1 scripts/deploy.sh`
 explicitly.
+
+**Only the images carrying app source are rebuilt** (`app`, `migrate`). `gotenberg` is rebuilt only when
+something under `gotenberg/` changed in the pull, or when it has no image yet — the script says which
+branch it took. Rebuild it deliberately (e.g. to refresh the bundled fonts) with
+`FORCE_SIDECAR_BUILD=1 scripts/deploy.sh`.
+
+> Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
+> `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed
+> mid-deploy, `dpkg` exited 100, compose aborted the run — and an app-only change shipped nothing while
+> the repo on the box had already moved to the new commit. If you hit that partial state again (source
+> pulled, containers old), `docker compose build app && docker compose up -d --no-deps app` recovers it.
 
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".
