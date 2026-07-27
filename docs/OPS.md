@@ -119,35 +119,19 @@ the git tree hash of `gotenberg/` differs from the one recorded on the existing 
 **image** rather than git history, it stays correct across retries: a failed build writes no label, so
 re-running rebuilds instead of silently reusing a stale sidecar.
 
-- `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts).
+- `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts). This is
+  also the RECOVERY path: `gotenberg/Dockerfile` pins the base by digest and the font package by version,
+  so the sidecar reproduces from source. There is no old image to fall back to — don't plan on one.
 - `SKIP_SIDECAR_BUILD=1` — skip it even when it does *not* match. Loud warning; only for a
   known-unchanged sidecar when the external font mirror is down.
 
-> **The Rock's gotenberg image was RETROFITTED with the label on 2026-07-27, so no catch-up rebuild is
-> pending.** The image predated the label, which would have forced one rebuild — through the flaky font
-> mirror — on the next deploy. Instead the label was stamped onto the existing layers with a metadata-only
-> build (`FROM lesson3-gotenberg` + `LABEL`), no font download involved. That is honest rather than a
-> fudge: `gotenberg/` last changed 2026-07-05 and the image was built 2026-07-20, so it genuinely *was*
-> built from tree `efab9ec9…`.
->
-> **What changed and what did not.** Adding a `LABEL` is a config change by definition, so the image
-> config and image ID both changed (`54e3ad0b…` → `7f75077d…`). What was verified unchanged is the
-> RUNTIME-relevant configuration: `user=gotenberg`, `entrypoint=["/usr/bin/tini","--"]`,
-> `cmd=["gotenberg"]`, `exposed=3000/tcp`. Also verified: the running container was never restarted,
-> gotenberg health reports `chromium: up` / `libreoffice: up` from inside the app network, the site stayed
-> at 200, and `deploy.sh`'s comparison now resolves to SKIP.
->
-> Note the running container still references the PRE-label image (`54e3ad0b…`) — retagging does not
-> restart anything. It will pick up the labelled image the next time it is recreated. The two differ only
-> by that label.
->
-> **Recovery is a REBUILD, not an image restore.** `gotenberg/Dockerfile` pins both the base
-> (`gotenberg/gotenberg:8@sha256:6709731…`) and the font package (`ttf-mscorefonts-installer=3.8.1`), so
-> `FORCE_SIDECAR_BUILD=1 scripts/deploy.sh` reproduces the sidecar from source — subject only to the font
-> mirror being up. Do not rely on keeping the old image around: it is already unreachable (untagged, and
-> no longer in the image store — its layers survive only because the running container holds them), so it
-> cannot even be re-tagged. An earlier note here pointed at `/tmp/gotenberg-old-image-id.txt`; that was
-> doubly wrong — `/tmp` clears on reboot, and the image it named is gone. The file has been deleted.
+> **No catch-up rebuild is pending** (2026-07-27). The Rock's image predated the label, which would have
+> forced one rebuild through the flaky font mirror; the label was instead stamped onto the existing layers
+> with a metadata-only build, so `deploy.sh` now resolves to SKIP. Legitimate because `gotenberg/` last
+> changed 2026-07-05 and the image was built 2026-07-20. One wrinkle if you compare image ids: the running
+> container still references the pre-label image, since retagging restarts nothing — it picks up the
+> labelled one whenever it is next recreated, and the two differ only by that label. Full account:
+> DECISIONS 2026-07-27.
 
 > Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
 > `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed

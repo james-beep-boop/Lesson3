@@ -11,7 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-25 (latest) — editor usability batch PR 1: current-lesson indicator + collapsed rows
+## 2026-07-27 (latest) — retrofitting the gotenberg provenance label, and two claims that were wrong
+
+#152 gated the sidecar build on a `org.lesson3.sidecar-tree` image label. The Rock's image predated it, so
+the next deploy would have rebuilt gotenberg through the font mirror that caused the original incident.
+Avoided by stamping the label onto the existing layers with a metadata-only build (`FROM
+lesson3-gotenberg` + `LABEL`) — no font download. Legitimate, not a fudge: `gotenberg/` last changed
+2026-07-05 and the image was built 2026-07-20, so it really was built from that tree.
+
+**Two lessons, both from claims I made and CodeRabbit caught:**
+
+1. **"Image config byte-identical" was false.** Labels live in `.Config`, so adding one changes the config
+   AND the image id (`54e3ad0b…` → `7f75077d…`). What I had actually checked was the runtime-relevant
+   subset — user, entrypoint, cmd, exposed port. **Rule: name the fields you compared, don't reach for a
+   totalising word like "identical".** This is the same overclaiming that produced three other wrong
+   environment diagnoses this week (a missing `.bin` symlink that was a wrong-cwd error; "the app image
+   has the Payload CLI"; "resubmitting `user` fixes the preferences update").
+2. **A rollback reference in `/tmp` was worse than flagged.** The review said `/tmp` clears on reboot.
+   Checking found the referenced image was ALREADY unreachable — untagged and dropped from the image store,
+   its layers alive only because the running container holds them, so it could not even be re-tagged.
+   **Rule: before recording a pointer to a fallback, verify the fallback still exists.** The real recovery
+   path was never an image restore: the Dockerfile pins the base by digest and
+   `ttf-mscorefonts-installer=3.8.1`, so `FORCE_SIDECAR_BUILD=1` reproduces it from source.
+
+Also: the retrofit trick generalises — any image predating a label change can be relabelled this way
+instead of rebuilt, provided its source tree has not moved since the build. Verify that, don't assume it.
+
+---
+
+## 2026-07-25 — editor usability batch PR 1: current-lesson indicator + collapsed rows
 
 User/reviewer feedback on the live editor said it reads as a database form, not a teaching tool. Full
 plan (all three PRs, verdicts, deferrals): `docs/DESIGN-editor-usability-2026-07-25.md`. PR 1 ships the
