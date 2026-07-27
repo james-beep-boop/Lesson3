@@ -121,8 +121,17 @@ re-running rebuilds instead of silently reusing a stale sidecar.
 
 - `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts).
 - `SKIP_SIDECAR_BUILD=1` — skip it even when it does *not* match. Loud warning; only for a
-  known-unchanged sidecar when the external font mirror is down. **The first deploy after this change
-  will rebuild gotenberg once**, because the running image predates the provenance label.
+  known-unchanged sidecar when the external font mirror is down.
+
+> **The Rock's gotenberg image was RETROFITTED with the label on 2026-07-27, so no catch-up rebuild is
+> pending.** The image predated the label, which would have forced one rebuild — through the flaky font
+> mirror — on the next deploy. Instead the label was stamped onto the existing layers with a metadata-only
+> build (`FROM lesson3-gotenberg` + `LABEL`), no font download involved. That is honest rather than a
+> fudge: `gotenberg/` last changed 2026-07-05 and the image was built 2026-07-20, so it genuinely *was*
+> built from tree `efab9ec9…`. Verified afterwards: image config byte-identical (user, entrypoint, cmd,
+> exposed port), running container never restarted, gotenberg health `chromium: up` / `libreoffice: up`,
+> and `deploy.sh`'s comparison now resolves to SKIP. Repeat the same trick if a future image ever predates
+> a label change; the previous image id was kept at `/tmp/gotenberg-old-image-id.txt`.
 
 > Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
 > `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed
