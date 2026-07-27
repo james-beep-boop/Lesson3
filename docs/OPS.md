@@ -130,37 +130,17 @@ fix; the skip logic above only keeps an *unchanged* sidecar off the deploy path.
 mismatched image, and for a missing image it wouldn't even work (`up -d --no-build` fails loudly instead of
 silently building it).
 
-> **The next deploy WILL rebuild gotenberg** — correctly, and now with the retry above. The Rock's image
-> carries the retrofitted label `efab9ec9…`, but `gotenberg/Dockerfile` changed when the retry landed, so
-> the tree hash moved and the provenance gate mismatches. That is the mechanism working, not a fault: an
-> image built before the retry genuinely is not built from the current source. Expect one font build; after
-> it, matching resumes.
+> **Provenance is currently MATCHED** (verified 2026-07-27, Rock at `5cfd4eb`): `gotenberg/` tree
+> `d7c32515…` equals the label on the running image, so `deploy.sh` skips the font build — the steady state
+> this mechanism exists to produce. `fc-list` reports 9 Arial faces in that image.
 >
-> History (2026-07-27): the image originally predated the label entirely, which would have forced a rebuild
-> through the un-retried mirror; the label was stamped onto the existing layers with a metadata-only build
-> to avoid it. Legitimate because `gotenberg/` last
-> changed 2026-07-05 and the image was built 2026-07-20. One wrinkle if you compare image ids: the running
-> container still references the pre-label image, since retagging restarts nothing — it picks up the
-> labelled one whenever it is next recreated, and the two differ only by that label. Full account:
-> DECISIONS 2026-07-27.
-
-> Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
-> `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed
-> mid-deploy, `dpkg` exited 100, compose aborted the run — and an app-only change shipped nothing while
-> the repo on the box had already moved to the new commit.
-
-**Recovering that partial state** (source pulled, containers old): just **re-run `scripts/deploy.sh`** —
-it no longer rebuilds an unchanged sidecar, and it keeps normal dependency ordering so `migrate` still
-runs before `app`.
-
-> ⚠ Do NOT reach for `docker compose up -d --no-deps app`. It bypasses the `migrate` dependency, so after
-> a schema-changing pull it starts new application code against an **old database schema**. It is only
-> safe when you have positively confirmed the pull contains no migrations
-> (`git diff --name-only <old>..<new> -- app/src/migrations`), which is the one narrow case it was used
-> for on 2026-07-26.
->
-> Also note `deploy.sh` **pulls itself**: a change to that script takes effect on the *next* run, not the
-> run that pulls it. Re-run once after any `deploy.sh` change.
+> History, for when the same situation recurs: the image originally predated the label entirely, which
+> would have forced a rebuild through the un-retried mirror; the label was stamped onto the existing layers
+> with a metadata-only build (`FROM lesson3-gotenberg` + `LABEL`) to avoid it — legitimate because
+> `gotenberg/` had not changed since that image was built. Adding the font retry then moved the tree, so
+> the gate correctly mismatched and rebuilt on the next deploy. That build succeeded on its first attempt,
+> which is the retry's first real exercise. Note a `LABEL` is itself a config change, so the image ID moves
+> (`54e3ad0b…` → …); what stays fixed is the runtime configuration — user, entrypoint, cmd, exposed port.
 
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".

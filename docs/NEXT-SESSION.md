@@ -18,10 +18,10 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is deployed at `main` `1a1f5bd`** (2026-07-22 — #137–#143, incl. all runtime
-hardening; SSH recovered, operator redeployed, verified: image rebuilt, source in-container carries
-the changes, site 200/healthy). Always CONFIRM rather than trust this line, it goes stale on every
-deploy: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
+**The live Rock is deployed at `main` `5cfd4eb`** (2026-07-27 — #150/#151/#152/#153; app, migrate AND
+gotenberg all rebuilt, migrate a no-op, site 200, gotenberg healthy). Always CONFIRM rather than trust
+this line, it goes stale on every deploy:
+`ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
@@ -48,19 +48,48 @@ TIMING oracle closed** (a fixed response-time floor; byte-identical was not enou
 > docker compose up -d app`, then confirm the image was actually rebuilt (`docker inspect lesson3-app-1
 > --format '{{.Created}}'`) — a source-string grep of `.next` is unreliable because Next.js minifies.
 
-**IN PROGRESS (2026-07-25) — editor usability batch.** User/reviewer feedback said the editor reads as
-a database form rather than a teaching tool. Plan, verdicts and deferrals:
-**`docs/DESIGN-editor-usability-2026-07-25.md`** (three small PRs); reasoning + lessons in DECISIONS
-2026-07-25. **PR 1 is BUILT, not committed:** the current-lesson indicator (the operator's top
-priority — the jump-nav chip bar already existed and only lacked an active state) plus
-collapsed-by-default array rows. App-level, **no migration**. PR 2 (plain language: kill the 40×
-repeated grammar hint, one Instructions modal, teacher-facing labels, Hide-Details default) and PR 3
-(preview clarity: rename by purpose, "opens in a new tab", **no literal Back link** — it would strand
-unsaved edits in the other tab) are planned, not started.
-⚠ **Ships with an operator step:** `app/scripts/clear-editor-collapse-prefs.ts` (`APPLY=1` to act).
-`initCollapsed` is the LAST of three fallbacks and goes inert once stored preferences exist, so without
-this the collapse default does nothing for anyone who has opened the editor before. Verify on a fresh
-account AND a previously-used one.
+**✓ SHIPPED & LIVE (2026-07-27) — editor usability batch PR 1, plus three rounds of ops corrections.**
+User/reviewer feedback said the editor read as a database form, not a teaching tool. Plan, verdicts and
+deferrals: **`docs/DESIGN-editor-usability-2026-07-25.md`**; reasoning and lessons in DECISIONS 2026-07-25
+and the two 2026-07-27 entries.
+
+- **#150 — the current-lesson indicator + collapsed-by-default rows.** The jump-nav chip bar already
+  existed and only lacked an active state: the chip for where you are is filled (`aria-current`, which is
+  also the CSS hook, so accessible and visible state cannot drift), focus beats scroll while typing, and
+  Final Explanation / Summary Table are tracked so the last lesson doesn't stay lit. Also carried
+  `next` 16.2.6 → 16.2.12 + a postcss override, to clear two HIGH advisories that went red on the gate.
+- **#151/#152/#153 — the operator script and the deploy path, corrected three times.** Net result:
+  `scripts/clear-editor-collapse-prefs.ts` works and HAS RUN on the Rock (2 of 2 documents cleared,
+  verified in the DB, owner relationships intact); the sidecar build is gated on image provenance;
+  `gotenberg/Dockerfile` retries the font install and asserts Arial is actually registered; and
+  `scripts/test-deploy-sidecar.sh` gives `deploy.sh` its first automated branch cover, in the CI gate.
+
+**Two things a future session should NOT rediscover the hard way** (full versions in DECISIONS 2026-07-27):
+1. **`user` is a Local API operation OPTION, not a data field.** `payload-preferences.user` is required and
+   its `beforeValidate` hook replaces whatever is in `data` with `req.user`. Two rounds were spent
+   concluding "the Local API cannot do this" — and a green CI test was written asserting that false limit,
+   which then defended the raw-SQL workaround. When a platform call rejects you, check whether the value
+   belongs somewhere other than where you put it before concluding the platform can't do it.
+2. **A verification step must not be reachable when the change step failed.** `cd app && <edit>` run from a
+   shell already in `app/` silently skipped the edit; the check that followed wasn't chained, ran against
+   the unchanged file, and passed. Chain edit-and-check with `&&`, or use absolute paths.
+
+⚠ **STILL OUTSTANDING — browser verification of the indicator.** No automated test covers the scroll
+plumbing, and it was never checked on screen (the dev Mac could not start `next dev` — node hangs in its
+own bootstrap). The case that matters is **two adjacent EXPANDED lessons**: confirm the chip advances as
+each header passes under the toolbar and never sticks on the previous one. Scenarios:
+`docs/DESIGN-editor-usability-2026-07-25.md` §6.
+
+**PR 2 and PR 3 of that batch are planned, not started** — PR 2 (plain language: kill the 40× repeated
+grammar hint, one Instructions modal, teacher-facing labels, Hide-Details default); PR 3 (preview clarity:
+rename by purpose, "opens in a new tab", and deliberately **no literal Back link** — it would strand
+unsaved edits in the other tab).
+
+**Not in this repo: the iCloud problem.** All 23 repos live in an iCloud-synced `~/Documents`, and three
+Macs share one copy — 1,631 conflict copies, including duplicated `.git/index` files (`index 2` AND
+`index 3`, i.e. three-way divergence). `git fsck` would not complete on Lesson3 in 25s, so object-store
+integrity is unverified. Migration plan (clone-don't-move, plus the ignored-asset and secrets payloads a
+clone does not carry): **`~/Desktop/icloud-git-migration.md`**. Do this before trusting the repo further.
 
 **Remaining queue (nothing else is blocking):**
 1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
