@@ -57,15 +57,17 @@ beforeAll(async () => {
     password: `pw-${MARK}-Str0ng!`,
   })
   userId = user.id as number
-  // Seeded with raw SQL because a scripted Local-API *create* hits the same `user` hook with no
-  // `req.user` to satisfy it. Two inserts because the owner is a relationship in its own table.
-  const inserted = (await drizzleOf(payload).execute(
-    sql`INSERT INTO "payload_preferences" ("key", "value") VALUES (${KEY}, ${JSON.stringify(STORED)}::jsonb) RETURNING "id";`,
-  )) as { rows: { id: number }[] }
-  prefId = inserted.rows[0]!.id
-  await drizzleOf(payload).execute(
-    sql`INSERT INTO "payload_preferences_rels" ("parent_id", "path", "users_id") VALUES (${prefId}, 'user', ${userId});`,
-  )
+  // Seeded through the Local API with the same top-level `user` option the script relies on, so the
+  // fixture exercises the mechanism instead of working around it and Payload owns the rels row. (An
+  // earlier version seeded with raw SQL, claiming a scripted create was impossible — repeating the very
+  // false limitation this spec exists to disprove. `create` uses the same `createLocalReq` as `update`.)
+  const created = await payload.create({
+    collection: 'payload-preferences',
+    data: { key: KEY, value: STORED } as never,
+    user: { id: userId, collection: 'users' } as never,
+    overrideAccess: true,
+  })
+  prefId = created.id as number
 })
 
 afterAll(async () => {
