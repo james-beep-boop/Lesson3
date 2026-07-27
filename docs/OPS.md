@@ -128,10 +128,26 @@ re-running rebuilds instead of silently reusing a stale sidecar.
 > mirror — on the next deploy. Instead the label was stamped onto the existing layers with a metadata-only
 > build (`FROM lesson3-gotenberg` + `LABEL`), no font download involved. That is honest rather than a
 > fudge: `gotenberg/` last changed 2026-07-05 and the image was built 2026-07-20, so it genuinely *was*
-> built from tree `efab9ec9…`. Verified afterwards: image config byte-identical (user, entrypoint, cmd,
-> exposed port), running container never restarted, gotenberg health `chromium: up` / `libreoffice: up`,
-> and `deploy.sh`'s comparison now resolves to SKIP. Repeat the same trick if a future image ever predates
-> a label change; the previous image id was kept at `/tmp/gotenberg-old-image-id.txt`.
+> built from tree `efab9ec9…`.
+>
+> **What changed and what did not.** Adding a `LABEL` is a config change by definition, so the image
+> config and image ID both changed (`54e3ad0b…` → `7f75077d…`). What was verified unchanged is the
+> RUNTIME-relevant configuration: `user=gotenberg`, `entrypoint=["/usr/bin/tini","--"]`,
+> `cmd=["gotenberg"]`, `exposed=3000/tcp`. Also verified: the running container was never restarted,
+> gotenberg health reports `chromium: up` / `libreoffice: up` from inside the app network, the site stayed
+> at 200, and `deploy.sh`'s comparison now resolves to SKIP.
+>
+> Note the running container still references the PRE-label image (`54e3ad0b…`) — retagging does not
+> restart anything. It will pick up the labelled image the next time it is recreated. The two differ only
+> by that label.
+>
+> **Recovery is a REBUILD, not an image restore.** `gotenberg/Dockerfile` pins both the base
+> (`gotenberg/gotenberg:8@sha256:6709731…`) and the font package (`ttf-mscorefonts-installer=3.8.1`), so
+> `FORCE_SIDECAR_BUILD=1 scripts/deploy.sh` reproduces the sidecar from source — subject only to the font
+> mirror being up. Do not rely on keeping the old image around: it is already unreachable (untagged, and
+> no longer in the image store — its layers survive only because the running container holds them), so it
+> cannot even be re-tagged. An earlier note here pointed at `/tmp/gotenberg-old-image-id.txt`; that was
+> doubly wrong — `/tmp` clears on reboot, and the image it named is gone. The file has been deleted.
 
 > Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
 > `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed
