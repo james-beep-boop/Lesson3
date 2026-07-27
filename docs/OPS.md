@@ -114,15 +114,33 @@ restore point). To deploy before backups are wired, run `ALLOW_UNBACKED_DEPLOY=1
 explicitly.
 
 **Only the images carrying app source are rebuilt** (`app`, `migrate`). `gotenberg` is rebuilt only when
-something under `gotenberg/` changed in the pull, or when it has no image yet — the script says which
-branch it took. Rebuild it deliberately (e.g. to refresh the bundled fonts) with
-`FORCE_SIDECAR_BUILD=1 scripts/deploy.sh`.
+the git tree hash of `gotenberg/` differs from the one recorded on the existing image (a build label, see
+`docker-compose.yml`) — the script prints which branch it took. Because the comparison is against the
+**image** rather than git history, it stays correct across retries: a failed build writes no label, so
+re-running rebuilds instead of silently reusing a stale sidecar.
+
+- `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts).
+- `SKIP_SIDECAR_BUILD=1` — skip it even when it does *not* match. Loud warning; only for a
+  known-unchanged sidecar when the external font mirror is down. **The first deploy after this change
+  will rebuild gotenberg once**, because the running image predates the provenance label.
 
 > Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
 > `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed
 > mid-deploy, `dpkg` exited 100, compose aborted the run — and an app-only change shipped nothing while
-> the repo on the box had already moved to the new commit. If you hit that partial state again (source
-> pulled, containers old), `docker compose build app && docker compose up -d --no-deps app` recovers it.
+> the repo on the box had already moved to the new commit.
+
+**Recovering that partial state** (source pulled, containers old): just **re-run `scripts/deploy.sh`** —
+it no longer rebuilds an unchanged sidecar, and it keeps normal dependency ordering so `migrate` still
+runs before `app`.
+
+> ⚠ Do NOT reach for `docker compose up -d --no-deps app`. It bypasses the `migrate` dependency, so after
+> a schema-changing pull it starts new application code against an **old database schema**. It is only
+> safe when you have positively confirmed the pull contains no migrations
+> (`git diff --name-only <old>..<new> -- app/src/migrations`), which is the one narrow case it was used
+> for on 2026-07-26.
+>
+> Also note `deploy.sh` **pulls itself**: a change to that script takes effect on the *next* run, not the
+> run that pulls it. Re-run once after any `deploy.sh` change.
 
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".

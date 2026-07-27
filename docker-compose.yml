@@ -79,7 +79,15 @@ services:
   # DOCX call for Arial and stock Gotenberg substitutes Liberation Sans, shifting table row heights
   # vs Word. See gotenberg/Dockerfile. `up --build` needs outbound network once to fetch the fonts.
   gotenberg:
-    build: ./gotenberg
+    build:
+      context: ./gotenberg
+      labels:
+        # PROVENANCE for scripts/deploy.sh: the git tree hash of gotenberg/ that produced this image.
+        # deploy.sh exports GOTENBERG_TREE and skips the (slow, externally-dependent) font build only
+        # when this label already matches. Because a FAILED build never writes the label, a retry
+        # correctly rebuilds instead of silently reusing a stale image. Unset → "unknown" → mismatch →
+        # build, which is the safe default.
+        org.lesson3.sidecar-tree: "${GOTENBERG_TREE:-unknown}"
     restart: unless-stopped
     logging: *default-logging
     # Disable the modules the app never calls, trimming the attack/startup surface.
