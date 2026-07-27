@@ -29,9 +29,24 @@ RUN set -eux; \
     sed -i '/^Components:/ s/$/ contrib/' /etc/apt/sources.list.d/debian.sources; \
     echo 'ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true' | debconf-set-selections; \
     apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      ttf-mscorefonts-installer=3.8.1 wget cabextract fontconfig; \
+    # RETRY the font install (2026-07-27). `ttf-mscorefonts-installer`'s post-install step downloads the
+    # cab files from an EXTERNAL mirror, and that fetch is intermittently unavailable: it failed twice in
+    # one afternoon with `dpkg` exit 100, aborting a whole `compose up --build` and blocking an app-only
+    # deploy. deploy.sh now skips this build when the sidecar is unchanged, but that only routes AROUND
+    # the flakiness — CI (`up -d --build` on a cache-less runner), a genuine gotenberg/ change, and
+    # FORCE_SIDECAR_BUILD recovery all still depend on this step succeeding. Backoff: 15s/30s/45s/60s.
+    for i in 1 2 3 4 5; do \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ttf-mscorefonts-installer=3.8.1 wget cabextract fontconfig && break; \
+      if [ "$i" = 5 ]; then echo "font install failed after 5 attempts" >&2; exit 1; fi; \
+      echo "font install attempt $i failed; retrying in $((i*15))s" >&2; sleep $((i*15)); \
+    done; \
+    # POSTCONDITION, not just an exit code: a retry loop can otherwise mask a package that unpacked but
+    # never configured, and DOCX fidelity depends on real Arial actually being present (stock Gotenberg
+    # substitutes Liberation Sans and shifts table row heights vs Word).
+    dpkg -s ttf-mscorefonts-installer | grep -q '^Status: install ok installed'; \
     fc-cache -f; \
+    fc-list | grep -qi arial; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 USER gotenberg

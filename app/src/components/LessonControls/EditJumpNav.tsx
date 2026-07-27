@@ -126,9 +126,9 @@ export default function EditJumpNav() {
 
   /**
    * Jump AND highlight at once. Clearing `focusKey` matters: if you were typing in lesson 1 and then
-   * click chip 5, the stale focus would otherwise keep lesson 1 lit. The observer re-derives the
-   * highlight as the scroll settles, so this is an optimistic head start, not a separate source of
-   * truth. ('field-title' is not a tracked section, so "Top" correctly lights nothing.)
+   * click chip 5, the stale focus would otherwise keep lesson 1 lit. The tracking effect re-derives
+   * the highlight as the scroll settles, so this is an optimistic head start, not a separate source
+   * of truth. ('field-title' is not a tracked section, so "Top" correctly lights nothing.)
    */
   const jumpTo = useCallback(
     (id: string) => {
@@ -142,7 +142,7 @@ export default function EditJumpNav() {
   // Section ids in document order, as ONE STRING. The joined value — not an array identity, which
   // would be fresh every render like `lessons` — is what the tracking effect depends on; it splits the
   // string apart again below. That indirection is also what keeps the ~2,000-key `fields` object out of
-  // the observers' retained scope. Derived from lesson INDICES only, so typing never changes it: the
+  // the tracking effect's retained scope. Derived from lesson INDICES only, so typing never changes it: the
   // effect rebuilds roughly twice per page load, not per keystroke.
   const sectionIdsKey = [
     ...lessons.map((l) => lessonRowId(l.index)),
@@ -272,7 +272,7 @@ export default function EditJumpNav() {
     <nav className="lesson-controls__nav" aria-label="Jump to section" ref={navRef}>
       {/* "Top" deliberately does NOT take `sectionProps`: `field-title` isn't a tracked section, but
           `jumpTo` still writes it to `positionKey`, so marking it would light this link up until the
-          observer recomputed. Nothing should be current when you're above the first lesson. */}
+          tracking effect recomputed. Nothing should be current when you're above the first lesson. */}
       <button type="button" className="lesson-controls__nav-link" onClick={() => jumpTo('field-title')}>
         Top
       </button>

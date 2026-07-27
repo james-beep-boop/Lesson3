@@ -83,10 +83,8 @@ services:
       context: ./gotenberg
       labels:
         # PROVENANCE for scripts/deploy.sh: the git tree hash of gotenberg/ that produced this image.
-        # deploy.sh exports GOTENBERG_TREE and skips the (slow, externally-dependent) font build only
-        # when this label already matches. Because a FAILED build never writes the label, a retry
-        # correctly rebuilds instead of silently reusing a stale image. Unset → "unknown" → mismatch →
-        # build, which is the safe default.
+        # deploy.sh skips the (slow, externally-dependent) font build only when this already matches;
+        # anything else — unset, stale, unlabelled — rebuilds. Full rationale: scripts/deploy.sh.
         org.lesson3.sidecar-tree: "${GOTENBERG_TREE:-unknown}"
     restart: unless-stopped
     logging: *default-logging

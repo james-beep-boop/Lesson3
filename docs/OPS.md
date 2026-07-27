@@ -119,10 +119,30 @@ the git tree hash of `gotenberg/` differs from the one recorded on the existing 
 **image** rather than git history, it stays correct across retries: a failed build writes no label, so
 re-running rebuilds instead of silently reusing a stale sidecar.
 
-- `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts).
-- `SKIP_SIDECAR_BUILD=1` — skip it even when it does *not* match. Loud warning; only for a
-  known-unchanged sidecar when the external font mirror is down. **The first deploy after this change
-  will rebuild gotenberg once**, because the running image predates the provenance label.
+`FORCE_SIDECAR_BUILD=1` rebuilds it even when it matches (e.g. to refresh the bundled fonts). That is
+also the RECOVERY path: `gotenberg/Dockerfile` pins the base by digest and the font package by version, so
+the sidecar reproduces from source. There is no old image to fall back to — don't plan on one.
+
+The font install **retries with backoff (5 attempts) and then asserts the package configured and Arial is
+actually registered**, so a flaky mirror no longer fails the build on first contact. That retry is the real
+fix; the skip logic above only keeps an *unchanged* sidecar off the deploy path. There is deliberately no
+"skip a mismatched sidecar" flag: skipping a genuinely changed sidecar would ship app code against a
+mismatched image, and for a missing image it wouldn't even work (`up -d --no-build` fails loudly instead of
+silently building it).
+
+> **The next deploy WILL rebuild gotenberg** — correctly, and now with the retry above. The Rock's image
+> carries the retrofitted label `efab9ec9…`, but `gotenberg/Dockerfile` changed when the retry landed, so
+> the tree hash moved and the provenance gate mismatches. That is the mechanism working, not a fault: an
+> image built before the retry genuinely is not built from the current source. Expect one font build; after
+> it, matching resumes.
+>
+> History (2026-07-27): the image originally predated the label entirely, which would have forced a rebuild
+> through the un-retried mirror; the label was stamped onto the existing layers with a metadata-only build
+> to avoid it. Legitimate because `gotenberg/` last
+> changed 2026-07-05 and the image was built 2026-07-20. One wrinkle if you compare image ids: the running
+> container still references the pre-label image, since retagging restarts nothing — it picks up the
+> labelled one whenever it is next recreated, and the two differ only by that label. Full account:
+> DECISIONS 2026-07-27.
 
 > Why (2026-07-26): a bare `up -d --build` rebuilds every service, and gotenberg's Dockerfile installs
 > `ttf-mscorefonts-installer` by fetching Microsoft fonts from an **external mirror**. That fetch failed

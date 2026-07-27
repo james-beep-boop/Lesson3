@@ -60,6 +60,12 @@ jobs:
           done
           echo "::error::app did not become healthy"; docker compose logs --tail 80; exit 1
 
+      # Branch cover for deploy.sh's sidecar decision, with git/docker stubbed. That decision shipped
+      # three defects in three days and CI never invoked deploy.sh at all — it runs `up -d --build`
+      # above. Pure bash, no daemon, no network: safe to run on the runner in seconds.
+      - name: deploy.sh sidecar branches (stubbed)
+        run: ./scripts/test-deploy-sidecar.sh
+
       - name: test:unit
         run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run test:unit
 
