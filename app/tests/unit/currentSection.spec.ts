@@ -1,10 +1,9 @@
 /**
  * The editor jump nav's active-section RULE (`components/LessonControls/currentSection.ts`). This is
  * the risky half of the 2026-07-25 current-lesson indicator. The "which section am I in" decision is
- * pinned here; the DOM plumbing (scroll + ResizeObserver, toolbar measurement) is NOT covered by any
- * automated test and — as of 2026-07-26 — is still awaiting browser verification. Do not read these
- * passing cases as evidence the indicator works on screen; see
- * docs/DESIGN-editor-usability-2026-07-25.md §6 for the scenarios that must be checked by hand.
+ * pinned here; the DOM plumbing (scroll + ResizeObserver, toolbar measurement) has NO automated cover and
+ * must be checked by hand — docs/DESIGN-editor-usability-2026-07-25.md §6 lists the scenarios. Passing
+ * cases here are not evidence the indicator works on screen.
  *
  * Deliberately DOM-free so it runs in the default node environment. `sectionKeyForFocus` needs a real
  * `closest`, so it lives in `sectionKeyForFocus.spec.ts` under jsdom.

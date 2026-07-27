@@ -11,7 +11,61 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-07-27 (latest) — retrofitting the gotenberg provenance label, and two claims that were wrong
+## 2026-07-27 (later) — /simplify on the ops batch: the raw SQL was never necessary
+
+A four-agent cleanup pass over #151/#152 found the design premise itself was wrong, plus a provenance hole
+of the same class #152 had just fixed.
+
+**The Local API COULD do the preferences update all along — `user` is an operation OPTION, not a data
+field.** Both earlier attempts put `user` in `data`, where the `beforeValidate` hook discards it. The hook
+reads `req.user`, and `createLocalReq` sets that from a top-level option (`req.user = user || req?.user ||
+null`). Verified against a real Postgres, not just source: `data.user` → "The following field is invalid:
+User"; `user: { id, collection }` as an option → **succeeds**, with the owner relationship intact. So the
+raw `UPDATE` on `payload_preferences.value` was unnecessary, and it has been replaced with
+`payload.update({ …, user, overrideAccess: true })`.
+
+**Worse, the test had pinned the false claim as law.** The int spec asserted "CANNOT be done through the
+Local API — even resubmitting `user`", green in CI on every push. A test asserting a platform limitation
+that does not exist is the most expensive shape a wrong assumption can take: it actively defends the
+workaround. **Rule: when a platform call rejects you, check whether the value belongs somewhere other than
+where you put it — options vs. data vs. request — before concluding the platform cannot do it.** This is
+the fourth instance this week of asserting a limit from one probe (see the 07-27 entry above for the other
+three); the shared root is testing one axis and generalising.
+
+**The spec was also testing a copy of the script, not the script.** It pasted the write inline under "the
+exact statement the script runs" — so editing the script could not fail it. The write now lives in
+`scripts/lib/preferences.ts` (alongside `stripCollapsed`, extracted earlier for the same reason) and both
+the script and the spec import it, along with `PREFERENCE_KEY_PREFIX` — which also removes a `KEY_PREFIX_OF`
+helper whose "keeps the test honest about the query" claim was circular, since it re-derived the prefix from
+the spec's own literal.
+
+**Provenance: `unknown` could compare EQUAL to `unknown`.** `git rev-parse` fell back to the literal string
+`unknown` and the compose label defaults to `unknown`, so a hand-run `docker compose build gotenberg` plus
+any git failure would print "already built from this tree: unknown" and skip — asserting provenance it did
+not have. Now `git rev-parse --verify -q` (which also stops an unresolvable path leaking to stdout and into
+the label) and the deploy DIES rather than reasoning from an unknown tree. **Rule: a provenance check must
+mean *proven equal*, never *not observed different*.**
+
+**Root cause addressed rather than routed around.** The skip logic only kept an unchanged sidecar off the
+deploy path; CI (`up -d --build` on a cache-less runner), a genuine `gotenberg/` change, and
+`FORCE_SIDECAR_BUILD` recovery all still depended on the flaky font mirror. `gotenberg/Dockerfile` now
+retries the install with backoff and then asserts the POSTCONDITION — package configured *and* Arial
+registered — because a retry loop otherwise masks a package that unpacked but never configured, and DOCX
+fidelity depends on real Arial being present rather than on the last exit code. With the mirror handled,
+`SKIP_SIDECAR_BUILD` was deleted: skipping a genuinely-changed sidecar is unsafe, and for a missing image it
+never worked (compose builds it at `up` anyway). `up -d --no-build` makes the script's own "no font download
+on this path" claim true.
+
+**Convention recorded (the altitude call this batch got wrong at design time):** *one-shot stored-state
+fixups belong in `app/src/migrations/`, not `app/scripts/`.* Every other file in `scripts/` is a repeatable
+tool; migrations are the mechanism for "change stored state exactly once, in order, transactionally,
+automatically on deploy" — and they already write raw SQL idiomatically. A migration would have needed no
+runbook, no `-e APPLY=1` footgun and no "run from `migrate`, not `app`" caveat. Not rewritten now (it has
+run in production and would be a no-op), but the rule stands for the next one.
+
+---
+
+## 2026-07-27 — retrofitting the gotenberg provenance label, and two claims that were wrong
 
 #152 gated the sidecar build on a `org.lesson3.sidecar-tree` image label. The Rock's image predated it, so
 the next deploy would have rebuilt gotenberg through the font mirror that caused the original incident.

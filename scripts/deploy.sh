@@ -9,23 +9,14 @@
 # if backups aren't configured the deploy REFUSES, so a destructive migration can't run with no restore
 # point. Before backups are wired up, set ALLOW_UNBACKED_DEPLOY=1 to proceed explicitly (eyes open).
 #
-# ONLY THE IMAGES THAT CARRY APP SOURCE ARE REBUILT (`app`, `migrate`). `gotenberg` is rebuilt only when
-# the git tree hash of gotenberg/ differs from the one recorded on the existing image (a build label —
-# see docker-compose.yml). Why (2026-07-26): a bare `up -d --build` rebuilds every service, and
-# gotenberg's Dockerfile installs ttf-mscorefonts-installer by fetching Microsoft fonts from an EXTERNAL
-# mirror. That fetch failed mid-deploy, dpkg exited 100, compose aborted the whole run — and an app-only
-# change (no gotenberg edits, no migration) did not ship. An unchanged sidecar's flaky third-party
-# download must not be able to block shipping app code.
-#
-# The comparison is against the IMAGE, not git history, so it stays correct across retries: a failed
-# build writes no label, so re-running rebuilds rather than silently reusing a stale sidecar.
+# ONLY THE IMAGES THAT CARRY APP SOURCE ARE REBUILT (`app`, `migrate`). `gotenberg` rebuilds only when
+# gotenberg/'s git tree hash differs from the label on the existing image — an unchanged sidecar's flaky
+# external font download must not be able to block shipping app code (incident 2026-07-26). Mechanism:
+# the block below. Operator guide and recovery path: docs/OPS.md -> Deploy.
 #
 # USAGE:  scripts/deploy.sh                          (run on the Rock, from the repo root)
 #         ALLOW_UNBACKED_DEPLOY=1 scripts/deploy.sh  (deploy before backups are configured)
-#         FORCE_SIDECAR_BUILD=1 scripts/deploy.sh    (rebuild gotenberg even if it matches)
-#         SKIP_SIDECAR_BUILD=1 scripts/deploy.sh      (skip it even if it does NOT match — loud warning;
-#                                                      for a known-unchanged sidecar when the font
-#                                                      mirror is down)
+#         FORCE_SIDECAR_BUILD=1 scripts/deploy.sh    (rebuild gotenberg even if it already matches)
 #
 # NOTE: this script pulls ITSELF. A change to deploy.sh therefore takes effect on the NEXT run, not the
 # one that pulls it — bash has already read the old text. Re-run once after any deploy.sh change.
@@ -51,53 +42,48 @@ fi
 
 # --- gotenberg: rebuild only when its own tree differs from what the image was built FROM ----------
 # Compared against PROVENANCE ON THE IMAGE, never against git history. An earlier version diffed
-# `PREV_REF..HEAD -- gotenberg/` and was wrong in exactly the case this code exists for: after a failed
-# sidecar build you re-run at the same commit, so the diff is empty, the stale image passes inspection,
-# and the deploy silently ships the OLD sidecar. Because a failed build never writes the label, the
-# tree-hash comparison is self-healing — a retry rebuilds. (Found in review, 2026-07-26.)
+# `PREV_REF..HEAD -- gotenberg/` and was wrong in exactly the case this exists for: after a FAILED sidecar
+# build you re-run at the same commit, so the diff is empty and the stale image would be reused. A failed
+# build writes no label, so the tree-hash comparison self-heals instead.
 #
 # `config --images <service>` resolves the project-prefixed name compose would use, so this does not
-# hardcode `lesson3-gotenberg` and keeps working under a different COMPOSE_PROJECT_NAME.
+# hardcode `lesson3-gotenberg` and survives a different COMPOSE_PROJECT_NAME.
 GOTENBERG_IMAGE="$(docker compose config --images gotenberg 2>/dev/null | head -1)"
+
 # The tree hash of gotenberg/ at the checked-out commit — changes iff anything in that directory does.
-GOTENBERG_TREE="$(git rev-parse "HEAD:gotenberg" 2>/dev/null || echo unknown)"
+# `--verify -q` matters twice: a bare `rev-parse` echoes an unresolvable argument to STDOUT before
+# failing, which would inject a stray line into the label; and an UNRESOLVED hash must never become a
+# comparable value. Two "don't know"s comparing equal would assert provenance we do not have — the same
+# not-observed-different-means-equal mistake the git-history version made.
+GOTENBERG_TREE="$(git rev-parse --verify -q "HEAD:gotenberg" 2>/dev/null || true)"
+[[ -n "$GOTENBERG_TREE" ]] || die "cannot resolve the gotenberg/ tree hash — refusing to reason about sidecar provenance"
 export GOTENBERG_TREE   # consumed by the build label in docker-compose.yml
-built_tree=""
-if [[ -n "$GOTENBERG_IMAGE" ]] && docker image inspect "$GOTENBERG_IMAGE" >/dev/null 2>&1; then
-  built_tree="$(docker image inspect "$GOTENBERG_IMAGE" \
-    --format '{{index .Config.Labels "org.lesson3.sidecar-tree"}}' 2>/dev/null || true)"
-else
-  built_tree="<no image>"
-fi
 
-sidecar_reason=""
+# Empty covers every "no recorded tree" case — no image, pruned image, or an image predating the label —
+# and empty never equals a hash, so all of them rebuild, which is the safe default. One inspect call: a
+# missing image simply exits non-zero.
+built_tree="$(docker image inspect "$GOTENBERG_IMAGE" \
+  --format '{{index .Config.Labels "org.lesson3.sidecar-tree"}}' 2>/dev/null || true)"
+
 if [[ "${FORCE_SIDECAR_BUILD:-}" == "1" ]]; then
-  sidecar_reason="FORCE_SIDECAR_BUILD=1"
-elif [[ "$built_tree" != "$GOTENBERG_TREE" ]]; then
-  # Covers a real gotenberg/ change, a missing/pruned image, AND an image predating this label. A
-  # failure here SHOULD abort — we cannot prove the running sidecar matches the source.
-  sidecar_reason="tree $GOTENBERG_TREE != built ${built_tree:-<unlabelled>}"
-fi
-
-if [[ -n "$sidecar_reason" ]] && [[ "${SKIP_SIDECAR_BUILD:-}" == "1" ]]; then
-  # Deliberate, LOUD escape hatch for a known-unchanged sidecar when the external font mirror is down
-  # (the incident that started all this). Never silent: you have to ask for it.
-  echo "deploy: WARN skipping gotenberg build despite [$sidecar_reason] — SKIP_SIDECAR_BUILD=1" >&2
-  echo "deploy: WARN the running sidecar is NOT proven to match gotenberg/ at $SHA" >&2
-elif [[ -n "$sidecar_reason" ]]; then
-  echo "deploy: building gotenberg ($sidecar_reason)"
+  echo "deploy: building gotenberg (FORCE_SIDECAR_BUILD=1)"
   docker compose build gotenberg
-else
+elif [[ "$built_tree" == "$GOTENBERG_TREE" ]]; then
   echo "deploy: skipping gotenberg build (image already built from this tree: $GOTENBERG_TREE)"
+else
+  echo "deploy: building gotenberg (tree $GOTENBERG_TREE != built ${built_tree:-<none recorded>})"
+  docker compose build gotenberg
 fi
 
 echo "deploy: building app + migrate"
 docker compose build app migrate
 
-# No --build here: the images we intend to refresh were just built above, so an unchanged sidecar's
-# external font download is never on this path.
+# `--no-build` makes the claim above TRUE. Plain `up -d` silently builds a service whose image is
+# missing, so an absent sidecar would trigger the font fetch here — after the snapshot, and without the
+# decision above ever saying so. Everything legitimate was built already; anything missing should fail
+# loudly instead.
 echo "deploy: docker compose up -d (migrate runs first)"
-docker compose up -d
+docker compose up -d --no-build
 
 echo "deploy: migrate log tail:"
 docker compose logs migrate --tail 8 || true

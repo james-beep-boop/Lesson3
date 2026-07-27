@@ -119,11 +119,16 @@ the git tree hash of `gotenberg/` differs from the one recorded on the existing 
 **image** rather than git history, it stays correct across retries: a failed build writes no label, so
 re-running rebuilds instead of silently reusing a stale sidecar.
 
-- `FORCE_SIDECAR_BUILD=1` — rebuild it even when it matches (e.g. to refresh the bundled fonts). This is
-  also the RECOVERY path: `gotenberg/Dockerfile` pins the base by digest and the font package by version,
-  so the sidecar reproduces from source. There is no old image to fall back to — don't plan on one.
-- `SKIP_SIDECAR_BUILD=1` — skip it even when it does *not* match. Loud warning; only for a
-  known-unchanged sidecar when the external font mirror is down.
+`FORCE_SIDECAR_BUILD=1` rebuilds it even when it matches (e.g. to refresh the bundled fonts). That is
+also the RECOVERY path: `gotenberg/Dockerfile` pins the base by digest and the font package by version, so
+the sidecar reproduces from source. There is no old image to fall back to — don't plan on one.
+
+The font install **retries with backoff (5 attempts) and then asserts the package configured and Arial is
+actually registered**, so a flaky mirror no longer fails the build on first contact. That retry is the real
+fix; the skip logic above only keeps an *unchanged* sidecar off the deploy path. There is deliberately no
+"skip a mismatched sidecar" flag: skipping a genuinely changed sidecar would ship app code against a
+mismatched image, and for a missing image it wouldn't even work (`up -d --no-build` fails loudly instead of
+silently building it).
 
 > **No catch-up rebuild is pending** (2026-07-27). The Rock's image predated the label, which would have
 > forced one rebuild through the flaky font mirror; the label was instead stamped onto the existing layers

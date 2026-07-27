@@ -3,10 +3,7 @@
  * rows (`initCollapsed: true`, 2026-07-25) actually reach people who have used the editor before.
  *
  * SURGICAL: it strips only `value.fields[<path>].collapsed` and writes the document back. Every other
- * stored preference — for those same field paths and for the document as a whole — survives. That is
- * both what "clear the collapse preferences" actually means and what keeps this script safe to keep
- * around: an earlier draft deleted whole preference documents, which was defensible only while the
- * stored state was disposable test data, and that assumption expires without warning.
+ * stored preference — for those same field paths and for the document as a whole — survives.
  *
  * WHY THIS EXISTS. `initCollapsed` is only the LAST of three fallbacks. Verified in
  * `@payloadcms/ui/dist/forms/fieldSchemasToFormState/isRowCollapsed.js`:
@@ -17,10 +14,8 @@
  *
  * The middle tier is gated on `collapsedPrefs !== undefined` and then decided by row-id membership. So
  * once a preferences entry exists for an array path — for ANY reason, even one listing unrelated rows —
- * `initCollapsed` is never consulted and every unlisted row renders EXPANDED. Without this script the
- * collapse default silently does nothing for exactly the users who asked for it. Removing the
- * `collapsed` key restores the fallback, because both this and the Collapsible field treat an absent
- * value as "no preference".
+ * `initCollapsed` is never consulted and every unlisted row renders EXPANDED. Removing the `collapsed`
+ * key restores the fallback, because an absent value reads as "no preference".
  *
  * DEV/OPERATOR tool. Needs a DB. Locally:
  *   cd app && npx payload run scripts/clear-editor-collapse-prefs.ts            # report only
@@ -32,33 +27,22 @@
  * would only set it for the local docker CLI. Full runbook: `docs/OPS.md` → Deploy.
  *   docker compose run --rm [-e APPLY=1] migrate npx payload run scripts/clear-editor-collapse-prefs.ts
  *
- * Reports by default and writes nothing until APPLY=1 — the target is other people's saved UI state,
- * so look before you leap. Idempotent and safe to re-run: a second run finds nothing left to strip.
- * New preferences accumulate again as soon as anyone toggles a row — that is intended, since collapsed
- * is the INITIAL default and the UI then respects each user's own choice.
+ * Reports by default and writes nothing until APPLY=1 — the target is other people's saved UI state, so
+ * look before you leap. Idempotent: a second run finds nothing left to strip. New preferences accumulate
+ * again as soon as anyone toggles a row — intended, since collapsed is only the INITIAL default.
  *
  * ⚠ READ-MODIFY-WRITE, so run it while editors are idle and have open tabs reloaded afterwards: a
  * preference saved between the read and the write is lost, and an already-open tab can push its cached
  * collapse values back after the run. Only UI state is at stake — the cost is a wasted run, not data.
  *
- * SCOPE. Payload keys document preferences `collection-${slug}-${id}`
- * (`@payloadcms/ui/dist/providers/DocumentInfo/index.js`), so this matches
- * `collection-lesson-bundle-versions-*` only. LIST-view preferences (saved columns, sort order) use a
- * different key and are NOT touched.
+ * SCOPE: `PREFERENCE_KEY_PREFIX` only, so version-editor documents. LIST-view preferences (saved
+ * columns, sort order) use a different key and are NOT touched.
  */
 import { getPayload } from 'payload'
-import { sql } from '@payloadcms/db-postgres'
 import config from '@payload-config'
 
+import { PREFERENCE_KEY_PREFIX, writePreferenceValue } from './lib/preferences'
 import { stripCollapsed } from './lib/stripCollapsed'
-
-const KEY_PREFIX = 'collection-lesson-bundle-versions-'
-
-/** The drizzle handle behind Payload, for the one statement the Local API cannot express (see below).
- *  Deliberately a local 2-line cast rather than importing `tests/helpers/db.ts#drizzleOf`: scripts/
- *  must not depend on tests/. Same shape — keep them in step if the adapter changes. */
-const drizzleOf = (p: Awaited<ReturnType<typeof getPayload>>) =>
-  (p as unknown as { db: { drizzle: { execute: (q: unknown) => Promise<unknown> } } }).db.drizzle
 
 const run = async () => {
   const payload = await getPayload({ config })
@@ -68,8 +52,11 @@ const run = async () => {
   // collection slug contains this one, so the match cannot stray outside the version editor.
   const found = await payload.find({
     collection: 'payload-preferences',
-    where: { key: { like: KEY_PREFIX } },
-    depth: 0, // don't populate each doc's `user` relationship — that would be an N+1 of user reads
+    where: { key: { like: PREFERENCE_KEY_PREFIX } },
+    // Leaves `user` as the unpopulated `{ relationTo, value }` that `writePreferenceValue` needs, and
+    // avoids an N+1 of user reads: `user` is polymorphic, so it is never join-populated — at any depth
+    // above 0 it would be fetched per document during afterRead.
+    depth: 0,
     pagination: false, // every match, not a page — the dry-run report needs the true total
   })
 
@@ -79,27 +66,7 @@ const run = async () => {
     if (stripped.length === 0) continue
     touched += 1
     payload.logger.info(`${doc.key} — clearing collapse state for: ${stripped.join(', ')}`)
-    if (apply) {
-      // WRITE THE `value` COLUMN DIRECTLY — the Local API cannot express this update.
-      //
-      // `payload-preferences.user` is `required: true` AND carries a `beforeValidate` field hook that
-      // REPLACES whatever you submit (payload/dist/preferences/config.js):
-      //     if (!req?.user) { return null }
-      //     return { relationTo: req.user.collection, value: req.user.id }
-      // A script has no authenticated `req.user`, so the hook forces `user` to null and the required
-      // check then fails — "The following field is invalid: User". Resubmitting `doc.user` does NOT
-      // help; the hook discards it. (Two review rounds and one production run were spent on that dead
-      // end: the generated TYPE says `{ relationTo, value }`, which is the read shape and looks like a
-      // valid write shape, and neither reviewer checked the field's hooks. 2026-07-26.)
-      //
-      // A direct UPDATE of the jsonb column is the honest expression of what this does: edit Payload's
-      // own internal bookkeeping, touching nothing else. The `user` relationship lives in
-      // `payload_preferences_rels` and is untouched. The only validation on `value` is "is it valid
-      // JSON", which `stripCollapsed` preserves by construction.
-      await drizzleOf(payload).execute(
-        sql`UPDATE "payload_preferences" SET "value" = ${JSON.stringify(value)}::jsonb WHERE "id" = ${doc.id};`,
-      )
-    }
+    if (apply) await writePreferenceValue(payload, doc, value)
   }
 
   if (touched === 0) {
