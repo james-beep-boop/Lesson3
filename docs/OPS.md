@@ -130,9 +130,15 @@ fix; the skip logic above only keeps an *unchanged* sidecar off the deploy path.
 mismatched image, and for a missing image it wouldn't even work (`up -d --no-build` fails loudly instead of
 silently building it).
 
-> **No catch-up rebuild is pending** (2026-07-27). The Rock's image predated the label, which would have
-> forced one rebuild through the flaky font mirror; the label was instead stamped onto the existing layers
-> with a metadata-only build, so `deploy.sh` now resolves to SKIP. Legitimate because `gotenberg/` last
+> **The next deploy WILL rebuild gotenberg** — correctly, and now with the retry above. The Rock's image
+> carries the retrofitted label `efab9ec9…`, but `gotenberg/Dockerfile` changed when the retry landed, so
+> the tree hash moved and the provenance gate mismatches. That is the mechanism working, not a fault: an
+> image built before the retry genuinely is not built from the current source. Expect one font build; after
+> it, matching resumes.
+>
+> History (2026-07-27): the image originally predated the label entirely, which would have forced a rebuild
+> through the un-retried mirror; the label was stamped onto the existing layers with a metadata-only build
+> to avoid it. Legitimate because `gotenberg/` last
 > changed 2026-07-05 and the image was built 2026-07-20. One wrinkle if you compare image ids: the running
 > container still references the pre-label image, since retagging restarts nothing — it picks up the
 > labelled one whenever it is next recreated, and the two differ only by that label. Full account:
