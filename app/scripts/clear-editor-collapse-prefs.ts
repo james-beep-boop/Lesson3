@@ -47,11 +47,18 @@
  * different key and are NOT touched.
  */
 import { getPayload } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
 import config from '@payload-config'
 
 import { stripCollapsed } from './lib/stripCollapsed'
 
 const KEY_PREFIX = 'collection-lesson-bundle-versions-'
+
+/** The drizzle handle behind Payload, for the one statement the Local API cannot express (see below).
+ *  Deliberately a local 2-line cast rather than importing `tests/helpers/db.ts#drizzleOf`: scripts/
+ *  must not depend on tests/. Same shape — keep them in step if the adapter changes. */
+const drizzleOf = (p: Awaited<ReturnType<typeof getPayload>>) =>
+  (p as unknown as { db: { drizzle: { execute: (q: unknown) => Promise<unknown> } } }).db.drizzle
 
 const run = async () => {
   const payload = await getPayload({ config })
@@ -73,16 +80,25 @@ const run = async () => {
     touched += 1
     payload.logger.info(`${doc.key} — clearing collapse state for: ${stripped.join(', ')}`)
     if (apply) {
-      // `user` MUST be resubmitted. It is a REQUIRED polymorphic relationship living in
-      // `payload_preferences_rels`, not a column on the row, and Payload validates the whole document
-      // on update — so a `{ value }`-only patch fails with "The following field is invalid: User"
-      // (hit for real on the Rock, 2026-07-26). `depth: 0` above returns it already in the
-      // `{ relationTo, value }` write shape, so it round-trips as-is.
-      await payload.update({
-        collection: 'payload-preferences',
-        id: doc.id,
-        data: { value, user: doc.user } as never,
-      })
+      // WRITE THE `value` COLUMN DIRECTLY — the Local API cannot express this update.
+      //
+      // `payload-preferences.user` is `required: true` AND carries a `beforeValidate` field hook that
+      // REPLACES whatever you submit (payload/dist/preferences/config.js):
+      //     if (!req?.user) { return null }
+      //     return { relationTo: req.user.collection, value: req.user.id }
+      // A script has no authenticated `req.user`, so the hook forces `user` to null and the required
+      // check then fails — "The following field is invalid: User". Resubmitting `doc.user` does NOT
+      // help; the hook discards it. (Two review rounds and one production run were spent on that dead
+      // end: the generated TYPE says `{ relationTo, value }`, which is the read shape and looks like a
+      // valid write shape, and neither reviewer checked the field's hooks. 2026-07-26.)
+      //
+      // A direct UPDATE of the jsonb column is the honest expression of what this does: edit Payload's
+      // own internal bookkeeping, touching nothing else. The `user` relationship lives in
+      // `payload_preferences_rels` and is untouched. The only validation on `value` is "is it valid
+      // JSON", which `stripCollapsed` preserves by construction.
+      await drizzleOf(payload).execute(
+        sql`UPDATE "payload_preferences" SET "value" = ${JSON.stringify(value)}::jsonb WHERE "id" = ${doc.id};`,
+      )
     }
   }
 
