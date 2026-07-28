@@ -67,7 +67,7 @@ run in production and would be a no-op), but the rule stands for the next one.
 
 ## 2026-07-27 — retrofitting the gotenberg provenance label, and two claims that were wrong
 
-#152 gated the sidecar build on a `org.lesson3.sidecar-tree` image label. The Rock's image predated it, so
+PR #152 gated the sidecar build on a `org.lesson3.sidecar-tree` image label. The Rock's image predated it, so
 the next deploy would have rebuilt gotenberg through the font mirror that caused the original incident.
 Avoided by stamping the label onto the existing layers with a metadata-only build (`FROM
 lesson3-gotenberg` + `LABEL`) — no font download. Legitimate, not a fudge: `gotenberg/` last changed

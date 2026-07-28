@@ -314,8 +314,9 @@ Regenerate `payload-types.ts` after PR 2 (descriptions are JSDoc'd into it). Exp
 **`/guide` and `USER_GUIDE.md` move in the same PR.** Guide drift has been caught in review here before
 (DECISIONS 2026-07-18); do not defer it.
 
-⚠ **Browser verification of PR 1 is still OUTSTANDING — it could not be run on the dev Mac
-(2026-07-25).** Postgres came up fine, but `next dev` hangs during **node's own bootstrap**
+⚠ **Browser verification of PR 1 is still OUTSTANDING.** PR 1 is MERGED and LIVE on the Rock (`5cfd4eb`,
+2026-07-27), and the preference clear has run there — so the feature is on screen and checkable now. It
+could not be verified locally (2026-07-25): Postgres came up fine, but `next dev` hangs during **node's own bootstrap**
 (`LoadEnvironment` → `ExecuteBootstrapper`, ~0% CPU, port never binds) under both node 25 and a pinned
 node 22, so no app was reachable. Not an app defect — nothing app-level had executed yet. Do this on a
 host where the stack runs, or post-deploy on the Rock.
