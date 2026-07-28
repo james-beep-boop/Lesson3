@@ -166,11 +166,27 @@ export default function EditJumpNav() {
     // Always ≥2 ids: the two trailing groups are unconditional.
     const ids = sectionIdsKey.split('|')
 
-    // Bottom of the floating toolbar — MEASURED, never hardcoded: the bar's height changes as it
-    // wraps, and on a phone it isn't sticky at all, so the line correctly collapses to the viewport top.
+    // The line a section's header must cross to count as current — MEASURED, never hardcoded: the
+    // bar's height changes as it wraps, and on a phone it isn't sticky at all, so the line correctly
+    // collapses towards the viewport top.
+    //
+    // It is the LOWER of two lines, and both matter:
+    //   • the bottom of the floating toolbar — what you can actually see past while reading;
+    //   • `scroll-margin-top`, where a chip jump PARKS its target (custom.scss owns that value and
+    //     shrinks it on mobile, where the bar isn't sticky).
+    // If the landing line sits below the bar, a just-jumped-to section has not "crossed" the bar and
+    // the rule returns the PREVIOUS section — so clicking a chip lights its neighbour, and `jumpTo`'s
+    // optimistic highlight gets clobbered by the first recompute. Verified live on the Rock
+    // (2026-07-28): 7rem = 105px cleared a 99px bar by 6px, and 5 of 6 chip jumps lit the wrong chip
+    // — the 6th only won by beating the recompute, so the old behaviour was racy rather than merely
+    // offset. Reading the margin back from the DOM keeps custom.scss its single owner; restating
+    // 7rem here is exactly the SCSS/TS hand-sync that drifted in the first place.
     const measureThreshold = (): number => {
       const bar = navRef.current?.closest('.doc-controls')
-      return bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      const barBottom = bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      const probe = document.getElementById(ids[0])
+      const landing = probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN
+      return Number.isFinite(landing) ? Math.max(barBottom, landing) : barBottom
     }
 
     // Read-only pass (~15 rect reads, no interleaved writes, so no layout thrash) — cheap enough to

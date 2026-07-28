@@ -13,8 +13,11 @@
  * top-level lesson rows only. (The row HEADER carries a different id, built from `scrollIdPrefix`, so
  * there is no collision.)
  *
- * `custom.scss` restates these same three shapes for `scroll-margin-top`; that one crosses the
- * SCSS/TS boundary and cannot be shared — keep it in step by hand.
+ * `custom.scss` restates these same three SELECTOR shapes for `scroll-margin-top`; that one crosses
+ * the SCSS/TS boundary and cannot be shared — keep it in step by hand. Its VALUE no longer needs
+ * hand-syncing: {@link ./EditJumpNav} reads the computed margin back out of the DOM to place the
+ * crossing line, after restating it in TS drifted 6px and made every chip jump light the previous
+ * section (2026-07-28).
  */
 
 export const LESSON_ROW_PREFIX = 'lessons-row-'

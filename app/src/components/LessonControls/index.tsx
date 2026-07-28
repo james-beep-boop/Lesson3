@@ -83,15 +83,20 @@ export default function LessonControls() {
   const [msg, setMsg] = useState<string | null>(null)
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
-  // is useful context but wide; this collapses it on demand (user, 2026-07-17). Deliberately
-  // per-page state, ALWAYS shown on open — no persistence, so SSR and first paint agree and
-  // there's no hydration branch (the ?edit=1 lesson). The effect drives a body class because this
-  // bar renders inside .doc-controls, not as an ancestor of .document-fields; custom.scss turns
-  // the class into Payload's own empty-sidebar collapse recipe.
-  const [detailsShown, setDetailsShown] = useState(true)
+  // is useful context but wide; it starts COLLAPSED so the editor opens with the full width for the
+  // lesson plan itself (user, 2026-07-17; default inverted 2026-07-28 per
+  // docs/DESIGN-editor-usability-2026-07-25.md §4d). Deliberately per-page state, hidden on open —
+  // no persistence, so SSR and first paint agree and there's no hydration branch (the ?edit=1
+  // lesson). The effect drives a body class because this bar renders inside .doc-controls, not as
+  // an ancestor of .document-fields; custom.scss turns the class into Payload's own empty-sidebar
+  // collapse recipe.
+  //
+  // The class marks SHOWN, not hidden: hiding is the CSS default, so the sidebar never paints and
+  // then disappears on load the way a state-only default would (the effect runs after first paint).
+  const [detailsShown, setDetailsShown] = useState(false)
   useEffect(() => {
-    document.body.classList.toggle('lp-details-hidden', !detailsShown)
-    return () => document.body.classList.remove('lp-details-hidden')
+    document.body.classList.toggle('lp-details-shown', detailsShown)
+    return () => document.body.classList.remove('lp-details-shown')
   }, [detailsShown])
 
   // Close the "View as PDF ▾" menu on outside click / Escape (APG disclosure pattern, matching UserMenu).
