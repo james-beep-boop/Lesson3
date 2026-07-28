@@ -31,6 +31,7 @@ import { useSearchParams } from 'next/navigation'
 import { useAllFormFields } from '@payloadcms/ui'
 
 import {
+  crossingLine,
   FINAL_EXPLANATION_ID,
   lessonRowId,
   ownCollapsedToggle,
@@ -166,40 +167,35 @@ export default function EditJumpNav() {
     // Always ≥2 ids: the two trailing groups are unconditional.
     const ids = sectionIdsKey.split('|')
 
-    // The line a section's header must cross to count as current — MEASURED, never hardcoded: the
-    // bar's height changes as it wraps, and on a phone it isn't sticky at all, so the line correctly
-    // collapses towards the viewport top.
+    // MEASURE both bounds; {@link crossingLine} decides between them (and documents why it is `max`).
+    // Never hardcoded: the bar's height changes as it wraps, and on a phone it isn't sticky at all,
+    // so the line correctly collapses towards the viewport top. `scroll-margin-top` is read back off
+    // a real section rather than restated as `7rem` here — that SCSS/TS hand-sync is precisely what
+    // drifted 6px and made every chip jump light its neighbour (DECISIONS 2026-07-28).
     //
-    // It is the LOWER of two lines, and both matter:
-    //   • the bottom of the floating toolbar — what you can actually see past while reading;
-    //   • `scroll-margin-top`, where a chip jump PARKS its target (custom.scss owns that value and
-    //     shrinks it on mobile, where the bar isn't sticky).
-    // If the landing line sits below the bar, a just-jumped-to section has not "crossed" the bar and
-    // the rule returns the PREVIOUS section — so clicking a chip lights its neighbour, and `jumpTo`'s
-    // optimistic highlight gets clobbered by the first recompute. Verified live on the Rock
-    // (2026-07-28): 7rem = 105px cleared a 99px bar by 6px, and 5 of 6 chip jumps lit the wrong chip
-    // — the 6th only won by beating the recompute, so the old behaviour was racy rather than merely
-    // offset. Reading the margin back from the DOM keeps custom.scss its single owner; restating
-    // 7rem here is exactly the SCSS/TS hand-sync that drifted in the first place.
-    const measureThreshold = (): number => {
+    // `probe` is whichever tracked section the caller already found in the DOM, so this adds no
+    // lookup of its own; all of them carry the same margin (custom.scss sets it on one selector list).
+    const measureThreshold = (probe: HTMLElement | null): number => {
       const bar = navRef.current?.closest('.doc-controls')
       const barBottom = bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
-      const probe = document.getElementById(ids[0])
-      const landing = probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN
-      return Number.isFinite(landing) ? Math.max(barBottom, landing) : barBottom
+      return crossingLine(barBottom, probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN)
     }
 
     // Read-only pass (~15 rect reads, no interleaved writes, so no layout thrash) — cheap enough to
     // redo wholesale. Re-measuring beats caching: a cached map would go stale exactly when the body
     // grows, which is the case this exists to handle.
     const recompute = () => {
-      const threshold = measureThreshold()
       const positions: SectionPosition[] = []
+      // The first section actually in the DOM doubles as the `scroll-margin-top` probe, so measuring
+      // the landing line costs no extra lookup — and needs no assumption about which id leads `ids`.
+      let probe: HTMLElement | null = null
       for (const id of ids) {
         const el = document.getElementById(id)
-        if (el) positions.push({ key: id, top: el.getBoundingClientRect().top })
+        if (!el) continue
+        probe ??= el
+        positions.push({ key: id, top: el.getBoundingClientRect().top })
       }
-      setPositionKey(pickCurrentSection(positions, threshold))
+      setPositionKey(pickCurrentSection(positions, measureThreshold(probe)))
     }
 
     // One measurement per frame, however many events land in it — scroll fires far more often than a
