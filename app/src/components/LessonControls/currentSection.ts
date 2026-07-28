@@ -13,8 +13,11 @@
  * top-level lesson rows only. (The row HEADER carries a different id, built from `scrollIdPrefix`, so
  * there is no collision.)
  *
- * `custom.scss` restates these same three shapes for `scroll-margin-top`; that one crosses the
- * SCSS/TS boundary and cannot be shared — keep it in step by hand.
+ * `custom.scss` restates these same three SELECTOR shapes for `scroll-margin-top`; that one crosses
+ * the SCSS/TS boundary and cannot be shared — keep it in step by hand. Its VALUE no longer needs
+ * hand-syncing: {@link ./EditJumpNav} reads the computed margin back out of the DOM to place the
+ * crossing line, after restating it in TS drifted 6px and made every chip jump light the previous
+ * section (2026-07-28).
  */
 
 export const LESSON_ROW_PREFIX = 'lessons-row-'
@@ -36,6 +39,26 @@ export interface SectionPosition {
 
 /** Sub-pixel slack, so a header resting exactly on the line counts as crossed. */
 const CROSS_TOLERANCE_PX = 1
+
+/**
+ * The y a section header must reach to count as current, from the two constraints that bound it.
+ * Pure on purpose: the component measures, this decides, so the rule is unit-testable.
+ *
+ * They are NOT the same quantity and neither dominates by construction:
+ *   • `toolbarBottom` — what you can actually see past while reading;
+ *   • `landingLine` — `scroll-margin-top`, where a chip jump PARKS its target (custom.scss owns
+ *     that value and shrinks it below 640px, where the bar isn't sticky).
+ * Taking the LOWER of the two is what makes a jump self-consistent: park a header above the line the
+ * tracker uses and it is not "crossed", so the rule returns the PREVIOUS section and the clicked chip
+ * lights its neighbour — 7rem (105px) over a 99px bar did exactly that (see DECISIONS 2026-07-28).
+ * The reverse can happen too: let the bar wrap to a third row past 105px and `landingLine` alone
+ * would reproduce the same bug from the other side. Hence `max`, not a preference for either.
+ *
+ * A non-finite `landingLine` (no section in the DOM yet to measure) falls back to the toolbar alone.
+ */
+export function crossingLine(toolbarBottom: number, landingLine: number): number {
+  return Number.isFinite(landingLine) ? Math.max(toolbarBottom, landingLine) : toolbarBottom
+}
 
 /**
  * Scroll-spy rule: the current section is the LAST one whose header has crossed `threshold`

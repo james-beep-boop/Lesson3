@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-28 — #150 browser-verified on the Rock; a 6px SCSS/TS drift lit the wrong chip
+
+The outstanding browser verification of PR 1 (`docs/DESIGN-editor-usability-2026-07-25.md` §6) was done
+against the live Rock at `5cfd4eb`, on Chemistry Grade 10 "Chemical Bonding" (version 228: 13 lessons,
+~200k chars of framework prose, so one expanded lesson is ~3350px against an 860px viewport — the shape
+§6 requires and no smaller fixture reproduces).
+
+**Passed:** scroll-spy with two adjacent EXPANDED lessons (132 samples over the whole document, zero
+mismatches against the rule and zero backwards jumps); Final Explanation / Summary Table tracked, so the
+last lesson does not stay lit; the nested-collapsible fix (jumping to an open lesson opened none of its 5
+nested collapsibles; Final Explanation none of its 10); focus-beats-scroll; and collapse-by-default on an
+account that had opened the editor before — all 13 rows collapsed, confirming the #151 preferences clear
+actually reached a real user's prefs, which is the half that `initCollapsed` cannot do on its own.
+
+**Failed: clicking a chip lit its NEIGHBOUR — 5 of 6, then 6 of 6 on a re-run.** `custom.scss` parks jump
+targets at `scroll-margin-top: 7rem` (105px); the measured `.doc-controls` bottom is 99px. So a jumped-to
+header landed 6px BELOW the crossing line, `pickCurrentSection` did not count it as crossed, and the first
+recompute clobbered `jumpTo`'s optimistic highlight with the previous section. The one chip that passed
+initially had merely beaten the recompute — **the old behaviour was racy, not consistently offset**, which
+is why a casual click-test could have "confirmed" it working.
+
+**Fix: the TS reads the margin back out of the DOM** (`getComputedStyle(...).scrollMarginTop`) and takes
+the crossing line as the lower of that and the toolbar bottom, so the two can no longer disagree.
+`pickCurrentSection` and its unit tests are untouched — the defect was in *where the line was measured*,
+not in the rule. **Rule: when a constant must exist in both SCSS and TS, have one side READ it rather than
+both DECLARE it.** `currentSection.ts` had explicitly flagged this seam as "keep it in step by hand"; it
+then drifted by 6px, which was enough. Same lesson as the `--app-accent` de-drift (2026-07-18), and the
+reason the SCSS block now carries a warning that its value is read back.
+
+**Also inverted the details-sidebar default** (§4d, PR 2's one genuinely mechanical item, pulled forward
+on operator request): the editor now opens with the sidebar collapsed, widening the editing column from
+853px to 1280px at 1280 wide. Implemented as `body:not(.lp-details-shown)` with the class marking SHOWN —
+**not** by flipping `useState` to `false`. The body class is applied in an effect, so a state-only default
+would paint the sidebar and yank it away on every load; keying the default off the ABSENCE of a class
+makes first paint already correct with no hydration branch.
+
+**Verification lesson — a stale baseline invented a bug that was not there.** The first scroll-spy pass
+appeared to show the chip lagging ~700px behind. It did not: absolute element positions had been captured
+BEFORE the scan, and Payload lazy-renders this form, so the document grew ~690px underneath the
+measurements mid-scan. The indicator had been right the whole time. **Measure the expectation and the
+observation in the same pass**, especially on a form whose height is still settling — the `ResizeObserver`
+in `EditJumpNav` exists for exactly this behaviour, and any probe written against it has to respect it too.
+
 ## 2026-07-27 (later) — /simplify on the ops batch: the raw SQL was never necessary
 
 A four-agent cleanup pass over #151/#152 found the design premise itself was wrong, plus a provenance hole

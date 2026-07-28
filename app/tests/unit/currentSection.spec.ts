@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest'
 
-import { pickCurrentSection } from '@/components/LessonControls/currentSection'
+import { crossingLine, pickCurrentSection } from '@/components/LessonControls/currentSection'
 
 const TOOLBAR = 100
 
@@ -88,6 +88,36 @@ describe('pickCurrentSection', () => {
       { key: 'lessons-row-1', top: 10 },
     ]
     expect(pickCurrentSection(positions, 0)).toBe('lessons-row-0')
+  })
+})
+
+describe('crossingLine', () => {
+  // The regression this exists to stop: a jump parks its target at `scroll-margin-top`, so if the
+  // tracker's line sits ABOVE that, the just-jumped-to section never counts as crossed and the
+  // clicked chip lights its neighbour instead. Live on the Rock 2026-07-28 this was 7rem = 105px
+  // over a 99px toolbar — only 6px, and 5 of 6 chip jumps were wrong.
+  it('takes the landing line when it sits below the toolbar', () => {
+    expect(crossingLine(99, 105)).toBe(105)
+  })
+
+  // The mirror case, which `max` also has to cover: let the bar wrap to a third row past the margin
+  // and preferring the landing line alone would reproduce the same bug from the other side.
+  it('takes the toolbar when it wraps past the landing line', () => {
+    expect(crossingLine(140, 105)).toBe(140)
+  })
+
+  it('is stable when the two already agree', () => {
+    expect(crossingLine(105, 105)).toBe(105)
+  })
+
+  // Below 640px the bar is `position: static` (bottom collapses to 0) and the margin shrinks to 1rem.
+  it('still yields the landing line on mobile, where the toolbar is not sticky', () => {
+    expect(crossingLine(0, 16)).toBe(16)
+  })
+
+  // No tracked section in the DOM yet, so there was nothing to read the margin from.
+  it('falls back to the toolbar alone when the landing line is not measurable', () => {
+    expect(crossingLine(99, Number.NaN)).toBe(99)
   })
 })
 

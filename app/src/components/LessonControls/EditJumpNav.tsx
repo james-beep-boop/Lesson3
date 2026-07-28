@@ -31,6 +31,7 @@ import { useSearchParams } from 'next/navigation'
 import { useAllFormFields } from '@payloadcms/ui'
 
 import {
+  crossingLine,
   FINAL_EXPLANATION_ID,
   lessonRowId,
   ownCollapsedToggle,
@@ -166,24 +167,35 @@ export default function EditJumpNav() {
     // Always ≥2 ids: the two trailing groups are unconditional.
     const ids = sectionIdsKey.split('|')
 
-    // Bottom of the floating toolbar — MEASURED, never hardcoded: the bar's height changes as it
-    // wraps, and on a phone it isn't sticky at all, so the line correctly collapses to the viewport top.
-    const measureThreshold = (): number => {
+    // MEASURE both bounds; {@link crossingLine} decides between them (and documents why it is `max`).
+    // Never hardcoded: the bar's height changes as it wraps, and on a phone it isn't sticky at all,
+    // so the line correctly collapses towards the viewport top. `scroll-margin-top` is read back off
+    // a real section rather than restated as `7rem` here — that SCSS/TS hand-sync is precisely what
+    // drifted 6px and made every chip jump light its neighbour (DECISIONS 2026-07-28).
+    //
+    // `probe` is whichever tracked section the caller already found in the DOM, so this adds no
+    // lookup of its own; all of them carry the same margin (custom.scss sets it on one selector list).
+    const measureThreshold = (probe: HTMLElement | null): number => {
       const bar = navRef.current?.closest('.doc-controls')
-      return bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      const barBottom = bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      return crossingLine(barBottom, probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN)
     }
 
     // Read-only pass (~15 rect reads, no interleaved writes, so no layout thrash) — cheap enough to
     // redo wholesale. Re-measuring beats caching: a cached map would go stale exactly when the body
     // grows, which is the case this exists to handle.
     const recompute = () => {
-      const threshold = measureThreshold()
       const positions: SectionPosition[] = []
+      // The first section actually in the DOM doubles as the `scroll-margin-top` probe, so measuring
+      // the landing line costs no extra lookup — and needs no assumption about which id leads `ids`.
+      let probe: HTMLElement | null = null
       for (const id of ids) {
         const el = document.getElementById(id)
-        if (el) positions.push({ key: id, top: el.getBoundingClientRect().top })
+        if (!el) continue
+        probe ??= el
+        positions.push({ key: id, top: el.getBoundingClientRect().top })
       }
-      setPositionKey(pickCurrentSection(positions, threshold))
+      setPositionKey(pickCurrentSection(positions, measureThreshold(probe)))
     }
 
     // One measurement per frame, however many events land in it — scroll fires far more often than a

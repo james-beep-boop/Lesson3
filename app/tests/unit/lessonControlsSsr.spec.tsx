@@ -13,7 +13,15 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
-const mocks = vi.hoisted(() => ({ search: '', modified: false }))
+// `user` is the signed-in caller; the document under edit belongs to subject-grade SG. An Editor
+// grant for SG is the baseline — without one the bar offers no edit lifecycle at all (see the
+// permission block at the bottom), which is the 2026-07-28 change these first cases sit on top of.
+const SG = 5
+const mocks = vi.hoisted(() => ({
+  search: '',
+  modified: false,
+  user: { id: 1, roles: [], assignments: [{ subjectGrade: 5, role: 'editor' }] } as unknown,
+}))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -29,10 +37,14 @@ vi.mock('@payloadcms/ui', () => ({
     </button>
   ),
   useAllFormFields: () => [{}],
-  useAuth: () => ({ user: null }),
+  useAuth: () => ({ user: mocks.user }),
   useDocumentInfo: () => ({
     id: 1,
-    savedDocumentData: { lessonPlan: 2, title: 'BIOLOGY GRADE 10: CELL STRUCTURE' },
+    savedDocumentData: {
+      lessonPlan: 2,
+      subjectGrade: 5,
+      title: 'BIOLOGY GRADE 10: CELL STRUCTURE',
+    },
   }),
   useForm: () => ({ setDisabled: vi.fn(), reset: vi.fn(), setModified: vi.fn() }),
   useFormModified: () => mocks.modified,
@@ -78,5 +90,56 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
       /<button[^>]*disabled[^>]*>Save<\/button>/,
     )
     mocks.modified = false
+  })
+})
+
+/**
+ * The edit lifecycle is offered only to a caller who may actually edit THIS version (2026-07-28).
+ * Field-level access already locked the form for everyone else, so the old unconditional Edit button
+ * was not a security hole — it was a dead end: on the Rock a Biology editor opening a Chemistry plan
+ * could press Edit, get Save/Cancel, and find all 23 sampled fields still disabled. The client now
+ * mirrors the server's own `isEditorFor`, so the bar cannot offer what the form will refuse.
+ */
+describe('LessonControls offers the edit lifecycle only to someone who may edit this version', () => {
+  const OUT_OF_SCOPE = { id: 1, roles: [], assignments: [{ subjectGrade: SG + 1, role: 'editor' }] }
+
+  it('renders no Edit button for an editor scoped to a DIFFERENT subject-grade', () => {
+    mocks.search = ''
+    mocks.user = OUT_OF_SCOPE
+    const html = renderToString(<LessonControls />)
+    expect(html).not.toMatch(/<button[^>]*>Edit<\/button>/)
+    expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+    expect(html).toContain('Viewing:')
+    // The read-only affordances they came for must survive.
+    expect(html).toMatch(/<button[^>]*>Preview<\/button>/)
+  })
+
+  // The deep link is an INTENT, not an authorisation — `?edit=1` must not unlock a form the caller
+  // may not edit. Pinned because the intent is read during SSR, before `canEdit` could be re-checked.
+  it('ignores the ?edit=1 deep link for a caller who may not edit', () => {
+    mocks.search = 'edit=1'
+    mocks.user = OUT_OF_SCOPE
+    const html = renderToString(<LessonControls />)
+    expect(html).not.toContain('lesson-controls-wrap--editing')
+    expect(html).toContain('Viewing:')
+    expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+  })
+
+  it('renders no Edit button for a Teacher (authenticated, no grant at all)', () => {
+    mocks.search = ''
+    mocks.user = { id: 1, roles: [], assignments: [] }
+    expect(renderToString(<LessonControls />)).not.toMatch(/<button[^>]*>Edit<\/button>/)
+  })
+
+  it('still offers Edit to a Site Administrator, who is scoped to nothing and allowed everything', () => {
+    mocks.search = ''
+    mocks.user = { id: 1, roles: ['siteAdmin'], assignments: [] }
+    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*>Edit<\/button>/)
+  })
+
+  it('still offers Edit to a Subject Administrator for THIS subject-grade', () => {
+    mocks.search = ''
+    mocks.user = { id: 1, roles: [], assignments: [{ subjectGrade: SG, role: 'subjectAdmin' }] }
+    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*>Edit<\/button>/)
   })
 })

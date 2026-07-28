@@ -561,13 +561,18 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   }
 }
 
-// "Hide details" (LessonControls, 2026-07-17): collapse the right-hand sidebar on demand. The
-// body class is set client-side by the toggle; the rules mirror Payload's OWN empty-sidebar
-// collapse exactly (installed @payloadcms/ui DocumentFields/index.scss, the
-// `:has(.render-fields:empty)` branch sets --main-width:100% / --main-border:none /
-// --main-field-margin:initial), so the main column widens by the same contract Payload uses —
-// plus display:none on the wrap, since our sidebar has fields and :has() can't fire.
-body.lp-details-hidden .collection-edit--lesson-bundle-versions {
+// "Hide details" (LessonControls, 2026-07-17; DEFAULT INVERTED 2026-07-28): collapse the
+// right-hand sidebar so the editor opens with the full width for the lesson plan itself. The rules
+// mirror Payload's OWN empty-sidebar collapse exactly (installed @payloadcms/ui
+// DocumentFields/index.scss, the `:has(.render-fields:empty)` branch sets --main-width:100% /
+// --main-border:none / --main-field-margin:initial), so the main column widens by the same contract
+// Payload uses — plus display:none on the wrap, since our sidebar has fields and :has() can't fire.
+//
+// Hidden is the CSS DEFAULT and "Show details" ADDS `lp-details-shown` — deliberately this way round
+// rather than defaulting the React state to hidden. The body class is applied in an EFFECT, so a
+// state-only default would paint the sidebar and then yank it away on every load. Keying the default
+// off the absence of a class means first paint is already correct and there is no hydration branch.
+body:not(.lp-details-shown) .collection-edit--lesson-bundle-versions {
   .document-fields--has-sidebar {
     --main-width: 100%;
     --main-border: none;
@@ -826,6 +831,11 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
 // Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
 // overflowing nav row cover ~7rem, so its scroll destinations clear it.
+//
+// ⚠ This value is READ BACK by EditJumpNav (`getComputedStyle(...).scrollMarginTop`) to place the
+// active-section line, so a jumped-to header counts as current instead of lighting its neighbour.
+// This block stays the single owner of the number — change it freely, but don't delete the rule or
+// move the margin onto a different selector without checking that tracking still sees it.
 .collection-edit--lesson-bundle-versions {
   #field-title,
   #field-finalExplanation,
