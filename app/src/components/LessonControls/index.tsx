@@ -33,7 +33,7 @@ import {
 } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
-import { toId } from '../../access'
+import { isEditorFor, toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
 import { DELIVERABLE_LABELS } from '../../generator/deliverables'
@@ -71,7 +71,7 @@ export default function LessonControls() {
   // the server sees the param too and SSR matches hydration — a window-gated read renders locked
   // HTML on the server and unlocked on the client, a hydration mismatch (React #418) on every
   // ?edit=1 load.
-  const [editing, setEditing] = useState<boolean>(() => searchParams.get('edit') === '1')
+  const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
@@ -119,6 +119,22 @@ export default function LessonControls() {
   // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
   // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
   const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
+
+  // Whether the CALLER may edit THIS version at all — the client mirror of the server's own gate,
+  // via the SAME helper the access layer uses (`isEditorFor`, scoped per subject-grade), so the bar
+  // cannot offer an action the form will refuse. Same single-source discipline as `canDelete` below,
+  // which #102 fixed for exactly this class of drift; the server remains the authority.
+  //
+  // Without it the bar lied: a Biology editor opening a Chemistry plan got an Edit button that
+  // swapped in Save/Cancel while every field stayed locked — measured on the Rock 2026-07-28, 23 of
+  // 23 sampled fields still disabled after pressing Edit, with Save reading "No changes to save".
+  // Not a security hole (field-level access held) but a dead end, which is worse UI than no button.
+  const canEdit = isEditorFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never))
+
+  // `editIntent` is what the user (or `?edit=1`) ASKED for; `editing` is what they actually get.
+  // Deriving rather than gating the initial state matters because `savedDocumentData` — and so
+  // `canEdit` — can resolve after first render; a one-shot initialiser would latch the wrong answer.
+  const editing = editIntent && canEdit
 
   // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
   // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
@@ -171,14 +187,14 @@ export default function LessonControls() {
 
   // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
   const onEdit = () => {
-    setEditing(true)
+    setEditIntent(true)
     setMsg(null)
   }
 
   const onDiscard = () => {
     // Revert the form to the saved document (drop unsaved edits) and re-lock to view mode.
     void reset(savedDocumentData ?? {})
-    setEditing(false)
+    setEditIntent(false)
     setMsg(null)
   }
 
@@ -362,7 +378,10 @@ export default function LessonControls() {
           )}
         </div>
         <div className="lesson-controls__group lesson-controls__group--output">
-          {!editing ? (
+          {/* Nothing here for a viewer who cannot edit THIS version (`canEdit`): no Edit button
+              rather than one that unlocks nothing. Preview / View as PDF / downloads stay — they are
+              what a Teacher, or an Editor looking at another subject-grade, actually came for. */}
+          {!canEdit ? null : !editing ? (
             <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
             </Button>
