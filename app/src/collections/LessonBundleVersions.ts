@@ -51,8 +51,8 @@ export const LessonBundleVersions: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     group: 'Lesson plans',
-    description:
-      'Save button writes your edits as a new version — existing versions are never changed.',
+    // No collection description: "Saving creates a new version. The original does not change." is
+    // stated once in LessonControls' "Editing help" modal — a passive banner here duplicated it.
     components: {
       // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
       // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is

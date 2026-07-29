@@ -724,17 +724,14 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     align-items: center;
     gap: 0.6rem;
   }
+  // The action buttons (Save/Cancel/previews/help) sit on their own row beneath the title+Back
+  // row: flex-basis:100% forces the wrap. The old lifecycle|output divider is gone with the
+  // single-row layout it used to separate.
   &__group--output {
-    padding-left: 0.85rem;
-    border-left: 1px solid var(--theme-elevation-150);
-
-    @media (max-width: 640px) {
-      padding-left: 0;
-      border-left: none;
-    }
+    flex-basis: 100%;
   }
-  // One consistent page-exit control: the real Payload secondary button sits at the far right
-  // instead of reading as a small, low-priority text link.
+  // Back rides the title row at the far right — the page exit, above the action buttons, matching
+  // the frontend's Back-next-to-title placement.
   &__group--back {
     margin-left: auto;
     white-space: nowrap;

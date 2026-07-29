@@ -182,8 +182,6 @@ export interface Subject {
   createdAt: string;
 }
 /**
- * Save button writes your edits as a new version — existing versions are never changed.
- *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lesson-bundle-versions".
  */

@@ -46,10 +46,9 @@ describe('the version editor uses teacher-facing language', () => {
     expect(byName(lessonFields, 'title').admin?.description).toBeUndefined()
   })
 
-  it('uses task labels for version identity and the approved Save explanation', () => {
-    expect(LessonBundleVersions.admin?.description).toBe(
-      'Save button writes your edits as a new version — existing versions are never changed.',
-    )
+  it('uses task labels for version identity; the Save explanation lives only in Editing help', () => {
+    // The former collection description duplicated the Editing help modal — removed, not reworded.
+    expect(LessonBundleVersions.admin?.description).toBeUndefined()
     expect(byName(collectionFields, 'title').label).toBe('Document title')
     expect(byName(collectionFields, 'title').admin?.description).toBeUndefined()
     expect(byName(collectionFields, 'sourceVersion').label).toBe('Based on version')

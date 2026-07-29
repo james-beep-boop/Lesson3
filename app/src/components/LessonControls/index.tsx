@@ -380,6 +380,19 @@ export default function LessonControls() {
             </span>
           )}
         </div>
+        {/* Back rides the title row (top-right), so the action buttons below never crowd it and it
+            reads as the page exit — matching the frontend's Back-next-to-title placement. The
+            --output group is forced onto its own row in custom.scss. */}
+        {planId != null && (
+          <div className="lesson-controls__group lesson-controls__group--back">
+            {/* Plain <a>, not PageBackLink/next/link: this Back crosses from Payload's admin root to
+                the frontend root, which is a full-document navigation either way — so route it the
+                zero-risk way. Same `.page-back` styling as the frontend control. */}
+            <a className="page-back" href={`/lessons/${planId}?version=${id}`}>
+              <span aria-hidden="true">←</span>Back to lesson
+            </a>
+          </div>
+        )}
         <div className="lesson-controls__group lesson-controls__group--output">
           {/* Nothing here for a viewer who cannot edit THIS version (`canEdit`): no Edit button
               rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
@@ -463,16 +476,6 @@ export default function LessonControls() {
             </Button>
           )}
         </div>
-        {planId != null && (
-          <div className="lesson-controls__group lesson-controls__group--back">
-            {/* Plain <a>, not PageBackLink/next/link: this Back crosses from Payload's admin root to
-                the frontend root, which is a full-document navigation either way — so route it the
-                zero-risk way. Same `.page-back` styling as the frontend control. */}
-            <a className="page-back" href={`/lessons/${planId}?version=${id}`}>
-              <span aria-hidden="true">←</span>Back to lesson
-            </a>
-          </div>
-        )}
         {pdfBusy && (
           <span role="status" className="lesson-controls__status">
             This opens in a new tab. Close that tab to return to your edits.
