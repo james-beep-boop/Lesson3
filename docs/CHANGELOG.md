@@ -8,6 +8,23 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-07-29 — Back-button consistency follow-up (#158; deploy pending)
+
+- Unified the Back control's appearance with shared fixed-size/font tokens: the frontend uses one
+  `PageBackLink` component and the version editor a plain `<a>` carrying the same `.page-back`
+  styling, so both look identical across the 16px frontend and 15px Payload roots.
+- Navigation is the fastest correct one per surface: frontend Back uses Next `Link` for soft
+  client-side navigation (no full reload); the editor's Back crosses root layouts — a full reload
+  either way — so it stays a plain `<a>` rather than routing a guaranteed reload through `next/link`.
+- Standardized placement at the top right. On lesson pages, Back now sits to the right of
+  **Favorite/Favorited**.
+- Moved the Guide's Back control from the footer to the top-right heading.
+- Applied the same control to password recovery's **Back to sign in**. Close-tab preview guidance is
+  the only workflow-specific exception.
+- Approved the separate user-model language design: **Teacher**, **Subject-grade administrator**,
+  and **Site administrator**, with editing access shown on its own scoped line. No authorization or
+  schema change.
+
 ## 2026-07-28 — plain-language editor and consistent navigation (#157; deploy pending)
 
 - Removed the repeated technical writing note from roughly forty fields and added one accessible

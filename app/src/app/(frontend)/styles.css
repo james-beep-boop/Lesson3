@@ -971,6 +971,11 @@ a {
   margin: 0;
   font-size: 0.9rem;
 }
+.login-back {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
 
 button[type='submit'] {
   padding: 0.6rem 1rem;
@@ -1003,15 +1008,31 @@ button[type='submit']:disabled {
   flex-wrap: wrap;
   gap: 0.6rem;
 }
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.page-heading__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
 .page-back {
   display: inline-flex;
   align-items: center;
-  min-height: 2.4rem;
-  padding: 0.4rem 0.75rem;
+  gap: var(--app-back-gap);
+  min-height: var(--app-back-min-height);
+  padding: var(--app-back-padding-block) var(--app-back-padding-inline);
   border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  border-radius: var(--app-back-radius);
   color: var(--accent);
-  font: inherit;
+  background: transparent;
+  font-family: var(--app-ui-font);
+  font-size: var(--app-back-font-size);
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
@@ -1391,7 +1412,7 @@ button[type='submit']:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   margin-top: 2rem;
   padding-top: 1rem;
@@ -1507,6 +1528,13 @@ button[type='submit']:disabled {
     gap: 0.25rem;
   }
   .lesson-heading__actions {
+    align-self: flex-end;
+  }
+  .page-heading {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .page-heading__actions {
     align-self: flex-end;
   }
 

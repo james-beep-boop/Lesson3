@@ -109,11 +109,12 @@ test.describe('Manage page', () => {
     await page.goto(
       `${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`,
     )
-    // Our control bar renders, with the exit link back to this version's lesson page. The Back
-    // control is now a Payload secondary Button rendered as an anchor (el="anchor") inside the
-    // --back group, replacing the former plain `.lesson-controls__back` <a>.
+    // Our control bar renders, with the shared page-level Back control at the far right. It uses the
+    // same Next Link component and visual tokens as the frontend pages; crossing root layouts still
+    // becomes a full navigation automatically.
     const back = page.locator('.lesson-controls__group--back a')
     await expect(back).toBeVisible()
+    await expect(back).toHaveClass(/page-back/)
     await expect(back).toHaveAttribute(
       'href',
       `/lessons/${fx.plan.id}?version=${fx.version.id}`,

@@ -1,5 +1,4 @@
 import React from 'react'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import { requireUser } from '@/lib/session'
@@ -9,6 +8,7 @@ import { lessonDisplayName } from '@/lib/substrand'
 // Payload's compare VIEW only works on its native versions system (ours are first-class documents),
 // so the cache diffs with its exported ENGINE instead — see htmlDiffCache.ts for the full story.
 import { diffVersionSectionsCached, type CompareDiffSection } from '@/generator/htmlDiffCache'
+import PageBackLink from '@/components/PageBackLink'
 import ComparePickers from './ComparePickers'
 
 /**
@@ -73,12 +73,10 @@ export default async function CompareView({
 
   return (
     <article className="lesson lesson--compare">
-      <div className="lesson-heading">
+      <div className="lesson-heading page-heading">
         <h1>Compare: {title}</h1>
-        <div className="lesson-heading__actions">
-          <Link href={`/lessons/${plan.id}`} className="page-back">
-            ← Back to lesson
-          </Link>
+        <div className="lesson-heading__actions page-heading__actions">
+          <PageBackLink href={`/lessons/${plan.id}`}>Back to lesson</PageBackLink>
         </div>
       </div>
       <ComparePickers

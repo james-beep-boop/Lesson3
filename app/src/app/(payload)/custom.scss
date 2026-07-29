@@ -822,6 +822,37 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
+// Page-level Back is the same component and exact visual treatment as the frontend lesson/compare
+// pages. Explicit shared px/font tokens prevent Payload's smaller rem root and stock Button theme
+// from changing its size, typeface, or colour.
+.collection-edit--lesson-bundle-versions .page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-back-gap);
+  min-height: var(--app-back-min-height);
+  padding: var(--app-back-padding-block) var(--app-back-padding-inline);
+  border: 1px solid var(--app-accent);
+  border-radius: var(--app-back-radius);
+  color: var(--app-accent);
+  background: transparent;
+  font-family: var(--app-ui-font);
+  font-size: var(--app-back-font-size);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    background: var(--app-accent);
+  }
+
+  @media (max-width: 640px) {
+    min-height: 44px;
+  }
+}
+
 // Editing instructions appear once in an accessible shared Modal rather than under every textarea.
 // The shared Modal's base `.modal-backdrop`/`.modal` rules live only in the frontend stylesheet and
 // don't load here, so this is the FULL backdrop + panel styling for the admin surface (re-themed to

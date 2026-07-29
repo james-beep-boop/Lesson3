@@ -15,4 +15,13 @@
                               content edges align EXACTLY: 1.25rem would be 20px on the frontend but
                               18.75px in the admin's 15px-root, a 1.25px drift that defeats the token. */
   --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
+  /* Page-level Back control — explicit px/font tokens keep it identical across the 16px frontend
+     and 15px Payload roots. */
+  --app-back-min-height: 38px;
+  --app-back-gap: 6px;
+  --app-back-padding-block: 6px;
+  --app-back-padding-inline: 12px;
+  --app-back-radius: 6px;
+  --app-back-font-size: 16px;
+  --app-ui-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }

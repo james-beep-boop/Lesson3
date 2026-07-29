@@ -13,6 +13,7 @@ import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors
 import EditActions from './EditActions'
 import ShareMenu from './ShareMenu'
 import FavoriteToggle from '@/components/FavoriteToggle'
+import PageBackLink from '@/components/PageBackLink'
 import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
@@ -111,7 +112,7 @@ export default async function LessonView({
 
   return (
     <article className="lesson">
-      <div className="lesson-heading">
+      <div className="lesson-heading page-heading">
         <div className="lesson-heading__text">
           <h1>{title}</h1>
           {/* One merged meta line (declutter L3, 2026-07-15): subject · grade · version · Official,
@@ -138,11 +139,9 @@ export default async function LessonView({
             )}
           </p>
         </div>
-        <div className="lesson-heading__actions">
-          <Link href="/" className="page-back">
-            ← Back to lesson plans
-          </Link>
+        <div className="lesson-heading__actions page-heading__actions">
           <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
+          <PageBackLink href="/">Back to lesson plans</PageBackLink>
         </div>
       </div>
 

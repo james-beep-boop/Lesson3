@@ -25,6 +25,27 @@ operator). Always CONFIRM rather than trust this line, it goes stale on every de
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
+**▶ COMMITTED — PR [#158](https://github.com/james-beep-boop/Lesson3/pull/158) OPEN, DEPLOY PENDING
+(2026-07-29) — Back-button consistency follow-up.**
+
+- Shared `.page-back` appearance across surfaces: `PageBackLink` on the frontend (lesson, comparison,
+  Guide, password recovery); the version editor uses a plain `<a>` with the **same** styling.
+- Every page-level Back control is the last top-right action. The lesson-page order is
+  **Favorite/Favorited → Back to lesson plans**.
+- Shared fixed-size/font tokens prevent the Payload editor from shrinking or recoloring the control.
+  The Guide's former footer link moved into its top-right heading.
+- Navigation is the fastest correct one per surface: frontend Back uses Next `Link` for bandwidth-saving
+  soft navigation; the editor's Back crosses root layouts (a full reload either way), so it stays a
+  plain `<a>` rather than routing a guaranteed reload through `next/link` and risking the admin router.
+- Password recovery now uses the same top-right control. Close-tab preview guidance is the only
+  deliberate exception.
+- `docs/DESIGN-user-model-language-2026-07-29.md` is now approved: three displayed types use
+  **Teacher**, **Subject-grade administrator**, and **Site administrator**; editing access is shown on
+  its own scoped line. This document revision does not implement that separate terminology batch.
+- Local evidence: TypeScript clean; unit **268/268**; lint **0 errors** / 90 existing warnings;
+  `git diff --check` clean. No local app server is available, so visual verification remains a
+  post-deploy Rock check at desktop and phone widths.
+
 **▶ COMMITTED — PR [#157](https://github.com/james-beep-boop/Lesson3/pull/157) OPEN, DEPLOY PENDING
 (2026-07-28) — calm, plain-language editor + consistent Back buttons.** This completes PR 2 and PR 3 of
 `docs/DESIGN-editor-usability-2026-07-25.md`, plus the operator-approved navigation cleanup. Audited
@@ -36,8 +57,9 @@ being wrong, not the app.)
   internal descriptions, and hid system-numbered inputs. Stored names/data/access are unchanged.
 - **Quick preview ↗** / **Formatted PDF ↗** now disclose the new tab. HTML preview tells the user to
   close it to return; deliberately no Back link in preview/PDF, protecting unsaved work.
-- Lesson, compare, and editor pages now have prominent top-right **Back to lesson plans** /
-  **Back to lesson** secondary buttons.
+- Lesson, compare, and editor pages gained prominent top-right **Back to lesson plans** /
+  **Back to lesson** secondary buttons; the uncommitted 2026-07-29 follow-up above makes their
+  component, placement, typography, and size truly identical and includes the Guide.
 - `/guide`, `USER_GUIDE.md`, the design record, DECISIONS, and CHANGELOG moved in step. The old
   637-line changelog is preserved under `docs/archive/`; the new changelog is concise.
 - Local evidence: `tsc` clean; unit **267/267**; lint **0 errors** / 90 existing warnings;

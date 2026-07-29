@@ -79,7 +79,8 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('Quick preview ↗')
     expect(html).toContain('Formatted PDF ↗')
     expect(html).toContain('Editing help')
-    expect(html).toContain('← Back to lesson')
+    expect(html).toContain('<span aria-hidden="true">←</span>Back to lesson')
+    expect(html).toContain('class="page-back"')
   })
 
   // Pristine-form Save gate (2026-07-17): an untouched form has nothing to save, so Save renders

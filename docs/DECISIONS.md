@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-29 — one Back component, one position, and one visual treatment
+
+Live review showed that the first “consistent Back buttons” pass was not actually consistent: the
+lesson page put Back to the **left** of Favorite, the version editor inherited Payload's smaller
+secondary-button typography, and the Guide kept a footer link.
+
+- Page-level Back is the shared `PageBackLink` component on the frontend (lesson, comparison, Guide,
+  password recovery). The version editor renders a plain `<a>` with the **same** `.page-back` styling
+  — see the navigation bullet for why it does not use the component.
+- It is always the last action at the **top right**. On the lesson page the order is explicitly
+  **Favorite → Back**.
+- Shared pixel and font tokens define height, padding, radius, typeface, size, gap, and accent color
+  across the frontend's 16px root and Payload's 15px root. Both surfaces use the same outline and
+  filled hover/focus treatment; touch layouts use the same 44px minimum height.
+- **Navigation: fastest correct per surface.** Frontend Back uses Next's `Link` for soft
+  client-side navigation — Back is frequent and these pages are server-rendered, so a full reload
+  would cost the bandwidth-constrained audience for nothing. The editor's Back crosses from Payload's
+  admin root to the frontend root, which is a full-document navigation *regardless of link type*, so
+  it uses a plain `<a>`: routing a guaranteed full reload through `next/link` would add no speed and
+  only risk the admin router mishandling the cross-root hop (a case that cannot be verified without a
+  running admin). The general rule: **share appearance where practical, but never route one surface
+  through a slower or riskier navigation merely to reuse a component.**
+- Password recovery uses the same control at the top right of its form card. New-tab previews remain
+  the only deliberate exception: closing the tab returns to the unsaved editor safely.
+
+The lesson-page control beside **Favorite/Favorited** is the visual reference. Future page-level Back
+controls must reuse the `.page-back` treatment and top-right action container rather than introducing
+another link or framework button variant — via `PageBackLink` on the frontend, or a plain `<a>`
+carrying the same class where a cross-root/full navigation is required.
+
 ## 2026-07-28 (latest) — teacher-facing editor language, one help surface, and prominent page exits
 
 The operator approved the remaining editor-usability batch after reviewing the live copy as a Kenyan
@@ -32,8 +62,8 @@ complete the task; internal storage, generator, row-order, and vocabulary mechan
   version — existing versions are never changed.”
 - Back/up navigation is a prominent secondary button at the **top right** of the lesson, compare, and
   version-editor headers. The labels are consistently **Back to lesson plans** or **Back to lesson**.
-  Authentication subflows keep their local “Back to sign in,” and the Guide's footer link stays a
-  footer link.
+  The original authentication and Guide-footer exceptions were reversed by the 2026-07-29
+  consistency decision above.
 - Preview remains the deliberate exception. **Quick preview ↗** and **Formatted PDF ↗** explicitly say
   they open a new tab; the HTML page says to close the tab to return. A literal Back link would create
   a second saved-data lesson/editor path while unsaved work remains in the original tab.

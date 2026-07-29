@@ -1,7 +1,7 @@
 import React from 'react'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import PageBackLink from '@/components/PageBackLink'
 import { getSession } from '@/lib/session'
 import { ForgotPasswordForm } from './ForgotPasswordForm'
 
@@ -12,12 +12,12 @@ export default async function ForgotPasswordPage() {
   if (user) redirect('/')
   return (
     <section className="login">
+      <div className="login-back">
+        <PageBackLink href="/login">Back to sign in</PageBackLink>
+      </div>
       <h1 className="login-title">ARES Lesson Plans</h1>
       <p className="login-subtitle">Reset your password</p>
       <ForgotPasswordForm />
-      <p className="login-links">
-        <Link href="/login">Back to sign in</Link>
-      </p>
     </section>
   )
 }
