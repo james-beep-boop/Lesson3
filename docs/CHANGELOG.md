@@ -8,7 +8,22 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-07-29 — editing is a wider-screen affordance; 640px or narrower is view-only (deploy pending)
+## 2026-07-29 — narrow-width view-only editor: overlap fixes (deployed)
+
+Follow-ups to the wider-screen-affordance feature below, from showing the ≤640px editor at all (the
+Payload admin editor was never made mobile-responsive). All CSS-only, no migration.
+
+- **#165** — the "editing needs a wider screen" notice wraps onto its own full-width row instead of
+  collapsing into a one-word-per-line column beside the viewing buttons. Also pinned the
+  "an edit already underway is not cancelled on resize" contract with a jsdom test, and fixed a SPEC
+  markdown-lint nit.
+- **#166** — the in-form jump nav (a desktop editing aid) is hidden at ≤640px, where editing is
+  unavailable; it had been overlapping the form fields.
+- **#167** — the editor control bar takes its natural height below Payload's mid-break (≤1024px):
+  Payload pins `.doc-controls__controls-wrapper` to a fixed one-row height there, which crammed the
+  multi-row bar and overlapped the first field. Also covers an unmaximised <1024px editing laptop.
+
+## 2026-07-29 — editing is a wider-screen affordance; 640px or narrower is view-only (deployed)
 
 - At **640px or narrower**, lesson-content editing is unavailable: the lesson page's **Edit** button,
   the version editor's **Edit / Save / Cancel**, and the `?edit=1` deep link are hidden and replaced
