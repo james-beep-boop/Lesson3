@@ -1007,6 +1007,13 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   // (The old #1 mobile title-wrap rule is gone with the native title itself — the control bar's
   // "Viewing:/Editing: <title>" wraps naturally via overflow-wrap.)
 
+  // The output group is inline-flex with no wrap; at this width the notice + Quick preview / PDF /
+  // details / help / Delete can't fit on one line, so let them wrap instead of shrinking the notice
+  // into a one-word-per-line column that collides with the form beneath it.
+  .lesson-controls__group--output {
+    flex-wrap: wrap;
+  }
+
   // Below 640px, swap the Edit button for the notice (the LessonControls mount guard is what
   // actually blocks editing; this is cosmetic). Gated on :not(--editing) so someone who resizes
   // below 640px WHILE already editing keeps Save/Cancel and isn't stranded with unsaved work.
@@ -1014,8 +1021,11 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     .lesson-controls__edit {
       display: none;
     }
+    // Own full-width row (flex-basis:100% + the group's flex-wrap above) so the text flows across
+    // the bar rather than collapsing to a narrow column beside the viewing buttons.
     .lesson-controls__edit-unavailable {
-      display: inline;
+      display: block;
+      flex-basis: 100%;
     }
   }
 
