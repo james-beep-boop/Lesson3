@@ -8,6 +8,41 @@ The chronological build log (newest on top). This is **history**, kept for prove
 
 ---
 
+## 2026-07-28 — §6 browser verification, the bug it found, and the Edit-button gate (#154, #155)
+
+Deployed to the Rock as `b37eaa8` (app-level, no migration) and eyeballed live by the operator.
+
+### Fixed
+- **A jump chip lit its NEIGHBOUR** (#155) — `scroll-margin-top: 7rem` (105px) parked jump targets 6px
+  below the measured 99px toolbar bottom, so a just-jumped-to header never counted as crossed and the
+  previous section won. 5 of 6 wrong, 6 of 6 on a re-run: the passing one had beaten the recompute, so the
+  behaviour was racy rather than consistently offset. `EditJumpNav` now reads the margin back out of the
+  DOM; the decision moved into `crossingLine()` in `currentSection.ts` with 5 unit cases.
+- **The Edit button rendered for people who could not edit** (#155) — Teachers, and Editors/Subject Admins
+  viewing a subject-grade they hold no grant for, got an Edit button that swapped in Save/Cancel while the
+  form stayed locked (23 of 23 sampled fields still disabled). Not a security hole — field-level access
+  held and the server re-gates — but a dead end. Now gated on the same `isEditorFor` the access layer uses;
+  `?edit=1` is an intent, not an authorization. The frontend lesson page had been gating this correctly all
+  along; the admin bar had drifted.
+
+### Changed
+- **Details sidebar defaults to collapsed** (#155) — editing column 853px → 1280px. `body:not(.lp-details-shown)`,
+  the class marking SHOWN, so first paint is correct and the sidebar never paints then vanishes. Pulled
+  forward out of PR 2 of the editor-usability batch (`DESIGN-editor-usability-2026-07-25.md` §4d).
+
+### Verified
+- **PR 1 of the editor-usability batch, §6 in full** — scroll-spy over two adjacent expanded lessons (132
+  samples, 0 mismatches, 0 backwards jumps), FE/ST tracking, nested-collapsible, focus-beats-scroll,
+  collapse-by-default on a previously-used account, mobile 390px, and **all three roles against live
+  accounts**. Done on the Rock: the dev Mac still cannot start `next dev` (node hangs in its own bootstrap).
+
+### Docs
+- #154 recorded the `5cfd4eb` deploy and corrected two stale claims.
+- DECISIONS gained two 2026-07-28 entries (the verification + SCSS/TS drift rule; the mobile-editing
+  decision + the Edit-button gate). NEXT-SESSION now carries the agreed **hide-editing-below-640px** plan
+  as the next feature work.
+- *(This log had drifted: #150–#153 are recorded in NEXT-SESSION and DECISIONS but were never entered here.)*
+
 ## 2026-07-21 — CodeRabbit round 3 + a #139 race hardening (#141, #142)
 
 ### Fixed
