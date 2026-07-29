@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-28 (later) — editing is a laptop/tablet surface below 640px; and an Edit button that edited nothing
+
+Two decisions from the same session, both about **offering only what the app can actually deliver**.
+
+**1. Hide lesson-content editing below 640px (agreed, NOT yet built).** The operator's framing: the app must
+run on a phone, but editing will realistically never be done on one. Primary editing surface is **inexpensive
+Kenyan laptops, 1280×800 being common** — which must stay editable *even unmaximised* — with tablets
+secondary and phones explicitly not a priority.
+
+640px is the right line because it is **already the only breakpoint in the codebase** (3× `custom.scss`, 1×
+frontend `styles.css`) and **already the line where the editor was conceded**: `.doc-controls` is
+deliberately not sticky below it (#99 item ①), so the toolbar and jump nav scroll away, and #150's indicator
+is a documented desktop-only affordance. Keeping phone editing is therefore not "free because it's already
+built" — it means owning two unbuilt mobile backlog items (framework-table reflow, sticky-header height) and
+paying a "does this work at 390px?" tax on every future editor change. Declaring the editor
+laptop/tablet-only deletes that dimension.
+
+Three things that shaped the design and are easy to get wrong:
+- **Scope it to the lesson-content editor, NOT `/admin`.** User administration (promote/demote) lives in the
+  admin too and must keep working on a phone — it is a small form, not a 3350px lesson body.
+- **Delete stays.** Operator: *"editing needs room, deleting does not."* One tap behind a confirm dialog.
+- **Explain, don't just remove.** A missing Edit button is indistinguishable from "I've been demoted" or
+  "the app is broken", and many teachers are phone-primary — that is a manufactured support burden.
+- **Viewport is not a device class and NOT an authorization boundary.** Landscape phones clear 640px and
+  "request desktop site" defeats it outright, so this is progressive disclosure only: server-side RBAC is
+  untouched and no endpoint gets a viewport check. Bypassing it just yields the cramped editor.
+- **Evaluate ONCE on load, not on resize** — reacting to a resize would yank someone out of edit mode
+  mid-sentence and discard their edits, which is worse than the inconsistency it fixes.
+- CSS alone is insufficient: `editing` initialises from `?edit=1` in a **lazy initialiser that runs during
+  SSR**, so a CSS-only hide leaves a phone user in live edit mode with editable fields and no Save — a
+  silent work-loss trap. One mount-time JS guard is required.
+
+**2. The Edit button rendered unconditionally, and edited nothing.** Anyone who could open a version got one
+— a Teacher, or an Editor/Subject Admin viewing a subject-grade they hold no grant for. Pressing it swapped
+the bar into Save/Cancel while the form stayed locked: measured live, **23 of 23 sampled fields still
+disabled**, Save reading "No changes to save". Field-level access held throughout and the server re-gates
+every write, so this was never a security hole — it was a **dead end, which is worse UI than no button**.
+
+The instructive part: **the frontend lesson page had gated this correctly all along** (`canEdit` =
+`isEditorFor`, with a "Request editing" button for viewers). So this was not a design question with two
+defensible answers — one surface had simply drifted from the other, exactly as the Delete button had before
+#102 single-sourced it. The fix uses the same helper the access layer uses. **`?edit=1` is now treated as an
+INTENT, not an authorization**: `editIntent && canEdit`, derived rather than gated at the initial state,
+because `savedDocumentData` can resolve after first render and a one-shot initialiser would latch the wrong
+answer.
+
+**Test lesson (again): the three new negative cases were run against the UNFIXED component and confirmed to
+fail.** The existing SSR spec had been passing with `useAuth: () => ({ user: null })` — under the new rule
+that means "cannot edit", so those cases needed a real mocked user. A spec whose fixture is `null` for the
+very value the feature turns on cannot detect the feature at all.
+
 ## 2026-07-28 — #150 browser-verified on the Rock; a 6px SCSS/TS drift lit the wrong chip
 
 The outstanding browser verification of PR 1 (`docs/DESIGN-editor-usability-2026-07-25.md` §6) was done

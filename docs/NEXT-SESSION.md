@@ -18,10 +18,12 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is deployed at `main` `5cfd4eb`** (2026-07-27 — #150/#151/#152/#153; app, migrate AND
-gotenberg all rebuilt, migrate a no-op, site 200, gotenberg healthy). Always CONFIRM rather than trust
-this line, it goes stale on every deploy:
+**The live Rock is deployed at `main` `b37eaa8`** (2026-07-28 — #154/#155; app-level, NO migration;
+image rebuilt, site 200, gotenberg + postgres healthy, all three changes eyeballed on screen by the
+operator). Always CONFIRM rather than trust this line, it goes stale on every deploy:
 `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
+(Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
+being wrong, not the app.)
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
@@ -74,25 +76,86 @@ and the two 2026-07-27 entries.
    shell already in `app/` silently skipped the edit; the check that followed wasn't chained, ran against
    the unchanged file, and passed. Chain edit-and-check with `&&`, or use absolute paths.
 
-⚠ **STILL OUTSTANDING — browser verification of the indicator.** No automated test covers the scroll
-plumbing, and it was never checked on screen (the dev Mac could not start `next dev` — node hangs in its
-own bootstrap). The case that matters is **two adjacent EXPANDED lessons**: confirm the chip advances as
-each header passes under the toolbar and never sticks on the previous one. Scenarios:
-`docs/DESIGN-editor-usability-2026-07-25.md` §6.
+**✓ SHIPPED & LIVE (2026-07-28) — #155: the §6 browser verification, the bug it found, and two more.**
+Done against the live Rock in a browser (the dev Mac still cannot start `next dev` — node hangs in its own
+bootstrap — so verification happens post-deploy, not locally). Target: Chemistry Grade 10 "Chemical
+Bonding", version 228 — 13 lessons, ~200k chars of framework prose, so one EXPANDED lesson is ~3350px
+against an 860px viewport, which is the shape §6 requires and no smaller fixture reproduces.
 
-**PR 2 and PR 3 of that batch are planned, not started** — PR 2 (plain language: kill the 40× repeated
-grammar hint, one Instructions modal, teacher-facing labels, Hide-Details default); PR 3 (preview clarity:
-rename by purpose, "opens in a new tab", and deliberately **no literal Back link** — it would strand
-unsaved edits in the other tab).
+- **§6 PASSED:** scroll-spy with two adjacent expanded lessons (132 samples full-document, 0 mismatches,
+  0 backwards jumps); FE/ST tracked so the last lesson doesn't stay lit; nested-collapsible (jumping to an
+  open lesson opened none of its 5 nested collapsibles, FE none of its 10); focus-beats-scroll;
+  collapse-by-default on a previously-used account, which is the half `initCollapsed` cannot do alone and
+  confirms the #151 prefs clear reached a real user; mobile 390px (bar still `static`, no Title overlap).
+- **§6 FAILED → FIXED: clicking a chip lit its NEIGHBOUR.** `scroll-margin-top: 7rem` (105px) parked jump
+  targets 6px below the measured 99px toolbar bottom, so a just-jumped-to header never counted as crossed.
+  5 of 6 wrong, then 6 of 6 on a re-run — the one that passed had merely beaten the recompute, so it was
+  RACY, not consistently offset. Fixed by reading the margin back out of the DOM; `crossingLine()` now
+  lives in `currentSection.ts` with 5 unit cases. **Rule: when a constant must exist in both SCSS and TS,
+  have one side READ it, not both DECLARE it** — that seam was even commented "keep in step by hand".
+- **Hide-details default INVERTED** (§4d, pulled forward out of PR 2 on operator request): the editor now
+  opens with the sidebar collapsed, editing column 853px → 1280px. Done as `body:not(.lp-details-shown)`
+  — the class marks SHOWN — because the body class is applied in an effect, so a state-only default would
+  paint the sidebar and yank it away on every load.
+- **The Edit button is now gated on `isEditorFor`.** It had rendered unconditionally, so a Teacher — or an
+  Editor/Subject Admin viewing a subject-grade they hold no grant for — got an Edit button that swapped in
+  Save/Cancel while the form stayed locked (measured: 23 of 23 fields still disabled, Save reading "No
+  changes to save"). Not a security hole; field-level access held and the server re-gates. The frontend
+  lesson page had gated this correctly ALL ALONG (`page.tsx` `canEdit`, with a "Request editing" button for
+  viewers) — the admin bar was the one that had drifted. `?edit=1` is now an INTENT, not an authorisation.
+- **Role verification COMPLETE** (all three, against live accounts — §6 warns these have previously been
+  "verified" under the wrong role): Editor (Biology 10) sees NO META/UNIT in scope ✓ and no Edit
+  out of scope ✓; Subject Admin (Biology 10) sees META/UNIT in scope ✓ and neither out of scope ✓;
+  Site Admin retains everything ✓.
 
-**Not in this repo: the iCloud problem.** All 23 repos live in an iCloud-synced `~/Documents`, and three
+**PR 2 and PR 3 of that batch are still planned, not started** — PR 2 (plain language: kill the 40×
+repeated grammar hint, one Instructions modal, teacher-facing labels; **Hide-Details default is DONE, see
+above**); PR 3 (preview clarity: rename by purpose, "opens in a new tab", and deliberately **no literal
+Back link** — it would strand unsaved edits in the other tab).
+
+**▶ AGREED AND SPEC'D, NOT STARTED — hide editing below 640px (operator decision 2026-07-28).** This is
+the next feature work. The app must be usable on a phone, but **editing needs room and will not be done on
+one**; the primary editing surface is inexpensive Kenyan laptops (**1280×800 is common — must stay
+editable even when the window isn't maximised**), tablets secondary. Full reasoning + the decision record:
+DECISIONS 2026-07-28 (later).
+- **Breakpoint: 640px** — already the ONE breakpoint in the codebase (3× in `custom.scss`, 1× in the
+  frontend `styles.css`), and already the line where the editor was conceded (`.doc-controls` is
+  deliberately NOT sticky below it, #99 item ①). 1280×800 clears it with enormous room; tablet portrait
+  (~768px) and landscape phones stay editable, which the operator accepted.
+- **Hide below 640px:** the lesson page's Edit button; the editor's Edit / Save / Cancel; and `?edit=1`
+  must not enter edit mode.
+- **Do NOT hide Delete** — operator decision: "editing needs room, deleting does not." It is one tap
+  behind a confirm dialog, role-gated and server-gated.
+- **Everything else stays:** catalogue, viewing, both previews, downloads/exports, Share, email,
+  messaging, favorites, version history, **user administration incl. promote/demote**, guide, auth. The
+  boundary is the lesson-content editor, NOT `/admin` as a whole.
+- **Show an explanation, not a missing button** — silently removing Edit is indistinguishable from "I've
+  been demoted" or "the app is broken", and many teachers are phone-primary. Say editing needs a wider
+  screen.
+- **Mechanism:** CSS for the controls and the notice (SSR-safe, no hydration branch — the §4d discipline),
+  plus ONE mount-time JS guard, because `editing` initialises from `?edit=1` in a lazy initialiser that
+  runs during SSR (`LessonControls` ~line 74). CSS alone would leave a phone user in live edit mode with
+  editable fields and no Save — a silent work-loss trap, the same failure class as queue item 2.
+- **Evaluate ONCE, on load — not live on resize.** Reacting to resize would yank someone out of edit mode
+  mid-sentence and discard their edits, which is worse than the inconsistency it fixes.
+- Ship with a unit test pinning "below 640px, editing is unavailable" as a pure function, plus the
+  `SPEC.md` entry (this is a product decision not currently in the spec) and a DECISIONS entry.
+
+⚠ **Small doc debt:** `docs/DESIGN-editor-usability-2026-07-25.md` §6 has been updated to record the
+verification, but PR 2's label renames (META → Document settings, UNIT → Sub-strand overview) are the only
+§6 items still unverified — they don't exist yet.
+
+**Not in this repo: the iCloud problem — DEFERRED by operator decision 2026-07-28** (still real, still
+unmitigated; don't re-raise it as urgent unless asked). All 23 repos live in an iCloud-synced `~/Documents`, and three
 Macs share one copy — 1,631 conflict copies, including duplicated `.git/index` files (`index 2` AND
 `index 3`, i.e. three-way divergence). `git fsck` would not complete on Lesson3 in 25s, so object-store
 integrity is unverified. Migration plan (clone-don't-move, plus the ignored-asset and secrets payloads a
 clone does not carry): **`~/Desktop/icloud-git-migration.md`**. Do this before trusting the repo further.
 
-**Remaining queue (nothing else is blocking):**
-1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise (operator-chosen next).**
+**Remaining queue (nothing else is blocking).** Note the operator has since chosen the 640px mobile work
+above as the next feature; item 1 below was the previous "operator-chosen next" and keeps its analysis.
+Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED on 2026-07-28.
+1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
    Two edit-page paths, and it's the FIRST that hurts repeatedly:
    - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the

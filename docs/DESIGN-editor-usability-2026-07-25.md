@@ -43,7 +43,7 @@ assumed.
 |---|---|---|---|
 | 8 | Current-position indicator | **Strongly accept. First change.** | 1 |
 | 6 | Collapse content by default | Accept — **row-based arrays only** | 1 |
-| 1 | Hide Details by default | Accept — **via CSS, not state** | 2 |
+| 1 | Hide Details by default | Accept — **via CSS, not state**. ✓ SHIPPED in #155, pulled forward out of PR 2 | ~~2~~ done |
 | 6 | Remove repeated technical instructions | **Strongly accept** | 2 |
 | 2, 3 | Replace `META`, `UNIT`, `SLO` | Accept **at the display-label layer** | 2 |
 | 4 | Explain bold/italic/underline | Say plainly it is unsupported. **Don't fake formatting** | 2 + upstream |
@@ -241,7 +241,11 @@ Keep the two needs separate:
   and anything in a content field prints. Needs a SPEC §5 conversation. **Do not improvise it inside
   printable lesson content.**
 
-### 4d. Hide Details by default — in CSS
+### 4d. Hide Details by default — in CSS ✓ SHIPPED (#155, 2026-07-28)
+
+Shipped as `body:not(.lp-details-shown)` with the class marking SHOWN, exactly as reasoned below.
+Measured effect: editing column 853px → 1280px at 1280 wide. The rest of PR 2 remains unstarted.
+
 
 `detailsShown` starts `true` (`src/components/LessonControls/index.tsx:91`) and the body class is applied
 in an **effect**, so flipping only the `useState` produces a visible "sidebar flashes, then disappears"
@@ -314,12 +318,42 @@ Regenerate `payload-types.ts` after PR 2 (descriptions are JSDoc'd into it). Exp
 **`/guide` and `USER_GUIDE.md` move in the same PR.** Guide drift has been caught in review here before
 (DECISIONS 2026-07-18); do not defer it.
 
-⚠ **Browser verification of PR 1 is still OUTSTANDING.** PR 1 is MERGED and LIVE on the Rock (`5cfd4eb`,
-2026-07-27), and the preference clear has run there — so the feature is on screen and checkable now. It
-could not be verified locally (2026-07-25): Postgres came up fine, but `next dev` hangs during **node's own bootstrap**
-(`LoadEnvironment` → `ExecuteBootstrapper`, ~0% CPU, port never binds) under both node 25 and a pinned
-node 22, so no app was reachable. Not an app defect — nothing app-level had executed yet. Do this on a
-host where the stack runs, or post-deploy on the Rock.
+✓ **Browser verification of PR 1 is DONE (2026-07-28, #155).** Carried out against the live Rock, since the
+dev Mac still cannot run the stack: `next dev` hangs during **node's own bootstrap** (`LoadEnvironment` →
+`ExecuteBootstrapper`, ~0% CPU, port never binds) under both node 25 and a pinned node 22. Not an app
+defect — nothing app-level had executed yet. **Verification for this editor work happens post-deploy on the
+Rock; plan for that rather than expecting a local run.**
+
+Target: Chemistry Grade 10 "Chemical Bonding", version 228 — 13 lessons, ~200k chars of framework prose, so
+one expanded lesson measures ~3350px against an 860px viewport. Results:
+
+| Scenario | Result |
+|---|---|
+| Scroll-spy, two adjacent expanded lessons | ✓ 132 samples full-document, 0 mismatches, 0 backwards jumps |
+| FE / Summary Table tracked | ✓ last lesson does not stay lit |
+| Nested-collapsible on jump | ✓ lesson opened none of its 5 nested rows; FE none of its 10 |
+| Focus beats scroll | ✓ |
+| Collapse-by-default, previously-used account | ✓ all 13 collapsed — the #151 prefs clear did reach real prefs |
+| Mobile 390px | ✓ bar still `static`, no Title overlap, no horizontal scroll |
+| **Clicking a chip highlights it** | ✗ **FAILED — lit the neighbour. Fixed in #155** (see below) |
+| Editor / Subject Admin / Site Admin role checks | ✓ all three, against live accounts |
+
+**The failure:** `scroll-margin-top: 7rem` (105px) parked jump targets 6px below the measured 99px toolbar
+bottom, so a just-jumped-to header never counted as crossed and the previous section won. 5 of 6 chips
+wrong, then 6 of 6 on a re-run — the one that passed had merely beaten the recompute, so the behaviour was
+**racy, not consistently offset**, and a casual click-test could have "confirmed" it working. Fixed by
+reading the margin back out of the DOM; the rule now lives in `crossingLine()` with unit cover.
+
+⚠ **Two traps this verification actually hit, for whoever does the next one:**
+1. **Measure expectation and observation in the SAME pass.** The first scroll-spy run appeared to show a
+   ~700px lag that did not exist: absolute positions had been captured before the scan, and Payload
+   lazy-rendered ~690px underneath them mid-run. The `ResizeObserver` in `EditJumpNav` exists for exactly
+   this; a probe written against it must respect it too.
+2. **Do not send write probes at production to test authorization.** An attempted `PATCH` to prove a 403
+   would have renamed a live version had the gate been broken. Wire-level authz belongs in `tests/http`.
+
+Still unverified from this section: only PR 2's label renames (META → Document settings, UNIT → Sub-strand
+overview) — they do not exist yet.
 
 What it needs (there is no lesson corpus in the repo — the 42 ARES files live outside it):
 - A version with **≥8 lessons whose prose is long enough that one EXPANDED lesson exceeds the
