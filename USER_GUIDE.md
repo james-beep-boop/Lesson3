@@ -48,14 +48,15 @@ _N versions_ panel and Compare control; Teachers do not use Manage or see versio
 ## Editors
 
 Editors can do everything Teachers can do, and their role is to edit the prose fields for the
-subject-grades assigned to them — lesson titles, SLO text, overviews, learner experiences, teacher
-moves, sensemaking strategies, formative assessments, teacher reflections, summary-table text, and
-Final Explanation prompts. They never edit a Word file directly.
+subject-grades assigned to them — lesson titles, specific learning outcomes, overviews, learner
+experiences, teacher moves, sensemaking strategies, formative assessments, teacher reflections,
+summary-table text, and Final Explanation prompts. They never edit a Word file directly.
 
 - **Edit from the lesson:** open a lesson in the library and press *Edit*. The editing page opens
-  ready to type, showing only the fields you may change. *Preview* gives a quick check of your
-  content and structure, while *View as PDF* shows the fully formatted document — both work on your
-  unsaved edits, before you save. *← Back to lesson* returns you when you are done.
+  ready to type, showing only the fields you may change. *Quick preview ↗* checks your content,
+  while *Formatted PDF ↗* shows the final layout. Both open in a new tab and include unsaved edits;
+  close that tab to return to the editor. Use *Editing help* for the short writing rules. The
+  prominent *← Back to lesson* button at the top right returns you when you are done.
 - **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
   version you opened is never changed in place. A Subject or Site Administrator marks a saved version
   Official when it is ready.
@@ -68,10 +69,9 @@ Subject Administrators can do everything Editors can do for their assigned subje
 manage the structure and official content controls for those subject-grades.
 
 - **Manage structure:** add, remove, and reorder lessons and instructional phases. To add a lesson,
-  duplicate an existing lesson row, then edit the copy; this safely carries forward the hidden,
-  system-managed ARES resource links. A blank new lesson cannot be saved without those links.
-- **Edit controlled fields:** update metadata, sub-strand settings, lesson duration, ARES keywords,
-  phase choices, assessment exemplars, and rubric rows.
+  duplicate an existing lesson row, then edit the copy.
+- **Edit controlled fields:** update Document settings, the Sub-strand overview, lesson duration,
+  ARES keywords, phase choices, assessment exemplars, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —
   optionally deleting the version it replaces.
 - **Tidy candidates:** *Manage → Candidate versions* lists every saved, non-Official version in their
@@ -95,12 +95,11 @@ lesson-plan upload/import, and all lesson plans.
 
 ## Writing in Fields
 
-Lesson content fields are plain text. Formatting is applied by the generator when you preview or
-export.
+These rules are also available from *Editing help* at the top of the editor.
 
 - Start a new line to make a new paragraph.
 - Start a line with `- ` to make a bullet.
-- Do not add Markdown or rich-text markup; it will appear as typed.
+- Bold, italics, and underlining are not supported.
 - Edit the field that matches the document section you want to change. The exported DOCX and PDF are
   generated from those fields.
 

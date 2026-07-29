@@ -73,10 +73,14 @@ export default async function CompareView({
 
   return (
     <article className="lesson lesson--compare">
-      <Link href={`/lessons/${plan.id}`} className="back-link">
-        ← Back to lesson
-      </Link>
-      <h1>Compare: {title}</h1>
+      <div className="lesson-heading">
+        <h1>Compare: {title}</h1>
+        <div className="lesson-heading__actions">
+          <Link href={`/lessons/${plan.id}`} className="page-back">
+            ← Back to lesson
+          </Link>
+        </div>
+      </div>
       <ComparePickers
         planId={plan.id}
         options={versions.map((v) => ({ id: v.id, label: label(v) }))}

@@ -76,6 +76,10 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('Viewing:')
     expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
+    expect(html).toContain('Quick preview ↗')
+    expect(html).toContain('Formatted PDF ↗')
+    expect(html).toContain('Editing help')
+    expect(html).toContain('← Back to lesson')
   })
 
   // Pristine-form Save gate (2026-07-17): an untouched form has nothing to save, so Save renders
@@ -111,7 +115,8 @@ describe('LessonControls offers the edit lifecycle only to someone who may edit 
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
     expect(html).toContain('Viewing:')
     // The read-only affordances they came for must survive.
-    expect(html).toMatch(/<button[^>]*>Preview<\/button>/)
+    expect(html).toMatch(/<button[^>]*>Quick preview ↗<\/button>/)
+    expect(html).not.toContain('Editing help')
   })
 
   // The deep link is an INTENT, not an authorisation — `?edit=1` must not unlock a form the caller

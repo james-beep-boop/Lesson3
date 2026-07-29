@@ -119,7 +119,7 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
       vi.fn().mockResolvedValue(new Response(new Blob(['%PDF']), { status: 200 })),
     )
 
-  describe('openPreparedPdfInNewTab (teacher per-document + editor "View as PDF")', () => {
+  describe('openPreparedPdfInNewTab (teacher per-document + editor "Formatted PDF")', () => {
     it('navigates the placeholder tab when the popup opened', async () => {
       const tab = makeTab()
       stubBrowser([tab])

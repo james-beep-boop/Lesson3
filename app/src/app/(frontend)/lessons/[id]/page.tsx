@@ -111,9 +111,6 @@ export default async function LessonView({
 
   return (
     <article className="lesson">
-      <Link href="/" className="back-link">
-        ← All lesson plans
-      </Link>
       <div className="lesson-heading">
         <div className="lesson-heading__text">
           <h1>{title}</h1>
@@ -141,7 +138,12 @@ export default async function LessonView({
             )}
           </p>
         </div>
-        <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
+        <div className="lesson-heading__actions">
+          <Link href="/" className="page-back">
+            ← Back to lesson plans
+          </Link>
+          <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
+        </div>
       </div>
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,

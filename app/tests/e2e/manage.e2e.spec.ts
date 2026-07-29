@@ -109,8 +109,10 @@ test.describe('Manage page', () => {
     await page.goto(
       `${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`,
     )
-    // Our control bar renders, with the exit link back to this version's lesson page.
-    const back = page.locator('.lesson-controls__back')
+    // Our control bar renders, with the exit link back to this version's lesson page. The Back
+    // control is now a Payload secondary Button rendered as an anchor (el="anchor") inside the
+    // --back group, replacing the former plain `.lesson-controls__back` <a>.
+    const back = page.locator('.lesson-controls__group--back a')
     await expect(back).toBeVisible()
     await expect(back).toHaveAttribute(
       'href',

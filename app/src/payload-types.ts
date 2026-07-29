@@ -147,7 +147,7 @@ export interface LessonPlan {
   title: string;
   subjectGrade: number | SubjectGrade;
   /**
-   * The single global Official version for this lesson plan.
+   * The approved version shown first to teachers.
    */
   officialVersion?: (number | null) | LessonBundleVersion;
   updatedAt: string;
@@ -161,12 +161,9 @@ export interface SubjectGrade {
   id: number;
   subject: number | Subject;
   /**
-   * Whole number; displayed as "Grade N".
+   * Enter a whole number, such as 10.
    */
   grade: number;
-  /**
-   * Auto-generated from subject + grade.
-   */
   displayName?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -178,14 +175,14 @@ export interface SubjectGrade {
 export interface Subject {
   id: number;
   /**
-   * Academic discipline only, e.g. "Biology". No grade here.
+   * For example, Biology or Chemistry.
    */
   name: string;
   updatedAt: string;
   createdAt: string;
 }
 /**
- * Save writes your edits as a new version — existing versions are never changed.
+ * Save button writes your edits as a new version — existing versions are never changed.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lesson-bundle-versions".
@@ -193,31 +190,22 @@ export interface Subject {
 export interface LessonBundleVersion {
   id: number;
   lessonPlan: number | LessonPlan;
-  /**
-   * Version this snapshot was edited from. Empty for uploaded 1.0.0.
-   */
   sourceVersion?: (number | null) | LessonBundleVersion;
-  /**
-   * Who saved this version. Empty for uploaded or system-created versions.
-   */
   author?: (number | null) | User;
   semver: string;
-  /**
-   * Version label for lists, e.g. the document title.
-   */
   title: string;
   subjectGrade: number | SubjectGrade;
   meta?: {
     /**
-     * Site Admin only — repair field.
+     * Shown in the generated document.
      */
     subject?: string | null;
     /**
-     * Site Admin only — repair field.
+     * Shown in the generated document.
      */
     grade?: number | null;
     /**
-     * Site Admin only — re-uploads of this sub-strand match on it.
+     * Used to match future uploads to this lesson plan.
      */
     substrand_id?: string | null;
     substrand_name?: string | null;
@@ -228,117 +216,42 @@ export interface LessonBundleVersion {
     col3Label?: string | null;
     col5Label?: string | null;
   };
-  /**
-   * Sub-strand overview. May be empty for some sub-strands.
-   */
   unit?: {
     gradeLevel?: string | null;
     subject?: string | null;
     strand?: string | null;
     substrand?: string | null;
     totalDuration?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     content?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     learningOutcomes?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     coreCompetencies?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     values?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     sep?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     pcis?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     careers?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     focus?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     drivingQuestion?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     phenomenon?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     supportingPhenomena?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     storylineThread?: string | null;
   };
-  /**
-   * Subject Admins may duplicate an existing lesson to add a row. Its system-managed ARES resource links are copied from the source lesson and cannot be edited.
-   */
   lessons?:
     | {
-        /**
-         * Set automatically from lesson order.
-         */
         number?: number | null;
-        /**
-         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-         */
         title?: string | null;
         duration?: string | null;
         substrand?: string | null;
         aresKeywords?: string | null;
         slo?: {
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           purpose?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           knowledge?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           skills?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           attitudes?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           keyInquiry?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           purposeInStoryline?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           safetyNotes?: string | null;
         };
-        /**
-         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-         */
         overview?: string | null;
-        /**
-         * Resolved upstream and versioned exactly; never user-editable.
-         */
         resourceLinks: {
           phase: 'predict' | 'observe' | 'explain' | 'dqb' | 'model';
           video?: {
@@ -368,9 +281,6 @@ export interface LessonBundleVersion {
         }[];
         framework?:
           | {
-              /**
-               * Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.
-               */
               phase?:
                 | (
                     | 'Predict Phase'
@@ -380,41 +290,17 @@ export interface LessonBundleVersion {
                     | 'Model Building Phase'
                   )
                 | null;
-              /**
-               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-               */
               learnerExperience?: string | null;
-              /**
-               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-               */
               teacherMoves?: string | null;
-              /**
-               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-               */
               sensemakingStrategy?: string | null;
-              /**
-               * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-               */
               formativeAssessment?: string | null;
               id?: string | null;
             }[]
           | null;
-        /**
-         * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-         */
         teacherReflection?: string | null;
         summaryTablePrompt?: {
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           observed?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           learned?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           explained?: string | null;
         };
         id?: string | null;
@@ -422,20 +308,11 @@ export interface LessonBundleVersion {
     | null;
   finalExplanation?: {
     subjectLabel?: string | null;
-    /**
-     * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-     */
     instructions?: string | null;
     sections?:
       | {
           title?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           prompt?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           exemplar?: string | null;
           id?: string | null;
         }[]
@@ -455,25 +332,10 @@ export interface LessonBundleVersion {
     drivingQuestion?: string | null;
     lessons?:
       | {
-          /**
-           * Set automatically from row order.
-           */
           number?: number | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           title?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           observed?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           learned?: string | null;
-          /**
-           * Plain text only. A new line starts a new paragraph; a line beginning with "- " becomes a bullet. Markdown/bold/italic are NOT rendered.
-           */
           explained?: string | null;
           id?: string | null;
         }[]
@@ -489,15 +351,15 @@ export interface LessonBundleVersion {
 export interface User {
   id: number;
   /**
-   * Shown for attribution. Non-site-admins never see other emails.
+   * Shown next to versions you save.
    */
   name: string;
   /**
-   * Global Site Administrator grant. Leave empty for non-admins.
+   * Gives this person full access to the system.
    */
   roles?: 'siteAdmin'[] | null;
   /**
-   * Per subject-grade grants. Subject Admins may manage only their own subject-grades.
+   * Assign Editor or Subject Administrator access for each subject and grade.
    */
   assignments?:
     | {

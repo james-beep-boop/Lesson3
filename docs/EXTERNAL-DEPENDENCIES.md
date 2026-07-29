@@ -45,6 +45,14 @@ Implications for Lesson3:
 - Fidelity is tested against the current upstream JSON/DOCX pair, including hyperlink relationships
   and targets, so the resolved links themselves are part of the oracle rather than an excluded region.
 
+### 4. Text styling request (not supported)
+
+Lesson3 content remains plain text. Bold, italics, and underlining would require an upstream ARES
+contract and generator design—not a rich-text control added only in Lesson3—because the stored grammar,
+ingest validation, generator input, DOCX output, existing data, and fidelity gates must agree. The
+editor and Guide therefore state plainly that text styling is not supported. Treat any future request
+as a coordinated upstream product change and re-run the full contract/fidelity process.
+
 ## Integration plan (see `SPEC.md` §4)
 
 - Call the vendored builders in-process with the validated Payload data object; do not write a source

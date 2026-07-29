@@ -51,7 +51,8 @@ export const LessonBundleVersions: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
     group: 'Lesson plans',
-    description: 'Save writes your edits as a new version — existing versions are never changed.',
+    description:
+      'Save button writes your edits as a new version — existing versions are never changed.',
     components: {
       // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
       // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is
@@ -132,10 +133,10 @@ export const LessonBundleVersions: CollectionConfig = {
       type: 'relationship',
       relationTo: 'lesson-bundle-versions' as CollectionSlug,
       access: { create: systemOnly, update: systemOnly },
+      label: 'Based on version',
       admin: {
         position: 'sidebar',
         readOnly: true,
-        description: 'Version this snapshot was edited from. Empty for uploaded 1.0.0.',
       },
     },
     {
@@ -148,10 +149,10 @@ export const LessonBundleVersions: CollectionConfig = {
       relationTo: 'users' as CollectionSlug,
       index: true,
       access: { create: systemOnly, update: systemOnly },
+      label: 'Saved by',
       admin: {
         position: 'sidebar',
         readOnly: true,
-        description: 'Who saved this version. Empty for uploaded or system-created versions.',
       },
     },
     {
@@ -194,11 +195,9 @@ export const LessonBundleVersions: CollectionConfig = {
     {
       name: 'title',
       type: 'text',
+      label: 'Document title',
       required: true,
       access: { update: canEditStructure },
-      admin: {
-        description: 'Version label for lists, e.g. the document title.',
-      },
     },
     {
       name: 'subjectGrade',

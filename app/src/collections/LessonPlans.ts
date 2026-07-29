@@ -74,7 +74,7 @@ export const LessonPlans: CollectionConfig = {
       relationTo: 'lesson-bundle-versions' as CollectionSlug,
       admin: {
         position: 'sidebar',
-        description: 'The single global Official version for this lesson plan.',
+        description: 'The approved version shown first to teachers.',
       },
       access: {
         update: canSetOfficialVersion,

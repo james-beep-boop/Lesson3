@@ -8,7 +8,7 @@ end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
-(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~4500 lines) — skim
+(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~6300 lines) — skim
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
@@ -24,6 +24,32 @@ operator). Always CONFIRM rather than trust this line, it goes stale on every de
 `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
+
+**▶ COMMITTED — PR [#157](https://github.com/james-beep-boop/Lesson3/pull/157) OPEN, DEPLOY PENDING
+(2026-07-28) — calm, plain-language editor + consistent Back buttons.** This completes PR 2 and PR 3 of
+`docs/DESIGN-editor-usability-2026-07-25.md`, plus the operator-approved navigation cleanup. Audited
+(full read) and carried through a four-angle `/simplify` pass before commit — see the CHANGELOG entry:
+
+- Removed the ~40 repeated grammar descriptions; one accessible **Editing help** modal now owns the
+  paragraph/bullet/formatting rules.
+- Renamed technical display labels (`META`, `UNIT`, `SLO`, etc.), made Title **Document title**, removed
+  internal descriptions, and hid system-numbered inputs. Stored names/data/access are unchanged.
+- **Quick preview ↗** / **Formatted PDF ↗** now disclose the new tab. HTML preview tells the user to
+  close it to return; deliberately no Back link in preview/PDF, protecting unsaved work.
+- Lesson, compare, and editor pages now have prominent top-right **Back to lesson plans** /
+  **Back to lesson** secondary buttons.
+- `/guide`, `USER_GUIDE.md`, the design record, DECISIONS, and CHANGELOG moved in step. The old
+  637-line changelog is preserved under `docs/archive/`; the new changelog is concise.
+- Local evidence: `tsc` clean; unit **267/267**; lint **0 errors** / 90 existing warnings;
+  `git diff --check` clean. `payload-types.ts` was regenerated on **Node 22**
+  (`/opt/homebrew/opt/node@22/bin`) — the committed file is now byte-clean generator output (an earlier
+  hand-sync had left one stray trailing newline, since removed). The Node 25 tsx loader fault only
+  blocks `generate:types` on the default toolchain; use Node 22 locally.
+
+**Next for this batch:** merge the PR once the gate is green, deploy (app-level, **no migration**), then
+browser-check on the Rock: the **Editing help** modal, the renamed labels, toolbar wrapping at
+1280×800, top-right Back placement, both new-tab paths (incl. the trimmed `pdfBusy` status line), and
+all three roles.
 
 **Shipped and deployed since (2026-07-20/21):** routing 404s fixed (`/lessons`, `/manage` → #114);
 plan-create denied (#119); the destructive e2e fixture + broken PDF pixel gate retired (#120);
@@ -108,10 +134,8 @@ against an 860px viewport, which is the shape §6 requires and no smaller fixtur
   out of scope ✓; Subject Admin (Biology 10) sees META/UNIT in scope ✓ and neither out of scope ✓;
   Site Admin retains everything ✓.
 
-**PR 2 and PR 3 of that batch are still planned, not started** — PR 2 (plain language: kill the 40×
-repeated grammar hint, one Instructions modal, teacher-facing labels; **Hide-Details default is DONE, see
-above**); PR 3 (preview clarity: rename by purpose, "opens in a new tab", and deliberately **no literal
-Back link** — it would strand unsaved edits in the other tab).
+**PR 2 and PR 3 are now built locally** — see the newest block above. They are not yet committed,
+CI-verified, deployed, or browser-verified.
 
 **▶ AGREED AND SPEC'D, NOT STARTED — hide editing below 640px (operator decision 2026-07-28).** This is
 the next feature work. The app must be usable on a phone, but **editing needs room and will not be done on
@@ -141,9 +165,8 @@ DECISIONS 2026-07-28 (later).
 - Ship with a unit test pinning "below 640px, editing is unavailable" as a pure function, plus the
   `SPEC.md` entry (this is a product decision not currently in the spec) and a DECISIONS entry.
 
-⚠ **Small doc debt:** `docs/DESIGN-editor-usability-2026-07-25.md` §6 has been updated to record the
-verification, but PR 2's label renames (META → Document settings, UNIT → Sub-strand overview) are the only
-§6 items still unverified — they don't exist yet.
+⚠ **Remaining browser debt:** PR 2/3 now exist locally, including the label renames, but their Rock
+browser verification is still pending. PR 1's §6 verification remains complete.
 
 **Not in this repo: the iCloud problem — DEFERRED by operator decision 2026-07-28** (still real, still
 unmitigated; don't re-raise it as urgent unless asked). All 23 repos live in an iCloud-synced `~/Documents`, and three

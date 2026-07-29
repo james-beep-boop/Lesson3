@@ -16,6 +16,7 @@ export default function Modal({
   title,
   onClose,
   className,
+  backdropClassName,
   children,
 }: {
   title: string
@@ -26,6 +27,10 @@ export default function Modal({
    *  `modal--versions`, a wider panel for the version list). Purely presentational — the dialog
    *  semantics and focus behaviour above are identical for every caller. */
   className?: string
+  /** Extra class on `.modal-backdrop`. The base `.modal-backdrop`/`.modal` chrome is defined only in
+   *  the frontend stylesheet, so an admin-surface caller (where those rules don't load) must supply
+   *  the full backdrop styling through this class, not merely a modifier. */
+  backdropClassName?: string
   children: React.ReactNode
 }) {
   const titleId = useId()
@@ -94,7 +99,10 @@ export default function Modal({
   }, [])
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div
+      className={backdropClassName ? `modal-backdrop ${backdropClassName}` : 'modal-backdrop'}
+      onMouseDown={onClose}
+    >
       <div
         ref={panelRef}
         className={className ? `modal ${className}` : 'modal'}

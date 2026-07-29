@@ -163,7 +163,7 @@ export const SubjectGrade: CollectionConfig = {
       type: 'number',
       required: true,
       min: 1,
-      admin: { step: 1, description: 'Whole number; displayed as "Grade N".' },
+      admin: { step: 1, description: 'Enter a whole number, such as 10.' },
       validate: (value: number | null | undefined) =>
         value == null || Number.isInteger(value) || 'Grade must be a whole number.',
     },
@@ -171,7 +171,7 @@ export const SubjectGrade: CollectionConfig = {
       // Stored "<Subject> — Grade N" title, kept current by the beforeChange hook.
       name: 'displayName',
       type: 'text',
-      admin: { readOnly: true, description: 'Auto-generated from subject + grade.' },
+      admin: { readOnly: true },
       access: { update: () => false },
     },
   ],

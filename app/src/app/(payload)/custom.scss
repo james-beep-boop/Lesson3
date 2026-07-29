@@ -637,24 +637,6 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
-// "← Back to lesson" — the editor's exit, replacing the hidden breadcrumb trail (PR ④). A plain
-// cross-layout <a>, dressed as a quiet secondary button so it sits naturally in the control row.
-.lesson-controls__back {
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--theme-elevation-200);
-  border-radius: 4px;
-  font-size: 0.85rem;
-  color: var(--theme-elevation-800);
-  text-decoration: none;
-  white-space: nowrap;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--theme-elevation-400);
-    color: var(--theme-elevation-1000);
-  }
-}
-
 // "Viewing:/Editing: <title>" — names the open lesson plan in the bar (the native doc-header H1 is
 // hidden below for this collection); the bold prefix is the mode signal.
 .lesson-controls__title {
@@ -751,9 +733,20 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
       border-left: none;
     }
   }
+  // One consistent page-exit control: the real Payload secondary button sits at the far right
+  // instead of reading as a small, low-priority text link.
+  &__group--back {
+    margin-left: auto;
+    white-space: nowrap;
+  }
 
   &__msg {
     color: var(--theme-error-500, #b00020);
+    font-size: 0.8rem;
+  }
+  &__status {
+    flex-basis: 100%;
+    color: var(--theme-elevation-700);
     font-size: 0.8rem;
   }
 
@@ -826,6 +819,53 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     background: var(--app-accent);
     border-color: var(--app-accent);
     color: #fff;
+  }
+}
+
+// Editing instructions appear once in an accessible shared Modal rather than under every textarea.
+// The shared Modal's base `.modal-backdrop`/`.modal` rules live only in the frontend stylesheet and
+// don't load here, so this is the FULL backdrop + panel styling for the admin surface (re-themed to
+// Payload tokens), not a modifier over a shared base. If a second admin Modal ever appears, lift a
+// base `.modal-backdrop`/`.modal` block into this file and let callers become true modifiers.
+.lesson-edit-help__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.lesson-edit-help {
+  width: 100%;
+  max-width: 30rem;
+  padding: 1.25rem;
+  color: var(--theme-elevation-1000);
+  background: var(--theme-elevation-0);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+
+  .modal__title {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+  }
+
+  &__list {
+    margin: 0;
+    padding-left: 1.3rem;
+  }
+
+  &__list li + li {
+    margin-top: 0.45rem;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
   }
 }
 
