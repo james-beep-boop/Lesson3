@@ -11,7 +11,7 @@
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, act } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   search: 'edit=1',
@@ -101,6 +101,23 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     render(<LessonControls />)
 
     // The guard is width-conditional — on a wide viewport it must not touch edit intent.
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(false)
+  })
+
+  it('does NOT cancel an edit already underway when the viewport is later narrowed', () => {
+    mocks.search = 'edit=1'
+    setViewportWidth(1280)
+    render(<LessonControls />)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy() // mounted editing
+
+    // The user drags the window below 640px mid-edit. The guard evaluated once on mount and adds no
+    // resize listener, so edit mode must survive — yanking someone out mid-sentence and discarding
+    // their edits would be worse than the inconsistency it fixes.
+    setViewportWidth(390)
+    act(() => window.dispatchEvent(new Event('resize')))
+
     expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(false)

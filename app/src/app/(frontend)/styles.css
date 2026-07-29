@@ -1449,8 +1449,11 @@ button[type='submit']:disabled {
   .lesson-edit {
     display: none;
   }
+  /* Own full-width row in the (already wrapping) .export-bar so the notice text flows rather than
+     being squeezed into a narrow column beside Share / previews. */
   .lesson-edit-unavailable {
-    display: inline;
+    display: block;
+    flex-basis: 100%;
   }
 
   .app-header,
