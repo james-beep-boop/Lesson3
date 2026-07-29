@@ -25,15 +25,18 @@ operator). Always CONFIRM rather than trust this line, it goes stale on every de
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
-**▶ BUILT LOCALLY, NOT COMMITTED (2026-07-29) — Back-button consistency follow-up.**
+**▶ COMMITTED — PR [#158](https://github.com/james-beep-boop/Lesson3/pull/158) OPEN, DEPLOY PENDING
+(2026-07-29) — Back-button consistency follow-up.**
 
-- One shared `PageBackLink` now serves lesson, comparison, Guide, and version-editor pages.
+- Shared `.page-back` appearance across surfaces: `PageBackLink` on the frontend (lesson, comparison,
+  Guide, password recovery); the version editor uses a plain `<a>` with the **same** styling.
 - Every page-level Back control is the last top-right action. The lesson-page order is
   **Favorite/Favorited → Back to lesson plans**.
 - Shared fixed-size/font tokens prevent the Payload editor from shrinking or recoloring the control.
   The Guide's former footer link moved into its top-right heading.
-- `PageBackLink` uses Next `Link`: frontend returns remain bandwidth-saving soft navigations, while
-  Next 16.2.12 automatically hard-navigates the editor's cross-root-layout return.
+- Navigation is the fastest correct one per surface: frontend Back uses Next `Link` for bandwidth-saving
+  soft navigation; the editor's Back crosses root layouts (a full reload either way), so it stays a
+  plain `<a>` rather than routing a guaranteed reload through `next/link` and risking the admin router.
 - Password recovery now uses the same top-right control. Close-tab preview guidance is the only
   deliberate exception.
 - `docs/DESIGN-user-model-language-2026-07-29.md` is now approved: three displayed types use

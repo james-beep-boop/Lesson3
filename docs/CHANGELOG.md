@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-07-29 — Back-button consistency follow-up (local; not committed)
+## 2026-07-29 — Back-button consistency follow-up (#158; deploy pending)
 
 - Unified the Back control's appearance with shared fixed-size/font tokens: the frontend uses one
   `PageBackLink` component and the version editor a plain `<a>` carrying the same `.page-back`
