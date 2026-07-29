@@ -98,7 +98,7 @@ export const Subject: CollectionConfig = {
       required: true,
       unique: true,
       label: 'Subject',
-      admin: { description: 'Academic discipline only, e.g. "Biology". No grade here.' },
+      admin: { description: 'For example, Biology or Chemistry.' },
     },
   ],
 }

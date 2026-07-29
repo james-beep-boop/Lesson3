@@ -11,6 +11,42 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-28 (latest) — teacher-facing editor language, one help surface, and prominent page exits
+
+The operator approved the remaining editor-usability batch after reviewing the live copy as a Kenyan
+high-school teacher new to the system. The rule is now: **a field description must help a teacher
+complete the task; internal storage, generator, row-order, and vocabulary mechanics do not qualify.**
+
+- The repeated plain-text/Markdown paragraph was removed from roughly forty fields. Universal rules
+  now live in one accessible **Editing help** modal using the shared focus-trapped `Modal`. Hover-only
+  help was rejected because it fails on touch screens and is easy to miss with a keyboard. Rare future
+  field help should use a control that supports hover, focus, and click.
+- Display labels became teacher-facing without changing stored `name`s: **Document settings**,
+  **Sub-strand overview**, **Lessons**, **Specific learning outcomes**, **Final explanation**,
+  **Summary table**, **Lesson summary prompts**, and **Purpose in the storyline**. `title` is
+  **Document title**; provenance reads **Based on version** / **Saved by**. System-numbered inputs are
+  hidden because their row headings already communicate the number.
+- The same audit covered People and Curriculum administration: “global grant,” “academic discipline,”
+  auto-generation, and pointer language became short task-focused guidance.
+- The collection sentence uses the operator's wording: “Save button writes your edits as a new
+  version — existing versions are never changed.”
+- Back/up navigation is a prominent secondary button at the **top right** of the lesson, compare, and
+  version-editor headers. The labels are consistently **Back to lesson plans** or **Back to lesson**.
+  Authentication subflows keep their local “Back to sign in,” and the Guide's footer link stays a
+  footer link.
+- Preview remains the deliberate exception. **Quick preview ↗** and **Formatted PDF ↗** explicitly say
+  they open a new tab; the HTML page says to close the tab to return. A literal Back link would create
+  a second saved-data lesson/editor path while unsaved work remains in the original tab.
+- `CHANGELOG.md` is now the concise delivered-change record. The former 637-line session narrative is
+  preserved in `docs/archive/BUILD-HISTORY-2026-06-TO-07.md`; decision reasoning remains here and
+  current state remains in `NEXT-SESSION.md`.
+
+App-level only: no stored field name, access rule, generator input, or database schema changed. Local
+evidence: TypeScript clean; unit **267/267**; lint **0 errors** (90 existing warnings);
+`git diff --check` clean. Payload type generation was attempted locally and failed under the known Node
+25/tsx incompatibility, so its description-only JSDoc output was updated to match the schema; canonical
+regeneration remains part of the Rock/Node-22 verification.
+
 ## 2026-07-28 (later) — editing is a laptop/tablet surface below 640px; and an Edit button that edited nothing
 
 Two decisions from the same session, both about **offering only what the app can actually deliver**.
@@ -1323,8 +1359,8 @@ Design decisions, each user-approved:
   chip] │ [Edit]⇄[Save · Cancel] · [Preview]`. The **bold Viewing:/Editing: prefix replaces the
   view-mode notice line** as the mode signal (user ask), and Payload's native H1 (the same title)
   is hidden for this collection — the bar names the document. "Discard Edits" renamed **"Cancel"**.
-  Collection description shortened to one line ("Save writes your edits as a new version —
-  existing versions are never changed.").
+  The collection description was shortened to explain that saving creates a new version and leaves
+  existing versions unchanged.
 - **Editor Download button + docx/PDF checkboxes REMOVED** (user ask, verified safe first): they
   exported the SAVED version via `/export` — byte-identical to the lesson page's downloads. Only
   **Preview** posts the live form state, so it is the one output action the editor keeps.

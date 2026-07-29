@@ -5,15 +5,15 @@
  * One header row (declutter redesign 2026-07-15), the edit lifecycle swapping with the mode so no
  * disabled lifecycle button ever shows:
  *
- *   view mode:  [← Back to lesson]  Viewing: <title>  [Official chip]  │  [ Edit ]           · Preview · View as PDF
- *   edit mode:  [← Back to lesson]  Editing: <title>  [Official chip]  │  [ Save · Cancel ]  · Preview · View as PDF
+ *   view mode:  Viewing: <title> [Official] │ [Edit] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
+ *   edit mode:  Editing: <title> [Official] │ [Save · Cancel] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
- * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Preview" (fast
- * mammoth HTML, structure only) and "View as PDF" (the accurate DOCX→PDF rendering — cached export
- * PDF when pristine, generated from the live form when there are unsaved edits) both act on the
- * current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
+ * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Quick preview"
+ * (fast mammoth HTML, structure only) and "Formatted PDF" (the accurate DOCX→PDF rendering — cached
+ * export PDF when pristine, generated from the live form when there are unsaved edits) both act on
+ * the current form state. The old Download button + kind checkboxes were removed 2026-07-15: they
  * exported the SAVED version — identical to the lesson page's downloads. The bold Viewing:/Editing: prefix is the
  * mode signal, replacing the old read-only notice line; Payload's native H1 (the same title) is
  * hidden in custom.scss for this collection.
@@ -33,7 +33,7 @@ import {
 } from '@payloadcms/ui'
 import { reduceFieldsToValues } from 'payload/shared'
 
-import { isEditorFor, toId } from '../../access'
+import { isEditorFor, isSubjectAdminFor, toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
 import { DELIVERABLE_LABELS } from '../../generator/deliverables'
@@ -41,6 +41,7 @@ import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
+import Modal from '../Modal'
 import EditJumpNav from './EditJumpNav'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
@@ -80,6 +81,7 @@ export default function LessonControls() {
   // admin's unsaved structural add/remove, without re-scanning the (very tall) form per keystroke.
   const [pdfMenuTags, setPdfMenuTags] = useState<DeliverableTag[]>([])
   const pdfMenuRef = useRef<HTMLDivElement>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
@@ -130,6 +132,10 @@ export default function LessonControls() {
   // 23 sampled fields still disabled after pressing Edit, with Save reading "No changes to save".
   // Not a security hole (field-level access held) but a dead end, which is worse UI than no button.
   const canEdit = isEditorFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never))
+  const canEditStructure = isSubjectAdminFor(
+    user as User | null,
+    toId((savedDocumentData?.subjectGrade ?? null) as never),
+  )
 
   // `editIntent` is what the user (or `?edit=1`) ASKED for; `editing` is what they actually get.
   // Deriving rather than gating the initial state matters because `savedDocumentData` — and so
@@ -166,7 +172,8 @@ export default function LessonControls() {
 
   // "← Back to lesson" (IA redesign PR ④): the editor is entered from a lesson page (or Manage) and
   // exits back to it, viewing THIS version — the loop that replaces the hidden breadcrumb trail.
-  // Cross-root-layout navigation (admin → frontend), so a plain <a> like AppNav's links.
+  // Cross-root-layout navigation (admin → frontend) via a full page load — a Payload secondary
+  // Button rendered as an anchor (el="anchor"), so it sits with the other toolbar buttons.
   const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
   // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
   // untouched (it is generator input).
@@ -349,16 +356,11 @@ export default function LessonControls() {
     // The --editing modifier is the CSS signal for edit mode (role-locked "read-only" label chips in
     // custom.scss key off it — the old signal was the absence of the removed view-mode notice).
     <div className={`lesson-controls-wrap${editing ? ' lesson-controls-wrap--editing' : ''}`}>
-      {/* One header row (declutter 2026-07-15): exit · what you're looking at · status · divider ·
-          lifecycle · output. The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead
-          lifecycle button ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
+      {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
+          The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead lifecycle button
+          ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}
       <div className="lesson-controls">
         <div className="lesson-controls__group">
-          {planId != null && (
-            <a className="lesson-controls__back" href={`/lessons/${planId}?version=${id}`}>
-              ← Back to lesson
-            </a>
-          )}
           {title && (
             <span className="lesson-controls__title">
               <strong>{editing ? 'Editing:' : 'Viewing:'}</strong> {title}
@@ -379,8 +381,8 @@ export default function LessonControls() {
         </div>
         <div className="lesson-controls__group lesson-controls__group--output">
           {/* Nothing here for a viewer who cannot edit THIS version (`canEdit`): no Edit button
-              rather than one that unlocks nothing. Preview / View as PDF / downloads stay — they are
-              what a Teacher, or an Editor looking at another subject-grade, actually came for. */}
+              rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
+              or an Editor looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
             <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
@@ -401,10 +403,15 @@ export default function LessonControls() {
               </Button>
             </>
           )}
-          <Button buttonStyle="secondary" size="small" onClick={onPreview}>
-            Preview
+          <Button
+            buttonStyle="secondary"
+            size="small"
+            onClick={onPreview}
+            aria-label="Quick preview, opens in a new tab"
+          >
+            Quick preview ↗
           </Button>
-          {/* The accurate, formatted rendering (real DOCX→PDF), next to the fast HTML Preview.
+          {/* The accurate, formatted rendering (real DOCX→PDF), next to the quick HTML preview.
               Pristine → the cached export PDF; unsaved → generated from the current form state. One
               press computes the available documents (fresh, on click): a single-document plan opens
               straight away; a plan with a Final Explanation / Summary Table opens a picker so you can
@@ -417,8 +424,9 @@ export default function LessonControls() {
               disabled={pdfBusy}
               aria-busy={pdfBusy}
               aria-expanded={pdfMenuOpen}
+              aria-label="Formatted PDF, opens in a new tab"
             >
-              {pdfBusy ? 'Preparing…' : 'View as PDF'}
+              {pdfBusy ? 'Preparing document…' : 'Formatted PDF ↗'}
             </Button>
             {pdfMenuOpen && (
               <div className="lesson-controls__pdf-menu">
@@ -428,6 +436,7 @@ export default function LessonControls() {
                     type="button"
                     className="lesson-controls__pdf-item"
                     onClick={() => onViewPdf(tag)}
+                    aria-label={`${DELIVERABLE_LABELS[tag]}, opens formatted PDF in a new tab`}
                   >
                     {DELIVERABLE_LABELS[tag]}
                   </button>
@@ -440,6 +449,11 @@ export default function LessonControls() {
           <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>
             {detailsShown ? 'Hide details' : 'Show details'}
           </Button>
+          {canEdit && (
+            <Button buttonStyle="secondary" size="small" onClick={() => setHelpOpen(true)}>
+              Editing help
+            </Button>
+          )}
           {/* Explicit destructive action (view mode only), replacing the native document-controls
               kebab. Shown only for a version the caller may delete; the server re-gates. */}
           {!editing && canDelete && (
@@ -448,6 +462,23 @@ export default function LessonControls() {
             </Button>
           )}
         </div>
+        {planId != null && (
+          <div className="lesson-controls__group lesson-controls__group--back">
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              el="anchor"
+              url={`/lessons/${planId}?version=${id}`}
+            >
+              ← Back to lesson
+            </Button>
+          </div>
+        )}
+        {pdfBusy && (
+          <span role="status" className="lesson-controls__status">
+            This opens in a new tab. Close that tab to return to your edits.
+          </span>
+        )}
         {msg ? (
           <span role="alert" className="lesson-controls__msg">
             {msg}
@@ -457,6 +488,30 @@ export default function LessonControls() {
       {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
           already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
       <EditJumpNav />
+      {helpOpen && (
+        <Modal
+          title="Editing help"
+          onClose={() => setHelpOpen(false)}
+          className="lesson-edit-help"
+          backdropClassName="lesson-edit-help__backdrop"
+        >
+          <ul className="lesson-edit-help__list">
+            <li>Saving creates a new version. The original does not change.</li>
+            <li>Press Enter to start a new paragraph.</li>
+            <li>
+              Start a line with <code>- </code> to make a bullet.
+            </li>
+            <li>Bold, italics, and underlining are not supported.</li>
+            <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>
+            {canEditStructure && <li>To add a lesson, duplicate an existing lesson.</li>}
+          </ul>
+          <div className="lesson-edit-help__actions">
+            <Button buttonStyle="primary" size="small" onClick={() => setHelpOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

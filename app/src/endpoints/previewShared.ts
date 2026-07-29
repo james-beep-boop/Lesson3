@@ -60,6 +60,8 @@ function previewPage(
 <style>
   body { font: 15px/1.5 system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
   .page-head { color: #666; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .new-tab-note { margin: 0 0 1rem; padding: 0.65rem 0.8rem; color: #333; background: #f1f5f9;
+    border-left: 4px solid #1f5fa8; border-radius: 4px; }
   h1 { margin: 0.2rem 0 1.5rem; }
   .doc-nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; flex-wrap: wrap;
     gap: 0.25rem 0.35rem; padding: 0.45rem 0; background: #fff; border-bottom: 1px solid #ddd; font-size: 0.85rem; }
@@ -76,6 +78,7 @@ function previewPage(
   td, th { border: 1px solid #8c8c8c; padding: 0.4rem 0.55rem; vertical-align: top; text-align: left; } /* 3:1 gridlines (D6) */
 </style></head>
 <body>
+  <p class="new-tab-note">This preview opened in a new tab. Close this tab to return to your edits.</p>
   <p class="page-head">Content preview · ${escapeHtml(provenance)} · not the final document layout</p>
   <h1>${escapeHtml(title)}</h1>
   <nav class="doc-nav" aria-label="Jump to section">${nav}</nav>

@@ -243,7 +243,9 @@ Some titles/headers render in ALL CAPS (matching raw stored data, e.g. "BIOLOGY 
 
 ### What Works Well
 - Two-column layout (content left, provenance sidebar right: Source Version, Author, Last Modified, Created) is well-suited to a versioned document system.
-- Helper text under the Title field ("Plain text only. A new line starts a new paragraph; a leading '- ' becomes a bullet. Markdown/bold/italic are NOT rendered.") enforces the prose-grammar rule exactly where it's needed — a genuinely good pattern, worth confirming it appears under every prose field.
+- Superseded 2026-07-28: repeated formatting instructions beneath individual fields took too much
+  space and used unfamiliar technical language. The editor now provides one short, accessible
+  **Editing help** dialog instead.
 - Collapsible Lesson sections handle the "long document" problem better here than the read-only Lesson Detail page does.
 
 ### Priority Fixes

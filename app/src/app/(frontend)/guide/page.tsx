@@ -108,18 +108,20 @@ export default async function UserGuidePage() {
         <h2>Editors</h2>
         <p>
           Editors can do everything Teachers can do, and their role is to edit the prose fields for the
-          subject-grades assigned to them — lesson titles, SLO text, overviews, learner experiences,
-          teacher moves, sensemaking strategies, formative assessments, teacher reflections,
-          summary-table text, and Final Explanation prompts. They never edit a Word file directly.
+          subject-grades assigned to them — lesson titles, specific learning outcomes, overviews,
+          learner experiences, teacher moves, sensemaking strategies, formative assessments, teacher
+          reflections, summary-table text, and Final Explanation prompts. They never edit a Word file
+          directly.
         </p>
         <ul className="guide-list">
           <li>
             <strong>Edit from the lesson:</strong> open a lesson in the library and press
             <em> Edit</em>. The editing page opens ready to type: the fields you can change are
-            editable, and any you cannot are shown but marked <em>read-only</em>. <em>Preview</em>{' '}
-            gives a quick check of your content and structure, while <em>View as PDF</em> shows the
-            fully formatted document — both work before you save, so you can see your unsaved edits.
-            <em> ← Back to lesson</em> returns you when you are done.
+            editable, and any you cannot are shown but marked <em>read-only</em>.{' '}
+            <em>Quick preview ↗</em> checks your content, while <em>Formatted PDF ↗</em> shows the
+            final layout. Both open in a new tab and include unsaved edits; close that tab to return
+            to the editor. Use <em>Editing help</em> for the short writing rules. The prominent{' '}
+            <em>← Back to lesson</em> button at the top right returns you when you are done.
           </li>
           <li>
             <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new
@@ -150,13 +152,12 @@ export default async function UserGuidePage() {
         <ul className="guide-list">
           <li>
             <strong>Manage structure:</strong> add, remove, and reorder lessons and instructional phases.
-            To add a lesson, duplicate an existing lesson row, then edit the copy; this safely carries
-            forward the hidden, system-managed ARES resource links. A blank new lesson cannot be saved
-            without those links.
+            To add a lesson, duplicate an existing lesson row, then edit the copy.
           </li>
           <li>
-            <strong>Edit controlled fields:</strong> update metadata, sub-strand settings, lesson
-            duration, ARES keywords, phase choices, assessment exemplars, and rubric rows.
+            <strong>Edit controlled fields:</strong> update Document settings, the Sub-strand
+            overview, lesson duration, ARES keywords, phase choices, assessment exemplars, and rubric
+            rows.
           </li>
           <li>
             <strong>Make Official:</strong> on a lesson page, promote a saved version to the Official
@@ -203,15 +204,14 @@ export default async function UserGuidePage() {
       <section id="writing" className="guide-section">
         <h2>Writing in Fields</h2>
         <p>
-          Lesson content fields are plain text. Formatting is applied by the generator when you preview
-          or export.
+          These rules are also available from <em>Editing help</em> at the top of the editor.
         </p>
         <ul className="guide-list">
           <li>Start a new line to make a new paragraph.</li>
           <li>
             Start a line with <code>- </code> to make a bullet.
           </li>
-          <li>Do not add Markdown or rich-text markup; it will appear as typed.</li>
+          <li>Bold, italics, and underlining are not supported.</li>
           <li>
             Edit the field that matches the document section you want to change. The exported DOCX and
             PDF are generated from those fields.

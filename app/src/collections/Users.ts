@@ -121,7 +121,7 @@ export const Users: CollectionConfig = {
       type: 'text',
       required: true,
       label: 'Display name',
-      admin: { description: 'Shown for attribution. Non-site-admins never see other emails.' },
+      admin: { description: 'Shown next to versions you save.' },
       access: { update: selfOrSiteAdminField },
     },
     {
@@ -169,7 +169,7 @@ export const Users: CollectionConfig = {
       defaultValue: [],
       saveToJWT: true,
       admin: {
-        description: 'Global Site Administrator grant. Leave empty for non-admins.',
+        description: 'Gives this person full access to the system.',
       },
       access: {
         // Only site admins may grant/revoke the global admin role. `create` matters since open
@@ -187,8 +187,7 @@ export const Users: CollectionConfig = {
       label: 'Subject-grade roles',
       labels: { singular: 'Assignment', plural: 'Assignments' },
       admin: {
-        description:
-          'Per subject-grade grants. Subject Admins may manage only their own subject-grades.',
+        description: 'Assign Editor or Subject Administrator access for each subject and grade.',
       },
       access: {
         // Grants are not public: with the names-only roster relaxation (SPEC §8, 2026-07-02) the

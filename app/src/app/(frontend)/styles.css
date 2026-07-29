@@ -987,12 +987,6 @@ button[type='submit']:disabled {
 }
 
 /* ---- Lesson view ---- */
-.back-link {
-  display: inline-block;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
 .lesson-heading {
   display: flex;
   align-items: flex-start;
@@ -1001,6 +995,32 @@ button[type='submit']:disabled {
 }
 .lesson-heading__text {
   min-width: 0;
+}
+.lesson-heading__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.page-back:hover,
+.page-back:focus-visible {
+  color: var(--accent-ink);
+  background: var(--accent);
 }
 .lesson-heading h1 {
   margin-top: 0;
@@ -1486,6 +1506,9 @@ button[type='submit']:disabled {
     flex-direction: column;
     gap: 0.25rem;
   }
+  .lesson-heading__actions {
+    align-self: flex-end;
+  }
 
   /* Action bar: let it breathe when it wraps. The Share divider drops away when the bar wraps —
      a border at the start of a wrapped line reads as noise (matches the editor bar's --output
@@ -1521,7 +1544,7 @@ button[type='submit']:disabled {
   /* Secondary text links reach the ~44px touch bar on phones too (Codex #5): the catalogue/lesson
      controls already do, but these auth, message and navigation links were left small. */
   .login-links a,
-  .back-link,
+  .page-back,
   .msg-link a,
   .msg-reply-toggle,
   .msg-reply__cancel {

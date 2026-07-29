@@ -11,6 +11,12 @@ The operator's stated priority is **the current-lesson indicator**. Do that firs
 
 Goal, in one line: the editor should read as a **guided teaching tool, not a database admin form**.
 
+**Status 2026-07-28:** PR 1 is shipped and live. PR 2 and PR 3 are built locally, with TypeScript,
+267 unit tests, lint (0 errors), and whitespace checks green; they are not committed, deployed, or
+browser-verified. The approved implementation also removes internal Title/row-order descriptions,
+hides system-number inputs, and makes Back actions prominent top-right buttons on the lesson,
+comparison, and editor pages.
+
 ---
 
 ## 1. Grounding — verified facts
@@ -177,7 +183,7 @@ argument for shipping 3a in the same PR — the chip bar becomes the navigation 
 
 ---
 
-## 4. PR 2 — calm, plain-language editor
+## 4. PR 2 — calm, plain-language editor ✓ BUILT LOCALLY 2026-07-28
 
 ### 4a. Remove the repeated grammar sentence
 
@@ -195,7 +201,12 @@ Replace it with **one** accessible **Instructions** / "How editing works" modal 
 - Text styling — bold, italics, underline — isn't supported.
 - Quick preview checks content; Formatted PDF shows the final layout.
 
-Also shorten the collection description at `src/collections/LessonBundleVersions.ts:54`.
+Also use the approved collection description at `src/collections/LessonBundleVersions.ts:54`:
+“Save button writes your edits as a new version — existing versions are never changed.”
+
+The implementation also removes the technical Title helper, labels the field **Document title**,
+relabels provenance **Based on version** / **Saved by**, removes automatic row-order descriptions,
+and hides those system-numbered inputs.
 
 **Bullet-toggle button: deferred** (SPEC §5 floats the idea). It isn't needed to satisfy this feedback
 and would enlarge the first batch. Note for whoever picks it up: implement it as a **per-textarea
@@ -257,7 +268,7 @@ and it preserves the existing hydration discipline (no SSR/first-paint disagreem
 
 ---
 
-## 5. PR 3 — preview clarity
+## 5. PR 3 — preview clarity ✓ BUILT LOCALLY 2026-07-28
 
 ### 5a. Keep both tiers, renamed by purpose
 
@@ -352,8 +363,8 @@ reading the margin back out of the DOM; the rule now lives in `crossingLine()` w
 2. **Do not send write probes at production to test authorization.** An attempted `PATCH` to prove a 403
    would have renamed a live version had the gate been broken. Wire-level authz belongs in `tests/http`.
 
-Still unverified from this section: only PR 2's label renames (META → Document settings, UNIT → Sub-strand
-overview) — they do not exist yet.
+Still unverified from this section: PR 2/3's live rendering — teacher-facing labels, Editing help modal,
+prominent Back buttons, and new-tab preview wording. They exist locally but have not reached the Rock.
 
 What it needs (there is no lesson corpus in the repo — the 42 ARES files live outside it):
 - A version with **≥8 lessons whose prose is long enough that one EXPANDED lesson exceeds the

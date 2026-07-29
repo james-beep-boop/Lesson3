@@ -123,7 +123,7 @@ export const lessonContentFields: Field[] = [
   adminOnly({
     name: 'meta',
     type: 'group',
-    label: 'META',
+    label: 'Document settings',
     access: { update: canEditStructure },
     fields: [
       // META identity (META_IDENTITY_KEYS in hooks/fieldSplit.ts — the single source) is
@@ -137,7 +137,7 @@ export const lessonContentFields: Field[] = [
         type: 'text',
         access: { create: siteAdminField, update: siteAdminField },
         admin: {
-          description: 'Site Admin only — repair field.',
+          description: 'Shown in the generated document.',
           // Constrained input: a dropdown over the live `subjects` taxonomy (the data stays a plain
           // string — generator grammar unchanged). See the component header for why there is no
           // server-side validate.
@@ -148,13 +148,13 @@ export const lessonContentFields: Field[] = [
         name: 'grade',
         type: 'number',
         access: { create: siteAdminField, update: siteAdminField },
-        admin: { description: 'Site Admin only — repair field.' },
+        admin: { description: 'Shown in the generated document.' },
       },
       {
         name: 'substrand_id',
         type: 'text',
         access: { create: siteAdminField, update: siteAdminField },
-        admin: { description: 'Site Admin only — re-uploads of this sub-strand match on it.' },
+        admin: { description: 'Used to match future uploads to this lesson plan.' },
       },
       { name: 'substrand_name', type: 'text' },
       { name: 'outputDir', type: 'text' },
@@ -172,11 +172,8 @@ export const lessonContentFields: Field[] = [
   adminOnly({
     name: 'unit',
     type: 'group',
-    label: 'UNIT',
+    label: 'Sub-strand overview',
     access: { update: canEditStructure },
-    admin: {
-      description: 'Sub-strand overview. May be empty for some sub-strands.',
-    },
     // All UNIT fields are admin-only (SPEC §5 does not list UNIT among Editor prose): the
     // whitelist hook preserves the whole `unit` group wholesale for Editors, so none of these
     // need field-level access or the prose() whitelist. Field set + names mirror the generator's
@@ -207,12 +204,10 @@ export const lessonContentFields: Field[] = [
   {
     name: 'lessons',
     type: 'array',
-    label: 'LESSONS',
+    label: 'Lessons',
     labels: { singular: 'Lesson', plural: 'Lessons' },
     admin: {
       ...collapsedRow('title', 'Lesson'),
-      description:
-        'Subject Admins may duplicate an existing lesson to add a row. Its system-managed ARES resource links are copied from the source lesson and cannot be edited.',
     },
     // A bundle must have ≥1 lesson (native; skipped for drafts). The generator-
     // completeness gate (validateGeneratable) is the create-time authority.
@@ -221,7 +216,7 @@ export const lessonContentFields: Field[] = [
       {
         name: 'number',
         type: 'number',
-        admin: { readOnly: true, description: 'Set automatically from lesson order.' },
+        admin: { hidden: true, readOnly: true },
         access: { create: systemOnly, update: systemOnly },
       },
       prose('title', 'Title'),
@@ -231,14 +226,14 @@ export const lessonContentFields: Field[] = [
       {
         name: 'slo',
         type: 'group',
-        label: 'SLO',
+        label: 'Specific learning outcomes',
         fields: [
           prose('purpose', 'Purpose'),
           prose('knowledge', 'Knowledge'),
           prose('skills', 'Skills'),
           prose('attitudes', 'Attitudes'),
           prose('keyInquiry', 'Key inquiry question'),
-          prose('purposeInStoryline', 'Purpose in storyline'),
+          prose('purposeInStoryline', 'Purpose in the storyline'),
           prose('safetyNotes', 'Safety notes'),
         ],
       },
@@ -253,7 +248,6 @@ export const lessonContentFields: Field[] = [
         access: { create: systemOnly, update: systemOnly },
         admin: {
           hidden: true,
-          description: 'Resolved upstream and versioned exactly; never user-editable.',
         },
         // Store the five buckets as child rows instead of flattening 95 columns onto the parent
         // lesson row. Payload's Postgres adapter reconstructs each array row with
@@ -285,10 +279,6 @@ export const lessonContentFields: Field[] = [
             required: true,
             options: PHASE_OPTIONS,
             access: { update: canEditStructure },
-            admin: {
-              description:
-                'Controlled vocabulary — drives colour-coding and resource lookup; an unknown phase silently degrades the document.',
-            },
           }),
           prose('learnerExperience', 'Learner experience'),
           prose('teacherMoves', 'Teacher moves'),
@@ -300,7 +290,7 @@ export const lessonContentFields: Field[] = [
       {
         name: 'summaryTablePrompt',
         type: 'group',
-        label: 'Summary-table prompt (for the Lesson Sequence)',
+        label: 'Lesson summary prompts',
         fields: [
           prose('observed', 'Observed'),
           prose('learned', 'Learned'),
@@ -314,7 +304,7 @@ export const lessonContentFields: Field[] = [
   {
     name: 'finalExplanation',
     type: 'group',
-    label: 'FINAL EXPLANATION',
+    label: 'Final explanation',
     fields: [
       adminOnly(structureText('subjectLabel', 'Subject label')),
       prose('instructions', 'Instructions'),
@@ -351,7 +341,7 @@ export const lessonContentFields: Field[] = [
   {
     name: 'summaryTable',
     type: 'group',
-    label: 'SUMMARY TABLE',
+    label: 'Summary table',
     fields: [
       adminOnly(structureText('subStrand', 'Sub-strand')),
       adminOnly(structureText('drivingQuestion', 'Driving question')),
@@ -364,7 +354,7 @@ export const lessonContentFields: Field[] = [
           {
             name: 'number',
             type: 'number',
-            admin: { readOnly: true, description: 'Set automatically from row order.' },
+            admin: { hidden: true, readOnly: true },
             access: { create: systemOnly, update: systemOnly },
           },
           prose('title', 'Title'),

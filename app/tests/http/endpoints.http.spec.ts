@@ -237,6 +237,7 @@ describe('Preview endpoint (SPEC §5)', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     const html = await res.text()
     expect(html).toContain('Content preview')
+    expect(html).toContain('Close this tab to return to your edits.')
   })
 
   it('Teacher POST unsaved-preview → 404 (EDIT-gated, not just read)', async () => {
