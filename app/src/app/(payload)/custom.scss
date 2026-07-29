@@ -1003,6 +1003,12 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     [id^='lessons-row-'] {
       scroll-margin-top: 1rem;
     }
+    // The in-form jump nav is a DESKTOP editing aid (its own comment says so): at ≤640px editing is
+    // unavailable, so it has no purpose here, and its multi-row chip strip was overlapping the fields
+    // below. Hide it so the view-only editor is a clean read-through.
+    .lesson-controls__nav {
+      display: none;
+    }
   }
   // (The old #1 mobile title-wrap rule is gone with the native title itself — the control bar's
   // "Viewing:/Editing: <title>" wraps naturally via overflow-wrap.)
