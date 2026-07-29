@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-07-29 — editing is a wider-screen affordance; 640px or narrower is view-only (deploy pending)
+
+- At **640px or narrower**, lesson-content editing is unavailable: the lesson page's **Edit** button,
+  the version editor's **Edit / Save / Cancel**, and the `?edit=1` deep link are hidden and replaced
+  by a short notice that names the remedy ("rotate, widen the window, or open on a larger screen") —
+  an explanation, not a silently missing button. Primary editing surface is laptops (1280×800,
+  editable even unmaximised); phones are view-only.
+- Progressive disclosure only — **not** an authorization boundary. Server RBAC is untouched, no
+  endpoint gets a viewport check, and a landscape phone / "request desktop site" simply gets the
+  cramped editor. **Make Official, Delete**, previews, Share, messaging, favorites, version history,
+  user administration and everything else stay at every width.
+- Behaviour: new edit intent is neutralised on initial load (a once-on-mount guard); an edit session
+  already underway is not cancelled by a resize, so narrowing the window mid-edit keeps Save. No
+  schema or data migration.
+
 ## 2026-07-29 — "Editor" reframed as editing access (presentation only; #160 merged, deploy pending)
 
 - The user model now shows **three types** — Teacher, Subject-grade administrator, Site administrator
