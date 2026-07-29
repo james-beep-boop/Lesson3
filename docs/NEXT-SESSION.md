@@ -25,8 +25,8 @@ operator). Always CONFIRM rather than trust this line, it goes stale on every de
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
-**▶ COMMITTED ON `editor-plain-language`, PR OPEN, DEPLOY PENDING (2026-07-28) — calm, plain-language
-editor + consistent Back buttons.** This completes PR 2 and PR 3 of
+**▶ COMMITTED — PR [#157](https://github.com/james-beep-boop/Lesson3/pull/157) OPEN, DEPLOY PENDING
+(2026-07-28) — calm, plain-language editor + consistent Back buttons.** This completes PR 2 and PR 3 of
 `docs/DESIGN-editor-usability-2026-07-25.md`, plus the operator-approved navigation cleanup. Audited
 (full read) and carried through a four-angle `/simplify` pass before commit — see the CHANGELOG entry:
 

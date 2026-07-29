@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-07-28 — plain-language editor and consistent navigation (committed; deploy pending)
+## 2026-07-28 — plain-language editor and consistent navigation (#157; deploy pending)
 
 - Removed the repeated technical writing note from roughly forty fields and added one accessible
   **Editing help** dialog.
