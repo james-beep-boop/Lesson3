@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-07-29 — "Editor" reframed as editing access (presentation only; uncommitted)
+## 2026-07-29 — "Editor" reframed as editing access (presentation only; #160, merge/deploy pending)
 
 - The user model now shows **three types** — Teacher, Subject-grade administrator, Site administrator
   (sentence case). "Editor" is no longer a type: a user whose only grant is `editor` shows as
