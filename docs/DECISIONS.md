@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-29 (later) — dropped the redundant editor description; Back rides the title row
+
+Operator review of the live version editor: the collection description banner (“Save button writes
+your edits as a new version — existing versions are never changed”) duplicated the **Editing help**
+modal (“Saving creates a new version. The original does not change”), and the `← Back to lesson`
+button sat on its own row *below* the toolbar — not the “top right” it was meant to be.
+
+- **Removed the collection `admin.description`.** A rule with one owner (the help modal) should not
+  also sit in a passive always-on banner. Small trade accepted: the reassurance is now one click away
+  rather than always visible; the editor audience can all open Editing help. Regenerated
+  `payload-types.ts` (the description had been a JSDoc there) and flipped the `editorPlainLanguage`
+  test to assert it is gone.
+- **Back now rides the “Editing: `<title>`” row at the far right**, with the action buttons
+  (Save/Cancel/previews/help) forced onto the row beneath it (`--output` group `flex-basis: 100%`).
+  This matches the frontend, where Back sits next to the page `<h1>`, and removes the lonely wrapped
+  row. The old lifecycle|output divider went with the single-row layout it separated.
+- **General rule:** the editor's closest thing to a page heading is the bold “Editing: `<title>`”
+  line; page-level Back attaches there, not to Payload's own description slot (which is above our
+  component and awkward to share a row with).
+
 ## 2026-07-29 — one Back component, one position, and one visual treatment
 
 Live review showed that the first “consistent Back buttons” pass was not actually consistent: the
@@ -58,8 +78,9 @@ complete the task; internal storage, generator, row-order, and vocabulary mechan
   hidden because their row headings already communicate the number.
 - The same audit covered People and Curriculum administration: “global grant,” “academic discipline,”
   auto-generation, and pointer language became short task-focused guidance.
-- The collection sentence uses the operator's wording: “Save button writes your edits as a new
-  version — existing versions are never changed.”
+- The collection sentence used the operator's wording: “Save button writes your edits as a new
+  version — existing versions are never changed.” (Removed 2026-07-29 as redundant — the same rule
+  lives in the Editing help modal; see the entry above.)
 - Back/up navigation is a prominent secondary button at the **top right** of the lesson, compare, and
   version-editor headers. The labels are consistently **Back to lesson plans** or **Back to lesson**.
   The original authentication and Guide-footer exceptions were reversed by the 2026-07-29

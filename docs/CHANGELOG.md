@@ -9,6 +9,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
 ## 2026-07-29 — Back-button consistency follow-up (#158; deploy pending)
+## 2026-07-29 — editor: drop the redundant description, Back onto the title row (#159; deploy pending)
+
+- Removed the version editor's collection description ("Save button writes your edits as a new
+  version…") — the same rule already lives in the **Editing help** modal, so the passive banner
+  duplicated it. Regenerated `payload-types.ts`; the label test now asserts the description is gone.
+- Moved **← Back to lesson** onto the "Editing: <title>" row at the top right; the
+  Save/Cancel/preview/help buttons drop to the row beneath it. Matches the frontend's
+  Back-next-to-title placement and removes the lonely wrapped row.
+- No schema or data migration.
+
+## 2026-07-29 — Back-button consistency follow-up (#158)
 
 - Unified the Back control's appearance with shared fixed-size/font tokens: the frontend uses one
   `PageBackLink` component and the version editor a plain `<a>` carrying the same `.page-back`
