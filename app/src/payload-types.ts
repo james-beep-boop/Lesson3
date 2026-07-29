@@ -357,7 +357,7 @@ export interface User {
    */
   roles?: 'siteAdmin'[] | null;
   /**
-   * Assign Editor or Subject Administrator access for each subject and grade.
+   * Grant editing access, or Subject-grade administrator access, for each subject and grade.
    */
   assignments?:
     | {

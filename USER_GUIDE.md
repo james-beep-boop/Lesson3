@@ -5,16 +5,17 @@ preview, and export that data in the app; the system generates the Word and PDF 
 
 The main areas are **Lessons** (the library — the one list of every lesson plan), the **lesson page**
 (read, favorite, download, email, and share one lesson), **Manage** (editing, housekeeping, and
-people functions available to your role), and **Messages** (notes between repository users). Editing
-roles also see version and comparison controls on the library and lesson pages.
+people functions available to your role), and **Messages** (notes between repository users). Teachers
+with editing access also see version and comparison controls on the library and lesson pages.
 
 This file mirrors the in-app guide at `/guide`; keep the two in step when either changes.
 
 ## Teachers
 
 Teachers use the Lessons area to find lesson plans, read them on screen, and download the generated
-documents. Each lesson plan opens at its Official version. Editors and administrators also see an
-_N versions_ panel and Compare control; Teachers do not use Manage or see version/editing controls.
+documents. Each lesson plan opens at its Official version. Teachers with editing access, and
+administrators, also see an _N versions_ panel and Compare control; teachers without it do not use
+Manage or see version/editing controls.
 
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
@@ -24,8 +25,8 @@ _N versions_ panel and Compare control; Teachers do not use Manage or see versio
   the subject and grade buttons to narrow the list. Search and filters work together.
 - **Favorites:** click the star on a library row — or the _☆ Favorite_ button on a lesson page — to
   keep that lesson in My favorites at the top of the home page. For Teachers, the favorite follows
-  the lesson's current Official version when a newer one is promoted. For editing roles, a favorite
-  pins the exact version starred and a non-Official pin is labelled `vX (pinned)`. Favorites are
+  the lesson's current Official version when a newer one is promoted. If you have editing access, a
+  favorite pins the exact version starred and a non-Official pin is labelled `vX (pinned)`. Favorites are
   personal — only you see yours.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
@@ -45,10 +46,10 @@ _N versions_ panel and Compare control; Teachers do not use Manage or see versio
   messages show as a small count on your avatar, and you get a short email telling you a message is
   waiting (never its content). Opening Messages marks everything shown as read.
 
-## Editors
+## Editing
 
-Editors can do everything Teachers can do, and their role is to edit the prose fields for the
-subject-grades assigned to them — lesson titles, specific learning outcomes, overviews, learner
+A teacher with editing access can do everything any teacher can, plus edit the prose fields for the
+subject-grades they have been granted — lesson titles, specific learning outcomes, overviews, learner
 experiences, teacher moves, sensemaking strategies, formative assessments, teacher reflections,
 summary-table text, and Final Explanation prompts. They never edit a Word file directly.
 
@@ -58,15 +59,15 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
   close that tab to return to the editor. Use *Editing help* for the short writing rules. The
   prominent *← Back to lesson* button at the top right returns you when you are done.
 - **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
-  version you opened is never changed in place. A Subject or Site Administrator marks a saved version
-  Official when it is ready.
+  version you opened is never changed in place. A Subject-grade or Site administrator marks a saved
+  version Official when it is ready.
 - **Your drafts live in Manage:** *Manage → My saved versions* lists the versions you have saved —
   click one to continue editing, or delete the ones you no longer need.
 
-## Subject Administrators
+## Subject-grade administrators
 
-Subject Administrators can do everything Editors can do for their assigned subject-grades. They also
-manage the structure and official content controls for those subject-grades.
+A Subject-grade administrator can do everything a teacher with editing access can, for their assigned
+subject-grades. They also manage the structure and official content controls for those subject-grades.
 
 - **Manage structure:** add, remove, and reorder lessons and instructional phases. To add a lesson,
   duplicate an existing lesson row, then edit the copy.
@@ -76,19 +77,19 @@ manage the structure and official content controls for those subject-grades.
   optionally deleting the version it replaces.
 - **Tidy candidates:** *Manage → Candidate versions* lists every saved, non-Official version in their
   subject-grades, with delete.
-- **Appoint Editors:** *Manage → Editors* promotes a Teacher to Editor (or removes one) per
-  subject-grade.
+- **Grant editing access:** *Manage → Editing access* gives a teacher editing access (or removes it)
+  per subject-grade.
 
-## Site Administrators
+## Site administrators
 
-Site Administrators have full access across the repository. They manage users, curriculum taxonomy,
+Site administrators have full access across the repository. They manage users, curriculum taxonomy,
 lesson-plan upload/import, and all lesson plans.
 
 - **Everything lives on Manage:** upload lesson plans (each upload creates a lesson plan and its first
   Official version), repair plans that have no Official version, delete lesson plans (with all their
   versions), and reach the People and Curriculum lists.
-- **Manage people:** create users, grant Site Administrator access, and assign Editor or Subject
-  Administrator roles by subject-grade.
+- **Manage people:** create users, grant Site administrator access, and grant editing access or
+  Subject-grade administrator access by subject-grade.
 - **Manage curriculum:** maintain Subjects and Subject Grades before lesson plans are uploaded.
 - **Review everything:** inspect, edit, export, mark Official, or delete lesson plans across all
   subjects and grades.
@@ -111,9 +112,9 @@ These rules are also available from *Editing help* at the top of the editor.
   not get the version selector — but versions are not access-gated, so a direct link to a specific
   version still opens for any signed-in user. Official is the default and the trust marker, not a
   permission boundary.
-- Editors and Subject Administrators act only within the subject-grades assigned to them; Site
-  Administrators can see and manage everything.
-- Email addresses are visible only to the account owner and Site Administrators.
+- Teachers with editing access and Subject-grade administrators act only within the subject-grades
+  assigned to them; Site administrators can see and manage everything.
+- Email addresses are visible only to the account owner and Site administrators.
 
 ---
 

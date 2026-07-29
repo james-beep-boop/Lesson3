@@ -165,7 +165,7 @@ export const Users: CollectionConfig = {
       name: 'roles',
       type: 'select',
       hasMany: true,
-      options: [{ label: 'Site Administrator', value: 'siteAdmin' }],
+      options: [{ label: 'Site administrator', value: 'siteAdmin' }],
       defaultValue: [],
       saveToJWT: true,
       admin: {
@@ -184,10 +184,11 @@ export const Users: CollectionConfig = {
     {
       name: 'assignments',
       type: 'array',
-      label: 'Subject-grade roles',
+      label: 'Subject-grade access',
       labels: { singular: 'Assignment', plural: 'Assignments' },
       admin: {
-        description: 'Assign Editor or Subject Administrator access for each subject and grade.',
+        description:
+          'Grant editing access, or Subject-grade administrator access, for each subject and grade.',
       },
       access: {
         // Grants are not public: with the names-only roster relaxation (SPEC §8, 2026-07-02) the
@@ -210,8 +211,11 @@ export const Users: CollectionConfig = {
           type: 'select',
           required: true,
           options: [
-            { label: 'Subject Administrator', value: 'subjectAdmin' },
-            { label: 'Editor', value: 'editor' },
+            // Labels are display-only (DESIGN-user-model-language, 2026-07-29); the stored VALUES
+            // ('subjectAdmin' / 'editor') are unchanged — renaming them would force a migration for
+            // zero user benefit. 'editor' surfaces to users as "editing access", not a type.
+            { label: 'Subject-grade administrator', value: 'subjectAdmin' },
+            { label: 'Editing access', value: 'editor' },
           ],
         },
       ],

@@ -10,6 +10,11 @@
 /** A bundle reduced to just what the list renders/orders/searches. */
 import type { DeliverableTag } from '../generator/exportArtifacts'
 
+/** The canonical "Subject · Grade N" scope label — shared by the browse grouping, the user-menu /
+ *  Manage access-scope lines, and the request-editing email, so the format can't drift between them. */
+export const subjectGradeLabel = (subjectName: string, grade: number): string =>
+  `${subjectName} · Grade ${grade}`
+
 export interface LessonRow {
   id: number | string
   subjectName: string
@@ -153,7 +158,7 @@ export function groupLessons(rows: LessonRow[]): SubjectGradeGroup[] {
         key: sgKey,
         subjectName: r.subjectName,
         grade: r.grade,
-        label: r.grade != null ? `${r.subjectName} · Grade ${r.grade}` : r.subjectName,
+        label: r.grade != null ? subjectGradeLabel(r.subjectName, r.grade) : r.subjectName,
         strands: [],
       }
       groups.set(sgKey, sg)

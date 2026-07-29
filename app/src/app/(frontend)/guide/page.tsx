@@ -26,22 +26,23 @@ export default async function UserGuidePage() {
           The main areas are <strong>Lessons</strong> (the library — the one list of every lesson
           plan), the <strong>lesson page</strong> (read, favorite, download, email, and share one
           lesson), <strong>Manage</strong> (editing, housekeeping, and people functions available to
-          your role), and <strong>Messages</strong> (notes between repository users). Editing roles
-          also see version and comparison controls on the library and lesson pages.
+          your role), and <strong>Messages</strong> (notes between repository users). Teachers with
+          editing access also see version and comparison controls on the library and lesson pages.
         </p>
       </header>
 
       <nav className="guide-toc" aria-label="Guide sections">
         <a href="#teachers">Teachers</a>
-        <a href="#editors">Editors</a>
-        <a href="#subject-admins">Subject Administrators</a>
-        <a href="#site-admins">Site Administrators</a>
+        {/* Anchor id stays #editors so existing links don't break; the label reframes to "Editing". */}
+        <a href="#editors">Editing</a>
+        <a href="#subject-admins">Subject-grade administrators</a>
+        <a href="#site-admins">Site administrators</a>
         <a href="#writing">Writing in fields</a>
       </nav>
 
       <section id="teachers" className="guide-section">
         <h2>Teachers</h2>
-        {/* Version-history mechanics live in the Editors section (critique 2026-07-12 §4) — Teachers
+        {/* Version-history mechanics live in the Editing section (critique 2026-07-12 §4) — Teachers
             have no version selector, so the chip/Compare explanation was noise here. Precisely:
             version reads still run under the caller's Payload access (`overrideAccess: false` in
             `lib/readBundle.ts`); "Official" is just the default + trust marker, NOT an extra
@@ -74,8 +75,8 @@ export default async function UserGuidePage() {
             <strong>Favorites:</strong> click the star on a library row — or the{' '}
             <em>☆ Favorite</em> button on a lesson page — to keep that lesson in a My favorites
             list at the top of the home page. Your star always shows the lesson&apos;s current
-            Official version, even when a newer one is promoted later. (For editors the star works
-            differently: it pins the exact version you starred.) Favorites are personal — only you
+            Official version, even when a newer one is promoted later. (If you have editing access the
+            star works differently: it pins the exact version you starred.) Favorites are personal — only you
             see yours.
           </li>
           <li>
@@ -111,14 +112,16 @@ export default async function UserGuidePage() {
         </ul>
       </section>
 
+      {/* Anchor id stays #editors (existing links); the section is titled "Editing" and framed as a
+          capability teachers are granted, not a separate user type (DESIGN-user-model-language). */}
       <section id="editors" className="guide-section">
-        <h2>Editors</h2>
+        <h2>Editing</h2>
         <p>
-          Editors can do everything Teachers can do, and their role is to edit the prose fields for the
-          subject-grades assigned to them — lesson titles, specific learning outcomes, overviews,
-          learner experiences, teacher moves, sensemaking strategies, formative assessments, teacher
-          reflections, summary-table text, and Final Explanation prompts. They never edit a Word file
-          directly.
+          A teacher with editing access can do everything any teacher can, plus edit the prose fields
+          for the subject-grades they have been granted — lesson titles, specific learning outcomes,
+          overviews, learner experiences, teacher moves, sensemaking strategies, formative
+          assessments, teacher reflections, summary-table text, and Final Explanation prompts. They
+          never edit a Word file directly.
         </p>
         <ul className="guide-list">
           <li>
@@ -132,8 +135,8 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new
-            version of the lesson plan — the version you opened is never changed in place. A Subject
-            or Site Administrator marks a saved version Official when it is ready.
+            version of the lesson plan — the version you opened is never changed in place. A
+            Subject-grade or Site administrator marks a saved version Official when it is ready.
           </li>
           <li>
             <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists the
@@ -151,10 +154,11 @@ export default async function UserGuidePage() {
       </section>
 
       <section id="subject-admins" className="guide-section">
-        <h2>Subject Administrators</h2>
+        <h2>Subject-grade administrators</h2>
         <p>
-          Subject Administrators can do everything Editors can do for their assigned subject-grades.
-          They also manage the structure and official content controls for those subject-grades.
+          A Subject-grade administrator can do everything a teacher with editing access can, for their
+          assigned subject-grades. They also manage the structure and official content controls for
+          those subject-grades.
         </p>
         <ul className="guide-list">
           <li>
@@ -175,16 +179,16 @@ export default async function UserGuidePage() {
             non-Official version in their subject-grades, with delete.
           </li>
           <li>
-            <strong>Appoint Editors:</strong> <em>Manage → Editors</em> promotes a Teacher to Editor
-            (or removes one) per subject-grade.
+            <strong>Grant editing access:</strong> <em>Manage → Editing access</em> gives a teacher
+            editing access (or removes it) per subject-grade.
           </li>
         </ul>
       </section>
 
       <section id="site-admins" className="guide-section">
-        <h2>Site Administrators</h2>
+        <h2>Site administrators</h2>
         <p>
-          Site Administrators have full access across the repository. They manage users, curriculum
+          Site administrators have full access across the repository. They manage users, curriculum
           taxonomy, lesson-plan upload/import, and all lesson plans.
         </p>
         <ul className="guide-list">
@@ -194,8 +198,8 @@ export default async function UserGuidePage() {
             delete lesson plans (with all their versions), and reach the People and Curriculum lists.
           </li>
           <li>
-            <strong>Manage people:</strong> create users, grant Site Administrator access, and assign
-            Editor or Subject Administrator roles by subject-grade.
+            <strong>Manage people:</strong> create users, grant Site administrator access, and grant
+            editing access or Subject-grade administrator access by subject-grade.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson

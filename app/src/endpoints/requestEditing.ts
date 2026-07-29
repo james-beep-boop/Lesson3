@@ -7,7 +7,7 @@
  * recipients is this endpoint's one privileged step. The messages themselves are created AS THE
  * CALLER with `overrideAccess: false`, so sender stamping, the per-sender daily message cap,
  * context-link validation, and the notification ping all run exactly as for a hand-written
- * message. The grant itself stays manual (Manage → Editors widget).
+ * message. The grant itself stays manual (Manage → Editing access widget).
  *
  * Throttle: ONE request per user per subject-grade per day (`editRequest` bucket, keyed
  * `${userId}:${sgId}`) — checked BEFORE any work, same probing-spends-budget posture as email.
@@ -18,6 +18,7 @@ import { json } from './respond'
 import { toId, isEditorFor } from '../access'
 import { findReadablePlan } from '../lib/readBundle'
 import { enforceSharedRateLimit } from '../lib/rateLimit'
+import { subjectGradeLabel } from '../lib/substrand'
 import type { SubjectGrade, User } from '../payload-types'
 
 /**
@@ -92,7 +93,7 @@ export const requestEditingEndpoint: Endpoint = {
     })) as SubjectGrade
     const subjectName =
       typeof sg.subject === 'object' && sg.subject ? sg.subject.name : 'this subject'
-    const scopeLabel = `${subjectName} · Grade ${sg.grade}`
+    const scopeLabel = subjectGradeLabel(subjectName, sg.grade)
 
     const recipients = await resolveRecipients(req, sgId, user.id)
     if (recipients.length === 0) {
@@ -102,7 +103,7 @@ export const requestEditingEndpoint: Endpoint = {
 
     const body =
       `Please grant me editing access for ${scopeLabel}. ` +
-      `(Sent from the lesson page — grant via Manage → Editors.)`
+      `(Sent from the lesson page — grant via Manage → Editing access.)`
 
     // One message per recipient, all-or-nothing: a mid-loop failure (e.g. the sender's daily
     // message cap) must not leave a half-notified admin set.

@@ -11,6 +11,60 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-29 (implementation) — reframed "Editor" as editing access (presentation only)
+
+Implemented `docs/DESIGN-user-model-language-2026-07-29.md`. A tester's "there are really only three
+user types" observation, worked into a language/UI change with a hard boundary: **no authorization,
+schema, endpoint, or migration change.** The stored assignment value stays `'editor'`; every
+`access/*.ts` function is byte-for-byte unchanged. What moved is only what users *see*.
+
+- **Three displayed types, sentence case:** *Teacher*, *Subject-grade administrator*, *Site
+  administrator*. `userTypeLabel()` lost its Editor branch — an editor-only user now returns
+  **Teacher**. Their grant surfaces as a separate **"Editing access: `<scopes>`"** line; a subject
+  admin's own scope shows under **"Administrator: `<scopes>`"** and is never double-listed (the two
+  id lists are disjoint by construction — `adminScopeIds` reads `subjectAdmin` rows, `editingAccessScopeIds`
+  reads `editor` rows).
+- **Capability vs governance is the principle that bounds the cut.** *Editor* is a capability ("may
+  edit prose here") → displays as access. *Subject-grade / Site administrator* are governance roles
+  (they decide about other people and Official versions) → stay named types. That is why Editor
+  dissolves while the two admin types don't, and it's where the rename stops.
+- **Accurate title "Subject-grade administrator"** (the grant is one subject-grade, not a whole
+  subject) — used wherever the scope isn't shown beside it.
+- **Scope resolution** is populate-at-render: the JWT `user` carries `subjectGrade` as an id, so the
+  "Subject · Grade N" labels are resolved with one batched `payload.find`. Extracted to
+  `lib/accessScopes.ts` (`resolveAccessScopes`) so the shared user menu (`AppNav`) and the Manage
+  page (`describeUser`) resolve identically instead of duplicating the query. `describeUser` was NOT
+  in the design's surface inventory but showed "Signed in as Editor" — the same lie on another
+  surface — so it was reframed too.
+- **Copy pass, identifiers kept:** the assignment dropdown option is now "Editing access" (value
+  `editor`), the Manage widget/section read "Editing access" / "Grant editing access", and the
+  request-editing email points to "Manage → Editing access". Component/endpoint names
+  (`EditorsWidget`, `assign/unassign-editor`) stay — renaming them is churn with no user benefit.
+- **Why it's safe:** the standing rule (every authz-affecting change ships with `tests/http`
+  401/403/404 coverage) means the gates are pinned by tests, not wording — a label pass can't loosen
+  who-can-edit. Added `tests/unit/userTypeLabel.spec.ts` for the three-type collapse + disjoint
+  scopes; updated the `editorPlainLanguage` assertion for the new field description.
+- **General rule:** display a **capability** as access and a **governance role** as a type; keep
+  storage values stable and change only presentation, so terminology can evolve without a migration.
+- **Review follow-up (same day):** the display model was consolidated into one `resolveAccessSummary`
+  (type + lines + site-admin treatment) so the menu and Manage can't diverge — the first pass left the
+  menu with no site-admin case, so a site admin holding assignment rows would have shown per-grant
+  lines there but "All subjects and grades" on Manage. Both now show one full-access line. And the
+  "disjoint by construction" claim was made real: the resolver now filters editing scopes to exclude
+  administered ones, so a same-subject-grade `subjectAdmin`+`editor` pair (reachable via the demote
+  path in `hooks/userRoles.ts`) lists once, under Administrator — not twice. Covered by
+  `tests/unit/accessScopes.spec.ts` (site admin, dual-role, deleted-scope, failure propagation).
+  **Lesson:** "disjoint by construction" is a claim to *enforce and test*, not to trust — especially
+  when a hook can rewrite one role into another.
+- **Nav degradation, decided explicitly:** the user menu's **type** is always shown (pure, never
+  queried — it can't be wrong); the **scope-label lines** need a subject-grade read, so on a query
+  failure they degrade to *absent*, matching `countUnread`'s failure-to-0 posture. This omits detail,
+  it does not misstate — editing access is server-enforced regardless, and an editor is a "Teacher"
+  with or without the line. A "(unavailable)" placeholder was rejected as uglier and no more useful.
+- **Terminology sweep:** also retired the last user-facing "Editor" strings the copy pass missed — the
+  `unassign-editor` endpoint's 409 now reads "does not have editing access" (`userAssignments.ts`),
+  and the `editingAccessScopeIds` docstring no longer claims false disjointness.
+
 ## 2026-07-29 (later) — dropped the redundant editor description; Back rides the title row
 
 Operator review of the live version editor: the collection description banner (“Save button writes

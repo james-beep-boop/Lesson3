@@ -111,7 +111,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
           next = [...rows, { subjectGrade: subjectGradeId, role: 'editor' } as Assignment]
         } else {
           if (!rows.some(isEditorRowForSg)) {
-            throw new APIError('This user is not an Editor for that subject grade.', 409)
+            throw new APIError('This user does not have editing access for that subject grade.', 409)
           }
           next = rows.filter((a) => !isEditorRowForSg(a))
         }

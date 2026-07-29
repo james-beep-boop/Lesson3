@@ -154,6 +154,10 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
 - **System (never editable):** `LESSONS[].resourceLinks`; `LESSONS[].number` (set by order).
 
+> **Vocabulary note.** "Editor (teacher)" above names the *capability*, not a user type. In the UI this
+> capability is presented as **"editing access"** granted to a Teacher, never as an "Editor" type — see
+> §8's displayed-vocabulary note. The `editor` assignment value and the field access above are unchanged.
+
 ### Unsaved-work durability — recoverable working drafts (amended 2026-07-20)
 
 **Invariant: a teacher's in-progress edits must survive session expiry, browser crash, forced
@@ -238,6 +242,15 @@ so the editor unmounts and unsaved work is destroyed with no prompt and no recov
 | Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, manage scoped roles |
 | Site Administrator | Global — everything, incl. user/role/taxonomy management |
 
+- **Displayed vocabulary (presentation only, DESIGN-user-model-language 2026-07-29).** The table above
+  is the **authorization** model and is unchanged. To users it is presented as **three types** —
+  *Teacher*, *Subject-grade administrator*, *Site administrator* (sentence case). **"Editor" is not a
+  displayed type:** an `editor` grant is a per-subject-grade *capability*, so an editor-only user
+  displays as **Teacher** with a separate **"Editing access: …"** scope line; governance roles
+  (subject-grade / site admin) stay named types. The stored assignment value remains `'editor'` and
+  every access function is untouched — this is language/UI, not security. The accurate title
+  *Subject-grade administrator* is used wherever the scope is not shown beside it (the grant is one
+  subject-grade, not a whole subject).
 - **Subject** = academic discipline only. **SubjectGrade** = subject + **integer** grade; the assignable unit roles attach to. Display as "Grade N". "Math Grade 4" and "Math Grade 5" are independent.
 - Per-subject-grade scoping is expressed inside Payload access functions.
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to Editor for that subject-grade, in one transaction.

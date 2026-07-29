@@ -5,6 +5,7 @@ import type { AdminViewServerProps } from 'payload'
 
 import { isSiteAdmin, subjectGradeIdsByRole, toId } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
+import { resolveAccessSummary } from '../../lib/accessScopes'
 import { relId } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
@@ -45,8 +46,8 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // (`deletableVersionsWhere`) — single source, so this list can never drift from what the server
   // would actually let the user delete. All queries below are independent → run them concurrently.
   const deletable = deletableVersionsWhere(user)
-  const [{ role, scope }, versionsRes, sgsRes, usersRes, plansRes] = await Promise.all([
-    describeUser(req, user),
+  const [{ typeLabel: role, lines: roleLines }, versionsRes, sgsRes, usersRes, plansRes] = await Promise.all([
+    resolveAccessSummary(req.payload, user),
     // ---- Saved versions (deletable candidates) ----
     deletable === false
       ? null
@@ -185,7 +186,11 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     <Gutter className="lp-admin-dash lp-manage">
       <h1 className="lp-admin-dash__title">Manage</h1>
       <p className="lp-admin-dash__role">Signed in as {role}</p>
-      {scope && <p className="lp-admin-dash__scope">{scope}</p>}
+      {roleLines.map((line) => (
+        <p key={line} className="lp-admin-dash__scope">
+          {line}
+        </p>
+      ))}
 
       <h2 className="lp-admin-dash__section">{savedTitle}</h2>
       <p className="lp-manage__desc">{savedDesc}</p>
@@ -197,10 +202,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
       {editorGroups.length > 0 && (
         <>
-          <h2 className="lp-admin-dash__section">Editors</h2>
+          <h2 className="lp-admin-dash__section">Editing access</h2>
           <p className="lp-manage__desc">
-            Who may edit lesson plans, per subject grade. Adding someone makes them an Editor;
-            removing returns them to Teacher.
+            Who may edit lesson plans, per subject grade. Granting access lets a teacher edit;
+            removing it returns them to view-only.
           </p>
           <EditorsWidget groups={editorGroups} />
         </>
@@ -264,48 +269,4 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
       )}
     </Gutter>
   )
-}
-
-/** Factual role + scope line for the current user (no instructional copy). */
-async function describeUser(
-  req: AdminViewServerProps['initPageResult']['req'],
-  user: User | null,
-): Promise<{ role: string; scope: string }> {
-  if (isSiteAdmin(user)) return { role: 'Site Administrator', scope: 'All subjects and grades' }
-
-  const assignments = user?.assignments ?? []
-  if (assignments.length === 0) return { role: 'Teacher', scope: '' }
-
-  const role = assignments.some((a) => a.role === 'subjectAdmin') ? 'Subject Administrator' : 'Editor'
-
-  // assignments carry subject-grade IDs at auth depth → resolve them to "Subject · Grade N".
-  const ids = assignments
-    .map((a) => toId(a.subjectGrade))
-    .filter((id): id is number => typeof id === 'number')
-  const labelById = new Map<number, string>()
-  if (ids.length > 0) {
-    const { docs } = await req.payload.find({
-      collection: 'subject-grades',
-      where: { id: { in: ids } },
-      depth: 1,
-      limit: ids.length,
-      overrideAccess: true,
-    })
-    for (const sg of docs) {
-      const subject = typeof sg.subject === 'object' ? sg.subject : null
-      labelById.set(sg.id, `${subject?.name ?? 'Subject'} · Grade ${sg.grade}`)
-    }
-  }
-
-  // Preserve assignment order, de-duplicate.
-  const seen = new Set<string>()
-  const labels: string[] = []
-  for (const a of assignments) {
-    const label = labelById.get(toId(a.subjectGrade) as number)
-    if (label && !seen.has(label)) {
-      seen.add(label)
-      labels.push(label)
-    }
-  }
-  return { role, scope: labels.join(', ') }
 }

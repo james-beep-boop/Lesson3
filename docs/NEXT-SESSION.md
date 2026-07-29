@@ -49,9 +49,12 @@ the Editing help modal, and Back sat on its own row below the toolbar rather tha
   plain `<a>` rather than routing a guaranteed reload through `next/link` and risking the admin router.
 - Password recovery now uses the same top-right control. Close-tab preview guidance is the only
   deliberate exception.
-- `docs/DESIGN-user-model-language-2026-07-29.md` is now approved: three displayed types use
-  **Teacher**, **Subject-grade administrator**, and **Site administrator**; editing access is shown on
-  its own scoped line. This document revision does not implement that separate terminology batch.
+- `docs/DESIGN-user-model-language-2026-07-29.md` is **implemented** (uncommitted at time of writing):
+  three displayed types — **Teacher**, **Subject-grade administrator**, **Site administrator** — with
+  editing access on its own scoped line, resolved once in `lib/accessScopes.ts` and shared by the user
+  menu and Manage. Presentation only (no authz/schema/migration). Carried through a four-angle
+  `/simplify` pass and a follow-up review that fixed two resolver defects (site-admin consistency,
+  disjoint scopes) with resolver-level tests. See the CHANGELOG entry and `docs/DECISIONS.md`.
 - Local evidence: TypeScript clean; unit **268/268**; lint **0 errors** / 90 existing warnings;
   `git diff --check` clean. No local app server is available, so visual verification remains a
   post-deploy Rock check at desktop and phone widths.

@@ -90,7 +90,7 @@ async function resolveUnsavedEffective(req: PayloadRequest, id: string): Promise
     if (e instanceof Forbidden) {
       throw new APIError(
         'Only prose edits can be previewed — structural changes (adding or reordering rows) ' +
-          'must be made by a Subject Administrator.',
+          'must be made by a Subject-grade administrator.',
         422,
       )
     }

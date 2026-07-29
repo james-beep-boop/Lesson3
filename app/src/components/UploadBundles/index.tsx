@@ -97,7 +97,7 @@ export default function UploadBundles() {
     >
       <strong>Upload lesson plans</strong>
       <p style={{ margin: '0.25rem 0 0.75rem', color: 'var(--theme-elevation-600)', fontSize: '0.85rem' }}>
-        Site Administrator only. ARES <code>.json</code> exports are validated and saved as
+        Site administrator only. ARES <code>.json</code> exports are validated and saved as
         Official 1.0.0 versions. The upload never executes the file; only JSON data is parsed.
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
