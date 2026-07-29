@@ -5,8 +5,8 @@
  * coverage. This spec drives the REAL rendered page and asserts what each role sees and the two
  * interactive flows:
  *
- *   1. Role scoping — Editor: ONLY "My saved versions"; Subject Admin: "Candidate versions" +
- *      "Editors"; Site Admin: + Upload / Delete lesson plans / Curriculum & people.
+ *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
+ *      versions" + "Editing access"; Site Admin: + Upload / Delete lesson plans / Curriculum & people.
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
  *   3. Repair — a pointerless plan appears in the Site-Admin Repair section (clean name, links to
@@ -63,7 +63,7 @@ test.describe('Manage page', () => {
     const page = await loginAs(browser, 'editor')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Editors' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Editing access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
     // The "Lesson plans" nav group is hidden (CSS display:none — still in the DOM, so assert
@@ -71,11 +71,11 @@ test.describe('Manage page', () => {
     await expect(page.locator("[id='nav-group-Lesson plans']")).toBeHidden()
   })
 
-  test('Subject Admin sees candidates + Editors, no Site-Admin panels', async ({ browser }) => {
+  test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ browser }) => {
     const page = await loginAs(browser, 'subjectAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Editors' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Editing access' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
   })
