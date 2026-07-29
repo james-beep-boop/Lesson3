@@ -18,15 +18,20 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `cae8385` (#162 docs). The live Rock is DEPLOYED at `cae8385`** — verified 2026-07-29
-this session: the container was built `2026-07-29T08:03Z`, ~1 min after that commit, and the site is
-healthy (`/` → `/login`, 200). So **#157–#160 are all merged AND live** (the old "last deploy 9f2c756"
-line was stale — it always goes stale on a deploy). The editor UI from #157–#160 (plain-language
-labels, Editing help modal, Back placement, the three displayed user types) still wants a **browser
-eyeball** across editor-only / mixed-admin-editor / site-admin accounts. Always CONFIRM the Rock's HEAD
-rather than trust this line: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`, and
-cross-check the container build time (`docker inspect lesson3-app-1 --format '{{.Created}}'`) — a
-checked-out commit is not proof the running image was rebuilt.
+**`main` is at `bf9490d` (#163). The live Rock is DEPLOYED at `bf9490d`** — deployed & verified
+2026-07-29 this session: the container was rebuilt `2026-07-29T17:23Z` (matches the deploy run), the
+`migrate` service found nothing pending (this change carries no migration), and the site is healthy
+(`/` → `/login`, 200). So **#157–#160 AND #163 (editing is a wider-screen affordance) are all merged
+AND live** (the old "last deploy 9f2c756" line was stale — it always goes stale on a deploy). Two
+things still want a **browser eyeball** (both need a logged-in session, so they're operator-side):
+(a) the #157–#160 editor UI (plain-language labels, Editing help modal, Back placement, three
+displayed user types) across editor-only / mixed-admin-editor / site-admin accounts; and (b) #163 at
+**390px** (lesson page: no Edit, notice shown; version editor + hand-typed `?edit=1` lands read-only)
+and **1280×800 / ~700px unmaximised** (fully editable; starting an edit then narrowing below 640px
+keeps Save). Always CONFIRM the Rock's HEAD rather than trust this line: `ssh david@rock5b 'cd
+/srv/lesson3 && git rev-parse --short HEAD'`, and cross-check the container build time (`docker inspect
+lesson3-app-1 --format '{{.Created}}'`) — a checked-out commit is not proof the running image was
+rebuilt.
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
@@ -198,10 +203,10 @@ against an 860px viewport, which is the shape §6 requires and no smaller fixtur
 **PR 2 and PR 3 are now built locally** — see the newest block above. They are not yet committed,
 CI-verified, deployed, or browser-verified.
 
-**▶ BUILT (2026-07-29), on branch `feat/hide-editing-below-640` — editing is a wider-screen affordance;
-640px or narrower is view-only (operator decision 2026-07-28). NOT YET committed to a PR / deployed /
-browser-verified.** Full reasoning: DECISIONS 2026-07-29 (implementation) + 2026-07-28 (later); spec'd in
-`SPEC.md` §5.
+**▶ MERGED (#163, squash `bf9490d`) & DEPLOYED (2026-07-29) — editing is a wider-screen affordance;
+640px or narrower is view-only (operator decision 2026-07-28). Post-deploy browser eyeball still
+PENDING (operator-side — needs a logged-in session).** Full reasoning: DECISIONS 2026-07-29
+(implementation) + 2026-07-28 (later); spec'd in `SPEC.md` §5.
 - At 640px or narrower: the lesson page's **Edit** button, the version editor's **Edit / Save / Cancel**,
   and the `?edit=1` intent are unavailable, replaced by a notice naming the remedy (rotate / widen /
   larger screen). **Delete, Make Official**, previews, Share, messaging, favorites, version history, user
@@ -215,16 +220,19 @@ browser-verified.** Full reasoning: DECISIONS 2026-07-29 (implementation) + 2026
   notice string); `LessonControls/index.tsx` (mount guard, Edit `className`, notice); `custom.scss` +
   frontend `styles.css`; `EditActions.tsx`. Tests: `editingViewport.spec.ts` (predicate) +
   `lessonControlsMountGuard.spec.tsx` (jsdom mount proving the wiring seam at 390px vs 1280px).
-- **Local evidence:** tsc clean; unit **298/298**; eslint clean on changed files (one justified
+- **Evidence:** local tsc clean; unit **298/298**; eslint clean on changed files (one justified
   `react-hooks/set-state-in-effect` inline-disable — the lazy initialiser would read `window` during SSR
-  and cause a hydration mismatch); `git diff --check` clean. **App-level, NO migration.**
-- **Next:** open the PR (auto-merge on green: `gh pr create --fill && gh pr merge --auto --squash
-  --delete-branch`), deploy (`scripts/deploy.sh`, no migration), then Rock eyeball at **390px** (notice
-  shown, no Edit, a hand-typed `?edit=1` lands locked) and **1280×800 / ~700px unmaximised** (fully
-  editable). No local `next dev`, so visual verification is post-deploy.
+  and cause a hydration mismatch); `git diff --check` clean. CI gate green on the PR. **App-level, NO
+  migration** (deploy's `migrate` service confirmed nothing pending). Deployed via `scripts/deploy.sh`;
+  Rock rebuilt at `bf9490d` (`2026-07-29T17:23Z`), site healthy.
+- **Still to do (operator-side eyeball — needs login, which the assistant can't do):** at **390px** the
+  lesson page shows the notice and no Edit, and a version editor opened with a hand-typed `?edit=1` lands
+  read-only (no Save/Cancel, fields locked); at **1280×800 / ~700px unmaximised** editing works, and
+  starting an edit then narrowing below 640px keeps Save. The wiring is already pinned by
+  `lessonControlsMountGuard.spec.tsx`, so this is a visual confirmation, not a correctness gate.
 
-⚠ **Remaining browser debt:** the #157–#160 editor UI is deployed on the Rock but still wants a browser
-eyeball; and the 640px feature above needs its own post-deploy check once merged.
+⚠ **Remaining browser debt (both operator-side, need a logged-in session):** the #157–#160 editor UI
+still wants an eyeball across the three account types; and #163's 390px / 1280×800 visual check above.
 
 **Not in this repo: the iCloud problem — DEFERRED by operator decision 2026-07-28** (still real, still
 unmitigated; don't re-raise it as urgent unless asked). All 23 repos live in an iCloud-synced `~/Documents`, and three
