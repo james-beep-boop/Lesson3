@@ -15,15 +15,17 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 Implemented `docs/DESIGN-user-model-language-2026-07-29.md`. A tester's "there are really only three
 user types" observation, worked into a language/UI change with a hard boundary: **no authorization,
-schema, endpoint, or migration change.** The stored assignment value stays `'editor'`; every
-`access/*.ts` function is byte-for-byte unchanged. What moved is only what users *see*.
+schema, endpoint, or migration change.** The stored assignment value stays `'editor'`, and the
+**authorization** functions in `access/*.ts` (the access gates and role predicates that decide
+who-can-do-what) are byte-for-byte unchanged. The only `access/*.ts` edits are display helpers —
+`userTypeLabel()` (three values, Editor branch removed) plus the new `adminScopeIds` /
+`editingAccessScopeIds`. What moved is only what users *see*.
 
 - **Three displayed types, sentence case:** *Teacher*, *Subject-grade administrator*, *Site
   administrator*. `userTypeLabel()` lost its Editor branch — an editor-only user now returns
   **Teacher**. Their grant surfaces as a separate **"Editing access: `<scopes>`"** line; a subject
-  admin's own scope shows under **"Administrator: `<scopes>`"** and is never double-listed (the two
-  id lists are disjoint by construction — `adminScopeIds` reads `subjectAdmin` rows, `editingAccessScopeIds`
-  reads `editor` rows).
+  admin's own scope shows under **"Administrator: `<scopes>`"** and is never double-listed —
+  disjointness is *enforced in the resolver* (see the review follow-up below), not assumed.
 - **Capability vs governance is the principle that bounds the cut.** *Editor* is a capability ("may
   edit prose here") → displays as access. *Subject-grade / Site administrator* are governance roles
   (they decide about other people and Official versions) → stay named types. That is why Editor
@@ -32,10 +34,11 @@ schema, endpoint, or migration change.** The stored assignment value stays `'edi
   subject) — used wherever the scope isn't shown beside it.
 - **Scope resolution** is populate-at-render: the JWT `user` carries `subjectGrade` as an id, so the
   "Subject · Grade N" labels are resolved with one batched `payload.find`. Extracted to
-  `lib/accessScopes.ts` (`resolveAccessScopes`) so the shared user menu (`AppNav`) and the Manage
-  page (`describeUser`) resolve identically instead of duplicating the query. `describeUser` was NOT
-  in the design's surface inventory but showed "Signed in as Editor" — the same lie on another
-  surface — so it was reframed too.
+  `lib/accessScopes.ts` (`resolveAccessSummary`, wrapping `resolveAccessScopes`) so the shared user
+  menu (`AppNav`) and the Manage page (`AdminDashboard`) resolve identically instead of duplicating
+  the query. The Manage role line — originally a bespoke `describeUser`, since folded into
+  `resolveAccessSummary` (see the review follow-up below) — was NOT in the design's surface inventory
+  but showed "Signed in as Editor", the same lie on another surface, so it was reframed too.
 - **Copy pass, identifiers kept:** the assignment dropdown option is now "Editing access" (value
   `editor`), the Manage widget/section read "Editing access" / "Grant editing access", and the
   request-editing email points to "Manage → Editing access". Component/endpoint names

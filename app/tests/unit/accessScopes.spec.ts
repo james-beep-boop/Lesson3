@@ -105,6 +105,17 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
     })
   })
 
+  it('renders a duplicate same-role grant once (ids are distinct before mapping)', async () => {
+    const { payload } = stubPayload(CATALOGUE)
+    // Two identical rows for the same subject-grade — `subjectGradeIdsByRole` returns distinct ids,
+    // so the label is not repeated (no per-list re-dedupe needed in the resolver).
+    const u = user([], [{ sg: 10, role: 'subjectAdmin' }, { sg: 10, role: 'subjectAdmin' }])
+    expect(await resolveAccessScopes(payload, u)).toEqual({
+      adminScopes: ['Biology · Grade 10'],
+      editingScopes: [],
+    })
+  })
+
   it('propagates a query failure (callers own the fallback — see AppNav)', async () => {
     const find = vi.fn(async () => {
       throw new Error('db down')
