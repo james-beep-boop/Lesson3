@@ -18,15 +18,25 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is deployed at `main` `b37eaa8`** (2026-07-28 — #154/#155; app-level, NO migration;
-image rebuilt, site 200, gotenberg + postgres healthy, all three changes eyeballed on screen by the
-operator). Always CONFIRM rather than trust this line, it goes stale on every deploy:
+**The live Rock is deployed at `main` `9f2c756`** (2026-07-29 — #157 plain-language editor + #158
+Back-button consistency; app-level, NO migration; fresh image confirmed, site 200). The editor UI
+changes in #157/#158 still want a browser eyeball. Always CONFIRM rather than trust this line, it goes
+stale on every deploy:
 `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
-**▶ COMMITTED — PR [#158](https://github.com/james-beep-boop/Lesson3/pull/158) OPEN, DEPLOY PENDING
-(2026-07-29) — Back-button consistency follow-up.**
+**▶ COMMITTED — PR [#159](https://github.com/james-beep-boop/Lesson3/pull/159) OPEN, DEPLOY PENDING (2026-07-29, later) — dropped the redundant editor description + moved Back onto the Editing-title row.** Operator review of the live editor: the "Save button writes…" banner duplicated
+the Editing help modal, and Back sat on its own row below the toolbar rather than top-right.
+
+- Removed the collection `admin.description`; the rule stays in the Editing help modal. Regenerated
+  `payload-types.ts` (Node 22, byte-clean); the `editorPlainLanguage` test now asserts it is gone.
+- **← Back to lesson** now rides the "Editing: `<title>`" row at the far right; Save/Cancel/preview/help
+  drop to the row below (`--output` `flex-basis:100%`). Matches the frontend's Back-next-to-title.
+- Local evidence: tsc clean; unit **268/268**; eslint clean on changed files. Visual verification is
+  the post-deploy Rock eyeball (no local app server).
+
+**▶ #158 MERGED & DEPLOYED (2026-07-29) — Back-button consistency.** Rock on `9f2c756`.
 
 - Shared `.page-back` appearance across surfaces: `PageBackLink` on the frontend (lesson, comparison,
   Guide, password recovery); the version editor uses a plain `<a>` with the **same** styling.
