@@ -11,6 +11,31 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-29 (Payload doc-controls mid-break) — override the INNER controls wrapper, not just the outer
+
+Showing the ≤640px editor at all (the wider-screen-affordance feature below) exposed that the Payload
+admin editor was never mobile-responsive — the debt the 2026-07-28 decision chose to defer. Three
+CSS-only follow-ups closed the reported overlaps (#165 notice-on-its-own-row, #166 hide the jump nav,
+#167 the control-bar height). The load-bearing lesson is in #167:
+
+**Payload's `DocumentControls` pins TWO elements to a fixed single-row height (`--doc-controls-height`),
+and they engage at DIFFERENT breakpoints.** The outer `.doc-controls__wrapper` is fixed-height above
+Payload's mid-break; **below the mid-break (`$breakpoint-m-width: 1024px`) that one is `height: unset`
+but the INNER `.doc-controls__controls-wrapper` becomes the fixed-height one** (with `overflow: auto`,
+designed for a one-row control bar that scrolls sideways). We inject our multi-row `LessonControls` bar
+into `.doc-controls__controls`, so:
+- Our long-standing `.doc-controls__wrapper { height: auto }` override fixed only the **>1024px** case.
+  That is exactly why **1280px looked correct** while **≤640px (and any unmaximised <1024px laptop)**
+  overlapped the first form field — the same symptom at two different elements.
+- Fix: at `@media (max-width: 1024px)`, scoped to `.collection-edit--lesson-bundle-versions`, set
+  `.doc-controls__controls-wrapper { height: auto }` and `.doc-controls__controls { overflow: visible }`
+  (the `overflow` also stops the fixed box clipping the "View as PDF" dropdown).
+
+**General rule:** when overriding a third-party component's responsive layout, don't assume one override
+covers all widths — the vendor may move a fixed dimension from an outer element to an inner one at its own
+breakpoint. Verify at the vendor's breakpoints, not only yours (ours is 640px; Payload's is 1024px). And
+match the vendor's breakpoint literal when countering a vendor rule, not the app's.
+
 ## 2026-07-29 (implementation) — editing is a wider-screen affordance below 640px (built)
 
 Built the 2026-07-28 operator decision below. **At 640px or narrower**, the lesson page's **Edit**

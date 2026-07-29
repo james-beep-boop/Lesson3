@@ -18,17 +18,23 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `bf9490d` (#163). The live Rock is DEPLOYED at `bf9490d`** — deployed & verified
-2026-07-29 this session: the container was rebuilt `2026-07-29T17:23Z` (matches the deploy run), the
-`migrate` service found nothing pending (this change carries no migration), and the site is healthy
-(`/` → `/login`, 200). So **#157–#160 AND #163 (editing is a wider-screen affordance) are all merged
-AND live** (the old "last deploy 9f2c756" line was stale — it always goes stale on a deploy). Two
-things still want a **browser eyeball** (both need a logged-in session, so they're operator-side):
+**`main` is at `549accc` (#167). The live Rock is DEPLOYED at `549accc`** — deployed & verified
+2026-07-29 this session: the container was rebuilt `2026-07-29T19:04Z` (matches the deploy run), the
+`migrate` service found nothing pending (none of these changes carry a migration), and the site is
+healthy (`/` → `/login`, 200). So **#157–#160 AND the whole editing-is-a-wider-screen-affordance arc —
+#163 (feature) + #165 (notice wraps to its own row) + #166 (jump nav hidden at ≤640px) + #167 (control
+bar takes natural height at ≤1024px) — are all merged AND live** (the old "last deploy 9f2c756" line was
+stale — it always goes stale on a deploy). Two things still want a **browser eyeball** (both need a
+logged-in session, so they're operator-side):
 (a) the #157–#160 editor UI (plain-language labels, Editing help modal, Back placement, three
-displayed user types) across editor-only / mixed-admin-editor / site-admin accounts; and (b) #163 at
-**390px** (lesson page: no Edit, notice shown; version editor + hand-typed `?edit=1` lands read-only)
-and **1280×800 / ~700px unmaximised** (fully editable; starting an edit then narrowing below 640px
-keeps Save). Always CONFIRM the Rock's HEAD rather than trust this line: `ssh david@rock5b 'cd
+displayed user types) across editor-only / mixed-admin-editor / site-admin accounts; and (b) the
+narrow editor at ~**550px** — a clean top-to-bottom read (header · Viewing title · Back · notice ·
+Quick preview/PDF/details/help · then the form with NO overlap), plus **390px** (lesson page: no Edit,
+notice shown; version editor + hand-typed `?edit=1` lands read-only) and **1280×800 / ~700px
+unmaximised** (fully editable; starting an edit then narrowing below 640px keeps Save). Three prior
+overlap fixes (#165/#166/#167) each closed one reported artefact; the operator's last screenshot before
+#167 still showed the control-bar-over-Document-title overlap that #167 targets, so that specific
+confirmation is the open one. Always CONFIRM the Rock's HEAD rather than trust this line: `ssh david@rock5b 'cd
 /srv/lesson3 && git rev-parse --short HEAD'`, and cross-check the container build time (`docker inspect
 lesson3-app-1 --format '{{.Created}}'`) — a checked-out commit is not proof the running image was
 rebuilt.
@@ -203,10 +209,19 @@ against an 860px viewport, which is the shape §6 requires and no smaller fixtur
 **PR 2 and PR 3 are now built locally** — see the newest block above. They are not yet committed,
 CI-verified, deployed, or browser-verified.
 
-**▶ MERGED (#163, squash `bf9490d`) & DEPLOYED (2026-07-29) — editing is a wider-screen affordance;
-640px or narrower is view-only (operator decision 2026-07-28). Post-deploy browser eyeball still
-PENDING (operator-side — needs a logged-in session).** Full reasoning: DECISIONS 2026-07-29
-(implementation) + 2026-07-28 (later); spec'd in `SPEC.md` §5.
+**▶ MERGED (#163 + narrow-editor fixes #165/#166/#167) & DEPLOYED (2026-07-29) — editing is a
+wider-screen affordance; 640px or narrower is view-only (operator decision 2026-07-28). One operator-side
+visual confirmation of the ~550px editor still PENDING (needs a logged-in session).** Full reasoning:
+DECISIONS 2026-07-29 (implementation) + 2026-07-28 (later); spec'd in `SPEC.md` §5.
+
+- **Narrow-editor overlap fixes, all CSS-only, no migration** (found by showing the ≤640px editor at all —
+  the Payload admin editor was never made mobile-responsive, the debt DECISIONS 2026-07-28 chose to defer):
+  **#165** wraps the "editing needs a wider screen" notice onto its own full-width row (it had collapsed
+  into a one-word-per-line column beside the buttons); **#166** hides the in-form jump nav at ≤640px (a
+  desktop editing aid, useless when editing is blocked, and it overlapped the fields); **#167** overrides
+  Payload's fixed-height `.doc-controls__controls-wrapper` at its mid-break (**≤1024px**, not just 640) so
+  the multi-row bar takes natural height instead of overflowing onto the first field — this also covers an
+  unmaximised <1024px editing laptop. See DECISIONS 2026-07-29 (Payload doc-controls mid-break).
 - At 640px or narrower: the lesson page's **Edit** button, the version editor's **Edit / Save / Cancel**,
   and the `?edit=1` intent are unavailable, replaced by a notice naming the remedy (rotate / widen /
   larger screen). **Delete, Make Official**, previews, Share, messaging, favorites, version history, user
@@ -224,15 +239,18 @@ PENDING (operator-side — needs a logged-in session).** Full reasoning: DECISIO
   `react-hooks/set-state-in-effect` inline-disable — the lazy initialiser would read `window` during SSR
   and cause a hydration mismatch); `git diff --check` clean. CI gate green on the PR. **App-level, NO
   migration** (deploy's `migrate` service confirmed nothing pending). Deployed via `scripts/deploy.sh`;
-  Rock rebuilt at `bf9490d` (`2026-07-29T17:23Z`), site healthy.
-- **Still to do (operator-side eyeball — needs login, which the assistant can't do):** at **390px** the
-  lesson page shows the notice and no Edit, and a version editor opened with a hand-typed `?edit=1` lands
-  read-only (no Save/Cancel, fields locked); at **1280×800 / ~700px unmaximised** editing works, and
-  starting an edit then narrowing below 640px keeps Save. The wiring is already pinned by
-  `lessonControlsMountGuard.spec.tsx`, so this is a visual confirmation, not a correctness gate.
+  Rock rebuilt at `549accc` (`2026-07-29T19:04Z`), site healthy. Test lesson used for the operator
+  screenshots: Biology Grade 10 "Cell Structure" (Official version), account `ED`.
+- **Still to do (operator-side eyeball — needs login, which the assistant can't do):** confirm the
+  **~550px** editor reads cleanly top-to-bottom (header · Viewing title · Back · notice ·
+  preview/PDF/details/help · then the form, no overlap) — #167 targeted the last known overlap
+  (control-bar-over-Document-title) but hasn't been re-screenshotted since deploy; plus **390px** (lesson
+  page: no Edit, notice shown; `?edit=1` lands read-only) and **1280×800 / ~700px unmaximised** (editable;
+  starting an edit then narrowing below 640px keeps Save). The wiring is pinned by
+  `lessonControlsMountGuard.spec.tsx`, so these are visual confirmations, not correctness gates.
 
 ⚠ **Remaining browser debt (both operator-side, need a logged-in session):** the #157–#160 editor UI
-still wants an eyeball across the three account types; and #163's 390px / 1280×800 visual check above.
+still wants an eyeball across the three account types; and the narrow-editor visual confirmation above.
 
 **Not in this repo: the iCloud problem — DEFERRED by operator decision 2026-07-28** (still real, still
 unmitigated; don't re-raise it as urgent unless asked). All 23 repos live in an iCloud-synced `~/Documents`, and three
