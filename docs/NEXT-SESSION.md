@@ -18,17 +18,18 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is deployed at `main` `9f2c756`** (2026-07-29 — #157 plain-language editor + #158
-Back-button consistency; app-level, NO migration; fresh image confirmed, site 200). The editor UI
-changes in #157/#158 still want a browser eyeball. Always CONFIRM rather than trust this line, it goes
-stale on every deploy:
+**`main` is at `430fbb4` (#160). The live Rock's last confirmed deploy was `9f2c756`** (2026-07-29 —
+#157 plain-language editor + #158 Back-button consistency; app-level, NO migration; site 200) — so
+**#159 and #160 are merged but DEPLOY PENDING**, and the editor UI from #157/#158 still wants a browser
+eyeball. Always CONFIRM the Rock's HEAD rather than trust this line, it goes stale on every deploy:
 `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
-**▶ COMMITTED — PR [#160](https://github.com/james-beep-boop/Lesson3/pull/160) OPEN, MERGE PENDING CI ("gate"), DEPLOY PENDING (2026-07-29) — "Editor" reframed as editing access.** Presentation only:
-NO authorization/schema/endpoint/migration change; the stored `editor` value and every access function
-are unchanged. Implements `docs/DESIGN-user-model-language-2026-07-29.md`.
+**▶ #160 MERGED (2026-07-29, squash `430fbb4`), DEPLOY PENDING — "Editor" reframed as editing access.**
+Presentation only: NO authorization/schema/endpoint/migration change; the stored `editor` value and the
+authorization functions in `access/*.ts` are unchanged (the only `access/*.ts` edits are display
+helpers). Implements `docs/DESIGN-user-model-language-2026-07-29.md`.
 
 - **Three displayed types** (sentence case): Teacher, Subject-grade administrator, Site administrator.
   An `editor`-only grant shows as **Teacher** + a separate "Editing access: `<scopes>`" line; a subject
@@ -42,9 +43,9 @@ are unchanged. Implements `docs/DESIGN-user-model-language-2026-07-29.md`.
   the minor guide-width tidy (fills the shared 960px column).
 - `/simplify` (four angles) + two review rounds (resolver consolidation fixing a site-admin
   menu/Manage divergence and enforcing disjointness; terminology sweep). Local: tsc clean; eslint
-  clean; unit **291/291**. Post-deploy Rock eyeball wanted across editor-only, mixed admin/editor, and
-  site-admin accounts. **Merge blocked only by the required `gate` check (repo auto-merge disabled);
-  squash-merge once green.**
+  clean; unit **291/291** (the gate's e2e caught one missed heading assertion — `manage.e2e.spec.ts`
+  now expects "Editing access", fixed pre-merge). Post-deploy Rock eyeball wanted across editor-only,
+  mixed admin/editor, and site-admin accounts. **Deploy is app-level, NO migration (`scripts/deploy.sh`).**
 
 **▶ COMMITTED — PR [#159](https://github.com/james-beep-boop/Lesson3/pull/159) OPEN, DEPLOY PENDING (2026-07-29, later) — dropped the redundant editor description + moved Back onto the Editing-title row.** Operator review of the live editor: the "Save button writes…" banner duplicated
 the Editing help modal, and Back sat on its own row below the toolbar rather than top-right.
