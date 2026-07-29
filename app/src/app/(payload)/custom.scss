@@ -656,6 +656,15 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
+// "Editing needs a wider screen" notice (rationale: SPEC §5 / DECISIONS 2026-07-28). Hidden at all
+// widths by default; the 640px block below reveals it and hides Edit when not already editing.
+.lesson-controls__edit-unavailable {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--theme-elevation-600);
+  max-width: 22rem;
+}
+
 // Official / Not-Official status chip (Codex #4): a working copy in the editor should never read as
 // authoritative — the pointer, not the open version, decides. `Official` uses the success token; a
 // candidate uses a quiet neutral chip (it's normal, not an error).
@@ -997,6 +1006,18 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   }
   // (The old #1 mobile title-wrap rule is gone with the native title itself — the control bar's
   // "Viewing:/Editing: <title>" wraps naturally via overflow-wrap.)
+
+  // Below 640px, swap the Edit button for the notice (the LessonControls mount guard is what
+  // actually blocks editing; this is cosmetic). Gated on :not(--editing) so someone who resizes
+  // below 640px WHILE already editing keeps Save/Cancel and isn't stranded with unsaved work.
+  .lesson-controls-wrap:not(.lesson-controls-wrap--editing) {
+    .lesson-controls__edit {
+      display: none;
+    }
+    .lesson-controls__edit-unavailable {
+      display: inline;
+    }
+  }
 
   // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
   // already do; these Payload small buttons did not). Explicit px, NOT rem: the admin root font is

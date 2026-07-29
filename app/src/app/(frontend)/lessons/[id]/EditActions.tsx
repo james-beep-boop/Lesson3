@@ -13,6 +13,8 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { EDITING_NEEDS_WIDER_SCREEN } from '@/lib/editingViewport'
+
 export default function EditActions({
   versionId,
   canMakeOfficial,
@@ -74,9 +76,15 @@ export default function EditActions({
   // of the .export-bar flex row to pick up its gap — a wrapping span left them flush together.
   return (
     <>
-      <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
+      {/* Below 640px the CSS hides this Edit button and shows the notice instead. No JS guard needed:
+          this surface only navigates to the editor (?edit=1), and the editor self-guards on mount.
+          Make Official stays — a small confirm-gated action, not content editing. */}
+      <button type="button" className="btn lesson-edit" disabled={busy !== null} onClick={onEdit}>
         Edit
       </button>
+      <span className="lesson-edit-unavailable" role="note">
+        {EDITING_NEEDS_WIDER_SCREEN}
+      </span>
       {canMakeOfficial && !isOfficial && (
         <button type="button" className="btn" disabled={busy !== null} onClick={onMakeOfficial}>
           {busy === 'official' ? 'Updating…' : 'Make Official'}

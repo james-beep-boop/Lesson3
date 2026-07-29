@@ -18,11 +18,15 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `430fbb4` (#160). The live Rock's last confirmed deploy was `9f2c756`** (2026-07-29 —
-#157 plain-language editor + #158 Back-button consistency; app-level, NO migration; site 200) — so
-**#159 and #160 are merged but DEPLOY PENDING**, and the editor UI from #157/#158 still wants a browser
-eyeball. Always CONFIRM the Rock's HEAD rather than trust this line, it goes stale on every deploy:
-`ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`.
+**`main` is at `cae8385` (#162 docs). The live Rock is DEPLOYED at `cae8385`** — verified 2026-07-29
+this session: the container was built `2026-07-29T08:03Z`, ~1 min after that commit, and the site is
+healthy (`/` → `/login`, 200). So **#157–#160 are all merged AND live** (the old "last deploy 9f2c756"
+line was stale — it always goes stale on a deploy). The editor UI from #157–#160 (plain-language
+labels, Editing help modal, Back placement, the three displayed user types) still wants a **browser
+eyeball** across editor-only / mixed-admin-editor / site-admin accounts. Always CONFIRM the Rock's HEAD
+rather than trust this line: `ssh david@rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'`, and
+cross-check the container build time (`docker inspect lesson3-app-1 --format '{{.Created}}'`) — a
+checked-out commit is not proof the running image was rebuilt.
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
@@ -194,36 +198,33 @@ against an 860px viewport, which is the shape §6 requires and no smaller fixtur
 **PR 2 and PR 3 are now built locally** — see the newest block above. They are not yet committed,
 CI-verified, deployed, or browser-verified.
 
-**▶ AGREED AND SPEC'D, NOT STARTED — hide editing below 640px (operator decision 2026-07-28).** This is
-the next feature work. The app must be usable on a phone, but **editing needs room and will not be done on
-one**; the primary editing surface is inexpensive Kenyan laptops (**1280×800 is common — must stay
-editable even when the window isn't maximised**), tablets secondary. Full reasoning + the decision record:
-DECISIONS 2026-07-28 (later).
-- **Breakpoint: 640px** — already the ONE breakpoint in the codebase (3× in `custom.scss`, 1× in the
-  frontend `styles.css`), and already the line where the editor was conceded (`.doc-controls` is
-  deliberately NOT sticky below it, #99 item ①). 1280×800 clears it with enormous room; tablet portrait
-  (~768px) and landscape phones stay editable, which the operator accepted.
-- **Hide below 640px:** the lesson page's Edit button; the editor's Edit / Save / Cancel; and `?edit=1`
-  must not enter edit mode.
-- **Do NOT hide Delete** — operator decision: "editing needs room, deleting does not." It is one tap
-  behind a confirm dialog, role-gated and server-gated.
-- **Everything else stays:** catalogue, viewing, both previews, downloads/exports, Share, email,
-  messaging, favorites, version history, **user administration incl. promote/demote**, guide, auth. The
-  boundary is the lesson-content editor, NOT `/admin` as a whole.
-- **Show an explanation, not a missing button** — silently removing Edit is indistinguishable from "I've
-  been demoted" or "the app is broken", and many teachers are phone-primary. Say editing needs a wider
-  screen.
-- **Mechanism:** CSS for the controls and the notice (SSR-safe, no hydration branch — the §4d discipline),
-  plus ONE mount-time JS guard, because `editing` initialises from `?edit=1` in a lazy initialiser that
-  runs during SSR (`LessonControls` ~line 74). CSS alone would leave a phone user in live edit mode with
-  editable fields and no Save — a silent work-loss trap, the same failure class as queue item 2.
-- **Evaluate ONCE, on load — not live on resize.** Reacting to resize would yank someone out of edit mode
-  mid-sentence and discard their edits, which is worse than the inconsistency it fixes.
-- Ship with a unit test pinning "below 640px, editing is unavailable" as a pure function, plus the
-  `SPEC.md` entry (this is a product decision not currently in the spec) and a DECISIONS entry.
+**▶ BUILT (2026-07-29), on branch `feat/hide-editing-below-640` — editing is a wider-screen affordance;
+640px or narrower is view-only (operator decision 2026-07-28). NOT YET committed to a PR / deployed /
+browser-verified.** Full reasoning: DECISIONS 2026-07-29 (implementation) + 2026-07-28 (later); spec'd in
+`SPEC.md` §5.
+- At 640px or narrower: the lesson page's **Edit** button, the version editor's **Edit / Save / Cancel**,
+  and the `?edit=1` intent are unavailable, replaced by a notice naming the remedy (rotate / widen /
+  larger screen). **Delete, Make Official**, previews, Share, messaging, favorites, version history, user
+  admin, guide, auth all stay.
+- **Behaviour:** new edit intent is neutralised on initial load (a once-on-mount guard in
+  `LessonControls` running `editingAvailableAtWidth(window.innerWidth)`); an edit session already underway
+  is not cancelled by a resize (the editor CSS hide is gated `:not(--editing)`, so narrowing mid-edit keeps
+  Save). The guard *implements* the feature — it is not a work-loss guard (the CSS only ever hides Edit,
+  never Save). TS decides the mode; the CSS button↔notice swap is cosmetic.
+- **Files:** new `app/src/lib/editingViewport.ts` (constant + pure `editingAvailableAtWidth` + shared
+  notice string); `LessonControls/index.tsx` (mount guard, Edit `className`, notice); `custom.scss` +
+  frontend `styles.css`; `EditActions.tsx`. Tests: `editingViewport.spec.ts` (predicate) +
+  `lessonControlsMountGuard.spec.tsx` (jsdom mount proving the wiring seam at 390px vs 1280px).
+- **Local evidence:** tsc clean; unit **298/298**; eslint clean on changed files (one justified
+  `react-hooks/set-state-in-effect` inline-disable — the lazy initialiser would read `window` during SSR
+  and cause a hydration mismatch); `git diff --check` clean. **App-level, NO migration.**
+- **Next:** open the PR (auto-merge on green: `gh pr create --fill && gh pr merge --auto --squash
+  --delete-branch`), deploy (`scripts/deploy.sh`, no migration), then Rock eyeball at **390px** (notice
+  shown, no Edit, a hand-typed `?edit=1` lands locked) and **1280×800 / ~700px unmaximised** (fully
+  editable). No local `next dev`, so visual verification is post-deploy.
 
-⚠ **Remaining browser debt:** PR 2/3 now exist locally, including the label renames, but their Rock
-browser verification is still pending. PR 1's §6 verification remains complete.
+⚠ **Remaining browser debt:** the #157–#160 editor UI is deployed on the Rock but still wants a browser
+eyeball; and the 640px feature above needs its own post-deploy check once merged.
 
 **Not in this repo: the iCloud problem — DEFERRED by operator decision 2026-07-28** (still real, still
 unmitigated; don't re-raise it as urgent unless asked). All 23 repos live in an iCloud-synced `~/Documents`, and three

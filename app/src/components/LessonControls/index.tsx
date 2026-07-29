@@ -36,6 +36,7 @@ import { reduceFieldsToValues } from 'payload/shared'
 import { isEditorFor, isSubjectAdminFor, toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
+import { editingAvailableAtWidth, EDITING_NEEDS_WIDER_SCREEN } from '../../lib/editingViewport'
 import { DELIVERABLE_LABELS } from '../../generator/deliverables'
 import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
@@ -100,6 +101,20 @@ export default function LessonControls() {
     document.body.classList.toggle('lp-details-shown', detailsShown)
     return () => document.body.classList.remove('lp-details-shown')
   }, [detailsShown])
+
+  // Editing is a wider-screen affordance (operator decision 2026-07-28, DECISIONS.md / SPEC §5).
+  // At 640px or narrower, drop the `?edit=1` edit intent so a narrow-screen deep link lands in view
+  // mode rather than the cramped editor. Two things this deliberately is NOT:
+  //   • not a resize handler — it runs ONCE on mount, so an edit session already underway is never
+  //     cancelled by a resize (that would discard edits mid-sentence);
+  //   • not the lazy initialiser — `window` is undefined during SSR, and reading it on the client's
+  //     first render would diverge from the server's `?edit=1` markup (a hydration mismatch).
+  // A once-on-mount sync from an external system (the viewport) is exactly what an effect is for, so
+  // the set-state-in-effect warning does not apply.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!editingAvailableAtWidth(window.innerWidth)) setEditIntent(false)
+  }, [])
 
   // Close the "View as PDF ▾" menu on outside click / Escape (APG disclosure pattern, matching UserMenu).
   useEffect(() => {
@@ -398,7 +413,7 @@ export default function LessonControls() {
               rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
               or an Editor looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
-            <Button buttonStyle="primary" size="small" onClick={onEdit}>
+            <Button className="lesson-controls__edit" buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
             </Button>
           ) : (
@@ -416,6 +431,14 @@ export default function LessonControls() {
                 Cancel
               </Button>
             </>
+          )}
+          {/* Below 640px the CSS hides the Edit button (when not already editing) and reveals this
+              notice — an explanation, not a silently missing button. Always rendered (no hydration
+              branch); visibility is CSS-only, but gated on `canEdit` so a non-editor never sees it. */}
+          {canEdit && (
+            <span className="lesson-controls__edit-unavailable" role="note">
+              {EDITING_NEEDS_WIDER_SCREEN}
+            </span>
           )}
           <Button
             buttonStyle="secondary"

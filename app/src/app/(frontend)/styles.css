@@ -1435,7 +1435,24 @@ button[type='submit']:disabled {
 
 /* ---- Reading-first mobile pass (IA redesign PR ⑤): the library, lesson pages, and Guide must be
    comfortable on a phone. The heavy editing form stays desktop-oriented by decision. ---- */
+/* "Editing needs a wider screen" notice (rationale: SPEC §5 / DECISIONS 2026-07-28). Hidden at all
+   widths by default; the 640px block below reveals it and hides the Edit button. */
+.lesson-edit-unavailable {
+  display: none;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 @media (max-width: 640px) {
+  /* Below 640px, swap the lesson page's Edit button for the notice. Cosmetic — this surface only
+     navigates to the editor, which self-guards on mount against a stray ?edit=1 deep link. */
+  .lesson-edit {
+    display: none;
+  }
+  .lesson-edit-unavailable {
+    display: inline;
+  }
+
   .app-header,
   .app-nav {
     align-items: flex-start;

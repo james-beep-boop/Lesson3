@@ -11,6 +11,41 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-29 (implementation) — editing is a wider-screen affordance below 640px (built)
+
+Built the 2026-07-28 operator decision below. **At 640px or narrower**, the lesson page's **Edit**
+button, the version editor's **Edit / Save / Cancel**, and the `?edit=1` deep-link intent are
+unavailable, replaced by a notice that names the remedy (widen the viewport). Make Official, Delete,
+previews, Share, messaging, favorites, version history, user admin and everything else stay at every
+width. Presentation only — **no authz/schema/endpoint/migration change**.
+
+Behaviour, stated precisely (the earlier draft of this entry over-dramatised it as a "work-loss"
+safety net — it is not; correction kept per house rule):
+- **At 640px or narrower, new edit intent is neutralised on initial load. An edit session already
+  underway is not cancelled when the viewport is resized.** A mount-time guard in `LessonControls`
+  runs `!editingAvailableAtWidth(window.innerWidth)` once and, if narrow, drops `editIntent` to view
+  mode. The CSS `@media (max-width: 640px)` blocks swap the Edit button for the notice; the Edit-hide
+  is gated on `:not(.lesson-controls-wrap--editing)` so a resize *while editing* keeps Save/Cancel.
+- **The guard implements the feature; it is not a work-loss guard.** The CSS only ever hides *Edit*,
+  never Save — so even without the guard a `?edit=1` narrow load would show Save (just cramped), not
+  strand edits. The guard exists so that load lands in view mode instead. Two independent layers (TS
+  decides edit mode, CSS is cosmetic) means the 640 literal in `lib/editingViewport.ts` and the two
+  stylesheets can disagree by a pixel at the boundary with only a cosmetic edge — no broken state.
+- **Why a mount effect, not the lazy initialiser.** `editIntent` seeds from `?edit=1` during SSR,
+  where `window` is undefined; reading the viewport in the initialiser would diverge the client's
+  first render from the server's markup (a hydration mismatch). Hence a post-mount effect (which trips
+  `react-hooks/set-state-in-effect`; disabled inline — a once-on-mount sync from an external system is
+  what the rule's own text says effects are for).
+- **Explain, don't just remove.** A missing Edit button reads as "I've been demoted" or "broken"; the
+  notice is rendered always (no hydration branch) and revealed by CSS. Its copy names the *remedy*
+  (rotate / widen / larger screen), not a device class — the rule is on width, so a split-screen
+  tablet can be blocked and a landscape phone can pass.
+- Spec'd in `SPEC.md` §5; pinned by two tests — `editingViewport.spec.ts` (the pure predicate,
+  639/640→false, 641/1280→true) and `lessonControlsMountGuard.spec.tsx`, a jsdom client mount proving
+  the wiring seam: at 390px a `?edit=1` load settles read-only (Edit shown, no Save); at 1280px the
+  same load stays editable. Local: tsc clean, unit **298/298**, eslint clean on changed files.
+  Post-deploy Rock eyeball at 390px and 1280×800 pending (no local `next dev`).
+
 ## 2026-07-29 (implementation) — reframed "Editor" as editing access (presentation only)
 
 Implemented `docs/DESIGN-user-model-language-2026-07-29.md`. A tester's "there are really only three
