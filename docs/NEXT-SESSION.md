@@ -26,8 +26,7 @@ stale on every deploy:
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
-**▶ NOT COMMITTED (2026-07-29, later) — dropped the redundant editor description + moved Back onto the
-Editing-title row.** Operator review of the live editor: the "Save button writes…" banner duplicated
+**▶ COMMITTED — PR [#159](https://github.com/james-beep-boop/Lesson3/pull/159) OPEN, DEPLOY PENDING (2026-07-29, later) — dropped the redundant editor description + moved Back onto the Editing-title row.** Operator review of the live editor: the "Save button writes…" banner duplicated
 the Editing help modal, and Back sat on its own row below the toolbar rather than top-right.
 
 - Removed the collection `admin.description`; the rule stays in the Editing help modal. Regenerated

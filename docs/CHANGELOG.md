@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-07-29 — editor: drop the redundant description, Back onto the title row (local; not committed)
+## 2026-07-29 — editor: drop the redundant description, Back onto the title row (#159; deploy pending)
 
 - Removed the version editor's collection description ("Save button writes your edits as a new
   version…") — the same rule already lives in the **Editing help** modal, so the passive banner
