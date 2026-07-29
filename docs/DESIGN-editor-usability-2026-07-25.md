@@ -11,11 +11,11 @@ The operator's stated priority is **the current-lesson indicator**. Do that firs
 
 Goal, in one line: the editor should read as a **guided teaching tool, not a database admin form**.
 
-**Status 2026-07-28:** PR 1 is shipped and live. PR 2 and PR 3 are built locally, with TypeScript,
-267 unit tests, lint (0 errors), and whitespace checks green; they are not committed, deployed, or
-browser-verified. The approved implementation also removes internal Title/row-order descriptions,
-hides system-number inputs, and makes Back actions prominent top-right buttons on the lesson,
-comparison, and editor pages.
+**Status 2026-07-29:** PR 1 is shipped and live. PR 2 and PR 3 are committed in open PR #157 and await
+deployment/browser verification. A local follow-up replaces the three separate Back treatments with
+one shared component, puts it last at the top right (**Favorite → Back** on the lesson page), and adds
+the Guide and password recovery to the same pattern. New-tab previews remain the deliberate workflow
+exception.
 
 ---
 

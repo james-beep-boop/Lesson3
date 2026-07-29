@@ -259,7 +259,8 @@ export default function LessonControls() {
         credentials: 'same-origin',
       })
       if (!res.ok) throw new Error(await errorMessage(res, 'Delete'))
-      // Cross-root-layout navigation (admin → frontend), so a full load like the "Back to lesson" <a>.
+      // Cross-root-layout navigation (admin → frontend), so Next gives the shared Back Link a full
+      // page load automatically.
       window.location.assign(planId != null ? `/lessons/${planId}` : '/')
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Delete failed')
@@ -464,14 +465,12 @@ export default function LessonControls() {
         </div>
         {planId != null && (
           <div className="lesson-controls__group lesson-controls__group--back">
-            <Button
-              buttonStyle="secondary"
-              size="small"
-              el="anchor"
-              url={`/lessons/${planId}?version=${id}`}
-            >
-              ← Back to lesson
-            </Button>
+            {/* Plain <a>, not PageBackLink/next/link: this Back crosses from Payload's admin root to
+                the frontend root, which is a full-document navigation either way — so route it the
+                zero-risk way. Same `.page-back` styling as the frontend control. */}
+            <a className="page-back" href={`/lessons/${planId}?version=${id}`}>
+              <span aria-hidden="true">←</span>Back to lesson
+            </a>
           </div>
         )}
         {pdfBusy && (
