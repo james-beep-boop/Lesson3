@@ -2,14 +2,18 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 
+import type { UserTypeLabel } from '../../access'
 import { initials } from '../../lib/initials'
 
 /**
  * Top-right user menu — the two-letter initials avatar that opens a small dropdown:
- *   line 1: the user's role type (Teacher / Editor / Subject Administrator / Site Administrator)
- *   line 2: the login name (email)
- *   line 3: "Messages" (with the unread count) — moved here from the top nav
- *   line 4: "Log Out"
+ *   line 1: the user's type (Teacher / Subject-grade administrator / Site administrator)
+ *   scope: up to two lines — "Administrator: …" and "Editing access: …" — each shown only when the
+ *          user holds that kind of grant (DESIGN-user-model-language, 2026-07-29). "Editor" is no
+ *          longer a type: an editor-only user shows "Teacher" plus an "Editing access:" line.
+ *   next:  the login name (email)
+ *   then:  "Messages" (with the unread count) — moved here from the top nav
+ *   last:  "Log Out"
  *
  * Shared by BOTH surfaces (frontend header + admin header) so they match exactly; each surface only
  * supplies the theme colors for the shared `.user-menu*` classes. Logout clears the shared auth cookie
@@ -18,14 +22,18 @@ import { initials } from '../../lib/initials'
  */
 export function UserMenu({
   typeLabel,
+  scopeLines = [],
   displayName,
   loginName,
   unread,
 }: {
-  typeLabel: string
+  typeLabel: UserTypeLabel
+  /** Pre-formatted access-scope lines ("Administrator: …" / "Editing access: …"), already ordered
+   *  and filtered; each renders as its own line beneath the type. Empty for plain teachers. */
+  scopeLines?: string[]
   /** Source for the two-letter avatar (the user's name). */
   displayName: string
-  /** Shown as line 2 of the dropdown — the email they sign in with. */
+  /** Shown beneath the type/scope — the email they sign in with. */
   loginName: string
   /** Unread message count — badges the avatar and the Messages item (0 hides both). */
   unread: number
@@ -86,6 +94,11 @@ export function UserMenu({
       {open && (
         <div className="user-menu__dropdown">
           <div className="user-menu__type">{typeLabel}</div>
+          {scopeLines.map((line) => (
+            <div key={line} className="user-menu__scope">
+              {line}
+            </div>
+          ))}
           <div className="user-menu__name">{loginName}</div>
           {/* Cross-surface (admin → frontend) → a plain <a>, like the rest of the nav. */}
           <a className="user-menu__item" href="/messages">

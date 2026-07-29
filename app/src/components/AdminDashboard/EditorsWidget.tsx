@@ -73,13 +73,18 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
     const userId = Number(picks[group.sgId])
     const user = group.addable.find((u) => u.id === userId)
     if (!user) return
-    void changeRole('assign', user, group, `${user.name} is now an Editor for ${group.sgLabel}.`)
+    void changeRole('assign', user, group, `${user.name} now has editing access for ${group.sgLabel}.`)
     setPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
   const onRemove = (group: EditorsGroup, user: WidgetUser) => {
-    if (!window.confirm(`Remove ${user.name} as an Editor for ${group.sgLabel}?`)) return
-    void changeRole('unassign', user, group, `${user.name} is no longer an Editor for ${group.sgLabel}.`)
+    if (!window.confirm(`Remove editing access for ${user.name} in ${group.sgLabel}?`)) return
+    void changeRole(
+      'unassign',
+      user,
+      group,
+      `${user.name} no longer has editing access for ${group.sgLabel}.`,
+    )
   }
 
   return (
@@ -88,7 +93,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
         <div key={group.sgId} className="lp-manage__editors-group">
           <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
           {group.editors.length === 0 ? (
-            <p className="muted">No editors.</p>
+            <p className="muted">No one has editing access.</p>
           ) : (
             <ul className="lp-manage__list">
               {group.editors.map((u) => (
@@ -110,12 +115,12 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
             <div className="lp-manage__editors-add">
               <select
                 className="lp-manage__select"
-                aria-label={`Add an editor for ${group.sgLabel}`}
+                aria-label={`Grant editing access for ${group.sgLabel}`}
                 value={picks[group.sgId] ?? ''}
                 disabled={busy}
                 onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
               >
-                <option value="">Add an editor…</option>
+                <option value="">Grant editing access…</option>
                 {group.addable.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}

@@ -450,6 +450,12 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     font-size: 0.85rem;
   }
 
+  .user-menu__scope {
+    margin-top: 0.15rem;
+    color: var(--theme-elevation-600);
+    font-size: 0.8rem;
+  }
+
   .user-menu__name {
     color: var(--theme-elevation-600);
     font-size: 0.8rem;

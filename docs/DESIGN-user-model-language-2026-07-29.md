@@ -1,6 +1,6 @@
 # Design — reframe "Editor" as editing access (language/UI, not security)
 
-**Status:** approved for implementation (revised 2026-07-29). Not started.
+**Status:** implemented 2026-07-29 (see `docs/DECISIONS.md`). Presentation only — no schema/authz change.
 **Type:** presentation / terminology change. **No** schema, data-migration, or authorization-logic change.
 **Origin:** a partner/tester suggested the product needs only three user types — Teacher, subject-grade
 admin, site admin — with teachers starting without editing rights and being *granted* them. This
@@ -178,17 +178,23 @@ fenced off.
 
 ---
 
-## 6. Open questions to settle before/while building
+## 6. Open questions — resolved at implementation (2026-07-29)
 
-- **Scope-name resolution (§3.2):** confirm the populate-at-render approach, or raise any objection to
-  the extra `AppNav` query. This is the only real engineering decision in the plan.
-- **Admin-title casing — settled:** use sentence case everywhere ("Subject-grade administrator",
-  "Site administrator"), including `userTypeLabel` and assignment dropdown labels.
-- **Site-admin scope line:** show nothing, or an explicit "Full access"?
-- **Guide section heading/anchor:** retitle "Editors" → "Editing" while keeping (or redirecting) the
-  `#editors` anchor?
-- **Phase 2 depth:** copy-only now (recommended), or also rename the `EditorsWidget` component and the
-  assign/unassign endpoints? The latter is churn with no user-visible benefit.
+- **Scope-name resolution (§3.2) — settled: populate-at-render.** The type + scope lines are resolved
+  once in `lib/accessScopes.ts` (`resolveAccessSummary`) and shared by the user menu (`AppNav`) and
+  the Manage page. One batched `payload.find`; skipped entirely for plain teachers (no assignments)
+  and for site admins (short-circuit), so the nav hot path adds no query for the common cases.
+- **Admin-title casing — settled:** sentence case everywhere ("Subject-grade administrator", "Site
+  administrator"), including `userTypeLabel` and the assignment dropdown labels.
+- **Site-admin scope line — settled: one "All subjects and grades" line on BOTH surfaces.** The
+  shared resolver special-cases site admins, so the menu and Manage agree (an earlier split, where the
+  menu had no site-admin case and would show per-grant lines for a site admin holding assignment rows,
+  was the defect this consolidation fixed). Per-grant scopes are also enforced **disjoint** in the
+  resolver — a same-subject-grade `subjectAdmin`+`editor` pair lists once, under Administrator.
+- **Guide section heading/anchor — settled:** retitled "Editors" → "Editing", keeping the `#editors`
+  anchor id so existing links don't break.
+- **Phase 2 depth — settled: copy-only.** The `EditorsWidget` component and the assign/unassign
+  endpoints keep their names; only user-facing strings changed.
 
 ---
 

@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-07-29 — "Editor" reframed as editing access (presentation only; #160, merge/deploy pending)
+
+- The user model now shows **three types** — Teacher, Subject-grade administrator, Site administrator
+  (sentence case). "Editor" is no longer a type: a user whose only grant is `editor` shows as
+  **Teacher** with a separate **"Editing access: …"** line; a subject admin's own scope shows under
+  **"Administrator: …"**. Authorization, schema, endpoints, and the stored `editor` value are
+  unchanged.
+- The type + scope lines are resolved once in `lib/accessScopes.ts` and shared by the user menu and
+  the Manage page, so the two surfaces can't drift. Site admins show one "All subjects and grades"
+  line on both; a subject-grade you administer is never double-listed under editing access.
+- Management copy, the request-editing email, the in-app guide (`#editors` anchor kept),
+  `USER_GUIDE.md`, and `SPEC.md` §5/§8 were reworded to match. `payload-types.ts` regenerated for the
+  one changed field description.
+- No schema or data migration.
+
 ## 2026-07-29 — editor: drop the redundant description, Back onto the title row (#159; deploy pending)
 
 - Removed the version editor's collection description ("Save button writes your edits as a new

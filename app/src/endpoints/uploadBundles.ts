@@ -35,7 +35,7 @@ export const uploadBundlesEndpoint: Endpoint = {
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
     if (!isSiteAdmin(req.user as User)) {
-      throw new APIError('Forbidden — Site Administrator only', 403)
+      throw new APIError('Forbidden — Site administrator only', 403)
     }
 
     // Coarse pre-parse guard: reject an oversized body via Content-Length BEFORE `formData()` buffers

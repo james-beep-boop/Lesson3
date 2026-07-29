@@ -418,6 +418,12 @@ a {
   color: var(--ink);
   font-size: 0.85rem;
 }
+/* Access-scope lines beneath the type (Administrator: … / Editing access: …). */
+.user-menu__scope {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
 .user-menu__name {
   color: var(--muted);
   font-size: 0.8rem;
@@ -1342,9 +1348,8 @@ button[type='submit']:disabled {
 }
 
 /* ---- User guide ---- */
-.guide {
-  max-width: 760px;
-}
+/* No own max-width: the guide fills the shared .app-main column (--app-content-width, 960px) so it
+   sits at the same width as the lesson and edit pages (Manage is intentionally its own width). */
 .guide-intro {
   margin-bottom: 1.5rem;
 }

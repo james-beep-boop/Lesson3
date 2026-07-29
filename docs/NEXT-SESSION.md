@@ -26,6 +26,26 @@ stale on every deploy:
 (Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
 being wrong, not the app.)
 
+**▶ COMMITTED — PR [#160](https://github.com/james-beep-boop/Lesson3/pull/160) OPEN, MERGE PENDING CI ("gate"), DEPLOY PENDING (2026-07-29) — "Editor" reframed as editing access.** Presentation only:
+NO authorization/schema/endpoint/migration change; the stored `editor` value and every access function
+are unchanged. Implements `docs/DESIGN-user-model-language-2026-07-29.md`.
+
+- **Three displayed types** (sentence case): Teacher, Subject-grade administrator, Site administrator.
+  An `editor`-only grant shows as **Teacher** + a separate "Editing access: `<scopes>`" line; a subject
+  admin's scope shows under "Administrator: `<scopes>`".
+- **One source of truth**: `lib/accessScopes.ts` (`resolveAccessSummary`) computes type + scope lines,
+  shared by the user menu (`AppNav`) and Manage so they can't drift — including the site-admin case
+  ("All subjects and grades" on both). Disjointness is **enforced in the resolver** (a same-SG
+  admin+editor pair, reachable via the demote path, lists once under Administrator).
+- Copy sweep across widget/email/preview+upload errors/guide (`#editors` anchor kept)/`USER_GUIDE.md`/
+  `SPEC.md` §5/§8; `payload-types.ts` regenerated for the one changed field description. Also folded in
+  the minor guide-width tidy (fills the shared 960px column).
+- `/simplify` (four angles) + two review rounds (resolver consolidation fixing a site-admin
+  menu/Manage divergence and enforcing disjointness; terminology sweep). Local: tsc clean; eslint
+  clean; unit **291/291**. Post-deploy Rock eyeball wanted across editor-only, mixed admin/editor, and
+  site-admin accounts. **Merge blocked only by the required `gate` check (repo auto-merge disabled);
+  squash-merge once green.**
+
 **▶ COMMITTED — PR [#159](https://github.com/james-beep-boop/Lesson3/pull/159) OPEN, DEPLOY PENDING (2026-07-29, later) — dropped the redundant editor description + moved Back onto the Editing-title row.** Operator review of the live editor: the "Save button writes…" banner duplicated
 the Editing help modal, and Back sat on its own row below the toolbar rather than top-right.
 
@@ -49,9 +69,13 @@ the Editing help modal, and Back sat on its own row below the toolbar rather tha
   plain `<a>` rather than routing a guaranteed reload through `next/link` and risking the admin router.
 - Password recovery now uses the same top-right control. Close-tab preview guidance is the only
   deliberate exception.
-- `docs/DESIGN-user-model-language-2026-07-29.md` is now approved: three displayed types use
-  **Teacher**, **Subject-grade administrator**, and **Site administrator**; editing access is shown on
-  its own scoped line. This document revision does not implement that separate terminology batch.
+- `docs/DESIGN-user-model-language-2026-07-29.md` is **implemented** and committed as PR
+  [#160](https://github.com/james-beep-boop/Lesson3/pull/160) (see the status marker at the top of this
+  file): three displayed types — **Teacher**, **Subject-grade administrator**, **Site administrator** —
+  with editing access on its own scoped line, resolved once in `lib/accessScopes.ts` and shared by the
+  user menu and Manage. Presentation only (no authz/schema/migration). Carried through a four-angle
+  `/simplify` pass and a follow-up review that fixed two resolver defects (site-admin consistency,
+  disjoint scopes) with resolver-level tests. See the CHANGELOG entry and `docs/DECISIONS.md`.
 - Local evidence: TypeScript clean; unit **268/268**; lint **0 errors** / 90 existing warnings;
   `git diff --check` clean. No local app server is available, so visual verification remains a
   post-deploy Rock check at desktop and phone widths.

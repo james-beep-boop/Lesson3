@@ -91,15 +91,38 @@ export const canUseAdminPanel = (user: User | null | undefined): boolean =>
   isSiteAdmin(user) || Boolean(user?.assignments?.length)
 
 /**
- * Human-readable role label for the user menu (highest grant wins). Site Administrator > Subject
- * Administrator > Editor > Teacher. A plain authenticated user with no grant is a Teacher.
+ * The user's displayed *type* — one of three (DESIGN-user-model-language, 2026-07-29). This is
+ * presentation only; the authorization model is unchanged.
+ *
+ *   'Site administrator' | 'Subject-grade administrator' | 'Teacher'
+ *
+ * "Editor" is deliberately NOT a type: an `editor` grant is a per-subject-grade *capability*, not a
+ * governance role, so an editor-only user falls through to **Teacher** and their grant surfaces
+ * separately as an "editing access" scope line (see `editingAccessScopeIds`). Governance roles
+ * (site / subject-grade admin) stay named types. Sentence case throughout (approved 2026-07-29).
  */
-export const userTypeLabel = (user: User | null | undefined): string => {
-  if (isSiteAdmin(user)) return 'Site Administrator'
-  if (user?.assignments?.some((a) => a.role === 'subjectAdmin')) return 'Subject Administrator'
-  if (user?.assignments?.some((a) => a.role === 'editor')) return 'Editor'
+export type UserTypeLabel = 'Site administrator' | 'Subject-grade administrator' | 'Teacher'
+
+export const userTypeLabel = (user: User | null | undefined): UserTypeLabel => {
+  if (isSiteAdmin(user)) return 'Site administrator'
+  if (user?.assignments?.some((a) => a.role === 'subjectAdmin')) return 'Subject-grade administrator'
   return 'Teacher'
 }
+
+/** Subject-grade ids the user administers (role `subjectAdmin`) — the "Administrator:" scope line. */
+export const adminScopeIds = (user: User | null | undefined): number[] =>
+  subjectGradeIdsByRole(user, ['subjectAdmin'])
+
+/**
+ * Subject-grade ids where the user's grant is `editor` — feeds the "Editing access:" scope line.
+ * NOT guaranteed disjoint from `adminScopeIds`: the demote path (`hooks/userRoles.ts`) can rewrite a
+ * `subjectAdmin` row to `editor`, leaving a same-subject-grade admin+editor pair. Disjointness is
+ * enforced at the display layer (`lib/accessScopes.ts` drops administered ids from the editing list),
+ * so a subject-grade you administer shows only under "Administrator:" — callers that render both
+ * lines must dedupe there, not assume it here.
+ */
+export const editingAccessScopeIds = (user: User | null | undefined): number[] =>
+  subjectGradeIdsByRole(user, ['editor'])
 
 export const canManageUsers = (user: User | null | undefined): boolean =>
   isSiteAdmin(user) || isSubjectAdminForAny(user)

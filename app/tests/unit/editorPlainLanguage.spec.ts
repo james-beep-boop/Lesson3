@@ -65,7 +65,7 @@ describe('the version editor uses teacher-facing language', () => {
       'Gives this person full access to the system.',
     )
     expect(byName(users, 'assignments').admin?.description).toBe(
-      'Assign Editor or Subject Administrator access for each subject and grade.',
+      'Grant editing access, or Subject-grade administrator access, for each subject and grade.',
     )
     expect(byName(subjects, 'name').admin?.description).toBe(
       'For example, Biology or Chemistry.',
