@@ -565,6 +565,22 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     height: auto;
     align-items: flex-start;
   }
+
+  // Below Payload's own mid-break (≤1024px) it ALSO pins `.doc-controls__controls-wrapper` — the box
+  // our injected LessonControls bar lands in — to that same fixed single-row height with overflow
+  // scroll (built for a one-row control bar that scrolls sideways). Our multi-row bar was crammed into
+  // it, so its last button row overlapped the first form field (Document title), and the fixed box
+  // could clip the "View as PDF" dropdown. This is why 1280px was fine but ≤1024px (incl. an
+  // unmaximised laptop) was not. Let the controls take their natural height and flow; scoped to our
+  // editor, so other collections keep Payload's mobile behaviour.
+  @media (max-width: 1024px) {
+    .doc-controls__controls-wrapper {
+      height: auto;
+    }
+    .doc-controls__controls {
+      overflow: visible;
+    }
+  }
 }
 
 // "Hide details" (LessonControls, 2026-07-17; DEFAULT INVERTED 2026-07-28): collapse the
