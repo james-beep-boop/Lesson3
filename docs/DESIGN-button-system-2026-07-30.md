@@ -228,8 +228,8 @@ Per PR: `tsc` clean, `test:unit` green, eslint with no *new* errors, CI `gate` g
 protected — PR required. No migration anywhere in this batch; if one appears, stop.
 
 String-pinned tests that needed updating (this is the tests working, not noise):
-`tests/unit/pageBackLink.spec.tsx`, `tests/unit/lessonControlsSsr.spec.tsx`,
-`tests/e2e/manage.e2e.spec.ts` — all pinned `class="page-back"` and/or the full Back label.
+`app/tests/unit/pageBackLink.spec.tsx`, `app/tests/unit/lessonControlsSsr.spec.tsx`,
+`app/tests/e2e/manage.e2e.spec.ts` — all pinned `class="page-back"` and/or the full Back label.
 
 **New: `tests/unit/buttonSystem.spec.ts`** pins the three cascade facts the system rests on, none of
 which are visible in review or catchable by `tsc`:

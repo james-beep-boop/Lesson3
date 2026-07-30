@@ -37,6 +37,7 @@
   --app-btn-primary-hover-bg: #17497f; /* a filled primary DEEPENS on hover rather than inverting —
                                           tokenised because it was hand-typed on both surfaces */
   --app-btn-focus-ring: 2px; /* keyboard focus ring width — see the focus rule (offset, over the fill) */
+  --app-btn-focus-ring-offset: 2px; /* gap between control and ring, so it reads against the fill */
   /* Compact size — in-row furniture (catalogue download pills, the catalogue's versions chip,
      the pills inside the Share menu), where a page-level 38px control repeated six times per row
      would swamp the list. SIZE only: radius, colour logic, focus ring and disabled treatment are

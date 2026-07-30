@@ -1250,7 +1250,7 @@ button[type='submit']:disabled {
    it. `:focus-visible` (not `:focus`), so pointer users never see it. */
 .btn:focus-visible {
   outline: var(--app-btn-focus-ring) solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: var(--app-btn-focus-ring-offset);
 }
 /* Primary — the only variant that earns a filled background AND weight 600. Save is today's only
    instance; the rule is "primary buttons", not "Save", so a future primary inherits it. */

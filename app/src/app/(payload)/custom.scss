@@ -683,16 +683,23 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   // the same colour change as hover, so a tabbing user gets no separate signal.
   &:focus-visible {
     outline: var(--app-btn-focus-ring) solid var(--app-accent);
-    outline-offset: 2px;
+    outline-offset: var(--app-btn-focus-ring-offset);
   }
 
   // Primary — the only filled variant, and the only one at weight 600. Save is today's sole
   // instance; the rule is "primary buttons", so a future primary inherits it.
   //
-  // The app-blue palette already comes from the site-wide `.btn--style-primary` block near the top
-  // of this file (which also handles Payload's disabled primary). Only the two things the button
-  // system adds are stated here — restating the colours would be a second copy to keep in step.
+  // ⚑ The filled palette MUST be restated here, even though the site-wide `.btn--style-primary`
+  // block near the top of this file says the same thing. That block is `(0,1,0)`; the parent rule
+  // above is `(0,3,0)` and sets `--color`/`--bg-color` for the STANDARD variant — so inside this
+  // scope the parent outranks it and Save would render as a gray outlined button, not a filled
+  // primary. This is not duplication that can be deleted; it is the higher-specificity restatement
+  // that the scope requires. (Deleted once as "reuse", caught by CodeRabbit on #169.)
   &.btn--style-primary {
+    --color: #fff;
+    --bg-color: var(--app-accent);
+    --hover-color: #fff;
+    --hover-bg: var(--app-btn-primary-hover-bg);
     --hover-btn-border: 1px solid var(--app-btn-primary-hover-bg);
     --btn-font-weight: var(--app-btn-font-weight-primary);
   }

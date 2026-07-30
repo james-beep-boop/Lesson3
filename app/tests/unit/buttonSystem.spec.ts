@@ -38,6 +38,7 @@ import { describe, expect, it } from 'vitest'
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8')
 const tokens = readFileSync(resolve(here, '../../src/app/app-tokens.scss'), 'utf8')
+const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss'), 'utf8')
 
 /**
  * Top-level rules in source order, as `{ selectors, body, at }`.
@@ -56,6 +57,20 @@ const rules = postcss
     body: r.nodes.map((d) => d.toString()).join(';'),
     at: i,
   }))
+
+/**
+ * EVERY rule, including those nested inside at-rules. `rules` above is top-level only, which is
+ * right for source-ORDER assertions (an `@media` rule's position says nothing about the cascade
+ * against an unconditional one) — but wrong for "can any rule reach this control?", where a
+ * `@media` block counts just as much.
+ */
+const allRules: { selectors: string[]; body: string }[] = []
+postcss.parse(css).walkRules((r) => {
+  allRules.push({
+    selectors: r.selectors.map((x) => x.trim()),
+    body: r.nodes.map((d) => d.toString()).join(';'),
+  })
+})
 
 /** Every top-level rule whose selector list contains `sel` exactly. */
 const rulesFor = (sel: string) => rules.filter((r) => r.selectors.includes(sel))
@@ -122,7 +137,7 @@ describe('button system', () => {
       'busy Formatted PDF': '<button class="btn" aria-busy="true"></button>',
       'catalogue download pill': '<button class="btn btn--quiet btn--compact" disabled></button>',
     }
-    const dimmers = rules.filter((r) => /(^|[\s;])opacity:/.test(r.body))
+    const dimmers = allRules.filter((r) => /(^|[\s;])opacity:/.test(r.body))
 
     for (const [name, html] of Object.entries(shapes)) {
       const el = document.createElement('div')
@@ -156,11 +171,29 @@ describe('button system', () => {
 
   it('has no orphaned references to the replaced controls', () => {
     // Rules, not prose: the historical names survive deliberately in explanatory comments.
-    const selectors = rules.flatMap((r) => r.selectors)
+    const selectors = allRules.flatMap((r) => r.selectors)
     // `.btn-doc` subsumes `.btn.btn-doc` as a substring — one entry covers both forms.
     for (const gone of ['.compare-link', '.page-back', '.btn-doc', '.versions-chip']) {
       expect(selectors.filter((s) => s.includes(gone)), `${gone} should be gone`).toEqual([])
     }
+  })
+
+  it('restates the filled palette on the admin primary, which its scope outranks', () => {
+    // The site-wide `.btn--style-primary` (0-1-0) does NOT reach a primary inside the editor bar:
+    // the scoped `.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn` rule is
+    // (0-3-0) and sets `--color`/`--bg-color` for the STANDARD variant, so it wins and Save renders
+    // as a gray outlined button. The nested modifier must restate the fill. Deleted once as
+    // "duplication" during a cleanup pass — textually true, cascade-false. Guarded here because it
+    // is invisible to tsc, to eslint, and to a reader who greps for the declaration and finds one.
+    const scoped = adminCss.slice(
+      adminCss.indexOf('.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {'),
+    )
+    const primary = scoped.slice(
+      scoped.indexOf('&.btn--style-primary'),
+      scoped.indexOf('&.btn--style-error'),
+    )
+    expect(primary, 'the scoped primary must set its own --bg-color').toContain('--bg-color:')
+    expect(primary, 'the scoped primary must set its own --color').toContain('--color:')
   })
 
   it('resolves every --app-btn-* reference against a real token', () => {
