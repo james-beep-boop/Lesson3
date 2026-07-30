@@ -41,6 +41,7 @@ export default function VersionsChip({
   versionCount,
   currentVersionId = null,
   panelLabel,
+  compact = false,
 }: {
   planId: number | string
   officialVersionId: number | null
@@ -49,6 +50,10 @@ export default function VersionsChip({
   currentVersionId?: number | null
   /** Accessible name for the dialog, e.g. the lesson's display name. */
   panelLabel: string
+  /** Catalogue rows use the compact density — a page-level control repeated down a long list would
+   *  swamp it. The lesson page uses the full size, where the chip sits beside Compare and must match
+   *  it. Same button system either way (DESIGN-button-system-2026-07-30 §2). */
+  compact?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -118,7 +123,12 @@ export default function VersionsChip({
 
   return (
     <>
-      <button type="button" className="versions-chip" onClick={openPanel} aria-haspopup="dialog">
+      <button
+        type="button"
+        className={`btn btn--quiet${compact ? ' btn--compact' : ''}`}
+        onClick={openPanel}
+        aria-haspopup="dialog"
+      >
         {versionCount} versions ▾
       </button>
       {open && (

@@ -15,7 +15,7 @@ export default async function UserGuidePage() {
             <h1>ARES Lesson Plans</h1>
           </div>
           <div className="page-heading__actions">
-            <PageBackLink href="/">Back to lesson plans</PageBackLink>
+            <PageBackLink href="/" label="Back to lesson plans" />
           </div>
         </div>
         <p>

@@ -595,20 +595,9 @@ a {
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
-/* Neutral until hover (D4): the blue outline visually competed with the active filter pill —
-   blue is reserved for selected state and primary CTAs; downloads are quiet row furniture. */
-.btn.btn-doc {
-  padding: 0.1rem 0.55rem;
-  font-size: 0.8rem;
-  border-color: var(--line);
-  color: var(--ink);
-}
-.btn.btn-doc:hover,
-.btn.btn-doc:focus-visible {
-  background: none;
-  border-color: var(--accent);
-  color: var(--accent);
-}
+/* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
+   system carries both the emphasis (quiet) and the density (compact), so this file no longer states
+   them per-control. The D4 reasoning is unchanged and lives on `.btn--quiet`. */
 /* Catalogue rows fold the secondary documents behind a native disclosure, indented under the name
    (Option B: the primary Lesson plan buttons now live inline on the title line). */
 .doc-strip-more {
@@ -637,23 +626,10 @@ a {
   justify-content: flex-end;
   min-width: 6.5rem;
 }
-/* PR ②: the [N versions ▾] chip (Editor+-only) and its floating VersionsPanel. */
-.versions-chip {
-  flex-shrink: 0;
-  padding: 0.08rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: none;
-  color: var(--muted);
-  font-size: 0.8rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.versions-chip:hover,
-.versions-chip:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+/* PR ②: the [N versions ▾] chip (Editor+-only) and its floating VersionsPanel. The chip is a plain
+   `.btn--quiet` from the shared system — compact on catalogue rows, page-level beside Compare on the
+   lesson page. It was a 999px pill in muted gray, the only control shaped that way, and it needs no
+   rule of its own: the catalogue's reserved column (`.substrand-versions`) already holds the space. */
 /* The versions dialog is the shared `Modal` (L3-10) — backdrop, panel, focus trap, focus
    restoration and scroll lock all come from `.modal-backdrop`/`.modal`. This modifier only restores
    what the version LIST needs beyond the default modal: a wider panel, and `position: relative` so
@@ -842,22 +818,32 @@ a {
 .fav-toggle.is-favorite {
   color: var(--accent);
 }
-.fav-toggle:disabled {
+/* Icon-only variants ONLY. The labelled lesson-page favorite is a `.btn`, so the button system's
+   explicit disabled palette owns it — leaving this unscoped stacked `opacity: 0.5` ON TOP of that
+   palette (`.btn:disabled` declares no `opacity`, so it could not override this), double-dimming the
+   one control that was supposed to demonstrate the fix. `:not(.btn)` is the seam. */
+.fav-toggle:not(.btn):disabled {
   opacity: 0.5;
 }
-/* Labeled variant (lesson page): a discoverable pill next to the title, not a bare glyph. */
-.fav-toggle--labeled {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 0.9rem;
-  white-space: nowrap;
+/* Labeled variant (lesson page): an ordinary `.btn` from the shared system — it was a 999px pill
+   whose ★ inherited 1.1rem from the base rule above, which is why it read rounder and larger than
+   every control beside it. The glyph now matches the label size.
+
+   Selected state is the STAR, not a filled button (DESIGN-button-system-2026-07-30 §2): a
+   filled-accent "Favorited" would give a minor preference action more visual weight than Edit and
+   Share, which are more consequential. This also matches the catalogue rows, which already signal
+   favorite state with an accent star. `aria-pressed` remains the semantic source of truth. */
+.fav-toggle--labeled .fav-toggle__star {
+  font-size: 1.05em;
 }
-.fav-toggle--labeled.is-favorite {
-  border-color: var(--accent);
+.fav-toggle--labeled.is-favorite .fav-toggle__star {
+  color: var(--accent);
+}
+/* Hover/focus fills the button, so the star must ride the inverted text colour rather than staying
+   accent-on-accent. */
+.fav-toggle--labeled:hover .fav-toggle__star,
+.fav-toggle--labeled:focus-visible .fav-toggle__star {
+  color: inherit;
 }
 .fav-toggle__label {
   line-height: 1;
@@ -1027,28 +1013,9 @@ button[type='submit']:disabled {
   flex-wrap: wrap;
   gap: 0.6rem;
 }
-.page-back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-back-gap);
-  min-height: var(--app-back-min-height);
-  padding: var(--app-back-padding-block) var(--app-back-padding-inline);
-  border: 1px solid var(--accent);
-  border-radius: var(--app-back-radius);
-  color: var(--accent);
-  background: transparent;
-  font-family: var(--app-ui-font);
-  font-size: var(--app-back-font-size);
-  font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.page-back:hover,
-.page-back:focus-visible {
-  color: var(--accent-ink);
-  background: var(--accent);
-}
+/* Back is a plain `.btn.btn--back` from the shared system. It used to be the ONLY tokenised control
+   (`--app-back-*`) and carried 16px/600 where its neighbours were 14.4px/400 — which is why it read
+   darker and heavier than everything around it. Those tokens are now the system-wide `--app-btn-*`. */
 .lesson-heading h1 {
   margin-top: 0;
   /* Same token as the catalogue's .lp-title — the two page titles are peers, so they share one size
@@ -1220,8 +1187,10 @@ button[type='submit']:disabled {
   width: 100%;
 }
 /* Only the flattening is undone — display/width/border-WIDTH (`.share-menu button` sets
-   `border: 0`) and the radius/centering. Padding and border COLOUR stay `.btn.btn-doc`'s
-   (its higher-specificity base + hover rules keep working, so no restated hover here). */
+   `border: 0`) and the radius/centering. Padding and border COLOUR stay the button system's
+   `.btn.btn--quiet.btn--compact` (those doubled-class selectors outrank `.share-menu button`'s
+   single class + element, so the base + hover rules keep working and none are restated here — the
+   same specificity contest the former `.btn.btn-doc` won). */
 .share-menu .doc-buttons .btn {
   display: inline-flex;
   width: auto;
@@ -1238,17 +1207,122 @@ button[type='submit']:disabled {
   font-size: 0.9rem;
   cursor: pointer;
 }
+/* ---- Button system (docs/DESIGN-button-system-2026-07-30.md) ----
+   ONE geometry for every interactive control, shared with the version editor through the
+   `--app-btn-*` tokens (app-tokens.scss) so the two surfaces cannot drift. Emphasis carries meaning
+   and nothing else: a filled background means PRIMARY, weight 600 means PRIMARY.
+
+   `background` is DECLARED here rather than left to the UA. That single omission is what made the
+   action bar look inconsistent: `<button class="btn">` inherited the browser's `buttonface` gray
+   while `<a class="btn">` stayed transparent, so one class rendered two ways depending on which
+   element it landed on.
+
+   This rule replaced four independently-authored controls — `.compare-link`, `.versions-chip`,
+   `.fav-toggle--labeled` and `.page-back` — which had four different radii, sizes and weights. */
 .btn {
-  text-decoration: none;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-btn-gap);
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
   border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  border-radius: var(--app-btn-radius);
+  background: var(--app-btn-bg);
   color: var(--accent);
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+  font-weight: var(--app-btn-font-weight);
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.btn:hover {
+.btn:hover,
+.btn:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+/* Keyboard focus must be distinguishable from hover. Every control in this file used to pair
+   `:hover, :focus-visible` in one rule, so a tabbing user got the fill and nothing more — visually
+   identical to a moused-over control. The ring rides ON TOP of the fill, offset so it reads against
+   it. `:focus-visible` (not `:focus`), so pointer users never see it. */
+.btn:focus-visible {
+  outline: var(--app-btn-focus-ring) solid var(--accent);
+  outline-offset: 2px;
+}
+/* Primary — the only variant that earns a filled background AND weight 600. Save is today's only
+   instance; the rule is "primary buttons", not "Save", so a future primary inherits it. */
+.btn.btn--primary {
   background: var(--accent);
   color: var(--accent-ink);
+  font-weight: var(--app-btn-font-weight-primary);
+}
+.btn.btn--primary:hover,
+.btn.btn--primary:focus-visible {
+  /* Already filled — deepen rather than invert, so the hover is still a visible change. */
+  background: var(--app-btn-primary-hover-bg);
+  border-color: var(--app-btn-primary-hover-bg);
+}
+/* Danger — outline, not fill: destructive actions should be unmistakable, not loud. Delete only. */
+.btn.btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.btn--danger:hover,
+.btn.btn--danger:focus-visible {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--accent-ink);
+}
+.btn.btn--danger:focus-visible {
+  outline-color: var(--danger);
+}
+/* Quiet — neutral until hover (D4, critique 2026-07-12): blue is reserved for selected state and
+   primary actions, so row-level downloads and the versions chip stay quiet furniture. Hover
+   PROMOTES to the accent outline rather than filling — a filled row of six download pills would be
+   exactly the visual competition D4 removed. */
+.btn.btn--quiet {
+  border-color: var(--app-btn-quiet-line);
+  color: var(--ink);
+}
+.btn.btn--quiet:hover,
+.btn.btn--quiet:focus-visible {
+  background: var(--app-btn-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Compact — SIZE only (see the token block). Radius, colours, focus and disabled are unchanged, so
+   a compact control is the same system at a higher density, not a different control. */
+.btn.btn--compact {
+  min-height: var(--app-btn-compact-min-height);
+  padding: var(--app-btn-compact-padding-block) var(--app-btn-compact-padding-inline);
+  font-size: var(--app-btn-compact-font-size);
+}
+/* (Back needs no modifier — the base `gap` already spaces its `←` from the label.) */
+/* Disabled and busy share one visual: both mean "unavailable", and the difference that matters to
+   the user is already in the label ("Saving…", "Preparing document…", "No changes to save").
+   EXPLICIT, not `opacity` — dimming accent-on-gray muddies contrast instead of reading as off.
+   `--muted` (#666) on `--bg-soft` (#f6f7f8) is ~5.4:1, so it stays AA while reading inert. */
+.btn:disabled,
+.btn[aria-disabled='true'],
+.btn[aria-busy='true'] {
+  border-color: var(--app-btn-quiet-line);
+  background: var(--app-btn-bg);
+  color: var(--app-btn-disabled-ink);
+  cursor: default;
+}
+.btn[aria-busy='true'] {
+  cursor: progress;
+}
+/* No hover promotion once unavailable — the control must not look live under the pointer. */
+.btn:disabled:hover,
+.btn[aria-disabled='true']:hover,
+.btn[aria-busy='true']:hover {
+  border-color: var(--app-btn-quiet-line);
+  background: var(--app-btn-bg);
+  color: var(--app-btn-disabled-ink);
 }
 
 /* Each of the three documents (Lesson Sequence / Final Explanation / Summary Table). */
@@ -1289,20 +1363,8 @@ button[type='submit']:disabled {
 }
 
 /* ---- Version compare (2026-07-05) ---- */
-/* The Compare affordance in the version bar: pill-shaped like its siblings, visually an action. */
-.compare-link {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  color: var(--accent);
-  text-decoration: none;
-}
-.compare-link:hover,
-.compare-link:focus-visible {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
+/* Compare is a plain `.btn` from the shared system. It used to state its own padding and inherit a
+   1rem font, which is why it read visibly larger than the Edit and Share buttons beside it. */
 .compare-controls {
   display: flex;
   align-items: center;
@@ -1533,13 +1595,7 @@ button[type='submit']:disabled {
     min-height: 2.75rem;
     padding: 0.3rem 0.9rem;
   }
-  /* The versions chip + panel lines reach the same 44px touch bar. */
-  .versions-chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding: 0.3rem 0.8rem;
-  }
+  /* (The versions chip reaches the 44px touch bar through the shared `.btn` rule below.) */
   .vp-line-open {
     min-height: 2.75rem;
   }
@@ -1595,9 +1651,9 @@ button[type='submit']:disabled {
   }
 
   /* Secondary text links reach the ~44px touch bar on phones too (Codex #5): the catalogue/lesson
-     controls already do, but these auth, message and navigation links were left small. */
+     controls already do, but these auth, message and navigation links were left small. (Back left
+     this list when it became a `.btn` — the shared rule below covers it.) */
   .login-links a,
-  .page-back,
   .msg-link a,
   .msg-reply-toggle,
   .msg-reply__cancel {
@@ -1625,11 +1681,18 @@ button[type='submit']:disabled {
 
   /* Comfortable tap targets on touch screens — the mouse-sized controls get a 44px hit area (the
      WCAG 2.5.5 / platform minimum; audit 2026-07-05 flagged several at 26–40px). Applied via
-     min-height + inline-flex centering, or min-width/height for square controls. */
+     min-height + inline-flex centering, or min-width/height for square controls.
+
+     One rule now covers every control in the button system — Back, Compare, the versions chip, the
+     labelled favorite, downloads, Edit and Share. Each of those used to restate the touch target for
+     itself, which is how they drifted apart in the first place.
+
+     `--compact` is deliberately NOT excluded: the compact size is a DESKTOP density. On a phone the
+     catalogue row is a stacked card with room, and today's `.btn` rule already lifts the download
+     pills to 44px — dropping that to keep them dense would reintroduce exactly the 26–40px targets
+     the audit flagged. */
   .btn {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
+    min-height: var(--app-btn-touch-min-height);
   }
   /* Square icon controls: the avatar (was 30×30) and favorite star reach 44×44. */
   .user-menu__avatar {
@@ -1657,13 +1720,7 @@ button[type='submit']:disabled {
   .fav-toggle--label-mobile .fav-toggle__label {
     display: inline;
   }
-  /* The Compare button joins the 44px touch bar (the chip already does above). */
-  .compare-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding: 0.4rem 0.8rem;
-  }
+  /* (Compare joins the 44px touch bar through the shared `.btn` rule above.) */
 
   /* The generated tables (5 columns) stay legible: keep their natural width and let the
      .doc-preview container (overflow-x: auto) scroll sideways, rather than crushing every

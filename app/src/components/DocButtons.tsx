@@ -61,7 +61,7 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
     <span className="doc-buttons">
       <button
         type="button"
-        className="btn btn-doc"
+        className="btn btn--quiet btn--compact"
         disabled={busy !== null}
         aria-busy={busy === 'pdf'}
         onClick={openPdf}
@@ -70,7 +70,7 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
       </button>
       <button
         type="button"
-        className="btn btn-doc"
+        className="btn btn--quiet btn--compact"
         disabled={busy !== null}
         aria-busy={busy === 'docx'}
         onClick={downloadWord}

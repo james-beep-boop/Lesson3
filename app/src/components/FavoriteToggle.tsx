@@ -88,7 +88,13 @@ export default function FavoriteToggle({
     <>
       <button
         type="button"
-        className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' fav-toggle--labeled' : ''}${
+        // The labelled (lesson-page) variant joins the shared button system — same geometry as Edit,
+        // Share, Compare and Back beside it. Deliberately NOT `.btn--primary`: selected state is
+        // carried by the filled star and the label, because a filled-accent "Favorited" would give a
+        // minor preference action more visual weight than the more consequential actions next to it
+        // (DESIGN-button-system-2026-07-30 §2). `aria-pressed` stays the semantic source of truth.
+        // The icon-only variants keep the bare `.fav-toggle` glyph styling.
+        className={`fav-toggle${isFavorite ? ' is-favorite' : ''}${showLabel ? ' btn fav-toggle--labeled' : ''}${
           labelOnMobile && !showLabel ? ' fav-toggle--label-mobile' : ''
         }`}
         aria-pressed={isFavorite}
@@ -97,7 +103,9 @@ export default function FavoriteToggle({
         disabled={busy}
         onClick={onToggle}
       >
-        <span aria-hidden="true">{isFavorite ? '★' : '☆'}</span>
+        <span className="fav-toggle__star" aria-hidden="true">
+          {isFavorite ? '★' : '☆'}
+        </span>
         {withLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
       </button>
       {error && (

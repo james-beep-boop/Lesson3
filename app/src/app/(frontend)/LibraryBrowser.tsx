@@ -316,6 +316,7 @@ function SubstrandRow({
                 officialVersionId={row.versionId}
                 versionCount={row.versionCount ?? 0}
                 panelLabel={row.substrandName}
+                compact
               />
             )}
           </span>

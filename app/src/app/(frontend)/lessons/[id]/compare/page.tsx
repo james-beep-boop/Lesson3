@@ -76,7 +76,7 @@ export default async function CompareView({
       <div className="lesson-heading page-heading">
         <h1>Compare: {title}</h1>
         <div className="lesson-heading__actions page-heading__actions">
-          <PageBackLink href={`/lessons/${plan.id}`}>Back to lesson</PageBackLink>
+          <PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />
         </div>
       </div>
       <ComparePickers

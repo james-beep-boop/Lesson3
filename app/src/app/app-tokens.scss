@@ -15,13 +15,44 @@
                               content edges align EXACTLY: 1.25rem would be 20px on the frontend but
                               18.75px in the admin's 15px-root, a 1.25px drift that defeats the token. */
   --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
-  /* Page-level Back control — explicit px/font tokens keep it identical across the 16px frontend
-     and 15px Payload roots. */
-  --app-back-min-height: 38px;
-  --app-back-gap: 6px;
-  --app-back-padding-block: 6px;
-  --app-back-padding-inline: 12px;
-  --app-back-radius: 6px;
-  --app-back-font-size: 16px;
+  /* ── Button system (docs/DESIGN-button-system-2026-07-30.md) ────────────────────────────────
+     ONE geometry for every control IN THE BUTTON SYSTEM, on both surfaces — the action controls on
+     the lesson page, the catalogue and the version editor. Form submits, the Messages compose
+     controls and the Share menu's flat list items are deliberately outside it (see the design doc
+     §5a); this is not a claim about every button in the app. Explicit px/font tokens (not rem)
+     because the admin root is 15px and the frontend's is 16px: a rem token would render ~6% smaller
+     in the editor, which is exactly the drift this system exists to remove. These generalise the
+     former `--app-back-*` set — the page-level Back control was the only tokenised control before,
+     and it is now just one variant among several. */
+  --app-btn-min-height: 38px;
+  --app-btn-touch-min-height: 44px; /* ≤640px — WCAG 2.5.5 target size */
+  --app-btn-gap: 6px;
+  --app-btn-padding-block: 6px;
+  --app-btn-padding-inline: 12px;
+  --app-btn-radius: 6px;
+  --app-btn-font-size: 15px;
+  --app-btn-font-weight: 400; /* standard/quiet/danger — matches the Edit & Share controls the
+                                 operator picked as the target (they set no weight, so they are 400) */
+  --app-btn-font-weight-primary: 600; /* primary buttons only; weight carries emphasis, not decoration */
+  --app-btn-primary-hover-bg: #17497f; /* a filled primary DEEPENS on hover rather than inverting —
+                                          tokenised because it was hand-typed on both surfaces */
+  --app-btn-focus-ring: 2px; /* keyboard focus ring width — see the focus rule (offset, over the fill) */
+  /* Compact size — in-row furniture (catalogue download pills, the catalogue's versions chip,
+     the pills inside the Share menu), where a page-level 38px control repeated six times per row
+     would swamp the list. SIZE only: radius, colour logic, focus ring and disabled treatment are
+     identical to the page-level size, so this is one system with two densities, not two systems.
+     Values are today's rendered `.btn-doc` metrics restated in px, so the catalogue does not move. */
+  --app-btn-compact-min-height: 26px;
+  --app-btn-compact-padding-block: 2px;
+  --app-btn-compact-padding-inline: 9px;
+  --app-btn-compact-font-size: 13px;
+  /* The three palette values the button system needs on BOTH surfaces. Everything else stays
+     per-surface (frontend `--line`/`--muted`, admin `--theme-*`), but a control that is meant to
+     look identical in the app and the editor cannot take its background from two different
+     palettes — that is the drift this file exists to prevent. Values match the frontend's
+     `--bg-soft` / `--line` / `--muted`, which keep their own non-button uses. */
+  --app-btn-bg: #f6f7f8;
+  --app-btn-quiet-line: #e2e2e2;
+  --app-btn-disabled-ink: #666; /* on --app-btn-bg this is ~5.4:1 — AA, and unmistakably inert */
   --app-ui-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
