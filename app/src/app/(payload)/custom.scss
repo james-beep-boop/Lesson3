@@ -3,14 +3,49 @@
 // can't drift from the frontend pages. `@use` must lead the file.
 @use '../app-tokens';
 
-// Scale the whole admin up one comfortable step for legibility (Payload's default ~13px reads
-// small next to the 16px frontend). Override the rem root AND the body size: most of Payload's
-// layout is rem-relative to <html>, and its body text is a fixed size, so setting both scales text
-// and spacing uniformly. (NB: Payload's `--base-body-size` is a DIVISOR for the spacing unit, not
-// the text size — bumping it actually shrinks things. Don't.)
+// ONE rem root across both surfaces (2026-07-31, docs/DESIGN-visual-system-2026-07-31.md §3.1).
+// Payload's own default is ~13px; this was 15px from 2026-07-12 until 2026-07-31, which left every
+// `rem` value in the admin rendering ~6% smaller than the same value on the frontend — the drift
+// behind "Manage looks like a different product". 16px is now the frontend's root AND this one.
+// Override the rem root AND the body size: most of Payload's layout is rem-relative to <html>, and
+// its body text is a fixed size, so setting both scales text and spacing uniformly. (NB: Payload's
+// `--base-body-size` is a DIVISOR for the spacing unit, not the text size — bumping it actually
+// shrinks things. Don't.)
+//
+// Measured before/after on the local stack at 390/700/1280 across Manage, the version editor, a
+// NATIVE collection page (/admin/collections/users), the catalogue and the lesson page: Payload's own
+// chrome stays comfortable, no new wrapping and no new horizontal overflow. (The version editor
+// carries a ~21px overflow from a hidden `relationship-add-new__tooltip` at BOTH roots — pre-existing,
+// unrelated, measured at 15px = 1301 and 16px = 1303.) The bump alone brought the page title to
+// 30.4px, secondary text to 14.4px, the avatar to 30.4px and the header's inline padding to 20px —
+// all of which the frontend already rendered, so five drift items closed without a second rule.
 html,
 body {
-  font-size: 15px;
+  font-size: 16px;
+}
+
+// The product font, on every admin page (2026-07-31). `--app-ui-font` is the frontend's stack; until
+// now the admin only applied it to `.btn`, so body copy fell through to Payload's own stack and the
+// two surfaces rendered in different typefaces. Global rather than scoped to our custom views: the
+// requirement is one product, and Payload's native pages are part of the product. Verified against a
+// native collection page at all four widths.
+//
+// Done by REDEFINING Payload's own `--font-body`, not by setting `font-family` on `body`: Payload
+// applies `var(--font-body)` directly to headings, inputs and several components, so a body rule
+// alone left every <h1> in the old stack (measured — the Manage title still resolved to
+// -apple-system). Overriding the variable reaches everything through Payload's own contract instead
+// of racing its selectors, and `--font-mono` / `--font-serif` are deliberately left alone.
+:root {
+  --font-body: var(--app-ui-font);
+}
+
+// …and the same body line-height (2026-07-31). The frontend has always set 1.55; the admin inherited
+// Payload's ~1.25, so identical prose rendered visibly tighter there — the last whole-surface type
+// difference after the root and the font stack. Set on `body` (not `:root`) and left unitless so it
+// scales per element; Payload's own components that declare their own line-height are unaffected,
+// which is why the nav, tables and field labels keep their tuned density.
+body {
+  line-height: var(--app-line-height);
 }
 
 // ---- Light reskin (design track D2, decision 2026-07-12): the editing surface carries the app's
@@ -57,6 +92,10 @@ body {
   // .app-main (1.25rem). Override the horizontal padding to match so the two content columns line up
   // exactly (unlayered → beats Gutter's `@layer payload-default` padding); shared pad token.
   padding-inline: var(--app-content-pad);
+  // Space between the header and the page title. Manage had NONE (measured 0px against the
+  // frontend's 24px) — the "everything is jammed against the top" in the 2026-07-31 operator report.
+  // Same token as the frontend's .app-main, so the two page origins now agree.
+  padding-block-start: var(--app-page-top);
 
   &__title {
     // Same size/weight as the frontend page titles (.lp-title / .lesson-heading h1), via the shared
@@ -74,15 +113,16 @@ body {
   }
 
   &__scope {
-    font-size: 0.9rem;
+    font-size: var(--app-secondary-size);
     margin: 0.15rem 0 0;
     color: var(--theme-elevation-600);
   }
 
   &__section {
-    font-size: 1.15rem;
+    // Page SECTION (20px) — a step above a list/group heading (18px). See app-tokens.scss.
+    font-size: var(--app-section-title-size);
     font-weight: 600;
-    margin: 2rem 0 0.25rem;
+    margin: var(--app-space-5) 0 var(--app-space-1);
     color: var(--theme-elevation-1000);
   }
 
@@ -128,7 +168,7 @@ body {
 // here was overriding it and is dropped — descriptive text is capped per-element below instead.)
 .lp-manage {
   &__desc {
-    font-size: 0.9rem;
+    font-size: var(--app-secondary-size);
     margin: 0.15rem 0 0.75rem;
     color: var(--theme-elevation-600);
     // Keep prose to a readable measure even though the page column is now full-width.
@@ -342,7 +382,9 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   justify-content: space-between; // brand left, nav right — mirrors the frontend .app-header
   gap: 1rem;
   align-items: center;
-  padding: 0.5rem 1.25rem;
+  // Shared header geometry (2026-07-31). Was `0.5rem 1.25rem`, which rendered 7.5px/18.75px against
+  // the frontend's 12px/20px — the header sat 11px shorter and its content edge 1.25px inboard.
+  padding: var(--app-header-pad-block) var(--app-header-pad-inline);
   border-bottom: 1px solid var(--theme-elevation-150);
   background: var(--theme-elevation-50); // the admin analogue of the frontend's --bg-soft
 
@@ -401,8 +443,8 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.9rem;
-    height: 1.9rem;
+    width: var(--app-avatar-size);
+    height: var(--app-avatar-size);
     padding: 0;
     border-radius: 50%;
     background: var(--theme-elevation-100);
@@ -961,6 +1003,32 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {
     min-height: var(--app-btn-touch-min-height);
+  }
+
+  // Mirror the frontend's phone header (2026-07-31). The admin header had NO mobile rule at all: it
+  // stayed a single row and simply let the brand wrap, measuring 56px against the frontend's stacked
+  // 109.8px. Same column layout, same flex-start reasoning as `styles.css` — the nav stays a ROW of
+  // mixed-height controls, so it centres while the header itself starts left.
+  .lp-admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+
+    .app-nav {
+      flex-wrap: wrap;
+      gap: 0.5rem 0.85rem;
+    }
+
+    // 44×44 touch target (WCAG 2.5.5) — the frontend avatar already grew here; the admin's did not.
+    .user-menu__avatar {
+      min-width: var(--app-avatar-touch-size);
+      min-height: var(--app-avatar-touch-size);
+    }
+  }
+
+  // Phone gutter + page origin, from the same tokens as the frontend.
+  .lp-admin-dash {
+    padding-inline: var(--app-content-pad-sm);
+    padding-block-start: var(--app-page-top-sm);
   }
 }
 
