@@ -196,6 +196,40 @@ describe('button system', () => {
     expect(primary, 'the scoped primary must set its own --color').toContain('--color:')
   })
 
+  it('orders the selected fill after --quiet, and keeps it off Favorite', () => {
+    // A selected filter chip is `.btn.btn--quiet.is-active`; both modifiers are 0-2-0, so ONLY
+    // source order makes the fill win over quiet's neutral border. Reversed, the active subject
+    // filter would render identically to the inactive ones — D4's "blue means selected" lost.
+    expect(posOf('.btn.is-active')).toBeGreaterThan(posOf('.btn.btn--quiet'))
+    // ...and disabled still outranks it, so a disabled selected control is not left filled.
+    expect(posOf('.btn:disabled')).toBeGreaterThan(posOf('.btn.is-active'))
+
+    // The selected fill must NOT key off `[aria-pressed]`: the labelled Favorite sets that too, and
+    // filling it is exactly the decision §2a rejected. Assert no rule reaches it that way.
+    const el = document.createElement('div')
+    el.innerHTML =
+      '<button class="fav-toggle is-favorite btn fav-toggle--labeled" aria-pressed="true"></button>'
+    const fav = el.firstElementChild as Element
+    const fillers = allRules.filter(
+      (r) => /background:\s*var\(--accent\)/.test(r.body) && !r.selectors.some((x) => x.includes(':hover')),
+    )
+    for (const rule of fillers) {
+      for (const sel of rule.selectors) {
+        expect(fav.matches(sel), `Favorite must not be filled by "${sel}"`).toBe(false)
+      }
+    }
+  })
+
+  it('centres the mobile nav row rather than top-aligning it', () => {
+    // `.app-header` becomes a column at <=640px, so flex-start means left — correct. `.app-nav` stays
+    // a ROW containing ~22px text links and a 44px avatar; flex-start top-aligns them and the avatar
+    // reads as dropped. Regression guard: the two must not share the flex-start rule again.
+    const flexStart = allRules.filter((r) => /align-items:\s*flex-start/.test(r.body))
+    for (const rule of flexStart) {
+      expect(rule.selectors, 'the mobile nav row must not be top-aligned').not.toContain('.app-nav')
+    }
+  })
+
   it('resolves every --app-btn-* reference against a real token', () => {
     // A renamed or deleted token leaves a dangling `var()` that renders as nothing — invisible
     // locally, obvious in production.
