@@ -14,19 +14,30 @@
  *     deliberately flattens `.btn` via `.share-menu button` (0-1-1); the download pills keep their
  *     look only by outranking it — exactly the contest the former `.btn.btn-doc` won. Demoting a
  *     modifier to a single class (0-1-0) loses it silently.
- *  3. Source ORDER decides two equal-specificity contests: `.btn` over the `.fav-toggle` glyph
- *     base (both 0-1-0), and `.btn:disabled` over `.btn.btn--primary` (both 0-2-0) so a disabled
- *     Save is not still filled.
+ *  3. Source ORDER decides several equal-specificity contests, all inside the system:
+ *     `.btn:disabled` over `.btn.btn--primary` (0-2-0), so a disabled Save is not still filled;
+ *     `.btn.is-active` over `.btn.btn--quiet` (0-2-0), so a selected filter actually looks selected;
+ *     and the same pair again at `:hover` (0-3-0), so a hovered selected chip keeps white text
+ *     instead of `--quiet`'s blue-on-blue.
+ *
+ *     ⚑ `.btn` vs the `.fav-toggle` glyph base USED to be on this list and is deliberately not any
+ *     more. Order was the wrong instrument: it pinned only the copies the assertion could see, and
+ *     a second glyph rule inside `@media (max-width: 640px)` won unseen, shipping "Favorited" at
+ *     1.35rem. The glyph rules are now SCOPED (`:not(.btn)`) so they cannot match the labelled
+ *     control at all, and the test asserts reachability instead. Where scoping is possible, prefer
+ *     it — an order assertion is only as good as its view of the file.
  *
  * Mostly asserted against the stylesheet SOURCE rather than a DOM: jsdom's CSS engine cannot expand
  * shorthands whose value is a `var()`, so a computed-style probe would be measuring jsdom's limits
  * instead of ours. Specificity and order are exactly what is fragile here, and they are decidable
  * from the source. Geometry and colour remain a post-deploy Rock check (§5) — no local server.
  *
- * The one exception is the opacity check, which uses jsdom purely for `Element.matches()` — no
- * computed styles, so none of the above limitation applies. Selector MATCHING is exactly the
- * question there ("can any dimming rule reach this control?"), and getting it from the real engine
- * beats re-implementing specificity by hand.
+ * The exceptions are the REACHABILITY tests (`expectUnreachable`), which use jsdom purely for
+ * `Element.matches()` — no computed styles, so the limitation above does not apply. They answer a
+ * question source order cannot: "can any rule, at any nesting depth, reach this control?" Getting
+ * that from the real selector engine beats re-implementing specificity by hand. Order tests and
+ * reachability tests are not redundant — order says who WINS when two rules both match, matching
+ * says whether the contest exists at all.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'

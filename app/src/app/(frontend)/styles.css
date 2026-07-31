@@ -736,9 +736,11 @@ a {
   flex-wrap: wrap;
   gap: 0.4rem;
 }
-/* Subject/grade filters are `.btn.btn--quiet` from the shared button system, with `.is-active`
-   carrying the selected fill. They were 999px pills at 0.85rem — a sixth geometry on a page that now
-   has one. D4's rule is unchanged and is in fact what `.is-active` expresses: blue means SELECTED. */
+/* Subject/grade filters have no rule of their own: they are `.btn.btn--quiet` with `.is-active`,
+   from the shared button system (they were 999px pills at 0.85rem — a sixth geometry on a page that
+   now has one). Why selected FILLS, and how that differs from Favorite's toggled star, is explained
+   once on `.btn.is-active` rather than restated here. */
+
 /* The name is the primary navigation to the lesson page. It reads as a link AT REST — accent
    colour, so new users see it's clickable without hovering (2026-07-14) — and underlines the name
    on hover/focus. The leading number stays muted (its own rule below). */
@@ -788,11 +790,14 @@ a {
   line-height: 1.2;
 }
 /* Favorite star (§10): quiet outline until favorited; same glyph everywhere it appears. */
-/* ICON-ONLY favorites (catalogue rows). `:not(.btn)` is load-bearing, not defensive: the labelled
-   lesson-page variant is a `.btn`, and every declaration here collides with the button system at the
-   SAME specificity (0-1-0), so which one wins is decided purely by source order. That is a coin flip
-   maintained by hand — and the ≤640px block below lost it, rendering "Favorited" at 1.35rem beside
-   15px siblings. Scoping states the intent instead of relying on file position. */
+/* ICON-ONLY favorites (catalogue rows).
+   `:not(.btn)` is load-bearing, not defensive — it is what ENDED the collision described here.
+   Before it, this selector was a bare `.fav-toggle` (0-1-0) and the labelled lesson-page variant
+   carries BOTH these classes and `.btn` (also 0-1-0), so every declaration tied and file position
+   alone picked the winner. That coin flip was maintained by hand, and the ≤640px copy below lost
+   it: "Favorited" rendered at 1.35rem beside 15px siblings.
+   With `:not(.btn)` the selector is 0-2-0 AND cannot match the labelled control at all, so the tie
+   no longer exists rather than being won. Pinned by a reachability test. */
 .fav-toggle:not(.btn) {
   flex-shrink: 0;
   border: none;
