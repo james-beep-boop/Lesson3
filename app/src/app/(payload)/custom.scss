@@ -106,8 +106,13 @@ body {
     color: var(--theme-elevation-1000);
   }
 
+  // Identity block — role, then the access lines beneath it, grouped as one unit under the title.
+  &__identity {
+    margin-bottom: var(--app-space-2);
+  }
+
   &__role {
-    font-size: 1rem;
+    font-size: var(--app-body-size);
     margin: 0;
     color: var(--theme-elevation-1000);
   }
@@ -191,12 +196,14 @@ body {
     }
   }
 
+  // Structured list row (2026-07-31): primary label + one metadata line on the left, named actions
+  // on the right. Deliberately NOT a card — no border, no shadow, no fill; a divider and honest
+  // vertical space carry the structure.
   &__row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 0.1rem;
-    font-size: 0.9rem;
+    gap: var(--app-space-3);
+    padding: var(--app-row-pad-block) 0.1rem;
 
     > :first-child {
       flex: 1;
@@ -205,8 +212,23 @@ body {
     }
   }
 
+  &__row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__row-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    flex-shrink: 0;
+  }
+
   &__link {
     color: var(--theme-elevation-1000);
+    font-size: var(--app-body-size);
     text-decoration: none;
 
     &:hover,
@@ -215,14 +237,25 @@ body {
     }
   }
 
+  // ONE metadata line — subject-grade · version · author · saved date — at the shared secondary
+  // size. Was an inline-flex row of chips including a version BADGE; a badge gives status the shape
+  // of a control, which the button system explicitly forbids. It wraps rather than truncating: on a
+  // phone the line is the only place the version and date appear.
   &__meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-shrink: 0;
+    margin: 0;
     color: var(--theme-elevation-600);
-    font-size: 0.85rem;
-    white-space: nowrap;
+    font-size: var(--app-secondary-size);
+  }
+
+  // Empty state occupies deliberate space and explains what belongs here, rather than sitting as a
+  // stray muted sentence directly under the description.
+  &__empty {
+    margin: 0;
+    padding: var(--app-space-4) 0;
+    border-top: 1px solid var(--theme-elevation-150);
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    max-width: 46rem;
   }
 
   &__pick {
@@ -268,17 +301,16 @@ body {
   // Reading-first mobile pass (IA redesign PR ⑤): Manage lists stay usable on a phone — rows wrap
   // (label full-width, meta + action beneath), the search bar stacks, and the Editors picker fits.
   @media (max-width: 640px) {
+    // Phone: title + metadata first, actions beneath and full-width-ish. The row becomes a column
+    // rather than a wrapping flex row — with named actions there are now two controls to place, and
+    // wrapping left them dangling beside the metadata.
     &__row {
-      flex-wrap: wrap;
-      row-gap: 0.25rem;
-
-      > :first-child {
-        flex-basis: 100%;
-      }
+      flex-direction: column;
+      align-items: stretch;
+      row-gap: var(--app-space-2);
     }
 
-    &__meta {
-      white-space: normal;
+    &__row-actions {
       flex-wrap: wrap;
     }
 
@@ -698,7 +730,16 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // Scoped to `.lesson-controls-wrap` — our component, plus its Editing-help modal — NOT the whole
 // collection view: Payload uses `.btn` for in-form controls too (array row actions and the like),
 // and restyling those is not this change's business.
-.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {
+//
+// EXTENDED 2026-07-31 to Manage's row actions. Manage's controls were never in the button system:
+// this block is scoped to the version editor, and the shared `.btn--danger`/`.btn--quiet` rules live
+// in the FRONTEND stylesheet, which the admin never loads — so Manage's Delete was rendering as
+// stock Payload. Extending this selector is deliberate over mirroring the rules into a second block:
+// a copy is a second thing to keep in step, which is the drift this system exists to remove. Kept to
+// `.lp-manage__row-actions` for the same reason as above — Manage hosts other `.btn`s (the Editors
+// picker's Add, the upload controls) that are form furniture, not page-level actions.
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+.lp-manage__row-actions .btn {
   --color: var(--app-accent);
   --bg-color: var(--app-btn-bg);
   --btn-border: 1px solid var(--app-accent);
@@ -985,7 +1026,8 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // `--color` / `--bg-color`, and this control should not depend on a vendored rule continuing to
 // apply to anchors across a Payload upgrade. It used to be the only tokenised control in the app,
 // at 16px/600 — heavier than everything beside it, which is what this system removes.
-.collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn {
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn,
+.lp-manage__row-actions a.btn {
   border: 1px solid var(--app-accent);
   color: var(--app-accent);
   background: var(--app-btn-bg);
@@ -1001,7 +1043,8 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
 // Both admin button rules above reach the phone touch target through the shared `.btn` selector.
 @media (max-width: 640px) {
-  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {
+  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+  .lp-manage__row-actions .btn {
     min-height: var(--app-btn-touch-min-height);
   }
 
