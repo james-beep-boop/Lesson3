@@ -103,10 +103,29 @@ describe('button system', () => {
     }
   })
 
-  it('orders .btn after the .fav-toggle glyph base', () => {
-    // Both 0-1-0 and both match the lesson page's labelled favorite. If `.fav-toggle` moved below
-    // the button block, that control would revert to a borderless muted glyph.
-    expect(posOf('.btn')).toBeGreaterThan(posOf('.fav-toggle'))
+  it('lets no glyph rule reach the labelled favorite, at any width', () => {
+    // This replaced a source-ORDER assertion, which was too weak and shipped a real defect. The
+    // glyph rules and the button system collide at the SAME specificity (0-1-0), so order decided
+    // the winner — and inside `@media (max-width: 640px)` the glyph rule sits AFTER `.btn` and won,
+    // rendering "Favorited" at 1.35rem beside 15px siblings. The order test could not see it: it
+    // read top-level rules only, and the losing copy was inside the at-rule.
+    //
+    // Scoping with `:not(.btn)` is the fix, and this is the assertion that matches it — the glyph
+    // rules must be UNABLE to match the labelled control, whatever their position or nesting.
+    const el = document.createElement('div')
+    el.innerHTML = '<button class="fav-toggle is-favorite btn fav-toggle--labeled"></button>'
+    const fav = el.firstElementChild as Element
+
+    for (const rule of allRules) {
+      for (const sel of rule.selectors) {
+        // Only the glyph rules are in question; `.btn*` and the `--labeled` star rules SHOULD match.
+        if (!sel.includes('.fav-toggle') || sel.includes('--labeled')) continue
+        expect(
+          fav.matches(sel.replace(/:(hover|focus-visible|disabled)\b/g, '')),
+          `"${sel}" reaches the labelled favorite — scope it with :not(.btn)`,
+        ).toBe(false)
+      }
+    }
   })
 
   it('orders disabled/busy after primary, so a disabled Save is not still filled', () => {

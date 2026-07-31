@@ -788,7 +788,12 @@ a {
   line-height: 1.2;
 }
 /* Favorite star (§10): quiet outline until favorited; same glyph everywhere it appears. */
-.fav-toggle {
+/* ICON-ONLY favorites (catalogue rows). `:not(.btn)` is load-bearing, not defensive: the labelled
+   lesson-page variant is a `.btn`, and every declaration here collides with the button system at the
+   SAME specificity (0-1-0), so which one wins is decided purely by source order. That is a coin flip
+   maintained by hand — and the ≤640px block below lost it, rendering "Favorited" at 1.35rem beside
+   15px siblings. Scoping states the intent instead of relying on file position. */
+.fav-toggle:not(.btn) {
   flex-shrink: 0;
   border: none;
   background: none;
@@ -798,9 +803,14 @@ a {
   line-height: 1;
   cursor: pointer;
 }
-.fav-toggle:hover,
-.fav-toggle:focus-visible,
-.fav-toggle.is-favorite {
+/* Icon-only again. `.fav-toggle.is-favorite` is 0-2-0 and sets `color` — the same weight class as
+   `.btn:hover` and `.btn:disabled`. It only stays harmless on the labelled variant because the
+   values happen to coincide and `.btn` sits later; scoping removes a trap rather than fixing a live
+   bug. The labelled variant takes its text colour from `.btn` and its star colour from the
+   `--labeled` rules below. */
+.fav-toggle:not(.btn):hover,
+.fav-toggle:not(.btn):focus-visible,
+.fav-toggle:not(.btn).is-favorite {
   color: var(--accent);
 }
 /* Icon-only variants ONLY. The labelled lesson-page favorite is a `.btn`, so the button system's
@@ -1717,7 +1727,9 @@ button[type='submit']:disabled {
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
-  .fav-toggle {
+  /* Icon-only again (see the base rule). This sits AFTER `.btn` in this block, so unscoped it beat
+     the system on equal specificity and blew the labelled favorite up to 1.35rem. */
+  .fav-toggle:not(.btn) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
