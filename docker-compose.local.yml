@@ -1,0 +1,21 @@
+# LOCAL DEV ONLY — publish Postgres to the host so `next dev` can reach it.
+#
+# Deliberately NOT named `docker-compose.override.yml`: that name is auto-loaded by every
+# `docker compose` invocation, including the Rock's `scripts/deploy.sh`, which would silently
+# publish the database on the server. This file is opt-in and only applies when passed explicitly:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres
+#
+# The base compose file has no `ports:` on postgres on purpose (internal-only, and isolated from
+# another project's Postgres on this machine). Host port 55432 keeps that isolation — it does not
+# collide with a default 5432 if the other stack comes up.
+#
+# `app/.env` (gitignored, host-only) must then point at the published port:
+#   DATABASE_URI=postgres://lesson3:<password>@127.0.0.1:55432/lesson3
+# The containerised services are unaffected — they use the root `.env` and reach postgres over the
+# compose network at `postgres:5432`.
+
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:55432:5432' # loopback only — not reachable from the network

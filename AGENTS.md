@@ -45,6 +45,31 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 - **Codegen (run on the Rock, Node 22):** `npm run generate:types`, `npm run generate:importmap` —
   commit the output. The local CLIs can break on newer Node.
 
+## Local stack (browser-verify UI **before** it ships)
+
+UI defects are invisible to `tsc`, ESLint and the unit suite — three in the button-system batch
+reached the deployed site because there was no local stack (DECISIONS 2026-07-30). There is one now.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres   # from the repo root
+docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate # first run only
+cd app && npx payload run scripts/seed-local-dev.ts                               # logins + one lesson plan
+```
+
+Then start the dev server (`.claude/launch.json` → `lesson3-dev`, pinned to node@22) and sign in at
+`http://localhost:3000/login` as `editor@local.test` / `local1234` (also `siteadmin`, `subjectadmin`,
+`teacher` at the same domain and password).
+
+- `docker-compose.local.yml` publishes Postgres on **127.0.0.1:55432** and is **opt-in via `-f`**. It
+  is deliberately NOT named `docker-compose.override.yml`, which Compose auto-loads on every
+  invocation *including* `scripts/deploy.sh` — that would silently publish the database on the Rock.
+- `app/.env` (gitignored, host-only) must point at that port. Containers are unaffected: they read
+  the root `.env` and reach `postgres:5432` over the compose network.
+- `scripts/seed-local-dev.ts` **refuses to run unless `DATABASE_URI` is localhost** — it creates
+  accounts with a known password, so it must be impossible to aim at a shared database.
+- ⚠ A stale `app/.next` can serve **empty bodies with a 200** after a big change
+  (`Invariant: missing bootstrap script`). That reads as working. `rm -rf app/.next` and restart.
+
 ## Practices
 
 - **Verify before coding** against Payload / `docx` / Next.js: read installed source or official docs;
