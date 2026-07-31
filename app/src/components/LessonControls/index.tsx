@@ -36,7 +36,11 @@ import { reduceFieldsToValues } from 'payload/shared'
 import { isEditorFor, isSubjectAdminFor, toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
 import { displayTitle } from '../../lib/displayTitle'
-import { editingAvailableAtWidth, EDITING_NEEDS_WIDER_SCREEN } from '../../lib/editingViewport'
+import {
+  editingAvailableAtWidth,
+  EDITING_WIDER_SCREEN_BODY,
+  EDITING_WIDER_SCREEN_TITLE,
+} from '../../lib/editingViewport'
 import { DELIVERABLE_LABELS } from '../../generator/deliverables'
 import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
@@ -83,6 +87,7 @@ export default function LessonControls() {
   const [pdfMenuTags, setPdfMenuTags] = useState<DeliverableTag[]>([])
   const pdfMenuRef = useRef<HTMLDivElement>(null)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [tooNarrow, setTooNarrow] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
@@ -208,7 +213,15 @@ export default function LessonControls() {
     })
 
   // The effect above turns `editing` into the form's locked/unlocked state, so these just flip it.
+  // Press-time width check (not render-time: reading `window` during render breaks SSR and a resize
+  // between paint and click would make the answer stale). Below the threshold Edit explains itself
+  // instead of unlocking the form. The once-on-mount guard elsewhere in this file still neutralises
+  // a hand-typed `?edit=1`, so this is the second half of one rule, not a duplicate of it.
   const onEdit = () => {
+    if (!editingAvailableAtWidth(window.innerWidth)) {
+      setTooNarrow(true)
+      return
+    }
     setEditIntent(true)
     setMsg(null)
   }
@@ -419,7 +432,7 @@ export default function LessonControls() {
               rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
               or an Editor looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
-            <Button className="lesson-controls__edit" buttonStyle="primary" size="small" onClick={onEdit}>
+            <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
             </Button>
           ) : (
@@ -437,14 +450,6 @@ export default function LessonControls() {
                 Cancel
               </Button>
             </>
-          )}
-          {/* Below 640px the CSS hides the Edit button (when not already editing) and reveals this
-              notice — an explanation, not a silently missing button. Always rendered (no hydration
-              branch); visibility is CSS-only, but gated on `canEdit` so a non-editor never sees it. */}
-          {canEdit && (
-            <span className="lesson-controls__edit-unavailable" role="note">
-              {EDITING_NEEDS_WIDER_SCREEN}
-            </span>
           )}
           <Button
             buttonStyle="secondary"
@@ -519,6 +524,24 @@ export default function LessonControls() {
       {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
           already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
       <EditJumpNav />
+      {/* Pressing Edit below the width threshold explains itself here instead of unlocking the form.
+          Reuses the Editing-help modal's admin styling (Payload's admin root does not load the
+          frontend `.modal` rules, so `lesson-edit-help` IS the admin modal skin, not a variant). */}
+      {tooNarrow && (
+        <Modal
+          title={EDITING_WIDER_SCREEN_TITLE}
+          onClose={() => setTooNarrow(false)}
+          className="lesson-edit-help"
+          backdropClassName="lesson-edit-help__backdrop"
+        >
+          <p>{EDITING_WIDER_SCREEN_BODY}</p>
+          <div className="lesson-edit-help__actions">
+            <Button buttonStyle="primary" size="small" onClick={() => setTooNarrow(false)}>
+              Got it
+            </Button>
+          </div>
+        </Modal>
+      )}
       {helpOpen && (
         <Modal
           title="Editing help"
