@@ -18,28 +18,36 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `549accc` (#167). The live Rock is DEPLOYED at `549accc`** — deployed & verified
-2026-07-29 this session: the container was rebuilt `2026-07-29T19:04Z` (matches the deploy run), the
-`migrate` service found nothing pending (none of these changes carry a migration), and the site is
-healthy (`/` → `/login`, 200). So **#157–#160 AND the whole editing-is-a-wider-screen-affordance arc —
-#163 (feature) + #165 (notice wraps to its own row) + #166 (jump nav hidden at ≤640px) + #167 (control
-bar takes natural height at ≤1024px) — are all merged AND live** (the old "last deploy 9f2c756" line was
-stale — it always goes stale on a deploy). Two things still want a **browser eyeball** (both need a
-logged-in session, so they're operator-side):
-(a) the #157–#160 editor UI (plain-language labels, Editing help modal, Back placement, three
-displayed user types) across editor-only / mixed-admin-editor / site-admin accounts; and (b) the
-narrow editor at ~**550px** — a clean top-to-bottom read (header · Viewing title · Back · notice ·
-Quick preview/PDF/details/help · then the form with NO overlap), plus **390px** (lesson page: no Edit,
-notice shown; version editor + hand-typed `?edit=1` lands read-only) and **1280×800 / ~700px
-unmaximised** (fully editable; starting an edit then narrowing below 640px keeps Save). Three prior
-overlap fixes (#165/#166/#167) each closed one reported artefact; the operator's last screenshot before
-#167 still showed the control-bar-over-Document-title overlap that #167 targets, so that specific
-confirmation is the open one. Always CONFIRM the Rock's HEAD rather than trust this line: `ssh david@rock5b 'cd
-/srv/lesson3 && git rev-parse --short HEAD'`, and cross-check the container build time (`docker inspect
-lesson3-app-1 --format '{{.Created}}'`) — a checked-out commit is not proof the running image was
-rebuilt.
-(Probe the site through the PUBLIC URL — `curl localhost:3000/` on the Rock 404s, which is the probe
-being wrong, not the app.)
+**`main` is at `b607337` (#170). The live Rock is DEPLOYED at `b607337`** — deployed & verified
+2026-07-30/31: container rebuilt `2026-07-31T01:31Z`, `migrate` found nothing pending (no migration
+in this batch), site healthy (`/` → `/login`, 200).
+
+**▶ Newest work: ONE BUTTON SYSTEM — #169 + #170, both merged and deployed.** The lesson page and the
+version editor carried nine independently-authored button treatments; they now share one geometry
+from `--app-btn-*` in `app/src/app/app-tokens.scss`, with emphasis reserved for meaning (a filled
+ACCENT background and weight 600 mean primary; filled alone means selected-in-a-set). Plan, state
+table and review history: **`docs/DESIGN-button-system-2026-07-30.md`**. Presentation only — no
+authorization, schema, endpoint or migration change.
+- **Verified live, unauthenticated** (`/forgot-password`, which carries the shared Back control):
+  `<a class="btn">` computes to the declared `#f6f7f8` — the original defect was that `.btn` never
+  declared `background`, so an `<a>` was transparent while a `<button>` took UA gray. 15px / weight
+  400 / 38px / 6px radius, all resolving from tokens; 44px touch target at 375px; keyboard focus
+  gives a 2px accent ring at 2px offset ON TOP of the fill (`:focus-visible`, tabbed to for real —
+  programmatic `.focus()` does not trigger it in Chrome).
+- **Still wants an operator eyeball** (needs login): the lesson-page bar (Edit / Share / Compare /
+  Favorited / versions chip) and the editor bar (Quick preview / Formatted PDF / Show details /
+  Editing help / Save / Delete / Official) at 390 / 550 / 700 / desktop. Watch **Save** in
+  particular — its filled palette was broken and restored mid-review (DECISIONS 2026-07-30).
+- **PR B is NOT done and is deliberately separate**: at ≤640px, keep Edit visible and have pressing
+  it open a dialog ("Editing needs a wider screen. You can still view this lesson here…" + one
+  Got it), removing the standing notice. Spec'd in the design doc §4.
+
+⚑ **`next dev` DOES start on the dev Mac — the long-standing "node hangs in its own bootstrap" note
+is STALE** (observed 2026-07-30 serving on :3000, compiling, answering `GET /` in ms). The remaining
+blocker is different and smaller: every route goes `getSession` → `getPayload` → Postgres and the
+connection string names the compose service, so without that container up every page 500s with
+`ENOTFOUND postgres`. Bringing up the DB container would move UI verification off the post-deploy
+critical path for good — worth doing before the next UI batch.
 
 **▶ #160 MERGED (2026-07-29, squash `430fbb4`), DEPLOY PENDING — "Editor" reframed as editing access.**
 Presentation only: NO authorization/schema/endpoint/migration change; the stored `editor` value and the
@@ -175,8 +183,9 @@ and the two 2026-07-27 entries.
    the unchanged file, and passed. Chain edit-and-check with `&&`, or use absolute paths.
 
 **✓ SHIPPED & LIVE (2026-07-28) — #155: the §6 browser verification, the bug it found, and two more.**
-Done against the live Rock in a browser (the dev Mac still cannot start `next dev` — node hangs in its own
-bootstrap — so verification happens post-deploy, not locally). Target: Chemistry Grade 10 "Chemical
+Done against the live Rock in a browser (at the time the dev Mac could not start `next dev` — node hung
+in its own bootstrap. **That is no longer true; see the stale-note correction at the top of this file.**
+Kept as written for provenance). Target: Chemistry Grade 10 "Chemical
 Bonding", version 228 — 13 lessons, ~200k chars of framework prose, so one EXPANDED lesson is ~3350px
 against an 860px viewport, which is the shape §6 requires and no smaller fixture reproduces.
 

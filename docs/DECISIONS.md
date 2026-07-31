@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-30 (button system) — assert REACHABILITY, not source order; and "duplication" is a cascade question
+
+Building one button system across both surfaces (#169, #170 — see
+`docs/DESIGN-button-system-2026-07-30.md`) produced four corrections worth keeping, all of the same
+family: **CSS facts that survive type-checking, linting and a careful read, and fail only in a
+browser at one viewport.**
+
+**1. A "duplicate" declaration is only duplicate if the cascade agrees.** A `/simplify` reuse pass
+deleted the colour declarations from the scoped `&.btn--style-primary` block in `custom.scss`,
+because the site-wide `.btn--style-primary` already said the same thing. Textually true. But the
+site-wide rule is `(0,1,0)` and the enclosing scoped rule is `(0,3,0)` and sets `--color`/`--bg-color`
+for the STANDARD variant — so inside that scope the parent wins and **Save would have rendered as a
+gray outlined button instead of filled blue.** Caught by CodeRabbit, not by 309 passing tests.
+Later, two more reviewers independently called `color` on `.btn.is-active:hover` a redundant
+leftover; it is what beats `.btn.btn--quiet:hover` (both `0-3-0`) so a hovered selected filter is not
+blue-on-blue. **Rule: before deleting a declaration as duplicated, compute the specificity of every
+rule that reaches the element in that context. Text-level duplication and cascade-level redundancy
+are different claims.** Both are now pinned by tests, because a reviewer will suggest the same
+cleanup again.
+
+**2. An order assertion is only as good as its view of the file.** A test asserted
+`posOf('.btn') > posOf('.fav-toggle')` to guarantee the button system beat the glyph rules. It passed
+while the defect was live: `posOf` reads TOP-LEVEL rules only, and a second `.fav-toggle` copy inside
+`@media (max-width: 640px)` sat after `.btn` and won, rendering "Favorited" at 1.35rem beside 15px
+siblings on every phone. **Rule: where two equal-specificity rules both match a control, prefer
+SCOPING the loser (`:not(.btn)`) over ordering them, and assert that it cannot MATCH rather than that
+it loses.** The reachability tests use jsdom's `Element.matches()` over every rule including at-rule
+children — selector matching, not computed styles, so the usual jsdom `var()` limitation does not
+apply. Order tests remain for genuine ties; the two styles answer different questions (who wins vs
+whether a contest exists).
+
+**3. Fix a specificity hole at the axis, not at the instance.** CodeRabbit reported that
+`.btn.is-active`'s focus rule overrode the disabled state. True — but every variant's
+`:focus-visible` rule is `(0,3,0)` and outranks the base disabled rule at `(0,2,0)`, so the hole
+belonged to `--primary`, `--danger` and `--quiet` too, and had arrived with the system itself. Fixed
+once in the shared suppression list rather than four times.
+
+**4. A scripted bulk substitution needs a bounded RANGE, not a replace count.** Moving the button
+block onto shared palette tokens with `str.replace(old, new, 3)` ran past the end of the block and
+silently repointed `.doc-section-title` and `.guide code` at button-system tokens. Same hex values,
+so nothing looked wrong and every test passed; three review agents caught it. **Rule: bound
+mechanical edits by explicit start/end offsets.**
+
+Process note: on both PRs the CI gate was green *before* the substantive findings arrived. Reading
+the review rather than trusting the check is what caught them.
+
+---
+
 ## 2026-07-29 (Payload doc-controls mid-break) — override the INNER controls wrapper, not just the outer
 
 Showing the ≤640px editor at all (the wider-screen-affordance feature below) exposed that the Payload
