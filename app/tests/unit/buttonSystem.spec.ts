@@ -49,9 +49,10 @@ const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss
  * and every lookup would depend on an unwritten "the real one happens to come first" invariant.
  * Excluding at-rule children makes that explicit instead of accidental.
  */
-const rules = postcss
-  .parse(css)
-  .nodes.filter((n): n is import('postcss').Rule => n.type === 'rule')
+const root = postcss.parse(css)
+
+const rules = root.nodes
+  .filter((n): n is import('postcss').Rule => n.type === 'rule')
   .map((r, i) => ({
     selectors: r.selectors.map((s) => s.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
@@ -65,7 +66,7 @@ const rules = postcss
  * `@media` block counts just as much.
  */
 const allRules: { selectors: string[]; body: string }[] = []
-postcss.parse(css).walkRules((r) => {
+root.walkRules((r) => {
   allRules.push({
     selectors: r.selectors.map((x) => x.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
@@ -84,6 +85,32 @@ const ruleFor = (sel: string) => {
 
 const posOf = (sel: string): number => ruleFor(sel).at
 const bodyOf = (sel: string): string => ruleFor(sel).body
+
+/** Build a detached element from markup, so a rule's selector can be tested against a real shape. */
+const shape = (html: string): Element => {
+  const host = document.createElement('div')
+  host.innerHTML = html
+  return host.firstElementChild as Element
+}
+
+/** The lesson-page favorite: carries BOTH the glyph classes and `.btn`, which is what makes it the
+ *  control every collision in this system lands on. One definition, so a markup change moves once. */
+const labelledFavorite = (attrs = ''): Element =>
+  shape(`<button class="fav-toggle is-favorite btn fav-toggle--labeled"${attrs}></button>`)
+
+/** Assert that nothing in `candidates` can style `el` — the reachability question, not the order one. */
+const expectUnreachable = (
+  el: Element,
+  candidates: { selectors: string[] }[],
+  why: (sel: string) => string,
+  strip = /$^/,
+) => {
+  for (const rule of candidates) {
+    for (const sel of rule.selectors) {
+      expect(el.matches(sel.replace(strip, '')), why(sel)).toBe(false)
+    }
+  }
+}
 
 describe('button system', () => {
   it('declares a background on .btn, so <a> and <button> cannot diverge', () => {
@@ -112,20 +139,18 @@ describe('button system', () => {
     //
     // Scoping with `:not(.btn)` is the fix, and this is the assertion that matches it — the glyph
     // rules must be UNABLE to match the labelled control, whatever their position or nesting.
-    const el = document.createElement('div')
-    el.innerHTML = '<button class="fav-toggle is-favorite btn fav-toggle--labeled"></button>'
-    const fav = el.firstElementChild as Element
-
-    for (const rule of allRules) {
-      for (const sel of rule.selectors) {
-        // Only the glyph rules are in question; `.btn*` and the `--labeled` star rules SHOULD match.
-        if (!sel.includes('.fav-toggle') || sel.includes('--labeled')) continue
-        expect(
-          fav.matches(sel.replace(/:(hover|focus-visible|disabled)\b/g, '')),
-          `"${sel}" reaches the labelled favorite — scope it with :not(.btn)`,
-        ).toBe(false)
-      }
-    }
+    // Only the glyph rules are in question; `.btn*` and the `--labeled` star rules SHOULD match.
+    const glyphRules = allRules.filter((r) =>
+      r.selectors.some((s) => s.includes('.fav-toggle') && !s.includes('--labeled')),
+    )
+    expectUnreachable(
+      labelledFavorite(),
+      glyphRules.map((r) => ({
+        selectors: r.selectors.filter((s) => s.includes('.fav-toggle') && !s.includes('--labeled')),
+      })),
+      (sel) => `"${sel}" reaches the labelled favorite — scope it with :not(.btn)`,
+      /:(hover|focus-visible|disabled)\b/g,
+    )
   })
 
   it('orders disabled/busy after primary, so a disabled Save is not still filled', () => {
@@ -159,17 +184,11 @@ describe('button system', () => {
     const dimmers = allRules.filter((r) => /(^|[\s;])opacity:/.test(r.body))
 
     for (const [name, html] of Object.entries(shapes)) {
-      const el = document.createElement('div')
-      el.innerHTML = html
-      const node = el.firstElementChild as Element
-      for (const rule of dimmers) {
-        for (const selector of rule.selectors) {
-          expect(
-            node.matches(selector),
-            `${name} is dimmed by "${selector}" — scope it away from .btn`,
-          ).toBe(false)
-        }
-      }
+      expectUnreachable(
+        shape(html),
+        dimmers,
+        (sel) => `${name} is dimmed by "${sel}" — scope it away from .btn`,
+      )
     }
   })
 
@@ -225,18 +244,14 @@ describe('button system', () => {
 
     // The selected fill must NOT key off `[aria-pressed]`: the labelled Favorite sets that too, and
     // filling it is exactly the decision §2a rejected. Assert no rule reaches it that way.
-    const el = document.createElement('div')
-    el.innerHTML =
-      '<button class="fav-toggle is-favorite btn fav-toggle--labeled" aria-pressed="true"></button>'
-    const fav = el.firstElementChild as Element
     const fillers = allRules.filter(
       (r) => /background:\s*var\(--accent\)/.test(r.body) && !r.selectors.some((x) => x.includes(':hover')),
     )
-    for (const rule of fillers) {
-      for (const sel of rule.selectors) {
-        expect(fav.matches(sel), `Favorite must not be filled by "${sel}"`).toBe(false)
-      }
-    }
+    expectUnreachable(
+      labelledFavorite(' aria-pressed="true"'),
+      fillers,
+      (sel) => `Favorite must not be filled by "${sel}"`,
+    )
   })
 
   it('centres the mobile nav row rather than top-aligning it', () => {
@@ -269,6 +284,20 @@ describe('button system', () => {
         ).toBe(true)
       }
     }
+  })
+
+  it('keeps white text on a HOVERED selected chip', () => {
+    // Two independent reviewers called `color` on `.btn.is-active:hover` a redundant leftover. It is
+    // load-bearing. A selected filter is `.btn.btn--quiet.is-active`, and on hover TWO rules tie at
+    // 0-3-0: `.btn.btn--quiet:hover` (blue text, D4's quiet promotion) and `.btn.is-active:hover`.
+    // Source order gives it to `is-active` — remove that one declaration and the selected chip
+    // renders blue text on its blue fill, i.e. invisible. Pinned because "clean this up" will
+    // otherwise be suggested again.
+    const activeHover = bodyOf('.btn.is-active:hover')
+    expect(activeHover, 'is-active:hover must restate color to beat --quiet:hover').toMatch(
+      /color:\s*var\(--accent-ink\)/,
+    )
+    expect(posOf('.btn.is-active:hover')).toBeGreaterThan(posOf('.btn.btn--quiet:hover'))
   })
 
   it('resolves every --app-btn-* reference against a real token', () => {
