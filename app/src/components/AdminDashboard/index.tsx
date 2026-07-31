@@ -183,9 +183,14 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     : 'Continue working on versions you have saved.'
   // Empty state carries the explanation the list would otherwise have to: what belongs here and how
   // something gets here. A bare "You have no saved versions." tells a new Editor nothing.
+  //
+  // ⚑ Both strings name SAVING, not Edit. The first draft said "choose Edit, and your saved work will
+  // appear here" / "once someone edits a lesson plan" — but entering edit mode creates nothing. A row
+  // appears only when someone SAVES, so copy that stops at Edit describes a step that leaves the list
+  // exactly as empty as before, and reads as a broken promise to the person waiting for a row.
   const savedEmpty = isAdmin
-    ? 'No candidate versions. Saved, non-Official versions appear here once someone edits a lesson plan.'
-    : 'You have no saved versions yet. Open a lesson plan, choose Edit, and your saved work will appear here.'
+    ? 'No saved candidates yet. They will appear here once someone saves an edited version.'
+    : 'You have no saved versions yet. Open a lesson plan, choose Edit, then save your changes. Your saved work will appear here.'
 
   return (
     <Gutter className="lp-admin-dash lp-manage">
