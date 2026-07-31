@@ -18,9 +18,35 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `b607337` (#170). The live Rock is DEPLOYED at `b607337`** — deployed & verified
-2026-07-30/31: container rebuilt `2026-07-31T01:31Z`, `migrate` found nothing pending (no migration
-in this batch), site healthy (`/` → `/login`, 200).
+**`main` is at `d555fb2` (#174). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
+verified 2026-07-31: container rebuilt `2026-07-31T05:39Z`, `migrate` found nothing pending (no
+migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN:
+#173 (dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy
+— same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
+the NEXT deploy; nothing to do now.
+
+**▶ THE LOCAL STACK NOW EXISTS — use it. `next dev` works.** #173 added
+`docker-compose.local.yml` (publishes Postgres on `127.0.0.1:55432`, opt-in via `-f`) and
+`app/scripts/seed-local-dev.ts` (four role logins + one browsable lesson plan). Commands, logins and
+two traps are in **`AGENTS.md` → Local stack**. This is the single most useful thing to reach for
+before any UI work: across #169–#173, FIVE defects were caught by a reviewer or the operator's phone
+and ZERO by 318 unit tests, tsc or eslint. #172 was the first change verified in a browser BEFORE
+merge, and that is now the expected workflow, not a bonus.
+- Two blockers were in the way, only one predicted: no local Postgres, and a stale `app/.next` that
+  served EMPTY BODIES WITH A 200 (`Invariant: missing bootstrap script`) — which reads as working.
+  `rm -rf app/.next` and restart.
+- The seed script REFUSES any non-localhost `DATABASE_URI`; that guard is unit-tested
+  (`tests/unit/localDbGuard.spec.ts`) because it is what stops known-password accounts reaching a
+  shared database.
+
+**▶ #172 MERGED & DEPLOYED — PR B: narrow-screen Edit explains itself.** Edit now renders at EVERY
+width; below 640px pressing it opens a dialog ("Editing needs a wider screen. You can still view this
+lesson here…" + one Got it) instead of unlocking the form or navigating. The standing notice is gone
+from both surfaces, which retires the overlap class that #165/#166/#167 each patched — that text was
+what competed for space in the narrow bar. The once-on-mount guard is unchanged: it decides the MODE,
+the dialog explains it. Verified in a browser at 390px and 1280px on both surfaces before merge.
+**This completes the wider-screen-affordance arc started in #163 — `DESIGN-button-system-2026-07-30`
+§4 is now fully implemented; nothing in that document is outstanding.**
 
 **▶ Newest work: ONE BUTTON SYSTEM — #169 + #170, both merged and deployed.** The lesson page and the
 version editor carried nine independently-authored button treatments; they now share one geometry
@@ -34,20 +60,14 @@ authorization, schema, endpoint or migration change.
   400 / 38px / 6px radius, all resolving from tokens; 44px touch target at 375px; keyboard focus
   gives a 2px accent ring at 2px offset ON TOP of the fill (`:focus-visible`, tabbed to for real —
   programmatic `.focus()` does not trigger it in Chrome).
-- **Still wants an operator eyeball** (needs login): the lesson-page bar (Edit / Share / Compare /
-  Favorited / versions chip) and the editor bar (Quick preview / Formatted PDF / Show details /
-  Editing help / Save / Delete / Official) at 390 / 550 / 700 / desktop. Watch **Save** in
-  particular — its filled palette was broken and restored mid-review (DECISIONS 2026-07-30).
-- **PR B is NOT done and is deliberately separate**: at ≤640px, keep Edit visible and have pressing
-  it open a dialog ("Editing needs a wider screen. You can still view this lesson here…" + one
-  Got it), removing the standing notice. Spec'd in the design doc §4.
+- ✓ **Operator eyeball COMPLETE** (2026-07-31, all surfaces and widths) — reported good. It also
+  caught two things the tests could not: the filter chips were still a sixth geometry, and the mobile
+  nav avatar was top-aligned against its text. Both fixed in #170.
+- **PR B is DONE** — shipped as #172 (see its block above). The design doc has no outstanding items.
 
-⚑ **`next dev` DOES start on the dev Mac — the long-standing "node hangs in its own bootstrap" note
-is STALE** (observed 2026-07-30 serving on :3000, compiling, answering `GET /` in ms). The remaining
-blocker is different and smaller: every route goes `getSession` → `getPayload` → Postgres and the
-connection string names the compose service, so without that container up every page 500s with
-`ENOTFOUND postgres`. Bringing up the DB container would move UI verification off the post-deploy
-critical path for good — worth doing before the next UI batch.
+✓ **RESOLVED (#173) — the local stack works; see the block above.** The old "node hangs in its own
+bootstrap" note was stale, and the real blocker (no local Postgres) is now fixed. Kept as a pointer
+because the workflow change matters more than either detail: UI is verified locally BEFORE merge.
 
 **▶ #160 MERGED (2026-07-29, squash `430fbb4`), DEPLOY PENDING — "Editor" reframed as editing access.**
 Presentation only: NO authorization/schema/endpoint/migration change; the stored `editor` value and the
@@ -251,11 +271,12 @@ DECISIONS 2026-07-29 (implementation) + 2026-07-28 (later); spec'd in `SPEC.md` 
   Rock rebuilt at `549accc` (`2026-07-29T19:04Z`), site healthy. Test lesson used for the operator
   screenshots: Biology Grade 10 "Cell Structure" (Official version), account `ED`.
 - **Still to do (operator-side eyeball — needs login, which the assistant can't do):** confirm the
-  **~550px** editor reads cleanly top-to-bottom (header · Viewing title · Back · notice ·
+  **~550px** editor reads cleanly top-to-bottom (header · Viewing title · Back ·
   preview/PDF/details/help · then the form, no overlap) — #167 targeted the last known overlap
-  (control-bar-over-Document-title) but hasn't been re-screenshotted since deploy; plus **390px** (lesson
-  page: no Edit, notice shown; `?edit=1` lands read-only) and **1280×800 / ~700px unmaximised** (editable;
-  starting an edit then narrowing below 640px keeps Save). The wiring is pinned by
+  (control-bar-over-Document-title); plus **390px** and **1280×800 / ~700px unmaximised** (editable;
+  starting an edit then narrowing below 640px keeps Save). ⚑ **The "notice shown / no Edit" wording
+  here is PRE-#172 and no longer describes the app**: Edit is now shown at every width and the
+  standing notice is gone (see the #172 block at the top). The wiring is pinned by
   `lessonControlsMountGuard.spec.tsx`, so these are visual confirmations, not correctness gates.
 
 ⚠ **Remaining browser debt (both operator-side, need a logged-in session):** the #157–#160 editor UI

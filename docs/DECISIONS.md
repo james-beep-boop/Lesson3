@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-31 (local verification) — a green check means it compiles, not that it renders
+
+The button-system batch (#169–#173) shipped five visual defects past `tsc`, eslint and 318 unit
+tests. Every one was caught by a human or a review bot looking at the result: a filled **Save** that
+rendered gray, **Favorited** 44% oversized on phones, a focused-disabled control repainting as
+available, an IPv6 loopback URI wrongly refused, and a nav avatar top-aligned against its text. The
+tests written since pin each specific trap, but none of them would have caught the trap *before* it
+was found — they exist because someone else found it first.
+
+**The general rule: for anything whose failure mode is visual, a passing gate is evidence the code
+compiles, not that it renders.** The fix is not more assertions; it is looking.
+
+**So the blocker was worth attacking directly.** The project had believed for weeks that the app
+could not run locally (`next dev` "hangs in node's own bootstrap"). That premise was **half wrong**:
+`next dev` starts fine — what was missing was a database, because `DATABASE_URI` names the compose
+service and every route goes `getSession` → `getPayload` → Postgres. #173 supplies the missing half.
+A second, unpredicted blocker sat behind it: a stale `app/.next` served **empty bodies with HTTP
+200** (`Invariant: missing bootstrap script`), which reads as *working* and is therefore worse than a
+500. `rm -rf app/.next`.
+
+**Lesson about the stale premise itself:** "the app can't run locally" survived unchallenged in
+`NEXT-SESSION.md` and in assistant memory for weeks, and cost every UI change a deploy cycle. When a
+documented blocker is load-bearing enough to shape the workflow, re-test it rather than inheriting
+it — the note was written once, from one symptom, and was never revisited.
+
+**Two design points worth keeping from PR B (#172):**
+
+1. **A width check belongs at PRESS time, not render time.** Reading `window` during render breaks
+   SSR and desyncs on hydration, and a resize between paint and click makes a render-time answer
+   stale. The once-on-mount guard and the press-time check are not duplicates — the guard decides the
+   MODE (neutralising a stale `?edit=1` deep link), the dialog explains it (a live click). Removing
+   the CSS layer left two layers covering genuinely different entry paths.
+2. **An affordance that explains itself beats a standing notice.** The permanent "editing needs a
+   wider screen" text was competing for space in the bar; #165, #166 and #167 were each a fix for an
+   overlap it caused. Moving it into a dialog raised by pressing Edit made it prominent exactly when
+   it matters, occupy nothing when it doesn't, and retired that whole class of defect rather than
+   patching it a fourth time.
+
+**Guard scripts get a test, and live where they can have one.** `seed-local-dev.ts` mints accounts
+with a known password; the only thing stopping it reaching the Rock is one predicate. It could not be
+tested where it started, because the script seeds at import time — so it moved to
+`scripts/lib/localDbGuard.ts`, the split `stripCollapsed.ts` already established for the same reason.
+Review alone had already missed a case there (WHATWG `URL.hostname` returns IPv6 literals bracketed,
+`[::1]`, so the bare `'::1'` comparison refused a valid local URI). It fails CLOSED, so that was a
+false refusal rather than a hole — but "two people read it" is not a control.
+
+---
+
 ## 2026-07-30 (button system) — assert REACHABILITY, not source order; and "duplication" is a cascade question
 
 Building one button system across both surfaces (#169, #170 — see
