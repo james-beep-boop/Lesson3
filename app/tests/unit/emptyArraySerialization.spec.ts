@@ -147,6 +147,52 @@ describe('submitted array field that is not an array', () => {
     }
   })
 
+  // ---- the NESTED container: lessons[].framework ----
+  //
+  // Both the normalizer and the guard walk into lesson rows, and a lesson with no phases is the same
+  // empty-array shape one level down. Covered separately because nothing above reaches it:
+  // `zeroContainers()` submits a populated `framework`, so the nested path was previously untested.
+
+  /** Stored doc whose LESSON has no phases — the nested empty array. */
+  const originalEmptyFramework = () => ({
+    subjectGrade: SG_ID,
+    lessons: [{ id: 'L1', overview: 'stored overview', framework: [] }],
+    finalExplanation: { sections: [], rubric: [] },
+    summaryTable: { lessons: [] },
+  })
+  const submittedFramework = (framework: unknown) => ({
+    subjectGrade: SG_ID,
+    lessons: [{ id: 'L1', overview: 'edited overview', framework }],
+  })
+
+  it('accepts and normalizes a nested framework sentinel', () => {
+    const out = run(submittedFramework(0), originalEmptyFramework())
+    expect(out.lessons[0].framework, 'must be an array, not the posted number').toEqual([])
+    expect(out.lessons[0].overview).toBe('edited overview')
+  })
+
+  it('normalizes the nested sentinel for admins too', () => {
+    const out = applyEditorFieldSplit({
+      data: submittedFramework(0),
+      originalDoc: originalEmptyFramework(),
+      operation: 'update',
+      req: { user: { id: 2, roles: ['siteAdmin'] } } as never,
+      editorTopLevelKeys: VERSION_EDITOR_KEYS,
+    }) as Record<string, any>
+    expect(out.lessons[0].framework).toEqual([])
+  })
+
+  it('rejects a malformed nested framework, and a sentinel against stored phases', () => {
+    // Malformed, stored empty → must not be read as "no phases".
+    for (const bad of ['bad', 2, {}]) {
+      expect(() => run(submittedFramework(bad), originalEmptyFramework()), String(bad)).toThrow(
+        Forbidden,
+      )
+    }
+    // `0` against a lesson that HAS phases is a structural change — fail-closed.
+    expect(() => run(submittedFramework(0), originalEmpty())).toThrow(Forbidden)
+  })
+
   it('keeps nullish reading as no rows (the pre-existing `?? []` contract)', () => {
     // Deliberately NOT narrowed with the rest: `null` was accepted before this fix, and tightening it
     // is a separate behavioural change. Pinned so the choice is visible and easy to flip.
