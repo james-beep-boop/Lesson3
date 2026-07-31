@@ -382,6 +382,29 @@ The candidate used for acceptance was created through the same `save-as-new` end
 the row under test is identical in kind — but **the UI save path itself remains unverified** until
 that bug is fixed.
 
+### Acceptance run — completed 2026-07-31
+
+Manage inspected as **both** roles, at **390 / 550 / 700 / 1280**, in **both** states.
+
+| | Editor (`editor@local.test`, Biology Grade 10) | Site Administrator |
+|---|---|---|
+| Identity block | "Teacher" / "Editing access: Biology · Grade 10" | "Site administrator" / "All subjects and grades" |
+| Sections | 1 — My saved versions | 5 |
+| Populated row | `Cell Structure` · one metadata line · Continue editing + Delete | same, plus author |
+| Version badge | gone (plain metadata) | gone |
+| Empty state | corrected copy, above a divider, 24px block | corrected copy |
+| Horizontal overflow | none at any width | none at any width |
+
+The populated state used a candidate created through the **real edit-and-save workflow** as an
+Editor — possible only after the Save fix (`fix/editor-save-empty-arrays`); the client was observed
+posting `finalExplanation.sections: number(0)` and the save returning 200 where it previously 500'd.
+Delete was exercised through the shared danger control (`btn--style-error`, confirm dialog, row
+removed, list re-rendered to the empty state).
+
+**550px earned its place**, as the operator predicted: it is rule-identical to 390 but the header
+stacks and the row drops to column layout there, while 700 keeps both inline — a difference no
+geometry table at 390/700/1280 would have shown.
+
 **Methodology note.** Geometry tables were captured at 1280/700/390, not 550. The stylesheets contain
 exactly three rule regimes (>1024, 641–1024, ≤640), so 550 is rule-identical to 390 and yields no new
 computed value. 550 is still covered by screenshots, which is what it was there to catch.
