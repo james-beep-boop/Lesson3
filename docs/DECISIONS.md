@@ -11,6 +11,68 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-31 (visual system, PR 1) — one rem root; "shared tokens" is not "one rendered system"
+
+Operator report: the **Manage** page reads as a different product — nonstandard font, content jammed
+against the top, spacing and type inconsistent with the rest of the app. A GPT design pass measured
+the drift and proposed a foundation-first rollout; the review of it produced one correction worth
+keeping as a general rule, and the implementation produced three more.
+
+- **The architectural claim "there are two visual systems" was wrong; the visual diagnosis was
+  right.** `app-tokens.scss` had existed since 2026-07-18 and already single-sourced content width,
+  padding, accent and the whole button system. The accurate statement — and the one the brief was
+  rewritten to use — is **two rendered visual systems over an incomplete shared token layer**. The
+  practical consequence: the fix was to *extend* the existing token file. Building a second
+  "foundation" beside a real one is how a third system arrives, from the direction nobody is watching.
+- **The 15px admin root was the single largest cause, and reversing it was two characters.** Payload's
+  own default is ~13px; we bumped it to 15 on 2026-07-12 and stopped one step short of the frontend's
+  16. Every `rem` in the admin therefore rendered ~6% small. Setting it to 16 closed **five** drift
+  items at once — page title 28.5→30.4, secondary 13.5→14.4, avatar 28.5→30.4, header inline padding
+  18.75→20 — because the frontend already rendered exactly those values. **This reverses the
+  "admin renders ~6% smaller ON PURPOSE" note in the 2026-07-18 entry.** Tokens stay px regardless:
+  the guarantee has to be "identical on both surfaces", not "identical while two roots agree".
+- **Lesson — measure before designing the remedy.** Two drift items were invisible to both the
+  operator's screenshots and the design pass, and only a computed-style sweep found them: the admin
+  header's `1.25rem` inline padding rendering **18.75px** against the frontend's 20px, and — the
+  bigger one — **line-height 1.55 vs Payload's ~1.25**, which made identical prose visibly denser on
+  every admin page. A visual audit finds what looks wrong; only measurement finds what *is* wrong.
+- **Applying a font means finding who actually sets it.** Setting `font-family` on `body` left every
+  `<h1>` in Payload's stack: Payload applies `var(--font-body)` directly to headings and inputs.
+  Redefining **its** variable reaches everything through Payload's own contract instead of racing its
+  selectors — the same posture as the button system overriding `--color`/`--bg-color` rather than
+  declarations. Verified against a NATIVE collection page, which is what makes the global-font
+  decision safe to keep.
+- **Manage's controls were never in the button system** — a finding neither the design pass nor the
+  review had. The admin's `--app-btn-*` rules are scoped to the editor's `.lesson-controls-wrap`, and
+  the shared `.btn--danger`/`.btn--quiet` rules live in the **frontend** stylesheet, which the admin
+  never loads. So "use the shared danger control" was new work, not a class rename. Fixed by
+  **extending the scoped block's selector list**, not mirroring its rules.
+- **A guard test earned its keep, and revealed its own blind spot.** `buttonSystem.spec.ts` anchored
+  on the scoped block by its exact one-selector text; growing the selector list made `indexOf` miss
+  and assert against an empty string. It failed loudly here only by luck of what it asserted. Rule:
+  **a test that locates code by string must assert it found it** before asserting anything about it.
+- **Scale is shared; colour is not.** The frontend's `--ink`/`--muted` are fixed light-theme hexes;
+  the admin's `--theme-*` follow light/dark. A shared hex would break dark mode, and
+  `--theme-elevation-500` is already banned for text (3.95:1, fails AA — D6). Rejected the design
+  pass's "same accessible muted color" on those grounds.
+- **Wording:** "Signed in as {role}" → "{role}" on Manage — redundant on an authenticated page, and
+  it reads as diagnostic output. Recorded in `DESIGN-user-model-language-2026-07-29.md`; the
+  `resolveAccessSummary` truthfulness contract is unchanged.
+- **Also closed:** the ≤640px content-padding split (frontend 14.4px vs admin 20px) that the
+  2026-07-18 entry left as "still not fixed … separate work". Both now take `--app-content-pad-sm`.
+- **Found here, fixed separately (#176, merged before this PR):** the version editor's **Save returned
+  a generic 500** whenever a bundle had an empty optional array. Pre-existing; found only because this
+  PR's acceptance protocol required creating a candidate through the real edit-and-save workflow —
+  the clearest argument yet for that rule, since 318 unit tests, `tsc` and eslint all passed over it.
+  Kept out of this PR deliberately: a save-path bug with a security-adjacent fix and its own test
+  requirements does not belong in a visual pass. Full account in the entry below.
+- **Deferred deliberately:** `PageHeader` and the other shared primitives. They have several
+  potential consumers, but extracting one here would mean editing frontend pages this PR declared
+  out of scope. **No primitive is extracted until a second page actively needs it** — PR 2.
+
+Full brief, including the acceptance matrix and the experiment's keep/fallback criteria:
+`docs/DESIGN-visual-system-2026-07-31.md`.
+
 ## 2026-07-31 (Editor Save 500) — an empty array field arrives as the NUMBER 0
 
 **Symptom:** an Editor pressing **Save** in the version editor got a bare 500 ("Something went
@@ -90,6 +152,7 @@ fixture the whole time and no test posted the client's actual serialization.
 `set -a && . ./.env && set +a`, then `E2E_BASE_URL=http://localhost:3000 npx vitest run --config
 ./vitest.http.config.mts`. Five cases fail locally for environmental reasons (four need the Gotenberg
 container; the CSP-nonce case expects a production build) — identical on a clean tree.
+
 
 ## 2026-07-31 (local verification) — a green check means it compiles, not that it renders
 

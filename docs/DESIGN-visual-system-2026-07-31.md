@@ -339,6 +339,55 @@ quietly worse.
 
 ---
 
+## 6a. Outcome — the experiments, as run
+
+**16px root: KEPT.** Measured before/after at 390/700/1280 across all five surfaces.
+
+| | 15px (before) | 16px (after) | Frontend |
+|---|---|---|---|
+| Page title | 28.5 | **30.4** | 30.4 |
+| Secondary text | 13.5 | **14.4** | 14.4 |
+| Avatar | 28.5 | **30.4** | 30.4 |
+| Header pad-inline | 18.75 | **20** | 20 |
+| Native list row height | 50.76 | 54.14 | — |
+
+The bump alone closed five drift items, because the frontend already rendered those values. Payload's
+own chrome stayed comfortable: the native collection page showed no new wrapping and no table
+overflow at any width, and the version editor's controls did not move (px button tokens). **No
+fallback to fixed-px product typography was needed.**
+
+One overflow needed attributing rather than fixing: the version editor's document is ~21px wider than
+the viewport at 1280 — but it measures **1301px at 15px and 1303px at 16px**, so it is pre-existing.
+The cause is a hidden `relationship-add-new__tooltip` (`visibility: hidden`, still laid out). Not
+caused by this work; left alone.
+
+⚑ The first editor baseline recorded `overflow: none` because it was captured before the relationship
+field lazy-mounted — the settle trap §3.1 warns about, hit on the first attempt anyway. The
+attribution above comes from re-measuring both roots *after* settling.
+
+**Global admin font: KEPT** — but not by the route the brief assumed. `body { font-family }` left
+every `<h1>` in Payload's stack, because Payload applies `var(--font-body)` directly to headings and
+inputs. Redefining **`--font-body`** was the working change. Verified on a native collection page.
+
+**Found by measurement, not in the original diagnosis:** the admin header's inline padding (18.75px
+vs 20px, a `1.25rem`-across-two-roots drift) and **line-height** (Payload's ~1.25 vs the frontend's
+1.55) — the latter affecting text density on every admin page, and the last thing standing between
+the two headers matching exactly. Both are now tokens; the headers measure **109.8px on both surfaces**
+at 390px.
+
+**Blocked, and deferred by decision:** creating the populated candidate through the UI's own Save
+button. It returns a generic 500 for any bundle with an empty optional array (pre-existing;
+`reduceFieldsToValues` serializes an empty array as `0`, `fieldSplit.ts:35` then calls `.map` on it).
+The candidate used for acceptance was created through the same `save-as-new` endpoint directly, so
+the row under test is identical in kind — but **the UI save path itself remains unverified** until
+that bug is fixed.
+
+**Methodology note.** Geometry tables were captured at 1280/700/390, not 550. The stylesheets contain
+exactly three rule regimes (>1024, 641–1024, ≤640), so 550 is rule-identical to 390 and yields no new
+computed value. 550 is still covered by screenshots, which is what it was there to catch.
+
+---
+
 ## 7. Decisions recorded (operator, 2026-07-31)
 
 The three questions this brief opened are **closed**. Recorded here so the implementer does not

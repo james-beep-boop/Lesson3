@@ -198,6 +198,33 @@ fenced off.
 
 ---
 
+## 6a. Refinement (2026-07-31) — drop "Signed in as" on Manage
+
+Manage's identity line was **"Signed in as {role}"**; it is now just **"{role}"**, with the access
+lines grouped beneath it:
+
+```
+Site administrator
+All subjects and grades
+```
+
+**Why:** "Signed in as" is redundant on a page you can only reach while authenticated, and it reads
+as diagnostic output rather than product language. Identity is already established by the account
+menu in the header, which carries the avatar, the email and the same type label.
+
+**Scope of the change.** Presentation only, and deliberately routed through this document rather than
+made as styling inside a visual pass (the change arrived during
+`docs/DESIGN-visual-system-2026-07-31.md`, PR 1). Specifically unchanged:
+
+- the label *text* — it is still `resolveAccessSummary`'s `typeLabel`, in the same sentence case;
+- the **truthfulness contract** (§3.2 / `AppNav`): the type is always shown because it is pure and
+  cannot be wrong, while the scope *lines* need a read and degrade to absent on failure;
+- the user menu, which keeps its own framing — it is a menu about *your account*, so naming the
+  account there is not redundant. Manage is a page about the *work*, and led with identity for no
+  reason.
+
+---
+
 ## 7. Surface inventory (grounding — every place the current model surfaces to users)
 
 | Concern | File | Note |
