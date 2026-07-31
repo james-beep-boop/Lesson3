@@ -96,7 +96,7 @@ export default function EditActions({
           not: this never claims to enter edit mode.) The editor still self-guards on mount, so a
           hand-typed `?edit=1` lands read-only regardless. Make Official stays at all widths — a
           small confirm-gated action, not content editing. */}
-      <button type="button" className="btn lesson-edit" disabled={busy !== null} onClick={onEdit}>
+      <button type="button" className="btn" disabled={busy !== null} onClick={onEdit}>
         Edit
       </button>
       {tooNarrow && (

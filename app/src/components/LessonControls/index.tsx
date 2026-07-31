@@ -432,7 +432,7 @@ export default function LessonControls() {
               rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
               or an Editor looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
-            <Button className="lesson-controls__edit" buttonStyle="primary" size="small" onClick={onEdit}>
+            <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit
             </Button>
           ) : (
