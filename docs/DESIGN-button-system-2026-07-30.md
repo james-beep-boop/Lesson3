@@ -56,7 +56,7 @@ frontend's is 16px, so a `rem` token would render ~6% smaller in the editor.
 |---|---|---|---|---|---|
 | **Standard** | `--bg-soft` | accent | accent | 400 | Edit, Share, Compare, Back, Favorite, Quick preview, Formatted PDF, Show details, Editing help, Cancel, Request editing |
 | **Primary** | accent | accent | `--accent-ink` | **600** | Save (today the only primary) |
-| **Quiet** (`--quiet`) | `--bg-soft` | `--line` | `--ink` | 400 | Catalogue downloads, versions chip |
+| **Quiet** (`--quiet`) | `--bg-soft` | `--line` | `--ink` | 400 | Catalogue downloads, versions chip, subject/grade filters |
 | **Danger** (`--danger`) | `--bg-soft` | red | red | 400 | Delete (today the only danger) |
 
 **Status is not a variant.** Plain emphasised text — no border, no background, no button shape, and
@@ -76,13 +76,21 @@ dimming accent-on-gray with `opacity` muddies contrast instead of reading as "of
 | **Default** | Per the variant table | |
 | **Hover** | Standard / primary / danger **fill** with their own colour, text → `--accent-ink`. **Quiet does not fill** — it promotes to the accent outline | Filling quiet would put a solid block under each of six download pills per catalogue row, which is exactly the visual competition D4 removed. `--line` as a background with white text would also fail contrast outright |
 | **Focus (keyboard)** | The hover fill **plus** `outline: 2px solid var(--app-accent); outline-offset: 2px` | The codebase currently pairs `:hover, :focus-visible` in every rule, so a keyboard user gets the fill and nothing else — indistinguishable from a moused-over control. The offset ring separates them. `:focus-visible`, not `:focus`, so pointer users never see it |
+| **Selected, in a set** (`.is-active`) | **Fills** with accent, weight stays 400 | A mutually exclusive group where exactly one member is on: the subject/grade filters. A segmented control needs an unmissable current choice, and D4 reserved blue for precisely this meaning. Filled **and** 600 still means primary; filled alone means selected. Keyed to `.is-active`, **not** `[aria-pressed]` — Favorite sets that attribute too (below) |
 | **Toggled** (`aria-pressed`) | Border and geometry unchanged; the **icon** takes the accent fill and the label changes (Favorite → Favorited) | Deliberately *not* a background fill — see the Favorite decision below. `aria-pressed` remains the semantic source of truth; the coloured star is reinforcement only |
 | **Pressed** (`:active`) | **Not styled.** Hover and focus already give feedback with a pointer or a keyboard | Called out because it is a genuine gap, not an oversight: on touch there is no hover, so a tap currently has no press feedback. Worth adding, but it is new behaviour rather than a consistency fix, so it is not in PR A. Do not confuse this transient state with the toggled state above — they were one row in an earlier draft |
 | **Disabled** | `--app-btn-quiet-line` border, `--app-btn-disabled-ink` text, background retained, `cursor: default`, **no hover fill** | Explicit, not `opacity`. `#666` on `#f6f7f8` is ≈5.4:1 — passes AA while reading inert. ⚑ Scoping matters as much as the rule: `.fav-toggle:disabled { opacity: .5 }` had to become `.fav-toggle:not(.btn):disabled`, because `.btn:disabled` declares no `opacity` and so cannot override it — the labelled favorite was getting the explicit palette *and* 50% opacity, stacked. Pinned by a test (§5) |
+| **Unavailable + focused** | The disabled palette holds; only the focus RING is added | ⚑ Suppression must cover `:focus-visible`, not just `:hover`. Each variant's focus rule is 0-3-0 and outranks the base disabled rule at 0-2-0, so a focused unavailable control repainted itself as available. Reached via `[aria-disabled='true']`, which is focusable where a native `disabled` button is not. The ring stays — a focusable control must show where focus is. Found by CodeRabbit on #170; pinned by a test |
 | **Busy** | As disabled, plus `cursor: progress` | Real and currently unstyled: `pdfBusy` → "Preparing document…", `saving` → "Saving…", `FavoriteToggle`'s `busy`, ShareMenu's. The label already carries the explanation, so the visual only needs to say "not right now" |
 
 Disabled and busy are the same visual on purpose — both mean "unavailable", and the distinction that
 matters to the user is already in the label.
+
+**Selected ≠ toggled, and the split is deliberate.** A filter fills its background; Favorite fills
+only its star. Favorite is one optional switch sitting among more consequential actions, so filling
+it would overstate it — whereas for a filter set, the selection *is* the point. Both controls carry
+`aria-pressed`, which is why the selected fill is keyed to a class: an attribute selector would fill
+the one control we deliberately kept unfilled. Pinned by a test.
 
 ### 2b. Two densities
 

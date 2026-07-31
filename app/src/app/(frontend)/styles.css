@@ -736,24 +736,11 @@ a {
   flex-wrap: wrap;
   gap: 0.4rem;
 }
-.filter-chip {
-  padding: 0.18rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink);
-  text-decoration: none;
-  font-size: 0.85rem;
-}
-.filter-chip:hover,
-.filter-chip:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.filter-chip.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
+/* Subject/grade filters have no rule of their own: they are `.btn.btn--quiet` with `.is-active`,
+   from the shared button system (they were 999px pills at 0.85rem — a sixth geometry on a page that
+   now has one). Why selected FILLS, and how that differs from Favorite's toggled star, is explained
+   once on `.btn.is-active` rather than restated here. */
+
 /* The name is the primary navigation to the lesson page. It reads as a link AT REST — accent
    colour, so new users see it's clickable without hovering (2026-07-14) — and underlines the name
    on hover/focus. The leading number stays muted (its own rule below). */
@@ -803,7 +790,15 @@ a {
   line-height: 1.2;
 }
 /* Favorite star (§10): quiet outline until favorited; same glyph everywhere it appears. */
-.fav-toggle {
+/* ICON-ONLY favorites (catalogue rows).
+   `:not(.btn)` is load-bearing, not defensive — it is what ENDED the collision described here.
+   Before it, this selector was a bare `.fav-toggle` (0-1-0) and the labelled lesson-page variant
+   carries BOTH these classes and `.btn` (also 0-1-0), so every declaration tied and file position
+   alone picked the winner. That coin flip was maintained by hand, and the ≤640px copy below lost
+   it: "Favorited" rendered at 1.35rem beside 15px siblings.
+   With `:not(.btn)` the selector is 0-2-0 AND cannot match the labelled control at all, so the tie
+   no longer exists rather than being won. Pinned by a reachability test. */
+.fav-toggle:not(.btn) {
   flex-shrink: 0;
   border: none;
   background: none;
@@ -813,9 +808,14 @@ a {
   line-height: 1;
   cursor: pointer;
 }
-.fav-toggle:hover,
-.fav-toggle:focus-visible,
-.fav-toggle.is-favorite {
+/* Icon-only again. `.fav-toggle.is-favorite` is 0-2-0 and sets `color` — the same weight class as
+   `.btn:hover` and `.btn:disabled`. It only stays harmless on the labelled variant because the
+   values happen to coincide and `.btn` sits later; scoping removes a trap rather than fixing a live
+   bug. The labelled variant takes its text colour from `.btn` and its star colour from the
+   `--labeled` rules below. */
+.fav-toggle:not(.btn):hover,
+.fav-toggle:not(.btn):focus-visible,
+.fav-toggle:not(.btn).is-favorite {
   color: var(--accent);
 }
 /* Icon-only variants ONLY. The labelled lesson-page favorite is a `.btn`, so the button system's
@@ -1293,6 +1293,31 @@ button[type='submit']:disabled {
   border-color: var(--accent);
   color: var(--accent);
 }
+/* Selected, in a set (`.is-active`) — a mutually exclusive group where exactly one member is on:
+   the subject and grade filters. It FILLS, because a segmented control needs an unmissable current
+   choice, and because D4 (critique 2026-07-12) reserved blue for exactly this meaning.
+
+   Not the same as the TOGGLED state on Favorite, which fills its star and not its background. The
+   difference is real, not an inconsistency: Favorite is one optional switch sitting among more
+   consequential actions, so filling it would overstate it; a filter is a set where the selection IS
+   the point. Both are in the design doc §2a.
+
+   ⚑ Keyed to `.is-active`, NOT to `[aria-pressed='true']` — the labelled Favorite also sets
+   `aria-pressed`, so an attribute selector here would fill the one control we deliberately kept
+   unfilled. Both classes are written from the same `active` expression in the same JSX, so the
+   visible and accessible states cannot drift apart. Weight stays 400: filled means selected here,
+   whereas filled AND 600 means primary. */
+.btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn.is-active:hover,
+.btn.is-active:focus-visible {
+  background: var(--app-btn-primary-hover-bg);
+  border-color: var(--app-btn-primary-hover-bg);
+  color: var(--accent-ink);
+}
 /* Compact — SIZE only (see the token block). Radius, colours, focus and disabled are unchanged, so
    a compact control is the same system at a higher density, not a different control. */
 .btn.btn--compact {
@@ -1316,10 +1341,21 @@ button[type='submit']:disabled {
 .btn[aria-busy='true'] {
   cursor: progress;
 }
-/* No hover promotion once unavailable — the control must not look live under the pointer. */
+/* No hover OR focus promotion once unavailable — the control must not look live under the pointer,
+   nor light up when tabbed to.
+   ⚑ `:focus-visible` matters as much as `:hover` here, and covering only hover left a hole: every
+   variant's focus rule (`.btn.btn--primary:focus-visible` and friends) is 0-3-0, which outranks the
+   base disabled rule at 0-2-0 — so a focused unavailable control repainted itself as available.
+   A native `<button disabled>` is not focusable, so this is reached through `[aria-disabled='true']`,
+   which IS focusable; that attribute is in the selector list above precisely so the system handles it.
+   The focus RING is deliberately left alone — a focusable control must still show where focus is;
+   only the fill is suppressed. */
 .btn:disabled:hover,
+.btn:disabled:focus-visible,
 .btn[aria-disabled='true']:hover,
-.btn[aria-busy='true']:hover {
+.btn[aria-disabled='true']:focus-visible,
+.btn[aria-busy='true']:hover,
+.btn[aria-busy='true']:focus-visible {
   border-color: var(--app-btn-quiet-line);
   background: var(--app-btn-bg);
   color: var(--app-btn-disabled-ink);
@@ -1518,8 +1554,11 @@ button[type='submit']:disabled {
     flex-basis: 100%;
   }
 
-  .app-header,
-  .app-nav {
+  /* `.app-header` becomes a COLUMN here, so flex-start means left-aligned — correct.
+     `.app-nav` stays a ROW, where flex-start means TOP-aligned: the nav links are ~22px of text and
+     the avatar is a 44px touch target, so the links sat high against the circle and the avatar read
+     as dropped. A row of mixed-height controls wants centring. */
+  .app-header {
     align-items: flex-start;
   }
   .app-header {
@@ -1588,13 +1627,7 @@ button[type='submit']:disabled {
   .substrand-versions {
     min-width: 0;
   }
-  /* Filter chips get the 44px hit area like every other touch control. */
-  .filter-chip {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    padding: 0.3rem 0.9rem;
-  }
+  /* (Filter chips reach the 44px hit area through the shared `.btn` rule below.) */
   /* (The versions chip reaches the 44px touch bar through the shared `.btn` rule below.) */
   .vp-line-open {
     min-height: 2.75rem;
@@ -1699,7 +1732,9 @@ button[type='submit']:disabled {
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
-  .fav-toggle {
+  /* Icon-only again (see the base rule). This sits AFTER `.btn` in this block, so unscoped it beat
+     the system on equal specificity and blew the labelled favorite up to 1.35rem. */
+  .fav-toggle:not(.btn) {
     display: inline-flex;
     align-items: center;
     justify-content: center;

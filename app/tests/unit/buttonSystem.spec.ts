@@ -14,19 +14,30 @@
  *     deliberately flattens `.btn` via `.share-menu button` (0-1-1); the download pills keep their
  *     look only by outranking it — exactly the contest the former `.btn.btn-doc` won. Demoting a
  *     modifier to a single class (0-1-0) loses it silently.
- *  3. Source ORDER decides two equal-specificity contests: `.btn` over the `.fav-toggle` glyph
- *     base (both 0-1-0), and `.btn:disabled` over `.btn.btn--primary` (both 0-2-0) so a disabled
- *     Save is not still filled.
+ *  3. Source ORDER decides several equal-specificity contests, all inside the system:
+ *     `.btn:disabled` over `.btn.btn--primary` (0-2-0), so a disabled Save is not still filled;
+ *     `.btn.is-active` over `.btn.btn--quiet` (0-2-0), so a selected filter actually looks selected;
+ *     and the same pair again at `:hover` (0-3-0), so a hovered selected chip keeps white text
+ *     instead of `--quiet`'s blue-on-blue.
+ *
+ *     ⚑ `.btn` vs the `.fav-toggle` glyph base USED to be on this list and is deliberately not any
+ *     more. Order was the wrong instrument: it pinned only the copies the assertion could see, and
+ *     a second glyph rule inside `@media (max-width: 640px)` won unseen, shipping "Favorited" at
+ *     1.35rem. The glyph rules are now SCOPED (`:not(.btn)`) so they cannot match the labelled
+ *     control at all, and the test asserts reachability instead. Where scoping is possible, prefer
+ *     it — an order assertion is only as good as its view of the file.
  *
  * Mostly asserted against the stylesheet SOURCE rather than a DOM: jsdom's CSS engine cannot expand
  * shorthands whose value is a `var()`, so a computed-style probe would be measuring jsdom's limits
  * instead of ours. Specificity and order are exactly what is fragile here, and they are decidable
  * from the source. Geometry and colour remain a post-deploy Rock check (§5) — no local server.
  *
- * The one exception is the opacity check, which uses jsdom purely for `Element.matches()` — no
- * computed styles, so none of the above limitation applies. Selector MATCHING is exactly the
- * question there ("can any dimming rule reach this control?"), and getting it from the real engine
- * beats re-implementing specificity by hand.
+ * The exceptions are the REACHABILITY tests (`expectUnreachable`), which use jsdom purely for
+ * `Element.matches()` — no computed styles, so the limitation above does not apply. They answer a
+ * question source order cannot: "can any rule, at any nesting depth, reach this control?" Getting
+ * that from the real selector engine beats re-implementing specificity by hand. Order tests and
+ * reachability tests are not redundant — order says who WINS when two rules both match, matching
+ * says whether the contest exists at all.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -49,9 +60,10 @@ const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss
  * and every lookup would depend on an unwritten "the real one happens to come first" invariant.
  * Excluding at-rule children makes that explicit instead of accidental.
  */
-const rules = postcss
-  .parse(css)
-  .nodes.filter((n): n is import('postcss').Rule => n.type === 'rule')
+const root = postcss.parse(css)
+
+const rules = root.nodes
+  .filter((n): n is import('postcss').Rule => n.type === 'rule')
   .map((r, i) => ({
     selectors: r.selectors.map((s) => s.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
@@ -65,7 +77,7 @@ const rules = postcss
  * `@media` block counts just as much.
  */
 const allRules: { selectors: string[]; body: string }[] = []
-postcss.parse(css).walkRules((r) => {
+root.walkRules((r) => {
   allRules.push({
     selectors: r.selectors.map((x) => x.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
@@ -85,6 +97,32 @@ const ruleFor = (sel: string) => {
 const posOf = (sel: string): number => ruleFor(sel).at
 const bodyOf = (sel: string): string => ruleFor(sel).body
 
+/** Build a detached element from markup, so a rule's selector can be tested against a real shape. */
+const shape = (html: string): Element => {
+  const host = document.createElement('div')
+  host.innerHTML = html
+  return host.firstElementChild as Element
+}
+
+/** The lesson-page favorite: carries BOTH the glyph classes and `.btn`, which is what makes it the
+ *  control every collision in this system lands on. One definition, so a markup change moves once. */
+const labelledFavorite = (attrs = ''): Element =>
+  shape(`<button class="fav-toggle is-favorite btn fav-toggle--labeled"${attrs}></button>`)
+
+/** Assert that nothing in `candidates` can style `el` — the reachability question, not the order one. */
+const expectUnreachable = (
+  el: Element,
+  candidates: { selectors: string[] }[],
+  why: (sel: string) => string,
+  strip = /$^/,
+) => {
+  for (const rule of candidates) {
+    for (const sel of rule.selectors) {
+      expect(el.matches(sel.replace(strip, '')), why(sel)).toBe(false)
+    }
+  }
+}
+
 describe('button system', () => {
   it('declares a background on .btn, so <a> and <button> cannot diverge', () => {
     // The defect this system exists to fix. Without an explicit background the UA supplies one for
@@ -103,10 +141,27 @@ describe('button system', () => {
     }
   })
 
-  it('orders .btn after the .fav-toggle glyph base', () => {
-    // Both 0-1-0 and both match the lesson page's labelled favorite. If `.fav-toggle` moved below
-    // the button block, that control would revert to a borderless muted glyph.
-    expect(posOf('.btn')).toBeGreaterThan(posOf('.fav-toggle'))
+  it('lets no glyph rule reach the labelled favorite, at any width', () => {
+    // This replaced a source-ORDER assertion, which was too weak and shipped a real defect. The
+    // glyph rules and the button system collide at the SAME specificity (0-1-0), so order decided
+    // the winner — and inside `@media (max-width: 640px)` the glyph rule sits AFTER `.btn` and won,
+    // rendering "Favorited" at 1.35rem beside 15px siblings. The order test could not see it: it
+    // read top-level rules only, and the losing copy was inside the at-rule.
+    //
+    // Scoping with `:not(.btn)` is the fix, and this is the assertion that matches it — the glyph
+    // rules must be UNABLE to match the labelled control, whatever their position or nesting.
+    // Only the glyph rules are in question; `.btn*` and the `--labeled` star rules SHOULD match.
+    const glyphRules = allRules.filter((r) =>
+      r.selectors.some((s) => s.includes('.fav-toggle') && !s.includes('--labeled')),
+    )
+    expectUnreachable(
+      labelledFavorite(),
+      glyphRules.map((r) => ({
+        selectors: r.selectors.filter((s) => s.includes('.fav-toggle') && !s.includes('--labeled')),
+      })),
+      (sel) => `"${sel}" reaches the labelled favorite — scope it with :not(.btn)`,
+      /:(hover|focus-visible|disabled)\b/g,
+    )
   })
 
   it('orders disabled/busy after primary, so a disabled Save is not still filled', () => {
@@ -140,17 +195,11 @@ describe('button system', () => {
     const dimmers = allRules.filter((r) => /(^|[\s;])opacity:/.test(r.body))
 
     for (const [name, html] of Object.entries(shapes)) {
-      const el = document.createElement('div')
-      el.innerHTML = html
-      const node = el.firstElementChild as Element
-      for (const rule of dimmers) {
-        for (const selector of rule.selectors) {
-          expect(
-            node.matches(selector),
-            `${name} is dimmed by "${selector}" — scope it away from .btn`,
-          ).toBe(false)
-        }
-      }
+      expectUnreachable(
+        shape(html),
+        dimmers,
+        (sel) => `${name} is dimmed by "${sel}" — scope it away from .btn`,
+      )
     }
   })
 
@@ -194,6 +243,72 @@ describe('button system', () => {
     )
     expect(primary, 'the scoped primary must set its own --bg-color').toContain('--bg-color:')
     expect(primary, 'the scoped primary must set its own --color').toContain('--color:')
+  })
+
+  it('orders the selected fill after --quiet, and keeps it off Favorite', () => {
+    // A selected filter chip is `.btn.btn--quiet.is-active`; both modifiers are 0-2-0, so ONLY
+    // source order makes the fill win over quiet's neutral border. Reversed, the active subject
+    // filter would render identically to the inactive ones — D4's "blue means selected" lost.
+    expect(posOf('.btn.is-active')).toBeGreaterThan(posOf('.btn.btn--quiet'))
+    // ...and disabled still outranks it, so a disabled selected control is not left filled.
+    expect(posOf('.btn:disabled')).toBeGreaterThan(posOf('.btn.is-active'))
+
+    // The selected fill must NOT key off `[aria-pressed]`: the labelled Favorite sets that too, and
+    // filling it is exactly the decision §2a rejected. Assert no rule reaches it that way.
+    const fillers = allRules.filter(
+      (r) => /background:\s*var\(--accent\)/.test(r.body) && !r.selectors.some((x) => x.includes(':hover')),
+    )
+    expectUnreachable(
+      labelledFavorite(' aria-pressed="true"'),
+      fillers,
+      (sel) => `Favorite must not be filled by "${sel}"`,
+    )
+  })
+
+  it('centres the mobile nav row rather than top-aligning it', () => {
+    // `.app-header` becomes a column at <=640px, so flex-start means left — correct. `.app-nav` stays
+    // a ROW containing ~22px text links and a 44px avatar; flex-start top-aligns them and the avatar
+    // reads as dropped. Regression guard: the two must not share the flex-start rule again.
+    const flexStart = allRules.filter((r) => /align-items:\s*flex-start/.test(r.body))
+    for (const rule of flexStart) {
+      expect(rule.selectors, 'the mobile nav row must not be top-aligned').not.toContain('.app-nav')
+    }
+  })
+
+  it('keeps an unavailable control unavailable-looking while focused, in every variant', () => {
+    // The hole CodeRabbit found on #170, which actually arrived with the button system itself: each
+    // variant's focus rule (`.btn.btn--primary:focus-visible` and friends) is 0-3-0 and outranks the
+    // base disabled rule at 0-2-0, so a FOCUSED unavailable control repainted itself as available.
+    // Reached via `[aria-disabled='true']` — a native `<button disabled>` is not focusable, but an
+    // aria-disabled one is, which is why that attribute is in the system's selector list at all.
+    const suppressors = allRules.filter(
+      (r) =>
+        /background:\s*var\(--app-btn-bg\)/.test(r.body) &&
+        r.selectors.some((x) => /:disabled|aria-disabled|aria-busy/.test(x)),
+    )
+    for (const state of [':hover', ':focus-visible']) {
+      for (const flag of [':disabled', "[aria-disabled='true']", "[aria-busy='true']"]) {
+        const needed = `.btn${flag}${state}`
+        expect(
+          suppressors.some((r) => r.selectors.includes(needed)),
+          `${needed} must be suppressed, or a variant's ${state} rule (0-3-0) will repaint it`,
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('keeps white text on a HOVERED selected chip', () => {
+    // Two independent reviewers called `color` on `.btn.is-active:hover` a redundant leftover. It is
+    // load-bearing. A selected filter is `.btn.btn--quiet.is-active`, and on hover TWO rules tie at
+    // 0-3-0: `.btn.btn--quiet:hover` (blue text, D4's quiet promotion) and `.btn.is-active:hover`.
+    // Source order gives it to `is-active` — remove that one declaration and the selected chip
+    // renders blue text on its blue fill, i.e. invisible. Pinned because "clean this up" will
+    // otherwise be suggested again.
+    const activeHover = bodyOf('.btn.is-active:hover')
+    expect(activeHover, 'is-active:hover must restate color to beat --quiet:hover').toMatch(
+      /color:\s*var\(--accent-ink\)/,
+    )
+    expect(posOf('.btn.is-active:hover')).toBeGreaterThan(posOf('.btn.btn--quiet:hover'))
   })
 
   it('resolves every --app-btn-* reference against a real token', () => {

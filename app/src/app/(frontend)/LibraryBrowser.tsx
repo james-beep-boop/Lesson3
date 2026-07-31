@@ -189,7 +189,7 @@ function FilterBar({
     <button
       key={key}
       type="button"
-      className={`filter-chip${active ? ' is-active' : ''}`}
+      className={`btn btn--quiet${active ? ' is-active' : ''}`}
       aria-pressed={active}
       onClick={onClick}
     >
