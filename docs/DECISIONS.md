@@ -11,6 +11,86 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-31 (Editor Save 500) — an empty array field arrives as the NUMBER 0
+
+**Symptom:** an Editor pressing **Save** in the version editor got a bare 500 ("Something went
+wrong.") for any bundle with an empty optional array. Found on the local stack during unrelated
+baseline verification, before any code change — i.e. by *using* the app, which no automated check was
+doing.
+
+**Cause, confirmed in installed source** (not inferred from the symptom —
+`@payloadcms/ui/dist/forms/fieldSchemasToFormState/addFieldStatePromise.js`):
+
+```js
+fieldState.value = forceFullValue ? arrayValue : arrayValue.length
+if (arrayValue.length > 0) fieldState.disableFormData = true
+```
+
+An array field's form-state container holds its **row count**, and `disableFormData` — the flag that
+makes `reduceFieldsToValues` drop the container in favour of the unflattened rows — is set **only when
+the array is non-empty**. So an empty array posts as the number `0`. `idSequence` in
+`hooks/fieldSplit.ts` then called `.map` on it. A second instance sat one line later:
+`for (const lesson of data.lessons ?? [])` — `0` is not nullish, so it survived the `??` and threw
+"0 is not iterable".
+
+**The decision that mattered — what a non-array should MEAN.** The comparison it feeds is a security
+control (Editors may not change structure), so this is not merely a crash fix. The rule is as narrow
+as the serializer that produces the value:
+
+- an **array** is used as-is;
+- **`0`** means an empty array — and only `0`, because every non-empty count takes the
+  `disableFormData` branch and never reaches the wire as a number;
+- **any other non-array** (`2`, `'bad'`, `{}`) is **rejected**, not read as "no rows";
+- **nullish** still reads as no rows, preserving the pre-existing `?? []` contract — narrowing that
+  is a separate behavioural change.
+
+⚑ **The first version of this fix got that wrong**, and the operator caught it. It coerced *every*
+non-array to `[]`, which reads as fail-closed but is not: whenever the stored field was empty, `2`,
+`'bad'` and `{}` all compared equal to the stored `[]` and passed. They could not alter stored
+structure (the merge is `Array.isArray`-guarded and rebuilds from the original), so nothing was
+exploitable — but silently accepting junk contradicts the contract the comment claimed, and would
+hide a future client-side serialization change instead of failing loudly. **A coercion that cannot
+distinguish "the one legal sentinel" from "anything at all" is not a fail-closed guard**, however it
+is documented. The tests missed it too: the non-zero case was only ever asserted against a
+*populated* original, where the length check rejects for an unrelated reason.
+
+**Both roles needed fixing, for different reasons.** Admins return before the Editor guard, so the
+coercion there cannot help them — and the first fix stopped at "admins store proper empty arrays
+anyway, so there is nothing to repair". That checked the wrong consequence. The stray `0` does not
+corrupt storage (Payload drops a non-array for an array column), but it **defeats the no-op guard**
+in `endpoints/versionEdit.ts`: that compares `canonicalJson` of the merge against the source, `0` is
+never `[]`, so an admin save that changed nothing minted a byte-identical duplicate version instead
+of returning 400 — for *every* bundle with an empty optional array, which is the default fixture
+shape. Fixed by normalizing the `0` sentinel **above the role fork**, beside
+`preserveLessonResourceLinks`, because it is a shape concern rather than a role one. The Editor guard
+keeps its own validation regardless: it is exported, reachable from a `beforeChange` hook, and must
+be total over its input domain independent of call order.
+
+**Lesson — verify the consequence, not the symptom you happened to think of.** "Does the bad value
+corrupt storage?" was answered (no) and treated as "is there any other consequence?" (unasked). The
+value flowed into a *comparison* three files away, and that is where it did its damage.
+
+**Lesson — a `.toThrow()` that passes against the bug proves nothing.** The first draft of the
+fail-closed tests asserted only "throws". The pre-fix code *did* throw on exactly those inputs (a
+TypeError), so those assertions passed against the broken build and could not distinguish "properly
+rejected" from "crashed before deciding". They now assert `Forbidden` specifically. General rule:
+when the bug being fixed is itself an exception, a bare throw-assertion is not a test — name the
+exception. Both suites were run against the reverted fix to confirm they fail.
+
+**Coverage** (per CLAUDE.md — security-critical invariant pinned by test, endpoint behaviour covered
+at the wire in the same change): `tests/unit/emptyArraySerialization.spec.ts` (crash + malformed
+containers rejected **against an empty original**, which is the case the first draft missed + the
+admin no-op normalization + a regression fence on genuine cardinality/order changes) and an Editor
+happy-path case in
+`tests/http/endpoints.http.spec.ts`. The fixture's `finalExplanation: {}` / `summaryTable: {}` store
+as empty arrays, so it already *was* the affected shape — the bug was reachable by the existing
+fixture the whole time and no test posted the client's actual serialization.
+
+**Note for the local stack:** `tests/http` runs locally against the dev server —
+`set -a && . ./.env && set +a`, then `E2E_BASE_URL=http://localhost:3000 npx vitest run --config
+./vitest.http.config.mts`. Five cases fail locally for environmental reasons (four need the Gotenberg
+container; the CSP-nonce case expects a production build) — identical on a clean tree.
+
 ## 2026-07-31 (local verification) — a green check means it compiles, not that it renders
 
 The button-system batch (#169–#173) shipped five visual defects past `tsc`, eslint and 318 unit

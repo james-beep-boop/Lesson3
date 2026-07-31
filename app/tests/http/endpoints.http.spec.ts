@@ -668,6 +668,48 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 
+  it('Editor saves when optional arrays are EMPTY (client posts the row COUNT, not [])', async () => {
+    // Regression: this was a bare 500 for every Editor whose bundle had an empty optional array
+    // (fixed 2026-07-31). Payload's `reduceFieldsToValues` — what the editor's Save posts — reduces
+    // an array container to its row COUNT and only sets `disableFormData` when the array is
+    // non-empty, so an EMPTY array arrives as the number `0`. The cardinality guard then called
+    // `.map` on it. This test posts the exact shape the real client sends; the unit suite
+    // (tests/unit/emptyArraySerialization.spec.ts) pins the fail-closed half of the same guard.
+    //
+    // The fixture's `finalExplanation` / `summaryTable` are `{}`, which store as empty arrays — so
+    // `fx.version` IS the affected shape and needs no special setup.
+    const stored = fx.version as any
+    expect(stored.finalExplanation?.sections, 'fixture must have an empty array to be meaningful')
+      .toEqual([])
+
+    const res = await fetch(url(saveUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: dataForm({
+        ...withProseEdit(stored),
+        // …exactly what the browser sends for an empty array field.
+        finalExplanation: { ...(stored.finalExplanation ?? {}), sections: 0, rubric: 0 },
+        summaryTable: { ...(stored.summaryTable ?? {}), lessons: 0 },
+      }),
+    })
+    expect(res.status).toBe(200)
+    const out = (await res.json()) as { id: number }
+
+    const created = (await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      depth: 0,
+    })) as any
+    // The number must not have been persisted where an array belongs…
+    expect(Array.isArray(created.finalExplanation?.sections)).toBe(true)
+    expect(created.finalExplanation.sections).toEqual([])
+    expect(created.summaryTable.lessons).toEqual([])
+    // …and the prose edit that motivated the save still landed.
+    expect(created.lessons[0].overview).toContain(`${MARK}prose-edit`)
+
+    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+  })
+
   it('Teacher cannot save-as-new → 4xx', async () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
