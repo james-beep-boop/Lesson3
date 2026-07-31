@@ -27,6 +27,7 @@ import { getPayload } from 'payload'
 import type { Where } from 'payload'
 
 import { createUserVerified, minimalBundleContent } from '../tests/helpers/fixtures'
+import { isLocalDatabaseUri } from './lib/localDbGuard'
 
 const PASSWORD = 'local1234'
 const EMAIL_DOMAIN = 'local.test'
@@ -36,18 +37,9 @@ const GRADE = 10
 
 function assertLocalDatabase(): void {
   const uri = process.env.DATABASE_URI ?? ''
-  // `new URL` rather than a hand-rolled split: it handles credentials correctly, where a password
-  // containing '@' would fool a regex into reading the wrong segment as the host.
-  let host: string
-  try {
-    host = new URL(uri).hostname
-  } catch {
-    host = '' // unparseable → not local → refuse, which is the safe direction
-  }
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1'
-  if (!isLocal) {
+  if (!isLocalDatabaseUri(uri)) {
     throw new Error(
-      `seed-local-dev: refusing to run — DATABASE_URI host is "${host}", not localhost.\n` +
+      'seed-local-dev: refusing to run — DATABASE_URI does not point at localhost.\n' +
         'This script creates accounts with a known password and must never touch a shared or ' +
         'production database.',
     )
