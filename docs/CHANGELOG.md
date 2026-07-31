@@ -8,6 +8,33 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-07-31 — narrow-screen editing explains itself; a local stack to verify UI before shipping
+
+- **#172 (deployed)** — **PR B**, completing the wider-screen-affordance arc from #163 and finishing
+  [`docs/DESIGN-button-system-2026-07-30.md`](DESIGN-button-system-2026-07-30.md) §4. Edit renders at
+  every width; below 640px pressing it opens a dialog — *"Editing needs a wider screen. You can still
+  view this lesson here. To edit, rotate your device, widen the window, or open the lesson on a larger
+  screen."* — instead of unlocking the form (version editor) or navigating to it (lesson page). The
+  copy leads with what still WORKS; the previous wording named only the remedy. The standing notice is
+  removed from both surfaces along with the ≤640px rules that hid Edit, which retires the overlap class
+  #165/#166/#167 each patched — that text was what competed for space in the narrow bar. The check runs
+  at PRESS time (reading `window` during render breaks SSR); the once-on-mount guard is unchanged, so
+  the guard decides the mode and the dialog explains it.
+- **#173** — a local stack, so UI can be browser-verified BEFORE it ships. `docker-compose.local.yml`
+  publishes Postgres on `127.0.0.1:55432`, opt-in via `-f` and deliberately not named
+  `docker-compose.override.yml` (Compose auto-loads that on every invocation, including
+  `scripts/deploy.sh`, which would publish the database on the Rock). `scripts/seed-local-dev.ts`
+  seeds four role logins and one browsable lesson plan, and refuses any non-localhost `DATABASE_URI` —
+  a guard now unit-tested, since it is what stops known-password accounts reaching a shared database.
+  Commands and traps: `AGENTS.md` → Local stack. No app code; runs nowhere but a developer's machine.
+- **#174** — `app/.dockerignore`. The builder stage's `COPY . .` had no exclusions, so any `app/.env`
+  (which holds `PAYLOAD_SECRET` and the DB password) was baked into an image layer. Nothing leaked —
+  the Rock has no `app/.env` — but that was luck, and #173 made a local one likely.
+
+**#172 is the first UI change on this project verified in a browser before merge** rather than after
+deploy. Across #169–#173, five defects were caught by a reviewer or by looking at a phone, and none by
+the unit suite, `tsc` or eslint.
+
 ## 2026-07-30 — one button system across the app and the version editor (deployed)
 
 The lesson page and the version editor rendered **nine** independently-authored button treatments.
