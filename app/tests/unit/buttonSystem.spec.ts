@@ -230,6 +230,28 @@ describe('button system', () => {
     }
   })
 
+  it('keeps an unavailable control unavailable-looking while focused, in every variant', () => {
+    // The hole CodeRabbit found on #170, which actually arrived with the button system itself: each
+    // variant's focus rule (`.btn.btn--primary:focus-visible` and friends) is 0-3-0 and outranks the
+    // base disabled rule at 0-2-0, so a FOCUSED unavailable control repainted itself as available.
+    // Reached via `[aria-disabled='true']` — a native `<button disabled>` is not focusable, but an
+    // aria-disabled one is, which is why that attribute is in the system's selector list at all.
+    const suppressors = allRules.filter(
+      (r) =>
+        /background:\s*var\(--app-btn-bg\)/.test(r.body) &&
+        r.selectors.some((x) => /:disabled|aria-disabled|aria-busy/.test(x)),
+    )
+    for (const state of [':hover', ':focus-visible']) {
+      for (const flag of [':disabled', "[aria-disabled='true']", "[aria-busy='true']"]) {
+        const needed = `.btn${flag}${state}`
+        expect(
+          suppressors.some((r) => r.selectors.includes(needed)),
+          `${needed} must be suppressed, or a variant's ${state} rule (0-3-0) will repaint it`,
+        ).toBe(true)
+      }
+    }
+  })
+
   it('resolves every --app-btn-* reference against a real token', () => {
     // A renamed or deleted token leaves a dangling `var()` that renders as nothing — invisible
     // locally, obvious in production.

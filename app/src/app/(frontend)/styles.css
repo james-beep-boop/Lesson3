@@ -1326,10 +1326,21 @@ button[type='submit']:disabled {
 .btn[aria-busy='true'] {
   cursor: progress;
 }
-/* No hover promotion once unavailable — the control must not look live under the pointer. */
+/* No hover OR focus promotion once unavailable — the control must not look live under the pointer,
+   nor light up when tabbed to.
+   ⚑ `:focus-visible` matters as much as `:hover` here, and covering only hover left a hole: every
+   variant's focus rule (`.btn.btn--primary:focus-visible` and friends) is 0-3-0, which outranks the
+   base disabled rule at 0-2-0 — so a focused unavailable control repainted itself as available.
+   A native `<button disabled>` is not focusable, so this is reached through `[aria-disabled='true']`,
+   which IS focusable; that attribute is in the selector list above precisely so the system handles it.
+   The focus RING is deliberately left alone — a focusable control must still show where focus is;
+   only the fill is suppressed. */
 .btn:disabled:hover,
+.btn:disabled:focus-visible,
 .btn[aria-disabled='true']:hover,
-.btn[aria-busy='true']:hover {
+.btn[aria-disabled='true']:focus-visible,
+.btn[aria-busy='true']:hover,
+.btn[aria-busy='true']:focus-visible {
   border-color: var(--app-btn-quiet-line);
   background: var(--app-btn-bg);
   color: var(--app-btn-disabled-ink);
