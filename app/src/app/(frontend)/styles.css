@@ -1535,24 +1535,12 @@ button[type='submit']:disabled {
    comfortable on a phone. The heavy editing form stays desktop-oriented by decision. ---- */
 /* "Editing needs a wider screen" notice (rationale: SPEC §5 / DECISIONS 2026-07-28). Hidden at all
    widths by default; the 640px block below reveals it and hides the Edit button. */
-.lesson-edit-unavailable {
-  display: none;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
+/* The standing "editing needs a wider screen" notice is GONE (PR B). Edit now renders at every
+   width and explains itself in a dialog when pressed — prominent when it matters, occupying nothing
+   when it isn't. Its text was also what competed for space in the narrow bar; #165/#166/#167 were
+   each a fix for an overlap it caused. */
 
 @media (max-width: 640px) {
-  /* Below 640px, swap the lesson page's Edit button for the notice. Cosmetic — this surface only
-     navigates to the editor, which self-guards on mount against a stray ?edit=1 deep link. */
-  .lesson-edit {
-    display: none;
-  }
-  /* Own full-width row in the (already wrapping) .export-bar so the notice text flows rather than
-     being squeezed into a narrow column beside Share / previews. */
-  .lesson-edit-unavailable {
-    display: block;
-    flex-basis: 100%;
-  }
 
   /* `.app-header` becomes a COLUMN here, so flex-start means left-aligned — correct.
      `.app-nav` stays a ROW, where flex-start means TOP-aligned: the nav links are ~22px of text and

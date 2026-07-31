@@ -751,14 +751,11 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
-// "Editing needs a wider screen" notice (rationale: SPEC §5 / DECISIONS 2026-07-28). Hidden at all
-// widths by default; the 640px block below reveals it and hides Edit when not already editing.
-.lesson-controls__edit-unavailable {
-  display: none;
-  font-size: 0.85rem;
-  color: var(--theme-elevation-600);
-  max-width: 22rem;
-}
+// The standing "editing needs a wider screen" notice is GONE (PR B) — Edit renders at every width
+// and opens an explanatory dialog when pressed below the threshold. Removing it also removes the
+// element that made this bar overflow at narrow widths (#165/#166/#167 each fixed an overlap it
+// caused). The mount guard in LessonControls still decides the mode; nothing about the ≤640px
+// view-only rule changed.
 
 // Official / Not-Official STATUS (Codex #4): a working copy in the editor should never read as
 // authoritative — the pointer, not the open version, decides.
@@ -1120,21 +1117,6 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   // into a one-word-per-line column that collides with the form beneath it.
   .lesson-controls__group--output {
     flex-wrap: wrap;
-  }
-
-  // Below 640px, swap the Edit button for the notice (the LessonControls mount guard is what
-  // actually blocks editing; this is cosmetic). Gated on :not(--editing) so someone who resizes
-  // below 640px WHILE already editing keeps Save/Cancel and isn't stranded with unsaved work.
-  .lesson-controls-wrap:not(.lesson-controls-wrap--editing) {
-    .lesson-controls__edit {
-      display: none;
-    }
-    // Own full-width row (flex-basis:100% + the group's flex-wrap above) so the text flows across
-    // the bar rather than collapsing to a narrow column beside the viewing buttons.
-    .lesson-controls__edit-unavailable {
-      display: block;
-      flex-basis: 100%;
-    }
   }
 
   // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
