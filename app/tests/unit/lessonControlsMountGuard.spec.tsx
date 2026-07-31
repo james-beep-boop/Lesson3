@@ -11,7 +11,7 @@
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   search: 'edit=1',
@@ -91,7 +91,46 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     // The read-only affordances the caller can still use are untouched.
     expect(screen.getByRole('button', { name: 'Quick preview ↗' })).toBeTruthy()
     expect(screen.getByText('Editing help')).toBeTruthy()
-    expect(screen.getByRole('note')).toBeTruthy() // the "needs a wider screen" notice
+    // No standing notice any more (PR B): the bar carries no permanent explanation, because the
+    // explanation now arrives on demand — see the press-time test below.
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('at 390px, pressing Edit explains instead of unlocking — and nothing is shown until it is pressed', () => {
+    mocks.search = ''
+    setViewportWidth(390)
+
+    render(<LessonControls />)
+
+    // Nothing occupies the bar before the press. This is the point of the change: the old notice
+    // stood permanently and was what competed for space at narrow widths (#165/#166/#167 each fixed
+    // an overlap it caused).
+    expect(screen.queryByText(/wider screen/i)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    // The dialog appears, leading with what still works...
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByText(/You can still view this lesson here/i)).toBeTruthy()
+    // ...and the form did NOT unlock: Edit is still the lifecycle button, Save never appeared.
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(true)
+
+    // Dismissing returns the bar to exactly where it was.
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('at 1280px, pressing Edit unlocks the form and opens no dialog', () => {
+    mocks.search = ''
+    setViewportWidth(1280)
+
+    render(<LessonControls />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
   })
 
   it('at 1280px, the SAME ?edit=1 load stays in EDIT mode (Save shown, no Edit; form enabled)', () => {

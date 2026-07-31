@@ -13,7 +13,12 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { EDITING_NEEDS_WIDER_SCREEN } from '@/lib/editingViewport'
+import Modal from '@/components/Modal'
+import {
+  editingAvailableAtWidth,
+  EDITING_WIDER_SCREEN_BODY,
+  EDITING_WIDER_SCREEN_TITLE,
+} from '@/lib/editingViewport'
 
 export default function EditActions({
   versionId,
@@ -30,13 +35,22 @@ export default function EditActions({
   const router = useRouter()
   const [busy, setBusy] = useState<null | 'official'>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tooNarrow, setTooNarrow] = useState(false)
 
   // Edit opens the admin editor for THIS version with edit intent (`?edit=1`), so the form lands
   // unlocked — LessonControls honours the param instead of the read-only default. No fork-on-open —
   // Save creates the candidate. (Server access still gates the actual write via save-as-new.)
   // Carry the lesson the reader was on (the jump nav sets `#lesson-<n>`) as `?lesson=<n>` so the
   // editor's in-form jump nav opens at that same lesson.
+  //
+  // Below the width threshold Edit stays VISIBLE and explains itself instead of navigating. The
+  // check runs at PRESS time, not render time: reading `window` during render would break SSR and
+  // desync on hydration, and a resize between paint and click would make a render-time answer stale.
   const onEdit = () => {
+    if (!editingAvailableAtWidth(window.innerWidth)) {
+      setTooNarrow(true)
+      return
+    }
     const m = /^#lesson-(\d+)$/.exec(window.location.hash)
     const lessonParam = m ? `&lesson=${m[1]}` : ''
     window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}?edit=1${lessonParam}`
@@ -76,15 +90,25 @@ export default function EditActions({
   // of the .export-bar flex row to pick up its gap — a wrapping span left them flush together.
   return (
     <>
-      {/* Below 640px the CSS hides this Edit button and shows the notice instead. No JS guard needed:
-          this surface only navigates to the editor (?edit=1), and the editor self-guards on mount.
-          Make Official stays — a small confirm-gated action, not content editing. */}
+      {/* Edit renders at EVERY width. Below the threshold it opens the dialog below rather than
+          navigating — honest about why, and discoverable for someone who knows the button from a
+          desktop. (Not a repeat of the pre-#155 bug, where Edit appeared to work and silently did
+          not: this never claims to enter edit mode.) The editor still self-guards on mount, so a
+          hand-typed `?edit=1` lands read-only regardless. Make Official stays at all widths — a
+          small confirm-gated action, not content editing. */}
       <button type="button" className="btn lesson-edit" disabled={busy !== null} onClick={onEdit}>
         Edit
       </button>
-      <span className="lesson-edit-unavailable" role="note">
-        {EDITING_NEEDS_WIDER_SCREEN}
-      </span>
+      {tooNarrow && (
+        <Modal title={EDITING_WIDER_SCREEN_TITLE} onClose={() => setTooNarrow(false)}>
+          <p className="modal__body">{EDITING_WIDER_SCREEN_BODY}</p>
+          <div className="modal__actions">
+            <button type="button" className="btn btn--primary" onClick={() => setTooNarrow(false)}>
+              Got it
+            </button>
+          </div>
+        </Modal>
+      )}
       {canMakeOfficial && !isOfficial && (
         <button type="button" className="btn" disabled={busy !== null} onClick={onMakeOfficial}>
           {busy === 'official' ? 'Updating…' : 'Make Official'}
