@@ -8,6 +8,38 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-07-30 — one button system across the app and the version editor (deployed)
+
+The lesson page and the version editor rendered **nine** independently-authored button treatments.
+`.page-back` was the only control with shared tokens; everything else was styled where it was
+invented. Plan and reasoning: [`docs/DESIGN-button-system-2026-07-30.md`](DESIGN-button-system-2026-07-30.md).
+
+The root defect: **`.btn` never declared `background`**, so `<button class="btn">` inherited the UA
+`buttonface` gray while `<a class="btn">` stayed transparent — one class, two renderings.
+
+- **#169** — `--app-back-*` generalised into `--app-btn-*`, shared by both stylesheets in px (the
+  admin root is 15px vs the frontend's 16px). Four emphases (standard / primary / quiet / danger) on
+  two densities (page-level / compact); emphasis carries meaning, so a filled **accent** background
+  and weight 600 mean primary. Every state specified, not just default and hover: keyboard focus
+  gains an offset ring *on top of* the fill, and disabled/busy are stated explicitly instead of with
+  `opacity`. `.compare-link`, `.versions-chip`, `.page-back` and `.btn-doc` collapse onto `.btn`.
+  Favorite becomes an ordinary outlined button whose star fills when selected. Back reads "Back"
+  everywhere with the destination in `aria-label`. Official/Not Official stop being pills and become
+  status text in bold ink on both surfaces. Payload's own Buttons are re-pointed at the shared tokens
+  by overriding its custom properties, scoped to `.lesson-controls-wrap` so native form controls are
+  untouched.
+- **#170** — subject/grade filters join as `.btn.btn--quiet`, with a new `.is-active`
+  **selected-in-a-set** state that fills (D4's "blue means selected", expressed rather than
+  overridden). Deliberately distinct from Favorite's toggled star: a filter set's selection is the
+  point, whereas Favorite is one optional switch among more consequential actions. Also fixed a
+  mobile nav bug — `.app-header` and `.app-nav` shared an `align-items: flex-start` rule, correct for
+  the header (a column there) but wrong for the nav (a row), which top-aligned ~22px text links
+  against the 44px avatar; and the labelled Favorite rendering at 1.35rem on phones, where a second
+  `.fav-toggle` copy inside `@media` beat `.btn` on source order.
+
+Presentation only throughout — no authorization, schema, endpoint or migration change. The
+narrow-screen Edit dialog is deliberately **not** in this batch; it remains PR B.
+
 ## 2026-07-29 — narrow-width view-only editor: overlap fixes (deployed)
 
 Follow-ups to the wider-screen-affordance feature below, from showing the ≤640px editor at all (the
