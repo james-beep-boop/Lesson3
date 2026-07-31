@@ -114,7 +114,7 @@ test.describe('Manage page', () => {
     // becomes a full navigation automatically.
     const back = page.locator('.lesson-controls__group--back a')
     await expect(back).toBeVisible()
-    await expect(back).toHaveClass(/page-back/)
+    await expect(back).toHaveClass(/(^|\s)btn(\s|$)/)
     await expect(back).toHaveAttribute(
       'href',
       `/lessons/${fx.plan.id}?version=${fx.version.id}`,

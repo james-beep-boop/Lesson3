@@ -132,7 +132,7 @@ export default async function LessonView({
                   currentVersionId={selectedId}
                   panelLabel={title}
                 />{' '}
-                <Link className="compare-link" href={`/lessons/${plan.id}/compare`}>
+                <Link className="btn" href={`/lessons/${plan.id}/compare`}>
                   Compare
                 </Link>
               </>
@@ -141,7 +141,7 @@ export default async function LessonView({
         </div>
         <div className="lesson-heading__actions page-heading__actions">
           <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
-          <PageBackLink href="/">Back to lesson plans</PageBackLink>
+          <PageBackLink href="/" label="Back to lesson plans" />
         </div>
       </div>
 

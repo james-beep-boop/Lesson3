@@ -13,7 +13,7 @@ export default async function ForgotPasswordPage() {
   return (
     <section className="login">
       <div className="login-back">
-        <PageBackLink href="/login">Back to sign in</PageBackLink>
+        <PageBackLink href="/login" label="Back to sign in" />
       </div>
       <h1 className="login-title">ARES Lesson Plans</h1>
       <p className="login-subtitle">Reset your password</p>

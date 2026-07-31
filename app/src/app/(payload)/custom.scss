@@ -30,7 +30,7 @@ body {
 // Disabled: Payload's own light-gray/dark-text combo, restated so it wins the layer war too.
 .btn--style-primary {
   --bg-color: var(--app-accent);
-  --hover-bg: #17497f;
+  --hover-bg: var(--app-btn-primary-hover-bg);
   --color: #fff;
   --hover-color: #fff;
 
@@ -641,21 +641,100 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   padding-bottom: 0.9rem;
 }
 
-// Explicit Delete button (edit-view cleanup 2026-07-18) — a destructive-styled button replacing the
-// removed kebab. Payload's stock `error` button renders flat/dark here, so state it as a danger
-// outline (fills on hover): prominent and unmistakably destructive, set slightly apart from the safe
-// actions. Unlayered app rule, so it beats Payload's `@layer` button styles without `!important`.
-.collection-edit--lesson-bundle-versions .lesson-controls .btn--style-error {
-  margin-left: 0.5rem;
-  color: var(--theme-error-500, #b00020);
-  border: 1px solid var(--theme-error-500, #b00020);
-  background: transparent;
-  border-radius: 4px;
+// ── The button system, on the admin surface (docs/DESIGN-button-system-2026-07-30.md) ──────────
+// Quick preview, Formatted PDF, Show details, Editing help, Edit, Save, Cancel and Delete are all
+// Payload `Button`s. Left stock they carry Payload's own radius, typography and 15px rem root, which
+// is why the editor bar read as a different product from the lesson page. This block re-points them
+// at the SHARED `--app-btn-*` tokens so both surfaces render one control.
+//
+// It overrides Payload's CUSTOM PROPERTIES (`--color`, `--bg-color`, `--btn-border`, `--hover-*`)
+// rather than its declarations. Payload drives every state through those vars, so re-pointing the
+// palette keeps its hover/disabled/focus machinery intact instead of racing it — only the geometry
+// is stated outright. Unlayered app rule, so it beats Payload's `@layer payload-default` without
+// `!important` (the precedent this replaces, the old `.page-back` block, proved the mechanism).
+//
+// Scoped to `.lesson-controls-wrap` — our component, plus its Editing-help modal — NOT the whole
+// collection view: Payload uses `.btn` for in-form controls too (array row actions and the like),
+// and restyling those is not this change's business.
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {
+  --color: var(--app-accent);
+  --bg-color: var(--app-btn-bg);
+  --btn-border: 1px solid var(--app-accent);
+  --hover-color: #fff;
+  --hover-bg: var(--app-accent);
+  --hover-btn-border: 1px solid var(--app-accent);
+  --btn-font-weight: var(--app-btn-font-weight);
+  // Payload gives every button a vertical margin (`--margin-block`); our bar owns its own spacing
+  // through the group `gap`, so a stock margin would double it and unbalance the row.
+  --margin-block: 0;
 
-  &:hover,
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
+  border-radius: var(--app-btn-radius);
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+  line-height: 1.2;
+  white-space: nowrap;
+
+  // Keyboard focus must be distinguishable from hover here too — Payload's own focus treatment is
+  // the same colour change as hover, so a tabbing user gets no separate signal.
   &:focus-visible {
-    color: #fff;
-    background: var(--theme-error-500, #b00020);
+    outline: var(--app-btn-focus-ring) solid var(--app-accent);
+    outline-offset: var(--app-btn-focus-ring-offset);
+  }
+
+  // Primary — the only filled variant, and the only one at weight 600. Save is today's sole
+  // instance; the rule is "primary buttons", so a future primary inherits it.
+  //
+  // ⚑ The filled palette MUST be restated here, even though the site-wide `.btn--style-primary`
+  // block near the top of this file says the same thing. That block is `(0,1,0)`; the parent rule
+  // above is `(0,3,0)` and sets `--color`/`--bg-color` for the STANDARD variant — so inside this
+  // scope the parent outranks it and Save would render as a gray outlined button, not a filled
+  // primary. This is not duplication that can be deleted; it is the higher-specificity restatement
+  // that the scope requires. (Deleted once as "reuse", caught by CodeRabbit on #169.)
+  &.btn--style-primary {
+    --color: #fff;
+    --bg-color: var(--app-accent);
+    --hover-color: #fff;
+    --hover-bg: var(--app-btn-primary-hover-bg);
+    --hover-btn-border: 1px solid var(--app-btn-primary-hover-bg);
+    --btn-font-weight: var(--app-btn-font-weight-primary);
+  }
+
+  // Danger — outline that fills on hover: destructive should be unmistakable, not loud. Delete only.
+  // (Was its own hand-rolled block before the system existed; the reasoning is unchanged.)
+  &.btn--style-error {
+    --color: var(--theme-error-500, #b00020);
+    --bg-color: var(--app-btn-bg);
+    --btn-border: 1px solid var(--theme-error-500, #b00020);
+    --hover-color: #fff;
+    --hover-bg: var(--theme-error-500, #b00020);
+    --hover-btn-border: 1px solid var(--theme-error-500, #b00020);
+    margin-left: 0.5rem; // set slightly apart from the safe actions
+
+    &:focus-visible {
+      outline-color: var(--theme-error-500, #b00020);
+    }
+  }
+
+  // Disabled and busy read as unavailable, not faded — matching the frontend. Payload adds
+  // `btn--disabled` alongside the native attribute; cover both plus our own busy state
+  // ("Preparing document…", "Saving…", and Save's "No changes to save").
+  &.btn--disabled,
+  &:disabled,
+  &[aria-busy='true'] {
+    --color: var(--app-btn-disabled-ink);
+    --bg-color: var(--app-btn-bg);
+    --btn-border: 1px solid var(--app-btn-quiet-line);
+    --hover-color: var(--app-btn-disabled-ink);
+    --hover-bg: var(--app-btn-bg);
+    --hover-btn-border: 1px solid var(--app-btn-quiet-line);
+  }
+  &[aria-busy='true'] {
+    cursor: progress;
   }
 }
 
@@ -681,25 +760,32 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   max-width: 22rem;
 }
 
-// Official / Not-Official status chip (Codex #4): a working copy in the editor should never read as
-// authoritative — the pointer, not the open version, decides. `Official` uses the success token; a
-// candidate uses a quiet neutral chip (it's normal, not an error).
+// Official / Not-Official STATUS (Codex #4): a working copy in the editor should never read as
+// authoritative — the pointer, not the open version, decides.
+//
+// It is status, not an action, so it must not look like one. It used to be a filled 999px pill,
+// which read as a button and was the loudest thing in the bar; at narrow widths its label even
+// wrapped left-aligned inside the pill. Now it is plain emphasised text, matching how the frontend
+// lesson page has always rendered `· Official` (a bold span in the muted context line).
+//
+// BOTH states are text. Fixing only `--is` would leave the neutral chip as the last pill standing
+// and make the two states look like different kinds of thing.
+//
+// Colour matches the frontend's `.official-tag` exactly: bold, high-contrast INK — not green, and
+// not accent. Green reads as "success", which Official is not (it means "this is the authoritative
+// version", not "something went well"), and accent would make a read-only marker compete with the
+// actual actions beside it. `--theme-elevation-1000` is the admin's equivalent of the frontend
+// `--ink`, so the same status now looks the same on both surfaces.
 .lesson-controls__official {
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  border: 1px solid transparent;
 
   &--is {
-    color: var(--theme-success-600, #2b7a2b);
-    background: var(--theme-success-100, #e6f4e6);
+    color: var(--theme-elevation-1000);
   }
   &--not {
-    color: var(--theme-elevation-700);
-    background: var(--theme-elevation-100);
-    border-color: var(--theme-elevation-200);
+    color: var(--theme-elevation-600);
+    font-weight: 400; // "Not Official" is the unremarkable case — don't shout the normal state
   }
 }
 
@@ -850,34 +936,34 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
-// Page-level Back is the same component and exact visual treatment as the frontend lesson/compare
-// pages. Explicit shared px/font tokens prevent Payload's smaller rem root and stock Button theme
-// from changing its size, typeface, or colour.
-.collection-edit--lesson-bundle-versions .page-back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-back-gap);
-  min-height: var(--app-back-min-height);
-  padding: var(--app-back-padding-block) var(--app-back-padding-inline);
+// Page-level Back is a plain `<a class="btn">` — the same control and the same shared tokens as the
+// frontend. It carries class `btn`, so the block above ALREADY gives it the full geometry (and the
+// focus ring, and the phone touch target); only what an anchor needs beyond a Payload `Button` is
+// stated here. Restating the geometry would be a second copy to keep in step, and the `a.btn`
+// specificity (0-3-1 vs 0-3-0) means a stale duplicate would silently win.
+//
+// The paint properties ARE restated, deliberately: Payload's own `.btn` rule is what reads
+// `--color` / `--bg-color`, and this control should not depend on a vendored rule continuing to
+// apply to anchors across a Payload upgrade. It used to be the only tokenised control in the app,
+// at 16px/600 — heavier than everything beside it, which is what this system removes.
+.collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn {
   border: 1px solid var(--app-accent);
-  border-radius: var(--app-back-radius);
   color: var(--app-accent);
-  background: transparent;
-  font-family: var(--app-ui-font);
-  font-size: var(--app-back-font-size);
-  font-weight: 600;
-  line-height: 1.2;
+  background: var(--app-btn-bg);
+  font-weight: var(--app-btn-font-weight);
   text-decoration: none;
-  white-space: nowrap;
 
   &:hover,
   &:focus-visible {
     color: #fff;
     background: var(--app-accent);
   }
+}
 
-  @media (max-width: 640px) {
-    min-height: 44px;
+// Both admin button rules above reach the phone touch target through the shared `.btn` selector.
+@media (max-width: 640px) {
+  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {
+    min-height: var(--app-btn-touch-min-height);
   }
 }
 
