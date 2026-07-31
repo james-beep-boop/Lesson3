@@ -32,8 +32,46 @@ type Doc = Record<string, any>
 type Row = { id?: string | number }
 type Req = Parameters<CollectionBeforeChangeHook>[0]['req']
 
-const idSequence = (rows?: Row[] | null): Array<string | number | undefined> =>
-  (rows ?? []).map((r) => r.id)
+/** Ids in order — the structural fingerprint the Editor guard compares. */
+const idsOf = (rows: Row[]): Array<string | number | undefined> => rows.map((r) => r.id)
+
+/** Rows from a STORED field. The DB always yields an array (or nothing) for an array field. */
+const storedRows = (value: unknown): Row[] => (Array.isArray(value) ? value : [])
+
+/**
+ * Rows from a SUBMITTED array field, or reject.
+ *
+ * ⚑ A submitted array field can legitimately arrive as the NUMBER `0`. Payload's
+ * `reduceFieldsToValues` — what the editor's Save posts (`currentContent()` in
+ * components/LessonControls) — reduces an array field's container to its ROW COUNT, and sets
+ * `disableFormData` (which is what makes the container drop out in favour of the unflattened rows)
+ * ONLY when the array is non-empty:
+ *
+ *     // @payloadcms/ui/dist/forms/fieldSchemasToFormState/addFieldStatePromise.js
+ *     fieldState.value = forceFullValue ? arrayValue : arrayValue.length
+ *     if (arrayValue.length > 0) fieldState.disableFormData = true
+ *
+ * So an EMPTY array field posts as `0` — and ONLY ever `0`, since every non-empty count takes the
+ * `disableFormData` branch. Calling `.map` on it threw a TypeError that surfaced as a bare 500: no
+ * Editor could save a bundle with an empty `finalExplanation.sections`, `finalExplanation.rubric` or
+ * `summaryTable.lessons` (fixed 2026-07-31).
+ *
+ * `0` is therefore the ONLY non-array this accepts, and the allowance is exactly as wide as the
+ * serializer that produces it. Anything else — `2`, `'bad'`, `{}` — is malformed and REJECTED rather
+ * than read as "no rows": this feeds a SECURITY control (Editors may not change structure), so a
+ * blanket coercion would silently pass junk whenever the stored field happened to be empty, and would
+ * hide a future client-side serialization change instead of failing loudly. Rejecting is also the
+ * safe direction — the guard's job is to refuse what it cannot verify, and it has no way to tell a
+ * malformed client from a hostile one.
+ *
+ * Nullish is the one carve-out: `?? []` was the pre-existing contract here, so `null`/`undefined`
+ * still read as no rows. Narrowing THAT is a separate behavioural change, not part of this fix.
+ */
+const submittedRows = (value: unknown, reject: () => never): Row[] => {
+  if (Array.isArray(value)) return value
+  if (value === 0 || value == null) return []
+  return reject()
+}
 
 const sameSequence = (
   a: Array<string | number | undefined>,
@@ -93,6 +131,33 @@ const overlayRows = (
  * resource values nor smuggle row ids into the new snapshot. Any other caller-supplied map is dropped
  * and the generatable gate rejects the new lesson rather than storing invented system data.
  */
+/**
+ * Payload's empty-array sentinel (`0`) → `[]`, on the array containers this content uses.
+ *
+ * Runs ABOVE the role fork, beside `preserveLessonResourceLinks`, because it is a SHAPE concern and
+ * not a role one. The Editor guard below defends itself regardless (see `submittedRows`), but admins
+ * return before ever reaching it, so without this their `0` survives all the way into the merged
+ * document — where it does not corrupt storage (Payload drops a non-array for an array column) but
+ * DOES defeat the no-op guard in `endpoints/versionEdit.ts`: that compares
+ * `canonicalJson` of the merge against the source, and `0` never equals `[]`, so a save that changed
+ * nothing mints a byte-identical duplicate version instead of returning 400. Every bundle with an
+ * empty `sections` / `rubric` / `summaryTable.lessons` was in that state.
+ *
+ * Only the exact `0` sentinel is rewritten. Anything else is left untouched for the Editor guard to
+ * reject; admins are not structurally constrained, so silently reshaping their input is not this
+ * function's business.
+ */
+const normalizeEmptyArrayContainers = (data: Doc): void => {
+  const fix = (holder: Doc | undefined, key: string): void => {
+    if (holder && holder[key] === 0) holder[key] = []
+  }
+  fix(data, 'lessons')
+  if (Array.isArray(data.lessons)) for (const lesson of data.lessons) fix(lesson as Doc, 'framework')
+  fix(data.finalExplanation as Doc | undefined, 'sections')
+  fix(data.finalExplanation as Doc | undefined, 'rubric')
+  fix(data.summaryTable as Doc | undefined, 'lessons')
+}
+
 export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void => {
   if (!Array.isArray(data.lessons)) return
   const originalLessons = (originalDoc.lessons ?? []) as Doc[]
@@ -137,6 +202,8 @@ export const applyEditorFieldSplit = ({
   editorTopLevelKeys: Set<string>
 }): Doc | undefined => {
   if (operation !== 'update' || !originalDoc || !data) return data
+  // Shape first, for EVERY role — see the function's own note for why it cannot live below the fork.
+  normalizeEmptyArrayContainers(data)
   if (req.user) preserveLessonResourceLinks(data, originalDoc)
   // AUTHORITY from the STORED doc first (hardened 2026-07-04): the actor's role is judged against
   // the subject-grade the document actually belongs to, never one the submission claims — a caller
@@ -167,25 +234,40 @@ export const applyEditorFieldSplit = ({
   }
 
   // 1. Cardinality / order is structural — Editors may not change it.
+  // Stored side coerces (the DB always yields an array); submitted side VALIDATES — see
+  // `submittedRows`, which admits only a real array or Payload's `0` empty-container sentinel.
   if ('lessons' in data) {
-    if (!sameSequence(idSequence(originalDoc.lessons), idSequence(data.lessons))) reject()
-    const prevById = new Map((originalDoc.lessons ?? []).map((l: Row & { framework?: Row[] }) => [l.id, l]))
-    for (const lesson of data.lessons ?? []) {
+    // Validated once and reused: the `for…of` below must iterate the same checked value, and a
+    // numeric container is not nullish, so an unchecked `data.lessons ?? []` would throw
+    // "0 is not iterable" here even after the sequence check passed (both sides empty).
+    const submittedLessons = submittedRows(data.lessons, reject)
+    if (!sameSequence(idsOf(storedRows(originalDoc.lessons)), idsOf(submittedLessons))) reject()
+    const prevById = new Map(
+      storedRows(originalDoc.lessons).map((l: Row & { framework?: Row[] }) => [l.id, l]),
+    )
+    for (const lesson of submittedLessons) {
       const prev = prevById.get(lesson.id) as { framework?: Row[] } | undefined
       if (prev && 'framework' in lesson) {
-        if (!sameSequence(idSequence(prev.framework), idSequence(lesson.framework))) reject()
+        const submittedFramework = submittedRows((lesson as Doc).framework, reject)
+        if (!sameSequence(idsOf(storedRows(prev.framework)), idsOf(submittedFramework))) reject()
       }
     }
   }
   if (data.finalExplanation) {
     const fe = data.finalExplanation
     const feBefore = originalDoc.finalExplanation ?? {}
-    if ('sections' in fe && !sameSequence(idSequence(feBefore.sections), idSequence(fe.sections))) reject()
-    if ('rubric' in fe && !sameSequence(idSequence(feBefore.rubric), idSequence(fe.rubric))) reject()
+    if ('sections' in fe && !sameSequence(idsOf(storedRows(feBefore.sections)), idsOf(submittedRows(fe.sections, reject)))) reject()
+    if ('rubric' in fe && !sameSequence(idsOf(storedRows(feBefore.rubric)), idsOf(submittedRows(fe.rubric, reject)))) reject()
   }
   if (data.summaryTable && 'lessons' in data.summaryTable) {
     const stBefore = originalDoc.summaryTable ?? {}
-    if (!sameSequence(idSequence(stBefore.lessons), idSequence(data.summaryTable.lessons))) reject()
+    if (
+      !sameSequence(
+        idsOf(storedRows(stBefore.lessons)),
+        idsOf(submittedRows(data.summaryTable.lessons, reject)),
+      )
+    )
+      reject()
   }
 
   // 2. WHITELIST: write = original, with only prose overlaid from the submission.
