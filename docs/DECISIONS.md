@@ -61,6 +61,26 @@ as a label swap); `.msg-compose__error` was deleted as a byte-identical copy of 
 the reply toggle's spacing moved to the message card (`.msg > .btn`) rather than back onto the
 control, since the system deliberately owns appearance and not layout.
 
+**Lesson — the status line is the most perishable thing in any document, and I kept proving it.**
+FOUR times in this batch a document was left asserting a state the code had moved past:
+
+1. `NEXT-SESSION.md` said "#177 open — merge it, then deploy" after #177 was merged and deployed.
+2. §2/§5a of the button-system doc said the Messages controls were outside the system after they had
+   joined it.
+3. A `DECISIONS.md` bullet said "width is not structurally guaranteed … not fixed here" directly
+   below the new bullet saying `min-width` had just fixed it.
+4. This very entry's handoff said `main` and the Rock were at `57988e8` after #180 and #181 had
+   landed and deployed on top.
+
+Every one was caught by a reviewer, never by me, and every one has the same shape: **I edited a
+heading, or appended a paragraph, and left the surrounding prose describing the old world.** The
+appended text is what I was thinking about; the stale text is what the next reader hits first.
+
+The rule: **a claim about CURRENT STATE — a SHA, an "open"/"pending" status, a "not fixed here" —
+is a fact with an expiry date.** After any merge or deploy, re-grep the docs for the SHA and for the
+status words before calling the work done. Adding a correct new sentence does not retract an
+incorrect old one.
+
 **Design-doc correction:** §2's boundary sentence and §5a of
 `DESIGN-button-system-2026-07-30.md` both still said form submits and the Messages controls were
 outside the system. Both are now marked folded-in, with the reason `button[type='submit']` was

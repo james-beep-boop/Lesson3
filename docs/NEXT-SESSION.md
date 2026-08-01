@@ -18,17 +18,20 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` and the live Rock are BOTH at `57988e8` (#179) — in step, nothing pending.** Deployed &
+**`main` and the live Rock are BOTH at `6dc67c8` (#181) — in step, nothing pending.** Deployed &
 verified 2026-08-01: `migrate` found nothing pending (no schema change in this batch), site healthy
-(`/` → 307 `/login`, `/login` → 200).
+(`/` → 307 `/login`, `/login` → 200). No open PRs; every merged branch is deleted on the remote.
 
 Two app-code deploys landed in quick succession, and it is worth keeping them straight:
 - **`e097887` (2026-07-31)** carried **#176** (the Editor Save fix) and **#177** (the visual system:
   foundation + Manage) — the first app-code deploy since #172; #173–#175 carried none, and #174's
   build-context change took effect here, as that entry predicted.
 - **`57988e8` (2026-08-01)** carried **#179** (PR 2a: Messages, document email and auth join the
-  button system) plus its follow-up. That deploy matters beyond presentation: it repaired a
-  **touch-target defect that was live on the catalogue** — see the PR 2a entry in `DECISIONS.md`.
+  button system). That deploy matters beyond presentation: it repaired a **touch-target defect that
+  was live on the catalogue** — see the PR 2a entry in `DECISIONS.md`.
+- **`6dc67c8` (2026-08-01)** carried **#180** (the same touch target made structural in BOTH
+  dimensions — `min-height` alone left the width riding on the label; `PDF` had under a pixel of
+  margin) and **#181** (guard precision + a DECISIONS bullet that contradicted the one above it).
 
 **Verified ON THE ROCK, signed in as Site Admin** (not just locally): all twelve new tokens serve
 with the right values; the frontend and the admin both render root **16px**, **system-ui**,
