@@ -48,12 +48,12 @@ merge, and that is now the expected workflow, not a bonus.
   (`tests/unit/localDbGuard.spec.ts`) because it is what stops known-password accounts reaching a
   shared database.
 
-**▶ NEWEST — ONE VISUAL SYSTEM. #177 open (PR 1 of 3); #176 merged.** The design phase the operator
-opened with "are we forever fated to have nonstandard fonts, spacing too close to the top, and
-everything inconsistent with the aesthetic of the app?" Plan, acceptance matrix and outcome:
+**▶ NEWEST — ONE VISUAL SYSTEM. #176 + #177 BOTH MERGED AND DEPLOYED (`e097887`).** The design phase
+the operator opened with "are we forever fated to have nonstandard fonts, spacing too close to the
+top, and everything inconsistent with the aesthetic of the app?" Plan, acceptance matrix and outcome:
 **`docs/DESIGN-visual-system-2026-07-31.md`**. Presentation only — no authorization, schema, endpoint
 or migration change.
-- **#177 (open, CI green): foundation + Manage.** ONE rem root (the admin was 15px, the frontend 16;
+- **#177 (merged, deployed, Rock-verified): foundation + Manage.** ONE rem root (the admin was 15px, the frontend 16;
   that gap alone caused five drift items), one font stack (via Payload's own `--font-body`, NOT a
   `body` rule — Payload applies that variable straight to headings), one line-height (1.55 vs
   Payload's ~1.25), one page shell (Manage had **0px** between header and title against the
@@ -66,10 +66,32 @@ or migration change.
   it. Fixed with a rule as narrow as the serializer (`0` = empty, anything else rejected) plus a
   normalizer above the role fork — admins never reached the guard, and their stray `0` was silently
   defeating the no-op guard in `endpoints/versionEdit.ts`, minting duplicate versions.
-- **⚠ WHAT TO DO NEXT:** merge #177, then **deploy** (it and #176 are both app code). Then **PR 2**
-  (Guide, Messages, Compare, auth pages) and **PR 3** (version editor chrome + the native-Payload
-  boundary) from the same design doc. PR 2 is where `PageHeader` gets extracted — deliberately NOT
-  done in PR 1, because it would have meant editing frontend pages PR 1 declared out of scope.
+- **⚠ WHAT TO DO NEXT — PR 2a: Messages, document email, and the auth pages.** Presentation only.
+  Scope tightened by the operator 2026-07-31: Guide and Compare move to a LATER visual PR, so 2a is
+  exactly the compose-and-send surfaces plus auth. Three things, all diagnosed:
+  - **Width.** `.messages { max-width: 46rem }` caps the page at 736px inside the 960px column, for
+    no derived reason. Delete it; take the shared column.
+  - **Controls.** Messages, the document-email modal and the auth pages were ALL excluded from the
+    button system (`DESIGN-button-system-2026-07-30.md` §5a, "worth doing; not worth doing blind" —
+    this is the operator report that makes it no longer blind). There are THREE hand-rolled cancels
+    (`.msg-compose__cancel`, `.msg-reply__cancel`, `.modal__cancel`), all `border:none;background:none`
+    text links, and two hand-rolled sends. ⚑ The real trap: `button[type='submit']` (0-1-1) OUTRANKS
+    `.btn` (0-1-0), so EmailModal's send escapes the system *despite carrying the class* — fixing that
+    selector is what drags the auth pages in, and it retires the `opacity: 0.55` disabled states §2a
+    already fixed for buttons. Reply toggle → **compact** size at desktop (a page-level control on
+    every inbox row would swamp the list), 44px at ≤640.
+  - **NOT in 2a: read behaviour.** Considered and deliberately left alone. The inbox renders every
+    body inline, so "viewing the inbox is reading" (DECISIONS 2026-07-03) is internally coherent;
+    removing automatic marking while offering only "Mark all read" would leave ordinary no-reply
+    messages with no individual resolution. Revisit as its own product decision, not inside a visual pass.
+- **THEN:** a later visual PR for **Guide + Compare**; **PR 2b** for the `kind` field + one-click
+  grant (schema + migration — specify partial-failure/retry semantics FIRST: granting access and
+  sending the confirmation are two writes and must not masquerade as atomic, and the subject-grade
+  scope must be derived server-side from the trusted message/lesson relationships, never client
+  input); and **PR 3** for the version editor chrome + native-Payload boundary.
+- `PageHeader` still awaits extraction — deliberately NOT done in PR 1, because it would have meant
+  editing frontend pages PR 1 declared out of scope. The first visual PR that touches a second page
+  is where it earns its keep.
 - **The rule that paid for itself:** PR 1's acceptance protocol required creating a candidate through
   the REAL edit-and-save workflow. Doing that is what surfaced #176 — a bug 318 unit tests, `tsc` and
   eslint had all passed over. Do not substitute an API call for the user's actual path.
