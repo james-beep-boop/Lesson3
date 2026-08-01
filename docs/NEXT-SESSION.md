@@ -18,12 +18,13 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `d555fb2` (#174). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
+**`main` is at `5442c76` (#176). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
 verified 2026-07-31: container rebuilt `2026-07-31T05:39Z`, `migrate` found nothing pending (no
-migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN:
-#173 (dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy
-— same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
-the NEXT deploy; nothing to do now.
+migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN: #173
+(dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy —
+same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
+the NEXT deploy; nothing to do now. **#176 (the Editor Save fix) IS app code and DOES need a deploy**
+— it ships with #177 below, or on its own if #177 stalls.
 
 **▶ THE LOCAL STACK NOW EXISTS — use it. `next dev` works.** #173 added
 `docker-compose.local.yml` (publishes Postgres on `127.0.0.1:55432`, opt-in via `-f`) and
@@ -38,6 +39,32 @@ merge, and that is now the expected workflow, not a bonus.
 - The seed script REFUSES any non-localhost `DATABASE_URI`; that guard is unit-tested
   (`tests/unit/localDbGuard.spec.ts`) because it is what stops known-password accounts reaching a
   shared database.
+
+**▶ NEWEST — ONE VISUAL SYSTEM. #177 open (PR 1 of 3); #176 merged.** The design phase the operator
+opened with "are we forever fated to have nonstandard fonts, spacing too close to the top, and
+everything inconsistent with the aesthetic of the app?" Plan, acceptance matrix and outcome:
+**`docs/DESIGN-visual-system-2026-07-31.md`**. Presentation only — no authorization, schema, endpoint
+or migration change.
+- **#177 (open, CI green): foundation + Manage.** ONE rem root (the admin was 15px, the frontend 16;
+  that gap alone caused five drift items), one font stack (via Payload's own `--font-body`, NOT a
+  `body` rule — Payload applies that variable straight to headings), one line-height (1.55 vs
+  Payload's ~1.25), one page shell (Manage had **0px** between header and title against the
+  frontend's 24px — the operator's actual complaint). Manage gains an identity block, structured
+  version rows with a named `Continue editing`, the shared danger control for Delete, and real empty
+  states. **This reverses the 2026-07-18 "admin renders ~6% smaller ON PURPOSE" decision** and closes
+  that entry's "still not fixed … separate work" note about the ≤640px content padding.
+- **#176 (merged): Editor Save returned a bare 500** for any bundle with an empty optional array.
+  Payload posts an empty array field as the NUMBER `0`; the Editor cardinality guard called `.map` on
+  it. Fixed with a rule as narrow as the serializer (`0` = empty, anything else rejected) plus a
+  normalizer above the role fork — admins never reached the guard, and their stray `0` was silently
+  defeating the no-op guard in `endpoints/versionEdit.ts`, minting duplicate versions.
+- **⚠ WHAT TO DO NEXT:** merge #177, then **deploy** (it and #176 are both app code). Then **PR 2**
+  (Guide, Messages, Compare, auth pages) and **PR 3** (version editor chrome + the native-Payload
+  boundary) from the same design doc. PR 2 is where `PageHeader` gets extracted — deliberately NOT
+  done in PR 1, because it would have meant editing frontend pages PR 1 declared out of scope.
+- **The rule that paid for itself:** PR 1's acceptance protocol required creating a candidate through
+  the REAL edit-and-save workflow. Doing that is what surfaced #176 — a bug 318 unit tests, `tsc` and
+  eslint had all passed over. Do not substitute an API call for the user's actual path.
 
 **▶ #172 MERGED & DEPLOYED — PR B: narrow-screen Edit explains itself.** Edit now renders at EVERY
 width; below 640px pressing it opens a dialog ("Editing needs a wider screen. You can still view this

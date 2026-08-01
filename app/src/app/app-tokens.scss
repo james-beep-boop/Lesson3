@@ -3,27 +3,65 @@
  * that route group's layout) and the Payload admin custom views (`(payload)/custom.scss`, via `@use`),
  * so the values below don't drift between the two surfaces.
  *
- * `px` values are pixel-identical on both surfaces. `rem` values are scale-relative: the admin uses a
- * 15px rem root vs the frontend's 16px, so a `rem` token renders ~6% smaller in the admin ON PURPOSE
- * (it stays proportional to the admin's own scale). Per-surface palettes stay native (frontend
- * `--line`/`--muted`, admin `--theme-*`); only the brand accent is shared here.
+ * **Both surfaces now share a 16px rem root** (the admin's was 15px until 2026-07-31; see
+ * `custom.scss`). Values here are stated in **px** anyway: px is what makes "identical on both
+ * surfaces" a property of the token rather than a property of two roots that happen to agree today.
+ * A future change to either root must not silently rescale the shared system.
+ *
+ * Per-surface palettes stay native (frontend `--line`/`--muted`, admin `--theme-*`) — the admin
+ * follows light/dark and cannot take a fixed hex. Only the brand accent and the three button-system
+ * palette values are shared. Scale is shared; colour is not.
  */
 :root {
-  --app-page-title-size: 1.9rem; /* primary <h1> — scale-relative (see note above) */
+  /* ── Type scale ─────────────────────────────────────────────────────────────────────────────
+     Five steps, one hierarchy across both surfaces (decided 2026-07-31,
+     docs/DESIGN-visual-system-2026-07-31.md §3.2):
+       page title 30 / section 20 / list-group heading 18 / body 16 / secondary 14.
+     A page SECTION heading (20) deliberately outranks a list-GROUP heading (18): the first names a
+     region of the page, the second is structure inside a list. That gap is the hierarchy. */
+  --app-page-title-size: 30px; /* primary <h1>, weight 700 */
+  --app-section-title-size: 20px; /* page section, weight 600 */
+  --app-list-heading-size: 18px; /* list/group heading, weight 600 — names an existing frontend value */
+  --app-body-size: 16px; /* body; a MINOR heading is this size at weight 600 */
+  --app-secondary-size: 14px; /* metadata, descriptions, help text */
+  --app-line-height: 1.55; /* body copy. The frontend has always used 1.55; the admin inherited
+                              Payload's ~1.25, so the same paragraph rendered visibly denser there.
+                              Unitless on purpose — it must scale with each element's own size. */
+  /* ── Spacing scale ──────────────────────────────────────────────────────────────────────────── */
+  --app-space-1: 8px;
+  --app-space-2: 12px;
+  --app-space-3: 16px;
+  --app-space-4: 24px;
+  --app-space-5: 32px;
+  --app-space-6: 48px;
+  /* ── Page shell ─────────────────────────────────────────────────────────────────────────────── */
   --app-content-width: 960px; /* max content-column width — pixel-identical */
   --app-content-pad: 20px; /* content-column horizontal padding — px (NOT rem) so the two columns'
-                              content edges align EXACTLY: 1.25rem would be 20px on the frontend but
-                              18.75px in the admin's 15px-root, a 1.25px drift that defeats the token. */
+                              content edges align EXACTLY. Kept px even now that both roots are 16:
+                              the guarantee is "identical", not "identical while the roots match". */
+  --app-content-pad-sm: 16px; /* ≤640px gutter. Resolves the frontend's 0.9rem (14.4px) vs the
+                                 admin's 20px split that DECISIONS 2026-07-18 left open. */
+  --app-page-top: 32px; /* space between the header and the page title — desktop */
+  --app-page-top-sm: 24px; /* …and ≤640px */
+  /* ── Header ─────────────────────────────────────────────────────────────────────────────────── */
+  --app-header-pad-block: 12px;
+  --app-header-pad-inline: 20px; /* was 1.25rem on BOTH surfaces, which rendered 20px on the frontend
+                                    and 18.75px in the admin's old 15px root — a silent 1.25px drift. */
+  --app-avatar-size: 30px;
+  --app-avatar-touch-size: 44px; /* ≤640px — WCAG 2.5.5 target size */
+  /* ── Rows ───────────────────────────────────────────────────────────────────────────────────── */
+  --app-row-pad-block: 16px; /* structured list rows (Manage saved versions) */
   --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
   /* ── Button system (docs/DESIGN-button-system-2026-07-30.md) ────────────────────────────────
      ONE geometry for every control IN THE BUTTON SYSTEM, on both surfaces — the action controls on
      the lesson page, the catalogue and the version editor. Form submits, the Messages compose
      controls and the Share menu's flat list items are deliberately outside it (see the design doc
-     §5a); this is not a claim about every button in the app. Explicit px/font tokens (not rem)
-     because the admin root is 15px and the frontend's is 16px: a rem token would render ~6% smaller
-     in the editor, which is exactly the drift this system exists to remove. These generalise the
-     former `--app-back-*` set — the page-level Back control was the only tokenised control before,
-     and it is now just one variant among several. */
+     §5a); this is not a claim about every button in the app. Explicit px/font tokens (not rem) so a
+     control meant to look identical really is, independently of either surface's rem root. (Until
+     2026-07-31 the admin root was 15px and this was the ONLY thing keeping the editor's buttons from
+     rendering ~6% small; the roots now agree, and px stops that from ever being load-bearing again.)
+     These generalise the former `--app-back-*` set — the page-level Back control was the only
+     tokenised control before, and it is now just one variant among several. */
   --app-btn-min-height: 38px;
   --app-btn-touch-min-height: 44px; /* ≤640px — WCAG 2.5.5 target size */
   --app-btn-gap: 6px;

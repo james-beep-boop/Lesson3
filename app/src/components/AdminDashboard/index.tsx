@@ -179,26 +179,40 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
   const savedTitle = isAdmin ? 'Candidate versions' : 'My saved versions'
   const savedDesc = isAdmin
-    ? 'Saved, non-Official versions you may delete. Click one to open it in the editor.'
-    : 'Versions you saved. Click one to continue editing; delete the ones you no longer need.'
+    ? 'Saved, non-Official versions you may delete.'
+    : 'Continue working on versions you have saved.'
+  // Empty state carries the explanation the list would otherwise have to: what belongs here and how
+  // something gets here. A bare "You have no saved versions." tells a new Editor nothing.
+  //
+  // ⚑ Both strings name SAVING, not Edit. The first draft said "choose Edit, and your saved work will
+  // appear here" / "once someone edits a lesson plan" — but entering edit mode creates nothing. A row
+  // appears only when someone SAVES, so copy that stops at Edit describes a step that leaves the list
+  // exactly as empty as before, and reads as a broken promise to the person waiting for a row.
+  const savedEmpty = isAdmin
+    ? 'No saved candidates yet. They will appear here once someone saves an edited version.'
+    : 'You have no saved versions yet. Open a lesson plan, choose Edit, then save your changes. Your saved work will appear here.'
 
   return (
     <Gutter className="lp-admin-dash lp-manage">
       <h1 className="lp-admin-dash__title">Manage</h1>
-      <p className="lp-admin-dash__role">Signed in as {role}</p>
-      {roleLines.map((line) => (
-        <p key={line} className="lp-admin-dash__scope">
-          {line}
-        </p>
-      ))}
+      {/* Identity block: who you are, then what you may reach. "Signed in as {role}" became plain
+          "{role}" on 2026-07-31 — "Signed in as" is redundant on an authenticated page and reads as
+          diagnostic output, and the account menu already establishes identity. Recorded as a
+          deliberate refinement in docs/DESIGN-user-model-language-2026-07-29.md; the strings
+          themselves still come from resolveAccessSummary and its truthfulness contract is unchanged
+          (the type is always shown; the scope lines degrade to absent on a read failure). */}
+      <div className="lp-admin-dash__identity">
+        <p className="lp-admin-dash__role">{role}</p>
+        {roleLines.map((line) => (
+          <p key={line} className="lp-admin-dash__scope">
+            {line}
+          </p>
+        ))}
+      </div>
 
       <h2 className="lp-admin-dash__section">{savedTitle}</h2>
       <p className="lp-manage__desc">{savedDesc}</p>
-      <CandidateList
-        rows={candidates}
-        emptyText={isAdmin ? 'No candidate versions.' : 'You have no saved versions.'}
-        showAuthor={isAdmin}
-      />
+      <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
 
       {editorGroups.length > 0 && (
         <>

@@ -234,9 +234,15 @@ describe('button system', () => {
     // as a gray outlined button. The nested modifier must restate the fill. Deleted once as
     // "duplication" during a cleanup pass — textually true, cascade-false. Guarded here because it
     // is invisible to tsc, to eslint, and to a reader who greps for the declaration and finds one.
-    const scoped = adminCss.slice(
-      adminCss.indexOf('.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn {'),
-    )
+    // Anchored on the selector WITHOUT a trailing `{`: the block's selector list grew a second
+    // entry on 2026-07-31 (`.lp-manage__row-actions .btn`, bringing Manage's row actions into the
+    // system), and an anchor that assumed a one-selector list silently matched nothing and passed an
+    // empty string to the assertions below. The first occurrence in the file is this block; the only
+    // other is the ≤640px touch-target rule further down.
+    const anchor = '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn'
+    const at = adminCss.indexOf(anchor)
+    expect(at, 'the scoped admin button block must exist').toBeGreaterThan(-1)
+    const scoped = adminCss.slice(at)
     const primary = scoped.slice(
       scoped.indexOf('&.btn--style-primary'),
       scoped.indexOf('&.btn--style-error'),

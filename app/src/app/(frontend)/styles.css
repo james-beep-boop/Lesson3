@@ -93,9 +93,10 @@ body {
 }
 
 body {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.55;
+  /* Shared with the admin surface (app-tokens) — one font stack, one body size, one line-height. */
+  font-family: var(--app-ui-font);
+  font-size: var(--app-body-size);
+  line-height: var(--app-line-height);
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -111,7 +112,8 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 1.25rem;
+  /* Shared header geometry (app-tokens) — the admin header restates these same two tokens. */
+  padding: var(--app-header-pad-block) var(--app-header-pad-inline);
   border-bottom: 1px solid var(--line);
   background: var(--bg-soft);
 }
@@ -381,8 +383,10 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  /* Shared with the admin header's avatar (app-tokens) — both were 1.9rem, which drifted while the
+     two rem roots differed. */
+  width: var(--app-avatar-size);
+  height: var(--app-avatar-size);
   padding: 0;
   border-radius: 50%;
   background: var(--bg-soft);
@@ -467,8 +471,9 @@ a {
 .app-main {
   max-width: var(--app-content-width);
   margin: 0 auto;
-  /* Horizontal pad shared with the admin Manage column (app-tokens) so the two align. */
-  padding: 1.5rem var(--app-content-pad) 4rem;
+  /* Horizontal pad AND page origin shared with the admin Manage column (app-tokens) so the two
+     align. `--app-page-top` was 1.5rem here and absent entirely in the admin. */
+  padding: var(--app-page-top) var(--app-content-pad) 4rem;
 }
 
 .muted {
@@ -529,8 +534,10 @@ a {
 .sg-section + .sg-section {
   margin-top: 2.25rem;
 }
+/* List/GROUP heading (18px) — structure inside the catalogue list, one step below a page SECTION
+   heading (20px, e.g. Manage's "My saved versions"). See app-tokens.scss for the five-step scale. */
 .sg-head {
-  font-size: 1.15rem;
+  font-size: var(--app-list-heading-size);
   font-weight: 600;
   margin: 0 0 0.75rem;
 }
@@ -538,8 +545,9 @@ a {
 .strand-section + .strand-section {
   margin-top: 1.6rem;
 }
+/* MINOR heading — body size at weight 600, the last step of the scale. */
 .strand-head {
-  font-size: 1rem;
+  font-size: var(--app-body-size);
   font-weight: 600;
   margin: 0 0 0.35rem;
 }
@@ -1557,9 +1565,11 @@ button[type='submit']:disabled {
     gap: 0.5rem 0.85rem;
   }
 
-  /* Tighter page gutter on small screens. */
+  /* Tighter page gutter on small screens — shared tokens, so the admin column matches. Was
+     `1rem 0.9rem` (16px/14.4px) here against the admin's unchanged 20px: the ≤640px content-padding
+     split DECISIONS 2026-07-18 recorded as "left for separate work". This is that work. */
   .app-main {
-    padding: 1rem 0.9rem 3rem;
+    padding: var(--app-page-top-sm) var(--app-content-pad-sm) 3rem;
   }
 
   /* Library rows read as CARDS on small screens (T2): bordered, self-contained, with the
@@ -1715,10 +1725,11 @@ button[type='submit']:disabled {
   .btn {
     min-height: var(--app-btn-touch-min-height);
   }
-  /* Square icon controls: the avatar (was 30×30) and favorite star reach 44×44. */
+  /* Square icon controls: the avatar (was 30×30) and favorite star reach 44×44. Shared token — the
+     admin header's avatar now takes the same one. */
   .user-menu__avatar {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
+    min-width: var(--app-avatar-touch-size);
+    min-height: var(--app-avatar-touch-size);
   }
   /* Icon-only again (see the base rule). This sits AFTER `.btn` in this block, so unscoped it beat
      the system on equal specificity and blew the labelled favorite up to 1.35rem. */
