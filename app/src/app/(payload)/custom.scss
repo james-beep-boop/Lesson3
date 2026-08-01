@@ -11,7 +11,7 @@
 // its body text is a fixed size, so setting both scales text and spacing uniformly. (NB: Payload's
 // `--base-body-size` is a DIVISOR for the spacing unit, not the text size — bumping it actually
 // shrinks things. Don't.)
-//
+
 // Measured before/after on the local stack at 390/700/1280 across Manage, the version editor, a
 // NATIVE collection page (/admin/collections/users), the catalogue and the lesson page: Payload's own
 // chrome stays comfortable, no new wrapping and no new horizontal overflow. (The version editor
@@ -29,7 +29,7 @@ body {
 // two surfaces rendered in different typefaces. Global rather than scoped to our custom views: the
 // requirement is one product, and Payload's native pages are part of the product. Verified against a
 // native collection page at all four widths.
-//
+
 // Done by REDEFINING Payload's own `--font-body`, not by setting `font-family` on `body`: Payload
 // applies `var(--font-body)` directly to headings, inputs and several components, so a body rule
 // alone left every <h1> in the old stack (measured — the Manage title still resolved to
@@ -92,6 +92,7 @@ body {
   // .app-main (1.25rem). Override the horizontal padding to match so the two content columns line up
   // exactly (unlayered → beats Gutter's `@layer payload-default` padding); shared pad token.
   padding-inline: var(--app-content-pad);
+
   // Space between the header and the page title. Manage had NONE (measured 0px against the
   // frontend's 24px) — the "everything is jammed against the top" in the 2026-07-31 operator report.
   // Same token as the frontend's .app-main, so the two page origins now agree.
@@ -414,6 +415,7 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   justify-content: space-between; // brand left, nav right — mirrors the frontend .app-header
   gap: 1rem;
   align-items: center;
+
   // Shared header geometry (2026-07-31). Was `0.5rem 1.25rem`, which rendered 7.5px/18.75px against
   // the frontend's 12px/20px — the header sat 11px shorter and its content edge 1.25px inboard.
   padding: var(--app-header-pad-block) var(--app-header-pad-inline);
@@ -663,7 +665,7 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
 // DocumentFields/index.scss, the `:has(.render-fields:empty)` branch sets --main-width:100% /
 // --main-border:none / --main-field-margin:initial), so the main column widens by the same contract
 // Payload uses — plus display:none on the wrap, since our sidebar has fields and :has() can't fire.
-//
+
 // Hidden is the CSS DEFAULT and "Show details" ADDS `lp-details-shown` — deliberately this way round
 // rather than defaulting the React state to hidden. The body class is applied in an EFFECT, so a
 // state-only default would paint the sidebar and then yank it away on every load. Keying the default
@@ -720,17 +722,17 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // Payload `Button`s. Left stock they carry Payload's own radius, typography and 15px rem root, which
 // is why the editor bar read as a different product from the lesson page. This block re-points them
 // at the SHARED `--app-btn-*` tokens so both surfaces render one control.
-//
+
 // It overrides Payload's CUSTOM PROPERTIES (`--color`, `--bg-color`, `--btn-border`, `--hover-*`)
 // rather than its declarations. Payload drives every state through those vars, so re-pointing the
 // palette keeps its hover/disabled/focus machinery intact instead of racing it — only the geometry
 // is stated outright. Unlayered app rule, so it beats Payload's `@layer payload-default` without
 // `!important` (the precedent this replaces, the old `.page-back` block, proved the mechanism).
-//
+
 // Scoped to `.lesson-controls-wrap` — our component, plus its Editing-help modal — NOT the whole
 // collection view: Payload uses `.btn` for in-form controls too (array row actions and the like),
 // and restyling those is not this change's business.
-//
+
 // EXTENDED 2026-07-31 to Manage's row actions. Manage's controls were never in the button system:
 // this block is scoped to the version editor, and the shared `.btn--danger`/`.btn--quiet` rules live
 // in the FRONTEND stylesheet, which the admin never loads — so Manage's Delete was rendering as
@@ -771,7 +773,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
   // Primary — the only filled variant, and the only one at weight 600. Save is today's sole
   // instance; the rule is "primary buttons", so a future primary inherits it.
-  //
+
   // ⚑ The filled palette MUST be restated here, even though the site-wide `.btn--style-primary`
   // block near the top of this file says the same thing. That block is `(0,1,0)`; the parent rule
   // above is `(0,3,0)` and sets `--color`/`--bg-color` for the STANDARD variant — so inside this
@@ -842,15 +844,15 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
 // Official / Not-Official STATUS (Codex #4): a working copy in the editor should never read as
 // authoritative — the pointer, not the open version, decides.
-//
+
 // It is status, not an action, so it must not look like one. It used to be a filled 999px pill,
 // which read as a button and was the loudest thing in the bar; at narrow widths its label even
 // wrapped left-aligned inside the pill. Now it is plain emphasised text, matching how the frontend
 // lesson page has always rendered `· Official` (a bold span in the muted context line).
-//
+
 // BOTH states are text. Fixing only `--is` would leave the neutral chip as the last pill standing
 // and make the two states look like different kinds of thing.
-//
+
 // Colour matches the frontend's `.official-tag` exactly: bold, high-contrast INK — not green, and
 // not accent. Green reads as "success", which Official is not (it means "this is the authoritative
 // version", not "something went well"), and accent would make a read-only marker compete with the
@@ -998,13 +1000,13 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   // Active section (2026-07-25): the chip for wherever you are reads as filled, so a long plan says
   // which lesson you're on at a glance. White on --app-accent is ~7.5:1. Single-sourced accent — do
   // NOT reintroduce a literal #1f5fa8 here (see the app-tokens note above).
-  //
+
   // Styled off `[aria-current]` rather than a modifier class, so the accessible state and the visible
   // state cannot drift apart — EditJumpNav omits the attribute entirely when inactive (never
   // `="false"`), which is what makes a presence selector safe. Specificity ties with the `:hover` /
   // `:focus-visible` rules above (both 0,2,0) and this comes later in source, so the active chip stays
   // filled under the pointer without restating either pseudo-class.
-  //
+
   // ⚠ Keep these declarations SIZE-NEUTRAL. The nav sits inside the element a ResizeObserver watches
   // for the active-section tracking; adding font-weight/padding/border-width here would resize a chip
   // on activation, potentially rewrap the toolbar and re-enter that observer. Colour only.
@@ -1021,7 +1023,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // focus ring, and the phone touch target); only what an anchor needs beyond a Payload `Button` is
 // stated here. Restating the geometry would be a second copy to keep in step, and the `a.btn`
 // specificity (0-3-1 vs 0-3-0) means a stale duplicate would silently win.
-//
+
 // The paint properties ARE restated, deliberately: Payload's own `.btn` rule is what reads
 // `--color` / `--bg-color`, and this control should not depend on a vendored rule continuing to
 // apply to anchors across a Payload upgrade. It used to be the only tokenised control in the app,
@@ -1124,7 +1126,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 
 // Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
 // overflowing nav row cover ~7rem, so its scroll destinations clear it.
-//
+
 // ⚠ This value is READ BACK by EditJumpNav (`getComputedStyle(...).scrollMarginTop`) to place the
 // active-section line, so a jumped-to header counts as current instead of lighting its neighbour.
 // This block stays the single owner of the number — change it freely, but don't delete the rule or
