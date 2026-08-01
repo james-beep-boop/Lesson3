@@ -58,7 +58,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
         {busy ? 'Saving…' : 'Set new password'}
       </button>
     </form>

@@ -48,7 +48,7 @@
   --app-header-pad-inline: 20px; /* was 1.25rem on BOTH surfaces, which rendered 20px on the frontend
                                     and 18.75px in the admin's old 15px root — a silent 1.25px drift. */
   --app-avatar-size: 30px;
-  --app-avatar-touch-size: 44px; /* ≤640px — WCAG 2.5.5 target size */
+  --app-avatar-touch-size: 44px; /* ≤640px — WCAG 2.5.5 (AAA); the AA floor is 2.5.8 at 24×24 */
   /* ── Rows ───────────────────────────────────────────────────────────────────────────────────── */
   --app-row-pad-block: 16px; /* structured list rows (Manage saved versions) */
   --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
@@ -63,7 +63,7 @@
      These generalise the former `--app-back-*` set — the page-level Back control was the only
      tokenised control before, and it is now just one variant among several. */
   --app-btn-min-height: 38px;
-  --app-btn-touch-min-height: 44px; /* ≤640px — WCAG 2.5.5 target size */
+  --app-btn-touch-min-height: 44px; /* ≤640px — WCAG 2.5.5 (AAA); the AA floor is 2.5.8 at 24×24 */
   --app-btn-gap: 6px;
   --app-btn-padding-block: 6px;
   --app-btn-padding-inline: 12px;

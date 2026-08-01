@@ -123,7 +123,7 @@ Page shell    --app-page-top             32px   (space below header, desktop)
 Header        --app-header-pad-block     12px
               --app-header-pad-inline    20px
               --app-avatar-size          30px
-              --app-avatar-touch-size    44px   (≤640px, WCAG 2.5.5)
+              --app-avatar-touch-size    44px   (≤640px — WCAG 2.5.5 AAA, not the AA floor)
 
 Rows          --app-row-pad-block        16px
 ```

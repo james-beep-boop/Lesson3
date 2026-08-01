@@ -71,17 +71,6 @@
   align-items: center;
   gap: 0.6rem;
 }
-.modal__cancel {
-  border: none;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  cursor: pointer;
-}
-.modal__cancel:hover {
-  text-decoration: underline;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -159,11 +148,11 @@ a {
   margin-left: 0.35rem;
   vertical-align: text-top;
 }
-
 /* ---- Messages (SPEC §10) ---- */
-.messages {
-  max-width: 46rem;
-}
+/* No own max-width: Messages fills the shared `.app-main` column (--app-content-width, 960px), the
+   same as every other page. The former `.messages { max-width: 46rem }` capped it at 736px inside a
+   960px column for no derived reason — it predated the shared page shell (removed 2026-07-31). */
+
 /* Heading row: "Messages" title with the New-message button inline on the right (2026-07-18). */
 .msg-head {
   display: flex;
@@ -178,25 +167,6 @@ a {
   font-weight: 700;
   margin: 0;
 }
-/* Collapsed-compose affordance (D5): reading the inbox is the page's job; composing is one
-   button away. Styled like the app's outline actions. Inline in .msg-head, so no stacking margin. */
-.msg-compose-open {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-.msg-compose-open:hover,
-.msg-compose-open:focus-visible {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
 .msg-compose {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -210,17 +180,6 @@ a {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 400;
-}
-.msg-compose__cancel {
-  border: none;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-.msg-compose__cancel:hover {
-  text-decoration: underline;
 }
 .msg-compose h2 {
   margin: 0 0 0.5rem;
@@ -254,24 +213,7 @@ a {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-.msg-compose__send {
-  padding: 0.45rem 1.1rem;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-.msg-compose__send:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-.msg-compose__error {
-  color: var(--danger);
-  font-size: 0.9rem;
+  flex-wrap: wrap;
 }
 .msg-compose__sent {
   color: var(--muted);
@@ -329,20 +271,11 @@ a {
   margin: 0.4rem 0 0;
   font-size: 0.9rem;
 }
-/* Inline reply on an inbox message (§10) — a quiet "Reply" pill that expands the compose box. */
-.msg-reply-toggle {
-  margin: 0.5rem 0 0;
-  padding: 0.2rem 0.7rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.msg-reply-toggle:hover {
-  border-color: var(--accent);
+/* The card owns the gap above its reply control. That spacing used to live on `.msg-reply-toggle`
+   itself; when the toggle joined the button system its rule went, and the system deliberately owns
+   appearance and not layout — so the container takes it rather than a margin going back on a `.btn`. */
+.msg > .btn {
+  margin-top: 0.5rem;
 }
 .msg-reply {
   margin-top: 0.5rem;
@@ -362,17 +295,6 @@ a {
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
-}
-.msg-reply__cancel {
-  border: none;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.msg-reply__cancel:hover {
-  text-decoration: underline;
 }
 .user-menu {
   position: relative;
@@ -976,21 +898,6 @@ a {
   justify-content: flex-end;
   margin-bottom: 0.75rem;
 }
-
-button[type='submit'] {
-  padding: 0.6rem 1rem;
-  font-size: 1rem;
-  color: var(--accent-ink);
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-button[type='submit']:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
 /* ---- Lesson view ---- */
 .lesson-heading {
   display: flex;
@@ -1682,12 +1589,11 @@ button[type='submit']:disabled {
   }
 
   /* Secondary text links reach the ~44px touch bar on phones too (Codex #5): the catalogue/lesson
-     controls already do, but these auth, message and navigation links were left small. (Back left
-     this list when it became a `.btn` — the shared rule below covers it.) */
+     controls already do, but these auth, message and navigation links were left small. Entries drop
+     out of this list as they join the button system — the shared `.btn` rule below then covers them
+     (Back, then the Messages reply toggle and cancel). */
   .login-links a,
-  .msg-link a,
-  .msg-reply-toggle,
-  .msg-reply__cancel {
+  .msg-link a {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
@@ -1706,12 +1612,9 @@ button[type='submit']:disabled {
     grid-template-columns: 1fr;
   }
   /* Compose actions (Send + status) wrap instead of colliding on a narrow screen. */
-  .msg-compose__actions {
-    flex-wrap: wrap;
-  }
-
   /* Comfortable tap targets on touch screens — the mouse-sized controls get a 44px hit area (the
-     WCAG 2.5.5 / platform minimum; audit 2026-07-05 flagged several at 26–40px). Applied via
+     WCAG 2.5.5 Target Size (ENHANCED, Level AAA) — the project's deliberate standard, NOT the AA
+     floor, which is 2.5.8 at 24×24; audit 2026-07-05 flagged several at 26–40px). Applied via
      min-height + inline-flex centering, or min-width/height for square controls.
 
      One rule now covers every control in the button system — Back, Compare, the versions chip, the
@@ -1719,10 +1622,17 @@ button[type='submit']:disabled {
      itself, which is how they drifted apart in the first place.
 
      `--compact` is deliberately NOT excluded: the compact size is a DESKTOP density. On a phone the
-     catalogue row is a stacked card with room, and today's `.btn` rule already lifts the download
-     pills to 44px — dropping that to keep them dense would reintroduce exactly the 26–40px targets
-     the audit flagged. */
-  .btn {
+     catalogue row is a stacked card with room, and dropping the target to keep them dense would
+     reintroduce exactly the 26–40px targets the audit flagged.
+
+     ⚑ `.btn.btn--compact` MUST be restated here. It sets `min-height: 26px` at (0-2-0) and a bare
+     `.btn` is (0-1-0) — and a media query adds NO specificity, so the compact rule won at every
+     width and every compact control stayed 26px on phones. The comment here used to assert the
+     opposite ("today's `.btn` rule already lifts the download pills to 44px"); measured 2026-07-31,
+     the catalogue's PDF/Word/versions pills were all 26px at 390px on the DEPLOYED site. Restating
+     at equal specificity, later in source, is what actually wins. */
+  .btn,
+  .btn.btn--compact {
     min-height: var(--app-btn-touch-min-height);
   }
   /* Square icon controls: the avatar (was 30×30) and favorite star reach 44×44. Shared token — the

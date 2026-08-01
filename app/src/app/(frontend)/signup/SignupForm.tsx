@@ -100,7 +100,7 @@ export function SignupForm() {
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
         {busy ? 'Creating account…' : 'Create account'}
       </button>
     </form>

@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-07-31 (PR 2a) — a media query adds no specificity, and a comment asserted otherwise
+
+Folding the §5a leftovers into the button system (Messages compose/reply, the document-email modal,
+the auth submits) turned up a **shipped accessibility defect in PR 1's own system**.
+
+- **The bug.** The ≤640px touch rule was `.btn { min-height: 44px }` — specificity (0-1-0). But
+  `.btn.btn--compact { min-height: 26px }` is (0-2-0), and **a media query contributes no
+  specificity**, so the compact rule won at every width. Every compact control was 26px on a phone.
+  Measured on the DEPLOYED site: the catalogue's PDF, Word and versions pills, all 26px tall at 390px.
+- **What that actually violated — stated precisely, because the first draft of this entry overstated
+  it.** 44×44 is **WCAG 2.5.5 Target Size (Enhanced), Level AAA**, and it is *this project's chosen
+  standard*. The Level **AA** criterion is **2.5.8 Target Size (Minimum)** at **24×24**. Those pills
+  measured ~45×26 and ~92×26, so they **passed 2.5.8 AA** and failed 2.5.5 AAA. The honest finding is
+  therefore: *the implementation silently contradicted its own documented mobile contract* — which is
+  bad, and worth the fix, without needing to be called a conformance failure. Operator correction;
+  the wording was fixed in the CSS comments, the tokens, the button-system doc and here.
+- **Height was the bug; width is not structurally guaranteed.** The repair sets `min-height`, and
+  2.5.5 wants 44 in BOTH dimensions. Measured after the fix at 390px: `PDF` 44.92×44, `Word` 52.07×44,
+  `4 versions ▾` 92.04×44 — so all three clear it, but `PDF` clears the *width* by under a pixel, on
+  padding (9px×2) plus a three-character label at 13px. A shorter compact label WOULD fall under 44
+  wide. Not fixed here (no such label exists today); recorded so the next person adding one knows.
+- **The comment asserted the opposite** — "today's `.btn` rule already lifts the download pills to
+  44px" — and that assertion is *why* nobody checked. It was written as the justification for
+  deliberately NOT excluding `--compact` from the touch block, which was the right call resting on a
+  false premise. Fixed by restating `.btn.btn--compact` inside the media block at equal specificity,
+  later in source.
+- **Lesson: a comment claiming a rendered outcome is a claim, not a check.** This one survived PR 1's
+  review, its own dedicated test file, `/simplify`, CodeRabbit and a post-deploy Rock verification —
+  because every one of those inspected SOURCE, and the source said what the author believed. Only
+  putting a phone-width browser on the real page contradicted it. Where a comment asserts a rendered
+  value, either measure it or write the assertion as a test. Now guarded by
+  `buttonSystem.spec.ts` → "gives the phone touch target enough specificity to beat --compact".
+- **Found by accident**, and worth noting how: PR 2a added a fourth compact control (the Messages
+  reply toggle) and the operator had specified "compact at desktop, 44px at ≤640". Verifying MY OWN
+  claim about the new control is what exposed the old one. The claim was wrong when I first stated
+  it in this session, too.
+
+Also in PR 2a, from the `/simplify` pass: `aria-busy` was wired on the six converted controls (the
+system already styles `.btn[aria-busy='true']` with `cursor: progress`, but they expressed busy only
+as a label swap); `.msg-compose__error` was deleted as a byte-identical copy of `.inline-error`; and
+the reply toggle's spacing moved to the message card (`.msg > .btn`) rather than back onto the
+control, since the system deliberately owns appearance and not layout.
+
+**Design-doc correction:** §2's boundary sentence and §5a of
+`DESIGN-button-system-2026-07-30.md` both still said form submits and the Messages controls were
+outside the system. Both are now marked folded-in, with the reason `button[type='submit']` was
+DELETED rather than given a replacement default: a base rule would encode "submit ⇒ primary" (which
+§2 refuses), any element-level default either reopens the 0-1-1 trap or duplicates the geometry, and
+with no bare `button` rule left an unclassed submit now fails LOUDLY — where the deleted rule was
+the silent failure that hid `EmailModal`'s escape in the first place.
+
 ## 2026-07-31 (visual system, PR 1) — one rem root; "shared tokens" is not "one rendered system"
 
 Operator report: the **Manage** page reads as a different product — nonstandard font, content jammed
