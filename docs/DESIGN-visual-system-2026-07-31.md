@@ -102,7 +102,7 @@ it will fabricate a regression (this has happened before).
 Extend the existing file. **Do not create a second token file or a parallel system** — that is the
 exact failure this PR is meant to prevent, arriving from a new direction.
 
-```
+```text
 Typography    --app-page-title-size      30px   (was 1.9rem — see 3.3)
               --app-section-title-size   20px   (decided — see the scale below)
               --app-list-heading-size    18px   (names an existing frontend value)
@@ -196,7 +196,7 @@ If the 16px experiment succeeds, these become wrong and must be edited, not left
 
 ### 4.1 Intended layout
 
-```
+```text
 Manage                                    ← page title, --app-page-title-size / 700
 
 Teacher                                   ← identity block
@@ -375,12 +375,13 @@ vs 20px, a `1.25rem`-across-two-roots drift) and **line-height** (Payload's ~1.2
 the two headers matching exactly. Both are now tokens; the headers measure **109.8px on both surfaces**
 at 390px.
 
-**Blocked, and deferred by decision:** creating the populated candidate through the UI's own Save
-button. It returns a generic 500 for any bundle with an empty optional array (pre-existing;
-`reduceFieldsToValues` serializes an empty array as `0`, `fieldSplit.ts:35` then calls `.map` on it).
-The candidate used for acceptance was created through the same `save-as-new` endpoint directly, so
-the row under test is identical in kind — but **the UI save path itself remains unverified** until
-that bug is fixed.
+**Blocked at first attempt, since resolved:** creating the populated candidate through the UI's own
+Save button. It returned a generic 500 for any bundle with an empty optional array (pre-existing;
+`reduceFieldsToValues` serializes an empty array as `0`, and the cardinality guard then called `.map`
+on it). The first pass worked around it by posting to the same `save-as-new` endpoint directly, which
+left the UI save path unverified — so the bug was fixed separately in **#176**, merged before this
+PR, and the acceptance run below then used the real edit-and-save workflow. **The final result is the
+acceptance run; this paragraph records only how the first attempt was blocked.**
 
 ### Acceptance run — completed 2026-07-31
 

@@ -203,7 +203,7 @@ fenced off.
 Manage's identity line was **"Signed in as {role}"**; it is now just **"{role}"**, with the access
 lines grouped beneath it:
 
-```
+```text
 Site administrator
 All subjects and grades
 ```
