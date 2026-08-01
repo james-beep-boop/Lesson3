@@ -20,9 +20,9 @@ presents that work as upcoming as HISTORY.
 
 **`main` is at `5442c76` (#176). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
 verified 2026-07-31: container rebuilt `2026-07-31T05:39Z`, `migrate` found nothing pending (no
-migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN:
-#173 (dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy
-— same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
+migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN: #173
+(dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy —
+same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
 the NEXT deploy; nothing to do now. **#176 (the Editor Save fix) IS app code and DOES need a deploy**
 — it ships with #177 below, or on its own if #177 stalls.
 
