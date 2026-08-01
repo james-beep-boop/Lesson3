@@ -272,7 +272,9 @@ describe('button system', () => {
     // with `.btn` and wins on order) or a descendant `form [type="submit"]` (0-1-1, outranks it
     // outright) both walked straight past a guard whose whole purpose is catching them.
     const norm = (sel: string) => sel.replace(/['"\s]/g, '')
-    const offenders = allSelectors.filter((s) => norm(s).includes('[type=submit'))
+    // Closing `]` included: `[type=submit` alone also matches `[type=submitter]` or
+    // `[type=submit-button]`, so a future legitimate selector would fail for the wrong reason.
+    const offenders = allSelectors.filter((s) => norm(s).includes('[type=submit]'))
     expect(offenders, 'style submits via .btn.btn--primary, not a type selector').toEqual([])
   })
 

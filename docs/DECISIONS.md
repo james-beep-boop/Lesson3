@@ -32,11 +32,12 @@ the auth submits) turned up a **shipped accessibility defect in PR 1's own syste
   it in the ≤640px block. Proof it is no longer incidental: a synthetic single-character compact
   control measures **44×44** at 390px, where the height-only rule left it ~29px wide. Desktop density
   is untouched (26px tall, 28.75px wide for the same control at 1280px).
-- **Height was the bug; width was not structurally guaranteed (now fixed, above).** The repair sets `min-height`, and
-  2.5.5 wants 44 in BOTH dimensions. Measured after the fix at 390px: `PDF` 44.92×44, `Word` 52.07×44,
-  `4 versions ▾` 92.04×44 — so all three clear it, but `PDF` clears the *width* by under a pixel, on
-  padding (9px×2) plus a three-character label at 13px. A shorter compact label WOULD fall under 44
-  wide. Not fixed here (no such label exists today); recorded so the next person adding one knows.
+- **Height was the original bug, and width was the one the first repair missed.** Measured after the
+  height-only fix at 390px: `PDF` 44.92×44, `Word` 52.07×44, `4 versions ▾` 92.04×44 — all clearing
+  44, but `PDF` clearing the *width* by under a pixel, on padding (9px×2) plus a three-character
+  label at 13px. That is a contract resting on the current label, font and platform, which is not a
+  contract. Closed by the `min-width` follow-up above; the bullet you are reading used to end "a
+  shorter compact label WOULD fall under 44 wide — not fixed here", and that is no longer true.
 - **The comment asserted the opposite** — "today's `.btn` rule already lifts the download pills to
   44px" — and that assertion is *why* nobody checked. It was written as the justification for
   deliberately NOT excluding `--compact` from the touch block, which was the right call resting on a
