@@ -81,6 +81,15 @@ is a fact with an expiry date.** After any merge or deploy, re-grep the docs for
 status words before calling the work done. Adding a correct new sentence does not retract an
 incorrect old one.
 
+**And the sharper form, learned immediately afterwards by tripping over it again (#183).** The PR
+that recorded this rule wrote "`main` and the live Rock are BOTH at `6dc67c8`" — true when written,
+false the moment it merged, because merging it moved `main`. A docs-only status line that asserts an
+EQUALITY invalidates itself on merge, every time, by construction. So: **prefer a status claim that
+stays true, over one that is merely true right now.** "The Rock is at the last app-code commit" is
+verifiable by `git log -1 -- app/` and survives any number of docs commits; "main and the Rock are
+both at X" cannot survive its own PR. Where a fact must be re-derived to stay true, write the
+derivation, not the answer.
+
 **Design-doc correction:** §2's boundary sentence and §5a of
 `DESIGN-button-system-2026-07-30.md` both still said form submits and the Messages controls were
 outside the system. Both are now marked folded-in, with the reason `button[type='submit']` was

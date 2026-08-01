@@ -18,9 +18,17 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` and the live Rock are BOTH at `6dc67c8` (#181) — in step, nothing pending.** Deployed &
-verified 2026-08-01: `migrate` found nothing pending (no schema change in this batch), site healthy
-(`/` → 307 `/login`, `/login` → 200). No open PRs; every merged branch is deleted on the remote.
+**The live Rock is DEPLOYED at `6dc67c8` (#181) — the LAST APP-CODE COMMIT, and nothing app-side is
+pending.** Deployed & verified 2026-08-01: `migrate` found nothing pending (no schema change in this
+batch), site healthy (`/` → 307 `/login`, `/login` → 200). No open PRs; merged branches are deleted
+on the remote.
+
+⚑ Stated as "the last app-code commit", NOT as "main and the Rock are both at X". The equality form
+invalidates itself: the docs-only PR that writes it is merged straight afterwards, so `main` moves
+and the sentence is false before anyone reads it — which is exactly what happened to the previous
+version of this line (#182, and see the rule in `DECISIONS.md`). `main` being AHEAD of the Rock by
+docs-only commits is the normal resting state and needs no deploy; compare the Rock against the
+newest commit that touched `app/`, not against `main`.
 
 Two app-code deploys landed in quick succession, and it is worth keeping them straight:
 - **`e097887` (2026-07-31)** carried **#176** (the Editor Save fix) and **#177** (the visual system:
