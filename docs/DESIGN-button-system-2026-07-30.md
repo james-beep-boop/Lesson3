@@ -60,7 +60,7 @@ frontend's is 16px, so a `rem` token would render ~6% smaller in the editor.
 | Variant | Background | Border | Text | Weight | Used for |
 |---|---|---|---|---|---|
 | **Standard** | `--bg-soft` | accent | accent | 400 | Edit, Share, Compare, Back, Favorite, Quick preview, Formatted PDF, Show details, Editing help, Cancel, Request editing |
-| **Primary** | accent | accent | `--accent-ink` | **600** | Save; and since PR 2a the send actions — Messages Send / Send reply, the document-email Send, and the auth submits (sign in, sign up, reset) |
+| **Primary** | accent | accent | `--accent-ink` | **600** | Save; and since PR 2a the send actions — Messages Send and Send reply, the document-email Send, and all four auth submits (sign in, sign up, forgot password, reset password) |
 | **Quiet** (`--quiet`) | `--bg-soft` | `--line` | `--ink` | 400 | Catalogue downloads, versions chip, subject/grade filters |
 | **Danger** (`--danger`) | `--bg-soft` | red | red | 400 | Delete (today the only danger) |
 
@@ -342,7 +342,8 @@ visual pass. The `opacity`-based disabled states there are the same accessibilit
 buttons. Worth doing; not worth doing blind.
 
 *(2026-07-31: done, in PR 2a — the estimate held. The `opacity` disabled states went with the rules,
-and the six converted controls now also carry `aria-busy`, which the system already styles but they
+and `aria-busy` was ADDED to six controls — the seventh primary, the document-email Send, already
+carried it, which is how the omission was spotted. The system already styles the attribute but they
 had been expressing as a label swap only.)*
 
 ---
