@@ -60,7 +60,7 @@ frontend's is 16px, so a `rem` token would render ~6% smaller in the editor.
 | Variant | Background | Border | Text | Weight | Used for |
 |---|---|---|---|---|---|
 | **Standard** | `--bg-soft` | accent | accent | 400 | Edit, Share, Compare, Back, Favorite, Quick preview, Formatted PDF, Show details, Editing help, Cancel, Request editing |
-| **Primary** | accent | accent | `--accent-ink` | **600** | Save (today the only primary) |
+| **Primary** | accent | accent | `--accent-ink` | **600** | Save; and since PR 2a the send actions — Messages Send / Send reply, the document-email Send, and the auth submits (sign in, sign up, reset) |
 | **Quiet** (`--quiet`) | `--bg-soft` | `--line` | `--ink` | 400 | Catalogue downloads, versions chip, subject/grade filters |
 | **Danger** (`--danger`) | `--bg-soft` | red | red | 400 | Delete (today the only danger) |
 

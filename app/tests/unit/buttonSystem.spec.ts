@@ -151,15 +151,16 @@ describe('button system', () => {
     // deployed site: the catalogue's PDF / Word / versions pills were 26px at 390px, while the
     // stylesheet comment asserted they were 44px. Nothing in the source revealed it; only a browser
     // did. The touch block must therefore restate `.btn.btn--compact` at equal specificity.
-    const touch = allRules.filter((r) => r.body.includes('--app-btn-touch-min-height'))
-    const btnTouch = touch.filter((r) => r.selectors.includes('.btn'))
-    expect(btnTouch.length, 'expected a ≤640px .btn touch-target rule').toBeGreaterThan(0)
-    for (const rule of btnTouch) {
-      expect(
-        rule.selectors,
-        'the touch rule must also name .btn.btn--compact — a bare .btn (0-1-0) loses to .btn.btn--compact (0-2-0)',
-      ).toContain('.btn.btn--compact')
-    }
+    // Asserted INDEPENDENTLY, not "both in the same rule": two separate rules inside the media block
+    // are an equally valid implementation, and coupling them would fail a correct alternative.
+    const reached = allRules
+      .filter((r) => r.body.includes('--app-btn-touch-min-height'))
+      .flatMap((r) => r.selectors)
+    expect(reached, 'expected a ≤640px .btn touch-target rule').toContain('.btn')
+    expect(
+      reached,
+      '.btn.btn--compact must ALSO get the touch target — a bare .btn (0-1-0) loses to .btn.btn--compact (0-2-0)',
+    ).toContain('.btn.btn--compact')
   })
 
   it('lets no glyph rule reach the labelled favorite, at any width', () => {
@@ -265,7 +266,10 @@ describe('button system', () => {
     // instead of a system button — EmailModal's send carried the class and still escaped. Nothing
     // may reintroduce a bare type-selector for submits; a submit that wants primary emphasis says
     // so with `.btn.btn--primary`, which is (0-2-0) and wins on its own merits.
-    const offenders = allSelectors.filter((s) => s.includes("button[type='submit'"))
+    // Normalized first: `button[type=submit]`, `[type="submit"]` and spaced variants are the same
+    // selector to a browser, and a syntax-shaped assertion would wave three of them through.
+    const norm = (sel: string) => sel.replace(/['"\s]/g, '')
+    const offenders = allSelectors.filter((s) => norm(s).includes('button[type=submit'))
     expect(offenders, 'style submits via .btn.btn--primary, not a type selector').toEqual([])
   })
 
