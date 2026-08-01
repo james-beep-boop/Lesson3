@@ -27,7 +27,12 @@ the auth submits) turned up a **shipped accessibility defect in PR 1's own syste
   therefore: *the implementation silently contradicted its own documented mobile contract* — which is
   bad, and worth the fix, without needing to be called a conformance failure. Operator correction;
   the wording was fixed in the CSS comments, the tokens, the button-system doc and here.
-- **Height was the bug; width is not structurally guaranteed.** The repair sets `min-height`, and
+- **Width made structural too (follow-up, same day).** The first repair set only `min-height`, and
+  2.5.5 asks for 44 in BOTH dimensions — so the width still rode on the label. `min-width` now joins
+  it in the ≤640px block. Proof it is no longer incidental: a synthetic single-character compact
+  control measures **44×44** at 390px, where the height-only rule left it ~29px wide. Desktop density
+  is untouched (26px tall, 28.75px wide for the same control at 1280px).
+- **Height was the bug; width was not structurally guaranteed (now fixed, above).** The repair sets `min-height`, and
   2.5.5 wants 44 in BOTH dimensions. Measured after the fix at 390px: `PDF` 44.92×44, `Word` 52.07×44,
   `4 versions ▾` 92.04×44 — so all three clear it, but `PDF` clears the *width* by under a pixel, on
   padding (9px×2) plus a three-character label at 13px. A shorter compact label WOULD fall under 44
@@ -48,7 +53,8 @@ the auth submits) turned up a **shipped accessibility defect in PR 1's own syste
   claim about the new control is what exposed the old one. The claim was wrong when I first stated
   it in this session, too.
 
-Also in PR 2a, from the `/simplify` pass: `aria-busy` was wired on the six converted controls (the
+Also in PR 2a, from the `/simplify` pass: `aria-busy` was ADDED to six of the seven primaries — the
+seventh, the document-email Send, already carried it, which is what made the gap visible (the
 system already styles `.btn[aria-busy='true']` with `cursor: progress`, but they expressed busy only
 as a label swap); `.msg-compose__error` was deleted as a byte-identical copy of `.inline-error`; and
 the reply toggle's spacing moved to the message card (`.msg > .btn`) rather than back onto the

@@ -1634,6 +1634,12 @@ a {
   .btn,
   .btn.btn--compact {
     min-height: var(--app-btn-touch-min-height);
+    /* WIDTH too, not just height: 2.5.5 asks for 44 in BOTH dimensions, and `min-height` alone left
+       the width riding on the label. Measured after the height fix, `PDF` came out 44.92px wide —
+       under a pixel of margin, on 9px padding either side plus three characters of `system-ui`,
+       whose glyph widths differ per platform. A shorter label, or the same label on another OS,
+       would drop under 44. This makes the contract structural instead of incidental. */
+    min-width: var(--app-btn-touch-min-height);
   }
   /* Square icon controls: the avatar (was 30×30) and favorite star reach 44×44. Shared token — the
      admin header's avatar now takes the same one. */

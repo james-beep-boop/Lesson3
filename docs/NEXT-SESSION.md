@@ -18,12 +18,17 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` and the live Rock are BOTH at `e097887` (#177) — in step, nothing pending.** Deployed &
-verified 2026-07-31: pre-migration snapshot taken, `app` + `migrate` rebuilt, `gotenberg` correctly
-skipped (unchanged tree), `migrate` found nothing pending (neither #176 nor #177 touches the schema),
-site healthy (`/` → 307 `/login`, `/login` → 200). This deploy carried **#176** (the Editor Save fix)
-and **#177** (the visual system) — the first app-code deploy since #172; #173–#175 carried none.
-⚠ #174's build-context change took effect on this deploy, as predicted.
+**`main` and the live Rock are BOTH at `57988e8` (#179) — in step, nothing pending.** Deployed &
+verified 2026-08-01: `migrate` found nothing pending (no schema change in this batch), site healthy
+(`/` → 307 `/login`, `/login` → 200).
+
+Two app-code deploys landed in quick succession, and it is worth keeping them straight:
+- **`e097887` (2026-07-31)** carried **#176** (the Editor Save fix) and **#177** (the visual system:
+  foundation + Manage) — the first app-code deploy since #172; #173–#175 carried none, and #174's
+  build-context change took effect here, as that entry predicted.
+- **`57988e8` (2026-08-01)** carried **#179** (PR 2a: Messages, document email and auth join the
+  button system) plus its follow-up. That deploy matters beyond presentation: it repaired a
+  **touch-target defect that was live on the catalogue** — see the PR 2a entry in `DECISIONS.md`.
 
 **Verified ON THE ROCK, signed in as Site Admin** (not just locally): all twelve new tokens serve
 with the right values; the frontend and the admin both render root **16px**, **system-ui**,
@@ -66,7 +71,7 @@ or migration change.
   it. Fixed with a rule as narrow as the serializer (`0` = empty, anything else rejected) plus a
   normalizer above the role fork — admins never reached the guard, and their stray `0` was silently
   defeating the no-op guard in `endpoints/versionEdit.ts`, minting duplicate versions.
-- **⚠ WHAT TO DO NEXT — PR 2a: Messages, document email, and the auth pages.** Presentation only.
+- **✅ PR 2a — DONE (#179, merged and deployed `57988e8`).** Presentation only, and it delivered:
   Scope tightened by the operator 2026-07-31: Guide and Compare move to a LATER visual PR, so 2a is
   exactly the compose-and-send surfaces plus auth. Three things, all diagnosed:
   - **Width.** `.messages { max-width: 46rem }` caps the page at 736px inside the 960px column, for
@@ -84,7 +89,8 @@ or migration change.
     body inline, so "viewing the inbox is reading" (DECISIONS 2026-07-03) is internally coherent;
     removing automatic marking while offering only "Mark all read" would leave ordinary no-reply
     messages with no individual resolution. Revisit as its own product decision, not inside a visual pass.
-- **THEN:** a later visual PR for **Guide + Compare**; **PR 2b** for the `kind` field + one-click
+- **⚠ WHAT TO DO NEXT:** a visual PR for **Guide + Compare** (the remainder of the original PR 2
+  scope, which the operator split out); then **PR 2b** for the `kind` field + one-click
   grant (schema + migration — specify partial-failure/retry semantics FIRST: granting access and
   sending the confirmation are two writes and must not masquerade as atomic, and the subject-grade
   scope must be derived server-side from the trusted message/lesson relationships, never client

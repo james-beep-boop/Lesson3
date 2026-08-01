@@ -266,10 +266,13 @@ describe('button system', () => {
     // instead of a system button — EmailModal's send carried the class and still escaped. Nothing
     // may reintroduce a bare type-selector for submits; a submit that wants primary emphasis says
     // so with `.btn.btn--primary`, which is (0-2-0) and wins on its own merits.
-    // Normalized first: `button[type=submit]`, `[type="submit"]` and spaced variants are the same
-    // selector to a browser, and a syntax-shaped assertion would wave three of them through.
+    // Normalized first, so quote style cannot dodge the guard: `[type='submit']`, `[type="submit"]`
+    // and `[type=submit]` are one selector to a browser but three strings to `includes`.
+    // NOT anchored on `button` — an earlier version was, and a bare `[type='submit']` (0-1-0, ties
+    // with `.btn` and wins on order) or a descendant `form [type="submit"]` (0-1-1, outranks it
+    // outright) both walked straight past a guard whose whole purpose is catching them.
     const norm = (sel: string) => sel.replace(/['"\s]/g, '')
-    const offenders = allSelectors.filter((s) => norm(s).includes('button[type=submit'))
+    const offenders = allSelectors.filter((s) => norm(s).includes('[type=submit'))
     expect(offenders, 'style submits via .btn.btn--primary, not a type selector').toEqual([])
   })
 
