@@ -18,13 +18,21 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `5442c76` (#176). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
-verified 2026-07-31: container rebuilt `2026-07-31T05:39Z`, `migrate` found nothing pending (no
-migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN: #173
-(dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy —
-same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
-the NEXT deploy; nothing to do now. **#176 (the Editor Save fix) IS app code and DOES need a deploy**
-— it ships with #177 below, or on its own if #177 stalls.
+**`main` and the live Rock are BOTH at `e097887` (#177) — in step, nothing pending.** Deployed &
+verified 2026-07-31: pre-migration snapshot taken, `app` + `migrate` rebuilt, `gotenberg` correctly
+skipped (unchanged tree), `migrate` found nothing pending (neither #176 nor #177 touches the schema),
+site healthy (`/` → 307 `/login`, `/login` → 200). This deploy carried **#176** (the Editor Save fix)
+and **#177** (the visual system) — the first app-code deploy since #172; #173–#175 carried none.
+⚠ #174's build-context change took effect on this deploy, as predicted.
+
+**Verified ON THE ROCK, signed in as Site Admin** (not just locally): all twelve new tokens serve
+with the right values; the frontend and the admin both render root **16px**, **system-ui**,
+line-height **24.8px**; Manage shows the identity block, one-line metadata, no version badge, and
+named `Continue editing` / `Delete` actions — with **46 real rows**, a far better stress test than
+the 1-row local seed, and no horizontal overflow. At 390px the header stacks (109.8px), rows go to
+column layout, and both actions reach the 44px touch target. A **native** Payload collection page
+(`/admin/collections/users`) is comfortable at 16px: no table overflow, row height 54.33px, product
+font throughout — the check the whole root-size decision rested on.
 
 **▶ THE LOCAL STACK NOW EXISTS — use it. `next dev` works.** #173 added
 `docker-compose.local.yml` (publishes Postgres on `127.0.0.1:55432`, opt-in via `-f`) and
