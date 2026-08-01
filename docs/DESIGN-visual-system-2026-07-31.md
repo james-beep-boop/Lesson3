@@ -405,9 +405,58 @@ removed, list re-rendered to the empty state).
 stacks and the row drops to column layout there, while 700 keeps both inline — a difference no
 geometry table at 390/700/1280 would have shown.
 
-**Methodology note.** Geometry tables were captured at 1280/700/390, not 550. The stylesheets contain
-exactly three rule regimes (>1024, 641–1024, ≤640), so 550 is rule-identical to 390 and yields no new
-computed value. 550 is still covered by screenshots, which is what it was there to catch.
+### 550px geometry — the corrected methodology
+
+An earlier draft of this section claimed geometry at 550 was redundant: the stylesheets contain
+exactly three rule regimes (>1024, 641–1024, ≤640), so 550 is rule-identical to 390 and "yields no
+new computed value". **That was wrong, and the operator caught it.** Identical rules do not give
+identical geometry — available width still changes wrapping, heights and offsets. The counter-example
+is in this very page:
+
+| Manage version row | metadata lines | row height |
+|---|---|---|
+| **390px** | **2** | 159.19 |
+| **550px** | **1** | 137.49 |
+
+Same rules, same breakpoint, materially different row. A table at 390/700/1280 could not have shown
+it. **Rule regimes tell you which widths to reason about; they do not tell you which widths to
+measure.**
+
+Measured at 550, all five surfaces:
+
+| | catalogue | lesson | Manage (Editor) | Manage (Site Admin) | version editor | native collection |
+|---|---|---|---|---|---|---|
+| rem root | 16 | 16 | 16 | 16 | 16 | 16 |
+| body size | 16 | 16 | 16 | 16 | 16 | 16 |
+| font | system-ui | system-ui | system-ui | system-ui | system-ui | system-ui |
+| line-height | 24.8 | 24.8 | 24.8 | 24.8 | 24.8 | 24.8 |
+| header height | 109.8 | 109.8 | 109.8 | 109.8 | 109.8 | 109.8 |
+| header direction | column | column | column | column | column | column |
+| header pad | 12 / 20 | 12 / 20 | 12 / 20 | 12 / 20 | — | — |
+| space below header | 24 | 24 | 24 | 24 | — | — |
+| content pad-inline | 16 | 16 | 16 | 16 | 16 (Payload's) | — |
+| page title | 30 | 30 | 30 | 30 | — | 25 (Payload's) |
+| section / secondary | — | — | 20 / 14 | 20 / 14 | — | — |
+| avatar | 44 | 44 | 44 | 44 | 44 | 44 |
+| control height | — | 44 | 44 | 44 | 44 | — |
+| horizontal overflow | none | none | none | none | none | none |
+
+The two admin-only columns are Payload's own chrome and are expected to differ: the native page's h1
+is Payload's (25px) and the editor's gutter is Payload's. Everything the shared system owns is
+identical across all six columns.
+
+**Native Payload at 550 is comfortable** — and better than at 390: the users table shows **no**
+horizontal overflow here, where 390 measured `409 > 390`. Row height 54.33, product font throughout.
+
+Two incidental findings from this pass, recorded because both would mislead a future reader:
+
+- **A dead dev server renders as an unstyled page** (Times, `line-height: normal`, zero padding) with
+  the HTML still served from cache — the CSS request fails with `ERR_CONNECTION_REFUSED`. It reads as
+  a catastrophic style regression. Check `document.styleSheets` before believing a measurement that
+  says everything broke at once.
+- **Edit mode is correctly refused at 550px** (#172's narrow-screen guard), so the candidate for the
+  populated measurement had to be created at 1280 and then measured at 550. Unplanned confirmation
+  that #172 still holds.
 
 ---
 
