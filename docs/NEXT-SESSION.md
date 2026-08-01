@@ -18,13 +18,21 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**`main` is at `5442c76` (#176). The live Rock is DEPLOYED at `bc634e1` (#172)** — deployed &
-verified 2026-07-31: container rebuilt `2026-07-31T05:39Z`, `migrate` found nothing pending (no
-migration in this batch), site healthy (`/` → `/login`, 200). The Rock is behind `main` BY DESIGN: #173
-(dev tooling), #174 (build context) and #175 (docs) contain no app code, so none needs a deploy —
-same handling as #168/#171. ⚠ #174 DOES change how the app image is built, so it takes effect on
-the NEXT deploy; nothing to do now. **#176 (the Editor Save fix) IS app code and DOES need a deploy**
-— it ships with #177 below, or on its own if #177 stalls.
+**`main` and the live Rock are BOTH at `e097887` (#177) — in step, nothing pending.** Deployed &
+verified 2026-07-31: pre-migration snapshot taken, `app` + `migrate` rebuilt, `gotenberg` correctly
+skipped (unchanged tree), `migrate` found nothing pending (neither #176 nor #177 touches the schema),
+site healthy (`/` → 307 `/login`, `/login` → 200). This deploy carried **#176** (the Editor Save fix)
+and **#177** (the visual system) — the first app-code deploy since #172; #173–#175 carried none.
+⚠ #174's build-context change took effect on this deploy, as predicted.
+
+**Verified ON THE ROCK, signed in as Site Admin** (not just locally): all twelve new tokens serve
+with the right values; the frontend and the admin both render root **16px**, **system-ui**,
+line-height **24.8px**; Manage shows the identity block, one-line metadata, no version badge, and
+named `Continue editing` / `Delete` actions — with **46 real rows**, a far better stress test than
+the 1-row local seed, and no horizontal overflow. At 390px the header stacks (109.8px), rows go to
+column layout, and both actions reach the 44px touch target. A **native** Payload collection page
+(`/admin/collections/users`) is comfortable at 16px: no table overflow, row height 54.33px, product
+font throughout — the check the whole root-size decision rested on.
 
 **▶ THE LOCAL STACK NOW EXISTS — use it. `next dev` works.** #173 added
 `docker-compose.local.yml` (publishes Postgres on `127.0.0.1:55432`, opt-in via `-f`) and
@@ -40,12 +48,12 @@ merge, and that is now the expected workflow, not a bonus.
   (`tests/unit/localDbGuard.spec.ts`) because it is what stops known-password accounts reaching a
   shared database.
 
-**▶ NEWEST — ONE VISUAL SYSTEM. #177 open (PR 1 of 3); #176 merged.** The design phase the operator
-opened with "are we forever fated to have nonstandard fonts, spacing too close to the top, and
-everything inconsistent with the aesthetic of the app?" Plan, acceptance matrix and outcome:
+**▶ NEWEST — ONE VISUAL SYSTEM. #176 + #177 BOTH MERGED AND DEPLOYED (`e097887`).** The design phase
+the operator opened with "are we forever fated to have nonstandard fonts, spacing too close to the
+top, and everything inconsistent with the aesthetic of the app?" Plan, acceptance matrix and outcome:
 **`docs/DESIGN-visual-system-2026-07-31.md`**. Presentation only — no authorization, schema, endpoint
 or migration change.
-- **#177 (open, CI green): foundation + Manage.** ONE rem root (the admin was 15px, the frontend 16;
+- **#177 (merged, deployed, Rock-verified): foundation + Manage.** ONE rem root (the admin was 15px, the frontend 16;
   that gap alone caused five drift items), one font stack (via Payload's own `--font-body`, NOT a
   `body` rule — Payload applies that variable straight to headings), one line-height (1.55 vs
   Payload's ~1.25), one page shell (Manage had **0px** between header and title against the
@@ -58,10 +66,32 @@ or migration change.
   it. Fixed with a rule as narrow as the serializer (`0` = empty, anything else rejected) plus a
   normalizer above the role fork — admins never reached the guard, and their stray `0` was silently
   defeating the no-op guard in `endpoints/versionEdit.ts`, minting duplicate versions.
-- **⚠ WHAT TO DO NEXT:** merge #177, then **deploy** (it and #176 are both app code). Then **PR 2**
-  (Guide, Messages, Compare, auth pages) and **PR 3** (version editor chrome + the native-Payload
-  boundary) from the same design doc. PR 2 is where `PageHeader` gets extracted — deliberately NOT
-  done in PR 1, because it would have meant editing frontend pages PR 1 declared out of scope.
+- **⚠ WHAT TO DO NEXT — PR 2a: Messages, document email, and the auth pages.** Presentation only.
+  Scope tightened by the operator 2026-07-31: Guide and Compare move to a LATER visual PR, so 2a is
+  exactly the compose-and-send surfaces plus auth. Three things, all diagnosed:
+  - **Width.** `.messages { max-width: 46rem }` caps the page at 736px inside the 960px column, for
+    no derived reason. Delete it; take the shared column.
+  - **Controls.** Messages, the document-email modal and the auth pages were ALL excluded from the
+    button system (`DESIGN-button-system-2026-07-30.md` §5a, "worth doing; not worth doing blind" —
+    this is the operator report that makes it no longer blind). There are THREE hand-rolled cancels
+    (`.msg-compose__cancel`, `.msg-reply__cancel`, `.modal__cancel`), all `border:none;background:none`
+    text links, and two hand-rolled sends. ⚑ The real trap: `button[type='submit']` (0-1-1) OUTRANKS
+    `.btn` (0-1-0), so EmailModal's send escapes the system *despite carrying the class* — fixing that
+    selector is what drags the auth pages in, and it retires the `opacity: 0.55` disabled states §2a
+    already fixed for buttons. Reply toggle → **compact** size at desktop (a page-level control on
+    every inbox row would swamp the list), 44px at ≤640.
+  - **NOT in 2a: read behaviour.** Considered and deliberately left alone. The inbox renders every
+    body inline, so "viewing the inbox is reading" (DECISIONS 2026-07-03) is internally coherent;
+    removing automatic marking while offering only "Mark all read" would leave ordinary no-reply
+    messages with no individual resolution. Revisit as its own product decision, not inside a visual pass.
+- **THEN:** a later visual PR for **Guide + Compare**; **PR 2b** for the `kind` field + one-click
+  grant (schema + migration — specify partial-failure/retry semantics FIRST: granting access and
+  sending the confirmation are two writes and must not masquerade as atomic, and the subject-grade
+  scope must be derived server-side from the trusted message/lesson relationships, never client
+  input); and **PR 3** for the version editor chrome + native-Payload boundary.
+- `PageHeader` still awaits extraction — deliberately NOT done in PR 1, because it would have meant
+  editing frontend pages PR 1 declared out of scope. The first visual PR that touches a second page
+  is where it earns its keep.
 - **The rule that paid for itself:** PR 1's acceptance protocol required creating a candidate through
   the REAL edit-and-save workflow. Doing that is what surfaced #176 — a bug 318 unit tests, `tsc` and
   eslint had all passed over. Do not substitute an API call for the user's actual path.
