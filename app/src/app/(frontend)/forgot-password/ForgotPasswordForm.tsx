@@ -86,7 +86,7 @@ export function ForgotPasswordForm() {
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
         {busy ? 'Sending…' : 'Email me a reset link'}
       </button>
     </form>

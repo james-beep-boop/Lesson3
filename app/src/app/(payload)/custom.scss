@@ -1063,7 +1063,8 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
       gap: 0.5rem 0.85rem;
     }
 
-    // 44×44 touch target (WCAG 2.5.5) — the frontend avatar already grew here; the admin's did not.
+    // 44×44 touch target (WCAG 2.5.5, Level AAA — the project standard, above the AA 24×24 floor of
+    // 2.5.8) — the frontend avatar already grew here; the admin's did not.
     .user-menu__avatar {
       min-width: var(--app-avatar-touch-size);
       min-height: var(--app-avatar-touch-size);

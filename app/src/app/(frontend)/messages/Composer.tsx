@@ -58,7 +58,7 @@ export default function Composer({
         {!open && (
           <button
             type="button"
-            className="msg-compose-open"
+            className="btn"
             // Clear any stale send-status note from the previous open (CodeRabbit on #89).
             onClick={() => {
               setNote(null)
@@ -115,19 +115,19 @@ export default function Composer({
             />
           </label>
           <div className="msg-compose__actions">
-            <button type="submit" className="msg-compose__send" disabled={busy || !recipient || !body.trim()}>
+            <button type="submit" className="btn btn--primary" disabled={busy || !recipient || !body.trim()} aria-busy={busy}>
               {busy ? 'Sending…' : 'Send'}
             </button>
             <button
               type="button"
-              className="msg-compose__cancel"
+              className="btn"
               disabled={busy}
               onClick={() => setOpen(false)}
             >
               Close
             </button>
             {note && (
-              <span className={note.kind === 'error' ? 'msg-compose__error' : 'msg-compose__sent'} role="status">
+              <span className={note.kind === 'error' ? 'inline-error' : 'msg-compose__sent'} role="status">
                 {note.text}
               </span>
             )}

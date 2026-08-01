@@ -84,6 +84,9 @@ root.walkRules((r) => {
   })
 })
 
+/** Every selector in the sheet, flattened — the shape the "is X gone?" assertions want. */
+const allSelectors = allRules.flatMap((r) => r.selectors)
+
 /** Every top-level rule whose selector list contains `sel` exactly. */
 const rulesFor = (sel: string) => rules.filter((r) => r.selectors.includes(sel))
 
@@ -139,6 +142,25 @@ describe('button system', () => {
       expect(single, `.btn--${mod} must be written as .btn.btn--${mod}`).toEqual([])
       expect(() => posOf(`.btn.btn--${mod}`)).not.toThrow()
     }
+  })
+
+  it('gives the phone touch target enough specificity to beat --compact', () => {
+    // A REAL shipped defect, found 2026-07-31 and fixed with this guard. The ≤640px rule was written
+    // `.btn { min-height: 44px }` (0-1-0), but `.btn.btn--compact { min-height: 26px }` is (0-2-0)
+    // and a media query adds NO specificity — so compact won at every width. Measured on the
+    // deployed site: the catalogue's PDF / Word / versions pills were 26px at 390px, while the
+    // stylesheet comment asserted they were 44px. Nothing in the source revealed it; only a browser
+    // did. The touch block must therefore restate `.btn.btn--compact` at equal specificity.
+    // Asserted INDEPENDENTLY, not "both in the same rule": two separate rules inside the media block
+    // are an equally valid implementation, and coupling them would fail a correct alternative.
+    const reached = allRules
+      .filter((r) => r.body.includes('--app-btn-touch-min-height'))
+      .flatMap((r) => r.selectors)
+    expect(reached, 'expected a ≤640px .btn touch-target rule').toContain('.btn')
+    expect(
+      reached,
+      '.btn.btn--compact must ALSO get the touch target — a bare .btn (0-1-0) loses to .btn.btn--compact (0-2-0)',
+    ).toContain('.btn.btn--compact')
   })
 
   it('lets no glyph rule reach the labelled favorite, at any width', () => {
@@ -220,11 +242,35 @@ describe('button system', () => {
 
   it('has no orphaned references to the replaced controls', () => {
     // Rules, not prose: the historical names survive deliberately in explanatory comments.
-    const selectors = allRules.flatMap((r) => r.selectors)
     // `.btn-doc` subsumes `.btn.btn-doc` as a substring — one entry covers both forms.
-    for (const gone of ['.compare-link', '.page-back', '.btn-doc', '.versions-chip']) {
-      expect(selectors.filter((s) => s.includes(gone)), `${gone} should be gone`).toEqual([])
+    const foldedByTheSystem = ['.compare-link', '.page-back', '.btn-doc', '.versions-chip']
+    // The §5a set, folded 2026-07-31: the Messages compose/reply controls, the modal cancel and the
+    // auth submit. Left out originally as "worth doing; not worth doing blind" — an operator report
+    // is what made it no longer blind.
+    const folded5a = [
+      '.msg-compose-open',
+      '.msg-compose__send',
+      '.msg-compose__cancel',
+      '.msg-reply-toggle',
+      '.msg-reply__cancel',
+      '.modal__cancel',
+    ]
+    for (const gone of [...foldedByTheSystem, ...folded5a]) {
+      expect(allSelectors.filter((s) => s.includes(gone)), `${gone} should be gone`).toEqual([])
     }
+  })
+
+  it('lets no element/attribute selector outrank .btn on a submit button', () => {
+    // THE trap §5a documented: `button[type='submit']` is (0-1-1) and `.btn` is (0-1-0), so a
+    // `<button type="submit" class="btn">` silently rendered as the hand-rolled filled primary
+    // instead of a system button — EmailModal's send carried the class and still escaped. Nothing
+    // may reintroduce a bare type-selector for submits; a submit that wants primary emphasis says
+    // so with `.btn.btn--primary`, which is (0-2-0) and wins on its own merits.
+    // Normalized first: `button[type=submit]`, `[type="submit"]` and spaced variants are the same
+    // selector to a browser, and a syntax-shaped assertion would wave three of them through.
+    const norm = (sel: string) => sel.replace(/['"\s]/g, '')
+    const offenders = allSelectors.filter((s) => norm(s).includes('button[type=submit'))
+    expect(offenders, 'style submits via .btn.btn--primary, not a type selector').toEqual([])
   })
 
   it('restates the filled palette on the admin primary, which its scope outranks', () => {

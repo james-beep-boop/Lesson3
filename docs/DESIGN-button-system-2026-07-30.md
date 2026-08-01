@@ -40,11 +40,16 @@ Everything else was styled where it was invented.
 ## 2. The system
 
 **One geometry for every control in the system**, from shared tokens: radius, min-height (38px, 44px
-at ≤640px for WCAG 2.5.5), padding, gap, font size, font family, focus treatment.
+at ≤640px — WCAG 2.5.5 Target Size (Enhanced), Level AAA; the AA floor is 2.5.8 at 24×24, so 44 is
+this project's deliberate standard rather than a conformance minimum), padding, gap, font size, font
+family, focus treatment.
 
 "In the system" is a real boundary, not a figure of speech: the page-level and row-level action
-controls on the lesson page, the catalogue and the version editor. Form submits, the Messages
-compose controls and the Share menu's flat list items stay outside it — see §5a for the list and why.
+controls on the lesson page, the catalogue and the version editor. The Share menu's flat list items
+stay outside it — see §5a.
+
+**Updated 2026-07-31:** form submits and the Messages compose controls are now IN the system (PR 2a
+— see §5a). The sentence above originally excluded them.
 
 Tokens go in `app-tokens.scss` as `--app-btn-*`, generalising the existing `--app-back-*` set. Font
 size is stated in **px**, for the same reason Back already is: the admin root is 15px and the
@@ -55,7 +60,7 @@ frontend's is 16px, so a `rem` token would render ~6% smaller in the editor.
 | Variant | Background | Border | Text | Weight | Used for |
 |---|---|---|---|---|---|
 | **Standard** | `--bg-soft` | accent | accent | 400 | Edit, Share, Compare, Back, Favorite, Quick preview, Formatted PDF, Show details, Editing help, Cancel, Request editing |
-| **Primary** | accent | accent | `--accent-ink` | **600** | Save (today the only primary) |
+| **Primary** | accent | accent | `--accent-ink` | **600** | Save; and since PR 2a the send actions — Messages Send / Send reply, the document-email Send, and the auth submits (sign in, sign up, reset) |
 | **Quiet** (`--quiet`) | `--bg-soft` | `--line` | `--ink` | 400 | Catalogue downloads, versions chip, subject/grade filters |
 | **Danger** (`--danger`) | `--bg-soft` | red | red | 400 | Delete (today the only danger) |
 
@@ -294,7 +299,33 @@ What to check:
 
 ---
 
-## 5a. Deliberately out of scope — three more hand-rolled controls
+## 5a. Deliberately out of scope — three more hand-rolled controls  ✅ FOLDED IN 2026-07-31 (PR 2a)
+
+**Status: done.** An operator report on the Messages page is what made it no longer blind, and PR 2a
+folded all three in — plus the three cancels (`.msg-compose__cancel`, `.msg-reply__cancel`,
+`.modal__cancel`), which were the same defect this section had only half-seen. Send became
+`.btn.btn--primary`, every cancel the standard `.btn` (Cancel was already named in the §2 Standard
+row), and the reply toggle `.btn.btn--compact`. The original text stands below as the record.
+
+⚑ **No replacement default was added, deliberately.** `button[type='submit']` was DELETED rather than
+rewritten, and a submit that wants primary emphasis now says `.btn.btn--primary` at the call site.
+Three reasons, worth keeping because the next person to add a form will wonder:
+
+1. A base rule would encode "submit ⇒ primary", which §2 explicitly refuses — emphasis carries
+   meaning, and submit-ness is form mechanics, not an emphasis level.
+2. Any element-level default either sits at 0-1-1 and reopens exactly this trap, or is written
+   `:where(...)` at 0-0-0 and becomes a second copy of the geometry to keep in step forever.
+3. The failure mode for a forgotten class is now LOUD. There is no bare `button` rule left in the
+   stylesheet, so an unclassed submit renders with full UA chrome beside 15px app-font neighbours —
+   unmissable. Note the inversion: the deleted rule was the *silent* failure mode. It painted a
+   classless submit approximately right, which is precisely why `EmailModal`'s
+   `<button type="submit" class="btn">` sat outside the system unnoticed for so long.
+
+`tests/unit/buttonSystem.spec.ts` guards the cascade half of this — no rule may reintroduce a submit
+type-selector. It asserts nothing about markup; the visible-failure argument above is what covers
+call sites.
+
+---
 
 Found while doing PR A, on pages the operator's report did not cover. Left alone rather than
 silently widening the change; each is the same problem on a different surface:
@@ -309,6 +340,10 @@ Folding these in is a small follow-up (mostly deleting rules and adding `.btn bt
 touches the auth and messaging pages, which are not what this batch is about and would need their own
 visual pass. The `opacity`-based disabled states there are the same accessibility issue §2a fixed for
 buttons. Worth doing; not worth doing blind.
+
+*(2026-07-31: done, in PR 2a — the estimate held. The `opacity` disabled states went with the rules,
+and the six converted controls now also carry `aria-busy`, which the system already styles but they
+had been expressing as a label swap only.)*
 
 ---
 

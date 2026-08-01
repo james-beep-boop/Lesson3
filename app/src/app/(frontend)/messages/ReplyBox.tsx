@@ -46,7 +46,7 @@ export default function ReplyBox({
 
   if (!open) {
     return (
-      <button type="button" className="msg-reply-toggle" onClick={() => setOpen(true)}>
+      <button type="button" className="btn btn--compact" onClick={() => setOpen(true)}>
         Reply
       </button>
     )
@@ -67,15 +67,16 @@ export default function ReplyBox({
       <div className="msg-reply__actions">
         <button
           type="button"
-          className="msg-compose__send"
+          className="btn btn--primary"
           disabled={busy || !body.trim()}
+          aria-busy={busy}
           onClick={onSend}
         >
           {busy ? 'Sending…' : 'Send reply'}
         </button>
         <button
           type="button"
-          className="msg-reply__cancel"
+          className="btn"
           disabled={busy}
           onClick={() => {
             setOpen(false)
@@ -86,7 +87,7 @@ export default function ReplyBox({
           Cancel
         </button>
         {error && (
-          <span role="alert" className="msg-compose__error">
+          <span role="alert" className="inline-error">
             {error}
           </span>
         )}

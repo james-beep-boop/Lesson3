@@ -72,7 +72,7 @@ export function LoginForm() {
           {error}
         </p>
       )}
-      <button type="submit" disabled={busy}>
+      <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>
