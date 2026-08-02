@@ -737,11 +737,25 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // this block is scoped to the version editor, and the shared `.btn--danger`/`.btn--quiet` rules live
 // in the FRONTEND stylesheet, which the admin never loads — so Manage's Delete was rendering as
 // stock Payload. Extending this selector is deliberate over mirroring the rules into a second block:
-// a copy is a second thing to keep in step, which is the drift this system exists to remove. Kept to
-// `.lp-manage__row-actions` for the same reason as above — Manage hosts other `.btn`s (the Editors
-// picker's Add, the upload controls) that are form furniture, not page-level actions.
+// a copy is a second thing to keep in step, which is the drift this system exists to remove.
+//
+// EXTENDED AGAIN 2026-08-02, on an operator report that Manage's "Delete selected" was not a
+// standard button. It was not, and neither were two others. The 2026-07-31 pass stopped at
+// `.lp-manage__row-actions` and recorded the rest as "form furniture, not page-level actions" —
+// that judgement was wrong for these three. They are labelled action buttons in OUR OWN
+// components (DeletePlansPanel, EditorsWidget), not Payload's internal array-row controls, which
+// is what the furniture exclusion was actually protecting. Measured at 1280px before this change:
+// all three 29.08px tall / 16px / 3px radius, against the system's 38px / 15px / 6px — and
+// `Remove` read as bare text directly beneath a properly bordered `Delete`.
+//
+// Still deliberately OUT: Payload's own in-form `.btn`s (array row actions and the like), which is
+// why this stays a list of our component scopes rather than `.lp-manage .btn`.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-.lp-manage__row-actions .btn {
+.lp-manage__row-actions .btn,
+.lp-manage__row .btn,
+.lp-manage__editors-add .btn,
+.lp-admin-list__bar .btn,
+.lp-manage__upload .btn {
   --color: var(--app-accent);
   --bg-color: var(--app-btn-bg);
   --btn-border: 1px solid var(--app-accent);
@@ -1043,10 +1057,66 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
+// The upload row. Was an inline `style` object on the div; it is a class now because a class is
+// what the shared button block can select, and a control cannot join a system it is invisible to.
+.lp-manage__upload {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex-wrap: wrap;
+}
+
+// The native file input is deliberately LEFT ALONE beyond aligning its type with its neighbours.
+// Restyling `input[type=file]` means hiding it and driving it from a `<label>`, which trades a
+// familiar OS control — and its keyboard and screen-reader behaviour — for a lookalike. Not worth
+// it for a Site-Admin-only control used once per upload. It is the one control on Manage not in the
+// system, and that is a decision, not an oversight.
+.lp-manage__file {
+  font-family: var(--app-ui-font);
+  font-size: var(--app-secondary-size);
+}
+
+// Manage's FORM controls — the Editors picker and the delete-plans search. They take the button
+// system's GEOMETRY (height, radius, type) so they sit level with the action button beside them,
+// and deliberately NOT its appearance: a `<select>` keeps its native chevron and an input keeps
+// looking like an input. Exactly the rule applied to the frontend's compare pickers in this same
+// PR — one policy for "form control next to a system button", stated on both surfaces.
+//
+// Before this, the Editors row put a 31.19px/14.4px UA-default select next to what is now a 38px
+// Add button, and `.lp-manage__select` had NO rule of its own at all.
+.lp-manage__select,
+.lp-admin-list__search {
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--app-btn-radius);
+  background: var(--theme-input-bg, var(--theme-elevation-0));
+  color: var(--theme-elevation-1000);
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+
+  &:focus-visible {
+    outline: var(--app-btn-focus-ring) solid var(--app-accent);
+    outline-offset: var(--app-btn-focus-ring-offset);
+  }
+}
+
 // Both admin button rules above reach the phone touch target through the shared `.btn` selector.
+// ⚑ This selector list must track the geometry block's. The three Manage scopes added 2026-08-02
+// already had a 44px rule further down (the #5 block in the ≤640px section), written when they were
+// still outside the system — that rule is now redundant and has been removed, so the touch target
+// for every in-system control is stated in exactly one place.
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-  .lp-manage__row-actions .btn {
+  .lp-manage__row-actions .btn,
+  .lp-manage__row .btn,
+  .lp-manage__editors-add .btn,
+  .lp-admin-list__bar .btn,
+  .lp-manage__upload .btn,
+  // The form controls beside them reach the same target — a 31px select next to a 44px button is
+  // the mismatch this pass exists to remove, and it is also below the 44px tap standard.
+  .lp-manage__select,
+  .lp-admin-list__search {
     min-height: var(--app-btn-touch-min-height);
   }
 
@@ -1233,20 +1303,11 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     flex-wrap: wrap;
   }
 
-  // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
-  // already do; these Payload small buttons did not). Explicit px, NOT rem: the admin root font is
-  // 15px, so 2.75rem would fall 3px short of the 44px target. Covers the Editors widget AND the
-  // Site-Admin "Delete lesson plans" panel (DeletePlansPanel): its destructive button + search sit
-  // in `.lp-admin-list__bar`, and each selectable plan is a `.lp-manage__pick` label whose whole
-  // row should be tappable, not just the 13px checkbox.
-  .lp-manage__row .btn,
-  .lp-manage__editors-add .btn,
-  .lp-admin-list__bar .btn {
-    min-height: 44px;
-  }
-  .lp-admin-list__search {
-    min-height: 44px;
-  }
+  // #5 — what the button system does NOT cover. The `.btn` scopes and both form controls that used
+  // to lead this block moved OUT on 2026-08-02: they joined the system, so they take
+  // `--app-btn-touch-min-height` from the shared block above rather than a hard 44px stated twice.
+  // What remains is the `.lp-manage__pick` label, whose whole row should be tappable rather than
+  // just its 13px checkbox — a label, not a control, so no system rule reaches it.
   .lp-manage__pick {
     display: flex;
     align-items: center;

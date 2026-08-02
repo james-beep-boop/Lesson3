@@ -33,6 +33,7 @@ import PageHeader from '@/components/PageHeader'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8')
+const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss'), 'utf8')
 
 const root = postcss.parse(css)
 
@@ -140,6 +141,93 @@ describe('Guide + Compare visual system', () => {
       literalOffsets.flatMap((r) => r.body),
       'guide scroll-margin-top must derive from --guide-toc-height, not a literal',
     ).toEqual([])
+  })
+})
+
+/**
+ * Manage's controls (operator report 2026-08-02: "Delete selected should be a button like all the
+ * other standard buttons", then "same with the upload button — review all buttons like that").
+ *
+ * The admin button system is applied by SCOPE, not by a single class, so a control joins it only if
+ * some selector lists its container. That makes "which scopes are covered" the load-bearing fact,
+ * and it is invisible in review: three controls sat outside it for months (measured 29.08px against
+ * the system's 38px, with `Remove` reading as bare text beside a bordered `Delete`).
+ *
+ * The geometry block and the ≤640px touch block must list the SAME scopes. If they drift, a control
+ * gets desktop geometry and no touch target, or vice versa — which is how this file's compare-picker
+ * defect happened on the frontend.
+ */
+describe('admin button-system scope coverage', () => {
+  /**
+   * The selector list of the rule that declares `needle`.
+   *
+   * Scanned as TEXT, not parsed: `custom.scss` is Sass — `//` comments and nesting — and postcss
+   * throws on it (`buttonSystem.spec.ts` reads this same file with plain string scanning for the
+   * same reason). Walk back from the declaration to the preceding `{`, then take the selector list
+   * before it, dropping comment lines.
+   */
+  const scopeListFor = (token: string): string[] => {
+    // Match the USE — `var(--x)` — not the bare token, which also appears in prose comments. The
+    // first draft of this helper matched a comment and returned English as a selector list.
+    const at = adminCss.indexOf(`var(${token})`)
+    if (at === -1) throw new Error(`no rule declares var(${token})`)
+    const open = adminCss.lastIndexOf('{', at)
+    const prevClose = Math.max(adminCss.lastIndexOf('}', open), adminCss.lastIndexOf(';', open))
+    const slice = adminCss.slice(prevClose + 1, open)
+    // Drop any at-rule opener the slice swept up (`@media (max-width: 640px) {`), or it glues onto
+    // the first selector and no exact match succeeds.
+    const selectorText = slice.slice(slice.lastIndexOf('{') + 1)
+    return (
+      selectorText
+        // Comments FIRST, then split — a `//` line containing a comma would otherwise become two
+        // bogus selectors and no filter afterwards can tell them from real ones.
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith('//'))
+        .join(' ')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  }
+
+  const MANAGE_SCOPES = [
+    '.lp-manage__row-actions .btn',
+    '.lp-manage__row .btn',
+    '.lp-manage__editors-add .btn',
+    '.lp-admin-list__bar .btn',
+    '.lp-manage__upload .btn',
+  ]
+
+  it('covers every Manage action scope with the shared geometry', () => {
+    const geometry = scopeListFor('--app-btn-min-height')
+    for (const scope of MANAGE_SCOPES) {
+      expect(geometry, `${scope} must be in the admin button geometry rule`).toContain(scope)
+    }
+  })
+
+  it('gives the touch block the same scopes as the geometry block', () => {
+    // Not "some 44px rule exists somewhere" — the two lists must agree, or a scope added to one and
+    // forgotten in the other ships a control that is 38px on desktop and 38px on a phone.
+    const touch = scopeListFor('--app-btn-touch-min-height')
+    for (const scope of MANAGE_SCOPES) {
+      expect(touch, `${scope} must also reach the ≤640px touch target`).toContain(scope)
+    }
+    expect(touch, 'the version editor must keep its touch target too').toContain(
+      '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn',
+    )
+  })
+
+  it('gives Manage form controls the button geometry and the touch target', () => {
+    // A 31px select beside a 38px button was the mismatch left after the buttons were fixed.
+    const geometry = scopeListFor('--app-btn-min-height')
+    const touch = scopeListFor('--app-btn-touch-min-height')
+    for (const sel of ['.lp-manage__select', '.lp-admin-list__search']) {
+      expect(touch, `${sel} must reach the ≤640px touch target`).toContain(sel)
+    }
+    // Their geometry lives in its own rule (they take size, not button paint) — assert it exists.
+    expect(adminCss).toMatch(/\.lp-manage__select,\s*\n\.lp-admin-list__search\s*\{/)
+    expect(geometry.length, 'the button geometry rule should still be found').toBeGreaterThan(0)
   })
 })
 

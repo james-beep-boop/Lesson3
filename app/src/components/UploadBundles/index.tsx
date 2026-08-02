@@ -100,10 +100,14 @@ export default function UploadBundles() {
         Site administrator only. ARES <code>.json</code> exports are validated and saved as
         Official 1.0.0 versions. The upload never executes the file; only JSON data is parsed.
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+      {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
+          Upload. It was the last control on Manage rendering as stock Payload (operator report,
+          2026-08-02) — measured 29.08px against the system's 38px. */}
+      <div className="lp-manage__upload">
         <input
           ref={inputRef}
           type="file"
+          className="lp-manage__file"
           accept=".json,application/json"
           multiple
           disabled={busy}

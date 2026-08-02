@@ -8,6 +8,31 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — Manage's controls all become standard buttons
+
+Operator report: "Delete selected" was not a standard button, nor was Upload — "review all buttons
+like that and make them consistent." An audit of every control on Manage found **six** outside the
+system, all rendering at 29.08px / 16px / 3px against the system's 38px / 15px / 6px, plus four
+unstyled `<select>`s at 31.19px. `Remove` read as bare text beside a bordered `Delete`.
+
+- **Delete selected, Editors Remove, Editors Add and Upload** join the shared admin button block.
+  Upload needed a class (`.lp-manage__upload`) first — it was an inline-styled `<div>`, and a
+  control cannot join a system it is invisible to.
+- **The Editors picker and the delete-plans search** take the button system's geometry while keeping
+  native `<select>`/input appearance — the same rule this PR applied to the frontend's compare
+  pickers, now stated once per surface instead of invented twice.
+- **The native file input stays outside, deliberately** — restyling it means giving up the OS
+  control's keyboard and screen-reader behaviour. Documented so the next audit reads it as a
+  decision.
+
+Result: **one geometry across 16 of 17 controls** at desktop, and **all 16 at 44px** at 390px with
+no overflow. The version editor's seven controls are unchanged.
+
+Guarded by tests asserting that the geometry block and the ≤640px touch block list the *same*
+scopes — the drift that let these controls sit outside the system since 2026-07-31. The guards were
+confirmed to fail against the pre-fix stylesheet, and one of them caught a duplicate rule the fix
+itself had introduced.
+
 ## 2026-08-02 — Guide and Compare join the visual system; `PageHeader` extracted
 
 **PR 2b** of [`docs/DESIGN-visual-system-2026-07-31.md`](DESIGN-visual-system-2026-07-31.md) — the

@@ -11,6 +11,60 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, follow-up) — Manage's controls: scope coverage is the invariant, not a class
+
+Operator report during the PR 2b session: *"On the manage page, when deleting, the 'Delete Selected'
+should be a button like all the other standard buttons"*, then *"Same with the upload button really.
+How about review all buttons like that and make them consistent."* Both correct. Presentation only.
+
+**Measured before, at 1280px** — the audit enumerated every control on Manage rather than checking
+the reported one:
+
+| Control | Before | System |
+|---|---|---|
+| Continue editing, Delete (candidate row) | 38 / 15 / 6 | ✓ already in |
+| **Delete selected** | 29.08 / 16 / 3 | ✗ |
+| **Editors Remove** ×3 | 29.08 / 16 / 3 | ✗ — rendered as bare text beside a bordered Delete |
+| **Editors Add** ×4 | 29.08 / 16 / 3 | ✗ |
+| **Upload** | 29.08 / 16 / 3 | ✗ |
+| **`.lp-manage__select`** ×4 | 31.19 / 14.4 / 4 | ✗ — had NO rule of its own at all |
+
+After: **one geometry, 38 / 15 / 6, across 16 of 17 controls**, and every one of them 44px at 390px.
+
+**The structural lesson. The admin button system is applied by SCOPE, not by a class**, because
+`custom.scss` must not restyle Payload's own in-form `.btn`s. So a control joins the system only if
+some selector happens to name its container — which means *"which scopes are covered"* is the
+load-bearing fact, and it is invisible in review. Three controls sat outside it since 2026-07-31.
+
+Worse, the 2026-07-31 pass had *recorded a judgement* that the Editors controls were "form
+furniture, not page-level actions". That was wrong: they are labelled action buttons in our own
+components, where the furniture exclusion was really protecting Payload's array-row controls. **A
+recorded exclusion is not self-justifying; it needs re-testing when the thing next to it changes.**
+Fixing only Delete would have left `Remove` as bare text directly beneath a bordered `Delete`.
+
+**Two rules now guarded by tests**, because both are cascade facts no reviewer reliably checks:
+the geometry block and the ≤640px touch block must list the **same** scopes (drift ships a control
+with desktop geometry and no touch target), and every Manage action scope must appear in both.
+Confirmed to fail against the pre-fix stylesheet.
+
+**Form controls follow the frontend's rule**, decided in the same PR for the compare pickers:
+`.lp-manage__select` / `.lp-admin-list__search` take the button system's **geometry** and keep their
+**native appearance**. One policy for "form control beside a system button", now stated on both
+surfaces rather than invented twice.
+
+**Deliberately still outside: the native file input.** Restyling `input[type=file]` means hiding it
+behind a `<label>` lookalike and giving up the OS control's keyboard and screen-reader behaviour —
+not worth it for a Site-Admin control used once per upload. It is the one non-system control on
+Manage, and the comment says so, so the next audit reads it as a decision rather than a miss.
+
+⚑ **Caught while writing the guard: the fix introduced its own duplicate.** Adding
+`.lp-admin-list__search` to the shared touch block left the old hard-coded `min-height: 44px` for
+the same selector in the `#5` block below — two rules, same control, and a comment above the second
+one asserting the redundant rules "have been removed". Exactly the duplication this whole pass is
+about, created by the pass itself. The test found it, not review.
+
+---
+
 ## 2026-08-02 (PR 2b) — Guide + Compare; a duplicate class, an uncovered control, and a derived seam
 
 The last two frontend pages outside the visual system
