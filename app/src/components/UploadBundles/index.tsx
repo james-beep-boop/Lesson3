@@ -111,9 +111,25 @@ export default function UploadBundles() {
           accept=".json,application/json"
           multiple
           disabled={busy}
-          onChange={(e) => setFiles(e.target.files ? Array.from(e.target.files) : [])}
+          // The PREVIOUS upload's result list is cleared the moment the picker is opened, not when
+          // new files arrive (operator report 2026-08-02): the old filenames stayed on screen after
+          // a successful upload, so the panel read as though those files were queued again. `onClick`
+          // fires when the OS dialog opens, so the stale list goes even if the admin then cancels —
+          // which is the case `onChange` alone would miss. `onChange` clears too, for the paths that
+          // set files without a click (drag-drop, programmatic).
+          onClick={() => setResults([])}
+          onChange={(e) => {
+            setResults([])
+            setFiles(e.target.files ? Array.from(e.target.files) : [])
+          }}
         />
-        <Button buttonStyle="secondary" size="small" onClick={onUpload} disabled={busy || files.length === 0}>
+        <Button
+          className="lp-btn"
+          buttonStyle="secondary"
+          size="small"
+          onClick={onUpload}
+          disabled={busy || files.length === 0}
+        >
           {busy ? 'Uploading…' : `Upload${files.length ? ` ${files.length} file(s)` : ''}`}
         </Button>
       </div>

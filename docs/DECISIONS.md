@@ -31,10 +31,30 @@ the reported one:
 
 After: **one geometry, 38 / 15 / 6, across 16 of 17 controls**, and every one of them 44px at 390px.
 
-**The structural lesson. The admin button system is applied by SCOPE, not by a class**, because
-`custom.scss` must not restyle Payload's own in-form `.btn`s. So a control joins the system only if
-some selector happens to name its container — which means *"which scopes are covered"* is the
-load-bearing fact, and it is invisible in review. Three controls sat outside it since 2026-07-31.
+**The structural lesson, and the fix that followed it.** The admin button system was applied by
+SCOPE, not by a class, because `custom.scss` must not restyle Payload's own in-form `.btn`s. So a
+control joined the system only if some selector happened to name its container — *"which scopes are
+covered"* was the load-bearing fact, and it is invisible in review. Three controls sat outside it
+since 2026-07-31.
+
+The first fix here extended the scope list, which worked and was **the wrong altitude**: the list
+had grown to one entry per control, across *three* rules, so every new Manage button meant editing a
+stylesheet 700 lines from the component. A `/simplify` pass caught that the discipline had already
+failed a third time **inside this very commit** — the `a.btn` paint rule was never extended, and
+survived only because the sole admin `<a class="btn">` happens to sit in a scope that was.
+
+**Manage's controls now opt in with `.lp-btn`** (`.btn.lp-btn`, specificity 0-2-0 — identical to the
+container scopes it replaces, so the `&.btn--style-*` restatements still outrank it). Three selector
+lists collapse to one. The trade is real but favourable: an opt-in class can be forgotten, but a
+forgotten `.lp-btn` is visible in the diff of the component being written, where a forgotten scope
+was invisible in a file its author never opened. This project has shipped the second failure mode
+four times and the first zero times.
+
+⚑ **The exclusion that justified scoping does not apply to Manage.** It is real for
+`.collection-edit--lesson-bundle-versions`, a genuine Payload document view whose form hosts
+Payload's own `.btn`s — that scope stays. Manage is a *custom* admin view whose subtree is only our
+four components, so the constraint never applied there. Checking whether a stated constraint covers
+the case you are citing it for is the actual lesson; it had been carried forward unexamined.
 
 Worse, the 2026-07-31 pass had *recorded a judgement* that the Editors controls were "form
 furniture, not page-level actions". That was wrong: they are labelled action buttons in our own
@@ -62,6 +82,20 @@ Manage, and the comment says so, so the next audit reads it as a decision rather
 the same selector in the `#5` block below — two rules, same control, and a comment above the second
 one asserting the redundant rules "have been removed". Exactly the duplication this whole pass is
 about, created by the pass itself. The test found it, not review.
+
+⚑ **A dead declaration, and a warning about reading CSS from source.** `.guide-kicker` declared its
+own `margin`, and it had never once applied: the kicker is a `<p>`, so `.guide p` (0-1-1) outranks
+`.guide-kicker` (0-1-0) and owns its spacing. The review flagged the retokenisation as "doubling
+4px → 8px"; the browser said the value had been **12.8px before and 12px after**, because the
+declaration both readings were arguing about was dead. Removed. **Reading a declaration tells you
+what an author intended, not what the page does** — the same lesson as #179's 26px pill, arriving
+from the opposite direction.
+
+**Retokenising did snap four values**, and the PR should not claim otherwise: `.guide-list`
+padding-left 20 → 24px, `.guide-section` padding/margin-top 20 → 16px, `.guide-list li + li`
+7.2 → 8px, `.guide p` margin-bottom 12.8 → 12px. The 8/12/16/24/32 scale has no 20px step, so these
+are the scale deciding the design rather than recording it. Accepted deliberately — that is what
+adopting a spacing scale means — and eyeballed at all four widths, but recorded as changes.
 
 ---
 

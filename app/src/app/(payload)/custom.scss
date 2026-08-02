@@ -739,23 +739,25 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // stock Payload. Extending this selector is deliberate over mirroring the rules into a second block:
 // a copy is a second thing to keep in step, which is the drift this system exists to remove.
 //
-// EXTENDED AGAIN 2026-08-02, on an operator report that Manage's "Delete selected" was not a
-// standard button. It was not, and neither were two others. The 2026-07-31 pass stopped at
-// `.lp-manage__row-actions` and recorded the rest as "form furniture, not page-level actions" —
-// that judgement was wrong for these three. They are labelled action buttons in OUR OWN
-// components (DeletePlansPanel, EditorsWidget), not Payload's internal array-row controls, which
-// is what the furniture exclusion was actually protecting. Measured at 1280px before this change:
-// all three 29.08px tall / 16px / 3px radius, against the system's 38px / 15px / 6px — and
-// `Remove` read as bare text directly beneath a properly bordered `Delete`.
+// REPLACED 2026-08-02 by an OPT-IN CLASS on Manage, after an operator report that "Delete selected"
+// was not a standard button — and it was not, nor were three others. The first fix extended the
+// container-scope list to cover them, which worked and was the wrong altitude: the list had grown
+// to one entry per control, so every new Manage button meant remembering to edit a stylesheet 700
+// lines from the component. That discipline had already failed twice on report, and it failed a
+// THIRD time inside the fix itself — the `a.btn` paint block below was left un-extended.
 //
-// Still deliberately OUT: Payload's own in-form `.btn`s (array row actions and the like), which is
-// why this stays a list of our component scopes rather than `.lp-manage .btn`.
+// Manage's controls now opt in with `.lp-btn` (`.btn.lp-btn`, specificity 0-2-0 — identical to the
+// container scopes it replaces, so the `&.btn--style-*` restatements below still outrank it).
+// A forgotten `.lp-btn` is visible in the diff of the component being written; a forgotten scope
+// was invisible in a file its author never opened.
+//
+// The version editor KEEPS a container scope, because there the original constraint is real:
+// `.collection-edit--lesson-bundle-versions` is a genuine Payload document view whose form hosts
+// Payload's own `.btn`s (array row actions and the like), and those must not be restyled. Manage
+// is a custom admin view — its subtree is only our four components — so that constraint never
+// applied there, which is why the opt-in class is safe.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-.lp-manage__row-actions .btn,
-.lp-manage__row .btn,
-.lp-manage__editors-add .btn,
-.lp-admin-list__bar .btn,
-.lp-manage__upload .btn {
+.btn.lp-btn {
   --color: var(--app-accent);
   --bg-color: var(--app-btn-bg);
   --btn-border: 1px solid var(--app-accent);
@@ -1042,8 +1044,12 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // `--color` / `--bg-color`, and this control should not depend on a vendored rule continuing to
 // apply to anchors across a Payload upgrade. It used to be the only tokenised control in the app,
 // at 16px/600 — heavier than everything beside it, which is what this system removes.
+// ⚑ This list was the one the container-scope approach FORGOT: when Manage's scopes were added
+// above on 2026-08-02 it kept only `.lp-manage__row-actions a.btn`, so it covered one of the four
+// new scopes by luck (Continue editing is the only admin `<a class="btn">`). Under the opt-in class
+// it is the same `.lp-btn` as everywhere else and cannot fall out of step again.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn,
-.lp-manage__row-actions a.btn {
+a.btn.lp-btn {
   border: 1px solid var(--app-accent);
   color: var(--app-accent);
   background: var(--app-btn-bg);
@@ -1066,14 +1072,14 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   flex-wrap: wrap;
 }
 
-// The native file input is deliberately LEFT ALONE beyond aligning its type with its neighbours.
-// Restyling `input[type=file]` means hiding it and driving it from a `<label>`, which trades a
-// familiar OS control — and its keyboard and screen-reader behaviour — for a lookalike. Not worth
-// it for a Site-Admin-only control used once per upload. It is the one control on Manage not in the
-// system, and that is a decision, not an oversight.
+// The native file input is deliberately LEFT ALONE apart from its type, which is set to match the
+// controls beside it. Restyling `input[type=file]` means hiding it and driving it from a `<label>`,
+// which trades a familiar OS control — and its keyboard and screen-reader behaviour — for a
+// lookalike. Not worth it for a Site-Admin-only control used once per upload. It is the one control
+// on Manage not in the system, and that is a decision, not an oversight.
 .lp-manage__file {
   font-family: var(--app-ui-font);
-  font-size: var(--app-secondary-size);
+  font-size: var(--app-btn-font-size);
 }
 
 // Manage's FORM controls — the Editors picker and the delete-plans search. They take the button
@@ -1101,20 +1107,13 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
-// Both admin button rules above reach the phone touch target through the shared `.btn` selector.
-// ⚑ This selector list must track the geometry block's. The three Manage scopes added 2026-08-02
-// already had a 44px rule further down (the #5 block in the ≤640px section), written when they were
-// still outside the system — that rule is now redundant and has been removed, so the touch target
-// for every in-system control is stated in exactly one place.
+// Both admin button rules above reach the phone touch target through the same selectors they use
+// for geometry — which is the point of the opt-in class: there is one list, not two that have to be
+// kept in step by hand. The form controls beside them take the same target, because a 31px select
+// next to a 44px button is the mismatch this pass exists to remove.
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-  .lp-manage__row-actions .btn,
-  .lp-manage__row .btn,
-  .lp-manage__editors-add .btn,
-  .lp-admin-list__bar .btn,
-  .lp-manage__upload .btn,
-  // The form controls beside them reach the same target — a 31px select next to a 44px button is
-  // the mismatch this pass exists to remove, and it is also below the 44px tap standard.
+  .btn.lp-btn,
   .lp-manage__select,
   .lp-admin-list__search {
     min-height: var(--app-btn-touch-min-height);

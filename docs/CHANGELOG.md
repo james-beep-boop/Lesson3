@@ -18,6 +18,11 @@ unstyled `<select>`s at 31.19px. `Remove` read as bare text beside a bordered `D
 - **Delete selected, Editors Remove, Editors Add and Upload** join the shared admin button block.
   Upload needed a class (`.lp-manage__upload`) first — it was an inline-styled `<div>`, and a
   control cannot join a system it is invisible to.
+- **Manage's controls now opt in with `.lp-btn`.** The first cut of this fix extended a list of
+  container scopes; a `/simplify` pass showed that list had grown to one entry per control across
+  *three* rules, and that the third had been left un-extended in the same commit that documented the
+  rule. One class replaces all of it. The version editor keeps its container scope, where the
+  original "don't restyle Payload's in-form buttons" constraint genuinely applies.
 - **The Editors picker and the delete-plans search** take the button system's geometry while keeping
   native `<select>`/input appearance — the same rule this PR applied to the frontend's compare
   pickers, now stated once per surface instead of invented twice.
@@ -58,7 +63,9 @@ schema, endpoint or migration change. App-level deploy, **no migration**.
 Verified in a browser at **390 / 550 / 700 / 1280** across the Guide, Compare, the lesson page and
 the catalogue, with computed-geometry tables and screenshots: the lesson page measured
 byte-identical before and after the `PageHeader` swap, TOC clearance 7.8–8.2px at every width, and
-no horizontal overflow anywhere. The Compare fixture was a second version created through the real
+no horizontal overflow anywhere. Retokenising snapped four Guide spacing values to the scale
+(20 → 24px, 20 → 16px, 7.2 → 8px, 12.8 → 12px) — small, deliberate, and recorded rather than
+described as a pure restatement. The Compare fixture was a second version created through the real
 edit-and-save workflow. `tsc` clean; unit **343/343** (11 new, each confirmed to FAIL against the
 unfixed stylesheet); lint 0 errors; sass compiles.
 

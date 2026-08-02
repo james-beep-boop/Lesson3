@@ -100,6 +100,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                 <li key={u.id} className="lp-manage__row">
                   <span>{u.name}</span>
                   <Button
+                    className="lp-btn"
                     buttonStyle="error"
                     size="small"
                     disabled={busy}
@@ -128,6 +129,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                 ))}
               </select>
               <Button
+                className="lp-btn"
                 buttonStyle="primary"
                 size="small"
                 disabled={busy || !picks[group.sgId]}

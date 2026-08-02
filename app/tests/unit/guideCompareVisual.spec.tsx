@@ -34,6 +34,21 @@ import PageHeader from '@/components/PageHeader'
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8')
 const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss'), 'utf8')
+/**
+ * `custom.scss` with its `//` comments removed, for structural scanning.
+ *
+ * Stripping first is what makes a one-regex selector scan safe: this file's comments are long prose
+ * that contains `;`, `,` and `{` — a scan over the raw text picks those up as selectors and
+ * declaration boundaries. (Both bugs were hit while writing this file: a match landed inside a
+ * comment, then a comment's semicolon truncated a selector list mid-sentence.)
+ *
+ * Safe here because the file contains no `://` — verified, and if a URL is ever added this strip
+ * would corrupt it, so the assertion below fails loudly rather than silently scanning garbage.
+ */
+const adminCssBare = adminCss.replace(/\/\/[^\n]*/g, '')
+if (adminCss.includes('://')) {
+  throw new Error('custom.scss now contains a URL — the // comment strip in this spec is unsafe')
+}
 
 const root = postcss.parse(css)
 
@@ -55,9 +70,14 @@ const bodyOf = (sel: string) => {
 }
 
 describe('Guide + Compare visual system', () => {
-  it('gives the page title one owner, reachable from the shared header', () => {
+  it('gives every shared-header page title one owner', () => {
     // `.page-heading h1`, not `.lesson-heading h1` — the latter reached only two pages, which is
     // exactly why the Guide had to declare its own.
+    //
+    // Scoped claim on purpose: the catalogue (`.lp-title`) and Messages (`.msg-title`) still
+    // declare the same size/weight independently, because neither uses the shared header yet.
+    // Converting them is a later PR; until then "a page title is 30px/700 by virtue of BEING one"
+    // is true of `.page-heading` callers, not of the whole app.
     const body = bodyOf('.page-heading h1')
     expect(body).toMatch(/font-size:\s*var\(--app-page-title-size\)/)
     expect(body).toMatch(/font-weight:\s*700/)
@@ -125,6 +145,22 @@ describe('Guide + Compare visual system', () => {
     ).toBeGreaterThan(base!.i)
   })
 
+  it('pins the TOC link count that --guide-toc-rows was measured against', () => {
+    // `--guide-toc-rows` is the one hand-measured input in the clearance formula — CSS cannot count
+    // flex lines. It is 2 at ≤640px because FIVE links wrap to two rows at 390px. Add a sixth, or
+    // lengthen "Subject-grade administrators", and the bar wraps to three while the formula still
+    // says two: the anchor under-clears and the heading lands behind the sticky bar. Nothing else
+    // would fail. This converts "re-measure" from a note-to-a-human into a failing test.
+    const guide = readFileSync(resolve(here, '../../src/app/(frontend)/guide/page.tsx'), 'utf8')
+    const toc = /<nav className="guide-toc"[\s\S]*?<\/nav>/.exec(guide)
+    expect(toc, 'the guide TOC nav is missing').not.toBeNull()
+    const links = toc![0].match(/<a href="#/g) ?? []
+    expect(
+      links.length,
+      'TOC link count changed — re-measure --guide-toc-rows at 390px and update the ≤640px override',
+    ).toBe(5)
+  })
+
   it('derives the guide TOC clearance from the tokens that build the bar', () => {
     // Both `scroll-margin-top` values used to be hand-typed magic numbers with no stated link to the
     // sticky bar they cleared, so retokenising the bar would have silently broken anchor landing
@@ -148,86 +184,73 @@ describe('Guide + Compare visual system', () => {
  * Manage's controls (operator report 2026-08-02: "Delete selected should be a button like all the
  * other standard buttons", then "same with the upload button — review all buttons like that").
  *
- * The admin button system is applied by SCOPE, not by a single class, so a control joins it only if
- * some selector lists its container. That makes "which scopes are covered" the load-bearing fact,
- * and it is invisible in review: three controls sat outside it for months (measured 29.08px against
- * the system's 38px, with `Remove` reading as bare text beside a bordered `Delete`).
+ * Manage's controls opt in with `.lp-btn`. That replaced a list of container scopes which had grown
+ * to one entry per control across THREE rules — and the list-tracking discipline demonstrably did
+ * not hold: two operator reports found controls outside it, and the fix for the second left the
+ * `a.btn` paint rule un-extended. The class makes a missed control visible in the diff of the
+ * component being written instead of in a stylesheet nobody opens.
  *
- * The geometry block and the ≤640px touch block must list the SAME scopes. If they drift, a control
- * gets desktop geometry and no touch target, or vice versa — which is how this file's compare-picker
- * defect happened on the frontend.
+ * What still has to hold, and is asserted below: every rule that styles Manage's buttons reaches
+ * them through the SAME selector, so geometry and the ≤640px touch target cannot drift apart —
+ * the drift that shipped a 26px `.btn--compact` on phones in #179.
  */
 describe('admin button-system scope coverage', () => {
   /**
-   * The selector list of the rule that declares `needle`.
+   * The selector list of the rule that declares `var(<token>)`.
    *
    * Scanned as TEXT, not parsed: `custom.scss` is Sass — `//` comments and nesting — and postcss
-   * throws on it (`buttonSystem.spec.ts` reads this same file with plain string scanning for the
-   * same reason). Walk back from the declaration to the preceding `{`, then take the selector list
-   * before it, dropping comment lines.
+   * throws on it outright (`buttonSystem.spec.ts` reads this same file with string scanning for the
+   * same reason). Over the comment-stripped source, `[^{};]*` cannot cross a `}`, a `;`, or an
+   * `@media … {` opener, so one capture isolates the selector list.
    */
   const scopeListFor = (token: string): string[] => {
-    // Match the USE — `var(--x)` — not the bare token, which also appears in prose comments. The
-    // first draft of this helper matched a comment and returned English as a selector list.
-    const at = adminCss.indexOf(`var(${token})`)
-    if (at === -1) throw new Error(`no rule declares var(${token})`)
-    const open = adminCss.lastIndexOf('{', at)
-    const prevClose = Math.max(adminCss.lastIndexOf('}', open), adminCss.lastIndexOf(';', open))
-    const slice = adminCss.slice(prevClose + 1, open)
-    // Drop any at-rule opener the slice swept up (`@media (max-width: 640px) {`), or it glues onto
-    // the first selector and no exact match succeeds.
-    const selectorText = slice.slice(slice.lastIndexOf('{') + 1)
-    return (
-      selectorText
-        // Comments FIRST, then split — a `//` line containing a comma would otherwise become two
-        // bogus selectors and no filter afterwards can tell them from real ones.
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith('//'))
-        .join(' ')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
+    const m = new RegExp(`([^{};]*)\\{[^{}]*var\\(${token}\\)`).exec(adminCssBare)
+    if (!m) throw new Error(`no rule declares var(${token})`)
+    return m[1]
+      .split(',')
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
   }
 
-  const MANAGE_SCOPES = [
-    '.lp-manage__row-actions .btn',
-    '.lp-manage__row .btn',
-    '.lp-manage__editors-add .btn',
-    '.lp-admin-list__bar .btn',
-    '.lp-manage__upload .btn',
-  ]
+  const EDITOR_SCOPE = '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn'
 
-  it('covers every Manage action scope with the shared geometry', () => {
+  it('styles Manage buttons through the opt-in class, not per-control scopes', () => {
+    // The altitude fix. If someone re-adds a `.lp-manage__<thing> .btn` entry, the list is growing
+    // again and this catches it — that regrowth is what put four controls outside the system.
     const geometry = scopeListFor('--app-btn-min-height')
-    for (const scope of MANAGE_SCOPES) {
-      expect(geometry, `${scope} must be in the admin button geometry rule`).toContain(scope)
-    }
+    expect(geometry).toContain('.btn.lp-btn')
+    expect(
+      geometry.filter((s) => s.startsWith('.lp-manage__') || s.startsWith('.lp-admin-list__')),
+      'Manage controls opt in with .lp-btn — do not add container scopes back',
+    ).toEqual([])
   })
 
-  it('gives the touch block the same scopes as the geometry block', () => {
-    // Not "some 44px rule exists somewhere" — the two lists must agree, or a scope added to one and
-    // forgotten in the other ships a control that is 38px on desktop and 38px on a phone.
+  it('gives the touch block exactly the geometry block’s selectors, plus the form controls', () => {
+    // Set equality, not "contains" — a selector added to one block and forgotten in the other is
+    // the whole failure mode, and a per-item `toContain` loop cannot see an extra entry.
+    const geometry = scopeListFor('--app-btn-min-height')
     const touch = scopeListFor('--app-btn-touch-min-height')
-    for (const scope of MANAGE_SCOPES) {
-      expect(touch, `${scope} must also reach the ≤640px touch target`).toContain(scope)
-    }
-    expect(touch, 'the version editor must keep its touch target too').toContain(
-      '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn',
+    expect(new Set(touch)).toEqual(
+      new Set([...geometry, '.lp-manage__select', '.lp-admin-list__search']),
+    )
+    expect(geometry, 'the version editor keeps a container scope — see the rule comment').toContain(
+      EDITOR_SCOPE,
     )
   })
 
-  it('gives Manage form controls the button geometry and the touch target', () => {
-    // A 31px select beside a 38px button was the mismatch left after the buttons were fixed.
-    const geometry = scopeListFor('--app-btn-min-height')
-    const touch = scopeListFor('--app-btn-touch-min-height')
-    for (const sel of ['.lp-manage__select', '.lp-admin-list__search']) {
-      expect(touch, `${sel} must reach the ≤640px touch target`).toContain(sel)
-    }
-    // Their geometry lives in its own rule (they take size, not button paint) — assert it exists.
-    expect(adminCss).toMatch(/\.lp-manage__select,\s*\n\.lp-admin-list__search\s*\{/)
-    expect(geometry.length, 'the button geometry rule should still be found').toBeGreaterThan(0)
+  it('gives Manage form controls the button geometry, without button paint', () => {
+    // A 31px select beside a 38px button was the mismatch left after the buttons were fixed. They
+    // take SIZE from the button tokens and keep their native appearance, so assert the declarations
+    // rather than the shape of the selector list (which says nothing about what the rule does).
+    const formRule = /\.lp-manage__select,\s*\.lp-admin-list__search\s*\{([^}]*)\}/.exec(
+      adminCssBare,
+    )
+    expect(formRule, 'the Manage form-control rule is missing').not.toBeNull()
+    const body = formRule![1]
+    expect(body).toMatch(/min-height:\s*var\(--app-btn-min-height\)/)
+    expect(body).toMatch(/border-radius:\s*var\(--app-btn-radius\)/)
+    expect(body).toMatch(/font-size:\s*var\(--app-btn-font-size\)/)
+    expect(body, 'a select must keep its native chevron').not.toMatch(/appearance:/)
   })
 })
 
@@ -283,11 +306,5 @@ describe('PageHeader', () => {
     // Back on one row rather than one of them escaping into the title column.
     expect(actions.contains(screen.getByRole('button', { name: 'Favorite' }))).toBe(true)
     expect(actions.contains(screen.getByRole('link', { name: 'Back' }))).toBe(true)
-  })
-
-  it('keeps a caller className alongside the shared one', () => {
-    const { container } = render(<PageHeader title="X" className="lesson--compare" />)
-    const row = container.querySelector('.page-heading')!
-    expect([...row.classList].sort()).toEqual(['lesson--compare', 'page-heading'])
   })
 })

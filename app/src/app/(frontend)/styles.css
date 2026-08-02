@@ -1370,8 +1370,10 @@ a {
 .guide-intro {
   margin-bottom: var(--app-space-4);
 }
+/* No `margin` here on purpose: the kicker IS a `<p>`, so `.guide p` (0-1-1) outranks `.guide-kicker`
+   (0-1-0) and owns its spacing. The declaration that used to sit here never applied — measured 12.8px
+   from `.guide p`, not the 4px it asked for — so it was misleading rather than load-bearing. */
 .guide-kicker {
-  margin: 0 0 var(--app-space-1);
   color: var(--muted);
   font-size: var(--app-secondary-size);
   text-transform: uppercase;
