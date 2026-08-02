@@ -8,6 +8,35 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — Guide and Compare join the visual system; `PageHeader` extracted
+
+**PR 2b** of [`docs/DESIGN-visual-system-2026-07-31.md`](DESIGN-visual-system-2026-07-31.md) — the
+last two frontend pages rendering outside the shared system. Presentation only: no authorization,
+schema, endpoint or migration change. App-level deploy, **no migration**.
+
+- **The Guide's page title was 22.4px/600** where every other page title is 30px/700. The shared
+  treatment had been scoped `.lesson-heading h1`, reaching only the two pages that used that class,
+  so the Guide declared its own. Rescoped to `.page-heading h1`; `.guide h1` deleted. Section
+  headings, kicker, TOC and all spacing now come from the type and spacing scales.
+- **The two compare version pickers were ~30px tall on a phone** — measured 30.59px at 390px. They
+  belonged to no system: not `.btn`, and absent from the ≤640px 44px list, so nothing lifted them to
+  the project's target. They now take the button system's geometry (38px desktop / 44px at ≤640,
+  shared radius and type) while keeping native `<select>` appearance.
+- **`PageHeader` extracted** ([`app/src/components/PageHeader.tsx`](../app/src/components/PageHeader.tsx)),
+  deferred by PR 1 until a second page was in scope. Three callers: Guide, Compare, lesson page. It
+  retired a duplicate — `.lesson-heading` / `.lesson-heading__actions` had rule bodies byte-identical
+  to the `.page-heading` pair, and two pages applied both.
+- **The guide TOC's anchor clearance is derived, not hand-typed.** `scroll-margin-top` was two magic
+  numbers tied to the sticky bar's rendered height; retokenising the bar would have broken anchor
+  landing silently. Both now derive from the tokens that build the bar (the #155 seam rule).
+
+Verified in a browser at **390 / 550 / 700 / 1280** across the Guide, Compare, the lesson page and
+the catalogue, with computed-geometry tables and screenshots: the lesson page measured
+byte-identical before and after the `PageHeader` swap, TOC clearance 7.8–8.2px at every width, and
+no horizontal overflow anywhere. The Compare fixture was a second version created through the real
+edit-and-save workflow. `tsc` clean; unit **343/343** (11 new, each confirmed to FAIL against the
+unfixed stylesheet); lint 0 errors; sass compiles.
+
 ## 2026-07-31 — narrow-screen editing explains itself; a local stack to verify UI before shipping
 
 - **#172 (deployed)** — **PR B**, completing the wider-screen-affordance arc from #163 and finishing

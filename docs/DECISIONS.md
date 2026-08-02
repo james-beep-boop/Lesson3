@@ -11,6 +11,74 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b) — Guide + Compare; a duplicate class, an uncovered control, and a derived seam
+
+The last two frontend pages outside the visual system
+([`DESIGN-visual-system-2026-07-31.md`](DESIGN-visual-system-2026-07-31.md)). Presentation only — no
+authorization, schema, endpoint or migration change. Three findings worth keeping:
+
+- **`.lesson-heading` was a byte-for-byte duplicate of `.page-heading`**, and the lesson and compare
+  pages carried BOTH class names, applying the same five declarations twice (and the same two again
+  inside `@media (max-width: 640px)`). Nothing was visibly wrong, which is why it survived — a
+  duplicate that agrees with its twin costs nothing until someone edits one copy. Extracting
+  `PageHeader` retired it. **The general rule: when a component extraction reveals two classes with
+  identical bodies, delete one rather than having the component emit both.**
+- **The Guide declared its own page title, a full step small.** `.guide h1` was `1.4rem`/600 —
+  measured **22.4px** — where every other page title is 30px/700. The cause is structural, not
+  careless: the shared treatment was scoped `.lesson-heading h1`, so it reached exactly the two pages
+  that used that class, and any third page had to declare its own. Rescoping to `.page-heading h1`
+  means **a page title is 30px/700 by virtue of being a page title**, and `.guide h1` was DELETED
+  rather than retokenised — both selectors are (0-1-1), so a restated copy would sit in a
+  source-order contest for no reason. Guarded by a test asserting no `.guide h1` size/weight exists.
+- **The compare version pickers were outside every system** — not `.btn`, and absent from the ≤640px
+  "secondary text links" 44px list — so no rule lifted them to the project's target. **Measured
+  30.59px tall at 390px**, against 44px for every control beside them. Same shape as the
+  `.btn--compact` miss in #179: not a rule that was wrong, but a control nobody had noticed was
+  uncovered. They now take the button system's GEOMETRY (height, radius, type) while keeping native
+  `appearance` — a `<select>` that looks like a button lies about what it does.
+
+**The seam, and an honest limit on how well it is closed.** `.guide-section`'s `scroll-margin-top`
+must clear the sticky TOC or a jumped-to heading lands underneath it. Both values were hand-typed
+magic numbers (`3.5rem` / `6rem`) with no stated relationship to the bar, so retokenising the bar's
+padding and font — which this PR does — would have silently broken anchor landing. That is the seam
+DECISIONS 2026-07-27 legislated about after #155: *when a constant must exist in two places, have one
+side READ it.*
+
+Here the bar's height is **derived** from the same tokens that build it, so one edit moves both. That
+is weaker than #155's read-it-back-from-the-DOM, because CSS cannot count flex lines: the row count
+per breakpoint stays an observed input. Accepted deliberately — a mis-landed guide anchor is a
+cosmetic annoyance where #155's wrong active chip was a false statement about where the reader was,
+and adding a client component to a static server-rendered page to measure a five-link bar is
+disproportionate. Over-clearing is also the safe direction. The formula reproduced the measured
+heights exactly (**47.7px** at ≥641px, **77.4px** at ≤640px), and clearance measured 7.8–8.2px at all
+four widths.
+
+**A correction inside this work, logged because it is the recurring failure mode.** The first draft
+set `--guide-toc-rows: 3` at ≤640px and wrote a comment claiming the old "two rows at phone width"
+note was wrong. **The old note was right — 390px is two rows (77.4px).** The assertion was reasoned
+from the link count, not measured, and it was written *in the very comment that claims the numbers
+are measured*. Caught by measuring immediately afterwards. The lesson is not "measure" — it is that
+a comment asserting its own rigour is exactly where an unverified claim hides, which is also how
+#179's 26px pill survived review, `/simplify`, CodeRabbit and a Rock pass.
+
+**Also confirmed the hard way: verification must be CHAINED to the change.** Proving the new guards
+fail against unfixed code, the `git stash push` used a stale pathspec and silently did nothing; the
+test run was issued as a separate command and passed — against the *fixed* code — reading exactly
+like a successful negative control. This is DECISIONS 2026-07-27 §2 recurring verbatim. Re-run as
+`stash && grep -c <the removed string> && vitest`, it showed **7 of 7 CSS guards failing** against
+the unfixed stylesheet. A negative control that is not chained to the thing it negates is not a
+control.
+
+**Node 22 is gone from this Mac, and `next dev` no longer needs it.** `.claude/launch.json` pins
+`/opt/homebrew/opt/node@22/bin/node`, which no longer exists (only node 25 is installed), so the
+documented launch path is broken on this machine. Node 25 now runs `next dev` fine (Next 16.2.12,
+ready in 301ms) — the "node 25 hangs at startup" note is **stale for the dev server**. It is still
+true for the **Payload CLI**: `npx payload run` faults in its bundled tsx loader
+(`ENOENT: node:path?tsx-namespace=…`). Workaround used here: run Payload scripts inside the
+`lesson3-deps` container, which carries node 22. Not fixed in this PR — it is toolchain, not product.
+
+---
+
 ## 2026-07-31 (PR 2a) — a media query adds no specificity, and a comment asserted otherwise
 
 Folding the §5a leftovers into the button system (Messages compose/reply, the document-email modal,
