@@ -2,6 +2,7 @@ import React from 'react'
 
 import { requireUser } from '@/lib/session'
 import PageBackLink from '@/components/PageBackLink'
+import PageHeader from '@/components/PageHeader'
 
 export default async function UserGuidePage() {
   await requireUser()
@@ -9,15 +10,11 @@ export default async function UserGuidePage() {
   return (
     <article className="guide">
       <header className="guide-intro">
-        <div className="page-heading">
-          <div>
-            <p className="guide-kicker">User guide</p>
-            <h1>ARES Lesson Plans</h1>
-          </div>
-          <div className="page-heading__actions">
-            <PageBackLink href="/" label="Back to lesson plans" />
-          </div>
-        </div>
+        <PageHeader
+          title="ARES Lesson Plans"
+          kicker={<p className="guide-kicker">User guide</p>}
+          actions={<PageBackLink href="/" label="Back to lesson plans" />}
+        />
         <p>
           The repository stores ARES lesson plans as structured lesson data. You browse, edit, preview,
           and export that data in the app; the system generates the Word and PDF documents for you.

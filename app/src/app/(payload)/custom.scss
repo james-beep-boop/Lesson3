@@ -99,7 +99,7 @@ body {
   padding-block-start: var(--app-page-top);
 
   &__title {
-    // Same size/weight as the frontend page titles (.lp-title / .lesson-heading h1), via the shared
+    // Same size/weight as the frontend page titles (.lp-title / .page-heading h1), via the shared
     // token — so "Manage" sits at the same level in the hierarchy as "Lesson Plans".
     font-size: var(--app-page-title-size);
     font-weight: 700;
