@@ -213,6 +213,31 @@ body {
     }
   }
 
+  // A row whose left side is ONE line (the editors list) does not need the two-line row's breathing
+  // space. Operator report 2026-08-02: "too much white space … once we have a lot of editors that
+  // will be very unwieldy." Measured before: 71px per editor — 16px padding either side of a 38px
+  // control, to display one name. The candidate row keeps the roomier padding; it carries a title
+  // AND a metadata line, so its 81px is doing work this one's 71px was not.
+  &__row--tight {
+    padding: var(--app-space-1) 0.1rem;
+  }
+
+  // Name + address on one line. The address is the muted secondary half, so a scan reads down the
+  // names and the address is there when two people share one.
+  &__who {
+    display: flex;
+    align-items: baseline;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  &__who-email {
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    overflow-wrap: anywhere;
+  }
+
   &__row-main {
     display: flex;
     flex-direction: column;
@@ -267,21 +292,31 @@ body {
   }
 
   &__editors-group + &__editors-group {
-    margin-top: 1.25rem;
+    margin-top: var(--app-space-4);
   }
 
   &__editors-head {
-    font-size: 1rem;
+    font-size: var(--app-body-size);
     font-weight: 600;
-    margin: 0 0 0.25rem;
+    margin: 0 0 var(--app-space-1);
     color: var(--theme-elevation-1000);
+  }
+
+  // A subject-grade with nobody in it costs one muted line SHARING the Add row, not a paragraph's
+  // worth of stacked space. With a full curriculum most groups are empty, so this is the shape that
+  // decides whether the section is scannable — 104px per empty group before.
+  &__editors-none {
+    margin: 0;
+    font-size: var(--app-secondary-size);
+    margin-right: var(--app-space-1);
   }
 
   &__editors-add {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    gap: var(--app-space-1);
+    flex-wrap: wrap;
+    margin-top: var(--app-space-1);
   }
 
   &__select {
@@ -821,6 +856,25 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     }
   }
 
+  // COMPACT — the button system's second density, finally implemented on the admin surface.
+  // `app-tokens.scss` has defined `--app-btn-compact-*` since #169 for "in-row furniture … where a
+  // page-level 38px control repeated six times per row would swamp the list", but only the frontend
+  // ever implemented it; the admin had one size. That is why Manage's editors list rendered a 38px
+  // Remove on every row and measured 71px per editor.
+  //
+  // SIZE only — radius, colour logic, focus ring and disabled treatment are inherited from the
+  // block above, so this is one system at two densities, not two systems. Same contract as the
+  // frontend's `.btn.btn--compact`.
+  //
+  // ⚑ Doubled (`.btn.lp-btn--compact`, 0-3-0) so it outranks the parent rule's `min-height`
+  // (0-2-0). A single class would lose silently — the mirror image of the #179 defect, where the
+  // compact rule won where it should have lost.
+  &.lp-btn--compact {
+    min-height: var(--app-btn-compact-min-height);
+    padding: var(--app-btn-compact-padding-block) var(--app-btn-compact-padding-inline);
+    font-size: var(--app-btn-compact-font-size);
+  }
+
   // Disabled and busy read as unavailable, not faded — matching the frontend. Payload adds
   // `btn--disabled` alongside the native attribute; cover both plus our own busy state
   // ("Preparing document…", "Saving…", and Save's "No changes to save").
@@ -1116,6 +1170,15 @@ a.btn.lp-btn {
   .btn.lp-btn,
   .lp-manage__select,
   .lp-admin-list__search {
+    min-height: var(--app-btn-touch-min-height);
+  }
+
+  // ⚑ COMPACT MUST BE RESTATED HERE, and at a specificity that beats its own base rule. This is the
+  // #179 defect exactly: `.btn.lp-btn--compact` is (0-3-0), the touch rule above is (0-2-0), and a
+  // MEDIA QUERY ADDS NO SPECIFICITY — so without this block the compact Remove would stay 26px on a
+  // phone while the stylesheet claimed a 44px target. Compact is a DESKTOP density; on a phone the
+  // row has room and the target wins.
+  .btn.lp-btn.lp-btn--compact {
     min-height: var(--app-btn-touch-min-height);
   }
 

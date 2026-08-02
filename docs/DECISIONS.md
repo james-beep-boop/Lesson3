@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, density) — one row per person, and an email that stops at Site Admin
+
+Operator report on the deployed Manage page: too much white space, "once we have a lot of editors
+that will be very unwieldy", and "should probably show the entire email address."
+
+**Density.** The editors list was **71px per person** — `--app-row-pad-block` (16px) either side of
+a 38px control, to display one name. Two things were wrong with that, and only one was padding:
+
+1. `.lp-manage__row` served two different shapes. The candidate row carries a title AND a metadata
+   line, so its 81px is doing work; the editors row is one name, and its 71px was not. A
+   `--tight` modifier separates them rather than compressing both.
+2. **The admin had never implemented the button system's second density.**
+   `--app-btn-compact-*` has existed since #169, documented for "in-row furniture … where a
+   page-level 38px control repeated six times per row would swamp the list" — the editors list is
+   precisely that, and it got the page-level size because only the frontend implemented compact.
+   Result: 71px → **43px** per editor.
+
+⚑ Implementing compact on a second surface immediately re-created the #179 trap:
+`.btn.lp-btn--compact` is (0-3-0), the shared touch rule is (0-2-0), and a media query adds no
+specificity — so the compact Remove would have stayed 26px on a phone. Restated inside the ≤640px
+block at equal specificity, verified 26px at 1280 and 44px at 390, and guarded by a test. **The
+lesson generalises: porting a density to a new surface ports its cascade hazards with it.**
+
+Empty subject-grades were the other half — 104px each for one sentence and one picker, stacked. The
+message now shares the Add row: **70px**. With a full curriculum most groups are empty, so that is
+the shape that decides whether the section is scannable, not the populated one.
+
+**The email, and why it stops at Site Admin.** Showing an address beside each name is right — a name
+alone is a poor thing to grant editing access on, and two people can share one. But `emailReadAccess`
+is Site-Admin-or-self (SPEC §8; CLAUDE.md "Non–Site-Admins never see others' emails") and **this
+widget also renders for Subject Administrators**. So the request could not be implemented as asked;
+Subject Admins keep seeing names only.
+
+Gated **twice, server-side**: the `email` column is not selected at all for a non-Site-Admin (the
+roster read is `overrideAccess: true`, so nothing downstream would strip it), and the client
+projection omits the key. Neither gate is load-bearing alone.
+
+The projection is a pure exported function (`lib/widgetUser.ts`) specifically so the rule is
+testable with real inputs. A first draft asserted it by grepping the call site for
+`siteAdmin ? { email: true }` — brittle, and it proves a string exists rather than that the rule
+holds. **When a security-critical invariant is hard to test, that is usually a sign it is living in
+the wrong shape, not that it needs a cleverer assertion.** The tests now check that the key is
+ABSENT (not empty) for a Subject Admin, which is the property that matters: an empty string would
+still cross the wire.
+
+Verified as both roles in a browser: a Subject Administrator's page source — RSC payload included —
+contains zero other users' addresses, only their own (which `emailReadAccess` permits and the
+account menu already showed).
+
+---
+
 ## 2026-08-02 (PR 2b, follow-up) — Manage's controls: scope coverage is the invariant, not a class
 
 Operator report during the PR 2b session: *"On the manage page, when deleting, the 'Delete Selected'

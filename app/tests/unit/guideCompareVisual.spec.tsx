@@ -30,6 +30,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import PageHeader from '@/components/PageHeader'
+import { toWidgetUser } from '@/lib/widgetUser'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8')
@@ -238,6 +239,25 @@ describe('admin button-system scope coverage', () => {
     )
   })
 
+  it('lifts the admin compact size to the touch target, outranking its own base rule', () => {
+    // #179 EXACTLY, on the surface that had not implemented compact yet. `.btn.lp-btn--compact`
+    // sets 26px at (0-3-0); the shared touch rule is (0-2-0) and a MEDIA QUERY ADDS NO SPECIFICITY,
+    // so without a restatement at ≥(0-3-0) the compact Remove stays 26px on a phone while the
+    // stylesheet claims 44px. Measured after the fix: 26px at 1280, 44px at 390.
+    const compactTouch = adminCssBare
+      .split('@media')
+      .slice(1)
+      .some(
+        (block) =>
+          /max-width:\s*640px/.test(block) &&
+          /\.btn\.lp-btn\.lp-btn--compact[^{]*\{[^}]*var\(--app-btn-touch-min-height\)/.test(block),
+      )
+    expect(
+      compactTouch,
+      '.btn.lp-btn.lp-btn--compact must restate the touch target inside the ≤640px block',
+    ).toBe(true)
+  })
+
   it('gives Manage form controls the button geometry, without button paint', () => {
     // A 31px select beside a 38px button was the mismatch left after the buttons were fixed. They
     // take SIZE from the button tokens and keep their native appearance, so assert the declarations
@@ -252,6 +272,57 @@ describe('admin button-system scope coverage', () => {
     expect(body).toMatch(/font-size:\s*var\(--app-btn-font-size\)/)
     expect(body, 'a select must keep its native chevron').not.toMatch(/appearance:/)
   })
+})
+
+/**
+ * The Editing-access list shows each person's email so two identical display names can be told
+ * apart before granting editing access. `emailReadAccess` is Site-Admin-or-self (SPEC §8; CLAUDE.md
+ * "Non–Site-Admins never see others' emails") and this widget ALSO renders for Subject
+ * Administrators — so the address must never reach them.
+ *
+ * The real boundary is server-side and lives in two places in `AdminDashboard/index.tsx`: the
+ * `select` that fetches the column, and the projection that builds the client payload. Both are
+ * gated on `siteAdmin`. This is a WIRING guard, not a substitute for the authorization tests — but
+ * per CLAUDE.md a security-critical invariant gets pinned by a test rather than by review, and the
+ * failure mode here (delete one `siteAdmin &&` and every Subject Admin sees the roster's addresses)
+ * is silent, invisible in the UI, and would pass every existing test.
+ */
+describe('editing-access email is Site-Admin only', () => {
+  const roster = { id: 7, name: 'Jo Teacher', email: 'jo@example.test', updatedAt: 'T' }
+
+  it('includes the address for a Site Administrator', () => {
+    expect(toWidgetUser(roster, { includeEmail: true })).toEqual({
+      id: 7,
+      name: 'Jo Teacher',
+      email: 'jo@example.test',
+      updatedAt: 'T',
+    })
+  })
+
+  it('OMITS the address for a Subject Administrator — the field is absent, not empty', () => {
+    // The whole point. An empty string would still cross the wire and could still be rendered;
+    // the key must not be there at all.
+    const projected = toWidgetUser(roster, { includeEmail: false })
+    expect('email' in projected).toBe(false)
+    expect(projected).toEqual({ id: 7, name: 'Jo Teacher', updatedAt: 'T' })
+  })
+
+  it('omits the key rather than emitting null when a Site Admin views a user with no address', () => {
+    const projected = toWidgetUser({ ...roster, email: null }, { includeEmail: true })
+    expect('email' in projected).toBe(false)
+  })
+
+  it('still falls back to a display name when one is missing', () => {
+    expect(toWidgetUser({ id: 9, name: null, updatedAt: 'T' }, { includeEmail: true }).name).toBe(
+      'User 9',
+    )
+  })
+
+  // NOT asserted here: that the widget renders no `.lp-manage__who-email` when the field is
+  // absent. Importing `EditorsWidget` pulls `@payloadcms/ui`, which imports CSS the unit config
+  // cannot load — and reworking the shared vitest config to render one span is the wrong trade.
+  // The markup is a single `{u.email && …}` guard over the field these tests pin, and it was
+  // verified in a browser as both roles.
 })
 
 describe('PageHeader', () => {
@@ -273,10 +344,7 @@ describe('PageHeader', () => {
     // The two slots are separate precisely so neither the Guide nor the lesson page has to move its
     // text to share one component. Order is the contract.
     const { container } = render(
-      <PageHeader
-        title="ARES Lesson Plans"
-        kicker={<p className="guide-kicker">User guide</p>}
-      >
+      <PageHeader title="ARES Lesson Plans" kicker={<p className="guide-kicker">User guide</p>}>
         <p className="lesson-context">Biology · Grade 10</p>
       </PageHeader>,
     )

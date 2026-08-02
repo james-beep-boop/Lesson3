@@ -8,6 +8,32 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — Manage gets denser, and Editing access shows who people are
+
+Operator report: "the manage page has too much white space … once we have a lot of editors that will
+be very unwieldy", plus "should probably show the entire email address".
+
+- **The editors list is 40% shorter.** Each row was **71px** — 16px of padding either side of a 38px
+  control, to show one name. Rows carrying a single line now use tighter padding, and Remove takes
+  the button system's **compact** density. Measured: **71px → 43px** per editor.
+- **The admin surface finally implements compact.** `--app-btn-compact-*` has existed since #169
+  for "in-row furniture … where a page-level 38px control repeated six times per row would swamp the
+  list", but only the frontend ever implemented it — which is exactly why this list had a 38px
+  Remove on every row. Restated inside the ≤640px block so it still reaches 44px on a phone
+  (verified 26px at 1280, 44px at 390): the #179 trap, on the surface that had not hit it yet.
+- **Empty subject-grades cost one row, not four.** "No one has editing access." now shares the Add
+  row instead of stacking above it: **104px → 70px** per empty group. With a full curriculum most
+  groups are empty, so this is the shape that decides whether the section is scannable.
+- **Each person's email is shown beside their name** — a name alone is a poor thing to grant editing
+  access on, and two people can share one. ⚠ **Site Administrators only.** `emailReadAccess` is
+  Site-Admin-or-self (SPEC §8) and this widget also renders for Subject Administrators, who continue
+  to see names only. Gated twice server-side — the column is not even selected for a Subject Admin —
+  and pinned by unit tests on a pure `toWidgetUser` projection.
+
+Verified in a browser as **both** roles: a Subject Administrator's page source contains zero other
+users' addresses (RSC payload included), only their own. Editing-access section 490px, page
+4509 → 4165px. tsc clean; unit 351/351; lint 0 errors.
+
 ## 2026-08-02 — Manage's controls all become standard buttons
 
 Operator report: "Delete selected" was not a standard button, nor was Upload — "review all buttons

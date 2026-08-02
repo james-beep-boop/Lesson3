@@ -22,6 +22,17 @@ import { apiBaseFrom } from '../../lib/apiBase'
 export interface WidgetUser {
   id: number
   name: string
+  /**
+   * Present ONLY when the viewer is a Site Administrator.
+   *
+   * Two people can share a display name, and a name alone is a poor thing to grant editing access
+   * on — so the address is shown to disambiguate. But `emailReadAccess` is Site-Admin-or-self
+   * (SPEC §8; "Non–Site-Admins never see others' emails"), and this widget renders for SUBJECT
+   * Administrators too. The server therefore omits the field entirely for them rather than the UI
+   * hiding it: the projection in `AdminDashboard/index.tsx` is the enforcement point, and an
+   * absent field cannot be leaked by a future markup change.
+   */
+  email?: string
   /** Freshness token for the assignment endpoints — the row's updatedAt as this page rendered. */
   updatedAt: string
 }
@@ -57,7 +68,9 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
         body: JSON.stringify({ subjectGradeId: group.sgId, expectedUpdatedAt: user.updatedAt }),
       })
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
+        const json = (await res.json().catch(() => null)) as {
+          errors?: { message: string }[]
+        } | null
         throw new Error(json?.errors?.[0]?.message || `Update failed (${res.status})`)
       }
       toast.success(okMsg)
@@ -73,7 +86,12 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
     const userId = Number(picks[group.sgId])
     const user = group.addable.find((u) => u.id === userId)
     if (!user) return
-    void changeRole('assign', user, group, `${user.name} now has editing access for ${group.sgLabel}.`)
+    void changeRole(
+      'assign',
+      user,
+      group,
+      `${user.name} now has editing access for ${group.sgLabel}.`,
+    )
     setPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
@@ -92,15 +110,19 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
       {groups.map((group) => (
         <div key={group.sgId} className="lp-manage__editors-group">
           <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
-          {group.editors.length === 0 ? (
-            <p className="muted">No one has editing access.</p>
-          ) : (
+          {group.editors.length > 0 && (
             <ul className="lp-manage__list">
               {group.editors.map((u) => (
-                <li key={u.id} className="lp-manage__row">
-                  <span>{u.name}</span>
+                <li key={u.id} className="lp-manage__row lp-manage__row--tight">
+                  {/* Name and address on ONE line, not stacked: this list is scanned, and a second
+                      line per row doubles its height for a value that is only a disambiguator.
+                      `email` is absent for Subject Admins by server projection (see WidgetUser). */}
+                  <span className="lp-manage__who">
+                    {u.name}
+                    {u.email && <span className="lp-manage__who-email">{u.email}</span>}
+                  </span>
                   <Button
-                    className="lp-btn"
+                    className="lp-btn lp-btn--compact"
                     buttonStyle="error"
                     size="small"
                     disabled={busy}
@@ -112,33 +134,42 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
               ))}
             </ul>
           )}
-          {group.addable.length > 0 && (
-            <div className="lp-manage__editors-add">
-              <select
-                className="lp-manage__select"
-                aria-label={`Grant editing access for ${group.sgLabel}`}
-                value={picks[group.sgId] ?? ''}
-                disabled={busy}
-                onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
-              >
-                <option value="">Grant editing access…</option>
-                {group.addable.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                className="lp-btn"
-                buttonStyle="primary"
-                size="small"
-                disabled={busy || !picks[group.sgId]}
-                onClick={() => onAdd(group)}
-              >
-                Add
-              </Button>
-            </div>
-          )}
+          {/* The empty message shares the Add row rather than stacking above it. With a full
+              curriculum most subject-grades have nobody, so an empty group is the shape that
+              decides whether this section is scannable — stacked it cost ~104px per group for one
+              sentence and one picker (operator report 2026-08-02, "too much white space"). */}
+          <div className="lp-manage__editors-add">
+            {group.editors.length === 0 && (
+              <span className="muted lp-manage__editors-none">No one has editing access.</span>
+            )}
+            {group.addable.length > 0 && (
+              <>
+                <select
+                  className="lp-manage__select"
+                  aria-label={`Grant editing access for ${group.sgLabel}`}
+                  value={picks[group.sgId] ?? ''}
+                  disabled={busy}
+                  onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
+                >
+                  <option value="">Grant editing access…</option>
+                  {group.addable.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  className="lp-btn"
+                  buttonStyle="primary"
+                  size="small"
+                  disabled={busy || !picks[group.sgId]}
+                  onClick={() => onAdd(group)}
+                >
+                  Add
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       ))}
     </div>

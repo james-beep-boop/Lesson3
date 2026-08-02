@@ -8,6 +8,7 @@ import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { relId } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
+import { toWidgetUser } from '../../lib/widgetUser'
 import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
 import { CandidateList, type CandidateRow } from './CandidateList'
@@ -46,74 +47,91 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // (`deletableVersionsWhere`) — single source, so this list can never drift from what the server
   // would actually let the user delete. All queries below are independent → run them concurrently.
   const deletable = deletableVersionsWhere(user)
-  const [{ typeLabel: role, lines: roleLines }, versionsRes, sgsRes, usersRes, plansRes] = await Promise.all([
-    resolveAccessSummary(req.payload, user),
-    // ---- Saved versions (deletable candidates) ----
-    deletable === false
-      ? null
-      : payload.find({
-          collection: 'lesson-bundle-versions',
-          overrideAccess: false,
-          user,
-          depth: 2,
-          pagination: false,
-          sort: '-createdAt',
-          where: deletable === true ? {} : deletable,
-          select: {
-            title: true,
-            semver: true,
-            subjectGrade: true,
-            lessonPlan: true,
-            author: true,
-            meta: { substrand_name: true },
-            createdAt: true,
-          },
-        }),
-    // ---- Editors widget: subject-grades in scope + every user (light projections) ----
-    isAdmin
-      ? payload.find({
-          collection: 'subject-grades',
-          overrideAccess: false,
-          user,
-          depth: 0,
-          pagination: false,
-          sort: 'displayName',
-          where: siteAdmin ? {} : { id: { in: adminSgIds } },
-          select: { displayName: true },
-        })
-      : null,
-    // Users for the Editors widget — a TRUSTED server-side projection (overrideAccess: true),
-    // deliberately: `roles` is field-HIDDEN from Subject Admins (siteAdminField), so a caller-scoped
-    // read cannot tell which users are Site Admins and the addable-exclusion below would silently
-    // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
-    // the client payload carries just {id, name, updatedAt}. (This section only renders for
-    // Subject/Site Admins, who may read the roster anyway per usersCollectionRead.)
-    isAdmin
-      ? payload.find({
-          collection: 'users',
-          overrideAccess: true,
-          depth: 0,
-          pagination: false,
-          sort: 'name',
-          select: { name: true, roles: true, assignments: true, updatedAt: true },
-        })
-      : null,
-    // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
-    siteAdmin
-      ? payload.find({
-          collection: 'lesson-plans',
-          overrideAccess: false,
-          user,
-          depth: 2,
-          pagination: false,
-          sort: 'title',
-          select: { title: true, subjectGrade: true, officialVersion: true },
-        })
-      : null,
-  ])
+  const [{ typeLabel: role, lines: roleLines }, versionsRes, sgsRes, usersRes, plansRes] =
+    await Promise.all([
+      resolveAccessSummary(req.payload, user),
+      // ---- Saved versions (deletable candidates) ----
+      deletable === false
+        ? null
+        : payload.find({
+            collection: 'lesson-bundle-versions',
+            overrideAccess: false,
+            user,
+            depth: 2,
+            pagination: false,
+            sort: '-createdAt',
+            where: deletable === true ? {} : deletable,
+            select: {
+              title: true,
+              semver: true,
+              subjectGrade: true,
+              lessonPlan: true,
+              author: true,
+              meta: { substrand_name: true },
+              createdAt: true,
+            },
+          }),
+      // ---- Editors widget: subject-grades in scope + every user (light projections) ----
+      isAdmin
+        ? payload.find({
+            collection: 'subject-grades',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            sort: 'displayName',
+            where: siteAdmin ? {} : { id: { in: adminSgIds } },
+            select: { displayName: true },
+          })
+        : null,
+      // Users for the Editors widget — a TRUSTED server-side projection (overrideAccess: true),
+      // deliberately: `roles` is field-HIDDEN from Subject Admins (siteAdminField), so a caller-scoped
+      // read cannot tell which users are Site Admins and the addable-exclusion below would silently
+      // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
+      // the client payload carries just {id, name, updatedAt} plus, for a Site Admin only, `email`.
+      // (This section only renders for Subject/Site Admins, who may read the roster anyway per
+      // usersCollectionRead.)
+      //
+      // ⚑ `email` is SELECTED only for a Site Administrator, not merely withheld downstream. Because
+      // this read is `overrideAccess: true` it would otherwise pull every address into a Subject
+      // Admin's request memory for no reason — and the projection below would be the single line
+      // standing between that and the wire. Two gates, so neither is load-bearing alone.
+      isAdmin
+        ? payload.find({
+            collection: 'users',
+            overrideAccess: true,
+            depth: 0,
+            pagination: false,
+            sort: 'name',
+            select: {
+              name: true,
+              roles: true,
+              assignments: true,
+              updatedAt: true,
+              ...(siteAdmin ? { email: true } : {}),
+            },
+          })
+        : null,
+      // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
+      siteAdmin
+        ? payload.find({
+            collection: 'lesson-plans',
+            overrideAccess: false,
+            user,
+            depth: 2,
+            pagination: false,
+            sort: 'title',
+            select: { title: true, subjectGrade: true, officialVersion: true },
+          })
+        : null,
+    ])
   const versionDocs = versionsRes?.docs ?? []
 
-  const dateFmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dateFmt = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
   const candidates: CandidateRow[] = versionDocs
     .filter((v) => {
       // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
@@ -141,11 +159,19 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     const allUsers = usersRes.docs
     // The widget only needs identity + the freshness token — the assignment endpoints rebuild the
     // row server-side from fresh state (assignments are read here solely to compute the groups).
-    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => ({
-      id: u.id,
-      name: u.name ?? `User ${u.id}`,
-      updatedAt: String(u.updatedAt),
-    })
+    //
+    // ⚑ `email` is included ONLY for a Site Administrator. `emailReadAccess` is Site-Admin-or-self
+    // (SPEC §8, "Non–Site-Admins never see others' emails") and this widget also renders for
+    // SUBJECT Administrators, who manage editors in their own subject-grades. Gating here — in the
+    // projection — rather than in the component means a Subject Admin's payload never contains the
+    // address at all, so no future markup change can surface it. `usersRes` is a trusted
+    // (overrideAccess) read, so the field is present in `allUsers` and this branch is what withholds it.
+    // The email gate lives in `toWidgetUser` (lib/widgetUser.ts) as a pure, unit-tested function —
+    // see that file for why. The `select` above is built conditionally, so Payload's inferred row
+    // type does not carry `email`; it is present exactly when `siteAdmin` is true, the same flag
+    // passed here, so the cast is narrow and the two gates agree by construction.
+    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser =>
+      toWidgetUser(u as typeof u & { email?: string | null }, { includeEmail: siteAdmin })
     editorGroups = sgs.map((sg) => {
       const editors = allUsers.filter((u) =>
         (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
@@ -239,7 +265,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
               <ul className="lp-manage__list">
                 {repairPlans.map((p) => (
                   <li key={p.id}>
-                    <Link className="lp-manage__link" href={`/admin/collections/lesson-plans/${p.id}`}>
+                    <Link
+                      className="lp-manage__link"
+                      href={`/admin/collections/lesson-plans/${p.id}`}
+                    >
                       {p.label}
                     </Link>
                   </li>
