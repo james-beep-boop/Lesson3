@@ -113,12 +113,16 @@ or migration change.
   two writes and must not masquerade as atomic, and the subject-grade scope must be derived
   server-side from the trusted message/lesson relationships, never client input); then **PR 3** for
   the version editor chrome + native-Payload boundary.
-- **⚑ Local toolchain, before you try the local stack:** `.claude/launch.json` pins
-  `/opt/homebrew/opt/node@22/bin/node`, which **no longer exists on this Mac** (node 25 only). Node
-  25 now runs `next dev` fine, so the "node 25 hangs" note is stale for the dev server — but
-  `npx payload run` still faults in its bundled tsx loader, so seed/maintenance scripts must run
-  inside the `lesson3-deps` container (node 22). Also: the local DB already holds the 42-plan corpus
-  and the `@lesson3.local` logins, whose passwords were reset to `local1234` on 2026-08-02.
+- **✅ Local toolchain — FIXED and now TRACKED (2026-08-02).** `.claude/launch.json` had pinned an
+  absolute `node@22` path that no longer exists on this Mac, so the one launch config `AGENTS.md`
+  points at could not start — and it was **gitignored**, so a clean clone could not receive the fix
+  either (caught in review: "the launch fix is not actually delivered by Git"). It is now plain
+  `npx next dev` and tracked; the ignore rule is gone, because the machine-specific path that
+  justified ignoring it is what got removed. Node 25 runs `next dev` fine, so the "node 25 hangs"
+  note is stale **for the dev server only** — `npx payload run` still faults in its bundled tsx
+  loader, so seed/maintenance scripts must run inside the `lesson3-deps` container (node 22). Also:
+  the local DB already holds the 42-plan corpus and the `@lesson3.local` logins, whose passwords were
+  reset to `local1234` on 2026-08-02.
 - ✅ `PageHeader` is EXTRACTED (PR 2b) — `app/src/components/PageHeader.tsx`, three callers (Guide,
   Compare, lesson page). Deferring it was right for an unanticipated reason: extracting with one
   caller would have preserved the duplicate `.lesson-heading` class and the mis-scoped `h1` rule

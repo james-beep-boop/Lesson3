@@ -19,16 +19,15 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 import { personLabel, type WidgetUser } from '../../lib/widgetUser'
+import type { EditorsGroup } from '../../lib/editorGroups'
 
-/** Re-exported for existing consumers; declared in `lib/widgetUser.ts` beside the code that builds it. */
-export type { WidgetUser }
-
-export interface EditorsGroup {
-  sgId: number
-  sgLabel: string
-  editors: WidgetUser[]
-  addable: WidgetUser[]
-}
+/**
+ * Both types are declared in `lib/` beside the code that BUILDS them (`widgetUser.ts`,
+ * `editorGroups.ts`) and re-exported here for existing consumers. Declaring `EditorsGroup` in both
+ * places type-checked — the shapes were identical — which is exactly why it needed catching: two
+ * declarations that agree today are two declarations to keep in step.
+ */
+export type { WidgetUser, EditorsGroup }
 
 export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
   const router = useRouter()

@@ -11,6 +11,54 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, audit round) — a fix git never shipped, and a boundary that could not be tested
+
+Three review findings, two of them about *delivery* rather than behaviour.
+
+**1. `.claude/launch.json` was GITIGNORED, so the "fix" reached nobody.** The previous entry recorded
+repairing the launch config; `.gitignore:44` excluded it and it was untracked. So a clean clone still
+could not follow `AGENTS.md`, while the changelog claimed the problem was solved. Now tracked, and the
+ignore rule is gone — note **the reason it was ignored is exactly what the fix removed**: it was
+excluded for holding a machine-specific absolute path, and that path is what had rotted. An ignored
+per-machine file that documentation points every developer at is a contradiction; if it ever regains
+host-specific paths, `AGENTS.md` should point at a tracked template instead. `NEXT-SESSION.md` still
+described the dead absolute path too, and now records the fix.
+**The general lesson: "it works on my machine" and "it is delivered" are different claims, and a
+changelog entry asserts the second.**
+
+**2. The privacy boundary had no role-level test, and could not have one where it lived.** The email
+carve-out is an `overrideAccess: true` query disclosing the whole grantable roster's addresses. The
+only committed coverage was widget unit tests proving that *supplied* props render — they cannot see
+the role → trusted query → serialized payload path where the disclosure is actually decided.
+
+The fix is half extraction: `buildEditorGroups` (`lib/editorGroups.ts`) now owns the role gate, the
+query and the projection as ONE unit, precisely because the boundary is only sound while they cannot
+be separated. Inlined in the RSC it was an **emergent** property — several conditions consulting one
+general-purpose `isAdmin` that also picks copy strings and the author column. `tests/int/editorGroupsAccess.int.spec.ts`
+then covers all four roles, and was run against a real database (9/9): Teacher and Editor get nothing,
+Subject Admin and Site Admin get addresses, `emailReadAccess` still strips other users' emails on a
+caller-scoped read, and self is still visible.
+
+⚑ **Writing that test found a claim of mine that was not true.** Deleting the non-admin early return
+did **not** fail the Teacher/Editor cases: with no administered subject-grades the scoped query returns
+nothing, so the result is `[]` either way. The empty payload was never the property at risk — without
+the gate a Teacher's request still pulls the entire roster into server memory before discarding it, and
+the docblock claimed "no query runs". A spy on `payload.find` now pins that, and fails when the gate is
+removed. **A test that passes for the wrong reason is worse than a missing one: it certifies the gate
+while the gate does nothing.** The way to tell is to delete the mechanism and check the test notices —
+which is why every guard in this batch was verified against the defect it describes.
+
+**3. The freshness token had become optional.** `toWidgetUser` accepted `updatedAt?: unknown` and
+`String(undefined)` produced the literal `"undefined"` — a token that never matches, so the
+stale-page 409 guard would **fail open** rather than closed. Now required and typed `string`.
+A concurrency guard whose input is optional is not a guard.
+
+Also corrected: `EditorsGroup` had been declared in both the component and the new lib module. It
+type-checked, because the shapes were identical — which is why it needed catching rather than
+excusing. Declared in `lib/` beside the code that builds it, re-exported for existing consumers.
+
+---
+
 ## 2026-08-02 (PR 2b, /simplify round 2) — the spec bound was wrong, and the confirm dialog was the next picker
 
 A four-angle `/simplify` over the density/email/review commits. Two findings changed behaviour; one

@@ -8,6 +8,29 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — audit fixes: the launch config is actually shipped, and the email boundary is tested
+
+- **`.claude/launch.json` is now TRACKED.** The previous entry claimed to fix it; `.gitignore`
+  excluded it, so a clean clone still could not follow `AGENTS.md`. The reason it was ignored — a
+  machine-specific absolute path — is exactly what the fix removed, so the rule is gone.
+  `docs/NEXT-SESSION.md` no longer describes the dead path either.
+- **The email carve-out has a per-role integration test** (`tests/int/editorGroupsAccess.int.spec.ts`,
+  9 cases, run against a real database). This required extracting the boundary: `buildEditorGroups`
+  (`app/src/lib/editorGroups.ts`) now owns the role gate, the trusted query and the client projection
+  as one unit — inside the React server component it was an emergent property of several conditions
+  sharing one general-purpose `isAdmin`, and untestable. Covers: Teacher and Editor get nothing and
+  trigger **no query at all**; Subject and Site Admin get addresses; a caller-scoped `users` read
+  still strips other people's emails while showing self; the whole grantable roster is disclosed to a
+  Subject Admin (pinned so SPEC §8 and the code cannot drift apart again).
+- **The freshness token is required again.** `toWidgetUser` accepted `updatedAt?: unknown`, so an
+  omitted value became the string `"undefined"` — a token that never matches, making the stale-page
+  409 guard fail *open*. Now typed `string`.
+- `EditorsGroup` was declared in two places (it type-checked, since the shapes matched); now declared
+  once in `lib/` and re-exported.
+
+tsc clean; unit **363/363**; int **9/9** for the new spec; lint 0 errors; sass compiles. Re-verified in
+a browser after the extraction — rendering unchanged.
+
 ## 2026-08-02 — /simplify: the remove dialog identifies people too, and SPEC §8's bound is corrected
 
 Four-angle cleanup pass over the density/email work. Two behaviour changes, one document correction:

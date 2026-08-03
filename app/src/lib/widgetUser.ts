@@ -71,7 +71,17 @@ export function toWidgetUser(user: {
   id: number
   name?: string | null
   email?: string | null
-  updatedAt?: unknown
+  /**
+   * REQUIRED, and typed as the `string` Payload actually stores — not `unknown`.
+   *
+   * This is the freshness token: the assignment endpoints reject a stale page (409) by comparing it,
+   * which is what stops a concurrent administrator's role change being silently overwritten. The
+   * previous `updatedAt?: unknown` let an omitted value through and `String(undefined)` turned it
+   * into the literal `"undefined"` — a token that is never stale-detected because it never matches,
+   * failing OPEN on a concurrency guard. Requiring the real timestamp makes that a type error at the
+   * call site instead of a runtime string (review 2026-08-02).
+   */
+  updatedAt: string
 }): WidgetUser {
   return {
     id: user.id,
@@ -79,6 +89,6 @@ export function toWidgetUser(user: {
     // Omit the key rather than emit null/'' — an empty string would still cross the wire and still
     // render as a stray separator beside the name.
     ...(user.email ? { email: user.email } : {}),
-    updatedAt: String(user.updatedAt),
+    updatedAt: user.updatedAt,
   }
 }
