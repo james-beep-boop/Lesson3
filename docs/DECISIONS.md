@@ -11,6 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 — the "friendly" duplicate error was a 500, and the handoff SHA goes away
+
+**The bug that hides behind a working guard.** `SubjectGrade.beforeValidate` blocks a duplicate
+`(subject, grade)` and throws the message "Grade N already exists for that subject." It threw a bare
+`Error` — and Payload treats a bare `Error` from a hook as an unexpected fault: logged at error level,
+returned as a generic **500 "Something went wrong."** So the hook whose *entire stated purpose* is to
+replace an opaque failure with a readable one produced an opaque failure of its own, and had done since
+it was written. The delete guard 100 lines above it in the same file uses `APIError(msg, 409)`
+correctly, which is what makes this a slip rather than a misunderstanding.
+
+Now `APIError(msg, 400)`. Verified end to end: 500 → 400 with the real string on both create and
+update, the admin form shows "Grade 10 already exists for that subject." where it previously said
+"Something went wrong.", and legitimate saves still work.
+
+⚑ **Why no test caught it, and why the new one is shaped as it is.** The guard *blocked correctly* the
+whole time — every behavioural assertion passes either way. The only observable difference is the
+status code and the string, so nothing short of asserting those two things could see it. **A guard can
+be simultaneously correct and useless; "does it block?" is not the same question as "does the operator
+learn why?"** The new cases in `taxonomyDelete.int.spec.ts` assert `status === 400` and the exact
+message, and were confirmed to fail against the bare `Error`.
+
+**The operator's "stale subject" report is still UNREPRODUCED — and this is probably it.** Three
+navigation paths came up clean (full page load of `/create`, client-side `Create New` from a just-saved
+document, the inline `Add new Subject` drawer). Nothing was patched speculatively. But the most likely
+explanation is now in hand: the save fails with no explanation, Payload **keeps the submitted values in
+the form** (correct behaviour — you want to fix, not retype), and a form that will not save while
+showing the values you typed reads exactly like a value that is stuck and overwriting your new one.
+If it recurs, the missing detail is whether the stale subject is *visible in the field* or only *in what
+gets saved*; the second would be a correctness bug worth chasing hard.
+
+**The handoff SHA is now deliberately absent.** `NEXT-SESSION.md`'s deploy line has gone stale by
+naming a SHA twice already — #182 and #183 each rewrote it, and this session found it **three deploys
+out of date**. Replaced with the command that answers the question (`git log -1 --format=%h -- app/`
+against the Rock's HEAD). **The previous fix addressed the wrong half:** #183 correctly stopped the line
+asserting a self-invalidating *equality*, but kept the SHA — and a SHA in a docs file is wrong the
+moment the next app-code PR merges, whatever sentence surrounds it. The durable form is an instruction,
+not a value.
+
+---
+
 ## 2026-08-03 (post-#184) — CodeRabbit's six findings: two taken, one rejected with a proof
 
 CodeRabbit's review of #184 completed after that PR merged. Recording all six verdicts, because three

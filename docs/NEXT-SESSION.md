@@ -18,10 +18,21 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is DEPLOYED at `6dc67c8` (#181) — the LAST APP-CODE COMMIT, and nothing app-side is
-pending.** Deployed & verified 2026-08-01: `migrate` found nothing pending (no schema change in this
-batch), site healthy (`/` → 307 `/login`, `/login` → 200). No open PRs; merged branches are deleted
-on the remote.
+**The live Rock is DEPLOYED at the newest commit that touched `app/`, and nothing app-side is
+pending.** Check it, do not trust a SHA written here:
+
+```bash
+git log -1 --format=%h -- app/ && ssh Rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'
+```
+
+Four successive deploys on 2026-08-02/03 (`6081ffb` #184 → `fe3dba5` #185 → `72ff346` #186 → this
+batch, which carries the SubjectGrade `APIError` fix). `migrate` found nothing pending on every one —
+no schema change anywhere in the batch — and the site was verified healthy each time (`/` → 307
+`/login`, `/login` → 200). No open PRs; merged branches are deleted on the remote.
+
+⚑ **Deliberately SHA-free**, because this block has now gone stale twice by naming one. #182 and #183
+each rewrote it, and it was three deploys out of date when this session found it. A SHA in a docs file
+is wrong the moment the next app-code PR merges; the command above is right forever.
 
 ⚑ Stated as "the last app-code commit", NOT as "main and the Rock are both at X". The equality form
 invalidates itself: the docs-only PR that writes it is merged straight afterwards, so `main` moves
@@ -29,6 +40,51 @@ and the sentence is false before anyone reads it — which is exactly what happe
 version of this line (#182, and see the rule in `DECISIONS.md`). `main` being AHEAD of the Rock by
 docs-only commits is the normal resting state and needs no deploy; compare the Rock against the
 newest commit that touched `app/`, not against `main`.
+
+**▶ NEWEST — PR 2b SHIPPED (#184/#185/#186), all three deployed and live-verified.** Guide + Compare
+visual system, a much denser Manage, and the **SPEC §8 email carve-out**. Full record in
+`docs/CHANGELOG.md` and `docs/DECISIONS.md` (2026-08-02/03 entries). What a future session most needs:
+
+- **⚠ THE EMAIL CARVE-OUT IS A REAL PRIVACY-POLICY CHANGE, and it is deliberate.** Manage → Editing
+  access shows email addresses to **Subject Administrators as well as Site Admins**, in the
+  current-editor rows AND the grant picker. Operator decision; SPEC §8 amended; CLAUDE.md records it.
+  Because the grant picker must list every grantable user, this discloses **every non-Site-Admin
+  address to any administrator** — not only people in their own subjects. Inherent to a grant picker.
+  `emailReadAccess` is UNCHANGED (Site-Admin-or-self), so every other surface still withholds them.
+  **Do not "fix" this as a leak** — read SPEC §8 first. Pinned per role by
+  `tests/int/editorGroupsAccess.int.spec.ts` (10 cases), and the boundary lives in ONE unit,
+  `app/src/lib/editorGroups.ts` (role gate + trusted query + projection), because it was untestable
+  while inlined in the Manage server component.
+- **`.claude/launch.json` is now TRACKED and works** (`npx next dev`). It had pinned a `node@22` path
+  that no longer exists AND was gitignored, so the config `AGENTS.md` points at could not start and no
+  clean clone could receive a fix. `next dev` is fine on node 25; the **Payload CLI still is not** —
+  run `npx payload run …` (generate:types, seed) in the `lesson3-deps` container.
+- **`tests/int` CAN be run locally** — the local stack publishes Postgres on `127.0.0.1:55432` and a
+  `lesson3_test` DB exists there. `test.env` targets the CI/Rock host, so point it at the local URL,
+  run, and **revert it** (it is tracked). Done twice this session; Rock/Node 22 stays authoritative for
+  Playwright, which does not run under local Node 25.
+- **Deferred with measurements: the Manage RSC payload.** Adding `email` grew it ~54% because
+  `addable` is materialised per subject-grade — measured 1.34 MB → 2.06 MB at 60 SGs × 300 users.
+  Sending the roster ONCE with per-group id lists measures **20× smaller** and fixes pre-existing
+  bloat. Do it with the deferred roster-pagination work. ~40 KB at today's scale.
+- **Also deferred:** splitting `.lp-manage__row` into two classes rather than the `--tight` modifier
+  (the review's preference; it changes `DeletePlansPanel`'s mobile layout, so it was out of scope).
+
+**▶ The SubjectGrade "stale subject" report — STILL UNREPRODUCED, but a real bug was found beside it.**
+The operator reported that when creating a subject-grade, a recently-used subject "stays in the fields
+and is stale, and overwrites the new intended one". Three navigation paths were tried and all came up
+clean: a full page load of `/create`, a client-side `Create New` from a just-saved document, and the
+inline `Add new Subject` drawer. **Not patched speculatively.** If it recurs, the exact steps are what
+is missing — specifically whether the stale value is *visible in the field* or only *in what gets
+saved* (the latter would be a correctness bug worth chasing hard).
+
+What WAS found, fixed and shipped (#186): the duplicate-`(subject, grade)` guard threw a bare `Error`,
+which Payload treats as an unexpected fault — logged at error level and returned as a generic **500
+"Something went wrong."** So the one hook whose entire purpose is to replace an opaque failure with a
+readable one produced an opaque failure of its own, for its whole life. Now `APIError(…, 400)` and the
+form shows "Grade 10 already exists for that subject." **This is the most likely thing behind the
+operator's report**: the save fails with no explanation, Payload keeps the submitted values, and a form
+that will not save while showing what you typed reads exactly like a value that is stuck.
 
 Two app-code deploys landed in quick succession, and it is worth keeping them straight:
 - **`e097887` (2026-07-31)** carried **#176** (the Editor Save fix) and **#177** (the visual system:
