@@ -118,24 +118,37 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
   })
 
   it('rejects a duplicate on UPDATE too, and still allows a legitimate move', async () => {
+    // ⚑ "Legitimate MOVE" means a successful UPDATE. An earlier version of this test only did a
+    // successful CREATE and then a rejected update, so the name overclaimed: the guard could have been
+    // rejecting every update — including valid ones — and this test would still have passed. The
+    // free-grade update below is what actually earns the second half of the name.
     const sg = fx.subjectGrade
     const subjectId = toId(sg.subject as never) ?? sg.subject
-    // A second row on the same subject at a free grade — legitimate, must succeed.
-    const moved = await fx.payload.create({
+    const base = sg.grade ?? 10
+    const row = await fx.payload.create({
       collection: 'subject-grades',
-      data: { subject: subjectId, grade: (sg.grade ?? 10) + 41 },
+      data: { subject: subjectId, grade: base + 41 },
       overrideAccess: true,
     })
-    expect(moved.displayName, 'displayName is maintained on create').toContain(
-      `Grade ${(sg.grade ?? 10) + 41}`,
-    )
+    expect(row.displayName, 'displayName is maintained on create').toContain(`Grade ${base + 41}`)
 
-    // Now move it onto the occupied pair — must be refused, readably.
+    // A legitimate move: another free grade on the same subject. Must SUCCEED, and must re-derive the
+    // stored title — the beforeChange hook is the only thing keeping `displayName` true.
+    const legit = await fx.payload.update({
+      collection: 'subject-grades',
+      id: row.id,
+      data: { grade: base + 42 },
+      overrideAccess: true,
+    })
+    expect(legit.grade, 'a free grade must be accepted').toBe(base + 42)
+    expect(legit.displayName, 'displayName follows the new grade').toContain(`Grade ${base + 42}`)
+
+    // Now move it onto the OCCUPIED pair — must be refused, readably.
     let caught: unknown
     try {
       await fx.payload.update({
         collection: 'subject-grades',
-        id: moved.id,
+        id: row.id,
         data: { grade: sg.grade },
         overrideAccess: true,
       })
@@ -145,6 +158,30 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     expect(messageOf(caught)).toBe(`Grade ${sg.grade} already exists for that subject.`)
     expect(statusOf(caught)).toBe(400)
 
-    await fx.payload.delete({ collection: 'subject-grades', id: moved.id, overrideAccess: true })
+    // …and the refusal left the row alone.
+    const after = await fx.payload.findByID({
+      collection: 'subject-grades',
+      id: row.id,
+      overrideAccess: true,
+    })
+    expect(after.grade, 'a rejected update must not partially apply').toBe(base + 42)
+
+    // ⚑ THE case the self-exclusion exists for: re-saving a row WITHOUT changing (subject, grade).
+    // The row then clashes with ITSELF, and only `clash.id !== originalDoc?.id` keeps the save legal —
+    // so an operator opening a subject-grade and pressing Save would be refused without it.
+    //
+    // Added after checking whether the tests above could see that: they could NOT. Deleting the
+    // self-exclusion left all of them green, because every "legitimate" update they perform moves to a
+    // FREE grade, where no clash is found and the exclusion never runs. A successful update is not the
+    // same test as a successful *self*-colliding update.
+    const resaved = await fx.payload.update({
+      collection: 'subject-grades',
+      id: row.id,
+      data: { grade: base + 42 },
+      overrideAccess: true,
+    })
+    expect(resaved.grade, 'an unchanged re-save must be allowed').toBe(base + 42)
+
+    await fx.payload.delete({ collection: 'subject-grades', id: row.id, overrideAccess: true })
   })
 })

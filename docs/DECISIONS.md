@@ -11,6 +11,51 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 (later) — the durable check compared two different things
+
+Review of #187. Three findings, all correct, and the first is the same class of error the thing it
+replaced was meant to eliminate.
+
+**1. The "durable" deploy check was ASYMMETRIC.** I replaced a stale SHA with
+`git log -1 --format=%h -- app/` locally against `git rev-parse --short HEAD` on the Rock — two
+*different questions*: "newest commit touching `app/`" versus "repository HEAD". A docs-only merge that
+the Rock then pulls makes them disagree while the deployed app code is unchanged, so the check reports
+a **false mismatch** — inviting a pointless deploy, or worse, teaching the reader to ignore it.
+
+Demonstrated on real history: `6dc67c8` (#181, app code) and `3fca0af` (#183, docs only) have the
+**same** app tree `bc97756…`, while the two SHAs obviously differ. Now `git rev-parse HEAD:app` on both
+sides — a content hash of `app/`, equal exactly when the deployed app code is identical, immune to
+docs commits, and symmetric by construction.
+
+⚑ Also recorded because it is a plausible next mistake: `git rev-parse --short HEAD -- app` does
+**not** work. The pathspec is ignored and it still returns HEAD. (CodeRabbit found the asymmetry and
+proposed exactly that; the diagnosis was right and the fix was not.)
+
+**The lesson is narrower than "avoid stale SHAs".** Both attempts failed for the same underlying
+reason: *the two sides of a comparison must be the same question.* The first version compared a value
+to a moving target; the second compared two different queries. A comparison is only as durable as its
+symmetry.
+
+**2. A test name that overclaimed.** "rejects a duplicate on UPDATE too, and still allows a legitimate
+move" performed a successful CREATE and a rejected UPDATE — never a successful update. The guard could
+have been rejecting *every* update, valid ones included, and the test would still have passed. Now it
+performs a real update to a free grade and asserts `displayName` follows.
+
+⚑ **And that exposed a deeper hole the reviewer's fix would not have closed.** Deleting the guard's
+self-exclusion (`clash.id !== originalDoc?.id`) left the strengthened test GREEN, because a move to a
+*free* grade finds no clash and the exclusion never runs. The case the exclusion exists for is
+**re-saving a row without changing `(subject, grade)`** — the row clashes with itself, and without the
+exclusion an operator who opens a subject-grade and presses Save is refused. That case is now covered,
+and fails when the exclusion is removed. **"A successful update" and "a successful self-colliding
+update" are different tests; only the second protects that line.** Found by deleting the mechanism and
+noticing the tests did not care — the same technique that caught the false `no query runs` claim
+earlier in this batch.
+
+**3. A misattribution.** `NEXT-SESSION.md` credited the duplicate-error fix to #186; it shipped in
+#187. Corrected.
+
+---
+
 ## 2026-08-03 — the "friendly" duplicate error was a 500, and the handoff SHA goes away
 
 **The bug that hides behind a working guard.** `SubjectGrade.beforeValidate` blocks a duplicate

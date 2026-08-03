@@ -18,12 +18,23 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is DEPLOYED at the newest commit that touched `app/`, and nothing app-side is
-pending.** Check it, do not trust a SHA written here:
+**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Check it,
+do not trust a SHA written here — compare the app TREE HASH on both sides:
 
 ```bash
-git log -1 --format=%h -- app/ && ssh Rock5b 'cd /srv/lesson3 && git rev-parse --short HEAD'
+git rev-parse HEAD:app
+ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'
 ```
+
+Equal ⇒ the deployed app code is byte-identical to yours, whatever commits sit either side of it.
+
+⚑ **Compare the same thing on both sides.** The first version of this check was
+`git log -1 --format=%h -- app/` locally against `git rev-parse --short HEAD` on the Rock — two
+*different* questions ("newest commit touching app/" vs "repo HEAD"), so a docs-only merge that the
+Rock then pulls reports a **false mismatch**. Demonstrated on real history: `6dc67c8` (#181, app code)
+and `3fca0af` (#183, docs only) have the *same* app tree `bc97756…`, while those two SHAs differ.
+A tree hash is symmetric and immune to docs commits; `git rev-parse --short HEAD -- app` does NOT work
+(the pathspec is ignored — it still returns HEAD).
 
 Four successive deploys on 2026-08-02/03 (`6081ffb` #184 → `fe3dba5` #185 → `72ff346` #186 → this
 batch, which carries the SubjectGrade `APIError` fix). `migrate` found nothing pending on every one —
@@ -78,7 +89,7 @@ inline `Add new Subject` drawer. **Not patched speculatively.** If it recurs, th
 is missing — specifically whether the stale value is *visible in the field* or only *in what gets
 saved* (the latter would be a correctness bug worth chasing hard).
 
-What WAS found, fixed and shipped (#186): the duplicate-`(subject, grade)` guard threw a bare `Error`,
+What WAS found, fixed and shipped (#187): the duplicate-`(subject, grade)` guard threw a bare `Error`,
 which Payload treats as an unexpected fault — logged at error level and returned as a generic **500
 "Something went wrong."** So the one hook whose entire purpose is to replace an opaque failure with a
 readable one produced an opaque failure of its own, for its whole life. Now `APIError(…, 400)` and the
