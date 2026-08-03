@@ -20,6 +20,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { buildEditorGroups } from '../../src/lib/editorGroups.js'
+import { mayIdentifyGrantCandidates } from '../../src/access/index.js'
 
 let fx: RoleFixture
 
@@ -70,6 +71,27 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
       const groups = await buildEditorGroups({ payload: spy, user: fx.users[role] })
       expect(groups).toEqual([])
       expect(calls, `${role} must trigger no read at all`).toEqual([])
+    }
+  })
+
+  it('keeps the email predicate and the role gate deliberately in step', () => {
+    // ⚑ `buildEditorGroups` has TWO independent conditions: the gate that decides whether groups are
+    // built at all (`siteAdmin || adminSgIds.length`), and `mayIdentifyGrantCandidates`, which decides
+    // whether the email column is selected. Today every role that clears the gate also clears the
+    // predicate, so the `withEmail === false` branch is UNREACHABLE and therefore untested — and if the
+    // gate were ever widened without widening the predicate, that branch would go live having never
+    // run. Asserting the predicate directly, for all four roles, keeps the two explicitly related so a
+    // divergence is a decision rather than a drift. (CodeRabbit, PR #184.)
+    for (const role of ['teacher', 'editor'] as const) {
+      expect(
+        mayIdentifyGrantCandidates(fx.users[role]),
+        `${role} must not identify candidates`,
+      ).toBe(false)
+    }
+    for (const role of ['subjectAdmin', 'siteAdmin'] as const) {
+      expect(mayIdentifyGrantCandidates(fx.users[role]), `${role} must identify candidates`).toBe(
+        true,
+      )
     }
   })
 

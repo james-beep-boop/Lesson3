@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 (post-#184) — CodeRabbit's six findings: two taken, one rejected with a proof
+
+CodeRabbit's review of #184 completed after that PR merged. Recording all six verdicts, because three
+of the rejections are the kind a future reader would otherwise re-litigate.
+
+**TAKEN — pin `mayIdentifyGrantCandidates` directly (its best finding).** `buildEditorGroups` has TWO
+independent conditions: the gate deciding whether groups are built at all, and the predicate deciding
+whether the `email` column is selected. Every role that clears the gate today also clears the
+predicate, so **the `withEmail === false` branch is unreachable and therefore untested** — and if the
+gate were ever widened without the predicate, that branch would go live having never run. A direct
+per-role assertion now keeps the two explicitly related. Verified by narrowing the predicate to
+site-admin-only: three tests fail.
+
+**TAKEN — per-row accessible names on Remove/Add.** Already shipped in #185 before this review was
+read; see that entry.
+
+**REJECTED, with a demonstration — the single-pass `Map` refactor of `editorGroups`.** The suggested
+code replaces `assignments.some(a => sg && a.role === 'editor')` with
+`new Map(assignments.map(a => [sgId, a.role])).get(sg.id) === 'editor'`. **That is not
+behaviour-preserving.** A `Map` keeps the LAST value for a duplicate key, and a same-subject-grade
+`subjectAdmin`+`editor` pair is explicitly reachable via the demote path — `access/index.ts:119`
+documents it and warns callers not to assume disjointness. Demonstrated: with rows ordered
+`[editor, subjectAdmin]` the current code shows the user as an editor and the proposal does not, so an
+editor silently vanishes from the list depending on row order. The efficiency it buys is also nil —
+measured 2.0 ms at 60 subject-grades × 300 users, because each user's assignment array is short. The
+real cost at that scale is the **payload**, already recorded as deferred with measurements.
+**A refactor justified by performance should be rejected outright when it changes behaviour in a case
+the codebase documents as reachable and the performance claim is unmeasured.**
+
+**REJECTED — "narrow the email exposure to Site Administrators only" (raised as Major/security).** This
+is the operator's explicit decision, amended into SPEC §8 and (as of #185) into CLAUDE.md. CodeRabbit's
+stated grounds were factually wrong — it reported `SPEC.md` "not present in this repo", and it is at the
+root. Acting on it would have reverted a deliberate policy change on a bot's misreading.
+
+**REJECTED — two stylelint findings** (`scss/operator-no-newline-after`, `scss/comment-no-empty`,
+`scss/double-slash-comment-empty-line-before`), which claim "the stylesheet lint check fails".
+**Stylelint is not configured in this repo**: no config file, no package script, absent from the CI
+workflow. Those are CodeRabbit's own bundled defaults (17.14.1), not this project's toolchain — the
+gate passed, eslint reports 0 errors, and sass compiles. A bare `//` is a valid comment, and the nine
+comment sites are paragraph separators inside explanatory blocks; rewriting them would be churn for a
+tool that does not run here.
+
+⚑ **One of those two was still worth doing, for a different reason.** The `calc()` wrap really did
+read badly — prettier had split `(rows - 1)` immediately after the `-`, so the `1` looked like it
+belonged to the next term. Re-wrapped to keep the subtraction intact (and confirmed prettier preserves
+the new form, so it will not fight the formatter). The arithmetic is unchanged and was already measured
+correct at 47.7px. **Rejecting a finding's stated reason and accepting its underlying observation are
+different acts** — the lint rule does not apply, and the code was still hard to read.
+
+---
+
 ## 2026-08-02 (PR 2b, audit round) — a fix git never shipped, and a boundary that could not be tested
 
 Three review findings, two of them about *delivery* rather than behaviour.
