@@ -105,7 +105,8 @@ export type UserTypeLabel = 'Site administrator' | 'Subject-grade administrator'
 
 export const userTypeLabel = (user: User | null | undefined): UserTypeLabel => {
   if (isSiteAdmin(user)) return 'Site administrator'
-  if (user?.assignments?.some((a) => a.role === 'subjectAdmin')) return 'Subject-grade administrator'
+  if (user?.assignments?.some((a) => a.role === 'subjectAdmin'))
+    return 'Subject-grade administrator'
   return 'Teacher'
 }
 
@@ -175,6 +176,30 @@ export const emailReadAccess: FieldAccess = ({ req: { user }, id }) => {
   if (!u) return false
   return isSiteAdmin(u) || u.id === id
 }
+
+/**
+ * The ONE carve-out from `emailReadAccess` above: may this user see the addresses of the people in
+ * **Manage → Editing access**, so they can tell two identical display names apart before granting or
+ * revoking editing access? (SPEC §8, amended 2026-08-02 by operator decision.)
+ *
+ * It lives here, beside the rule it amends, so that "who can read a user's email?" has ONE place to
+ * read rather than two answers in two layers. It is deliberately NOT `emailReadAccess` itself:
+ * `users.email` field access stays Site-Admin-or-self, so the REST/Local API and every other surface
+ * are unchanged. This predicate gates one trusted (`overrideAccess: true`) projection in the Manage
+ * view — see `lib/widgetUser.ts` and `components/AdminDashboard/index.tsx`.
+ *
+ * ⚑ Named, rather than reusing the general `isAdmin` the Manage view already computes. That boolean
+ * also selects copy strings and the author column; gating a privacy decision on it means widening
+ * `isAdmin` for a presentational reason would silently widen this disclosure too, with no test
+ * failing. A privacy predicate should say what it decides.
+ *
+ * ⚑ Scope bound, stated because SPEC §8 initially got it wrong: the CURRENT-editors list a Subject
+ * Admin sees is scoped to their own subject-grades, but the grant PICKER must list every grantable
+ * user, so this necessarily discloses the whole roster's addresses to any administrator. That is
+ * inherent to a grant picker, not an implementation slip.
+ */
+export const mayIdentifyGrantCandidates = (user: User | null | undefined): boolean =>
+  isSiteAdmin(user) || subjectGradeIdsByRole(user, ['subjectAdmin']).length > 0
 
 /** Self or site admin may change a personal field (name — email became Site-Admin-only with
  *  verification, 2026-07-10: a self-service change would bypass address ownership). */

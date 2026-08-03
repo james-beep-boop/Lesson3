@@ -406,7 +406,7 @@ a {
 /* Four-step type scale: page title (--app-page-title-size) > subject-grade (18) > strand (16) > sub-strand (14). */
 .lp-title {
   font-size: var(--app-page-title-size);
-  /* 700 to match .lesson-heading h1 — the two page titles read as one treatment (was 600). */
+  /* 700 to match .page-heading h1 — the two page titles read as one treatment (was 600). */
   font-weight: 700;
   margin: 0 0 1rem;
 }
@@ -899,27 +899,18 @@ a {
   margin-bottom: 0.75rem;
 }
 /* ---- Lesson view ---- */
-.lesson-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.lesson-heading__text {
-  min-width: 0;
-}
-.lesson-heading__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
+/* `.lesson-heading` / `.lesson-heading__actions` were DELETED here (PageHeader extraction): their
+   rule bodies were byte-identical to the `.page-heading` pair below, and the lesson and compare
+   pages carried both class names, applying the same declarations twice. One class per element now,
+   emitted by `components/PageHeader.tsx`. */
 .page-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+.page-heading__text {
+  min-width: 0; /* let the title column shrink so long titles wrap instead of pushing the actions off */
 }
 .page-heading__actions {
   display: flex;
@@ -931,10 +922,13 @@ a {
 /* Back is a plain `.btn.btn--back` from the shared system. It used to be the ONLY tokenised control
    (`--app-back-*`) and carried 16px/600 where its neighbours were 14.4px/400 — which is why it read
    darker and heavier than everything around it. Those tokens are now the system-wide `--app-btn-*`. */
-.lesson-heading h1 {
+/* A page title is 30px/700 by virtue of BEING a page title. This was `.lesson-heading h1`, so only
+   the two pages carrying that class got the treatment and the Guide declared its own (1.4rem/600 —
+   a title a full step smaller than every other page's). Scoped to `.page-heading` it reaches every
+   caller of the shared header, and the Guide stops needing a rule at all. Same token as the
+   catalogue's `.lp-title`: page titles are peers and share one size. */
+.page-heading h1 {
   margin-top: 0;
-  /* Same token as the catalogue's .lp-title — the two page titles are peers, so they share one size
-     (was the browser-default h1, which made the lesson title arbitrarily larger than the catalogue). */
   font-size: var(--app-page-title-size);
   font-weight: 700;
 }
@@ -1320,28 +1314,38 @@ a {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin: 0.75rem 0 1.5rem;
+  margin: var(--app-space-2) 0 var(--app-space-4);
 }
+/* The version pickers take the button system's GEOMETRY — height, radius, type — so they sit with
+   the Back control beside them instead of reading as foreign furniture. They deliberately do NOT
+   take its appearance: a `<select>` must keep its native chevron and open behaviour, or it looks
+   like a button and lies about what it does.
+
+   ⚑ They were previously outside every system: not `.btn`, and absent from the ≤640px
+   "secondary text links" 44px list below — so NO rule lifted them to the project's 44px target and
+   both shipped at ~30px on a phone. Same defect class as the `.btn--compact` miss in #179: a
+   control nobody noticed was uncovered. Guarded by compareControls.spec.ts. */
 .compare-picker {
-  padding: 0.3rem 0.5rem;
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--app-btn-radius);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--app-btn-font-size);
 }
 /* Two panes side by side ("two windows"); each scrolls its own wide tables. */
 .compare-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--app-space-3);
   align-items: start;
 }
 .compare-pane {
   min-width: 0; /* let the grid track shrink so .doc-preview's overflow-x can engage */
 }
 .compare-pane__title {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
+  margin: 0 0 var(--app-space-1);
+  font-size: var(--app-secondary-size);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1364,27 +1368,53 @@ a {
 /* No own max-width: the guide fills the shared .app-main column (--app-content-width, 960px) so it
    sits at the same width as the lesson and edit pages (Manage is intentionally its own width). */
 .guide-intro {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--app-space-4);
 }
+/* No `margin` here on purpose: the kicker IS a `<p>`, so `.guide p` (0-1-1) outranks `.guide-kicker`
+   (0-1-0) and owns its spacing. The declaration that used to sit here never applied — measured 12.8px
+   from `.guide p`, not the 4px it asked for — so it was misleading rather than load-bearing. */
 .guide-kicker {
-  margin: 0 0 0.25rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--app-secondary-size);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.guide h1 {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-}
+/* ⚑ `.guide h1` DELETED, not retokenised. It declared 1.4rem/600 where every other page title is
+   30px/700, so the Guide — the page a new user is most likely to open first — rendered its title a
+   full step small. It now inherits `.page-heading h1` like every other caller of the shared header.
+   Deleting beats restating the tokens: `.guide h1` and `.page-heading h1` are both (0-1-1), so a
+   restated copy would sit in a source-order contest with the shared rule for no reason. */
 .guide h2 {
-  font-size: 1.15rem;
+  font-size: var(--app-section-title-size);
   font-weight: 600;
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--app-space-1);
 }
 .guide p {
-  margin: 0 0 0.8rem;
+  margin: 0 0 var(--app-space-2);
+}
+/* ── The sticky-TOC clearance seam ─────────────────────────────────────────────────────────────
+   `.guide-section`'s `scroll-margin-top` must clear the sticky bar, or a jumped-to heading lands
+   UNDERNEATH it. Both values used to be hand-typed magic numbers (3.5rem / 6rem) with no stated
+   relationship to the bar that produced them — so retokenising the bar's padding or type would have
+   silently broken the landing. That is the seam DECISIONS 2026-07-27 legislated about after #155.
+
+   The bar's height is now DERIVED from the same tokens that build it, so one edit moves both. This
+   is derive-from-one-source, which is weaker than #155's read-it-back-from-the-DOM: `--guide-toc-rows`
+   is still an observed input, because CSS cannot count flex lines. That is the proportionate trade —
+   a mis-landed guide anchor is a cosmetic annoyance, where #155's wrong active chip was a false
+   statement about where the reader was. Over-clearing is also the safe direction: it lands the
+   heading slightly low, where under-clearing hides it.
+
+   Row counts are MEASURED in a browser, not reasoned about: 1 row at ≥641px, 2 at 390–640px
+   (measured 47.7px and 77.4px, which the formula reproduces exactly). Re-measure if a TOC entry is
+   added or renamed — five links is what fits in two rows at 390px. */
+.guide {
+  --guide-toc-line: calc(var(--app-secondary-size) * var(--app-line-height));
+  --guide-toc-rows: 1;
+  --guide-toc-height: calc(
+    2 * var(--app-space-2) + var(--guide-toc-rows) * var(--guide-toc-line) + (var(--guide-toc-rows) -
+          1) * var(--app-space-1) + 2px
+  );
 }
 .guide-toc {
   /* Sticky (critique 2026-07-12): switching role sections shouldn't require scrolling back up. */
@@ -1394,12 +1424,12 @@ a {
   background: var(--bg);
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin: 0 0 2rem;
-  padding: 0.75rem 0;
+  gap: var(--app-space-1) var(--app-space-3);
+  margin: 0 0 var(--app-space-5);
+  padding: var(--app-space-2) 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  font-size: 0.9rem;
+  font-size: var(--app-secondary-size);
 }
 .guide-toc a {
   text-decoration: none;
@@ -1409,17 +1439,18 @@ a {
   text-decoration: underline;
 }
 .guide-section {
-  padding-top: 1.25rem;
-  margin-top: 1.25rem;
+  padding-top: var(--app-space-3);
+  margin-top: var(--app-space-3);
   border-top: 1px solid var(--line);
-  scroll-margin-top: 3.5rem; /* land below the sticky TOC */
+  /* Land below the sticky TOC, plus one space unit so the heading isn't flush against the bar. */
+  scroll-margin-top: calc(var(--guide-toc-height) + var(--app-space-1));
 }
 .guide-list {
   margin: 0;
-  padding-left: 1.25rem;
+  padding-left: var(--app-space-4);
 }
 .guide-list li + li {
-  margin-top: 0.45rem;
+  margin-top: var(--app-space-1);
 }
 .guide code {
   padding: 0.05rem 0.25rem;
@@ -1431,16 +1462,16 @@ a {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1rem;
+  gap: var(--app-space-3);
+  margin-top: var(--app-space-5);
+  padding-top: var(--app-space-3);
   border-top: 1px solid var(--line);
 }
 .guide-footer__credit {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--app-space-2);
 }
 .guide-footer__donate {
   display: inline-block;
@@ -1541,14 +1572,8 @@ a {
     display: none; /* keep semver + date readable on a narrow panel */
   }
 
-  /* Lesson page: title and Edit/Make Official stack instead of fighting for one row. */
-  .lesson-heading {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-  .lesson-heading__actions {
-    align-self: flex-end;
-  }
+  /* Title and actions stack instead of fighting for one row. (The duplicate `.lesson-heading` pair
+     that used to sit here went with the PageHeader extraction — see the base rules.) */
   .page-heading {
     flex-direction: column;
     gap: 0.25rem;
@@ -1602,14 +1627,21 @@ a {
   .doc-preview [id^='lesson-'] {
     scroll-margin-top: 8rem;
   }
-  /* The guide TOC wraps to two rows at phone width — clear its taller sticky footprint. */
-  .guide-section {
-    scroll-margin-top: 6rem;
+  /* The guide TOC wraps at phone width. Only the ROW COUNT changes here — the height formula and
+     the offset that consumes it stay in one place (see the seam comment on `.guide`). */
+  .guide {
+    --guide-toc-rows: 2;
   }
 
   /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers. */
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+  /* The pickers reach the touch target, like every other control at this width. Restated at the
+     SAME specificity as the base rule (0-1-0) because a media query adds none — the exact way
+     `.btn--compact` stayed 26px on phones through PR 1 (#179). */
+  .compare-picker {
+    min-height: var(--app-btn-touch-min-height);
   }
   /* Compose actions (Send + status) wrap instead of colliding on a narrow screen. */
   /* Comfortable tap targets on touch screens — the mouse-sized controls get a 44px hit area (the

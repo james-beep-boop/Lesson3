@@ -99,7 +99,7 @@ body {
   padding-block-start: var(--app-page-top);
 
   &__title {
-    // Same size/weight as the frontend page titles (.lp-title / .lesson-heading h1), via the shared
+    // Same size/weight as the frontend page titles (.lp-title / .page-heading h1), via the shared
     // token — so "Manage" sits at the same level in the hierarchy as "Lesson Plans".
     font-size: var(--app-page-title-size);
     font-weight: 700;
@@ -213,6 +213,31 @@ body {
     }
   }
 
+  // A row whose left side is ONE line (the editors list) does not need the two-line row's breathing
+  // space. Operator report 2026-08-02: "too much white space … once we have a lot of editors that
+  // will be very unwieldy." Measured before: 71px per editor — 16px padding either side of a 38px
+  // control, to display one name. The candidate row keeps the roomier padding; it carries a title
+  // AND a metadata line, so its 81px is doing work this one's 71px was not.
+  &__row--tight {
+    padding: var(--app-space-1) 0.1rem;
+  }
+
+  // Name + address on one line. The address is the muted secondary half, so a scan reads down the
+  // names and the address is there when two people share one.
+  &__who {
+    display: flex;
+    align-items: baseline;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  &__who-email {
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    overflow-wrap: anywhere;
+  }
+
   &__row-main {
     display: flex;
     flex-direction: column;
@@ -267,21 +292,35 @@ body {
   }
 
   &__editors-group + &__editors-group {
-    margin-top: 1.25rem;
+    margin-top: var(--app-space-4);
   }
 
   &__editors-head {
-    font-size: 1rem;
+    font-size: var(--app-body-size);
     font-weight: 600;
-    margin: 0 0 0.25rem;
+    margin: 0 0 var(--app-space-1);
     color: var(--theme-elevation-1000);
+  }
+
+  // A subject-grade with nobody in it costs one muted line SHARING the Add row, not a paragraph's
+  // worth of stacked space. With a full curriculum most groups are empty, so this is the shape that
+  // decides whether the section is scannable — 104px per empty group before.
+  // No `font-size` here: the span also carries `.muted`, and `.lp-manage .muted` (0-2-0) outranks
+  // this rule (0-1-0) — a declaration here measured 14.4px, not the 14px it asked for. Exactly the
+  // dead `.guide-kicker` margin this same branch found and removed on the frontend, made twice in
+  // one batch. `.muted` already supplies both the colour and a secondary size.
+  // Spacing is the parent's `gap`; a `margin-right` here would give this one child 16px where every
+  // other gets 8.
+  &__editors-none {
+    margin: 0;
   }
 
   &__editors-add {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    gap: var(--app-space-1);
+    flex-wrap: wrap;
+    margin-top: var(--app-space-1);
   }
 
   &__select {
@@ -291,7 +330,10 @@ body {
     border: 1px solid var(--theme-elevation-150);
     border-radius: 4px;
     background: var(--theme-elevation-0);
-    max-width: 18rem;
+    // 18rem fitted a bare display name; the options now carry "Name — address" so the picker can be
+    // used to identify a person rather than guess at one (review 2026-08-02), and 18rem truncated
+    // exactly the half that disambiguates. Still a max, so short rosters stay narrow.
+    max-width: 30rem;
   }
 
   // Manage hosts interactive sections — the Payload buttons inside rows shouldn't stretch.
@@ -311,14 +353,31 @@ body {
       row-gap: var(--app-space-2);
     }
 
+    // …but NOT a one-line row. Stacking is right for the candidate row, which carries a title, a
+    // metadata line and two named actions — it genuinely needs the width. Applied to the editors
+    // list it put a FULL-WIDTH Remove under every name: 98px per editor, and a destructive control
+    // given more visual weight than anything else on the page. Found by screenshot at 390px; the
+    // geometry table had passed, because every control still met its 44px target (measured 2026-08-02
+    // — the numbers were right and the layout was wrong, which is why both forms of evidence are
+    // required). Name and address wrap within their half; Remove stays a small control on the right.
+    //
+    // ⚑ DOUBLED selector (`.lp-manage__row.lp-manage__row--tight`, 0-2-0) so it outranks the rule
+    // above (0-1-0) on SPECIFICITY rather than on source order. Written single-class it won only by
+    // being later in the file — an order coupling nothing recorded, so hoisting this block or
+    // extracting it to a partial would have silently restored the column layout on phones and
+    // nowhere else. A guard pins the doubled form.
+    &__row#{&}__row--tight {
+      flex-direction: row;
+      align-items: center;
+    }
+
     &__row-actions {
       flex-wrap: wrap;
     }
 
-    &__editors-add {
-      flex-wrap: wrap;
-    }
-
+    // (The ≤640px `&__editors-add { flex-wrap: wrap }` that used to sit here is gone: the base rule
+    // now wraps at every width, since the empty-state message shares that row, so the override was
+    // a no-op restating its parent.)
     &__select {
       max-width: 100%;
       flex: 1;
@@ -737,11 +796,27 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // this block is scoped to the version editor, and the shared `.btn--danger`/`.btn--quiet` rules live
 // in the FRONTEND stylesheet, which the admin never loads — so Manage's Delete was rendering as
 // stock Payload. Extending this selector is deliberate over mirroring the rules into a second block:
-// a copy is a second thing to keep in step, which is the drift this system exists to remove. Kept to
-// `.lp-manage__row-actions` for the same reason as above — Manage hosts other `.btn`s (the Editors
-// picker's Add, the upload controls) that are form furniture, not page-level actions.
+// a copy is a second thing to keep in step, which is the drift this system exists to remove.
+//
+// REPLACED 2026-08-02 by an OPT-IN CLASS on Manage, after an operator report that "Delete selected"
+// was not a standard button — and it was not, nor were three others. The first fix extended the
+// container-scope list to cover them, which worked and was the wrong altitude: the list had grown
+// to one entry per control, so every new Manage button meant remembering to edit a stylesheet 700
+// lines from the component. That discipline had already failed twice on report, and it failed a
+// THIRD time inside the fix itself — the `a.btn` paint block below was left un-extended.
+//
+// Manage's controls now opt in with `.lp-btn` (`.btn.lp-btn`, specificity 0-2-0 — identical to the
+// container scopes it replaces, so the `&.btn--style-*` restatements below still outrank it).
+// A forgotten `.lp-btn` is visible in the diff of the component being written; a forgotten scope
+// was invisible in a file its author never opened.
+//
+// The version editor KEEPS a container scope, because there the original constraint is real:
+// `.collection-edit--lesson-bundle-versions` is a genuine Payload document view whose form hosts
+// Payload's own `.btn`s (array row actions and the like), and those must not be restyled. Manage
+// is a custom admin view — its subtree is only our four components — so that constraint never
+// applied there, which is why the opt-in class is safe.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-.lp-manage__row-actions .btn {
+.btn.lp-btn {
   --color: var(--app-accent);
   --bg-color: var(--app-btn-bg);
   --btn-border: 1px solid var(--app-accent);
@@ -803,6 +878,25 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     &:focus-visible {
       outline-color: var(--theme-error-500, #b00020);
     }
+  }
+
+  // COMPACT — the button system's second density, finally implemented on the admin surface.
+  // `app-tokens.scss` has defined `--app-btn-compact-*` since #169 for "in-row furniture … where a
+  // page-level 38px control repeated six times per row would swamp the list", but only the frontend
+  // ever implemented it; the admin had one size. That is why Manage's editors list rendered a 38px
+  // Remove on every row and measured 71px per editor.
+  //
+  // SIZE only — radius, colour logic, focus ring and disabled treatment are inherited from the
+  // block above, so this is one system at two densities, not two systems. Same contract as the
+  // frontend's `.btn.btn--compact`.
+  //
+  // ⚑ Doubled (`.btn.lp-btn--compact`, 0-3-0) so it outranks the parent rule's `min-height`
+  // (0-2-0). A single class would lose silently — the mirror image of the #179 defect, where the
+  // compact rule won where it should have lost.
+  &.lp-btn--compact {
+    min-height: var(--app-btn-compact-min-height);
+    padding: var(--app-btn-compact-padding-block) var(--app-btn-compact-padding-inline);
+    font-size: var(--app-btn-compact-font-size);
   }
 
   // Disabled and busy read as unavailable, not faded — matching the frontend. Payload adds
@@ -1028,8 +1122,12 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // `--color` / `--bg-color`, and this control should not depend on a vendored rule continuing to
 // apply to anchors across a Payload upgrade. It used to be the only tokenised control in the app,
 // at 16px/600 — heavier than everything beside it, which is what this system removes.
+// ⚑ This list was the one the container-scope approach FORGOT: when Manage's scopes were added
+// above on 2026-08-02 it kept only `.lp-manage__row-actions a.btn`, so it covered one of the four
+// new scopes by luck (Continue editing is the only admin `<a class="btn">`). Under the opt-in class
+// it is the same `.lp-btn` as everywhere else and cannot fall out of step again.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn,
-.lp-manage__row-actions a.btn {
+a.btn.lp-btn {
   border: 1px solid var(--app-accent);
   color: var(--app-accent);
   background: var(--app-btn-bg);
@@ -1043,11 +1141,74 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
   }
 }
 
-// Both admin button rules above reach the phone touch target through the shared `.btn` selector.
+// The upload row. Was an inline `style` object on the div; it is a class now because a class is
+// what the shared button block can select, and a control cannot join a system it is invisible to.
+.lp-manage__upload {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex-wrap: wrap;
+}
+
+// The native file input is deliberately LEFT ALONE apart from its type, which is set to match the
+// controls beside it. Restyling `input[type=file]` means hiding it and driving it from a `<label>`,
+// which trades a familiar OS control — and its keyboard and screen-reader behaviour — for a
+// lookalike. Not worth it for a Site-Admin-only control used once per upload. It is the one control
+// on Manage not in the system, and that is a decision, not an oversight.
+.lp-manage__file {
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+}
+
+// Manage's FORM controls — the Editors picker and the delete-plans search. They take the button
+// system's GEOMETRY (height, radius, type) so they sit level with the action button beside them,
+// and deliberately NOT its appearance: a `<select>` keeps its native chevron and an input keeps
+// looking like an input. Exactly the rule applied to the frontend's compare pickers in this same
+// PR — one policy for "form control next to a system button", stated on both surfaces.
+//
+// Before this, the Editors row put a 31.19px/14.4px UA-default select next to what is now a 38px
+// Add button, and `.lp-manage__select` had NO rule of its own at all.
+.lp-manage__select,
+.lp-admin-list__search {
+  min-height: var(--app-btn-min-height);
+  padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--app-btn-radius);
+  background: var(--theme-input-bg, var(--theme-elevation-0));
+  color: var(--theme-elevation-1000);
+  font-family: var(--app-ui-font);
+  font-size: var(--app-btn-font-size);
+
+  &:focus-visible {
+    outline: var(--app-btn-focus-ring) solid var(--app-accent);
+    outline-offset: var(--app-btn-focus-ring-offset);
+  }
+}
+
+// Both admin button rules above reach the phone touch target through the same selectors they use
+// for geometry — which is the point of the opt-in class: there is one list, not two that have to be
+// kept in step by hand. The form controls beside them take the same target, because a 31px select
+// next to a 44px button is the mismatch this pass exists to remove.
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
-  .lp-manage__row-actions .btn {
+  .btn.lp-btn,
+  .lp-manage__select,
+  .lp-admin-list__search {
     min-height: var(--app-btn-touch-min-height);
+  }
+
+  // ⚑ COMPACT MUST BE RESTATED HERE, and at a specificity that beats its own base rule. This is the
+  // #179 defect exactly: `.btn.lp-btn--compact` is (0-3-0), the touch rule above is (0-2-0), and a
+  // MEDIA QUERY ADDS NO SPECIFICITY — so without this block the compact Remove would stay 26px on a
+  // phone while the stylesheet claimed a 44px target. Compact is a DESKTOP density; on a phone the
+  // row has room and the target wins.
+  .btn.lp-btn.lp-btn--compact {
+    min-height: var(--app-btn-touch-min-height);
+    // WIDTH too — #180's finding, which the first draft of this rule dropped while claiming parity
+    // with the frontend. WCAG 2.5.5 asks for 44 in BOTH dimensions, and `min-height` alone leaves the
+    // width riding on the label: today `Remove` measures 68px and passes by accident, but a shorter
+    // one (`×`, `Undo`) would not. Same token, same reasoning as `styles.css`'s compact override.
+    min-width: var(--app-btn-touch-min-height);
   }
 
   // Mirror the frontend's phone header (2026-07-31). The admin header had NO mobile rule at all: it
@@ -1233,20 +1394,11 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     flex-wrap: wrap;
   }
 
-  // #5 — Manage's destructive/primary row controls reach the 44px touch bar (the frontend controls
-  // already do; these Payload small buttons did not). Explicit px, NOT rem: the admin root font is
-  // 15px, so 2.75rem would fall 3px short of the 44px target. Covers the Editors widget AND the
-  // Site-Admin "Delete lesson plans" panel (DeletePlansPanel): its destructive button + search sit
-  // in `.lp-admin-list__bar`, and each selectable plan is a `.lp-manage__pick` label whose whole
-  // row should be tappable, not just the 13px checkbox.
-  .lp-manage__row .btn,
-  .lp-manage__editors-add .btn,
-  .lp-admin-list__bar .btn {
-    min-height: 44px;
-  }
-  .lp-admin-list__search {
-    min-height: 44px;
-  }
+  // #5 — what the button system does NOT cover. The `.btn` scopes and both form controls that used
+  // to lead this block moved OUT on 2026-08-02: they joined the system, so they take
+  // `--app-btn-touch-min-height` from the shared block above rather than a hard 44px stated twice.
+  // What remains is the `.lp-manage__pick` label, whose whole row should be tappable rather than
+  // just its 13px checkbox — a label, not a control, so no system rule reaches it.
   .lp-manage__pick {
     display: flex;
     align-items: center;

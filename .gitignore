@@ -40,5 +40,10 @@ Thumbs.db
 # Local agent skill mirror — canonical copy is tracked under .claude/skills/
 .agents/
 
-# Per-machine preview/dev launch config (local absolute paths); .claude/settings.json + skills stay tracked.
-.claude/launch.json
+# .claude/launch.json IS TRACKED (2026-08-02). It was ignored because it pinned a machine-specific
+# absolute node path — and that is precisely what made it useless: the path
+# (/opt/homebrew/opt/node@22/bin/node) stopped existing, so the one launch config AGENTS.md points
+# developers at could not start, and being untracked meant nobody could receive the fix either. It is
+# now plain `npx next dev`, which is machine-independent, so the reason for ignoring it is gone.
+# Re-ignore it only if it regains host-specific paths — and if it does, give AGENTS.md a tracked
+# template to point at instead of an ignored file.

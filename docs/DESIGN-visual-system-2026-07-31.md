@@ -10,11 +10,13 @@ a second token file, and not a Payload re-theme.**
 
 This brief covers **PR 1 of 3**:
 
-| PR | Scope |
-|---|---|
-| **1 (this brief)** | Shared-system extension + Manage |
-| 2 | Remaining frontend pages — Guide, Messages, Compare, auth/account |
-| 3 | Version editor chrome + native-Payload boundary |
+| PR | Scope | Status |
+|---|---|---|
+| **1 (this brief)** | Shared-system extension + Manage | ✅ #177 |
+| 2a | Messages, document email, auth → button system | ✅ #179 (+ #180/#181) |
+| 2b | Guide + Compare; `PageHeader` extracted | ✅ 2026-08-02 |
+| 2c | `kind` field + one-click grant (schema + migration) | outstanding |
+| 3 | Version editor chrome + native-Payload boundary | outstanding |
 
 ---
 
@@ -248,6 +250,12 @@ Changes from today (`components/AdminDashboard/index.tsx`, `CandidateList.tsx`):
   restructuring out of scope, and extracting a component across the catalogue, lesson page or
   Messages would contradict that boundary. Reaching into three frontend pages to prove an API is
   precisely the scope creep §5 forbids.
+  **✅ DONE in PR 2b (2026-08-02)** — `app/src/components/PageHeader.tsx`, with its API taken from
+  three live callers (Guide, Compare, lesson page) rather than guessed. Waiting was right for a
+  reason the brief did not anticipate: the extraction exposed that `.lesson-heading` was a
+  byte-for-byte duplicate of `.page-heading` applied alongside it, and that the shared `h1`
+  treatment was scoped to the duplicate — which is why the Guide rendered its title 22.4px. An
+  earlier extraction with one caller would have preserved both mistakes.
 - **Metadata line, list row, empty state — likewise deferred.** One consumer each today.
 - **In PR 1, implement Manage with the agreed classes and tokens.** When PR 2 actively touches a
   second page, extract `PageHeader` then, with real evidence for its API from two live callers.

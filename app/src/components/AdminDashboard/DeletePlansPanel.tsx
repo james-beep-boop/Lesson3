@@ -100,6 +100,7 @@ export function DeletePlansPanel({ rows }: { rows: PlanRow[] }) {
           aria-label="Search lesson plans to delete"
         />
         <Button
+          className="lp-btn"
           buttonStyle="error"
           size="small"
           disabled={busy || selected.size === 0}

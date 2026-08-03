@@ -100,16 +100,36 @@ export default function UploadBundles() {
         Site administrator only. ARES <code>.json</code> exports are validated and saved as
         Official 1.0.0 versions. The upload never executes the file; only JSON data is parsed.
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+      {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
+          Upload. It was the last control on Manage rendering as stock Payload (operator report,
+          2026-08-02) — measured 29.08px against the system's 38px. */}
+      <div className="lp-manage__upload">
         <input
           ref={inputRef}
           type="file"
+          className="lp-manage__file"
           accept=".json,application/json"
           multiple
           disabled={busy}
-          onChange={(e) => setFiles(e.target.files ? Array.from(e.target.files) : [])}
+          // The PREVIOUS upload's result list is cleared the moment the picker is opened, not when
+          // new files arrive (operator report 2026-08-02): the old filenames stayed on screen after
+          // a successful upload, so the panel read as though those files were queued again. `onClick`
+          // fires when the OS dialog opens, so the stale list goes even if the admin then cancels —
+          // which is the case `onChange` alone would miss. `onChange` clears too, for the paths that
+          // set files without a click (drag-drop, programmatic).
+          onClick={() => setResults([])}
+          onChange={(e) => {
+            setResults([])
+            setFiles(e.target.files ? Array.from(e.target.files) : [])
+          }}
         />
-        <Button buttonStyle="secondary" size="small" onClick={onUpload} disabled={busy || files.length === 0}>
+        <Button
+          className="lp-btn"
+          buttonStyle="secondary"
+          size="small"
+          onClick={onUpload}
+          disabled={busy || files.length === 0}
+        >
           {busy ? 'Uploading…' : `Upload${files.length ? ` ${files.length} file(s)` : ''}`}
         </Button>
       </div>

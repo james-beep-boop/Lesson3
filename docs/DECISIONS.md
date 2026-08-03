@@ -11,6 +11,387 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, audit round) — a fix git never shipped, and a boundary that could not be tested
+
+Three review findings, two of them about *delivery* rather than behaviour.
+
+**1. `.claude/launch.json` was GITIGNORED, so the "fix" reached nobody.** The previous entry recorded
+repairing the launch config; `.gitignore:44` excluded it and it was untracked. So a clean clone still
+could not follow `AGENTS.md`, while the changelog claimed the problem was solved. Now tracked, and the
+ignore rule is gone — note **the reason it was ignored is exactly what the fix removed**: it was
+excluded for holding a machine-specific absolute path, and that path is what had rotted. An ignored
+per-machine file that documentation points every developer at is a contradiction; if it ever regains
+host-specific paths, `AGENTS.md` should point at a tracked template instead. `NEXT-SESSION.md` still
+described the dead absolute path too, and now records the fix.
+**The general lesson: "it works on my machine" and "it is delivered" are different claims, and a
+changelog entry asserts the second.**
+
+**2. The privacy boundary had no role-level test, and could not have one where it lived.** The email
+carve-out is an `overrideAccess: true` query disclosing the whole grantable roster's addresses. The
+only committed coverage was widget unit tests proving that *supplied* props render — they cannot see
+the role → trusted query → serialized payload path where the disclosure is actually decided.
+
+The fix is half extraction: `buildEditorGroups` (`lib/editorGroups.ts`) now owns the role gate, the
+query and the projection as ONE unit, precisely because the boundary is only sound while they cannot
+be separated. Inlined in the RSC it was an **emergent** property — several conditions consulting one
+general-purpose `isAdmin` that also picks copy strings and the author column. `tests/int/editorGroupsAccess.int.spec.ts`
+then covers all four roles, and was run against a real database (9/9): Teacher and Editor get nothing,
+Subject Admin and Site Admin get addresses, `emailReadAccess` still strips other users' emails on a
+caller-scoped read, and self is still visible.
+
+⚑ **Writing that test found a claim of mine that was not true.** Deleting the non-admin early return
+did **not** fail the Teacher/Editor cases: with no administered subject-grades the scoped query returns
+nothing, so the result is `[]` either way. The empty payload was never the property at risk — without
+the gate a Teacher's request still pulls the entire roster into server memory before discarding it, and
+the docblock claimed "no query runs". A spy on `payload.find` now pins that, and fails when the gate is
+removed. **A test that passes for the wrong reason is worse than a missing one: it certifies the gate
+while the gate does nothing.** The way to tell is to delete the mechanism and check the test notices —
+which is why every guard in this batch was verified against the defect it describes.
+
+**3. The freshness token had become optional.** `toWidgetUser` accepted `updatedAt?: unknown` and
+`String(undefined)` produced the literal `"undefined"` — a token that never matches, so the
+stale-page 409 guard would **fail open** rather than closed. Now required and typed `string`.
+A concurrency guard whose input is optional is not a guard.
+
+Also corrected: `EditorsGroup` had been declared in both the component and the new lib module. It
+type-checked, because the shapes were identical — which is why it needed catching rather than
+excusing. Declared in `lib/` beside the code that builds it, re-exported for existing consumers.
+
+---
+
+## 2026-08-02 (PR 2b, /simplify round 2) — the spec bound was wrong, and the confirm dialog was the next picker
+
+A four-angle `/simplify` over the density/email/review commits. Two findings changed behaviour; one
+corrected a security-relevant document; the rest were cleanups.
+
+**1. SPEC §8's bound was FALSE, and I wrote it.** The amendment said the carve-out "reaches only the
+subject-grades that administrator already administers." True of the *current editors* list; false of
+the *candidates* list. `addable` is every non-Site-Admin user with no assignment in that subject-grade
+— so a Subject Administrator sees **every non-Site-Admin user's address**, not just those in their
+subjects. That is inherent to a grant picker (any teacher is grantable, so the pool is the roster),
+so the code is right and the sentence was wrong. Corrected in place, stating the exposure plainly and
+naming the option that would bound it (search-as-you-type resolving an address only for a chosen
+candidate). **A bounds paragraph that overstates the bound is worse than none — an auditor would rely
+on it.**
+
+**2. The remove confirmation was the next grant picker, and I had not applied my own argument to it.**
+The whole case for showing addresses is that granting access is an authorization decision and a name
+is not an identifier. **Revoking** is the same decision, and `window.confirm` said
+`Remove editing access for ${user.name}` — for two teachers sharing a display name, the dialog was
+identical for both. So was the success toast. The reasoning had been applied exactly where the review
+pointed and nowhere else. Now a shared `personLabel(u)` serves the picker, the confirmation and both
+toasts; the rows keep their two-node muted layout as the one intentional exception, because an
+`<option>` cannot hold markup and the rows need the class. Guarded by a test that fails on the
+name-only form.
+
+**3. The mobile row override won on SOURCE ORDER, not specificity.** `.lp-manage__row--tight` and
+`.lp-manage__row` are both (0-1-0) inside the same media block, so the override worked only by sitting
+later in the file — an order coupling nothing recorded. Hoisting the block, or extracting it to a
+partial, would have silently restored the full-width-Remove column layout on phones and nowhere else.
+Now written as the doubled `.lp-manage__row.lp-manage__row--tight` (0-2-0), so it wins wherever it
+sits. The review's deeper option — split the class in two, since `DeletePlansPanel` also uses the bare
+class for a one-line row — is the better end state and is **not** done here: it changes that panel's
+mobile layout, which is outside this batch. Recorded as a follow-up.
+
+**4. The spec now COMPILES the SCSS instead of scanning it as text.** `sass` was already in
+`node_modules`. This retired the bespoke comment-stripper and its `://` tripwire (both workarounds for
+parsing Sass as text), and it fixed a guard that was asserting on authoring syntax: matching
+`&__row--tight` pins how the rule is *typed*, not what it *does*, so it stayed green through the
+re-ordering above. Verified by hoisting the rule for real — the compiled guard fails, a text guard
+would not. **When a test asserts on source text, ask whether the compiled artifact is available; here
+it was one line away, and it also made "sass compiles" part of `test:unit`.**
+
+**5. The same dead-declaration mistake, twice in one batch.** `.lp-manage__editors-none` declared
+`font-size: var(--app-secondary-size)`; the span also carries `.muted`, and `.lp-manage .muted`
+(0-2-0) outranks it (0-1-0) — measured 14.4px, not the 14px asked for. This is precisely the
+`.guide-kicker` dead margin this same branch found and removed on the frontend. Removed. **Twice now:
+declaring a value near a class that already owns it is this codebase's most repeated CSS error.**
+
+Also: the admin compact override set `min-height` only while its comment claimed parity with the
+frontend's, which sets `min-width` too — #180's finding, dropped on the port. Added (`Remove` measured
+68px wide and passed by accident; `×` would not). And `WidgetUser` moved into `lib/widgetUser.ts`: it
+had been imported *from* a component into `lib/`, the only such import in the directory, inverting the
+dependency arrow.
+
+⚑ **Not fixed, measured and recorded: adding `email` grew the Manage RSC payload ~54%.** `addable` is
+materialized per group, so a per-user field multiplies by the number of subject-grades: measured
+458 KB → 705 KB at 30 SGs × 200 users, 1.34 MB → 2.06 MB at 60 × 300. Sending the roster once with
+per-group id lists measures 2.06 MB → 103 KB (20×), and fixes the pre-existing bloat too. **Skipped
+deliberately**: it restructures a component contract and its brand-new tests at merge time, and it
+overlaps the already-deferred roster-pagination item. At current scale (8 users, 4 subject-grades) the
+payload is ~40 KB. Do it with the pagination work, not as a cleanup.
+
+⚑ **Third stale-render misread of the session.** A 26px compact button at 390px looked like a
+regression in the touch target; the compiled CSS was correct and a cache-busting reload measured 44px.
+Two earlier readings (61px rows) were the same thing mid-navigation. **Confirm `readyState` and, for
+CSS changes, bust the cache before believing a measurement that contradicts the compiled output.**
+
+---
+
+## 2026-08-02 (PR 2b, review round) — the email carve-out widens, and the picker was the real gap
+
+Review of the density/email commit. Three things, and the first two matter more than the density
+work they corrected.
+
+**1. Subject Admins now see addresses too — SPEC §8 amended.** The previous entry gated the email to
+Site Admins because `emailReadAccess` is Site-Admin-or-self. Operator decision: **Subject
+Administrators see full addresses** for the users in their own subject-grades. The reasoning is the
+one the previous entry half-stated and then ignored: granting editing access **is an authorization
+decision**, and a display name is not an identifier. Withholding the address made the *privacy* rule
+safe at the cost of making the *authorization act* unsafe — an administrator could grant edit rights
+over a subject's content to the wrong person with nothing on screen to reveal it. Recorded as a
+bounded carve-out in `SPEC.md` §8: `emailReadAccess` itself is UNCHANGED, so every other surface
+still withholds addresses; the carve-out is one trusted projection in the Manage view.
+
+**2. The grant PICKER was still name-only — the finding that mattered.** The addresses were added to
+the editor rows and the `<option>` list was missed. That is precisely backwards: **the rows are where
+you notice the mistake afterwards; the picker is where you make it.** With two teachers sharing a
+display name the options were literally indistinguishable — identical text, differing only in
+`value`. Fixed (`Name — address`), the select's `max-width` raised from 18rem (which truncated
+exactly the half that disambiguates), and pinned by a test asserting **no two selectable options may
+read the same**.
+
+**3. `includeEmail` deleted rather than tested.** The reviewer noted the unit tests would stay green
+if the call site passed `includeEmail: true` by accident. True — and the right response was not a
+test that watches the flag. Once both audiences see addresses the flag was `true` at every call
+site, which makes it not a safety mechanism but a way to pass `false` by mistake. Deleting the
+parameter removes the failure mode by construction. **When an invariant is awkward to test, suspect
+the shape before reaching for a cleverer assertion.**
+
+⚑ **A layout defect that measurement could not see.** At 390px the editors list rendered a
+**full-width Remove under every name** — 98px per editor, and a destructive control given more visual
+weight than anything else on the page. `.lp-manage__row` stacks to a column at ≤640, correct for the
+candidate row (title + metadata + two actions), wrong for a one-line row; `--tight` now opts out.
+It was found by **screenshot**, and the geometry table had passed — every control still met its 44px
+target. The numbers were right and the layout was wrong. That is the standing argument for
+`DESIGN-visual-system` §6.1 requiring both forms of evidence, demonstrated again.
+
+Also fixed here, pre-existing and unrelated: `.claude/launch.json` pinned
+`/opt/homebrew/opt/node@22/bin/node`, **which no longer exists on this Mac** — so the one launch
+config `AGENTS.md` points developers at could not start at all, and its comment's claim that node 25
+"breaks tsx and makes Next/Payload hang" is false for `next dev` (every browser verification in this
+batch ran on node 25). It stays true for the Payload CLI. Now plain `npx next dev`, and verified by
+starting it.
+
+Test coverage added in this round: a dedicated `editorsWidget.spec.tsx` (the reviewer asked for the
+widget's tests not to live in the visual spec), and `uploadBundles.spec.tsx` for the stale-results
+fix, which until now had only manual verification. Both were confirmed to FAIL against the defects
+they describe — the picker test against name-only options, and two upload tests against an
+`onChange`-only fix, which is the plausible wrong version of that fix.
+
+---
+
+## 2026-08-02 (PR 2b, density) — one row per person, and an email that stops at Site Admin
+
+⚑ **SUPERSEDED IN PART, same day** — see the review-round entry above. The Site-Admin-only gate
+described below was widened to include Subject Administrators by operator decision, and SPEC §8 was
+amended accordingly. The density findings and the compact-specificity lesson stand.
+
+Operator report on the deployed Manage page: too much white space, "once we have a lot of editors
+that will be very unwieldy", and "should probably show the entire email address."
+
+**Density.** The editors list was **71px per person** — `--app-row-pad-block` (16px) either side of
+a 38px control, to display one name. Two things were wrong with that, and only one was padding:
+
+1. `.lp-manage__row` served two different shapes. The candidate row carries a title AND a metadata
+   line, so its 81px is doing work; the editors row is one name, and its 71px was not. A
+   `--tight` modifier separates them rather than compressing both.
+2. **The admin had never implemented the button system's second density.**
+   `--app-btn-compact-*` has existed since #169, documented for "in-row furniture … where a
+   page-level 38px control repeated six times per row would swamp the list" — the editors list is
+   precisely that, and it got the page-level size because only the frontend implemented compact.
+   Result: 71px → **43px** per editor.
+
+⚑ Implementing compact on a second surface immediately re-created the #179 trap:
+`.btn.lp-btn--compact` is (0-3-0), the shared touch rule is (0-2-0), and a media query adds no
+specificity — so the compact Remove would have stayed 26px on a phone. Restated inside the ≤640px
+block at equal specificity, verified 26px at 1280 and 44px at 390, and guarded by a test. **The
+lesson generalises: porting a density to a new surface ports its cascade hazards with it.**
+
+Empty subject-grades were the other half — 104px each for one sentence and one picker, stacked. The
+message now shares the Add row: **70px**. With a full curriculum most groups are empty, so that is
+the shape that decides whether the section is scannable, not the populated one.
+
+**The email, and why it stops at Site Admin.** Showing an address beside each name is right — a name
+alone is a poor thing to grant editing access on, and two people can share one. But `emailReadAccess`
+is Site-Admin-or-self (SPEC §8; CLAUDE.md "Non–Site-Admins never see others' emails") and **this
+widget also renders for Subject Administrators**. So the request could not be implemented as asked;
+Subject Admins keep seeing names only.
+
+Gated **twice, server-side**: the `email` column is not selected at all for a non-Site-Admin (the
+roster read is `overrideAccess: true`, so nothing downstream would strip it), and the client
+projection omits the key. Neither gate is load-bearing alone.
+
+The projection is a pure exported function (`lib/widgetUser.ts`) specifically so the rule is
+testable with real inputs. A first draft asserted it by grepping the call site for
+`siteAdmin ? { email: true }` — brittle, and it proves a string exists rather than that the rule
+holds. **When a security-critical invariant is hard to test, that is usually a sign it is living in
+the wrong shape, not that it needs a cleverer assertion.** The tests now check that the key is
+ABSENT (not empty) for a Subject Admin, which is the property that matters: an empty string would
+still cross the wire.
+
+Verified as both roles in a browser: a Subject Administrator's page source — RSC payload included —
+contains zero other users' addresses, only their own (which `emailReadAccess` permits and the
+account menu already showed).
+
+---
+
+## 2026-08-02 (PR 2b, follow-up) — Manage's controls: scope coverage is the invariant, not a class
+
+Operator report during the PR 2b session: *"On the manage page, when deleting, the 'Delete Selected'
+should be a button like all the other standard buttons"*, then *"Same with the upload button really.
+How about review all buttons like that and make them consistent."* Both correct. Presentation only.
+
+**Measured before, at 1280px** — the audit enumerated every control on Manage rather than checking
+the reported one:
+
+| Control | Before | System |
+|---|---|---|
+| Continue editing, Delete (candidate row) | 38 / 15 / 6 | ✓ already in |
+| **Delete selected** | 29.08 / 16 / 3 | ✗ |
+| **Editors Remove** ×3 | 29.08 / 16 / 3 | ✗ — rendered as bare text beside a bordered Delete |
+| **Editors Add** ×4 | 29.08 / 16 / 3 | ✗ |
+| **Upload** | 29.08 / 16 / 3 | ✗ |
+| **`.lp-manage__select`** ×4 | 31.19 / 14.4 / 4 | ✗ — had NO rule of its own at all |
+
+After: **one geometry, 38 / 15 / 6, across 16 of 17 controls**, and every one of them 44px at 390px.
+
+**The structural lesson, and the fix that followed it.** The admin button system was applied by
+SCOPE, not by a class, because `custom.scss` must not restyle Payload's own in-form `.btn`s. So a
+control joined the system only if some selector happened to name its container — *"which scopes are
+covered"* was the load-bearing fact, and it is invisible in review. Three controls sat outside it
+since 2026-07-31.
+
+The first fix here extended the scope list, which worked and was **the wrong altitude**: the list
+had grown to one entry per control, across *three* rules, so every new Manage button meant editing a
+stylesheet 700 lines from the component. A `/simplify` pass caught that the discipline had already
+failed a third time **inside this very commit** — the `a.btn` paint rule was never extended, and
+survived only because the sole admin `<a class="btn">` happens to sit in a scope that was.
+
+**Manage's controls now opt in with `.lp-btn`** (`.btn.lp-btn`, specificity 0-2-0 — identical to the
+container scopes it replaces, so the `&.btn--style-*` restatements still outrank it). Three selector
+lists collapse to one. The trade is real but favourable: an opt-in class can be forgotten, but a
+forgotten `.lp-btn` is visible in the diff of the component being written, where a forgotten scope
+was invisible in a file its author never opened. This project has shipped the second failure mode
+four times and the first zero times.
+
+⚑ **The exclusion that justified scoping does not apply to Manage.** It is real for
+`.collection-edit--lesson-bundle-versions`, a genuine Payload document view whose form hosts
+Payload's own `.btn`s — that scope stays. Manage is a *custom* admin view whose subtree is only our
+four components, so the constraint never applied there. Checking whether a stated constraint covers
+the case you are citing it for is the actual lesson; it had been carried forward unexamined.
+
+Worse, the 2026-07-31 pass had *recorded a judgement* that the Editors controls were "form
+furniture, not page-level actions". That was wrong: they are labelled action buttons in our own
+components, where the furniture exclusion was really protecting Payload's array-row controls. **A
+recorded exclusion is not self-justifying; it needs re-testing when the thing next to it changes.**
+Fixing only Delete would have left `Remove` as bare text directly beneath a bordered `Delete`.
+
+**Two rules now guarded by tests**, because both are cascade facts no reviewer reliably checks:
+the geometry block and the ≤640px touch block must list the **same** scopes (drift ships a control
+with desktop geometry and no touch target), and every Manage action scope must appear in both.
+Confirmed to fail against the pre-fix stylesheet.
+
+**Form controls follow the frontend's rule**, decided in the same PR for the compare pickers:
+`.lp-manage__select` / `.lp-admin-list__search` take the button system's **geometry** and keep their
+**native appearance**. One policy for "form control beside a system button", now stated on both
+surfaces rather than invented twice.
+
+**Deliberately still outside: the native file input.** Restyling `input[type=file]` means hiding it
+behind a `<label>` lookalike and giving up the OS control's keyboard and screen-reader behaviour —
+not worth it for a Site-Admin control used once per upload. It is the one non-system control on
+Manage, and the comment says so, so the next audit reads it as a decision rather than a miss.
+
+⚑ **Caught while writing the guard: the fix introduced its own duplicate.** Adding
+`.lp-admin-list__search` to the shared touch block left the old hard-coded `min-height: 44px` for
+the same selector in the `#5` block below — two rules, same control, and a comment above the second
+one asserting the redundant rules "have been removed". Exactly the duplication this whole pass is
+about, created by the pass itself. The test found it, not review.
+
+⚑ **A dead declaration, and a warning about reading CSS from source.** `.guide-kicker` declared its
+own `margin`, and it had never once applied: the kicker is a `<p>`, so `.guide p` (0-1-1) outranks
+`.guide-kicker` (0-1-0) and owns its spacing. The review flagged the retokenisation as "doubling
+4px → 8px"; the browser said the value had been **12.8px before and 12px after**, because the
+declaration both readings were arguing about was dead. Removed. **Reading a declaration tells you
+what an author intended, not what the page does** — the same lesson as #179's 26px pill, arriving
+from the opposite direction.
+
+**Retokenising did snap four values**, and the PR should not claim otherwise: `.guide-list`
+padding-left 20 → 24px, `.guide-section` padding/margin-top 20 → 16px, `.guide-list li + li`
+7.2 → 8px, `.guide p` margin-bottom 12.8 → 12px. The 8/12/16/24/32 scale has no 20px step, so these
+are the scale deciding the design rather than recording it. Accepted deliberately — that is what
+adopting a spacing scale means — and eyeballed at all four widths, but recorded as changes.
+
+---
+
+## 2026-08-02 (PR 2b) — Guide + Compare; a duplicate class, an uncovered control, and a derived seam
+
+The last two frontend pages outside the visual system
+([`DESIGN-visual-system-2026-07-31.md`](DESIGN-visual-system-2026-07-31.md)). Presentation only — no
+authorization, schema, endpoint or migration change. Three findings worth keeping:
+
+- **`.lesson-heading` was a byte-for-byte duplicate of `.page-heading`**, and the lesson and compare
+  pages carried BOTH class names, applying the same five declarations twice (and the same two again
+  inside `@media (max-width: 640px)`). Nothing was visibly wrong, which is why it survived — a
+  duplicate that agrees with its twin costs nothing until someone edits one copy. Extracting
+  `PageHeader` retired it. **The general rule: when a component extraction reveals two classes with
+  identical bodies, delete one rather than having the component emit both.**
+- **The Guide declared its own page title, a full step small.** `.guide h1` was `1.4rem`/600 —
+  measured **22.4px** — where every other page title is 30px/700. The cause is structural, not
+  careless: the shared treatment was scoped `.lesson-heading h1`, so it reached exactly the two pages
+  that used that class, and any third page had to declare its own. Rescoping to `.page-heading h1`
+  means **a page title is 30px/700 by virtue of being a page title**, and `.guide h1` was DELETED
+  rather than retokenised — both selectors are (0-1-1), so a restated copy would sit in a
+  source-order contest for no reason. Guarded by a test asserting no `.guide h1` size/weight exists.
+- **The compare version pickers were outside every system** — not `.btn`, and absent from the ≤640px
+  "secondary text links" 44px list — so no rule lifted them to the project's target. **Measured
+  30.59px tall at 390px**, against 44px for every control beside them. Same shape as the
+  `.btn--compact` miss in #179: not a rule that was wrong, but a control nobody had noticed was
+  uncovered. They now take the button system's GEOMETRY (height, radius, type) while keeping native
+  `appearance` — a `<select>` that looks like a button lies about what it does.
+
+**The seam, and an honest limit on how well it is closed.** `.guide-section`'s `scroll-margin-top`
+must clear the sticky TOC or a jumped-to heading lands underneath it. Both values were hand-typed
+magic numbers (`3.5rem` / `6rem`) with no stated relationship to the bar, so retokenising the bar's
+padding and font — which this PR does — would have silently broken anchor landing. That is the seam
+DECISIONS 2026-07-27 legislated about after #155: *when a constant must exist in two places, have one
+side READ it.*
+
+Here the bar's height is **derived** from the same tokens that build it, so one edit moves both. That
+is weaker than #155's read-it-back-from-the-DOM, because CSS cannot count flex lines: the row count
+per breakpoint stays an observed input. Accepted deliberately — a mis-landed guide anchor is a
+cosmetic annoyance where #155's wrong active chip was a false statement about where the reader was,
+and adding a client component to a static server-rendered page to measure a five-link bar is
+disproportionate. Over-clearing is also the safe direction. The formula reproduced the measured
+heights exactly (**47.7px** at ≥641px, **77.4px** at ≤640px), and clearance measured 7.8–8.2px at all
+four widths.
+
+**A correction inside this work, logged because it is the recurring failure mode.** The first draft
+set `--guide-toc-rows: 3` at ≤640px and wrote a comment claiming the old "two rows at phone width"
+note was wrong. **The old note was right — 390px is two rows (77.4px).** The assertion was reasoned
+from the link count, not measured, and it was written *in the very comment that claims the numbers
+are measured*. Caught by measuring immediately afterwards. The lesson is not "measure" — it is that
+a comment asserting its own rigour is exactly where an unverified claim hides, which is also how
+#179's 26px pill survived review, `/simplify`, CodeRabbit and a Rock pass.
+
+**Also confirmed the hard way: verification must be CHAINED to the change.** Proving the new guards
+fail against unfixed code, the `git stash push` used a stale pathspec and silently did nothing; the
+test run was issued as a separate command and passed — against the *fixed* code — reading exactly
+like a successful negative control. This is DECISIONS 2026-07-27 §2 recurring verbatim. Re-run as
+`stash && grep -c <the removed string> && vitest`, it showed **7 of 7 CSS guards failing** against
+the unfixed stylesheet. A negative control that is not chained to the thing it negates is not a
+control.
+
+**Node 22 is gone from this Mac, and `next dev` no longer needs it.** `.claude/launch.json` pins
+`/opt/homebrew/opt/node@22/bin/node`, which no longer exists (only node 25 is installed), so the
+documented launch path is broken on this machine. Node 25 now runs `next dev` fine (Next 16.2.12,
+ready in 301ms) — the "node 25 hangs at startup" note is **stale for the dev server**. It is still
+true for the **Payload CLI**: `npx payload run` faults in its bundled tsx loader
+(`ENOENT: node:path?tsx-namespace=…`). Workaround used here: run Payload scripts inside the
+`lesson3-deps` container, which carries node 22. Not fixed in this PR — it is toolchain, not product.
+
+---
+
 ## 2026-07-31 (PR 2a) — a media query adds no specificity, and a comment asserted otherwise
 
 Folding the §5a leftovers into the button system (Messages compose/reply, the document-email modal,

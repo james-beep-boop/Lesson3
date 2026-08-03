@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "//": "Bare `npx next dev` on the host's default node. This was PINNED to /opt/homebrew/opt/node@22/bin/node, which NO LONGER EXISTS on this Mac (only node@25 is installed) — so the one launch config AGENTS.md points developers at could not start at all.",
+      "//2": "The old comment claimed node 25 'breaks tsx and makes Next/Payload hang at startup with no output and ~0% CPU'. That is FALSE for `next dev`: verified Ready in ~300ms on v25.8.1 / Next 16.2.12, and every browser verification in the 2026-08-02 visual work ran on it. It stays TRUE for the PAYLOAD CLI (`npx payload run …`, e.g. generate:types and seed-local-dev) — run those in the lesson3-deps container, per AGENTS.md → Local stack.",
+      "name": "lesson3-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev"],
+      "cwd": "app",
+      "port": 3000
+    }
+  ]
+}

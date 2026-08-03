@@ -9,6 +9,7 @@ import { lessonDisplayName } from '@/lib/substrand'
 // so the cache diffs with its exported ENGINE instead — see htmlDiffCache.ts for the full story.
 import { diffVersionSectionsCached, type CompareDiffSection } from '@/generator/htmlDiffCache'
 import PageBackLink from '@/components/PageBackLink'
+import PageHeader from '@/components/PageHeader'
 import ComparePickers from './ComparePickers'
 
 /**
@@ -73,12 +74,10 @@ export default async function CompareView({
 
   return (
     <article className="lesson lesson--compare">
-      <div className="lesson-heading page-heading">
-        <h1>Compare: {title}</h1>
-        <div className="lesson-heading__actions page-heading__actions">
-          <PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />
-        </div>
-      </div>
+      <PageHeader
+        title={`Compare: ${title}`}
+        actions={<PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />}
+      />
       <ComparePickers
         planId={plan.id}
         options={versions.map((v) => ({ id: v.id, label: label(v) }))}

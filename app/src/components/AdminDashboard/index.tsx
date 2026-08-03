@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps } from 'payload'
 
-import { isSiteAdmin, subjectGradeIdsByRole, toId } from '../../access'
+import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { relId } from '../../lib/relId'
@@ -12,7 +12,8 @@ import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
 import { CandidateList, type CandidateRow } from './CandidateList'
 import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
-import { EditorsWidget, type EditorsGroup, type WidgetUser } from './EditorsWidget'
+import { buildEditorGroups } from '../../lib/editorGroups'
+import { EditorsWidget } from './EditorsWidget'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -46,74 +47,57 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // (`deletableVersionsWhere`) — single source, so this list can never drift from what the server
   // would actually let the user delete. All queries below are independent → run them concurrently.
   const deletable = deletableVersionsWhere(user)
-  const [{ typeLabel: role, lines: roleLines }, versionsRes, sgsRes, usersRes, plansRes] = await Promise.all([
-    resolveAccessSummary(req.payload, user),
-    // ---- Saved versions (deletable candidates) ----
-    deletable === false
-      ? null
-      : payload.find({
-          collection: 'lesson-bundle-versions',
-          overrideAccess: false,
-          user,
-          depth: 2,
-          pagination: false,
-          sort: '-createdAt',
-          where: deletable === true ? {} : deletable,
-          select: {
-            title: true,
-            semver: true,
-            subjectGrade: true,
-            lessonPlan: true,
-            author: true,
-            meta: { substrand_name: true },
-            createdAt: true,
-          },
-        }),
-    // ---- Editors widget: subject-grades in scope + every user (light projections) ----
-    isAdmin
-      ? payload.find({
-          collection: 'subject-grades',
-          overrideAccess: false,
-          user,
-          depth: 0,
-          pagination: false,
-          sort: 'displayName',
-          where: siteAdmin ? {} : { id: { in: adminSgIds } },
-          select: { displayName: true },
-        })
-      : null,
-    // Users for the Editors widget — a TRUSTED server-side projection (overrideAccess: true),
-    // deliberately: `roles` is field-HIDDEN from Subject Admins (siteAdminField), so a caller-scoped
-    // read cannot tell which users are Site Admins and the addable-exclusion below would silently
-    // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
-    // the client payload carries just {id, name, updatedAt}. (This section only renders for
-    // Subject/Site Admins, who may read the roster anyway per usersCollectionRead.)
-    isAdmin
-      ? payload.find({
-          collection: 'users',
-          overrideAccess: true,
-          depth: 0,
-          pagination: false,
-          sort: 'name',
-          select: { name: true, roles: true, assignments: true, updatedAt: true },
-        })
-      : null,
-    // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
-    siteAdmin
-      ? payload.find({
-          collection: 'lesson-plans',
-          overrideAccess: false,
-          user,
-          depth: 2,
-          pagination: false,
-          sort: 'title',
-          select: { title: true, subjectGrade: true, officialVersion: true },
-        })
-      : null,
-  ])
+  const [{ typeLabel: role, lines: roleLines }, versionsRes, editorGroups, plansRes] =
+    await Promise.all([
+      resolveAccessSummary(req.payload, user),
+      // ---- Saved versions (deletable candidates) ----
+      deletable === false
+        ? null
+        : payload.find({
+            collection: 'lesson-bundle-versions',
+            overrideAccess: false,
+            user,
+            depth: 2,
+            pagination: false,
+            sort: '-createdAt',
+            where: deletable === true ? {} : deletable,
+            select: {
+              title: true,
+              semver: true,
+              subjectGrade: true,
+              lessonPlan: true,
+              author: true,
+              meta: { substrand_name: true },
+              createdAt: true,
+            },
+          }),
+      // ---- Editors widget: the whole role gate + trusted query + projection, as ONE unit ----
+      // `buildEditorGroups` (lib/editorGroups.ts) owns the gate, the `overrideAccess: true` read and
+      // the client projection together, because the email carve-out is only sound while they cannot be
+      // separated — inlined here it was an emergent property of several conditions consulting the same
+      // general-purpose `isAdmin`. It returns [] for a non-administrator without querying, and it is
+      // covered per-role by `tests/int/editorGroupsAccess.int.spec.ts`.
+      buildEditorGroups({ payload, user }),
+      // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
+      siteAdmin
+        ? payload.find({
+            collection: 'lesson-plans',
+            overrideAccess: false,
+            user,
+            depth: 2,
+            pagination: false,
+            sort: 'title',
+            select: { title: true, subjectGrade: true, officialVersion: true },
+          })
+        : null,
+    ])
   const versionDocs = versionsRes?.docs ?? []
 
-  const dateFmt = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const dateFmt = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
   const candidates: CandidateRow[] = versionDocs
     .filter((v) => {
       // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
@@ -132,37 +116,6 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
         savedAt: v.createdAt ? dateFmt.format(new Date(v.createdAt)) : '',
       }
     })
-
-  // ---- Editors widget data (Subject Admin: scoped; Site Admin: all subject-grades) ----
-  let editorGroups: EditorsGroup[] = []
-  if (sgsRes && usersRes) {
-    const sgs = sgsRes.docs
-    // Every user (trusted projection — see the find above; only Subject/Site Admins reach here).
-    const allUsers = usersRes.docs
-    // The widget only needs identity + the freshness token — the assignment endpoints rebuild the
-    // row server-side from fresh state (assignments are read here solely to compute the groups).
-    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => ({
-      id: u.id,
-      name: u.name ?? `User ${u.id}`,
-      updatedAt: String(u.updatedAt),
-    })
-    editorGroups = sgs.map((sg) => {
-      const editors = allUsers.filter((u) =>
-        (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
-      )
-      const addable = allUsers.filter(
-        (u) =>
-          !u.roles?.includes('siteAdmin') &&
-          !(u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id),
-      )
-      return {
-        sgId: sg.id,
-        sgLabel: sg.displayName ?? `Subject grade ${sg.id}`,
-        editors: editors.map(widgetUser),
-        addable: addable.map(widgetUser),
-      }
-    })
-  }
 
   // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
   const repairPlans: { id: number; label: string }[] = []
@@ -239,7 +192,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
               <ul className="lp-manage__list">
                 {repairPlans.map((p) => (
                   <li key={p.id}>
-                    <Link className="lp-manage__link" href={`/admin/collections/lesson-plans/${p.id}`}>
+                    <Link
+                      className="lp-manage__link"
+                      href={`/admin/collections/lesson-plans/${p.id}`}
+                    >
                       {p.label}
                     </Link>
                   </li>

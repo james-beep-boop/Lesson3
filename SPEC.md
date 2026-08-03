@@ -263,6 +263,29 @@ so the editor unmounts and unsaved work is destroyed with no prompt and no recov
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to Editor for that subject-grade, in one transaction.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
+- **Amended 2026-08-02 — one carve-out, for granting editing access.** A **Subject Administrator**
+  sees the email addresses of the users listed in **Manage → Editing access** for their *own*
+  subject-grades: both the current editors and the candidates in the grant picker. Operator decision.
+  **Rationale:** granting editing access is an authorization decision, and a display name is not an
+  identifier — two teachers can share one, so a name-only picker lets an administrator grant edit
+  rights over a subject's content to the wrong person, with no way to notice. The address is the
+  only identifier the system already holds. Withholding it made the *privacy* rule safe at the cost
+  of making the *authorization* act unsafe.
+  **Bounds — this is a carve-out, not a repeal.** `emailReadAccess` (the `users.email` field access)
+  is UNCHANGED: still Site-Admin-or-self, so the REST/Local API and every other surface keep hiding
+  addresses from Subject Admins. The carve-out is delivered by a trusted server-side projection in
+  the Manage view only. Editors and Teachers see no part of this section.
+  ⚑ **State the exposure honestly: the grant picker necessarily lists the WHOLE roster.** An earlier
+  draft of this clause said the carve-out "reaches only the subject-grades that administrator already
+  administers." That is true of the *current editors* list, and FALSE of the *candidates* list: to
+  grant access you must be able to pick anyone, so `addable` is every non-Site-Admin user with no
+  assignment in that subject-grade — effectively every teacher in the system. A Subject Administrator
+  therefore sees **every non-Site-Admin user's address**, not only those of people in their subjects.
+  That is inherent to a grant picker rather than an implementation choice, but it is a materially
+  wider exposure than the sentence it replaced implied, and it is the thing to revisit if this is
+  ever narrowed (a search-as-you-type picker that resolves addresses only for a chosen candidate
+  would bound it). Site-Admin addresses are excluded because site admins are not grantable.
+  See `docs/DECISIONS.md` 2026-08-02.
 - **User directory (amended 2026-07-02, with messaging):** every authenticated user may read the
   roster of user **display names** — messaging's user picker requires it (§10 "any user may message
   any user"). This deliberately relaxes the earlier self-only read tightening (2026-07-01) at the

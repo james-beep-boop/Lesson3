@@ -8,6 +8,163 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — audit fixes: the launch config is actually shipped, and the email boundary is tested
+
+- **`.claude/launch.json` is now TRACKED.** The previous entry claimed to fix it; `.gitignore`
+  excluded it, so a clean clone still could not follow `AGENTS.md`. The reason it was ignored — a
+  machine-specific absolute path — is exactly what the fix removed, so the rule is gone.
+  `docs/NEXT-SESSION.md` no longer describes the dead path either.
+- **The email carve-out has a per-role integration test** (`tests/int/editorGroupsAccess.int.spec.ts`,
+  9 cases, run against a real database). This required extracting the boundary: `buildEditorGroups`
+  (`app/src/lib/editorGroups.ts`) now owns the role gate, the trusted query and the client projection
+  as one unit — inside the React server component it was an emergent property of several conditions
+  sharing one general-purpose `isAdmin`, and untestable. Covers: Teacher and Editor get nothing and
+  trigger **no query at all**; Subject and Site Admin get addresses; a caller-scoped `users` read
+  still strips other people's emails while showing self; the whole grantable roster is disclosed to a
+  Subject Admin (pinned so SPEC §8 and the code cannot drift apart again).
+- **The freshness token is required again.** `toWidgetUser` accepted `updatedAt?: unknown`, so an
+  omitted value became the string `"undefined"` — a token that never matches, making the stale-page
+  409 guard fail *open*. Now typed `string`.
+- `EditorsGroup` was declared in two places (it type-checked, since the shapes matched); now declared
+  once in `lib/` and re-exported.
+
+tsc clean; unit **363/363**; int **9/9** for the new spec; lint 0 errors; sass compiles. Re-verified in
+a browser after the extraction — rendering unchanged.
+
+## 2026-08-02 — /simplify: the remove dialog identifies people too, and SPEC §8's bound is corrected
+
+Four-angle cleanup pass over the density/email work. Two behaviour changes, one document correction:
+
+- **The remove confirmation and its toasts now identify people the way the grant picker does.** The
+  argument for showing addresses is that granting access is an authorization decision and a name is
+  not an identifier — and revoking is the same decision, yet `Remove editing access for <name>?` read
+  identically for two people sharing a display name. A shared `personLabel` now serves the picker, the
+  confirmation and both toasts.
+- **SPEC §8's bound was factually wrong and is corrected.** It said the carve-out reached only the
+  administrator's own subject-grades. True of the current-editors list; false of the grant picker,
+  which must list every grantable user — so a Subject Administrator sees every non-Site-Admin address.
+  Inherent to a grant picker, but a materially wider exposure than the sentence implied.
+- **The email carve-out is gated on a named `mayIdentifyGrantCandidates` predicate**, beside
+  `emailReadAccess` in `access/index.ts`, instead of on the general-purpose `isAdmin` that also picks
+  copy strings and the author column.
+- **The mobile row override now wins on specificity, not source order** — it was `(0-1-0)` against
+  `(0-1-0)` and worked only by sitting later in the file; hoisting it would have silently restored the
+  full-width-Remove layout on phones.
+- **The visual spec compiles the SCSS** (`sass`, already installed) instead of scanning it as text,
+  retiring a bespoke comment-stripper and a guard that asserted on authoring syntax rather than the
+  cascade. "Sass compiles" is now part of `test:unit`.
+- Admin compact buttons gained the `min-width` the frontend has (#180's both-dimensions finding, lost
+  on the port); a dead `font-size` outranked by `.muted` removed; `WidgetUser` moved into `lib/`.
+
+Known and deliberately deferred: adding `email` grew the Manage RSC payload ~54% (measured 1.34 MB →
+2.06 MB at 60 subject-grades × 300 users) because `addable` is materialized per group. Sending the
+roster once with id lists measures 20× smaller and fixes pre-existing bloat — to be done with the
+deferred roster-pagination work, not as a cleanup. ~40 KB at current scale.
+
+tsc clean; unit **363/363**; lint 0 errors; sass compiles. Re-verified in a browser as Site Admin and
+Subject Admin at 1280 and 390.
+
+## 2026-08-02 — Manage gets denser, and Editing access shows who people are
+
+Operator report: "the manage page has too much white space … once we have a lot of editors that will
+be very unwieldy", plus "should probably show the entire email address".
+
+- **The editors list is 40% shorter.** Each row was **71px** — 16px of padding either side of a 38px
+  control, to show one name. Rows carrying a single line now use tighter padding, and Remove takes
+  the button system's **compact** density. Measured: **71px → 43px** per editor.
+- **The admin surface finally implements compact.** `--app-btn-compact-*` has existed since #169
+  for "in-row furniture … where a page-level 38px control repeated six times per row would swamp the
+  list", but only the frontend ever implemented it — which is exactly why this list had a 38px
+  Remove on every row. Restated inside the ≤640px block so it still reaches 44px on a phone
+  (verified 26px at 1280, 44px at 390): the #179 trap, on the surface that had not hit it yet.
+- **Empty subject-grades cost one row, not four.** "No one has editing access." now shares the Add
+  row instead of stacking above it: **104px → 70px** per empty group. With a full curriculum most
+  groups are empty, so this is the shape that decides whether the section is scannable.
+- **Each person's email is shown beside their name, and in the grant picker** — a name alone is a
+  poor thing to grant editing access on, and two people can share one. Shown to **Subject
+  Administrators as well as Site Administrators** for their own subject-grades: granting editing
+  access is an authorization decision, so withholding the only identifier the system holds made the
+  privacy rule safe at the cost of making the authorization act unsafe. Recorded as a **bounded
+  SPEC §8 carve-out** — `emailReadAccess` is unchanged, so every other surface still withholds
+  addresses. Editors and Teachers see no part of this section.
+  - The **picker** matters more than the rows: the rows are where a mistake is noticed afterwards,
+    the picker is where it is made. Pinned by a test asserting no two selectable options read alike.
+  - At 390px the list had rendered a **full-width Remove under every name** (98px per editor, a
+    destructive control with more weight than anything else on the page). One-line rows now stay
+    horizontal: **98 → 61px**. Found by screenshot — the geometry table passed, because every
+    control still met its 44px target.
+- **`.claude/launch.json` fixed** (pre-existing): it pinned a `node@22` path that no longer exists on
+  this Mac, so the one launch config `AGENTS.md` points developers at could not start. Now plain
+  `npx next dev`, verified by starting it. Its claim that node 25 breaks `next dev` was false; that
+  remains true only of the Payload CLI.
+- **New tests:** `editorsWidget.spec.tsx` and `uploadBundles.spec.tsx` (the upload stale-results fix
+  previously had only manual verification). Both confirmed to fail against the defects they describe.
+
+Verified in a browser as **both** roles: a Subject Administrator's page source contains zero other
+users' addresses (RSC payload included), only their own. Editing-access section 490px, page
+4509 → 4165px. tsc clean; unit 351/351; lint 0 errors.
+
+## 2026-08-02 — Manage's controls all become standard buttons
+
+Operator report: "Delete selected" was not a standard button, nor was Upload — "review all buttons
+like that and make them consistent." An audit of every control on Manage found **six** outside the
+system, all rendering at 29.08px / 16px / 3px against the system's 38px / 15px / 6px, plus four
+unstyled `<select>`s at 31.19px. `Remove` read as bare text beside a bordered `Delete`.
+
+- **Delete selected, Editors Remove, Editors Add and Upload** join the shared admin button block.
+  Upload needed a class (`.lp-manage__upload`) first — it was an inline-styled `<div>`, and a
+  control cannot join a system it is invisible to.
+- **Manage's controls now opt in with `.lp-btn`.** The first cut of this fix extended a list of
+  container scopes; a `/simplify` pass showed that list had grown to one entry per control across
+  *three* rules, and that the third had been left un-extended in the same commit that documented the
+  rule. One class replaces all of it. The version editor keeps its container scope, where the
+  original "don't restyle Payload's in-form buttons" constraint genuinely applies.
+- **The Editors picker and the delete-plans search** take the button system's geometry while keeping
+  native `<select>`/input appearance — the same rule this PR applied to the frontend's compare
+  pickers, now stated once per surface instead of invented twice.
+- **The native file input stays outside, deliberately** — restyling it means giving up the OS
+  control's keyboard and screen-reader behaviour. Documented so the next audit reads it as a
+  decision.
+
+Result: **one geometry across 16 of 17 controls** at desktop, and **all 16 at 44px** at 390px with
+no overflow. The version editor's seven controls are unchanged.
+
+Guarded by tests asserting that the geometry block and the ≤640px touch block list the *same*
+scopes — the drift that let these controls sit outside the system since 2026-07-31. The guards were
+confirmed to fail against the pre-fix stylesheet, and one of them caught a duplicate rule the fix
+itself had introduced.
+
+## 2026-08-02 — Guide and Compare join the visual system; `PageHeader` extracted
+
+**PR 2b** of [`docs/DESIGN-visual-system-2026-07-31.md`](DESIGN-visual-system-2026-07-31.md) — the
+last two frontend pages rendering outside the shared system. Presentation only: no authorization,
+schema, endpoint or migration change. App-level deploy, **no migration**.
+
+- **The Guide's page title was 22.4px/600** where every other page title is 30px/700. The shared
+  treatment had been scoped `.lesson-heading h1`, reaching only the two pages that used that class,
+  so the Guide declared its own. Rescoped to `.page-heading h1`; `.guide h1` deleted. Section
+  headings, kicker, TOC and all spacing now come from the type and spacing scales.
+- **The two compare version pickers were ~30px tall on a phone** — measured 30.59px at 390px. They
+  belonged to no system: not `.btn`, and absent from the ≤640px 44px list, so nothing lifted them to
+  the project's target. They now take the button system's geometry (38px desktop / 44px at ≤640,
+  shared radius and type) while keeping native `<select>` appearance.
+- **`PageHeader` extracted** ([`app/src/components/PageHeader.tsx`](../app/src/components/PageHeader.tsx)),
+  deferred by PR 1 until a second page was in scope. Three callers: Guide, Compare, lesson page. It
+  retired a duplicate — `.lesson-heading` / `.lesson-heading__actions` had rule bodies byte-identical
+  to the `.page-heading` pair, and two pages applied both.
+- **The guide TOC's anchor clearance is derived, not hand-typed.** `scroll-margin-top` was two magic
+  numbers tied to the sticky bar's rendered height; retokenising the bar would have broken anchor
+  landing silently. Both now derive from the tokens that build the bar (the #155 seam rule).
+
+Verified in a browser at **390 / 550 / 700 / 1280** across the Guide, Compare, the lesson page and
+the catalogue, with computed-geometry tables and screenshots: the lesson page measured
+byte-identical before and after the `PageHeader` swap, TOC clearance 7.8–8.2px at every width, and
+no horizontal overflow anywhere. Retokenising snapped four Guide spacing values to the scale
+(20 → 24px, 20 → 16px, 7.2 → 8px, 12.8 → 12px) — small, deliberate, and recorded rather than
+described as a pure restatement. The Compare fixture was a second version created through the real
+edit-and-save workflow. `tsc` clean; unit **343/343** (11 new, each confirmed to FAIL against the
+unfixed stylesheet); lint 0 errors; sass compiles.
+
 ## 2026-07-31 — narrow-screen editing explains itself; a local stack to verify UI before shipping
 
 - **#172 (deployed)** — **PR B**, completing the wider-screen-affordance arc from #163 and finishing

@@ -86,10 +86,11 @@ export function CandidateList({
             {/* The title is still the obvious link, but the action is also NAMED: "click the row to
                 resume editing" was never stated anywhere on the page. */}
             <div className="lp-manage__row-actions">
-              <Link className="btn" href={href}>
+              <Link className="btn lp-btn" href={href}>
                 Continue editing
               </Link>
               <Button
+                className="lp-btn"
                 buttonStyle="error"
                 size="small"
                 disabled={busyId != null}

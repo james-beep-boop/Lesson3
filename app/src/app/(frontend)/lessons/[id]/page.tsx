@@ -14,6 +14,7 @@ import EditActions from './EditActions'
 import ShareMenu from './ShareMenu'
 import FavoriteToggle from '@/components/FavoriteToggle'
 import PageBackLink from '@/components/PageBackLink'
+import PageHeader from '@/components/PageHeader'
 import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
@@ -112,38 +113,39 @@ export default async function LessonView({
 
   return (
     <article className="lesson">
-      <div className="lesson-heading page-heading">
-        <div className="lesson-heading__text">
-          <h1>{title}</h1>
-          {/* One merged meta line (declutter L3, 2026-07-15): subject · grade · version · Official,
-              read by everyone — the semver + Official text is a static trust marker. The versions
-              UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
-              Compare render only for editors, and only when there is a real choice. */}
-          <p className="lesson-context">
-            {contextLine && `${contextLine} · `}Version {selected.semver ?? `v${selectedId}`}
-            {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
-            {canEdit && versions.length > 1 && (
-              <>
-                {' '}
-                <VersionsChip
-                  planId={plan.id}
-                  officialVersionId={officialId ?? null}
-                  versionCount={versions.length}
-                  currentVersionId={selectedId}
-                  panelLabel={title}
-                />{' '}
-                <Link className="btn" href={`/lessons/${plan.id}/compare`}>
-                  Compare
-                </Link>
-              </>
-            )}
-          </p>
-        </div>
-        <div className="lesson-heading__actions page-heading__actions">
-          <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
-          <PageBackLink href="/" label="Back to lesson plans" />
-        </div>
-      </div>
+      <PageHeader
+        title={title}
+        actions={
+          <>
+            <FavoriteToggle versionId={selectedId} favoriteId={favoriteId} showLabel />
+            <PageBackLink href="/" label="Back to lesson plans" />
+          </>
+        }
+      >
+        {/* One merged meta line (declutter L3, 2026-07-15): subject · grade · version · Official,
+            read by everyone — the semver + Official text is a static trust marker. The versions
+            UI stays an EDITOR concern (teacher-first lock, DECISIONS 2026-07-08 §4): chip +
+            Compare render only for editors, and only when there is a real choice. */}
+        <p className="lesson-context">
+          {contextLine && `${contextLine} · `}Version {selected.semver ?? `v${selectedId}`}
+          {selectedId === officialId && <strong className="official-tag"> · Official</strong>}
+          {canEdit && versions.length > 1 && (
+            <>
+              {' '}
+              <VersionsChip
+                planId={plan.id}
+                officialVersionId={officialId ?? null}
+                versionCount={versions.length}
+                currentVersionId={selectedId}
+                panelLabel={title}
+              />{' '}
+              <Link className="btn" href={`/lessons/${plan.id}/compare`}>
+                Compare
+              </Link>
+            </>
+          )}
+        </p>
+      </PageHeader>
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
           revising declutter L1): the catalogue row already offers exactly those one-click downloads,

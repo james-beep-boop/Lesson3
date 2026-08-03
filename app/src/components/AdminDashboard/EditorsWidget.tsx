@@ -18,20 +18,16 @@ import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { personLabel, type WidgetUser } from '../../lib/widgetUser'
+import type { EditorsGroup } from '../../lib/editorGroups'
 
-export interface WidgetUser {
-  id: number
-  name: string
-  /** Freshness token for the assignment endpoints — the row's updatedAt as this page rendered. */
-  updatedAt: string
-}
-
-export interface EditorsGroup {
-  sgId: number
-  sgLabel: string
-  editors: WidgetUser[]
-  addable: WidgetUser[]
-}
+/**
+ * Both types are declared in `lib/` beside the code that BUILDS them (`widgetUser.ts`,
+ * `editorGroups.ts`) and re-exported here for existing consumers. Declaring `EditorsGroup` in both
+ * places type-checked — the shapes were identical — which is exactly why it needed catching: two
+ * declarations that agree today are two declarations to keep in step.
+ */
+export type { WidgetUser, EditorsGroup }
 
 export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
   const router = useRouter()
@@ -57,7 +53,9 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
         body: JSON.stringify({ subjectGradeId: group.sgId, expectedUpdatedAt: user.updatedAt }),
       })
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
+        const json = (await res.json().catch(() => null)) as {
+          errors?: { message: string }[]
+        } | null
         throw new Error(json?.errors?.[0]?.message || `Update failed (${res.status})`)
       }
       toast.success(okMsg)
@@ -73,72 +71,111 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
     const userId = Number(picks[group.sgId])
     const user = group.addable.find((u) => u.id === userId)
     if (!user) return
-    void changeRole('assign', user, group, `${user.name} now has editing access for ${group.sgLabel}.`)
+    void changeRole(
+      'assign',
+      user,
+      group,
+      `${personLabel(user)} now has editing access for ${group.sgLabel}.`,
+    )
     setPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
+  // ⚑ `personLabel`, not `user.name`. REVOKING access is the same kind of authorization decision as
+  // granting it, and this dialog is the last thing between the administrator and the change — yet it
+  // identified people by name alone, so for two teachers sharing a display name it read identically
+  // for both. The reasoning that put addresses in the grant picker applies here with more force
+  // (review 2026-08-02); it had been applied only where the review pointed.
   const onRemove = (group: EditorsGroup, user: WidgetUser) => {
-    if (!window.confirm(`Remove editing access for ${user.name} in ${group.sgLabel}?`)) return
+    if (!window.confirm(`Remove editing access for ${personLabel(user)} in ${group.sgLabel}?`))
+      return
     void changeRole(
       'unassign',
       user,
       group,
-      `${user.name} no longer has editing access for ${group.sgLabel}.`,
+      `${personLabel(user)} no longer has editing access for ${group.sgLabel}.`,
     )
   }
 
   return (
     <div className="lp-manage__editors">
-      {groups.map((group) => (
-        <div key={group.sgId} className="lp-manage__editors-group">
-          <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
-          {group.editors.length === 0 ? (
-            <p className="muted">No one has editing access.</p>
-          ) : (
-            <ul className="lp-manage__list">
-              {group.editors.map((u) => (
-                <li key={u.id} className="lp-manage__row">
-                  <span>{u.name}</span>
-                  <Button
-                    buttonStyle="error"
-                    size="small"
-                    disabled={busy}
-                    onClick={() => onRemove(group, u)}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {group.addable.length > 0 && (
-            <div className="lp-manage__editors-add">
-              <select
-                className="lp-manage__select"
-                aria-label={`Grant editing access for ${group.sgLabel}`}
-                value={picks[group.sgId] ?? ''}
-                disabled={busy}
-                onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
-              >
-                <option value="">Grant editing access…</option>
-                {group.addable.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
+      {groups.map((group) => {
+        const hasEditors = group.editors.length > 0
+        const canAdd = group.addable.length > 0
+        return (
+          <div key={group.sgId} className="lp-manage__editors-group">
+            <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
+            {hasEditors && (
+              <ul className="lp-manage__list">
+                {group.editors.map((u) => (
+                  <li key={u.id} className="lp-manage__row lp-manage__row--tight">
+                    {/* Name and address on ONE line, not stacked: this list is scanned, and a second
+                      line per row doubles its height for a value that is only a disambiguator. */}
+                    <span className="lp-manage__who">
+                      {u.name}
+                      {u.email && <span className="lp-manage__who-email">{u.email}</span>}
+                    </span>
+                    <Button
+                      className="lp-btn lp-btn--compact"
+                      buttonStyle="error"
+                      size="small"
+                      disabled={busy}
+                      onClick={() => onRemove(group, u)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
                 ))}
-              </select>
-              <Button
-                buttonStyle="primary"
-                size="small"
-                disabled={busy || !picks[group.sgId]}
-                onClick={() => onAdd(group)}
-              >
-                Add
-              </Button>
-            </div>
-          )}
-        </div>
-      ))}
+              </ul>
+            )}
+            {/* The empty message shares the Add row rather than stacking above it. With a full
+              curriculum most subject-grades have nobody, so an empty group is the shape that
+              decides whether this section is scannable — stacked it cost ~104px per group for one
+              sentence and one picker (operator report 2026-08-02, "too much white space").
+              Gated so a group with editors and nothing left to add emits no empty row: the wrapper
+              carries a margin, so an always-rendered div would add trailing space in exactly the
+              case this pass exists to tighten. */}
+            {(!hasEditors || canAdd) && (
+              <div className="lp-manage__editors-add">
+                {!hasEditors && (
+                  <span className="muted lp-manage__editors-none">No one has editing access.</span>
+                )}
+                {canAdd && (
+                  <>
+                    <select
+                      className="lp-manage__select"
+                      aria-label={`Grant editing access for ${group.sgLabel}`}
+                      value={picks[group.sgId] ?? ''}
+                      disabled={busy}
+                      onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
+                    >
+                      <option value="">Grant editing access…</option>
+                      {/* `personLabel`, shared with the remove confirmation and the toasts — an
+                      `<option>` cannot carry markup, so the string form is the shareable part while
+                      the rows keep their two-node muted layout. This is the control where the
+                      mistake actually happens: showing the address only on the rows below meant it
+                      arrived one step too late (review 2026-08-02). */}
+                      {group.addable.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {personLabel(u)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      className="lp-btn"
+                      buttonStyle="primary"
+                      size="small"
+                      disabled={busy || !picks[group.sgId]}
+                      onClick={() => onAdd(group)}
+                    >
+                      Add
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

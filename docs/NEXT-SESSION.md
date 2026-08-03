@@ -100,15 +100,33 @@ or migration change.
     body inline, so "viewing the inbox is reading" (DECISIONS 2026-07-03) is internally coherent;
     removing automatic marking while offering only "Mark all read" would leave ordinary no-reply
     messages with no individual resolution. Revisit as its own product decision, not inside a visual pass.
-- **⚠ WHAT TO DO NEXT:** a visual PR for **Guide + Compare** (the remainder of the original PR 2
-  scope, which the operator split out); then **PR 2b** for the `kind` field + one-click
-  grant (schema + migration — specify partial-failure/retry semantics FIRST: granting access and
-  sending the confirmation are two writes and must not masquerade as atomic, and the subject-grade
-  scope must be derived server-side from the trusted message/lesson relationships, never client
-  input); and **PR 3** for the version editor chrome + native-Payload boundary.
-- `PageHeader` still awaits extraction — deliberately NOT done in PR 1, because it would have meant
-  editing frontend pages PR 1 declared out of scope. The first visual PR that touches a second page
-  is where it earns its keep.
+- **✅ PR 2b — DONE (2026-08-02, branch `visual/guide-compare`).** Guide + Compare, the last two
+  frontend pages outside the system, plus the `PageHeader` extraction PR 1 deferred. Presentation
+  only; app-level, **no migration**. It closed two live defects, both measured in a browser rather
+  than inferred: the Guide's page title rendered **22.4px/600** against 30px/700 everywhere else
+  (the shared rule was scoped `.lesson-heading h1`, so it never reached a third page), and the two
+  compare version pickers were **30.59px tall at 390px** — they belonged to no system, so nothing
+  lifted them to the 44px target. Extraction also retired `.lesson-heading`, a byte-for-byte
+  duplicate of `.page-heading` that two pages applied alongside it. See DECISIONS 2026-08-02.
+- **⚠ WHAT TO DO NEXT:** **PR 2c** for the `kind` field + one-click grant (schema + migration —
+  specify partial-failure/retry semantics FIRST: granting access and sending the confirmation are
+  two writes and must not masquerade as atomic, and the subject-grade scope must be derived
+  server-side from the trusted message/lesson relationships, never client input); then **PR 3** for
+  the version editor chrome + native-Payload boundary.
+- **✅ Local toolchain — FIXED and now TRACKED (2026-08-02).** `.claude/launch.json` had pinned an
+  absolute `node@22` path that no longer exists on this Mac, so the one launch config `AGENTS.md`
+  points at could not start — and it was **gitignored**, so a clean clone could not receive the fix
+  either (caught in review: "the launch fix is not actually delivered by Git"). It is now plain
+  `npx next dev` and tracked; the ignore rule is gone, because the machine-specific path that
+  justified ignoring it is what got removed. Node 25 runs `next dev` fine, so the "node 25 hangs"
+  note is stale **for the dev server only** — `npx payload run` still faults in its bundled tsx
+  loader, so seed/maintenance scripts must run inside the `lesson3-deps` container (node 22). Also:
+  the local DB already holds the 42-plan corpus and the `@lesson3.local` logins, whose passwords were
+  reset to `local1234` on 2026-08-02.
+- ✅ `PageHeader` is EXTRACTED (PR 2b) — `app/src/components/PageHeader.tsx`, three callers (Guide,
+  Compare, lesson page). Deferring it was right for an unanticipated reason: extracting with one
+  caller would have preserved the duplicate `.lesson-heading` class and the mis-scoped `h1` rule
+  that together caused the Guide's small title.
 - **The rule that paid for itself:** PR 1's acceptance protocol required creating a candidate through
   the REAL edit-and-save workflow. Doing that is what surfaced #176 — a bug 318 unit tests, `tsc` and
   eslint had all passed over. Do not substitute an API call for the user's actual path.
