@@ -8,6 +8,22 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-03 — the duplicate-subject-grade error is readable, and the handoff stops naming a SHA
+
+- **Creating a duplicate subject-grade said "Something went wrong."** The guard blocked correctly but
+  threw a bare `Error`, which Payload returns as a generic 500 — so the one hook that exists to give an
+  operator a readable message instead of an opaque constraint violation was itself opaque, for its whole
+  life. Now an `APIError(…, 400)`: the form shows **"Grade 10 already exists for that subject."**
+  Pinned by two integration cases asserting the status *and* the string, since the guard's blocking
+  behaviour is identical either way and no behavioural test could see the difference.
+- **The reported "stale subject" on that form is still unreproduced** across three navigation paths and
+  was not patched speculatively — but the above is the likely cause: a save that fails with no
+  explanation, on a form that (correctly) keeps what you typed, reads as a value that is stuck.
+- **`docs/NEXT-SESSION.md` no longer names a deployed SHA.** It had gone stale twice that way and was
+  three deploys out of date; it now carries the one-line command that checks the real answer.
+
+tsc clean; unit **365/365**; int **5/5** on the taxonomy spec; lint 0 errors; sass compiles.
+
 ## 2026-08-03 — CodeRabbit follow-up: pin the email predicate, reject a refactor that changed behaviour
 
 CodeRabbit's review of #184 landed after that PR merged. Verdicts on all six findings:

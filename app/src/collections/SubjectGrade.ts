@@ -112,6 +112,20 @@ export const SubjectGrade: CollectionConfig = {
     beforeDelete: [guardSubjectGradeDelete],
     beforeValidate: [
       // Friendly duplicate check (the hard guarantee is the compound unique index above).
+      //
+      // ⚑ `APIError`, NOT a bare `Error` — and this is the whole point of the hook. A plain `throw new
+      // Error(...)` from a Payload hook is treated as an unexpected fault: Payload logs it at error
+      // level and returns a generic **500 "Something went wrong."**, so the message below never
+      // reached the user. This hook exists *only* to replace an opaque failure with a readable one,
+      // and for its whole life it produced an opaque failure of its own — worse than the raw
+      // unique-constraint violation it was meant to improve on, because a 500 also reads as "the app
+      // is broken" rather than "fix this field". `APIError(msg, 400)` is what surfaces the string, and
+      // it is the pattern `guardSubjectGradeDelete` above already uses correctly.
+      //
+      // Found 2026-08-03 while chasing an operator report of a "stale subject" on this form. Not the
+      // reported bug (still unreproduced), but very likely what was actually seen: the save fails with
+      // an unexplained error, Payload keeps the submitted values in the form, and a form that will not
+      // save while showing the old values reads exactly like a value that is stuck.
       async ({ data, req, originalDoc }) => {
         if (!data?.subject || data?.grade == null) return data
         const subjectId = typeof data.subject === 'object' ? data.subject.id : data.subject
@@ -126,7 +140,7 @@ export const SubjectGrade: CollectionConfig = {
         })
         const clash = existing.docs[0]
         if (clash && clash.id !== originalDoc?.id) {
-          throw new Error(`Grade ${data.grade} already exists for that subject.`)
+          throw new APIError(`Grade ${data.grade} already exists for that subject.`, 400)
         }
         return data
       },
