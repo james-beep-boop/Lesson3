@@ -8,6 +8,28 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-03 — CodeRabbit follow-up: pin the email predicate, reject a refactor that changed behaviour
+
+CodeRabbit's review of #184 landed after that PR merged. Verdicts on all six findings:
+
+- **Taken — the email predicate is now pinned per role.** `buildEditorGroups` gates on two independent
+  conditions (build-groups-at-all, and select-the-email-column). Every role clearing the first clears
+  the second today, so the "no email" branch was unreachable and untested; a widened gate would have
+  made it live having never run. Verified by narrowing the predicate: three tests fail.
+- **Taken — per-row accessible names** on Remove/Add (already shipped in #185).
+- **Rejected with a demonstration — the single-pass `Map` refactor.** A `Map` keeps the last value for
+  a duplicate key, and a same-subject-grade `subjectAdmin`+`editor` pair is reachable via the demote
+  path (`access/index.ts:119` documents it). With rows ordered `[editor, subjectAdmin]` an editor
+  silently vanishes from the list. The CPU it saves is ~0 (measured 2.0 ms at 60 × 300).
+- **Rejected — "narrow the email to Site Admins only".** That is the operator's decision, in SPEC §8
+  and CLAUDE.md. The finding's premise (`SPEC.md` "not present in this repo") was false.
+- **Rejected — two stylelint findings.** Stylelint is not configured here: no config, no script, not in
+  CI. Those are the bot's own defaults, not this project's gate.
+- …but the `calc()` wrap it flagged **was** genuinely hard to read (prettier had split `(rows - 1)`
+  right after the `-`). Re-wrapped, arithmetic unchanged, and prettier preserves the new form.
+
+tsc clean; unit **365/365**; int **10/10** on the access spec; lint 0 errors; sass compiles.
+
 ## 2026-08-02 — audit fixes: the launch config is actually shipped, and the email boundary is tested
 
 - **`.claude/launch.json` is now TRACKED.** The previous entry claimed to fix it; `.gitignore`

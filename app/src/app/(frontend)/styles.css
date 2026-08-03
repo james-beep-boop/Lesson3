@@ -1411,9 +1411,12 @@ a {
 .guide {
   --guide-toc-line: calc(var(--app-secondary-size) * var(--app-line-height));
   --guide-toc-rows: 1;
+  /* Written with the inter-row gap term FIRST-factored onto its own line so the subtraction stays
+     intact: prettier's default wrap split `(rows - 1)` across a newline directly after the `-`,
+     which is legal CSS and measured correct, but reads as though the `1` belongs to the next term. */
   --guide-toc-height: calc(
-    2 * var(--app-space-2) + var(--guide-toc-rows) * var(--guide-toc-line) + (var(--guide-toc-rows) -
-          1) * var(--app-space-1) + 2px
+    2 * var(--app-space-2) + var(--guide-toc-rows) * var(--guide-toc-line) +
+      (var(--guide-toc-rows) - 1) * var(--app-space-1) + 2px
   );
 }
 .guide-toc {
@@ -1487,7 +1490,6 @@ a {
    each a fix for an overlap it caused. */
 
 @media (max-width: 640px) {
-
   /* `.app-header` becomes a COLUMN here, so flex-start means left-aligned — correct.
      `.app-nav` stays a ROW, where flex-start means TOP-aligned: the nav links are ~22px of text and
      the avatar is a 44px touch target, so the links sat high against the circle and the avatar read
