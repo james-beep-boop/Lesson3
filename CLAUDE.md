@@ -47,7 +47,13 @@ This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 
 - **Editor** (per subject-grade) — edit prose field values.
 - **Teacher** (default) — view/export only.
 
-`Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one in one transaction. `class` is reserved — the entity is always `SubjectGrade`. Non–Site-Admins never see others' emails.
+`Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one in one transaction. `class` is reserved — the entity is always `SubjectGrade`. Non–Site-Admins never see others' emails —
+**with one carve-out (SPEC §8, amended 2026-08-02): Manage → Editing access shows addresses to Subject
+Administrators too**, so an administrator can tell two identical display names apart before granting or
+revoking editing access. `emailReadAccess` is unchanged (Site-Admin-or-self), so every other surface
+still withholds them; the carve-out is one trusted projection (`lib/editorGroups.ts`). ⚑ Read SPEC §8
+before "fixing" it as a leak — it is a deliberate operator decision with a per-role test
+(`tests/int/editorGroupsAccess.int.spec.ts`).
 
 ---
 
