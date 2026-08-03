@@ -114,11 +114,19 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                       {u.name}
                       {u.email && <span className="lp-manage__who-email">{u.email}</span>}
                     </span>
+                    {/* ⚑ Per-row accessible name. The visible label is only "Remove", so a
+                        screen-reader user tabbing straight to it — or listing the page's buttons —
+                        meets N identical "Remove" controls with no way to tell whose access they are
+                        about to revoke. That is the SAME defect as the name-only confirm dialog, one
+                        layer down: putting addresses on screen did nothing for people who are not
+                        reading the screen. `aria-label` replaces the name for assistive tech only, so
+                        the dense visual button is unchanged. */}
                     <Button
                       className="lp-btn lp-btn--compact"
                       buttonStyle="error"
                       size="small"
                       disabled={busy}
+                      aria-label={`Remove editing access for ${personLabel(u)} in ${group.sgLabel}`}
                       onClick={() => onRemove(group, u)}
                     >
                       Remove
@@ -160,11 +168,15 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                         </option>
                       ))}
                     </select>
+                    {/* Same reasoning: one "Add" per subject-grade, all reading identically. It names
+                        the GROUP only — the chosen person is the picker's value, not this button's,
+                        and the picker already carries its own scoped label. */}
                     <Button
                       className="lp-btn"
                       buttonStyle="primary"
                       size="small"
                       disabled={busy || !picks[group.sgId]}
+                      aria-label={`Grant editing access in ${group.sgLabel}`}
                       onClick={() => onAdd(group)}
                     >
                       Add

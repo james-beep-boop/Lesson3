@@ -27,18 +27,28 @@ import { render, screen, cleanup, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@payloadcms/ui', () => ({
+  // Forwards `aria-label` because Payload's real Button does (verified in installed source:
+  // elements/Button/index.js sets 'aria-label': ariaLabel on the element). A stub that dropped it
+  // would make the accessible-name tests below pass against markup that has no label.
   Button: ({
     children,
     className,
     onClick,
     disabled,
+    'aria-label': ariaLabel,
   }: {
     children?: React.ReactNode
     className?: string
     onClick?: () => void
     disabled?: boolean
+    'aria-label'?: string
   }) => (
-    <button className={`btn ${className ?? ''}`} onClick={onClick} disabled={disabled}>
+    <button
+      className={`btn ${className ?? ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+    >
       {children}
     </button>
   ),
@@ -105,12 +115,42 @@ describe('Editing access identifies people by address, not just name', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     try {
       render(<EditorsWidget groups={[group({ editors: [toWidgetUser(ada)] })]} />)
-      screen.getByRole('button', { name: 'Remove' }).click()
+      screen.getByRole('button', { name: /^Remove editing access for/ }).click()
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(confirmSpy.mock.calls[0][0]).toContain('ada.mwangi@school.test')
     } finally {
       confirmSpy.mockRestore()
     }
+  })
+
+  it('gives each row\u2019s Remove button its own accessible name', () => {
+    // Visually every Remove reads the same, which is correct — the row supplies the context. A
+    // screen-reader user gets no row, so without a per-button name they meet N identical "Remove"
+    // controls and cannot tell whose access they are revoking. Same defect as the name-only confirm
+    // dialog, one layer down (CodeRabbit, PR #184): putting addresses on screen did nothing for
+    // people not reading the screen.
+    render(<EditorsWidget groups={[group({ editors: [toWidgetUser(ada), toWidgetUser(alan)] })]} />)
+    const names = screen
+      .getAllByRole('button', { name: /^Remove editing access for/ })
+      .map((b) => b.getAttribute('aria-label'))
+    expect(names).toEqual([
+      'Remove editing access for A. Mwangi — ada.mwangi@school.test in Biology — Grade 10',
+      'Remove editing access for A. Mwangi — alan.mwangi@school.test in Biology — Grade 10',
+    ])
+    // THE property: two rows must never present the same accessible name.
+    expect(new Set(names).size).toBe(names.length)
+    // The visible text stays short — the label is for assistive tech, not a wider button.
+    expect(
+      screen.getAllByRole('button', { name: /^Remove editing access for/ })[0].textContent,
+    ).toBe('Remove')
+  })
+
+  it('names the Add button by its subject-grade', () => {
+    render(<EditorsWidget groups={[group({ addable: [toWidgetUser(ada)] })]} />)
+    const add = screen.getByRole('button', {
+      name: 'Grant editing access in Biology — Grade 10',
+    })
+    expect(add.textContent).toBe('Add')
   })
 
   it('falls back to the bare name when a user record has no address', () => {
@@ -154,7 +194,7 @@ describe('Editing access identifies people by address, not just name', () => {
     const { container } = render(
       <EditorsWidget groups={[group({ editors: [toWidgetUser(ada)] })]} />,
     )
-    const remove = screen.getByRole('button', { name: 'Remove' })
+    const remove = screen.getByRole('button', { name: /^Remove editing access for/ })
     expect(remove.className).toContain('lp-btn')
     expect(remove.className).toContain('lp-btn--compact')
     expect(container.querySelector('.lp-manage__row--tight')).not.toBeNull()
