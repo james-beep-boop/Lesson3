@@ -18,27 +18,10 @@ import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { personLabel, type WidgetUser } from '../../lib/widgetUser'
 
-export interface WidgetUser {
-  id: number
-  name: string
-  /**
-   * The user's email address, shown to every viewer of this widget — Subject Administrators as well
-   * as Site Administrators (SPEC §8 carve-out, operator decision 2026-08-02).
-   *
-   * Granting editing access is an authorization decision and a display name is not an identifier:
-   * two teachers can share one, so a name-only list lets an administrator grant edit rights over a
-   * subject's content to the wrong person with no way to notice. Rendered in BOTH places it is
-   * needed — beside each current editor, and inside the grant picker's options, which is where the
-   * choice is actually made.
-   *
-   * Optional only because a user record may genuinely lack an address; `toWidgetUser` omits the key
-   * rather than emitting an empty string. It is NOT a per-role flag — see `lib/widgetUser.ts`.
-   */
-  email?: string
-  /** Freshness token for the assignment endpoints — the row's updatedAt as this page rendered. */
-  updatedAt: string
-}
+/** Re-exported for existing consumers; declared in `lib/widgetUser.ts` beside the code that builds it. */
+export type { WidgetUser }
 
 export interface EditorsGroup {
   sgId: number
@@ -93,96 +76,107 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
       'assign',
       user,
       group,
-      `${user.name} now has editing access for ${group.sgLabel}.`,
+      `${personLabel(user)} now has editing access for ${group.sgLabel}.`,
     )
     setPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
+  // ⚑ `personLabel`, not `user.name`. REVOKING access is the same kind of authorization decision as
+  // granting it, and this dialog is the last thing between the administrator and the change — yet it
+  // identified people by name alone, so for two teachers sharing a display name it read identically
+  // for both. The reasoning that put addresses in the grant picker applies here with more force
+  // (review 2026-08-02); it had been applied only where the review pointed.
   const onRemove = (group: EditorsGroup, user: WidgetUser) => {
-    if (!window.confirm(`Remove editing access for ${user.name} in ${group.sgLabel}?`)) return
+    if (!window.confirm(`Remove editing access for ${personLabel(user)} in ${group.sgLabel}?`))
+      return
     void changeRole(
       'unassign',
       user,
       group,
-      `${user.name} no longer has editing access for ${group.sgLabel}.`,
+      `${personLabel(user)} no longer has editing access for ${group.sgLabel}.`,
     )
   }
 
   return (
     <div className="lp-manage__editors">
-      {groups.map((group) => (
-        <div key={group.sgId} className="lp-manage__editors-group">
-          <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
-          {group.editors.length > 0 && (
-            <ul className="lp-manage__list">
-              {group.editors.map((u) => (
-                <li key={u.id} className="lp-manage__row lp-manage__row--tight">
-                  {/* Name and address on ONE line, not stacked: this list is scanned, and a second
-                      line per row doubles its height for a value that is only a disambiguator.
-                      `email` is absent for Subject Admins by server projection (see WidgetUser). */}
-                  <span className="lp-manage__who">
-                    {u.name}
-                    {u.email && <span className="lp-manage__who-email">{u.email}</span>}
-                  </span>
-                  <Button
-                    className="lp-btn lp-btn--compact"
-                    buttonStyle="error"
-                    size="small"
-                    disabled={busy}
-                    onClick={() => onRemove(group, u)}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* The empty message shares the Add row rather than stacking above it. With a full
+      {groups.map((group) => {
+        const hasEditors = group.editors.length > 0
+        const canAdd = group.addable.length > 0
+        return (
+          <div key={group.sgId} className="lp-manage__editors-group">
+            <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
+            {hasEditors && (
+              <ul className="lp-manage__list">
+                {group.editors.map((u) => (
+                  <li key={u.id} className="lp-manage__row lp-manage__row--tight">
+                    {/* Name and address on ONE line, not stacked: this list is scanned, and a second
+                      line per row doubles its height for a value that is only a disambiguator. */}
+                    <span className="lp-manage__who">
+                      {u.name}
+                      {u.email && <span className="lp-manage__who-email">{u.email}</span>}
+                    </span>
+                    <Button
+                      className="lp-btn lp-btn--compact"
+                      buttonStyle="error"
+                      size="small"
+                      disabled={busy}
+                      onClick={() => onRemove(group, u)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* The empty message shares the Add row rather than stacking above it. With a full
               curriculum most subject-grades have nobody, so an empty group is the shape that
               decides whether this section is scannable — stacked it cost ~104px per group for one
-              sentence and one picker (operator report 2026-08-02, "too much white space"). */}
-          <div className="lp-manage__editors-add">
-            {group.editors.length === 0 && (
-              <span className="muted lp-manage__editors-none">No one has editing access.</span>
-            )}
-            {group.addable.length > 0 && (
-              <>
-                <select
-                  className="lp-manage__select"
-                  aria-label={`Grant editing access for ${group.sgLabel}`}
-                  value={picks[group.sgId] ?? ''}
-                  disabled={busy}
-                  onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
-                >
-                  <option value="">Grant editing access…</option>
-                  {/* Name AND address in the option, not just the name. This is the control where
-                      the mistake actually happens: granting editing access is an authorization
-                      decision, and two teachers can share a display name — a name-only picker lets
-                      an administrator grant edit rights over a subject's content to the wrong
-                      person with nothing on screen to reveal it. Showing the address only on the
-                      rows below meant it arrived one step too late (review 2026-08-02).
-                      A `<option>` cannot carry markup, so this is one text node rather than the
-                      muted span used in the rows. */}
-                  {group.addable.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.email ? `${u.name} — ${u.email}` : u.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  className="lp-btn"
-                  buttonStyle="primary"
-                  size="small"
-                  disabled={busy || !picks[group.sgId]}
-                  onClick={() => onAdd(group)}
-                >
-                  Add
-                </Button>
-              </>
+              sentence and one picker (operator report 2026-08-02, "too much white space").
+              Gated so a group with editors and nothing left to add emits no empty row: the wrapper
+              carries a margin, so an always-rendered div would add trailing space in exactly the
+              case this pass exists to tighten. */}
+            {(!hasEditors || canAdd) && (
+              <div className="lp-manage__editors-add">
+                {!hasEditors && (
+                  <span className="muted lp-manage__editors-none">No one has editing access.</span>
+                )}
+                {canAdd && (
+                  <>
+                    <select
+                      className="lp-manage__select"
+                      aria-label={`Grant editing access for ${group.sgLabel}`}
+                      value={picks[group.sgId] ?? ''}
+                      disabled={busy}
+                      onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
+                    >
+                      <option value="">Grant editing access…</option>
+                      {/* `personLabel`, shared with the remove confirmation and the toasts — an
+                      `<option>` cannot carry markup, so the string form is the shareable part while
+                      the rows keep their two-node muted layout. This is the control where the
+                      mistake actually happens: showing the address only on the rows below meant it
+                      arrived one step too late (review 2026-08-02). */}
+                      {group.addable.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {personLabel(u)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      className="lp-btn"
+                      buttonStyle="primary"
+                      size="small"
+                      disabled={busy || !picks[group.sgId]}
+                      onClick={() => onAdd(group)}
+                    >
+                      Add
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

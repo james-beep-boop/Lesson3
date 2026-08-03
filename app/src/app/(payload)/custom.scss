@@ -305,10 +305,14 @@ body {
   // A subject-grade with nobody in it costs one muted line SHARING the Add row, not a paragraph's
   // worth of stacked space. With a full curriculum most groups are empty, so this is the shape that
   // decides whether the section is scannable — 104px per empty group before.
+  // No `font-size` here: the span also carries `.muted`, and `.lp-manage .muted` (0-2-0) outranks
+  // this rule (0-1-0) — a declaration here measured 14.4px, not the 14px it asked for. Exactly the
+  // dead `.guide-kicker` margin this same branch found and removed on the frontend, made twice in
+  // one batch. `.muted` already supplies both the colour and a secondary size.
+  // Spacing is the parent's `gap`; a `margin-right` here would give this one child 16px where every
+  // other gets 8.
   &__editors-none {
     margin: 0;
-    font-size: var(--app-secondary-size);
-    margin-right: var(--app-space-1);
   }
 
   &__editors-add {
@@ -356,24 +360,24 @@ body {
     // geometry table had passed, because every control still met its 44px target (measured 2026-08-02
     // — the numbers were right and the layout was wrong, which is why both forms of evidence are
     // required). Name and address wrap within their half; Remove stays a small control on the right.
-    &__row--tight {
+    //
+    // ⚑ DOUBLED selector (`.lp-manage__row.lp-manage__row--tight`, 0-2-0) so it outranks the rule
+    // above (0-1-0) on SPECIFICITY rather than on source order. Written single-class it won only by
+    // being later in the file — an order coupling nothing recorded, so hoisting this block or
+    // extracting it to a partial would have silently restored the column layout on phones and
+    // nowhere else. A guard pins the doubled form.
+    &__row#{&}__row--tight {
       flex-direction: row;
       align-items: center;
-
-      > .btn {
-        align-self: center;
-        width: auto;
-      }
     }
 
     &__row-actions {
       flex-wrap: wrap;
     }
 
-    &__editors-add {
-      flex-wrap: wrap;
-    }
-
+    // (The ≤640px `&__editors-add { flex-wrap: wrap }` that used to sit here is gone: the base rule
+    // now wraps at every width, since the empty-state message shares that row, so the override was
+    // a no-op restating its parent.)
     &__select {
       max-width: 100%;
       flex: 1;
@@ -1200,6 +1204,11 @@ a.btn.lp-btn {
   // row has room and the target wins.
   .btn.lp-btn.lp-btn--compact {
     min-height: var(--app-btn-touch-min-height);
+    // WIDTH too — #180's finding, which the first draft of this rule dropped while claiming parity
+    // with the frontend. WCAG 2.5.5 asks for 44 in BOTH dimensions, and `min-height` alone leaves the
+    // width riding on the label: today `Remove` measures 68px and passes by accident, but a shorter
+    // one (`×`, `Undo`) would not. Same token, same reasoning as `styles.css`'s compact override.
+    min-width: var(--app-btn-touch-min-height);
   }
 
   // Mirror the frontend's phone header (2026-07-31). The admin header had NO mobile rule at all: it

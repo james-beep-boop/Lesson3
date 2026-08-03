@@ -25,6 +25,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import postcss from 'postcss'
+import * as sass from 'sass'
 import React from 'react'
 import { render, screen, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -33,22 +34,42 @@ import PageHeader from '@/components/PageHeader'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../../src/app/(frontend)/styles.css'), 'utf8')
-const adminCss = readFileSync(resolve(here, '../../src/app/(payload)/custom.scss'), 'utf8')
 /**
- * `custom.scss` with its `//` comments removed, for structural scanning.
+ * The admin stylesheet, COMPILED. `custom.scss` is Sass (nesting + `//` comments), and postcss throws
+ * on it as source — so an earlier version of this spec scanned it as text, with a hand-rolled
+ * comment strip and a `://` tripwire guarding the strip. Compiling with the `sass` already in
+ * node_modules retires all of it and buys three things:
  *
- * Stripping first is what makes a one-regex selector scan safe: this file's comments are long prose
- * that contains `;`, `,` and `{` — a scan over the raw text picks those up as selectors and
- * declaration boundaries. (Both bugs were hit while writing this file: a match landed inside a
- * comment, then a comment's semicolon truncated a selector list mid-sentence.)
- *
- * Safe here because the file contains no `://` — verified, and if a URL is ever added this strip
- * would corrupt it, so the assertion below fails loudly rather than silently scanning garbage.
+ *  - assertions see REAL selectors (`.lp-manage__row--tight`) instead of authoring syntax
+ *    (`&__row--tight`), so they cannot pass while the compiled cascade is broken, nor fail on a
+ *    harmless re-nesting;
+ *  - the admin half of this spec gets the same postcss treatment `styles.css` already gets, instead
+ *    of being a different kind of test;
+ *  - "sass compiles" becomes part of `test:unit` rather than a manual verification step.
  */
-const adminCssBare = adminCss.replace(/\/\/[^\n]*/g, '')
-if (adminCss.includes('://')) {
-  throw new Error('custom.scss now contains a URL — the // comment strip in this spec is unsafe')
-}
+const adminCss = sass.compile(resolve(here, '../../src/app/(payload)/custom.scss')).css
+const adminRoot = postcss.parse(adminCss)
+
+/**
+ * Compiled rules, each tagged with the media query it sits under and its source order.
+ *
+ * Order matters and is recorded deliberately: several guards below turn on which of two
+ * equal-specificity rules comes LAST, which is the only thing deciding the winner.
+ */
+type AdminRule = { selectors: string[]; body: string; media: string | null; index: number }
+const adminRules: AdminRule[] = []
+adminRoot.walkRules((r) => {
+  const parent = r.parent as { type?: string; params?: string } | undefined
+  adminRules.push({
+    selectors: r.selectors.map((x) => x.replace(/\s+/g, ' ').trim()),
+    body: r.nodes.map((d) => d.toString()).join(';'),
+    media: parent?.type === 'atrule' ? (parent.params ?? null) : null,
+    index: adminRules.length,
+  })
+})
+
+/** Rules inside a ≤640px media query — the phone layer. */
+const mobileRules = adminRules.filter((r) => r.media && /max-width:\s*640px/.test(r.media))
 
 const root = postcss.parse(css)
 
@@ -196,20 +217,15 @@ describe('Guide + Compare visual system', () => {
  */
 describe('admin button-system scope coverage', () => {
   /**
-   * The selector list of the rule that declares `var(<token>)`.
+   * The selector list of the first compiled rule declaring `var(<token>)`.
    *
-   * Scanned as TEXT, not parsed: `custom.scss` is Sass — `//` comments and nesting — and postcss
-   * throws on it outright (`buttonSystem.spec.ts` reads this same file with string scanning for the
-   * same reason). Over the comment-stripped source, `[^{};]*` cannot cross a `}`, a `;`, or an
-   * `@media … {` opener, so one capture isolates the selector list.
+   * Media queries are NOT excluded: the touch token exists only inside the ≤640px block, so the two
+   * callers below deliberately resolve to a base rule and a media rule respectively.
    */
   const scopeListFor = (token: string): string[] => {
-    const m = new RegExp(`([^{};]*)\\{[^{}]*var\\(${token}\\)`).exec(adminCssBare)
-    if (!m) throw new Error(`no rule declares var(${token})`)
-    return m[1]
-      .split(',')
-      .map((s) => s.replace(/\s+/g, ' ').trim())
-      .filter(Boolean)
+    const hit = adminRules.find((r) => r.body.includes(`var(${token})`))
+    if (!hit) throw new Error(`no rule declares var(${token})`)
+    return hit.selectors
   }
 
   const EDITOR_SCOPE = '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn'
@@ -243,18 +259,21 @@ describe('admin button-system scope coverage', () => {
     // sets 26px at (0-3-0); the shared touch rule is (0-2-0) and a MEDIA QUERY ADDS NO SPECIFICITY,
     // so without a restatement at ≥(0-3-0) the compact Remove stays 26px on a phone while the
     // stylesheet claims 44px. Measured after the fix: 26px at 1280, 44px at 390.
-    const compactTouch = adminCssBare
-      .split('@media')
-      .slice(1)
-      .some(
-        (block) =>
-          /max-width:\s*640px/.test(block) &&
-          /\.btn\.lp-btn\.lp-btn--compact[^{]*\{[^}]*var\(--app-btn-touch-min-height\)/.test(block),
-      )
+    const compact = mobileRules.find((r) =>
+      r.selectors.includes('.btn.lp-btn.lp-btn--compact'),
+    )
     expect(
-      compactTouch,
+      compact,
       '.btn.lp-btn.lp-btn--compact must restate the touch target inside the ≤640px block',
-    ).toBe(true)
+    ).toBeDefined()
+    expect(compact!.body).toMatch(/min-height:\s*var\(--app-btn-touch-min-height\)/)
+    // BOTH dimensions — 2.5.5 asks for 44 square, and `min-height` alone leaves the width riding on
+    // the label (#180). The frontend's compact override sets both; this one omitted min-width while
+    // its comment claimed parity with it.
+    expect(
+      compact!.body,
+      'the admin compact override must set min-width too, like the frontend it claims parity with',
+    ).toMatch(/min-width:\s*var\(--app-btn-touch-min-height\)/)
   })
 
   it('keeps a one-line Manage row horizontal at ≤640px', () => {
@@ -266,25 +285,38 @@ describe('admin button-system scope coverage', () => {
     // ⚑ Found by SCREENSHOT, not by measurement: every control still met its 44px target, so the
     // geometry table passed while the layout was wrong. That is the standing argument for requiring
     // both forms of evidence (DESIGN-visual-system §6.1).
-    const mobile = adminCssBare
-      .split('@media')
-      .slice(1)
-      .filter((b) => /max-width:\s*640px/.test(b))
-      .join('\n')
-    const tight = /&__row--tight\s*\{([^}]*)\}/.exec(mobile)
-    expect(tight, 'the ≤640px block must opt --tight rows out of the column layout').not.toBeNull()
-    expect(tight![1]).toMatch(/flex-direction:\s*row/)
+    // Asserted on the COMPILED cascade, not on `&__row--tight` authoring syntax: a source-text regex
+    // cannot see which rule actually wins, so it would stay green through a re-ordering that ships a
+    // broken phone layout.
+    //
+    // The invariant is SPECIFICITY, not source order. The override uses the doubled selector
+    // `.lp-manage__row.lp-manage__row--tight` (0-2-0) so it beats the column rule (0-1-0) wherever
+    // either sits in the file. Written single-class it won only by being later — an order coupling
+    // nothing recorded. Asserting the doubled form is what stops that regressing.
+    const base = mobileRules.filter((r) => r.selectors.includes('.lp-manage__row'))
+    const tight = mobileRules.filter((r) =>
+      r.selectors.includes('.lp-manage__row.lp-manage__row--tight'),
+    )
+    expect(base, 'the ≤640px column rule for .lp-manage__row is missing').not.toHaveLength(0)
+    expect(
+      tight,
+      'the ≤640px tight override must use the DOUBLED selector, so it wins on specificity rather than on source order',
+    ).not.toHaveLength(0)
+    expect(tight.map((r) => r.body).join(';')).toMatch(/flex-direction:\s*row/)
   })
 
   it('gives Manage form controls the button geometry, without button paint', () => {
     // A 31px select beside a 38px button was the mismatch left after the buttons were fixed. They
     // take SIZE from the button tokens and keep their native appearance, so assert the declarations
     // rather than the shape of the selector list (which says nothing about what the rule does).
-    const formRule = /\.lp-manage__select,\s*\.lp-admin-list__search\s*\{([^}]*)\}/.exec(
-      adminCssBare,
+    const formRule = adminRules.find(
+      (r) =>
+        !r.media &&
+        r.selectors.includes('.lp-manage__select') &&
+        r.selectors.includes('.lp-admin-list__search'),
     )
-    expect(formRule, 'the Manage form-control rule is missing').not.toBeNull()
-    const body = formRule![1]
+    expect(formRule, 'the Manage form-control rule is missing').toBeDefined()
+    const body = formRule!.body
     expect(body).toMatch(/min-height:\s*var\(--app-btn-min-height\)/)
     expect(body).toMatch(/border-radius:\s*var\(--app-btn-radius\)/)
     expect(body).toMatch(/font-size:\s*var\(--app-btn-font-size\)/)

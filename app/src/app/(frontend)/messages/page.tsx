@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session'
 import { findReadablePlan, findReadableVersion } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
 import { displayTitle } from '@/lib/displayTitle'
+import { userDisplayName } from '@/lib/widgetUser'
 import type { Message } from '@/payload-types'
 import Composer from './Composer'
 import ReplyBox from './ReplyBox'
@@ -54,7 +55,11 @@ export default async function MessagesPage({
       if (version && relId(version.lessonPlan) === aboutPlan.id) aboutVersionId = version.id
     }
     return aboutPlan
-      ? { planId: aboutPlan.id, versionId: aboutVersionId, title: displayTitle(aboutPlan.title ?? 'Lesson plan') }
+      ? {
+          planId: aboutPlan.id,
+          versionId: aboutVersionId,
+          title: displayTitle(aboutPlan.title ?? 'Lesson plan'),
+        }
       : null
   })()
 
@@ -134,7 +139,7 @@ export default async function MessagesPage({
       {/* Composer renders the page's "Messages" heading with the New-message button inline (the "Lessons"
           nav already covers the former "← All lesson plans" back-link, which was also mislabeled here). */}
       <Composer
-        roster={roster.map((u) => ({ id: u.id, name: u.name ?? `User ${u.id}` }))}
+        roster={roster.map((u) => ({ id: u.id, name: userDisplayName(u) }))}
         about={about}
       />
 
@@ -192,7 +197,15 @@ export default async function MessagesPage({
  *  as its own task and deliberately NOT bolted on here as a third fixed widening, which would just
  *  move the same dead end to 2000. The fallback copy must not send the user to a search box — the
  *  messages page has none. Callers already gate on `*Truncated`, so this does not re-check it. */
-function ShowOlder({ shown, total, widerHref }: { shown: number; total: number; widerHref: string | null }) {
+function ShowOlder({
+  shown,
+  total,
+  widerHref,
+}: {
+  shown: number
+  total: number
+  widerHref: string | null
+}) {
   return (
     <p className="muted msg-more">
       Showing {shown} of {total}.{' '}

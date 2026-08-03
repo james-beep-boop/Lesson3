@@ -22,9 +22,6 @@ import React from 'react'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const toastSuccess = vi.fn()
-const toastError = vi.fn()
-
 vi.mock('@payloadcms/ui', () => ({
   Button: ({
     children,
@@ -41,7 +38,7 @@ vi.mock('@payloadcms/ui', () => ({
       {children}
     </button>
   ),
-  toast: { success: toastSuccess, error: toastError },
+  toast: { success: vi.fn(), error: vi.fn() },
   // Site Admin — the panel renders nothing for anyone else.
   useAuth: () => ({ user: { id: 1, roles: ['siteAdmin'] } }),
   useConfig: () => ({ config: { serverURL: '', routes: { api: '/api' } } }),
@@ -87,8 +84,6 @@ const uploadOnce = async (container: HTMLElement) => {
 }
 
 beforeEach(() => {
-  toastSuccess.mockClear()
-  toastError.mockClear()
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => new Response(JSON.stringify(okResponse), { status: 200 })),
@@ -108,26 +103,20 @@ describe('upload results do not outlive the upload', () => {
     expect(resultsText(container)).toContain('#42')
   })
 
-  it('clears the previous results when the picker is OPENED, before any file is chosen', async () => {
+  it('clears the previous results when the picker OPENS, and stays clear if it is cancelled', async () => {
     // THE regression. `click` is the picker opening — no `change` yet, and there may never be one.
     const { container } = render(<UploadBundles />)
     const input = await uploadOnce(container)
 
+    // Opening the picker is the ONLY event here — `click`, never `change`. If the administrator then
+    // CANCELS, no further event ever arrives, so this same assertion is also the cancel case: an
+    // `onChange`-only fix leaves the stale list on screen permanently. One simulation, both facts.
     fireEvent.click(input)
 
-    await waitFor(() => expect(resultsText(container)).not.toContain('CELL STRUCTURE'))
-  })
-
-  it('leaves nothing behind when the administrator CANCELS the dialog', async () => {
-    // Cancelling fires `click` and never `change`. An onChange-only fix would still be showing the
-    // old filenames here — which is exactly how the bug was reported.
-    const { container } = render(<UploadBundles />)
-    const input = await uploadOnce(container)
-
-    fireEvent.click(input) // dialog opens
-    // …and closes with no selection: no change event, no new files.
-
-    await waitFor(() => expect(resultsText(container)).not.toContain('#42'))
+    // No `waitFor`: `setResults([])` is flushed inside `act` by `fireEvent`, and a `waitFor` around a
+    // `.not.toContain` would pass on its first tick regardless — implying a guarantee it never made.
+    expect(resultsText(container)).not.toContain('CELL STRUCTURE')
+    expect(resultsText(container)).not.toContain('#42')
     expect(
       (screen.getByRole('button', { name: /^Upload/ }) as HTMLButtonElement).disabled,
       'the picker is empty again, so Upload is unavailable',
@@ -142,7 +131,7 @@ describe('upload results do not outlive the upload', () => {
 
     pickFile(input, 'another.json')
 
-    await waitFor(() => expect(resultsText(container)).not.toContain('#42'))
+    expect(resultsText(container)).not.toContain('#42')
   })
 
   it('resets the picker after a successful upload so the same files cannot be re-sent', async () => {

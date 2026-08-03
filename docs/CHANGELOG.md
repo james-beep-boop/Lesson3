@@ -8,6 +8,39 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-02 — /simplify: the remove dialog identifies people too, and SPEC §8's bound is corrected
+
+Four-angle cleanup pass over the density/email work. Two behaviour changes, one document correction:
+
+- **The remove confirmation and its toasts now identify people the way the grant picker does.** The
+  argument for showing addresses is that granting access is an authorization decision and a name is
+  not an identifier — and revoking is the same decision, yet `Remove editing access for <name>?` read
+  identically for two people sharing a display name. A shared `personLabel` now serves the picker, the
+  confirmation and both toasts.
+- **SPEC §8's bound was factually wrong and is corrected.** It said the carve-out reached only the
+  administrator's own subject-grades. True of the current-editors list; false of the grant picker,
+  which must list every grantable user — so a Subject Administrator sees every non-Site-Admin address.
+  Inherent to a grant picker, but a materially wider exposure than the sentence implied.
+- **The email carve-out is gated on a named `mayIdentifyGrantCandidates` predicate**, beside
+  `emailReadAccess` in `access/index.ts`, instead of on the general-purpose `isAdmin` that also picks
+  copy strings and the author column.
+- **The mobile row override now wins on specificity, not source order** — it was `(0-1-0)` against
+  `(0-1-0)` and worked only by sitting later in the file; hoisting it would have silently restored the
+  full-width-Remove layout on phones.
+- **The visual spec compiles the SCSS** (`sass`, already installed) instead of scanning it as text,
+  retiring a bespoke comment-stripper and a guard that asserted on authoring syntax rather than the
+  cascade. "Sass compiles" is now part of `test:unit`.
+- Admin compact buttons gained the `min-width` the frontend has (#180's both-dimensions finding, lost
+  on the port); a dead `font-size` outranked by `.muted` removed; `WidgetUser` moved into `lib/`.
+
+Known and deliberately deferred: adding `email` grew the Manage RSC payload ~54% (measured 1.34 MB →
+2.06 MB at 60 subject-grades × 300 users) because `addable` is materialized per group. Sending the
+roster once with id lists measures 20× smaller and fixes pre-existing bloat — to be done with the
+deferred roster-pagination work, not as a cleanup. ~40 KB at current scale.
+
+tsc clean; unit **363/363**; lint 0 errors; sass compiles. Re-verified in a browser as Site Admin and
+Subject Admin at 1280 and 390.
+
 ## 2026-08-02 — Manage gets denser, and Editing access shows who people are
 
 Operator report: "the manage page has too much white space … once we have a lot of editors that will

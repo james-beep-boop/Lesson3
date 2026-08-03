@@ -49,17 +49,20 @@ vi.mock('@payloadcms/ui', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 
 const { EditorsWidget } = await import('@/components/AdminDashboard/EditorsWidget')
-const { toWidgetUser } = await import('@/lib/widgetUser')
+const { toWidgetUser, personLabel } = await import('@/lib/widgetUser')
+type EditorsGroup = import('@/components/AdminDashboard/EditorsWidget').EditorsGroup
 
 /** Two people who share a display name — the case the address exists to resolve. */
 const ada = { id: 1, name: 'A. Mwangi', email: 'ada.mwangi@school.test', updatedAt: 'T1' }
 const alan = { id: 2, name: 'A. Mwangi', email: 'alan.mwangi@school.test', updatedAt: 'T2' }
 
-const group = (over: Record<string, unknown> = {}) => ({
+// Typed overrides: a `Record<string, unknown>` bag would let a typo'd key (`editor:`) compile
+// silently, and forced two casts on the empty arrays.
+const group = (over: Partial<EditorsGroup> = {}): EditorsGroup => ({
   sgId: 10,
   sgLabel: 'Biology — Grade 10',
-  editors: [] as ReturnType<typeof toWidgetUser>[],
-  addable: [] as ReturnType<typeof toWidgetUser>[],
+  editors: [],
+  addable: [],
   ...over,
 })
 
@@ -82,14 +85,32 @@ describe('Editing access identifies people by address, not just name', () => {
       name: 'Grant editing access for Biology — Grade 10',
     })
     const labels = [...within(picker).getAllByRole('option')].map((o) => o.textContent)
-    expect(labels).toEqual([
-      'Grant editing access…',
-      'A. Mwangi — ada.mwangi@school.test',
-      'A. Mwangi — alan.mwangi@school.test',
-    ])
-    // The property, stated directly: no two selectable options may read the same.
     const selectable = labels.slice(1)
-    expect(new Set(selectable).size).toBe(selectable.length)
+    // Expectations come from `personLabel`, not a hard-coded em dash: the separator is a display
+    // convention owned by that helper, and duplicating it here meant a convention change had to be
+    // made in JSX and in a test with nothing linking them.
+    expect(selectable).toEqual([personLabel(toWidgetUser(ada)), personLabel(toWidgetUser(alan))])
+    // THE property, and the reason the exact strings above are not the point: no two selectable
+    // options may read the same. With names alone this fails — both would be 'A. Mwangi'.
+    expect(new Set(selectable).size, 'two grantable people must never render identically').toBe(
+      selectable.length,
+    )
+  })
+
+  it('identifies the person in the REMOVE confirmation, not just in the grant picker', () => {
+    // Revoking access is the same kind of authorization decision as granting it, and this dialog is
+    // the last thing before the change — yet it named people only by display name, so for `ada` and
+    // `alan` it read identically for both (review 2026-08-02: the reasoning had been applied only
+    // where the review pointed). Asserted on the confirm STRING because that is the whole control.
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(<EditorsWidget groups={[group({ editors: [toWidgetUser(ada)] })]} />)
+      screen.getByRole('button', { name: 'Remove' }).click()
+      expect(confirmSpy).toHaveBeenCalledTimes(1)
+      expect(confirmSpy.mock.calls[0][0]).toContain('ada.mwangi@school.test')
+    } finally {
+      confirmSpy.mockRestore()
+    }
   })
 
   it('falls back to the bare name when a user record has no address', () => {

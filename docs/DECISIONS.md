@@ -11,6 +11,75 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, /simplify round 2) — the spec bound was wrong, and the confirm dialog was the next picker
+
+A four-angle `/simplify` over the density/email/review commits. Two findings changed behaviour; one
+corrected a security-relevant document; the rest were cleanups.
+
+**1. SPEC §8's bound was FALSE, and I wrote it.** The amendment said the carve-out "reaches only the
+subject-grades that administrator already administers." True of the *current editors* list; false of
+the *candidates* list. `addable` is every non-Site-Admin user with no assignment in that subject-grade
+— so a Subject Administrator sees **every non-Site-Admin user's address**, not just those in their
+subjects. That is inherent to a grant picker (any teacher is grantable, so the pool is the roster),
+so the code is right and the sentence was wrong. Corrected in place, stating the exposure plainly and
+naming the option that would bound it (search-as-you-type resolving an address only for a chosen
+candidate). **A bounds paragraph that overstates the bound is worse than none — an auditor would rely
+on it.**
+
+**2. The remove confirmation was the next grant picker, and I had not applied my own argument to it.**
+The whole case for showing addresses is that granting access is an authorization decision and a name
+is not an identifier. **Revoking** is the same decision, and `window.confirm` said
+`Remove editing access for ${user.name}` — for two teachers sharing a display name, the dialog was
+identical for both. So was the success toast. The reasoning had been applied exactly where the review
+pointed and nowhere else. Now a shared `personLabel(u)` serves the picker, the confirmation and both
+toasts; the rows keep their two-node muted layout as the one intentional exception, because an
+`<option>` cannot hold markup and the rows need the class. Guarded by a test that fails on the
+name-only form.
+
+**3. The mobile row override won on SOURCE ORDER, not specificity.** `.lp-manage__row--tight` and
+`.lp-manage__row` are both (0-1-0) inside the same media block, so the override worked only by sitting
+later in the file — an order coupling nothing recorded. Hoisting the block, or extracting it to a
+partial, would have silently restored the full-width-Remove column layout on phones and nowhere else.
+Now written as the doubled `.lp-manage__row.lp-manage__row--tight` (0-2-0), so it wins wherever it
+sits. The review's deeper option — split the class in two, since `DeletePlansPanel` also uses the bare
+class for a one-line row — is the better end state and is **not** done here: it changes that panel's
+mobile layout, which is outside this batch. Recorded as a follow-up.
+
+**4. The spec now COMPILES the SCSS instead of scanning it as text.** `sass` was already in
+`node_modules`. This retired the bespoke comment-stripper and its `://` tripwire (both workarounds for
+parsing Sass as text), and it fixed a guard that was asserting on authoring syntax: matching
+`&__row--tight` pins how the rule is *typed*, not what it *does*, so it stayed green through the
+re-ordering above. Verified by hoisting the rule for real — the compiled guard fails, a text guard
+would not. **When a test asserts on source text, ask whether the compiled artifact is available; here
+it was one line away, and it also made "sass compiles" part of `test:unit`.**
+
+**5. The same dead-declaration mistake, twice in one batch.** `.lp-manage__editors-none` declared
+`font-size: var(--app-secondary-size)`; the span also carries `.muted`, and `.lp-manage .muted`
+(0-2-0) outranks it (0-1-0) — measured 14.4px, not the 14px asked for. This is precisely the
+`.guide-kicker` dead margin this same branch found and removed on the frontend. Removed. **Twice now:
+declaring a value near a class that already owns it is this codebase's most repeated CSS error.**
+
+Also: the admin compact override set `min-height` only while its comment claimed parity with the
+frontend's, which sets `min-width` too — #180's finding, dropped on the port. Added (`Remove` measured
+68px wide and passed by accident; `×` would not). And `WidgetUser` moved into `lib/widgetUser.ts`: it
+had been imported *from* a component into `lib/`, the only such import in the directory, inverting the
+dependency arrow.
+
+⚑ **Not fixed, measured and recorded: adding `email` grew the Manage RSC payload ~54%.** `addable` is
+materialized per group, so a per-user field multiplies by the number of subject-grades: measured
+458 KB → 705 KB at 30 SGs × 200 users, 1.34 MB → 2.06 MB at 60 × 300. Sending the roster once with
+per-group id lists measures 2.06 MB → 103 KB (20×), and fixes the pre-existing bloat too. **Skipped
+deliberately**: it restructures a component contract and its brand-new tests at merge time, and it
+overlaps the already-deferred roster-pagination item. At current scale (8 users, 4 subject-grades) the
+payload is ~40 KB. Do it with the pagination work, not as a cleanup.
+
+⚑ **Third stale-render misread of the session.** A 26px compact button at 390px looked like a
+regression in the touch target; the compiled CSS was correct and a cache-busting reload measured 44px.
+Two earlier readings (61px rows) were the same thing mid-navigation. **Confirm `readyState` and, for
+CSS changes, bust the cache before believing a measurement that contradicts the compiled output.**
+
+---
+
 ## 2026-08-02 (PR 2b, review round) — the email carve-out widens, and the picker was the real gap
 
 Review of the density/email commit. Three things, and the first two matter more than the density

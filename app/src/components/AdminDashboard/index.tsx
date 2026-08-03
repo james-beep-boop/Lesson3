@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Gutter } from '@payloadcms/ui'
 import type { AdminViewServerProps } from 'payload'
 
-import { isSiteAdmin, subjectGradeIdsByRole, toId } from '../../access'
+import { isSiteAdmin, mayIdentifyGrantCandidates, subjectGradeIdsByRole, toId } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { relId } from '../../lib/relId'
@@ -13,7 +13,7 @@ import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
 import { CandidateList, type CandidateRow } from './CandidateList'
 import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
-import { EditorsWidget, type EditorsGroup, type WidgetUser } from './EditorsWidget'
+import { EditorsWidget, type EditorsGroup } from './EditorsWidget'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -90,13 +90,13 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
       // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
       // the client payload carries {id, name, email, updatedAt}.
       //
-      // ⚑ `email` is the SPEC §8 carve-out (amended 2026-08-02, operator decision): the Editing-access
-      // widget shows addresses to every administrator who can grant access with it — Subject Admins
-      // included, for their own subject-grades — because a display name is not an identifier and two
-      // teachers can share one. This read is `overrideAccess: true`, so it is what delivers the
-      // carve-out; `emailReadAccess` on the collection stays Site-Admin-or-self, keeping every OTHER
-      // surface unchanged. The boundary that matters is `isAdmin` on this and the subject-grade query
-      // above: an Editor or Teacher gets no `editorGroups` at all, so no address reaches them.
+      // ⚑ `email` is the SPEC §8 carve-out (amended 2026-08-02, operator decision), and it is gated on
+      // the NAMED `mayIdentifyGrantCandidates` predicate rather than on the general `isAdmin` above.
+      // `isAdmin` also selects copy strings and the author column, so gating a privacy decision on it
+      // would mean a presentational widening silently widened this disclosure. The predicate lives
+      // beside `emailReadAccess` in `access/index.ts` so the whole email policy reads in one place.
+      // This read is `overrideAccess: true`, so it is what DELIVERS the carve-out; the collection's
+      // field access stays Site-Admin-or-self, leaving every other surface unchanged.
       isAdmin
         ? payload.find({
             collection: 'users',
@@ -104,7 +104,13 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
             depth: 0,
             pagination: false,
             sort: 'name',
-            select: { name: true, email: true, roles: true, assignments: true, updatedAt: true },
+            select: {
+              name: true,
+              roles: true,
+              assignments: true,
+              updatedAt: true,
+              ...(mayIdentifyGrantCandidates(user) ? { email: true } : {}),
+            },
           })
         : null,
       // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
@@ -156,7 +162,11 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     // server-side from fresh state, so assignments are read here solely to compute the groups.
     // `toWidgetUser` (lib/widgetUser.ts) is a pure, unit-tested projection; see the `email` note on
     // the `users` find above for the SPEC §8 carve-out this delivers.
-    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => toWidgetUser(u)
+    //
+    // The rows carry `email` only when the predicate above selected the column, so a viewer who may
+    // not identify candidates simply has no address in `allUsers` to project.
+    const widgetUser = (u: (typeof allUsers)[number]) =>
+      toWidgetUser(u as typeof u & { email?: string | null })
     editorGroups = sgs.map((sg) => {
       const editors = allUsers.filter((u) =>
         (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
