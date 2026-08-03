@@ -8,6 +8,25 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-03 — the deploy check now compares the same thing on both sides
+
+- **The "durable" deploy check was asymmetric.** It compared "newest commit touching `app/`" locally
+  against "repository HEAD" on the Rock — different questions, so a docs-only merge the Rock pulls
+  reports a **false mismatch**. Demonstrated on real history: #181 (app code) and #183 (docs only)
+  share the app tree `bc97756…` while their SHAs differ. Now `git rev-parse HEAD:app` on both sides —
+  a content hash of `app/`, symmetric by construction and immune to docs commits. (Note
+  `git rev-parse --short HEAD -- app` does *not* work: the pathspec is ignored.)
+- **A test name that overclaimed is now true.** "still allows a legitimate move" only did a successful
+  *create* plus a rejected update — the guard could have been rejecting every update and it would have
+  passed. It now performs a real update and checks `displayName` follows.
+- **…and that exposed a hole:** deleting the guard's self-exclusion left even the strengthened test
+  green, because a move to a *free* grade finds no clash. The case it protects is **re-saving a row
+  unchanged** (it collides with itself) — i.e. an operator pressing Save. Now covered, and it fails
+  when the exclusion is removed.
+- `docs/NEXT-SESSION.md` credited the duplicate-error fix to #186; it was #187.
+
+tsc clean; unit **365/365**; int **5/5** on the taxonomy spec; lint 0 errors; sass compiles.
+
 ## 2026-08-03 — the duplicate-subject-grade error is readable, and the handoff stops naming a SHA
 
 - **Creating a duplicate subject-grade said "Something went wrong."** The guard blocked correctly but
