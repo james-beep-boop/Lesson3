@@ -8,6 +8,35 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-03 — Node 22.23.2: the npm undici bump did not fix the runtime
+
+⚑ **Correction to the previous entry, which overstated the severity.** It said "four new HIGH
+advisories". The real split is **two high and four medium**: `undici` GHSA-4cwx-7wf7-3272 (high) plus
+four medium `undici` advisories, and `fast-uri` GHSA-7p8r-x3mc-p8w7 (high). npm's audit summary counts
+affected *packages* with severity propagated up the dependency chain (`undici`, `fast-uri`, `ajv`,
+`payload` → "4 high"), which is not an advisory count. The chosen patch versions were still correct.
+
+⚑ **And the npm bump did not fix the path that matters.** `undici` ships twice: the npm package, and a
+copy **embedded in Node** that backs global `fetch`. The Rock's container ran **Node 22.17.0 with
+embedded undici 6.21.2**, and `src/generator/docxToPdf.ts` calls global `fetch` — so the npm bump to
+7.29.0 left that call on 6.21.2, inside the `<6.28.0` advisory range. Fixed by moving every Node pin
+**22.17.0 → 22.23.2** (`.nvmrc`, `app/.nvmrc`, `app/Dockerfile` base + e2e stages, `engines`, volta,
+`AGENTS.md`); verified `node:22.23.2-alpine` embeds **undici 6.28.0**, and that the app image's base
+stage reports it. 22.23.2 is the newest 22.x LTS and is itself a security release.
+
+Exploitability here was limited — the call targets the trusted Gotenberg sidecar with no cookies,
+retries or attacker-controlled origin — but "limited" is not "patched", and the fix is a pin bump.
+
+**Tests made honest:**
+- The rejected-update case asserted only `grade`. It now captures the whole row before and compares
+  `grade`, `subject` **and** `displayName` after — `displayName` is rebuilt by `beforeChange`, which
+  runs *after* `beforeValidate`, so "the guard threw but the derived title already moved" is a shape
+  worth excluding rather than assuming.
+- `toId(sg.subject as never)` dropped the cast. `toId` is typed for a subject-*grade* reference
+  (`number | SubjectGrade`); this is a *subject* reference (`number | Subject`) — structurally
+  different, which is precisely what `as never` hid. Normalised inline, the same way the collection
+  hook narrows that field, rather than widening a shared authz helper to suit a test.
+
 ## 2026-08-03 — the deploy check now compares the same thing on both sides
 
 - **The "durable" deploy check was asymmetric.** It compared "newest commit touching `app/`" locally

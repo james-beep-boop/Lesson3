@@ -123,7 +123,13 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     // rejecting every update — including valid ones — and this test would still have passed. The
     // free-grade update below is what actually earns the second half of the name.
     const sg = fx.subjectGrade
-    const subjectId = toId(sg.subject as never) ?? sg.subject
+    // Normalised inline rather than through `toId`, and WITHOUT a cast. `toId` is typed for a
+    // SUBJECT-GRADE reference (`number | SubjectGrade`); this is a SUBJECT reference
+    // (`number | Subject`) — structurally different, which is exactly what `as never` was hiding.
+    // This is the same two-branch narrowing `SubjectGrade.beforeChange` uses on the same field, and
+    // `subject` is non-nullable in the generated type so there is no null case to handle. Widening the
+    // shared authz helper to suit a test would be the wrong direction.
+    const subjectId = typeof sg.subject === 'object' ? sg.subject.id : sg.subject
     const base = sg.grade ?? 10
     const row = await fx.payload.create({
       collection: 'subject-grades',
@@ -143,6 +149,13 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     expect(legit.grade, 'a free grade must be accepted').toBe(base + 42)
     expect(legit.displayName, 'displayName follows the new grade').toContain(`Grade ${base + 42}`)
 
+    // The state the rejected update below must leave completely untouched.
+    const before = await fx.payload.findByID({
+      collection: 'subject-grades',
+      id: row.id,
+      overrideAccess: true,
+    })
+
     // Now move it onto the OCCUPIED pair — must be refused, readably.
     let caught: unknown
     try {
@@ -158,13 +171,19 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     expect(messageOf(caught)).toBe(`Grade ${sg.grade} already exists for that subject.`)
     expect(statusOf(caught)).toBe(400)
 
-    // …and the refusal left the row alone.
+    // …and the refusal left the row alone — the WHOLE row, not just the field the update named.
+    // Checking only `grade` would miss a partial write to a DERIVED field: `displayName` is rebuilt by
+    // `beforeChange`, which runs after `beforeValidate`, so "the guard threw but the title already
+    // moved" is a shape worth excluding rather than assuming. Captured before, compared after.
     const after = await fx.payload.findByID({
       collection: 'subject-grades',
       id: row.id,
       overrideAccess: true,
     })
-    expect(after.grade, 'a rejected update must not partially apply').toBe(base + 42)
+    expect(
+      { grade: after.grade, subject: after.subject, displayName: after.displayName },
+      'a rejected update must not partially apply — including derived fields',
+    ).toEqual({ grade: before.grade, subject: before.subject, displayName: before.displayName })
 
     // ⚑ THE case the self-exclusion exists for: re-saving a row WITHOUT changing (subject, grade).
     // The row then clashes with ITSELF, and only `clash.id !== originalDoc?.id` keeps the save legal —
