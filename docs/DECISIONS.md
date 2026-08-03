@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 (later still) — a dependency ships twice, and only one copy got patched
+
+**The lesson worth keeping: `undici` exists in two places, and the audit only sees one.** There is the
+npm package, and there is a copy **compiled into Node** that backs global `fetch`. `npm audit` reads
+`node_modules`; it is blind to the embedded one. So bumping the npm override to 7.29.0 turned the gate
+green while the code path that actually makes outbound requests —
+`src/generator/docxToPdf.ts:54`, a global `fetch` to the Gotenberg sidecar — stayed on the **embedded
+6.21.2** shipped with Node 22.17.0, inside the `<6.28.0` advisory range.
+
+A green `npm audit` is evidence about `node_modules`, not about the runtime. Anything reached through
+global `fetch`, `WebSocket` or `ProxyAgent` is served by Node's own copy, and the only way to move it
+is to move the Node pin.
+
+Fixed by bumping every pin 22.17.0 → **22.23.2** (`.nvmrc`, `app/.nvmrc`, `app/Dockerfile`'s base *and*
+e2e stages, `engines`, volta, `AGENTS.md`) — the newest 22.x LTS, itself a security release. Verified
+rather than assumed: `docker run node:22.23.2-alpine node -p process.versions.undici` → **6.28.0**, and
+the app image's own base stage reports the same.
+
+Exploitability was genuinely limited (a server-to-server call to a trusted sidecar, no cookies, no
+retry interceptor, no attacker-controlled origin), and that is worth stating honestly rather than
+inflating. It is also not a reason to leave it: the remediation is a version string.
+
+⚑ **Severity was overstated in the previous entry, and the mistake is instructive.** "Four new HIGH
+advisories" came from npm's summary line, which counts affected **packages** with severity propagated
+up the dependency graph — `undici`, `fast-uri`, `ajv`, `payload`. The advisories themselves are **two
+high** (`GHSA-4cwx-7wf7-3272` undici, `GHSA-7p8r-x3mc-p8w7` fast-uri) and **four medium**. Checked
+against the GitHub advisory API rather than re-reading npm. **A count is not a severity; "4 high" in an
+audit summary is a package tally.** The patch choice was unaffected.
+
+**Two test-precision fixes in the same pass, both about claims exceeding assertions:**
+
+- The rejected-update case said "the refusal left the row alone" and checked only `grade`. `displayName`
+  is derived in `beforeChange`, which runs *after* `beforeValidate` — so "the guard threw but the title
+  already moved" is a real shape, and the test could not see it. Now snapshots the row before and
+  compares `grade`, `subject` and `displayName` after.
+- `toId(sg.subject as never)` — the cast was load-bearing in the wrong way. `toId` is typed for a
+  subject-*grade* reference (`number | SubjectGrade`); `SubjectGrade.subject` is a *subject* reference
+  (`number | Subject`). Structurally different types, and `as never` silenced exactly the check that
+  would have said so. Narrowed inline, matching how `SubjectGrade.beforeChange` handles the same field.
+  Widening a shared authz helper to satisfy a test would have been the wrong direction.
+
+---
+
 ## 2026-08-03 (later) — the durable check compared two different things
 
 Review of #187. Three findings, all correct, and the first is the same class of error the thing it

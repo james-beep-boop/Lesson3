@@ -1,7 +1,7 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.mjs file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:22.17.0-alpine AS base
+FROM node:22.23.2-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -25,11 +25,11 @@ RUN \
 # Rebuild the source code only when needed
 # Browser-test runner for CI `test:e2e`. Deliberately NOT `base` (node:22-alpine) — Playwright needs
 # glibc — and deliberately NOT `mcr.microsoft.com/playwright`, which ships Node 24 while this repo
-# pins 22.17.0; CI must reproduce the runtime we actually ship. `.npmrc` is copied for the same
+# pins 22.23.2; CI must reproduce the runtime we actually ship. `.npmrc` is copied for the same
 # legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at BUILD time so
 # the test step doesn't redo them on every run, matching how `deps` front-loads installs for the
 # other test steps.
-FROM node:22.17.0-bookworm AS e2e
+FROM node:22.23.2-bookworm AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
 RUN npm ci --include=dev
