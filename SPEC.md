@@ -263,6 +263,19 @@ so the editor unmounts and unsaved work is destroyed with no prompt and no recov
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to Editor for that subject-grade, in one transaction.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
+- **Amended 2026-08-02 — one carve-out, for granting editing access.** A **Subject Administrator**
+  sees the email addresses of the users listed in **Manage → Editing access** for their *own*
+  subject-grades: both the current editors and the candidates in the grant picker. Operator decision.
+  **Rationale:** granting editing access is an authorization decision, and a display name is not an
+  identifier — two teachers can share one, so a name-only picker lets an administrator grant edit
+  rights over a subject's content to the wrong person, with no way to notice. The address is the
+  only identifier the system already holds. Withholding it made the *privacy* rule safe at the cost
+  of making the *authorization* act unsafe.
+  **Bounds — this is a carve-out, not a repeal.** `emailReadAccess` (the `users.email` field access)
+  is UNCHANGED: still Site-Admin-or-self, so the REST/Local API and every other surface keep hiding
+  addresses from Subject Admins. The carve-out is delivered by a trusted server-side projection in
+  the Manage view only, and reaches only the subject-grades that administrator already administers.
+  Editors and Teachers see no part of this section. See `docs/DECISIONS.md` 2026-08-02.
 - **User directory (amended 2026-07-02, with messaging):** every authenticated user may read the
   roster of user **display names** — messaging's user picker requires it (§10 "any user may message
   any user"). This deliberately relaxes the earlier self-only read tightening (2026-07-01) at the

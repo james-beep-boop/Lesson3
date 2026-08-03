@@ -56,7 +56,8 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrat
 cd app && npx payload run scripts/seed-local-dev.ts                               # logins + one lesson plan
 ```
 
-Then start the dev server (`.claude/launch.json` → `lesson3-dev`, pinned to node@22) and sign in at
+Then start the dev server (`.claude/launch.json` → `lesson3-dev`, plain `npx next dev` on the host
+node — it had been pinned to a node@22 path that no longer exists, so it could not start) and sign in at
 `http://localhost:3000/login` as `editor@local.test` / `local1234` (also `siteadmin`, `subjectadmin`,
 `teacher` at the same domain and password).
 

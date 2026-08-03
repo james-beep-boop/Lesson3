@@ -11,7 +11,64 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-02 (PR 2b, review round) — the email carve-out widens, and the picker was the real gap
+
+Review of the density/email commit. Three things, and the first two matter more than the density
+work they corrected.
+
+**1. Subject Admins now see addresses too — SPEC §8 amended.** The previous entry gated the email to
+Site Admins because `emailReadAccess` is Site-Admin-or-self. Operator decision: **Subject
+Administrators see full addresses** for the users in their own subject-grades. The reasoning is the
+one the previous entry half-stated and then ignored: granting editing access **is an authorization
+decision**, and a display name is not an identifier. Withholding the address made the *privacy* rule
+safe at the cost of making the *authorization act* unsafe — an administrator could grant edit rights
+over a subject's content to the wrong person with nothing on screen to reveal it. Recorded as a
+bounded carve-out in `SPEC.md` §8: `emailReadAccess` itself is UNCHANGED, so every other surface
+still withholds addresses; the carve-out is one trusted projection in the Manage view.
+
+**2. The grant PICKER was still name-only — the finding that mattered.** The addresses were added to
+the editor rows and the `<option>` list was missed. That is precisely backwards: **the rows are where
+you notice the mistake afterwards; the picker is where you make it.** With two teachers sharing a
+display name the options were literally indistinguishable — identical text, differing only in
+`value`. Fixed (`Name — address`), the select's `max-width` raised from 18rem (which truncated
+exactly the half that disambiguates), and pinned by a test asserting **no two selectable options may
+read the same**.
+
+**3. `includeEmail` deleted rather than tested.** The reviewer noted the unit tests would stay green
+if the call site passed `includeEmail: true` by accident. True — and the right response was not a
+test that watches the flag. Once both audiences see addresses the flag was `true` at every call
+site, which makes it not a safety mechanism but a way to pass `false` by mistake. Deleting the
+parameter removes the failure mode by construction. **When an invariant is awkward to test, suspect
+the shape before reaching for a cleverer assertion.**
+
+⚑ **A layout defect that measurement could not see.** At 390px the editors list rendered a
+**full-width Remove under every name** — 98px per editor, and a destructive control given more visual
+weight than anything else on the page. `.lp-manage__row` stacks to a column at ≤640, correct for the
+candidate row (title + metadata + two actions), wrong for a one-line row; `--tight` now opts out.
+It was found by **screenshot**, and the geometry table had passed — every control still met its 44px
+target. The numbers were right and the layout was wrong. That is the standing argument for
+`DESIGN-visual-system` §6.1 requiring both forms of evidence, demonstrated again.
+
+Also fixed here, pre-existing and unrelated: `.claude/launch.json` pinned
+`/opt/homebrew/opt/node@22/bin/node`, **which no longer exists on this Mac** — so the one launch
+config `AGENTS.md` points developers at could not start at all, and its comment's claim that node 25
+"breaks tsx and makes Next/Payload hang" is false for `next dev` (every browser verification in this
+batch ran on node 25). It stays true for the Payload CLI. Now plain `npx next dev`, and verified by
+starting it.
+
+Test coverage added in this round: a dedicated `editorsWidget.spec.tsx` (the reviewer asked for the
+widget's tests not to live in the visual spec), and `uploadBundles.spec.tsx` for the stale-results
+fix, which until now had only manual verification. Both were confirmed to FAIL against the defects
+they describe — the picker test against name-only options, and two upload tests against an
+`onChange`-only fix, which is the plausible wrong version of that fix.
+
+---
+
 ## 2026-08-02 (PR 2b, density) — one row per person, and an email that stops at Site Admin
+
+⚑ **SUPERSEDED IN PART, same day** — see the review-round entry above. The Site-Admin-only gate
+described below was widened to include Subject Administrators by operator decision, and SPEC §8 was
+amended accordingly. The density findings and the compact-specificity lesson stand.
 
 Operator report on the deployed Manage page: too much white space, "once we have a lot of editors
 that will be very unwieldy", and "should probably show the entire email address."

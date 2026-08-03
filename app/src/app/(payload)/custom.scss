@@ -326,7 +326,10 @@ body {
     border: 1px solid var(--theme-elevation-150);
     border-radius: 4px;
     background: var(--theme-elevation-0);
-    max-width: 18rem;
+    // 18rem fitted a bare display name; the options now carry "Name — address" so the picker can be
+    // used to identify a person rather than guess at one (review 2026-08-02), and 18rem truncated
+    // exactly the half that disambiguates. Still a max, so short rosters stay narrow.
+    max-width: 30rem;
   }
 
   // Manage hosts interactive sections — the Payload buttons inside rows shouldn't stretch.
@@ -344,6 +347,23 @@ body {
       flex-direction: column;
       align-items: stretch;
       row-gap: var(--app-space-2);
+    }
+
+    // …but NOT a one-line row. Stacking is right for the candidate row, which carries a title, a
+    // metadata line and two named actions — it genuinely needs the width. Applied to the editors
+    // list it put a FULL-WIDTH Remove under every name: 98px per editor, and a destructive control
+    // given more visual weight than anything else on the page. Found by screenshot at 390px; the
+    // geometry table had passed, because every control still met its 44px target (measured 2026-08-02
+    // — the numbers were right and the layout was wrong, which is why both forms of evidence are
+    // required). Name and address wrap within their half; Remove stays a small control on the right.
+    &__row--tight {
+      flex-direction: row;
+      align-items: center;
+
+      > .btn {
+        align-self: center;
+        width: auto;
+      }
     }
 
     &__row-actions {

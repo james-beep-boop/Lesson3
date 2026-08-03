@@ -23,14 +23,17 @@ export interface WidgetUser {
   id: number
   name: string
   /**
-   * Present ONLY when the viewer is a Site Administrator.
+   * The user's email address, shown to every viewer of this widget — Subject Administrators as well
+   * as Site Administrators (SPEC §8 carve-out, operator decision 2026-08-02).
    *
-   * Two people can share a display name, and a name alone is a poor thing to grant editing access
-   * on — so the address is shown to disambiguate. But `emailReadAccess` is Site-Admin-or-self
-   * (SPEC §8; "Non–Site-Admins never see others' emails"), and this widget renders for SUBJECT
-   * Administrators too. The server therefore omits the field entirely for them rather than the UI
-   * hiding it: the projection in `AdminDashboard/index.tsx` is the enforcement point, and an
-   * absent field cannot be leaked by a future markup change.
+   * Granting editing access is an authorization decision and a display name is not an identifier:
+   * two teachers can share one, so a name-only list lets an administrator grant edit rights over a
+   * subject's content to the wrong person with no way to notice. Rendered in BOTH places it is
+   * needed — beside each current editor, and inside the grant picker's options, which is where the
+   * choice is actually made.
+   *
+   * Optional only because a user record may genuinely lack an address; `toWidgetUser` omits the key
+   * rather than emitting an empty string. It is NOT a per-role flag — see `lib/widgetUser.ts`.
    */
   email?: string
   /** Freshness token for the assignment endpoints — the row's updatedAt as this page rendered. */
@@ -152,9 +155,17 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
                   onChange={(e) => setPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
                 >
                   <option value="">Grant editing access…</option>
+                  {/* Name AND address in the option, not just the name. This is the control where
+                      the mistake actually happens: granting editing access is an authorization
+                      decision, and two teachers can share a display name — a name-only picker lets
+                      an administrator grant edit rights over a subject's content to the wrong
+                      person with nothing on screen to reveal it. Showing the address only on the
+                      rows below meant it arrived one step too late (review 2026-08-02).
+                      A `<option>` cannot carry markup, so this is one text node rather than the
+                      muted span used in the rows. */}
                   {group.addable.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.name}
+                      {u.email ? `${u.name} — ${u.email}` : u.name}
                     </option>
                   ))}
                 </select>

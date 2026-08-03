@@ -24,11 +24,25 @@ be very unwieldy", plus "should probably show the entire email address".
 - **Empty subject-grades cost one row, not four.** "No one has editing access." now shares the Add
   row instead of stacking above it: **104px → 70px** per empty group. With a full curriculum most
   groups are empty, so this is the shape that decides whether the section is scannable.
-- **Each person's email is shown beside their name** — a name alone is a poor thing to grant editing
-  access on, and two people can share one. ⚠ **Site Administrators only.** `emailReadAccess` is
-  Site-Admin-or-self (SPEC §8) and this widget also renders for Subject Administrators, who continue
-  to see names only. Gated twice server-side — the column is not even selected for a Subject Admin —
-  and pinned by unit tests on a pure `toWidgetUser` projection.
+- **Each person's email is shown beside their name, and in the grant picker** — a name alone is a
+  poor thing to grant editing access on, and two people can share one. Shown to **Subject
+  Administrators as well as Site Administrators** for their own subject-grades: granting editing
+  access is an authorization decision, so withholding the only identifier the system holds made the
+  privacy rule safe at the cost of making the authorization act unsafe. Recorded as a **bounded
+  SPEC §8 carve-out** — `emailReadAccess` is unchanged, so every other surface still withholds
+  addresses. Editors and Teachers see no part of this section.
+  - The **picker** matters more than the rows: the rows are where a mistake is noticed afterwards,
+    the picker is where it is made. Pinned by a test asserting no two selectable options read alike.
+  - At 390px the list had rendered a **full-width Remove under every name** (98px per editor, a
+    destructive control with more weight than anything else on the page). One-line rows now stay
+    horizontal: **98 → 61px**. Found by screenshot — the geometry table passed, because every
+    control still met its 44px target.
+- **`.claude/launch.json` fixed** (pre-existing): it pinned a `node@22` path that no longer exists on
+  this Mac, so the one launch config `AGENTS.md` points developers at could not start. Now plain
+  `npx next dev`, verified by starting it. Its claim that node 25 breaks `next dev` was false; that
+  remains true only of the Payload CLI.
+- **New tests:** `editorsWidget.spec.tsx` and `uploadBundles.spec.tsx` (the upload stale-results fix
+  previously had only manual verification). Both confirmed to fail against the defects they describe.
 
 Verified in a browser as **both** roles: a Subject Administrator's page source contains zero other
 users' addresses (RSC payload included), only their own. Editing-access section 490px, page

@@ -88,14 +88,15 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
       // deliberately: `roles` is field-HIDDEN from Subject Admins (siteAdminField), so a caller-scoped
       // read cannot tell which users are Site Admins and the addable-exclusion below would silently
       // fail for them (Codex round-3 #2). roles/assignments are consumed HERE only for grouping —
-      // the client payload carries just {id, name, updatedAt} plus, for a Site Admin only, `email`.
-      // (This section only renders for Subject/Site Admins, who may read the roster anyway per
-      // usersCollectionRead.)
+      // the client payload carries {id, name, email, updatedAt}.
       //
-      // ⚑ `email` is SELECTED only for a Site Administrator, not merely withheld downstream. Because
-      // this read is `overrideAccess: true` it would otherwise pull every address into a Subject
-      // Admin's request memory for no reason — and the projection below would be the single line
-      // standing between that and the wire. Two gates, so neither is load-bearing alone.
+      // ⚑ `email` is the SPEC §8 carve-out (amended 2026-08-02, operator decision): the Editing-access
+      // widget shows addresses to every administrator who can grant access with it — Subject Admins
+      // included, for their own subject-grades — because a display name is not an identifier and two
+      // teachers can share one. This read is `overrideAccess: true`, so it is what delivers the
+      // carve-out; `emailReadAccess` on the collection stays Site-Admin-or-self, keeping every OTHER
+      // surface unchanged. The boundary that matters is `isAdmin` on this and the subject-grade query
+      // above: an Editor or Teacher gets no `editorGroups` at all, so no address reaches them.
       isAdmin
         ? payload.find({
             collection: 'users',
@@ -103,13 +104,7 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
             depth: 0,
             pagination: false,
             sort: 'name',
-            select: {
-              name: true,
-              roles: true,
-              assignments: true,
-              updatedAt: true,
-              ...(siteAdmin ? { email: true } : {}),
-            },
+            select: { name: true, email: true, roles: true, assignments: true, updatedAt: true },
           })
         : null,
       // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
@@ -157,21 +152,11 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     const sgs = sgsRes.docs
     // Every user (trusted projection — see the find above; only Subject/Site Admins reach here).
     const allUsers = usersRes.docs
-    // The widget only needs identity + the freshness token — the assignment endpoints rebuild the
-    // row server-side from fresh state (assignments are read here solely to compute the groups).
-    //
-    // ⚑ `email` is included ONLY for a Site Administrator. `emailReadAccess` is Site-Admin-or-self
-    // (SPEC §8, "Non–Site-Admins never see others' emails") and this widget also renders for
-    // SUBJECT Administrators, who manage editors in their own subject-grades. Gating here — in the
-    // projection — rather than in the component means a Subject Admin's payload never contains the
-    // address at all, so no future markup change can surface it. `usersRes` is a trusted
-    // (overrideAccess) read, so the field is present in `allUsers` and this branch is what withholds it.
-    // The email gate lives in `toWidgetUser` (lib/widgetUser.ts) as a pure, unit-tested function —
-    // see that file for why. The `select` above is built conditionally, so Payload's inferred row
-    // type does not carry `email`; it is present exactly when `siteAdmin` is true, the same flag
-    // passed here, so the cast is narrow and the two gates agree by construction.
-    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser =>
-      toWidgetUser(u as typeof u & { email?: string | null }, { includeEmail: siteAdmin })
+    // Identity (name + address) + the freshness token — the assignment endpoints rebuild the row
+    // server-side from fresh state, so assignments are read here solely to compute the groups.
+    // `toWidgetUser` (lib/widgetUser.ts) is a pure, unit-tested projection; see the `email` note on
+    // the `users` find above for the SPEC §8 carve-out this delivers.
+    const widgetUser = (u: (typeof allUsers)[number]): WidgetUser => toWidgetUser(u)
     editorGroups = sgs.map((sg) => {
       const editors = allUsers.filter((u) =>
         (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
