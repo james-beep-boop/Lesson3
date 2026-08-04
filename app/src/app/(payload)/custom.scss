@@ -98,16 +98,29 @@ body {
   // Same token as the frontend's .app-main, so the two page origins now agree.
   padding-block-start: var(--app-page-top);
 
+  // Title + role on ONE baseline ("Manage · Site administrator") — collapsed from three stacked lines
+  // 2026-08-04. `align-items: baseline` is what makes a 30px heading and 16px role read as one line
+  // rather than two centred blocks; `flex-wrap` lets them stack again on a narrow phone instead of
+  // shrinking the title.
+  &__head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--app-space-2);
+    margin-bottom: var(--app-space-2);
+  }
+
   &__title {
     // Same size/weight as the frontend page titles (.lp-title / .page-heading h1), via the shared
     // token — so "Manage" sits at the same level in the hierarchy as "Lesson Plans".
     font-size: var(--app-page-title-size);
     font-weight: 700;
-    margin: 0 0 0.75rem;
+    margin: 0;
     color: var(--theme-elevation-1000);
   }
 
-  // Identity block — role, then the access lines beneath it, grouped as one unit under the title.
+  // Access lines (Administrator: … / Editing access: …) beneath the title row. A site admin has none,
+  // so the block is not rendered at all — no empty-container margin to collapse.
   &__identity {
     margin-bottom: var(--app-space-2);
   }
@@ -115,7 +128,18 @@ body {
   &__role {
     font-size: var(--app-body-size);
     margin: 0;
-    color: var(--theme-elevation-1000);
+    color: var(--theme-elevation-600);
+
+    // Decorative separator, in CSS so the h1's accessible name stays exactly "Manage" and so the role
+    // reads correctly on its own line once __head wraps. The `/ ''` is the alternative-text half of
+    // `content`: without it a screen reader announces the bullet ("Manage middle dot Site
+    // administrator"), since pseudo-element content IS in the accessibility tree and cannot be
+    // aria-hidden. Empty alt text drops it from the announcement while keeping it visible.
+    &::before {
+      content: '·' / '';
+      margin-inline-end: var(--app-space-2);
+      color: var(--theme-elevation-400);
+    }
   }
 
   &__scope {
@@ -128,7 +152,31 @@ body {
     // Page SECTION (20px) — a step above a list/group heading (18px). See app-tokens.scss.
     font-size: var(--app-section-title-size);
     font-weight: 600;
-    margin: var(--app-space-5) 0 var(--app-space-1);
+    margin: var(--app-space-4) 0 var(--app-space-1);
+    color: var(--theme-elevation-1000);
+  }
+
+  // Light rule BETWEEN the main sections (2026-08-04 operator request). Deliberately on the heading
+  // rather than hand-placed <hr>s: section order and which sections render are both role- and
+  // data-dependent in the component, so anchoring to the heading keeps the separators correct however
+  // those branches fall, with no trailing rule after the last section.
+  //
+  // The general sibling combinator states "a section that follows another section" DIRECTLY. The first
+  // rendered section is excluded because nothing precedes it — no `:first-of-type` exception, which
+  // would have been true only by coincidence (that React fragments emit no DOM nodes, so every heading
+  // lands as a sibling here). If a wrapper is ever introduced this fails loudly — all rules vanish —
+  // instead of quietly drawing one under the page title. Pinned by manage.e2e.spec.ts.
+  &__section ~ &__section {
+    border-top: 1px solid var(--theme-elevation-150);
+    padding-block-start: var(--app-space-3);
+  }
+
+  // Sub-heading inside a section (Upload / Delete / Repair under "Lesson plans"). 18px — see the
+  // heading-rank note in app-tokens.scss. No rule: only main sections are separated.
+  &__subsection {
+    font-size: var(--app-list-heading-size);
+    font-weight: 600;
+    margin: var(--app-space-4) 0 var(--app-space-1);
     color: var(--theme-elevation-1000);
   }
 
@@ -140,6 +188,11 @@ body {
 
     li {
       border-bottom: 1px solid var(--theme-elevation-150);
+    }
+
+    // No trailing divider — see the shared note on .lp-manage__list.
+    li:last-child {
+      border-bottom: 0;
     }
   }
 
@@ -194,6 +247,16 @@ body {
 
     li {
       border-bottom: 1px solid var(--theme-elevation-150);
+    }
+
+    // A bordered list draws dividers BETWEEN its rows and never closes with one. A trailing divider
+    // 24px above the next section's rule renders as two near-parallel lines and reads as a table edge.
+    // Unconditional on purpose: the first attempt matched `:has(+ .lp-admin-dash__section)`, which
+    // needs the <ul> to be the heading's direct sibling — and so missed `DeletePlansPanel`, whose list
+    // is wrapped in a div, i.e. the exact case on the page most of the time. One rule that is always
+    // true beats an exception list that grows with every panel that wraps its markup.
+    li:last-child {
+      border-bottom: 0;
     }
   }
 

@@ -173,7 +173,8 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Tidy candidates:</strong> <em>Manage → Candidate versions</em> lists every saved,
-            non-Official version in their subject-grades, with delete.
+            non-Official version in their subject-grades, with delete. The section appears once there
+            is something to tidy.
           </li>
           <li>
             <strong>Grant editing access:</strong> <em>Manage → Editing access</em> gives a teacher
