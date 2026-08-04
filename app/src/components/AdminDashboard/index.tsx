@@ -112,9 +112,8 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // refetching entire lesson bundles (`lessons[]`, `finalExplanation`, `summaryTable`) to render a
   // title, a grade label, an author and a date. Measured 2026-08-04 on a 43-plan corpus: ~8.0s to
   // produce ONE candidate row, ~1.8× the catalogue's ~4.6s. After this rewrite: ~170ms, same rows.
-  // ⚑ The catalogue is NOT fixed — its `officialVersions` find is still `depth: 2` and still ~3.6s of
-  // its render. It needs its own change (pinned-version rows and subject names have requirements this
-  // page does not), so do not treat it as a copy of this one.
+  // The catalogue had the same shape and was fixed the same way (DECISIONS 2026-08-04 late): ~4.5s →
+  // ~0.63s, `depth: 0` plus a subject-grade and a subject lookup.
   //
   // Each lookup is depth 0, over DISTINCT ids, projected to the one field it needs, and keeps the
   // caller's access (`overrideAccess: false` + `user`) — population respected access too, so this

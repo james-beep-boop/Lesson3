@@ -92,116 +92,159 @@ export default async function BrowsePage({
     if (versionId != null) favByVersion.set(versionId, f.id)
   }
 
-  // 2. Load those Official versions — the version carries meta/unit/lessons. `lessons: { id: true }`
-  //    yields the count via length; depth 2 resolves the subject name through `subjectGrade`;
-  //    `lessonPlan` maps each version back to its plan (the row link).
-  //    ⚑ NOT a light projection, despite how it reads. `select` does not constrain POPULATED documents
-  //    (they use `defaultPopulate`, which no collection here sets), so `depth: 2` walks
-  //    `lessonPlan → officialVersion` and pulls whole bundles back — measured at ~3.6s of a ~4.6s
-  //    render on 43 plans (DECISIONS 2026-08-03 perf / 2026-08-04). Manage had the same shape and was
-  //    rewritten to `depth: 0` + explicit lookups (~48× there); THIS query is still unfixed and wants
-  //    its own change, because pinned-version rows and subject names add requirements Manage did not
-  //    have. Trimming `lessons`/`finalExplanation`/`summaryTable` here is measured at zero — the cost
-  //    is the depth, not the select.
-  const { docs: versions } = officialIds.length
-    ? await t.time('officialVersions', () =>
-        payload.find({
-          collection: 'lesson-bundle-versions',
-          where: { id: { in: officialIds } },
-          overrideAccess: false,
-          user,
-          depth: 2,
-          pagination: false,
-          select: {
-            title: true,
-            subjectGrade: true,
-            lessonPlan: true,
-            meta: { substrand_id: true, substrand_name: true },
-            unit: { strand: true },
-            lessons: { id: true },
-            // The two OPTIONAL deliverable groups — only to decide the row's document strip (T2)
-            // via `versionDeliverables`. Revisit if the corpus reaches the documented ~1–2k range.
-            finalExplanation: true,
-            summaryTable: true,
-          },
-        }),
-      )
-    : { docs: [] }
-
-  const rows: LessonRow[] = versions.flatMap((v) => {
-    const planId = relId(v.lessonPlan)
-    if (planId == null) return []
-    const sg = typeof v.subjectGrade === 'object' ? v.subjectGrade : null
-    const subject = sg && typeof sg.subject === 'object' ? sg.subject : null
-    return [
-      {
-        id: planId, // the row links to the plan; the detail page opens its Official version
-        versionId: v.id, // …and the star toggles a favorite on that Official version (§10)
-        subjectName: subject?.name ?? 'Unknown subject',
-        grade: sg?.grade ?? null,
-        substrandId: v.meta?.substrand_id ?? '',
-        // Clean structured name, else de-shout the stored `title` ("BIOLOGY GRADE 10: …"). Shared rule.
-        substrandName: lessonDisplayName(v.meta?.substrand_name, v.title),
-        strandName: v.unit?.strand ?? null,
-        lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
-        status: 'published',
-        deliverables: versionDeliverables(v),
-        versionCount: versionCountByPlan.get(planId) ?? 1,
-        canEdit: isEditorFor(user as User, toId(sg as never)),
-      },
-    ]
-  })
-
   // PR ②: "My favorites" is a list of VERSIONS. A favorite on a non-Official version (an editor's
-  // pin — teachers' stars follow the Official by T4) has no catalogue row, so resolve those
-  // versions into pseudo rows: same display shape, suffixed `· vX (pinned)`, linking straight to
-  // `?version=`. This closes PR ①'s documented gap (pinned favorites were invisible here).
+  // pin — teachers' stars follow the Official by T4) has no catalogue row, so it is resolved into a
+  // pseudo row below: same display shape, suffixed `· vX (pinned)`, linking straight to `?version=`.
+  // This closes PR ①'s documented gap (pinned favorites were invisible here).
   const officialIdSet = new Set(officialIds)
   const pinnedIds = [...favByVersion.keys()].filter((vid) => !officialIdSet.has(vid))
-  const pinnedRows: LessonRow[] = []
-  if (pinnedIds.length > 0) {
-    const { docs: pinned } = await t.time('pinnedVersions', () =>
-      payload.find({
-        collection: 'lesson-bundle-versions',
-        where: { id: { in: pinnedIds } },
-        overrideAccess: false,
-        user,
-        depth: 2,
-        pagination: false,
-        select: {
-          title: true,
-          semver: true,
-          subjectGrade: true,
-          lessonPlan: true,
-          meta: { substrand_id: true, substrand_name: true },
-          unit: { strand: true },
-          lessons: { id: true },
-          finalExplanation: true,
-          summaryTable: true,
-        },
-      }),
-    )
-    for (const v of pinned) {
-      const planId = relId(v.lessonPlan)
-      if (planId == null) continue
-      const sg = typeof v.subjectGrade === 'object' ? v.subjectGrade : null
-      const subject = sg && typeof sg.subject === 'object' ? sg.subject : null
-      pinnedRows.push({
-        id: planId,
-        versionId: v.id,
-        subjectName: subject?.name ?? 'Unknown subject',
-        grade: sg?.grade ?? null,
-        substrandId: v.meta?.substrand_id ?? '',
-        substrandName: lessonDisplayName(v.meta?.substrand_name, v.title),
-        strandName: v.unit?.strand ?? null,
-        lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
-        status: 'published',
-        deliverables: versionDeliverables(v),
-        pinnedSemver: v.semver ?? undefined,
-        href: `/lessons/${planId}?version=${v.id}`,
-      })
+
+  // 2. The two version reads, at `depth: 0` and CONCURRENT.
+  //
+  //    ⚑ These were `depth: 2`, which is what made this page slow: `select` does not constrain
+  //    POPULATED documents (they use `defaultPopulate`, which no collection here sets), so depth 2
+  //    walked `lessonPlan → officialVersion` and pulled whole lesson bundles back — measured at
+  //    3880–4742ms of a 4030–4817ms render on 43 plans. Depth bought exactly ONE thing: `subject.name`,
+  //    two hops away. Everything else the rows display (`meta`, `unit`, `lessons`, the two deliverable
+  //    groups, `title`, `semver`) lives on the version document itself and is depth-independent, and
+  //    `lessonPlan` was only ever read through `relId` — an id. So the fix is depth 0 plus the two
+  //    small lookups below. Same change as Manage got (DECISIONS 2026-08-04).
+  //
+  //    Also now concurrent: `pinnedIds` needs only step 1's results, so the pinned read no longer waits
+  //    on the Official read. Two round-trips became one.
+  const versionSelect = {
+    title: true,
+    subjectGrade: true,
+    lessonPlan: true,
+    meta: { substrand_id: true, substrand_name: true },
+    unit: { strand: true },
+    lessons: { id: true }, // count via length — no lesson bodies
+    // The two OPTIONAL deliverable groups — only to decide the row's document strip (T2) via
+    // `versionDeliverables`. Measured at zero cost: what was expensive here was the depth, not this.
+    finalExplanation: true,
+    summaryTable: true,
+  } as const
+  const [officialRes, pinnedRes] = await Promise.all([
+    officialIds.length === 0
+      ? null
+      : t.time('officialVersions', () =>
+          payload.find({
+            collection: 'lesson-bundle-versions',
+            where: { id: { in: officialIds } },
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            select: versionSelect,
+          }),
+        ),
+    pinnedIds.length === 0
+      ? null
+      : t.time('pinnedVersions', () =>
+          payload.find({
+            collection: 'lesson-bundle-versions',
+            where: { id: { in: pinnedIds } },
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            select: { ...versionSelect, semver: true },
+          }),
+        ),
+  ])
+  const versions = officialRes?.docs ?? []
+  const pinned = pinnedRes?.docs ?? []
+
+  // 3. Resolve the ONE thing depth was buying: each row's "<Subject> · Grade N" heading. Two depth-0
+  //    lookups over DISTINCT ids, both keeping the caller's access (`overrideAccess: false` + `user`)
+  //    — population respected access too, so this widens nothing. Sequential because the subject ids
+  //    live on the subject-grade rows; both are single-digit-ms on this corpus. Deliberately NOT
+  //    `subject-grades` at depth 1: that would re-introduce unconstrained population of whole subject
+  //    documents, and "subjects are small" is exactly the assumption that rotted this page.
+  const distinct = (ids: (number | null)[]): number[] => [
+    ...new Set(ids.filter((id): id is number => id != null)),
+  ]
+  const sgIds = distinct([...versions, ...pinned].map((v) => relId(v.subjectGrade)))
+  const sgRes =
+    sgIds.length === 0
+      ? null
+      : await t.time('subjectGrades', () =>
+          payload.find({
+            collection: 'subject-grades',
+            where: { id: { in: sgIds } },
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            select: { grade: true, subject: true },
+          }),
+        )
+  const sgDocs = sgRes?.docs ?? []
+  const subjectIds = distinct(sgDocs.map((sg) => relId(sg.subject)))
+  const subjectRes =
+    subjectIds.length === 0
+      ? null
+      : await t.time('subjects', () =>
+          payload.find({
+            collection: 'subjects',
+            where: { id: { in: subjectIds } },
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            select: { name: true },
+          }),
+        )
+  const subjectNameById = new Map<number, string>()
+  for (const s of subjectRes?.docs ?? []) if (s.name) subjectNameById.set(s.id, s.name)
+  /** subject-grade id → the row's two display fields. */
+  const sgInfoById = new Map<number, { subjectName: string; grade: number | null }>()
+  for (const sg of sgDocs) {
+    const subjectId = relId(sg.subject)
+    sgInfoById.set(sg.id, {
+      subjectName: (subjectId != null ? subjectNameById.get(subjectId) : undefined) ?? 'Unknown subject',
+      grade: sg.grade ?? null,
+    })
+  }
+
+  // One row shape for both lists — they only ever differed by the pinned suffix and the direct
+  // `?version=` link, which was enough for the two builders to drift while looking identical.
+  const buildRow = (v: (typeof versions)[number], pinnedSemver?: string): LessonRow | null => {
+    const planId = relId(v.lessonPlan)
+    if (planId == null) return null
+    const sgId = relId(v.subjectGrade)
+    const sg = sgId != null ? sgInfoById.get(sgId) : undefined
+    return {
+      id: planId, // the row links to the plan; the detail page opens its Official version
+      versionId: v.id, // …and the star toggles a favorite on that Official version (§10)
+      subjectName: sg?.subjectName ?? 'Unknown subject',
+      grade: sg?.grade ?? null,
+      substrandId: v.meta?.substrand_id ?? '',
+      // Clean structured name, else de-shout the stored `title` ("BIOLOGY GRADE 10: …"). Shared rule.
+      substrandName: lessonDisplayName(v.meta?.substrand_name, v.title),
+      strandName: v.unit?.strand ?? null,
+      lessonCount: Array.isArray(v.lessons) ? v.lessons.length : 0,
+      status: 'published',
+      deliverables: versionDeliverables(v),
+      ...(pinnedSemver == null
+        ? {
+            versionCount: versionCountByPlan.get(planId) ?? 1,
+            // `subjectGrade` is a bare id at depth 0, which is what `isEditorFor` wants — so the
+            // long-standing `toId(sg as never)` cast is gone from this call site.
+            canEdit: isEditorFor(user as User, toId(relId(v.subjectGrade) ?? undefined)),
+          }
+        : { pinnedSemver, href: `/lessons/${planId}?version=${v.id}` }),
     }
   }
+
+  const rows = versions.flatMap((v) => {
+    const row = buildRow(v)
+    return row ? [row] : []
+  })
+  const pinnedRows = pinned.flatMap((v) => {
+    const row = buildRow(v, v.semver ?? undefined)
+    return row ? [row] : []
+  })
 
   // Data loading is done; everything after this is React render + RSC serialisation, which no timer
   // in here can see. That gap (Next's `application-code` minus `totalMs`) is itself the reading.

@@ -11,6 +11,58 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-04 (late) — the catalogue, same fix, and the second spec file that broke the first
+
+The last of the `depth: 2` whole-bundle population, on the page every teacher actually hits. Local,
+43 plans, warm, 5 samples each:
+
+| phase | before | after |
+|---|---|---|
+| `officialVersions` | 3880–4742ms | **518–548ms** |
+| `subjectGrades` | — | 4–5ms |
+| `subjects` | — | 3ms |
+| **`totalMs`** | **4030–4817ms** | **608–651ms** |
+
+Client wall-clock 4.08–4.87s → **0.63–0.70s**, ~7×. `officialVersions` alone is ~8.7× better; its
+residual ~530ms is honest work — 43 version documents with `meta`/`unit`/`lessons`/the two deliverable
+groups actually selected.
+
+**Depth was buying exactly ONE thing: `subject.name`, two hops out.** Everything else the rows show
+(`meta`, `unit`, `lessons`, `finalExplanation`, `summaryTable`, `title`, `semver`) lives on the version
+document itself and is depth-independent, and `lessonPlan` was only ever read through `relId` — an id.
+So: `depth: 0` plus a `subject-grades` lookup (`grade`, `subject`) and a `subjects` lookup (`name`),
+both depth 0, over distinct ids, `overrideAccess: false` + `user` preserved. 7–8ms combined.
+Deliberately NOT `subject-grades` at depth 1 — that re-introduces unconstrained population of whole
+subject documents, and "subjects are small" is the same assumption that rotted this page.
+
+**Two things fell out of the restructure.** The Official and pinned reads now run CONCURRENTLY —
+`pinnedIds` only needs step 1's results, so the second read never had to wait; two round-trips became
+one. And both row builders collapsed into one `buildRow`, which they should always have been: they
+differed only by the pinned suffix and the `?version=` link, which is exactly how two near-identical
+builders drift. The long-standing `toId(sg as never)` cast is also gone from this call site — at depth 0
+`subjectGrade` is a bare id, which is what `isEditorFor` wanted all along.
+
+**The catalogue had NO browser coverage at all** despite being the one page every role uses. It has some
+now, written BEFORE the rewrite (`tests/e2e/catalogue.e2e.spec.ts`, 4 tests, passing against the
+depth-2 code first). What it pins is chosen for how this change fails: silently. `subjectName` degrades
+to 'Unknown subject', `grade` to null, and `canEdit` to site-admin-only — nothing throws. The
+`canEdit` one matters most: it fails CLOSED, so an Editor silently loses their edit affordance while a
+Teacher's view looks perfect. That is why the load-bearing assertion is the *Editor* case; the Teacher
+case passes even when the code is broken. Both guards were then verified to FAIL with their lookup
+emptied, rather than trusted because they were green.
+
+**⚑ Adding a second e2e spec file broke the first, and the fixture was never parallel-safe.**
+`setupRoleFixture` opens with a NAMESPACE-wide sweep (`purgeMarked(payload, MARK_BASE)`) to clear
+crashed-run leftovers. `MARK` is per-process; the sweep is per-namespace. With one spec file that is
+invisible. With two in parallel workers they delete each other's fixtures — and the victim reports a
+missing row, not a conflict, so it reads as a product bug. Fixed by `workers: 1` unconditionally in
+`playwright.config.ts` (CI already ran serial, so this makes local match CI rather than changing the
+contract). The sweep itself is correct and was left alone.
+
+**General rule, third time in three days:** the shared-state assumption that holds for N=1 is not a
+property of the code, it is a property of there being one caller. Both the `:has(+ …)` separator
+exception and this fixture sweep were fine until a second instance existed.
+
 ## 2026-08-04 — Manage reordered; and the exception that could not see the case it was written for
 
 Operator request: reorder the Manage page so the frequently-used sections come first, shorten the
@@ -94,12 +146,10 @@ passes; the suite is now 7/7. **Lesson: "pre-existing and reproducible in isolat
 cause a failure, it does not make the failure unrelated.** A test that fails only where the code is slow
 is evidence about the slowness, especially once the slowness has been measured.
 
-⚑ **Still open — the CATALOGUE, deliberately not touched here.** `app/src/app/(frontend)/page.tsx`'s
-`officialVersions` find is still `depth: 2` and still ~3.6s of its ~4.6s render. Its *initial* reads were
-always `depth: 0`, which makes the file read as though it were already fixed; it is not. It wants its own
-change rather than a copy of this one — the pinned-version pseudo-rows and the subject-name path carry
-requirements Manage does not have. Also unverified: every number here is local. The Rock's 85-plan /
-728-lesson-row corpus has not been measured.
+The CATALOGUE was deliberately left out of this change and fixed separately — see the 2026-08-04 (late)
+entry above. Unverified either way: every number here is local; the Rock's Site-Admin Manage path has
+not been measured (no site-admin credentials on hand, and a browser page load produced no server render
+while the flag was on).
 
 ## 2026-08-03 (perf) — the 5–7s login was the catalogue rendered twice, and the obvious fix breaks the header
 
