@@ -11,6 +11,38 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 (last) — fixing the reviewed line is not fixing the problem
+
+Two small repository inconsistencies, both left behind by the Node bump, and one of them is a habit
+worth naming.
+
+**The `as never` cast was fixed where a reviewer pointed and left alone two functions away.**
+CodeRabbit flagged the occurrence on a line the diff touched; there was an identical
+`toId(sg.subject as never)` in the CREATE case of the same describe block, on a line the diff did not
+touch, so nothing flagged it. **A review comment marks an instance, not a set** — and the instinct to
+fix exactly what was quoted is how a file ends up internally inconsistent. Both cases now share one
+typed `fixtureSubjectId()` helper, so the next occurrence cannot diverge from the first.
+
+⚑ **The root cause is real and is NOT fixed here.** `toId` is typed for a subject-grade reference
+(`number | SubjectGrade`) and is called on `Subject`, `LessonPlan`, `User` and more — hence
+`toId(x as never)` roughly 30 times under `src/`. Every one of those casts silences a genuine
+mismatch, which is exactly the property that made the test cast worth removing. Generalising the helper
+to `number | { id: number }` is the actual fix, and it belongs in its own change against a shared
+authz helper with its own review — not smuggled in through a test file. Recorded so the next person
+does not re-derive it.
+
+**`package-lock.json` disagreed with `package.json` about the Node engine** (`>=22.17.0` vs
+`>=22.23.2`). Harmless — `npm ci` installs from the tree, not the engines field, and production was
+already on 22.23.2 — but two committed manifests stating different requirements is the kind of small
+untruth that later gets cited as evidence. Regenerated: a one-line diff with no dependency churn, and
+`npm ci` re-verified from it.
+
+Worth noting what did *not* need changing: the deploy check built earlier in this batch correctly
+reported that the app tree had moved (the lockfile lives under `app/`), which is why this shipped with a
+deploy rather than being left as a docs-only drift.
+
+---
+
 ## 2026-08-03 (later still) — a dependency ships twice, and only one copy got patched
 
 **The lesson worth keeping: `undici` exists in two places, and the audit only sees one.** There is the
