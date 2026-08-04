@@ -8,6 +8,27 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-03 — two manifest/test inconsistencies from the Node bump
+
+- **The `as never` cast was fixed on the reviewed line and left on its twin.** The previous pass
+  normalised the UPDATE case and left an identical `toId(sg.subject as never)` in the CREATE case two
+  functions away — the flagged line got fixed, the problem did not. Both now share one typed
+  `fixtureSubjectId()` helper.
+- **`package-lock.json` still recorded `engines.node: >=22.17.0`** while `package.json` said
+  `>=22.23.2`. Harmless to `npm ci` and to production, but the committed manifests disagreed.
+  Regenerated: a clean one-line change, no dependency churn, and `npm ci` verified from the new
+  lockfile.
+
+⚑ **Recorded as a follow-up, not done here: `toId` is typed too narrowly for how widely it is used.**
+`toId(x as never)` appears ~30 times under `src/` because the helper accepts one relationship shape
+(`number | SubjectGrade`) and is called on many (`Subject`, `LessonPlan`, `User`, …). Each cast
+silences a genuine type mismatch. The real fix is to generalise the helper to `number | { id: number }`
+— but it is a shared authz helper, so that belongs in its own change with its own review, not smuggled
+in via a test.
+
+tsc clean; unit **365/365**; int **5/5** on the taxonomy spec; lint 0 errors; `audit:prod` exit 0;
+`npm ci` clean.
+
 ## 2026-08-03 — Node 22.23.2: the npm undici bump did not fix the runtime
 
 ⚑ **Correction to the previous entry, which overstated the severity.** It said "four new HIGH

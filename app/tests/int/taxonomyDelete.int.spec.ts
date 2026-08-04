@@ -99,6 +99,28 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
   const statusOf = (e: unknown) => (e as { status?: number } | null)?.status
   const messageOf = (e: unknown) => (e as { message?: string } | null)?.message
 
+  /**
+   * The fixture subject-grade's `subject` as a plain id.
+   *
+   * Narrowed inline rather than through `toId`, and WITHOUT `as never`. `toId` is typed for a
+   * subject-GRADE reference (`number | SubjectGrade`); this is a SUBJECT reference
+   * (`number | Subject`) — structurally different types, which is exactly what the cast was hiding.
+   * Same two-branch narrowing `SubjectGrade.beforeChange` uses on this field, and `subject` is
+   * non-nullable in the generated type so there is no null case.
+   *
+   * ⚑ Shared by both cases below on purpose. A previous pass fixed the UPDATE occurrence and left its
+   * twin in CREATE two functions away — the reviewed line got fixed, the problem did not. One helper
+   * makes that impossible to repeat here.
+   *
+   * NOT a repo-wide cleanup: `toId(x as never)` appears in ~30 places under `src/`, because `toId` is
+   * typed for one relationship shape and used on many. Generalising it is the real fix and belongs
+   * with that helper, not in a test — recorded as a follow-up.
+   */
+  const fixtureSubjectId = () => {
+    const s = fx.subjectGrade.subject
+    return typeof s === 'object' ? s.id : s
+  }
+
   it('rejects a duplicate (subject, grade) on CREATE with a 400 naming the clash', async () => {
     // The fixture's subject-grade already occupies (fixture subject, its grade).
     const sg = fx.subjectGrade
@@ -106,7 +128,7 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     try {
       await fx.payload.create({
         collection: 'subject-grades',
-        data: { subject: toId(sg.subject as never) ?? sg.subject, grade: sg.grade },
+        data: { subject: fixtureSubjectId(), grade: sg.grade },
         overrideAccess: true,
       })
     } catch (e) {
@@ -123,13 +145,7 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     // rejecting every update — including valid ones — and this test would still have passed. The
     // free-grade update below is what actually earns the second half of the name.
     const sg = fx.subjectGrade
-    // Normalised inline rather than through `toId`, and WITHOUT a cast. `toId` is typed for a
-    // SUBJECT-GRADE reference (`number | SubjectGrade`); this is a SUBJECT reference
-    // (`number | Subject`) — structurally different, which is exactly what `as never` was hiding.
-    // This is the same two-branch narrowing `SubjectGrade.beforeChange` uses on the same field, and
-    // `subject` is non-nullable in the generated type so there is no null case to handle. Widening the
-    // shared authz helper to suit a test would be the wrong direction.
-    const subjectId = typeof sg.subject === 'object' ? sg.subject.id : sg.subject
+    const subjectId = fixtureSubjectId()
     const base = sg.grade ?? 10
     const row = await fx.payload.create({
       collection: 'subject-grades',
