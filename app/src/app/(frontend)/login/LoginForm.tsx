@@ -1,12 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 import PasswordInput from '@/components/PasswordInput'
 
 export function LoginForm() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -35,8 +33,10 @@ export function LoginForm() {
         )
         return
       }
-      router.replace('/')
-      router.refresh()
+      // ONE document navigation, not `router.replace('/')` + `router.refresh()` — that pair rendered
+      // the catalogue TWICE, and dropping just the `refresh()` would land a logged-out header.
+      // `replace`, not `assign`: keeps Back off /login. See DECISIONS.md 2026-08-03.
+      window.location.replace('/')
     } catch {
       setError('Sign-in failed — please try again.')
     } finally {

@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 export interface LoginOptions {
   page: Page
@@ -30,4 +30,12 @@ export async function login({
   // A successful login replaces the route with The App home; a failure stays on /login with an
   // error, so this wait is also the success assertion.
   await page.waitForURL(`${serverURL}/`)
+
+  // ⚑ Landing on `/` is NOT sufficient evidence the login worked. The root layout renders the header
+  // only when `user` is truthy, and a soft navigation would reuse the headerless shell cached for
+  // /login — so a regression to `router.replace('/')` still passes `waitForURL` while every signed-in
+  // user gets no nav. Asserting the header here pins the invariant for every spec that logs in, per
+  // CLAUDE.md's rule that a security/correctness-critical invariant gets a test, not review alone.
+  // (DECISIONS.md 2026-08-03.)
+  await expect(page.locator('.app-header')).toBeVisible()
 }

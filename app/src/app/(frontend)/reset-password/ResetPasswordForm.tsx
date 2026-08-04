@@ -6,12 +6,10 @@
  * land straight on the library.
  */
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 import PasswordInput from '@/components/PasswordInput'
 
 export function ResetPasswordForm({ token }: { token: string }) {
-  const router = useRouter()
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,8 +29,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
         setError('This reset link is invalid or has expired — request a new one.')
         return
       }
-      router.replace('/')
-      router.refresh()
+      // Payload has just signed the user in, so this is an auth transition: same
+      // one-document-navigation rule as LoginForm, for the reason documented there.
+      window.location.replace('/')
     } catch {
       setError('Could not reset the password — please try again.')
     } finally {

@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { requireUser } from '@/lib/session'
+import { startRenderTimings } from '@/lib/renderTimings'
 import { relId } from '@/lib/relId'
 import { versionDeliverables } from '@/generator/adapter'
 import { isEditorFor, toId } from '@/access'
@@ -19,7 +20,10 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<{ q?: string; subject?: string; grade?: string }>
 }) {
-  const { payload, user } = await requireUser()
+  // No-op unless RENDER_TIMINGS=1 (see lib/renderTimings.ts) — this render is the open perf question
+  // after the 2026-08-03 double-render fix, and it must be measured before anything is denormalised.
+  const t = startRenderTimings('/')
+  const { payload, user } = await t.time('auth', () => requireUser())
   const params = await searchParams
   const q = (params.q ?? '').trim()
   const subject = (params.subject ?? '').trim()
@@ -40,31 +44,39 @@ export default async function BrowsePage({
   // The third fetch (PR ②) is the whole corpus' version→plan mapping, projected to ONE relationship
   // column — it feeds the per-plan version COUNT behind the `[N versions ▾]` chip. Same corpus-size
   // posture as the plans fetch (revisit with the documented ~1–2k thresholds).
+  // Timed individually, with no wrapper around the `Promise.all`: these start together, so the
+  // barrier the render waits on is just the largest of the three — derivable, not worth an indent.
   const [{ docs: plans }, { docs: favorites }, { docs: versionStubs }] = await Promise.all([
-    payload.find({
-      collection: 'lesson-plans',
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      select: { officialVersion: true },
-    }),
-    payload.find({
-      collection: 'favorites',
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      select: { version: true },
-    }),
-    payload.find({
-      collection: 'lesson-bundle-versions',
-      overrideAccess: false,
-      user,
-      depth: 0,
-      pagination: false,
-      select: { lessonPlan: true },
-    }),
+    t.time('plans', () =>
+      payload.find({
+        collection: 'lesson-plans',
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        select: { officialVersion: true },
+      }),
+    ),
+    t.time('favorites', () =>
+      payload.find({
+        collection: 'favorites',
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        select: { version: true },
+      }),
+    ),
+    t.time('versionStubs', () =>
+      payload.find({
+        collection: 'lesson-bundle-versions',
+        overrideAccess: false,
+        user,
+        depth: 0,
+        pagination: false,
+        select: { lessonPlan: true },
+      }),
+    ),
   ])
   const versionCountByPlan = new Map<number, number>()
   for (const v of versionStubs) {
@@ -84,26 +96,28 @@ export default async function BrowsePage({
   //    `lessons: { id: true }` yields the count via length without loading lesson bodies; depth 2
   //    resolves the subject name. `lessonPlan` maps each version back to its plan (the row link).
   const { docs: versions } = officialIds.length
-    ? await payload.find({
-        collection: 'lesson-bundle-versions',
-        where: { id: { in: officialIds } },
-        overrideAccess: false,
-        user,
-        depth: 2,
-        pagination: false,
-        select: {
-          title: true,
-          subjectGrade: true,
-          lessonPlan: true,
-          meta: { substrand_id: true, substrand_name: true },
-          unit: { strand: true },
-          lessons: { id: true },
-          // The two OPTIONAL deliverable groups — only to decide the row's document strip (T2)
-          // via `versionDeliverables`. Revisit if the corpus reaches the documented ~1–2k range.
-          finalExplanation: true,
-          summaryTable: true,
-        },
-      })
+    ? await t.time('officialVersions', () =>
+        payload.find({
+          collection: 'lesson-bundle-versions',
+          where: { id: { in: officialIds } },
+          overrideAccess: false,
+          user,
+          depth: 2,
+          pagination: false,
+          select: {
+            title: true,
+            subjectGrade: true,
+            lessonPlan: true,
+            meta: { substrand_id: true, substrand_name: true },
+            unit: { strand: true },
+            lessons: { id: true },
+            // The two OPTIONAL deliverable groups — only to decide the row's document strip (T2)
+            // via `versionDeliverables`. Revisit if the corpus reaches the documented ~1–2k range.
+            finalExplanation: true,
+            summaryTable: true,
+          },
+        }),
+      )
     : { docs: [] }
 
   const rows: LessonRow[] = versions.flatMap((v) => {
@@ -138,25 +152,27 @@ export default async function BrowsePage({
   const pinnedIds = [...favByVersion.keys()].filter((vid) => !officialIdSet.has(vid))
   const pinnedRows: LessonRow[] = []
   if (pinnedIds.length > 0) {
-    const { docs: pinned } = await payload.find({
-      collection: 'lesson-bundle-versions',
-      where: { id: { in: pinnedIds } },
-      overrideAccess: false,
-      user,
-      depth: 2,
-      pagination: false,
-      select: {
-        title: true,
-        semver: true,
-        subjectGrade: true,
-        lessonPlan: true,
-        meta: { substrand_id: true, substrand_name: true },
-        unit: { strand: true },
-        lessons: { id: true },
-        finalExplanation: true,
-        summaryTable: true,
-      },
-    })
+    const { docs: pinned } = await t.time('pinnedVersions', () =>
+      payload.find({
+        collection: 'lesson-bundle-versions',
+        where: { id: { in: pinnedIds } },
+        overrideAccess: false,
+        user,
+        depth: 2,
+        pagination: false,
+        select: {
+          title: true,
+          semver: true,
+          subjectGrade: true,
+          lessonPlan: true,
+          meta: { substrand_id: true, substrand_name: true },
+          unit: { strand: true },
+          lessons: { id: true },
+          finalExplanation: true,
+          summaryTable: true,
+        },
+      }),
+    )
     for (const v of pinned) {
       const planId = relId(v.lessonPlan)
       if (planId == null) continue
@@ -178,6 +194,10 @@ export default async function BrowsePage({
       })
     }
   }
+
+  // Data loading is done; everything after this is React render + RSC serialisation, which no timer
+  // in here can see. That gap (Next's `application-code` minus `totalMs`) is itself the reading.
+  t.report(payload.logger)
 
   return (
     <section className="lp">

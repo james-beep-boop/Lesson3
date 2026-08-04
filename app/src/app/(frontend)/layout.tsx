@@ -32,7 +32,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body>
         {/* Header only for signed-in users; the logged-out /login route is a clean splash that
-            supplies its own branding. */}
+            supplies its own branding.
+            ⚑ This conditional makes the layout's SHAPE depend on auth state, and Next's client
+            router caches layout segments across soft navigations — so a `router.push`/`replace`
+            into the app from a logged-out route reuses the headerless shell. Auth transitions must
+            therefore be full document navigations (`window.location.replace`), as in LoginForm /
+            ResetPasswordForm. See DECISIONS.md 2026-08-03 before adding a third one. */}
         {user && (
           <header className="app-header">
             <Link href="/" className="brand">

@@ -11,6 +11,112 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-03 (perf) — the 5–7s login was the catalogue rendered twice, and the obvious fix breaks the header
+
+**Symptom.** Signing in took 5–7 seconds. Suspicion fell on password hashing; that was wrong.
+Hashing on the Rock is ~113ms and the warm login endpoint ~142ms. The wait was the *destination*.
+(For the record: Payload's local strategy is **PBKDF2**-SHA256, 25 000 iterations, 512-byte key —
+`node_modules/payload/dist/auth/strategies/local/authenticate.js:8`. An earlier draft of this entry
+said Argon2; it does not.)
+
+**Cause.** `LoginForm` did `router.replace('/')` **then** `router.refresh()`. Two catalogue renders,
+fired concurrently. Measured on the local stack (43 plans / 44 versions / 386 lesson child rows,
+`next dev`, real browser login): two `GET / 200` at **8.0s each**, against a warm single-render
+baseline of **4.42 / 4.37 / 4.44s**. ~8.8s of work compressed into 8.0s wall — they contend almost
+perfectly, so the duplication was the dominant cost, not SQL and not the password.
+
+**⚑ The trap: do not "simplify" this to `router.replace('/')` alone.** That is the obvious read of the
+diff and it is wrong. `/login` and `/` share the root layout, which renders the header **only when
+`user` is truthy** (`app/src/app/(frontend)/layout.tsx`). The user reaches `/login` via a server 307,
+so the client router caches a **logged-out** layout segment. A soft navigation reuses that segment —
+you would land on the catalogue with no header, no nav, no avatar. **`router.refresh()` was
+load-bearing**: it was what forced the layout to re-render with the session. Deleting it trades five
+seconds for a broken shell.
+
+**Decision.** One full document navigation: `window.location.replace('/')`. Layout and page render
+once against the new cookie, so neither the double work nor the stale-shell hazard exists. Verified:
+one `GET / 200` at 4.6s, header present with the correct avatar, no console errors.
+
+- **`replace`, not `assign`** — preserves the original history semantics so Back does not revisit
+  `/login`. (Logout uses `assign('/login')`; that asymmetry is correct — there is no entry to replace.)
+- **Applied to both auth transitions**, not just the reported one: `login/LoginForm.tsx` and
+  `reset-password/ResetPasswordForm.tsx`, which had the identical pair because Payload signs the user
+  in on a successful reset. Per the 2026-08-03 lesson above — a report marks an instance, not a set.
+  `signup` and `verify-email` have no client navigation; the other `router.refresh()` call sites
+  (messages, favorites, admin widgets) are in-place refreshes after a mutation and are correct as-is.
+
+**Two evidence boundaries, stated so nobody over-reads the numbers.** These are `next dev` figures —
+per-request compile and unoptimised RSC serialisation inflate the absolute times, so prod on the Rock
+will be faster. What carries over is the structural **2×**, not the 4.4s. And live is 85 plans / 728
+lesson child rows, roughly double this corpus; the live path has not been measured.
+
+**Instrumented rather than guessed — and the guesses were all wrong.** `lib/renderTimings.ts` adds
+env-gated phase timings (`RENDER_TIMINGS=1`, a shared no-op otherwise) to the catalogue render,
+emitted as one pino record through `payload.logger` so the numbers aggregate across samples. Warm,
+43 plans:
+
+| phase | warm |
+|---|---|
+| `auth` | 15–36ms |
+| `plans` / `favorites` / `versionStubs` (concurrent) | 20–33ms each, 57–89ms for the slowest |
+| **`officialVersions`** (one find) | **4297–4585ms** |
+| `totalMs` | 4407–4660ms |
+
+**One query is 97–98% of the render.** Two throwaway probes then split it:
+
+- `depth: 2` → `depth: 0`: `officialVersions` collapses **4400ms → ~525ms**. Relationship population
+  is ~3.9s, i.e. ~85% of the entire render.
+- Dropping `lessons` + `finalExplanation` + `summaryTable` entirely, at `depth: 2`: **no change**
+  (~4.4s).
+- `depth: 1`: **~730ms** (vs ~650ms at depth 0, ~4470ms at depth 2). So essentially the whole cost is
+  the **second** population wave, not the first.
+
+**⚑ It is NOT an N+1 — that claim was in this entry and it was wrong.** Payload routes populations
+through a per-request `dataloader` that groups by collection and issues **one** `find` with
+`id: { in: ids }` per collection (`node_modules/payload/dist/collections/dataloader.js:5-9,57-88`;
+`fields/hooks/afterRead/relationshipPopulationPromise.js:28`). Batched, not per-row.
+
+**The actual mechanism, source-verified plus the depth-1 measurement.** That batched `find` passes
+`select` only from `defaultPopulate`, and **no collection in this repo sets `defaultPopulate` or
+`maxDepth`** — so populated docs come back WHOLE, and the outer `select` does not constrain them. At
+`depth: 2` the waves are:
+
+1. `subjectGrade` → subject-grades, and **`lessonPlan` → whole lesson-plans docs**;
+2. inside those: subject-grades → `subject` (4 tiny rows), and **lesson-plans → `officialVersion` →
+   whole `lesson-bundle-versions` documents** — the full nested bundles (`meta`, `unit`, `lessons[]`,
+   `finalExplanation`, `summaryTable`) for all 43 versions.
+
+Wave 2 is where the ~3.8s goes, and subjects cannot account for it — so the cost is the
+`lessonPlan → officialVersion` back-population **re-fetching in full exactly the bundles the outer
+`select` was carefully projecting away**. `depth: 2` was added to reach `subject.name`; it silently
+bought a whole-corpus refetch through a back-reference we only ever read an id from (`relId`).
+
+⚑ **So the two "obvious" optimisations are worth ~zero here**: storing a derived `lessonCount` and
+compact deliverable flags — the first things everyone (me included, and the reviewing model) proposed —
+target selects that cost nothing measurable. They would have changed the version snapshot shape,
+which is versioning-critical under SPEC §4, **for no gain**. Client wall-clock minus `total` is only
+~50–65ms, so the RSC-serialisation theory is dead too.
+
+**The general rule, since this kept happening:** at every level the plausible cause and the measured
+cause were unrelated — password → double render; serialisation → one query; row projections →
+relationship depth; and then "N+1" → a batched refetch through a back-reference. Each wrong guess was
+*mechanically specific and confidently held*. **Instrument the layer you're about to change, and read
+the installed source before naming a mechanism** (CLAUDE.md → Knowledge currency).
+
+**Step 4, not applied here — it wants its own change, measured on the live 85-plan corpus first.**
+Direction, in order of expected payoff:
+1. Stop populating `lessonPlan` — only `relId(v.lessonPlan)` is ever read. Either drop `depth` to 0/1
+   or set `maxDepth: 0` on that field. This is where the ~3.8s is.
+2. Get `subject.name` from one explicit access-controlled lookup of the **distinct** subject-grades
+   (`user`, `overrideAccess: false` preserved — the catalogue is access-gated and must stay so), rather
+   than by raising `depth` on the whole result set.
+3. Consider `defaultPopulate` on `lesson-bundle-versions` so any future population of it cannot pull
+   whole bundles again. This is the durable guard; the other two are local fixes.
+
+Browser-verify after: subject/grade grouping, strand order, Editor-vs-Teacher permissions, and pinned
+non-Official favourites (the pseudo-rows share this query's shape). **Do not** denormalise
+`lessonCount` or deliverable flags — measured at zero, and they touch the snapshot shape (SPEC §4).
+
 ## 2026-08-03 (last) — fixing the reviewed line is not fixing the problem
 
 Two small repository inconsistencies, both left behind by the Node bump, and one of them is a habit
