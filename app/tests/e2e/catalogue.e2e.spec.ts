@@ -42,9 +42,9 @@ test.describe('Catalogue (/)', () => {
   })
 
   test('row renders with its two-hop subject/grade heading, label and lesson count; Teacher gets no edit affordance', async ({
-    browser,
+    page,
   }) => {
-    const page = await loginAs(browser, fx, 'teacher')
+    await loginAs(page, fx, 'teacher')
 
     // The heading carries subject.name (two hops from the version) AND the grade (one hop), so this one
     // assertion covers both. Built with the SAME helper the page uses, rather than a hand-written
@@ -61,18 +61,15 @@ test.describe('Catalogue (/)', () => {
     // A Teacher has no edit grant, so the versions slot is absent. Asserted here rather than in its own
     // test because it needs the same session and the same row — and on its own it proves nothing.
     await expect(row.locator('.substrand-versions')).toHaveCount(0)
-
-    await page.context().close()
   })
 
-  test('canEdit: an Editor gets the edit affordance on their subject-grade', async ({ browser }) => {
-    const page = await loginAs(browser, fx, 'editor')
+  test('canEdit: an Editor gets the edit affordance on their subject-grade', async ({ page }) => {
+    await loginAs(page, fx, 'editor')
     await expect(rowFor(page)).toHaveCount(1)
     await expect(rowFor(page).locator('.substrand-versions')).toHaveCount(1)
-    await page.context().close()
   })
 
-  test('a favourite on a NON-Official version renders as a pinned pseudo-row', async ({ browser }) => {
+  test('a favourite on a NON-Official version renders as a pinned pseudo-row', async ({ page }) => {
     // A second version on the fixture plan, deliberately NOT the Official pointer, plus the teacher's
     // favourite on it — the only way a pinned pseudo-row exists (§10 / PR ②).
     const pinned = await fx.payload.create({
@@ -92,7 +89,7 @@ test.describe('Catalogue (/)', () => {
       overrideAccess: true,
     })
 
-    const page = await loginAs(browser, fx, 'teacher')
+    await loginAs(page, fx, 'teacher')
     const pinnedRow = page.locator('.substrand-row', {
       hasText: `v${PINNED_SEMVER} (pinned)`,
     })
@@ -102,6 +99,5 @@ test.describe('Catalogue (/)', () => {
       'href',
       `/lessons/${fx.plan.id}?version=${pinned.id}`,
     )
-    await page.context().close()
   })
 })

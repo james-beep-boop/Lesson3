@@ -43,7 +43,7 @@ builders drift. The long-standing `toId(sg as never)` cast is also gone from thi
 `subjectGrade` is a bare id, which is what `isEditorFor` wanted all along.
 
 **The catalogue had NO browser coverage at all** despite being the one page every role uses. It has some
-now, written BEFORE the rewrite (`tests/e2e/catalogue.e2e.spec.ts`, 4 tests, passing against the
+now, written BEFORE the rewrite (`tests/e2e/catalogue.e2e.spec.ts`, 3 tests, passing against the
 depth-2 code first). What it pins is chosen for how this change fails: silently. `subjectName` degrades
 to 'Unknown subject', `grade` to null, and `canEdit` to site-admin-only — nothing throws. The
 `canEdit` one matters most: it fails CLOSED, so an Editor silently loses their edit affordance while a

@@ -5,7 +5,7 @@
  * putting it in `login.ts` would drag the whole Payload config into the import graph of every future
  * spec that only wanted to sign a user in. Same split, and same reason, as `helpers/db.ts`.
  */
-import type { Browser, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 import { login } from './login'
 import type { RoleFixture, RoleKey } from './fixtures'
@@ -14,14 +14,18 @@ import type { RoleFixture, RoleKey } from './fixtures'
 export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 
 /**
- * Sign in as one of the fixture's seeded roles, in a fresh browser context, and return the page —
- * already ON the catalogue (`/`), because `login()` waits for that route and asserts the header.
- * A spec that wants the catalogue therefore needs NO `page.goto('/')` afterwards; that second
- * navigation is a second full server render of the route it is already looking at.
+ * Sign the given page in as one of the fixture's seeded roles. After it resolves the page is already ON
+ * the catalogue (`/`), because `login()` waits for that route and asserts the header — so a spec that
+ * wants the catalogue needs NO `page.goto('/')` afterwards; that is a second full server render of the
+ * route it is already looking at.
+ *
+ * ⚑ Takes the runner's `page` FIXTURE, not a `Browser`. The first version called `browser.newContext()`
+ * itself and returned only the page, so every context was left undisposed — the caller had no handle to
+ * close, and closing after the assertions (rather than in a `finally`) would have leaked on any failing
+ * test regardless. Playwright owns a fixture's context and tears it down per test, including flushing
+ * traces and video. The only constraint this imposes is one role per test, which is how every spec here
+ * already worked.
  */
-export async function loginAs(browser: Browser, fx: RoleFixture, key: RoleKey): Promise<Page> {
-  const context = await browser.newContext()
-  const page = await context.newPage()
+export async function loginAs(page: Page, fx: RoleFixture, key: RoleKey): Promise<void> {
   await login({ page, serverURL: E2E_BASE, user: { email: fx.users[key].email, password: fx.password } })
-  return page
 }
