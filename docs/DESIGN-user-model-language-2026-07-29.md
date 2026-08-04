@@ -186,11 +186,13 @@ fenced off.
   and for site admins (short-circuit), so the nav hot path adds no query for the common cases.
 - **Admin-title casing — settled:** sentence case everywhere ("Subject-grade administrator", "Site
   administrator"), including `userTypeLabel` and the assignment dropdown labels.
-- **Site-admin scope line — settled: one "All subjects and grades" line on BOTH surfaces.** The
-  shared resolver special-cases site admins, so the menu and Manage agree (an earlier split, where the
-  menu had no site-admin case and would show per-grant lines for a site admin holding assignment rows,
-  was the defect this consolidation fixed). Per-grant scopes are also enforced **disjoint** in the
-  resolver — a same-subject-grade `subjectAdmin`+`editor` pair lists once, under Administrator.
+- **Site-admin scope line — settled: one "All subjects and grades" line on BOTH surfaces.**
+  **⚑ SUPERSEDED 2026-08-04 — a site admin now gets NO scope line** (the line only restated
+  "Site administrator" printed directly above it; see DECISIONS 2026-08-04). What still stands is
+  everything this bullet was really protecting: the resolver keeps its site-admin **short-circuit**, so
+  the menu and Manage agree and a site admin holding assignment rows never shows per-grant lines — the
+  defect the consolidation fixed. Per-grant scopes remain enforced **disjoint** in the resolver — a
+  same-subject-grade `subjectAdmin`+`editor` pair lists once, under Administrator.
 - **Guide section heading/anchor — settled:** retitled "Editors" → "Editing", keeping the `#editors`
   anchor id so existing links don't break.
 - **Phase 2 depth — settled: copy-only.** The `EditorsWidget` component and the assign/unassign
@@ -204,8 +206,15 @@ Manage's identity line was **"Signed in as {role}"**; it is now just **"{role}"*
 lines grouped beneath it:
 
 ```text
-Site administrator
-All subjects and grades
+Subject-grade administrator
+Administrator: Biology · Grade 10
+```
+
+⚑ **Amended 2026-08-04** (see DECISIONS): the title and the type now share ONE line, and a **site admin
+has no scope line at all** — so the shape above is what a *scoped* role sees, and a site admin reads:
+
+```text
+Manage · Site administrator
 ```
 
 **Why:** "Signed in as" is redundant on a page you can only reach while authenticated, and it reads

@@ -11,6 +11,96 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-04 — Manage reordered; and the exception that could not see the case it was written for
+
+Operator request: reorder the Manage page so the frequently-used sections come first, shorten the
+opening chrome, and separate the main sections with a light rule.
+
+**Order** is now Curriculum & people → Editing access → **Lesson plans** (Upload / Delete / Repair as
+`h3` sub-headings) → Candidate versions. One order for every role; a role just sees fewer sections.
+
+**Candidate versions was kept, not removed.** The request reasoned that a site admin can already delete
+any lesson plan, so the section was redundant. It is not the same operation: deleting a *plan* destroys
+the plan and every version including the Official, while deleting a *candidate* prunes one draft and
+leaves the plan intact — so plan-delete is a bigger hammer, not a substitute. It is also the only
+**inventory**: version delete does exist on the version edit view (`LessonControls`), but only once you
+are already at that version, so without this list stale drafts are undiscoverable. And the same
+component is the Editor's "My saved versions", their only route back to unfinished work. It moved last
+and is now hidden entirely for an ADMIN with nothing to tidy (an Editor still sees the instructional
+empty state) — which made the admin variant of `savedEmpty` unreachable, so it was deleted.
+
+**Identity: "Manage · Site administrator" on one line, and the site-admin scope line is gone.**
+"All subjects and grades" only restated the type printed directly above it, and the avatar menu already
+said the same thing. Removed in the SHARED resolver (`lib/accessScopes.ts`) rather than suppressed on
+Manage, because that helper exists precisely so the two surfaces cannot drift — so it left the user
+menu too. ⚑ This SUPERSEDES the "settled" bullet in DESIGN-user-model-language-2026-07-29 §Phase 1;
+`resolveAccessSummary`'s truthfulness contract is unchanged (the type is always shown; lines are absent
+rather than wrong on a read failure — absent was always valid, a plain teacher has none), and the
+site-admin short-circuit stays, because without it an admin holding assignment rows would show
+per-grant lines again — the exact defect the consolidation fixed.
+
+**⚑ The lesson worth keeping: an exception written at the wrong level cannot see the case it exists
+for.** Section rules are a `border-top` on the heading (order and visibility are role- and
+data-dependent, so hand-placed `<hr>`s would rot). A bordered list closing with its own divider 24px
+above that rule reads as a table edge, so the first fix was
+`:has(+ .lp-admin-dash__section) > li:last-child { border-bottom: 0 }` — which requires the `<ul>` to be
+the heading's DIRECT sibling. `DeletePlansPanel` wraps its list in a div, so the artifact still rendered
+in the state the page is in most of the time. **And the check I used to verify the fix shared the fix's
+own assumption** (it looked only at direct-sibling `<ul>`s), so it reported success. Replaced with one
+unconditional rule — bordered lists draw dividers *between* rows and never close with one — which needs
+no exception list that grows with every panel that wraps its markup.
+
+Two related sharpenings, same theme: `:first-of-type` became `&__section ~ &__section`, which states
+"a section following another section" directly instead of relying on the coincidence that React
+fragments emit no DOM nodes (and now fails loudly — all rules vanish — rather than drawing one under
+the title); and both are pinned in `manage.e2e.spec.ts`, since a broken separator is purely visual and
+no other assertion would catch it.
+
+Also: `h3` rank is now written down in `app-tokens.scss` (18px names a sub-region of a section, 16px
+labels a group inside a widget's list), because this change added a second `h3` idiom next to
+`EditorsWidget`'s and left heading level no longer predicting size.
+
+**Manage perf: FIXED in the same working tree — 8.0s → ~170ms (~48×).** The review that produced this
+entry flagged Manage as carrying the same `depth: 2` whole-bundle back-population as the catalogue. It
+was then measured and rewritten rather than deferred, so the paragraph that once read "NOT fixed here"
+is superseded by what follows.
+
+**Measured first, on a 43-plan / 44-version corpus.** Both finds timed with `lib/renderTimings.ts`:
+`versions` 7504–8345ms, `plans` 3543–4419ms, `totalMs` 7508–8345ms — to render **one** candidate row and
+43 plan rows, i.e. ~1.8× the catalogue's ~4.6s. That settled the one claim that had been inference
+rather than measurement ("worse than the catalogue"). After: `versions` 95–134ms, `plans` 24–44ms, the
+four new lookups ~90ms combined, `totalMs` **164–221ms**, identical rows.
+
+**The change is read-shape only.** Both finds go to `depth: 0`; four explicit depth-0 lookups over
+DISTINCT ids resolve exactly the strings the rows display — `subject-grades.displayName`, `users.name`,
+the Official's `meta.substrand_name`, and (for non-Site-Admins) `lesson-plans.officialVersion`. Every
+one keeps `overrideAccess: false` + `user`; population respected access too, so nothing widened. No
+schema change, no `defaultPopulate`, no denormalisation — the last of those is measured at zero.
+
+**⚑ The trap, and why the test came first.** The Official-exclusion filter read the POPULATED plan and
+returned `plan == null || …` — it failed **OPEN**. At `depth: 0` `v.lessonPlan` is a bare id, so that
+check would have kept every row and listed every Official in the corpus as deletable, breaking this
+module's "no row is shown that the server would refuse" contract. Caught in review before implementation.
+The invariant was therefore pinned in `manage.e2e.spec.ts` **against the depth-2 code**, where it passed
+immediately — a test written after the rewrite would only have described whatever got built. The filter
+now builds plan id → Official id and fails **CLOSED**; `lessonPlanRead` is `Boolean(user)`, so the map is
+always complete and an absent id is a can't-happen rather than a silently dropped row.
+
+**A failing test turned out to be a symptom, not noise.** "Site Admin can delete a plan" had failed
+locally for this whole session. It was verified as pre-existing (it failed identically at HEAD with all
+work stashed) and reported as a known local-only failure — but it was caused by exactly this bug: the
+test waits 5s for a row to disappear after `router.refresh()`, and the re-render took ~8s. At ~170ms it
+passes; the suite is now 7/7. **Lesson: "pre-existing and reproducible in isolation" proves you did not
+cause a failure, it does not make the failure unrelated.** A test that fails only where the code is slow
+is evidence about the slowness, especially once the slowness has been measured.
+
+⚑ **Still open — the CATALOGUE, deliberately not touched here.** `app/src/app/(frontend)/page.tsx`'s
+`officialVersions` find is still `depth: 2` and still ~3.6s of its ~4.6s render. Its *initial* reads were
+always `depth: 0`, which makes the file read as though it were already fixed; it is not. It wants its own
+change rather than a copy of this one — the pinned-version pseudo-rows and the subject-name path carry
+requirements Manage does not have. Also unverified: every number here is local. The Rock's 85-plan /
+728-lesson-row corpus has not been measured.
+
 ## 2026-08-03 (perf) — the 5–7s login was the catalogue rendered twice, and the obvious fix breaks the header
 
 **Symptom.** Signing in took 5–7 seconds. Suspicion fell on password hashing; that was wrong.

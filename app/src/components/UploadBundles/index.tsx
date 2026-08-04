@@ -95,8 +95,10 @@ export default function UploadBundles() {
         background: 'var(--theme-elevation-50)',
       }}
     >
-      <strong>Upload lesson plans</strong>
-      <p style={{ margin: '0.25rem 0 0.75rem', color: 'var(--theme-elevation-600)', fontSize: '0.85rem' }}>
+      {/* Heading lives on Manage ("Upload lesson plans"); not repeated here. `lp-manage__desc` is the
+          shared help-text class the sibling panels use — the inline style it replaces had drifted to
+          0.85rem (13.6px) against the 14px token and had no max-width measure. */}
+      <p className="lp-manage__desc">
         Site administrator only. ARES <code>.json</code> exports are validated and saved as
         Official 1.0.0 versions. The upload never executes the file; only JSON data is parsed.
       </p>

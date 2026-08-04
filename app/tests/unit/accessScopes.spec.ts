@@ -126,12 +126,12 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
 })
 
 describe('resolveAccessSummary — type + lines, one source of truth for both surfaces', () => {
-  it('shows a site admin full access without querying, even when they hold assignment rows', async () => {
+  it('shows a site admin the type only, no scope line and no query, even with assignment rows', async () => {
     const { payload, find } = stubPayload(CATALOGUE)
     const u = user(['siteAdmin'], [{ sg: 10, role: 'subjectAdmin' }])
     expect(await resolveAccessSummary(payload, u)).toEqual({
       typeLabel: 'Site administrator',
-      lines: ['All subjects and grades'],
+      lines: [],
     })
     expect(find).not.toHaveBeenCalled()
   })

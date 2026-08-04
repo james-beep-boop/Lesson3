@@ -397,8 +397,8 @@ Manage inspected as **both** roles, at **390 / 550 / 700 / 1280**, in **both** s
 
 | | Editor (`editor@local.test`, Biology Grade 10) | Site Administrator |
 |---|---|---|
-| Identity block | "Teacher" / "Editing access: Biology · Grade 10" | "Site administrator" / "All subjects and grades" |
-| Sections | 1 — My saved versions | 5 |
+| Identity block | "Teacher" / "Editing access: Biology · Grade 10" | "Manage · Site administrator" (one line, no scope line — amended 2026-08-04) |
+| Sections | 1 — My saved versions | 4 (Curriculum & people · Editing access · Lesson plans · Candidate versions — reordered 2026-08-04; Candidate versions is hidden for an admin with none) |
 | Populated row | `Cell Structure` · one metadata line · Continue editing + Delete | same, plus author |
 | Version badge | gone (plain metadata) | gone |
 | Empty state | corrected copy, above a divider, 24px block | corrected copy |

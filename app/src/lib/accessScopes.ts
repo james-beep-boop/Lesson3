@@ -69,14 +69,21 @@ export interface AccessSummary {
  * site admin who also held assignment rows, diverging from Manage).
  *
  * A site admin has global access, so per-subject-grade grant lines would be noise (and they may still
- * hold assignment rows); they get one "full access" line and no scope query is issued.
+ * hold assignment rows): NO scope line, and no scope query is issued.
+ *
+ * ⚑ That used to be one line reading "All subjects and grades". It was dropped 2026-08-04 (operator
+ * request) because it only restates the type printed directly above it — "Site administrator" already
+ * says the access is global, so the line spent a row on both surfaces to add nothing. The truthfulness
+ * contract is UNCHANGED and is why the *type* was not the thing removed: the type is always shown, and
+ * scope lines are absent rather than wrong when a read fails (see `AppNav`'s `.catch`). Absent has
+ * always been a valid state here — a plain teacher has no lines either.
  */
 export async function resolveAccessSummary(
   payload: Payload,
   user: User | null | undefined,
 ): Promise<AccessSummary> {
   const typeLabel = userTypeLabel(user)
-  if (isSiteAdmin(user)) return { typeLabel, lines: ['All subjects and grades'] }
+  if (isSiteAdmin(user)) return { typeLabel, lines: [] }
   return { typeLabel, lines: scopeLines(await resolveAccessScopes(payload, user)) }
 }
 

@@ -238,8 +238,10 @@ helpers). Implements `docs/DESIGN-user-model-language-2026-07-29.md`.
   admin's scope shows under "Administrator: `<scopes>`".
 - **One source of truth**: `lib/accessScopes.ts` (`resolveAccessSummary`) computes type + scope lines,
   shared by the user menu (`AppNav`) and Manage so they can't drift — including the site-admin case
-  ("All subjects and grades" on both). Disjointness is **enforced in the resolver** (a same-SG
-  admin+editor pair, reachable via the demote path, lists once under Administrator).
+  (as of 2026-08-04: NO scope line on either surface, the type alone carries global access; the
+  short-circuit that keeps per-grant lines off a site admin is unchanged). Disjointness is **enforced
+  in the resolver** (a same-SG admin+editor pair, reachable via the demote path, lists once under
+  Administrator).
 - Copy sweep across widget/email/preview+upload errors/guide (`#editors` anchor kept)/`USER_GUIDE.md`/
   `SPEC.md` §5/§8; `payload-types.ts` regenerated for the one changed field description. Also folded in
   the minor guide-width tidy (fills the shared 960px column).

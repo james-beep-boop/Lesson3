@@ -25,8 +25,12 @@ import type { Payload } from 'payload'
 export interface RenderTimings {
   /** Run `work`, recording how long it took under `label`. Records on throw too. */
   time<T>(label: string, work: () => Promise<T>): Promise<T>
-  /** Emit one structured record for the whole render. Call once, at the end. */
-  report(logger: Payload['logger']): void
+  /**
+   * Emit one structured record for the whole render. Call once, at the end. `context` adds fields
+   * alongside the timings — row counts, corpus size, whatever makes a duration interpretable; a
+   * timing without the size it was measured against cannot be compared to the next sample.
+   */
+  report(logger: Payload['logger'], context?: Record<string, number | string | boolean>): void
 }
 
 const NOOP: RenderTimings = {
@@ -50,9 +54,9 @@ export function startRenderTimings(route: string): RenderTimings {
         phases[label] = Math.round(performance.now() - t0)
       }
     },
-    report(logger) {
+    report(logger, context) {
       const totalMs = Math.round(performance.now() - started)
-      logger.info({ route, totalMs, phases }, 'render timings')
+      logger.info({ route, totalMs, phases, ...context }, 'render timings')
     },
   }
 }

@@ -23,6 +23,12 @@
   --app-section-title-size: 20px; /* page section, weight 600 */
   --app-list-heading-size: 18px; /* list/group heading, weight 600 — names an existing frontend value */
   --app-body-size: 16px; /* body; a MINOR heading is this size at weight 600 */
+  /* Which of the two an <h3> takes is NOT free choice (settled 2026-08-04, when Manage gained a second
+     h3 idiom): 18 names a SUB-REGION of a section — its own heading + panel, e.g. Manage's Upload /
+     Delete / Repair under "Lesson plans" (.lp-admin-dash__subsection). 16 labels a GROUP INSIDE one
+     widget's list, e.g. the per-subject-grade heads within Editing access (.lp-manage__editors-head).
+     Same heading level, different rank, because the second is structure within a control, not a region
+     of the page. */
   --app-secondary-size: 14px; /* metadata, descriptions, help text */
   --app-line-height: 1.55; /* body copy. The frontend has always used 1.55; the admin inherited
                               Payload's ~1.25, so the same paragraph rendered visibly denser there.

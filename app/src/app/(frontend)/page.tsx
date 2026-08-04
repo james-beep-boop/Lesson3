@@ -92,9 +92,17 @@ export default async function BrowsePage({
     if (versionId != null) favByVersion.set(versionId, f.id)
   }
 
-  // 2. Load those Official versions with a light projection — the version carries meta/unit/lessons.
-  //    `lessons: { id: true }` yields the count via length without loading lesson bodies; depth 2
-  //    resolves the subject name. `lessonPlan` maps each version back to its plan (the row link).
+  // 2. Load those Official versions — the version carries meta/unit/lessons. `lessons: { id: true }`
+  //    yields the count via length; depth 2 resolves the subject name through `subjectGrade`;
+  //    `lessonPlan` maps each version back to its plan (the row link).
+  //    ⚑ NOT a light projection, despite how it reads. `select` does not constrain POPULATED documents
+  //    (they use `defaultPopulate`, which no collection here sets), so `depth: 2` walks
+  //    `lessonPlan → officialVersion` and pulls whole bundles back — measured at ~3.6s of a ~4.6s
+  //    render on 43 plans (DECISIONS 2026-08-03 perf / 2026-08-04). Manage had the same shape and was
+  //    rewritten to `depth: 0` + explicit lookups (~48× there); THIS query is still unfixed and wants
+  //    its own change, because pinned-version rows and subject names add requirements Manage did not
+  //    have. Trimming `lessons`/`finalExplanation`/`summaryTable` here is measured at zero — the cost
+  //    is the depth, not the select.
   const { docs: versions } = officialIds.length
     ? await t.time('officialVersions', () =>
         payload.find({
