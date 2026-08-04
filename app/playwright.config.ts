@@ -15,14 +15,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* ONE worker, always — not just on CI (changed 2026-08-04, when a second spec file was added).
-     Every e2e spec seeds `setupRoleFixture`, which opens with a NAMESPACE-WIDE sweep
-     (`purgeMarked(payload, MARK_BASE)`, fixtures.ts) to clear leftovers from crashed runs. That sweep
-     is correct and worth keeping, but it means two spec files in parallel workers delete each other's
-     fixtures — they share one database, and `MARK` is per-process while the sweep is per-namespace.
-     With a single spec file this never surfaced; with two it fails immediately and confusingly (the
-     victim reports a missing row, not a conflict). Serial is also what CI has always run, so this makes
-     local match CI rather than changing the contract. */
+  /* ONE worker, always. `setupRoleFixture` opens with a namespace-wide purge, so two spec files in
+     parallel workers delete each other's fixtures. CI already ran serial; this makes local match it.
+     See DECISIONS 2026-08-04 (late), and the cross-reference in tests/helpers/fixtures.ts. */
   workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',

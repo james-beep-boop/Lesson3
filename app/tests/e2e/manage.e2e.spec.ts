@@ -24,16 +24,8 @@
  */
 import { test, expect, type Browser, type Page } from '@playwright/test'
 
-import { login } from '../helpers/login'
-import {
-  MARK,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-  type RoleKey,
-} from '../helpers/fixtures'
-
-const BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
+import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures'
 
 const POINTERLESS_TITLE = `${MARK}Pointerless Plan`
 const DELETABLE_TITLE = `${MARK}Deletable Plan`
@@ -41,12 +33,8 @@ const CANDIDATE_TITLE = `${MARK}Plan v1.1.0`
 
 let fx: RoleFixture
 
-async function loginAs(browser: Browser, key: RoleKey): Promise<Page> {
-  const context = await browser.newContext()
-  const page = await context.newPage()
-  await login({ page, serverURL: BASE, user: { email: fx.users[key].email, password: fx.password } })
-  return page
-}
+/** Thin wrapper so the many call sites below keep reading `loginAs(browser, 'editor')`. */
+const loginAs = (browser: Browser, key: RoleKey): Promise<Page> => loginAsRole(browser, fx, key)
 
 test.describe('Manage page', () => {
   test.beforeAll(async () => {

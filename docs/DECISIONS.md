@@ -63,6 +63,36 @@ contract). The sweep itself is correct and was left alone.
 property of the code, it is a property of there being one caller. Both the `:has(+ …)` separator
 exception and this fixture sweep were fine until a second instance existed.
 
+**⚑ Correction — "trimming the selects is measured at zero" was WRONG, and the way it was wrong is the
+lesson.** That claim was made in this file and in a code comment while the baseline was 4.0–4.8s with an
+~860ms sample spread — it could not detect anything under a second. Re-measured now that the render is
+~630ms: removing `finalExplanation`/`summaryTable` from the version select takes `officialVersions`
+518–548ms → **281–291ms** and the render 608–651ms → **378–384ms**. So those two selects are **~240ms,
+about 38% of what remains** — the largest single item left, not zero. **A null result is only as strong
+as the noise floor it was taken against, and it does not survive the thing it measured getting 7× faster.**
+Both statements of it are now corrected rather than deleted, so the reasoning error stays visible.
+
+**Follow-ups, in priority order (none applied here):**
+1. **`defaultPopulate` on `lesson-bundle-versions`** — the class-level fix this file has now worked
+   around twice, per page. Verified in installed source
+   (`fields/hooks/afterRead/relationshipPopulationPromise.js:38`) that it applies ONLY to relationship
+   population, never to a direct `find`/`findByID`: every generator/export/preview path reads directly at
+   depth 0 and would be **untouched**. A per-call `populate` still overrides it. It **must include
+   `title`** (`useAsTitle`) or Payload's own edit-view relationship inputs render blank. Two live
+   unfixed instances it would fix for free, neither ever measured: `messages/page.tsx` (`depth: 1` over
+   up to 1000 rows, populating whole bundles the consumer only reads an id from) and — worse —
+   `FavoriteToggle.tsx`'s `POST /api/favorites` with no `depth=0`, which returns the created doc at
+   `defaultDepth: 2` and so walks version → whole bundle → plan → **a second whole bundle**, on the
+   hottest click in the product, to read `body.doc.id`. Pin it with a wiring test (the repo has the genre).
+2. **Narrow the deliverable projection** (the ~240ms above) — needs an equivalence test first, because
+   `clean()` drops `id`, so an id-only projection collapses rows to `{}` and silently empties every strip.
+3. **`versionStubs`** is the one remaining query that grows with every save-as-new (O(all versions), not
+   O(plans)) — replaceable by a `joins: { versions: { count: true } }` on the existing plans find, which
+   compiles to a correlated `count()` in the same statement.
+4. **Extract `loadCatalogueRows()`** to `lib/` so the query↔mapping seam is int-testable and the
+   role-sensitive `canEdit` stops costing two browser logins; then e2e keeps one render smoke test.
+5. **Re-enable parallel e2e** by age-bounding the fixture sweep or moving it to `globalSetup`.
+
 ## 2026-08-04 — Manage reordered; and the exception that could not see the case it was written for
 
 Operator request: reorder the Manage page so the frequently-used sections come first, shorten the

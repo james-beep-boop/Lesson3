@@ -40,6 +40,13 @@ export const MARK_BASE = 'ZZ_INT_'
  * the namespace. Generated once per test process; the specs import this same module binding, so their
  * ad-hoc records inherit the run marker for free (no spec changes needed). Bounds the blast radius of
  * the broad `like`-delete against the live `lesson3` DB the HTTP suite runs against.
+ *
+ * ⚑ "not a concurrent run's" describes TEARDOWN only. `setupRoleFixture` below opens with a
+ * namespace-wide sweep (`purgeMarked(payload, MARK_BASE)`) for crashed-run leftovers, which DOES reach a
+ * concurrent run's rows — so two spec files running at once still destroy each other. That is why
+ * `playwright.config.ts` pins `workers: 1` and `vitest.config.mts` sets `fileParallelism: false`. Before
+ * re-enabling parallelism, age-bound the sweep (`createdAt < now - 15min`) or move it to a `globalSetup`
+ * that runs once; do not simply narrow it to `MARK`, or crashed-run rows accumulate forever.
  */
 export const MARK = `${MARK_BASE}${randomUUID()}_`
 

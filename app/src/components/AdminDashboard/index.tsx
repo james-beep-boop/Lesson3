@@ -6,7 +6,7 @@ import type { AdminViewServerProps } from 'payload'
 import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
-import { relId } from '../../lib/relId'
+import { relId, distinctIds } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
@@ -121,19 +121,16 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // (SPEC §8 as amended 2026-07-02; `name` has no read restriction). Select ONLY `name`: `email`,
   // `roles` and `assignments` are the field-gated ones, and `lib/editorGroups.ts` remains the single
   // trusted `overrideAccess: true` projection — do not reach for it here.
-  const distinct = (ids: (number | null)[]): number[] => [
-    ...new Set(ids.filter((id): id is number => id != null)),
-  ]
-  const sgIds = distinct([
+  const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
   ])
-  const authorIds = distinct(versionDocs.map((v) => relId(v.author)))
-  const officialIds = distinct(planDocs.map((p) => relId(p.officialVersion)))
+  const authorIds = distinctIds(versionDocs.map((v) => relId(v.author)))
+  const officialIds = distinctIds(planDocs.map((p) => relId(p.officialVersion)))
   // Official pointers drive the candidate exclusion below. A Site Admin's plans fetch already carries
   // every plan, so reuse it; other roles have no plans fetch, so look up only the plans their own
   // versions reference.
-  const exclusionPlanIds = siteAdmin ? [] : distinct(versionDocs.map((v) => relId(v.lessonPlan)))
+  const exclusionPlanIds = siteAdmin ? [] : distinctIds(versionDocs.map((v) => relId(v.lessonPlan)))
 
   const [sgRes, authorRes, exclusionRes, officialMetaRes] = await Promise.all([
     sgIds.length === 0
