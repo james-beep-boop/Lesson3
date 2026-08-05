@@ -81,9 +81,10 @@ jobs:
       - name: test:unit
         # `envTemplateParity.spec.ts` compares the ROOT `.env.example` (what a Compose operator copies)
         # against the app's own template, so it needs a file from outside `app/`. With only `app/`
-        # mounted it fails six named assertions telling you to mount the repo root and set
-        # LESSON3_REPO_ROOT — the guard in `readTemplate` makes that failure self-explaining rather
-        # than a bare collection-time ENOENT. `app/` stays mounted at `/app` so the image's
+        # mounted it fails six named assertions telling you to mount that ONE FILE at
+        # $LESSON3_REPO_ROOT/.env.example — the guard in `readTemplate` makes that failure
+        # self-explaining rather than a bare collection-time ENOENT, and it names the narrow remedy
+        # rather than the workspace mount this step used to use. `app/` stays mounted at `/app` so the image's
         # `node_modules` volume trick keeps working unchanged.
         #
         # ONLY that one file is mounted, NOT the workspace. Mounting `$PWD` would put `.git` inside a

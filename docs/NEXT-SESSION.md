@@ -21,9 +21,14 @@ This work is being handed to a **different account**. The single thing that matt
 > **`chore/env-template-parity` holds a stack of commits branched from `main` `5843551`**, six review
 > rounds deep. It was held back from pushing while those rounds kept finding real defects; it has since
 > been **pushed and opened as a PR**, so it is no longer laptop-only. Confirm rather than trust this
-> sentence — the commands below say which is true today, and if the remote branch is somehow gone, SPEC
-> §5 and `docs/DESIGN-working-drafts.md` are complete and self-contained (only the env-parity test and
-> the CI mount would need re-doing).
+> sentence — the commands below say which is true today.
+>
+> ⚑ **A missing remote branch is NOT proof the work is lost.** GitHub deletes the head branch on merge,
+> so `git ls-remote` going empty is the *expected* end state — check the PR first: merged means these
+> commits are already in `origin/main` and there is nothing to recover. Only if no PR ever existed AND
+> the branch is absent AND `origin/main` lacks the commits is the stack actually gone; SPEC §5 and
+> `docs/DESIGN-working-drafts.md` are complete and self-contained in that case (only the env-parity test
+> and the CI mount would need re-doing).
 >
 > ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
 > is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
@@ -35,8 +40,10 @@ This work is being handed to a **different account**. The single thing that matt
 
 ```bash
 git fetch --all --prune
-git ls-remote --heads origin chore/env-template-parity   # empty output ⇒ it was never pushed
-git log --oneline origin/main..origin/chore/env-template-parity   # the stack as PUSHED, or empty if lost
+gh pr list --state all --head chore/env-template-parity \
+  --json number,state,mergedAt,mergeCommit   # ASK THIS FIRST — merged means the work is in main
+git ls-remote --heads origin chore/env-template-parity   # empty ⇒ branch GONE, which is normal after merge
+git log --oneline origin/main..origin/chore/env-template-parity   # the stack, if the branch still exists
 git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
 ```
 
@@ -61,9 +68,11 @@ All documentation, config templates, one new unit test, one CI mount change, one
    The root template declared 5 of 58 variables the app reads; the missing `ARTIFACT_CACHE_DIR` breaks
    every export with `EACCES` on a fresh install. Reverses the Codex #5 deferral.
 2. **A CI blocker this branch introduced, caught by a `/simplify` pass**: `test:unit` mounts only `app/`,
-   so the spec could not see the root template and would have failed *every* CI run with an `ENOENT` at
-   collection time. `.github/workflows/ci.yml` now also mounts the repo read-only with
-   `LESSON3_REPO_ROOT`.
+   so the spec could not see the root template and would have failed *every* CI run.
+   `.github/workflows/ci.yml` now bind-mounts **the root `.env.example` alone** at `LESSON3_REPO_ROOT`,
+   with `--network none`. It briefly mounted the whole workspace instead — which put `.git`, and the
+   token a checkout persists in it, inside a container running third-party dev dependencies. Do not
+   widen it back.
 3. **`IdleLogout` docstring corrected** — it claimed `logOut()` redirects; it does not navigate at all.
 4. **Edit recovery reconciled and APPROVED, with no code written**: `SPEC.md` §5 (normative) + §13
    (reserved words), `AGENTS.md` native-fields rule narrowed, `docs/DESIGN-working-drafts.md` rewritten

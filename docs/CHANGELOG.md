@@ -24,7 +24,9 @@ A commit stack on `chore/env-template-parity`, branched from `main` `5843551`, l
   broken install.
 - **A CI blocker fixed that this branch introduced and a cleanup review caught.** `test:unit` runs in a
   container mounting only `app/`, where the root template is invisible; the spec would have failed every
-  CI run with an `ENOENT` at collection time. CI now mounts the repo read-only.
+  CI run. CI now bind-mounts the root `.env.example` alone at `LESSON3_REPO_ROOT`, with `--network none`
+  — an interim fix mounted the entire workspace, exposing `.git` and its persisted checkout token to the
+  test container, and was replaced before merge.
 - **`IdleLogout`'s docstring claimed a redirect that never happens.** `logOut()` performs no navigation
   (verified in installed `@payloadcms/ui` 3.85.1); the destroying path is Payload's own
   `forceLogOutTimeout`. That one false clause had already sent a reviewer to the wrong mechanism.

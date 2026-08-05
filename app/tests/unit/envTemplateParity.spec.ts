@@ -548,7 +548,7 @@ const readTemplate = (path: string): Record<string, string> => {
     raw = readFileSync(path, 'utf8')
   } catch {
     throw new Error(
-      `env template not found: ${path}. If this is CI, the runner must mount the repo root and set LESSON3_REPO_ROOT (see .github/workflows/ci.yml).`,
+      `env template not found: ${path}. If this is CI, mount the ROOT .env.example ALONE at $LESSON3_REPO_ROOT/.env.example — e.g. -v "$PWD/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo. Do NOT mount the workspace: that puts .git, and the token a checkout persists there, inside this container (see .github/workflows/ci.yml).`,
     )
   }
   return parseEnvFile(raw)

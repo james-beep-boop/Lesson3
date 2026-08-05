@@ -253,8 +253,9 @@ gates merges.
 
 Two durable lessons. **The mount boundary is a real interface**: this was the only test under
 `app/tests` reaching above `app/`, and nothing warned that CI's container cannot see up there. CI now
-mounts the repo read-only and passes `LESSON3_REPO_ROOT`; the spec fails a NAMED test with the remedy
-when a template is missing. **And an "altitude" reviewer asking "is this at the right depth?" found a
+bind-mounts the root `.env.example` ALONE at `LESSON3_REPO_ROOT` (the first fix mounted the whole
+workspace — see the round-eight entry at the top of this file for why that was withdrawn); the spec
+fails a NAMED test when a template is missing, and that message names the narrow remedy. **And an "altitude" reviewer asking "is this at the right depth?" found a
 defect four correctness-focused rounds had missed** — because it was the only reviewer asking where the
 code *runs* rather than what it computes.
 
