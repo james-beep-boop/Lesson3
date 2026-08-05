@@ -30,6 +30,7 @@ import {
 import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { cascadeDeleteVersionFavorites } from './Favorites'
+import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -88,7 +89,11 @@ export const LessonBundleVersions: CollectionConfig = {
     // Retention: the Official version cannot be deleted (would orphan the plan pointer). Favorites
     // are per-version (§10) with a NOT NULL version FK — cascade them before the row goes; this
     // runs per row on bulk deletes too, so the plan-delete cascade path is covered here as well.
-    beforeDelete: [enforceOfficialNotDeletable, cascadeDeleteVersionFavorites],
+    beforeDelete: [
+      enforceOfficialNotDeletable,
+      cascadeDeleteVersionFavorites,
+      cascadeDeleteVersionRecovery,
+    ],
   },
   endpoints: [
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.

@@ -13,6 +13,7 @@ import { SubjectGrade } from './collections/SubjectGrade'
 import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
 import { Favorites } from './collections/Favorites'
+import { EditRecovery } from './collections/EditRecovery'
 import { Messages } from './collections/Messages'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
@@ -116,7 +117,16 @@ export default buildConfig({
   },
   // Order here drives the admin nav order (groups appear by first-seen): Lesson plans →
   // Curriculum (Subjects, Subject Grades) → People (Users). See each collection's admin.group.
-  collections: [LessonPlans, LessonBundleVersions, Subject, SubjectGrade, Users, Favorites, Messages],
+  collections: [
+    LessonPlans,
+    LessonBundleVersions,
+    Subject,
+    SubjectGrade,
+    Users,
+    Favorites,
+    Messages,
+    EditRecovery,
+  ],
   // Jobs Queue (SPEC §9/§11; readiness #1) — heavy export generation runs async + throttled.
   // Defining a task creates the `payload-jobs` collection (a schema migration). The in-process
   // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,

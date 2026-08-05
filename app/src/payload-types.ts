@@ -74,6 +74,7 @@ export interface Config {
     users: User;
     favorites: Favorite;
     messages: Message;
+    'edit-recovery': EditRecovery;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -89,6 +90,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
     messages: MessagesSelect<false> | MessagesSelect<true>;
+    'edit-recovery': EditRecoverySelect<false> | EditRecoverySelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -415,6 +417,32 @@ export interface Message {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "edit-recovery".
+ */
+export interface EditRecovery {
+  id: number;
+  user: number | User;
+  sourceVersion: number | LessonBundleVersion;
+  lessonPlan: number | LessonPlan;
+  generation: number;
+  revision: number;
+  retiredAt?: string | null;
+  baseUpdatedAt: string;
+  schemaVersion: string;
+  content?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -558,6 +586,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'messages';
         value: number | Message;
+      } | null)
+    | ({
+        relationTo: 'edit-recovery';
+        value: number | EditRecovery;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -847,6 +879,23 @@ export interface MessagesSelect<T extends boolean = true> {
   lessonPlan?: T;
   version?: T;
   readAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "edit-recovery_select".
+ */
+export interface EditRecoverySelect<T extends boolean = true> {
+  user?: T;
+  sourceVersion?: T;
+  lessonPlan?: T;
+  generation?: T;
+  revision?: T;
+  retiredAt?: T;
+  baseUpdatedAt?: T;
+  schemaVersion?: T;
+  content?: T;
   updatedAt?: T;
   createdAt?: T;
 }
