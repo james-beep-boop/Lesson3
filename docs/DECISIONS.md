@@ -44,6 +44,13 @@ to have generalised it away. Fixed by resolving baseUrl instead of skipping it.
 - **A derived fact is a SHA.** "13 commits", "30 cases", "the trees match" invalidate on exactly the
   events a tip SHA does. A document that has correctly sworn off SHAs has not thereby sworn off
   self-invalidation — write the *command*, not the answer. Every count in a handoff is a latent defect.
+  **An inventory is a derived fact too**: the recovery block claimed a total loss would cost "only the
+  env-parity test and the CI mount", when the stack also carried SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`,
+  both `.env.example` templates and `IdleLogout` — and it cited SPEC §5 as an intact fallback while
+  being the thing that edits SPEC. A recovery document must not describe its own contents from memory;
+  it now prints `git diff --stat origin/main...FETCH_HEAD` off `refs/pull/<n>/head`, which is also the
+  recovery path itself (that ref survives head-branch deletion for any closed PR, merged or not — the
+  earlier text treated a deleted branch plus a non-merged PR as unrecoverable, which it never was).
 - **Verification instructions need the same scrutiny as the code they verify.** Three of the four defects
   were in commands or comparisons offered *as the way to check* — the reader trusts them precisely when
   they have no other source of truth, which is the worst moment to be wrong. Run the command and read its

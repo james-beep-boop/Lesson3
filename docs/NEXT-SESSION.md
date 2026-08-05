@@ -24,11 +24,22 @@ This work is being handed to a **different account**. The single thing that matt
 > sentence — the commands below say which is true today.
 >
 > ⚑ **A missing remote branch is NOT proof the work is lost.** GitHub deletes the head branch on merge,
-> so `git ls-remote` going empty is the *expected* end state — check the PR first: merged means these
-> commits are already in `origin/main` and there is nothing to recover. Only if no PR ever existed AND
-> the branch is absent AND `origin/main` lacks the commits is the stack actually gone; SPEC §5 and
-> `docs/DESIGN-working-drafts.md` are complete and self-contained in that case (only the env-parity test
-> and the CI mount would need re-doing).
+> so `git ls-remote` going empty is the *expected* end state. Three places the commits can still be,
+> checked in order: **(1) merged** — they are in `origin/main`, nothing to recover; **(2) the PR's own
+> ref** — `refs/pull/<n>/head` survives head-branch deletion for *any* closed PR, merged or not, so
+> `git fetch origin refs/pull/<n>/head` brings the whole stack back; **(3)** the previous operator's
+> machine. Declare loss only when all three fail.
+>
+> ⚑ **Do not trust any prose summary of what would then need rebuilding**, including one written here.
+> A stale version of this very sentence claimed it was "only the env-parity test and the CI mount" —
+> while the stack also carries SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`, **both** `.env.example` templates
+> (including the `ARTIFACT_CACHE_DIR` fix that repairs a broken-on-arrival install), `IdleLogout`, and
+> four documents. It even cited SPEC §5 as an intact fallback while the stack is what *edits* SPEC. Ask
+> git for the scope instead of believing a list:
+>
+> ```bash
+> git fetch origin refs/pull/<n>/head && git diff --stat origin/main...FETCH_HEAD
+> ```
 >
 > ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
 > is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
