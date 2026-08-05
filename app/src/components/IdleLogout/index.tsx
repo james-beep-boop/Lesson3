@@ -14,8 +14,21 @@
  *
  * It uses Payload's own auth context: `tokenExpirationMs` is the live deadline (Payload moves
  * it forward whenever the token is refreshed — e.g. the user clicks "Stay logged in" or stays
- * active), and `logOut()` performs the real server logout + redirect. So this never logs out
- * an active user; it only enforces the deadline a stale tab would otherwise ignore.
+ * active), and `logOut()` performs the real server logout. So this never logs out an active
+ * user; it only enforces the deadline a stale tab would otherwise ignore.
+ *
+ * ⚑ `logOut()` DOES NOT NAVIGATE. Verified in installed @payloadcms/ui 3.85.1
+ * (`providers/Auth/index.js`): it POSTs `/<collection>/logout` and clears the in-memory user, nothing
+ * more. The `router.replace()` belongs to `redirectToInactivityRoute()`, which only Payload's OWN
+ * `forceLogOutTimeout` calls. This docstring used to claim "logout + redirect", and that one false
+ * half sent a reviewer hunting the work-destroying path here, where it is not.
+ *
+ * So this component leaves a ZOMBIE EDITOR: work on screen, session dead, every save 401ing — and on
+ * the shared school machines this deployment targets (SPEC §13), the next person at the keyboard sees
+ * the previous teacher's content. Payload's own timeout is the separate path that unmounts and destroys
+ * unsaved work. Both are open gaps against the SPEC §5 durability invariant; the two mechanisms, and
+ * the fix (server-side edit recovery), are analysed in `docs/DESIGN-working-drafts.md` §1 — kept there
+ * rather than restated here, so the two cannot drift apart.
  *
  * Mounted via admin.components.providers, so it's always present and (per Payload's provider
  * tree) rendered inside AuthProvider. It renders its children unchanged.

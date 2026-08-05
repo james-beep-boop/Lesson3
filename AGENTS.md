@@ -13,6 +13,15 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   field-level) and **hooks** (`beforeChange`/`afterChange`) for versioning side-effects and generator
   invocation. Payload 3 is a Next.js-native rewrite — treat pre-2026 API recollection as suspect;
   trust installed source.
+  - **Scope of the native-fields rule (narrowed 2026-08-05):** it governs the **content of record** —
+    anything the generator consumes, versioning snapshots, or field-level RBAC applies to. That is
+    where a JSON blob would be disqualifying (§0/§3 of `SPEC.md`). It does **not** extend to a
+    transient, non-exported, owner-only *overlay* of content of record. The one sanctioned exception
+    today is `edit-recovery` (SPEC §5): a sparse map of prose leaves keyed by row id, which native
+    fields cannot express — every field would be optional, sparseness would be lost, and a capture
+    written against an older field shape could not be stored at all, defeating its own schema-drift
+    rule. Any further exception needs the same written justification in `SPEC.md`, not a judgement
+    call at edit time.
 - **DOCX/PDF:** reuse ARES's `cbe-generation-system` generator (the `docx` npm package), vendored
   under `app/src/generator/vendor` and called in-process. **Never reimplement the formatting**; the
   vendored path is byte-pristine (fidelity-gated). PDF = the generated DOCX converted by a local

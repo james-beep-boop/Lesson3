@@ -12,21 +12,191 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
+---
+
+# ⚑ HANDOFF (2026-08-05) — A COMMIT STACK EXISTS OFF `main`. READ THIS FIRST.
+
+This work is being handed to a **different account**. The single thing that matters most:
+
+> **`chore/env-template-parity` holds a stack of commits branched from `main` `5843551`**, six review
+> rounds deep. It was held back from pushing while those rounds kept finding real defects; it has since
+> been **pushed and opened as a PR**, so it is no longer laptop-only. Confirm rather than trust this
+> sentence — the commands below say which is true today.
+>
+> ⚑ **A missing remote branch is NOT proof the work is lost.** GitHub deletes the head branch on merge,
+> so `git ls-remote` going empty is the *expected* end state. Three places the commits can still be,
+> checked in order: **(1) merged** — they are in `origin/main`, nothing to recover; **(2) the PR's own
+> ref** — `refs/pull/<n>/head` survives head-branch deletion for *any* closed PR, merged or not, so
+> `git fetch origin refs/pull/<n>/head` brings the whole stack back; **(3)** the previous operator's
+> machine. Declare loss only when all three fail.
+>
+> ⚑ **Do not trust any prose summary of what would then need rebuilding**, including one written here.
+> A stale version of this very sentence claimed it was "only the env-parity test and the CI mount" —
+> while the stack also carries SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`, **both** `.env.example` templates
+> (including the `ARTIFACT_CACHE_DIR` fix that repairs a broken-on-arrival install), `IdleLogout`, and
+> four documents. It even cited SPEC §5 as an intact fallback while the stack is what *edits* SPEC. Ask
+> git for the scope instead of believing a list:
+>
+> ```bash
+> git fetch origin refs/pull/<n>/head && git diff --stat origin/main...FETCH_HEAD
+> ```
+>
+> ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
+> is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
+> which is exactly what happened on the first draft of this block, and twice before that elsewhere in
+> this file. A commit count made the same mistake one round later. Derive all of it from the commands
+> below.
+
+**Verify what actually landed before trusting any of this:**
+
+```bash
+git fetch --all --prune
+
+# ASK THIS FIRST. Merged ⇒ the commits are already in origin/main and NOTHING is lost.
+gh pr list --state all --head chore/env-template-parity --json number,state,mergedAt,mergeCommit
+
+# Then the branch. Absent is NORMAL after a merge (GitHub deletes the head branch), so this tests
+# before logging: a bare `git log origin/main..origin/<branch>` on a pruned ref prints
+# `fatal: ambiguous argument … unknown revision`, which reads like data loss at the exact moment
+# you are checking for data loss.
+if git rev-parse --verify -q origin/chore/env-template-parity >/dev/null; then
+  git log --oneline origin/main..origin/chore/env-template-parity   # the stack, still unmerged
+else
+  echo "No remote branch. If the PR above shows merged, the work is in origin/main:"
+  git log --oneline -15 origin/main
+fi
+
+git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
+```
+
+`main` is **protected** (PR + passing `gate`, `enforce_admins`), so this stack lands by PR — it cannot be
+pushed straight to `main`. Required reviews are 0, so you can merge your own once the gate is green.
+List what is open, rather than trusting a number written here:
+
+```bash
+gh pr list --state open --json number,title,headRefName,mergeable,statusCheckRollup
+```
+
+As of this handoff that was this branch's PR plus **PR #196** (`chore/pr195-review-followups`, green,
+unrelated).
+
+## What that stack contains
+
+All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
+**No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
+`docs/CHANGELOG.md` (2026-08-05); reasoning and lessons in `docs/DECISIONS.md` (2026-08-05).
+
+1. **Both `.env.example` templates reconciled**, pinned by `app/tests/unit/envTemplateParity.spec.ts`.
+   The root template declared 5 of 58 variables the app reads; the missing `ARTIFACT_CACHE_DIR` breaks
+   every export with `EACCES` on a fresh install. Reverses the Codex #5 deferral.
+2. **A CI blocker this branch introduced, caught by a `/simplify` pass**: `test:unit` mounts only `app/`,
+   so the spec could not see the root template and would have failed *every* CI run.
+   `.github/workflows/ci.yml` now bind-mounts **the root `.env.example` alone** at `LESSON3_REPO_ROOT`,
+   with `--network none`. It briefly mounted the whole workspace instead — which put `.git`, and the
+   token a checkout persists in it, inside a container running third-party dev dependencies. Do not
+   widen it back.
+3. **`IdleLogout` docstring corrected** — it claimed `logOut()` redirects; it does not navigate at all.
+4. **Edit recovery reconciled and APPROVED, with no code written**: `SPEC.md` §5 (normative) + §13
+   (reserved words), `AGENTS.md` native-fields rule narrowed, `docs/DESIGN-working-drafts.md` rewritten
+   with a §0 changelog and a **30-case acceptance matrix**.
+
+### ⚠ What the new account will NOT inherit
+
+The previous account held some operational knowledge in private memory, not in the repo. None of it is
+secret-free-to-publish, so **ask the operator**:
+
+- **Rock SSH access** (`ssh Rock5b`, `david@rock5b` over Tailscale) — key must be added to the new
+  machine's agent.
+- **Seeded user passwords** (Teacher / Editor / Subject-Admin on the Rock) — deliberately **not** in the
+  repo. Ask; do not reseed a shared box to get around it.
+- **The `age` backup private key** is Mac-only on the previous machine. Encrypted Drive backups are
+  active and restore-verified, but **the cron was never installed** — see "next steps" below.
+- Local stack procedure is in the repo (`AGENTS.md` → Local stack); logins are `local1234` by design.
+
+### Next steps, in priority order
+
+1. **Land the branch.** It is pushed and its PR is open; the gate has passed once. Confirm that is still
+   true (`gh pr list` above), then merge — required reviews are 0. Nothing else on this list should start
+   before it is merged, because item 2 builds on these documents.
+2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
+   losing user work today.* Collection + access closure + five endpoints + projection + fencing + shared
+   retirement function + two parent cascades + expiry job + migration (generated on the Rock per the
+   Node-22 workflow). Read `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original
+   draft did not survive review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int`
+   access matrix, `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25,
+   28–30).
+3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
+   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
+   cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the
+   whole server-side design.
+4. **The Official-pointer lock**, in parallel if there is capacity. An Official version can be deleted
+   during a concurrent promotion (`hooks/bundleVersion.ts` read-then-write + `ON DELETE SET NULL`),
+   destroying an approved snapshot. The fix is the existing in-house pattern — `lockSubjectGrades` in
+   `src/ingest/index.ts` is the template — applied to `lesson_plans`, **plus a real concurrent Postgres
+   regression test**. Do not ship the lock without the test.
+5. **First-user bootstrap atomicity.** `grantSiteAdminToFirstUser` counts then writes, so two
+   simultaneous anonymous registrations can both become Site Admin. Narrow (empty DB, internal host —
+   `lib/publicPosture.ts` covers the exposed case) but real. Needs `pg_advisory_xact_lock`, not
+   `FOR UPDATE`: on an empty table there is no row to lock.
+6. **Install the backup cron on the Rock** (`docs/OPS.md` has the block). Scripts and restore are
+   verified; only the schedule is missing. Confirm with `crontab -l` first.
+7. **Going public**, when the host decision is made: `docs/OPS.md` → "Going public", in its stated order.
+   `SERVER_URL` is the single switch and cannot be half-applied. **Seed users before DNS points at the
+   box** — on an empty DB Payload's first-register hands Site Admin to the first visitor.
+
+Deferred and noted in code rather than done: deriving `COMPOSE_ONLY` in the parity test from
+`docker-compose*.yml` and Dockerfile `ENV` lines (adds coverage, wants its own flips).
+
+### How this work was reviewed, and what it taught — read before the next round
+
+Six adversarial rounds (two models plus CodeRabbit) went over one 400-line test and one design document.
+**Every round found a real defect.** The full analysis is in `DECISIONS.md` 2026-08-05; three rules worth
+carrying into the next PR:
+
+- **A check that enumerates what is FORBIDDEN can always be one form short.** Rounds 1–3 and 5–6 all made
+  the same move — add the newly-named bypass — and each fix was correct and insufficient. Only two changes
+  closed anything: *classify or report* every route to `process`, and *resolve* module identity instead of
+  pattern-matching it. Prefer resolving the real thing, or enumerating what is allowed.
+- **A guard never observed failing is a guess.** Every hole lived in code that read correctly, and four
+  were in guards added by earlier rounds of the same review. Mutate the tree, watch the named assertion go
+  red, revert. Do this for the guards you add *while fixing* a guard.
+- **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
+  written 40 lines below it and passed inspection twice, because each reading checked it against its own
+  adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
+  those 30 cases are executed yet** — the doc says so explicitly, and it should keep saying so until they
+  are.
+
+Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
+claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a
+"provably a strict superset" comment on an optimisation that provably was not. **Check claims about your
+own diff against `main`, not against your last commit.**
+
+---
+
 **Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
 migration or re-upload the corpus.** The Rock holds 42 plans, each with an Official 1.0.0, 384 lessons
 in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URLs (verified by direct
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Check it,
-do not trust a SHA written here — compare the app TREE HASH on both sides:
+**No runtime change is pending for the Rock, and no deploy is required to land the stack above.** It
+changes documentation, two `.env.example` templates, one unit test, one CI mount and one docstring —
+nothing the server executes.
+
+⚠️ **`app/` tree hashes will NOT match while that stack is unmerged, and that is expected.** Four of its
+files live under `app/` (`app/.env.example`, `app/tests/unit/envTemplateParity.spec.ts`,
+`app/vitest.unit.config.mts`, and a comment-only edit to `app/src/components/IdleLogout/index.tsx`), so
+the tree hash differs from `origin/main` even though no runtime behaviour does. Compare the Rock against
+**`origin/main`**, not your working branch:
 
 ```bash
-git rev-parse HEAD:app
+git rev-parse origin/main:app
 ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'
 ```
 
-Equal ⇒ the deployed app code is byte-identical to yours, whatever commits sit either side of it.
+Equal ⇒ the deployed app code is byte-identical to `origin/main`, whatever commits sit either side of it.
+Once the stack merges, these two stay equal: a tree hash is not a promise about behaviour, but an
+inequality here is always worth explaining before you deploy.
 
 ⚑ **Compare the same thing on both sides.** The first version of this check was
 `git log -1 --format=%h -- app/` locally against `git rev-parse --short HEAD` on the Rock — two
@@ -453,7 +623,13 @@ clone does not carry): **`~/Desktop/icloud-git-migration.md`**. Do this before t
 **Remaining queue (nothing else is blocking).** Note the operator has since chosen the 640px mobile work
 above as the next feature; item 1 below was the previous "operator-chosen next" and keeps its analysis.
 Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED on 2026-07-28.
-1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
+1. **~~Unsaved editor PDF-preview latency~~ — CLOSED BY THE OPERATOR 2026-08-05: "much better than
+   before and is good enough."** Do not spend time here. The diagnosis below is kept because it is
+   accurate and names the LibreOffice floor (~5.5 s for the lessonSequence render) that any future
+   complaint will run into — but treat optimisation (a)/(b)/(c) as not wanted unless the operator raises
+   it again. Original entry follows as reference.
+
+   **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, then CLOSED unoptimised (reference only).**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
    Two edit-page paths, and it's the FIRST that hurts repeatedly:
    - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the
@@ -494,9 +670,12 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    Gotenberg instance would help concurrent-user throughput, not single-preview latency.
    **Note:** (a) is a compose/ops change and (b)/(c) are runtime changes — this item, unlike recent
    docs work, needs a deploy.
-2. **Working drafts** — *the only confirmed silent work-loss path, and the data-integrity priority.*
-   Spec'd (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
-   Multi-session project; start from the design doc.
+2. **Edit recovery** (formerly "working drafts") — *the only confirmed silent work-loss path, and the
+   data-integrity priority.* **RECONCILED + APPROVED 2026-08-05; ready to implement.** Normative rules
+   in SPEC §5/§13, implementation design + the 30-case verification matrix in
+   `docs/DESIGN-working-drafts.md` (path kept; the FEATURE is renamed — `draft` is now a reserved word,
+   SPEC §13). Read the design doc's §0 first: five provisions of the original draft did not survive
+   review of the code. Build in two PRs, server then client, per its §8. Multi-session project.
 3. **(small) `emailVersionArtifact.ts` has the same orphan-hard-fail shape** that #139 fixed in
    `generateVersionArtifact` (`generateForVersion` + a version `findByID`). It is not prewarmed today,
    so it cannot orphan yet — but if email artifacts ever get the same prewarm treatment, it wants the

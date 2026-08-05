@@ -11,7 +11,302 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-04 (latest) — Delete lesson plans became the curriculum tree; group deletes select PLANS
+## 2026-08-05 (latest) — the handoff block itself failed review, in the class it was documenting
+
+The entry below closes with a stopping rule for the env-parity work. The handoff block written on top of
+it was then reviewed by a second model and found to contain four defects — **every one of them the same
+"label asserting authority its content does not have" class the entry below names.** Recorded because
+the recursion is the lesson, not the incidents:
+
+1. The heading said **"12 UNPUSHED COMMITS"**; there were 13. Eleven lines later the same block said no
+   commit count was given *on purpose*, because naming the tip self-invalidates. The count was the tip
+   by another name — and it self-invalidated on the very commit that wrote it, which is the third time
+   this file has been bitten by that exact trap.
+2. **"The live Rock is DEPLOYED with the current `app/` tree"** was false. Four of the stack's files live
+   under `app/`, so `HEAD:app` and `origin/main:app` genuinely differ. The block then handed the reader a
+   tree-hash comparison and told them equality proves parity — a check guaranteed to fire on a difference
+   that was expected and harmless. *"No runtime change is pending"* was the defensible claim; *"the trees
+   match"* was not.
+3. The recovery command `git branch -a --contains 5843551` was presented as answering "was it pushed?"
+   It lists every descendant of the branch point, `main` included, so it answers yes in the case where
+   the work is lost. `git ls-remote --heads origin <branch>` answers the actual question.
+4. The **28 vs 30** case-count drift: two later review rounds added cases 29–30 without updating a
+   back-reference further down the same file.
+
+Plus one real code gap, narrower than reported: `resolveSpecifier` handled `./relative` and `@/*` but
+returned null for everything else as "a bare package". `tsconfig.json` sets `baseUrl: "."`, so
+`from 'src/lib/env'` is a valid second spelling of the env module, and a helper imported that way was
+**silently not followed** — the file's own headline defect class surviving inside the commit that claimed
+to have generalised it away. Fixed by resolving baseUrl instead of skipping it.
+
+**Rules this adds:**
+
+- **A derived fact is a SHA.** "13 commits", "30 cases", "the trees match" invalidate on exactly the
+  events a tip SHA does. A document that has correctly sworn off SHAs has not thereby sworn off
+  self-invalidation — write the *command*, not the answer. Every count in a handoff is a latent defect.
+  **An inventory is a derived fact too**: the recovery block claimed a total loss would cost "only the
+  env-parity test and the CI mount", when the stack also carried SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`,
+  both `.env.example` templates and `IdleLogout` — and it cited SPEC §5 as an intact fallback while
+  being the thing that edits SPEC. A recovery document must not describe its own contents from memory;
+  it now prints `git diff --stat origin/main...FETCH_HEAD` off `refs/pull/<n>/head`, which is also the
+  recovery path itself (that ref survives head-branch deletion for any closed PR, merged or not — the
+  earlier text treated a deleted branch plus a non-merged PR as unrecoverable, which it never was).
+- **Verification instructions need the same scrutiny as the code they verify.** Three of the four defects
+  were in commands or comparisons offered *as the way to check* — the reader trusts them precisely when
+  they have no other source of truth, which is the worst moment to be wrong. Run the command and read its
+  output before shipping it as advice.
+- **A stopping rule does not apply to the document announcing it.** The six-round stack was correctly
+  stopped; the handoff summarising that decision then went out unreviewed and needed a seventh round.
+  Fresh prose about finished work is fresh work.
+
+**Round eight (CodeRabbit, on the PR) then found a real security defect in the CI fix itself.** The mount
+added to make the parity test work was `-v "$PWD:/repo:ro"` — the whole workspace, including `.git`.
+`actions/checkout` persists a GITHUB_TOKEN into `.git/config` by default, so every dev dependency running
+under vitest could read a repo token, in a container with default bridge networking to send it anywhere.
+The workflow also declared no `permissions:` block, so the token carried whatever the repo default grants.
+
+Fixed at the root rather than patched: CI now mounts **the single file the spec needs**
+(`$PWD/.env.example:/repo/.env.example:ro`), so `.git` is not in the container at all; plus
+`permissions: contents: read`, `persist-credentials: false`, and `--network none` on the unit-test
+container (these tests are DB-free and Payload-free by construction). Verified in the real image: single
+file mount 394/394, `--network none` 394/394, and `/repo` contains only `.env.example`.
+
+**Rule:** *a fix that widens an access boundary needs review as a fix AND as an access grant.* Six rounds
+scrutinised whether the mount made the test correct; none asked what else the mount made reachable. The
+`app/`-only mount had been a security boundary by accident, and widening it to make a test pass silently
+spent that boundary. The narrow version was available the whole time — `REPO_DIR` was only ever used for
+one path — so the safe fix was never the expensive one, just the one nobody asked for. This is recorded
+in `envTemplateParity.spec.ts` next to `REPO_DIR` as a constraint: keep it to one path, or the mount has
+to widen again.
+
+The reviewer also raised two findings that **did not hold**, worth recording so they are not re-fixed:
+`export * from …` and `export { env } from 'node:process'` are both already caught — the first lands in
+`unnameable`, the second makes assertion G's export list `['env'] ≠ ['positiveIntEnv']`. Both fail G
+today. The doc comment saying those names "cannot be enumerated here" describes the *reporting* path, not
+a silent skip.
+
+---
+
+## 2026-08-05 — Edit recovery reconciled and approved; the env templates got a parity test
+
+Two things landed as documentation and one small test, ahead of any edit-recovery code: the environment
+templates were reconciled behind a mechanical parity check, and the unsaved-work design was reconciled
+across `SPEC.md` §5/§13, `AGENTS.md` and `docs/DESIGN-working-drafts.md` and moved from DRAFT to
+APPROVED. Both came out of five rounds of adversarial review between two models, and the *pattern* in
+what the review caught is the durable lesson.
+
+**The recurring defect class: a label asserting authority its content does not have.** Four separate
+instances, all of which cost real attention:
+
+1. `IdleLogout`'s docstring claimed `logOut()` did a "logout + redirect". It does not navigate at all
+   (verified in installed `@payloadcms/ui` 3.85.1). A reviewer auditing the unsaved-work gap read the
+   comment, concluded that component was the work-destroying path, and filed the finding against the
+   wrong mechanism. **One false clause in a comment redirected a whole audit.**
+2. The root `.env.example` presented itself as the template to copy while declaring 5 of the 58
+   variables the app reads — including `ARTIFACT_CACHE_DIR`, whose absence breaks every export with
+   `EACCES`. A fresh, correctly-followed install was broken on arrival.
+3. `app/.env.example` was a verbatim copy of the Compose template, pointing host-local dev at
+   `postgres:5432` and carrying Compose-only `POSTGRES_PASSWORD` — contradicting AGENTS.md's own Local
+   stack rule.
+4. The design document was about to be flipped to "approved" while its body still specified top-level
+   keys, hard deletion and last-write-wins. Flipping the header would have created the same defect
+   deliberately. **Body first, status last** — the status line is a claim about the content.
+
+**Rule this teaches:** a parity/verification check that can silently fail to see part of its subject is
+worse than none, because it certifies coverage it never had. Hence assertion F in
+`tests/unit/envTemplateParity.spec.ts`: any `process.env` access shape the checker does not recognise
+**fails** and asks to be taught. A naive `process.env.X` scan misses every `RATE_LIMIT_*` value (read via
+`positiveIntEnv('NAME', default)`) — i.e. most of the rate-limit surface, which is security config.
+Related: the env drift was already found (Codex 2026-07-06 #5) and *deferred*; the deferral is what
+produced the broken install, so it was reversed with a test rather than reconciled by hand again.
+
+**Edit recovery — the five design provisions that did not survive review of the code.** Recorded in the
+design doc's own §0 table; summarised here because each is a general trap:
+
+- **A whitelist at the wrong granularity is not a whitelist.** Storing "editor-writable top-level keys"
+  would have persisted `resourceLinks`, `framework[].phase`, `duration` and `number` — the very data the
+  field-split protects — because they live *inside* `lessons`. The deep per-container `*_PROSE` constants
+  in `hooks/fieldSplit.ts` already exist and are already drift-tested against the `canEditProse`
+  factories, so the correct projection was in the repo the whole time.
+- **Hard-deleting a row cannot fence anything.** A stale tab's next write *recreates* it. Retirement
+  therefore clears content and keeps a marker, and the marker lives as long as its source version —
+  because `save-as-new` leaves the source untouched, so the `baseUpdatedAt` staleness check can never
+  catch that case.
+- **Permanent markers need a legitimate restart.** Server-issued **generations** fence retirement;
+  **revisions** fence concurrent writes. Two mechanisms, two jobs.
+- **Same-transaction or it did not happen.** Retirement joins the save-as-new transaction *inside* the
+  semver retry attempt; a generation mismatch fails the save rather than retiring newer work, and unlike
+  a semver conflict it is **not** retryable.
+- **Do not promise durability you cannot deliver.** The guarantee is "the last server-confirmed capture
+  survives", not every keystroke: the debounce window, an in-flight request and all offline time are
+  outside it (client storage is disqualified by the shared-machine rule). The confirmed timestamp in the
+  UI is therefore the contract's observable surface, and v1 is prose-only — so the indicator is
+  role-aware, because an unqualified "saved" shown to a Subject Admin editing answer keys is false.
+
+**Two sanctioned deviations, both written down rather than decided at edit time.** (1) `edit-recovery`
+stores a sparse prose overlay as **JSON**, narrowing the `AGENTS.md` native-nested-fields rule to the
+*content of record*; native fields cannot express a sparse row-id-keyed overlay, and could not store a
+capture written against an older field shape at all — which would defeat the schema-drift rule. (2) The
+collection closes **all four** client operations and is reached only through custom endpoints — the
+documented Payload-first gap: default REST has no upsert, closing `read` makes "lost editing access ⇒
+cannot restore" structural, and closing `delete` stops an owner erasing their own marker.
+
+**`draft` is now a reserved word** (SPEC §13, beside `class` → `SubjectGrade`). It already means an
+unofficial *saved version* — the Guide defines the word for users: "your drafts live in Manage → My
+saved versions" — so "draft saved" would tell a teacher their version was saved when it was not. The
+feature is **edit recovery**. The design file keeps its path only because five documents and a source
+docstring cite it.
+
+**The reconciled protocol then failed its own second review — three more, before any push.** Worth
+recording because the document read as complete, and because all three are the same shape: a
+precondition that looked sufficient but could not see the state it needed to.
+- **Retirement was fenced by `generation` only.** An ordinary capture bumps `revision` and leaves
+  `generation` alone, so a generation check cannot distinguish "same session" from "same session, but
+  another tab captured newer work since you loaded". Save, discard, expiry and admin cleanup could all
+  have retired newer work. Every caller now carries a revision precondition, evaluated **inside** the
+  atomic update — expiry included, conditioned on the row still being active and untouched.
+- **`start` had no concurrency semantics.** Two simultaneous first starts race the unique insert; two
+  against a retired row race reactivation. It is now a single `INSERT … ON CONFLICT … RETURNING` that
+  creates or reactivates (advancing the generation) and returns generation **and** revision — the
+  revision because otherwise the client's first capture has no correct precondition to send.
+- **"A failed flush must not block the save" was too broad.** True for transport failures (network,
+  429, 5xx), where the version save must win over its own insurance. False for a **409**, which means
+  another tab holds newer work — exactly the case where saving on would retire it.
+
+**And a third round found the fix for the second round's `start` flaw failed the cases it was written
+for.** The upsert bumped `revision` on every conflict including the *resume* path, so two concurrent
+first starts returned `(1,1)` and `(1,2)` — the first caller's revision stale on arrival, its first
+capture 409ing against a phantom conflict, which is precisely what matrix cases 21–22 forbid. The
+missing piece was a stated rule, not a subtler statement: **`start` on an already-active row must be a
+total no-op that reports state**, because it fires on every Edit click in every tab and any write there
+invalidates the preconditions other tabs hold. Reactivation additionally needs a fresh
+`baseUpdatedAt`/`schemaVersion` or the new session inherits the retired generation's baseline.
+
+The review lesson is sharper than the bug: **the case that would have caught it was already written in
+the matrix, and the SQL still passed inspection twice** — because each reading checked the statement
+against its own adjacent comment rather than against the case. Prose that explains itself is not
+evidence; only the assertion is. Three parallel guards in `envTemplateParity.spec.ts` had the same
+shape of defect (a hand-kept regex beside the list it was supposed to mirror, an inexact budget, a
+scan blind to `export { … }`), which is why that file now derives its patterns from one list and
+requires its dynamic-read allowance to be consumed exactly.
+
+**A fourth round found two more, and by then the pattern had a name: state the RULE, not the instance.**
+Both were writes that forgot to publish their own result. (1) Capture *required* `expectedRevision` but
+was never specified to *return* the advanced token — so a client would keep the token it sent, which its
+own successful write had just superseded, and 409 its next capture against a self-inflicted conflict.
+(2) Reactivation refreshed `baseUpdatedAt`/`schemaVersion` but not `updated_at` — and since Payload
+maintains that column in its application update path while the column default fires only on INSERT (no
+DB trigger), a raw upsert leaves it stale; with expiry keyed off "untouched since the cutoff", an aged
+marker could be reactivated and re-expired seconds later. Both are now stated once as obligations on
+*every* advancing write, because rounds two, three and four all arose the same way: a property specified
+for one call instead of as a rule over all of them. A related contradiction went the same way — a base-
+source mismatch said "warn" in the design and "view/discard only" in SPEC; the stricter rule governs.
+
+**A fifth round found the two worst, both in the design's own words.** (1) §2 and the endpoint table
+called capture an **upsert** — which recreates a retired row, the exact resurrection retirement markers
+exist to prevent, and makes the explicit-start step optional. The protocol's central mechanism undone by
+one word, in a document that had already been reviewed four times. Capture is now stated as a CAS UPDATE
+of an existing active row, with `start` the only insert/reactivate path, in SPEC and the design both.
+(2) Expiry still lacked the revision precondition the same document declared universal — the cutoff term
+alone does defeat the race, so carrying the revision is defence in depth, but a stated universal with a
+silent exception is exactly the defect all five rounds kept finding.
+
+**And the parity checker's regex approach was itself the wrong tool — the decisive lesson.** Three
+successive versions each closed one bypass and opened the next: a `process.env.X` scan missed every
+`RATE_LIMIT_*` (read via `positiveIntEnv`); a name-based matcher missed
+`import { positiveIntEnv as readInt }`; rejecting aliased imports still missed `const readInt =
+positiveIntEnv`, re-exports and dynamic imports. Escalating a blacklist against a language is
+unwinnable. It now parses the TypeScript AST (`ts.createSourceFile`, no type checker, so it stays fast
+and DB-free). It **resolves** import renames, because that is the module system's own aliasing and
+normal to write; everything else that puts a helper beyond a name match is **reported** rather than
+chased — namespace import, re-export, dynamic import, and a helper handed around as a value, which
+includes `const f = positiveIntEnv`. (An intermediate version *followed* local `const` aliases via a
+fixed-point walk; that was dropped as machinery for a form no call site uses, and reporting is both
+simpler and stricter. Do not "restore" it from an older reading of this entry.) Exports are read
+structurally, and any export form the inventory cannot NAME is reported rather than skipped —
+`export default function () {}`, `export * from …` and `export * as ns` were each silently invisible
+until a flip proved it. **Enumerate what is allowed, or resolve the thing properly — never chase what is
+forbidden.**
+
+Its own sanity-flips then caught two defects in that new code: an alias's declaration name counted as a
+"use" (a false positive on exactly the code alias-resolution existed to support), and — worse — a
+substring pre-filter added for speed claimed in a comment to be "provably a strict superset" of what the
+AST matches, while `process?.env.FOO` slipped straight through it. That one shipped a *fresh* instance of
+this file's own headline defect, in the commit that was cleaning it up, and only a flip found it. Flip
+every guard; a guard that has never been observed failing is a guess.
+
+Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
+branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and
+Official/Not-Official became bold status text rather than pills (CHANGELOG 2026-07-30). The decision
+rests on the Guide's live wording; the dead branch is noted as a latent second collision, not evidence.
+Citing a UI element that does not render is the same defect class as the docstring above.
+
+**Priority argument that settled the order.** Sequencing by cheapness would have put edit recovery
+behind the environment fix, the Official-pointer lock and the bootstrap race. Ranked by expected harm it
+comes first: it triggers when one teacher walks away from one dirty form — no concurrency, no operator
+error, no attacker — whereas the two races need millisecond overlap between authorized actors and the env
+template only affects a *new* host. The cheap documentation fixes went first because they are one commit,
+not a phase.
+
+### The CI blocker, found by a cleanup pass rather than a correctness one
+
+Worth its own heading because of *where* it came from. A `/simplify` quality review — explicitly told not
+to hunt for correctness bugs — found that `envTemplateParity.spec.ts` **would have failed every CI run**.
+CI runs `test:unit` in a container mounting only `app/`, so the spec's `join(APP_DIR, '..')` resolved to
+`/` and the root `.env.example` was absent; the read sat in the `describe` body, so it died with a bare
+`ENOENT` at collection time — "no tests", no name, no reason. It passed locally and on the Rock, where
+the parent directory really is the repo root, so it would have surfaced only in the one environment that
+gates merges.
+
+Two durable lessons. **The mount boundary is a real interface**: this was the only test under
+`app/tests` reaching above `app/`, and nothing warned that CI's container cannot see up there. CI now
+bind-mounts the root `.env.example` ALONE at `LESSON3_REPO_ROOT` (the first fix mounted the whole
+workspace — see the round-eight entry at the top of this file for why that was withdrawn); the spec
+fails a NAMED test when a template is missing, and that message names the narrow remedy. **And an "altitude" reviewer asking "is this at the right depth?" found a
+defect four correctness-focused rounds had missed** — because it was the only reviewer asking where the
+code *runs* rather than what it computes.
+
+### Six review rounds on one 400-line test: the pattern, and when to stop
+
+The env-parity guard went through six adversarial rounds (two models plus CodeRabbit). Every round found
+a real hole. The shape never varied, and it is the most reusable thing this session produced:
+
+| Round | Hole | The pattern |
+|---|---|---|
+| 1 | `process.env.X` grep missed every `RATE_LIMIT_*` (read via `positiveIntEnv`) | enumerated one form |
+| 2 | Name matcher missed `import { positiveIntEnv as readInt }` | widened the pattern |
+| 3 | Rejecting aliased imports still missed `const f = positiveIntEnv`, re-exports, dynamic imports | widened again |
+| 4 | AST rewrite: substring pre-filter (added for speed) hid `process?.env.X`; export inventory fell through on `export default function(){}`, `export *` | a *new* false-completeness claim, in the cleanup commit |
+| 5 | `process['env']`, `(process).env`, `process!.env`, `globalThis.process.env` missed | widened, four more times |
+| 6 | `const p = globalThis.process`, `import { env } from 'node:process'`, and textual module identity treating any `…/env` as ours | widened once more |
+
+**The rule: a check that enumerates what is FORBIDDEN can always be one form short.** Rounds 1–3 and 5–6
+were all the same move — add the newly-named form — and each was correct and insufficient. Only two
+changes actually closed anything: *every* `process` reference must be classified or reported (so unknown
+routes fail instead of passing), and module identity is *resolved* against the importing file rather than
+pattern-matched. Prefer resolving the real thing, or enumerating what is allowed; never chase the
+complement.
+
+**Corollary — a guard never observed failing is a guess.** Every hole above lived in code that read
+correctly. Four of them were in guards added *by* earlier rounds of this same review. The flips (mutate
+the tree, watch the named assertion go red, revert) are what found the false positive in the alias
+resolver and the pre-filter that hid a real read. Flip every guard, including the ones added while fixing
+a guard.
+
+**Corollary — optimisation inside a correctness guard needs the same scrutiny as the guard.** The
+pre-filter came from a legitimate efficiency observation (173 files parsed, 16 needed) and traded away
+the only property the file exists to provide, for ~80 ms in a test suite. Comment claimed "provably a
+strict superset"; it was not. In a checker, speed is not a competing value — it is a rounding error.
+
+**And a stopping rule, because six rounds on a config-drift guard is past proportionate.** When the next
+round finds another instance rather than another class, the right answer is to NARROW THE CLAIM in the
+docstring to what is verifiably covered, not to harden further. The value of this guard is bounded (it
+protects a template from drifting); the cost of another round is not. Recorded so the next reader does
+not inherit an obligation to keep going.
+
+---
+
+## 2026-08-04 — Delete lesson plans became the curriculum tree; group deletes select PLANS
 
 Operator report: the delete panel had "effectively NO organisation" — a flat alphabetical list with the
 subject-grade in small type off to the right — while the library catalogue organises the same corpus
