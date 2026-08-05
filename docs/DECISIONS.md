@@ -114,6 +114,24 @@ shape of defect (a hand-kept regex beside the list it was supposed to mirror, an
 scan blind to `export { … }`), which is why that file now derives its patterns from one list and
 requires its dynamic-read allowance to be consumed exactly.
 
+**A fourth round found two more, and by then the pattern had a name: state the RULE, not the instance.**
+Both were writes that forgot to publish their own result. (1) Capture *required* `expectedRevision` but
+was never specified to *return* the advanced token — so a client would keep the token it sent, which its
+own successful write had just superseded, and 409 its next capture against a self-inflicted conflict.
+(2) Reactivation refreshed `baseUpdatedAt`/`schemaVersion` but not `updated_at` — and since Payload
+maintains that column in its application update path while the column default fires only on INSERT (no
+DB trigger), a raw upsert leaves it stale; with expiry keyed off "untouched since the cutoff", an aged
+marker could be reactivated and re-expired seconds later. Both are now stated once as obligations on
+*every* advancing write, because rounds two, three and four all arose the same way: a property specified
+for one call instead of as a rule over all of them. A related contradiction went the same way — a base-
+source mismatch said "warn" in the design and "view/discard only" in SPEC; the stricter rule governs.
+
+The parity checker showed the identical shape a third time (aliased imports bypassing a name-based
+matcher; a blacklist of export forms that missed `export async function`/`let`/`class`/`enum`). Both are
+now positive contracts — permitted export forms enumerated rather than forbidden ones, and aliased or
+namespace imports of the env module rejected outright. **Enumerating what is allowed cannot have that
+hole; enumerating what is forbidden always can.**
+
 Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
 branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and
 Official/Not-Official became bold status text rather than pills (CHANGELOG 2026-07-30). The decision

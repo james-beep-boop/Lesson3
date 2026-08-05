@@ -90,11 +90,24 @@ const HELPER_READ = new RegExp(`\\b(?:${helperAlternation})\\s*\\(\\s*['"]([A-Z]
 const HELPER_CALL = new RegExp(`\\b(?:${helperAlternation})\\s*\\(`, 'g')
 
 /**
- * Re-export forms in the env module would defeat the declaration scan below (`export { helper }` is
- * invisible to it), so that one small module is contractually limited to direct `export const` /
- * `export function` declarations. Forbidding the forms is simpler and more honest than parsing them.
+ * The env module's export surface is restricted POSITIVELY: every `export` in it must be a direct
+ * `const` / `function` declaration whose name this scan can read. An earlier version blacklisted
+ * `export {`, `export *` and `export default` — which still let `export async function`, `export let`,
+ * `export class` and `export enum` through unnamed, so G would have claimed a surface it had not read.
+ * Enumerating what is allowed cannot have that hole; enumerating what is forbidden always can.
  */
-const ALT_EXPORT_FORM = /^export\s*(?:\{|\*|default\b)/m
+const PERMITTED_EXPORT = /^export\s+(?:const|(?:async\s+)?function)\s+([A-Za-z_$][\w$]*)/
+const ANY_EXPORT_LINE = /^export\b.*$/gm
+
+/**
+ * Imports of the env helpers must be plain, unaliased named imports. `import { positiveIntEnv as
+ * readInt }` followed by `readInt('RATE_LIMIT_X', 1)` is invisible to a name-based matcher, and so is
+ * `import * as env` + `env.positiveIntEnv(…)`. Rejecting both forms is a two-line contract; resolving
+ * aliases properly would mean parsing the module graph. Today every one of the six call sites already
+ * imports it plainly, so this costs nothing and closes the bypass.
+ */
+const IMPORT_STATEMENT = /^import\s+([\s\S]+?)\s+from\s+['"]([^'"]+)['"]/gm
+const IS_ENV_MODULE = /(^|\/)(lib\/)?env$/
 /** Every `process.env` occurrence, so unrecognised ones can be counted against the recognised. */
 const ANY_ENV_TOUCH = /process\.env/g
 
@@ -128,16 +141,38 @@ const sourceFiles = (dir: string, acc: string[] = []): string[] => {
 
 const ENV_MODULE = join(APP_DIR, 'src', 'lib', 'env.ts')
 
-/** Exported helper names in `src/lib/env.ts` — `export const NAME =` / `export function NAME`. */
-const envModuleExports = (): string[] => {
+/**
+ * The env module's exports, and any export line this scan could not read. Both come from the SAME
+ * pattern, so a form the scan cannot name is necessarily reported rather than silently skipped.
+ */
+const envModuleSurface = (): { names: string[]; unreadable: string[] } => {
   const text = readFileSync(ENV_MODULE, 'utf8')
-  return [...text.matchAll(/^export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)/gm)]
-    .map((m) => m[1])
-    .sort()
+  const names: string[] = []
+  const unreadable: string[] = []
+  for (const [line] of text.matchAll(ANY_EXPORT_LINE)) {
+    const m = PERMITTED_EXPORT.exec(line)
+    if (m) names.push(m[1])
+    else unreadable.push(line.trim())
+  }
+  return { names: names.sort(), unreadable }
 }
 
-/** Does the env module use an export form the declaration scan above cannot see? */
-const envModuleUsesAltExport = (): boolean => ALT_EXPORT_FORM.test(readFileSync(ENV_MODULE, 'utf8'))
+/** Import clauses that would hide an env-helper call from the name-based matcher. */
+const aliasedEnvImports = (files: string[]): string[] => {
+  const offenders: string[] = []
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8')
+    for (const [, clause, specifier] of text.matchAll(IMPORT_STATEMENT)) {
+      if (!IS_ENV_MODULE.test(specifier)) continue
+      const namespaced = clause.trim().startsWith('*')
+      const renamed = /\{[^}]*\bas\b[^}]*\}/.test(clause)
+      if (namespaced || renamed) {
+        offenders.push(`${relative(APP_DIR, file)}: ${clause.replace(/\s+/g, ' ').trim()}`)
+      }
+    }
+  }
+  return offenders
+}
 
 const matchAll = (text: string, re: RegExp): string[] =>
   [...text.matchAll(new RegExp(re.source, re.flags))].map((m) => m[1])
@@ -156,10 +191,11 @@ const declaredIn = (path: string): Set<string> => {
 }
 
 /** Every variable `app/src` (plus next.config.ts) reads, by any recognised shape. */
-const collectReads = (): { reads: Set<string>; unrecognised: string[] } => {
+const collectReads = (): { reads: Set<string>; unrecognised: string[]; aliased: string[] } => {
   const reads = new Set<string>()
   const unrecognised: string[] = []
   const files = [...sourceFiles(join(APP_DIR, 'src')), join(APP_DIR, 'next.config.ts')]
+  const aliased = aliasedEnvImports(files)
 
   for (const file of files) {
     const text = readFileSync(file, 'utf8')
@@ -194,11 +230,11 @@ const collectReads = (): { reads: Set<string>; unrecognised: string[] } => {
       )
     }
   }
-  return { reads, unrecognised }
+  return { reads, unrecognised, aliased }
 }
 
 describe('env template parity', () => {
-  const { reads, unrecognised } = collectReads()
+  const { reads, unrecognised, aliased } = collectReads()
   const root = declaredIn(ROOT_TEMPLATE)
   const app = declaredIn(APP_TEMPLATE)
 
@@ -218,13 +254,20 @@ describe('env template parity', () => {
     // module whose dynamic access is budgeted — so F would keep passing while its variable went
     // unverified. Registering it in HELPER_NAMES is now sufficient: both helper patterns are DERIVED
     // from that list, so a name cannot be added without its calls becoming visible.
-    expect(envModuleExports()).toEqual([...HELPER_NAMES].sort())
-    // …and the declaration scan only sees direct declarations, so re-export forms are forbidden in
-    // this one module rather than parsed (`export { helper }` would otherwise slip past G).
-    expect(
-      envModuleUsesAltExport(),
-      'lib/env.ts must use only `export const` / `export function`',
-    ).toBe(false)
+    const { names, unreadable } = envModuleSurface()
+    // Every export must be a form this scan can NAME. Reported first: an unreadable export makes the
+    // name comparison below meaningless, so it is the more informative failure.
+    expect(unreadable, 'lib/env.ts must use only `export const` / `export [async] function`').toEqual(
+      [],
+    )
+    expect(names).toEqual([...HELPER_NAMES].sort())
+  })
+
+  it('H: env helpers are imported plainly, so their call sites stay matchable', () => {
+    // `import { positiveIntEnv as readInt }` + `readInt('RATE_LIMIT_X', 1)`, or `import * as env` +
+    // `env.positiveIntEnv(…)`, are both invisible to a name-based matcher — the variable would be read
+    // at runtime and absent from every template, with F none the wiser.
+    expect(aliased).toEqual([])
   })
 
   it('A: the root template declares every configurable variable the app reads', () => {

@@ -254,6 +254,14 @@ observable contract, and a failed or backed-off capture must say so rather than 
     hold, and bumping the revision on resume would 409 the caller's own first capture.
   - **Capture** carries `generation` + `expectedRevision`; a stale or missing generation is **409,
     never an implicit restart**.
+  - **Every endpoint that advances the row returns the resulting token** — `{generation, revision,
+    updatedAt}`, from the same atomic statement — and the client adopts it. A client left holding the
+    token it *sent* would 409 its own next write against a conflict it caused itself.
+  - **`updatedAt` is set explicitly by every raw-SQL write.** Payload maintains that column on its own
+    update path and the column default fires only on INSERT, so a raw upsert leaves it stale unless
+    told otherwise — and expiry keys off "untouched since the cutoff", so a reactivated old marker
+    would be re-expired immediately. Reactivation restarts the clock; resume preserves it, which means
+    the TTL measures the age of the captured **content**, not of the session.
 - **Retirement is one state transition with four callers, and every caller carries a precondition.**
   Save-as-new, explicit discard, 30-day expiry and Site-Admin cleanup all atomically clear `content`,
   mark retired, and advance revision/generation — one shared function, so "the same transition" is
@@ -478,8 +486,8 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
   2. **Session expiry stays, and must clear the screen.** The walk-away case is the normal case, and
      the next person at the keyboard may be a student rather than a colleague — so the 2-hour token
      and `admin.autoRefresh: off` are deliberate, and an indefinitely self-refreshing session is
-     explicitly rejected. Durability of unsaved work is solved by server-side drafts (§5), never by
-     weakening expiry.
+     explicitly rejected. Durability of unsaved work is solved by server-side **edit recovery** (§5),
+     never by weakening expiry.
 - **Reserved words — a name that already means something else is a bug, not a preference.** `class`
   is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
   version* — the Guide tells users "your drafts live in Manage → My saved versions" — so

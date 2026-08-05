@@ -68,6 +68,19 @@ Worth noting what that says about review: the case that would have caught it was
 in §7, and still passed inspection twice, because the SQL was checked against its own comment rather
 than against the case. A test asserting cases 21–22 will not have that luxury.
 
+**A fourth round found two more, both in the same protocol, both about a write that forgot to publish
+its own result.** The pattern is now unmistakable enough to name: *state the rule, not the instance.*
+
+| Reconciled version said | Now | Why |
+|---|---|---|
+| Capture *requires* `expectedRevision` | Every advancing endpoint also **returns** the resulting token, and the client adopts it | Otherwise the client keeps the token it sent, which its own successful write just superseded — its next capture and then the save would 409 against a self-inflicted conflict |
+| Reactivation refreshes `baseUpdatedAt` and `schemaVersion` | It also sets `updated_at = NOW()` | Payload maintains that column in its application update path, and the column default fires only on INSERT — there is no DB trigger. Expiry keys off "untouched since the cutoff", so an aged marker could be reactivated and re-expired within seconds |
+
+Both were specified as a property of one call rather than as a rule over all of them, which is exactly
+how the second and third rounds' gaps arose too. The token rule and the `updated_at` rule are therefore
+stated once, in §2 and §4, as obligations on *every* advancing write. Also fixed: a base-source mismatch
+said merely "warn" here while SPEC §5 required view/discard-only — SPEC's stricter rule governs.
+
 ---
 
 ## 1. The problem this solves
@@ -130,10 +143,17 @@ re-loads the source and re-runs `authorize(req, 'editor')` on every call, then w
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /:id/recovery/start` | Explicit session start; one atomic upsert (§4). Returns `{generation, revision}`. Never called implicitly. |
-| `POST /:id/recovery` | Capture (upsert). Requires `generation` + `expectedRevision`. Stale/missing ⇒ **409**. |
-| `GET /:id/recovery` | Fetch the active capture, for the restore prompt. |
+| `POST /:id/recovery/start` | Explicit session start; one atomic upsert (§4). Returns the token. Never called implicitly. |
+| `POST /:id/recovery` | Capture (upsert). Requires `generation` + `expectedRevision`; **returns the advanced token**. Stale/missing ⇒ **409**. |
+| `GET /:id/recovery` | Fetch the active capture, for the restore prompt. Returns the token with it. |
 | `DELETE /:id/recovery` | Explicit discard ⇒ retire. Requires `generation` + `expectedRevision`. |
+
+**Token rule, applying to every one of them: any endpoint that advances the row returns the resulting
+`{generation, revision, updatedAt}` from the same atomic statement, and the client must adopt it.**
+Otherwise the client is left holding the token it *sent*, which the successful write just superseded —
+so its next capture, and then the save, would 409 against a conflict it caused itself. Stated once, as
+a rule, because the first version of this design specified the precondition on capture and forgot the
+response; a per-endpoint description invites exactly that asymmetry.
 | `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata (incl. `revision`) and authorized retirement, which must echo that revision. Never content. |
 
 Each ships wire-level 401/403/404 plus happy-path coverage in `tests/http` in the same PR (CLAUDE.md
@@ -218,9 +238,24 @@ ON CONFLICT (user_id, source_version_id) DO UPDATE SET
   schema_version  = CASE WHEN edit_recovery.retired_at IS NULL
                          THEN edit_recovery.schema_version
                          ELSE EXCLUDED.schema_version END,
+  -- Reactivation is a real write and must restart the TTL clock; resume preserves it (see below).
+  updated_at = CASE WHEN edit_recovery.retired_at IS NULL
+                    THEN edit_recovery.updated_at
+                    ELSE NOW() END,
   retired_at = NULL
-RETURNING generation, revision;
+RETURNING generation, revision, updated_at;
 ```
+
+**`updated_at` must be set explicitly on every raw-SQL write.** Payload maintains that column in its
+own application update path, and the column's `DEFAULT now()` fires only on INSERT — there is no
+database trigger. So a statement like this one leaves it untouched unless told otherwise, and expiry is
+conditioned on the row being *untouched since the cutoff*: a 40-day-old marker could be reactivated and
+then immediately re-expired by the next expiry run, destroying a session seconds after it began.
+
+Resume deliberately preserves `updated_at`, which has a consequence worth stating rather than
+discovering: **the TTL measures the age of the captured content, not of the session.** Resuming a
+29-day-old capture and typing nothing can still let it expire; the first real capture restarts the
+clock. That is the intended reading of a 30-day retention on unsaved work.
 
 So: a retired row is reactivated by **advancing** the generation and taking a **fresh**
 `baseUpdatedAt`/`schemaVersion` — without that refresh the new session would inherit the retired
@@ -296,8 +331,12 @@ never auto-apply, showing when it was captured. Applying marks the form dirty; d
 **409 on a stale tab.** Surface the stale content **read-only** so the user can copy it out before it
 goes. Silently discarding keystrokes the user really typed would defeat the point of the feature.
 
-**Staleness / schema drift.** `baseUpdatedAt` mismatch ⇒ warn. `schemaVersion` mismatch ⇒ view/discard
-only, never applied.
+**Staleness / schema drift — both are view/copy/discard only, never applied.** `baseUpdatedAt` mismatch
+means the source moved under the capture, so the row ids the overlay is keyed on may no longer mean what
+they meant; `schemaVersion` mismatch means the field shape changed. An earlier version of this section
+said a base mismatch merely "warns", implying it could still be applied — which contradicted SPEC §5 and
+would have let a stale overlay land on a changed source. SPEC's rule governs, and it is the safer one:
+the user can read the content and copy from it, but the system will not overlay it.
 
 **Caps.** Per-user **active** count ~20 (tombstones excluded, or a prolific editor gets locked out),
 approximate enforcement acceptable; per-capture byte limit **hard**, checked before storage.
@@ -317,7 +356,7 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 ## 7. Verification matrix (required before calling this done)
 
 Disposable stack, shortened `tokenExpiration`. Browser-level for 1–13 and 26–27 (the defect is
-client-side); wire-level for 14–16, 23–24 and 28; DB-backed concurrency for 17–22 and 25.
+client-side); wire-level for 14–16, 23–24, 28 and 29; DB-backed concurrency for 17–22, 25 and 30.
 
 | # | Case | Expected |
 |---|---|---|
@@ -329,7 +368,7 @@ client-side); wire-level for 14–16, 23–24 and 28; DB-backed concurrency for 
 | 6 | Explicit logout while dirty | capture retained for that user; screen cleared |
 | 7 | Successful save-as-new | retired: content cleared, marker kept, generation advanced |
 | 8 | Explicit discard | the same retirement transition |
-| 9 | Stale source (`baseUpdatedAt` mismatch) | warned, not silently applied |
+| 9 | Stale source (`baseUpdatedAt` mismatch) | view/copy/discard only — **never applied**, same as a schema mismatch |
 | 10 | Capture from an older `schemaVersion` | not applied; view/discard only |
 | 11 | Two tabs, same source | revision CAS ⇒ 409; loser refetches; no silent overwrite |
 | 12 | Editing access lost between capture and restore | restore denied by the endpoint's re-authorization; no leak |
@@ -349,12 +388,15 @@ client-side); wire-level for 14–16, 23–24 and 28; DB-backed concurrency for 
 | 26 | Flush 409 on save | save does **not** proceed; conflict surfaced; the other tab's newer capture survives |
 | 27 | Flush transport failure (429 / offline) on save | save **does** proceed; indicator shows not-backed-up |
 | 28 | Restore with an unknown row-id key | key dropped, never created; no id restored as a field value |
+| 29 | **Revision chaining:** start → capture → capture → save, each using the token the previous call returned | every step succeeds; no self-inflicted 409 anywhere in the chain |
+| 30 | **Reactivation TTL:** retire a row, age it past the cutoff, `start` it, then run the expiry job | the reactivated session survives — `updated_at` was restarted, so it is not "untouched since the cutoff" |
 
 Case **5** justifies the server-side choice — client storage cannot pass it on a shared machine. Case
 **15** justifies lifetime markers. Cases **21–22** are why `start` is a single statement. Cases
 **23–25** are why generation alone was insufficient: an ordinary capture bumps only the revision, so a
 generation-only check would have let all three retire newer work. Cases **26–27** are why the two flush
-failures are distinguished. Case **19** also closes the separately-flagged gap that forced second-step
+failures are distinguished. Case **29** is why every advancing endpoint returns its token, and case
+**30** is why reactivation restarts `updated_at`. Case **19** also closes the separately-flagged gap that forced second-step
 rollback was untested.
 
 **Sanity-flip discipline.** There is no pre-existing buggy implementation to test against, so
@@ -378,7 +420,7 @@ the build rather than discovered mid-PR.
 **PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
-units, DB-backed concurrency (cases 15, 17–25, 28).
+units, DB-backed concurrency (cases 15, 17–25, 28–30).
 
 **PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
 clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.
