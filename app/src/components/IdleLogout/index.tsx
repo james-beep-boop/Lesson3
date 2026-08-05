@@ -18,29 +18,17 @@
  * user; it only enforces the deadline a stale tab would otherwise ignore.
  *
  * ⚑ `logOut()` DOES NOT NAVIGATE. Verified in installed @payloadcms/ui 3.85.1
- * (`providers/Auth/index.js`): `logOut` POSTs `/<collection>/logout` and clears the in-memory user
- * — nothing more. The `router.replace()` lives in `redirectToInactivityRoute()`, which only
- * Payload's OWN `forceLogOutTimeout` calls. This docstring previously claimed "logout + redirect",
- * and that one false half sent a reviewer looking for the work-destroying path here, where it
- * isn't. The two expiry paths are genuinely different failures and need different fixes:
+ * (`providers/Auth/index.js`): it POSTs `/<collection>/logout` and clears the in-memory user, nothing
+ * more. The `router.replace()` belongs to `redirectToInactivityRoute()`, which only Payload's OWN
+ * `forceLogOutTimeout` calls. This docstring used to claim "logout + redirect", and that one false
+ * half sent a reviewer hunting the work-destroying path here, where it is not.
  *
- *   - Payload's `forceLogOutTimeout` (a single `setTimeout` at the deadline) → `revokeTokenAndExpire()`
- *     + `redirectToInactivityRoute()` → `router.replace()`. That UNMOUNTS the editor and DESTROYS
- *     unsaved work: Payload's dirty-form guard (`usePreventLeave`) hooks only `beforeunload` and a
- *     document click listener, so it never sees a programmatic navigation. Because it is `replace`,
- *     the page also leaves history, so Back cannot recover it.
- *   - THIS component → `logOut()`, no navigation, so the editor stays mounted: a ZOMBIE EDITOR with
- *     the work still on screen, the session dead, and every save 401ing. On the shared school
- *     machines this deployment targets (SPEC §13) that is also a privacy exposure — the next person
- *     at the keyboard, possibly a student, sees the previous teacher's content.
- *
- * BOTH are open, tracked gaps against the SPEC §5 durability invariant ("in-progress edits must
- * survive session expiry, browser crash, forced refresh, device sleep and accidental tab close"),
- * whose fix is server-side **edit recovery** — designed in `docs/DESIGN-working-drafts.md` (the file
- * keeps its historical name; the feature does not, because `draft` is a reserved word: SPEC §13). The rule
- * that design settles is *capture the working copy, then clear the screen*: clearing at expiry is
- * itself the privacy control, so the answer is never "stop unmounting", and this path must learn to
- * clear rather than linger.
+ * So this component leaves a ZOMBIE EDITOR: work on screen, session dead, every save 401ing — and on
+ * the shared school machines this deployment targets (SPEC §13), the next person at the keyboard sees
+ * the previous teacher's content. Payload's own timeout is the separate path that unmounts and destroys
+ * unsaved work. Both are open gaps against the SPEC §5 durability invariant; the two mechanisms, and
+ * the fix (server-side edit recovery), are analysed in `docs/DESIGN-working-drafts.md` §1 — kept there
+ * rather than restated here, so the two cannot drift apart.
  *
  * Mounted via admin.components.providers, so it's always present and (per Payload's provider
  * tree) rendered inside AuthProvider. It renders its children unchanged.

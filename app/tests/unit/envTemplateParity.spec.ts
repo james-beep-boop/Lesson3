@@ -17,8 +17,8 @@
  *   C. the APP template holds only app-read variables, and all dev-critical ones → it was a copy of the
  *      root file, carrying Compose-only `POSTGRES_PASSWORD` and a `postgres:5432` DB host
  *   D. the deliberate security escape hatch appears in NEITHER template        → see below
- *   E. each template's `DATABASE_URI` has the host shape ITS consumer needs   → the AGENTS.md §Local
- *      stack requirement that host-local dev points at 127.0.0.1:55432
+ *   E. each template points DATABASE_URI at the host ITS consumer needs        → the AGENTS.md §Local
+ *      stack requirement that host-local dev uses 127.0.0.1:55432
  *   F. every env read in the source is one this checker could actually resolve
  *   G. `lib/env.ts` exports exactly the helpers this checker knows how to follow
  *
@@ -33,21 +33,35 @@
  * which is the signature of the wrong tool.
  *
  * So reads are collected from the TypeScript AST (`ts.createSourceFile` — parse only, no type checker,
- * so it stays fast and DB-free). Helper bindings are RESOLVED rather than forbidden: an import rename
- * and a local `const` alias both work and are followed, while genuinely unanalyzable forms (namespace
- * import, re-export, dynamic import, or handing a helper around as a value) are reported by F. The
- * rule this file can honestly enforce is: **an env helper is only ever called directly, by a binding
- * this parse followed, with a literal variable name.**
+ * so it stays fast and DB-free). Import renames ARE followed, because that is the module system's own
+ * aliasing and a normal thing to write. Everything else that puts a helper beyond this parse's reach —
+ * a namespace import, a re-export, a dynamic import, or handing the helper around as a value
+ * (including `const f = positiveIntEnv`) — is REPORTED by F rather than chased. Reporting is both
+ * simpler and stricter than following: the rule this file can honestly enforce is that **an env helper
+ * is only ever called directly, by an imported binding, with a literal variable name.**
  *
  * Deliberately DB-free and Payload-free → runs in `test:unit`.
  */
 import { describe, expect, it } from 'vitest'
-import { readdirSync, readFileSync, statSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 import { join, relative } from 'path'
+import { parse as parseEnvFile } from 'dotenv'
 import ts from 'typescript'
 
+import { isLocalDatabaseUri } from '../../scripts/lib/localDbGuard'
+
 const APP_DIR = join(__dirname, '..', '..')
-const REPO_DIR = join(APP_DIR, '..')
+
+/**
+ * The two templates live at the REPO root and inside `app/` respectively — and the repo root is not
+ * always the parent of `app/`. CI runs `test:unit` in a container that mounts ONLY `app/`
+ * (`.github/workflows/ci.yml`), so `join(APP_DIR, '..')` is `/` there and the root template is absent.
+ * That is not hypothetical: the first version of this file assumed the parent directory and would have
+ * failed every CI run with a bare `ENOENT` at collection time — no named test, no useful message. CI
+ * now mounts the repo read-only and names it here; the parent directory remains the fallback for local
+ * runs and for the Rock, where it is correct.
+ */
+const REPO_DIR = process.env.LESSON3_REPO_ROOT ?? join(APP_DIR, '..')
 const ROOT_TEMPLATE = join(REPO_DIR, '.env.example')
 const APP_TEMPLATE = join(APP_DIR, '.env.example')
 const ENV_MODULE_REL = 'src/lib/env.ts'
@@ -63,6 +77,11 @@ const RUNTIME_PROVIDED = new Set(['NEXT_PHASE', 'NEXT_RUNTIME', 'RENDER_TIMINGS'
  * Read by Compose or the container, not by `app/src` — so they belong in the ROOT template only and
  * must not be flagged as stale there. `NODE_ENV`/`PORT` are also set by the Dockerfile; keeping them
  * in the root file documents the container's contract.
+ *
+ * ⚑ Hand-maintained, unlike the app side. Deriving it from `docker-compose*.yml` `${VAR}` references
+ * and the Dockerfile's `ENV` lines would give these four names real coverage — today nothing notices
+ * if Compose stops reading one. Tracked as a follow-up rather than done here: it adds coverage rather
+ * than simplifying, and wants its own sanity-flips.
  */
 const COMPOSE_ONLY = new Set(['POSTGRES_PASSWORD', 'GOTENBERG_TREE', 'NODE_ENV', 'PORT'])
 
@@ -99,30 +118,50 @@ const SOURCE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 
 const ENV_VAR = /^[A-Z][A-Z0-9_]*$/
 
+/**
+ * Cheap pre-filter, so ~90% of the tree is never parsed (173 files → 16; the spec's parse cost drops
+ * roughly 9x). DERIVED from the patterns below rather than hand-written, because it must stay a strict
+ * SUPERSET of what the AST pass can match — a needle list that drifts narrower would reintroduce
+ * exactly the silent blind spot this file exists to eliminate.
+ *
+ * Every detectable form necessarily contains one of these substrings: `process.env` for a direct read;
+ * a helper's own name for a call or a re-export; and `env` immediately before a quote for any module
+ * specifier matching `IS_ENV_MODULE` (which requires the specifier to END in `env`). Widen this if
+ * either `HELPER_NAMES` or `IS_ENV_MODULE` changes shape.
+ */
+const MIGHT_READ_ENV = new RegExp(
+  ['process\\.env', ...[...HELPER_NAMES].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), "env['\"]"].join(
+    '|',
+  ),
+)
+
 const sourceFiles = (dir: string, acc: string[] = []): string[] => {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
-    if (statSync(full).isDirectory()) {
-      if (entry !== 'node_modules' && entry !== '.next') sourceFiles(full, acc)
-    } else if (SOURCE_EXT.test(entry)) {
-      acc.push(full)
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules' && entry.name !== '.next') {
+        sourceFiles(join(dir, entry.name), acc)
+      }
+    } else if (SOURCE_EXT.test(entry.name)) {
+      acc.push(join(dir, entry.name))
     }
   }
   return acc
 }
 
-/** Declared assignments in a `.env` template: `NAME=` at line start (commented lines excluded). */
-const declaredIn = (path: string): Set<string> => {
-  const out = new Set<string>()
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    const m = /^([A-Z][A-Z0-9_]*)=/.exec(line)
-    if (m) out.add(m[1])
-  }
-  return out
-}
+/** Variables DECLARED in a `.env` template. `dotenv` is already a dependency and owns this format. */
+const declaredIn = (template: Record<string, string>): Set<string> =>
+  new Set(Object.keys(template).filter((k) => ENV_VAR.test(k)))
 
-const parse = (file: string): ts.SourceFile =>
-  ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+const parsed = new Map<string, ts.SourceFile>()
+
+/** Parse once per path — `lib/env.ts` is needed by both the read scan and assertion G. */
+const parse = (file: string, text: string): ts.SourceFile => {
+  const cached = parsed.get(file)
+  if (cached) return cached
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  parsed.set(file, sf)
+  return sf
+}
 
 const walk = (node: ts.Node, visit: (n: ts.Node) => void): void => {
   visit(node)
@@ -140,9 +179,10 @@ const literalText = (n: ts.Node | undefined): string | null =>
   n && (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) ? n.text : null
 
 /**
- * Local bindings in a file that refer to an env helper — following import renames and `const` aliases
- * to a fixed point, so `import { positiveIntEnv as readInt }` and `const f = readInt` are both
- * followed rather than merely forbidden. Unanalyzable import forms are reported instead.
+ * Local bindings that refer to an env helper, following IMPORT RENAMES only. Anything else that could
+ * put a helper beyond a name match — namespace import, re-export, dynamic import — is reported instead
+ * of followed, and so is a plain `const f = positiveIntEnv` (handled by the escaped-value check in
+ * `collectReads`, since `f` never enters this set).
  */
 const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: string[] } => {
   const names = new Set<string>()
@@ -166,6 +206,7 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
           if (HELPER_NAMES.has(imported)) names.add(el.name.text)
         }
       }
+      return
     }
     // `export { positiveIntEnv } from './env'` / `export { helper }` — re-exporting moves the call
     // site out of this file's reach entirely.
@@ -176,6 +217,7 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
       if ((spec && IS_ENV_MODULE.test(spec)) || reExportsHelper) {
         problems.push(`re-export of an env helper: ${n.getText(sf).slice(0, 80)}`)
       }
+      return
     }
     // `await import('./env')` / `require('./env')` — the binding is created at runtime.
     if (ts.isCallExpression(n)) {
@@ -184,76 +226,53 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
         n.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(n.expression) && n.expression.text === 'require')
       if (dynamic && spec && IS_ENV_MODULE.test(spec)) {
-        problems.push(`dynamic import of the env module`)
+        problems.push('dynamic import of the env module')
       }
     }
   })
 
-  // Follow `const alias = binding` chains to a fixed point.
-  for (let pass = 0; pass < 8; pass++) {
-    const before = names.size
-    walk(sf, (n) => {
-      if (
-        ts.isVariableDeclaration(n) &&
-        ts.isIdentifier(n.name) &&
-        n.initializer &&
-        ts.isIdentifier(n.initializer) &&
-        names.has(n.initializer.text)
-      ) {
-        names.add(n.name.text)
-      }
-    })
-    if (names.size === before) break
-  }
-
   return { names, problems }
 }
 
-type Findings = { reads: Set<string>; problems: string[] }
-
 /**
  * Every variable the app reads, plus every env access this parse could not resolve to a name.
- * `next.config.ts` is included because it is app configuration that runs in the same process.
+ * `next.config.ts` is included because it is app configuration running in the same process.
  */
-const collectReads = (): Findings => {
+const collectReads = (): { reads: Set<string>; problems: string[] } => {
   const reads = new Set<string>()
   const problems: string[] = []
   const files = [...sourceFiles(join(APP_DIR, 'src')), join(APP_DIR, 'next.config.ts')]
 
   for (const file of files) {
+    const text = readFileSync(file, 'utf8')
+    if (!MIGHT_READ_ENV.test(text)) continue
+
     const rel = relative(APP_DIR, file)
-    const sf = parse(file)
+    const sf = parse(file, text)
     const { names: helpers, problems: bindingProblems } = helperBindings(sf)
     for (const p of bindingProblems) problems.push(`${rel}: ${p}`)
 
     /** The one legitimate dynamic read: `positiveIntEnv`'s own `process.env[name]`. Exactly one. */
     let dynamicReads = 0
-    /** References to a helper binding that are NOT a direct call — it could be invoked anywhere. */
-    const escapedHelpers: string[] = []
+    /** Helper references that are NOT a direct call — it could be invoked out of this parse's sight. */
+    const escapedHelpers = new Set<string>()
 
     walk(sf, (n) => {
-      // `process.env.NAME`
-      if (ts.isPropertyAccessExpression(n) && isProcessEnv(n.expression)) {
-        if (ENV_VAR.test(n.name.text)) reads.add(n.name.text)
-        else problems.push(`${rel}: non-conforming process.env property "${n.name.text}"`)
-        return
-      }
-      // `process.env['NAME']` / `process.env[name]`
-      if (ts.isElementAccessExpression(n) && isProcessEnv(n.expression)) {
-        const lit = literalText(n.argumentExpression)
-        if (lit && ENV_VAR.test(lit)) reads.add(lit)
-        else dynamicReads += 1
-        return
-      }
-      // Any OTHER use of `process.env` — destructuring it, passing it, spreading it — is a read this
-      // parse cannot attribute to a variable name.
+      // All three `process.env` shapes dispatch from the ONE node, so the parent-shape predicates are
+      // written once. (They used to be duplicated across three sibling branches, free to disagree.)
       if (isProcessEnv(n)) {
-        const parent = n.parent
-        const attributed =
-          parent &&
-          ((ts.isPropertyAccessExpression(parent) && parent.expression === n) ||
-            (ts.isElementAccessExpression(parent) && parent.expression === n))
-        if (!attributed) problems.push(`${rel}: unresolvable use of process.env`)
+        const p = n.parent
+        if (p && ts.isPropertyAccessExpression(p) && p.expression === n) {
+          if (ENV_VAR.test(p.name.text)) reads.add(p.name.text)
+          else problems.push(`${rel}: non-conforming process.env property "${p.name.text}"`)
+        } else if (p && ts.isElementAccessExpression(p) && p.expression === n) {
+          const lit = literalText(p.argumentExpression)
+          if (lit && ENV_VAR.test(lit)) reads.add(lit)
+          else dynamicReads += 1
+        } else {
+          // Destructured, spread, passed along — a read this parse cannot attribute to a name.
+          problems.push(`${rel}: unresolvable use of process.env`)
+        }
         return
       }
       // A helper call: must name its variable literally.
@@ -263,29 +282,20 @@ const collectReads = (): Findings => {
         else problems.push(`${rel}: env-helper call without a literal variable name`)
         return
       }
-      // A helper referenced as a VALUE (passed, returned, stored in a structure). It could be called
-      // out of this parse's sight, so the variable it reads is unknowable here.
-      //
-      // Three positions are NOT uses and must not be flagged — the last one caught a false positive
-      // this guard produced on its own sanity-flip: an alias's DECLARATION NAME (`const readInt = …`)
-      // is where the binding is introduced, and `helpers` contains it precisely because the alias was
-      // followed successfully. Flagging it would have failed F on exactly the legitimate code the
-      // alias-following exists to support.
+      // A helper referenced as a VALUE — assigned to a `const`, passed, returned, stored. It could be
+      // called anywhere, so the variable it reads is unknowable here. Import bindings are the
+      // declaration site, not a use, so they are excluded.
       if (ts.isIdentifier(n) && helpers.has(n.text)) {
-        const parent = n.parent
-        const isCallee = parent && ts.isCallExpression(parent) && parent.expression === n
-        const isImportBinding = parent && (ts.isImportSpecifier(parent) || ts.isImportClause(parent))
-        const isAliasDeclaration =
-          parent &&
-          ts.isVariableDeclaration(parent) &&
-          (parent.initializer === n || parent.name === n)
-        if (!isCallee && !isImportBinding && !isAliasDeclaration) escapedHelpers.push(n.text)
+        const p = n.parent
+        const isCallee = p && ts.isCallExpression(p) && p.expression === n
+        const isImportBinding = p && (ts.isImportSpecifier(p) || ts.isImportClause(p))
+        if (!isCallee && !isImportBinding) escapedHelpers.add(n.text)
       }
     })
 
-    if (escapedHelpers.length > 0) {
+    if (escapedHelpers.size > 0) {
       problems.push(
-        `${rel}: env helper(s) used as a value, not called directly: ${[...new Set(escapedHelpers)].join(', ')}`,
+        `${rel}: env helper(s) used as a value, not called directly: ${[...escapedHelpers].join(', ')}`,
       )
     }
 
@@ -301,7 +311,8 @@ const collectReads = (): Findings => {
 
 /** Exported value names of `src/lib/env.ts`, read structurally so no export form can hide. */
 const envModuleExports = (): string[] => {
-  const sf = parse(join(APP_DIR, ENV_MODULE_REL))
+  const path = join(APP_DIR, ENV_MODULE_REL)
+  const sf = parse(path, readFileSync(path, 'utf8'))
   const names: string[] = []
   const isExported = (n: ts.Node): boolean =>
     ts.canHaveModifiers(n) &&
@@ -329,8 +340,25 @@ const envModuleExports = (): string[] => {
 
 describe('env template parity', () => {
   const { reads, problems } = collectReads()
-  const root = declaredIn(ROOT_TEMPLATE)
-  const app = declaredIn(APP_TEMPLATE)
+
+  // Named, explanatory failure if a template is missing — the alternative is an ENOENT at collection
+  // time, which reports zero tests and no reason. See REPO_DIR above for how CI hits that.
+  const readTemplate = (path: string): Record<string, string> => {
+    let raw: string
+    try {
+      raw = readFileSync(path, 'utf8')
+    } catch {
+      throw new Error(
+        `env template not found: ${path}. If this is CI, the runner must mount the repo root and set LESSON3_REPO_ROOT (see .github/workflows/ci.yml).`,
+      )
+    }
+    return parseEnvFile(raw)
+  }
+
+  const rootTemplate = readTemplate(ROOT_TEMPLATE)
+  const appTemplate = readTemplate(APP_TEMPLATE)
+  const root = declaredIn(rootTemplate)
+  const app = declaredIn(appTemplate)
 
   /** App-read variables an operator is expected to configure. */
   const configurable = [...reads]
@@ -338,7 +366,7 @@ describe('env template parity', () => {
     .sort()
 
   it('F: every env read in the source resolved to a variable name', () => {
-    // If this fails, either fix the source to a followable form or TEACH THE CHECKER — do not delete
+    // If this fails, either write the read in a followable form or TEACH THE CHECKER — do not delete
     // the assertion. A read it cannot resolve is a variable it cannot verify, and silence here would
     // be a false all-clear about the whole template.
     expect(problems).toEqual([])
@@ -346,9 +374,12 @@ describe('env template parity', () => {
 
   it('G: lib/env.ts exports exactly the helpers this checker knows how to follow', () => {
     // A helper added to the env module would read env through a path this file does not follow, so F
-    // would keep passing while its variable went unverified. Exports are read structurally (any form
-    // — const, function, class, enum, `export {}`, default — is named), so the only way to add one is
-    // to register it in HELPER_NAMES.
+    // would keep passing while its variable went unverified. Exports are read structurally, so any
+    // form — const, function, class, enum, `export {}`, default — is named.
+    //
+    // If this fails: register the new export in HELPER_NAMES when it READS env; move it out of
+    // lib/env.ts when it does not. Registering a non-env helper would make F treat its first argument
+    // as a variable name, so the two cases genuinely need different fixes.
     expect(envModuleExports()).toEqual([...HELPER_NAMES].sort())
   })
 
@@ -376,14 +407,17 @@ describe('env template parity', () => {
   })
 
   it('E: each template points DATABASE_URI at the host ITS consumer must use', () => {
-    const uriIn = (path: string): string =>
-      readFileSync(path, 'utf8')
-        .split('\n')
-        .find((l) => l.startsWith('DATABASE_URI=')) ?? ''
+    // Reusing the seed script's own guard (scripts/lib/localDbGuard.ts) rather than matching on the
+    // raw line: it parses with `new URL`, so a password containing '@' cannot fool it into reading the
+    // wrong segment as the host — a defect that helper's docstring records from its own review.
+    const rootUri = rootTemplate.DATABASE_URI ?? ''
+    const appUri = appTemplate.DATABASE_URI ?? ''
 
     // Containers reach Postgres by compose service name over the internal network...
-    expect(uriIn(ROOT_TEMPLATE)).toContain('@postgres:5432/')
+    expect(isLocalDatabaseUri(rootUri), 'root template must NOT point at localhost').toBe(false)
+    expect(new URL(rootUri).hostname).toBe('postgres')
     // ...while host-local dev must use the port docker-compose.local.yml publishes (AGENTS.md).
-    expect(uriIn(APP_TEMPLATE)).toMatch(/@(127\.0\.0\.1|localhost):55432\//)
+    expect(isLocalDatabaseUri(appUri), 'app template MUST point at localhost').toBe(true)
+    expect(new URL(appUri).port).toBe('55432')
   })
 })

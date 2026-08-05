@@ -67,7 +67,14 @@ jobs:
         run: ./scripts/test-deploy-sidecar.sh
 
       - name: test:unit
-        run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run test:unit
+        # The repo root is mounted READ-ONLY as well, because `envTemplateParity.spec.ts` compares the
+        # root `.env.example` (what a Compose operator copies) against the app's own template. With
+        # only `app/` mounted, that file is simply absent in the container and the spec dies with a
+        # bare ENOENT at collection time — zero tests reported, no reason given. `app/` stays mounted at
+        # `/app` so the image's `node_modules` volume trick keeps working unchanged.
+        run: |
+          docker run --rm -v "$PWD/app:/app" -v /app/node_modules -v "$PWD:/repo:ro" \
+            -e LESSON3_REPO_ROOT=/repo -w /app lesson3-deps npm run test:unit
 
       - name: lint
         run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run lint
