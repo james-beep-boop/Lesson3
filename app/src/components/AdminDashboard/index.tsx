@@ -6,7 +6,7 @@ import type { AdminViewServerProps } from 'payload'
 import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
-import { relId } from '../../lib/relId'
+import { relId, distinctIds } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
@@ -112,9 +112,8 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // refetching entire lesson bundles (`lessons[]`, `finalExplanation`, `summaryTable`) to render a
   // title, a grade label, an author and a date. Measured 2026-08-04 on a 43-plan corpus: ~8.0s to
   // produce ONE candidate row, ~1.8× the catalogue's ~4.6s. After this rewrite: ~170ms, same rows.
-  // ⚑ The catalogue is NOT fixed — its `officialVersions` find is still `depth: 2` and still ~3.6s of
-  // its render. It needs its own change (pinned-version rows and subject names have requirements this
-  // page does not), so do not treat it as a copy of this one.
+  // The catalogue had the same shape and was fixed the same way (DECISIONS 2026-08-04 late): ~4.5s →
+  // ~0.63s, `depth: 0` plus a subject-grade and a subject lookup.
   //
   // Each lookup is depth 0, over DISTINCT ids, projected to the one field it needs, and keeps the
   // caller's access (`overrideAccess: false` + `user`) — population respected access too, so this
@@ -122,19 +121,16 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // (SPEC §8 as amended 2026-07-02; `name` has no read restriction). Select ONLY `name`: `email`,
   // `roles` and `assignments` are the field-gated ones, and `lib/editorGroups.ts` remains the single
   // trusted `overrideAccess: true` projection — do not reach for it here.
-  const distinct = (ids: (number | null)[]): number[] => [
-    ...new Set(ids.filter((id): id is number => id != null)),
-  ]
-  const sgIds = distinct([
+  const sgIds = distinctIds([
     ...versionDocs.map((v) => relId(v.subjectGrade)),
     ...planDocs.map((p) => relId(p.subjectGrade)),
   ])
-  const authorIds = distinct(versionDocs.map((v) => relId(v.author)))
-  const officialIds = distinct(planDocs.map((p) => relId(p.officialVersion)))
+  const authorIds = distinctIds(versionDocs.map((v) => relId(v.author)))
+  const officialIds = distinctIds(planDocs.map((p) => relId(p.officialVersion)))
   // Official pointers drive the candidate exclusion below. A Site Admin's plans fetch already carries
   // every plan, so reuse it; other roles have no plans fetch, so look up only the plans their own
   // versions reference.
-  const exclusionPlanIds = siteAdmin ? [] : distinct(versionDocs.map((v) => relId(v.lessonPlan)))
+  const exclusionPlanIds = siteAdmin ? [] : distinctIds(versionDocs.map((v) => relId(v.lessonPlan)))
 
   const [sgRes, authorRes, exclusionRes, officialMetaRes] = await Promise.all([
     sgIds.length === 0

@@ -22,18 +22,10 @@
  * Every seeded record's visible text carries the per-run MARK, so assertions locate exactly this
  * run's rows regardless of real corpus.
  */
-import { test, expect, type Browser, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
-import { login } from '../helpers/login'
-import {
-  MARK,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-  type RoleKey,
-} from '../helpers/fixtures'
-
-const BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
+import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures'
 
 const POINTERLESS_TITLE = `${MARK}Pointerless Plan`
 const DELETABLE_TITLE = `${MARK}Deletable Plan`
@@ -41,12 +33,8 @@ const CANDIDATE_TITLE = `${MARK}Plan v1.1.0`
 
 let fx: RoleFixture
 
-async function loginAs(browser: Browser, key: RoleKey): Promise<Page> {
-  const context = await browser.newContext()
-  const page = await context.newPage()
-  await login({ page, serverURL: BASE, user: { email: fx.users[key].email, password: fx.password } })
-  return page
-}
+/** Thin wrapper so the many call sites below keep reading `loginAs(page, 'editor')`. */
+const loginAs = (page: Page, key: RoleKey): Promise<void> => loginAsRole(page, fx, key)
 
 test.describe('Manage page', () => {
   test.beforeAll(async () => {
@@ -88,8 +76,8 @@ test.describe('Manage page', () => {
     await fx?.teardown()
   })
 
-  test('Editor sees ONLY "My saved versions"', async ({ browser }) => {
-    const page = await loginAs(browser, 'editor')
+  test('Editor sees ONLY "My saved versions"', async ({ page }) => {
+    await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Editing access' })).toHaveCount(0)
@@ -100,8 +88,8 @@ test.describe('Manage page', () => {
     await expect(page.locator("[id='nav-group-Lesson plans']")).toBeHidden()
   })
 
-  test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ browser }) => {
-    const page = await loginAs(browser, 'subjectAdmin')
+  test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ page }) => {
+    await loginAs(page, 'subjectAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
@@ -121,16 +109,16 @@ test.describe('Manage page', () => {
     ).toHaveCount(0)
   })
 
-  test('retired list routes redirect to Manage', async ({ browser }) => {
-    const page = await loginAs(browser, 'siteAdmin')
+  test('retired list routes redirect to Manage', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin/collections/lesson-plans`)
     await expect(page).toHaveURL(`${BASE}/admin`)
     await page.goto(`${BASE}/admin/collections/lesson-bundle-versions`)
     await expect(page).toHaveURL(`${BASE}/admin`)
   })
 
-  test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({ browser }) => {
-    const page = await loginAs(browser, 'siteAdmin')
+  test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toBeVisible()
@@ -164,8 +152,8 @@ test.describe('Manage page', () => {
   // corpus as deletable. Written against the depth-2 code it passes immediately; its job is to fail the
   // moment a naive depth change lands. Both fixture versions share a `substrand_name`, so the rows are
   // distinguished by the metadata line's semver, not the label.
-  test('an Official version is never listed as a candidate', async ({ browser }) => {
-    const page = await loginAs(browser, 'siteAdmin')
+  test('an Official version is never listed as a candidate', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // This run's rows only — the fixture subject-grade's displayName carries the MARK.
@@ -179,8 +167,8 @@ test.describe('Manage page', () => {
   // relationship population. The exclusion paths are covered above; these two assertions cover the
   // remaining lookups, each of which would fail SILENTLY — a missing name renders '' or 'Unknown
   // author', which no other assertion notices.
-  test('display lookups resolve: author name and the Official sub-strand name', async ({ browser }) => {
-    const page = await loginAs(browser, 'siteAdmin')
+  test('display lookups resolve: author name and the Official sub-strand name', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
 
     // `authors`: the candidate was seeded with the editor as author, whose name is `${MARK}editor`.
@@ -199,12 +187,12 @@ test.describe('Manage page', () => {
   })
 
   test('version editor shell: stripped chrome, Back to lesson, edit-intent unlock', async ({
-    browser,
+    page,
   }) => {
     // Editor-shell smoke (Codex rounds 1–2: the chrome strip depends on pinned-Payload class names —
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
     // intent as the Editor.
-    const page = await loginAs(browser, 'editor')
+    await loginAs(page, 'editor')
     await page.goto(
       `${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`,
     )
@@ -227,8 +215,8 @@ test.describe('Manage page', () => {
     await expect(page.locator('textarea').first()).toBeEditable()
   })
 
-  test('Site Admin can delete a plan from the Delete panel', async ({ browser }) => {
-    const page = await loginAs(browser, 'siteAdmin')
+  test('Site Admin can delete a plan from the Delete panel', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     page.on('dialog', (dialog) => dialog.accept())
 
