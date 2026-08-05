@@ -11,7 +11,86 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-04 (latest) — Delete lesson plans became the curriculum tree; group deletes select PLANS
+## 2026-08-05 (latest) — Edit recovery reconciled and approved; the env templates got a parity test
+
+Two things landed as documentation and one small test, ahead of any edit-recovery code: the environment
+templates were reconciled behind a mechanical parity check, and the unsaved-work design was reconciled
+across `SPEC.md` §5/§13, `AGENTS.md` and `docs/DESIGN-working-drafts.md` and moved from DRAFT to
+APPROVED. Both came out of five rounds of adversarial review between two models, and the *pattern* in
+what the review caught is the durable lesson.
+
+**The recurring defect class: a label asserting authority its content does not have.** Four separate
+instances, all of which cost real attention:
+
+1. `IdleLogout`'s docstring claimed `logOut()` did a "logout + redirect". It does not navigate at all
+   (verified in installed `@payloadcms/ui` 3.85.1). A reviewer auditing the unsaved-work gap read the
+   comment, concluded that component was the work-destroying path, and filed the finding against the
+   wrong mechanism. **One false clause in a comment redirected a whole audit.**
+2. The root `.env.example` presented itself as the template to copy while declaring 5 of the 58
+   variables the app reads — including `ARTIFACT_CACHE_DIR`, whose absence breaks every export with
+   `EACCES`. A fresh, correctly-followed install was broken on arrival.
+3. `app/.env.example` was a verbatim copy of the Compose template, pointing host-local dev at
+   `postgres:5432` and carrying Compose-only `POSTGRES_PASSWORD` — contradicting AGENTS.md's own Local
+   stack rule.
+4. The design document was about to be flipped to "approved" while its body still specified top-level
+   keys, hard deletion and last-write-wins. Flipping the header would have created the same defect
+   deliberately. **Body first, status last** — the status line is a claim about the content.
+
+**Rule this teaches:** a parity/verification check that can silently fail to see part of its subject is
+worse than none, because it certifies coverage it never had. Hence assertion F in
+`tests/unit/envTemplateParity.spec.ts`: any `process.env` access shape the checker does not recognise
+**fails** and asks to be taught. A naive `process.env.X` scan misses every `RATE_LIMIT_*` value (read via
+`positiveIntEnv('NAME', default)`) — i.e. most of the rate-limit surface, which is security config.
+Related: the env drift was already found (Codex 2026-07-06 #5) and *deferred*; the deferral is what
+produced the broken install, so it was reversed with a test rather than reconciled by hand again.
+
+**Edit recovery — the five design provisions that did not survive review of the code.** Recorded in the
+design doc's own §0 table; summarised here because each is a general trap:
+
+- **A whitelist at the wrong granularity is not a whitelist.** Storing "editor-writable top-level keys"
+  would have persisted `resourceLinks`, `framework[].phase`, `duration` and `number` — the very data the
+  field-split protects — because they live *inside* `lessons`. The deep per-container `*_PROSE` constants
+  in `hooks/fieldSplit.ts` already exist and are already drift-tested against the `canEditProse`
+  factories, so the correct projection was in the repo the whole time.
+- **Hard-deleting a row cannot fence anything.** A stale tab's next write *recreates* it. Retirement
+  therefore clears content and keeps a marker, and the marker lives as long as its source version —
+  because `save-as-new` leaves the source untouched, so the `baseUpdatedAt` staleness check can never
+  catch that case.
+- **Permanent markers need a legitimate restart.** Server-issued **generations** fence retirement;
+  **revisions** fence concurrent writes. Two mechanisms, two jobs.
+- **Same-transaction or it did not happen.** Retirement joins the save-as-new transaction *inside* the
+  semver retry attempt; a generation mismatch fails the save rather than retiring newer work, and unlike
+  a semver conflict it is **not** retryable.
+- **Do not promise durability you cannot deliver.** The guarantee is "the last server-confirmed capture
+  survives", not every keystroke: the debounce window, an in-flight request and all offline time are
+  outside it (client storage is disqualified by the shared-machine rule). The confirmed timestamp in the
+  UI is therefore the contract's observable surface, and v1 is prose-only — so the indicator is
+  role-aware, because an unqualified "saved" shown to a Subject Admin editing answer keys is false.
+
+**Two sanctioned deviations, both written down rather than decided at edit time.** (1) `edit-recovery`
+stores a sparse prose overlay as **JSON**, narrowing the `AGENTS.md` native-nested-fields rule to the
+*content of record*; native fields cannot express a sparse row-id-keyed overlay, and could not store a
+capture written against an older field shape at all — which would defeat the schema-drift rule. (2) The
+collection closes **all four** client operations and is reached only through custom endpoints — the
+documented Payload-first gap: default REST has no upsert, closing `read` makes "lost editing access ⇒
+cannot restore" structural, and closing `delete` stops an owner erasing their own marker.
+
+**`draft` is now a reserved word** (SPEC §13, beside `class` → `SubjectGrade`). It already means an
+unofficial *saved version* — the `Draft` status pill, and the Guide's "your drafts live in Manage → My
+saved versions" — so "draft saved" would tell a teacher their version was saved when it was not. The
+feature is **edit recovery**. The design file keeps its path only because five documents and a source
+docstring cite it.
+
+**Priority argument that settled the order.** Sequencing by cheapness would have put edit recovery
+behind the environment fix, the Official-pointer lock and the bootstrap race. Ranked by expected harm it
+comes first: it triggers when one teacher walks away from one dirty form — no concurrency, no operator
+error, no attacker — whereas the two races need millisecond overlap between authorized actors and the env
+template only affects a *new* host. The cheap documentation fixes went first because they are one commit,
+not a phase.
+
+---
+
+## 2026-08-04 — Delete lesson plans became the curriculum tree; group deletes select PLANS
 
 Operator report: the delete panel had "effectively NO organisation" — a flat alphabetical list with the
 subject-grade in small type off to the right — while the library catalogue organises the same corpus

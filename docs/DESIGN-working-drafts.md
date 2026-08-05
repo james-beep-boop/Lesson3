@@ -1,176 +1,282 @@
-# DESIGN DRAFT — recoverable working drafts (unsaved-edit durability)
+# DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: DRAFT for review. Not implemented. No code written.**
-Author: assistant, 2026-07-20 session. Baseline `main` `dcfc8dc`.
+**Status: APPROVED; not implemented.** Reconciled 2026-08-05 after adversarial review (five rounds).
+First drafted 2026-07-20.
+
+> **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,
+> `docs/NEXT-SESSION.md`, `docs/DESIGN-editor-usability-2026-07-25.md` and a source docstring. Renaming
+> it would break every one of those references for a cosmetic gain; the *feature* is renamed (below),
+> the path is not.
+
+The normative rules live in **`SPEC.md` §5** (the invariant, the guarantee's boundaries, access
+posture, the storage exception, fencing, retirement, caps) and **§13** (shared computers, reserved
+words); the `AGENTS.md` native-fields rule was narrowed to admit this one exception. **This document
+is the implementation design and the verification matrix** — read SPEC §5 first for what is promised,
+then this for how it gets built.
 
 Addresses **L3-13** (session expiry silently destroys unsaved lesson edits) and the broader
 edit-durability gap: browser crash, forced refresh, device sleep, accidental tab close.
+
+> **Naming.** The feature is **edit recovery**, never "drafts" — `draft` already means an unofficial
+> *saved version* in this product (SPEC §13 reserved words), so "draft saved" would tell a teacher
+> their version was saved when it was not. Collection `edit-recovery`; UI "Unsaved changes backed up ·
+> <when>". Earlier revisions of this file said "working drafts" throughout; that name is retired.
+
+---
+
+## 0. What changed in the 2026-08-05 reconciliation, and why
+
+Recorded rather than silently overwritten, because the first draft was reviewed *against the code* and
+five of its provisions did not survive. Anyone holding an older copy should know which parts were wrong.
+
+| First draft said | Now | Why |
+|---|---|---|
+| Content = editor-writable **top-level keys** (`lessons`, `finalExplanation`, `summaryTable`) | Deep projection from the `*_PROSE` constants | `lessons` carries `resourceLinks`, `framework[].phase`, `duration`, `number` — a top-level whitelist would have persisted system and admin-only data into a user-readable row, violating this document's own prohibition |
+| Hard-delete on save/discard | Clear content, keep a **retirement marker** | A stale tab's next capture *recreates* a deleted row — resurrection, not a lost update, and no revision token can fence a row that no longer exists |
+| "Two tabs: last write wins, and the restore prompt makes divergence visible" | Server-issued **generations** + **revision** preconditions | Untrue as written: one tab can silently overwrite another's capture, or recreate it after the first tab saved |
+| Staleness (`baseUpdatedAt`) would catch a stale tab | It cannot | `save-as-new` leaves the source version untouched, so a stale tab's timestamp still matches. This is exactly why markers are retained for the source version's lifetime |
+| (unstated) | Prose-only scope is explicit, and the indicator is **role-aware** | Subject Admins edit structure, phases, durations and answer keys in the same editor; an unqualified "saved" would be false for them |
+| (unstated) | The guarantee is the **last server-confirmed capture** | The debounce window, an in-flight request and offline time are necessarily outside it; client-side persistence is disqualified by SPEC §13 |
+
+Also corrected: §1 of the first draft implied our `IdleLogout` was the work-destroying path. It is not
+— `logOut()` performs no navigation (verified in installed `@payloadcms/ui` 3.85.1). That one wrong
+inference cost a later reviewer a misfiled finding. See §1.
 
 ---
 
 ## 1. The problem this solves
 
-Confirmed by source trace (see the session audit; every link verified in installed Payload 3.85.1):
+Verified against installed Payload 3.85.1 (`providers/Auth/index.js`):
 
-1. `tokenExpiration: 7200` (2 h); `admin.autoRefresh` off. A 60 s "Stay logged in?" modal precedes expiry.
-2. If unattended, Payload's `forceLogOutTimeout` calls `redirectToInactivityRoute()` →
-   **`router.replace()`**, a *programmatic client-side* navigation.
+1. `tokenExpiration: 7200` (2 h); `admin.autoRefresh` off. A reminder modal precedes expiry by
+   `min(60 s, expiresIn / 2)`.
+2. **Path A — Payload's own `forceLogOutTimeout`** (≈ line 101) calls `revokeTokenAndExpire()` then
+   `redirectToInactivityRoute()`, which is `startRouteTransition(() => router.replace(…))`.
 3. Payload's dirty-form guard `usePreventLeave` registers **only** `beforeunload` and a document
-   **click** listener. Neither intercepts programmatic navigation.
+   **click** listener. Neither intercepts a programmatic navigation.
 4. The editor unmounts. **All unsaved form state is destroyed with no prompt**, and because it is
    `replace` (not `push`) the page leaves history, so Back cannot recover it.
-5. There is **no autosave and no draft persistence** anywhere — no `localStorage`/`sessionStorage` in
-   `src/`, no Payload drafts/autosave on `lesson-bundle-versions` (deliberately: immutable versions).
-
-**Two distinct expiry paths** (do not assume one):
+5. **Path B — our `IdleLogout`** calls `logOut()` (≈ line 164), which POSTs `/<collection>/logout` and
+   clears the in-memory user. **It does not navigate.** The editor stays mounted: a **zombie editor**
+   — work on screen, session dead, every save 401ing — and on a shared machine the previous teacher's
+   content is left visible to whoever sits down next.
+6. There is **no autosave and no recovery persistence** anywhere: no `localStorage`/`sessionStorage` in
+   `src/`, and no Payload drafts/autosave on `lesson-bundle-versions` (deliberately — versions are
+   immutable).
 
 | Path | Mechanism | Current outcome |
 |---|---|---|
-| Foreground | Payload `forceLogOutTimeout` fires at the deadline | editor unmounts, **work destroyed** |
-| Backgrounded → refocused | our `IdleLogout` fires first; `logOut()` clears both timers, no navigation | **zombie editor**: work on screen, session dead, saves 401 |
+| A — foreground expiry | Payload `forceLogOutTimeout` → `router.replace()` | editor unmounts, **work destroyed** |
+| B — backgrounded → refocused | our `IdleLogout` fires first; `logOut()` clears both timers, no navigation | **zombie editor**: work on screen, session dead, saves 401 |
 
-Note `IdleLogout`'s docstring (`src/components/IdleLogout/index.tsx:15`) claims `logOut()` performs a
-"logout + redirect". **That is factually wrong** — `logOut()` (`providers/Auth/index.js:164`) performs
-no navigation. The comment should be corrected regardless of this design.
+Both need fixing, and the fix for both is *capture the working copy, then clear the screen* — clearing
+is itself the privacy control (SPEC §13), so "stop unmounting" is never the answer.
 
-## 2. Deployment constraint that drives the design
+---
 
-**Shared computers are effectively universal in Kenyan schools** (operator, 2026-07-20). Consequences:
-
-- **Client-side storage is disqualified.** A draft in `localStorage`/IndexedDB persists in the browser
-  profile across logout and users; the next person at that machine can read it with devtools.
-  Namespacing by user id prevents an accidental *restore* — it does not prevent *exposure*.
-- **The destructive unmount is doing double duty.** Clearing the editor off screen is itself a privacy
-  control on a shared machine. So the fix is NOT "stop unmounting" — it is
-  **capture the working copy, then clear the screen.** Both expiry paths must clear.
-- **Session expiry must stay.** On shared machines the walk-away case is the normal case, and the next
-  user may be a student, not a colleague. `admin.autoRefresh` must remain **off** (an indefinitely
-  refreshing session on a shared box is the opposite of what is wanted).
-
-This reverses the assistant's earlier `localStorage` recommendation and its earlier suggestion to
-consider enabling `autoRefresh`. Both were wrong for this deployment.
-
-## 3. Proposed model — a `working-drafts` collection
-
-A **separate, user-owned, mutable** collection. It does NOT create `lesson-bundle-versions` rows, so
-it introduces no version churn and does not touch the immutable-version model or the no-op-save guard.
+## 2. Model — the `edit-recovery` collection
 
 ```
-working-drafts
-  user          relationship -> users     (required, system-stamped, never client-supplied)
-  sourceVersion relationship -> lesson-bundle-versions  (required)
-  lessonPlan    relationship -> lesson-plans            (denormalised, for listing/cleanup)
-  baseUpdatedAt date        (the source's updatedAt when editing began — staleness check)
-  schemaVersion text        (guards restoring a draft written against an older field shape)
-  content       json        (ONLY editor-writable keys; see §4)
-  updatedAt     (native)
+edit-recovery
+  user           relationship -> users                    (required, server-stamped)
+  sourceVersion  relationship -> lesson-bundle-versions   (required)
+  lessonPlan     relationship -> lesson-plans             (denormalised, for listing/cleanup)
+  generation     number    (server-issued; fences RETIREMENT)
+  revision       number    (monotonic per write; fences CONCURRENT WRITES)
+  retiredAt      date      (null = active; set = tombstone, content cleared)
+  baseUpdatedAt  date      (the source's updatedAt when the session began)
+  schemaVersion  text      (guards restoring against an older field shape)
+  content        json      (sparse prose overlay; NULL once retired)
+  updatedAt      (native)
 ```
 
-**Uniqueness:** one draft per `(user, sourceVersion)`. Upsert on autosave.
+**Uniqueness:** one row per `(user, sourceVersion)` — that row is either an active capture or that
+pair's retirement marker. Capture is an upsert.
 
-### Access rules — mirror the existing user-owned idiom (`Favorites.ts:30`)
+**Access — nothing client-facing.** `read`, `create`, `update`, `delete` all closed;
+`admin.hidden: true`. Rationale and the Payload-first gap are recorded in SPEC §5; briefly: default
+REST offers no upsert, closing `read` makes "lost editing access ⇒ cannot restore" structural rather
+than incidental, and closing `delete` stops an owner erasing their own retirement marker.
 
-```
-read:   own only          ({ user: { equals: u.id } })
-create: authenticated     (user stamped server-side in beforeValidate)
-update: own only
-delete: own only
-```
+**Endpoints** — on `lesson-bundle-versions`, beside `/:id/preview` and `/:id/save-as-new`. Each
+re-loads the source and re-runs `authorize(req, 'editor')` on every call, then writes with
+`overrideAccess`:
 
-**Deliberately stricter than Favorites:** `read` must NOT include a Site-Admin bypass. A draft is a
-user's private unsaved work; there is no operational need for an admin to read it, and on shared
-hardware the smallest possible audience is the right default. Admin needs are met by *counts* and
-*deletion*, not content.
+| Endpoint | Purpose |
+|---|---|
+| `POST /:id/recovery/start` | Explicit session start. Returns the active generation, or mints one. Never called implicitly. |
+| `POST /:id/recovery` | Capture (upsert). Requires `generation` + `expectedRevision`. Stale/missing ⇒ **409**. |
+| `GET /:id/recovery` | Fetch the active capture, for the restore prompt. |
+| `DELETE /:id/recovery` | Explicit discard ⇒ retire. |
+| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata and authorized retirement. Never content. |
 
-`user` is stamped from the session in a `beforeValidate` hook (same pattern as `stampFavoriteUser`) so
-a REST POST cannot supply a foreign id.
+Each ships wire-level 401/403/404 plus happy-path coverage in `tests/http` in the same PR (CLAUDE.md
+standing rule), and a `recovery` bucket in `lib/rateLimit.ts` sized for the real worst case — several
+tabs, blur flushes, the pre-expiry flush. **A 429 must produce visible backoff, never silent
+abandonment** (§5).
 
-## 4. What is stored
+---
 
-**Only editor-writable content** — the same scope the save boundary already enforces:
-`VERSION_EDITOR_KEYS = { lessons, finalExplanation, summaryTable }` (`hooks/bundleVersion.ts:19`).
+## 3. What is stored
 
-Explicitly NOT stored: `meta`/`unit` structure, `semver`, `sourceVersion` identity fields, `author`,
-row ids, and **`resourceLinks`** (system-owned; it is restored from the source on save anyway, so
-persisting it would duplicate system data into a user-readable row for no benefit).
+A **sparse map of prose leaves keyed by row id**, derived from the deep whitelist already in
+`hooks/fieldSplit.ts` — `LESSON_PROSE`, `SLO_PROSE`, `FRAMEWORK_PROSE`, `SUMMARY_PROMPT_PROSE`,
+`FINAL_EXPLANATION_PROSE`, `SECTION_PROSE`, `SUMMARY_LESSON_PROSE` — which
+`tests/unit/proseWhitelistDrift.spec.ts` pins mechanically to the `canEditProse` field factories.
 
-Rationale: a draft must never become a second, weaker channel for data the field-split protects.
-On restore, the draft supplies prose only; everything else comes from the source version, and the
-existing `applyEditorFieldSplit` remains the write-time authority.
+Consequences, by construction rather than by policy:
+
+- `resourceLinks` (lesson-level), `framework[].phase`, `duration`, `number`, `sections[].exemplar`,
+  `rubric[*]`, `META`, `semver`, `author` and row ids **cannot** enter a capture.
+- An admin/system field added later is excluded automatically, in the secure direction.
+- The projection inherits the existing drift test for free.
+
+**One source of truth:** the same constants define "what an Editor may write" at the save boundary and
+"what a capture may hold". On restore a capture supplies prose only; `applyEditorFieldSplit` remains
+the write-time authority.
+
+**v1 is prose-only** (SPEC §5). Structural edits change row identity, so a sparse overlay has nothing
+stable to key on — admin-scope recovery is a *different storage model* (a full snapshot, with the
+answer-key sensitivity that implies) and is deferred rather than half-built.
+
+---
+
+## 4. Fencing protocol
+
+Two mechanisms, two jobs — keeping them separate is what keeps this comprehensible:
+
+- **`generation` fences retirement.** Server-issued, never the client's choice. `start` returns the
+  active generation or mints a new one, so clicking Edit twice, or in two tabs, is safe. A capture
+  carrying a retired or absent generation is **409, and never an implicit restart.**
+- **`revision` fences concurrent writes.** Every capture supplies `expectedRevision`; on mismatch the
+  client refetches rather than overwriting.
+
+**Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day
+expiry, Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances
+revision/generation. **None hard-delete.** Because all four share one function, expiry cannot be SQL
+inside `scripts/prune-db.sh` (a second implementation, free to drift); it becomes a Payload job, and
+`prune-db.sh` keeps only the bookkeeping tables it already handles.
+
+**On save-as-new**, retirement joins the existing transaction in `endpoints/versionEdit.ts` **inside
+the semver retry attempt**, so it can neither half-apply nor double-apply. A generation mismatch there
+fails the whole save with 409 rather than retiring newer work — and unlike a semver conflict, a
+mismatch is **not** retryable.
+
+**Row deletion happens only by parent cascade.** Required relationships mean NOT NULL columns with
+`ON DELETE SET NULL` FKs, so a parent delete must remove these rows first or Postgres raises 23502 —
+the trap `cascadeDeleteFavoritesBy` already documents. Add a `beforeDelete` cascade to **both**
+`LessonBundleVersions.ts` (today `[enforceOfficialNotDeletable, cascadeDeleteVersionFavorites]`) and
+`Users.ts` (today `[cascadeDeleteUserFavorites, cascadeDeleteUserMessages]`), threaded through the
+parent's transaction. One hook per parent covers every path: `save-as-new?deleteSource=true`,
+`make-official?deletePrevious=true` and the plan cascade all run the row's own `beforeDelete`.
+
+---
 
 ## 5. Lifecycle
 
-**Capture.** Debounced autosave (~5–10 s idle, or on blur) from the editor while the form is dirty.
-Upsert `(user, sourceVersion)`. Cheap: content-only, no version creation.
+**Start.** Clicking Edit calls `recovery/start`. `LessonControls` already holds `useForm`,
+`useAllFormFields` and `useFormModified` and drives the read-only lock, so it is the host.
 
-**Pre-expiry flush.** `IdleLogout` already holds `tokenExpirationMs`; add a flush shortly before the
-deadline so the last edits land while the token is still valid. (A server autosave cannot write after
-expiry — but continuous autosave means the last write is seconds old, so this is belt-and-braces.)
+**Capture.** Debounced ~8 s idle, plus on blur, while the form is modified and unlocked. Inert while
+the form is read-only.
 
-**Clear the screen on BOTH expiry paths.** Foreground already unmounts. The `IdleLogout`/zombie path
-must also clear — currently it leaves the previous teacher's content visible on a shared machine.
+**Pre-expiry flush.** `IdleLogout` holds `tokenExpirationMs`; flush shortly before the deadline so the
+final capture lands while the token is still valid.
 
-**Restore.** On opening the editor for a version, if a draft exists for `(user, sourceVersion)`:
-offer it — never auto-apply. Show when it was saved. Applying it marks the form dirty; discarding
-deletes the draft.
+**Save.** Pause capture → flush → await any in-flight write → `save-as-new` with the current
+generation. **If the flush fails, save anyway**: the version save is the operation that matters and
+the capture is insurance. Blocking a real save on failed insurance inverts the priority exactly.
 
-**Staleness.** If `draft.baseUpdatedAt !== source.updatedAt`, warn that the underlying version changed.
-(Rare — versions are immutable — but possible via a trusted/migration path.)
+**Failure surfacing.** The indicator shows the confirmed timestamp — "Unsaved changes backed up · 12 s
+ago". On 429 or network failure it must show **not backed up** and keep the form dirty; the timestamp
+*is* the contract (SPEC §5), so silence would make the guarantee a lie. Role-aware: administrators see
+explicitly that structural and answer-key edits are not covered.
 
-**Schema drift.** If `draft.schemaVersion` ≠ current, do not silently apply; offer view/discard only.
+**Clear the screen on BOTH expiry paths.** Path A already unmounts. Path B must clear too — today it
+leaves the previous teacher's content on screen.
 
-**Cleanup.** Delete on successful save-as-new, on explicit discard, and by TTL (proposal: 30 days) via
-a scheduled job. Also delete when the source version is deleted (the save-as-new `deleteSource` path).
+**Restore.** On opening the editor, if an active capture exists for `(user, sourceVersion)`: offer it,
+never auto-apply, showing when it was captured. Applying marks the form dirty; discarding retires it.
 
-**Concurrency.** Two tabs, same user, same source: last write wins on the upsert, and the restore
-prompt makes divergence visible rather than silent. Acceptable for v1; note it explicitly.
+**409 on a stale tab.** Surface the stale content **read-only** so the user can copy it out before it
+goes. Silently discarding keystrokes the user really typed would defeat the point of the feature.
 
-## 6. Operator decisions (ANSWERED 2026-07-20)
+**Staleness / schema drift.** `baseUpdatedAt` mismatch ⇒ warn. `schemaVersion` mismatch ⇒ view/discard
+only, never applied.
 
-1. **TTL — 30 days** after last touch. Long enough for a teacher to return to a plan weeks later;
-   beyond that it is almost certainly abandoned.
-2. **Storage ceiling — capped.** Per-user draft count is bounded (~20) and a single oversized draft
-   is refused. Bounds growth as users x corpus grow.
-3. **Site Admin sees EXISTENCE ONLY** — count/metadata, never content. Enough to answer "the teacher
-   says they lost work, is there a draft?" during support without reading private unsaved work.
-   Access to draft CONTENT stays owner-only, with no admin bypass.
-4. **Cross-device recovery — YES**, surfaced through the same explicit restore prompt (never
-   auto-applied), so resuming on another machine cannot surprise anyone or silently overwrite.
+**Caps.** Per-user **active** count ~20 (tombstones excluded, or a prolific editor gets locked out),
+approximate enforcement acceptable; per-capture byte limit **hard**, checked before storage.
 
-Now recorded in `SPEC.md` §5 (durability invariant) and §13 (shared-computer constraint).
+---
+
+## 6. Operator decisions (ANSWERED 2026-07-20, unchanged)
+
+1. **TTL — 30 days** after last touch, then retire (clear content, keep the marker).
+2. **Storage ceiling — capped.** Active count bounded (~20); an oversized capture refused.
+3. **Site Admin sees EXISTENCE ONLY** — count/metadata plus a cleanup operation, never content. No
+   admin read bypass, so a support question is answerable without reading private unsaved work.
+4. **Cross-device recovery — YES**, through the same explicit restore prompt.
+
+---
 
 ## 7. Verification matrix (required before calling this done)
 
-Disposable stack, shortened `tokenExpiration`. Browser-level, since the defect is client-side.
+Disposable stack, shortened `tokenExpiration`. Browser-level for 1–13 (the defect is client-side);
+wire-level for 14–16; DB-backed for 17–20.
 
 | # | Case | Expected |
 |---|---|---|
-| 1 | Foreground expiry, dirty form | draft persisted; screen cleared; recoverable after re-login |
-| 2 | Backgrounded → refocus expiry | same; **no zombie editor left on screen** |
-| 3 | "Stay logged in" clicked | session refreshes; no spurious draft prompt |
-| 4 | Same user re-logs in | draft offered, not auto-applied; content exact |
+| 1 | Path A foreground expiry, dirty form | captured; screen cleared; recoverable after re-login |
+| 2 | Path B backgrounded → refocus expiry | same; **no zombie editor left on screen** |
+| 3 | "Stay logged in" clicked | session refreshes; no spurious restore prompt |
+| 4 | Same user re-logs in | capture offered, not auto-applied; content exact |
 | 5 | **DIFFERENT user logs in on the same browser** | **sees nothing — no prompt, no content** |
-| 6 | Explicit logout while dirty | draft retained for that user; screen cleared |
-| 7 | Successful save-as-new | draft deleted |
-| 8 | Explicit discard | draft deleted |
+| 6 | Explicit logout while dirty | capture retained for that user; screen cleared |
+| 7 | Successful save-as-new | retired: content cleared, marker kept, generation advanced |
+| 8 | Explicit discard | the same retirement transition |
 | 9 | Stale source (`baseUpdatedAt` mismatch) | warned, not silently applied |
-| 10 | Draft from older `schemaVersion` | not applied; view/discard only |
-| 11 | Two tabs, same source | last write wins; restore prompt shows divergence |
-| 12 | Role lost between draft and restore | restore denied by normal access; no leak |
-| 13 | Source version deleted | draft cleaned up |
-| 14 | Wire authz | 401/403 for another user's draft over REST (`tests/http`, per CLAUDE.md) |
+| 10 | Capture from an older `schemaVersion` | not applied; view/discard only |
+| 11 | Two tabs, same source | revision CAS ⇒ 409; loser refetches; no silent overwrite |
+| 12 | Editing access lost between capture and restore | restore denied by the endpoint's re-authorization; no leak |
+| 13 | 429 / network loss mid-session | indicator shows **not backed up**; form stays dirty; backoff visible |
+| 14 | Wire authz, all five endpoints | 401/403/404 for another user's capture and for unauthorized versions |
+| 15 | Capture carrying a retired generation | 409; **no new row created** — resurrection blocked |
+| 16 | Admin metadata endpoint | metadata + cleanup only; content never returned to a non-owner |
+| 17 | Source version deleted | rows removed by cascade, inside the parent's transaction |
+| 18 | User deleted | same |
+| 19 | Retirement fails during save-as-new | **whole save rolls back**; no orphan version (real failing statement, not a mocked throw) |
+| 20 | Concurrent save-as-new + capture from a second tab | newer capture never silently retired; save 409s and is not retried |
 
-Case **5** is the one that justifies the whole server-side choice — it is the case client-side storage
-cannot pass on a shared machine.
+Case **5** justifies the server-side choice — client storage cannot pass it on a shared machine. Case
+**15** justifies lifetime markers. Case **19** also closes the separately-flagged gap that forced
+second-step rollback was untested.
 
-## 8. Cost / risk
+**Sanity-flip discipline.** There is no pre-existing buggy implementation to test against, so
+sensitivity is demonstrated honestly: temporarily weaken the projection and the retirement guard and
+confirm the relevant tests go red. Projection tests assert against the expected field-split result
+using `canonicalJson` **structural** equality (not literal byte ordering), and include an identity
+round-trip — project → restore onto source ⇒ source unchanged — which is what catches
+projection/restore *asymmetry*, the failure mode that corrupts prose rather than leaking it. Negative
+cases target `resourceLinks` at its real location (the lesson row), `framework[].phase`, `duration`,
+and an arbitrary unknown nested key.
 
-Real infrastructure: a collection + migration, access rules, autosave client, restore UI, cleanup job,
-plus the tests above. Larger than any fix currently on the audit list.
+---
 
-It is **not** a simplification — it adds a new durability guarantee. Per CLAUDE.md this warrants a SPEC
-amendment (§5/§7 touch the editing and versioning model) before implementation, not after.
+## 8. Cost / sequencing
 
-**Recommended sequencing:** treat as its own project *after* the small Tier-1 fixes (L3-04, L3-09,
-L3-10) land. In the interim, the honest mitigation is operational, not technical: tell editors to save
-often on long sessions.
+Real infrastructure: a collection and migration, five endpoints with wire tests, a rate-limit bucket,
+the fencing protocol, two parent cascades, a retirement job, the capture/restore client, a role-aware
+indicator, and the matrix above. Materially larger than the first draft implied — stated here before
+the build rather than discovered mid-PR.
+
+**PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
+function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
+Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
+units, DB-backed concurrency (cases 15, 17–20).
+
+**PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
+clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.
+Tests: Playwright cases 1–13.
+
+Interim mitigation until PR 2 ships stays operational, not technical: tell editors to save often on
+long sessions.

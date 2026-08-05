@@ -165,35 +165,102 @@ Lesson-content editing is offered only at **viewport width > 640px** (i.e. block
 > capability is presented as **"editing access"** granted to a Teacher, never as an "Editor" type — see
 > §8's displayed-vocabulary note. The `editor` assignment value and the field access above are unchanged.
 
-### Unsaved-work durability — recoverable working drafts (amended 2026-07-20)
+### Unsaved-work durability — edit recovery (amended 2026-07-20; reconciled 2026-08-05)
 
 **Invariant: a teacher's in-progress edits must survive session expiry, browser crash, forced
 refresh, device sleep and accidental tab close.** This is a product guarantee, not a nicety.
 
-It is not currently met. Payload's session-expiry logout navigates via a *programmatic*
-`router.replace()`, and Payload's dirty-form guard intercepts only `beforeunload` and link clicks —
-so the editor unmounts and unsaved work is destroyed with no prompt and no recovery copy
-(`docs/DECISIONS.md` 2026-07-20; full design in `docs/DESIGN-working-drafts.md`).
+It is not currently met. There are **two distinct expiry paths, with different failures**: Payload's
+own `forceLogOutTimeout` navigates via a *programmatic* `router.replace()` and its dirty-form guard
+intercepts only `beforeunload` and link clicks — so the editor unmounts and unsaved work is destroyed
+with no prompt and no recovery copy. Our `IdleLogout` calls `logOut()`, which does **not** navigate,
+leaving a *zombie editor*: work on screen, session dead, saves 401ing, and the previous teacher's
+content visible to the next person at a shared machine. Both must be fixed; neither is fixed by
+"stop unmounting" (see the clearing rule below). Verified against installed `@payloadcms/ui` 3.85.1;
+full design in `docs/DESIGN-working-drafts.md`.
 
-- **Drafts are stored SERVER-side**, in a user-owned `working-drafts` collection — never in
-  `localStorage`/IndexedDB. Shared computers are the deployment norm (§13), so browser-resident
-  drafts would be readable by the next person at that machine.
-- **A draft is not a version.** `working-drafts` is a separate mutable collection; it creates no
+**Vocabulary — "draft" is reserved and must not be used for this feature.** In this product a
+*draft* already means an unofficial **saved version** ("Your drafts live in Manage → My saved
+versions"), and versions carry a `Draft` status pill. Calling a recovery capture a "draft" would tell
+a teacher their version had been saved when it has not. The feature is **edit recovery**; the
+collection is `edit-recovery`; the UI says **"Unsaved changes backed up · <when>"**. Same class of
+reserved-word rule as `class` → `SubjectGrade` (§13).
+
+**What is guaranteed, precisely.** The guarantee is **the last server-confirmed capture survives** —
+not every keystroke. Three windows are necessarily outside it and must be stated rather than implied:
+work typed during the **debounce interval** before a capture fires; a capture **in flight** when the
+process dies; and any editing done while **offline** — client-side persistence is disqualified by the
+shared-machine rule (§13), so there is no durable copy anywhere until the server confirms one. The
+editor therefore shows a **save-state indicator with the confirmed timestamp**: that timestamp is the
+observable contract, and a failed or backed-off capture must say so rather than fail silently.
+
+- **Captures are stored SERVER-side**, in a user-owned `edit-recovery` collection — never in
+  `localStorage`/`sessionStorage`/IndexedDB (§13).
+- **A capture is not a version.** `edit-recovery` is a separate mutable collection creating no
   `lesson-bundle-versions` rows, so the immutable-version model (§6) is untouched and no version
   churn is introduced.
-- **Draft content is limited to editor-writable keys** (`lessons`, `finalExplanation`,
-  `summaryTable`). System-owned data — notably `resourceLinks` — is never written to a draft. A
-  draft must not become a second, weaker channel for data the field-split protects; on restore it
-  supplies prose only, and the field-split remains the write-time authority.
-- **Restore is always offered, never automatic**, and is refused (view/discard only) when the draft's
-  schema version or base source version no longer matches.
+- **No client-facing collection surface.** `read`, `create`, `update` and `delete` are all closed on
+  the collection, and it is hidden from the admin panel. Every operation goes through custom
+  endpoints on `lesson-bundle-versions` (alongside `/:id/preview`, `/:id/save-as-new`,
+  `/:id/make-official`) which re-load the source and re-run the caller's editing authorization on
+  each call, then write with `overrideAccess`. This is deliberate and is the **documented Payload-first
+  gap** (§13): default REST offers no upsert, and the write needs an upsert keyed `(user,
+  sourceVersion)` with a fencing precondition. Closing `read` is what makes "a user who has lost
+  editing access cannot restore" true by construction rather than by accident; closing `delete` is
+  what stops an owner erasing their own retirement marker (below).
+- **Content is a sparse prose overlay stored as JSON** — a deliberate, bounded exception to the
+  native-nested-fields rule (§3 / `AGENTS.md`), which governs the canonical content of record. A
+  capture is not lesson content: it is a sparse map of prose leaves keyed by row id, restored by
+  overlaying onto the current source. Native fields cannot express it — every field would be
+  optional, sparseness would be lost, and a capture written against an **older field shape** could
+  not be stored at all, which would make the schema-drift rule below impossible.
+- **The projection is derived from the existing prose whitelist**, not from top-level keys: the
+  `*_PROSE` constants in `hooks/fieldSplit.ts`, which `tests/unit/proseWhitelistDrift.spec.ts`
+  already pins mechanically to the `canEditProse` field factories. So system and admin-only data —
+  `resourceLinks`, `framework[].phase`, `duration`, `number`, answer keys — cannot enter a capture by
+  construction, and a future admin field is excluded automatically. A capture must never become a
+  second, weaker channel for data the field-split protects; on restore it supplies prose only, and
+  `applyEditorFieldSplit` remains the write-time authority.
+- **v1 covers prose only, and the UI must say so.** Subject Admins edit structure, phases, durations,
+  rubrics and answer keys in the same editor; none of that is captured, because a structural change
+  alters row identity and a sparse overlay has nothing stable to key on (admin-scope recovery would
+  be a different storage model, and is deferred). The save-state indicator is therefore
+  **role-aware**: unqualified for prose-only editors, explicit for administrators that structural and
+  answer-key changes are not backed up. A generic "saved" shown to an administrator would be false.
+- **Fencing: server-issued generations, plus revisions.** A **generation** fences retirement; a
+  **revision** fences concurrent writes. Clicking Edit performs an explicit `start` that returns the
+  active generation or mints a new one — never the client's choice, and never implicitly created by a
+  capture. Every capture carries `generation` + `expectedRevision`; a stale or missing generation is
+  **409, never an implicit restart**. Save pauses capture, flushes and awaits any in-flight write,
+  then saves with the current generation — but a *failed* flush must not block the save: the version
+  save is the operation that matters, the capture is insurance.
+- **Retirement is one state transition with four callers.** Save-as-new, explicit discard, 30-day
+  expiry and Site-Admin cleanup all atomically clear `content`, mark retired, and advance
+  revision/generation — one shared function, so "the same transition" is testable rather than
+  aspirational (which also means expiry cannot live in `scripts/prune-db.sh` as SQL). **None hard-delete
+  the marker.** Retirement on save joins the save-as-new transaction — inside the semver retry
+  attempt, so it cannot half-apply — and a generation mismatch there fails the whole save with 409
+  rather than retiring newer work; unlike a semver conflict, a mismatch is **not** retryable.
+- **Retirement markers live as long as their source version.** A content-free marker is what stops a
+  stale tab recreating a superseded capture, and the staleness check cannot cover that case
+  (versions are immutable, so a stale tab's `baseUpdatedAt` still matches). Rows are removed only by
+  the explicit parent cascades on `lesson-bundle-versions` and `users` — the required-relationship /
+  `ON DELETE SET NULL` pattern already used for favorites.
+- **Restore is always offered, never automatic**, and is refused (view/discard only) when the
+  capture's schema version or base source version no longer matches. On a 409 the stale tab must
+  surface its content read-only so the user can copy it out — silently discarding real keystrokes
+  would defeat the purpose of the feature.
 - **Expiry still clears the screen.** Clearing the editor at logout is itself a privacy control on a
   shared machine, so the rule is *capture the working copy, then clear* — never "stop unmounting".
-- **Retention:** drafts expire **30 days** after last touch, and are deleted on successful save, on
-  explicit discard, and when the source version is deleted. Per-user draft **count and size are
-  capped**.
-- **Cross-device recovery is intended:** a draft follows the account, so work started on a school
+  Both expiry paths must clear.
+- **Caps:** per-user **active** capture count (~20; tombstones excluded, or a prolific editor would
+  be locked out) and a hard per-capture byte limit. The count cap may be enforced approximately — an
+  improbable concurrent create yielding 21 is not an integrity problem — but the byte limit is hard.
+- **Cross-device recovery is intended:** a capture follows the account, so work started on a school
   machine can be resumed elsewhere — surfaced through the same explicit restore prompt.
+- **Site Admins see existence, never content:** count and metadata plus an authorized
+  retirement/cleanup operation (for "this teacher's capture is stuck"), served by the same
+  content-free endpoint. There is no admin read bypass for capture content.
 
 ---
 
@@ -380,6 +447,12 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
      and `admin.autoRefresh: off` are deliberate, and an indefinitely self-refreshing session is
      explicitly rejected. Durability of unsaved work is solved by server-side drafts (§5), never by
      weakening expiry.
+- **Reserved words — a name that already means something else is a bug, not a preference.** `class`
+  is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
+  version* (the `Draft` status pill; the Guide's "your drafts live in Manage → My saved versions"), so
+  the unsaved-work feature is **edit recovery**, never "drafts" (§5). Before naming a new concept,
+  grep the frontend and the Guide for the word: a label that asserts something the code does not mean
+  spends other people's attention, exactly like a stale docstring.
 - **Payload-first.** Before adding any new custom endpoint, editor, permission layer, workflow,
   or persistence code, first check whether Payload already provides it — through collection
   config, access control, field/collection hooks, versions/drafts, admin config, the Jobs Queue,
