@@ -172,6 +172,61 @@ error, no attacker — whereas the two races need millisecond overlap between au
 template only affects a *new* host. The cheap documentation fixes went first because they are one commit,
 not a phase.
 
+### The CI blocker, found by a cleanup pass rather than a correctness one
+
+Worth its own heading because of *where* it came from. A `/simplify` quality review — explicitly told not
+to hunt for correctness bugs — found that `envTemplateParity.spec.ts` **would have failed every CI run**.
+CI runs `test:unit` in a container mounting only `app/`, so the spec's `join(APP_DIR, '..')` resolved to
+`/` and the root `.env.example` was absent; the read sat in the `describe` body, so it died with a bare
+`ENOENT` at collection time — "no tests", no name, no reason. It passed locally and on the Rock, where
+the parent directory really is the repo root, so it would have surfaced only in the one environment that
+gates merges.
+
+Two durable lessons. **The mount boundary is a real interface**: this was the only test under
+`app/tests` reaching above `app/`, and nothing warned that CI's container cannot see up there. CI now
+mounts the repo read-only and passes `LESSON3_REPO_ROOT`; the spec fails a NAMED test with the remedy
+when a template is missing. **And an "altitude" reviewer asking "is this at the right depth?" found a
+defect four correctness-focused rounds had missed** — because it was the only reviewer asking where the
+code *runs* rather than what it computes.
+
+### Six review rounds on one 400-line test: the pattern, and when to stop
+
+The env-parity guard went through six adversarial rounds (two models plus CodeRabbit). Every round found
+a real hole. The shape never varied, and it is the most reusable thing this session produced:
+
+| Round | Hole | The pattern |
+|---|---|---|
+| 1 | `process.env.X` grep missed every `RATE_LIMIT_*` (read via `positiveIntEnv`) | enumerated one form |
+| 2 | Name matcher missed `import { positiveIntEnv as readInt }` | widened the pattern |
+| 3 | Rejecting aliased imports still missed `const f = positiveIntEnv`, re-exports, dynamic imports | widened again |
+| 4 | AST rewrite: substring pre-filter (added for speed) hid `process?.env.X`; export inventory fell through on `export default function(){}`, `export *` | a *new* false-completeness claim, in the cleanup commit |
+| 5 | `process['env']`, `(process).env`, `process!.env`, `globalThis.process.env` missed | widened, four more times |
+| 6 | `const p = globalThis.process`, `import { env } from 'node:process'`, and textual module identity treating any `…/env` as ours | widened once more |
+
+**The rule: a check that enumerates what is FORBIDDEN can always be one form short.** Rounds 1–3 and 5–6
+were all the same move — add the newly-named form — and each was correct and insufficient. Only two
+changes actually closed anything: *every* `process` reference must be classified or reported (so unknown
+routes fail instead of passing), and module identity is *resolved* against the importing file rather than
+pattern-matched. Prefer resolving the real thing, or enumerating what is allowed; never chase the
+complement.
+
+**Corollary — a guard never observed failing is a guess.** Every hole above lived in code that read
+correctly. Four of them were in guards added *by* earlier rounds of this same review. The flips (mutate
+the tree, watch the named assertion go red, revert) are what found the false positive in the alias
+resolver and the pre-filter that hid a real read. Flip every guard, including the ones added while fixing
+a guard.
+
+**Corollary — optimisation inside a correctness guard needs the same scrutiny as the guard.** The
+pre-filter came from a legitimate efficiency observation (173 files parsed, 16 needed) and traded away
+the only property the file exists to provide, for ~80 ms in a test suite. Comment claimed "provably a
+strict superset"; it was not. In a checker, speed is not a competing value — it is a rounding error.
+
+**And a stopping rule, because six rounds on a config-drift guard is past proportionate.** When the next
+round finds another instance rather than another class, the right answer is to NARROW THE CLAIM in the
+docstring to what is verifiably covered, not to harden further. The value of this guard is bounded (it
+protects a template from drifting); the cost of another round is not. Recorded so the next reader does
+not inherit an obligation to keep going.
+
 ---
 
 ## 2026-08-04 — Delete lesson plans became the curriculum tree; group deletes select PLANS

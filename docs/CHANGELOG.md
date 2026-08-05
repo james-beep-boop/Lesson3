@@ -8,6 +8,39 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
+
+**Not yet pushed** — a commit stack on `chore/env-template-parity`, branched from `main` `5843551`. See
+`docs/NEXT-SESSION.md` for the handoff state and how to land them.
+
+- **Both `.env.example` templates reconciled, and the sync made mechanical.** The root template — the
+  file a Compose operator copies — declared **5 of the 58** variables the app reads. The consequential
+  omission was `ARTIFACT_CACHE_DIR`: unset, the cache falls back to a path the non-root container cannot
+  write, and every export job fails with `EACCES` while the client polls a `202` forever, so a fresh
+  correctly-followed install was broken on arrival. `app/.env.example` was a verbatim copy of the Compose
+  file, pointing host-local dev at `postgres:5432` and carrying Compose-only `POSTGRES_PASSWORD`. Both
+  now exist for their own consumer, pinned by `tests/unit/envTemplateParity.spec.ts` (7 assertions,
+  AST-based). This reverses the Codex #5 deferral of 2026-07-06 — the deferral is what produced the
+  broken install.
+- **A CI blocker fixed that this branch introduced and a cleanup review caught.** `test:unit` runs in a
+  container mounting only `app/`, where the root template is invisible; the spec would have failed every
+  CI run with an `ENOENT` at collection time. CI now mounts the repo read-only.
+- **`IdleLogout`'s docstring claimed a redirect that never happens.** `logOut()` performs no navigation
+  (verified in installed `@payloadcms/ui` 3.85.1); the destroying path is Payload's own
+  `forceLogOutTimeout`. That one false clause had already sent a reviewer to the wrong mechanism.
+- **Edit recovery (formerly "working drafts") reconciled and APPROVED for implementation** — no code yet.
+  Normative rules in `SPEC.md` §5/§13, implementation design and a 30-case acceptance matrix in
+  `docs/DESIGN-working-drafts.md`, reasoning in `DECISIONS.md`. Five provisions of the July draft did not
+  survive review against the code (top-level content keys, hard deletion, last-write-wins, a staleness
+  check that cannot fire, and an unqualified durability promise). `draft` is now a **reserved word**
+  (SPEC §13) — it already means an unofficial *saved version*, so the feature is "edit recovery".
+  `AGENTS.md`'s native-nested-fields rule is narrowed to the content of record, admitting one documented
+  JSON exception.
+
+No product behaviour changed: documentation, two config templates, one new unit test, one CI mount, one
+corrected docstring. Unit **394/394**; tsc clean; eslint 0 errors; prettier clean on all changed TS;
+`git diff --check` clean.
+
 ## 2026-08-03 — two manifest/test inconsistencies from the Node bump
 
 - **The `as never` cast was fixed on the reviewed line and left on its twin.** The previous pass

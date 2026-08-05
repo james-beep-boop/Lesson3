@@ -12,14 +12,138 @@ end to end.
 the most recent entries and grep it for the area you're touching; don't read it end to end.** This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
+---
+
+# ⚑ HANDOFF (2026-08-05) — 12 UNPUSHED COMMITS EXIST. READ THIS FIRST.
+
+This work is being handed to a **different account**. The single thing that matters most:
+
+> **`chore/env-template-parity` holds a stack of commits that exist ONLY on the previous operator's
+> machine**, branched from `main` `5843551`. They were verified but deliberately not pushed, because six
+> review rounds kept finding real defects. **If that working tree is gone, this work is gone** — check
+> before assuming, and rebuild from the documents below if so (SPEC §5 and
+> `docs/DESIGN-working-drafts.md` are complete and self-contained; only the env-parity test and the CI
+> mount would need re-doing).
+>
+> ⚑ No head SHA or commit count is given on purpose. Only the **branch point** (`5843551`) is stable;
+> naming the tip would be wrong the moment the commit *containing this sentence* landed — which is
+> exactly what happened on the first draft of this block, and twice before that elsewhere in this file.
+> Derive the tip from the commands below.
+
+**Verify what actually landed before trusting any of this:**
+
+```bash
+git fetch --all --prune
+git branch -a --contains 5843551          # is chore/env-template-parity anywhere but locally?
+git log --oneline main..chore/env-template-parity 2>/dev/null   # the stack, or empty if lost
+git rev-parse HEAD:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
+```
+
+`main` is **protected** (PR + passing gate, `enforce_admins`), so those commits need a PR — they cannot
+be pushed straight to `main`. Also still open and unrelated: **PR #196** (`chore/pr195-review-followups`,
+green).
+
+### What that stack contains
+
+All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
+**No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
+`docs/CHANGELOG.md` (2026-08-05); reasoning and lessons in `docs/DECISIONS.md` (2026-08-05).
+
+1. **Both `.env.example` templates reconciled**, pinned by `app/tests/unit/envTemplateParity.spec.ts`.
+   The root template declared 5 of 58 variables the app reads; the missing `ARTIFACT_CACHE_DIR` breaks
+   every export with `EACCES` on a fresh install. Reverses the Codex #5 deferral.
+2. **A CI blocker this branch introduced, caught by a `/simplify` pass**: `test:unit` mounts only `app/`,
+   so the spec could not see the root template and would have failed *every* CI run with an `ENOENT` at
+   collection time. `.github/workflows/ci.yml` now also mounts the repo read-only with
+   `LESSON3_REPO_ROOT`.
+3. **`IdleLogout` docstring corrected** — it claimed `logOut()` redirects; it does not navigate at all.
+4. **Edit recovery reconciled and APPROVED, with no code written**: `SPEC.md` §5 (normative) + §13
+   (reserved words), `AGENTS.md` native-fields rule narrowed, `docs/DESIGN-working-drafts.md` rewritten
+   with a §0 changelog and a **30-case acceptance matrix**.
+
+### ⚠ What the new account will NOT inherit
+
+The previous account held some operational knowledge in private memory, not in the repo. None of it is
+secret-free-to-publish, so **ask the operator**:
+
+- **Rock SSH access** (`ssh Rock5b`, `david@rock5b` over Tailscale) — key must be added to the new
+  machine's agent.
+- **Seeded user passwords** (Teacher / Editor / Subject-Admin on the Rock) — deliberately **not** in the
+  repo. Ask; do not reseed a shared box to get around it.
+- **The `age` backup private key** is Mac-only on the previous machine. Encrypted Drive backups are
+  active and restore-verified, but **the cron was never installed** — see "next steps" below.
+- Local stack procedure is in the repo (`AGENTS.md` → Local stack); logins are `local1234` by design.
+
+### Next steps, in priority order
+
+1. **Land the branch.** Push it, open a PR, let CI prove the mount fix (that is the one thing
+   local runs cannot verify — the previous operator's Docker daemon was stopped). Nothing else on this
+   list should start before the gate is green, because item 2 builds on these documents.
+2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
+   losing user work today.* Collection + access closure + five endpoints + projection + fencing + shared
+   retirement function + two parent cascades + expiry job + migration (generated on the Rock per the
+   Node-22 workflow). Read `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original
+   draft did not survive review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int`
+   access matrix, `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25,
+   28–30).
+3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
+   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
+   cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the
+   whole server-side design.
+4. **The Official-pointer lock**, in parallel if there is capacity. An Official version can be deleted
+   during a concurrent promotion (`hooks/bundleVersion.ts` read-then-write + `ON DELETE SET NULL`),
+   destroying an approved snapshot. The fix is the existing in-house pattern — `lockSubjectGrades` in
+   `src/ingest/index.ts` is the template — applied to `lesson_plans`, **plus a real concurrent Postgres
+   regression test**. Do not ship the lock without the test.
+5. **First-user bootstrap atomicity.** `grantSiteAdminToFirstUser` counts then writes, so two
+   simultaneous anonymous registrations can both become Site Admin. Narrow (empty DB, internal host —
+   `lib/publicPosture.ts` covers the exposed case) but real. Needs `pg_advisory_xact_lock`, not
+   `FOR UPDATE`: on an empty table there is no row to lock.
+6. **Install the backup cron on the Rock** (`docs/OPS.md` has the block). Scripts and restore are
+   verified; only the schedule is missing. Confirm with `crontab -l` first.
+7. **Going public**, when the host decision is made: `docs/OPS.md` → "Going public", in its stated order.
+   `SERVER_URL` is the single switch and cannot be half-applied. **Seed users before DNS points at the
+   box** — on an empty DB Payload's first-register hands Site Admin to the first visitor.
+
+Deferred and noted in code rather than done: deriving `COMPOSE_ONLY` in the parity test from
+`docker-compose*.yml` and Dockerfile `ENV` lines (adds coverage, wants its own flips).
+
+### How this work was reviewed, and what it taught — read before the next round
+
+Six adversarial rounds (two models plus CodeRabbit) went over one 400-line test and one design document.
+**Every round found a real defect.** The full analysis is in `DECISIONS.md` 2026-08-05; three rules worth
+carrying into the next PR:
+
+- **A check that enumerates what is FORBIDDEN can always be one form short.** Rounds 1–3 and 5–6 all made
+  the same move — add the newly-named bypass — and each fix was correct and insufficient. Only two changes
+  closed anything: *classify or report* every route to `process`, and *resolve* module identity instead of
+  pattern-matching it. Prefer resolving the real thing, or enumerating what is allowed.
+- **A guard never observed failing is a guess.** Every hole lived in code that read correctly, and four
+  were in guards added by earlier rounds of the same review. Mutate the tree, watch the named assertion go
+  red, revert. Do this for the guards you add *while fixing* a guard.
+- **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
+  written 40 lines below it and passed inspection twice, because each reading checked it against its own
+  adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
+  those 30 cases are executed yet** — the doc says so explicitly, and it should keep saying so until they
+  are.
+
+Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
+claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a
+"provably a strict superset" comment on an optimisation that provably was not. **Check claims about your
+own diff against `main`, not against your last commit.**
+
+---
+
 **Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
 migration or re-upload the corpus.** The Rock holds 42 plans, each with an Official 1.0.0, 384 lessons
 in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URLs (verified by direct
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Check it,
-do not trust a SHA written here — compare the app TREE HASH on both sides:
+**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Still true
+as of the handoff above: that unpushed stack changes documentation, two `.env.example` templates, one unit
+test, one CI mount and one docstring — no runtime code — so **no deploy is required to land them**. Check
+rather than trust a SHA written here; compare the app TREE HASH on both sides:
 
 ```bash
 git rev-parse HEAD:app
@@ -453,7 +577,13 @@ clone does not carry): **`~/Desktop/icloud-git-migration.md`**. Do this before t
 **Remaining queue (nothing else is blocking).** Note the operator has since chosen the 640px mobile work
 above as the next feature; item 1 below was the previous "operator-chosen next" and keeps its analysis.
 Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED on 2026-07-28.
-1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
+1. **~~Unsaved editor PDF-preview latency~~ — CLOSED BY THE OPERATOR 2026-08-05: "much better than
+   before and is good enough."** Do not spend time here. The diagnosis below is kept because it is
+   accurate and names the LibreOffice floor (~5.5 s for the lessonSequence render) that any future
+   complaint will run into — but treat optimisation (a)/(b)/(c) as not wanted unless the operator raises
+   it again. Original entry follows as reference.
+
+   **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
    Two edit-page paths, and it's the FIRST that hurts repeatedly:
    - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the
