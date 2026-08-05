@@ -36,7 +36,8 @@
  *
  * BOTH are open, tracked gaps against the SPEC §5 durability invariant ("in-progress edits must
  * survive session expiry, browser crash, forced refresh, device sleep and accidental tab close"),
- * whose fix is recoverable server-side working drafts — `docs/DESIGN-working-drafts.md`. The rule
+ * whose fix is server-side **edit recovery** — designed in `docs/DESIGN-working-drafts.md` (the file
+ * keeps its historical name; the feature does not, because `draft` is a reserved word: SPEC §13). The rule
  * that design settles is *capture the working copy, then clear the screen*: clearing at expiry is
  * itself the privacy control, so the answer is never "stop unmounting", and this path must learn to
  * clear rather than linger.

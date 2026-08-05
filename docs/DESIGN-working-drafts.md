@@ -54,6 +54,20 @@ had just specified.** Recorded here because they are the kind of gap that reads 
 Plus a documentation contradiction: the projection was described as "keyed by row id" *and* as
 excluding row ids. Both are true of different things — §3 now says so explicitly.
 
+**A third round found that the fix for the second round's `start` flaw did not satisfy the very cases
+it was written for.** The upsert incremented `revision` on *every* conflict, including the resume path:
+two first starts returned `(1,1)` and `(1,2)`, two retired-row starts `(G+1,R+1)` and `(G+1,R+2)`. So
+the first caller's revision was stale the moment it was handed out, and its first capture would 409
+against a conflict that did not exist — exactly what matrix cases 21–22 assert must not happen. The
+governing rule was missing rather than the SQL being subtly off: **`start` on an already-active row must
+be a total no-op that reports state**, since it fires on every Edit click in every tab. Reactivation
+must also take a fresh `baseUpdatedAt`/`schemaVersion`, or a new session inherits the retired
+generation's baseline and compares staleness against the wrong one. See §4.
+
+Worth noting what that says about review: the case that would have caught it was already written down
+in §7, and still passed inspection twice, because the SQL was checked against its own comment rather
+than against the case. A test asserting cases 21–22 will not have that luxury.
+
 ---
 
 ## 1. The problem this solves
@@ -177,20 +191,47 @@ revision precondition, applied **inside the atomic update** rather than read-the
 **`start` is one statement.** Two simultaneous first starts would otherwise race the unique insert, and
 two starts against a retired row would race reactivation:
 
+**The governing rule: `start` on an ALREADY-ACTIVE row must be a total no-op that merely reports
+state.** It fires on every Edit click and in every tab, so any mutation on the resume path makes it a
+write — and a write invalidates the preconditions other tabs are holding. An earlier version of this
+SQL incremented `revision` unconditionally, which broke both of the cases it was written for: two first
+starts returned `(1,1)` and `(1,2)`, and two starts against a retired row returned `(G+1,R+1)` and
+`(G+1,R+2)`, so the first caller's returned revision was already stale and its first capture would 409
+against a conflict that did not exist.
+
 ```sql
-INSERT INTO edit_recovery (user_id, source_version_id, generation, revision, …)
-VALUES ($user, $version, 1, 1, …)
-ON CONFLICT (user_id, source_version_id) DO UPDATE
-  SET generation = edit_recovery.generation + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
-      retired_at = NULL,
-      revision   = edit_recovery.revision + 1
+INSERT INTO edit_recovery
+  (user_id, source_version_id, lesson_plan_id, generation, revision, base_updated_at, schema_version, …)
+VALUES ($user, $version, $plan, 1, 1, $sourceUpdatedAt, $schemaVersion, …)
+ON CONFLICT (user_id, source_version_id) DO UPDATE SET
+  -- Reactivation advances the generation, fencing out any stale tab holding the old one.
+  generation = edit_recovery.generation
+             + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
+  -- RESUME MUST NOT BUMP THE REVISION: an active row is reported, not written.
+  revision   = CASE WHEN edit_recovery.retired_at IS NULL
+                    THEN edit_recovery.revision
+                    ELSE edit_recovery.revision + 1 END,
+  -- A new session needs its OWN baseline; a resumed one keeps the baseline it started with.
+  base_updated_at = CASE WHEN edit_recovery.retired_at IS NULL
+                         THEN edit_recovery.base_updated_at
+                         ELSE EXCLUDED.base_updated_at END,
+  schema_version  = CASE WHEN edit_recovery.retired_at IS NULL
+                         THEN edit_recovery.schema_version
+                         ELSE EXCLUDED.schema_version END,
+  retired_at = NULL
 RETURNING generation, revision;
 ```
 
-A retired row is reactivated by **advancing** the generation (a new session, so any stale tab holding
-the old one is fenced out); an active row is resumed unchanged. The loser of a race reloads the
-winner's values rather than failing. It returns **both** values — without the revision, the client's
-first capture has no correct precondition to send.
+So: a retired row is reactivated by **advancing** the generation and taking a **fresh**
+`baseUpdatedAt`/`schemaVersion` — without that refresh the new session would inherit the retired
+generation's metadata and compare staleness against the wrong baseline. An active row is resumed
+genuinely unchanged, so the race loser reads exactly the winner's values instead of a version of them
+that has already moved on. It returns **both** values — without the revision, the client's first
+capture has no correct precondition to send.
+
+Postgres serialises the two conflicting updates on the row, and `ON CONFLICT DO UPDATE` re-evaluates
+against the newly committed row, which is what makes the second caller take the now-active branch and
+see the first caller's result.
 
 **Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day expiry,
 Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances

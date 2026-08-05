@@ -74,12 +74,27 @@ const DEV_CRITICAL = ['DATABASE_URI', 'PAYLOAD_SECRET', 'ADMIN_URL', 'SERVER_URL
  * strictness: F would still pass while the variable went unverified.
  */
 const HELPER_NAMES = ['positiveIntEnv']
+
+/**
+ * Both helper patterns are BUILT from `HELPER_NAMES`, never maintained beside it. Hand-kept copies
+ * would let someone satisfy G by adding a name while the regexes stayed unchanged — so G would certify
+ * a helper whose calls remain invisible, which is worse than not checking at all. One list, two
+ * derived patterns, no way to update half of it.
+ */
+const helperAlternation = HELPER_NAMES.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
 const DIRECT_READ = /process\.env\.([A-Z][A-Z0-9_]*)/g
 const BRACKET_READ = /process\.env\[\s*['"]([A-Z][A-Z0-9_]*)['"]\s*\]/g
 /** A helper call whose variable name is a LITERAL — the only form whose variable is knowable here. */
-const HELPER_READ = /\b(?:positiveIntEnv)\s*\(\s*['"]([A-Z][A-Z0-9_]*)['"]/g
+const HELPER_READ = new RegExp(`\\b(?:${helperAlternation})\\s*\\(\\s*['"]([A-Z][A-Z0-9_]*)['"]`, 'g')
 /** EVERY helper call, literal-named or not. The difference is what assertion F reports. */
-const HELPER_CALL = /\b(?:positiveIntEnv)\s*\(/g
+const HELPER_CALL = new RegExp(`\\b(?:${helperAlternation})\\s*\\(`, 'g')
+
+/**
+ * Re-export forms in the env module would defeat the declaration scan below (`export { helper }` is
+ * invisible to it), so that one small module is contractually limited to direct `export const` /
+ * `export function` declarations. Forbidding the forms is simpler and more honest than parsing them.
+ */
+const ALT_EXPORT_FORM = /^export\s*(?:\{|\*|default\b)/m
 /** Every `process.env` occurrence, so unrecognised ones can be counted against the recognised. */
 const ANY_ENV_TOUCH = /process\.env/g
 
@@ -111,13 +126,18 @@ const sourceFiles = (dir: string, acc: string[] = []): string[] => {
   return acc
 }
 
+const ENV_MODULE = join(APP_DIR, 'src', 'lib', 'env.ts')
+
 /** Exported helper names in `src/lib/env.ts` — `export const NAME =` / `export function NAME`. */
 const envModuleExports = (): string[] => {
-  const text = readFileSync(join(APP_DIR, 'src', 'lib', 'env.ts'), 'utf8')
+  const text = readFileSync(ENV_MODULE, 'utf8')
   return [...text.matchAll(/^export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)/gm)]
     .map((m) => m[1])
     .sort()
 }
+
+/** Does the env module use an export form the declaration scan above cannot see? */
+const envModuleUsesAltExport = (): boolean => ALT_EXPORT_FORM.test(readFileSync(ENV_MODULE, 'utf8'))
 
 const matchAll = (text: string, re: RegExp): string[] =>
   [...text.matchAll(new RegExp(re.source, re.flags))].map((m) => m[1])
@@ -149,13 +169,18 @@ const collectReads = (): { reads: Set<string>; unrecognised: string[] } => {
     const helperLiteral = matchAll(text, HELPER_READ)
     for (const name of [...direct, ...bracket, ...helperLiteral]) reads.add(name)
 
-    // F1: every `process.env` touch must be accounted for by a recognised shape, beyond the
-    // module's dynamic budget.
+    // F1: every `process.env` touch must be accounted for by a recognised shape, and each module's
+    // dynamic budget must be consumed EXACTLY. Not `> budget`: if the one legitimate dynamic read in
+    // `lib/env.ts` were ever removed or rewritten, a `>` test would pass with an unused allowance
+    // sitting there, ready to hide the next dynamic read added to that file. An allowance nobody
+    // spends is a hole, so it must be spent or deleted.
     const touches = countOf(text, ANY_ENV_TOUCH)
     const budget = DYNAMIC_READ_BUDGET.get(rel) ?? 0
-    const unaccounted = touches - (direct.length + bracket.length) - budget
-    if (unaccounted > 0) {
-      unrecognised.push(`${rel}: ${unaccounted} unrecognised process.env access(es)`)
+    const dynamicUsed = touches - (direct.length + bracket.length)
+    if (dynamicUsed !== budget) {
+      unrecognised.push(
+        `${rel}: ${dynamicUsed} dynamic process.env access(es), budget is exactly ${budget}`,
+      )
     }
 
     // F2: every helper CALL must name its variable literally. A dynamic call — `positiveIntEnv(name,
@@ -191,9 +216,15 @@ describe('env template parity', () => {
   it('G: lib/env.ts exports exactly the helpers this checker knows how to read', () => {
     // A new helper in the env module would read env through an unrecognised shape, inside the one
     // module whose dynamic access is budgeted — so F would keep passing while its variable went
-    // unverified. Add the helper to HELPER_NAMES *and* to the HELPER_READ/HELPER_CALL patterns, then
-    // update this list.
+    // unverified. Registering it in HELPER_NAMES is now sufficient: both helper patterns are DERIVED
+    // from that list, so a name cannot be added without its calls becoming visible.
     expect(envModuleExports()).toEqual([...HELPER_NAMES].sort())
+    // …and the declaration scan only sees direct declarations, so re-export forms are forbidden in
+    // this one module rather than parsed (`export { helper }` would otherwise slip past G).
+    expect(
+      envModuleUsesAltExport(),
+      'lib/env.ts must use only `export const` / `export function`',
+    ).toBe(false)
   })
 
   it('A: the root template declares every configurable variable the app reads', () => {

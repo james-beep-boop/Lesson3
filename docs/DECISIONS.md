@@ -97,6 +97,23 @@ precondition that looked sufficient but could not see the state it needed to.
   429, 5xx), where the version save must win over its own insurance. False for a **409**, which means
   another tab holds newer work — exactly the case where saving on would retire it.
 
+**And a third round found the fix for the second round's `start` flaw failed the cases it was written
+for.** The upsert bumped `revision` on every conflict including the *resume* path, so two concurrent
+first starts returned `(1,1)` and `(1,2)` — the first caller's revision stale on arrival, its first
+capture 409ing against a phantom conflict, which is precisely what matrix cases 21–22 forbid. The
+missing piece was a stated rule, not a subtler statement: **`start` on an already-active row must be a
+total no-op that reports state**, because it fires on every Edit click in every tab and any write there
+invalidates the preconditions other tabs hold. Reactivation additionally needs a fresh
+`baseUpdatedAt`/`schemaVersion` or the new session inherits the retired generation's baseline.
+
+The review lesson is sharper than the bug: **the case that would have caught it was already written in
+the matrix, and the SQL still passed inspection twice** — because each reading checked the statement
+against its own adjacent comment rather than against the case. Prose that explains itself is not
+evidence; only the assertion is. Three parallel guards in `envTemplateParity.spec.ts` had the same
+shape of defect (a hand-kept regex beside the list it was supposed to mirror, an inexact budget, a
+scan blind to `export { … }`), which is why that file now derives its patterns from one list and
+requires its dynamic-read allowance to be consumed exactly.
+
 Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
 branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and
 Official/Not-Official became bold status text rather than pills (CHANGELOG 2026-07-30). The decision

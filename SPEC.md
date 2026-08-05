@@ -241,13 +241,17 @@ observable contract, and a failed or backed-off capture must say so rather than 
   **every** write and every retirement needs a revision precondition — an ordinary capture bumps
   `revision` but leaves `generation` untouched, so a generation check alone cannot notice that another
   tab has captured newer work.
-  - **`start` is atomic.** Clicking Edit performs an explicit `start` — never the client's choice,
-    never implicitly created by a capture — implemented as a single upsert (`INSERT … ON CONFLICT
-    (user, sourceVersion) DO UPDATE … RETURNING`) that creates the row, or reactivates a retired one
-    by **advancing** the generation, and returns **both** `generation` and `revision`. One statement,
-    because two simultaneous first starts would otherwise race the unique insert and two starts
-    against a retired row would race reactivation; the loser must reload the winner's values, not
-    fail. Returning the revision too is what lets the first capture carry a correct precondition.
+  - **`start` is atomic, and is a no-op on an already-active row.** Clicking Edit performs an explicit
+    `start` — never the client's choice, never implicitly created by a capture — implemented as a
+    single upsert (`INSERT … ON CONFLICT (user, sourceVersion) DO UPDATE … RETURNING`) returning
+    **both** `generation` and `revision`. One statement, because two simultaneous first starts would
+    otherwise race the unique insert and two starts against a retired row would race reactivation; the
+    race loser must read exactly the winner's values, not fail and not a moved-on version of them.
+    Reactivating a retired row **advances** the generation (fencing any stale tab holding the old one)
+    and takes a **fresh** `baseUpdatedAt`/`schemaVersion`, or the new session would inherit the retired
+    generation's baseline. Resuming an **active** row must change nothing at all — `start` fires on
+    every Edit click in every tab, so any mutation there would invalidate the preconditions other tabs
+    hold, and bumping the revision on resume would 409 the caller's own first capture.
   - **Capture** carries `generation` + `expectedRevision`; a stale or missing generation is **409,
     never an implicit restart**.
 - **Retirement is one state transition with four callers, and every caller carries a precondition.**
