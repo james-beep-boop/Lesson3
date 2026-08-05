@@ -66,33 +66,57 @@ const NEVER_IN_TEMPLATE = new Set(['ALLOW_FIRST_USER_BOOTSTRAP'])
 const DEV_CRITICAL = ['DATABASE_URI', 'PAYLOAD_SECRET', 'ADMIN_URL', 'SERVER_URL']
 
 /**
- * Env-reading shapes this checker understands. `positiveIntEnv` is the only helper exported from
- * `src/lib/env.ts`; if another is added, add it here (and F will fail until you do only if it wraps
- * `process.env` in a new shape — a new helper that itself calls `positiveIntEnv` needs nothing).
+ * Env-reading shapes this checker understands.
+ *
+ * `HELPER_NAMES` must equal the exports of `src/lib/env.ts` — assertion G pins that, because a NEW
+ * helper added there would otherwise read env through a shape this file has never heard of, inside
+ * the one module whose dynamic access is tolerated. That is a false-coverage hole, not a gap in
+ * strictness: F would still pass while the variable went unverified.
  */
+const HELPER_NAMES = ['positiveIntEnv']
 const DIRECT_READ = /process\.env\.([A-Z][A-Z0-9_]*)/g
 const BRACKET_READ = /process\.env\[\s*['"]([A-Z][A-Z0-9_]*)['"]\s*\]/g
-const HELPER_READ = /positiveIntEnv\(\s*['"]([A-Z][A-Z0-9_]*)['"]/g
+/** A helper call whose variable name is a LITERAL — the only form whose variable is knowable here. */
+const HELPER_READ = /\b(?:positiveIntEnv)\s*\(\s*['"]([A-Z][A-Z0-9_]*)['"]/g
+/** EVERY helper call, literal-named or not. The difference is what assertion F reports. */
+const HELPER_CALL = /\b(?:positiveIntEnv)\s*\(/g
 /** Every `process.env` occurrence, so unrecognised ones can be counted against the recognised. */
 const ANY_ENV_TOUCH = /process\.env/g
 
 /**
- * The one legitimate dynamic access: `positiveIntEnv`'s own implementation reads `process.env[name]`
- * from a parameter. Allowlisted by file, not by pattern, so a dynamic read appearing anywhere else
- * still trips F.
+ * Budgeted dynamic access: `positiveIntEnv`'s own implementation reads `process.env[name]` from a
+ * parameter, which is legitimate and unavoidable. Budgeted by COUNT rather than allowlisted by file,
+ * so a SECOND dynamic read added to the same module still trips F — a whole-file exemption would let
+ * `src/lib/env.ts` become a blind spot precisely because it is the env module.
  */
-const DYNAMIC_READ_ALLOWED = new Set(['src/lib/env.ts'])
+const DYNAMIC_READ_BUDGET = new Map([['src/lib/env.ts', 1]])
+
+/**
+ * `.js` is included deliberately: `allowJs` is on and `app/src` already contains five `.js` files
+ * (the byte-pristine vendored ARES generator, plus Payload's generated importMap). None reads env
+ * today — and if one ever does, it must be visible here rather than silently unscanned. Nothing about
+ * this test edits those files; it only reads them.
+ */
+const SOURCE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 
 const sourceFiles = (dir: string, acc: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
     if (statSync(full).isDirectory()) {
       if (entry !== 'node_modules' && entry !== '.next') sourceFiles(full, acc)
-    } else if (/\.(ts|tsx|mts)$/.test(entry)) {
+    } else if (SOURCE_EXT.test(entry)) {
       acc.push(full)
     }
   }
   return acc
+}
+
+/** Exported helper names in `src/lib/env.ts` — `export const NAME =` / `export function NAME`. */
+const envModuleExports = (): string[] => {
+  const text = readFileSync(join(APP_DIR, 'src', 'lib', 'env.ts'), 'utf8')
+  return [...text.matchAll(/^export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)/gm)]
+    .map((m) => m[1])
+    .sort()
 }
 
 const matchAll = (text: string, re: RegExp): string[] =>
@@ -122,13 +146,27 @@ const collectReads = (): { reads: Set<string>; unrecognised: string[] } => {
     const rel = relative(APP_DIR, file)
     const direct = matchAll(text, DIRECT_READ)
     const bracket = matchAll(text, BRACKET_READ)
-    for (const name of [...direct, ...bracket, ...matchAll(text, HELPER_READ)]) reads.add(name)
+    const helperLiteral = matchAll(text, HELPER_READ)
+    for (const name of [...direct, ...bracket, ...helperLiteral]) reads.add(name)
 
-    // F: every `process.env` touch must be accounted for by a recognised shape.
-    const recognised = direct.length + bracket.length
+    // F1: every `process.env` touch must be accounted for by a recognised shape, beyond the
+    // module's dynamic budget.
     const touches = countOf(text, ANY_ENV_TOUCH)
-    if (touches > recognised && !DYNAMIC_READ_ALLOWED.has(rel)) {
-      unrecognised.push(`${rel}: ${touches - recognised} unrecognised process.env access(es)`)
+    const budget = DYNAMIC_READ_BUDGET.get(rel) ?? 0
+    const unaccounted = touches - (direct.length + bracket.length) - budget
+    if (unaccounted > 0) {
+      unrecognised.push(`${rel}: ${unaccounted} unrecognised process.env access(es)`)
+    }
+
+    // F2: every helper CALL must name its variable literally. A dynamic call — `positiveIntEnv(name,
+    // …)` — contains no `process.env` at the call site, so F1 cannot see it: the variable would be
+    // read at runtime and silently absent from the templates. Requiring a literal keeps every
+    // variable statically knowable, which is the only basis on which this test can claim coverage.
+    const dynamicHelperCalls = countOf(text, HELPER_CALL) - helperLiteral.length
+    if (dynamicHelperCalls > 0) {
+      unrecognised.push(
+        `${rel}: ${dynamicHelperCalls} env-helper call(s) without a literal variable name`,
+      )
     }
   }
   return { reads, unrecognised }
@@ -144,10 +182,18 @@ describe('env template parity', () => {
     .filter((n) => !RUNTIME_PROVIDED.has(n) && !NEVER_IN_TEMPLATE.has(n))
     .sort()
 
-  it('F: every process.env access uses a shape this checker recognises', () => {
+  it('F: every env read uses a shape this checker recognises, with a literal variable name', () => {
     // If this fails, TEACH THE CHECKER (add the shape above) — do not delete the assertion. A read it
     // cannot see is a variable it cannot verify, and silence here would be a false all-clear.
     expect(unrecognised).toEqual([])
+  })
+
+  it('G: lib/env.ts exports exactly the helpers this checker knows how to read', () => {
+    // A new helper in the env module would read env through an unrecognised shape, inside the one
+    // module whose dynamic access is budgeted — so F would keep passing while its variable went
+    // unverified. Add the helper to HELPER_NAMES *and* to the HELPER_READ/HELPER_CALL patterns, then
+    // update this list.
+    expect(envModuleExports()).toEqual([...HELPER_NAMES].sort())
   })
 
   it('A: the root template declares every configurable variable the app reads', () => {
