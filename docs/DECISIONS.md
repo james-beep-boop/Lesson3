@@ -11,7 +11,43 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-05 (latest) — the handoff block itself failed review, in the class it was documenting
+## 2026-08-05 (latest) — edit recovery: the migration is generated AFTER the kernel, not before
+
+**Decision:** in PR 1, build and DB-test the persistence kernel (`start`, capture CAS, retirement,
+expiry) against the disposable **push**-built schema first, and only then generate the migration. The
+design's own build order put the migration earlier; this reverses that, deliberately.
+
+**Why:** the kernel is what discovers the schema's real requirements — a constraint, a column, or a
+composite index that capture's CAS, the active-count cap, or expiry selection actually needs. Generating
+the migration before those queries exist produces one of two bad outcomes: churn (regenerate repeatedly)
+or, worse, the temptation to amend an already-reviewed migration, which quietly invalidates the review.
+
+**The boundary, in order:**
+
+1. Build and DB-test `start`, capture, retirement, expiry against the disposable push schema.
+2. **Freeze** the collection schema and the raw-SQL column assumptions.
+3. Regenerate types and create the migration on the Rock (Node 22).
+4. Review **both** `up` and `down`.
+5. Apply to a **fresh migration-mode database with push disabled**.
+6. Re-run the kernel and concurrency tests **against that migrated schema**.
+
+⚑ **Step 6 is the load-bearing one and is not a formality.** Push proves the Payload *model*; only a
+fresh migration-mode run proves the *production artifact*. A kernel that passes only against a
+push-built schema has been tested against something the Rock will never run. These can differ — push
+infers from the model, the migration is generated code someone may have edited — and the difference is
+invisible until production.
+
+**Also decided:** `start` derives `lessonPlan`, `baseUpdatedAt` and `schemaVersion` **server-side from
+the authorized source version**, never from the client. A client-supplied `baseUpdatedAt` would let a
+caller defeat the staleness guard by asserting the source had not moved; a client-supplied
+`schemaVersion` would defeat the shape guard the same way; and a client-supplied `lessonPlan` would let
+a row be filed under a plan the caller does not hold rights to, corrupting admin metadata and cleanup
+scoping. All three are derivable from a source the endpoint has already re-authorized, so accepting
+them from the wire is a pure downside.
+
+---
+
+## 2026-08-05 — the handoff block itself failed review, in the class it was documenting
 
 The entry below closes with a stopping rule for the env-parity work. The handoff block written on top of
 it was then reviewed by a second model and found to contain four defects — **every one of them the same

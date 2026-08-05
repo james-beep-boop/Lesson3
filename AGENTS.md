@@ -50,6 +50,19 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   **`npm run test:unit`** (own `vitest.unit.config.mts`) runs pure DB-free unit specs in `tests/unit/`
   **locally** (no Rock) — use it for pure logic like `src/lib/substrand.ts`; it's separate from
   `test`/`test:int`.
+- **`test:int` on a disposable local stack** (added 2026-08-05, so the Rock is no longer the only
+  option): `docker compose -p lesson3-ci-probe up -d --build` gets its own `lesson3-ci-probe_*`
+  volumes and never touches the seeded `lesson3_*` ones. **Always pass `-p`** — a bare
+  `docker compose down -v` targets the preserved project and destroys the seeded dev database.
+  Repoint `app/test.env` (a TRACKED file) at the probe's Postgres for the run and restore it after,
+  confirming with `git diff --exit-code -- app/test.env`.
+  - ⚑ Pass **`-e NODE_ENV=test`**. The repo-root `.env` is the Compose stack's and carries
+    `NODE_ENV=production`, under which Payload runs in migrate mode and `push` is OFF — so an empty
+    test DB gets no schema and the run dies on `relation "lesson_plans" does not exist`. CI never
+    hits this because its synthetic `.env` omits `NODE_ENV` entirely. **This is an environment
+    mismatch in how the run is invoked, NOT a schema defect and NOT an argument for enabling push in
+    production** — push in production would let the running app mutate the live schema, which is the
+    whole reason it is off there.
 - **Build:** `npm run build` (`next build`, **needs a DB → Rock only**).
 - **Codegen (run on the Rock, Node 22):** `npm run generate:types`, `npm run generate:importmap` —
   commit the output. The local CLIs can break on newer Node.
