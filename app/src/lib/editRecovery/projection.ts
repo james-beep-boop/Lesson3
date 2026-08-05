@@ -35,11 +35,15 @@
  * `summaryTable`'s own leaves (`subStrand`, `drivingQuestion`) are admin-only and deliberately absent,
  * matching `applyEditorFieldSplit`, which overlays it with an empty key list.
  *
- * **Captures hold values, not diffs.** Every whitelisted leaf that is present is captured, rather
- * than only those differing from the source. Diffing would make captures smaller, but it makes the
- * stored row meaningless without its exact source — and the whole point of `baseUpdatedAt` is that
- * the source may have MOVED, in which case a diff cannot even be displayed for copy-out, which SPEC
- * §5 requires. If the hard byte cap turns out to bite in practice, revisit here, not at the cap.
+ * **Captures hold values, not diffs** — but this is still a CONTEXT-LIGHT LEAF MAP, not a snapshot.
+ * Storing values rather than deltas means a capture can be read without recomputing against a source
+ * that may have moved, which matters because SPEC §5 requires stale and schema-mismatched captures to
+ * remain displayable for copy-out. It does NOT make a capture self-explanatory: what it holds is
+ * prose keyed by opaque row ids, with no titles, ordering or parentage of its own. For a framework
+ * row that has since been deleted from the source, copy-out has an id and some prose and nothing
+ * else to say what it belonged to. Making that intelligible is PR 2's problem at the restore UI, and
+ * it is a real one — not something this format has already solved. If the hard byte cap bites,
+ * revisit here rather than at the cap.
  */
 import {
   FINAL_EXPLANATION_PROSE,
@@ -78,7 +82,12 @@ const asRows = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : [])
 const asDoc = (v: unknown): Doc | undefined =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Doc) : undefined
 
-/** Row ids are stringified so a map key round-trips through JSON unchanged (Postgres gives numbers). */
+/**
+ * Row ids are stringified defensively. Payload's array child tables key rows with `character
+ * varying` (verified against `lesson_bundle_versions_lessons` and its framework/summary siblings), so
+ * `String()` is a no-op today — but a map key must be a string regardless of what the adapter hands
+ * back, and this is the single place that assumption lives.
+ */
 const keyFor = (scope: string, id: unknown): string | null =>
   id === undefined || id === null ? null : `${scope}:${String(id)}`
 

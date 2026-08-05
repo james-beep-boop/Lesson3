@@ -26,34 +26,39 @@ import {
  * Explicit shape rather than inference. Inferring from the literal below gives each array a UNION of
  * its rows' shapes, so reading a field that only one row happens to carry fails to typecheck — an
  * artefact of the fixture, not of the code under test.
+ *
+ * Prose leaves are `Prose = string | null`, matching Payload's generated types, so the fixture states
+ * the real contract instead of casting around it. A test that needs a cast to express a cleared field
+ * is describing a narrower type than the code actually accepts.
  */
+type Prose = string | null
 type FrameworkRow = {
   id: number
-  learnerExperience?: string
-  teacherMoves?: string
-  phase?: string
+  learnerExperience?: Prose
+  teacherMoves?: Prose
+  phase?: string // admin/system — deliberately NOT Prose
 }
-type SectionRow = { id: number; prompt?: string; exemplar?: string }
+type SectionRow = { id: number; prompt?: Prose; exemplar?: string }
 type SummaryLessonRow = {
   id: number
-  title?: string
-  observed?: string
-  learned?: string
-  explained?: string
+  title?: Prose
+  observed?: Prose
+  learned?: Prose
+  explained?: Prose
 }
 type LessonRow = {
   id: number
-  title?: string
-  overview?: string
-  teacherReflection?: string
+  title?: Prose
+  overview?: Prose
+  teacherReflection?: Prose
   number?: number
   duration?: number
   resourceLinks?: { id: number; url: string }[]
   // Required because every fixture lesson carries them and the round-trip test mutates through
   // them; `summaryTablePrompt` stays optional, since only the first lesson has one.
-  slo: Record<string, string>
+  slo: Record<string, Prose>
   framework: FrameworkRow[]
-  summaryTablePrompt?: Record<string, string>
+  summaryTablePrompt?: Record<string, Prose>
 }
 type SourceDoc = {
   id: number
@@ -62,7 +67,7 @@ type SourceDoc = {
   meta: Record<string, unknown>
   lessons: LessonRow[]
   finalExplanation: {
-    instructions?: string
+    instructions?: Prose
     sections: SectionRow[]
     rubric: { id: number; criterion: string }[]
   }
@@ -210,8 +215,13 @@ describe('edit-recovery projection', () => {
     edited.lessons[0].title = 'EDITED title'
     edited.lessons[0].slo.purpose = 'EDITED purpose'
     // `summaryTablePrompt` is the one container the first version of this test missed, so the whole
-    // `prompt:<lessonId>` branch could be deleted from apply with every test still green. Verified
-    // by disabling that branch and watching this line, and only this line, fail.
+    // `prompt:<lessonId>` branch could be deleted from apply with all 8 tests still green. Disabling
+    // that branch now fails TWO tests, and the two fail for different reasons — worth knowing, since
+    // only one of them is about content: the round-trip below fails on document equality, while the
+    // identity test fails on `droppedKeys` (`['prompt:11']` vs `[]`) because the branch never
+    // consumed its key. Identity's own document comparison still passes there, the untouched base
+    // already carrying its prompt — so the bookkeeping assertion, not the content one, is what makes
+    // identity notice a silently skipped container.
     edited.lessons[0].summaryTablePrompt!.observed = 'EDITED prompt observed'
     edited.lessons[0].framework[1].teacherMoves = 'EDITED moves'
     edited.finalExplanation.instructions = 'EDITED instructions'
@@ -239,7 +249,7 @@ describe('edit-recovery projection', () => {
    */
   it('captures and restores a cleared field as null, distinct from an absent one', () => {
     const cleared = source()
-    cleared.lessons[0].title = null as unknown as string
+    cleared.lessons[0].title = null
     const m = projectCapture(cleared)
     expect(m['lesson:11']).toHaveProperty('title', null)
 
