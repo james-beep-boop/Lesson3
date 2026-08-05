@@ -131,14 +131,21 @@ const MODULE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const ENV_MODULE_ABS = join(APP_DIR, 'src', 'lib', 'env')
 
 /**
- * Resolve a specifier to an extensionless absolute path, or null when it is a bare package (which the
- * env module never is). `@/*` maps to `./src/*` per `tsconfig.json` paths.
+ * Resolve a specifier to an extensionless absolute path. `@/*` maps to `./src/*` per `tsconfig.json`
+ * paths.
+ *
+ * A non-relative specifier is NOT assumed to be a bare package. `tsconfig.json` sets `baseUrl: "."`,
+ * which makes `from 'src/lib/env'` a valid second spelling of the env module — and an earlier version
+ * returned null for it, so a helper imported that way was silently not followed and its variable went
+ * unverified. That is this file's own headline defect class (a route the checker cannot resolve must
+ * never be a route it ignores), so baseUrl is resolved rather than skipped. A genuine bare package
+ * resolves to a path that simply is not the env module, which is the right answer for it.
  */
-const resolveSpecifier = (fromFile: string, specifier: string): string | null => {
+const resolveSpecifier = (fromFile: string, specifier: string): string => {
   const bare = specifier.replace(MODULE_EXT, '')
   if (bare.startsWith('.')) return resolve(dirname(fromFile), bare)
   if (bare.startsWith('@/')) return join(APP_DIR, 'src', bare.slice(2))
-  return null
+  return join(APP_DIR, bare) // `baseUrl: "."`
 }
 
 /**

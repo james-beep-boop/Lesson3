@@ -14,34 +14,42 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-05) — 12 UNPUSHED COMMITS EXIST. READ THIS FIRST.
+# ⚑ HANDOFF (2026-08-05) — A COMMIT STACK EXISTS OFF `main`. READ THIS FIRST.
 
 This work is being handed to a **different account**. The single thing that matters most:
 
-> **`chore/env-template-parity` holds a stack of commits that exist ONLY on the previous operator's
-> machine**, branched from `main` `5843551`. They were verified but deliberately not pushed, because six
-> review rounds kept finding real defects. **If that working tree is gone, this work is gone** — check
-> before assuming, and rebuild from the documents below if so (SPEC §5 and
-> `docs/DESIGN-working-drafts.md` are complete and self-contained; only the env-parity test and the CI
-> mount would need re-doing).
+> **`chore/env-template-parity` holds a stack of commits branched from `main` `5843551`**, six review
+> rounds deep. It was held back from pushing while those rounds kept finding real defects; it has since
+> been **pushed and opened as a PR**, so it is no longer laptop-only. Confirm rather than trust this
+> sentence — the commands below say which is true today, and if the remote branch is somehow gone, SPEC
+> §5 and `docs/DESIGN-working-drafts.md` are complete and self-contained (only the env-parity test and
+> the CI mount would need re-doing).
 >
-> ⚑ No head SHA or commit count is given on purpose. Only the **branch point** (`5843551`) is stable;
-> naming the tip would be wrong the moment the commit *containing this sentence* landed — which is
-> exactly what happened on the first draft of this block, and twice before that elsewhere in this file.
-> Derive the tip from the commands below.
+> ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
+> is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
+> which is exactly what happened on the first draft of this block, and twice before that elsewhere in
+> this file. A commit count made the same mistake one round later. Derive all of it from the commands
+> below.
 
 **Verify what actually landed before trusting any of this:**
 
 ```bash
 git fetch --all --prune
-git branch -a --contains 5843551          # is chore/env-template-parity anywhere but locally?
-git log --oneline main..chore/env-template-parity 2>/dev/null   # the stack, or empty if lost
+git ls-remote --heads origin chore/env-template-parity   # empty output ⇒ it was never pushed
+git log --oneline origin/main..chore/env-template-parity 2>/dev/null   # the stack, or empty if lost
 git rev-parse HEAD:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
 ```
 
-`main` is **protected** (PR + passing gate, `enforce_admins`), so those commits need a PR — they cannot
-be pushed straight to `main`. Also still open and unrelated: **PR #196** (`chore/pr195-review-followups`,
-green).
+`main` is **protected** (PR + passing `gate`, `enforce_admins`), so this stack lands by PR — it cannot be
+pushed straight to `main`. Required reviews are 0, so you can merge your own once the gate is green.
+List what is open, rather than trusting a number written here:
+
+```bash
+gh pr list --state open --json number,title,headRefName,mergeable,statusCheckRollup
+```
+
+As of this handoff that was this branch's PR plus **PR #196** (`chore/pr195-review-followups`, green,
+unrelated).
 
 ### What that stack contains
 
@@ -140,17 +148,24 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Still true
-as of the handoff above: that unpushed stack changes documentation, two `.env.example` templates, one unit
-test, one CI mount and one docstring — no runtime code — so **no deploy is required to land them**. Check
-rather than trust a SHA written here; compare the app TREE HASH on both sides:
+**No runtime change is pending for the Rock, and no deploy is required to land the stack above.** It
+changes documentation, two `.env.example` templates, one unit test, one CI mount and one docstring —
+nothing the server executes.
+
+⚠️ **`app/` tree hashes will NOT match while that stack is unmerged, and that is expected.** Four of its
+files live under `app/` (`app/.env.example`, `app/tests/unit/envTemplateParity.spec.ts`,
+`app/vitest.unit.config.mts`, and a comment-only edit to `app/src/components/IdleLogout/index.tsx`), so
+the tree hash differs from `origin/main` even though no runtime behaviour does. Compare the Rock against
+**`origin/main`**, not your working branch:
 
 ```bash
-git rev-parse HEAD:app
+git rev-parse origin/main:app
 ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'
 ```
 
-Equal ⇒ the deployed app code is byte-identical to yours, whatever commits sit either side of it.
+Equal ⇒ the deployed app code is byte-identical to `origin/main`, whatever commits sit either side of it.
+Once the stack merges, these two stay equal: a tree hash is not a promise about behaviour, but an
+inequality here is always worth explaining before you deploy.
 
 ⚑ **Compare the same thing on both sides.** The first version of this check was
 `git log -1 --format=%h -- app/` locally against `git rev-parse --short HEAD` on the Rock — two
@@ -626,7 +641,7 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    docs work, needs a deploy.
 2. **Edit recovery** (formerly "working drafts") — *the only confirmed silent work-loss path, and the
    data-integrity priority.* **RECONCILED + APPROVED 2026-08-05; ready to implement.** Normative rules
-   in SPEC §5/§13, implementation design + the 28-case verification matrix in
+   in SPEC §5/§13, implementation design + the 30-case verification matrix in
    `docs/DESIGN-working-drafts.md` (path kept; the FEATURE is renamed — `draft` is now a reserved word,
    SPEC §13). Read the design doc's §0 first: five provisions of the original draft did not survive
    review of the code. Build in two PRs, server then client, per its §8. Multi-session project.

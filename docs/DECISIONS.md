@@ -11,7 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-05 (latest) — Edit recovery reconciled and approved; the env templates got a parity test
+## 2026-08-05 (latest) — the handoff block itself failed review, in the class it was documenting
+
+The entry below closes with a stopping rule for the env-parity work. The handoff block written on top of
+it was then reviewed by a second model and found to contain four defects — **every one of them the same
+"label asserting authority its content does not have" class the entry below names.** Recorded because
+the recursion is the lesson, not the incidents:
+
+1. The heading said **"12 UNPUSHED COMMITS"**; there were 13. Eleven lines later the same block said no
+   commit count was given *on purpose*, because naming the tip self-invalidates. The count was the tip
+   by another name — and it self-invalidated on the very commit that wrote it, which is the third time
+   this file has been bitten by that exact trap.
+2. **"The live Rock is DEPLOYED with the current `app/` tree"** was false. Four of the stack's files live
+   under `app/`, so `HEAD:app` and `origin/main:app` genuinely differ. The block then handed the reader a
+   tree-hash comparison and told them equality proves parity — a check guaranteed to fire on a difference
+   that was expected and harmless. *"No runtime change is pending"* was the defensible claim; *"the trees
+   match"* was not.
+3. The recovery command `git branch -a --contains 5843551` was presented as answering "was it pushed?"
+   It lists every descendant of the branch point, `main` included, so it answers yes in the case where
+   the work is lost. `git ls-remote --heads origin <branch>` answers the actual question.
+4. The **28 vs 30** case-count drift: two later review rounds added cases 29–30 without updating a
+   back-reference further down the same file.
+
+Plus one real code gap, narrower than reported: `resolveSpecifier` handled `./relative` and `@/*` but
+returned null for everything else as "a bare package". `tsconfig.json` sets `baseUrl: "."`, so
+`from 'src/lib/env'` is a valid second spelling of the env module, and a helper imported that way was
+**silently not followed** — the file's own headline defect class surviving inside the commit that claimed
+to have generalised it away. Fixed by resolving baseUrl instead of skipping it.
+
+**Rules this adds:**
+
+- **A derived fact is a SHA.** "13 commits", "30 cases", "the trees match" invalidate on exactly the
+  events a tip SHA does. A document that has correctly sworn off SHAs has not thereby sworn off
+  self-invalidation — write the *command*, not the answer. Every count in a handoff is a latent defect.
+- **Verification instructions need the same scrutiny as the code they verify.** Three of the four defects
+  were in commands or comparisons offered *as the way to check* — the reader trusts them precisely when
+  they have no other source of truth, which is the worst moment to be wrong. Run the command and read its
+  output before shipping it as advice.
+- **A stopping rule does not apply to the document announcing it.** The six-round stack was correctly
+  stopped; the handoff summarising that decision then went out unreviewed and needed a seventh round.
+  Fresh prose about finished work is fresh work.
+
+The reviewer also raised two findings that **did not hold**, worth recording so they are not re-fixed:
+`export * from …` and `export { env } from 'node:process'` are both already caught — the first lands in
+`unnameable`, the second makes assertion G's export list `['env'] ≠ ['positiveIntEnv']`. Both fail G
+today. The doc comment saying those names "cannot be enumerated here" describes the *reporting* path, not
+a silent skip.
+
+---
+
+## 2026-08-05 — Edit recovery reconciled and approved; the env templates got a parity test
 
 Two things landed as documentation and one small test, ahead of any edit-recovery code: the environment
 templates were reconciled behind a mechanical parity check, and the unsaved-work design was reconciled
