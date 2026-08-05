@@ -496,7 +496,7 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    docs work, needs a deploy.
 2. **Edit recovery** (formerly "working drafts") — *the only confirmed silent work-loss path, and the
    data-integrity priority.* **RECONCILED + APPROVED 2026-08-05; ready to implement.** Normative rules
-   in SPEC §5/§13, implementation design + the 20-case verification matrix in
+   in SPEC §5/§13, implementation design + the 28-case verification matrix in
    `docs/DESIGN-working-drafts.md` (path kept; the FEATURE is renamed — `draft` is now a reserved word,
    SPEC §13). Read the design doc's §0 first: five provisions of the original draft did not survive
    review of the code. Build in two PRs, server then client, per its §8. Multi-session project.

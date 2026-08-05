@@ -76,10 +76,32 @@ documented Payload-first gap: default REST has no upsert, closing `read` makes "
 cannot restore" structural, and closing `delete` stops an owner erasing their own marker.
 
 **`draft` is now a reserved word** (SPEC §13, beside `class` → `SubjectGrade`). It already means an
-unofficial *saved version* — the `Draft` status pill, and the Guide's "your drafts live in Manage → My
+unofficial *saved version* — the Guide defines the word for users: "your drafts live in Manage → My
 saved versions" — so "draft saved" would tell a teacher their version was saved when it was not. The
 feature is **edit recovery**. The design file keeps its path only because five documents and a source
 docstring cite it.
+
+**The reconciled protocol then failed its own second review — three more, before any push.** Worth
+recording because the document read as complete, and because all three are the same shape: a
+precondition that looked sufficient but could not see the state it needed to.
+- **Retirement was fenced by `generation` only.** An ordinary capture bumps `revision` and leaves
+  `generation` alone, so a generation check cannot distinguish "same session" from "same session, but
+  another tab captured newer work since you loaded". Save, discard, expiry and admin cleanup could all
+  have retired newer work. Every caller now carries a revision precondition, evaluated **inside** the
+  atomic update — expiry included, conditioned on the row still being active and untouched.
+- **`start` had no concurrency semantics.** Two simultaneous first starts race the unique insert; two
+  against a retired row race reactivation. It is now a single `INSERT … ON CONFLICT … RETURNING` that
+  creates or reactivates (advancing the generation) and returns generation **and** revision — the
+  revision because otherwise the client's first capture has no correct precondition to send.
+- **"A failed flush must not block the save" was too broad.** True for transport failures (network,
+  429, 5xx), where the version save must win over its own insurance. False for a **409**, which means
+  another tab holds newer work — exactly the case where saving on would retire it.
+
+Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
+branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and
+Official/Not-Official became bold status text rather than pills (CHANGELOG 2026-07-30). The decision
+rests on the Guide's live wording; the dead branch is noted as a latent second collision, not evidence.
+Citing a UI element that does not render is the same defect class as the docstring above.
 
 **Priority argument that settled the order.** Sequencing by cheapness would have put edit recovery
 behind the environment fix, the Official-pointer lock and the bootstrap race. Ranked by expected harm it

@@ -42,6 +42,18 @@ Also corrected: §1 of the first draft implied our `IdleLogout` was the work-des
 — `logOut()` performs no navigation (verified in installed `@payloadcms/ui` 3.85.1). That one wrong
 inference cost a later reviewer a misfiled finding. See §1.
 
+**A second review round (same day, before any push) found three more, all in the protocol this file
+had just specified.** Recorded here because they are the kind of gap that reads as complete:
+
+| Reconciled version said | Now | Why |
+|---|---|---|
+| Retirement is fenced by `generation` | **Every** retirement caller carries a **revision** precondition too | An ordinary capture bumps `revision` and leaves `generation` alone — so a generation check cannot see that another tab captured newer work, and save/discard/expiry/cleanup could all retire it |
+| "`start` returns the active generation or mints a new one" | A **single atomic upsert** returning `generation` **and** `revision` | Two simultaneous first starts race the unique insert; two starts against a retired row race reactivation. And without the revision, the first capture has no correct precondition to send |
+| "a *failed* flush must not block the save" | Transport failure ⇒ save proceeds; **409 ⇒ it does not** | A 409 flush failure specifically means another tab holds newer work, which is exactly the case where saving on would retire it |
+
+Plus a documentation contradiction: the projection was described as "keyed by row id" *and* as
+excluding row ids. Both are true of different things — §3 now says so explicitly.
+
 ---
 
 ## 1. The problem this solves
@@ -104,11 +116,11 @@ re-loads the source and re-runs `authorize(req, 'editor')` on every call, then w
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /:id/recovery/start` | Explicit session start. Returns the active generation, or mints one. Never called implicitly. |
+| `POST /:id/recovery/start` | Explicit session start; one atomic upsert (§4). Returns `{generation, revision}`. Never called implicitly. |
 | `POST /:id/recovery` | Capture (upsert). Requires `generation` + `expectedRevision`. Stale/missing ⇒ **409**. |
 | `GET /:id/recovery` | Fetch the active capture, for the restore prompt. |
-| `DELETE /:id/recovery` | Explicit discard ⇒ retire. |
-| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata and authorized retirement. Never content. |
+| `DELETE /:id/recovery` | Explicit discard ⇒ retire. Requires `generation` + `expectedRevision`. |
+| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata (incl. `revision`) and authorized retirement, which must echo that revision. Never content. |
 
 Each ships wire-level 401/403/404 plus happy-path coverage in `tests/http` in the same PR (CLAUDE.md
 standing rule), and a `recovery` bucket in `lib/rateLimit.ts` sized for the real worst case — several
@@ -127,9 +139,16 @@ A **sparse map of prose leaves keyed by row id**, derived from the deep whitelis
 Consequences, by construction rather than by policy:
 
 - `resourceLinks` (lesson-level), `framework[].phase`, `duration`, `number`, `sections[].exemplar`,
-  `rubric[*]`, `META`, `semver`, `author` and row ids **cannot** enter a capture.
+  `rubric[*]`, `META`, `semver` and `author` **cannot** enter a capture as content.
 - An admin/system field added later is excluded automatically, in the secure direction.
 - The projection inherits the existing drift test for free.
+
+**Row ids are map KEYS, not content.** Stated explicitly because "keyed by row id" and "row ids cannot
+enter a capture" read as a contradiction. A row id appears only as a key, used to align the overlay
+with the source's rows on restore. Each key is **validated against the current source** and an
+unrecognised one is dropped, never created. Ids are never written back as field values, and no capture
+can change one — structure is not editable through this path at all. Tests assert both halves: an
+unknown key is dropped, and no id appears as a restored value.
 
 **One source of truth:** the same constants define "what an Editor may write" at the save boundary and
 "what a capture may hold". On restore a capture supplies prose only; `applyEditorFieldSplit` remains
@@ -143,24 +162,54 @@ answer-key sensitivity that implies) and is deferred rather than half-built.
 
 ## 4. Fencing protocol
 
-Two mechanisms, two jobs — keeping them separate is what keeps this comprehensible:
+Two mechanisms, two jobs — keeping them separate is what keeps this comprehensible — but **both** apply
+to retirement, which was the second review's first finding:
 
-- **`generation` fences retirement.** Server-issued, never the client's choice. `start` returns the
-  active generation or mints a new one, so clicking Edit twice, or in two tabs, is safe. A capture
-  carrying a retired or absent generation is **409, and never an implicit restart.**
-- **`revision` fences concurrent writes.** Every capture supplies `expectedRevision`; on mismatch the
+- **`generation` fences retirement across sessions.** Server-issued, never the client's choice.
+- **`revision` fences individual writes.** Every capture supplies `expectedRevision`; on mismatch the
   client refetches rather than overwriting.
 
-**Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day
-expiry, Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances
-revision/generation. **None hard-delete.** Because all four share one function, expiry cannot be SQL
-inside `scripts/prune-db.sh` (a second implementation, free to drift); it becomes a Payload job, and
-`prune-db.sh` keeps only the bookkeeping tables it already handles.
+**A generation check alone is not enough for retirement.** An ordinary capture bumps `revision` and
+leaves `generation` untouched, so generation cannot distinguish "same session" from "same session, but
+another tab has captured newer work since you loaded". Every retirement caller therefore carries a
+revision precondition, applied **inside the atomic update** rather than read-then-write.
+
+**`start` is one statement.** Two simultaneous first starts would otherwise race the unique insert, and
+two starts against a retired row would race reactivation:
+
+```sql
+INSERT INTO edit_recovery (user_id, source_version_id, generation, revision, …)
+VALUES ($user, $version, 1, 1, …)
+ON CONFLICT (user_id, source_version_id) DO UPDATE
+  SET generation = edit_recovery.generation + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
+      retired_at = NULL,
+      revision   = edit_recovery.revision + 1
+RETURNING generation, revision;
+```
+
+A retired row is reactivated by **advancing** the generation (a new session, so any stale tab holding
+the old one is fenced out); an active row is resumed unchanged. The loser of a race reloads the
+winner's values rather than failing. It returns **both** values — without the revision, the client's
+first capture has no correct precondition to send.
+
+**Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day expiry,
+Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances
+revision/generation. **None hard-delete.** Preconditions, all evaluated in the update:
+
+| Caller | Precondition |
+|---|---|
+| save-as-new, discard | `generation` **and** `expectedRevision` from the editing tab |
+| Site-Admin cleanup | the `revision` returned by `recovery/meta` — so an operator cannot clear a capture that changed between looking and acting |
+| 30-day expiry | row still active **and** untouched since the cutoff |
+
+Because all four share one function, expiry cannot be SQL inside `scripts/prune-db.sh` (a second
+implementation, free to drift); it becomes a Payload job, and `prune-db.sh` keeps only the bookkeeping
+tables it already handles.
 
 **On save-as-new**, retirement joins the existing transaction in `endpoints/versionEdit.ts` **inside
-the semver retry attempt**, so it can neither half-apply nor double-apply. A generation mismatch there
-fails the whole save with 409 rather than retiring newer work — and unlike a semver conflict, a
-mismatch is **not** retryable.
+the semver retry attempt**, so it can neither half-apply nor double-apply. A precondition failure there
+fails the whole save with 409 rather than retiring newer work — and unlike a semver conflict, it is
+**not** retryable.
 
 **Row deletion happens only by parent cascade.** Required relationships mean NOT NULL columns with
 `ON DELETE SET NULL` FKs, so a parent delete must remove these rows first or Postgres raises 23502 —
@@ -184,8 +233,13 @@ the form is read-only.
 final capture lands while the token is still valid.
 
 **Save.** Pause capture → flush → await any in-flight write → `save-as-new` with the current
-generation. **If the flush fails, save anyway**: the version save is the operation that matters and
-the capture is insurance. Blocking a real save on failed insurance inverts the priority exactly.
+`generation` + `expectedRevision`. The two flush failures are **not** treated alike:
+
+- **Transport failure** (network, 429, 5xx) ⇒ **save anyway.** The version save is the operation that
+  matters and the capture is only insurance; blocking a real save on failed insurance inverts the
+  priority exactly.
+- **409** ⇒ **do not proceed.** A 409 means another tab holds newer work, so this is precisely the case
+  where saving on would retire it. Surface the conflict and let the user reload.
 
 **Failure surfacing.** The indicator shows the confirmed timestamp — "Unsaved changes backed up · 12 s
 ago". On 429 or network failure it must show **not backed up** and keep the form dirty; the timestamp
@@ -221,8 +275,8 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-Disposable stack, shortened `tokenExpiration`. Browser-level for 1–13 (the defect is client-side);
-wire-level for 14–16; DB-backed for 17–20.
+Disposable stack, shortened `tokenExpiration`. Browser-level for 1–13 and 26–27 (the defect is
+client-side); wire-level for 14–16, 23–24 and 28; DB-backed concurrency for 17–22 and 25.
 
 | # | Case | Expected |
 |---|---|---|
@@ -245,11 +299,22 @@ wire-level for 14–16; DB-backed for 17–20.
 | 17 | Source version deleted | rows removed by cascade, inside the parent's transaction |
 | 18 | User deleted | same |
 | 19 | Retirement fails during save-as-new | **whole save rolls back**; no orphan version (real failing statement, not a mocked throw) |
-| 20 | Concurrent save-as-new + capture from a second tab | newer capture never silently retired; save 409s and is not retried |
+| 20 | Concurrent save-as-new + capture from a second tab | newer capture never silently retired; save 409s on the revision precondition and is not retried |
+| 21 | Two simultaneous **first** `start`s | one row; both callers get the same generation; neither errors on the unique index |
+| 22 | Two simultaneous `start`s against a **retired** row | generation advances exactly once; both callers see the same advanced pair; the retired generation stays fenced |
+| 23 | Discard with a stale `expectedRevision` | 409; nothing retired |
+| 24 | Admin cleanup with a stale revision | 409; the capture that changed between metadata and cleanup is not cleared |
+| 25 | Expiry job vs a capture landing at the cutoff | the fresh capture is not retired — precondition is evaluated in the update, not read-then-write |
+| 26 | Flush 409 on save | save does **not** proceed; conflict surfaced; the other tab's newer capture survives |
+| 27 | Flush transport failure (429 / offline) on save | save **does** proceed; indicator shows not-backed-up |
+| 28 | Restore with an unknown row-id key | key dropped, never created; no id restored as a field value |
 
 Case **5** justifies the server-side choice — client storage cannot pass it on a shared machine. Case
-**15** justifies lifetime markers. Case **19** also closes the separately-flagged gap that forced
-second-step rollback was untested.
+**15** justifies lifetime markers. Cases **21–22** are why `start` is a single statement. Cases
+**23–25** are why generation alone was insufficient: an ordinary capture bumps only the revision, so a
+generation-only check would have let all three retire newer work. Cases **26–27** are why the two flush
+failures are distinguished. Case **19** also closes the separately-flagged gap that forced second-step
+rollback was untested.
 
 **Sanity-flip discipline.** There is no pre-existing buggy implementation to test against, so
 sensitivity is demonstrated honestly: temporarily weaken the projection and the retirement guard and
@@ -272,11 +337,11 @@ the build rather than discovered mid-PR.
 **PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
-units, DB-backed concurrency (cases 15, 17–20).
+units, DB-backed concurrency (cases 15, 17–25, 28).
 
 **PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
 clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.
-Tests: Playwright cases 1–13.
+Tests: Playwright cases 1–13, 26–27.
 
 Interim mitigation until PR 2 ships stays operational, not technical: tell editors to save often on
 long sessions.

@@ -180,11 +180,15 @@ content visible to the next person at a shared machine. Both must be fixed; neit
 full design in `docs/DESIGN-working-drafts.md`.
 
 **Vocabulary — "draft" is reserved and must not be used for this feature.** In this product a
-*draft* already means an unofficial **saved version** ("Your drafts live in Manage → My saved
-versions"), and versions carry a `Draft` status pill. Calling a recovery capture a "draft" would tell
-a teacher their version had been saved when it has not. The feature is **edit recovery**; the
-collection is `edit-recovery`; the UI says **"Unsaved changes backed up · <when>"**. Same class of
-reserved-word rule as `class` → `SubjectGrade` (§13).
+*draft* already means an unofficial **saved version**, and the live evidence is the Guide, which
+defines the word for users in as many words: "Your drafts live in Manage → **My saved versions**".
+Calling a recovery capture a "draft" would tell a teacher their version had been saved when it has
+not. The feature is **edit recovery**; the collection is `edit-recovery`; the UI says **"Unsaved
+changes backed up · <when>"**. Same class of reserved-word rule as `class` → `SubjectGrade` (§13).
+*(A `Draft` status pill also exists in `LibraryBrowser.tsx`, but it is dead code — catalogue rows are
+built with `status: 'published'` hardcoded, and Official/Not-Official became bold status text rather
+than pills. It is not evidence for this rule; it is a latent second collision if `status` ever goes
+dynamic.)*
 
 **What is guaranteed, precisely.** The guarantee is **the last server-confirmed capture survives** —
 not every keystroke. Three windows are necessarily outside it and must be stated rather than implied:
@@ -217,30 +221,55 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - **The projection is derived from the existing prose whitelist**, not from top-level keys: the
   `*_PROSE` constants in `hooks/fieldSplit.ts`, which `tests/unit/proseWhitelistDrift.spec.ts`
   already pins mechanically to the `canEditProse` field factories. So system and admin-only data —
-  `resourceLinks`, `framework[].phase`, `duration`, `number`, answer keys — cannot enter a capture by
-  construction, and a future admin field is excluded automatically. A capture must never become a
-  second, weaker channel for data the field-split protects; on restore it supplies prose only, and
-  `applyEditorFieldSplit` remains the write-time authority.
+  `resourceLinks`, `framework[].phase`, `duration`, `number`, answer keys — cannot enter a capture as
+  **content** by construction, and a future admin field is excluded automatically. A capture must never
+  become a second, weaker channel for data the field-split protects; on restore it supplies prose only,
+  and `applyEditorFieldSplit` remains the write-time authority.
+  - **Row ids are keys, not content** — the one apparent exception, stated explicitly because the two
+    rules read as contradictory otherwise. A row id appears only as a **map key**, used to align the
+    overlay with the source's rows. On restore each key is validated against the current source and an
+    unrecognised one is dropped, never created; ids are never written back as field values, and an id
+    is not a value a capture can change (structure is not editable here at all).
 - **v1 covers prose only, and the UI must say so.** Subject Admins edit structure, phases, durations,
   rubrics and answer keys in the same editor; none of that is captured, because a structural change
   alters row identity and a sparse overlay has nothing stable to key on (admin-scope recovery would
   be a different storage model, and is deferred). The save-state indicator is therefore
   **role-aware**: unqualified for prose-only editors, explicit for administrators that structural and
   answer-key changes are not backed up. A generic "saved" shown to an administrator would be false.
-- **Fencing: server-issued generations, plus revisions.** A **generation** fences retirement; a
-  **revision** fences concurrent writes. Clicking Edit performs an explicit `start` that returns the
-  active generation or mints a new one — never the client's choice, and never implicitly created by a
-  capture. Every capture carries `generation` + `expectedRevision`; a stale or missing generation is
-  **409, never an implicit restart**. Save pauses capture, flushes and awaits any in-flight write,
-  then saves with the current generation — but a *failed* flush must not block the save: the version
-  save is the operation that matters, the capture is insurance.
-- **Retirement is one state transition with four callers.** Save-as-new, explicit discard, 30-day
-  expiry and Site-Admin cleanup all atomically clear `content`, mark retired, and advance
-  revision/generation — one shared function, so "the same transition" is testable rather than
-  aspirational (which also means expiry cannot live in `scripts/prune-db.sh` as SQL). **None hard-delete
-  the marker.** Retirement on save joins the save-as-new transaction — inside the semver retry
-  attempt, so it cannot half-apply — and a generation mismatch there fails the whole save with 409
-  rather than retiring newer work; unlike a semver conflict, a mismatch is **not** retryable.
+- **Fencing: server-issued generations, plus revisions.** A **generation** fences retirement across
+  editing sessions; a **revision** fences individual writes. They are not interchangeable, and
+  **every** write and every retirement needs a revision precondition — an ordinary capture bumps
+  `revision` but leaves `generation` untouched, so a generation check alone cannot notice that another
+  tab has captured newer work.
+  - **`start` is atomic.** Clicking Edit performs an explicit `start` — never the client's choice,
+    never implicitly created by a capture — implemented as a single upsert (`INSERT … ON CONFLICT
+    (user, sourceVersion) DO UPDATE … RETURNING`) that creates the row, or reactivates a retired one
+    by **advancing** the generation, and returns **both** `generation` and `revision`. One statement,
+    because two simultaneous first starts would otherwise race the unique insert and two starts
+    against a retired row would race reactivation; the loser must reload the winner's values, not
+    fail. Returning the revision too is what lets the first capture carry a correct precondition.
+  - **Capture** carries `generation` + `expectedRevision`; a stale or missing generation is **409,
+    never an implicit restart**.
+- **Retirement is one state transition with four callers, and every caller carries a precondition.**
+  Save-as-new, explicit discard, 30-day expiry and Site-Admin cleanup all atomically clear `content`,
+  mark retired, and advance revision/generation — one shared function, so "the same transition" is
+  testable rather than aspirational (which also means expiry cannot live in `scripts/prune-db.sh` as
+  SQL). **None hard-delete the marker.** The precondition differs per caller, and each is applied
+  inside the atomic update itself, never as a read-then-write:
+  - **save-as-new** and **discard**: `generation` **and** `expectedRevision`.
+  - **Site-Admin cleanup**: the `revision` returned by the metadata endpoint, so an operator cannot
+    clear a capture that changed between looking and acting.
+  - **expiry**: conditioned on the row still being active and untouched since the cutoff, evaluated
+    in the update.
+
+  Retirement on save joins the save-as-new transaction — inside the semver retry attempt, so it can
+  neither half-apply nor double-apply — and a precondition failure there fails the **whole save** with
+  409 rather than retiring newer work; unlike a semver conflict, it is **not** retryable.
+- **Save flushes first, and the two flush failures differ.** Save pauses capture, flushes, and awaits
+  any in-flight write. A **transport** failure (network, 429, 5xx) is ignored and the save proceeds —
+  the version save is the operation that matters and the capture is only insurance, so blocking a real
+  save on failed insurance would invert the priority. A **409 is not ignored**: it means another tab
+  holds newer work, so proceeding would retire it. That case surfaces the conflict instead.
 - **Retirement markers live as long as their source version.** A content-free marker is what stops a
   stale tab recreating a superseded capture, and the staleness check cannot cover that case
   (versions are immutable, so a stale tab's `baseUpdatedAt` still matches). Rows are removed only by
@@ -449,7 +478,7 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
      weakening expiry.
 - **Reserved words — a name that already means something else is a bug, not a preference.** `class`
   is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
-  version* (the `Draft` status pill; the Guide's "your drafts live in Manage → My saved versions"), so
+  version* — the Guide tells users "your drafts live in Manage → My saved versions" — so
   the unsaved-work feature is **edit recovery**, never "drafts" (§5). Before naming a new concept,
   grep the frontend and the Guide for the word: a label that asserts something the code does not mean
   spends other people's attention, exactly like a stale docstring.
