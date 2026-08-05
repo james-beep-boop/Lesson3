@@ -10,8 +10,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 
-A commit stack on `chore/env-template-parity`, branched from `main` `5843551`, landing by PR. See
-`docs/NEXT-SESSION.md` for the handoff state and how to land it.
+Merged to `main` from `chore/env-template-parity` (squash). No deploy required — see below.
 
 - **Both `.env.example` templates reconciled, and the sync made mechanical.** The root template — the
   file a Compose operator copies — declared **5 of the 58** variables the app reads. The consequential

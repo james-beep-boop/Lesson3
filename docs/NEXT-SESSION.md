@@ -14,73 +14,21 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-05) — A COMMIT STACK EXISTS OFF `main`. READ THIS FIRST.
+# Landed 2026-08-05 — the env-parity + edit-recovery-design stack is IN `main`
 
-This work is being handed to a **different account**. The single thing that matters most:
+`chore/env-template-parity` was merged (squash, head branch deleted) after ten review rounds. Nothing
+about it is pending and there is nothing to recover; this section is history, kept because those rounds
+produced rules that outlive them.
 
-> **`chore/env-template-parity` holds a stack of commits branched from `main` `5843551`**, six review
-> rounds deep. It was held back from pushing while those rounds kept finding real defects; it has since
-> been **pushed and opened as a PR**, so it is no longer laptop-only. Confirm rather than trust this
-> sentence — the commands below say which is true today.
->
-> ⚑ **A missing remote branch is NOT proof the work is lost.** GitHub deletes the head branch on merge,
-> so `git ls-remote` going empty is the *expected* end state. Three places the commits can still be,
-> checked in order: **(1) merged** — they are in `origin/main`, nothing to recover; **(2) the PR's own
-> ref** — `refs/pull/<n>/head` survives head-branch deletion for *any* closed PR, merged or not, so
-> `git fetch origin refs/pull/<n>/head` brings the whole stack back; **(3)** the previous operator's
-> machine. Declare loss only when all three fail.
->
-> ⚑ **Do not trust any prose summary of what would then need rebuilding**, including one written here.
-> A stale version of this very sentence claimed it was "only the env-parity test and the CI mount" —
-> while the stack also carries SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`, **both** `.env.example` templates
-> (including the `ARTIFACT_CACHE_DIR` fix that repairs a broken-on-arrival install), `IdleLogout`, and
-> four documents. It even cited SPEC §5 as an intact fallback while the stack is what *edits* SPEC. Ask
-> git for the scope instead of believing a list:
->
-> ```bash
-> git fetch origin refs/pull/<n>/head && git diff --stat origin/main...FETCH_HEAD
-> ```
->
-> ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
-> is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
-> which is exactly what happened on the first draft of this block, and twice before that elsewhere in
-> this file. A commit count made the same mistake one round later. Derive all of it from the commands
-> below.
+**Where the reasoning lives:** `docs/CHANGELOG.md` (2026-08-05) for what shipped; `docs/DECISIONS.md`
+(2026-08-05, newest entry) for the durable rules — *a derived fact is a SHA*, *verification instructions
+need the same scrutiny as the code they verify*, *a fix that widens an access boundary needs review as an
+access grant*, and *a recovery document must not describe its own contents from memory*.
 
-**Verify what actually landed before trusting any of this:**
+**It needs no deploy**: documentation, two config templates, one unit test, one CI mount, one docstring —
+nothing the server executes. The Rock parity check further down still governs before any deploy.
 
-```bash
-git fetch --all --prune
-
-# ASK THIS FIRST. Merged ⇒ the commits are already in origin/main and NOTHING is lost.
-gh pr list --state all --head chore/env-template-parity --json number,state,mergedAt,mergeCommit
-
-# Then the branch. Absent is NORMAL after a merge (GitHub deletes the head branch), so this tests
-# before logging: a bare `git log origin/main..origin/<branch>` on a pruned ref prints
-# `fatal: ambiguous argument … unknown revision`, which reads like data loss at the exact moment
-# you are checking for data loss.
-if git rev-parse --verify -q origin/chore/env-template-parity >/dev/null; then
-  git log --oneline origin/main..origin/chore/env-template-parity   # the stack, still unmerged
-else
-  echo "No remote branch. If the PR above shows merged, the work is in origin/main:"
-  git log --oneline -15 origin/main
-fi
-
-git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
-```
-
-`main` is **protected** (PR + passing `gate`, `enforce_admins`), so this stack lands by PR — it cannot be
-pushed straight to `main`. Required reviews are 0, so you can merge your own once the gate is green.
-List what is open, rather than trusting a number written here:
-
-```bash
-gh pr list --state open --json number,title,headRefName,mergeable,statusCheckRollup
-```
-
-As of this handoff that was this branch's PR plus **PR #196** (`chore/pr195-review-followups`, green,
-unrelated).
-
-## What that stack contains
+## What that stack contained
 
 All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
 **No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
@@ -115,16 +63,26 @@ secret-free-to-publish, so **ask the operator**:
 
 ### Next steps, in priority order
 
-1. **Land the branch.** It is pushed and its PR is open; the gate has passed once. Confirm that is still
-   true (`gh pr list` above), then merge — required reviews are 0. Nothing else on this list should start
-   before it is merged, because item 2 builds on these documents.
+1. **✓ Land the branch — DONE 2026-08-05.** Merged as the squash commit on `main` titled
+   *"config+docs: env templates reconciled behind a parity test; edit recovery approved for build"*.
+   Item 2 is now the live priority.
 2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
-   losing user work today.* Collection + access closure + five endpoints + projection + fencing + shared
-   retirement function + two parent cascades + expiry job + migration (generated on the Rock per the
-   Node-22 workflow). Read `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original
-   draft did not survive review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int`
-   access matrix, `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25,
-   28–30).
+   losing user work today.* Collection + access closure + the endpoints + projection + fencing + shared
+   retirement function (**four** callers: save-as-new, discard, expiry, Site-Admin cleanup) + two parent
+   cascades + expiry job + migration (generated on the Rock per the Node-22 workflow). Read
+   `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original draft did not survive
+   review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
+   `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25, 28–30).
+
+   ⚑ **Five table rows, SIX operations.** §2's endpoint table bundles Site-Admin metadata and cleanup on
+   one line (`GET /:id/recovery/meta` *(+ cleanup op)*), and the cleanup verb is not specified there —
+   settle it in this PR. The CLAUDE.md wire-authz rule is per *operation*, so that is six sets of
+   401/403/404 + happy path, not five.
+
+   ⚑ **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload
+   bypasses collection access and the closed-collection tests pass without testing anything. The house
+   pattern is documented at the top of `tests/int/access.int.spec.ts`; only 4 of 12 int specs use it
+   today, so it is a live footgun for new tests.
 3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
    clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
    cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the
