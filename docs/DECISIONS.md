@@ -141,13 +141,23 @@ successive versions each closed one bypass and opened the next: a `process.env.X
 `import { positiveIntEnv as readInt }`; rejecting aliased imports still missed `const readInt =
 positiveIntEnv`, re-exports and dynamic imports. Escalating a blacklist against a language is
 unwinnable. It now parses the TypeScript AST (`ts.createSourceFile`, no type checker, so it stays fast
-and DB-free) and **resolves** bindings instead of forbidding them: import renames and local `const`
-aliases are followed, while genuinely unanalyzable forms (namespace import, re-export, dynamic import,
-or a helper handed around as a value) are reported. Exports are read structurally, so no export form can
-hide and the earlier form-blacklist is gone entirely. **Enumerate what is allowed, or resolve the thing
-properly — never chase what is forbidden.** Its own sanity-flip then caught a false positive in the new
-code (an alias's declaration name counted as a "use"), which is the argument for flipping every guard
-rather than trusting that it reads correctly.
+and DB-free). It **resolves** import renames, because that is the module system's own aliasing and
+normal to write; everything else that puts a helper beyond a name match is **reported** rather than
+chased — namespace import, re-export, dynamic import, and a helper handed around as a value, which
+includes `const f = positiveIntEnv`. (An intermediate version *followed* local `const` aliases via a
+fixed-point walk; that was dropped as machinery for a form no call site uses, and reporting is both
+simpler and stricter. Do not "restore" it from an older reading of this entry.) Exports are read
+structurally, and any export form the inventory cannot NAME is reported rather than skipped —
+`export default function () {}`, `export * from …` and `export * as ns` were each silently invisible
+until a flip proved it. **Enumerate what is allowed, or resolve the thing properly — never chase what is
+forbidden.**
+
+Its own sanity-flips then caught two defects in that new code: an alias's declaration name counted as a
+"use" (a false positive on exactly the code alias-resolution existed to support), and — worse — a
+substring pre-filter added for speed claimed in a comment to be "provably a strict superset" of what the
+AST matches, while `process?.env.FOO` slipped straight through it. That one shipped a *fresh* instance of
+this file's own headline defect, in the commit that was cleaning it up, and only a flip found it. Flip
+every guard; a guard that has never been observed failing is a guess.
 
 Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
 branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and

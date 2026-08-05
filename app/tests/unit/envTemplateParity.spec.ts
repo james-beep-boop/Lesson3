@@ -119,21 +119,16 @@ const SOURCE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const ENV_VAR = /^[A-Z][A-Z0-9_]*$/
 
 /**
- * Cheap pre-filter, so ~90% of the tree is never parsed (173 files → 16; the spec's parse cost drops
- * roughly 9x). DERIVED from the patterns below rather than hand-written, because it must stay a strict
- * SUPERSET of what the AST pass can match — a needle list that drifts narrower would reintroduce
- * exactly the silent blind spot this file exists to eliminate.
+ * ⚑ EVERY source file is parsed, deliberately. A previous revision pre-filtered on a derived substring
+ * regex to skip ~90% of the tree, and its comment claimed to be "provably a strict superset" of what
+ * the AST can match. It was not: `process?.env.FOO` and `process/*c*​/.env.FOO` contain no contiguous
+ * `process.env`, so both were skipped while the AST would have caught them. Verified by adding
+ * `process?.env.X` to an env-free component and watching the suite stay GREEN.
  *
- * Every detectable form necessarily contains one of these substrings: `process.env` for a direct read;
- * a helper's own name for a call or a re-export; and `env` immediately before a quote for any module
- * specifier matching `IS_ENV_MODULE` (which requires the specifier to END in `env`). Widen this if
- * either `HELPER_NAMES` or `IS_ENV_MODULE` changes shape.
+ * That optimisation bought ~80 ms in a test suite and cost the one property this file exists to
+ * provide. No text-level filter is safe here, because the thing being filtered is source syntax and
+ * the analyser works on syntax. Parse everything; at 173 files it is not worth reasoning about.
  */
-const MIGHT_READ_ENV = new RegExp(
-  ['process\\.env', ...[...HELPER_NAMES].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), "env['\"]"].join(
-    '|',
-  ),
-)
 
 const sourceFiles = (dir: string, acc: string[] = []): string[] => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -168,12 +163,20 @@ const walk = (node: ts.Node, visit: (n: ts.Node) => void): void => {
   node.forEachChild((child) => walk(child, visit))
 }
 
-/** Is this node `process.env`? */
-const isProcessEnv = (n: ts.Node): boolean =>
-  ts.isPropertyAccessExpression(n) &&
-  n.name.text === 'env' &&
-  ts.isIdentifier(n.expression) &&
-  n.expression.text === 'process'
+/**
+ * Is this node `process.env`, however it is spelled? Both member forms count — `process.env` and
+ * `process['env']` — and optional chaining (`process?.env`) is the same node kind, so it is covered
+ * too. The bracket form used to be missed entirely: a read written `process["env"].FOO` was parsed and
+ * then silently ignored, because this predicate only recognised property access.
+ */
+const isProcessEnv = (n: ts.Node): boolean => {
+  const onProcess = (e: ts.Expression): boolean => ts.isIdentifier(e) && e.text === 'process'
+  if (ts.isPropertyAccessExpression(n)) return n.name.text === 'env' && onProcess(n.expression)
+  if (ts.isElementAccessExpression(n)) {
+    return literalText(n.argumentExpression) === 'env' && onProcess(n.expression)
+  }
+  return false
+}
 
 const literalText = (n: ts.Node | undefined): string | null =>
   n && (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) ? n.text : null
@@ -212,8 +215,11 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
     // site out of this file's reach entirely.
     if (ts.isExportDeclaration(n)) {
       const spec = literalText(n.moduleSpecifier)
-      const named = n.exportClause && ts.isNamedExports(n.exportClause) ? n.exportClause.elements : []
-      const reExportsHelper = named.some((el) => HELPER_NAMES.has((el.propertyName ?? el.name).text))
+      const named =
+        n.exportClause && ts.isNamedExports(n.exportClause) ? n.exportClause.elements : []
+      const reExportsHelper = named.some((el) =>
+        HELPER_NAMES.has((el.propertyName ?? el.name).text),
+      )
       if ((spec && IS_ENV_MODULE.test(spec)) || reExportsHelper) {
         problems.push(`re-export of an env helper: ${n.getText(sf).slice(0, 80)}`)
       }
@@ -245,8 +251,6 @@ const collectReads = (): { reads: Set<string>; problems: string[] } => {
 
   for (const file of files) {
     const text = readFileSync(file, 'utf8')
-    if (!MIGHT_READ_ENV.test(text)) continue
-
     const rel = relative(APP_DIR, file)
     const sf = parse(file, text)
     const { names: helpers, problems: bindingProblems } = helperBindings(sf)
@@ -276,7 +280,11 @@ const collectReads = (): { reads: Set<string>; problems: string[] } => {
         return
       }
       // A helper call: must name its variable literally.
-      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && helpers.has(n.expression.text)) {
+      if (
+        ts.isCallExpression(n) &&
+        ts.isIdentifier(n.expression) &&
+        helpers.has(n.expression.text)
+      ) {
         const lit = literalText(n.arguments[0])
         if (lit && ENV_VAR.test(lit)) reads.add(lit)
         else problems.push(`${rel}: env-helper call without a literal variable name`)
@@ -302,74 +310,133 @@ const collectReads = (): { reads: Set<string>; problems: string[] } => {
     // Exactly, not at-most: an allowance nobody spends is a hole waiting for the next dynamic read.
     const allowed = rel === ENV_MODULE_REL ? 1 : 0
     if (dynamicReads !== allowed) {
-      problems.push(`${rel}: ${dynamicReads} dynamic process.env read(s), exactly ${allowed} allowed`)
+      problems.push(
+        `${rel}: ${dynamicReads} dynamic process.env read(s), exactly ${allowed} allowed`,
+      )
     }
   }
 
   return { reads, problems }
 }
 
-/** Exported value names of `src/lib/env.ts`, read structurally so no export form can hide. */
-const envModuleExports = (): string[] => {
+/**
+ * Exported names of `src/lib/env.ts`, plus any export this inventory could not name.
+ *
+ * The `unnameable` half is the point. An earlier version enumerated the forms it knew and fell through
+ * on the rest, so `export default function () {}` (anonymous), `export * from …` and `export * as ns
+ * from …` were skipped in SILENCE while assertion G claimed every export form was named. Falling
+ * through is the one thing this must never do: it is the whole class of bug this file was written
+ * against. So anything unrecognised is reported, and G fails until it is either named or removed.
+ */
+const envModuleExports = (): { names: string[]; unnameable: string[] } => {
   const path = join(APP_DIR, ENV_MODULE_REL)
   const sf = parse(path, readFileSync(path, 'utf8'))
   const names: string[] = []
+  const unnameable: string[] = []
+  const modifiers = (n: ts.Node): readonly ts.Modifier[] =>
+    ts.canHaveModifiers(n) ? (ts.getModifiers(n) ?? []) : []
   const isExported = (n: ts.Node): boolean =>
-    ts.canHaveModifiers(n) &&
-    (ts.getModifiers(n) ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+    modifiers(n).some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+  const isDefault = (n: ts.Node): boolean =>
+    modifiers(n).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
+  const describe1 = (stmt: ts.Statement): string =>
+    `${ts.SyntaxKind[stmt.kind]}: ${stmt.getText(sf).split('\n')[0].slice(0, 60)}`
 
   for (const stmt of sf.statements) {
-    if (ts.isVariableStatement(stmt) && isExported(stmt)) {
+    if (ts.isExportAssignment(stmt)) {
+      // `export default <expr>` / `export = <expr>` — a value with no declared name.
+      names.push('default')
+    } else if (ts.isExportDeclaration(stmt)) {
+      const clause = stmt.exportClause
+      if (clause && ts.isNamedExports(clause)) {
+        for (const el of clause.elements) names.push(el.name.text)
+      } else if (clause && ts.isNamespaceExport(clause)) {
+        names.push(clause.name.text) // `export * as ns from …`
+      } else {
+        // `export * from …` — the names live in another module and cannot be enumerated here.
+        unnameable.push(describe1(stmt))
+      }
+    } else if (!isExported(stmt)) {
+      continue
+    } else if (ts.isVariableStatement(stmt)) {
       for (const d of stmt.declarationList.declarations) {
         if (ts.isIdentifier(d.name)) names.push(d.name.text)
+        else unnameable.push(describe1(stmt)) // destructuring export
       }
     } else if (
-      (ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt) || ts.isEnumDeclaration(stmt)) &&
-      isExported(stmt) &&
-      stmt.name
+      ts.isFunctionDeclaration(stmt) ||
+      ts.isClassDeclaration(stmt) ||
+      ts.isEnumDeclaration(stmt) ||
+      ts.isInterfaceDeclaration(stmt) ||
+      ts.isTypeAliasDeclaration(stmt) ||
+      ts.isModuleDeclaration(stmt)
     ) {
-      names.push(stmt.name.text)
-    } else if (ts.isExportDeclaration(stmt) && stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
-      for (const el of stmt.exportClause.elements) names.push(el.name.text)
-    } else if (ts.isExportAssignment(stmt)) {
-      names.push('default')
+      // An anonymous `export default function () {}` / `class {}` has no name node.
+      if (stmt.name) names.push(stmt.name.text)
+      else if (isDefault(stmt)) names.push('default')
+      else unnameable.push(describe1(stmt))
+    } else {
+      unnameable.push(describe1(stmt))
     }
   }
-  return names.sort()
+  return { names: names.sort(), unnameable }
+}
+
+const readTemplate = (path: string): Record<string, string> => {
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch {
+    throw new Error(
+      `env template not found: ${path}. If this is CI, the runner must mount the repo root and set LESSON3_REPO_ROOT (see .github/workflows/ci.yml).`,
+    )
+  }
+  return parseEnvFile(raw)
+}
+
+/**
+ * All the work, memoised and run on FIRST ASSERTION rather than at collection. Doing it in the
+ * `describe` body meant a missing template threw while vitest was still collecting: the run reported
+ * "no tests" with a stack and no failing test name — which is how the CI breakage below stayed
+ * invisible. Deferring it means the same problem now fails a NAMED test with a message that says what
+ * to do, which is the difference between a diagnosable gate and a mystery.
+ */
+let cached: {
+  reads: Set<string>
+  problems: string[]
+  root: Set<string>
+  app: Set<string>
+  rootTemplate: Record<string, string>
+  appTemplate: Record<string, string>
+  configurable: string[]
+} | null = null
+
+const analysis = (): NonNullable<typeof cached> => {
+  if (cached) return cached
+  const { reads, problems } = collectReads()
+  const rootTemplate = readTemplate(ROOT_TEMPLATE)
+  const appTemplate = readTemplate(APP_TEMPLATE)
+  cached = {
+    reads,
+    problems,
+    rootTemplate,
+    appTemplate,
+    root: declaredIn(rootTemplate),
+    app: declaredIn(appTemplate),
+    /** App-read variables an operator is expected to configure. */
+    configurable: [...reads]
+      .filter((n) => !RUNTIME_PROVIDED.has(n) && !NEVER_IN_TEMPLATE.has(n))
+      .sort(),
+  }
+  return cached
 }
 
 describe('env template parity', () => {
-  const { reads, problems } = collectReads()
-
-  // Named, explanatory failure if a template is missing — the alternative is an ENOENT at collection
-  // time, which reports zero tests and no reason. See REPO_DIR above for how CI hits that.
-  const readTemplate = (path: string): Record<string, string> => {
-    let raw: string
-    try {
-      raw = readFileSync(path, 'utf8')
-    } catch {
-      throw new Error(
-        `env template not found: ${path}. If this is CI, the runner must mount the repo root and set LESSON3_REPO_ROOT (see .github/workflows/ci.yml).`,
-      )
-    }
-    return parseEnvFile(raw)
-  }
-
-  const rootTemplate = readTemplate(ROOT_TEMPLATE)
-  const appTemplate = readTemplate(APP_TEMPLATE)
-  const root = declaredIn(rootTemplate)
-  const app = declaredIn(appTemplate)
-
-  /** App-read variables an operator is expected to configure. */
-  const configurable = [...reads]
-    .filter((n) => !RUNTIME_PROVIDED.has(n) && !NEVER_IN_TEMPLATE.has(n))
-    .sort()
-
   it('F: every env read in the source resolved to a variable name', () => {
     // If this fails, either write the read in a followable form or TEACH THE CHECKER — do not delete
     // the assertion. A read it cannot resolve is a variable it cannot verify, and silence here would
     // be a false all-clear about the whole template.
-    expect(problems).toEqual([])
+    expect(analysis().problems).toEqual([])
   })
 
   it('G: lib/env.ts exports exactly the helpers this checker knows how to follow', () => {
@@ -380,14 +447,19 @@ describe('env template parity', () => {
     // If this fails: register the new export in HELPER_NAMES when it READS env; move it out of
     // lib/env.ts when it does not. Registering a non-env helper would make F treat its first argument
     // as a variable name, so the two cases genuinely need different fixes.
-    expect(envModuleExports()).toEqual([...HELPER_NAMES].sort())
+    const { names, unnameable } = envModuleExports()
+    // Reported first: an export this inventory cannot name makes the comparison below meaningless.
+    expect(unnameable, 'every export of lib/env.ts must be nameable').toEqual([])
+    expect(names).toEqual([...HELPER_NAMES].sort())
   })
 
   it('A: the root template declares every configurable variable the app reads', () => {
+    const { configurable, root } = analysis()
     expect(configurable.filter((n) => !root.has(n))).toEqual([])
   })
 
   it('B: the root template declares nothing the app does not read', () => {
+    const { root, reads } = analysis()
     const stale = [...root].filter((n) => !reads.has(n) && !COMPOSE_ONLY.has(n)).sort()
     expect(stale).toEqual([])
   })
@@ -395,11 +467,13 @@ describe('env template parity', () => {
   it('C: the app template is host-local dev config only, and covers the dev-critical vars', () => {
     // It was a verbatim copy of the root file, so it carried Compose-only vars that mean nothing to a
     // host-local `next dev` run (notably POSTGRES_PASSWORD).
+    const { app, reads } = analysis()
     expect([...app].filter((n) => !reads.has(n)).sort()).toEqual([])
     expect(DEV_CRITICAL.filter((n) => !app.has(n))).toEqual([])
   })
 
   it('D: the first-user bootstrap escape hatch is in neither template', () => {
+    const { root, app } = analysis()
     for (const name of NEVER_IN_TEMPLATE) {
       expect(root.has(name), `${name} must not be in the root template`).toBe(false)
       expect(app.has(name), `${name} must not be in the app template`).toBe(false)
@@ -410,6 +484,7 @@ describe('env template parity', () => {
     // Reusing the seed script's own guard (scripts/lib/localDbGuard.ts) rather than matching on the
     // raw line: it parses with `new URL`, so a password containing '@' cannot fool it into reading the
     // wrong segment as the host — a defect that helper's docstring records from its own review.
+    const { rootTemplate, appTemplate } = analysis()
     const rootUri = rootTemplate.DATABASE_URI ?? ''
     const appUri = appTemplate.DATABASE_URI ?? ''
 
