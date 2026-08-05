@@ -23,12 +23,22 @@
   --app-section-title-size: 20px; /* page section, weight 600 */
   --app-list-heading-size: 18px; /* list/group heading, weight 600 — names an existing frontend value */
   --app-body-size: 16px; /* body; a MINOR heading is this size at weight 600 */
-  /* Which of the two an <h3> takes is NOT free choice (settled 2026-08-04, when Manage gained a second
-     h3 idiom): 18 names a SUB-REGION of a section — its own heading + panel, e.g. Manage's Upload /
-     Delete / Repair under "Lesson plans" (.lp-admin-dash__subsection). 16 labels a GROUP INSIDE one
-     widget's list, e.g. the per-subject-grade heads within Editing access (.lp-manage__editors-head).
-     Same heading level, different rank, because the second is structure within a control, not a region
-     of the page. */
+  /* Which of the two a heading takes is NOT free choice (settled 2026-08-04; amended later the same day,
+     when a two-level group tree showed the first wording had no term for it — it offered exactly ONE
+     size for "a group inside a widget's list", so a nested tree had nowhere to go):
+       18 = a SUB-REGION of a section — its own heading + panel, e.g. Manage's Upload / Delete / Repair
+            under "Lesson plans" (.lp-admin-dash__subsection) — OR a GROUP OPENER, the outer level of a
+            nested group tree: the library catalogue's .sg-head and Manage's
+            .lp-delete-plans__group-head, both "Subject · Grade N" opening a list of strands.
+       16 = a MINOR heading — a nested group beneath an opener (.strand-head,
+            .lp-delete-plans__strand-head), or a group label inside a SINGLE-level widget list (the
+            per-subject-grade heads within Editing access, .lp-manage__editors-head).
+     Rank follows NESTING DEPTH, not tag. The catalogue had rendered 18/16 for this exact tree since
+     long before the rule was written, so the delete panel is the second instance of a pattern, not an
+     exception to a rule.
+       A group opener may therefore TIE its enclosing sub-region on size (Manage's h3 and h4 are both
+     18). That is intended, not an oversight: it buys its rank back with a rule + leading space
+     (.lp-delete-plans__group-head), the same device .lp-admin-dash__section uses between sections. */
   --app-secondary-size: 14px; /* metadata, descriptions, help text */
   --app-line-height: 1.55; /* body copy. The frontend has always used 1.55; the admin inherited
                               Payload's ~1.25, so the same paragraph rendered visibly denser there.
@@ -57,6 +67,11 @@
   --app-avatar-touch-size: 44px; /* ≤640px — WCAG 2.5.5 (AAA); the AA floor is 2.5.8 at 24×24 */
   /* ── Rows ───────────────────────────────────────────────────────────────────────────────────── */
   --app-row-pad-block: 16px; /* structured list rows (Manage saved versions) */
+  --app-substrand-num-width: 42px; /* the "1.4" number column, on BOTH surfaces (.substrand-num and
+                                      .lp-delete-plans__num) — the names must align identically in the
+                                      catalogue and in Manage's delete tree. px per this file's rule:
+                                      it was 2.6rem on both sides, i.e. identical only while the two
+                                      rem roots agree. */
   --app-accent: #1f5fa8; /* brand accent — one source for both surfaces */
   /* ── Button system (docs/DESIGN-button-system-2026-07-30.md) ────────────────────────────────
      ONE geometry for every control IN THE BUTTON SYSTEM, on both surfaces — the action controls on

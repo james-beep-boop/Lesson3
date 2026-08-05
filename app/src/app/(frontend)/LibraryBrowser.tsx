@@ -19,6 +19,7 @@ import DocStrip from '@/components/DocStrip'
 import VersionsChip from '@/components/VersionsChip'
 import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
 import {
+  curriculumContextLabel,
   filterRows,
   groupLessons,
   orderLessons,
@@ -233,7 +234,13 @@ function FavoritesSection({ rows, favByVersion }: { rows: LessonRow[]; favByVers
 }
 
 /** Full catalogue: subject-grade → strand → numbered sub-strands, in curriculum order. */
-function Catalogue({ groups, favByVersion }: { groups: SubjectGradeGroup[]; favByVersion: FavByVersion }) {
+function Catalogue({
+  groups,
+  favByVersion,
+}: {
+  groups: SubjectGradeGroup<LessonRow>[]
+  favByVersion: FavByVersion
+}) {
   return (
     <>
       {groups.map((sg) => (
@@ -286,9 +293,10 @@ function SubstrandRow({
   favByVersion: FavByVersion
   showContext?: boolean
 }) {
-  const context = [row.subjectName, row.grade != null ? `Grade ${row.grade}` : null, row.strandName]
-    .filter(Boolean)
-    .join(' · ')
+  // Shared with Manage's delete panel (lib/substrand.ts) so the two can't drift. Output here is
+  // BYTE-IDENTICAL to the hand-composed version this replaced — including the raw "Strand 2.0:"
+  // ordinal; see the ⚑ on the helper for why it is not cleaned.
+  const context = curriculumContextLabel(row)
   return (
     <li className="substrand-row">
       <div className="substrand-main">

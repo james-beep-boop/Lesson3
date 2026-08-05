@@ -11,6 +11,131 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-04 (latest) — Delete lesson plans became the curriculum tree; group deletes select PLANS
+
+Operator report: the delete panel had "effectively NO organisation" — a flat alphabetical list with the
+subject-grade in small type off to the right — while the library catalogue organises the same corpus
+subject-grade → strand → sub-strand. The panel now renders that same tree, from the same
+`groupLessons`, and gains group selection at both levels.
+
+**Reuse was made possible by a typing change, not a copy.** `lib/substrand.ts`'s grouping/ordering/search
+functions read exactly five fields, now extracted as `CurriculumRow`; they are generic over it, so each
+caller keeps its own richer row type. Without that, the delete panel would have had to fabricate a
+`lessonCount` it never displays, or `LessonRow.lessonCount` would have had to go optional — weakening
+the catalogue's own type at the point where it renders the count. The existing `substrand.spec.ts` /
+`filterRows.spec.ts` pass unchanged, which is what proves the refactor inert.
+
+The group types briefly DEFAULTED their row parameter to `LessonRow` so the catalogue needed no edit;
+review removed the defaults. Worth recording why, since it looked like free churn-avoidance both ways:
+there was exactly ONE unqualified use in the repo, so the default bought one word in one file, and in
+exchange made `SubjectGradeGroup` read permanently as "of `LessonRow`, probably" — the wrong direction
+of dependency for the container whose whole point is that it preserves whatever row the caller brought.
+`SubjectGradeGroup<LessonRow>[]` is now annotated at that one site. **A generic's default should describe
+the type, not spare one caller a diff.**
+
+**A "group delete" deletes PLANS, never taxonomy.** A strand is derived (`meta.substrand_id` +
+`unit.strand`), so there is nothing to delete; a SubjectGrade *is* an entity, and
+`guardSubjectGradeDelete` refuses it while plans reference it — pointing the operator at "Manage →
+Delete lesson plans". This panel is therefore the step that guard asks for, and the confirmation says
+so ("The subject grade itself stays. Once it is empty you can delete it from Curriculum & people").
+Deletion still loops the by-ID endpoint one plan at a time: no new endpoint, no new authz surface, and
+the per-plan cascade transaction is preserved. Because a group delete can partially complete, the
+control reports `Deleting 7 of 24…` rather than a static "Deleting…".
+
+**Typed confirmation is a WORD, not the target's name.** GPT review proposed transcribing the group
+label for large deletes. Rejected: the labels contain "·" (Option+Shift+9 on a Mac), so a transcription
+gate is in practice a copy-and-paste gate — *less* deliberate than typing, not more. Verification comes
+from the dialog naming the target in prose; the typed `DELETE` (required above one plan) supplies
+intent. One plan gets the dialog without the field.
+
+**Searching flattens and drops the group checkboxes.** A group checkbox beside filtered results reads
+ambiguously as "all 12 in this strand" or "the 2 you can see", and both readings are dangerous on a
+delete control. The absence is a safety property, so it is asserted, not merely commented. Selection
+survives a search, so the panel states `N selected lesson plans not shown` and offers `Clear selection`
+— otherwise an administrator could search, see two rows, and delete three.
+
+**Never `aria-label` a control that lives inside a heading.** Review found the group checkboxes could
+announce identical names — "Select all in Other" appears once per subject-grade holding a pointerless
+plan — so a screen-reader user could not tell two destructive controls apart. The first fix passed a
+context string into the `aria-label`; measuring the result with `ariaSnapshot()` showed the real defect
+was bigger: the checkbox sits INSIDE the `<h4>`/`<h5>`, a heading's accessible name is computed from its
+contents, so both the label text and the aria-label landed in it and the heading announced
+**"Select all plans in Biology · Grade 10 Biology · Grade 10"**. Final shape: no `aria-label` at all —
+the checkbox takes its name from its own label text, and the disambiguating subject-grade is
+visually-hidden text (`.lp-sr-only`) reading "in <subject-grade>", so heading and control share one
+source and the heading announces itself exactly once. Two follow-on gotchas, both pinned in the spec:
+the name computation joins siblings with a SPACE (a leading `", "` announced "…Biodiversity , Biology"),
+and Playwright's role-name matching is a SUBSTRING match, so every strand heading now matches its
+parent's name — the subject-grade assertions need `exact: true`.
+
+**Test venue split.** The selection rules (descendant collection, tri-state, toggle, hidden count,
+scope naming) are pure set arithmetic in the new `lib/planSelection.ts` and are unit-tested there —
+that is the invariant that matters (the loop sends exactly what the checkboxes claim), and a browser
+test proves less of it, more slowly. e2e keeps only what needs a page: the wire delete, the
+group-checkbox → indeterminate-parent → typed-`DELETE` path, and the search-mode rendering.
+
+**Heading rank: the RULE was amended, not excepted.** First attempt recorded a 25-line exception at
+`app-tokens.scss`: the rule assigns 18px to a page sub-region and 16px to "a group inside one widget's
+list", and both levels here are the latter yet take 18/16. Review pushed back correctly — the rule
+offered exactly **one** size for that case, so a two-level group tree had nowhere to go; that is a
+missing term, not a violation. And the catalogue has rendered 18/16 for this same tree since before the
+rule was written, which makes the panel the *second* instance of a pattern. The rule now reads: 18 = a
+sub-region **or a group opener**; 16 = a minor heading (a nested group, or a group label in a
+single-level widget list) — rank follows nesting depth, not tag. The size tie with the panel's own h3
+is stated as intended, bought back with a rule + leading space. One clause replaced the exception.
+
+**A pure library must not own another module's invariant.** The partial-failure recovery was carried
+over verbatim: after deleting N plans it dropped the first N ids via `new Set([...prev].slice(deleted))`
+— i.e. it re-derived *which* ids were deleted from the selection's iteration order. That was harmless
+when a selection was a few hand-ticked boxes. Group selection made it load-bearing: one click can push
+200 ids in, and `lib/planSelection.ts` — pure set arithmetic, no knowledge of any delete loop — became
+the thing that must never reorder them. The first version defended this with two comments and a unit
+test asserting "`toggleGroup` appends in insertion order, which the partial-failure recovery depends
+on". A test that has to say that is documenting a leak. The loop now records the ids it actually
+removed and filters those out; the invariant, both comments and the test are gone, and `toggleGroup` is
+free to do anything. **General rule: record the truth where it is known, rather than reconstructing it
+downstream from an incidental property of a data structure.**
+
+**One home for the context label — and the operator chose the raw form.** Both surfaces had
+hand-composed `Subject · Grade N · Strand` for their flat search rows, and neither called
+`subjectGradeLabel`, whose whole stated purpose is that the format cannot drift. Now
+`curriculumContextLabel(row)` in `lib/substrand.ts`, used by both.
+
+The first version also `cleanStrandName`'d it, on the reasoning that the raw string repeats an ordinal
+the grouped headings already strip (a search result read "· Strand 2.0: Physiology" two lines under a
+heading reading "Strand 2: Physiology"). Flagged to the operator as a visible library change; the call
+was **leave the library exactly as it was**, so the helper keeps the RAW `unit.strand` and Manage now
+matches the library instead of the reverse. Worth recording because the inconsistency is real and
+someone will spot it again: it is a known, chosen inconsistency, and the single helper means fixing it
+later is a one-line change on both surfaces at once. **General note: extracting the shared helper was
+the durable win; which string it returns was never the point.** The number-column width
+(`2.6rem`, load-bearing on both surfaces) became `--app-substrand-num-width: 42px` — px, per this
+file's own doctrine that a cross-surface value must not be "identical only while the two rem roots
+agree".
+
+**The Modal base was lifted, as its own comment asked — and its element vocabulary with it.**
+`custom.scss` carried the full backdrop+panel chrome inside `.lesson-edit-help`, with a note to lift a
+base block if a second admin Modal appeared. This confirmation is that second one, so
+`.modal-backdrop`/`.modal` are now base rules there and both callers are true modifiers. `Modal`'s
+`backdropClassName` escape hatch is gone with them — both surfaces define the base now, so nothing
+needs it. Review caught that the first attempt stopped one level short: the dialog had invented
+`.lp-confirm__note/__field/__actions` for three things the shared `Modal`'s frontend callers already
+name `.modal__body` / `.modal__field` / `.modal__actions`, and its typed input borrowed
+`.lp-admin-list__search` (a search-bar class) for its looks. Those three element rules are now in the
+admin base too, `.lesson-edit-help__actions` collapsed into them, and `.lp-confirm` keeps only the one
+declaration that is genuinely its own.
+
+Cost of the data it needed: two extra projected columns on the Official-version find, `grade` +
+`subject` on the subject-grade find, and one new depth-0 `subjects` lookup, Site-Admin-gated. Measured
+in the container on the 43-plan corpus: `subjects` **1ms**, `/admin` `totalMs` **35–58ms** — inside the
+~170ms this page was brought to on 2026-08-04. Depth stayed 0; see the entry below for why that matters.
+
+⚑ Verification note: `next dev` on this Mac (node 25, turbopack) served the admin page but **never
+hydrated** — the login form fell back to a native GET and every checkbox was inert. Ten manage e2e
+tests failed at login, including seven pre-existing ones. Nothing to do with the change; the container
+build (`docker compose build app && up -d --no-deps app`, :3001) hydrates correctly and all 13 manage +
+catalogue specs pass against it. Prefer the container for any interactive verification here.
+
 ## 2026-08-04 (late) — the catalogue, same fix, and the second spec file that broke the first
 
 The last of the `depth: 2` whole-bundle population, on the page every teacher actually hits. Local,

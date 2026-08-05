@@ -37,6 +37,9 @@ import { EditorsWidget } from './EditorsWidget'
  * client components for the interactive bits. Dates are formatted server-side (fixed locale) so
  * hydration can't mismatch. Wrapped in Payload's `Gutter` so it lines up with every admin page.
  */
+/** Heading fallback when a subject-grade's Subject can't be resolved (can't-happen; fails visibly). */
+const UNKNOWN_SUBJECT = 'Unknown subject'
+
 export default async function AdminDashboard({ initPageResult }: AdminViewServerProps) {
   const { req } = initPageResult
   const user = (req.user as User | null) ?? null
@@ -143,7 +146,10 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
             depth: 0,
             pagination: false,
             where: { id: { in: sgIds } },
-            select: { displayName: true },
+            // `displayName` labels the candidate rows; `grade` + `subject` feed the delete panel's
+            // curriculum grouping, which composes its own heading with `subjectGradeLabel()` so it
+            // reads identically to the library catalogue's (lib/substrand.ts).
+            select: { displayName: true, grade: true, subject: true },
           }),
         ),
     authorIds.length === 0
@@ -182,18 +188,67 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
             depth: 0,
             pagination: false,
             where: { id: { in: officialIds } },
-            select: { meta: { substrand_name: true } },
+            // `substrand_id` + `unit.strand` are the delete panel's curriculum coordinates (its
+            // "1.1" and its strand heading). Two extra projected columns on a find that already
+            // runs — NOT a reason to raise `depth`, which is what cost 8s here (see the ⚑ below).
+            select: { meta: { substrand_name: true, substrand_id: true }, unit: { strand: true } },
           }),
         ),
   ])
 
-  const sgLabelById = new Map<number, string>()
-  for (const sg of sgRes?.docs ?? []) if (sg.displayName) sgLabelById.set(sg.id, sg.displayName)
   const authorNameById = new Map<number, string>()
   for (const a of authorRes?.docs ?? []) if (a.name) authorNameById.set(a.id, a.name)
-  const officialNameById = new Map<number, string>()
+  /** Official version id → the display fields BOTH Site-Admin panels read off it. */
+  const officialInfoById = new Map<
+    number,
+    { substrandName?: string; substrandId: string; strandName: string | null }
+  >()
   for (const v of officialMetaRes?.docs ?? []) {
-    if (v.meta?.substrand_name) officialNameById.set(v.id, v.meta.substrand_name)
+    officialInfoById.set(v.id, {
+      substrandName: v.meta?.substrand_name ?? undefined,
+      substrandId: v.meta?.substrand_id ?? '',
+      strandName: v.unit?.strand ?? null,
+    })
+  }
+
+  // The delete panel's headings are "<Subject> · Grade N", so the subject NAME is needed — one hop
+  // past the subject-grade rows, hence one more depth-0 find over distinct ids. Sequential because
+  // the subject ids live on those rows (the catalogue page resolves the same thing the same way,
+  // for ~8ms). Site-Admin-only: nothing else on the page needs it, so no other role pays for it.
+  const subjectIds = siteAdmin
+    ? distinctIds((sgRes?.docs ?? []).map((sg) => relId(sg.subject)))
+    : []
+  const subjectRes =
+    subjectIds.length === 0
+      ? null
+      : await t.time('subjects', () =>
+          payload.find({
+            collection: 'subjects',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            where: { id: { in: subjectIds } },
+            select: { name: true },
+          }),
+        )
+  const subjectNameById = new Map<number, string>()
+  for (const s of subjectRes?.docs ?? []) if (s.name) subjectNameById.set(s.id, s.name)
+  /**
+   * subject-grade id → every display field the rows on this page read off it: the stored
+   * `displayName` for candidate rows, and the subject name + grade the delete panel's curriculum
+   * grouping needs. ONE map keyed by subject-grade id rather than two built from the same docs —
+   * and one home for the missing-subject fallback.
+   */
+  const sgById = new Map<number, { label: string; subjectName: string; grade: number | null }>()
+  for (const sg of sgRes?.docs ?? []) {
+    const subjectId = relId(sg.subject)
+    sgById.set(sg.id, {
+      label: sg.displayName ?? '',
+      subjectName:
+        (subjectId != null ? subjectNameById.get(subjectId) : undefined) ?? UNKNOWN_SUBJECT,
+      grade: sg.grade ?? null,
+    })
   }
   // plan id → its Official version id (null for a pointerless plan, which Repair lists).
   const officialByPlan = new Map<number, number | null>()
@@ -225,7 +280,7 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
         id: v.id,
         label: lessonDisplayName(v.meta?.substrand_name, v.title),
         semver: v.semver ?? '',
-        sgLabel: (sgId != null ? sgLabelById.get(sgId) : undefined) ?? '',
+        sgLabel: (sgId != null ? sgById.get(sgId)?.label : undefined) ?? '',
         authorName: (authorId != null ? authorNameById.get(authorId) : undefined) ?? null,
         savedAt: v.createdAt ? dateFmt.format(new Date(v.createdAt)) : '',
       }
@@ -238,14 +293,20 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
     for (const p of planDocs) {
       const officialId = relId(p.officialVersion)
       const sgId = relId(p.subjectGrade)
-      const label = lessonDisplayName(
-        officialId != null ? officialNameById.get(officialId) : undefined,
-        p.title,
-      )
+      const official = officialId != null ? officialInfoById.get(officialId) : undefined
+      const sg = sgId != null ? sgById.get(sgId) : undefined
+      const label = lessonDisplayName(official?.substrandName, p.title)
+      // The panel groups these with the SAME `groupLessons` the library catalogue uses, so a plan
+      // carries curriculum coordinates rather than a pre-formatted scope string. A plan with no
+      // Official version (the Repair case below) has no coordinates — it lands in an "Other" strand
+      // sorted last, and stays deletable, which is the whole point of listing it.
       planRows.push({
         id: p.id,
-        label,
-        sgLabel: (sgId != null ? sgLabelById.get(sgId) : undefined) ?? '',
+        substrandName: label,
+        substrandId: official?.substrandId ?? '',
+        strandName: official?.strandName ?? null,
+        subjectName: sg?.subjectName ?? UNKNOWN_SUBJECT,
+        grade: sg?.grade ?? null,
       })
       if (officialId == null) repairPlans.push({ id: p.id, label })
     }

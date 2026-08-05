@@ -688,7 +688,9 @@ a {
 }
 .substrand-num {
   flex-shrink: 0;
-  width: 2.6rem;
+  /* Shared token: Manage's delete tree renders the same number column and the two must align
+     identically (app-tokens.scss). The doc-strip indents below still hard-code 2.6rem. */
+  width: var(--app-substrand-num-width);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

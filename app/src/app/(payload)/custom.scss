@@ -456,6 +456,95 @@ body {
   }
 }
 
+// Delete lesson plans — the curriculum tree (2026-08-04 operator request: the flat list had no
+// organisation, with the scope in small type off to the right). Structure and TYPE SCALE mirror the
+// library catalogue's `.sg-head` / `.strand-head` exactly, via the shared tokens: the two surfaces
+// have separate stylesheets, so the tokens are what keeps them identical. Rows reuse
+// `.lp-manage__list` / `__row--tight` — one row idiom on this page, not a second one for this panel.
+//
+// ⚑ The 18px group head / 16px strand head are the "group opener" and "minor heading" steps of the
+// shared rank rule — read it in app-tokens.scss before changing either.
+.lp-delete-plans {
+  &__group + &__group {
+    margin-top: var(--app-space-5);
+  }
+
+  // Subject-grade group opener (18px/600 — the catalogue's `.sg-head`). It shares its size with the
+  // panel's own "Delete lesson plans" h3 above it, so the rule + space is what gives it its rank:
+  // it reads as opening a group rather than as a peer heading. Same device as `__section ~ __section`.
+  &__group-head {
+    font-size: var(--app-list-heading-size);
+    font-weight: 600;
+    margin: 0 0 var(--app-space-2);
+    padding-block-start: var(--app-space-3);
+    border-top: 1px solid var(--theme-elevation-150);
+    color: var(--theme-elevation-1000);
+  }
+
+  &__strand + &__strand {
+    margin-top: var(--app-space-3);
+  }
+
+  // MINOR heading — body size at weight 600 (the catalogue's `.strand-head`).
+  &__strand-head {
+    font-size: var(--app-body-size);
+    font-weight: 600;
+    margin: 0 0 var(--app-space-1);
+    color: var(--theme-elevation-1000);
+  }
+
+  // Fixed number column, mirroring the catalogue's `.substrand-num` so the names align down the list
+  // whether or not a plan has a sub-strand id. The width is the shared token, not a second literal:
+  // this is exactly the "identical on both surfaces" case app-tokens.scss exists for.
+  &__num {
+    flex-shrink: 0;
+    width: var(--app-substrand-num-width);
+    color: var(--theme-elevation-600);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Text present for assistive tech only — the subject-grade a strand belongs to, so two strands named
+  // "Other" don't offer two identically-named destructive controls. Sighted users read it off the
+  // enclosing subject-grade heading, so it must take NO layout space. Absolute, so it also stays out of
+  // the parent label's flex flow.
+  .lp-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  // The count of selected plans the current search is hiding — stated where the selection is made,
+  // not only in the confirmation.
+  &__hidden {
+    margin: 0 0 var(--app-space-2);
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+  }
+}
+
+// The delete confirmation. A modifier over the `.modal` base + `.modal__body`/`__field`/`__actions`
+// below, so it declares only what is genuinely its own.
+.lp-confirm {
+  p {
+    margin: 0 0 var(--app-space-2);
+  }
+
+  &__warn {
+    font-weight: 600;
+  }
+
+  // Destructive pair pushed right; the shared `.modal__actions` only sets the row and its gap.
+  &__actions {
+    justify-content: flex-end;
+  }
+}
+
 // IA redesign PR ③ — the "Lesson plans" NAV GROUP (Lesson Plans + Lesson plan versions) is hidden
 // for everyone: the library (`/`) is the only list of lessons and Manage the only functions page.
 // The collections stay non-`hidden` because Payload 404s the DOCUMENT routes of hidden collections
@@ -1302,12 +1391,12 @@ a.btn.lp-btn {
   }
 }
 
-// Editing instructions appear once in an accessible shared Modal rather than under every textarea.
-// The shared Modal's base `.modal-backdrop`/`.modal` rules live only in the frontend stylesheet and
-// don't load here, so this is the FULL backdrop + panel styling for the admin surface (re-themed to
-// Payload tokens), not a modifier over a shared base. If a second admin Modal ever appears, lift a
-// base `.modal-backdrop`/`.modal` block into this file and let callers become true modifiers.
-.lesson-edit-help__backdrop {
+// The shared Modal's base `.modal-backdrop`/`.modal` rules live only in the FRONTEND stylesheet and
+// don't load on this surface, so the admin needs its own copy of the base — re-themed to Payload
+// tokens, geometry mirroring `styles.css`. Lifted out of `.lesson-edit-help` on 2026-08-04 when the
+// delete-plans confirmation became the second admin Modal, exactly as the note here asked. Callers are
+// now true MODIFIERS (`.lesson-edit-help`, `.lp-confirm`) and add only what differs.
+.modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -1318,9 +1407,9 @@ a.btn.lp-btn {
   background: rgba(0, 0, 0, 0.45);
 }
 
-.lesson-edit-help {
+.modal {
   width: 100%;
-  max-width: 30rem;
+  max-width: 26rem;
   padding: 1.25rem;
   color: var(--theme-elevation-1000);
   background: var(--theme-elevation-0);
@@ -1328,10 +1417,55 @@ a.btn.lp-btn {
   border-radius: 6px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
 
+  // The element vocabulary `Modal`'s callers ALREADY use on the frontend (`.modal__title/__body/
+  // __field/__actions` — see EmailModal / EditActions and styles.css). Restated here in Payload tokens
+  // rather than re-invented under per-caller names: two admin Modals had otherwise grown their own
+  // spellings of "muted paragraph", "labelled field" and "button row".
   .modal__title {
     margin: 0 0 0.75rem;
     font-size: 1.15rem;
   }
+
+  .modal__body {
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+  }
+
+  .modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--app-space-1);
+    margin-block-end: var(--app-space-3);
+    font-size: var(--app-secondary-size);
+
+    input {
+      min-height: var(--app-btn-min-height);
+      padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
+      border: 1px solid var(--theme-elevation-150);
+      border-radius: var(--app-btn-radius);
+      background: var(--theme-input-bg, var(--theme-elevation-0));
+      color: var(--theme-elevation-1000);
+      font-family: var(--app-ui-font);
+      font-size: var(--app-btn-font-size);
+
+      &:focus-visible {
+        outline: var(--app-btn-focus-ring) solid var(--app-accent);
+        outline-offset: var(--app-btn-focus-ring-offset);
+      }
+    }
+  }
+
+  .modal__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-1);
+  }
+}
+
+// Editing instructions appear once in an accessible shared Modal rather than under every textarea.
+.lesson-edit-help {
+  // Wider than the 26rem base: this panel is a list of editing instructions, not a confirmation.
+  max-width: 30rem;
 
   &__list {
     margin: 0;
@@ -1342,8 +1476,9 @@ a.btn.lp-btn {
     margin-top: 0.45rem;
   }
 
-  &__actions {
-    display: flex;
+  // The button row itself is the shared `.modal__actions` (see the base block); this adds only the
+  // right-alignment and the leading space a list of instructions needs above its Close button.
+  .modal__actions {
     justify-content: flex-end;
     margin-top: 1rem;
   }

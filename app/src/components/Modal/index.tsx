@@ -16,7 +16,6 @@ export default function Modal({
   title,
   onClose,
   className,
-  backdropClassName,
   children,
 }: {
   title: string
@@ -25,12 +24,13 @@ export default function Modal({
   onClose: () => void
   /** Optional modifier appended to `.modal`, for callers needing a different size/shape (e.g.
    *  `modal--versions`, a wider panel for the version list). Purely presentational — the dialog
-   *  semantics and focus behaviour above are identical for every caller. */
+   *  semantics and focus behaviour above are identical for every caller.
+   *
+   *  Both surfaces now define the base `.modal-backdrop`/`.modal` chrome — the frontend in
+   *  `styles.css`, the admin in `custom.scss` (lifted there on 2026-08-04, when the delete-plans
+   *  confirmation became its second Modal) — so every caller is a true modifier and none has to
+   *  restate the backdrop. */
   className?: string
-  /** Extra class on `.modal-backdrop`. The base `.modal-backdrop`/`.modal` chrome is defined only in
-   *  the frontend stylesheet, so an admin-surface caller (where those rules don't load) must supply
-   *  the full backdrop styling through this class, not merely a modifier. */
-  backdropClassName?: string
   children: React.ReactNode
 }) {
   const titleId = useId()
@@ -99,10 +99,7 @@ export default function Modal({
   }, [])
 
   return (
-    <div
-      className={backdropClassName ? `modal-backdrop ${backdropClassName}` : 'modal-backdrop'}
-      onMouseDown={onClose}
-    >
+    <div className="modal-backdrop" onMouseDown={onClose}>
       <div
         ref={panelRef}
         className={className ? `modal ${className}` : 'modal'}

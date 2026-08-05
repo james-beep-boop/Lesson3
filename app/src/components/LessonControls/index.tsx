@@ -532,10 +532,9 @@ export default function LessonControls() {
           title={EDITING_WIDER_SCREEN_TITLE}
           onClose={() => setTooNarrow(false)}
           className="lesson-edit-help"
-          backdropClassName="lesson-edit-help__backdrop"
         >
           <p>{EDITING_WIDER_SCREEN_BODY}</p>
-          <div className="lesson-edit-help__actions">
+          <div className="modal__actions">
             <Button buttonStyle="primary" size="small" onClick={() => setTooNarrow(false)}>
               Got it
             </Button>
@@ -543,12 +542,7 @@ export default function LessonControls() {
         </Modal>
       )}
       {helpOpen && (
-        <Modal
-          title="Editing help"
-          onClose={() => setHelpOpen(false)}
-          className="lesson-edit-help"
-          backdropClassName="lesson-edit-help__backdrop"
-        >
+        <Modal title="Editing help" onClose={() => setHelpOpen(false)} className="lesson-edit-help">
           <ul className="lesson-edit-help__list">
             <li>Saving creates a new version. The original does not change.</li>
             <li>Press Enter to start a new paragraph.</li>
@@ -559,7 +553,7 @@ export default function LessonControls() {
             <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>
             {canEditStructure && <li>To add a lesson, duplicate an existing lesson.</li>}
           </ul>
-          <div className="lesson-edit-help__actions">
+          <div className="modal__actions">
             <Button buttonStyle="primary" size="small" onClick={() => setHelpOpen(false)}>
               Close
             </Button>
