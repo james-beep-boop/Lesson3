@@ -72,9 +72,14 @@ const APP_DIR = join(__dirname, '..', '..')
  * always the parent of `app/`. CI runs `test:unit` in a container that mounts ONLY `app/`
  * (`.github/workflows/ci.yml`), so `join(APP_DIR, '..')` is `/` there and the root template is absent.
  * That is not hypothetical: the first version of this file assumed the parent directory and would have
- * failed every CI run with a bare `ENOENT` at collection time — no named test, no useful message. CI
- * now mounts the repo read-only and names it here; the parent directory remains the fallback for local
- * runs and for the Rock, where it is correct.
+ * failed every CI run with a bare `ENOENT` at collection time — no named test, no useful message. Two
+ * things fixed that. `readTemplate` now throws a NAMED error pointing at the mount, so the failure is
+ * self-explaining (six reported assertions, not a silent collection crash); and CI bind-mounts the root
+ * `.env.example` at `LESSON3_REPO_ROOT`. It mounts **that one file, not the workspace** — a workspace
+ * mount would expose `.git`, and with it the GITHUB_TOKEN a checkout persists there, to every dev
+ * dependency running under vitest. Keep `REPO_DIR` used for exactly this one path, or that mount has to
+ * widen again. The parent directory remains the fallback for local runs and for the Rock, where it is
+ * correct.
  */
 const REPO_DIR = process.env.LESSON3_REPO_ROOT ?? join(APP_DIR, '..')
 const ROOT_TEMPLATE = join(REPO_DIR, '.env.example')

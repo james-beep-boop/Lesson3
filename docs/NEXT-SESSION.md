@@ -36,8 +36,8 @@ This work is being handed to a **different account**. The single thing that matt
 ```bash
 git fetch --all --prune
 git ls-remote --heads origin chore/env-template-parity   # empty output ⇒ it was never pushed
-git log --oneline origin/main..chore/env-template-parity 2>/dev/null   # the stack, or empty if lost
-git rev-parse HEAD:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
+git log --oneline origin/main..origin/chore/env-template-parity   # the stack as PUSHED, or empty if lost
+git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
 ```
 
 `main` is **protected** (PR + passing `gate`, `enforce_admins`), so this stack lands by PR — it cannot be
@@ -51,7 +51,7 @@ gh pr list --state open --json number,title,headRefName,mergeable,statusCheckRol
 As of this handoff that was this branch's PR plus **PR #196** (`chore/pr195-review-followups`, green,
 unrelated).
 
-### What that stack contains
+## What that stack contains
 
 All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
 **No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
@@ -84,9 +84,9 @@ secret-free-to-publish, so **ask the operator**:
 
 ### Next steps, in priority order
 
-1. **Land the branch.** Push it, open a PR, let CI prove the mount fix (that is the one thing
-   local runs cannot verify — the previous operator's Docker daemon was stopped). Nothing else on this
-   list should start before the gate is green, because item 2 builds on these documents.
+1. **Land the branch.** It is pushed and its PR is open; the gate has passed once. Confirm that is still
+   true (`gh pr list` above), then merge — required reviews are 0. Nothing else on this list should start
+   before it is merged, because item 2 builds on these documents.
 2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
    losing user work today.* Collection + access closure + five endpoints + projection + fencing + shared
    retirement function + two parent cascades + expiry job + migration (generated on the Rock per the
@@ -598,7 +598,7 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    complaint will run into — but treat optimisation (a)/(b)/(c) as not wanted unless the operator raises
    it again. Original entry follows as reference.
 
-   **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
+   **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, then CLOSED unoptimised (reference only).**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
    Two edit-page paths, and it's the FIRST that hurts repeatedly:
    - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the

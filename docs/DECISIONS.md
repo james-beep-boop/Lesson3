@@ -52,6 +52,26 @@ to have generalised it away. Fixed by resolving baseUrl instead of skipping it.
   stopped; the handoff summarising that decision then went out unreviewed and needed a seventh round.
   Fresh prose about finished work is fresh work.
 
+**Round eight (CodeRabbit, on the PR) then found a real security defect in the CI fix itself.** The mount
+added to make the parity test work was `-v "$PWD:/repo:ro"` — the whole workspace, including `.git`.
+`actions/checkout` persists a GITHUB_TOKEN into `.git/config` by default, so every dev dependency running
+under vitest could read a repo token, in a container with default bridge networking to send it anywhere.
+The workflow also declared no `permissions:` block, so the token carried whatever the repo default grants.
+
+Fixed at the root rather than patched: CI now mounts **the single file the spec needs**
+(`$PWD/.env.example:/repo/.env.example:ro`), so `.git` is not in the container at all; plus
+`permissions: contents: read`, `persist-credentials: false`, and `--network none` on the unit-test
+container (these tests are DB-free and Payload-free by construction). Verified in the real image: single
+file mount 394/394, `--network none` 394/394, and `/repo` contains only `.env.example`.
+
+**Rule:** *a fix that widens an access boundary needs review as a fix AND as an access grant.* Six rounds
+scrutinised whether the mount made the test correct; none asked what else the mount made reachable. The
+`app/`-only mount had been a security boundary by accident, and widening it to make a test pass silently
+spent that boundary. The narrow version was available the whole time — `REPO_DIR` was only ever used for
+one path — so the safe fix was never the expensive one, just the one nobody asked for. This is recorded
+in `envTemplateParity.spec.ts` next to `REPO_DIR` as a constraint: keep it to one path, or the mount has
+to widen again.
+
 The reviewer also raised two findings that **did not hold**, worth recording so they are not re-fixed:
 `export * from …` and `export { env } from 'node:process'` are both already caught — the first lands in
 `unnameable`, the second makes assertion G's export list `['env'] ≠ ['positiveIntEnv']`. Both fail G

@@ -123,7 +123,7 @@ is itself the privacy control (SPEC §13), so "stop unmounting" is never the ans
 
 ## 2. Model — the `edit-recovery` collection
 
-```
+```text
 edit-recovery
   user           relationship -> users                    (required, server-stamped)
   sourceVersion  relationship -> lesson-bundle-versions   (required)
