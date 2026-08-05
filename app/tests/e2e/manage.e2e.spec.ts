@@ -25,13 +25,39 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures'
+import {
+  MARK,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+  type RoleKey,
+} from '../helpers/fixtures'
 
 const POINTERLESS_TITLE = `${MARK}Pointerless Plan`
 const DELETABLE_TITLE = `${MARK}Deletable Plan`
 const CANDIDATE_TITLE = `${MARK}Plan v1.1.0`
+// Two plans sharing one strand, so the delete panel's STRAND checkbox has something to select as a
+// group. Strand 77 is its own strand (the base fixture's plan is 99.1), and the panel derives the
+// heading from `unit.strand` + the sub-strand number, giving "Strand 77: Group Delete".
+const GROUP_STRAND = 'Strand 77: Group Delete'
+// Distinct WORDS, not "A"/"B": search is a token-AND substring match, so "…Plan A" would also match
+// "…Plan B" (every token of the first appears in the second) and the hidden-selection assertion below
+// would have nothing hidden.
+const GROUP_PLAN_A = `${MARK}Group Plan Alpha`
+const GROUP_PLAN_B = `${MARK}Group Plan Beta`
 
 let fx: RoleFixture
+
+/**
+ * The group checkboxes take their accessible name from their own label TEXT (no `aria-label`), with the
+ * subject-grade added as visually-hidden text on strand groups so two "Other" strands are
+ * distinguishable. `exact` matters: a subject-grade's name is a substring of every one of its strands'
+ * names, so a loose match would resolve to several controls.
+ */
+const sgPick = (page: Page, sgLabel: string) =>
+  page.getByRole('checkbox', { name: sgLabel, exact: true })
+const strandPick = (page: Page, strand: string, sgLabel: string) =>
+  page.getByRole('checkbox', { name: `${strand} in ${sgLabel}`, exact: true })
 
 /** Thin wrapper so the many call sites below keep reading `loginAs(page, 'editor')`. */
 const loginAs = (page: Page, key: RoleKey): Promise<void> => loginAsRole(page, fx, key)
@@ -70,6 +96,38 @@ test.describe('Manage page', () => {
       } as never,
       overrideAccess: true,
     })
+
+    // Two plans in ONE strand (77), each with an Official version carrying the curriculum coordinates
+    // the delete panel groups by — plan, version, then the Official pointer, in ingest order.
+    for (const [i, title] of [GROUP_PLAN_A, GROUP_PLAN_B].entries()) {
+      const p = await fx.payload.create({
+        collection: 'lesson-plans',
+        data: { title, subjectGrade: sg },
+        overrideAccess: true,
+      })
+      const content = minimalBundleContent()
+      const v = await fx.payload.create({
+        collection: 'lesson-bundle-versions',
+        data: {
+          lessonPlan: p.id,
+          subjectGrade: sg,
+          semver: '1.0.0',
+          title,
+          ...content,
+          // `substrand_name` is what the row DISPLAYS (lessonDisplayName prefers it over the title),
+          // so the checkbox's "Select <name>" label is this title.
+          meta: { ...content.meta, substrand_id: `77.${i + 1}`, substrand_name: title },
+          unit: { strand: `Strand 77.0: Group Delete` },
+        } as never,
+        overrideAccess: true,
+      })
+      await fx.payload.update({
+        collection: 'lesson-plans',
+        id: p.id,
+        data: { officialVersion: v.id },
+        overrideAccess: true,
+      })
+    }
   })
 
   test.afterAll(async () => {
@@ -117,15 +175,15 @@ test.describe('Manage page', () => {
     await expect(page).toHaveURL(`${BASE}/admin`)
   })
 
-  test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({ page }) => {
+  test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({
+    page,
+  }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Repair' })).toBeVisible()
-    await expect(
-      page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE }),
-    ).toBeVisible()
+    await expect(page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE })).toBeVisible()
 
     // Section separators (2026-08-04). Pins the ONE thing review could not otherwise catch: the rules
     // come from `__section ~ __section` in CSS, so a future wrapper element around a section would
@@ -167,7 +225,9 @@ test.describe('Manage page', () => {
   // relationship population. The exclusion paths are covered above; these two assertions cover the
   // remaining lookups, each of which would fail SILENTLY — a missing name renders '' or 'Unknown
   // author', which no other assertion notices.
-  test('display lookups resolve: author name and the Official sub-strand name', async ({ page }) => {
+  test('display lookups resolve: author name and the Official sub-strand name', async ({
+    page,
+  }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
 
@@ -193,19 +253,14 @@ test.describe('Manage page', () => {
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
     // intent as the Editor.
     await loginAs(page, 'editor')
-    await page.goto(
-      `${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`,
-    )
+    await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`)
     // Our control bar renders, with the shared page-level Back control at the far right. It uses the
     // same Next Link component and visual tokens as the frontend pages; crossing root layouts still
     // becomes a full navigation automatically.
     const back = page.locator('.lesson-controls__group--back a')
     await expect(back).toBeVisible()
     await expect(back).toHaveClass(/(^|\s)btn(\s|$)/)
-    await expect(back).toHaveAttribute(
-      'href',
-      `/lessons/${fx.plan.id}?version=${fx.version.id}`,
-    )
+    await expect(back).toHaveAttribute('href', `/lessons/${fx.plan.id}?version=${fx.version.id}`)
     // Payload chrome is stripped on this page (CSS-hidden): nav sidebar + app-header/breadcrumbs.
     await expect(page.locator('.template-default .nav')).toBeHidden()
     await expect(page.locator('.app-header')).toBeHidden()
@@ -215,10 +270,93 @@ test.describe('Manage page', () => {
     await expect(page.locator('textarea').first()).toBeEditable()
   })
 
+  // Searching flattens the tree and REMOVES the group checkboxes (2026-08-04). A group checkbox beside
+  // filtered results would read ambiguously as "all 12 in this strand" or "the 2 you can see", so the
+  // absence is the safety property, not a layout preference — hence an assertion rather than a comment.
+  test('Delete panel: searching goes flat, drops group controls, keeps the scope', async ({
+    page,
+  }) => {
+    await loginAs(page, 'siteAdmin')
+    await page.goto(`${BASE}/admin`)
+    const sgLabel = `${fx.subject.name} · Grade 99`
+
+    // Unfiltered: the curriculum tree, with a checkbox at each level. `exact` on the subject-grade
+    // heading is required, not defensive: role-name matching is a SUBSTRING match by default, and every
+    // strand heading beneath this one now ends in the subject-grade name (the visually-hidden
+    // disambiguator), so a loose match resolves to the whole group and trips strict mode.
+    await expect(page.getByRole('heading', { name: sgLabel, exact: true })).toBeVisible()
+    await expect(sgPick(page, sgLabel)).toBeVisible()
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toBeVisible()
+    // A plan with no Official version has no coordinates, so it groups under "Other" and stays
+    // deletable — the Repair case must not vanish from the one panel that can clear it.
+    await expect(
+      page.getByRole('heading', { name: `Other in ${sgLabel}`, exact: true }),
+    ).toBeVisible()
+    await expect(page.getByLabel(`Select ${POINTERLESS_TITLE}`)).toBeVisible()
+
+    // Select a plan that the coming search will hide, so the notice below has something to report.
+    await page.getByLabel(`Select ${GROUP_PLAN_B}`).check()
+
+    await page.getByLabel('Search lesson plans to delete').fill(GROUP_PLAN_A)
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeVisible()
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toHaveCount(0)
+    await expect(sgPick(page, sgLabel)).toHaveCount(0)
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toHaveCount(0)
+    // …and the row carries its scope inline instead, since the headings are gone.
+    await expect(page.locator('.lp-delete-plans .lp-manage__meta')).toContainText(sgLabel)
+
+    // The button still counts the hidden pick — so the panel says so, and offers a way out. Without
+    // this an administrator can search, see one row, and delete two.
+    await expect(page.getByRole('button', { name: /Delete selected \(1\)/ })).toBeVisible()
+    await expect(page.locator('.lp-delete-plans__hidden')).toContainText(
+      '1 lesson plan selected but not shown',
+    )
+    await page.getByRole('button', { name: 'Clear selection' }).click()
+    await expect(page.locator('.lp-delete-plans__hidden')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Clear selection' })).toHaveCount(0)
+  })
+
+  // The OTHER group level. Deliberately CANCELS rather than deleting: this subject-grade holds the
+  // shared fixture (its plan, its candidate version, the Repair plan and the strand-77 pair), so a
+  // real delete here would strip the world every other test in this file depends on. Selection,
+  // descendant fan-out and the confirmation copy are all observable without going through with it.
+  test('Site Admin can select a whole subject-grade; the confirmation names it', async ({
+    page,
+  }) => {
+    await loginAs(page, 'siteAdmin')
+    await page.goto(`${BASE}/admin`)
+    const sgLabel = `${fx.subject.name} · Grade 99`
+
+    await sgPick(page, sgLabel).check()
+
+    // Every descendant strand ticks, across BOTH strands — the strand-77 pair and the coordinate-less
+    // plans that group under "Other".
+    const strandBox = strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)
+    await expect(strandBox).toBeChecked()
+    expect(await strandBox.evaluate((el) => (el as HTMLInputElement).indeterminate)).toBe(false)
+    await expect(strandPick(page, 'Other', sgLabel)).toBeChecked()
+    // …and so does every plan row beneath them.
+    for (const title of [GROUP_PLAN_A, GROUP_PLAN_B, POINTERLESS_TITLE]) {
+      await expect(page.getByLabel(`Select ${title}`)).toBeChecked()
+    }
+
+    await page.getByRole('button', { name: /Delete selected/ }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText(`in ${sgLabel}`)
+    // The taxonomy carve-out: a group delete removes PLANS, and says so.
+    await expect(dialog).toContainText('The subject grade itself stays')
+    await expect(dialog).toContainText('This cannot be undone.')
+    await expect(dialog.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled()
+
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    // Cancelling deletes nothing and keeps the selection, so a mis-click costs no work.
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeChecked()
+  })
+
   test('Site Admin can delete a plan from the Delete panel', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
-    page.on('dialog', (dialog) => dialog.accept())
 
     await page.getByLabel('Search lesson plans to delete').fill(DELETABLE_TITLE)
     const checkbox = page.getByLabel(`Select ${DELETABLE_TITLE}`)
@@ -226,7 +364,47 @@ test.describe('Manage page', () => {
     await checkbox.check()
     await page.getByRole('button', { name: /Delete selected/ }).click()
 
+    // ONE plan: the confirmation still says it cannot be undone, but asks for no typed word.
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('Delete 1 lesson plan, including all of its saved versions.')
+    await expect(dialog).toContainText('This cannot be undone.')
+    await expect(dialog.getByLabel('Type DELETE to confirm')).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
+
     // After the sequential by-ID delete + router.refresh(), the row is gone.
     await expect(page.getByLabel(`Select ${DELETABLE_TITLE}`)).toHaveCount(0)
+  })
+
+  test('Site Admin deletes a whole strand from one group checkbox', async ({ page }) => {
+    await loginAs(page, 'siteAdmin')
+    await page.goto(`${BASE}/admin`)
+
+    await strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`).check()
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeChecked()
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toBeChecked()
+
+    // The subject-grade above it is now INDETERMINATE — its other strands are untouched. Read off the
+    // DOM property: `indeterminate` has no attribute and no Playwright matcher.
+    const sgBox = sgPick(page, `${fx.subject.name} · Grade 99`)
+    await expect(sgBox).not.toBeChecked()
+    expect(await sgBox.evaluate((el) => (el as HTMLInputElement).indeterminate)).toBe(true)
+
+    await page.getByRole('button', { name: /Delete selected \(2\)/ }).click()
+    const dialog = page.getByRole('dialog')
+    // Named, not just counted — the confirmation says WHICH strand.
+    await expect(dialog).toContainText(`Delete ALL 2 lesson plans in ${GROUP_STRAND}`)
+    await expect(dialog).toContainText('This cannot be undone.')
+
+    // Above one plan the word must be typed before Delete is live.
+    const confirm = dialog.getByRole('button', { name: 'Delete', exact: true })
+    await expect(confirm).toBeDisabled()
+    await dialog.getByLabel('Type DELETE to confirm').fill('DELETE')
+    await expect(confirm).toBeEnabled()
+    await confirm.click()
+
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toHaveCount(0)
+    await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toHaveCount(0)
+    // The strand was derived from those plans, so its heading goes with them.
+    await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toHaveCount(0)
   })
 })

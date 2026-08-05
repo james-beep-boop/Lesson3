@@ -15,8 +15,15 @@ import type { DeliverableTag } from '../generator/exportArtifacts'
 export const subjectGradeLabel = (subjectName: string, grade: number): string =>
   `${subjectName} · Grade ${grade}`
 
-export interface LessonRow {
-  id: number | string
+/**
+ * The five fields the grouping/ordering/search functions below actually READ. Stated as its own
+ * interface so a caller with a different row shape can reuse that logic instead of reimplementing it
+ * — the Manage delete panel groups PLANS by the same curriculum tree the catalogue groups lessons by,
+ * and would otherwise have had to invent a `lessonCount` it never displays (2026-08-04).
+ * `groupLessons`/`orderLessons`/`filterRows`/`matchesQuery` are generic over it and preserve the
+ * caller's own row type, so neither caller loses fields the other doesn't have.
+ */
+export interface CurriculumRow {
   subjectName: string
   grade: number | null
   /** `meta.substrand_id`, e.g. "1.4". May be empty/invalid on bad data. */
@@ -24,6 +31,10 @@ export interface LessonRow {
   substrandName: string
   /** `unit.strand` (strand name); null when UNIT is empty. */
   strandName: string | null
+}
+
+export interface LessonRow extends CurriculumRow {
+  id: number | string
   lessonCount: number
   status?: 'draft' | 'published'
   /** Official version's semver (e.g. "1.0.0"); only the admin Manage view sets/uses this. */
@@ -43,19 +54,23 @@ export interface LessonRow {
   href?: string
 }
 
-export interface StrandGroup {
+// Both group types state their row parameter EXPLICITLY at every use site. A default of `LessonRow`
+// would have saved one word in one file, at the price of making a caller-agnostic container read as
+// "of LessonRow, probably" — the wrong direction of dependency for the type whose whole point is that
+// the grouping preserves whatever row the caller brought.
+export interface StrandGroup<T extends CurriculumRow> {
   key: string
   label: string
   strandNumber: number | null
-  rows: LessonRow[]
+  rows: T[]
 }
 
-export interface SubjectGradeGroup {
+export interface SubjectGradeGroup<T extends CurriculumRow> {
   key: string
   label: string
   subjectName: string
   grade: number | null
-  strands: StrandGroup[]
+  strands: StrandGroup<T>[]
 }
 
 /** Parse a dotted id into numeric segments, or null if any segment isn't a number (invalid id). */
@@ -110,6 +125,25 @@ export function cleanStrandName(raw: string | null): string {
   return raw.replace(/^\s*strand\s+\d+(\.\d+)*\s*:?\s*/i, '').trim()
 }
 
+/**
+ * "Subject · Grade N · Strand name" — where a row appears in the curriculum, for the views that show
+ * rows OUTSIDE their headings (both surfaces' search results, which are flat by design).
+ *
+ * One home for the format, for the same reason `subjectGradeLabel` has one: the library catalogue and
+ * Manage's delete panel had each composed it by hand, so the two could drift apart silently.
+ *
+ * ⚑ The strand is the RAW stored `unit.strand`, deliberately NOT `cleanStrandName`'d — so this reads
+ * "… · Strand 2.0: Physiology", keeping the stored ordinal even though the GROUPED headings strip it
+ * and render their own derived "Strand 2:". An earlier pass cleaned it here for internal consistency;
+ * the operator's call (2026-08-04) is that the library's search results stay exactly as they were, and
+ * Manage follows the library rather than the reverse — which is the whole premise of the delete panel's
+ * redesign anyway. Change both surfaces or neither; that is what this function is for.
+ */
+export function curriculumContextLabel(row: CurriculumRow): string {
+  const scope = row.grade != null ? subjectGradeLabel(row.subjectName, row.grade) : row.subjectName
+  return [scope, row.strandName].filter(Boolean).join(' · ')
+}
+
 // Leading "SUBJECT GRADE N:" prefix on a stored ARES title (compiled once, not per row). The lead is
 // constrained to a subject-shaped token (letters, spaces, & / -) and `grade` must be whitespace-
 // delimited, so an unrelated title like "Upgrade 10: Final Review" is NOT stripped.
@@ -148,8 +182,8 @@ function strandLabel(strandNumber: number | null, name: string): string {
  * subject then grade; strands by number; sub-strands by curriculum sequence. Strand label is
  * "Strand N · Name" (falls back to "Strand N", then the name alone, then "Other").
  */
-export function groupLessons(rows: LessonRow[]): SubjectGradeGroup[] {
-  const groups = new Map<string, SubjectGradeGroup>()
+export function groupLessons<T extends CurriculumRow>(rows: readonly T[]): SubjectGradeGroup<T>[] {
+  const groups = new Map<string, SubjectGradeGroup<T>>()
   for (const r of rows) {
     const sgKey = `${r.subjectName}::${r.grade ?? ''}`
     let sg = groups.get(sgKey)
@@ -191,12 +225,12 @@ export function groupLessons(rows: LessonRow[]): SubjectGradeGroup[] {
  * strand → sub-strand). Search renders a flat list but must not fall back to Payload's default
  * order — it reuses `groupLessons` so the two views can never drift on ordering.
  */
-export function orderLessons(rows: LessonRow[]): LessonRow[] {
+export function orderLessons<T extends CurriculumRow>(rows: readonly T[]): T[] {
   return groupLessons(rows).flatMap((sg) => sg.strands.flatMap((st) => st.rows))
 }
 
 /** The fields search looks at — deliberately modest (no lesson-body text). */
-export function bundleSearchText(r: LessonRow): string {
+export function bundleSearchText(r: CurriculumRow): string {
   return [
     r.substrandId,
     r.substrandName,
@@ -209,12 +243,20 @@ export function bundleSearchText(r: LessonRow): string {
     .toLowerCase()
 }
 
-/** Whitespace-tokenised AND match over the modest search fields (every token must appear). */
-export function matchesQuery(r: LessonRow, query: string): boolean {
-  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+/** Split a query into the lowercase tokens every match must contain. */
+const tokenise = (query: string): string[] =>
+  query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+
+/** Match against ALREADY-tokenised terms — so a filter over N rows tokenises once, not N times. */
+const matchesTokens = (r: CurriculumRow, tokens: readonly string[]): boolean => {
   if (tokens.length === 0) return true
   const text = bundleSearchText(r)
   return tokens.every((t) => text.includes(t))
+}
+
+/** Whitespace-tokenised AND match over the modest search fields (every token must appear). */
+export function matchesQuery(r: CurriculumRow, query: string): boolean {
+  return matchesTokens(r, tokenise(query))
 }
 
 /**
@@ -222,20 +264,23 @@ export function matchesQuery(r: LessonRow, query: string): boolean {
  * query applied in one pure pass — the client browser filters IN MEMORY (the whole catalogue is
  * already loaded), so chips and typing are instant instead of a server round-trip per click.
  */
-export function filterRows(
-  rows: readonly LessonRow[],
+export function filterRows<T extends CurriculumRow>(
+  rows: readonly T[],
   criteria: { q?: string; subject?: string; grade?: number | null },
-): LessonRow[] {
-  const q = (criteria.q ?? '').trim()
+): T[] {
   const subject = criteria.subject ?? ''
   const grade = criteria.grade ?? null
+  // Tokenised ONCE for the whole pass. Per-row `matchesQuery` re-split the query for every row, so a
+  // keystroke cost N tokenisations — on the catalogue, which filters the whole corpus on every
+  // keystroke and every chip click, that was the bulk of the work here.
+  const tokens = tokenise(criteria.q ?? '')
   return rows.filter(
     (r) =>
       (!subject || r.subjectName === subject) &&
       // NaN (e.g. a hand-edited ?grade=abc) means NO grade filter — matching it against rows
       // would silently empty the catalogue while no chip shows active.
       (grade == null || Number.isNaN(grade) || r.grade === grade) &&
-      (!q || matchesQuery(r, q)),
+      matchesTokens(r, tokens),
   )
 }
 
