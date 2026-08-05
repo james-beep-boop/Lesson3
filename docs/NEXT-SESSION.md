@@ -40,10 +40,21 @@ This work is being handed to a **different account**. The single thing that matt
 
 ```bash
 git fetch --all --prune
-gh pr list --state all --head chore/env-template-parity \
-  --json number,state,mergedAt,mergeCommit   # ASK THIS FIRST — merged means the work is in main
-git ls-remote --heads origin chore/env-template-parity   # empty ⇒ branch GONE, which is normal after merge
-git log --oneline origin/main..origin/chore/env-template-parity   # the stack, if the branch still exists
+
+# ASK THIS FIRST. Merged ⇒ the commits are already in origin/main and NOTHING is lost.
+gh pr list --state all --head chore/env-template-parity --json number,state,mergedAt,mergeCommit
+
+# Then the branch. Absent is NORMAL after a merge (GitHub deletes the head branch), so this tests
+# before logging: a bare `git log origin/main..origin/<branch>` on a pruned ref prints
+# `fatal: ambiguous argument … unknown revision`, which reads like data loss at the exact moment
+# you are checking for data loss.
+if git rev-parse --verify -q origin/chore/env-template-parity >/dev/null; then
+  git log --oneline origin/main..origin/chore/env-template-parity   # the stack, still unmerged
+else
+  echo "No remote branch. If the PR above shows merged, the work is in origin/main:"
+  git log --oneline -15 origin/main
+fi
+
 git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
 ```
 
