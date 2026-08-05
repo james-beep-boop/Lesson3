@@ -54,8 +54,22 @@ import {
 type Doc = Record<string, unknown>
 type Row = Doc & { id?: unknown }
 
-/** A capture: `<scope>:<rowId>` (or a bare scope for the singleton) → prose leaves. */
-export type CaptureMap = Record<string, Record<string, string>>
+/**
+ * A capture: `<scope>:<rowId>` (or a bare scope for the singleton) → prose leaves.
+ *
+ * ⚑ **`null` is a VALUE here, not an absence.** Payload's generated prose fields are `string | null`,
+ * and `applyEditorFieldSplit` overlays whatever the submission holds, `null` included. Omitting
+ * `null` from a capture would mean a cleared field silently restores its OLD text — the user's
+ * deletion is exactly the unsaved edit this feature exists to preserve, so dropping it would lose
+ * work in the one direction nobody would notice. A form textarea yields `''` rather than `null`
+ * today, so this is defensive rather than load-bearing; it is typed and tested so the answer is
+ * recorded rather than incidental. Importing the whitelist synchronises field NAMES, never value
+ * semantics — that part is this file's own contract.
+ *
+ * `undefined` remains an absence: a key the source never had is not captured and never restored.
+ */
+export type ProseValue = string | null
+export type CaptureMap = Record<string, Record<string, ProseValue>>
 
 /** The one key with no row id, because `finalExplanation` is a group rather than an array row. */
 export const FINAL_EXPLANATION_KEY = 'finalExplanation'
@@ -68,24 +82,27 @@ const asDoc = (v: unknown): Doc | undefined =>
 const keyFor = (scope: string, id: unknown): string | null =>
   id === undefined || id === null ? null : `${scope}:${String(id)}`
 
+/** A prose leaf: a string, or `null` for a cleared field. Anything else is malformed. */
+const isProseValue = (v: unknown): v is ProseValue => v === null || typeof v === 'string'
+
 /**
- * Pick the whitelisted leaves that are present AND are strings. A non-string under a prose key is
- * dropped rather than coerced: prose is `\n`-separated plain text by design law (CLAUDE.md), so a
- * number or object there is malformed input, and storing it would let a capture reintroduce a shape
- * the editor grammar forbids.
+ * Pick the whitelisted leaves that are present AND are prose values. A number or object under a
+ * prose key is dropped rather than coerced: prose is `\n`-separated plain text by design law
+ * (CLAUDE.md), so storing one would let a capture reintroduce a shape the editor grammar forbids.
+ * `null` IS kept — see the note on `CaptureMap`.
  */
-const pickProse = (src: Doc | undefined, keys: readonly string[]): Record<string, string> => {
-  const out: Record<string, string> = {}
+const pickProse = (src: Doc | undefined, keys: readonly string[]): Record<string, ProseValue> => {
+  const out: Record<string, ProseValue> = {}
   if (!src) return out
   for (const k of keys) {
     const v = src[k]
-    if (typeof v === 'string') out[k] = v
+    if (isProseValue(v)) out[k] = v
   }
   return out
 }
 
 /** Assign only when non-empty, so the map stays sparse and an untouched row costs nothing. */
-const put = (map: CaptureMap, key: string | null, leaves: Record<string, string>): void => {
+const put = (map: CaptureMap, key: string | null, leaves: Record<string, ProseValue>): void => {
   if (key && Object.keys(leaves).length > 0) map[key] = leaves
 }
 
@@ -133,16 +150,17 @@ export type ApplyReport = {
 /** Overlay `leaves` onto a copy of `base`, restricted to `keys`. Never introduces a key. */
 const overlay = (
   base: Doc,
-  leaves: Record<string, string> | undefined,
+  leaves: Record<string, ProseValue> | undefined,
   keys: readonly string[],
   report: { applied: number },
 ): Doc => {
   const out: Doc = { ...base }
   if (!leaves) return out
   for (const k of keys) {
-    const v = leaves[k]
-    if (typeof v === 'string') {
-      out[k] = v
+    // `in` rather than a truthiness or undefined check, so a stored `null` is applied as the cleared
+    // value it represents instead of being read as "not present".
+    if (k in leaves && isProseValue(leaves[k])) {
+      out[k] = leaves[k]
       report.applied += 1
     }
   }
@@ -165,7 +183,7 @@ export const applyCapture = (
   const report = { applied: 0 }
   const seen = new Set<string>()
   const map = capture ?? {}
-  const take = (key: string | null): Record<string, string> | undefined => {
+  const take = (key: string | null): Record<string, ProseValue> | undefined => {
     if (!key) return undefined
     seen.add(key)
     return map[key]

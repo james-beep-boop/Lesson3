@@ -191,26 +191,65 @@ describe('edit-recovery projection', () => {
     expect(m['lesson:3']).toEqual({ title: 'kept' })
   })
 
+  /**
+   * IDENTITY, asserted structurally rather than through the projection. Comparing
+   * `projectCapture(doc)` to `projectCapture(edited)` only proves the two agree on the leaves the
+   * projection looks at — it is blind to anything apply might have dropped, reshaped or reordered
+   * outside the whitelist. `toEqual` on the whole document is not.
+   */
+  it('identity: applying a capture of a document to that document changes nothing', () => {
+    const s = source()
+    const { doc, report } = applyCapture(source(), projectCapture(s))
+    expect(doc).toEqual(s)
+    expect(report.droppedKeys).toEqual([])
+  })
+
   it('round-trips: applying a capture reproduces exactly the edited prose', () => {
     const base = source()
     const edited = source()
     edited.lessons[0].title = 'EDITED title'
     edited.lessons[0].slo.purpose = 'EDITED purpose'
+    // `summaryTablePrompt` is the one container the first version of this test missed, so the whole
+    // `prompt:<lessonId>` branch could be deleted from apply with every test still green. Verified
+    // by disabling that branch and watching this line, and only this line, fail.
+    edited.lessons[0].summaryTablePrompt!.observed = 'EDITED prompt observed'
     edited.lessons[0].framework[1].teacherMoves = 'EDITED moves'
     edited.finalExplanation.instructions = 'EDITED instructions'
     edited.finalExplanation.sections[1].prompt = 'EDITED prompt'
     edited.summaryTable.lessons[0].observed = 'EDITED observed'
 
     const { doc } = applyCapture(base, projectCapture(edited))
-    expect(projectCapture(doc)).toEqual(projectCapture(edited))
+    // Whole-document equality: every container, not only the projected leaves.
+    expect(doc).toEqual(edited)
 
-    // Spot-check through the real shape, not just the projection of it.
+    // Spot-check through the real shape too, so a failure names the container.
     const d = doc as SourceDoc
     expect(d.lessons[0].title).toBe('EDITED title')
     expect(d.lessons[0].slo.purpose).toBe('EDITED purpose')
+    expect(d.lessons[0].summaryTablePrompt!.observed).toBe('EDITED prompt observed')
     expect(d.lessons[0].framework[1].teacherMoves).toBe('EDITED moves')
     expect(d.finalExplanation.sections[1].prompt).toBe('EDITED prompt')
     expect(d.summaryTable.lessons[0].observed).toBe('EDITED observed')
+  })
+
+  /**
+   * `null` is a cleared field, not an absent one. If a capture omitted it, restoring would bring the
+   * OLD text back — losing precisely the edit (a deletion) that this feature exists to preserve, and
+   * losing it in the one direction a user would not think to check.
+   */
+  it('captures and restores a cleared field as null, distinct from an absent one', () => {
+    const cleared = source()
+    cleared.lessons[0].title = null as unknown as string
+    const m = projectCapture(cleared)
+    expect(m['lesson:11']).toHaveProperty('title', null)
+
+    const { doc } = applyCapture(source(), m)
+    expect((doc as SourceDoc).lessons[0].title).toBeNull()
+
+    // Absent stays absent: a key the source never had is neither captured nor invented.
+    const sparse = projectCapture({ lessons: [{ id: 1, title: 'only title' }] })
+    expect(sparse['lesson:1']).toEqual({ title: 'only title' })
+    expect(sparse['lesson:1']).not.toHaveProperty('overview')
   })
 
   it('preserves admin/system values on apply — a capture cannot overwrite them', () => {
