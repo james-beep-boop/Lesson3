@@ -41,18 +41,25 @@
  * enforce is that **an env helper is only ever called directly, by an imported binding, with a literal
  * variable name.**
  *
- * The same principle governs `process` itself, and it took two more misses to get there — first
- * `process['env']` was ignored, then `process?.env` slipped past a substring filter. Enumerating
- * spellings is the losing game: `processEnvBase` now recognises the equivalent ones (bracket, optional
- * chain, parenthesised, non-null-asserted, `globalThis`-qualified) and, crucially, **every `process`
- * reference this walk did NOT classify is reported** — so `const p = process`, `const { env } =
- * process`, or a member nobody has taught it about fails F instead of passing unseen.
+ * The same principle governs `process` itself, and it took several misses to get there —
+ * `process['env']`, then `process?.env`, then `(process).env` / `process!.env` /
+ * `globalThis.process.env`, then `const p = globalThis.process`. Enumerating spellings is the losing
+ * game. `denotesProcess` decides what evaluates to the process object (bare identifier, or
+ * `globalThis`/`global`-qualified, through any no-op wrapper), `processEnvBase` classifies the `.env`
+ * accesses off it, and **every `process` reference the walk did not classify is reported** — so a
+ * stored reference, a destructure, or a member nobody taught it about fails F instead of passing
+ * unseen. Node's own `process` module is reported on import, since a binding from it reaches `env`
+ * with no global identifier to see.
+ *
+ * Module identity is resolved, not matched: `isEnvModule` resolves the specifier against the importing
+ * file and compares paths. Matching text (`/(^|\/)(lib\/)?env$/`) meant any unrelated `../other/env`
+ * counted as this module, its exports followed as if they were the helpers.
  *
  * Deliberately DB-free and Payload-free → runs in `test:unit`.
  */
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'fs'
-import { join, relative } from 'path'
+import { dirname, join, relative, resolve } from 'path'
 import { parse as parseEnvFile } from 'dotenv'
 import ts from 'typescript'
 
@@ -121,8 +128,35 @@ const HELPER_NAMES = new Set(['positiveIntEnv'])
  * let a helper import written that way go unnoticed.
  */
 const MODULE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
-const isEnvModule = (specifier: string): boolean =>
-  /(^|\/)(lib\/)?env$/.test(specifier.replace(MODULE_EXT, ''))
+const ENV_MODULE_ABS = join(APP_DIR, 'src', 'lib', 'env')
+
+/**
+ * Resolve a specifier to an extensionless absolute path, or null when it is a bare package (which the
+ * env module never is). `@/*` maps to `./src/*` per `tsconfig.json` paths.
+ */
+const resolveSpecifier = (fromFile: string, specifier: string): string | null => {
+  const bare = specifier.replace(MODULE_EXT, '')
+  if (bare.startsWith('.')) return resolve(dirname(fromFile), bare)
+  if (bare.startsWith('@/')) return join(APP_DIR, 'src', bare.slice(2))
+  return null
+}
+
+/**
+ * Is this specifier OUR env module? Compared as a resolved path, not as text. A pattern like
+ * `/(^|\/)(lib\/)?env$/` claimed any module ending in `env` — so an unrelated `../other/env` would have
+ * been treated as this one, its exports followed as if they were the helpers, and its calls counted as
+ * env reads. Textual identity is not module identity.
+ */
+const isEnvModule = (fromFile: string, specifier: string): boolean =>
+  resolveSpecifier(fromFile, specifier) === ENV_MODULE_ABS
+
+/**
+ * Node's own process module. Importing it gives a binding (`env`, or a default) that reaches
+ * `process.env` without any global `process` identifier for the walk to see, so any import of it is
+ * REPORTED — the same treatment as every other route this parse cannot follow. Nothing in the tree
+ * imports it today.
+ */
+const PROCESS_MODULES = new Set(['process', 'node:process'])
 
 /**
  * Non-env members of `process` that this codebase legitimately uses. Anything else reached through
@@ -229,15 +263,31 @@ const processEnvBase = (n: ts.Node): ts.Node | null => {
   if (accessedName(n) !== 'env') return null
   const owner = n as ts.PropertyAccessExpression | ts.ElementAccessExpression
   const base = unwrap(owner.expression)
-  if (ts.isIdentifier(base) && base.text === 'process') return base
-  // `globalThis.process.env` / `global.process.env` — the `process` node is the qualified name.
-  if (ts.isPropertyAccessExpression(base) && base.name.text === 'process') {
-    const root = unwrap(base.expression)
-    if (ts.isIdentifier(root) && (root.text === 'globalThis' || root.text === 'global')) {
-      return base.name
-    }
+  return denotesProcess(base) ? base : null
+}
+
+/**
+ * Does this node evaluate to the global `process` object? Either a bare `process` identifier, or a
+ * `globalThis`/`global`-qualified access (`globalThis.process`, `globalThis['process']`).
+ *
+ * Both spellings are treated as ONE kind of thing, which is what lets the walk report an unclassified
+ * one. A previous version exempted the `process` identifier inside `globalThis.process`
+ * unconditionally, on the grounds that the enclosing access would be judged instead — but only the
+ * `.env` case was ever judged, so `const p = globalThis.process` slipped through with the exemption
+ * and no report. The qualified access is now itself a process reference, judged on its own terms.
+ */
+const denotesProcess = (n: ts.Node): boolean => {
+  if (ts.isIdentifier(n) && n.text === 'process') {
+    // The `process` inside `globalThis.process` is that access's NAME; the access is judged as a whole.
+    const p = n.parent
+    return !(p && ts.isPropertyAccessExpression(p) && p.name === n)
   }
-  return null
+  if (ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n)) {
+    if (accessedName(n) !== 'process') return false
+    const root = unwrap(n.expression)
+    return ts.isIdentifier(root) && (root.text === 'globalThis' || root.text === 'global')
+  }
+  return false
 }
 
 /**
@@ -253,7 +303,12 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
   walk(sf, (n) => {
     if (ts.isImportDeclaration(n)) {
       const spec = literalText(n.moduleSpecifier)
-      if (!spec || !isEnvModule(spec)) return
+      if (!spec) return
+      if (PROCESS_MODULES.has(spec)) {
+        problems.push(`import from '${spec}' — read env via process.env or lib/env, not the module`)
+        return
+      }
+      if (!isEnvModule(sf.fileName, spec)) return
       const clause = n.importClause
       if (!clause) return
       if (clause.name) problems.push(`default import from the env module: ${clause.name.text}`)
@@ -279,7 +334,7 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
       const reExportsHelper = named.some((el) =>
         HELPER_NAMES.has((el.propertyName ?? el.name).text),
       )
-      if ((spec && isEnvModule(spec)) || reExportsHelper) {
+      if ((spec && isEnvModule(sf.fileName, spec)) || reExportsHelper) {
         problems.push(`re-export of an env helper: ${n.getText(sf).slice(0, 80)}`)
       }
       return
@@ -291,12 +346,16 @@ const helperBindings = (sf: ts.SourceFile): { names: Set<string>; problems: stri
         (ts.isIdentifier(n.expression) && n.expression.text === 'require')
       if (!dynamic) return
       const spec = literalText(n.arguments[0])
+      if (spec !== null && PROCESS_MODULES.has(spec)) {
+        problems.push(`dynamic import of '${spec}' — read env via process.env or lib/env`)
+        return
+      }
       if (spec === null) {
         // A COMPUTED specifier cannot be checked, so it cannot be cleared either. Reported rather
         // than assumed innocent: every dynamic import in this tree uses a literal today, so this
         // costs nothing and closes the "it might have been the env module" gap.
         problems.push(`dynamic import with a computed specifier: ${n.getText(sf).slice(0, 60)}`)
-      } else if (isEnvModule(spec)) {
+      } else if (isEnvModule(sf.fileName, spec)) {
         problems.push('dynamic import of the env module')
       }
     }
@@ -353,20 +412,17 @@ const collectReads = (): { reads: Set<string>; problems: string[] } => {
       // has already bitten twice here (`process['env']`, then `process?.env`). Catching the class beats
       // widening a pattern again: `const p = process`, `const { env } = process` and any new member all
       // land here and say so.
-      if (ts.isIdentifier(n) && n.text === 'process' && !classifiedProcess.has(n)) {
+      if (denotesProcess(n) && !classifiedProcess.has(n)) {
         const p = n.parent
-        // `globalThis.process…` — this identifier is the qualified name; the access itself was judged
-        // above, so it is not an independent use.
-        const isQualifiedName = p && ts.isPropertyAccessExpression(p) && p.name === n
         const member =
           p &&
           (ts.isPropertyAccessExpression(p) || ts.isElementAccessExpression(p)) &&
           p.expression === n
             ? accessedName(p)
             : null
-        if (!isQualifiedName && !(member && PROCESS_NON_ENV_MEMBERS.has(member))) {
+        if (!(member && PROCESS_NON_ENV_MEMBERS.has(member))) {
           problems.push(
-            `${rel}: unclassified use of \`process\` — ${n.parent.getText(sf).split('\n')[0].slice(0, 50)}`,
+            `${rel}: unclassified use of \`process\` — ${p.getText(sf).split('\n')[0].slice(0, 50)}`,
           )
         }
         return
