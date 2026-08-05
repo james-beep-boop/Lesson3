@@ -126,11 +126,28 @@ marker could be reactivated and re-expired seconds later. Both are now stated on
 for one call instead of as a rule over all of them. A related contradiction went the same way — a base-
 source mismatch said "warn" in the design and "view/discard only" in SPEC; the stricter rule governs.
 
-The parity checker showed the identical shape a third time (aliased imports bypassing a name-based
-matcher; a blacklist of export forms that missed `export async function`/`let`/`class`/`enum`). Both are
-now positive contracts — permitted export forms enumerated rather than forbidden ones, and aliased or
-namespace imports of the env module rejected outright. **Enumerating what is allowed cannot have that
-hole; enumerating what is forbidden always can.**
+**A fifth round found the two worst, both in the design's own words.** (1) §2 and the endpoint table
+called capture an **upsert** — which recreates a retired row, the exact resurrection retirement markers
+exist to prevent, and makes the explicit-start step optional. The protocol's central mechanism undone by
+one word, in a document that had already been reviewed four times. Capture is now stated as a CAS UPDATE
+of an existing active row, with `start` the only insert/reactivate path, in SPEC and the design both.
+(2) Expiry still lacked the revision precondition the same document declared universal — the cutoff term
+alone does defeat the race, so carrying the revision is defence in depth, but a stated universal with a
+silent exception is exactly the defect all five rounds kept finding.
+
+**And the parity checker's regex approach was itself the wrong tool — the decisive lesson.** Three
+successive versions each closed one bypass and opened the next: a `process.env.X` scan missed every
+`RATE_LIMIT_*` (read via `positiveIntEnv`); a name-based matcher missed
+`import { positiveIntEnv as readInt }`; rejecting aliased imports still missed `const readInt =
+positiveIntEnv`, re-exports and dynamic imports. Escalating a blacklist against a language is
+unwinnable. It now parses the TypeScript AST (`ts.createSourceFile`, no type checker, so it stays fast
+and DB-free) and **resolves** bindings instead of forbidding them: import renames and local `const`
+aliases are followed, while genuinely unanalyzable forms (namespace import, re-export, dynamic import,
+or a helper handed around as a value) are reported. Exports are read structurally, so no export form can
+hide and the earlier form-blacklist is gone entirely. **Enumerate what is allowed, or resolve the thing
+properly — never chase what is forbidden.** Its own sanity-flip then caught a false positive in the new
+code (an alias's declaration name counted as a "use"), which is the argument for flipping every guard
+rather than trusting that it reads correctly.
 
 Also: the reconciliation cited a live "`Draft` status pill" as evidence for the reserved word. That
 branch is **dead code** — catalogue rows are built with `status: 'published'` hardcoded, and

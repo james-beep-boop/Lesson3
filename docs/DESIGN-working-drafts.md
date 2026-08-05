@@ -68,6 +68,14 @@ Worth noting what that says about review: the case that would have caught it was
 in §7, and still passed inspection twice, because the SQL was checked against its own comment rather
 than against the case. A test asserting cases 21–22 will not have that luxury.
 
+**A fifth round found the two worst of the set — both places where this file described the protocol as
+doing the opposite of what it specifies.**
+
+| Said | Now | Why |
+|---|---|---|
+| "Capture is an upsert" (§2 and the endpoint table) | Capture is a **CAS UPDATE of an existing active row**; only `start` may insert or reactivate | An upserting capture recreates a retired row — the exact resurrection retirement markers exist to prevent — and makes the explicit-start step optional. The protocol's central mechanism, undone by one word |
+| Expiry's precondition was "active **and** untouched since the cutoff" | It also carries the `revision` read at selection | The document stated a universal rule ("every caller carries a revision precondition") and then exempted one caller. The cutoff term alone does defeat the race, so this is defence in depth — but a stated universal with a silent exception is precisely the defect these five rounds kept finding |
+
 **A fourth round found two more, both in the same protocol, both about a write that forgot to publish
 its own result.** The pattern is now unmistakable enough to name: *state the rule, not the instance.*
 
@@ -130,12 +138,19 @@ edit-recovery
 ```
 
 **Uniqueness:** one row per `(user, sourceVersion)` — that row is either an active capture or that
-pair's retirement marker. Capture is an upsert.
+pair's retirement marker.
+
+⚑ **Only `start` may INSERT or reactivate. Capture never creates a row** — it is a compare-and-set
+UPDATE against an existing *active* row, and returns 409 when the row is missing, retired, or its
+revision has moved. Calling capture an "upsert" (as an earlier revision of this file did) quietly
+undoes the whole protocol: an upserting capture recreates a retired row, which is exactly the
+resurrection that retirement markers exist to prevent, and it makes the explicit-start step optional.
 
 **Access — nothing client-facing.** `read`, `create`, `update`, `delete` all closed;
-`admin.hidden: true`. Rationale and the Payload-first gap are recorded in SPEC §5; briefly: default
-REST offers no upsert, closing `read` makes "lost editing access ⇒ cannot restore" structural rather
-than incidental, and closing `delete` stops an owner erasing their own retirement marker.
+`admin.hidden: true`. Rationale and the Payload-first gap are recorded in SPEC §5; briefly: `start`
+needs an atomic upsert and default REST has none, closing `read` makes "lost editing access ⇒ cannot
+restore" structural rather than incidental, and closing `delete` stops an owner erasing their own
+retirement marker.
 
 **Endpoints** — on `lesson-bundle-versions`, beside `/:id/preview` and `/:id/save-as-new`. Each
 re-loads the source and re-runs `authorize(req, 'editor')` on every call, then writes with
@@ -143,10 +158,11 @@ re-loads the source and re-runs `authorize(req, 'editor')` on every call, then w
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /:id/recovery/start` | Explicit session start; one atomic upsert (§4). Returns the token. Never called implicitly. |
-| `POST /:id/recovery` | Capture (upsert). Requires `generation` + `expectedRevision`; **returns the advanced token**. Stale/missing ⇒ **409**. |
+| `POST /:id/recovery/start` | Explicit session start. The **only** insert/reactivate path; one atomic upsert (§4). Returns the token. Never called implicitly. |
+| `POST /:id/recovery` | Capture. **CAS UPDATE of an existing active row — never an insert.** Requires `generation` + `expectedRevision`; returns the advanced token. Missing, retired or stale ⇒ **409**. |
 | `GET /:id/recovery` | Fetch the active capture, for the restore prompt. Returns the token with it. |
 | `DELETE /:id/recovery` | Explicit discard ⇒ retire. Requires `generation` + `expectedRevision`. |
+| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata (incl. `revision`) and authorized retirement, which must echo that revision. Never content. |
 
 **Token rule, applying to every one of them: any endpoint that advances the row returns the resulting
 `{generation, revision, updatedAt}` from the same atomic statement, and the client must adopt it.**
@@ -154,7 +170,6 @@ Otherwise the client is left holding the token it *sent*, which the successful w
 so its next capture, and then the save, would 409 against a conflict it caused itself. Stated once, as
 a rule, because the first version of this design specified the precondition on capture and forgot the
 response; a per-endpoint description invites exactly that asymmetry.
-| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata (incl. `revision`) and authorized retirement, which must echo that revision. Never content. |
 
 Each ships wire-level 401/403/404 plus happy-path coverage in `tests/http` in the same PR (CLAUDE.md
 standing rule), and a `recovery` bucket in `lib/rateLimit.ts` sized for the real worst case — several
@@ -276,7 +291,24 @@ revision/generation. **None hard-delete.** Preconditions, all evaluated in the u
 |---|---|
 | save-as-new, discard | `generation` **and** `expectedRevision` from the editing tab |
 | Site-Admin cleanup | the `revision` returned by `recovery/meta` — so an operator cannot clear a capture that changed between looking and acting |
-| 30-day expiry | row still active **and** untouched since the cutoff |
+| 30-day expiry | the `revision` read when the row was selected, **and** still active, **and** still untouched since the cutoff |
+
+Expiry carries the revision it selected, so the rule really is universal rather than universal-with-an-
+exception:
+
+```sql
+UPDATE edit_recovery SET …retirement…
+WHERE id = $id AND revision = $selectedRevision
+  AND retired_at IS NULL AND updated_at < $cutoff
+```
+
+Zero rows updated means a capture or a reactivation won the race, and the job simply moves on. Being
+precise about what that buys: `updated_at < $cutoff` **already** defeats that race on its own, because
+every advancing write sets `updated_at = NOW()` — a capture landing mid-job pushes the row out of the
+cutoff window. The revision term is defence in depth, not the primary guard. It is worth having anyway
+because it makes expiry's safety self-contained rather than contingent on an invariant maintained in
+four other places, and because a document that states a universal rule and then quietly exempts one
+caller is the precise defect this review kept finding.
 
 Because all four share one function, expiry cannot be SQL inside `scripts/prune-db.sh` (a second
 implementation, free to drift); it becomes a Payload job, and `prune-db.sh` keeps only the bookkeeping
@@ -355,8 +387,15 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-Disposable stack, shortened `tokenExpiration`. Browser-level for 1–13 and 26–27 (the defect is
-client-side); wire-level for 14–16, 23–24, 28 and 29; DB-backed concurrency for 17–22, 25 and 30.
+**None of these are executed yet — the implementation does not exist.** This is the acceptance matrix
+the two PRs in §8 must satisfy, not a report.
+
+Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
+**browser** (Playwright) for 1–13 and 26–27, since the defect is client-side; **DB-backed wire-level**
+(`tests/http`, which runs against the live app and its database) for 14–16, 23–24 and 28–29; and
+**DB-backed concurrency** (`tests/int`, needing two real transactions) for 17–22, 25 and 30. Case 29
+spans a chain of real requests against real rows, so it is wire-level *and* DB-backed — the two labels
+are not alternatives here.
 
 | # | Case | Expected |
 |---|---|---|
@@ -420,7 +459,7 @@ the build rather than discovered mid-PR.
 **PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
-units, DB-backed concurrency (cases 15, 17–25, 28–30).
+units, DB-backed wire-level and concurrency cases (15, 17–25, 28–30).
 
 **PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
 clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.

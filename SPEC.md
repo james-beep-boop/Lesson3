@@ -208,8 +208,11 @@ observable contract, and a failed or backed-off capture must say so rather than 
   endpoints on `lesson-bundle-versions` (alongside `/:id/preview`, `/:id/save-as-new`,
   `/:id/make-official`) which re-load the source and re-run the caller's editing authorization on
   each call, then write with `overrideAccess`. This is deliberate and is the **documented Payload-first
-  gap** (§13): default REST offers no upsert, and the write needs an upsert keyed `(user,
-  sourceVersion)` with a fencing precondition. Closing `read` is what makes "a user who has lost
+  gap** (§13): `start` needs an atomic upsert keyed `(user, sourceVersion)`, and default REST has none.
+  **Only `start` may insert or reactivate a row.** Capture is a compare-and-set UPDATE of an existing
+  *active* row and returns 409 when the row is missing, retired, or its revision has moved — an
+  upserting capture would recreate a retired row, which is the resurrection retirement markers exist to
+  prevent, and would make the explicit start optional. Closing `read` is what makes "a user who has lost
   editing access cannot restore" true by construction rather than by accident; closing `delete` is
   what stops an owner erasing their own retirement marker (below).
 - **Content is a sparse prose overlay stored as JSON** — a deliberate, bounded exception to the
@@ -271,8 +274,10 @@ observable contract, and a failed or backed-off capture must say so rather than 
   - **save-as-new** and **discard**: `generation` **and** `expectedRevision`.
   - **Site-Admin cleanup**: the `revision` returned by the metadata endpoint, so an operator cannot
     clear a capture that changed between looking and acting.
-  - **expiry**: conditioned on the row still being active and untouched since the cutoff, evaluated
-    in the update.
+  - **expiry**: the revision read when the row was selected, plus still-active and still-untouched-
+    since-the-cutoff, all evaluated in the update. The cutoff term alone already defeats the race (every
+    advancing write sets `updatedAt`), so the revision is defence in depth — carried anyway so the rule
+    has no exception and expiry's safety does not depend on an invariant maintained elsewhere.
 
   Retirement on save joins the save-as-new transaction — inside the semver retry attempt, so it can
   neither half-apply nor double-apply — and a precondition failure there fails the **whole save** with
