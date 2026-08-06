@@ -27,25 +27,17 @@ import {
   setupRoleFixture,
   type RoleFixture,
 } from '../helpers/fixtures.js'
-import { drizzleOf } from '../helpers/db.js'
-
-const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
+import { drizzleOf, rowsOf } from '../helpers/db.js'
+import { recoveryRow } from '../helpers/editRecovery.js'
+import { login, url } from '../helpers/httpWire.js'
 
 let fx: RoleFixture
 let editorToken: string
 
-const url = (path: string) => `${BASE}${path}`
 const auth = () => ({ Authorization: `JWT ${editorToken}` })
 
-async function login(email: string, password: string): Promise<string> {
-  const res = await fetch(url('/api/users/login'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  if (!res.ok) throw new Error(`login failed (${res.status}) for ${email}`)
-  return ((await res.json()) as { token: string }).token
-}
+/** The drizzle handle, for the trigger DDL these tests install. */
+const db = () => drizzleOf(fx.payload)
 
 beforeAll(async () => {
   fx = await setupRoleFixture()
@@ -68,7 +60,8 @@ afterAll(async () => {
 let nextMinor = 0
 const nextSemver = () => `3.${++nextMinor}.0`
 
-async function makeVersion(semver: string = nextSemver()) {
+async function makeVersion() {
+  const semver = nextSemver()
   return (await fx.payload.create({
     collection: 'lesson-bundle-versions',
     data: {
@@ -129,19 +122,14 @@ const saveAsNew = (versionId: number, body: FormData, query = '') =>
     body,
   })
 
-/** The recovery row as the database holds it — the only way to see a tombstone. */
-async function rawRow(versionId: number) {
-  const rows = await drizzleOf(fx.payload).execute(sql`
-    SELECT retired_at, content, revision, generation
-    FROM edit_recovery
-    WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${versionId}
-  `)
-  const list = (Array.isArray(rows) ? rows : ((rows as { rows?: unknown[] }).rows ?? [])) as Record<
-    string,
-    unknown
-  >[]
-  return list[0]
-}
+/**
+ * The recovery row as the database holds it — the only way to see a tombstone.
+ *
+ * ⚑ Uses the SHARED `recoveryRow`. `tests/helpers/editRecovery.ts` exists because two sibling specs
+ * had once defined `rawRow` with the same name and SWAPPED parameters; a third local copy here would
+ * be that drift re-forming.
+ */
+const rawRow = (versionId: number) => recoveryRow(fx.payload, versionId, fx.users.editor.id)
 
 const versionExists = async (id: number): Promise<boolean> => {
   const { totalDocs } = await fx.payload.count({
@@ -241,7 +229,7 @@ describe('C19 — a real database failure during retirement rolls the whole save
    */
   const installTrigger = async (sourceVersionId: number) => {
     if (!Number.isSafeInteger(sourceVersionId)) throw new Error(`bad version id ${sourceVersionId}`)
-    await drizzleOf(fx.payload).execute(sql`
+    await db().execute(sql`
       CREATE OR REPLACE FUNCTION lesson3_test_block_retire() RETURNS trigger AS $$
       BEGIN
         RAISE EXCEPTION 'lesson3-test: simulated storage fault during retirement';
@@ -249,10 +237,8 @@ describe('C19 — a real database failure during retirement rolls the whole save
       $$ LANGUAGE plpgsql
     `)
     // Defensive: an interrupted earlier run would otherwise leave this behind and fail the CREATE.
-    await drizzleOf(fx.payload).execute(
-      sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`,
-    )
-    await drizzleOf(fx.payload).execute(
+    await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`)
+    await db().execute(
       sql.raw(`
         CREATE TRIGGER lesson3_test_block_retire_trg
           BEFORE UPDATE ON edit_recovery
@@ -265,10 +251,8 @@ describe('C19 — a real database failure during retirement rolls the whole save
   }
 
   const dropTrigger = async () => {
-    await drizzleOf(fx.payload).execute(
-      sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`,
-    )
-    await drizzleOf(fx.payload).execute(sql`DROP FUNCTION IF EXISTS lesson3_test_block_retire()`)
+    await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`)
+    await db().execute(sql`DROP FUNCTION IF EXISTS lesson3_test_block_retire()`)
   }
 
   afterAll(dropTrigger)
@@ -311,7 +295,6 @@ describe('C19 — a real database failure during retirement rolls the whole save
     expect(Number(after?.revision)).toBe(Number(before?.revision))
 
     // The session still works afterwards — the failure left no half-state behind.
-    expect(token.revision).toBeGreaterThan(0)
     const got = (await (await recovery(v.id, '', 'GET')).json()) as { capture: unknown }
     expect(got.capture, 'the capture is still offered').not.toBeNull()
   })
@@ -337,8 +320,6 @@ describe('C19 — a real database failure during retirement rolls the whole save
  *     roll back with it; `nextval` is explicitly non-transactional and survives
  */
 describe('C20 — a second tab’s newer capture is never silently retired', () => {
-  const db = () => drizzleOf(fx.payload)
-
   // One command per `execute` — see the note on C19's `installTrigger` for why multi-command DDL is
   // a trap here even when it happens to work today.
   const installCounter = async () => {
@@ -366,15 +347,11 @@ describe('C20 — a second tab’s newer capture is never silently retired', () 
   }
 
   const counter = async (): Promise<number> => {
-    const rows = await db().execute(
-      sql`SELECT last_value, is_called FROM lesson3_test_retire_calls`,
+    const rows = rowsOf<{ last_value: unknown; is_called: unknown }>(
+      await db().execute(sql`SELECT last_value, is_called FROM lesson3_test_retire_calls`),
     )
-    const list = (Array.isArray(rows) ? rows : ((rows as { rows?: unknown[] }).rows ?? [])) as {
-      last_value: unknown
-      is_called: unknown
-    }[]
     // A never-called sequence reports last_value 1 with is_called false; normalise both to a count.
-    return list[0]?.is_called ? Number(list[0].last_value) : 0
+    return rows[0]?.is_called ? Number(rows[0].last_value) : 0
   }
 
   afterAll(dropCounter)

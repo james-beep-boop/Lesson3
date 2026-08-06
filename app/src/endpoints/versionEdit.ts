@@ -124,11 +124,21 @@ export const saveAsNewEndpoint: Endpoint = {
     // parser — this is an authenticated endpoint accepting large nested content. The form is returned
     // alongside the candidate because `req.formData()` is single-consumption and the edit-recovery
     // token is a separate field on it (see `readSaveRecoveryToken`).
-    const { candidate: edited, form } = await parsePreviewForm(req)
+    //
+    // ⚑ `parsed` is released immediately. The `FormData` holds the raw `data` string — up to
+    // `MAX_PREVIEW_JSON_BYTES` (4 MB) — and a binding in this async scope stays reachable across
+    // EVERY await below: the field split, both canonicalisations, the transaction, the create, the
+    // retire, the delete, the commit, and up to five retry attempts. Before this endpoint needed the
+    // form, that string died when `parsePreviewCandidate` returned. Nulling the reference restores
+    // that, and costs one line.
+    let parsed: { candidate: Record<string, unknown>; form: FormData } | null =
+      await parsePreviewForm(req)
+    const edited = parsed.candidate
 
     // OPTIONAL (design §8 / the PR-1 contract): no token ⇒ the pre-existing save behaviour, retiring
     // nothing. Both fields ⇒ retirement is mandatory below. Exactly one ⇒ 400, thrown in here.
-    const recoveryToken = readSaveRecoveryToken(form)
+    const recoveryToken = readSaveRecoveryToken(parsed.form)
+    parsed = null
 
     // Stale-source guard (mandatory): the submitted base `updatedAt` must be present, valid, and MATCH
     // the source's current value. A missing/garbage base is rejected (400) rather than silently skipped —
@@ -267,9 +277,11 @@ export const saveAsNewEndpoint: Endpoint = {
           sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
           sourceIsOfficial,
           sourceDeleted,
-          // Present only when a token was sent. The client must adopt it (§4's token rule) rather
-          // than keep the pair it sent, which this write has just superseded.
-          ...(retirementToken ? { recoveryToken: retirementToken } : {}),
+          // Present only when a token was sent — `json` is `JSON.stringify`, which omits an
+          // `undefined` value, so the no-token response is byte-identical to what it was before.
+          // The client must ADOPT this token (§4's token rule) rather than keep the pair it sent,
+          // which this write has just superseded.
+          recoveryToken: retirementToken,
         })
       } catch (e) {
         await killTransaction(req)

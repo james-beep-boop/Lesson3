@@ -212,19 +212,14 @@ and expiry on 2026-08-06.
      retirement statement runs **exactly once**, counted directly (see below)
    - **`deleteSource=true`** — retirement happens BEFORE the source cascade removes the row
 
-   ⚑ **How case 20 proves "not retried", and why the obvious version of that test is worthless.**
-   The token is fixed at request time, so every retry re-runs the SAME failing precondition and
-   leaves identical evidence — a test asserting only "409 + capture survived" passes a loop that
-   retried five times. It is verified by MUTATION: making the conflict retryable leaves all five
-   other assertions green and fails only the count. Counting needs two tricks, both forced: a
-   STATEMENT-level trigger (a failed retirement matches zero rows, so a row-level trigger never
-   fires) and a SEQUENCE as the counter (`nextval` is non-transactional and survives the rollback
-   that discards everything else).
+   ⚑ **Case 20 counts retirement STATEMENTS rather than inferring "not retried" from the outcome** —
+   the obvious version of that test passes a loop that retried five times. Why, and the two tricks
+   the counting needs: DECISIONS 2026-08-06 (save-as-new retirement, i).
 
-   ⚑ **`tests/http` now runs `fileParallelism: false`.** Every spec in that suite seeds into the ONE
-   database the running app serves, so parallel files race shared state — case 19's fault trigger
-   fired inside `recovery.http.spec.ts`'s discard test from another worker, failing an unrelated spec
-   only in full runs. The trigger is also scoped to its own row now; both fixes are independent.
+   ⚑ **`tests/http` now runs `fileParallelism: false`**, matching the int suite and Playwright. The
+   binding reason is the namespace-wide fixture purge, not this feature's triggers: DECISIONS
+   2026-08-06 (save-as-new retirement, ii), and `tests/helpers/fixtures.ts` on `MARK`, which is the
+   authority.
 
 ## The migration gate — all four steps, in order
 

@@ -11,7 +11,7 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-06 (later still) — a mutation that does not build is a FALSE PASS, not a passing test
+## 2026-08-06 (save-as-new retirement, i) — a mutation that does not build is a FALSE PASS
 
 **The incident.** Verifying the new save-as-new retirement guards, two mutations were reverted and
 both "passed" — 6/6 green. Neither had been compiled. The mutation `if (false && recoveryToken)`
@@ -39,7 +39,7 @@ would have "covered" case 20 while being unable to detect the exact regression c
 
 ---
 
-## 2026-08-06 (later still) — one database, one app, therefore one test file at a time
+## 2026-08-06 (save-as-new retirement, ii) — one database, therefore one test file at a time
 
 **The defect.** `tests/http` had no `fileParallelism` setting, so vitest ran its files concurrently
 — against the single database the running app serves, which is the defining property of that suite.
@@ -66,7 +66,7 @@ value is bound. Split DDL one command per `execute`.
 
 ---
 
-## 2026-08-06 (later) — a fix commit that changes no test is an unpinned fix
+## 2026-08-06 (regression-coverage pass, i) — a fix commit that changes no test is an unpinned fix
 
 **The correction.** `206252a` fixed four defects, two of them data-destroying, and touched exactly
 three production files and zero tests. Every one of the four was real and correctly fixed; not one was
@@ -108,7 +108,7 @@ evidence that the band means anything.
 
 ---
 
-## 2026-08-06 (later) — rate limiting bounds frequency, not per-request memory
+## 2026-08-06 (regression-coverage pass, ii) — rate limiting bounds frequency, not per-request memory
 
 **The gap.** `endpoints/recovery.ts` called `req.json()` with no size guard. The 512 KB
 `MAX_CAPTURE_BYTES` cap runs in the kernel, *after* the body is parsed, and the `recovery` rate-limit

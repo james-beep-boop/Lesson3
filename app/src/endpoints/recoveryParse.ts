@@ -1,9 +1,19 @@
 /**
- * Edit-recovery request-body parsing and validation — split out of `recovery.ts` for the same reason
- * `previewParse.ts` was split out of `previewShared.ts`: these guards are pure HTTP semantics, and
- * keeping them free of the access/kernel/payload-types chain lets them be unit tested in the DB-free
- * unit environment rather than only over the wire. `recovery.ts` re-exports nothing — it imports these
- * directly — so there is one definition, not two.
+ * Edit-recovery WIRE semantics — every guard that turns an untrusted request into a value the
+ * recovery kernel may act on, wherever that request arrives.
+ *
+ * ⚑ **Two endpoints, deliberately one module.** `recovery.ts` sends JSON bodies here; `versionEdit.ts`
+ * sends `save-as-new`'s MULTIPART recovery token here. An earlier version of this docblock described
+ * the file as "split out of `recovery.ts`", which stopped being true the moment `readSaveRecoveryToken`
+ * landed and left a reader following the import from `versionEdit.ts` in a file that claimed to be
+ * about a different endpoint. The grouping that matters is the vocabulary — generations, revisions and
+ * the rules for coercing them — not which handler happens to receive it. Both alternatives are worse:
+ * moving the token reader into `lib/editRecovery/` drags HTTP status codes into the kernel, and
+ * inlining it in `versionEdit.ts` orphans it from `requireCounter` and from the unit environment.
+ *
+ * Split out for the same reason `previewParse.ts` was split from `previewShared.ts`: these guards are
+ * pure HTTP semantics, and keeping them free of the access/kernel/payload-types chain lets them be
+ * unit tested in the DB-free unit environment rather than only over the wire.
  *
  * Depends only on `APIError`/`PayloadRequest`.
  */
@@ -123,13 +133,11 @@ export function readSaveRecoveryToken(form: FormData): SaveRecoveryToken {
   const rawGeneration = form.get(RECOVERY_GENERATION_FIELD)
   const rawRevision = form.get(RECOVERY_EXPECTED_REVISION_FIELD)
 
-  // `null` is "field absent"; an empty string is a client that sent the field with nothing in it,
-  // which is the same broken-client signal as omitting one half and must not read as absent.
-  const hasGeneration = rawGeneration !== null
-  const hasRevision = rawRevision !== null
-  if (!hasGeneration && !hasRevision) return null
-
-  if (hasGeneration !== hasRevision) {
+  // ⚑ `null` means the field is ABSENT. An empty string does not — that is a client that sent the
+  // field carrying nothing, which is the same broken-client signal as omitting one half, and it must
+  // fall through to `requireCounter` rather than read as "no token".
+  if (rawGeneration === null && rawRevision === null) return null
+  if (rawGeneration === null || rawRevision === null) {
     throw new APIError(
       `A recovery token needs BOTH \`${RECOVERY_GENERATION_FIELD}\` and \`${RECOVERY_EXPECTED_REVISION_FIELD}\`, or neither.`,
       400,
