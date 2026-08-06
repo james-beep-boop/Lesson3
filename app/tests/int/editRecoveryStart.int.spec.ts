@@ -49,7 +49,7 @@ const makeVersion = (semver: string) =>
     semver,
   })
 
-const startFor = (userId: number, versionId: number, schemaVersion = 'sv-1') =>
+const startFor = (versionId: number, schemaVersion = 'sv-1', userId = fx.users.editor.id) =>
   start(poolReq(), {
     userId,
     sourceVersionId: versionId,
@@ -58,18 +58,21 @@ const startFor = (userId: number, versionId: number, schemaVersion = 'sv-1') =>
     schemaVersion,
   })
 
-const rawRow = (userId: number, versionId: number) => recoveryRow(fx.payload, versionId, userId)
-const countRows = (userId: number, versionId: number) =>
+// (versionId, userId) throughout, matching the capture spec — these two files previously used the
+// SAME names with SWAPPED parameters, which is a trap for anyone reading one of them first.
+const rawRow = (versionId: number, userId = fx.users.editor.id) =>
+  recoveryRow(fx.payload, versionId, userId)
+const countRows = (versionId: number, userId = fx.users.editor.id) =>
   countRecoveryRows(fx.payload, versionId, userId)
 
 describe('start: first call', () => {
   it('inserts one active row at generation 1, revision 1, with the caller-derived baseline', async () => {
     const v = await makeVersion('1.0.201')
-    const token = await startFor(fx.users.editor.id, v.id)
+    const token = await startFor(v.id)
     expect(token).toMatchObject({ generation: 1, revision: 1 })
     expect(typeof token.updatedAt).toBe('string')
 
-    const row = await rawRow(fx.users.editor.id, v.id)
+    const row = await rawRow(v.id)
     expect(row?.retired_at).toBeNull()
     expect(row?.schema_version).toBe('sv-1')
     // Derived server-side from the source, never from the client.
@@ -80,11 +83,11 @@ describe('start: first call', () => {
 describe('start: resume is a total no-op (§4 governing rule)', () => {
   it('returns the same generation, revision AND updated_at on an active row', async () => {
     const v = await makeVersion('1.0.202')
-    const first = await startFor(fx.users.editor.id, v.id)
-    const before = await rawRow(fx.users.editor.id, v.id)
+    const first = await startFor(v.id)
+    const before = await rawRow(v.id)
 
-    const second = await startFor(fx.users.editor.id, v.id, 'sv-DIFFERENT')
-    const after = await rawRow(fx.users.editor.id, v.id)
+    const second = await startFor(v.id, 'sv-DIFFERENT')
+    const after = await rawRow(v.id)
 
     expect(second).toEqual(first)
     // Nothing was written: not the revision, not the TTL clock, not the baseline metadata. A resume
@@ -93,7 +96,7 @@ describe('start: resume is a total no-op (§4 governing rule)', () => {
     expect(after?.updated_at).toEqual(before?.updated_at)
     expect(after?.schema_version).toBe('sv-1')
     expect(after?.base_updated_at).toEqual(before?.base_updated_at)
-    expect(await countRows(fx.users.editor.id, v.id)).toBe(1)
+    expect(await countRows(v.id)).toBe(1)
   })
 })
 
@@ -107,7 +110,7 @@ describe('start: reactivation establishes a fresh session defensively', () => {
    */
   it('clears content when reactivating, even from a marker that wrongly still has some', async () => {
     const v = await makeVersion('1.0.205')
-    await startFor(fx.users.editor.id, v.id)
+    await startFor(v.id)
     await retireDirectly(fx.payload, v.id, fx.users.editor.id)
 
     // Malformed on purpose: retired, but content left behind. Fixture SQL goes through the shared
@@ -116,25 +119,25 @@ describe('start: reactivation establishes a fresh session defensively', () => {
     await setRecoveryContent(fx.payload, v.id, fx.users.editor.id, {
       'lesson:1': { title: 'STALE' },
     })
-    expect((await rawRow(fx.users.editor.id, v.id))?.content).not.toBeNull()
+    expect((await rawRow(v.id))?.content).not.toBeNull()
 
-    await startFor(fx.users.editor.id, v.id, 'sv-3')
+    await startFor(v.id, 'sv-3')
 
-    const row = await rawRow(fx.users.editor.id, v.id)
+    const row = await rawRow(v.id)
     expect(row?.retired_at).toBeNull()
     expect(row?.content, 'a reactivated session must not inherit content').toBeNull()
   })
 
   it('preserves content on RESUME, because resume is a no-op', async () => {
     const v = await makeVersion('1.0.206')
-    const t0 = await startFor(fx.users.editor.id, v.id)
+    const t0 = await startFor(v.id)
     await setRecoveryContent(fx.payload, v.id, fx.users.editor.id, {
       'lesson:1': { title: 'live work' },
     })
 
-    const again = await startFor(fx.users.editor.id, v.id)
+    const again = await startFor(v.id)
     expect(again).toEqual(t0)
-    const row = await rawRow(fx.users.editor.id, v.id)
+    const row = await rawRow(v.id)
     expect((row?.content as Record<string, Record<string, string>>)['lesson:1'].title).toBe(
       'live work',
     )
@@ -153,7 +156,7 @@ describe('start: the token matches the stored instant exactly', () => {
    */
   it('reports a pinned sub-second updated_at exactly', async () => {
     const v = await makeVersion('1.0.207')
-    await startFor(fx.users.editor.id, v.id)
+    await startFor(v.id)
 
     // Pinned rather than compared against `NOW()`: `NOW()` lands on `.000` roughly once in a
     // thousand runs, so comparing two values that were both produced by it proves nothing about
@@ -162,7 +165,7 @@ describe('start: the token matches the stored instant exactly', () => {
     await setRecoveryUpdatedAt(fx.payload, v.id, fx.users.editor.id, PINNED)
 
     // Resume is a no-op, so it reports the pinned instant rather than writing a new one.
-    const token = await startFor(fx.users.editor.id, v.id)
+    const token = await startFor(v.id)
     expect(token.updatedAt).toBe(PINNED)
   })
 })
@@ -170,19 +173,16 @@ describe('start: the token matches the stored instant exactly', () => {
 describe('start: case 21 — two simultaneous FIRST starts', () => {
   it('creates one row, hands both callers the SAME token, and neither errors on the unique index', async () => {
     const v = await makeVersion('1.0.203')
-    const [a, b] = await Promise.all([
-      startFor(fx.users.editor.id, v.id),
-      startFor(fx.users.editor.id, v.id),
-    ])
+    const [a, b] = await Promise.all([startFor(v.id), startFor(v.id)])
 
-    expect(await countRows(fx.users.editor.id, v.id)).toBe(1)
+    expect(await countRows(v.id)).toBe(1)
     // Identical, not merely both-present. The loser must read exactly the winner's values — a token
     // that had already moved on would make its holder's first capture 409 against a conflict it
     // caused itself, which is the bug the unconditional revision bump produced ((1,1) and (1,2)).
     expect(a).toEqual(b)
     expect(a).toMatchObject({ generation: 1, revision: 1 })
 
-    const row = await rawRow(fx.users.editor.id, v.id)
+    const row = await rawRow(v.id)
     expect(row?.retired_at).toBeNull()
   })
 })
@@ -190,7 +190,7 @@ describe('start: case 21 — two simultaneous FIRST starts', () => {
 describe('start: case 22 — two simultaneous starts against a RETIRED row', () => {
   it('advances the generation EXACTLY once and hands both callers the same advanced pair', async () => {
     const v = await makeVersion('1.0.204')
-    const first = await startFor(fx.users.editor.id, v.id)
+    const first = await startFor(v.id)
     expect(first).toMatchObject({ generation: 1, revision: 1 })
 
     await retireDirectly(fx.payload, v.id, fx.users.editor.id)
@@ -198,16 +198,13 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     // against an unaged row admits equality, and `updated_at = NOW()` could be deleted from the
     // reactivation branch with this test still green.
     await ageRecoveryRow(fx.payload, v.id, fx.users.editor.id, 60)
-    const retired = await rawRow(fx.users.editor.id, v.id)
+    const retired = await rawRow(v.id)
     expect(retired?.retired_at).not.toBeNull()
     const retiredRevision = Number(retired?.revision)
 
-    const [a, b] = await Promise.all([
-      startFor(fx.users.editor.id, v.id, 'sv-2'),
-      startFor(fx.users.editor.id, v.id, 'sv-2'),
-    ])
+    const [a, b] = await Promise.all([startFor(v.id, 'sv-2'), startFor(v.id, 'sv-2')])
 
-    expect(await countRows(fx.users.editor.id, v.id)).toBe(1)
+    expect(await countRows(v.id)).toBe(1)
     expect(a).toEqual(b)
     // Exactly once: the second caller takes the now-ACTIVE branch, because ON CONFLICT DO UPDATE
     // re-evaluates against the newly committed row. Advancing twice would fence out the tab that just
@@ -215,7 +212,7 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     expect(a.generation).toBe(2)
     expect(a.revision).toBe(retiredRevision + 1)
 
-    const row = await rawRow(fx.users.editor.id, v.id)
+    const row = await rawRow(v.id)
     expect(row?.retired_at).toBeNull()
     // A reactivated session needs its OWN baseline and shape, or it compares staleness against the
     // retired session's and restores under a field shape that may have changed.

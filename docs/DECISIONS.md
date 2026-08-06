@@ -5,13 +5,13 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 - **SPEC.md** remains canonical for *architecture and domain rules*. This file is for
   build-time decisions and corrections that don't rise to the level of spec changes.
-- **Newest entries on top.** Each entry: date, one-line title, then the decision/lesson
+- **Newest entries on top.** (No `(latest)` marker — it dates itself the moment another entry lands.) Each entry: date, one-line title, then the decision/lesson
   and the reasoning. When a correction teaches a general rule, capture the rule, not just
   the incident.
 
 ---
 
-## 2026-08-06 (latest) — retirement advances the revision, NOT the generation (SPEC amendment)
+## 2026-08-06 — retirement advances the revision, NOT the generation (SPEC amendment)
 
 **The contradiction:** SPEC §5 and `DESIGN-working-drafts.md` §4 both said retirement "advances
 revision/generation". The `start` statement in the same design already advances the generation on

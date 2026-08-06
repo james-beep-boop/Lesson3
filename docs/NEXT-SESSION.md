@@ -93,6 +93,23 @@ secret-free-to-publish, so **ask the operator**:
      transaction-ROLLBACK test proving a retirement inside a failed save-as-new leaves the capture
      intact.
 
+   ⚑ **CI CANNOT CATCH A MISSING MIGRATION — do not read a green gate as schema safety.** `test:http`
+   deliberately loads no `vitest.setup.ts`, so it seeds via the Local API into the SAME database the
+   running app serves (`lesson3`, migrate-mode). CI's synthetic `.env` omits `NODE_ENV`, so that Local
+   Payload is NOT in production mode and runs Payload's dev schema **push** — silently creating any
+   table the migrations forgot, before the destructive tests touch it. That is exactly why the gate was
+   green at `6846a3c` on a branch whose registered collection has no migration. Demonstrated: with
+   `edit_recovery` renamed away, a version delete fails with
+   `Failed query: select count(*) from "edit_recovery" …`, breaking save-as-new `deleteSource`,
+   make-official `deletePrevious`, plan deletion and user deletion.
+
+   **The final PR-1 gate therefore requires, in this order:** (1) generate the settled migration;
+   (2) apply it to a COMPLETELY FRESH migration-only database — never the push-contaminated probe,
+   whose `lesson3` already has the table from a push-mode run; (3) exercise deletion, save-as-new and
+   make-official there BEFORE any non-production Payload process can touch it; (4) stop `test:http`
+   from pushing at all, by running its Local fixture in production mode or disabling adapter push
+   explicitly — otherwise this blind spot silently returns for the next collection.
+
    ⚑ **`endpoints/userAssignments.ts` has a fail-OPEN copy of the transaction lookup** (~line 81).
    `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
    session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
@@ -149,8 +166,9 @@ carrying into the next PR:
 - **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
   written 40 lines below it and passed inspection twice, because each reading checked it against its own
   adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
-  those 30 cases are executed yet** — the doc says so explicitly, and it should keep saying so until they
-  are.
+  those 30 cases were executed when this was written; cases 15, 17-18 and 21-22 are now implemented and
+  passing on the unmerged `feat/edit-recovery-server` branch** — the design doc's §7 carries the current
+  status, and it should keep being updated as cases land rather than restated from memory here.
 
 Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
 claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a

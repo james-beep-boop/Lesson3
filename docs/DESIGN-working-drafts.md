@@ -397,7 +397,10 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-**None of these are executed yet — the implementation does not exist.** This is the acceptance matrix
+**Status, as of 2026-08-06 (branch `feat/edit-recovery-server`, NOT merged).** Cases **15, 17-18 and
+21-22 are implemented and passing on that branch**; every other case is still unexecuted because the
+code it covers does not exist. Update this line when that changes — a matrix that claims less coverage
+than it has trains readers to ignore it, and one that claims more is worse. This is the acceptance matrix
 the two PRs in §8 must satisfy, not a report.
 
 Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
@@ -484,11 +487,37 @@ type RetireCommand =
   | { by: 'expiry'; expectedRevision: number; cutoff: Date }
 ```
 
-With optional fields on a single shape, `cutoff` can be forgotten and expiry silently retires an
-active session; `save-as-new` can run without a transaction and commit a retirement independently of
-the save that rolled back. Both are the failures this whole feature exists to prevent, and both become
-type errors under a union. `requireTransaction: true` is not a caller-supplied flag — it is implied by
-`by: 'save-as-new'`, so it cannot be omitted at a call site.
+With optional fields on a single shape, `cutoff` can be forgotten and expiry silently retires an active
+session — that one genuinely becomes a **type error** under the union, because `cutoff` is required by
+the `expiry` variant.
+
+⚑ **The transaction requirement is NOT a compile-time guarantee, and saying otherwise would be the
+false-assurance failure this document keeps recording.** A discriminated union constrains the FIELDS of
+the command; it cannot constrain the `req` passed alongside it. `by: 'save-as-new'` selects
+`requireTransaction: true` internally, so no call site can forget the flag — but a caller handing over a
+transaction-less `req` is caught at RUNTIME by `txDb`'s fail-closed throw, not by `tsc`.
+
+Two ways to close that if it is worth closing, decided when retirement is written rather than assumed
+now: give `retire` an overload whose `save-as-new` signature demands a branded transaction-bearing
+request type, or accept runtime enforcement and pin it with the rollback test (case 19), which has to
+exist regardless. The second is probably right — a brand is only as honest as the one place that mints
+it — but the choice should be explicit.
+
+**The per-user ACTIVE-CAPTURE CAP (~20, SPEC §5) belongs in `start`**, by the same argument that puts
+the byte cap in `capture`: `start` is the only path that inserts a row, so it is the storage boundary
+for row COUNT exactly as `capture` is for row SIZE, and an approximate check folds into its existing
+single statement. Its acceptance cases, written before the code so they cannot be back-fitted to it:
+
+| | Case | Expected |
+|---|---|---|
+| C1 | resume an ALREADY-ACTIVE row while at capacity | **succeeds** — resume is a no-op and must never be blocked, or a teacher at the cap cannot reopen work they already have |
+| C2 | `start` a NEW pair while at capacity | rejected |
+| C3 | reactivate a RETIRED row while at capacity | rejected — reactivation creates an active session, so it counts |
+| C4 | two concurrent starts at capacity−1 | overshoot to 21 is ACCEPTABLE (§5 says approximate); what must not happen is an unbounded run |
+| C5 | retire one, then `start` a new pair | succeeds — retired rows are tombstones and must not count toward the cap |
+
+C1 and C5 are the ones that make the cap safe to ship: a cap that blocks resume, or that counts
+tombstones, locks a prolific editor out of their own work.
 
 ⚑ **Cases 19-20 cannot be retirement unit tests.** They are about save-as-new: 19 is "retirement fails
 during save-as-new ⇒ the WHOLE save rolls back, no orphan version", and 20 is a concurrent save plus a

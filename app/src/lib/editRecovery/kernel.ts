@@ -14,14 +14,14 @@
  * rolled back, which is exactly the work-destroying outcome this feature exists to prevent.
  *
  * `generation` and `revision` are `numeric` columns, so every value read back goes through `toInt`
- * (`toPositiveInt`, same module): node-postgres returns `numeric` as a STRING, and an unnormalised `revision` would
+ * (`toPositiveInt` from `lib/txDb.ts`): node-postgres returns `numeric` as a STRING, and an unnormalised `revision` would
  * compare `'2' !== 2` in a CAS precondition and 409 against itself.
  */
 import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import { rowsOf, toPositiveInt, txDb } from '../txDb'
-import { projectCapture } from './projection'
+import { projectCapture, type CaptureMap, type ProseValue } from './projection'
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
 export type RecoveryToken = {
@@ -187,6 +187,36 @@ export type CaptureResult =
  * `rubric`, answer keys or arbitrary JSON reach the column. A boundary that depends on every caller
  * remembering is not a boundary; the projection is therefore not skippable from here.
  */
+/**
+ * Lone surrogates, replaced with U+FFFD before serialisation.
+ *
+ * ⚑ Postgres `jsonb` REJECTS an unpaired surrogate — `'"\ud800"'::jsonb` fails with "Unicode low
+ * surrogate must follow a high surrogate" — so a capture containing one made this function THROW
+ * instead of returning a `CaptureResult`, breaking the union's promise that every outcome is a value.
+ * A browser can produce one easily: a paste, or a `substring` that splits an emoji, leaves half a
+ * surrogate pair in a textarea.
+ *
+ * ⚑ It must be done BEFORE `JSON.stringify`, not after. By then the surrogate has become the six
+ * ASCII characters `\ud800` inside the JSON text, where no string sanitiser can distinguish it from
+ * a user who legitimately typed that escape — and Postgres will still reject it on parse.
+ *
+ * Replaced rather than rejected: this is a RECOVERY feature, and losing an entire capture over one
+ * unrenderable code unit is the wrong trade. U+FFFD is what every text pipeline already substitutes.
+ */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
+
+const sanitiseCapture = (map: CaptureMap): CaptureMap => {
+  const out: CaptureMap = {}
+  for (const [key, leaves] of Object.entries(map)) {
+    const clean: Record<string, ProseValue> = {}
+    for (const [field, value] of Object.entries(leaves)) {
+      clean[field] = typeof value === 'string' ? value.replace(LONE_SURROGATE, '\uFFFD') : value
+    }
+    out[key] = clean
+  }
+  return out
+}
+
 export const capture = async (
   req: PayloadRequest,
   args: {
@@ -201,7 +231,9 @@ export const capture = async (
     formDocument: unknown
   },
 ): Promise<CaptureResult> => {
-  const projected = projectCapture(args.formDocument as Record<string, unknown> | null)
+  const projected = sanitiseCapture(
+    projectCapture(args.formDocument as Record<string, unknown> | null),
+  )
   const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')
   if (bytes > MAX_CAPTURE_BYTES) return { ok: false, reason: 'too-large', bytes }

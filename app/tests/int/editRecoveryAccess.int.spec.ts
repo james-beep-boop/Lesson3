@@ -16,7 +16,7 @@
  */
 import { beforeAll, afterAll, describe, expect, it, onTestFinished } from 'vitest'
 
-import { NotFound, type Where } from 'payload'
+import { Forbidden, NotFound, type Where } from 'payload'
 
 import {
   MARK,
@@ -126,6 +126,10 @@ describe('edit-recovery: the collection exists and stores a capture (system path
     // The compound unique index is what gives `start` its conflict target. It does NOT enforce
     // "capture never inserts" — that is the update-only SQL's job — but a SECOND row for the same
     // pair must be impossible, or a retirement marker could be sidestepped by inserting beside it.
+    // NOT `Forbidden`: this rejection comes from the DATABASE (unique violation), not from access
+    // control — the seed runs with `overrideAccess: true`. Asserting the wrong error class here would
+    // pass only by accident, and would hide the difference between "the index stopped it" and
+    // "access stopped it", which are the two things this file is separately about.
     await expect(seedRecovery(fx.users.editor.id, wc.id, fx.plan.id)).rejects.toThrow()
 
     // A different user against the same source is a different pair, and is allowed.
@@ -149,7 +153,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
           overrideAccess: false,
           user,
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow(Forbidden)
 
       // ...and neither may a LIST query, which is the shape that would quietly succeed if `read`
       // returned a query constraint rather than a hard `false`.
@@ -168,7 +172,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
           pagination: false,
         }),
         `${role} must not list recovery rows`,
-      ).rejects.toThrow()
+      ).rejects.toThrow(Forbidden)
     }
   })
 
@@ -191,7 +195,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
           user: fx.users[role],
         }),
         `${role} must not create a recovery row`,
-      ).rejects.toThrow()
+      ).rejects.toThrow(Forbidden)
     }
     expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(0)
   })
@@ -210,7 +214,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
           user: fx.users[role],
         }),
         `${role} must not update a recovery row`,
-      ).rejects.toThrow()
+      ).rejects.toThrow(Forbidden)
     }
 
     const after = await fx.payload.findByID({
@@ -234,7 +238,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
           user: fx.users[role],
         }),
         `${role} must not delete a recovery row`,
-      ).rejects.toThrow()
+      ).rejects.toThrow(Forbidden)
     }
 
     expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(1)
@@ -261,7 +265,7 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
   it('case 18 — deleting the USER removes their recovery rows, and only theirs', async () => {
     const wc = await makeWorkingCopy('1.0.107')
     const doomed = await createUserVerified(fx.payload, {
-      email: `${MARK}doomed@example.test`.toLowerCase(),
+      email: `${MARK}doomed@example.com`.toLowerCase(),
       name: `${MARK}Doomed`,
       password: 'test1234',
     })

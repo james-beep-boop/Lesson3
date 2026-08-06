@@ -301,6 +301,44 @@ describe('capture: an unresolvable transaction is refused, not downgraded to the
   })
 })
 
+describe('capture: malformed Unicode cannot break the contract', () => {
+  /**
+   * Postgres `jsonb` REJECTS an unpaired surrogate ("Unicode low surrogate must follow a high
+   * surrogate"), so before this was handled `capture` THREW on such input instead of returning a
+   * `CaptureResult` — the union promises every outcome is a value, and a throw is not one. A browser
+   * produces these easily: a paste, or a substring that splits an emoji, leaves half a pair behind.
+   *
+   * Sanitising has to happen BEFORE `JSON.stringify`. Afterwards the surrogate is the six ASCII
+   * characters `\ud800` inside the JSON text, indistinguishable from a user who typed that escape —
+   * and Postgres still rejects it on parse. A "sanitise the serialised JSON" fix would not work.
+   */
+  it('stores a capture containing a lone surrogate, replacing it rather than throwing', async () => {
+    const v = await makeVersion('1.0.311')
+    const t0 = await startFor(v.id)
+
+    const res = await captureFor(v.id, t0.generation, t0.revision, formDoc('before \uD800 after'))
+    // A VALUE, not a throw — that is the contract under test.
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+
+    const stored = (await rawRow(v.id))?.content as Record<string, Record<string, string>>
+    // The surrounding prose survives; only the unpaired half is replaced.
+    expect(stored['lesson:L1'].title).toBe('before \uFFFD after')
+  })
+
+  it('leaves a WELL-FORMED surrogate pair intact', async () => {
+    const v = await makeVersion('1.0.312')
+    const t0 = await startFor(v.id)
+    // A valid pair is two code units that together form one emoji; the sanitiser must not touch it,
+    // or every emoji in a teacher's prose would be corrupted on capture.
+    const res = await captureFor(v.id, t0.generation, t0.revision, formDoc('grin \u{1F600} ok'))
+    expect(res.ok).toBe(true)
+
+    const stored = (await rawRow(v.id))?.content as Record<string, Record<string, string>>
+    expect(stored['lesson:L1'].title).toBe('grin \u{1F600} ok')
+  })
+})
+
 describe('capture: the hard byte ceiling', () => {
   it('refuses an oversized capture without touching the row, and says so distinctly', async () => {
     const v = await makeVersion('1.0.307')
