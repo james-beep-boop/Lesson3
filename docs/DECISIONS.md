@@ -11,7 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-08-05 (latest) — edit recovery: the migration is generated AFTER the kernel, not before
+## 2026-08-06 (latest) — retirement advances the revision, NOT the generation (SPEC amendment)
+
+**The contradiction:** SPEC §5 and `DESIGN-working-drafts.md` §4 both said retirement "advances
+revision/generation". The `start` statement in the same design already advances the generation on
+REACTIVATION — so implementing the normative text literally would have advanced it twice per
+retire-then-reactivate cycle. §7 case 22, already shipped and passing, asserts a SINGLE advance across
+exactly that cycle, so the code and the spec were going to contradict each other the moment retirement
+was written.
+
+**Resolved in favour of the implemented model, because it gives each counter one meaning:**
+
+- `revision` fences concurrent WRITES and advances on every write to the row, retirement included.
+- `generation` identifies the active editing SESSION and advances only when a new session BEGINS —
+  that is, at reactivation, inside `start`.
+
+Retirement ends a session without beginning one, so it leaves the generation alone. Advancing it in
+both places makes "which session am I in" unanswerable by comparison, because the counter moves for two
+different reasons.
+
+Concretely: retirement is `content := NULL`, `retiredAt := now`, `updatedAt := now`, `revision += 1`;
+reactivation is `retiredAt := NULL`, `content := NULL`, fresh `baseUpdatedAt`/`schemaVersion`/
+`updatedAt`, `generation += 1`, `revision += 1`.
+
+Amended: `SPEC.md` §5 (normative), `DESIGN-working-drafts.md` §4, and §7 matrix case 7, which still
+described save-as-new as advancing the generation.
+
+**Rule this reinforces:** *a counter that advances for two different reasons has two meanings, and the
+second one is always discovered late.* The sweep that found case 7 is the same practice this file keeps
+recording — after changing a rule, grep for every place that states it, rather than fixing only the
+lines a reviewer cited.
+
+**Also decided, before implementation:** retirement's four callers are a discriminated union rather
+than one shape with optional precondition fields. They agree on what they WRITE and differ only in what
+they must PROVE, and those proofs are not interchangeable — with optional fields, expiry can omit its
+cutoff and retire an active session, and save-as-new can run without a transaction and commit a
+retirement independently of a save that rolled back. Under a union both are type errors, and
+"needs a transaction" is implied by the variant rather than passed at each call site.
+
+---
+
+## 2026-08-05 — edit recovery: the migration is generated AFTER the kernel, not before
 
 **Decision:** in PR 1, build and DB-test the persistence kernel (`start`, capture CAS, retirement,
 expiry) against the disposable **push**-built schema first, and only then generate the migration. The

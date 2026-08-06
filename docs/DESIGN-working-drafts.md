@@ -284,8 +284,18 @@ against the newly committed row, which is what makes the second caller take the 
 see the first caller's result.
 
 **Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day expiry,
-Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances
-revision/generation. **None hard-delete.** Preconditions, all evaluated in the update:
+Site-Admin cleanup. It atomically clears `content`, sets `retiredAt` and `updatedAt`, and advances the
+**revision**. **None hard-delete.**
+
+⚑ **It does NOT advance the generation** (amended 2026-08-06; this paragraph previously said
+"revision/generation", contradicting the `start` statement above, which already advances the generation
+on reactivation). Each counter has one meaning: `revision` fences writes and moves on every write
+including this one; `generation` identifies the active editing SESSION and moves only when a new session
+BEGINS, which is reactivation's job. Advancing it in both places double-counts — one
+retire-then-reactivate cycle would move it by two — and §7 case 22 already asserts a single advance
+across exactly that cycle.
+
+Preconditions, all evaluated in the update:
 
 | Caller | Precondition |
 |---|---|
@@ -405,7 +415,7 @@ are not alternatives here.
 | 4 | Same user re-logs in | capture offered, not auto-applied; content exact |
 | 5 | **DIFFERENT user logs in on the same browser** | **sees nothing — no prompt, no content** |
 | 6 | Explicit logout while dirty | capture retained for that user; screen cleared |
-| 7 | Successful save-as-new | retired: content cleared, marker kept, generation advanced |
+| 7 | Successful save-as-new | retired: content cleared, marker kept, **revision** advanced (NOT the generation — that moves only when a new session begins) |
 | 8 | Explicit discard | the same retirement transition |
 | 9 | Stale source (`baseUpdatedAt` mismatch) | view/copy/discard only — **never applied**, same as a schema mismatch |
 | 10 | Capture from an older `schemaVersion` | not applied; view/discard only |
@@ -460,6 +470,33 @@ the build rather than discovered mid-PR.
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
 units, DB-backed wire-level and concurrency cases (15, 17–25, 28–30).
+
+**Retirement's four callers are a DISCRIMINATED UNION, not one options object with optional fields.**
+Decided 2026-08-06, before implementation. The callers do not differ in what they WRITE — that is the
+one shared `SET` — they differ in what they must PROVE first, and those preconditions are not
+interchangeable:
+
+```ts
+type RetireCommand =
+  | { by: 'save-as-new'; generation: number; expectedRevision: number }  // + a live transaction
+  | { by: 'discard';     generation: number; expectedRevision: number }
+  | { by: 'admin-cleanup'; expectedRevision: number }                    // revision from recovery/meta
+  | { by: 'expiry'; expectedRevision: number; cutoff: Date }
+```
+
+With optional fields on a single shape, `cutoff` can be forgotten and expiry silently retires an
+active session; `save-as-new` can run without a transaction and commit a retirement independently of
+the save that rolled back. Both are the failures this whole feature exists to prevent, and both become
+type errors under a union. `requireTransaction: true` is not a caller-supplied flag — it is implied by
+`by: 'save-as-new'`, so it cannot be omitted at a call site.
+
+⚑ **Cases 19-20 cannot be retirement unit tests.** They are about save-as-new: 19 is "retirement fails
+during save-as-new ⇒ the WHOLE save rolls back, no orphan version", and 20 is a concurrent save plus a
+second tab's capture. Neither says anything unless it runs through the real `endpoints/versionEdit.ts`
+transaction and its semver-retry loop — a mocked throw proves the mock. Case 19 in particular needs a
+REAL failing statement, not an injected exception, or it does not test the rollback path at all.
+Cases 23-25 are the opposite: they isolate the retirement statement's own guards and belong directly
+against the kernel.
 
 **PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
 clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.
