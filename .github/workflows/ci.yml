@@ -125,9 +125,29 @@ jobs:
             --env-file .env lesson3-deps npm run test:int
 
       - name: test:http (over the wire, hits the running app)
+        # ⚑ `-e NODE_ENV=production` is a SCHEMA-SAFETY control, not a performance setting, and it is
+        # the fix for the blind spot that made the edit-recovery migration's absence invisible.
+        #
+        # This step's fixtures seed through the LOCAL API into `lesson3` — the same database the
+        # running app serves, and the one the `migrate` service just migrated. The synthetic CI `.env`
+        # above sets no NODE_ENV, so without this line that Local Payload boots in development mode
+        # and runs Payload's dev schema PUSH, silently creating any table the migrations forgot before
+        # the tests touch it. A collection registered with no migration therefore went GREEN here
+        # while being undeployable to production, which runs migrate-mode. A green gate was not
+        # schema safety.
+        #
+        # In production mode push is off, so this step now proves the migration-only schema is
+        # sufficient for every wire path — including the version deletes that save-as-new
+        # `deleteSource` and make-official `deletePrevious` cascade through.
+        #
+        # ⚑ Do NOT "simplify" this by putting NODE_ENV in the synthetic .env. The `test:int` step
+        # above DEPENDS on dev-mode push to build `lesson3_test` from the model (its own comment
+        # explains why it is deliberately not pre-migrated), so a shared NODE_ENV would break it.
+        # The two steps want opposite things; that is why this is set per-step.
         run: |
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
-            --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
+            --env-file .env -e NODE_ENV=production -e E2E_BASE_URL=http://app:3000 \
+            lesson3-deps npm run test:http
 
       - name: test:e2e (BROWSER — role-scoped Manage UI, real Chromium)
         # Closes the L3-07 assurance gap: role-specific UI, admin customisations, retired-route

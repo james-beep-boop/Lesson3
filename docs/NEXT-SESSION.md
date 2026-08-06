@@ -40,6 +40,39 @@ git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server   # equ
 gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
 ```
 
+## ✅ The probe image: what it actually was (2026-08-06, RESOLVED)
+
+The symptom was "the standalone bundle is broken — every API route 500s with `ChunkLoadError`". That
+reading was wrong, and it sent two sessions after Turbopack and `output: 'standalone'`.
+
+**The real cause: an empty, untracked `app/app/` directory.** This project's App Router is at
+`src/app`. Next.js prefers a root-level `./app` over `./src/app` when both exist, so `next build`
+emitted a build with **zero application routes** — no `/login`, no `/api/[...slug]` — and exited 0.
+Every request then fell through to `_not-found`, whose chunk was genuinely missing, and the
+ChunkLoadError was the only thing anyone saw. Measured: the degraded build produced 0 `route.js`
+files; with `app/` removed the same commit builds every route and a complete standalone output.
+
+**How it got there, and why it was invisible:** the AGENTS.md probe recipe's
+`docker run -v "$PWD/app:/app" -v /app/node_modules …` run from inside `app/` instead of the repo root
+makes Docker CREATE `Lesson3/app/app/node_modules` on the host. Git cannot track an empty directory,
+so `git status` stayed clean, the Rock and CI never saw it, and only local image builds broke — the
+shape that reads as "works everywhere except here". Directory timestamp: 2026-08-05 14:26.
+
+**Guarded, not just cleaned:** `app/.dockerignore` now excludes `/app`, so an image build cannot be
+poisoned by it even if it reappears. ⚑ If this project ever genuinely moves its App Router to a
+root-level `app/`, that rule must be deleted or the same zero-route build returns with the cause
+hidden one layer deeper.
+
+**Two more traps found in the same session, both worth knowing:**
+
+- **`docker compose build app` does NOT rebuild `migrate`.** The `migrate` service builds the
+  `builder` target separately, so it ran a stale image and silently skipped the edit-recovery
+  migration while reporting "Done." Build both, or `docker compose -p … build` with no service.
+- **`payload migrate` HANGS on an interactive prompt against a push-contaminated database** — "you've
+  run Payload in dev mode… data loss will occur. Proceed? (y/N)" — with no TTY to answer it. The
+  container sits in `Up` forever and `app` never starts because it waits on the dependency. Drop and
+  recreate that database rather than waiting.
+
 ## ⛔ Why it is a DRAFT
 
 **The original reason is CLOSED: the migration now exists.** The reason it is still a draft is now
@@ -116,19 +149,30 @@ assertions red, all reverted. A guard never observed failing is a guess.
 and the migration — are **BUILT** and are described under "What is DONE" above. They were still listed
 here as unbuilt two commits after they landed; check this list against `git log`, not against memory.
 
-1. **The probe's app image is BROKEN, and it is the keystone.** Its standalone bundle 500s every API
-   route with `ChunkLoadError` before any recovery route is reached (reproduced with `--no-cache`).
-   That single defect is what blocks **the wire suite** (`tests/http` has never run against these
-   endpoints), **cases 19-20**, and **migration gate step 4** — three items that look independent and
-   are not. Fix this first; the other two then become ordinary work.
-2. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
-   driven through the real `endpoints/versionEdit.ts` transaction and its semver-retry loop. Case 19
-   needs a REAL failing statement — a mocked throw proves the mock. The kernel half is already proven
-   (`retire` inside a transaction, rolled back, capture intact).
-3. **Migration gate step 4, properly** — see the gate below. Steps 1-3 are done.
-4. **Run `tests/http/recovery.http.spec.ts` even once.** Six operations × 401/wrong-role/404, four
-   named guarantees and the malformed-document survival cases are all written and all unexecuted
-   against this implementation. Written-and-unrun is not coverage.
+✅ **RESOLVED — the probe app image, the wire suite, and migration gate step 4.** All three are done;
+what they were blocked on was not a bundler problem. See "The probe image: what it actually was" below.
+
+**The one thing left is BIGGER than the old list said it was:**
+
+1. **Save-as-new retirement is NOT BUILT — cases 7, 19 and 20 are feature work, not test work.**
+   The previous version of this list called cases 19-20 "tests that need the real endpoint". That
+   understated it. `retire` has **three** production callers, not the four the design names
+   (`grep -rn "retire(" app/src | grep -v kernel.ts`): explicit discard and admin cleanup in
+   `endpoints/recovery.ts`, plus the expiry job. **`endpoints/versionEdit.ts` never calls it at all.**
+   So today a successful save-as-new leaves the capture ACTIVE with its content intact — matrix
+   **case 7** ("retired: content cleared, marker kept, revision advanced") does not hold, and 19 and
+   20 have nothing to test.
+
+   Design §336 is specific about where it goes: retirement joins the existing transaction in
+   `versionEdit.ts` **inside the semver retry attempt**, so it can neither half-apply nor
+   double-apply, and a precondition failure fails the whole save with 409 rather than retiring newer
+   work — and unlike a semver conflict it is **NOT retryable**. That last clause is the whole of case
+   20: the retry loop must distinguish "semver taken, try again" from "your revision is stale, stop".
+
+   Scope, honestly: this is a change to a transaction-bearing production endpoint, so it wants a plan
+   before an edit, not a test file. Case 19 additionally needs a REAL failing statement inside that
+   transaction — a mocked throw proves the mock. The kernel half is already proven (`retire` inside a
+   transaction, rolled back, capture intact).
 
 ## The migration gate — all four steps, in order
 
@@ -151,14 +195,18 @@ the only migration that diverges from generator output, which costs the next reg
 diff and buys nothing. Check `diff --check` on hand-written files; expect it to be noisy on generated
 ones.
 
-4. ⚠ **PARTIAL — do not record this as done.** What ran against the migration-only database with
-   `NODE_ENV=production` (push OFF, so the schema could only come from migrations): a recovery row
-   writes and reads, and the version-delete, user-delete and plan-delete-transitive cascades all
-   clear their rows. That exercises the version-delete cascade save-as-new `deleteSource` and
-   make-official `deletePrevious` both go through — it does **not drive those two endpoints**, which
-   the gate explicitly requires and which needs the app image (item 1 above). Also still open: stop
-   `test:http` pushing at all (run its Local fixture in production mode, or disable adapter push
-   explicitly), or this blind spot silently returns for the next collection.
+4. ✅ **DONE (2026-08-06), both halves.** The `lesson3` database was dropped and recreated, all 20
+   migrations applied to it from empty, and the **full wire suite ran against it with
+   `NODE_ENV=production`** — push OFF, so the schema could only have come from migrations. 125/125,
+   and that suite drives `save-as-new?deleteSource=true` and `make-official?deletePrevious=true`
+   directly (`tests/http/endpoints.http.spec.ts`), which is the part the gate demanded and previous
+   runs had substituted a cascade test for.
+
+   The second half is closed too: **`test:http` no longer pushes in CI.** `.github/workflows/ci.yml`
+   passes `-e NODE_ENV=production` on that step alone. ⚑ Not in the synthetic `.env` — `test:int`
+   DEPENDS on dev-mode push to build `lesson3_test` from the model, so the two steps want opposite
+   things and the setting has to be per-step. That closes the blind spot that let a collection with
+   no migration go green here while being undeployable.
 
 ## Two cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
 
