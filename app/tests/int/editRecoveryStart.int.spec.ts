@@ -13,7 +13,6 @@
  * draft of this SQL broke both cases below by bumping `revision` unconditionally.
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
-import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
@@ -23,9 +22,10 @@ import {
   makeRecoveryVersion,
   recoveryRow,
   retireDirectly,
+  setRecoveryContent,
+  setRecoveryUpdatedAt,
 } from '../helpers/editRecovery.js'
 import { start } from '../../src/lib/editRecovery/kernel.js'
-import { txDb } from '../../src/lib/txDb.js'
 
 let fx: RoleFixture
 
@@ -110,12 +110,12 @@ describe('start: reactivation establishes a fresh session defensively', () => {
     await startFor(fx.users.editor.id, v.id)
     await retireDirectly(fx.payload, v.id, fx.users.editor.id)
 
-    // Malformed on purpose: retired, but content left behind.
-    const db = await txDb(poolReq())
-    await db.execute(sql`
-      UPDATE edit_recovery SET content = ${JSON.stringify({ 'lesson:1': { title: 'STALE' } })}::jsonb
-      WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${v.id}
-    `)
+    // Malformed on purpose: retired, but content left behind. Fixture SQL goes through the shared
+    // helper (which uses `drizzleOf`), not through production `txDb` — routing setup through the code
+    // under test would couple it to `txDb`'s own branches.
+    await setRecoveryContent(fx.payload, v.id, fx.users.editor.id, {
+      'lesson:1': { title: 'STALE' },
+    })
     expect((await rawRow(fx.users.editor.id, v.id))?.content).not.toBeNull()
 
     await startFor(fx.users.editor.id, v.id, 'sv-3')
@@ -128,11 +128,9 @@ describe('start: reactivation establishes a fresh session defensively', () => {
   it('preserves content on RESUME, because resume is a no-op', async () => {
     const v = await makeVersion('1.0.206')
     const t0 = await startFor(fx.users.editor.id, v.id)
-    const db = await txDb(poolReq())
-    await db.execute(sql`
-      UPDATE edit_recovery SET content = ${JSON.stringify({ 'lesson:1': { title: 'live work' } })}::jsonb
-      WHERE user_id = ${fx.users.editor.id} AND source_version_id = ${v.id}
-    `)
+    await setRecoveryContent(fx.payload, v.id, fx.users.editor.id, {
+      'lesson:1': { title: 'live work' },
+    })
 
     const again = await startFor(fx.users.editor.id, v.id)
     expect(again).toEqual(t0)
@@ -153,17 +151,19 @@ describe('start: the token matches the stored instant exactly', () => {
    * not a live fix, and pretending otherwise would be the false-coverage failure this suite keeps
    * finding in itself.
    */
-  it('reports the stored updated_at without rounding it', async () => {
+  it('reports a pinned sub-second updated_at exactly', async () => {
     const v = await makeVersion('1.0.207')
-    const token = await startFor(fx.users.editor.id, v.id)
-    const stored = (await rawRow(fx.users.editor.id, v.id))?.updated_at
-    const storedIso =
-      stored instanceof Date ? stored.toISOString() : new Date(String(stored)).toISOString()
+    await startFor(fx.users.editor.id, v.id)
 
-    expect(token.updatedAt).toBe(storedIso)
-    // Sub-second precision genuinely survived the round trip — not merely a `.000Z` that happens to
-    // match a `.000Z`, which `toBe` alone would accept.
-    expect(new Date(token.updatedAt).getMilliseconds()).toBe(new Date(storedIso).getMilliseconds())
+    // Pinned rather than compared against `NOW()`: `NOW()` lands on `.000` roughly once in a
+    // thousand runs, so comparing two values that were both produced by it proves nothing about
+    // sub-second preservation on the runs where it matters. `.807` is non-zero by construction.
+    const PINNED = '2026-08-06T01:14:12.807Z'
+    await setRecoveryUpdatedAt(fx.payload, v.id, fx.users.editor.id, PINNED)
+
+    // Resume is a no-op, so it reports the pinned instant rather than writing a new one.
+    const token = await startFor(fx.users.editor.id, v.id)
+    expect(token.updatedAt).toBe(PINNED)
   })
 })
 

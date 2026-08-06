@@ -95,3 +95,35 @@ export async function ageRecoveryRow(
     WHERE user_id = ${userId} AND source_version_id = ${versionId}
   `)
 }
+
+/** Overwrite a row's stored capture. Fixture setup for states the kernel would never produce. */
+export async function setRecoveryContent(
+  payload: Payload,
+  versionId: number,
+  userId: number,
+  content: unknown,
+) {
+  await drizzleOf(payload).execute(sql`
+    UPDATE edit_recovery SET content = ${JSON.stringify(content)}::jsonb
+    WHERE user_id = ${userId} AND source_version_id = ${versionId}
+  `)
+}
+
+/**
+ * Pin `updated_at` to an exact instant.
+ *
+ * Needed because `NOW()` legitimately lands on `.000` about once in a thousand runs, so a test that
+ * asserts "milliseconds survived" against a `NOW()` value passes-or-fails by luck. Setting a value
+ * whose milliseconds are non-zero by construction makes the assertion deterministic.
+ */
+export async function setRecoveryUpdatedAt(
+  payload: Payload,
+  versionId: number,
+  userId: number,
+  iso: string,
+) {
+  await drizzleOf(payload).execute(sql`
+    UPDATE edit_recovery SET updated_at = ${iso}::timestamptz
+    WHERE user_id = ${userId} AND source_version_id = ${versionId}
+  `)
+}

@@ -16,7 +16,7 @@
  */
 import { beforeAll, afterAll, describe, expect, it, onTestFinished } from 'vitest'
 
-import type { Where } from 'payload'
+import { NotFound, type Where } from 'payload'
 
 import {
   MARK,
@@ -40,6 +40,27 @@ afterAll(async () => {
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
 /**
+ * Teardown delete that tolerates the row already being gone — and NOTHING else.
+ *
+ * Several of these records are deleted by the test itself as its ACT, so cleanup is normally a no-op
+ * and a bare `.catch(() => {})` looks harmless. It is not: it would equally swallow a permission
+ * error, a hook throwing, or the database being unreachable — turning a real failure into a silently
+ * dirty database that surfaces later as an unrelated spec failing on leftover rows. Only `NotFound`
+ * is expected here; everything else is rethrown.
+ */
+const deleteIfPresent = async (
+  collection: 'lesson-bundle-versions' | 'users' | 'lesson-plans',
+  id: number,
+) => {
+  try {
+    await fx.payload.delete({ collection, id, overrideAccess: true })
+  } catch (err) {
+    if (err instanceof NotFound || (err as { status?: number })?.status === 404) return
+    throw err
+  }
+}
+
+/**
  * A non-Official version, so it can be deleted (the Official one is protected).
  *
  * Teardown is registered with `onTestFinished` rather than written at the end of each test body,
@@ -61,9 +82,7 @@ async function makeWorkingCopy(semver: string) {
     overrideAccess: true,
   })
   onTestFinished(async () => {
-    await fx.payload
-      .delete({ collection: 'lesson-bundle-versions', id: created.id, overrideAccess: true })
-      .catch(() => {})
+    await deleteIfPresent('lesson-bundle-versions', created.id)
   })
   return created
 }
@@ -250,9 +269,7 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
     // assertion above the delete throws, the user survives the run without it. `.catch` absorbs the
     // already-deleted case rather than turning teardown into a second failure.
     onTestFinished(async () => {
-      await fx.payload
-        .delete({ collection: 'users', id: doomed.id, overrideAccess: true })
-        .catch(() => {})
+      await deleteIfPresent('users', doomed.id)
     })
     await seedRecovery(doomed.id, wc.id, fx.plan.id)
     await seedRecovery(fx.users.editor.id, wc.id, fx.plan.id)
@@ -286,9 +303,7 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
     // Same reasoning as the user above: deleting the plan is this test's act, but a failure before
     // that line would otherwise leave a plan and its version behind for the fixture sweep to find.
     onTestFinished(async () => {
-      await fx.payload
-        .delete({ collection: 'lesson-plans', id: plan.id, overrideAccess: true })
-        .catch(() => {})
+      await deleteIfPresent('lesson-plans', plan.id)
     })
     const version = await fx.payload.create({
       collection: 'lesson-bundle-versions',
