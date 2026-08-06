@@ -30,9 +30,22 @@ const PAYLOAD_TOO_LARGE = 'Preview payload too large'
  * validation, or 400/413 semantics. Returns the candidate object; the caller overlays it onto the
  * stored version and runs the field-split hook (the part that genuinely differs).
  */
-export async function parsePreviewCandidate(
+export async function parsePreviewCandidate(req: PayloadRequest): Promise<Record<string, unknown>> {
+  return (await parsePreviewForm(req)).candidate
+}
+
+/**
+ * As {@link parsePreviewCandidate}, but also returns the parsed `FormData`.
+ *
+ * ⚑ Exists because `req.formData()` can be consumed exactly ONCE. `save-as-new` needs both the `data`
+ * field and the edit-recovery token, and the token is deliberately a SEPARATE multipart field rather
+ * than a key inside the bundle — a Site Admin editing the raw document must not be able to persist
+ * recovery metadata as lesson content. Two independent parse calls would make the second one fail on
+ * an already-consumed body, so the form is returned rather than re-read.
+ */
+export async function parsePreviewForm(
   req: PayloadRequest,
-): Promise<Record<string, unknown>> {
+): Promise<{ candidate: Record<string, unknown>; form: FormData }> {
   // Coarse pre-parse guard: reject an oversized body via Content-Length BEFORE `formData()` buffers
   // the whole multipart payload into memory. Compared against the larger BODY cap (field cap +
   // framing overhead) so a valid near-limit `data` field is not falsely rejected; the header may be
@@ -65,5 +78,5 @@ export async function parsePreviewCandidate(
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
     throw new APIError('"data" must be a version object', 400)
   }
-  return candidate as Record<string, unknown>
+  return { candidate: candidate as Record<string, unknown>, form }
 }

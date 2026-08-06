@@ -24,7 +24,9 @@ import { json } from './respond'
 import { isEditorFor, isSubjectAdminFor, toId } from '../access'
 import { applyEditorFieldSplit } from '../hooks/fieldSplit'
 import { isOfficialVersion, VERSION_EDITOR_KEYS } from '../hooks/bundleVersion'
-import { parsePreviewCandidate } from './previewParse'
+import { parsePreviewForm } from './previewParse'
+import { readSaveRecoveryToken } from './recoveryParse'
+import { retire } from '../lib/editRecovery/kernel'
 import { isSemverConflict, nextSemverForPlan } from '../lib/semver'
 import { stripIds } from '../lib/stripIds'
 import { canonicalJson } from '../lib/canonicalJson'
@@ -37,6 +39,30 @@ const DROP_KEYS = new Set(['id', 'semver', 'sourceVersion', 'author', 'createdAt
 
 /** How many times to retry `save-as-new` when two concurrent saves race for the same next semver. */
 const SEMVER_CONFLICT_RETRIES = 4
+
+/**
+ * A `save-as-new` whose edit-recovery retirement failed its precondition (§7 case 20).
+ *
+ * ⚑ **Its entire purpose is to be UNRETRYABLE**, which is what makes it a distinct type rather than a
+ * bare `APIError(…, 409)`. A semver conflict means "someone took the version number, recompute and go
+ * again" — retrying is correct and invisible. A recovery conflict means "another tab captured newer
+ * work after you built this request", and retrying it would re-run the retirement against the
+ * revision that has since advanced, destroying precisely the unsaved work the precondition just
+ * protected. The two conflicts arrive at the same `catch` and must never be confused there.
+ *
+ * The kernel returns `{ ok: false }` rather than throwing a database error, so this could not be
+ * mistaken for a semver conflict by accident today. It is a named type anyway, and the retry guard
+ * tests for it explicitly, because "these cannot collide" is a property of the current
+ * implementation and not of the control flow — and the cost of being wrong is deleted work.
+ */
+class RecoveryConflictError extends APIError {
+  constructor() {
+    super(
+      'Your unsaved work changed in another tab while this save was in flight — reload before saving.',
+      409,
+    )
+  }
+}
 
 /** Relationship keys the server sets from the SOURCE on create (never from the submission). They
  *  carry no edit signal, and their representation varies with fetch depth (id vs populated doc), so
@@ -95,8 +121,14 @@ export const saveAsNewEndpoint: Endpoint = {
     if (planId == null) throw new APIError('Version has no lesson plan', 409)
 
     // Body guards (Content-Length pre-check, byte cap, JSON + object-shape) shared with the preview
-    // parser — this is an authenticated endpoint accepting large nested content.
-    const edited = await parsePreviewCandidate(req)
+    // parser — this is an authenticated endpoint accepting large nested content. The form is returned
+    // alongside the candidate because `req.formData()` is single-consumption and the edit-recovery
+    // token is a separate field on it (see `readSaveRecoveryToken`).
+    const { candidate: edited, form } = await parsePreviewForm(req)
+
+    // OPTIONAL (design §8 / the PR-1 contract): no token ⇒ the pre-existing save behaviour, retiring
+    // nothing. Both fields ⇒ retirement is mandatory below. Exactly one ⇒ 400, thrown in here.
+    const recoveryToken = readSaveRecoveryToken(form)
 
     // Stale-source guard (mandatory): the submitted base `updatedAt` must be present, valid, and MATCH
     // the source's current value. A missing/garbage base is rejected (400) rather than silently skipped —
@@ -136,7 +168,9 @@ export const saveAsNewEndpoint: Endpoint = {
     // 400, not 409: the request is well-formed, it just asks for nothing. The client disables Save
     // on a pristine form; this is the authoritative backstop (it also catches typed-then-reverted
     // content the client can't see).
-    if (comparableContent(merged) === comparableContent(source as unknown as Record<string, unknown>)) {
+    if (
+      comparableContent(merged) === comparableContent(source as unknown as Record<string, unknown>)
+    ) {
       throw new APIError(
         'No changes to save — the content is identical to the version you opened.',
         400,
@@ -184,6 +218,35 @@ export const saveAsNewEndpoint: Endpoint = {
           overrideAccess: true,
         })
 
+        // ⚑ RETIREMENT RUNS HERE — after the candidate exists, BEFORE the optional source delete,
+        // and on the SAME transactional `req` (design §336). The ordering is load-bearing in both
+        // directions:
+        //
+        //   - after the create, because retiring for a save that then fails would clear a capture for
+        //     work that was never persisted; the shared transaction is what undoes it (case 19)
+        //   - before the delete, because deleting the source cascades its recovery rows away, and a
+        //     retirement afterwards would find no row and report a conflict for a save that
+        //     succeeded — the precondition would be answering a question about a deleted row
+        //
+        // `by: 'save-as-new'` selects `requireTransaction` inside the kernel, so this cannot silently
+        // run on a pooled connection outside the transaction.
+        let retirementToken: { generation: number; revision: number } | undefined
+        if (recoveryToken) {
+          const retired = await retire(
+            req,
+            { userId: caller.id, sourceVersionId: source.id },
+            {
+              by: 'save-as-new',
+              generation: recoveryToken.generation,
+              expectedRevision: recoveryToken.expectedRevision,
+            },
+          )
+          // Throw rather than return: the `catch` below must roll this transaction back, so the new
+          // version does not survive a save whose retirement was refused.
+          if (!retired.ok) throw new RecoveryConflictError()
+          retirementToken = retired.token
+        }
+
         const sourceIsOfficial = await isOfficialVersion(req, planId, source.id)
         let sourceDeleted = false
         if (deleteSource && !sourceIsOfficial && mayDeleteSource) {
@@ -204,9 +267,17 @@ export const saveAsNewEndpoint: Endpoint = {
           sourceLabel: source.title ?? source.semver ?? `v${source.id}`,
           sourceIsOfficial,
           sourceDeleted,
+          // Present only when a token was sent. The client must adopt it (§4's token rule) rather
+          // than keep the pair it sent, which this write has just superseded.
+          ...(retirementToken ? { recoveryToken: retirementToken } : {}),
         })
       } catch (e) {
         await killTransaction(req)
+        // ⚑ A recovery conflict is NEVER retried, and it is tested before the semver check rather
+        // than relying on the two being distinguishable. Retrying would re-run retirement against a
+        // revision that has advanced since — silently destroying the newer capture whose existence
+        // is the only reason the precondition failed. That is §7 case 20.
+        if (e instanceof RecoveryConflictError) throw e
         if (isSemverConflict(e) && attempt < SEMVER_CONFLICT_RETRIES) continue
         throw e
       }
@@ -293,7 +364,6 @@ export const makeOfficialEndpoint: Endpoint = {
         })
         previousDeleted = true
       }
-
 
       if (shouldCommit) await commitTransaction(req)
       return json({ ok: true, officialVersion: version.id, previousOfficialId, previousDeleted })

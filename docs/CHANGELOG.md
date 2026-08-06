@@ -53,9 +53,18 @@ at the top of `docs/NEXT-SESSION.md`.
   compact `JSON.stringify` the 512 KB cap measures. The docblock said "the SAME quantity"; it no
   longer does.
 
-Acceptance cases executing: 15, 17-18, 21-25, 30, plus the cap's C1-C8. Still to build: cases 19-20
-through the real save-as-new path, migration gate step 4 driven through save-as-new and make-official,
-and a first actual RUN of the wire suite — all three blocked on the probe's app image.
+- **Save-as-new retirement — the fourth and last `retire` caller.** `versionEdit.ts` now retires the
+  caller's capture inside the save's own transaction, after the candidate is created and BEFORE the
+  optional source delete (whose cascade would otherwise remove the row the precondition needs). The
+  recovery token is a SEPARATE multipart field, never a key in the bundle, so admin raw-document
+  editing cannot persist recovery metadata as lesson content. It is OPTIONAL — no token means the
+  pre-existing save behaviour and no retirement, which is what lets the server land before the client
+  — while a half-token is a 400 rather than a silent no-op. A retirement conflict is a 409 that is
+  **never retried**, unlike a semver conflict; retrying would destroy the newer capture the
+  precondition just protected.
+
+Acceptance cases executing: 7, 15, 17-25, 30, plus the cap's C1-C8 — the whole server half of the
+matrix. PR 1 is feature-complete; cases 1-6, 8-14 and 26-27 are PR 2 client work.
 
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 

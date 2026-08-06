@@ -31,8 +31,11 @@ vi.mock('payload', () => ({
 import {
   MAX_RECOVERY_BODY_BYTES,
   readRecoveryBody,
+  readSaveRecoveryToken,
   requireCounter,
   requireDocument,
+  RECOVERY_GENERATION_FIELD,
+  RECOVERY_EXPECTED_REVISION_FIELD,
 } from '../../src/endpoints/recoveryParse.js'
 
 /** The status an APIError carries, or `undefined` when the call resolved. */
@@ -143,6 +146,72 @@ describe('requireCounter — token fields are rejected, never coerced', () => {
       expect.unreachable('should have thrown')
     } catch (e) {
       expect((e as Error).message).toContain('expectedRevision')
+    }
+  })
+})
+
+/**
+ * The `save-as-new` recovery token (design §8 / the PR-1 contract). The three-way shape is the whole
+ * point: absent is legal and means "retire nothing", both is legal and makes retirement mandatory,
+ * and exactly one is a broken client that must be told so rather than quietly treated as absent.
+ */
+describe('readSaveRecoveryToken — optional, but never half-optional', () => {
+  const form = (entries: Record<string, string>): FormData => {
+    const fd = new FormData()
+    for (const [k, v] of Object.entries(entries)) fd.set(k, v)
+    return fd
+  }
+  const gen = RECOVERY_GENERATION_FIELD
+  const rev = RECOVERY_EXPECTED_REVISION_FIELD
+
+  it('returns null when NEITHER field is present — the legacy save path', () => {
+    expect(readSaveRecoveryToken(form({}))).toBeNull()
+    // A form carrying only the bundle is the shape every client sends today.
+    expect(readSaveRecoveryToken(form({ data: '{"title":"x"}' }))).toBeNull()
+  })
+
+  it('returns the pair when BOTH are present', () => {
+    expect(readSaveRecoveryToken(form({ [gen]: '2', [rev]: '7' }))).toEqual({
+      generation: 2,
+      expectedRevision: 7,
+    })
+  })
+
+  /**
+   * ⚑ The case that must not be a no-op. Treating a half-token as "no token" would leave the capture
+   * ACTIVE after a successful save, and the user would later be offered unsaved work they had
+   * already saved — the exact confusion this feature exists to prevent.
+   */
+  it.each([
+    ['only the generation', { [gen]: '2' }],
+    ['only the expected revision', { [rev]: '7' }],
+  ])('400 with %s', async (_label, entries) => {
+    expect(await statusOf(() => readSaveRecoveryToken(form(entries)))).toBe(400)
+  })
+
+  it('400 on an EMPTY field rather than reading it as absent', async () => {
+    // A client that sends the field with nothing in it is broken in the same way as one that omits
+    // half the pair; `form.get` returns '' here, not null, so this must not fall into the null path.
+    expect(await statusOf(() => readSaveRecoveryToken(form({ [gen]: '', [rev]: '7' })))).toBe(400)
+    expect(await statusOf(() => readSaveRecoveryToken(form({ [gen]: '', [rev]: '' })))).toBe(400)
+  })
+
+  it('400 on a present-but-invalid counter, reusing the shared guard', async () => {
+    expect(await statusOf(() => readSaveRecoveryToken(form({ [gen]: '0', [rev]: '7' })))).toBe(400)
+    expect(await statusOf(() => readSaveRecoveryToken(form({ [gen]: '2', [rev]: 'abc' })))).toBe(
+      400,
+    )
+    expect(await statusOf(() => readSaveRecoveryToken(form({ [gen]: '1.5', [rev]: '7' })))).toBe(
+      400,
+    )
+  })
+
+  it('names the offending field, so a broken client can tell which half was wrong', async () => {
+    try {
+      readSaveRecoveryToken(form({ [gen]: '2', [rev]: '0' }))
+      expect.unreachable('should have thrown')
+    } catch (e) {
+      expect((e as Error).message).toContain(rev)
     }
   })
 })

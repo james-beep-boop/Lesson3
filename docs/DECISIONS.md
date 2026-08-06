@@ -11,6 +11,61 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-06 (later still) — a mutation that does not build is a FALSE PASS, not a passing test
+
+**The incident.** Verifying the new save-as-new retirement guards, two mutations were reverted and
+both "passed" — 6/6 green. Neither had been compiled. The mutation `if (false && recoveryToken)`
+narrowed the type and broke `tsc`, `next build` failed inside the Docker builder, no new image was
+produced, and the tests ran happily against the previous, CORRECT image. The build output had been
+sent to `/dev/null` to keep the loop quiet, so the failure was invisible.
+
+**Rule:** *a mutation harness must prove the mutated artefact is what ran.* Two cheap assertions turn
+a silent false pass into a loud error, and both are now in the loop used here: fail if the build
+fails (surfacing the type error), and fail if the image timestamp did not change. Without them the
+mutation test reports the OPPOSITE of the truth — "your guard is fine" when nothing was checked —
+which is worse than not running it, because it is believed.
+
+**Corollary that bit twice in one session:** *never silence the output of a step whose failure you
+are not otherwise checking.* This is the same shape as the `rm -rf app/app` that ran in the wrong
+directory and whose verification checked the same wrong path — the check has to be able to fail.
+
+**And a genuine finding it produced.** With the harness fixed, mutating "recovery conflict is
+retryable" failed only ONE assertion — the statement counter — while every outcome assertion stayed
+green. That is not a flaw in the mutation; it is the fact that **a retry leaves no observable trace
+in the outcome**. The token is fixed at request time, so every retry re-runs the same failing
+precondition and produces the same final state. Had the test not counted statements directly, it
+would have "covered" case 20 while being unable to detect the exact regression case 20 exists for.
+*When a property is about HOW MANY TIMES something happened, the outcome cannot testify to it.*
+
+---
+
+## 2026-08-06 (later still) — one database, one app, therefore one test file at a time
+
+**The defect.** `tests/http` had no `fileParallelism` setting, so vitest ran its files concurrently
+— against the single database the running app serves, which is the defining property of that suite.
+A Postgres trigger installed by `saveAsNewRecovery.http.spec.ts` to fault a retirement (matrix case
+19) fired inside `recovery.http.spec.ts`'s discard test in another worker, failing a spec that had no
+relationship to it. It appeared only in full-suite runs; both files passed alone.
+
+**Rule:** *a suite whose fixtures share one mutable database must not run its files in parallel.*
+The seconds saved are not worth failures that materialise only in the full run, which is the worst
+place to find them and the easiest place to dismiss as flake. `tests/int` is unaffected — its
+`vitest.setup.ts` points it at a separate `lesson3_test` database, which is the property that makes
+parallelism safe there and is worth preserving deliberately.
+
+**Second, independent fix, because one was not enough:** the trigger is now scoped with a `WHEN`
+clause to its own row. A database-wide `RAISE EXCEPTION` trigger is a landmine to leave lying around
+whatever the runner happens to do, and defence should not depend on a config setting a future change
+might flip back.
+
+⚑ **A trap worth knowing on the way:** adding that `WHEN (NEW.source_version_id = ${id})` clause broke
+the trigger install with "cannot insert multiple commands into a prepared statement". Binding a
+parameter moves drizzle from the simple-query path to a PREPARED statement, and a prepared statement
+may carry only one command — so multi-command DDL that worked unparameterised fails the moment any
+value is bound. Split DDL one command per `execute`.
+
+---
+
 ## 2026-08-06 (later) — a fix commit that changes no test is an unpinned fix
 
 **The correction.** `206252a` fixed four defects, two of them data-destroying, and touched exactly

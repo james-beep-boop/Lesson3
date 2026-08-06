@@ -119,8 +119,8 @@ forgot, before the destructive tests touch it.
   jsonb column cannot carry (unpaired surrogates AND U+0000).
 - **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
   resume; now also enforcing the per-user ACTIVE-CAPTURE CAP), `capture` (CAS UPDATE, never an
-  insert), `retire` (ONE transition, three precondition shapes — and ⚑ only THREE of its four
-  designed callers exist: discard, admin cleanup, expiry. Save-as-new is missing), and `expireCaptures`
+  insert), `retire` (ONE transition, three precondition shapes, and ALL FOUR designed callers now
+  wired: save-as-new, discard, admin cleanup, expiry), and `expireCaptures`
   (select + per-row CAS), with `expireEditRecoveryTask` carrying a **schedule** so it actually runs.
 - **The active-capture cap (SPEC §5's second cap)** — per user, counting ACTIVE rows only, enforced
   inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
@@ -158,32 +158,22 @@ assertions red, all reverted. A guard never observed failing is a guess.
 and the migration — are **BUILT** and are described under "What is DONE" above. They were still listed
 here as unbuilt two commits after they landed; check this list against `git log`, not against memory.
 
-✅ **RESOLVED — the probe app image, the wire suite, and migration gate step 4.** All three are done;
-what they were blocked on was not a bundler problem. See "The probe image: what it actually was" below.
+✅ **RESOLVED — the probe app image, the wire suite, migration gate step 4, AND save-as-new
+retirement.** `retire` now has all four designed callers: save-as-new joined discard, admin cleanup
+and expiry on 2026-08-06.
 
-**The one thing left is BIGGER than the old list said it was:**
+**PR 1 (server) is FEATURE-COMPLETE.** What remains before merge is judgement, not construction:
 
-1. **Save-as-new retirement is NOT BUILT — cases 7, 19 and 20 are feature work, not test work.**
-   The previous version of this list called cases 19-20 "tests that need the real endpoint". That
-   understated it. `retire` has **three** production callers, not the four the design names
-   (`grep -rn "retire(" app/src | grep -v kernel.ts`): explicit discard and admin cleanup in
-   `endpoints/recovery.ts`, plus the expiry job. **`endpoints/versionEdit.ts` never calls it at all.**
-   So today a successful save-as-new leaves the capture ACTIVE with its content intact — matrix
-   **case 7** ("retired: content cleared, marker kept, revision advanced") does not hold, and 19 and
-   20 have nothing to test.
+1. **Nothing is blocking. The next step is a decision about merging**, and the PR should stay a draft
+   until you make it deliberately. Everything the design assigned to PR 1 is built and executing;
+   the remaining acceptance cases (1-6, 8-14, 26-27) are PR 2 client cases and cannot run without a
+   client. See "Next steps" item 3 for PR 2.
 
-   Design §336 is specific about where it goes: retirement joins the existing transaction in
-   `versionEdit.ts` **inside the semver retry attempt**, so it can neither half-apply nor
-   double-apply, and a precondition failure fails the whole save with 409 rather than retiring newer
-   work — and unlike a semver conflict it is **NOT retryable**. That last clause is the whole of case
-   20: the retry loop must distinguish "semver taken, try again" from "your revision is stale, stop".
+   Worth knowing before merge: **no client sends a recovery token yet**, so on `main` this feature is
+   inert by construction — every save takes the no-token path and retires nothing. That is the point
+   of the optional token, and it is what makes merging ahead of PR 2 safe rather than a flag day.
 
-   Scope, honestly: this is a change to a transaction-bearing production endpoint, so it wants a plan
-   before an edit, not a test file. Case 19 additionally needs a REAL failing statement inside that
-   transaction — a mocked throw proves the mock. The kernel half is already proven (`retire` inside a
-   transaction, rolled back, capture intact).
-
-   ### The agreed implementation contract (operator review, 2026-08-06)
+   ### The implementation contract, as BUILT (operator review, 2026-08-06)
 
    **The recovery token is OPTIONAL, because PR 1 is server-only and no client sends one yet.** That
    is what keeps this shippable ahead of PR 2 rather than a flag day:
@@ -212,14 +202,29 @@ what they were blocked on was not a bundler problem. See "The probe image: what 
    retrying it would retire the newer capture the precondition just protected, which is precisely the
    work this feature exists to save. That distinction IS case 20.
 
-   **Tests owed:**
+   **Tests, all EXECUTING** (`tests/http/saveAsNewRecovery.http.spec.ts`, 6 cases):
    - **case 7** — a token-bearing save retires the capture (content cleared, marker kept, revision
-     advanced, generation unchanged)
-   - **legacy** — a no-token save still works and retires nothing
-   - **case 19** — a REAL database failure during retirement rolls back the new version; no orphan
-   - **case 20** — deterministic interleaving: a second capture advances the revision before
-     retirement; the save 409s, is not retried, and the newer capture survives
+     advanced, generation unchanged) and returns the advanced token
+   - **legacy** — a no-token save still works and retires nothing; a half-token is a 400
+   - **case 19** — a REAL Postgres trigger faults the retirement UPDATE, so the failure originates in
+     the database inside the endpoint's own transaction. No orphan version; the capture is intact
+   - **case 20** — a second tab's capture advances the revision first; the save 409s and the
+     retirement statement runs **exactly once**, counted directly (see below)
    - **`deleteSource=true`** — retirement happens BEFORE the source cascade removes the row
+
+   ⚑ **How case 20 proves "not retried", and why the obvious version of that test is worthless.**
+   The token is fixed at request time, so every retry re-runs the SAME failing precondition and
+   leaves identical evidence — a test asserting only "409 + capture survived" passes a loop that
+   retried five times. It is verified by MUTATION: making the conflict retryable leaves all five
+   other assertions green and fails only the count. Counting needs two tricks, both forced: a
+   STATEMENT-level trigger (a failed retirement matches zero rows, so a row-level trigger never
+   fires) and a SEQUENCE as the counter (`nextval` is non-transactional and survives the rollback
+   that discards everything else).
+
+   ⚑ **`tests/http` now runs `fileParallelism: false`.** Every spec in that suite seeds into the ONE
+   database the running app serves, so parallel files race shared state — case 19's fault trigger
+   fired inside `recovery.http.spec.ts`'s discard test from another worker, failing an unrelated spec
+   only in full runs. The trigger is also scoped to its own row now; both fixes are independent.
 
 ## The migration gate — all four steps, in order
 

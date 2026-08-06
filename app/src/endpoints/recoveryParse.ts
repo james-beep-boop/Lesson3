@@ -95,3 +95,49 @@ export function requireDocument(value: unknown): Record<string, unknown> {
   }
   return value as Record<string, unknown>
 }
+
+/** The multipart field names `save-as-new` reads the edit-recovery token from. */
+export const RECOVERY_GENERATION_FIELD = 'recoveryGeneration'
+export const RECOVERY_EXPECTED_REVISION_FIELD = 'recoveryExpectedRevision'
+
+/**
+ * The edit-recovery token a `save-as-new` submission may carry — `null` when it carries none.
+ *
+ * ⚑ **OPTIONAL, and that is the whole reason PR 1 can ship without PR 2.** No client sends this yet.
+ * A save with no token keeps the pre-existing behaviour exactly and retires nothing, so the server
+ * feature lands without a flag day; once the editor sends the token, retirement becomes mandatory for
+ * that save. Optional here means "this deployment may not have a recovery-aware client", NOT "the
+ * client may choose whether its unsaved work is cleaned up".
+ *
+ * ⚑ **Exactly one field is a 400, never a silent no-op.** A client that sends a generation but no
+ * revision is broken, and treating it as "no token" would silently leave the capture ACTIVE after a
+ * successful save — the user would be offered stale unsaved work they had already saved. The
+ * half-token is the signal that something is wrong, so it must be loud.
+ *
+ * ⚑ **Read from the multipart form, NOT from the bundle document.** Recovery metadata inside `data`
+ * would be one admin raw-document edit away from being persisted as lesson content.
+ */
+export type SaveRecoveryToken = { generation: number; expectedRevision: number } | null
+
+export function readSaveRecoveryToken(form: FormData): SaveRecoveryToken {
+  const rawGeneration = form.get(RECOVERY_GENERATION_FIELD)
+  const rawRevision = form.get(RECOVERY_EXPECTED_REVISION_FIELD)
+
+  // `null` is "field absent"; an empty string is a client that sent the field with nothing in it,
+  // which is the same broken-client signal as omitting one half and must not read as absent.
+  const hasGeneration = rawGeneration !== null
+  const hasRevision = rawRevision !== null
+  if (!hasGeneration && !hasRevision) return null
+
+  if (hasGeneration !== hasRevision) {
+    throw new APIError(
+      `A recovery token needs BOTH \`${RECOVERY_GENERATION_FIELD}\` and \`${RECOVERY_EXPECTED_REVISION_FIELD}\`, or neither.`,
+      400,
+    )
+  }
+
+  return {
+    generation: requireCounter(rawGeneration, RECOVERY_GENERATION_FIELD),
+    expectedRevision: requireCounter(rawRevision, RECOVERY_EXPECTED_REVISION_FIELD),
+  }
+}
