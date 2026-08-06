@@ -316,3 +316,77 @@ export const retire = async (
   const row = rowsOf(result)[0]
   return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
 }
+
+/** SPEC §5: captures are retained 30 days from last touch. */
+export const CAPTURE_TTL_DAYS = 30
+
+/** Bounded per run, so one job cannot hold a connection open across an unbounded backlog. */
+export const EXPIRY_BATCH_LIMIT = 500
+
+export type ExpiryReport = {
+  /** Rows this run actually retired. */
+  retired: number
+  /**
+   * Rows selected as expired whose retirement then conflicted — a capture or a reactivation won the
+   * race. NOT an error: it is the fencing working, and the row simply is not expired any more. A job
+   * that reported this as a failure would train operators to ignore its output.
+   */
+  skipped: number
+}
+
+/**
+ * The 30-day expiry pass (design §4/§5; §7 cases 25 and 30).
+ *
+ * A Payload job rather than SQL in `scripts/prune-db.sh`, because it must share the ONE retirement
+ * transition — a second implementation would be free to drift from what "retired" means.
+ *
+ * ⚑ **Select, then compare-and-set per row.** The selection is a plain read, so anything it returns
+ * may be stale by the time the update runs. `retire({ by: 'expiry' })` carries both the revision this
+ * pass read AND the cutoff it selected against, and evaluates them inside the UPDATE — so a capture
+ * that lands in between conflicts and the row is left alone. The cutoff term alone already defeats
+ * that race (every advancing write sets `updated_at = NOW()`), and the revision is defence in depth.
+ *
+ * ⚑ **Tombstones are excluded by the selection, not by the update.** `retired_at IS NULL` in the
+ * WHERE below is what stops the job re-stamping markers on every run forever — the retirement
+ * statement would refuse them anyway, but they would be selected, attempted and counted as skipped
+ * on every pass, which is a slow leak of work that looks like normal operation.
+ *
+ * Each row is retired independently. One conflicting row must not roll back the rest, so there is no
+ * enclosing transaction — which is also why `retire` does not demand one for this caller.
+ */
+export const expireCaptures = async (
+  req: PayloadRequest,
+  opts: { cutoff: Date; limit?: number } = {
+    cutoff: new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000),
+  },
+): Promise<ExpiryReport> => {
+  const cutoff = opts.cutoff
+  const limit = opts.limit ?? EXPIRY_BATCH_LIMIT
+  const db = await txDb(req)
+
+  const selected = rowsOf(
+    await db.execute(sql`
+      SELECT user_id, source_version_id, revision
+      FROM edit_recovery
+      WHERE retired_at IS NULL
+        AND updated_at < ${cutoff.toISOString()}::timestamptz
+      ORDER BY updated_at ASC
+      LIMIT ${limit}
+    `),
+  )
+
+  const report: ExpiryReport = { retired: 0, skipped: 0 }
+  for (const row of selected) {
+    const result = await retire(
+      req,
+      {
+        userId: toPositiveInt(row.user_id),
+        sourceVersionId: toPositiveInt(row.source_version_id),
+      },
+      { by: 'expiry', expectedRevision: toPositiveInt(row.revision), cutoff },
+    )
+    if (result.ok) report.retired += 1
+    else report.skipped += 1
+  }
+  return report
+}

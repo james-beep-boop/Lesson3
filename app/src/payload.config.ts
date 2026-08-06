@@ -17,6 +17,7 @@ import { EditRecovery } from './collections/EditRecovery'
 import { Messages } from './collections/Messages'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
+import { expireEditRecoveryTask } from './jobs/expireEditRecovery'
 import { messagePingTask } from './jobs/messagePing'
 import { passwordResetEmailTask } from './jobs/passwordResetEmail'
 import { isSiteAdmin } from './access'
@@ -35,7 +36,9 @@ const dirname = path.dirname(filename)
 const payloadSecret = process.env.PAYLOAD_SECRET || ''
 const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
 if (process.env.NODE_ENV === 'production' && !isNextBuild && !payloadSecret) {
-  throw new Error('PAYLOAD_SECRET is required in production (refusing to boot with an empty secret).')
+  throw new Error(
+    'PAYLOAD_SECRET is required in production (refusing to boot with an empty secret).',
+  )
 }
 
 // Email adapter is opt-in via env so the app boots (console fallback) without SMTP
@@ -141,6 +144,7 @@ export default buildConfig({
     tasks: [
       generateVersionArtifactTask,
       emailVersionArtifactTask,
+      expireEditRecoveryTask,
       messagePingTask,
       passwordResetEmailTask,
     ],

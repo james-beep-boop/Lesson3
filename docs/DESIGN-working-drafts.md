@@ -407,7 +407,7 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 ## 7. Verification matrix (required before calling this done)
 
 **Status, as of 2026-08-06 (branch `feat/edit-recovery-server`, NOT merged).** Cases **15, 17-18,
-21-25 are implemented and passing on that branch**; every other case is still unexecuted because the
+21-25 and 30 are implemented and passing on that branch** (30 via the expiry pass: a reactivated row is not selected, because `start` restarted its clock); every other case is still unexecuted because the
 code it covers does not exist. Update this line when that changes — a matrix that claims less coverage
 than it has trains readers to ignore it, and one that claims more is worse. This is the acceptance matrix
 the two PRs in §8 must satisfy, not a report.

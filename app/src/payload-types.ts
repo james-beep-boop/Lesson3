@@ -112,6 +112,7 @@ export interface Config {
     tasks: {
       generateVersionArtifact: TaskGenerateVersionArtifact;
       emailVersionArtifact: TaskEmailVersionArtifact;
+      expireEditRecovery: TaskExpireEditRecovery;
       messagePing: TaskMessagePing;
       passwordResetEmail: TaskPasswordResetEmail;
       inline: {
@@ -510,7 +511,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail';
+        taskSlug:
+          | 'inline'
+          | 'generateVersionArtifact'
+          | 'emailVersionArtifact'
+          | 'expireEditRecovery'
+          | 'messagePing'
+          | 'passwordResetEmail';
         taskID: string;
         input?:
           | {
@@ -544,7 +551,14 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail')
+    | (
+        | 'inline'
+        | 'generateVersionArtifact'
+        | 'emailVersionArtifact'
+        | 'expireEditRecovery'
+        | 'messagePing'
+        | 'passwordResetEmail'
+      )
     | null;
   queue?: string | null;
   waitUntil?: string | null;
@@ -1003,6 +1017,14 @@ export interface TaskEmailVersionArtifact {
     requestedByUserId: number;
     requestedByName: string;
   };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskExpireEditRecovery".
+ */
+export interface TaskExpireEditRecovery {
+  input?: unknown;
   output?: unknown;
 }
 /**
