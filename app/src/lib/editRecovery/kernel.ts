@@ -14,13 +14,13 @@
  * rolled back, which is exactly the work-destroying outcome this feature exists to prevent.
  *
  * `generation` and `revision` are `numeric` columns, so every value read back goes through `toInt`
- * (same module): node-postgres returns `numeric` as a STRING, and an unnormalised `revision` would
+ * (`toPositiveInt`, same module): node-postgres returns `numeric` as a STRING, and an unnormalised `revision` would
  * compare `'2' !== 2` in a CAS precondition and 409 against itself.
  */
 import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
-import { rowsOf, toInt, txDb } from '../txDb'
+import { rowsOf, toPositiveInt, txDb } from '../txDb'
 import { projectCapture } from './projection'
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
@@ -30,11 +30,35 @@ export type RecoveryToken = {
   updatedAt: string
 }
 
-const tokenOf = (row: Record<string, unknown>): RecoveryToken => ({
-  generation: toInt(row.generation),
-  revision: toInt(row.revision),
-  updatedAt: new Date(String(row.updated_at)).toISOString(),
-})
+/**
+ * `updated_at` is normalised through whichever shape the driver hands back.
+ *
+ * ⚑ Measured, because the obvious reasoning is wrong in BOTH directions. A raw `pg.Client` parses
+ * `timestamptz` into a JS `Date`, and `String(date)` renders `"Thu Aug 06 2026 01:14:12 GMT+0000 (…)"`
+ * — a format with NO milliseconds, so stringifying first would silently truncate every token to
+ * `.000Z`. But **drizzle's pool returns this column as a STRING** (`"2026-08-06 01:18:14.61+00"`),
+ * where `String()` is a no-op and the milliseconds survive. So the truncation does not happen on this
+ * path today: verified by querying through `payload.db.drizzle` rather than through `pg` directly,
+ * which is the check that distinguishes the two.
+ *
+ * The `Date` branch is therefore DEFENSIVE, not a live fix. It costs one `instanceof` and removes the
+ * dependency on a driver-configuration detail that nothing in this repo pins — a type-parser change,
+ * or a caller passing a handle configured differently, would otherwise start truncating tokens with
+ * no test able to see it. The `NaN` guard is the same argument: a token is a value the client echoes
+ * back, so a wrong one propagates everywhere it is compared.
+ */
+const tokenOf = (row: Record<string, unknown>): RecoveryToken => {
+  const raw = row.updated_at
+  const updatedAt = raw instanceof Date ? raw : new Date(String(raw))
+  if (Number.isNaN(updatedAt.getTime())) {
+    throw new Error(`edit-recovery: unparseable updated_at: ${String(raw)}`)
+  }
+  return {
+    generation: toPositiveInt(row.generation),
+    revision: toPositiveInt(row.revision),
+    updatedAt: updatedAt.toISOString(),
+  }
+}
 
 /**
  * `start` — the ONLY path that inserts or reactivates a row. One statement (§4).
@@ -95,6 +119,14 @@ export const start = async (
       updated_at = CASE WHEN edit_recovery.retired_at IS NULL
                         THEN edit_recovery.updated_at
                         ELSE NOW() END,
+      -- Reactivation establishes its OWN fresh-session invariant rather than trusting that whoever
+      -- retired the row cleared its content. Retirement does clear it, so this is belt-and-braces —
+      -- but the failure it guards is that a new session opens showing the PREVIOUS session's text as
+      -- if it were recoverable work, and that is not a failure worth leaving to another function's
+      -- correctness. Resume preserves content, because resume is a no-op.
+      content = CASE WHEN edit_recovery.retired_at IS NULL
+                     THEN edit_recovery.content
+                     ELSE NULL END,
       retired_at = NULL
     RETURNING generation, revision, updated_at
   `)

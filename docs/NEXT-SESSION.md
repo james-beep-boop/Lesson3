@@ -74,6 +74,34 @@ secret-free-to-publish, so **ask the operator**:
    review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
    `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25, 28–30).
 
+   **Server progress so far** (branch `feat/edit-recovery-server`, unpushed): collection + closed
+   access + both cascades, the pure projection, and two of four kernel statements (`start`, `capture`)
+   — each DB-proven on the disposable probe. **Still to build:** shared retirement (4 callers),
+   expiry, the five routes / six operations, the rate-limit bucket, and the migration.
+
+   ⚑ **Two items that must land before the schema is frozen and the migration generated:**
+   - **The per-user ACTIVE-CAPTURE COUNT CAP (~20, SPEC §5)** is not implemented. §5 states two caps
+     in one sentence; only the per-capture BYTE cap exists (in the kernel, where `capture` is the
+     storage boundary for size). `start` is the only path that inserts a row, so it is the storage
+     boundary for row COUNT by the identical argument, and an approximate check folds into its
+     existing single statement. Decide it there, or the two halves of one sentence end up at two
+     altitudes with no principle separating them. Build it after retirement semantics land (a cap
+     must count ACTIVE rows, which means knowing what retirement leaves behind) and before the
+     migration, since it may want an index.
+   - **`requireTransaction` returns with retirement.** It was removed as dead code (no caller, an
+     untested throw); retirement is the caller that needs it, along with a genuine
+     transaction-ROLLBACK test proving a retirement inside a failed save-as-new leaves the capture
+     intact.
+
+   ⚑ **`endpoints/userAssignments.ts` has a fail-OPEN copy of the transaction lookup** (~line 81).
+   `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
+   session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
+   `SELECT … FOR UPDATE` on a pooled connection OUTSIDE the transaction it exists to serialise —
+   defeating the row lock that stops two concurrent role changes both passing the freshness check.
+   Migrating it is a behaviour change on code outside the edit-recovery diff, so it was deliberately
+   not done in passing. It is tracked HERE rather than only in a spawned task, because those do not
+   survive the session.
+
    ⚑ **Five table rows, SIX operations.** §2's endpoint table bundles Site-Admin metadata and cleanup on
    one line (`GET /:id/recovery/meta` *(+ cleanup op)*), and the cleanup verb is not specified there —
    settle it in this PR. The CLAUDE.md wire-authz rule is per *operation*, so that is six sets of

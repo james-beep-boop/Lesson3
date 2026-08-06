@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyCapture,
   FINAL_EXPLANATION_KEY,
+  parseKey,
   projectCapture,
   type CaptureMap,
 } from '../../src/lib/editRecovery/projection'
@@ -302,7 +303,7 @@ describe('edit-recovery projection', () => {
     expect(allStrings(doc).filter((s) => s.startsWith('GHOST'))).toEqual([])
     // The real key still applied, and the ghosts are reported rather than swallowed.
     expect(d.lessons[0].title).toBe('kept')
-    expect(report.droppedKeys.sort()).toEqual([
+    expect([...report.droppedKeys].sort()).toEqual([
       'framework:88888',
       'lesson:99999',
       'notAScope:11',
@@ -329,5 +330,36 @@ describe('edit-recovery projection', () => {
     expect(doc).toEqual({ id: 1 })
     expect(report.droppedKeys).toEqual(['lesson:1'])
     expect(applyCapture(source(), null).report.applied).toBe(0)
+  })
+})
+
+/**
+ * `parseKey` is exported for PR 2's restore UI, which must explain a partial restore and therefore
+ * needs the scope back out of a `droppedKeys` entry. Tested here rather than shipped unexercised —
+ * an exported function with no caller and no test is a format contract nobody has checked.
+ */
+describe('parseKey — the decode half of the key format', () => {
+  it('round-trips every scope the projection emits', () => {
+    const m = projectCapture(source())
+    for (const key of Object.keys(m)) {
+      const { scope, rowId } = parseKey(key)
+      expect(scope).toBeTruthy()
+      expect(rowId === null ? scope : `${scope}:${rowId}`).toBe(key)
+    }
+  })
+
+  it('returns a null rowId for the singleton, which has no row', () => {
+    expect(parseKey(FINAL_EXPLANATION_KEY)).toEqual({
+      scope: 'finalExplanation',
+      rowId: null,
+    })
+  })
+
+  it('splits on the FIRST colon, so an id containing one survives', () => {
+    // Payload row ids are `character varying`, so a colon is not structurally impossible. Splitting
+    // on the last colon, or with a bare `split(':')` and `[1]`, would silently truncate the id — the
+    // exact failure a `key.split(':')` written in a UI component would ship.
+    expect(parseKey('lesson:a:b:c')).toEqual({ scope: 'lesson', rowId: 'a:b:c' })
+    expect(parseKey('framework:x:y')).toEqual({ scope: 'framework', rowId: 'x:y' })
   })
 })

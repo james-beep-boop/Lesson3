@@ -246,6 +246,14 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
       name: `${MARK}Doomed`,
       password: 'test1234',
     })
+    // Failure-safe: this test DELETES `doomed` as its act, so cleanup is normally a no-op — but if an
+    // assertion above the delete throws, the user survives the run without it. `.catch` absorbs the
+    // already-deleted case rather than turning teardown into a second failure.
+    onTestFinished(async () => {
+      await fx.payload
+        .delete({ collection: 'users', id: doomed.id, overrideAccess: true })
+        .catch(() => {})
+    })
     await seedRecovery(doomed.id, wc.id, fx.plan.id)
     await seedRecovery(fx.users.editor.id, wc.id, fx.plan.id)
     expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(2)
@@ -274,6 +282,13 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
       collection: 'lesson-plans',
       data: { title: `${MARK}CascadePlan`, subjectGrade: fx.subjectGrade.id } as never,
       overrideAccess: true,
+    })
+    // Same reasoning as the user above: deleting the plan is this test's act, but a failure before
+    // that line would otherwise leave a plan and its version behind for the fixture sweep to find.
+    onTestFinished(async () => {
+      await fx.payload
+        .delete({ collection: 'lesson-plans', id: plan.id, overrideAccess: true })
+        .catch(() => {})
     })
     const version = await fx.payload.create({
       collection: 'lesson-bundle-versions',

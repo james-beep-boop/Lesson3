@@ -58,12 +58,21 @@ export const rowsOf = (result: unknown): Record<string, unknown>[] => {
 
 /**
  * Postgres `numeric` arrives as a STRING (node-postgres avoids precision loss by not parsing it), so
- * any numeric column read through raw SQL must be normalised or it will fail every `===` comparison
- * against a number. Throws rather than yielding NaN: a value that cannot be parsed is a schema or
- * driver surprise worth failing loudly on, not one worth propagating.
+ * any numeric counter read through raw SQL must be normalised or it will fail every `===` comparison
+ * against a number.
+ *
+ * Named for the contract it actually enforces, rather than the looser `toInt` it started as. The
+ * callers are monotonic counters — generations and revisions — which are integers ≥ 1 by
+ * construction. A fraction, a zero, a negative, or a value past `Number.MAX_SAFE_INTEGER` all mean
+ * something upstream is wrong, and `numeric` is exactly the column type that can carry all four past
+ * a `Number.isFinite` check. Beyond the safe-integer boundary, `+ 1` stops advancing and a CAS
+ * precondition would start matching a revision that never happened, so silence there is the worst
+ * option available.
  */
-export const toInt = (v: unknown): number => {
+export const toPositiveInt = (v: unknown): number => {
   const n = typeof v === 'number' ? v : Number(v)
-  if (!Number.isFinite(n)) throw new Error(`expected a numeric column value, got: ${String(v)}`)
+  if (!Number.isSafeInteger(n) || n < 1) {
+    throw new Error(`expected a positive safe integer from a numeric column, got: ${String(v)}`)
+  }
   return n
 }
