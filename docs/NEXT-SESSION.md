@@ -25,37 +25,20 @@ below the "Next steps" list is older history.**
 
 `feat/edit-recovery-server`, open as a **draft** PR.
 
-⚑ **PUSHED THROUGH `206252a` ONLY. The regression-coverage work described below is UNCOMMITTED** —
-eleven files in the working tree that exist on no branch and in no PR. Local `HEAD`, the remote branch
-and the PR head are all `206252a`; everything this handoff says about `recoveryParse.ts`, the three
-new test files and the body ceiling is true of the working tree and of nothing else. A session that
-reads this and then looks at the PR will not find them. **Check before you believe any of it:**
+Committed and pushed, including the regression-coverage commit. **Deliberately SHA-free** — the
+previous version of this block named one and was wrong within the hour, twice: first by claiming
+"pushed" while eleven files sat uncommitted, then by naming the pre-commit SHA moments before the
+commit landed. A SHA here is stale as soon as anything moves; the commands are right forever.
+
+⚑ **Verify state before believing anything below.** This section describes work that is easy to
+describe and easy to have not pushed:
 
 ```bash
-git status --short                      # if this is not empty, the work below is not committed
-git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server
-gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
+git status --short                      # not empty ⇒ the work below is not all committed
 git log --oneline origin/main..origin/feat/edit-recovery-server
+git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server   # equal ⇒ nothing unpushed
+gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
 ```
-
-At the time of writing, `git status --short` was:
-
-```
- M app/src/collections/LessonBundleVersions.ts
- M app/src/endpoints/recovery.ts
- A app/src/endpoints/recoveryParse.ts
- M app/src/lib/editRecovery/kernel.ts
- M app/tests/http/recovery.http.spec.ts
- A app/tests/int/editRecoveryMetadata.int.spec.ts
- A app/tests/unit/editRecoveryMigrationOrder.spec.ts
- A app/tests/unit/recoveryParse.spec.ts
- M docs/CHANGELOG.md
- M docs/DECISIONS.md
- M docs/NEXT-SESSION.md
-```
-
-If that listing is now empty, the work was committed and this note is stale — delete it. If it still
-matches, nothing below has been pushed. Do not trust the numbers either way; run the commands.
 
 ## ⛔ Why it is a DRAFT
 
