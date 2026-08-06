@@ -13,19 +13,14 @@
  * draft of this SQL broke both cases below by bumping `revision` unconditionally.
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
-import type { PayloadRequest } from 'payload'
-
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import {
   ageRecoveryRow,
-  countRecoveryRows,
-  makeRecoveryVersion,
-  recoveryRow,
+  recoveryHarness,
   retireDirectly,
   setRecoveryContent,
   setRecoveryUpdatedAt,
 } from '../helpers/editRecovery.js'
-import { start } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -38,32 +33,7 @@ afterAll(async () => {
 })
 
 /** A request with NO transaction, so each concurrent caller gets its own pooled connection. */
-const poolReq = () =>
-  ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
-
-const makeVersion = (semver: string) =>
-  makeRecoveryVersion(fx.payload, {
-    planId: fx.plan.id,
-    subjectGradeId: fx.subjectGrade.id,
-    sourceVersionId: fx.version.id,
-    semver,
-  })
-
-const startFor = (versionId: number, schemaVersion = 'sv-1', userId = fx.users.editor.id) =>
-  start(poolReq(), {
-    userId,
-    sourceVersionId: versionId,
-    lessonPlanId: fx.plan.id,
-    sourceUpdatedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
-    schemaVersion,
-  })
-
-// (versionId, userId) throughout, matching the capture spec — these two files previously used the
-// SAME names with SWAPPED parameters, which is a trap for anyone reading one of them first.
-const rawRow = (versionId: number, userId = fx.users.editor.id) =>
-  recoveryRow(fx.payload, versionId, userId)
-const countRows = (versionId: number, userId = fx.users.editor.id) =>
-  countRecoveryRows(fx.payload, versionId, userId)
+const { makeVersion, startFor, rawRow, countRows } = recoveryHarness(() => fx)
 
 describe('start: first call', () => {
   it('inserts one active row at generation 1, revision 1, with the caller-derived baseline', async () => {
@@ -86,7 +56,7 @@ describe('start: resume is a total no-op (§4 governing rule)', () => {
     const first = await startFor(v.id)
     const before = await rawRow(v.id)
 
-    const second = await startFor(v.id, 'sv-DIFFERENT')
+    const second = await startFor(v.id, { schemaVersion: 'sv-DIFFERENT' })
     const after = await rawRow(v.id)
 
     expect(second).toEqual(first)
@@ -121,7 +91,7 @@ describe('start: reactivation establishes a fresh session defensively', () => {
     })
     expect((await rawRow(v.id))?.content).not.toBeNull()
 
-    await startFor(v.id, 'sv-3')
+    await startFor(v.id, { schemaVersion: 'sv-3' })
 
     const row = await rawRow(v.id)
     expect(row?.retired_at).toBeNull()
@@ -202,7 +172,10 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     expect(retired?.retired_at).not.toBeNull()
     const retiredRevision = Number(retired?.revision)
 
-    const [a, b] = await Promise.all([startFor(v.id, 'sv-2'), startFor(v.id, 'sv-2')])
+    const [a, b] = await Promise.all([
+      startFor(v.id, { schemaVersion: 'sv-2' }),
+      startFor(v.id, { schemaVersion: 'sv-2' }),
+    ])
 
     expect(await countRows(v.id)).toBe(1)
     expect(a).toEqual(b)

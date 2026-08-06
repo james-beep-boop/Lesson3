@@ -308,9 +308,18 @@ exception:
 
 ```sql
 UPDATE edit_recovery SET …retirement…
-WHERE id = $id AND revision = $selectedRevision
+WHERE user_id = $user AND source_version_id = $version
+  AND revision = $selectedRevision
   AND retired_at IS NULL AND updated_at < $cutoff
 ```
+
+⚑ Targeting is by `(user, sourceVersion)` for ALL FOUR callers, not by row id (amended 2026-08-06 —
+this snippet said `WHERE id = $id`, a fossil of the abandoned plan where expiry was standalone SQL in
+`prune-db.sh`, which this section discards two paragraphs below). Three callers *cannot* use a row id:
+SPEC §5 closes the collection to clients, so no row id ever reaches a browser and the endpoints address
+by the authorized source version. Expiry merely happens to hold one. Letting it be the exception would
+force `retire` to take a union of TARGET shapes alongside its union of commands, for no safety — the
+compound unique index resolves the pair to exactly one row either way.
 
 Zero rows updated means a capture or a reactivation won the race, and the job simply moves on. Being
 precise about what that buys: `updated_at < $cutoff` **already** defeats that race on its own, because

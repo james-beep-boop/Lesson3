@@ -12,16 +12,14 @@
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import type { PayloadRequest } from 'payload'
-
 import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import {
   ageRecoveryRow,
-  countRecoveryRows,
-  makeRecoveryVersion,
-  recoveryRow,
+  formDoc,
+  recoveryHarness,
   retireDirectly,
 } from '../helpers/editRecovery.js'
-import { capture, MAX_CAPTURE_BYTES, start } from '../../src/lib/editRecovery/kernel.js'
+import { capture, MAX_CAPTURE_BYTES } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -33,54 +31,7 @@ afterAll(async () => {
   await fx?.teardown()
 })
 
-const poolReq = () =>
-  ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
-
-const makeVersion = (semver: string) =>
-  makeRecoveryVersion(fx.payload, {
-    planId: fx.plan.id,
-    subjectGradeId: fx.subjectGrade.id,
-    sourceVersionId: fx.version.id,
-    semver,
-  })
-
-const startFor = (versionId: number, userId = fx.users.editor.id) =>
-  start(poolReq(), {
-    userId,
-    sourceVersionId: versionId,
-    lessonPlanId: fx.plan.id,
-    sourceUpdatedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
-    schemaVersion: 'sv-1',
-  })
-
-/**
- * Note the argument is a FORM DOCUMENT, not a capture map: `capture` projects internally, so these
- * tests exercise the same boundary the endpoint will.
- */
-const captureFor = (
-  versionId: number,
-  generation: number,
-  expectedRevision: number,
-  formDocument: unknown,
-  userId = fx.users.editor.id,
-) =>
-  capture(poolReq(), {
-    userId,
-    sourceVersionId: versionId,
-    generation,
-    expectedRevision,
-    formDocument,
-  })
-
-/** A form document whose lesson row carries both prose and admin/system fields. */
-const formDoc = (title: string, extra: Record<string, unknown> = {}) => ({
-  lessons: [{ id: 'L1', title, ...extra }],
-})
-
-const rawRow = (versionId: number, userId = fx.users.editor.id) =>
-  recoveryRow(fx.payload, versionId, userId)
-const countRows = (versionId: number, userId = fx.users.editor.id) =>
-  countRecoveryRows(fx.payload, versionId, userId)
+const { makeVersion, startFor, captureFor, rawRow, countRows } = recoveryHarness(() => fx)
 
 describe('capture: the happy path advances the row and returns the NEW token', () => {
   it('stores content, bumps revision by one, and restarts the TTL clock', async () => {

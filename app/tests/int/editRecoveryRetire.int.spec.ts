@@ -14,13 +14,8 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { commitTransaction, initTransaction, killTransaction, type PayloadRequest } from 'payload'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
-import {
-  countRecoveryRows,
-  makeRecoveryVersion,
-  recoveryRow,
-  setRecoveryUpdatedAt,
-} from '../helpers/editRecovery.js'
-import { capture, retire, start, type RetireCommand } from '../../src/lib/editRecovery/kernel.js'
+import { formDoc, recoveryHarness, setRecoveryUpdatedAt } from '../helpers/editRecovery.js'
+import { retire, type RetireCommand } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -32,39 +27,7 @@ afterAll(async () => {
   await fx?.teardown()
 })
 
-const poolReq = () =>
-  ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
-
-const makeVersion = (semver: string) =>
-  makeRecoveryVersion(fx.payload, {
-    planId: fx.plan.id,
-    subjectGradeId: fx.subjectGrade.id,
-    sourceVersionId: fx.version.id,
-    semver,
-  })
-
-const startFor = (versionId: number, userId = fx.users.editor.id) =>
-  start(poolReq(), {
-    userId,
-    sourceVersionId: versionId,
-    lessonPlanId: fx.plan.id,
-    sourceUpdatedAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
-    schemaVersion: 'sv-1',
-  })
-
-const captureFor = (
-  versionId: number,
-  generation: number,
-  expectedRevision: number,
-  title: string,
-) =>
-  capture(poolReq(), {
-    userId: fx.users.editor.id,
-    sourceVersionId: versionId,
-    generation,
-    expectedRevision,
-    formDocument: { lessons: [{ id: 'L1', title }] },
-  })
+const { poolReq, makeVersion, startFor, captureFor, rawRow, countRows } = recoveryHarness(() => fx)
 
 const retireFor = (versionId: number, command: RetireCommand, userId = fx.users.editor.id) =>
   retire(poolReq(), { userId, sourceVersionId: versionId }, command)
@@ -91,29 +54,67 @@ async function inTransaction<T>(
   }
 }
 
-const rawRow = (versionId: number, userId = fx.users.editor.id) =>
-  recoveryRow(fx.payload, versionId, userId)
-const countRows = (versionId: number, userId = fx.users.editor.id) =>
-  countRecoveryRows(fx.payload, versionId, userId)
-
 /** Start, capture once, and hand back the live token — the state every caller retires FROM. */
 async function seedActiveCapture(semver: string) {
   const v = await makeVersion(semver)
   const t0 = await startFor(v.id)
-  const res = await captureFor(v.id, t0.generation, t0.revision, 'unsaved work')
+  const res = await captureFor(v.id, t0.generation, t0.revision, formDoc('unsaved work'))
   if (!res.ok) throw new Error('fixture: capture failed')
   return { v, token: res.token }
 }
 
+/**
+ * The one post-retirement assertion, shared by every caller's happy path — which is what makes "all
+ * four share ONE transition" true by construction rather than by several lists staying in sync. An
+ * earlier version wrote it out twice, and the two copies had already drifted: the save-as-new one had
+ * silently dropped the marker-kept and token-echo checks, so the fourth caller was verified less
+ * thoroughly than the other three and nothing said so.
+ */
+async function expectRetired(
+  versionId: number,
+  before: Record<string, unknown> | undefined,
+  token: { generation: number; revision: number },
+  label: string,
+) {
+  const after = await rawRow(versionId)
+  expect(after?.retired_at, `${label}: marker set`).not.toBeNull()
+  expect(after?.content, `${label}: content cleared`).toBeNull()
+  expect(Number(after?.revision), `${label}: revision advanced by one`).toBe(
+    Number(before?.revision) + 1,
+  )
+
+  // ⚑ THE AMENDMENT (SPEC §5, 2026-08-06). Retirement ends a session; it does not begin one, so the
+  // generation is untouched. Advancing it here would double-count across a retire-then-reactivate
+  // cycle, which §7 case 22 pins at exactly one advance.
+  expect(Number(after?.generation), `${label}: generation UNCHANGED`).toBe(
+    Number(before?.generation),
+  )
+
+  // The marker is kept, never hard-deleted — that is what makes a stale tab's capture refusable.
+  expect(await countRows(versionId), `${label}: marker kept`).toBe(1)
+  // The caller is handed the advanced token, not the one it sent (§4's token rule).
+  expect(token.revision, `${label}: token echoes the stored revision`).toBe(Number(after?.revision))
+}
+
 describe('retire: all four callers share ONE transition', () => {
-  const cases: { name: string; command: (rev: number, gen: number) => RetireCommand }[] = [
+  const cases: {
+    name: string
+    semver: string
+    command: (rev: number, gen: number) => RetireCommand
+  }[] = [
     {
       name: 'discard',
+      semver: '1.1.40',
       command: (rev, gen) => ({ by: 'discard', generation: gen, expectedRevision: rev }),
     },
-    { name: 'admin-cleanup', command: (rev) => ({ by: 'admin-cleanup', expectedRevision: rev }) },
+    {
+      name: 'admin-cleanup',
+      semver: '1.1.41',
+      command: (rev) => ({ by: 'admin-cleanup', expectedRevision: rev }),
+    },
     {
       name: 'expiry',
+      semver: '1.1.42',
       command: (rev) => ({
         by: 'expiry',
         expectedRevision: rev,
@@ -126,29 +127,15 @@ describe('retire: all four callers share ONE transition', () => {
   // earlier draft listed it here while passing a `discard` command, on the reasoning that their
   // preconditions are identical. That is a test labelled for a caller it never exercises, which is
   // the false-coverage pattern this suite keeps catching in itself.
-  it.each(cases)('$name produces the same row state', async ({ name, command }) => {
-    const { v, token } = await seedActiveCapture(
-      `1.1.${cases.findIndex((c) => c.name === name) + 40}`,
-    )
+  it.each(cases)('$name produces the same row state', async ({ name, semver, command }) => {
+    const { v, token } = await seedActiveCapture(semver)
     const before = await rawRow(v.id)
 
     const res = await retireFor(v.id, command(token.revision, token.generation))
     expect(res.ok, `${name} must retire`).toBe(true)
     if (!res.ok) return
 
-    const after = await rawRow(v.id)
-    expect(after?.retired_at, 'marker set').not.toBeNull()
-    expect(after?.content, 'content cleared').toBeNull()
-    expect(Number(after?.revision), 'revision advanced by one').toBe(Number(before?.revision) + 1)
-
-    // ⚑ THE AMENDMENT (SPEC §5, 2026-08-06). Retirement ends a session; it does not begin one, so the
-    // generation is untouched. Advancing it here would double-count across a retire-then-reactivate
-    // cycle, which §7 case 22 pins at exactly one advance.
-    expect(Number(after?.generation), 'generation UNCHANGED').toBe(Number(before?.generation))
-
-    // The marker is kept, never hard-deleted — that is what makes a stale tab's capture refusable.
-    expect(await countRows(v.id)).toBe(1)
-    expect(res.token.revision).toBe(Number(after?.revision))
+    await expectRetired(v.id, before, res.token, name)
   })
 })
 
@@ -157,7 +144,7 @@ describe('retire: the preconditions (§7 cases 23-24)', () => {
     const { v, token } = await seedActiveCapture('1.1.23')
 
     // Another tab captures, moving the revision on.
-    const newer = await captureFor(v.id, token.generation, token.revision, 'newer work')
+    const newer = await captureFor(v.id, token.generation, token.revision, formDoc('newer work'))
     expect(newer.ok).toBe(true)
 
     const res = await retireFor(v.id, {
@@ -184,7 +171,7 @@ describe('retire: the preconditions (§7 cases 23-24)', () => {
       v.id,
       token.generation,
       token.revision,
-      'typed after the admin looked',
+      formDoc('typed after the admin looked'),
     )
     expect(newer.ok).toBe(true)
 
@@ -256,7 +243,12 @@ describe('retire: expiry (§7 case 25)', () => {
     // The job reads the row: revision R, updated_at old. Then the teacher types.
     const selectedRevision = token.revision
     const cutoff = new Date('2026-02-01T00:00:00.000Z')
-    const landed = await captureFor(v.id, token.generation, token.revision, 'typed at the cutoff')
+    const landed = await captureFor(
+      v.id,
+      token.generation,
+      token.revision,
+      formDoc('typed at the cutoff'),
+    )
     expect(landed.ok).toBe(true)
 
     const res = await retireFor(v.id, { by: 'expiry', expectedRevision: selectedRevision, cutoff })
@@ -324,12 +316,11 @@ describe('retire: save-as-new demands a live transaction (runtime fail-closed)',
       ),
     )
     expect(res.ok).toBe(true)
+    if (!res.ok) return
 
-    const after = await rawRow(v.id)
-    expect(after?.retired_at).not.toBeNull()
-    expect(after?.content).toBeNull()
-    expect(Number(after?.revision)).toBe(Number(before?.revision) + 1)
-    expect(Number(after?.generation), 'generation UNCHANGED').toBe(Number(before?.generation))
+    // The SAME assertion the other three run — so save-as-new is held to the identical standard
+    // rather than a hand-copied subset of it.
+    await expectRetired(v.id, before, res.token, 'save-as-new')
   })
 
   /**

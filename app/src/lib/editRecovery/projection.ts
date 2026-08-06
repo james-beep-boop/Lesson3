@@ -114,6 +114,40 @@ export const parseKey = (key: string): { scope: string; rowId: string | null } =
 const isProseValue = (v: unknown): v is ProseValue => v === null || typeof v === 'string'
 
 /**
+ * Code units the storage column cannot carry, replaced with U+FFFD.
+ *
+ * ⚑ **This is a RULE, not two special cases**, and it is stated that way because the first version was
+ * an instance. Postgres rejects both of these outright — they are not merely awkward:
+ *
+ *   - an unpaired surrogate → `invalid input syntax for type json`
+ *   - `U+0000` (NUL)        → `unsupported Unicode escape sequence: \u0000 cannot be converted to text`
+ *
+ * The first fix handled surrogates only, and NUL went straight through it — which matters because a
+ * JSON request body may legally contain `"\u0000"` and `JSON.parse` yields a real NUL, so it arrives
+ * off the wire with no textarea involved. Anything unstorable made `capture` THROW rather than return
+ * a result, which is the contract that fix existed to protect. Verified against the live database
+ * rather than reasoned about.
+ *
+ * It belongs HERE, not in the kernel. `pickProse` already owns "what a prose leaf may be", and it
+ * already justifies itself with the same design law: prose is `\n`-separated plain text, so a value
+ * carrying a shape the grammar forbids is dropped rather than coerced. "Must be well-formed, storable
+ * text" is the same predicate — just the half discovered later.
+ *
+ * ⚑ `applyCapture` does NOT re-normalise, and does not need to: the guarantee on the read path is the
+ * COLUMN, not a second sanitiser. `jsonb` physically cannot store either of these, so no capture in
+ * the table can carry one, whatever build wrote it. The asymmetry is real and harmless — stating that
+ * is better than adding unreachable defensive code and implying it does something.
+ *
+ * Replaced rather than rejected: this is a recovery feature, and losing a whole capture over one
+ * unrenderable code unit is the wrong trade. One replacement character for both, because a rule with
+ * two different remedies invites a third.
+ */
+const UNSTORABLE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]|\u0000/g
+
+export const normaliseProseValue = (v: ProseValue): ProseValue =>
+  typeof v === 'string' ? v.replace(UNSTORABLE, '\uFFFD') : v
+
+/**
  * Pick the whitelisted leaves that are present AND are prose values. A number or object under a
  * prose key is dropped rather than coerced: prose is `\n`-separated plain text by design law
  * (CLAUDE.md), so storing one would let a capture reintroduce a shape the editor grammar forbids.
@@ -124,7 +158,7 @@ const pickProse = (src: Doc | undefined, keys: readonly string[]): Record<string
   if (!src) return out
   for (const k of keys) {
     const v = src[k]
-    if (isProseValue(v)) out[k] = v
+    if (isProseValue(v)) out[k] = normaliseProseValue(v)
   }
   return out
 }

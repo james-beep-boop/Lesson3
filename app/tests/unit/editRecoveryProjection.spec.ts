@@ -363,3 +363,55 @@ describe('parseKey — the decode half of the key format', () => {
     expect(parseKey('framework:x:y')).toEqual({ scope: 'framework', rowId: 'x:y' })
   })
 })
+
+/**
+ * Storability normalisation. These live in the UNIT suite because they are a pure string rule — an
+ * earlier version tested them through Postgres, which meant needing a database to prove a `.replace()`.
+ *
+ * The NUL case is the one that matters: the first fix handled unpaired surrogates only, and NUL went
+ * straight through it. Both are hard Postgres errors (`invalid input syntax for type json` and
+ * `unsupported Unicode escape sequence: \u0000 cannot be converted to text`), so either one made
+ * `capture` THROW rather than return a result — the contract that fix existed to protect. Verified
+ * against the live database before being written here.
+ */
+describe('prose normalisation — the class, not two instances', () => {
+  const proseOf = (title: string) => projectCapture({ lessons: [{ id: 'L1', title }] })['lesson:L1']
+
+  it('replaces an unpaired HIGH surrogate', () => {
+    expect(proseOf('before \uD800 after')).toEqual({ title: 'before \uFFFD after' })
+  })
+
+  it('replaces an unpaired LOW surrogate', () => {
+    expect(proseOf('before \uDC00 after')).toEqual({ title: 'before \uFFFD after' })
+  })
+
+  it('replaces NUL — which arrives off the wire, not from a textarea', () => {
+    // A JSON body may legally carry the escape; `JSON.parse` yields a real NUL, no browser involved.
+    const fromWire = JSON.parse('{"t":"a\\u0000b"}').t as string
+    expect(fromWire).toHaveLength(3)
+    expect(proseOf(fromWire)).toEqual({ title: 'a\uFFFDb' })
+  })
+
+  it('leaves a WELL-FORMED surrogate pair intact', () => {
+    // Two code units forming one emoji. Touching this would corrupt every emoji a teacher types.
+    expect(proseOf('grin \u{1F600} ok')).toEqual({ title: 'grin \u{1F600} ok' })
+  })
+
+  it('leaves ordinary text — including accents and curly quotes — untouched', () => {
+    const text = 'caf\u00e9 \u2014 the teacher\u2019s note \u2026 \u4f60\u597d'
+    expect(proseOf(text)).toEqual({ title: text })
+  })
+
+  it('apply does NOT re-normalise — the column is the read-path guarantee', () => {
+    // Asserted so the asymmetry is documented rather than discovered. `jsonb` cannot store an unpaired
+    // surrogate or a NUL, so no capture in the table carries one and `applyCapture`'s input is
+    // storable by construction. Handing it one directly, as here, reaches past the only path that
+    // exists — and it passes straight through, which is the honest behaviour to record.
+    const { doc } = applyCapture(
+      { lessons: [{ id: 'L1', title: 'original' }] },
+      { 'lesson:L1': { title: 'bad \uD800 value' } },
+    )
+    const lessons = (doc as { lessons: { title: string }[] }).lessons
+    expect(lessons[0].title).toBe('bad \uD800 value')
+  })
+})

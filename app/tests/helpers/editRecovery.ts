@@ -19,8 +19,16 @@
 import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
+import type { PayloadRequest } from 'payload'
+
 import { drizzleOf } from './db.js'
-import { MARK, minimalBundleContent } from './fixtures.js'
+import { MARK, minimalBundleContent, type RoleFixture } from './fixtures.js'
+import {
+  capture,
+  start,
+  type CaptureResult,
+  type RecoveryToken,
+} from '../../src/lib/editRecovery/kernel.js'
 
 const rows = (result: unknown): Record<string, unknown>[] => {
   const r = result as { rows?: Record<string, unknown>[] } | Record<string, unknown>[]
@@ -68,8 +76,20 @@ export async function countRecoveryRows(payload: Payload, versionId: number, use
 }
 
 /**
- * Retire a row directly. ⚑ TEMPORARY — delete this and repoint callers at the shared retirement
- * function the moment it lands, or this copy will drift from the real definition of "retired".
+ * Retire a row directly, with raw SQL rather than the kernel's `retire()`.
+ *
+ * ⚑ This was marked TEMPORARY, to be deleted "the moment the shared retirement function lands". It has
+ * landed — and the marker was wrong, so it is replaced with the actual reason rather than left to rot.
+ *
+ * `capture`'s resurrection tests (§7 case 15) exist to prove that a capture cannot revive a RETIRED
+ * row. If they reached that state by calling `retire()`, a bug in `retire` could produce a row that is
+ * not really retired and case 15 would pass vacuously — a test whose setup depends on the correctness
+ * of a sibling under test cannot fail for the reason it claims. The same argument applies to `start`'s
+ * reactivation cases.
+ *
+ * The cost is real and worth naming: this is a SECOND definition of what retirement writes. It is kept
+ * deliberately minimal and MUST be checked against `retire()`'s `SET` whenever that changes — the
+ * shared-transition test in `editRecoveryRetire.int.spec.ts` is what pins the real one.
  */
 export async function retireDirectly(payload: Payload, versionId: number, userId: number) {
   await drizzleOf(payload).execute(sql`
@@ -127,3 +147,70 @@ export async function setRecoveryUpdatedAt(
     WHERE user_id = ${userId} AND source_version_id = ${versionId}
   `)
 }
+
+/**
+ * Fixture-bound wrappers for the three recovery specs.
+ *
+ * Each spec previously re-declared `poolReq`, `makeVersion`, `startFor` and `captureFor` locally, and
+ * they had already drifted in the way this file exists to prevent: `startFor`'s SECOND positional
+ * parameter was a schema version in one spec and a user id in the other two, so
+ * `startFor(v.id, 'sv-2')` meant different things in sibling files. Options objects here, so a new
+ * parameter cannot silently change what an existing call means.
+ */
+export const recoveryHarness = (getFx: () => RoleFixture) => {
+  // A THUNK, not the fixture. Specs assign `fx` in `beforeAll`, so a harness built at module load
+  // would capture `undefined` — the inline arrow functions this replaces read it lazily, and that
+  // laziness was load-bearing rather than incidental.
+  const fx = () => getFx()
+  /** No transaction, so concurrent callers each get their own pooled connection (cases 21-22). */
+  const poolReq = () =>
+    ({ payload: fx().payload, transactionID: undefined }) as unknown as PayloadRequest
+
+  const makeVersion = (semver: string) =>
+    makeRecoveryVersion(fx().payload, {
+      planId: fx().plan.id,
+      subjectGradeId: fx().subjectGrade.id,
+      sourceVersionId: fx().version.id,
+      semver,
+    })
+
+  const startFor = (
+    versionId: number,
+    opts: { schemaVersion?: string; userId?: number; sourceUpdatedAt?: string } = {},
+  ): Promise<RecoveryToken> =>
+    start(poolReq(), {
+      userId: opts.userId ?? fx().users.editor.id,
+      sourceVersionId: versionId,
+      lessonPlanId: fx().plan.id,
+      sourceUpdatedAt: opts.sourceUpdatedAt ?? new Date('2026-01-01T00:00:00.000Z').toISOString(),
+      schemaVersion: opts.schemaVersion ?? 'sv-1',
+    })
+
+  /** Takes a FORM DOCUMENT, not a capture map — `capture` projects internally. */
+  const captureFor = (
+    versionId: number,
+    generation: number,
+    expectedRevision: number,
+    formDocument: unknown,
+    userId = fx().users.editor.id,
+  ): Promise<CaptureResult> =>
+    capture(poolReq(), {
+      userId,
+      sourceVersionId: versionId,
+      generation,
+      expectedRevision,
+      formDocument,
+    })
+
+  const rawRow = (versionId: number, userId = fx().users.editor.id) =>
+    recoveryRow(fx().payload, versionId, userId)
+  const countRows = (versionId: number, userId = fx().users.editor.id) =>
+    countRecoveryRows(fx().payload, versionId, userId)
+
+  return { poolReq, makeVersion, startFor, captureFor, rawRow, countRows }
+}
+
+/** A form document whose lesson row can carry prose plus any admin/system fields a test needs. */
+export const formDoc = (title: string, extra: Record<string, unknown> = {}) => ({
+  lessons: [{ id: 'L1', title, ...extra }],
+})

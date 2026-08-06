@@ -86,12 +86,14 @@ export const rowsOf = (result: unknown): Record<string, unknown>[] => {
  */
 export const toPositiveInt = (v: unknown): number => {
   // The INPUT domain is restricted before any coercion, because `Number()` is far too willing:
-  // `Number(true)` is 1, `Number([])` is 0, `Number('')` is 0, and an object with a `valueOf` can
-  // produce anything. Each of those would sail through the safe-integer check below as a plausible
-  // counter value. Only a number, or a non-blank string (which is what the driver actually hands
-  // back for `numeric`), may be coerced at all.
-  const n =
-    typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : Number.NaN
+  // `Number(true)` is 1 and `Number(['5'])` is 5, either of which would pass the safe-integer check
+  // below as a plausible counter. Only a number or a string — what the driver actually hands back for
+  // `numeric` — may be coerced at all.
+  //
+  // Blank strings need no special case: `Number('')` and `Number('  ')` are 0, which `n < 1` already
+  // rejects. An earlier version tested for them explicitly and the comment claimed they would "sail
+  // through", which was simply wrong about `Number`'s behaviour.
+  const n = typeof v === 'number' || typeof v === 'string' ? Number(v) : Number.NaN
   if (!Number.isSafeInteger(n) || n < 1) {
     throw new Error(`expected a positive safe integer from a numeric column, got: ${String(v)}`)
   }
