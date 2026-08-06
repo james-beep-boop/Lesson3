@@ -14,7 +14,12 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { commitTransaction, initTransaction, killTransaction, type PayloadRequest } from 'payload'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
-import { formDoc, recoveryHarness, setRecoveryUpdatedAt } from '../helpers/editRecovery.js'
+import {
+  ageRecoveryRow,
+  formDoc,
+  recoveryHarness,
+  setRecoveryUpdatedAt,
+} from '../helpers/editRecovery.js'
 import { retire, type RetireCommand } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
@@ -54,12 +59,19 @@ async function inTransaction<T>(
   }
 }
 
-/** Start, capture once, and hand back the live token — the state every caller retires FROM. */
+/**
+ * Start, capture once, AGE the row, and hand back the live token — the state every caller retires FROM.
+ *
+ * The ageing is load-bearing, not tidiness. `capture` has just set `updated_at = NOW()`, so without it
+ * the before/after timestamps can land in the same millisecond and any "the clock advanced" assertion
+ * either passes vacuously or flakes. Aged, it is a claim that can actually fail.
+ */
 async function seedActiveCapture(semver: string) {
   const v = await makeVersion(semver)
   const t0 = await startFor(v.id)
   const res = await captureFor(v.id, t0.generation, t0.revision, formDoc('unsaved work'))
   if (!res.ok) throw new Error('fixture: capture failed')
+  await ageRecoveryRow(fx.payload, v.id, fx.users.editor.id, 60)
   return { v, token: res.token }
 }
 
@@ -73,7 +85,7 @@ async function seedActiveCapture(semver: string) {
 async function expectRetired(
   versionId: number,
   before: Record<string, unknown> | undefined,
-  token: { generation: number; revision: number },
+  token: { generation: number; revision: number; updatedAt: string },
   label: string,
 ) {
   const after = await rawRow(versionId)
@@ -92,8 +104,27 @@ async function expectRetired(
 
   // The marker is kept, never hard-deleted — that is what makes a stale tab's capture refusable.
   expect(await countRows(versionId), `${label}: marker kept`).toBe(1)
-  // The caller is handed the advanced token, not the one it sent (§4's token rule).
+
+  // ⚑ THE TTL CLOCK. `updated_at = NOW()` could be deleted from the statement with every other
+  // assertion here still green — verified by flipping it — so this third of the transition was
+  // untested. SPEC §5 requires every raw-SQL write to set it explicitly (Payload maintains that column
+  // only on its own update path, and the column default fires on INSERT alone), and expiry's whole
+  // race argument rests on advancing writes moving it.
+  const beforeMs = new Date(String(before?.updated_at)).getTime()
+  const afterMs = new Date(String(after?.updated_at)).getTime()
+  expect(afterMs, `${label}: updated_at advanced`).toBeGreaterThan(beforeMs)
+
+  // Both columns are set from the same NOW() in one statement, so they are the same instant.
+  expect(new Date(String(after?.retired_at)).getTime(), `${label}: retired_at == updated_at`).toBe(
+    afterMs,
+  )
+
+  // §4's token rule, in full: the caller adopts the ADVANCED token, so every field of it has to be
+  // what was actually stored — not just the revision.
   expect(token.revision, `${label}: token echoes the stored revision`).toBe(Number(after?.revision))
+  expect(new Date(token.updatedAt).getTime(), `${label}: token echoes the stored updated_at`).toBe(
+    afterMs,
+  )
 }
 
 describe('retire: all four callers share ONE transition', () => {

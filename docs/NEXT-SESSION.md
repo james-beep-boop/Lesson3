@@ -74,10 +74,19 @@ secret-free-to-publish, so **ask the operator**:
    review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
    `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25, 28–30).
 
-   **Server progress so far** (branch `feat/edit-recovery-server`, unpushed): collection + closed
-   access + both cascades, the pure projection, and two of four kernel statements (`start`, `capture`)
-   — each DB-proven on the disposable probe. **Still to build:** shared retirement (4 callers),
-   expiry, the five routes / six operations, the rate-limit bucket, and the migration.
+   **Server progress so far** — branch `feat/edit-recovery-server`, PUSHED, open as a DRAFT PR (find it
+   with `gh pr list --state all --head feat/edit-recovery-server`; held as draft deliberately, see the
+   migration blocker below). Done and DB-proven on the disposable probe: the collection with closed
+   access and both cascades, the pure projection with its normalisation rule, and THREE of four kernel
+   statements — `start`, `capture` and the shared `retire()` (four callers, three preconditions, driven
+   inside a real transaction with a rollback test).
+
+   **Still to build:** the expiry JOB that wraps `retire({ by: 'expiry' })` with row selection; the
+   per-user active-capture count cap in `start` (five acceptance cases pre-written in the design's §8);
+   the five routes / six operations with wire authz; the rate-limit bucket; and the migration.
+
+   **Acceptance cases executing today:** 15, 17-18, 21-25. The design doc's §7 carries the live status —
+   update it there as cases land, rather than restating it here.
 
    ⚑ **Two items that must land before the schema is frozen and the migration generated:**
    - **The per-user ACTIVE-CAPTURE COUNT CAP (~20, SPEC §5)** is not implemented. §5 states two caps
@@ -166,7 +175,7 @@ carrying into the next PR:
 - **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
   written 40 lines below it and passed inspection twice, because each reading checked it against its own
   adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
-  those 30 cases were executed when this was written; cases 15, 17-18 and 21-22 are now implemented and
+  those 30 cases were executed when this was written; cases 15, 17-18 and 21-25 are now implemented and
   passing on the unmerged `feat/edit-recovery-server` branch** — the design doc's §7 carries the current
   status, and it should keep being updated as cases land rather than restated from memory here.
 

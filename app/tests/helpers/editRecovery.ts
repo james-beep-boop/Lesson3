@@ -6,10 +6,10 @@
  * the same name with swapped parameters in sibling specs. One signature convention lives here:
  * **`(payload, versionId, userId)`**, always in that order.
  *
- * `retireDirectly` is the one worth centralising even beyond the duplication. It hand-writes what
- * retirement does, ahead of the shared retirement function; when that lands, this must be deleted and
- * its callers repointed. One copy is one deletion. Two copies invite one being missed, and a leftover
- * would then silently disagree with the real implementation about what retirement writes.
+ * `retireDirectly` hand-writes what retirement does. It was written ahead of the shared `retire()` and
+ * this header used to promise its deletion once that landed — `retire()` has landed, and the helper is
+ * KEPT deliberately. Its own docblock carries the reason (setup must not run through the function
+ * under test); the point here is only that one copy exists rather than one per spec.
  *
  * All statements go through `drizzleOf` (helpers/db.ts — "the one definition new code should use"),
  * NOT through the production `txDb`. Routing fixture SQL through the code under test would couple
