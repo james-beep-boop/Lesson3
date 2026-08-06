@@ -255,3 +255,96 @@ export const capture = async (
   const row = rowsOf(result)[0]
   return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
 }
+
+/**
+ * The four callers of retirement, as a DISCRIMINATED UNION (design §8).
+ *
+ * They agree entirely on what they WRITE — that is the one shared `SET` below — and differ only in
+ * what they must PROVE first. Those proofs are not interchangeable, and modelling them as optional
+ * fields on one shape would let expiry omit its `cutoff` and retire a session someone is typing into.
+ * Under a union that is a type error.
+ *
+ * ⚑ The transaction requirement is NOT expressible here, and claiming otherwise would be false
+ * assurance: a union constrains the command's FIELDS, not the `req` handed alongside it.
+ * `by: 'save-as-new'` selects `requireTransaction` internally, so no call site can forget the flag —
+ * but a caller passing a transaction-less `req` is caught at runtime by `txDb`, not by `tsc`. Case 19
+ * (the rollback test) is what actually pins it, and has to exist regardless.
+ */
+export type RetireCommand =
+  /** The save succeeded, so the capture's job is done. MUST run inside the save's transaction. */
+  | { by: 'save-as-new'; generation: number; expectedRevision: number }
+  /** The user rejected the restore offer. Same precondition, no transaction requirement. */
+  | { by: 'discard'; generation: number; expectedRevision: number }
+  /** Site Admin, carrying the revision `recovery/meta` reported — so an operator cannot clear a
+   *  capture that changed between looking and acting. No generation: an admin has no session. */
+  | { by: 'admin-cleanup'; expectedRevision: number }
+  /** The 30-day job, carrying the revision it selected AND the cutoff it selected against. */
+  | { by: 'expiry'; expectedRevision: number; cutoff: Date }
+
+export type RetireResult = { ok: true; token: RecoveryToken } | { ok: false; reason: 'conflict' }
+
+/**
+ * `retire` — the ONE shared retirement transition (§4). Four callers, one `SET`.
+ *
+ * Writes `content := NULL`, `retiredAt := now`, `updatedAt := now`, `revision += 1`.
+ *
+ * ⚑ **It does NOT advance the generation** (SPEC §5, amended 2026-08-06). `revision` fences concurrent
+ * WRITES and moves on every write including this one; `generation` identifies the active editing
+ * SESSION and moves only when a new one BEGINS, which is reactivation's job inside `start`. Advancing
+ * it here too would move it twice per retire-then-reactivate cycle, and §7 case 22 asserts a single
+ * advance across exactly that cycle.
+ *
+ * **None hard-delete.** The row survives as that pair's retirement marker, which is what makes a
+ * stale tab's capture refusable rather than merely unmatched — see `capture`'s `retired_at IS NULL`.
+ *
+ * Every precondition is evaluated INSIDE the update. A read-then-write would let two callers both
+ * read a matching revision and both proceed, and the second would retire work the first had already
+ * accounted for. Zero rows updated means some precondition failed; as with `capture` they are
+ * deliberately not disambiguated, since saying which one would leak whether another session exists.
+ *
+ * Targeting is by `(userId, sourceVersionId)` for all four rather than by row id — the compound unique
+ * index makes that exactly one row, and it keeps one target shape instead of two. Expiry passes the
+ * pair from the row it selected.
+ */
+export const retire = async (
+  req: PayloadRequest,
+  target: { userId: number; sourceVersionId: number },
+  command: RetireCommand,
+): Promise<RetireResult> => {
+  // Only save-as-new demands a live transaction: it is the caller whose retirement must roll back
+  // with the save it belongs to. Expiry is a background job with no transaction at all, and that is
+  // correct for it.
+  const db = await txDb(req, { requireTransaction: command.by === 'save-as-new' })
+
+  // The generation term applies only where the caller HAS a session to prove. An admin acting from
+  // the metadata endpoint has none, and expiry is a job — for those, the revision is the whole proof.
+  const generationTerm =
+    command.by === 'save-as-new' || command.by === 'discard'
+      ? sql` AND generation = ${command.generation}`
+      : sql``
+
+  // Expiry alone adds "still untouched since the cutoff". This term ALREADY defeats the race on its
+  // own — every advancing write sets `updated_at = NOW()`, so a capture landing mid-job pushes the row
+  // out of the window — and the revision term is defence in depth. Both are kept so expiry's safety is
+  // self-contained rather than contingent on an invariant maintained in four other places (§4).
+  const cutoffTerm =
+    command.by === 'expiry'
+      ? sql` AND updated_at < ${command.cutoff.toISOString()}::timestamptz`
+      : sql``
+
+  const result = await db.execute(sql`
+    UPDATE edit_recovery SET
+      content    = NULL,
+      retired_at = NOW(),
+      updated_at = NOW(),
+      revision   = edit_recovery.revision + 1
+    WHERE user_id = ${target.userId}
+      AND source_version_id = ${target.sourceVersionId}
+      AND retired_at IS NULL
+      AND revision = ${command.expectedRevision}${generationTerm}${cutoffTerm}
+    RETURNING generation, revision, updated_at
+  `)
+
+  const row = rowsOf(result)[0]
+  return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
+}

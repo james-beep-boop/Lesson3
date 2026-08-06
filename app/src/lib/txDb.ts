@@ -27,9 +27,18 @@ type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
  * outside the transaction it is meant to serialise. An unresolvable session therefore throws rather
  * than degrades.
  *
- * Callers with no transaction at all (background jobs) get the pool, which is correct for them.
+ * `requireTransaction` additionally rejects having NO transaction at all. Retirement-by-save-as-new
+ * passes it, because there "none" is exactly as wrong as "unresolvable": the statement must be part of
+ * the caller's atomic unit or it must not run. Background jobs (expiry) are the legitimate
+ * no-transaction callers and omit it.
+ *
+ * ⚑ This is RUNTIME enforcement, not a compile-time guarantee. A caller can still hand over a
+ * transaction-less `req`; what it cannot do is have that silently succeed.
  */
-export const txDb = async (req: PayloadRequest): Promise<DrizzleHandle> => {
+export const txDb = async (
+  req: PayloadRequest,
+  opts?: { requireTransaction?: boolean },
+): Promise<DrizzleHandle> => {
   const adapter = req.payload.db as unknown as {
     sessions?: Record<string, { db: DrizzleHandle }>
     drizzle: DrizzleHandle
@@ -41,6 +50,12 @@ export const txDb = async (req: PayloadRequest): Promise<DrizzleHandle> => {
     throw new Error(
       `transactionID ${id} has no drizzle session — refusing to run on the pool, which would ` +
         'commit independently of the caller’s transaction.',
+    )
+  }
+  if (opts?.requireTransaction && !session) {
+    throw new Error(
+      'this statement must run inside the caller’s transaction, but none is active — refusing to ' +
+        'run on the pool, where it would commit independently of the operation it belongs to.',
     )
   }
   return session ?? adapter.drizzle
