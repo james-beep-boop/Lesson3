@@ -10,9 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## 2026-08-06 — edit recovery: the server kernel (IN PROGRESS, draft PR, NOT merged)
 
-Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged: the collection is
-registered and its cascades run on every version and user delete, but there is **no migration yet**, so
-merging would make `main` undeployable. See the handoff block at the top of `docs/NEXT-SESSION.md`.
+Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged. The original
+blocker — no migration for a collection whose cascades run on every version and user delete — is now
+closed. It stays a draft because the **wire suite has never run** against these six operations and
+migration gate step 4 is partial, both blocked on the probe's broken app image. See the handoff block
+at the top of `docs/NEXT-SESSION.md`.
 
 - **The `edit-recovery` collection** — closed on all four operations for every role including Site
   Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
@@ -31,9 +33,29 @@ merging would make `main` undeployable. See the handoff block at the top of `doc
   "revision/generation", which would have double-advanced across a retire-then-reactivate cycle and
   contradicted matrix case 22.
 
-Acceptance cases executing: 15, 17-18, 21-25, 30. Still to build: the active-capture count cap, the
-five routes / six operations, the rate-limit bucket, cases 19-20 through the real save-as-new path, and
-the migration.
+- **The six operations across four URL paths**, the `recovery` rate-limit bucket, and the migration.
+  (Design §2's table lists five rows because it bundles metadata and cleanup, and `/:id/recovery`
+  carries POST, GET and DELETE; the wire-authz rule counts OPERATIONS.) The body guards live in
+  `endpoints/recoveryParse.ts` rather than inline, so they are unit testable without a database or a
+  served app — the same split, for the same reason, as `previewParse.ts`.
+- **A raw-body ceiling before `req.json()`.** Rate limiting bounds how OFTEN an authenticated editor
+  may post, not how large a single post may be, so an oversized `Content-Length` is refused before the
+  body is materialised. It is deliberately not the kernel's 512 KB storage cap — see the
+  `MAX_RECOVERY_BODY_BYTES` docblock for the sizing, and DECISIONS 2026-08-06 for why.
+- **Regression coverage for four fixes that shipped without any**, each watched failing against a
+  deliberately reverted fix before being kept: the malformed-`document` guard and the body ceiling
+  (`tests/unit/recoveryParse.spec.ts`), tombstones absent from the admin metadata view and `bytes`
+  banded against the real serialised size (`tests/int/editRecoveryMetadata.int.spec.ts`), and the
+  rollback's statement order (`tests/unit/editRecoveryMigrationOrder.spec.ts`).
+- **The admin `bytes` figure is documented as APPROXIMATE.** `octet_length(content::text)` is the
+  right quantity where `pg_column_size` was the wrong one, but jsonb renders its text in Postgres's
+  canonical form — a space after every `:` and `,` — so it is consistently a few percent above the
+  compact `JSON.stringify` the 512 KB cap measures. The docblock said "the SAME quantity"; it no
+  longer does.
+
+Acceptance cases executing: 15, 17-18, 21-25, 30, plus the cap's C1-C8. Still to build: cases 19-20
+through the real save-as-new path, migration gate step 4 driven through save-as-new and make-official,
+and a first actual RUN of the wire suite — all three blocked on the probe's app image.
 
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 

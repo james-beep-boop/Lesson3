@@ -101,7 +101,7 @@ export const LessonBundleVersions: CollectionConfig = {
     ],
   },
   endpoints: [
-    // Edit recovery (SPEC §5): five paths, six operations. Each re-authorizes on every call.
+    // Edit recovery (SPEC §5): six operations across four URL paths. Each re-authorizes on every call.
     ...recoveryEndpoints,
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
     exportVersionEndpoint,

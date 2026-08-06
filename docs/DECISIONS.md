@@ -11,6 +11,76 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-06 (later) — a fix commit that changes no test is an unpinned fix
+
+**The correction.** `206252a` fixed four defects, two of them data-destroying, and touched exactly
+three production files and zero tests. Every one of the four was real and correctly fixed; not one was
+pinned. A reviewer asked the obvious question — what stops any of these regressing? — and the honest
+answer was nothing. The commit message was scrupulous about what had *not* been verified, which is
+good practice and is not a substitute for a test.
+
+**Rule:** *the diff of a fix commit should almost always contain a test file.* Not as ceremony: the
+defects worth fixing are by definition the ones that survived review, so review is demonstrably not
+what catches them. If a fix genuinely cannot be pinned at a proportionate cost, say so in the commit
+message and name what would be needed — do not leave the absence implicit.
+
+**What the pinning looked like here**, because the level differed per fix and choosing the level is
+most of the work:
+
+- **The malformed-`document` guard** got a UNIT test, which meant extracting the body guards into
+  `endpoints/recoveryParse.ts` — the same split, for the same reason, that `previewParse.ts` already
+  represents. The payoff was immediate: the wire suite cannot run at all right now (broken probe app
+  image), so an endpoint-only test would have been written and never executed. **Pure HTTP semantics
+  belong in a module that does not import the world.** The wire suite keeps the half only it can
+  prove: that the rejected capture left the previously captured prose intact.
+- **The tombstone filter and the byte quantity** got an INT test, because both are properties of one
+  SQL statement and neither is visible from outside the database. A wire test cannot observe the
+  absence of a row it was never shown.
+- **The migration's rollback ordering** got a SOURCE-TEXT test asserting statement order. Weak as
+  execution proof, and deliberately so — the real failure mode is not "the SQL is wrong" but "the hand
+  edit is lost on regeneration", and a text-order check catches exactly that. The migration file
+  carries a "do not tidy this back" comment; a comment is a request, a test is a guard.
+
+**And the rule that made all of it worth keeping:** every one of the five new guards was watched
+FAILING against a deliberately reverted fix, then reverted back. This is the 2026-08-05 lesson
+(*a guard never observed failing is a guess*) applied to guards written *for* a fix rather than
+during one. It paid for itself twice. The migration-order test failed on its first run for the wrong
+reason — its matcher was finding the statement quoted inside a `--` comment, since the hand-edit notes
+deliberately quote the SQL they describe, and it reported the order as reversed. **A test that reads
+source text must read only the part that executes.** And the byte-band assertion in the metadata spec
+was tight enough to go red when `octet_length` was reverted to `pg_column_size`, which is the only
+evidence that the band means anything.
+
+---
+
+## 2026-08-06 (later) — rate limiting bounds frequency, not per-request memory
+
+**The gap.** `endpoints/recovery.ts` called `req.json()` with no size guard. The 512 KB
+`MAX_CAPTURE_BYTES` cap runs in the kernel, *after* the body is parsed, and the `recovery` rate-limit
+bucket allows 120 requests a minute — so an authenticated editor could make the process materialise an
+arbitrarily large body 120 times a minute, and every layer that looked like a limit was measuring
+something else. The reasoning that produced this was "the endpoint is capped and rate limited",
+which was true and not responsive.
+
+**Rule:** *a byte cap enforced after parsing bounds what is STORED, not what is ALLOCATED, and a rate
+limit bounds frequency, not size. Neither is a body-size guard.* The repo already had the answer —
+`previewParse.ts` does a `Content-Length` pre-check before `formData()` buffers, with an honest
+docstring about the header being optional and possibly dishonest. Recovery was the one body-reading
+endpoint that had skipped the house pattern.
+
+**Sizing, which is the part that is easy to get wrong in the safe-looking direction.** The raw ceiling
+is 4 MB, NOT the 512 KB storage cap. `projectCapture` keeps only whitelisted prose fields, so it
+strictly shrinks its input: a legitimate form document is larger than its own projection, sometimes by
+a lot. Sizing the raw body at 512 KB would have rejected captures the storage cap accepts — losing
+exactly the unsaved work the feature exists to protect, while looking like defensive hardening. 4 MB
+is what `MAX_PREVIEW_JSON_BYTES` already puts on the same class of payload at a different endpoint.
+
+**The assertion that matters is not the status code.** `tests/unit/recoveryParse.spec.ts` asserts the
+413 *and* that `req.json()` was never called. A 413 returned after the body was already read costs
+precisely the memory the guard exists to refuse, and passes a status-code test.
+
+---
+
 ## 2026-08-06 — a registered job is not a scheduled one; and enumerate-first only helps if you flip
 
 **The defect worth remembering.** `expireEditRecoveryTask` was written, registered in

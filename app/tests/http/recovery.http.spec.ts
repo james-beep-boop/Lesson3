@@ -1,5 +1,7 @@
 /**
- * Edit-recovery endpoints over the WIRE — five paths, SIX operations (design §2).
+ * Edit-recovery endpoints over the WIRE — SIX operations across FOUR URL paths (design §2's table
+ * lists five rows; it bundles metadata and cleanup). The wire-authz rule counts OPERATIONS, which is
+ * why this file runs its matrix six times and not four or five.
  *
  * CLAUDE.md's standing rule is that a custom endpoint ships with wire-level 401/403/404 plus happy
  * path in the same PR, because these handlers authorize the caller and then write with
@@ -13,6 +15,15 @@
  *   S3  GET returns only the caller's own row, even when others hold captures on the same version
  *   S4  cleanup is Site-Admin-only AND carries a revision, so a capture that changed between
  *       looking and acting is refused
+ *   S5  a malformed `document` is refused AND the previously captured prose survives it
+ *
+ * ⚑ **What this file deliberately does NOT own.** The body guards themselves — `requireDocument`,
+ * `requireCounter` and the `Content-Length` ceiling — are pure HTTP semantics and are unit tested in
+ * `tests/unit/recoveryParse.spec.ts`, which runs without a database or a served app. S5 is here
+ * because its subject is not the status code but the surviving row. The 4 MB raw-body ceiling has no
+ * wire case for the same reason in reverse: sending 4 MB over the wire would prove nothing the unit
+ * test does not, and the guard's real assertion — that the body was never read — is invisible from
+ * out here.
  *
  * Runs against the app the compose stack serves; see the header of `endpoints.http.spec.ts`.
  */
@@ -257,6 +268,46 @@ describe('recovery endpoints: the happy paths', () => {
       document: { lessons: [] },
     })
     expect(res.status).toBe(400)
+  })
+
+  /**
+   * ⚑ The regression guard for the data-destroying half of `206252a`, and the half a unit test cannot
+   * reach. `tests/unit/recoveryParse.spec.ts` owns the 400 itself — that `requireDocument` rejects
+   * each malformed shape. What only a real request against a real row can show is the CONSEQUENCE:
+   * that the rejected capture left the previously captured prose, and the revision, exactly as they
+   * were. Before the fix each of these projected to `{}` and SUCCEEDED, so the client got a 200 while
+   * the backup it was protecting became empty.
+   */
+  it('S5 — a malformed `document` is refused AND the prior capture survives', async () => {
+    const v = await makeVersion('2.1.1')
+    const t = await startAs(v, 'editor')
+
+    // A good backup exists first — otherwise "nothing was destroyed" is trivially true.
+    const good = await call(v, '/recovery', 'POST', 'editor', {
+      generation: t.generation,
+      expectedRevision: t.revision,
+      document: { lessons: [{ id: 'L1', title: 'work worth keeping' }] },
+    })
+    expect(good.status, 'fixture: the good capture must land').toBe(200)
+    const kept = (await good.json()) as { token: { generation: number; revision: number } }
+
+    // ONE shape, not a matrix. `null` is the shape the pre-fix `payload.document ?? null` actually
+    // produced, and every rejected shape fails at the same guard, so the four-way table lives in
+    // `recoveryParse.spec.ts` where it costs nothing. What is proven HERE is the consequence.
+    const bad = await call(v, '/recovery', 'POST', 'editor', {
+      generation: kept.token.generation,
+      expectedRevision: kept.token.revision, // a VALID token — the body is what is wrong
+      document: null,
+    })
+    expect(bad.status, 'a malformed document is a 400, never a successful overwrite').toBe(400)
+
+    const after = (await (await call(v, '/recovery', 'GET', 'editor')).json()) as {
+      capture: { content: Record<string, Record<string, string>> }
+      token: { revision: number }
+    }
+    expect(after.capture.content['lesson:L1'].title).toBe('work worth keeping')
+    // The revision must not have advanced either: a rejected write is not a write.
+    expect(after.token.revision).toBe(kept.token.revision)
   })
 })
 

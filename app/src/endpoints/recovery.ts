@@ -1,6 +1,13 @@
 /**
- * Edit-recovery endpoints — five route paths, SIX operations (design §2), mounted on
+ * Edit-recovery endpoints — **SIX operations across FOUR URL paths**, mounted on
  * `lesson-bundle-versions` beside `/:id/preview` and `/:id/save-as-new`.
+ *
+ * ⚑ Three counts describe this surface and they are all different, so state which one you mean.
+ * **Six** Payload `Endpoint` configurations, one per method+path pair — this is the count the
+ * wire-authz rule is written in, since each owes its own 401/403/404. **Four** distinct URL paths,
+ * because `/:id/recovery` carries POST, GET and DELETE. **Five** rows in design §2's table, which
+ * bundles Site-Admin metadata and cleanup onto one line. Earlier versions of this docblock said "five
+ * route paths", which is none of the three.
  *
  * | # | Method + path                        | Who         | unauth | wrong role |
  * |---|--------------------------------------|-------------|--------|------------|
@@ -26,6 +33,12 @@
  * by asserting the source had not moved; `schemaVersion` would defeat the shape guard identically; a
  * client-supplied `lessonPlan` would file the row under a plan the caller may hold no rights to.
  *
+ * ⚑ **Bodies are size-checked before they are parsed** — but only as far as the header can be
+ * trusted. `readRecoveryBody` rejects an oversized declared `Content-Length` before `req.json()`
+ * materialises the body, because rate limiting bounds how OFTEN an authenticated editor may post, not
+ * how large a single post may be. It is NOT a memory bound: a request with no `Content-Length` still
+ * reaches the parse. See `recoveryParse.ts` for the sizing and for what a real ceiling would take.
+ *
  * Each operation re-loads the source and re-authorizes on every call, then the kernel writes with
  * `overrideAccess` — the pattern CLAUDE.md notes is only as safe as the tests that prove the gate runs
  * first, which is why every operation here owns wire-level 401/403/404 coverage in `tests/http`.
@@ -43,6 +56,7 @@ import {
   retire,
   start,
 } from '../lib/editRecovery/kernel'
+import { readRecoveryBody, requireCounter, requireDocument } from './recoveryParse'
 import type { LessonBundleVersion, User } from '../payload-types'
 
 /** The schema shape a capture was taken under. Bumped when the prose field set changes. */
@@ -92,39 +106,6 @@ const json = (body: unknown, status = 200): Response =>
     status,
     headers: { 'Content-Type': 'application/json' },
   })
-
-async function body(req: PayloadRequest): Promise<Record<string, unknown>> {
-  try {
-    return ((await req.json?.()) ?? {}) as Record<string, unknown>
-  } catch {
-    throw new APIError('Invalid JSON body', 400)
-  }
-}
-
-/** A token field the client echoes back. Rejected rather than coerced — see `toPositiveInt`. */
-function requireCounter(value: unknown, name: string): number {
-  const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
-  if (!Number.isSafeInteger(n) || n < 1) {
-    throw new APIError(`\`${name}\` must be a positive integer`, 400)
-  }
-  return n
-}
-
-/**
- * The capture body's `document`, which must be a PLAIN OBJECT.
- *
- * ⚑ Without this, a missing / null / string / array `document` projected to `{}` and the capture
- * SUCCEEDED — advancing the revision and replacing a good backup with an empty one. A client defect
- * holding a valid token could therefore erase the very work this feature exists to protect, and
- * report success while doing it. An empty OBJECT is still legitimate (a teacher who cleared every
- * field); "no document at all" is not, and is now a 400.
- */
-function requireDocument(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    throw new APIError('`document` must be an object', 400)
-  }
-  return value as Record<string, unknown>
-}
 
 /**
  * The version's plan id. Required on the collection, so a null here means a populated relationship
@@ -184,7 +165,7 @@ export const recoveryCaptureEndpoint: Endpoint = {
     const limited = await enforceUserRateLimit(req, 'recovery')
     if (limited) return limited
 
-    const payload = await body(req)
+    const payload = await readRecoveryBody(req)
     const result = await capture(req, {
       userId: (req.user as User).id,
       sourceVersionId: version.id,
@@ -243,7 +224,7 @@ export const recoveryDiscardEndpoint: Endpoint = {
     const limited = await enforceUserRateLimit(req, 'recovery')
     if (limited) return limited
 
-    const payload = await body(req)
+    const payload = await readRecoveryBody(req)
     const result = await retire(
       req,
       { userId: (req.user as User).id, sourceVersionId: version.id },
@@ -280,7 +261,7 @@ export const recoveryCleanupEndpoint: Endpoint = {
   method: 'post',
   handler: async (req) => {
     const version = await loadForAdmin(req)
-    const payload = await body(req)
+    const payload = await readRecoveryBody(req)
     const result = await retire(
       req,
       {

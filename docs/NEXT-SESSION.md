@@ -23,18 +23,54 @@ below the "Next steps" list is older history.**
 
 ## Where the work is
 
-`feat/edit-recovery-server`, **pushed**, open as a **draft** PR. Do not trust the numbers below — ask:
+`feat/edit-recovery-server`, open as a **draft** PR.
+
+⚑ **PUSHED THROUGH `206252a` ONLY. The regression-coverage work described below is UNCOMMITTED** —
+eleven files in the working tree that exist on no branch and in no PR. Local `HEAD`, the remote branch
+and the PR head are all `206252a`; everything this handoff says about `recoveryParse.ts`, the three
+new test files and the body ceiling is true of the working tree and of nothing else. A session that
+reads this and then looks at the PR will not find them. **Check before you believe any of it:**
 
 ```bash
+git status --short                      # if this is not empty, the work below is not committed
+git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server
 gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
 git log --oneline origin/main..origin/feat/edit-recovery-server
 ```
 
-## ⛔ Why it is a DRAFT, and must stay one until the migration exists
+At the time of writing, `git status --short` was:
+
+```
+ M app/src/collections/LessonBundleVersions.ts
+ M app/src/endpoints/recovery.ts
+ A app/src/endpoints/recoveryParse.ts
+ M app/src/lib/editRecovery/kernel.ts
+ M app/tests/http/recovery.http.spec.ts
+ A app/tests/int/editRecoveryMetadata.int.spec.ts
+ A app/tests/unit/editRecoveryMigrationOrder.spec.ts
+ A app/tests/unit/recoveryParse.spec.ts
+ M docs/CHANGELOG.md
+ M docs/DECISIONS.md
+ M docs/NEXT-SESSION.md
+```
+
+If that listing is now empty, the work was committed and this note is stale — delete it. If it still
+matches, nothing below has been pushed. Do not trust the numbers either way; run the commands.
+
+## ⛔ Why it is a DRAFT
+
+**The original reason is CLOSED: the migration now exists.** The reason it is still a draft is now
+narrower and different — **the wire suite has never run against these endpoints**, and migration gate
+step 4 is partial. Both trace to the broken probe app image (item 1 of "What is LEFT"). Six endpoints
+that authorize the caller and then write with `overrideAccess` are exactly the case CLAUDE.md's
+standing rule exists for, and that rule is satisfied by a test that RUNS, not by one that is written.
+
+The paragraph below is kept because it is the demonstration that made the migration non-negotiable,
+and the CI blind spot it names is still open.
 
 The `edit-recovery` collection is registered in `payload.config.ts` and its two cascade hooks run on
-**every version delete and every user delete** — but there is **no migration**. Production runs
-migrate-mode, so the table would not exist there. Demonstrated, not inferred: with the table renamed
+**every version delete and every user delete**. Before the migration existed, production's
+migrate-mode meant the table would not exist there. Demonstrated, not inferred: with the table renamed
 away, a version delete fails with
 
 ```
@@ -42,7 +78,7 @@ Failed query: select count(*) from "edit_recovery" where "edit_recovery"."source
 ```
 
 which breaks save-as-new `deleteSource`, make-official `deletePrevious`, plan deletion and user
-deletion. **Merging this before the migration makes `main` undeployable.**
+deletion. **Merging this before the migration would have made `main` undeployable.**
 
 ⚑ **CI CANNOT CATCH THIS — a green gate is not schema safety.** `test:http` loads no
 `vitest.setup.ts`, so it seeds via the Local API into the SAME database the running app serves
@@ -66,33 +102,111 @@ forgot, before the destructive tests touch it.
   inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
   `StartResult` rather than throwing, since being at capacity is a chosen condition, not an error.
 - `src/lib/txDb.ts`: the drizzle primitives, failing closed when a `transactionID` has no session.
+- **The six operations across four URL paths** (`endpoints/recovery.ts`) — §2's table lists five
+  rows because it bundles metadata and cleanup, and `/:id/recovery` carries POST, GET and DELETE, so
+  "five paths" was wrong wherever it appeared. Body guards split into
+  `endpoints/recoveryParse.ts` so they can be unit tested without a database or a served app — the
+  same split, for the same reason, as `previewParse.ts`. Wire coverage is WRITTEN but **has never
+  run** (see item 1 of "What is LEFT").
+- **The `recovery` rate-limit bucket** in `lib/rateLimit.ts` (120/min default), and a **raw-body
+  ceiling** on top of it, because rate limiting bounds how OFTEN an editor may post, not how large one
+  post may be. Sizing and the reason it is not the kernel's 512 KB cap: the `MAX_RECOVERY_BODY_BYTES`
+  docblock, which is the authority. Reasoning: DECISIONS 2026-08-06.
+- **The migration**, generated on the Rock and hand-edited twice. See the gate below for what is and
+  is not verified about it.
 
 **Acceptance cases executing:** 15, 17-18, 21-25, 30, plus the cap's C1-C8. `docs/DESIGN-working-drafts.md` §7 carries the
 live status — update it there as cases land.
 
+**Regression coverage for the four fixes in `206252a`** — that commit changed three production files
+and no test, which is what let a reviewer ask, correctly, whether any of it was pinned. Now:
+`tests/unit/recoveryParse.spec.ts` (the malformed-`document` 400 and the body ceiling, including the
+assertion that matters — the body is never read), `tests/int/editRecoveryMetadata.int.spec.ts`
+(tombstones absent, and `bytes` banded against the compact serialised size), and
+`tests/unit/editRecoveryMigrationOrder.spec.ts` (the rollback's statement order). **Each was watched
+failing against a deliberately reverted fix before being kept** — five mutations, five named
+assertions red, all reverted. A guard never observed failing is a guess.
+
 ## What is LEFT, in order
 
-1. **The five routes / SIX operations** (§2's table bundles Site-Admin metadata and cleanup on one row,
-   and the cleanup verb is unspecified — settle it). CLAUDE.md's wire-authz rule is per OPERATION, so
-   that is six sets of 401/403/404 plus happy path, not five.
-2. **The `recovery` rate-limit bucket** in `lib/rateLimit.ts`, sized for several tabs plus blur and
-   pre-expiry flushes. A 429 must produce visible backoff, never silent abandonment.
-3. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
+⚑ Items 1, 2 and 4 of the previous version of this list — the six operations, the rate-limit bucket
+and the migration — are **BUILT** and are described under "What is DONE" above. They were still listed
+here as unbuilt two commits after they landed; check this list against `git log`, not against memory.
+
+1. **The probe's app image is BROKEN, and it is the keystone.** Its standalone bundle 500s every API
+   route with `ChunkLoadError` before any recovery route is reached (reproduced with `--no-cache`).
+   That single defect is what blocks **the wire suite** (`tests/http` has never run against these
+   endpoints), **cases 19-20**, and **migration gate step 4** — three items that look independent and
+   are not. Fix this first; the other two then become ordinary work.
+2. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
    driven through the real `endpoints/versionEdit.ts` transaction and its semver-retry loop. Case 19
    needs a REAL failing statement — a mocked throw proves the mock. The kernel half is already proven
    (`retire` inside a transaction, rolled back, capture intact).
-4. **Then the migration**, per the four-step gate below.
+3. **Migration gate step 4, properly** — see the gate below. Steps 1-3 are done.
+4. **Run `tests/http/recovery.http.spec.ts` even once.** Six operations × 401/wrong-role/404, four
+   named guarantees and the malformed-document survival cases are all written and all unexecuted
+   against this implementation. Written-and-unrun is not coverage.
 
 ## The migration gate — all four steps, in order
 
-1. Generate the migration on the Rock (Node 22) once the schema is settled.
-2. Review **both** `up` and `down`.
-3. Apply to a **completely fresh migration-only database with push disabled** — never the probe's
+1. ✅ Generate the migration on the Rock (Node 22) once the schema is settled.
+2. ✅ Review **both** `up` and `down`. Two hand edits were needed and BOTH were found by running the
+   rollback rather than reading it: the locked-documents FK must be dropped before the CASCADE that
+   would already have removed it, and this task's `payload_jobs`/`payload_jobs_log` rows must be
+   deleted before the `task_slug` enum shrink casts them into a type that no longer lists them. That
+   ordering is now pinned by `tests/unit/editRecoveryMigrationOrder.spec.ts`, because the realistic
+   way to lose a hand edit is regeneration, and the file's "do not tidy this back" comment is a
+   request rather than a guard.
+3. ✅ Apply to a **completely fresh migration-only database with push disabled** — never the probe's
    `lesson3`, which already has the table from a push-mode run and is therefore contaminated.
-4. Exercise deletion, save-as-new and make-official there **before any dev-mode Payload process can
-   touch it**, and stop `test:http` from pushing at all (run its Local fixture in production mode, or
-   disable adapter push explicitly) — otherwise this blind spot silently returns for the next
-   collection.
+⚑ **`git diff --check` reports mixed indent and trailing whitespace in the generated migration, and
+that is CORRECT to leave alone.** Payload's generator emits `  \t"col" …` inside a template literal;
+every migration in the tree does the same (`20260608_024132_initial.ts` 65 hits,
+`20260608_145602_lesson_entities.ts` 108, `20260608_224715_bundle_versioning.ts` 94). It is not a CI
+gate — nothing in `.github/` or `scripts/` runs `diff --check`. Normalising this one file would make it
+the only migration that diverges from generator output, which costs the next regeneration a spurious
+diff and buys nothing. Check `diff --check` on hand-written files; expect it to be noisy on generated
+ones.
+
+4. ⚠ **PARTIAL — do not record this as done.** What ran against the migration-only database with
+   `NODE_ENV=production` (push OFF, so the schema could only come from migrations): a recovery row
+   writes and reads, and the version-delete, user-delete and plan-delete-transitive cascades all
+   clear their rows. That exercises the version-delete cascade save-as-new `deleteSource` and
+   make-official `deletePrevious` both go through — it does **not drive those two endpoints**, which
+   the gate explicitly requires and which needs the app image (item 1 above). Also still open: stop
+   `test:http` pushing at all (run its Local fixture in production mode, or disable adapter push
+   explicitly), or this blind spot silently returns for the next collection.
+
+## Two cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
+
+Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
+diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is urgent; both are real.
+
+- **The Content-Length pre-parse guard now exists in THREE hand-written copies** —
+  `endpoints/previewParse.ts`, `endpoints/uploadBundles.ts` and now `endpoints/recoveryParse.ts` —
+  each re-explaining the same "the header may be absent or dishonest" caveat in its own words. The
+  rule of three is reached. The extraction is `assertBodyWithin(req, maxBytes, message)` in shared
+  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Share the
+  CHECK, not the constants** — the three limits measure different payload classes and must stay
+  independent; coupling the numbers is the hazard, not the duplication. Worth doing with the next
+  change that touches any of those files.
+  Deeper version, if anyone wants it: `emailVersion.ts`, `forgotPassword.ts`, `markMessagesRead.ts`
+  and `userAssignments.ts` all call `req.json()` unguarded, so "no request may make the process
+  allocate an unbounded body" is currently opt-in and therefore permanently incomplete — every new
+  JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
+  And the part no application-layer guard can do — a body with a missing or lying header — wants a
+  limit at the proxy/Next layer; there is none in the repo today.
+
+- **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect this branch just
+  fixed.** Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
+  a value — with **no** `DELETE FROM payload_jobs*` before the cast, so it aborts on any database
+  where the removed task had ever run. The other four enum-shrinking migrations all carry the
+  deletes. Found while checking whether `editRecoveryMigrationOrder.spec.ts` could be generalized
+  across all migrations: **it cannot, yet** — a glob-based check fails on this file, and an allowlist
+  exempting it would hollow out the guard. Fix that migration first, then generalize the test; the
+  generalized form is what would guard the NEXT `migrate:create`, which is where the generator will
+  reproduce this defect again. This is a correctness change to a stable migration, so it wants
+  `/code-review` rather than a cleanup pass.
 
 ## Two known defects OUTSIDE this branch's diff, tracked here because they will otherwise be lost
 
@@ -181,7 +295,7 @@ secret-free-to-publish, so **ask the operator**:
    reads first.
 
    Two contract details worth carrying into the endpoint work, since they change its scope:
-   - **Five table rows, SIX operations.** §2's endpoint table bundles Site-Admin metadata and cleanup
+   - **Five table rows, SIX operations, FOUR URL paths.** §2's endpoint table bundles Site-Admin metadata and cleanup
      on one line, and the cleanup verb is unspecified — settle it. The wire-authz rule is per
      OPERATION, so that is six sets of 401/403/404 plus happy path.
    - **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload

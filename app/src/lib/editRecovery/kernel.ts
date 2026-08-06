@@ -525,11 +525,19 @@ export type CaptureMetadata = {
   revision: number
   updatedAt: string
   /**
-   * Serialised size in UTF-8 bytes — the SAME quantity {@link MAX_CAPTURE_BYTES} caps.
+   * APPROXIMATE serialised size in UTF-8 bytes, for an operator judging whether a capture is large.
    *
    * `octet_length(content::text)` rather than `pg_column_size(content)`: the latter reports Postgres's
-   * internal jsonb datum size (a different encoding, and TOAST-compressed), so an operator comparing
-   * it against the 512 KB limit would be comparing two different numbers.
+   * internal jsonb datum size — a different encoding, and TOAST-compressed — which is not within
+   * sight of the byte budget. `content::text` at least renders the same JSON.
+   *
+   * ⚑ It is still NOT the number {@link MAX_CAPTURE_BYTES} enforces, and this must not be described
+   * as if it were. That cap measures a compact `JSON.stringify` at capture time; jsonb renders its
+   * text in Postgres's canonical form, which inserts a space after every `:` and `,`, reorders keys
+   * and renormalises numbers. For real prose the difference is a few percent and always upward, so a
+   * row reported near the limit genuinely is near the limit — but the two figures will not agree
+   * exactly, and an operator should not expect them to. Persisting the measured byte count at capture
+   * time is what an exact comparison would need; it would cost a column, and nothing here needs one.
    */
   bytes: number
 }
@@ -546,8 +554,8 @@ export type CaptureMetadata = {
  * ⚑ The `content` column is not selected at all, rather than selected and then stripped. A projection
  * that fetches the prose and deletes it before returning is one careless edit away from leaking it,
  * and it would put a teacher's unsaved work in the process memory of a request that has no business
- * holding it. `pg_column_size` gives the operator the one thing about the content they legitimately
- * need — how big it is — without reading a character of it.
+ * holding it. `octet_length` gives the operator the one thing about the content they legitimately
+ * need — roughly how big it is — without reading a character of it.
  */
 export const readCaptureMetadata = async (
   req: PayloadRequest,
