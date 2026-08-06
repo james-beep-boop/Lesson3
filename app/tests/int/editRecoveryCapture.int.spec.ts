@@ -59,14 +59,38 @@ const startFor = (versionId: number, userId = fx.users.editor.id) =>
     schemaVersion: 'sv-1',
   })
 
+/**
+ * Note the argument is a FORM DOCUMENT, not a capture map: `capture` projects internally, so these
+ * tests exercise the same boundary the endpoint will.
+ */
 const captureFor = (
   versionId: number,
   generation: number,
   expectedRevision: number,
-  content: unknown,
+  formDocument: unknown,
   userId = fx.users.editor.id,
 ) =>
-  capture(poolReq(), { userId, sourceVersionId: versionId, generation, expectedRevision, content })
+  capture(poolReq(), {
+    userId,
+    sourceVersionId: versionId,
+    generation,
+    expectedRevision,
+    formDocument,
+  })
+
+/** A form document whose lesson row carries both prose and admin/system fields. */
+const formDoc = (title: string, extra: Record<string, unknown> = {}) => ({
+  lessons: [{ id: 'L1', title, ...extra }],
+})
+
+/** Push `updated_at` into the past so an advancing write must visibly move it. */
+async function ageRow(versionId: number, seconds = 60, userId = fx.users.editor.id) {
+  const db = await txDb(poolReq())
+  await db.execute(sql`
+    UPDATE edit_recovery SET updated_at = NOW() - (${seconds} * INTERVAL '1 second')
+    WHERE user_id = ${userId} AND source_version_id = ${versionId}
+  `)
+}
 
 const rows = (res: unknown) => {
   const r = res as { rows?: Record<string, unknown>[] } | Record<string, unknown>[]
@@ -108,11 +132,13 @@ describe('capture: the happy path advances the row and returns the NEW token', (
   it('stores content, bumps revision by one, and restarts the TTL clock', async () => {
     const v = await makeVersion('1.0.301')
     const t0 = await startFor(v.id)
+    // Age the row FIRST. With `>=` against an unaged row the assertion passes even if
+    // `updated_at = NOW()` is deleted from the statement, since the two timestamps are equal — the
+    // TTL guarantee would then be untested while looking tested.
+    await ageRow(v.id, 60)
     const before = await rawRow(v.id)
 
-    const res = await captureFor(v.id, t0.generation, t0.revision, {
-      'lesson:1': { title: `${MARK}unsaved` },
-    })
+    const res = await captureFor(v.id, t0.generation, t0.revision, formDoc(`${MARK}unsaved`))
     expect(res.ok).toBe(true)
     if (!res.ok) return
 
@@ -122,10 +148,12 @@ describe('capture: the happy path advances the row and returns the NEW token', (
     expect(res.token.generation).toBe(t0.generation)
 
     const after = await rawRow(v.id)
-    expect((after?.content as Record<string, unknown>)['lesson:1']).toEqual({
+    expect((after?.content as Record<string, unknown>)['lesson:L1']).toEqual({
       title: `${MARK}unsaved`,
     })
-    expect(new Date(String(after?.updated_at)).getTime()).toBeGreaterThanOrEqual(
+    // STRICTLY greater: the write restarted the 30-day clock, or expiry would destroy a session
+    // that is being actively typed into.
+    expect(new Date(String(after?.updated_at)).getTime()).toBeGreaterThan(
       new Date(String(before?.updated_at)).getTime(),
     )
   })
@@ -134,9 +162,7 @@ describe('capture: the happy path advances the row and returns the NEW token', (
     const v = await makeVersion('1.0.302')
     let token = await startFor(v.id)
     for (let i = 0; i < 3; i += 1) {
-      const res = await captureFor(v.id, token.generation, token.revision, {
-        'lesson:1': { title: `t${i}` },
-      })
+      const res = await captureFor(v.id, token.generation, token.revision, formDoc(`t${i}`))
       expect(res.ok, `capture ${i} must succeed`).toBe(true)
       if (!res.ok) return
       token = res.token
@@ -151,7 +177,7 @@ describe('capture NEVER inserts — the rule the unique index does not enforce',
     const v = await makeVersion('1.0.303')
     expect(await countRows(v.id)).toBe(0)
 
-    const res = await captureFor(v.id, 1, 1, { 'lesson:1': { title: 'ghost' } })
+    const res = await captureFor(v.id, 1, 1, formDoc('ghost'))
     expect(res).toEqual({ ok: false, reason: 'conflict' })
     // The whole point: a capture without a start must not become the start.
     expect(await countRows(v.id)).toBe(0)
@@ -164,9 +190,7 @@ describe('capture NEVER inserts — the rule the unique index does not enforce',
     const retired = await rawRow(v.id)
 
     // The tab still holds the pre-retirement token and tries to save its work.
-    const res = await captureFor(v.id, t0.generation, t0.revision, {
-      'lesson:1': { title: 'resurrect' },
-    })
+    const res = await captureFor(v.id, t0.generation, t0.revision, formDoc('resurrect'))
     expect(res).toEqual({ ok: false, reason: 'conflict' })
 
     // Resurrection blocked in both possible shapes: no second row beside the marker, and the marker
@@ -195,9 +219,12 @@ describe('capture NEVER inserts — the rule the unique index does not enforce',
     await retireDirectly(v.id)
     const retired = await rawRow(v.id)
 
-    const res = await captureFor(v.id, Number(retired?.generation), Number(retired?.revision), {
-      'lesson:1': { title: 'resurrect-exact' },
-    })
+    const res = await captureFor(
+      v.id,
+      Number(retired?.generation),
+      Number(retired?.revision),
+      formDoc('resurrect-exact'),
+    )
     expect(res).toEqual({ ok: false, reason: 'conflict' })
 
     expect(await countRows(v.id)).toBe(1)
@@ -212,19 +239,15 @@ describe('capture: the fencing preconditions', () => {
   it('conflicts on a STALE revision and leaves the stored content untouched', async () => {
     const v = await makeVersion('1.0.305')
     const t0 = await startFor(v.id)
-    const first = await captureFor(v.id, t0.generation, t0.revision, {
-      'lesson:1': { title: 'winner' },
-    })
+    const first = await captureFor(v.id, t0.generation, t0.revision, formDoc('winner'))
     expect(first.ok).toBe(true)
 
     // A second tab still holding the pre-capture revision — the "another tab has newer work" case.
-    const loser = await captureFor(v.id, t0.generation, t0.revision, {
-      'lesson:1': { title: 'loser' },
-    })
+    const loser = await captureFor(v.id, t0.generation, t0.revision, formDoc('loser'))
     expect(loser).toEqual({ ok: false, reason: 'conflict' })
 
     const after = await rawRow(v.id)
-    expect((after?.content as Record<string, Record<string, string>>)['lesson:1'].title).toBe(
+    expect((after?.content as Record<string, Record<string, string>>)['lesson:L1'].title).toBe(
       'winner',
     )
   })
@@ -237,11 +260,90 @@ describe('capture: the fencing preconditions', () => {
     expect(reactivated.generation).toBeGreaterThan(t0.generation)
 
     // Revision is deliberately correct here, so only the generation term can reject this.
-    const res = await captureFor(v.id, t0.generation, reactivated.revision, {
-      'lesson:1': { title: 'stale gen' },
-    })
+    const res = await captureFor(v.id, t0.generation, reactivated.revision, formDoc('stale gen'))
     expect(res).toEqual({ ok: false, reason: 'conflict' })
     expect((await rawRow(v.id))?.content).toBeNull()
+  })
+})
+
+/**
+ * The PROJECTION boundary, asserted at the column rather than in a unit test. The unit suite proves
+ * `projectCapture` excludes admin fields; this proves `capture` actually calls it, which is a
+ * different claim. An earlier signature took a pre-projected map and stored it verbatim, so the
+ * whitelist was a convention every caller had to remember — and a convention is not a boundary.
+ */
+describe('capture: the projection boundary reaches the column', () => {
+  it('stores prose only — hostile admin/system fields never reach `content`', async () => {
+    const v = await makeVersion('1.0.309')
+    const t0 = await startFor(v.id)
+
+    const hostile = {
+      lessons: [
+        {
+          id: 'L1',
+          title: 'prose survives',
+          // Every one of these is admin/system and must be absent from the stored row.
+          resourceLinks: [{ id: 'R1', url: 'https://evil.example/HOSTILE' }],
+          number: 'HOSTILE-number',
+          duration: 'HOSTILE-duration',
+          framework: [{ id: 'F1', teacherMoves: 'fw prose survives', phase: 'HOSTILE-phase' }],
+        },
+      ],
+      meta: { subject: 'HOSTILE-meta' },
+      semver: 'HOSTILE-semver',
+      finalExplanation: {
+        instructions: 'fe prose survives',
+        sections: [{ id: 'S1', prompt: 'section prose survives', exemplar: 'HOSTILE-exemplar' }],
+        rubric: [{ id: 'RB1', criterion: 'HOSTILE-rubric' }],
+      },
+    }
+
+    const res = await captureFor(v.id, t0.generation, t0.revision, hostile)
+    expect(res.ok).toBe(true)
+
+    const stored = JSON.stringify((await rawRow(v.id))?.content)
+    // By value, so a leak into a container this test did not think to name is still caught.
+    expect(stored).not.toContain('HOSTILE')
+    expect(stored).not.toContain('evil.example')
+    // ...and the prose genuinely did survive, or the assertion above would be satisfied by an
+    // empty capture.
+    expect(stored).toContain('prose survives')
+    expect(stored).toContain('fw prose survives')
+    expect(stored).toContain('section prose survives')
+  })
+})
+
+/**
+ * `txDb` must FAIL CLOSED. A `transactionID` whose drizzle session cannot be resolved means the
+ * statement would silently run on the pool — committing independently of the transaction the caller
+ * believes it is inside. On the retirement path that is a capture destroyed for a save that then
+ * rolled back, which is the exact work-loss this feature exists to prevent.
+ */
+describe('capture: an unresolvable transaction is refused, not downgraded to the pool', () => {
+  it('throws and leaves the row untouched when the transactionID has no session', async () => {
+    const v = await makeVersion('1.0.310')
+    const t0 = await startFor(v.id)
+    const before = await rawRow(v.id)
+
+    const bogusReq = {
+      payload: fx.payload,
+      transactionID: 'no-such-transaction-id',
+    } as unknown as PayloadRequest
+
+    await expect(
+      capture(bogusReq, {
+        userId: fx.users.editor.id,
+        sourceVersionId: v.id,
+        generation: t0.generation,
+        expectedRevision: t0.revision,
+        formDocument: formDoc('should never land'),
+      }),
+    ).rejects.toThrow(/no drizzle session/)
+
+    const after = await rawRow(v.id)
+    expect(after?.content).toBeNull()
+    expect(after?.revision).toEqual(before?.revision)
+    expect(after?.updated_at).toEqual(before?.updated_at)
   })
 })
 
@@ -251,7 +353,16 @@ describe('capture: the hard byte ceiling', () => {
     const t0 = await startFor(v.id)
     const before = await rawRow(v.id)
 
-    const huge = { 'lesson:1': { title: 'x'.repeat(MAX_CAPTURE_BYTES + 1) } }
+    // MULTIBYTE on purpose. '\u{1F600}' is 4 UTF-8 bytes but JS `.length` 2, so this document is
+    // ~524 KB of UTF-8 while its character count is only ~262 K — well under the ceiling. An ASCII
+    // payload would pass this test even if `Buffer.byteLength` were replaced by `.length`, leaving
+    // the real limit unenforced for exactly the content most likely to be large: prose with
+    // accents, curly quotes or any non-Latin script.
+    const emojiCount = Math.ceil(MAX_CAPTURE_BYTES / 4) + 2
+    const huge = formDoc('\u{1F600}'.repeat(emojiCount))
+    expect(JSON.stringify(huge).length).toBeLessThan(MAX_CAPTURE_BYTES)
+    expect(Buffer.byteLength(JSON.stringify(huge), 'utf8')).toBeGreaterThan(MAX_CAPTURE_BYTES)
+
     const res = await captureFor(v.id, t0.generation, t0.revision, huge)
     expect(res.ok).toBe(false)
     if (res.ok) return

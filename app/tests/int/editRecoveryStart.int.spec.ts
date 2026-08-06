@@ -93,6 +93,15 @@ async function retireDirectly(userId: number, versionId: number) {
   `)
 }
 
+/** Push `updated_at` into the past so a clock-restarting write must visibly move it. */
+async function ageRow(userId: number, versionId: number, seconds = 60) {
+  const db = await txDb(poolReq())
+  await db.execute(sql`
+    UPDATE edit_recovery SET updated_at = NOW() - (${seconds} * INTERVAL '1 second')
+    WHERE user_id = ${userId} AND source_version_id = ${versionId}
+  `)
+}
+
 describe('start: first call', () => {
   it('inserts one active row at generation 1, revision 1, with the caller-derived baseline', async () => {
     const v = await makeVersion('1.0.201')
@@ -155,6 +164,10 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     expect(first).toMatchObject({ generation: 1, revision: 1 })
 
     await retireDirectly(fx.users.editor.id, v.id)
+    // Age it, so "the TTL clock restarted" is a claim the assertion can actually fail. Comparing
+    // against an unaged row admits equality, and `updated_at = NOW()` could be deleted from the
+    // reactivation branch with this test still green.
+    await ageRow(fx.users.editor.id, v.id, 60)
     const retired = await rawRow(fx.users.editor.id, v.id)
     expect(retired?.retired_at).not.toBeNull()
     const retiredRevision = Number(retired?.revision)
@@ -177,9 +190,10 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     // A reactivated session needs its OWN baseline and shape, or it compares staleness against the
     // retired session's and restores under a field shape that may have changed.
     expect(row?.schema_version).toBe('sv-2')
-    // And the TTL clock restarted, or the next expiry run would destroy the session immediately.
+    // And the TTL clock restarted, STRICTLY — or the next expiry run would destroy the session
+    // seconds after it began.
     expect(new Date(String(row?.updated_at)).getTime()).toBeGreaterThan(
-      new Date(String(retired?.updated_at)).getTime() - 1,
+      new Date(String(retired?.updated_at)).getTime(),
     )
     // The retired generation stays fenced: nothing holding generation 1 can act on this row again.
     expect(a.generation).toBeGreaterThan(1)

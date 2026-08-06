@@ -21,6 +21,8 @@
 import { sql } from 'drizzle-orm'
 import type { PayloadRequest } from 'payload'
 
+import { projectCapture } from './projection'
+
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
 export type RecoveryToken = {
   generation: number
@@ -29,21 +31,46 @@ export type RecoveryToken = {
 }
 
 /**
- * The transaction-bound drizzle instance, or the pool when there is no transaction.
+ * The transaction-bound drizzle instance, or the pool when there is legitimately no transaction.
  *
  * `db.sessions[txID].db` is the same lookup @payloadcms/drizzle's own (unexported) `getTransaction()`
  * performs — verified against installed source, and the identical idiom `endpoints/userAssignments.ts`
- * already relies on for its `SELECT … FOR UPDATE`. Falling back to `adapter.drizzle` is correct for
- * callers outside a transaction (the expiry job), but is NOT correct for retirement inside save-as-new;
- * that path always has `req.transactionID`.
+ * already relies on for its `SELECT … FOR UPDATE`.
+ *
+ * ⚑ **This FAILS CLOSED, in two directions, and both matter.**
+ *
+ * 1. A `transactionID` present whose session cannot be found is an inconsistency, not a licence to use
+ *    the pool. Falling back there would run the statement on a SEPARATE connection that commits
+ *    independently of the transaction the caller believes it is inside — so retirement could commit
+ *    while the save-as-new it belongs to rolled back, destroying a capture for work that was never
+ *    saved. That is the precise outcome this feature exists to prevent, so an unresolvable session
+ *    throws rather than degrades.
+ * 2. `requireTransaction` additionally rejects having no transaction at all. Retirement passes it,
+ *    because "no transaction" is just as wrong there as "unresolvable transaction" — the statement
+ *    must be part of the caller's atomic unit or it must not run.
+ *
+ * The expiry job is the legitimate no-transaction caller and omits `requireTransaction`.
  */
-export const txDb = async (req: PayloadRequest) => {
+export const txDb = async (req: PayloadRequest, opts?: { requireTransaction?: boolean }) => {
   const adapter = req.payload.db as unknown as {
     sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
     drizzle: { execute: (q: unknown) => Promise<unknown> }
   }
   const id = req.transactionID != null ? String(await req.transactionID) : undefined
-  return (id ? adapter.sessions?.[id]?.db : undefined) ?? adapter.drizzle
+  const session = id ? adapter.sessions?.[id]?.db : undefined
+
+  if (id && !session) {
+    throw new Error(
+      `edit-recovery: transactionID ${id} has no drizzle session — refusing to run on the pool, ` +
+        'which would commit independently of the caller’s transaction.',
+    )
+  }
+  if (opts?.requireTransaction && !session) {
+    throw new Error(
+      'edit-recovery: this statement must run inside the caller’s transaction, but none is active.',
+    )
+  }
+  return session ?? adapter.drizzle
 }
 
 /** `numeric` arrives as a string; anything unparseable is a bug worth failing loudly on. */
@@ -178,6 +205,13 @@ export type CaptureResult =
  * On success the ADVANCED token is returned and the client must adopt it (§4's token rule). Returning
  * the token the caller SENT would leave it holding a value the successful write just superseded, so
  * its next capture would 409 against a conflict it caused itself.
+ *
+ * ⚑ **This function PROJECTS; it does not accept a capture map.** It takes the raw form document and
+ * runs `projectCapture` itself, so the prose whitelist is enforced at the same boundary as the byte
+ * cap. An earlier signature took pre-projected `content: unknown` and stored it verbatim — which made
+ * the whitelist a convention a caller could simply not follow, letting `resourceLinks`, `phase`,
+ * `rubric`, answer keys or arbitrary JSON reach the column. A boundary that depends on every caller
+ * remembering is not a boundary; the projection is therefore not skippable from here.
  */
 export const capture = async (
   req: PayloadRequest,
@@ -186,11 +220,15 @@ export const capture = async (
     sourceVersionId: number
     generation: number
     expectedRevision: number
-    /** The projection's capture map. Serialised here so the size check sees exactly what is stored. */
-    content: unknown
+    /**
+     * The RAW form document, not a capture map. Projected here, so what is measured is exactly what
+     * is stored and nothing outside the prose whitelist can reach the column.
+     */
+    formDocument: unknown
   },
 ): Promise<CaptureResult> => {
-  const json = JSON.stringify(args.content ?? null)
+  const projected = projectCapture(args.formDocument as Record<string, unknown> | null)
+  const json = JSON.stringify(projected)
   const bytes = Buffer.byteLength(json, 'utf8')
   if (bytes > MAX_CAPTURE_BYTES) return { ok: false, reason: 'too-large', bytes }
 
