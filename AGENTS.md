@@ -56,6 +56,10 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   seeded dev database. Run from the repo root:
 
   ```bash
+  # 0. ⚑ RESOLVE THE REPO ROOT FIRST. Every path below is derived from it, so the recipe is
+  #    cwd-independent. This is not tidiness — see the trap note under step 4.
+  ROOT=$(git rev-parse --show-toplevel) && cd "$ROOT"
+
   # 1. stand up the isolated stack (own volumes, own network)
   docker compose -p lesson3-ci-probe up -d --build
 
@@ -64,17 +68,25 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
     -c "CREATE DATABASE lesson3_test;"
 
   # 3. point the TRACKED app/test.env at it (restore afterwards — step 5)
-  PW=$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)
-  sed -i '' -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:${PW}@postgres:5432/lesson3_test#" app/test.env
+  PW=$(grep -E '^POSTGRES_PASSWORD=' "$ROOT/.env" | cut -d= -f2-)
+  sed -i '' -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:${PW}@postgres:5432/lesson3_test#" "$ROOT/app/test.env"
 
   # 4. run — note `-e NODE_ENV=test` is on `docker run`, NOT on `docker compose up`
   docker run --rm --network lesson3-ci-probe_default \
-    -v "$PWD/app:/app" -v /app/node_modules -w /app \
-    --env-file .env -e NODE_ENV=test lesson3-deps npm run test:int
+    -v "$ROOT/app:/app" -v /app/node_modules -w /app \
+    --env-file "$ROOT/.env" -e NODE_ENV=test lesson3-deps npm run test:int
 
   # 5. restore the tracked file and PROVE it
-  git checkout -- app/test.env && git diff --exit-code -- app/test.env
+  git -C "$ROOT" checkout -- app/test.env && git -C "$ROOT" diff --exit-code -- app/test.env
   ```
+
+  ⚑ **Step 0 exists because `$PWD/app` in step 4 destroyed a working day.** Run from inside `app/`,
+  `-v "$PWD/app:/app"` resolves to `<root>/app/app` — and Docker **CREATES a missing host bind
+  source**, so it silently mints `<root>/app/app/node_modules`. Next.js prefers a root-level `./app`
+  over `./src/app`, so `next build` then emits a build with **zero application routes** and exits 0;
+  the served app 500s every request with a `ChunkLoadError` that points at the bundler. Git cannot
+  track an empty directory, so `git status` stays clean and the Rock and CI never see it. `$ROOT` is
+  the fix, and `npm run check:approuter` (below) is the net under it.
 
   The container joins the probe's network and reaches postgres by service name; the probe's postgres
   publishes **no host port**, so a host-side `psql`/`DATABASE_URI=localhost` will not reach it.

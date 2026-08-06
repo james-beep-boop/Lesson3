@@ -75,14 +75,21 @@ hidden one layer deeper.
 
 ## ⛔ Why it is a DRAFT
 
-**The original reason is CLOSED: the migration now exists.** The reason it is still a draft is now
-narrower and different — **the wire suite has never run against these endpoints**, and migration gate
-step 4 is partial. Both trace to the broken probe app image (item 1 of "What is LEFT"). Six endpoints
-that authorize the caller and then write with `overrideAccess` are exactly the case CLAUDE.md's
-standing rule exists for, and that rule is satisfied by a test that RUNS, not by one that is written.
+**Two earlier reasons are now CLOSED, and this section has already been wrong once by not saying so.**
+The migration exists (closed first). The wire suite has RUN — 27/27 on recovery, 125/125 overall,
+against a migration-only schema with push off — and migration gate step 4 is complete, both halves
+(closed 2026-08-06, see below).
 
-The paragraph below is kept because it is the demonstration that made the migration non-negotiable,
-and the CI blind spot it names is still open.
+**The remaining reason is a FEATURE GAP, not a test gap: save-as-new retirement is not built.**
+`endpoints/versionEdit.ts` never calls `retire`, so a successful save leaves the capture ACTIVE with
+its content intact. Matrix case 7 does not hold, and cases 19-20 cannot be written honestly. The
+125/125 wire result proves migration and schema compatibility; it does not prove edit recovery is
+complete, and it must not be quoted as if it did. Details and the implementation contract are in item
+1 of "What is LEFT".
+
+The paragraph below is kept because it is the demonstration that made the migration non-negotiable.
+⚑ The CI blind spot it describes is CLOSED as of 2026-08-06 — `test:http` runs with
+`NODE_ENV=production` so Payload's dev push is off. Read it as history, not as a live warning.
 
 The `edit-recovery` collection is registered in `payload.config.ts` and its two cascade hooks run on
 **every version delete and every user delete**. Before the migration existed, production's
@@ -112,7 +119,8 @@ forgot, before the destructive tests touch it.
   jsonb column cannot carry (unpaired surrogates AND U+0000).
 - **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
   resume; now also enforcing the per-user ACTIVE-CAPTURE CAP), `capture` (CAS UPDATE, never an
-  insert), `retire` (ONE transition, four callers, three precondition shapes), and `expireCaptures`
+  insert), `retire` (ONE transition, three precondition shapes — and ⚑ only THREE of its four
+  designed callers exist: discard, admin cleanup, expiry. Save-as-new is missing), and `expireCaptures`
   (select + per-row CAS), with `expireEditRecoveryTask` carrying a **schedule** so it actually runs.
 - **The active-capture cap (SPEC §5's second cap)** — per user, counting ACTIVE rows only, enforced
   inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
@@ -122,8 +130,9 @@ forgot, before the destructive tests touch it.
   rows because it bundles metadata and cleanup, and `/:id/recovery` carries POST, GET and DELETE, so
   "five paths" was wrong wherever it appeared. Body guards split into
   `endpoints/recoveryParse.ts` so they can be unit tested without a database or a served app — the
-  same split, for the same reason, as `previewParse.ts`. Wire coverage is WRITTEN but **has never
-  run** (see item 1 of "What is LEFT").
+  same split, for the same reason, as `previewParse.ts`. Wire coverage **has RUN**: 27/27 on
+  `recovery.http.spec.ts`, 125/125 across the whole suite, against a migration-only schema with push
+  off (2026-08-06).
 - **The `recovery` rate-limit bucket** in `lib/rateLimit.ts` (120/min default), and a **raw-body
   ceiling** on top of it, because rate limiting bounds how OFTEN an editor may post, not how large one
   post may be. Sizing and the reason it is not the kernel's 512 KB cap: the `MAX_RECOVERY_BODY_BYTES`
@@ -173,6 +182,44 @@ what they were blocked on was not a bundler problem. See "The probe image: what 
    before an edit, not a test file. Case 19 additionally needs a REAL failing statement inside that
    transaction — a mocked throw proves the mock. The kernel half is already proven (`retire` inside a
    transaction, rolled back, capture intact).
+
+   ### The agreed implementation contract (operator review, 2026-08-06)
+
+   **The recovery token is OPTIONAL, because PR 1 is server-only and no client sends one yet.** That
+   is what keeps this shippable ahead of PR 2 rather than a flag day:
+
+   | Body | Behaviour |
+   |---|---|
+   | no token | existing save behaviour, unchanged; **nothing is retired** |
+   | `generation` **and** `expectedRevision` | retirement is **mandatory** |
+   | exactly one of the two | **400** — a half-token is a client bug, not a no-op |
+
+   ⚑ **Carry the token OUTSIDE the lesson document** — a separate multipart field, not a key in the
+   bundle. A Site Admin editing the raw document must not be able to persist recovery metadata as
+   lesson content, and the field-split whitelist is not a defence against a key that was never
+   supposed to be in the document in the first place.
+
+   **Inside each semver retry attempt, in this order:**
+
+   1. create the candidate version
+   2. retire the capture using the **same transactional `req`**
+   3. on a retirement conflict, throw a dedicated 409
+   4. only then perform the optional source deletion
+   5. commit, and return the retirement token
+
+   ⚑ **The two conflicts are not the same and the retry loop must tell them apart.** A semver
+   conflict rolls back and **retries**; a recovery conflict rolls back and is **NEVER retried** —
+   retrying it would retire the newer capture the precondition just protected, which is precisely the
+   work this feature exists to save. That distinction IS case 20.
+
+   **Tests owed:**
+   - **case 7** — a token-bearing save retires the capture (content cleared, marker kept, revision
+     advanced, generation unchanged)
+   - **legacy** — a no-token save still works and retires nothing
+   - **case 19** — a REAL database failure during retirement rolls back the new version; no orphan
+   - **case 20** — deterministic interleaving: a second capture advances the revision before
+     retirement; the save 409s, is not retried, and the newer capture survives
+   - **`deleteSource=true`** — retirement happens BEFORE the source cascade removes the row
 
 ## The migration gate — all four steps, in order
 
