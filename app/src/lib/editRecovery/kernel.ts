@@ -476,3 +476,87 @@ export const expireCaptures = async (
     cutoff: new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000),
   },
 ): Promise<ExpiryReport> => retireSelected(req, await selectExpiredCaptures(req, opts), opts.cutoff)
+
+/** What the restore prompt needs: the stored capture plus the token to act on it. */
+export type ActiveCapture = {
+  token: RecoveryToken
+  content: unknown
+  /** The source's `updatedAt` when this session began — a mismatch means view/copy only. */
+  baseUpdatedAt: string
+  /** The field shape the capture was taken under — a mismatch means view/copy only. */
+  schemaVersion: string
+}
+
+/**
+ * Read the caller's ACTIVE capture for a source, or null.
+ *
+ * Scoped to `(userId, sourceVersionId)` with `retired_at IS NULL`. The user id comes from the session
+ * at the endpoint, never from the request body — that is what makes "a different user on the same
+ * browser sees nothing" (SPEC §13, matrix case 5) structural rather than a check someone could omit.
+ *
+ * Tombstones return null: a retirement marker exists to fence resurrection, not to be shown to anyone.
+ */
+export const readActiveCapture = async (
+  req: PayloadRequest,
+  args: { userId: number; sourceVersionId: number },
+): Promise<ActiveCapture | null> => {
+  const db = await txDb(req)
+  const row = rowsOf(
+    await db.execute(sql`
+      SELECT generation, revision, updated_at, content, base_updated_at, schema_version
+      FROM edit_recovery
+      WHERE user_id = ${args.userId}
+        AND source_version_id = ${args.sourceVersionId}
+        AND retired_at IS NULL
+    `),
+  )[0]
+  if (!row) return null
+  return {
+    token: tokenOf(row),
+    content: row.content ?? null,
+    baseUpdatedAt: new Date(String(row.base_updated_at)).toISOString(),
+    schemaVersion: String(row.schema_version),
+  }
+}
+
+/** One row's metadata for the Site-Admin view. ⚑ Deliberately has NO `content` field. */
+export type CaptureMetadata = {
+  userId: number
+  revision: number
+  updatedAt: string
+  retiredAt: string | null
+  /** Serialised size, so an operator can see a large capture without reading it. */
+  bytes: number
+}
+
+/**
+ * Site-Admin metadata for every capture on a source — existence and shape, NEVER content (SPEC §13).
+ *
+ * ⚑ The `content` column is not selected at all, rather than selected and then stripped. A projection
+ * that fetches the prose and deletes it before returning is one careless edit away from leaking it,
+ * and it would put a teacher's unsaved work in the process memory of a request that has no business
+ * holding it. `pg_column_size` gives the operator the one thing about the content they legitimately
+ * need — how big it is — without reading a character of it.
+ */
+export const readCaptureMetadata = async (
+  req: PayloadRequest,
+  args: { sourceVersionId: number },
+): Promise<CaptureMetadata[]> => {
+  const db = await txDb(req)
+  const rows = rowsOf(
+    await db.execute(sql`
+      SELECT user_id, revision, updated_at, retired_at,
+             COALESCE(pg_column_size(content), 0) AS bytes
+      FROM edit_recovery
+      WHERE source_version_id = ${args.sourceVersionId}
+      ORDER BY updated_at DESC
+    `),
+  )
+  return rows.map((row) => ({
+    userId: toPositiveInt(row.user_id),
+    revision: toPositiveInt(row.revision),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+    retiredAt: row.retired_at ? new Date(String(row.retired_at)).toISOString() : null,
+    bytes: Number(row.bytes ?? 0),
+  }))
+}

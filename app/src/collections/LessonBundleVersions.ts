@@ -31,6 +31,7 @@ import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdi
 import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
+import { recoveryEndpoints } from '../endpoints/recovery'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -79,7 +80,11 @@ export const LessonBundleVersions: CollectionConfig = {
     delete: lessonBundleVersionDelete,
   },
   hooks: {
-    beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
+    beforeValidate: [
+      numberBundleVersionRows,
+      enforceVersionPlanConsistency,
+      enforceBundleVersionGeneratable,
+    ],
     // Stage 2 model: versions are IMMUTABLE — `enforceVersionImmutable` rejects every authenticated
     // in-place `update` (a stray/direct PATCH included); it pairs with the form-render-only update
     // grant above (see access/versionImmutability.ts). Authoring goes through the save-as-new
@@ -96,6 +101,8 @@ export const LessonBundleVersions: CollectionConfig = {
     ],
   },
   endpoints: [
+    // Edit recovery (SPEC §5): five paths, six operations. Each re-authorizes on every call.
+    ...recoveryEndpoints,
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
     exportVersionEndpoint,
     // GET /:id/export/doc?doc=<tag> — serve ONE deliverable: PDF inline, DOCX attachment (T1).
