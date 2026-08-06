@@ -8,8 +8,10 @@ end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
-(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~6300 lines) — skim
-the most recent entries and grep it for the area you're touching; don't read it end to end.** This
+(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is long and still growing — skim
+the most recent entries and grep it for the area you're touching; don't read it end to end.** (No line
+count given: this one said "~6300" while the file had reached 8311, which is the derived-fact
+staleness the file's own rules warn about.) This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 ---
