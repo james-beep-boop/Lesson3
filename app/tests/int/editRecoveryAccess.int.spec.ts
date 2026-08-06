@@ -14,7 +14,9 @@
  * teachers' unsaved work, which SPEC §13 forbids: administrators get existence and metadata through
  * `recovery/meta`, never content.
  */
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, onTestFinished } from 'vitest'
+
+import type { Where } from 'payload'
 
 import {
   MARK,
@@ -37,9 +39,16 @@ afterAll(async () => {
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
-/** A non-Official version, so it can be deleted (the Official one is protected). */
+/**
+ * A non-Official version, so it can be deleted (the Official one is protected).
+ *
+ * Teardown is registered with `onTestFinished` rather than written at the end of each test body,
+ * because an in-body cleanup does NOT run when the test fails — and that already bit here: a spurious
+ * case-18 failure was caused by the read test failing before reaching its delete line, leaving rows
+ * behind that the next test then counted.
+ */
 async function makeWorkingCopy(semver: string) {
-  return fx.payload.create({
+  const created = await fx.payload.create({
     collection: 'lesson-bundle-versions',
     data: {
       lessonPlan: fx.plan.id,
@@ -51,6 +60,12 @@ async function makeWorkingCopy(semver: string) {
     } as never,
     overrideAccess: true,
   })
+  onTestFinished(async () => {
+    await fx.payload
+      .delete({ collection: 'lesson-bundle-versions', id: created.id, overrideAccess: true })
+      .catch(() => {})
+  })
+  return created
 }
 
 /** Seed a recovery row the only way anything may: a trusted system path. */
@@ -71,26 +86,17 @@ async function seedRecovery(userId: number, versionId: number, planId: number) {
   })
 }
 
-/** Rows for one user against one source — a count that no other test in this file can perturb. */
-const countRecoveryIn = async (userId: number, versionId: number) =>
-  (
-    await fx.payload.find({
-      collection: 'edit-recovery',
-      where: { and: [{ user: { equals: userId } }, { sourceVersion: { equals: versionId } }] },
-      overrideAccess: true,
-      pagination: false,
-    })
-  ).totalDocs
+/**
+ * `payload.count` rather than `find(...).totalDocs`: find selects every matching row INCLUDING the
+ * `content` jsonb and builds full documents only to discard them. `count` is also the house pattern
+ * (hooks/userRoles.ts, collections/Messages.ts, collections/SubjectGrade.ts).
+ */
+const countRecovery = async (where: Where) =>
+  (await fx.payload.count({ collection: 'edit-recovery', where, overrideAccess: true })).totalDocs
 
-const countRecoveryFor = async (field: 'user' | 'sourceVersion' | 'lessonPlan', id: number) =>
-  (
-    await fx.payload.find({
-      collection: 'edit-recovery',
-      where: { [field]: { equals: id } },
-      overrideAccess: true,
-      pagination: false,
-    })
-  ).totalDocs
+const byField = (field: 'user' | 'sourceVersion' | 'lessonPlan', id: number): Where => ({
+  [field]: { equals: id },
+})
 
 describe('edit-recovery: the collection exists and stores a capture (system path only)', () => {
   it('accepts a row through a trusted path, and enforces one row per (user, sourceVersion)', async () => {
@@ -106,12 +112,6 @@ describe('edit-recovery: the collection exists and stores a capture (system path
     // A different user against the same source is a different pair, and is allowed.
     const other = await seedRecovery(fx.users.teacher.id, wc.id, fx.plan.id)
     expect(other.id).toBeTruthy()
-
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
   })
 })
 
@@ -151,12 +151,6 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
         `${role} must not list recovery rows`,
       ).rejects.toThrow()
     }
-
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
   })
 
   it('denies CREATE to every role, including Site Admin', async () => {
@@ -180,12 +174,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
         `${role} must not create a recovery row`,
       ).rejects.toThrow()
     }
-    expect(await countRecoveryFor('sourceVersion', wc.id)).toBe(0)
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
+    expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(0)
   })
 
   it('denies UPDATE to every role — including the row OWNER', async () => {
@@ -211,11 +200,6 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
       overrideAccess: true,
     })
     expect(after.revision).toBe(1)
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
   })
 
   it('denies DELETE to every role — the owner cannot erase their own retirement marker', async () => {
@@ -234,12 +218,7 @@ describe('edit-recovery: access is closed to every role, on every operation', ()
       ).rejects.toThrow()
     }
 
-    expect(await countRecoveryFor('sourceVersion', wc.id)).toBe(1)
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
+    expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(1)
   })
 })
 
@@ -248,15 +227,16 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
     const wc = await makeWorkingCopy('1.0.106')
     await seedRecovery(fx.users.editor.id, wc.id, fx.plan.id)
     await seedRecovery(fx.users.teacher.id, wc.id, fx.plan.id)
-    expect(await countRecoveryFor('sourceVersion', wc.id)).toBe(2)
+    expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(2)
 
-    // Would raise 23502 on the NOT NULL sourceVersion FK without the cascade.
+    // The ACT of this test, not teardown: deleting the parent is the thing being proven. Would raise
+    // 23502 on the NOT NULL sourceVersion FK without the cascade.
     await fx.payload.delete({
       collection: 'lesson-bundle-versions',
       id: wc.id,
       overrideAccess: true,
     })
-    expect(await countRecoveryFor('sourceVersion', wc.id)).toBe(0)
+    expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(0)
   })
 
   it('case 18 — deleting the USER removes their recovery rows, and only theirs', async () => {
@@ -268,23 +248,19 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
     })
     await seedRecovery(doomed.id, wc.id, fx.plan.id)
     await seedRecovery(fx.users.editor.id, wc.id, fx.plan.id)
-    expect(await countRecoveryFor('sourceVersion', wc.id)).toBe(2)
+    expect(await countRecovery(byField('sourceVersion', wc.id))).toBe(2)
 
     await fx.payload.delete({ collection: 'users', id: doomed.id, overrideAccess: true })
-    expect(await countRecoveryFor('user', doomed.id)).toBe(0)
+    expect(await countRecovery(byField('user', doomed.id))).toBe(0)
     // Scoped to THIS version, not to the editor's rows globally. A global count couples this
     // assertion to every other test in the file — an earlier draft did exactly that and reported a
     // spurious failure here when an unrelated test above failed before its cleanup line.
     expect(
-      await countRecoveryIn(fx.users.editor.id, wc.id),
+      await countRecovery({
+        and: [byField('user', fx.users.editor.id), byField('sourceVersion', wc.id)],
+      }),
       'the surviving user keeps their row',
     ).toBe(1)
-
-    await fx.payload.delete({
-      collection: 'lesson-bundle-versions',
-      id: wc.id,
-      overrideAccess: true,
-    })
   })
 
   /**
@@ -311,9 +287,9 @@ describe('edit-recovery: parent cascades (§7 cases 17-18)', () => {
       overrideAccess: true,
     })
     await seedRecovery(fx.users.editor.id, version.id, plan.id)
-    expect(await countRecoveryFor('lessonPlan', plan.id)).toBe(1)
+    expect(await countRecovery(byField('lessonPlan', plan.id))).toBe(1)
 
     await fx.payload.delete({ collection: 'lesson-plans', id: plan.id, overrideAccess: true })
-    expect(await countRecoveryFor('lessonPlan', plan.id)).toBe(0)
+    expect(await countRecovery(byField('lessonPlan', plan.id))).toBe(0)
   })
 })

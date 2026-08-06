@@ -91,6 +91,25 @@ const asDoc = (v: unknown): Doc | undefined =>
 const keyFor = (scope: string, id: unknown): string | null =>
   id === undefined || id === null ? null : `${scope}:${String(id)}`
 
+/**
+ * The decode half, exported so the key format never has a second owner.
+ *
+ * `applyCapture` itself never decodes — it rebuilds keys by walking the source, which is what makes
+ * "no id is ever restored as a value" structural. But `ApplyReport.droppedKeys` hands encoded strings
+ * across this module's boundary, and the restore UI (PR 2, matrix case 28) has to explain a partial
+ * restore, which needs the scope. Without this the only way to get it is `key.split(':')` written in
+ * a React component — at which point the delimiter is a wire contract rather than a private detail,
+ * and "what if a row id contains a colon" becomes someone else's question to get wrong.
+ *
+ * Splits on the FIRST colon only, so an id containing one round-trips.
+ */
+export const parseKey = (key: string): { scope: string; rowId: string | null } => {
+  const i = key.indexOf(':')
+  return i === -1
+    ? { scope: key, rowId: null }
+    : { scope: key.slice(0, i), rowId: key.slice(i + 1) }
+}
+
 /** A prose leaf: a string, or `null` for a cleared field. Anything else is malformed. */
 const isProseValue = (v: unknown): v is ProseValue => v === null || typeof v === 'string'
 
@@ -201,7 +220,7 @@ export const applyCapture = (
   const out: Doc = { ...base }
 
   if (Array.isArray(base.lessons)) {
-    out.lessons = asRows(base.lessons).map((lesson) => {
+    out.lessons = (base.lessons as Row[]).map((lesson) => {
       const l = overlay(lesson, take(keyFor('lesson', lesson.id)), LESSON_PROSE, report)
       const slo = asDoc(lesson.slo)
       if (slo) l.slo = overlay(slo, take(keyFor('slo', lesson.id)), SLO_PROSE, report)
@@ -215,7 +234,7 @@ export const applyCapture = (
         )
       }
       if (Array.isArray(lesson.framework)) {
-        l.framework = asRows(lesson.framework).map((fw) =>
+        l.framework = (lesson.framework as Row[]).map((fw) =>
           overlay(fw, take(keyFor('framework', fw.id)), FRAMEWORK_PROSE, report),
         )
       }
@@ -227,7 +246,7 @@ export const applyCapture = (
   if (fe) {
     const f = overlay(fe, take(FINAL_EXPLANATION_KEY), FINAL_EXPLANATION_PROSE, report)
     if (Array.isArray(fe.sections)) {
-      f.sections = asRows(fe.sections).map((s) =>
+      f.sections = (fe.sections as Row[]).map((s) =>
         overlay(s, take(keyFor('section', s.id)), SECTION_PROSE, report),
       )
     }
@@ -238,7 +257,7 @@ export const applyCapture = (
   if (st && Array.isArray(st.lessons)) {
     out.summaryTable = {
       ...st,
-      lessons: asRows(st.lessons).map((sl) =>
+      lessons: (st.lessons as Row[]).map((sl) =>
         overlay(sl, take(keyFor('summaryLesson', sl.id)), SUMMARY_LESSON_PROSE, report),
       ),
     }

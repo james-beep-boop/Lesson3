@@ -11,16 +11,17 @@
  * performs; retirement is still done directly, the shared retirement function being a later commit.
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
-import { sql } from 'drizzle-orm'
 import type { PayloadRequest } from 'payload'
 
+import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import {
-  MARK,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-} from '../helpers/fixtures.js'
-import { capture, MAX_CAPTURE_BYTES, start, txDb } from '../../src/lib/editRecovery/kernel.js'
+  ageRecoveryRow,
+  countRecoveryRows,
+  makeRecoveryVersion,
+  recoveryRow,
+  retireDirectly,
+} from '../helpers/editRecovery.js'
+import { capture, MAX_CAPTURE_BYTES, start } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -35,20 +36,13 @@ afterAll(async () => {
 const poolReq = () =>
   ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
 
-async function makeVersion(semver: string) {
-  return fx.payload.create({
-    collection: 'lesson-bundle-versions',
-    data: {
-      lessonPlan: fx.plan.id,
-      subjectGrade: fx.subjectGrade.id,
-      semver,
-      sourceVersion: fx.version.id,
-      title: `${MARK}Cap-${semver}`,
-      ...minimalBundleContent(),
-    } as never,
-    overrideAccess: true,
+const makeVersion = (semver: string) =>
+  makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver,
   })
-}
 
 const startFor = (versionId: number, userId = fx.users.editor.id) =>
   start(poolReq(), {
@@ -83,50 +77,10 @@ const formDoc = (title: string, extra: Record<string, unknown> = {}) => ({
   lessons: [{ id: 'L1', title, ...extra }],
 })
 
-/** Push `updated_at` into the past so an advancing write must visibly move it. */
-async function ageRow(versionId: number, seconds = 60, userId = fx.users.editor.id) {
-  const db = await txDb(poolReq())
-  await db.execute(sql`
-    UPDATE edit_recovery SET updated_at = NOW() - (${seconds} * INTERVAL '1 second')
-    WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)
-}
-
-const rows = (res: unknown) => {
-  const r = res as { rows?: Record<string, unknown>[] } | Record<string, unknown>[]
-  return Array.isArray(r) ? r : (r?.rows ?? [])
-}
-
-async function rawRow(versionId: number, userId = fx.users.editor.id) {
-  const db = await txDb(poolReq())
-  return rows(
-    await db.execute(sql`
-      SELECT generation, revision, retired_at, content, updated_at FROM edit_recovery
-      WHERE user_id = ${userId} AND source_version_id = ${versionId}
-    `),
-  )[0]
-}
-
-async function countRows(versionId: number, userId = fx.users.editor.id) {
-  const db = await txDb(poolReq())
-  return Number(
-    rows(
-      await db.execute(sql`
-        SELECT COUNT(*)::int AS n FROM edit_recovery
-        WHERE user_id = ${userId} AND source_version_id = ${versionId}
-      `),
-    )[0]?.n,
-  )
-}
-
-async function retireDirectly(versionId: number, userId = fx.users.editor.id) {
-  const db = await txDb(poolReq())
-  await db.execute(sql`
-    UPDATE edit_recovery SET retired_at = NOW(), content = NULL,
-      revision = revision + 1, updated_at = NOW()
-    WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)
-}
+const rawRow = (versionId: number, userId = fx.users.editor.id) =>
+  recoveryRow(fx.payload, versionId, userId)
+const countRows = (versionId: number, userId = fx.users.editor.id) =>
+  countRecoveryRows(fx.payload, versionId, userId)
 
 describe('capture: the happy path advances the row and returns the NEW token', () => {
   it('stores content, bumps revision by one, and restarts the TTL clock', async () => {
@@ -135,7 +89,7 @@ describe('capture: the happy path advances the row and returns the NEW token', (
     // Age the row FIRST. With `>=` against an unaged row the assertion passes even if
     // `updated_at = NOW()` is deleted from the statement, since the two timestamps are equal — the
     // TTL guarantee would then be untested while looking tested.
-    await ageRow(v.id, 60)
+    await ageRecoveryRow(fx.payload, v.id, fx.users.editor.id, 60)
     const before = await rawRow(v.id)
 
     const res = await captureFor(v.id, t0.generation, t0.revision, formDoc(`${MARK}unsaved`))
@@ -186,7 +140,7 @@ describe('capture NEVER inserts — the rule the unique index does not enforce',
   it('case 15 — a capture carrying a RETIRED generation conflicts and creates no new row', async () => {
     const v = await makeVersion('1.0.304')
     const t0 = await startFor(v.id)
-    await retireDirectly(v.id)
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
     const retired = await rawRow(v.id)
 
     // The tab still holds the pre-retirement token and tries to save its work.
@@ -216,7 +170,7 @@ describe('capture NEVER inserts — the rule the unique index does not enforce',
   it('case 15, isolated — a capture matching the retired row EXACTLY is still refused', async () => {
     const v = await makeVersion('1.0.308')
     await startFor(v.id)
-    await retireDirectly(v.id)
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
     const retired = await rawRow(v.id)
 
     const res = await captureFor(
@@ -255,7 +209,7 @@ describe('capture: the fencing preconditions', () => {
   it('conflicts on a stale GENERATION even when the revision matches', async () => {
     const v = await makeVersion('1.0.306')
     const t0 = await startFor(v.id)
-    await retireDirectly(v.id)
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
     const reactivated = await startFor(v.id) // generation advances
     expect(reactivated.generation).toBeGreaterThan(t0.generation)
 

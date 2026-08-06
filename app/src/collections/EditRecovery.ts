@@ -61,6 +61,12 @@ const cascadeDeleteRecoveryBy =
     await req.payload.delete({
       collection: 'edit-recovery',
       where: { [field]: { equals: id } },
+      // `payload.delete` by `where` SELECTs the matching documents before deleting them, and these
+      // rows carry up to MAX_CAPTURE_BYTES of jsonb. Excluding `content` keeps the whole capture from
+      // being parsed into a JS object and immediately discarded — inside the save-as-new transaction,
+      // on the version the user was just editing, which is exactly the row most likely to be large.
+      // (`id` is not a selectable key: Payload always returns it.)
+      select: { content: false },
       overrideAccess: true,
       req,
     })

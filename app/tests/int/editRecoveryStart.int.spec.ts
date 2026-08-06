@@ -13,16 +13,17 @@
  * draft of this SQL broke both cases below by bumping `revision` unconditionally.
  */
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
-import { sql } from 'drizzle-orm'
 import type { PayloadRequest } from 'payload'
 
+import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import {
-  MARK,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-} from '../helpers/fixtures.js'
-import { start, txDb } from '../../src/lib/editRecovery/kernel.js'
+  ageRecoveryRow,
+  countRecoveryRows,
+  makeRecoveryVersion,
+  recoveryRow,
+  retireDirectly,
+} from '../helpers/editRecovery.js'
+import { start } from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -38,20 +39,13 @@ afterAll(async () => {
 const poolReq = () =>
   ({ payload: fx.payload, transactionID: undefined }) as unknown as PayloadRequest
 
-async function makeVersion(semver: string) {
-  return fx.payload.create({
-    collection: 'lesson-bundle-versions',
-    data: {
-      lessonPlan: fx.plan.id,
-      subjectGrade: fx.subjectGrade.id,
-      semver,
-      sourceVersion: fx.version.id,
-      title: `${MARK}Start-${semver}`,
-      ...minimalBundleContent(),
-    } as never,
-    overrideAccess: true,
+const makeVersion = (semver: string) =>
+  makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver,
   })
-}
 
 const startFor = (userId: number, versionId: number, schemaVersion = 'sv-1') =>
   start(poolReq(), {
@@ -62,45 +56,9 @@ const startFor = (userId: number, versionId: number, schemaVersion = 'sv-1') =>
     schemaVersion,
   })
 
-/** Read the raw row, so assertions see what is STORED rather than what a helper reports. */
-async function rawRow(userId: number, versionId: number) {
-  const db = await txDb(poolReq())
-  const res = (await db.execute(sql`
-    SELECT id, generation, revision, retired_at, base_updated_at, schema_version, updated_at, content
-    FROM edit_recovery WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)) as { rows?: Record<string, unknown>[] }
-  const rows = Array.isArray(res) ? res : (res.rows ?? [])
-  return rows[0]
-}
-
-async function countRows(userId: number, versionId: number) {
-  const db = await txDb(poolReq())
-  const res = (await db.execute(sql`
-    SELECT COUNT(*)::int AS n FROM edit_recovery
-    WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)) as { rows?: Record<string, unknown>[] }
-  const rows = Array.isArray(res) ? res : (res.rows ?? [])
-  return Number(rows[0]?.n)
-}
-
-/** Retire a row directly. Fixture setup only — the shared retirement function is a later commit. */
-async function retireDirectly(userId: number, versionId: number) {
-  const db = await txDb(poolReq())
-  await db.execute(sql`
-    UPDATE edit_recovery SET retired_at = NOW(), content = NULL,
-      revision = revision + 1, updated_at = NOW()
-    WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)
-}
-
-/** Push `updated_at` into the past so a clock-restarting write must visibly move it. */
-async function ageRow(userId: number, versionId: number, seconds = 60) {
-  const db = await txDb(poolReq())
-  await db.execute(sql`
-    UPDATE edit_recovery SET updated_at = NOW() - (${seconds} * INTERVAL '1 second')
-    WHERE user_id = ${userId} AND source_version_id = ${versionId}
-  `)
-}
+const rawRow = (userId: number, versionId: number) => recoveryRow(fx.payload, versionId, userId)
+const countRows = (userId: number, versionId: number) =>
+  countRecoveryRows(fx.payload, versionId, userId)
 
 describe('start: first call', () => {
   it('inserts one active row at generation 1, revision 1, with the caller-derived baseline', async () => {
@@ -163,11 +121,11 @@ describe('start: case 22 — two simultaneous starts against a RETIRED row', () 
     const first = await startFor(fx.users.editor.id, v.id)
     expect(first).toMatchObject({ generation: 1, revision: 1 })
 
-    await retireDirectly(fx.users.editor.id, v.id)
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
     // Age it, so "the TTL clock restarted" is a claim the assertion can actually fail. Comparing
     // against an unaged row admits equality, and `updated_at = NOW()` could be deleted from the
     // reactivation branch with this test still green.
-    await ageRow(fx.users.editor.id, v.id, 60)
+    await ageRecoveryRow(fx.payload, v.id, fx.users.editor.id, 60)
     const retired = await rawRow(fx.users.editor.id, v.id)
     expect(retired?.retired_at).not.toBeNull()
     const retiredRevision = Number(retired?.revision)

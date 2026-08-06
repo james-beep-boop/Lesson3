@@ -7,20 +7,20 @@
  * fencing protocol is only worth anything if it is atomic, so it lives at the SQL level and is tested
  * against a real database rather than reasoned about.
  *
- * ⚑ **Every statement runs on the REQUEST'S transaction** via {@link txDb}. Retirement joins the
- * save-as-new transaction inside its semver retry (§4), so a statement that quietly ran on the pool
- * instead would commit independently of the save it is supposed to be part of — retiring a capture
- * for a save that then rolled back, which is exactly the work-destroying outcome this feature exists
- * to prevent.
+ * ⚑ **Every statement runs on the REQUEST'S transaction**, via `txDb` from `lib/txDb.ts` — which
+ * fails closed rather than falling back to the pool. Retirement joins the save-as-new transaction
+ * inside its semver retry (§4), so a statement that quietly ran on the pool instead would commit
+ * independently of the save it is supposed to be part of — retiring a capture for a save that then
+ * rolled back, which is exactly the work-destroying outcome this feature exists to prevent.
  *
- * ⚑ **`generation` and `revision` are `numeric` columns**, and node-postgres returns `numeric` as a
- * STRING to avoid precision loss. Every value read back is therefore normalised through
- * {@link toInt} rather than trusted — an unnormalised `revision` would compare `'2' !== 2` in a CAS
- * precondition and 409 against itself. Verified against the live column types, not assumed.
+ * `generation` and `revision` are `numeric` columns, so every value read back goes through `toInt`
+ * (same module): node-postgres returns `numeric` as a STRING, and an unnormalised `revision` would
+ * compare `'2' !== 2` in a CAS precondition and 409 against itself.
  */
-import { sql } from 'drizzle-orm'
+import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
+import { rowsOf, toInt, txDb } from '../txDb'
 import { projectCapture } from './projection'
 
 /** What every advancing write returns, and what the client must adopt (§4's token rule). */
@@ -28,63 +28,6 @@ export type RecoveryToken = {
   generation: number
   revision: number
   updatedAt: string
-}
-
-/**
- * The transaction-bound drizzle instance, or the pool when there is legitimately no transaction.
- *
- * `db.sessions[txID].db` is the same lookup @payloadcms/drizzle's own (unexported) `getTransaction()`
- * performs — verified against installed source, and the identical idiom `endpoints/userAssignments.ts`
- * already relies on for its `SELECT … FOR UPDATE`.
- *
- * ⚑ **This FAILS CLOSED, in two directions, and both matter.**
- *
- * 1. A `transactionID` present whose session cannot be found is an inconsistency, not a licence to use
- *    the pool. Falling back there would run the statement on a SEPARATE connection that commits
- *    independently of the transaction the caller believes it is inside — so retirement could commit
- *    while the save-as-new it belongs to rolled back, destroying a capture for work that was never
- *    saved. That is the precise outcome this feature exists to prevent, so an unresolvable session
- *    throws rather than degrades.
- * 2. `requireTransaction` additionally rejects having no transaction at all. Retirement passes it,
- *    because "no transaction" is just as wrong there as "unresolvable transaction" — the statement
- *    must be part of the caller's atomic unit or it must not run.
- *
- * The expiry job is the legitimate no-transaction caller and omits `requireTransaction`.
- */
-export const txDb = async (req: PayloadRequest, opts?: { requireTransaction?: boolean }) => {
-  const adapter = req.payload.db as unknown as {
-    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
-    drizzle: { execute: (q: unknown) => Promise<unknown> }
-  }
-  const id = req.transactionID != null ? String(await req.transactionID) : undefined
-  const session = id ? adapter.sessions?.[id]?.db : undefined
-
-  if (id && !session) {
-    throw new Error(
-      `edit-recovery: transactionID ${id} has no drizzle session — refusing to run on the pool, ` +
-        'which would commit independently of the caller’s transaction.',
-    )
-  }
-  if (opts?.requireTransaction && !session) {
-    throw new Error(
-      'edit-recovery: this statement must run inside the caller’s transaction, but none is active.',
-    )
-  }
-  return session ?? adapter.drizzle
-}
-
-/** `numeric` arrives as a string; anything unparseable is a bug worth failing loudly on. */
-const toInt = (v: unknown): number => {
-  const n = typeof v === 'number' ? v : Number(v)
-  if (!Number.isFinite(n))
-    throw new Error(`edit-recovery: non-numeric value from Postgres: ${String(v)}`)
-  return n
-}
-
-/** drizzle's `execute` returns a driver-shaped result; both shapes appear across versions. */
-const rowsOf = (result: unknown): Record<string, unknown>[] => {
-  const r = result as { rows?: Record<string, unknown>[] } | Record<string, unknown>[]
-  return Array.isArray(r) ? r : (r?.rows ?? [])
 }
 
 const tokenOf = (row: Record<string, unknown>): RecoveryToken => ({
@@ -141,9 +84,8 @@ export const start = async (
     ON CONFLICT (user_id, source_version_id) DO UPDATE SET
       generation = edit_recovery.generation
                  + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
-      revision   = CASE WHEN edit_recovery.retired_at IS NULL
-                        THEN edit_recovery.revision
-                        ELSE edit_recovery.revision + 1 END,
+      revision   = edit_recovery.revision
+                 + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
       base_updated_at = CASE WHEN edit_recovery.retired_at IS NULL
                              THEN edit_recovery.base_updated_at
                              ELSE EXCLUDED.base_updated_at END,
