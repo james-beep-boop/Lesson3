@@ -47,14 +47,26 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
    ALTER TABLE "edit_recovery" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "payload_jobs_stats" DISABLE ROW LEVEL SECURITY;
   -- ⚑ HAND-EDITED, and the order is the edit. Payload's generator emitted this DROP CONSTRAINT
-  -- AFTER \`DROP TABLE "edit_recovery" CASCADE\`, which cannot execute: the CASCADE has already
+  -- AFTER DROP TABLE "edit_recovery" CASCADE, which cannot execute: the CASCADE has already
   -- removed this very constraint, so the explicit drop fails with
-  -- \`constraint ... does not exist\` and the whole rollback aborts. Caught by actually running
-  -- \`migrate:down\` rather than reading the file. Do not "tidy" it back below the DROP TABLE.
+  -- constraint ... does not exist and the whole rollback aborts. Caught by actually running
+  -- migrate:down rather than reading the file. Do not "tidy" it back below the DROP TABLE.
   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_edit_recovery_fk";
   DROP TABLE "edit_recovery" CASCADE;
   DROP TABLE "payload_jobs_stats" CASCADE;
   
+  -- ⚑ HAND-EDITED. The enum shrink below casts EXISTING rows into the reduced type, so any row
+  -- carrying 'expireEditRecovery' makes the whole rollback fail with "invalid input value for enum".
+  -- Once the scheduled task has run even once, payload_jobs and payload_jobs_log contain exactly such
+  -- rows — so the generated down worked ONLY on a database where the app had never started.
+  -- Reproduced by inserting one row and watching the rollback abort.
+  -- Logs first: they reference jobs via _parent_id.
+  -- (No backticks anywhere in these comments: this is inside a tagged template literal, and a raw
+  -- backtick terminates it. That has now broken this file twice and kernel.ts once — including the
+  -- comment that said so.)
+  DELETE FROM "payload_jobs_log" WHERE "task_slug" = 'expireEditRecovery';
+  DELETE FROM "payload_jobs" WHERE "task_slug" = 'expireEditRecovery';
+
   ALTER TABLE "payload_jobs_log" ALTER COLUMN "task_slug" SET DATA TYPE text;
   DROP TYPE "public"."enum_payload_jobs_log_task_slug";
   CREATE TYPE "public"."enum_payload_jobs_log_task_slug" AS ENUM('inline', 'generateVersionArtifact', 'emailVersionArtifact', 'messagePing', 'passwordResetEmail');

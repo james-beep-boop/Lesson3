@@ -111,6 +111,22 @@ function requireCounter(value: unknown, name: string): number {
 }
 
 /**
+ * The capture body's `document`, which must be a PLAIN OBJECT.
+ *
+ * ⚑ Without this, a missing / null / string / array `document` projected to `{}` and the capture
+ * SUCCEEDED — advancing the revision and replacing a good backup with an empty one. A client defect
+ * holding a valid token could therefore erase the very work this feature exists to protect, and
+ * report success while doing it. An empty OBJECT is still legitimate (a teacher who cleared every
+ * field); "no document at all" is not, and is now a 400.
+ */
+function requireDocument(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new APIError('`document` must be an object', 400)
+  }
+  return value as Record<string, unknown>
+}
+
+/**
  * The version's plan id. Required on the collection, so a null here means a populated relationship
  * arrived in a shape this could not read — worth failing loudly rather than filing the capture under
  * a null plan, which would break the admin metadata and cleanup scoping silently.
@@ -175,7 +191,7 @@ export const recoveryCaptureEndpoint: Endpoint = {
       generation: requireCounter(payload.generation, 'generation'),
       expectedRevision: requireCounter(payload.expectedRevision, 'expectedRevision'),
       // The RAW form document; the kernel projects it, so the prose whitelist cannot be bypassed here.
-      formDocument: payload.document ?? null,
+      formDocument: requireDocument(payload.document),
     })
 
     if (result.ok) return json({ token: result.token })

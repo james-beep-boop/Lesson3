@@ -519,18 +519,29 @@ export const readActiveCapture = async (
   }
 }
 
-/** One row's metadata for the Site-Admin view. ⚑ Deliberately has NO `content` field. */
+/** One ACTIVE capture's metadata for the Site-Admin view. ⚑ Deliberately has NO `content` field. */
 export type CaptureMetadata = {
   userId: number
   revision: number
   updatedAt: string
-  retiredAt: string | null
-  /** Serialised size, so an operator can see a large capture without reading it. */
+  /**
+   * Serialised size in UTF-8 bytes — the SAME quantity {@link MAX_CAPTURE_BYTES} caps.
+   *
+   * `octet_length(content::text)` rather than `pg_column_size(content)`: the latter reports Postgres's
+   * internal jsonb datum size (a different encoding, and TOAST-compressed), so an operator comparing
+   * it against the 512 KB limit would be comparing two different numbers.
+   */
   bytes: number
 }
 
 /**
- * Site-Admin metadata for every capture on a source — existence and shape, NEVER content (SPEC §13).
+ * Site-Admin metadata for the ACTIVE captures on a source — existence and shape, NEVER content
+ * (SPEC §13).
+ *
+ * ⚑ Tombstones are excluded. Listing them showed every user who had ever edited the version, long
+ * after their content was discarded — and cleanup cannot act on one anyway (retirement refuses an
+ * already-retired row), so an operator was offered rows whose only possible outcome was a 409. It
+ * also leaked, in aggregate, who had been editing what and when, indefinitely.
  *
  * ⚑ The `content` column is not selected at all, rather than selected and then stripped. A projection
  * that fetches the prose and deletes it before returning is one careless edit away from leaking it,
@@ -545,10 +556,11 @@ export const readCaptureMetadata = async (
   const db = await txDb(req)
   const rows = rowsOf(
     await db.execute(sql`
-      SELECT user_id, revision, updated_at, retired_at,
-             COALESCE(pg_column_size(content), 0) AS bytes
+      SELECT user_id, revision, updated_at,
+             COALESCE(octet_length(content::text), 0) AS bytes
       FROM edit_recovery
       WHERE source_version_id = ${args.sourceVersionId}
+        AND retired_at IS NULL
       ORDER BY updated_at DESC
     `),
   )
@@ -556,7 +568,6 @@ export const readCaptureMetadata = async (
     userId: toPositiveInt(row.user_id),
     revision: toPositiveInt(row.revision),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
-    retiredAt: row.retired_at ? new Date(String(row.retired_at)).toISOString() : null,
     bytes: Number(row.bytes ?? 0),
   }))
 }
