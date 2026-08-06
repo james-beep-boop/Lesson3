@@ -59,32 +59,29 @@ forgot, before the destructive tests touch it.
   `hooks/fieldSplit` rather than restating them, with `normaliseProseValue` covering code units the
   jsonb column cannot carry (unpaired surrogates AND U+0000).
 - **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
-  resume), `capture` (CAS UPDATE, never an insert), `retire` (ONE transition, four callers, three
-  precondition shapes), and `expireCaptures` (select + per-row CAS), with `expireEditRecoveryTask`
-  carrying a **schedule** so it actually runs.
+  resume; now also enforcing the per-user ACTIVE-CAPTURE CAP), `capture` (CAS UPDATE, never an
+  insert), `retire` (ONE transition, four callers, three precondition shapes), and `expireCaptures`
+  (select + per-row CAS), with `expireEditRecoveryTask` carrying a **schedule** so it actually runs.
+- **The active-capture cap (SPEC §5's second cap)** — per user, counting ACTIVE rows only, enforced
+  inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
+  `StartResult` rather than throwing, since being at capacity is a chosen condition, not an error.
 - `src/lib/txDb.ts`: the drizzle primitives, failing closed when a `transactionID` has no session.
 
-**Acceptance cases executing:** 15, 17-18, 21-25, 30. `docs/DESIGN-working-drafts.md` §7 carries the
+**Acceptance cases executing:** 15, 17-18, 21-25, 30, plus the cap's C1-C8. `docs/DESIGN-working-drafts.md` §7 carries the
 live status — update it there as cases land.
 
 ## What is LEFT, in order
 
-1. **The per-user active-capture COUNT CAP (~20, SPEC §5) in `start`.** Not implemented. §5 states two
-   caps in one sentence and only the per-capture BYTE cap exists. `start` is the only path that inserts
-   a row, so it is the storage boundary for row COUNT exactly as `capture` is for row SIZE. Its five
-   acceptance cases are already written in design §8 — **C1 (resume at capacity must SUCCEED)** and
-   **C5 (tombstones must not count)** are the two that make it safe to ship; a cap that blocks resume
-   or counts tombstones locks a prolific editor out of their own work.
-2. **The five routes / SIX operations** (§2's table bundles Site-Admin metadata and cleanup on one row,
+1. **The five routes / SIX operations** (§2's table bundles Site-Admin metadata and cleanup on one row,
    and the cleanup verb is unspecified — settle it). CLAUDE.md's wire-authz rule is per OPERATION, so
    that is six sets of 401/403/404 plus happy path, not five.
-3. **The `recovery` rate-limit bucket** in `lib/rateLimit.ts`, sized for several tabs plus blur and
+2. **The `recovery` rate-limit bucket** in `lib/rateLimit.ts`, sized for several tabs plus blur and
    pre-expiry flushes. A 429 must produce visible backoff, never silent abandonment.
-4. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
+3. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
    driven through the real `endpoints/versionEdit.ts` transaction and its semver-retry loop. Case 19
    needs a REAL failing statement — a mocked throw proves the mock. The kernel half is already proven
    (`retire` inside a transaction, rolled back, capture intact).
-5. **Then the migration**, per the four-step gate below.
+4. **Then the migration**, per the four-step gate below.
 
 ## The migration gate — all four steps, in order
 

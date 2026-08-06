@@ -86,6 +86,23 @@ const tokenOf = (row: Record<string, unknown>): RecoveryToken => {
  * staleness guard by asserting the source had not moved, `schemaVersion` would defeat the shape guard
  * identically, and `lessonPlan` would file the row under a plan the caller may hold no rights to.
  */
+/**
+ * Per-user ceiling on ACTIVE captures (SPEC §5). Approximate by design — see `start`.
+ *
+ * §5 states two caps in one sentence: this one and the per-capture byte ceiling. They live at the same
+ * altitude for the same reason — `start` is the only path that inserts a row, so it is the storage
+ * boundary for row COUNT exactly as `capture` is for row SIZE.
+ */
+export const MAX_ACTIVE_CAPTURES = 20
+
+export type StartResult =
+  | { ok: true; token: RecoveryToken }
+  /**
+   * The user already holds {@link MAX_ACTIVE_CAPTURES} active captures. A VALUE, not a throw: being at
+   * capacity is a condition the system chose, and throwing would surface it to a teacher as a 500.
+   */
+  | { ok: false; reason: 'at-capacity' }
+
 export const start = async (
   req: PayloadRequest,
   args: {
@@ -95,16 +112,35 @@ export const start = async (
     /** The SOURCE's `updatedAt`, read server-side from the version this caller was authorized against. */
     sourceUpdatedAt: string
     schemaVersion: string
+    /** Test seam only; production uses {@link MAX_ACTIVE_CAPTURES}. Not reachable over the wire. */
+    maxActive?: number
   },
-): Promise<RecoveryToken> => {
+): Promise<StartResult> => {
   const db = await txDb(req)
+  const cap = args.maxActive ?? MAX_ACTIVE_CAPTURES
   const result = await db.execute(sql`
+    WITH active AS (
+      -- ⚑ Scoped BOTH ways, and each scope has its own silent failure. Without the user_id scope, one prolific
+      -- editor caps everybody; without the retired_at IS NULL scope, tombstones count, so anyone who has ever
+      -- edited 20 plans is locked out forever with zero live sessions.
+      SELECT COUNT(*)::int AS n FROM edit_recovery
+      WHERE user_id = ${args.userId} AND retired_at IS NULL
+    )
     INSERT INTO edit_recovery
       (user_id, source_version_id, lesson_plan_id, generation, revision,
        base_updated_at, schema_version, content, updated_at, created_at)
-    VALUES
-      (${args.userId}, ${args.sourceVersionId}, ${args.lessonPlanId}, 1, 1,
-       ${args.sourceUpdatedAt}::timestamptz, ${args.schemaVersion}, NULL, NOW(), NOW())
+    SELECT
+      ${args.userId}, ${args.sourceVersionId}, ${args.lessonPlanId}, 1, 1,
+      ${args.sourceUpdatedAt}::timestamptz, ${args.schemaVersion}, NULL, NOW(), NOW()
+    FROM active
+    -- The INSERT must still be ATTEMPTED when a row already exists for this pair, or the ON CONFLICT
+    -- below never fires and RESUME would be refused at capacity — which is the one thing the cap must
+    -- never do (a teacher at the cap could not reopen work they already have).
+    WHERE active.n < ${cap}
+       OR EXISTS (
+            SELECT 1 FROM edit_recovery
+            WHERE user_id = ${args.userId} AND source_version_id = ${args.sourceVersionId}
+          )
     ON CONFLICT (user_id, source_version_id) DO UPDATE SET
       generation = edit_recovery.generation
                  + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
@@ -128,12 +164,16 @@ export const start = async (
                      THEN edit_recovery.content
                      ELSE NULL END,
       retired_at = NULL
+    -- RESUME is always allowed; REACTIVATION begins a new session, so it counts against the cap.
+    WHERE edit_recovery.retired_at IS NULL OR (SELECT n FROM active) < ${cap}
     RETURNING generation, revision, updated_at
   `)
 
   const row = rowsOf(result)[0]
-  if (!row) throw new Error('edit-recovery: start returned no row')
-  return tokenOf(row)
+  // No row means the cap refused it — either the INSERT was gated out (a new pair) or the DO UPDATE's
+  // WHERE was false (reactivating at capacity). There is no other way to reach zero rows here: the
+  // pair is unique, so the statement either inserts, updates, or is refused.
+  return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'at-capacity' }
 }
 
 /**

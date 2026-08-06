@@ -524,6 +524,16 @@ single statement. Its acceptance cases, written before the code so they cannot b
 | C3 | reactivate a RETIRED row while at capacity | rejected — reactivation creates an active session, so it counts |
 | C4 | two concurrent starts at capacity−1 | overshoot to 21 is ACCEPTABLE (§5 says approximate); what must not happen is an unbounded run |
 | C5 | retire one, then `start` a new pair | succeeds — retired rows are tombstones and must not count toward the cap |
+| C6 | below capacity | ordinary insert, unchanged |
+| C7 | **another user at capacity** | does not block this user — the cap is PER USER. Added 2026-08-06: not in the original five, and invisible to any single-user test; without `user_id` in the count one prolific editor caps everybody |
+| C8 | a refused `start` | creates no row |
+
+**IMPLEMENTED 2026-08-06** in `start`'s single statement: a CTE counts the user's ACTIVE rows, the
+INSERT is gated on `count < cap OR EXISTS(row for this pair)` — the `EXISTS` is what keeps RESUME
+working at capacity, since the INSERT must still be attempted for `ON CONFLICT` to fire — and the
+`DO UPDATE` carries `WHERE retired_at IS NULL OR count < cap`, so resume always passes and
+reactivation counts. `start` now returns a `StartResult` rather than throwing, because being at
+capacity is a condition the system chose, not an error.
 
 C1 and C5 are the ones that make the cap safe to ship: a cap that blocks resume, or that counts
 tombstones, locks a prolific editor out of their own work.

@@ -28,6 +28,7 @@ import {
   start,
   type CaptureResult,
   type RecoveryToken,
+  type StartResult,
 } from '../../src/lib/editRecovery/kernel.js'
 
 const rows = (result: unknown): Record<string, unknown>[] => {
@@ -116,6 +117,21 @@ export async function ageRecoveryRow(
   `)
 }
 
+/**
+ * Retire EVERY active capture a user holds, across all sources.
+ *
+ * The active-capture cap counts per user and globally, so tests that exercise it accumulate: without
+ * a reset, the second test in a file starts already at capacity and its seeding fails for a reason
+ * that has nothing to do with what it is testing.
+ */
+export async function retireAllActiveFor(payload: Payload, userId: number) {
+  await drizzleOf(payload).execute(sql`
+    UPDATE edit_recovery SET retired_at = NOW(), content = NULL,
+      revision = revision + 1, updated_at = NOW()
+    WHERE user_id = ${userId} AND retired_at IS NULL
+  `)
+}
+
 /** Overwrite a row's stored capture. Fixture setup for states the kernel would never produce. */
 export async function setRecoveryContent(
   payload: Payload,
@@ -174,17 +190,34 @@ export const recoveryHarness = (getFx: () => RoleFixture) => {
       semver,
     })
 
-  const startFor = (
-    versionId: number,
-    opts: { schemaVersion?: string; userId?: number; sourceUpdatedAt?: string } = {},
-  ): Promise<RecoveryToken> =>
+  type StartOpts = {
+    schemaVersion?: string
+    userId?: number
+    sourceUpdatedAt?: string
+    maxActive?: number
+  }
+
+  /** The raw result, for the tests that are ABOUT the active-capture cap. */
+  const startResult = (versionId: number, opts: StartOpts = {}): Promise<StartResult> =>
     start(poolReq(), {
       userId: opts.userId ?? fx().users.editor.id,
       sourceVersionId: versionId,
       lessonPlanId: fx().plan.id,
       sourceUpdatedAt: opts.sourceUpdatedAt ?? new Date('2026-01-01T00:00:00.000Z').toISOString(),
       schemaVersion: opts.schemaVersion ?? 'sv-1',
+      ...(opts.maxActive === undefined ? {} : { maxActive: opts.maxActive }),
     })
+
+  /**
+   * The token, unwrapped — for the many tests that are NOT about the cap and would only be made
+   * noisier by handling a condition they never provoke. Hitting the cap here is a FIXTURE failure, so
+   * it throws with a message that says so rather than returning a value the caller will misread.
+   */
+  const startFor = async (versionId: number, opts: StartOpts = {}): Promise<RecoveryToken> => {
+    const res = await startResult(versionId, opts)
+    if (!res.ok) throw new Error(`fixture: start hit the active-capture cap (${res.reason})`)
+    return res.token
+  }
 
   /** Takes a FORM DOCUMENT, not a capture map — `capture` projects internally. */
   const captureFor = (
@@ -207,7 +240,7 @@ export const recoveryHarness = (getFx: () => RoleFixture) => {
   const countRows = (versionId: number, userId = fx().users.editor.id) =>
     countRecoveryRows(fx().payload, versionId, userId)
 
-  return { poolReq, makeVersion, startFor, captureFor, rawRow, countRows }
+  return { poolReq, makeVersion, startFor, startResult, captureFor, rawRow, countRows }
 }
 
 /** A form document whose lesson row can carry prose plus any admin/system fields a test needs. */
