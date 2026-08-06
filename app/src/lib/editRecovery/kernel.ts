@@ -134,3 +134,80 @@ export const start = async (
   if (!row) throw new Error('edit-recovery: start returned no row')
   return tokenOf(row)
 }
+
+/**
+ * Hard per-capture ceiling on the serialised content (§5). Enforced HERE rather than at the endpoint
+ * so no caller can store past it by forgetting: this module is the storage boundary, and "checked
+ * before storage" is only a guarantee if the check cannot be routed around. Sized for a whole
+ * sub-strand's prose with room to spare — a bundle that legitimately exceeds this is a bug worth
+ * seeing, not a limit worth raising silently.
+ */
+export const MAX_CAPTURE_BYTES = 512 * 1024
+
+/**
+ * The outcomes a capture can have. A discriminated union rather than `null`, because the caller must
+ * distinguish "your token is stale, refetch" (409) from "this content is too big, stop retrying with
+ * it" (413) — retrying an oversized capture forever is the failure a bare null invites.
+ */
+export type CaptureResult =
+  | { ok: true; token: RecoveryToken }
+  | { ok: false; reason: 'conflict' }
+  | { ok: false; reason: 'too-large'; bytes: number }
+
+/**
+ * `capture` — a compare-and-set UPDATE of an EXISTING ACTIVE row. **Never an insert.**
+ *
+ * ⚑ This statement, not the unique index, is what enforces "capture never inserts". The index only
+ * enforces one row per `(user, sourceVersion)` and gives `start` its conflict target; a capture that
+ * INSERTed when no row existed would satisfy it perfectly, and the explicit-start step would have been
+ * silently optional. Calling this an "upsert" — as an earlier revision of the design did — undoes the
+ * whole protocol, because an upserting capture recreates a RETIRED row, which is precisely the
+ * resurrection retirement markers exist to prevent (§7 case 15).
+ *
+ * All four preconditions are evaluated inside the UPDATE, never read-then-written:
+ *
+ *   - the row exists                    → a capture without a `start` cannot create one
+ *   - `retired_at IS NULL`              → resurrection blocked (case 15)
+ *   - `generation` matches              → a tab from a superseded session is fenced out
+ *   - `revision` matches `expectedRevision` → another tab's newer work is never overwritten
+ *
+ * Zero rows updated means one of those failed, and they are deliberately NOT distinguished: telling a
+ * caller which preconditions failed would leak whether another session exists for a row it is not
+ * allowed to read. The client's response is the same either way — refetch.
+ *
+ * On success the ADVANCED token is returned and the client must adopt it (§4's token rule). Returning
+ * the token the caller SENT would leave it holding a value the successful write just superseded, so
+ * its next capture would 409 against a conflict it caused itself.
+ */
+export const capture = async (
+  req: PayloadRequest,
+  args: {
+    userId: number
+    sourceVersionId: number
+    generation: number
+    expectedRevision: number
+    /** The projection's capture map. Serialised here so the size check sees exactly what is stored. */
+    content: unknown
+  },
+): Promise<CaptureResult> => {
+  const json = JSON.stringify(args.content ?? null)
+  const bytes = Buffer.byteLength(json, 'utf8')
+  if (bytes > MAX_CAPTURE_BYTES) return { ok: false, reason: 'too-large', bytes }
+
+  const db = await txDb(req)
+  const result = await db.execute(sql`
+    UPDATE edit_recovery SET
+      content    = ${json}::jsonb,
+      revision   = edit_recovery.revision + 1,
+      updated_at = NOW()
+    WHERE user_id = ${args.userId}
+      AND source_version_id = ${args.sourceVersionId}
+      AND retired_at IS NULL
+      AND generation = ${args.generation}
+      AND revision = ${args.expectedRevision}
+    RETURNING generation, revision, updated_at
+  `)
+
+  const row = rowsOf(result)[0]
+  return row ? { ok: true, token: tokenOf(row) } : { ok: false, reason: 'conflict' }
+}
