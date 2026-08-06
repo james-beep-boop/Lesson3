@@ -11,6 +11,66 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-06 — a registered job is not a scheduled one; and enumerate-first only helps if you flip
+
+**The defect worth remembering.** `expireEditRecoveryTask` was written, registered in
+`payload.config.ts`, unit-tested, integration-tested, reviewed and committed — and would **never have
+run**. Registration teaches the job system that a task EXISTS; it neither queues it nor runs it. The
+30-day retention policy would have silently done nothing until someone manually queued it, and nothing
+in the test suite or the type system had an opinion about that.
+
+Fixed with `schedule: [{ cron, queue: 'default' }]` (Payload 3.85.1's `AutorunCronConfig
+.disableScheduling` defaults to false, so the existing autoRun cron handles schedules as well as queued
+jobs — verified in installed source). The durable part is the **wiring test**:
+`tests/unit/expireEditRecoveryTask.spec.ts` asserts the schedule exists, that its queue matches the one
+autoRun actually drains, and that the task is registered. Removing the schedule now fails a test.
+
+**Rule:** *a background job needs a test that it is SCHEDULED, not merely that it works.* Everything
+about a never-scheduled job looks correct in isolation — the handler is right, its tests pass, the
+config lists it. The gap is between two files that never reference each other, which is exactly the
+class no unit test finds by accident.
+
+**Corollary, and the reason this entry is here rather than in a commit message:** the same shape
+applies to the queue NAME. A schedule pointing at a queue no `autoRun` entry drains fails identically
+and just as silently, one layer along. The wiring test asserts both.
+
+---
+
+**Enumerate-first worked, and was not sufficient.** Before writing the expiry tests I wrote down every
+column the path touches and every input class it accepts (B1-B10), specifically because three earlier
+guards in this feature had each been pinned by asserting the effect I happened to be thinking about.
+The enumeration was a real improvement — and flips still found **four** of the tests it produced to be
+false coverage:
+
+1. **B8 (the cutoff boundary) was enforced in TWO independent places** — the SELECT and `retire`'s own
+   cutoff term — so "was it retired?" could not tell them apart, and loosening one left it green.
+2. **B6 and B4 asserted on a GLOBAL count** (`report.skipped`) that unrelated rows perturb.
+3. **B9 claimed to prove continue-on-conflict and created no conflict at all.**
+4. **B4 was not an interleaving**: the capture completed before the pass began, so the row was excluded
+   by the initial SELECT and nothing "landed after selection".
+5. And the enumeration listed a **B5 that never got a test** — the claim "every enumerated class has
+   one" was itself unverified.
+
+**Rule:** *enumerating the cases tells you WHAT to test; only flipping the code tells you whether the
+test does it.* The two are complementary and neither substitutes for the other. Enumeration prevents
+whole classes being forgotten; flipping catches the ones that were written but land on the wrong
+mechanism.
+
+**The structural fix that came out of it:** expiry is now `selectExpiredCaptures` + `retireSelected`,
+composed by `expireCaptures`. Within one call the SELECT and each UPDATE are adjacent, so nothing can
+move between them and the conflict branch is **unreachable** — a test could not exercise it, and a flip
+that broke it stayed green through two rewrites (one of which raced two concurrent passes and was
+merely probabilistic). Splitting the halves makes the interleaving deterministic without a test-only
+hook inside production code: the job still composes both, and the test drives them separately.
+
+**Also decided:** the expiry task takes **no input**. It previously accepted `ttlDays` and `limit`,
+which was unnecessary and unsafe — a negative `ttlDays` yields a cutoff in the FUTURE, and the pass
+would then retire every active capture in the system, destroying exactly the unsaved work the feature
+exists to protect. The policy is fixed at 30 days and 500 rows; the kernel still takes an injected
+cutoff and limit, which is the testing seam and is not reachable over the wire.
+
+---
+
 ## 2026-08-06 — retirement advances the revision, NOT the generation (SPEC amendment)
 
 **The contradiction:** SPEC §5 and `DESIGN-working-drafts.md` §4 both said retirement "advances

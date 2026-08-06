@@ -14,6 +14,111 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-06) — edit recovery PR 1 is IN PROGRESS on a DRAFT PR
+
+**Read this section, then `docs/DESIGN-working-drafts.md` §2-§4 and §8. Everything else in this file
+below the "Next steps" list is older history.**
+
+## Where the work is
+
+`feat/edit-recovery-server`, **pushed**, open as a **draft** PR. Do not trust the numbers below — ask:
+
+```bash
+gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
+git log --oneline origin/main..origin/feat/edit-recovery-server
+```
+
+## ⛔ Why it is a DRAFT, and must stay one until the migration exists
+
+The `edit-recovery` collection is registered in `payload.config.ts` and its two cascade hooks run on
+**every version delete and every user delete** — but there is **no migration**. Production runs
+migrate-mode, so the table would not exist there. Demonstrated, not inferred: with the table renamed
+away, a version delete fails with
+
+```
+Failed query: select count(*) from "edit_recovery" where "edit_recovery"."source_version_id" = $1
+```
+
+which breaks save-as-new `deleteSource`, make-official `deletePrevious`, plan deletion and user
+deletion. **Merging this before the migration makes `main` undeployable.**
+
+⚑ **CI CANNOT CATCH THIS — a green gate is not schema safety.** `test:http` loads no
+`vitest.setup.ts`, so it seeds via the Local API into the SAME database the running app serves
+(`lesson3`, migrate-mode), and CI's synthetic `.env` omits `NODE_ENV`, so that Local Payload is not in
+production mode and runs Payload's dev schema **push** — silently creating whatever the migrations
+forgot, before the destructive tests touch it.
+
+## What is DONE (all DB-proven on the disposable probe)
+
+- The `edit-recovery` collection: closed on all four operations for every role including Site Admin,
+  compound unique on `(user, sourceVersion)`, both parent cascades (user, version) plus the transitive
+  plan→version→recovery path.
+- The pure projection: `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` rather than restating them, with `normaliseProseValue` covering code units the
+  jsonb column cannot carry (unpaired surrogates AND U+0000).
+- **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
+  resume), `capture` (CAS UPDATE, never an insert), `retire` (ONE transition, four callers, three
+  precondition shapes), and `expireCaptures` (select + per-row CAS), with `expireEditRecoveryTask`
+  carrying a **schedule** so it actually runs.
+- `src/lib/txDb.ts`: the drizzle primitives, failing closed when a `transactionID` has no session.
+
+**Acceptance cases executing:** 15, 17-18, 21-25, 30. `docs/DESIGN-working-drafts.md` §7 carries the
+live status — update it there as cases land.
+
+## What is LEFT, in order
+
+1. **The per-user active-capture COUNT CAP (~20, SPEC §5) in `start`.** Not implemented. §5 states two
+   caps in one sentence and only the per-capture BYTE cap exists. `start` is the only path that inserts
+   a row, so it is the storage boundary for row COUNT exactly as `capture` is for row SIZE. Its five
+   acceptance cases are already written in design §8 — **C1 (resume at capacity must SUCCEED)** and
+   **C5 (tombstones must not count)** are the two that make it safe to ship; a cap that blocks resume
+   or counts tombstones locks a prolific editor out of their own work.
+2. **The five routes / SIX operations** (§2's table bundles Site-Admin metadata and cleanup on one row,
+   and the cleanup verb is unspecified — settle it). CLAUDE.md's wire-authz rule is per OPERATION, so
+   that is six sets of 401/403/404 plus happy path, not five.
+3. **The `recovery` rate-limit bucket** in `lib/rateLimit.ts`, sized for several tabs plus blur and
+   pre-expiry flushes. A 429 must produce visible backoff, never silent abandonment.
+4. **Cases 19-20**, which CANNOT be kernel tests: they are save-as-new cases and say nothing unless
+   driven through the real `endpoints/versionEdit.ts` transaction and its semver-retry loop. Case 19
+   needs a REAL failing statement — a mocked throw proves the mock. The kernel half is already proven
+   (`retire` inside a transaction, rolled back, capture intact).
+5. **Then the migration**, per the four-step gate below.
+
+## The migration gate — all four steps, in order
+
+1. Generate the migration on the Rock (Node 22) once the schema is settled.
+2. Review **both** `up` and `down`.
+3. Apply to a **completely fresh migration-only database with push disabled** — never the probe's
+   `lesson3`, which already has the table from a push-mode run and is therefore contaminated.
+4. Exercise deletion, save-as-new and make-official there **before any dev-mode Payload process can
+   touch it**, and stop `test:http` from pushing at all (run its Local fixture in production mode, or
+   disable adapter push explicitly) — otherwise this blind spot silently returns for the next
+   collection.
+
+## Two known defects OUTSIDE this branch's diff, tracked here because they will otherwise be lost
+
+- **`endpoints/userAssignments.ts` (~line 81) has a fail-OPEN copy of the transaction lookup.**
+  `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
+  session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
+  `SELECT … FOR UPDATE` on a pooled connection OUTSIDE the transaction it exists to serialise —
+  defeating the row lock that stops two concurrent role changes both passing the freshness check.
+  Migrating it is a behaviour change on code outside this diff, so it was deliberately not done in
+  passing.
+- **Three near-identical cascade factories** (`Favorites`, `Messages`, `EditRecovery`) restate the
+  23502 NOT-NULL rule in four docblocks and enforce it nowhere. The prize is not DRY — it is a wiring
+  test that walks the config, finds every collection with a required relationship, and asserts the
+  parent's `beforeDelete` carries a cascade for it. The failure mode is OMISSION, and it surfaces in
+  production as an opaque error.
+
+## How to run the tests (the probe recipe is in `AGENTS.md` — read it, there are two traps)
+
+Short version: `docker compose -p lesson3-ci-probe up -d --build`, always pass `-p`, put
+`-e NODE_ENV=test` on the `docker run` (NOT on `docker compose up`), repoint the TRACKED `app/test.env`
+and restore it afterwards with `git diff --exit-code -- app/test.env`. A long session exhausts the
+shared daily rate-limit budgets and unrelated specs start failing; the reset command is in AGENTS.md.
+
+---
+
 # Landed 2026-08-05 — the env-parity + edit-recovery-design stack is IN `main`
 
 `chore/env-template-parity` was merged (squash, head branch deleted) after ten review rounds. Nothing
@@ -21,12 +126,9 @@ about it is pending and there is nothing to recover; this section is history, ke
 produced rules that outlive them.
 
 **Where the reasoning lives:** `docs/CHANGELOG.md` (2026-08-05) for what shipped; `docs/DECISIONS.md`
-(2026-08-05, newest entry) for the durable rules — *a derived fact is a SHA*, *verification instructions
-need the same scrutiny as the code they verify*, *a fix that widens an access boundary needs review as an
-access grant*, and *a recovery document must not describe its own contents from memory*.
+(2026-08-05) for the durable rules.
 
-**It needs no deploy**: documentation, two config templates, one unit test, one CI mount, one docstring —
-nothing the server executes. The Rock parity check further down still governs before any deploy.
+**It needs no deploy**: documentation, two config templates, one unit test, one CI mount, one docstring.
 
 ## What that stack contained
 
@@ -74,69 +176,19 @@ secret-free-to-publish, so **ask the operator**:
    review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
    `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25, 28–30).
 
-   **Server progress so far** — branch `feat/edit-recovery-server`, PUSHED, open as a DRAFT PR (find it
-   with `gh pr list --state all --head feat/edit-recovery-server`; held as draft deliberately, see the
-   migration blocker below). Done and DB-proven on the disposable probe: the collection with closed
-   access and both cascades, the pure projection with its normalisation rule, and THREE of four kernel
-   statements — `start`, `capture` and the shared `retire()` (four callers, three preconditions, driven
-   inside a real transaction with a rollback test).
+   ⚑ **STATE, and the two traps, are in the HANDOFF BLOCK at the top of this file** — where the work
+   is, what is done, what is left, the migration gate, and the two known defects outside the branch's
+   diff. Not restated here, because two copies of a status drift and the top one is what a new session
+   reads first.
 
-   **Still to build:** the expiry JOB that wraps `retire({ by: 'expiry' })` with row selection; the
-   per-user active-capture count cap in `start` (five acceptance cases pre-written in the design's §8);
-   the five routes / six operations with wire authz; the rate-limit bucket; and the migration.
+   Two contract details worth carrying into the endpoint work, since they change its scope:
+   - **Five table rows, SIX operations.** §2's endpoint table bundles Site-Admin metadata and cleanup
+     on one line, and the cleanup verb is unspecified — settle it. The wire-authz rule is per
+     OPERATION, so that is six sets of 401/403/404 plus happy path.
+   - **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload
+     bypasses collection access and closed-collection tests pass without testing anything. House
+     pattern: the docblock of `tests/int/access.int.spec.ts`.
 
-   **Acceptance cases executing today:** 15, 17-18, 21-25. The design doc's §7 carries the live status —
-   update it there as cases land, rather than restating it here.
-
-   ⚑ **Two items that must land before the schema is frozen and the migration generated:**
-   - **The per-user ACTIVE-CAPTURE COUNT CAP (~20, SPEC §5)** is not implemented. §5 states two caps
-     in one sentence; only the per-capture BYTE cap exists (in the kernel, where `capture` is the
-     storage boundary for size). `start` is the only path that inserts a row, so it is the storage
-     boundary for row COUNT by the identical argument, and an approximate check folds into its
-     existing single statement. Decide it there, or the two halves of one sentence end up at two
-     altitudes with no principle separating them. Build it after retirement semantics land (a cap
-     must count ACTIVE rows, which means knowing what retirement leaves behind) and before the
-     migration, since it may want an index.
-   - **`requireTransaction` returns with retirement.** It was removed as dead code (no caller, an
-     untested throw); retirement is the caller that needs it, along with a genuine
-     transaction-ROLLBACK test proving a retirement inside a failed save-as-new leaves the capture
-     intact.
-
-   ⚑ **CI CANNOT CATCH A MISSING MIGRATION — do not read a green gate as schema safety.** `test:http`
-   deliberately loads no `vitest.setup.ts`, so it seeds via the Local API into the SAME database the
-   running app serves (`lesson3`, migrate-mode). CI's synthetic `.env` omits `NODE_ENV`, so that Local
-   Payload is NOT in production mode and runs Payload's dev schema **push** — silently creating any
-   table the migrations forgot, before the destructive tests touch it. That is exactly why the gate was
-   green at `6846a3c` on a branch whose registered collection has no migration. Demonstrated: with
-   `edit_recovery` renamed away, a version delete fails with
-   `Failed query: select count(*) from "edit_recovery" …`, breaking save-as-new `deleteSource`,
-   make-official `deletePrevious`, plan deletion and user deletion.
-
-   **The final PR-1 gate therefore requires, in this order:** (1) generate the settled migration;
-   (2) apply it to a COMPLETELY FRESH migration-only database — never the push-contaminated probe,
-   whose `lesson3` already has the table from a push-mode run; (3) exercise deletion, save-as-new and
-   make-official there BEFORE any non-production Payload process can touch it; (4) stop `test:http`
-   from pushing at all, by running its Local fixture in production mode or disabling adapter push
-   explicitly — otherwise this blind spot silently returns for the next collection.
-
-   ⚑ **`endpoints/userAssignments.ts` has a fail-OPEN copy of the transaction lookup** (~line 81).
-   `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
-   session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
-   `SELECT … FOR UPDATE` on a pooled connection OUTSIDE the transaction it exists to serialise —
-   defeating the row lock that stops two concurrent role changes both passing the freshness check.
-   Migrating it is a behaviour change on code outside the edit-recovery diff, so it was deliberately
-   not done in passing. It is tracked HERE rather than only in a spawned task, because those do not
-   survive the session.
-
-   ⚑ **Five table rows, SIX operations.** §2's endpoint table bundles Site-Admin metadata and cleanup on
-   one line (`GET /:id/recovery/meta` *(+ cleanup op)*), and the cleanup verb is not specified there —
-   settle it in this PR. The CLAUDE.md wire-authz rule is per *operation*, so that is six sets of
-   401/403/404 + happy path, not five.
-
-   ⚑ **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload
-   bypasses collection access and the closed-collection tests pass without testing anything. The house
-   pattern is documented at the top of `tests/int/access.int.spec.ts`; only 4 of 12 int specs use it
-   today, so it is a live footgun for new tests.
 3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
    clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
    cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the

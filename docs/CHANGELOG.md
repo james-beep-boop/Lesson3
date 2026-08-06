@@ -8,6 +8,33 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-06 — edit recovery: the server kernel (IN PROGRESS, draft PR, NOT merged)
+
+Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged: the collection is
+registered and its cascades run on every version and user delete, but there is **no migration yet**, so
+merging would make `main` undeployable. See the handoff block at the top of `docs/NEXT-SESSION.md`.
+
+- **The `edit-recovery` collection** — closed on all four operations for every role including Site
+  Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
+  plan→version→recovery path. DB-proven.
+- **The projection** — `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` so the save boundary and the capture boundary cannot drift apart, plus
+  `normaliseProseValue` for code units the jsonb column cannot carry (unpaired surrogates and U+0000 —
+  either of which previously made `capture` throw instead of returning a result).
+- **The fencing kernel, all four statements** — `start` (only insert/reactivate path, a total no-op on
+  resume), `capture` (CAS UPDATE, never an insert), `retire` (one transition, four callers, three
+  precondition shapes, with a real transaction-rollback test), `expireCaptures` (select + per-row CAS),
+  and `expireEditRecoveryTask` carrying a schedule so it actually runs.
+- **`src/lib/txDb.ts`** — the drizzle primitives extracted from the feature module, failing closed when
+  a `transactionID` has no resolvable session.
+- **SPEC amendment**: retirement advances the **revision**, not the generation. The normative text said
+  "revision/generation", which would have double-advanced across a retire-then-reactivate cycle and
+  contradicted matrix case 22.
+
+Acceptance cases executing: 15, 17-18, 21-25, 30. Still to build: the active-capture count cap, the
+five routes / six operations, the rate-limit bucket, cases 19-20 through the real save-as-new path, and
+the migration.
+
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 
 Merged to `main` from `chore/env-template-parity` (squash). No deploy required — see below.

@@ -21,7 +21,12 @@ import {
   retireDirectly,
   setRecoveryUpdatedAt,
 } from '../helpers/editRecovery.js'
-import { expireCaptures } from '../../src/lib/editRecovery/kernel.js'
+import {
+  expireCaptures,
+  retireSelected,
+  selectExpiredCaptures,
+  type ExpiryCandidate,
+} from '../../src/lib/editRecovery/kernel.js'
 
 let fx: RoleFixture
 
@@ -173,11 +178,26 @@ describe('expiry: the race, and the batch', () => {
    * proves the job as a whole handles it — the fresh capture survives, and the pass reports it as
    * skipped rather than failing.
    */
-  it('B4 / case 25 — a capture landing after selection is skipped, not retired', async () => {
+  /**
+   * B4 / §7 case 25, at the JOB level and now genuinely interleaved.
+   *
+   * ⚑ An earlier version of this test awaited the capture BEFORE calling `expireCaptures`, so the row
+   * was excluded by the initial SELECT and nothing ever "landed after selection" — the claim in its
+   * own name was false. Selection and retirement are split precisely so this can be exercised: select
+   * first, land the capture, then retire the candidates the pass had already chosen.
+   */
+  it('B4 / case 25 — a capture landing AFTER selection is skipped, not retired', async () => {
     const { v, token } = await seedExpired('1.2.6')
 
-    // Land a capture at the moment the pass would run. This advances updated_at to NOW(), pushing the
-    // row out of the cutoff window, and advances the revision the pass would have carried.
+    // The pass selects it: active, and untouched since the cutoff.
+    const candidates = await selectExpiredCaptures(poolReq(), { cutoff: CUTOFF })
+    expect(
+      candidates.some((c) => c.sourceVersionId === v.id),
+      'selected as expired',
+    ).toBe(true)
+
+    // ...and only THEN does the teacher type. `updated_at` moves to NOW() and the revision advances,
+    // so the candidate the pass is holding is now stale in both terms.
     const landed = await captureFor(
       v.id,
       token.generation,
@@ -186,16 +206,39 @@ describe('expiry: the race, and the batch', () => {
     )
     expect(landed.ok).toBe(true)
 
-    const report = await expireCaptures(poolReq(), { cutoff: CUTOFF })
-    expect(await isRetired(v.id), 'the live session survived').toBe(false)
-    // Deliberately NOT asserting `report.skipped === 0`: that is a count over every row in a shared
-    // database, so it is perturbed by unrelated rows. The row's own state is the honest evidence.
-    expect(report.retired).toBeGreaterThanOrEqual(0)
+    const report = await retireSelected(poolReq(), candidates, CUTOFF)
 
+    expect(report.skipped, 'the stale candidate was refused').toBeGreaterThanOrEqual(1)
+    expect(await isRetired(v.id), 'the live session survived the pass').toBe(false)
     const after = await rawRow(v.id)
     expect((after?.content as Record<string, Record<string, string>>)['lesson:L1'].title).toBe(
       'typed just now',
     )
+  })
+
+  /**
+   * B5 — the enumerated class that had NO test. Another caller (a discard, a save-as-new) retires the
+   * row between this pass's selection and its update. Distinct from B4: there the revision moved, here
+   * the row is already a tombstone, so it is `retired_at IS NULL` that refuses it.
+   */
+  it('B5 — a row retired by someone else after selection is skipped', async () => {
+    const { v } = await seedExpired('1.2.20')
+
+    const candidates = await selectExpiredCaptures(poolReq(), { cutoff: CUTOFF })
+    const mine = candidates.filter((c) => c.sourceVersionId === v.id)
+    expect(mine, 'selected as expired').toHaveLength(1)
+
+    await retireDirectly(fx.payload, v.id, fx.users.editor.id)
+    const afterOther = await rawRow(v.id)
+
+    const report = await retireSelected(poolReq(), mine, CUTOFF)
+
+    expect(report, 'refused, not re-stamped').toEqual({ retired: 0, skipped: 1 })
+    const after = await rawRow(v.id)
+    expect(after?.retired_at, "the other caller's marker is untouched").toEqual(
+      afterOther?.retired_at,
+    )
+    expect(Number(after?.revision)).toBe(Number(afterOther?.revision))
   })
 
   it('B3 — retires every matching row, across different users', async () => {
@@ -208,48 +251,42 @@ describe('expiry: the race, and the batch', () => {
   })
 
   /**
-   * B9. One row conflicting must not stop the batch. Built by retiring one row out from under the
-   * pass between its selection and its update — which is what a concurrent discard does.
-   */
-  /**
-   * B9. ⚑ The `skipped` branch is UNREACHABLE single-threaded, and an earlier version of this test
-   * pretended otherwise: it retired one row via `retireDirectly` first, but that also sets
-   * `updated_at = NOW()`, so the row was excluded by BOTH filters and never selected — no conflict
-   * ever occurred. Flipping the loop to throw on conflict left the suite green, which is how it was
-   * found. Within one pass the SELECT and each UPDATE are adjacent and nothing moves between them.
+   * B9 — continue-on-conflict, made DETERMINISTIC.
    *
-   * So the conflict is created the only way it happens in production: TWO PASSES RACING. Each selects
-   * both rows; whichever reaches a row second finds its revision advanced and is refused. The outcome
-   * is deterministic even though the winner is not — every row ends retired exactly once, and neither
-   * pass throws.
+   * ⚑ Two earlier versions of this test were wrong in different ways. The first created no conflict at
+   * all (it retired a row via `retireDirectly` first, which also sets `updated_at = NOW()`, so the row
+   * was excluded by both filters and never selected). The second raced two concurrent passes, which
+   * worked only probabilistically — six rows made a flip detectable 3 runs in 3, but that is evidence
+   * about likelihood, not a guarantee, and the assertions did not even require a conflict to have
+   * happened (`totalRetired + totalSkipped >= totalRetired` is tautological).
+   *
+   * With selection split from retirement there is no need to race anything: take TWO selections of the
+   * same rows, retire with the first, then retire with the second. Every candidate the second holds is
+   * now stale by construction, so it must skip all of them and must not throw.
    */
-  it('B9 — two concurrent passes: every row retired exactly once, neither aborts', async () => {
-    // Several rows, not two: with only a couple the passes can serialise and never actually collide,
-    // which made this flip-detectable only about two runs in three. Widening the batch makes the
-    // overlap reliable. It is still a genuine race, so WHO wins each row is not determined — only the
-    // invariants below, which hold either way.
-    const seeded = []
-    for (const semver of ['1.2.9', '1.2.15', '1.2.16', '1.2.17', '1.2.18', '1.2.19']) {
-      seeded.push(await seedExpired(semver))
-    }
+  it('B9 — a pass whose candidates are all stale skips them all and does not abort', async () => {
+    const rows: Awaited<ReturnType<typeof seedExpired>>[] = []
+    for (const semver of ['1.2.9', '1.2.15', '1.2.16']) rows.push(await seedExpired(semver))
+    const mineOf = (cs: ExpiryCandidate[]) =>
+      cs.filter((c) => rows.some((r) => r.v.id === c.sourceVersionId))
 
-    const [first, second] = await Promise.all([
-      expireCaptures(poolReq(), { cutoff: CUTOFF }),
-      expireCaptures(poolReq(), { cutoff: CUTOFF }),
-    ])
+    const firstPass = mineOf(await selectExpiredCaptures(poolReq(), { cutoff: CUTOFF }))
+    const secondPass = mineOf(await selectExpiredCaptures(poolReq(), { cutoff: CUTOFF }))
+    expect(firstPass).toHaveLength(rows.length)
+    expect(secondPass).toHaveLength(rows.length)
 
-    // Neither threw — reaching here at all is half the assertion.
-    for (const { v } of seeded) expect(await isRetired(v.id), `row ${v.id} retired`).toBe(true)
+    const winner = await retireSelected(poolReq(), firstPass, CUTOFF)
+    expect(winner).toEqual({ retired: rows.length, skipped: 0 })
 
-    // Each row was retired by exactly one pass: no double-retirement, and the loser counted its
-    // refusals as `skipped` rather than failing.
-    const totalRetired = first.retired + second.retired
-    const totalSkipped = first.skipped + second.skipped
-    expect(totalRetired, 'each candidate retired once').toBeGreaterThanOrEqual(seeded.length)
-    expect(
-      totalRetired + totalSkipped,
-      'every selected row was accounted for',
-    ).toBeGreaterThanOrEqual(totalRetired)
+    // Every candidate is stale now. The pass must count them all and reach the end.
+    const loser = await retireSelected(poolReq(), secondPass, CUTOFF)
+    expect(loser, 'all skipped, none retired, nothing thrown').toEqual({
+      retired: 0,
+      skipped: rows.length,
+    })
+
+    // And the rows are retired exactly once — no double-stamping.
+    for (const { v } of rows) expect(await isRetired(v.id), `row ${v.id}`).toBe(true)
   })
 
   it('B10 — the batch is bounded by its limit', async () => {

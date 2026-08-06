@@ -354,39 +354,85 @@ export type ExpiryReport = {
  * Each row is retired independently. One conflicting row must not roll back the rest, so there is no
  * enclosing transaction — which is also why `retire` does not demand one for this caller.
  */
-export const expireCaptures = async (
-  req: PayloadRequest,
-  opts: { cutoff: Date; limit?: number } = {
-    cutoff: new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000),
-  },
-): Promise<ExpiryReport> => {
-  const cutoff = opts.cutoff
-  const limit = opts.limit ?? EXPIRY_BATCH_LIMIT
-  const db = await txDb(req)
+/** One row the selection chose, carrying the revision it was chosen with. */
+export type ExpiryCandidate = { userId: number; sourceVersionId: number; revision: number }
 
-  const selected = rowsOf(
+/**
+ * The SELECT half of the pass, split out from the retirement half.
+ *
+ * ⚑ The split is not decoration: it is what makes the conflict path TESTABLE. Within one
+ * `expireCaptures` call the SELECT and each UPDATE are adjacent, so nothing can move between them and
+ * the `skipped` branch is unreachable — a test that claimed to cover it was really covering nothing,
+ * and a flip that broke the branch stayed green. Exposing the two halves lets a test select, then
+ * change the world, then retire, which is exactly the interleaving production hits under concurrency.
+ *
+ * Preferred over a test-only callback inside `expireCaptures`: this is a real decomposition the job
+ * itself composes, not a seam that exists solely for tests to reach through.
+ */
+export const selectExpiredCaptures = async (
+  req: PayloadRequest,
+  opts: { cutoff: Date; limit?: number },
+): Promise<ExpiryCandidate[]> => {
+  const db = await txDb(req)
+  const rows = rowsOf(
     await db.execute(sql`
       SELECT user_id, source_version_id, revision
       FROM edit_recovery
       WHERE retired_at IS NULL
-        AND updated_at < ${cutoff.toISOString()}::timestamptz
+        AND updated_at < ${opts.cutoff.toISOString()}::timestamptz
       ORDER BY updated_at ASC
-      LIMIT ${limit}
+      LIMIT ${opts.limit ?? EXPIRY_BATCH_LIMIT}
     `),
   )
+  return rows.map((row) => ({
+    userId: toPositiveInt(row.user_id),
+    sourceVersionId: toPositiveInt(row.source_version_id),
+    revision: toPositiveInt(row.revision),
+  }))
+}
 
+/**
+ * The retirement half: each candidate independently, carrying the revision it was SELECTED with and
+ * the cutoff it was selected against, both evaluated inside the UPDATE.
+ *
+ * A candidate whose row moved since selection conflicts and is counted as `skipped`, not raised — the
+ * fencing worked and the row simply is not expired any more. One conflicting row must not stop the
+ * batch, so there is no enclosing transaction; that is also why `retire` does not demand one here.
+ */
+export const retireSelected = async (
+  req: PayloadRequest,
+  candidates: ExpiryCandidate[],
+  cutoff: Date,
+): Promise<ExpiryReport> => {
   const report: ExpiryReport = { retired: 0, skipped: 0 }
-  for (const row of selected) {
+  for (const candidate of candidates) {
     const result = await retire(
       req,
-      {
-        userId: toPositiveInt(row.user_id),
-        sourceVersionId: toPositiveInt(row.source_version_id),
-      },
-      { by: 'expiry', expectedRevision: toPositiveInt(row.revision), cutoff },
+      { userId: candidate.userId, sourceVersionId: candidate.sourceVersionId },
+      { by: 'expiry', expectedRevision: candidate.revision, cutoff },
     )
     if (result.ok) report.retired += 1
     else report.skipped += 1
   }
   return report
 }
+
+/**
+ * The 30-day expiry pass (design §4/§5; §7 cases 25 and 30) — select, then compare-and-set per row.
+ *
+ * The selection is a plain read, so anything it returns may be stale by the time the update runs.
+ * `retire({ by: 'expiry' })` carries both the revision this pass read AND the cutoff it selected
+ * against, and evaluates them inside the UPDATE — so a capture landing in between conflicts and the
+ * row is left alone. The cutoff term alone already defeats that race (every advancing write sets
+ * `updated_at = NOW()`); the revision is defence in depth.
+ *
+ * ⚑ Tombstones are excluded by the SELECTION, not merely refused by the update. Without
+ * `retired_at IS NULL` they would be re-selected on every run forever, attempted, refused, and counted
+ * as skipped — a permanent growing cost that never surfaces as an error.
+ */
+export const expireCaptures = async (
+  req: PayloadRequest,
+  opts: { cutoff: Date; limit?: number } = {
+    cutoff: new Date(Date.now() - CAPTURE_TTL_DAYS * 86_400_000),
+  },
+): Promise<ExpiryReport> => retireSelected(req, await selectExpiredCaptures(req, opts), opts.cutoff)
