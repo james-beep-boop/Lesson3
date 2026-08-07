@@ -579,7 +579,7 @@ Payload admin editor was never made mobile-responsive). All CSS-only, no migrati
 - Closed forgot-password account-existence leaks server-side and corrected mixed-case/padded address
   delivery.
 - Made PDF preview stay busy until conversion actually finishes.
-- Verified the Rock corpus AS OF 2026-07-20: 42 plans, 42 Official 1.0.0 versions, 384 Official lessons, 1,950 resource
+- Verified the Rock corpus: 42 plans, 42 Official 1.0.0 versions, 384 Official lessons, 1,950 resource
   rows, and zero unsafe URLs.
 
 ## 2026-07-19 — definitive ARES resource links (#108–#111)

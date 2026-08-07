@@ -145,6 +145,35 @@ silently building it).
 > Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
 > local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".
 
+### After any deploy touching edit recovery: verify the cascade on THIS box
+
+Registering the `edit-recovery` collection made two hooks run on **every version delete and every user
+delete**, against a table only its migration creates. CI covers the behaviour and `docker-compose.yml`
+gates `app` on `migrate` completing, so the ordinary deploy path cannot ship the app without the
+schema. What neither can see is one particular database that has drifted, been restored from a stale
+dump, or been migrated by hand — which is what this checks.
+
+Read-only, safe on a live box at any time:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm migrate npx payload run scripts/verify-edit-recovery-cascade.ts
+```
+
+It reports the table, the compound unique index the fencing protocol depends on, and that both cascade
+queries execute against real rows.
+
+`APPLY=1` additionally runs the full drill — create a throwaway version, seed a real recovery row,
+delete it through Payload, confirm the row went with it. ⚑ **That WRITES to production data.** It
+cleans up after itself including after a failed assertion, but it does briefly put a
+`ZZ_DEPLOY_VERIFY_` version on a real plan, so run it when nobody is browsing. `APPLY=1` must go
+inside the container with `-e`, as above:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run scripts/verify-edit-recovery-cascade.ts
+```
+
+Exits non-zero on any failed check, so it can gate a script.
+
 ### One-off: clear stored editor collapse preferences
 
 Run ONCE after deploying the collapsed-by-default editor rows (2026-07-25). Without it the change is
