@@ -13,10 +13,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
 Merged from `feat/edit-recovery-server` (squash). ⚑ **Carries a migration** — a deploy must run
 `migrate`, unlike the recent docs-only batches.
 
-⚑ **Inert on `main` until PR 2 (client) ships.** No client sends a recovery token, so every save takes
-the no-token path and retires nothing, and no capture is ever started. That is the optional-token
-contract doing its job: the server could land without a flag day, and nothing a user can reach
-changed on merge.
+⚑ **UI-inert until PR 2 (client) ships — which is NOT runtime-inert.** No client sends a recovery
+token, so every save takes the no-token path and retires nothing, no capture is ever started, and
+nothing a user can reach changed on merge. But the server half is live: the six recovery endpoints are
+mounted, the expiry task is scheduled, and the version-delete and user-delete hooks now query
+`edit_recovery` on every delete. That is the optional-token contract doing its job — the server landed
+without a flag day — and it is also why the migration is mandatory rather than merely tidy.
+
+**DEPLOYED AND VERIFIED ON THE ROCK (2026-08-07).** Migration applied; `edit_recovery` present with
+its compound unique index; health unchanged; corpus intact at 85 plans; the expiry task enqueued
+itself on schedule. The check that mattered — a real version deleted through Payload with a seeded
+capture attached, confirming the cascade REMOVES rows rather than merely querying them — passed via
+`scripts/verify-edit-recovery-cascade.ts`, added for exactly this purpose.
 
 - **The `edit-recovery` collection** — closed on all four operations for every role including Site
   Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
@@ -571,7 +579,7 @@ Payload admin editor was never made mobile-responsive). All CSS-only, no migrati
 - Closed forgot-password account-existence leaks server-side and corrected mixed-case/padded address
   delivery.
 - Made PDF preview stay busy until conversion actually finishes.
-- Verified the Rock corpus: 42 plans, 42 Official 1.0.0 versions, 384 Official lessons, 1,950 resource
+- Verified the Rock corpus AS OF 2026-07-20: 42 plans, 42 Official 1.0.0 versions, 384 Official lessons, 1,950 resource
   rows, and zero unsafe URLs.
 
 ## 2026-07-19 — definitive ARES resource links (#108–#111)

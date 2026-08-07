@@ -475,10 +475,18 @@ own diff against `main`, not against your last commit.**
 ---
 
 **Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
-migration or re-upload the corpus.** The Rock holds 42 plans, each with an Official 1.0.0, 384 lessons
-in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URLs (verified by direct
-SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
-presents that work as upcoming as HISTORY.
+migration or re-upload the corpus.** Both cutover migrations are applied; 1,950 fully-populated
+resource rows and 0 unsafe URLs at the time of the cutover (verified by direct SSH inspection
+2026-07-20). Treat any older block below that presents that work as upcoming as HISTORY.
+
+⚑ **The Rock now holds 85 plans / 85 versions / 85 with an Official** (verified 2026-08-07). This
+line said 42 — correct on 2026-07-20 and stale since the corpus grew. A count in a document is a
+measurement with a date on it, not a fact; the command is what stays true:
+
+```bash
+ssh Rock5b "cd /srv/lesson3 && docker compose exec -T postgres psql -U lesson3 -d lesson3 -c \
+  \"SELECT (SELECT count(*) FROM lesson_plans) plans, (SELECT count(*) FROM lesson_bundle_versions) versions;\""
+```
 
 ⚑ **SUPERSEDED — this paragraph is about the 2026-08-05 env-parity stack, which merged long ago.** It
 is NOT deploy guidance for what is on `main` today: **edit recovery PR 1 carries a migration and its
