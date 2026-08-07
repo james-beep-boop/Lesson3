@@ -432,13 +432,19 @@ have. Recorded rather than quietly ignored, because an unmeetable requirement in
 matrices stop being believed.
 
 Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
-**browser** (Playwright) for 1–13 and 26–27, since the defect is client-side; **DB-backed wire-level**
-(`tests/http`, which runs against the live app and its database) for 14–16, 23–24 and 29 — plus 7, 19
-and 20, which the original split omitted because they were written before save-as-new retirement
-existed (28 moved to unit; see the status note below); and
-**DB-backed concurrency** (`tests/int`, needing two real transactions) for 17–22, 25 and 30. Case 29
-spans a chain of real requests against real rows, so it is wire-level *and* DB-backed — the two labels
-are not alternatives here.
+
+- **browser** (Playwright) — the defect is client-side.
+- **DB-backed wire-level** (`tests/http`) — runs against the live app and its database, so it is the
+  only layer that can exercise a real endpoint transaction, including one held open while a second
+  request lands.
+- **DB-backed concurrency** (`tests/int`) — two real transactions against the kernel, without the HTTP
+  surface.
+- **unit** — pure functions with no server-side caller to drive.
+
+⚑ **The case→layer assignment is the status block ABOVE, not this list.** An earlier version repeated
+the numbers here as well, and the two copies immediately disagreed: 19 and 20 moved to wire-level when
+save-as-new retirement was built, while this paragraph still assigned them to `tests/int`. A layer list
+describes the layers; the status block owns which case sits in which.
 
 | # | Case | Expected |
 |---|---|---|

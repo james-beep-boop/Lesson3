@@ -71,9 +71,9 @@ advisory disposition below. See the handoff block at the top of `docs/NEXT-SESSI
   `npm audit fix --force` here: it proposes downgrading Payload to 2.x.
 
 ⚑ **Per-case acceptance status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else** — a
-suite total is not a case list. Executing on this branch: 7, 14-25, 29-30 plus the cap's C1-C8.
-Cases 1-6, 8-13 and 26-27 are PR 2 client work; 28 is re-assigned to unit (its subject, `applyCapture`,
-has no server-side caller).
+suite total is not a case list. This entry deliberately quotes no case numbers: the first draft of it
+declared that rule and then enumerated the cases in the next sentence, which is precisely the second
+copy the rule exists to prevent.
 
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 

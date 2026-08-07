@@ -81,7 +81,8 @@ against a migration-only schema with push off — and migration gate step 4 is c
 (closed 2026-08-06, see below).
 
 **Save-as-new retirement is now BUILT too** (2026-08-06, later): `versionEdit.ts` retires inside the
-save's transaction, and matrix cases 7, 19, 20 and 29 execute over the wire. An earlier version of
+save's transaction, and its acceptance cases execute over the wire — which ones, per case, is
+`docs/DESIGN-working-drafts.md` §7's job and no other document's. An earlier version of
 this paragraph said it was unbuilt and was left standing after it shipped — it now contradicted a
 section forty lines below. ⚑ **Do not quote a wire-suite total as proof that edit recovery is
 complete.** It proves migration and schema compatibility plus the cases actually written; the
@@ -168,8 +169,10 @@ and expiry on 2026-08-06.
 
 1. **Nothing is blocking. The next step is a decision about merging**, and the PR should stay a draft
    until you make it deliberately. Everything the design assigned to PR 1 is built and executing;
-   the remaining acceptance cases (1-6, 8-14, 26-27) are PR 2 client cases and cannot run without a
-   client. See "Next steps" item 3 for PR 2.
+   the remaining cases are PR 2 client cases and cannot run without a client — see
+   `docs/DESIGN-working-drafts.md` §7 for which, and "Next steps" item 3 for PR 2. ⚑ This sentence
+   used to enumerate them and had already gone stale in the direction that matters: it listed case 14
+   as outstanding when 14 executes in `recovery.http.spec.ts`.
 
    Worth knowing before merge: **no client sends a recovery token yet**, so on `main` this feature is
    inert by construction — every save takes the no-token path and retires nothing. That is the point
@@ -257,7 +260,7 @@ ones.
    things and the setting has to be per-step. That closes the blind spot that let a collection with
    no migration go green here while being undeployable.
 
-## Two cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
+## Cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
 
 Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
 diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is urgent; both are real.
@@ -276,6 +279,27 @@ diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is 
   JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
   And the part no application-layer guard can do — a body with a missing or lying header — wants a
   limit at the proxy/Next layer; there is none in the repo today.
+
+- **Test-DDL helpers want their own module — on the SECOND SPEC FILE, not the third mechanism.**
+  `tests/http/saveAsNewRecovery.http.spec.ts` now installs three Postgres mechanisms (a fault trigger,
+  a statement counter, a barrier) and holds the generic primitives `seqCreate`/`seqDrop`/`seqValue` at
+  file scope. That is three mechanisms with ONE consumer, and the rule of three counts consumers — so
+  extracting now would be speculative generality. The moment a second spec needs fault injection, it
+  will otherwise re-derive all of: `nextval` survives rollback, the `is_called` normalisation, the
+  one-command-per-`execute` prepared-statement trap, drop-before-create, and the naming/scoping rules.
+  That re-derivation is exactly what `tests/helpers/db.ts` was created to end, and it is the natural
+  home. Take the conventions with it: **one `lesson3_<spec>_*` prefix per spec file**, `WHEN`-scope
+  every row-level trigger, take the baseline immediately before the measured window where a trigger
+  cannot be scoped (`FOR EACH STATEMENT` forbids `WHEN`), and drop in `finally`.
+
+  ⚑ **If a second barrier is ever needed, reach for `pg_advisory_xact_lock` instead of the polling
+  table.** The test holds the lock inside a Payload transaction (`initTransaction` gives the
+  connection affinity a pooled drizzle handle lacks) and the trigger body becomes one `PERFORM`. That
+  deletes the barrier table, the plpgsql loop, `pg_sleep`, the iteration bound and the
+  open-first-in-`finally` dance, and it wakes instantly rather than within 50 ms. The current shape
+  was kept because it self-heals: a test that dies before releasing parks the request only until the
+  loop bound, whereas an advisory lock is held until the connection closes. Not worth churning the
+  one that exists and passes.
 
 - **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect this branch just
   fixed.** Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
