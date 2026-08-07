@@ -286,7 +286,9 @@ export default function LessonControls() {
       // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
       // (design §5). The two failure kinds are not alike: a transport failure still saves — the
       // version save is what matters and the capture is only insurance — while a 409 must stop,
-      // because another tab holds newer work and saving on would retire it.
+      // because some precondition on the capture failed and saving on could retire work this
+      // client cannot see. The server does not say WHICH precondition (that would leak whether
+      // another session exists), so neither does this.
       const plan = await recovery.prepareForSave()
       if (!plan.proceed) {
         // ⚑ Deliberately NEUTRAL about the cause. The server returns one undifferentiated 409 for

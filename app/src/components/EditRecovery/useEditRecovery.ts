@@ -95,10 +95,23 @@ export function useEditRecovery(args: {
     started: boolean
     /** Fingerprint of a request the server refused as too large; never resent unchanged. */
     oversized: string | null
-  }>({ token: null, started: false, oversized: null })
+    /**
+     * Epoch-ms before which no capture may be attempted, set from a 429's `Retry-After`.
+     *
+     * ⚑ PROTOCOL STATE, not a timer. Backoff previously lived in the debounce timer, which meant
+     * every other path silently cancelled it: the next keystroke cleared it via the debounce
+     * cleanup, the pre-expiry flush cleared it outright, and `prepareForSave` fired a fresh capture
+     * immediately after an in-flight 429. The limiter had told us how long to wait and we then hit
+     * it three different ways. As a deadline, EVERY capture entry point observes it, because they
+     * all go through `captureOnce`.
+     */
+    retryNotBefore: number
+  }>({ token: null, started: false, oversized: null, retryNotBefore: 0 })
 
   const inFlight = useRef<Promise<CaptureOutcome> | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Backoff retry, held apart from `timer` so the debounce's cleanup cannot cancel it. */
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
    * Bumped whenever the session this hook is serving changes — deactivation, or a different version.
@@ -126,11 +139,27 @@ export function useEditRecovery(args: {
     }
   }, [])
 
+  /** Both timers — session teardown only. The debounce alone must never cancel a backoff. */
+  const clearAllTimers = useCallback(() => {
+    clearTimer()
+    if (retryTimer.current) {
+      clearTimeout(retryTimer.current)
+      retryTimer.current = null
+    }
+  }, [clearTimer])
+
   /** One capture attempt. Returns the classified outcome; never throws. */
   const captureOnce = useCallback(async (): Promise<CaptureOutcome> => {
     const mine = epoch.current
     const held = session.current.token
     if (!held) return { kind: 'definite', reason: 'rejected' }
+
+    // The single gate every caller passes through — debounce, blur, pre-expiry flush and the
+    // pre-save flush alike. Refusing here is what makes the limiter's instruction actually binding.
+    const waitMs = session.current.retryNotBefore - Date.now()
+    if (waitMs > 0) {
+      return { kind: 'definite', reason: 'rateLimited', retryAfterSec: Math.ceil(waitMs / 1000) }
+    }
 
     const document = live.current.getDocument()
     const body = JSON.stringify({
@@ -167,6 +196,9 @@ export function useEditRecovery(args: {
       if (outcome.kind === 'definite' && outcome.reason === 'tooLarge') {
         session.current.oversized = fingerprint(body)
       }
+      if (outcome.kind === 'definite' && outcome.reason === 'rateLimited') {
+        session.current.retryNotBefore = Date.now() + (outcome.retryAfterSec ?? 30) * 1000
+      }
       return outcome
     } catch {
       // Network error, abort, timeout — the request may or may not have committed.
@@ -178,7 +210,10 @@ export function useEditRecovery(args: {
   const capture = useCallback(async (): Promise<CaptureOutcome> => {
     if (inFlight.current) return inFlight.current
     const run = captureOnce().finally(() => {
-      inFlight.current = null
+      // ⚑ Only if it is still OURS. An unconditional clear let a capture from an abandoned session
+      // settle and release the guard belonging to the CURRENT one — after which a second flush
+      // could overlap it on the same `expectedRevision` and 409 against itself.
+      if (inFlight.current === run) inFlight.current = null
     })
     inFlight.current = run
     return run
@@ -195,17 +230,23 @@ export function useEditRecovery(args: {
   const captureAndReport = useCallback(
     async function run(): Promise<void> {
       if (!session.current.token || !live.current.active || !live.current.modified) return
+      const mine = epoch.current
       setStatus({ kind: 'saving' })
       const outcome = await capture()
+      // The session moved on while this was in flight — reporting now would paint a stale verdict
+      // over whatever the current one is showing.
+      if (epoch.current !== mine) return
       setStatus(statusForOutcome(outcome))
       if (outcome.kind === 'definite' && outcome.reason === 'rateLimited') {
-        // Respect Retry-After rather than resuming the ordinary debounce, which would keep hitting a
-        // limiter that has already told us how long to wait (matrix case 13).
-        clearTimer()
-        timer.current = setTimeout(() => void run(), (outcome.retryAfterSec ?? 30) * 1000)
+        // Its OWN timer: the debounce's cleanup runs on every edit and would otherwise cancel this,
+        // leaving the user on "retrying in Ns" with nothing scheduled to retry (matrix case 13).
+        if (retryTimer.current) clearTimeout(retryTimer.current)
+        retryTimer.current = setTimeout(() => void run(), (outcome.retryAfterSec ?? 30) * 1000)
       }
     },
-    [capture, clearTimer],
+    // `clearTimer` is gone from here deliberately: backoff now owns `retryTimer`, and this function
+    // no longer touches the debounce at all.
+    [capture],
   )
 
   const start = useCallback(() => {
@@ -237,6 +278,9 @@ export function useEditRecovery(args: {
           return
         }
         const body = (await res.json()) as { token?: RecoveryToken }
+        // Re-checked AFTER awaiting the body: reading a response is itself a suspension point, and
+        // an abandoned session must not install a token over the live one.
+        if (epoch.current !== mine) return
         if (!body.token) {
           setStatus({ kind: 'unavailable', reason: 'failed' })
           return
@@ -245,6 +289,9 @@ export function useEditRecovery(args: {
         setReady(true)
         setStatus({ kind: 'idle' })
       } catch {
+        // Same guard: a failed start from an abandoned session must not mark the CURRENT one
+        // unavailable, which would tell the user their live session has no backup when it does.
+        if (epoch.current !== mine) return
         setStatus({ kind: 'unavailable', reason: 'failed' })
       }
     })()
@@ -323,20 +370,20 @@ export function useEditRecovery(args: {
   // Leaving edit mode — or switching version — ends the session for this mount.
   useEffect(() => {
     if (active) return
-    clearTimer()
+    clearAllTimers()
     // Bumping the epoch is what makes this a real teardown: any request still in flight will now
     // discard its own result instead of installing it over whatever comes next.
     epoch.current += 1
     inFlight.current = null
-    session.current = { token: null, started: false, oversized: null }
+    session.current = { token: null, started: false, oversized: null, retryNotBefore: 0 }
     setReady(false)
-  }, [active, clearTimer])
+  }, [active, clearAllTimers])
 
   // A different version is a different session, even without leaving edit mode.
   useEffect(() => {
     epoch.current += 1
     inFlight.current = null
-    session.current = { token: null, started: false, oversized: null }
+    session.current = { token: null, started: false, oversized: null, retryNotBefore: 0 }
     setReady(false)
   }, [versionId])
 

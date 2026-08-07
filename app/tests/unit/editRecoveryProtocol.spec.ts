@@ -104,7 +104,7 @@ describe('planSave — which token the save may send', () => {
     })
   })
 
-  /** The save must not proceed: another tab holds newer work and saving on would retire it. */
+  /** The save must not proceed: a precondition failed, so saving on could retire unseen work. */
   it('a conflict STOPS the save', () => {
     expect(planSave({ kind: 'conflict' }, held)).toEqual({ proceed: false, reason: 'conflict' })
   })

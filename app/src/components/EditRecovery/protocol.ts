@@ -31,7 +31,11 @@ import type { RecoveryToken } from '../../lib/editRecovery/kernel'
  * capture COMMITTED:
  *
  *   - `ok`            — committed; adopt the advanced token.
- *   - `conflict`      — did not commit, and another writer holds newer work. Never save through this.
+ *   - `conflict`      — did not commit, and a precondition failed. ⚑ WHICH precondition is
+ *                       deliberately not disclosed: the server collapses "newer capture", "superseded
+ *                       generation" and "already retired" into one undifferentiated 409 so it cannot
+ *                       leak whether another session exists. The client's response is the same for
+ *                       all three — refetch — so it must not narrate a cause it was not told.
  *   - `definite`      — did not commit (the server rejected it before doing anything). The token the
  *                       client holds is still current, so a save may use it.
  *   - `indeterminate` — UNKNOWABLE. The request may have committed and the response been lost. The
@@ -89,8 +93,8 @@ export type SavePlan =
  * the capture is insurance. Blocking a real save because its insurance failed inverts the priority
  * exactly — so `definite` and `indeterminate` both proceed.
  *
- * ⚑ **A 409 must block it.** A conflict means another tab holds newer work, so this is precisely the
- * case where saving on would retire it.
+ * ⚑ **A 409 must block it.** A precondition on the capture failed, so this is precisely the case
+ * where saving on could retire work this client cannot see — whatever the specific cause was.
  *
  * ⚑ **An indeterminate flush saves with NO token.** This is the subtle one. The capture may have
  * committed with the response lost, leaving the held token stale; sending it would produce a 409 from

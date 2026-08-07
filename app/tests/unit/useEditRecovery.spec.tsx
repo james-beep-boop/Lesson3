@@ -41,6 +41,7 @@ const jsonResponse = (status: number, body: unknown, headers: Record<string, str
 /** Drives the hook from a component, exposing its latest value plus a way to change props. */
 function harness(initial: { active?: boolean; modified?: boolean; versionId?: string } = {}) {
   const ref: { current: UseEditRecovery | null } = { current: null }
+  const flushRef: { current: (() => Promise<void>) | null } = { current: null }
   let setProps: React.Dispatch<React.SetStateAction<Record<string, unknown>>> = () => {}
   let bumpChange: () => void = () => {}
 
@@ -61,7 +62,12 @@ function harness(initial: { active?: boolean; modified?: boolean; versionId?: st
       modified: props.modified as boolean,
       changeSignal: change,
       getDocument: () => ({ lessons: [] }),
-      registerFlush: () => () => {},
+      registerFlush: (fn) => {
+        flushRef.current = fn
+        return () => {
+          flushRef.current = null
+        }
+      },
     })
     ref.current = recovery
 
@@ -79,6 +85,7 @@ function harness(initial: { active?: boolean; modified?: boolean; versionId?: st
   render(<Probe />)
   return {
     ref,
+    flushRef,
     setProps: (p: Record<string, unknown>) => setProps((old) => ({ ...old, ...p })),
     bumpChange,
   }
@@ -310,5 +317,191 @@ describe('requests from an abandoned session', () => {
       capture?.body,
       'it must use the CURRENT session token, not the one that arrived late',
     ).toMatchObject({ expectedRevision: 50 })
+  })
+})
+
+describe('a 429 binds every capture path, not just the debounce', () => {
+  /**
+   * ⚑ Backoff was previously stored in the DEBOUNCE timer, so three separate paths silently
+   * cancelled the limiter's instruction: the next keystroke cleared it through the debounce cleanup,
+   * the pre-expiry flush cleared it outright, and a save fired a fresh capture immediately. The
+   * limiter told us how long to wait and we then hit it three different ways. It is now a deadline
+   * in session state, checked inside `captureOnce`, which every entry point goes through.
+   */
+  const rateLimitedThenOk = () => {
+    let served = 0
+    handler = async (url) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      served += 1
+      return served === 1
+        ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
+        : jsonResponse(200, { token: token(2) })
+    }
+  }
+
+  /** Drive the first capture into a 429 and return the harness sitting inside the backoff. */
+  const intoBackoff = async () => {
+    rateLimitedThenOk()
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls()).toHaveLength(1)
+    return h
+  }
+
+  it('a further EDIT does not fire a capture before the deadline', async () => {
+    const h = await intoBackoff()
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), 'the edit must not cancel the backoff').toHaveLength(1)
+  })
+
+  it('a PRE-EXPIRY FLUSH does not fire a capture before the deadline', async () => {
+    const h = await intoBackoff()
+    await act(async () => {
+      await h.flushRef.current?.()
+    })
+    await flush()
+    expect(captureCalls(), 'the flush must respect the limiter too').toHaveLength(1)
+  })
+
+  it('a SAVE before the deadline proceeds on the held token without capturing', async () => {
+    const h = await intoBackoff()
+    let plan: Awaited<ReturnType<UseEditRecovery['prepareForSave']>> | null = null
+    await act(async () => {
+      plan = await h.ref.current!.prepareForSave()
+    })
+    // Definite: the server refused before storing, so what the client holds is still current.
+    expect(plan).toEqual({ proceed: true, token: token(1) })
+    expect(
+      captureCalls(),
+      'the save must not spend a request the limiter has refused',
+    ).toHaveLength(1)
+  })
+
+  it('captures resume once the backoff has elapsed', async () => {
+    const h = await intoBackoff()
+    await act(async () => {
+      vi.advanceTimersByTime(61_000)
+    })
+    await flush()
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls().length, 'backoff must expire, not latch').toBeGreaterThan(1)
+  })
+})
+
+describe('more requests from abandoned sessions', () => {
+  /**
+   * ⚑ The single-flight guard was cleared UNCONDITIONALLY when any capture settled. So a capture
+   * belonging to a cancelled session could settle and release the guard held by the CURRENT one,
+   * after which a second flush overlapped it on the same `expectedRevision` — a 409 the client
+   * inflicted on itself.
+   */
+  it('a late capture from a cancelled session does not release the live guard', async () => {
+    let releaseA: (r: Response) => void = () => {}
+    let started = 0
+    let captures = 0
+    handler = async (url) => {
+      if (url.endsWith('/recovery/start')) {
+        started += 1
+        return jsonResponse(200, { token: token(started === 1 ? 1 : 40) })
+      }
+      captures += 1
+      if (captures === 1) {
+        return new Promise<Response>((resolve) => {
+          releaseA = resolve
+        })
+      }
+      return new Promise<Response>(() => {}) // B's capture stays in flight
+    }
+
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    expect(captureCalls()).toHaveLength(1)
+
+    // Cancel and re-enter: session B, with A's capture still outstanding.
+    await act(async () => {
+      h.setProps({ active: false })
+    })
+    await flush()
+    await act(async () => {
+      h.setProps({ active: true })
+    })
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls(), "B's capture is now in flight").toHaveLength(2)
+
+    // A finally settles. It must not free the slot B is holding.
+    await act(async () => {
+      releaseA(jsonResponse(200, { token: token(99) }))
+    })
+    await flush()
+
+    // ⚑ Invoked WITHOUT awaiting. B's capture never settles in this test, so awaiting the flush would
+    // await that too and hang — the assertion is about what was SENT, not about completion.
+    await act(async () => {
+      void h.flushRef.current?.()
+    })
+    await flush()
+    expect(captureCalls(), "a flush must still be blocked by B's in-flight capture").toHaveLength(2)
+  })
+
+  /** A failed start from an abandoned session must not tell the LIVE session it has no backup. */
+  it('a late REJECTED start does not mark the current session unavailable', async () => {
+    let failA: (e: Error) => void = () => {}
+    let started = 0
+    handler = async (url) => {
+      if (url.endsWith('/recovery/start')) {
+        started += 1
+        if (started === 1) {
+          return new Promise<Response>((_r, reject) => {
+            failA = reject
+          })
+        }
+        return jsonResponse(200, { token: token(7) })
+      }
+      return jsonResponse(200, { token: token(8) })
+    }
+
+    const h = harness()
+    await flush()
+    await act(async () => {
+      h.setProps({ active: false })
+    })
+    await flush()
+    await act(async () => {
+      h.setProps({ active: true })
+    })
+    await flush()
+    expect(h.ref.current!.status.kind, 'session B started cleanly').toBe('idle')
+
+    await act(async () => {
+      failA(new Error('network'))
+    })
+    await flush()
+    expect(
+      h.ref.current!.status.kind,
+      "the abandoned session's failure must not surface here",
+    ).toBe('idle')
   })
 })
