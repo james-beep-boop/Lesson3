@@ -1,7 +1,6 @@
 # DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: PR 1 (server) IMPLEMENTED on `feat/edit-recovery-server`, unmerged; PR 2 (client) not
-started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
+**Status: PR 1 (server) MERGED to `main`; PR 2 (client) not started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
 ⚑ Per-case status is §7's and only §7's — do not restate it here or in any other document.
 
 > **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,
@@ -407,7 +406,7 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-**Status, as of 2026-08-06 (branch `feat/edit-recovery-server`, NOT merged).** ⚑ **This line is the
+**Status, as of 2026-08-06 — PR 1 (server) MERGED to `main`.** ⚑ **This block is the
 per-case authority. Nowhere else — not the CHANGELOG, not NEXT-SESSION — may claim a case is covered.**
 A suite total is not a case list, and quoting one as if it were is how "PR 1 is complete" got written
 before cases 20 and 29 existed.

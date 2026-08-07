@@ -8,13 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-08-06 — edit recovery: the server kernel (IN PROGRESS, draft PR, NOT merged)
+## 2026-08-06 — edit recovery, PR 1: the server half (MERGED)
 
-Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged. Two earlier
-blockers are closed: the collection had no migration (fixed), and the wire suite had never run
-(it now does — the probe's app image was broken by a stray directory, not a bundler defect).
-Migration gate step 4 is complete. It stays a draft pending a merge decision and the `audit:prod`
-advisory disposition below. See the handoff block at the top of `docs/NEXT-SESSION.md`.
+Merged from `feat/edit-recovery-server` (squash). ⚑ **Carries a migration** — a deploy must run
+`migrate`, unlike the recent docs-only batches.
+
+⚑ **Inert on `main` until PR 2 (client) ships.** No client sends a recovery token, so every save takes
+the no-token path and retires nothing, and no capture is ever started. That is the optional-token
+contract doing its job: the server could land without a flag day, and nothing a user can reach
+changed on merge.
 
 - **The `edit-recovery` collection** — closed on all four operations for every role including Site
   Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive

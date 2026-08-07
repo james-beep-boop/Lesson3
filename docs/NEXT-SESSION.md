@@ -16,22 +16,29 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-06) — edit recovery PR 1 is IN PROGRESS on a DRAFT PR
+# ⚑ HANDOFF (2026-08-06) — edit recovery PR 1 (server) is MERGED; PR 2 (client) is next
 
 **Read this section, then `docs/DESIGN-working-drafts.md` §2-§4 and §8. Everything else in this file
 below the "Next steps" list is older history.**
 
 ## Where the work is
 
-`feat/edit-recovery-server`, open as a **draft** PR.
+**PR 1 (server) is merged to `main` and `feat/edit-recovery-server` is deleted.** The next piece of
+work is **PR 2 (client)** — see "Next steps" item 3, and §7 for the cases it owes.
 
-Committed and pushed, including the regression-coverage commit. **Deliberately SHA-free** — the
-previous version of this block named one and was wrong within the hour, twice: first by claiming
-"pushed" while eleven files sat uncommitted, then by naming the pre-commit SHA moments before the
-commit landed. A SHA here is stale as soon as anything moves; the commands are right forever.
+⚑ **On `main` this feature is INERT until PR 2 ships.** Nothing sends a recovery token yet, so every
+save takes the no-token path and retires nothing; no capture is ever started, because starting one is
+the client's job. That is the optional-token contract working as designed, not a bug to hunt. It also
+means **no deploy is urgent** — merging changed no behaviour any user can reach.
 
-⚑ **Verify state before believing anything below.** This section describes work that is easy to
-describe and easy to have not pushed:
+⚑ **It DOES carry a migration** (`20260806_185943_add_edit_recovery`), so a deploy must run
+`migrate`, unlike the docs-only batches above. The gate that verified it is below.
+
+**Deliberately SHA-free** — an earlier version of this block named one and was wrong within the hour,
+twice: first by claiming "pushed" while eleven files sat uncommitted, then by naming the pre-commit
+SHA moments before the commit landed. A SHA here is stale as soon as anything moves.
+
+⚑ **Verify state before believing anything below:**
 
 ```bash
 git status --short                      # not empty ⇒ the work below is not all committed
@@ -73,22 +80,18 @@ hidden one layer deeper.
   container sits in `Up` forever and `app` never starts because it waits on the dependency. Drop and
   recreate that database rather than waiting.
 
-## ⛔ Why it is a DRAFT
+## What held this PR as a draft, and what closed each reason
 
-**Two earlier reasons are now CLOSED, and this section has already been wrong once by not saying so.**
-The migration exists (closed first). The wire suite has RUN — 27/27 on recovery, 125/125 overall,
-against a migration-only schema with push off — and migration gate step 4 is complete, both halves
-(closed 2026-08-06, see below).
+Kept as history because every one of these was a real gate, and the next collection will face the
+same ones. In order: the collection had **no migration** (the demonstration below is why that was
+non-negotiable); the **wire suite had never run** against endpoints that authorise then write with
+`overrideAccess`; **migration gate step 4** was partial; and **save-as-new retirement was not built**,
+so a successful save left the capture active. All four are closed.
 
-**Save-as-new retirement is now BUILT too** (2026-08-06, later): `versionEdit.ts` retires inside the
-save's transaction, and its acceptance cases execute over the wire — which ones, per case, is
-`docs/DESIGN-working-drafts.md` §7's job and no other document's. An earlier version of
-this paragraph said it was unbuilt and was left standing after it shipped — it now contradicted a
-section forty lines below. ⚑ **Do not quote a wire-suite total as proof that edit recovery is
-complete.** It proves migration and schema compatibility plus the cases actually written; the
-per-case status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else.
-
-**What keeps it a draft is a judgement call plus one external gate** — see "What is LEFT".
+⚑ **Do not quote a suite total as proof that a feature is complete.** A total proves the cases that
+were written; it says nothing about the ones that were not. Per-case status lives in
+`docs/DESIGN-working-drafts.md` §7 and nowhere else — this file used to keep its own copy and it went
+stale three times in two days.
 
 The paragraph below is kept because it is the demonstration that made the migration non-negotiable.
 ⚑ The CI blind spot it describes is CLOSED as of 2026-08-06 — `test:http` runs with
