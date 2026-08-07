@@ -26,6 +26,7 @@ import {
 } from '../helpers/fixtures.js'
 import { drizzleOf, rowsOf } from '../helpers/db.js'
 import { formDoc, recoveryRow } from '../helpers/editRecovery.js'
+import type { RecoveryToken } from '../../src/lib/editRecovery/kernel.js'
 import { login, url } from '../helpers/httpWire.js'
 
 let fx: RoleFixture
@@ -601,10 +602,25 @@ describe('C29 — a single session chaining tokens never conflicts with itself',
     // The save closes the chain with the token the LAST capture returned.
     const res = await saveAsNew(v.id, saveForm(v, 'C29-chained', token))
     expect(res.status, 'the save must not conflict with the chain that preceded it').toBe(200)
-    const out = (await res.json()) as { recoveryToken?: { generation: number; revision: number } }
-    expect(out.recoveryToken?.revision, 'retirement advances the chain one last time').toBe(
-      token.revision + 1,
-    )
+    const out = (await res.json()) as { recoveryToken?: RecoveryToken }
+    // ⚑ BOTH counters, not just the revision. The rule governs them together, so a save returning a
+    // correct revision beside a wrong generation would satisfy a revision-only assertion while
+    // handing the client a token that fences it out of its own session.
+    //
+    // `toMatchObject`, not `toEqual`: `RecoveryToken` is a TRIPLE — it also carries `updatedAt`, a
+    // server timestamp no test can predict. An earlier version asserted the whole object exactly and
+    // failed on the one field it could never have supplied, while both counters were in fact correct.
+    expect(
+      out.recoveryToken,
+      'retirement advances the revision by one and leaves the generation alone',
+    ).toMatchObject({
+      generation: token.generation,
+      revision: token.revision + 1,
+    })
+    expect(
+      Number.isNaN(Date.parse(String(out.recoveryToken?.updatedAt))),
+      'and the token carries a usable timestamp',
+    ).toBe(false)
 
     const after = await rawRow(v.id)
     expect(after?.retired_at, 'the chain ends retired').not.toBeNull()

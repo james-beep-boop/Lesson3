@@ -60,8 +60,9 @@ advisory disposition below. See the handoff block at the top of `docs/NEXT-SESSI
   editing cannot persist recovery metadata as lesson content. It is OPTIONAL — no token means the
   pre-existing save behaviour and no retirement, which is what lets the server land before the client
   — while a half-token is a 400 rather than a silent no-op. A retirement conflict is a 409 that is
-  **never retried**, unlike a semver conflict; retrying would destroy the newer capture the
-  precondition just protected.
+  **never retried**, unlike a semver conflict: the token is fixed at request time, so a retry re-runs
+  an identical, identically-failing precondition. (It would not destroy the newer capture — the CAS
+  keeps refusing it. Retrying is pointless work, not a data-loss path.)
 
 - **`audit:prod` unblocked without a dependency change.** The gate went red on a branch that does not
   touch the lockfile: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0-4.3.0 and the

@@ -143,8 +143,8 @@ forgot, before the destructive tests touch it.
 - **The migration**, generated on the Rock and hand-edited twice. See the gate below for what is and
   is not verified about it.
 
-**Acceptance cases executing:** 15, 17-18, 21-25, 30, plus the cap's C1-C8. `docs/DESIGN-working-drafts.md` §7 carries the
-live status — update it there as cases land.
+**Acceptance case status: `docs/DESIGN-working-drafts.md` §7, which is the only document that may
+carry it.** This line used to duplicate the list and was stale within days.
 
 **Regression coverage for the four fixes in `206252a`** — that commit changed three production files
 and no test, which is what let a reviewer ask, correctly, whether any of it was pinned. Now:
@@ -203,19 +203,15 @@ and expiry on 2026-08-06.
    5. commit, and return the retirement token
 
    ⚑ **The two conflicts are not the same and the retry loop must tell them apart.** A semver
-   conflict rolls back and **retries**; a recovery conflict rolls back and is **NEVER retried** —
-   retrying it would retire the newer capture the precondition just protected, which is precisely the
-   work this feature exists to save. That distinction IS case 20.
+   conflict rolls back and **retries**; a recovery conflict rolls back and is **NEVER retried**. The
+   reason, stated precisely: the token is fixed at request time, so every retry re-runs an identical,
+   identically-failing precondition — wasted transactions ending in the same 409, not a second
+   chance. It would NOT destroy the newer capture; the CAS keeps refusing it, which is the fencing
+   working. That distinction IS case 20.
 
-   **Tests, all EXECUTING** (`tests/http/saveAsNewRecovery.http.spec.ts`, 6 cases):
-   - **case 7** — a token-bearing save retires the capture (content cleared, marker kept, revision
-     advanced, generation unchanged) and returns the advanced token
-   - **legacy** — a no-token save still works and retires nothing; a half-token is a 400
-   - **case 19** — a REAL Postgres trigger faults the retirement UPDATE, so the failure originates in
-     the database inside the endpoint's own transaction. No orphan version; the capture is intact
-   - **case 20** — a second tab's capture advances the revision first; the save 409s and the
-     retirement statement runs **exactly once**, counted directly (see below)
-   - **`deleteSource=true`** — retirement happens BEFORE the source cascade removes the row
+   **Tests: `tests/http/saveAsNewRecovery.http.spec.ts`.** Which cases, and their status: DESIGN §7.
+   A per-case list lived here too and had already gone stale twice — it claimed six cases after a
+   seventh landed, and still described case 20 in its pre-barrier form.
 
    ⚑ **Case 20 counts retirement STATEMENTS rather than inferring "not retried" from the outcome** —
    the obvious version of that test passes a loop that retried five times. Why, and the two tricks
@@ -391,7 +387,8 @@ secret-free-to-publish, so **ask the operator**:
    cascades + expiry job + migration (generated on the Rock per the Node-22 workflow). Read
    `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original draft did not survive
    review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
-   `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25, 28–30).
+   `tests/http` wire authz, projection units, DB-backed concurrency; per-case assignment and status
+   are §7's, not this list's.
 
    ⚑ **STATE, and the two traps, are in the HANDOFF BLOCK at the top of this file** — where the work
    is, what is done, what is left, the migration gate, and the two known defects outside the branch's
@@ -407,9 +404,10 @@ secret-free-to-publish, so **ask the operator**:
      pattern: the docblock of `tests/int/access.int.spec.ts`.
 
 3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
-   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
-   cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the
-   whole server-side design.
+   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. The
+   Playwright cases it owes are §7's "NOT executing" list — this line used to name them and had
+   already drifted, claiming case 7 for PR 2 after the server implemented it. Case 5 (a different user
+   on the same browser sees nothing) is what justifies the whole server-side design.
 4. **The Official-pointer lock**, in parallel if there is capacity. An Official version can be deleted
    during a concurrent promotion (`hooks/bundleVersion.ts` read-then-write + `ON DELETE SET NULL`),
    destroying an approved snapshot. The fix is the existing in-house pattern — `lockSubjectGrades` in
@@ -444,9 +442,9 @@ carrying into the next PR:
 - **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
   written 40 lines below it and passed inspection twice, because each reading checked it against its own
   adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
-  those 30 cases were executed when this was written; cases 15, 17-18 and 21-25 are now implemented and
-  passing on the unmerged `feat/edit-recovery-server` branch** — the design doc's §7 carries the current
-  status, and it should keep being updated as cases land rather than restated from memory here.
+  those 30 cases were executed when this was written.** What has executed since is §7's to say — this
+  sentence twice tried to keep its own copy in step and twice failed, which is the whole argument for
+  one authority.
 
 Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
 claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a

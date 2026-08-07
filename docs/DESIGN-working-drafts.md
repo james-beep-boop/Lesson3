@@ -1,7 +1,8 @@
 # DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: APPROVED; not implemented.** Reconciled 2026-08-05 after adversarial review (five rounds).
-First drafted 2026-07-20.
+**Status: PR 1 (server) IMPLEMENTED on `feat/edit-recovery-server`, unmerged; PR 2 (client) not
+started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
+⚑ Per-case status is §7's and only §7's — do not restate it here or in any other document.
 
 > **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,
 > `docs/NEXT-SESSION.md`, `docs/DESIGN-editor-usability-2026-07-25.md` and a source docstring. Renaming
@@ -508,7 +509,8 @@ the build rather than discovered mid-PR.
 **PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
-units, DB-backed wire-level and concurrency cases (15, 17–25, 28–30).
+units, and the DB-backed wire-level and concurrency cases — §7 above assigns which, and is the only
+place that does.
 
 **Retirement's four callers are a DISCRIMINATED UNION, not one options object with optional fields.**
 Decided 2026-08-06, before implementation. The callers do not differ in what they WRITE — that is the
