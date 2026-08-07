@@ -46,6 +46,9 @@ import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
+import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
+import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
+import { useEditRecovery } from '../EditRecovery/useEditRecovery'
 import Modal from '../Modal'
 import EditJumpNav from './EditJumpNav'
 
@@ -125,7 +128,8 @@ export default function LessonControls() {
   useEffect(() => {
     if (!pdfMenuOpen) return
     const onPointer = (e: MouseEvent) => {
-      if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node)) setPdfMenuOpen(false)
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node))
+        setPdfMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setPdfMenuOpen(false)
@@ -151,7 +155,10 @@ export default function LessonControls() {
   // swapped in Save/Cancel while every field stayed locked — measured on the Rock 2026-07-28, 23 of
   // 23 sampled fields still disabled after pressing Edit, with Save reading "No changes to save".
   // Not a security hole (field-level access held) but a dead end, which is worse UI than no button.
-  const canEdit = isEditorFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never))
+  const canEdit = isEditorFor(
+    user as User | null,
+    toId((savedDocumentData?.subjectGrade ?? null) as never),
+  )
   const canEditStructure = isSubjectAdminFor(
     user as User | null,
     toId((savedDocumentData?.subjectGrade ?? null) as never),
@@ -167,6 +174,31 @@ export default function LessonControls() {
   useEffect(() => {
     setDisabled(!editing)
   }, [editing, setDisabled])
+
+  // The live form values, read at call time. Declared here because edit recovery (below) is the
+  // first consumer; the save path uses the same function so both send an identical snapshot.
+  const currentContent = () => reduceFieldsToValues(fields, true)
+
+  // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
+  const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
+  const recovery = useEditRecovery({
+    versionId: id ?? '',
+    // ⚑ `editing`, NOT `editIntent`. It is the ACTUAL unlock: at ≤640px Edit opens the
+    // narrow-screen dialog without unlocking, and `?edit=1` is neutralised on load. Starting a
+    // session on intent would mint rows for people who cannot type into them and spend their
+    // per-user active-capture cap doing it.
+    active: Boolean(id) && editing,
+    modified,
+    getDocument: currentContent,
+    registerFlush: registerRecoveryFlush,
+  })
+
+  // Starting is separate from `active` so the hook never fires a request from its own render path;
+  // the effect is the one place that says "this session has begun".
+  const { start: startRecovery } = recovery
+  useEffect(() => {
+    if (Boolean(id) && editing) startRecovery()
+  }, [id, editing, startRecovery])
 
   useEffect(() => {
     const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
@@ -197,7 +229,8 @@ export default function LessonControls() {
   const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
   // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
   // untouched (it is generator input).
-  const title = typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
+  const title =
+    typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
 
   // Whether the CALLER may delete THIS version — the per-doc form of the server's deletion scope
   // (`canDeleteVersionDoc` == `deletableVersionsWhere`, single source), gated on it being a candidate
@@ -233,8 +266,6 @@ export default function LessonControls() {
     setMsg(null)
   }
 
-  const currentContent = () => reduceFieldsToValues(fields, true)
-
   const onSave = async () => {
     if (saving) return
     // Decide up front whether to also delete the version being edited — offered only for a deletable
@@ -246,14 +277,39 @@ export default function LessonControls() {
     setSaving(true)
     setMsg(null)
     try {
+      // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
+      // (design §5). The two failure kinds are not alike: a transport failure still saves — the
+      // version save is what matters and the capture is only insurance — while a 409 must stop,
+      // because another tab holds newer work and saving on would retire it.
+      const plan = await recovery.prepareForSave()
+      if (!plan.proceed) {
+        setMsg(
+          'Your unsaved work changed in another tab. Reload before saving, so the newer changes are not lost.',
+        )
+        setSaving(false)
+        return
+      }
+
       const body = new FormData()
       body.set('data', JSON.stringify(currentContent()))
+      // Separate multipart fields, never keys in the document: a Site Admin editing the raw document
+      // must not be able to persist recovery metadata as lesson content. Absent when the flush was
+      // indeterminate, which takes the server's no-token path deliberately.
+      if (plan.token) {
+        body.set('recoveryGeneration', String(plan.token.generation))
+        body.set('recoveryExpectedRevision', String(plan.token.revision))
+      }
       const res = await fetch(
         `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
         { method: 'POST', body, credentials: 'same-origin' },
       )
       if (!res.ok) throw new Error(await errorMessage(res, 'Save'))
-      const out = (await res.json()) as { adminUrl: string }
+      const out = (await res.json()) as {
+        adminUrl: string
+        recoveryToken?: { generation: number; revision: number; updatedAt: string }
+      }
+      // Retirement advances the token one last time; adopt it rather than keeping the pair we sent.
+      recovery.adoptToken(out.recoveryToken)
       // Navigate CLIENT-SIDE (router.push), not a full-page load. Payload's LeaveWithoutSaving guard
       // only fires its "Leave site?" browser dialog on a real page unload (`beforeunload`) — a client
       // transition triggers neither that nor its anchor-click interceptor, so no prompt, whatever the
@@ -276,7 +332,9 @@ export default function LessonControls() {
   // leave the (now-gone) admin doc and return to the lesson, which still shows its Official version.
   const onDelete = async () => {
     if (saving) return
-    if (!window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)) {
+    if (
+      !window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)
+    ) {
       return
     }
     setSaving(true)
@@ -449,6 +507,14 @@ export default function LessonControls() {
               <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
                 Cancel
               </Button>
+              {/* ⚑ Rendered beside Save, where someone deciding whether their work is safe is
+                  already looking. Admins additionally see that structural and answer-key edits are
+                  not covered — v1 captures prose only (design §3), and an administrator who assumed
+                  otherwise would be the one person the feature actively misleads. */}
+              <EditRecoveryIndicator
+                status={recovery.status}
+                structuralEditsUncovered={canEditStructure}
+              />
             </>
           )}
           <Button
