@@ -379,6 +379,76 @@ leaves the previous teacher's content on screen.
 **Restore.** On opening the editor, if an active capture exists for `(user, sourceVersion)`: offer it,
 never auto-apply, showing when it was captured. Applying marks the form dirty; discarding retires it.
 
+⚑ **An active row is NOT the same as a restorable capture.** `start` creates the row; the first
+`capture` fills it. A freshly started row has `content: null`, and prompting on "a row exists" would
+show an empty restore offer on every single Edit click.
+
+### How applying works — BROWSER-VERIFIED 2026-08-07
+
+```ts
+await reset(applyCapture(currentValues, capture).doc)
+setModified(true)
+```
+
+⚑ **There is NO key→path mapper, and there must not be one.** The obvious design — resolve
+`lesson:L1` to `lessons.0.overview` in the client — would make the restore UI a SECOND owner of the
+bundle's structure, obliged to stay in step with §3's scopes forever. `reset` sends the whole document
+to Payload's `getFormState`, which rebuilds every path server-side, so the document is the only
+interface needed and `applyCapture` is used exactly as designed.
+
+Verified live in the admin editor against a real 12-lesson bundle, not inferred from source:
+
+- `applyCapture` reported `applied=1, dropped=[]`; the value landed on exactly
+  `field-lessons__0__overview` and no other field. 289 textareas, 0 empty — the form survived intact.
+- **`setModified(true)` after an awaited `reset` STICKS.** Save went from disabled to enabled. This
+  needed checking because `reset` ends with `setModified(false)` internally.
+- **`reset` does NOT disturb the read-only lock.** Fields stayed editable and the bar still read
+  "Editing:" — the whole edit-mode model depends on that.
+- ~150 ms round trip, twice measured. Wants a pending state; does not want a spinner.
+
+### ⚑ A PRE-EXISTING editor defect found by that spike — NOT edit recovery's
+
+Typing **one character** into a large lesson-plan version already fails, on `main`, with no recovery
+code involved:
+
+```
+POST /admin/collections/lesson-bundle-versions/13 → 500
+Error: Body exceeded 1 MB limit
+```
+
+Payload debounces an `onChange` that posts the **full form state** to a Next.js Server Action, and
+Server Actions default to a 1 MB body. `next.config.ts` sets no limit.
+
+⚑ **The first reading of this was wrong and is recorded so it is not repeated.** It looked like
+`reset` sending "document plus form state" in one oversized request — i.e. a restore-specific problem.
+It is two separate actions: `reset(data)` posts the overlaid document and returns **200**;
+`setModified(true)` then triggers the debounced `onChange`, which posts form state and returns **500**.
+Restore merely *reaches* the defect sooner. The one-character test with no probe is what proved it.
+
+**Measured on the largest production-shaped plan** (version 13, Chemistry Grade 10 Chemical Bonding,
+13 lessons):
+
+| | |
+|---|---|
+| Raw document | 618,518 B (0.59 MB) |
+| Server Action body | **1,587,513 B (1.51 MB)** |
+| Ratio | **2.57× the document** |
+| Next default | 1 MB — exceeded by 59% |
+
+**The limit is an explicit PR decision, not a number to copy.** Do not reuse 4 MB just because
+`MAX_PREVIEW_JSON_BYTES` is 4 MB: that bounds raw document JSON, while a Server Action carries the
+much larger form-state structure. Two defensible readings, and the choice should be argued rather
+than assumed:
+
+- **Cover today's corpus with headroom.** 1.51 MB measured ⇒ 4 MB is ~2.6× the largest real plan.
+- **Stay consistent with what the app already admits.** The save/preview path accepts documents up to
+  `MAX_PREVIEW_JSON_BYTES` (4 MB); at the measured 2.57× ratio that implies ~10 MB of form state, so
+  anything under ~12 MB leaves documents the app accepts but the editor cannot edit.
+
+⚑ It raises the body ceiling for **every** Server Action, so it is a production posture change and
+belongs in its own commit, described as the pre-existing editor fix it is — **not** folded into the
+restore work that happened to find it.
+
 **409 on a stale tab.** Surface the stale content **read-only** so the user can copy it out before it
 goes. Silently discarding keystrokes the user really typed would defeat the point of the feature.
 

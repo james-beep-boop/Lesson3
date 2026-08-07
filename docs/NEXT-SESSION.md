@@ -276,6 +276,34 @@ ones.
    things and the setting has to be per-step. That closes the blind spot that let a collection with
    no migration go green here while being undeployable.
 
+## ⚑ A PRE-EXISTING editor defect, found 2026-08-07 and NOT yet fixed
+
+**Typing one character into a large lesson-plan version 500s on `main` today.** No edit-recovery code
+involved — found while spiking PR 2's restore, and it is not that feature's bug:
+
+```
+POST /admin/collections/lesson-bundle-versions/13 → 500   Error: Body exceeded 1 MB limit
+```
+
+Payload debounces an `onChange` posting the **full form state** to a Next.js Server Action; Server
+Actions default to a 1 MB body and `next.config.ts` sets no limit. Measured on version 13 (13 lessons,
+the largest shape in the corpus): raw document 0.59 MB, **Server Action body 1.51 MB — 2.57× the
+document**, 59% over the ceiling.
+
+**What it does and does not break.** Save still works: `save-as-new` posts multipart to a REST
+endpoint, not a Server Action. What fails is Payload's own form-state sync, so field-level validation
+and conditional logic silently stop updating while the user types. That is why nobody has reported it —
+it is invisible until you look at the console.
+
+**Fixing it is `experimental.serverActions.bodySizeLimit`**, and ⚑ the VALUE IS A DECISION, not a copy
+of an existing constant. `docs/DESIGN-working-drafts.md` §5 carries the measurement and both defensible
+readings (cover today's corpus with headroom ⇒ ~4 MB; stay consistent with the 4 MB document ceiling
+the save path already accepts ⇒ ~12 MB). It raises the ceiling for EVERY Server Action, so it is a
+production posture change and wants its own commit described as a pre-existing editor fix.
+
+Do it before or alongside PR 2b — restore calls `reset`, which makes the form modified, which reaches
+this defect immediately rather than after a few keystrokes.
+
 ## Cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
 
 Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
