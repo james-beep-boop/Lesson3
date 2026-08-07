@@ -411,7 +411,7 @@ per-case authority. Nowhere else — not the CHANGELOG, not NEXT-SESSION — may
 A suite total is not a case list, and quoting one as if it were is how "PR 1 is complete" got written
 before cases 20 and 29 existed.
 
-**EXECUTING and passing on that branch:**
+**EXECUTING and passing on `main`:**
 - **7, 19, 20, 29** — `tests/http/saveAsNewRecovery.http.spec.ts`, through the real save-as-new
   transaction. 20 is a genuine interleaving (the save is parked mid-transaction by a database barrier
   while a second capture lands), not a stale token prepared in advance; 19 injects a real Postgres

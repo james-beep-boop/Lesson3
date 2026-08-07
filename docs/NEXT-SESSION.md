@@ -26,10 +26,15 @@ below the "Next steps" list is older history.**
 **PR 1 (server) is merged to `main` and `feat/edit-recovery-server` is deleted.** The next piece of
 work is **PR 2 (client)** — see "Next steps" item 3, and §7 for the cases it owes.
 
-⚑ **On `main` this feature is INERT until PR 2 ships.** Nothing sends a recovery token yet, so every
-save takes the no-token path and retires nothing; no capture is ever started, because starting one is
-the client's job. That is the optional-token contract working as designed, not a bug to hunt. It also
-means **no deploy is urgent** — merging changed no behaviour any user can reach.
+⚑ **On `main` this feature is UI-INERT until PR 2 ships — which is NOT the same as runtime-inert, and
+the earlier wording here overstated it.** No normal UI path starts a capture, so every save takes the
+no-token path and retires nothing, and no user-visible behaviour changed. But the server half is
+LIVE: the six recovery endpoints are mounted and reachable, the expiry task is registered and
+scheduled, and the version-delete and user-delete hooks now query `edit_recovery` on every delete.
+
+That last one is why the migration is not optional — see below. It is also why **no deploy is
+urgent but the deploy is not a no-op**: nothing a user can reach changed, and a table that must exist
+now does.
 
 ⚑ **It DOES carry a migration** (`20260806_185943_add_edit_recovery`), so a deploy must run
 `migrate`, unlike the docs-only batches above. The gate that verified it is below.
@@ -38,14 +43,18 @@ means **no deploy is urgent** — merging changed no behaviour any user can reac
 twice: first by claiming "pushed" while eleven files sat uncommitted, then by naming the pre-commit
 SHA moments before the commit landed. A SHA here is stale as soon as anything moves.
 
-⚑ **Verify state before believing anything below:**
+⚑ **Verify before believing any of it.** The branch is DELETED, so the checks are against `main`:
 
 ```bash
-git status --short                      # not empty ⇒ the work below is not all committed
-git log --oneline origin/main..origin/feat/edit-recovery-server
-git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server   # equal ⇒ nothing unpushed
-gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
+gh pr view 198 --json state,mergedAt,mergeCommit    # MERGED, and the squash commit it produced
+git log --oneline -1 origin/main                    # that commit should be at or below the tip
+git ls-tree origin/main app/src/migrations/ --name-only | grep edit_recovery
+git show origin/main:app/src/migrations/index.ts | grep add_edit_recovery      # present ⇒ registered
 ```
+
+⚑ The previous version of this block still ran `git log origin/main..origin/feat/edit-recovery-server`
+against a branch deleted at merge — every command in it failed. A verification block that cannot run
+is worse than none: it reads like assurance.
 
 ## ✅ The probe image: what it actually was (2026-08-06, RESOLVED)
 
@@ -164,22 +173,30 @@ assertions red, all reverted. A guard never observed failing is a guess.
 and the migration — are **BUILT** and are described under "What is DONE" above. They were still listed
 here as unbuilt two commits after they landed; check this list against `git log`, not against memory.
 
-✅ **RESOLVED — the probe app image, the wire suite, migration gate step 4, AND save-as-new
-retirement.** `retire` now has all four designed callers: save-as-new joined discard, admin cleanup
-and expiry on 2026-08-06.
+✅ **PR 1 (server) is MERGED** (2026-08-06). The probe app image, the wire suite, migration gate step
+4 and save-as-new retirement were the four things that held it; all are closed, and `retire` now has
+all four designed callers — save-as-new joined discard, admin cleanup and expiry.
 
-**PR 1 (server) is FEATURE-COMPLETE.** What remains before merge is judgement, not construction:
+1. **DEPLOY PR 1 ON ITS OWN, BEFORE BUILDING PR 2** (operator sequencing, 2026-08-07). Not urgent —
+   nothing a user can reach changed — but do it as its own deploy rather than folding it into the
+   client launch, so **migration risk is separated from client risk**. A failure then has one
+   possible cause instead of two.
 
-1. **Nothing is blocking. The next step is a decision about merging**, and the PR should stay a draft
-   until you make it deliberately. Everything the design assigned to PR 1 is built and executing;
-   the remaining cases are PR 2 client cases and cannot run without a client — see
-   `docs/DESIGN-working-drafts.md` §7 for which, and "Next steps" item 3 for PR 2. ⚑ This sentence
-   used to enumerate them and had already gone stale in the direction that matters: it listed case 14
-   as outstanding when 14 executes in `recovery.http.spec.ts`.
+   ```bash
+   ssh Rock5b 'cd /srv/lesson3 && git pull && docker compose run --rm migrate'
+   # then the app-level deploy: scripts/deploy.sh
+   ```
 
-   Worth knowing before merge: **no client sends a recovery token yet**, so on `main` this feature is
-   inert by construction — every save takes the no-token path and retires nothing. That is the point
-   of the optional token, and it is what makes merging ahead of PR 2 safe rather than a flag day.
+   Verify, in this order:
+   - the migration applied and `edit_recovery` exists with its compound unique index
+   - the app is healthy (`/` → 307 `/login`, `/login` → 200)
+   - **an ordinary version deletion still works** — this is the one that matters. The delete-time
+     cascades now query `edit_recovery` on every version and user delete, so a missing table shows up
+     here and nowhere else. Save-as-new with `deleteSource=true` and make-official with
+     `deletePrevious=true` both go through that path.
+
+   ⚑ The UI-inert / runtime-live distinction at the top of this file is exactly why that third check
+   is not optional.
 
    ### The implementation contract, as BUILT (operator review, 2026-08-06)
 
@@ -268,7 +285,8 @@ diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is 
   `endpoints/previewParse.ts`, `endpoints/uploadBundles.ts` and now `endpoints/recoveryParse.ts` —
   each re-explaining the same "the header may be absent or dishonest" caveat in its own words. The
   rule of three is reached. The extraction is `assertBodyWithin(req, maxBytes, message)` in shared
-  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Share the
+  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Do not let it
+  delay PR 2** (operator, 2026-08-07) — do it when one of those endpoints is next touched anyway. ⚑ **Share the
   CHECK, not the constants** — the three limits measure different payload classes and must stay
   independent; coupling the numbers is the hazard, not the duplication. Worth doing with the next
   change that touches any of those files.
@@ -300,8 +318,8 @@ diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is 
   loop bound, whereas an advisory lock is held until the connection closes. Not worth churning the
   one that exists and passes.
 
-- **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect this branch just
-  fixed.** Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
+- **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect PR 1 just fixed —
+  and it wants its own small reviewed PR** (operator, 2026-08-07), not a passing edit. Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
   a value — with **no** `DELETE FROM payload_jobs*` before the cast, so it aborts on any database
   where the removed task had ever run. The other four enum-shrinking migrations all carry the
   deletes. Found while checking whether `editRecoveryMigrationOrder.spec.ts` could be generalized
@@ -462,11 +480,15 @@ in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URL
 SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
 presents that work as upcoming as HISTORY.
 
-**No runtime change is pending for the Rock, and no deploy is required to land the stack above.** It
-changes documentation, two `.env.example` templates, one unit test, one CI mount and one docstring —
-nothing the server executes.
+⚑ **SUPERSEDED — this paragraph is about the 2026-08-05 env-parity stack, which merged long ago.** It
+is NOT deploy guidance for what is on `main` today: **edit recovery PR 1 carries a migration and its
+deploy is mandatory** (top of this file). Kept only because the tree-hash comparison below it is still
+the right technique. Do not read "no deploy is required" as current.
 
-⚠️ **`app/` tree hashes will NOT match while that stack is unmerged, and that is expected.** Four of its
+**No runtime change was pending for the Rock from that stack.** It changed documentation, two
+`.env.example` templates, one unit test, one CI mount and one docstring — nothing the server executes.
+
+⚠️ **`app/` tree hashes did NOT match while that stack was unmerged, and that was expected.** Four of its
 files live under `app/` (`app/.env.example`, `app/tests/unit/envTemplateParity.spec.ts`,
 `app/vitest.unit.config.mts`, and a comment-only edit to `app/src/components/IdleLogout/index.tsx`), so
 the tree hash differs from `origin/main` even though no runtime behaviour does. Compare the Rock against
