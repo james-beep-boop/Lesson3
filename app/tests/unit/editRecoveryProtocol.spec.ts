@@ -17,7 +17,7 @@ import {
   classifyResponse,
   fingerprint,
   planSave,
-  statusForFailure,
+  statusForOutcome,
   type CaptureOutcome,
   type RecoveryToken,
 } from '../../src/components/EditRecovery/protocol.js'
@@ -130,50 +130,44 @@ describe('planSave — which token the save may send', () => {
    * contradicting "transport failure ⇒ save anyway" in the one case that looks identical to the user.
    * Saving with NO token takes the path the server already supports and leaves the row for expiry.
    */
-  it('an INDETERMINATE flush saves with NO token at all', () => {
+  it('an INDETERMINATE flush saves with NO token at all, whatever it is holding', () => {
     expect(planSave({ kind: 'indeterminate' }, held)).toEqual({ proceed: true, token: null })
-  })
-
-  it('never sends a stale token after an indeterminate flush, even holding a valid-looking one', () => {
-    const plan = planSave({ kind: 'indeterminate' }, token(99))
-    expect(plan.proceed).toBe(true)
-    if (!plan.proceed) return
-    expect(plan.token).toBeNull()
+    // The held token is ignored entirely — including one that looks perfectly current.
+    expect(planSave({ kind: 'indeterminate' }, token(99))).toEqual({ proceed: true, token: null })
   })
 })
 
-describe('statusForFailure — what the user is told', () => {
+describe('statusForOutcome — what the user is told', () => {
   it('surfaces the rate-limit delay so backoff is visible (matrix case 13)', () => {
-    expect(statusForFailure({ kind: 'definite', reason: 'rateLimited', retryAfterSec: 9 })).toEqual(
+    expect(statusForOutcome({ kind: 'definite', reason: 'rateLimited', retryAfterSec: 9 })).toEqual(
       { kind: 'notBackedUp', reason: 'rateLimited', retryAfterSec: 9 },
     )
   })
 
   it('distinguishes too-large from ordinary transport failure', () => {
-    expect(statusForFailure({ kind: 'definite', reason: 'tooLarge' })).toEqual({
+    expect(statusForOutcome({ kind: 'definite', reason: 'tooLarge' })).toEqual({
       kind: 'notBackedUp',
       reason: 'tooLarge',
     })
-    expect(statusForFailure({ kind: 'indeterminate' })).toEqual({
+    expect(statusForOutcome({ kind: 'indeterminate' })).toEqual({
+      kind: 'notBackedUp',
+      reason: 'transport',
+    })
+    // A bare rejection reads as transport too — the user cannot act on a 4xx they did not cause.
+    expect(statusForOutcome({ kind: 'definite', reason: 'rejected' })).toEqual({
       kind: 'notBackedUp',
       reason: 'transport',
     })
   })
 
-  it('a conflict is its own state, not a generic failure', () => {
-    // It needs different UI: the user must be able to see and copy the other tab's newer work.
-    expect(statusForFailure({ kind: 'conflict' })).toEqual({ kind: 'conflict' })
+  it('a successful capture is the ONLY thing that reports backedUp', () => {
+    // SPEC §5: the timestamp IS the contract, so no failure may wear it.
+    expect(statusForOutcome({ kind: 'ok', token: token(2) }).kind).toBe('backedUp')
   })
 
-  /** SPEC §5: the timestamp IS the contract, so a failure must never read as "backed up". */
-  it.each<[string, CaptureOutcome]>([
-    ['tooLarge', { kind: 'definite', reason: 'tooLarge' }],
-    ['rateLimited', { kind: 'definite', reason: 'rateLimited' }],
-    ['rejected', { kind: 'definite', reason: 'rejected' }],
-    ['indeterminate', { kind: 'indeterminate' }],
-    ['conflict', { kind: 'conflict' }],
-  ])('%s never reports backedUp', (_l, outcome) => {
-    expect(statusForFailure(outcome).kind).not.toBe('backedUp')
+  it('a conflict is its own state, not a generic failure', () => {
+    // It needs different UI: the user must be able to see and copy the other tab's newer work.
+    expect(statusForOutcome({ kind: 'conflict' })).toEqual({ kind: 'conflict' })
   })
 })
 

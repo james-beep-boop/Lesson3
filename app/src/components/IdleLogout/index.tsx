@@ -36,42 +36,39 @@
  * ⚑ **It also HOSTS the edit-recovery flush registry**, and that is deliberate rather than incidental.
  * The pre-expiry flush (design §5) needs code that lives in the editor — the live capture token, the
  * in-flight write, the current form snapshot — but the deadline is known only here. Making this
- * component the provider means ONE component owns the deadline and the thing to do before it, and
- * removes any question about the ordering of two separate providers in `admin.components.providers`.
+ * component the provider means ONE component owns the deadline and the thing to do before it.
+ *
+ * ⚑ The reason is not that provider order is ambiguous — it is fully determined (`providers[0]` is
+ * outermost). It is that getting it wrong fails SILENTLY: a mis-ordered array leaves this component
+ * consuming the registry's no-op default, the pre-expiry flush never runs, and nothing reports it.
  * The editor registers on mount and unregisters on unmount; see `EditRecovery/flushRegistry`.
  */
 import React, { useEffect, useRef } from 'react'
 import { useAuth } from '@payloadcms/ui'
 
-import {
-  EditRecoveryFlushProvider,
-  useEditRecoveryFlushRegistry,
-} from '../EditRecovery/flushRegistry'
+import { EditRecoveryFlushProvider, useFlushRegistry } from '../EditRecovery/flushRegistry'
 
 const CHECK_INTERVAL_MS = 30_000
 
 /**
  * How far ahead of the deadline to flush unsaved work.
  *
- * ⚑ Comfortably longer than {@link CHECK_INTERVAL_MS}, because this fires from the same interval: a
- * lead shorter than the polling period could fall entirely between two ticks and never run at all.
- * It also has to leave the capture time to complete while the token is still VALID — a flush that
- * starts at the deadline is a flush that 401s.
+ * ⚑ **DERIVED from {@link CHECK_INTERVAL_MS} rather than merely documented as larger than it.** This
+ * fires from that same interval, so a lead shorter than the polling period can fall entirely between
+ * two ticks and never run — and the symptom is silence: no type error, no failing test, the headline
+ * §5 guarantee just quietly becomes a no-op. Someone raising the poll interval for battery reasons
+ * has no reason to connect it to edit recovery, so the relationship is enforced here instead of
+ * trusted. It also has to leave the capture time to finish while the token is still VALID: a flush
+ * that starts at the deadline is a flush that 401s.
  */
-const FLUSH_LEAD_MS = 90_000
+const FLUSH_LEAD_MS = Math.max(90_000, CHECK_INTERVAL_MS * 3)
 
 export default function IdleLogout({ children }: { children?: React.ReactNode }) {
-  return (
-    <EditRecoveryFlushProvider>
-      <IdleLogoutInner>{children}</IdleLogoutInner>
-    </EditRecoveryFlushProvider>
-  )
-}
-
-/** Split out so it can consume the registry its parent provides. */
-function IdleLogoutInner({ children }: { children?: React.ReactNode }) {
   const { user, tokenExpirationMs, logOut } = useAuth()
-  const { runAll } = useEditRecoveryFlushRegistry()
+  // Owned here, not consumed from a parent — so no inner component is needed just to read what this
+  // one provides.
+  const registry = useFlushRegistry()
+  const { runAll } = registry
   const flushed = useRef(false)
 
   useEffect(() => {
@@ -111,5 +108,5 @@ function IdleLogoutInner({ children }: { children?: React.ReactNode }) {
     }
   }, [user, tokenExpirationMs, logOut, runAll])
 
-  return <>{children}</>
+  return <EditRecoveryFlushProvider registry={registry}>{children}</EditRecoveryFlushProvider>
 }

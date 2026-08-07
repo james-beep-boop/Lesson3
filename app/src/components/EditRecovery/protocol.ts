@@ -6,8 +6,22 @@
  * mean" — which is where the protocol is actually easy to get wrong.
  */
 
-/** What every advancing write returns and the client must adopt (design §4's token rule). */
-export type RecoveryToken = { generation: number; revision: number; updatedAt: string }
+/**
+ * What every advancing write returns and the client must adopt (design §4's token rule).
+ *
+ * ⚑ **Imported from the server's kernel, not redeclared.** This is one wire contract, and two
+ * structurally identical declarations type-check while agreeing — which is exactly why they must not
+ * both exist. A server-side rename or added field would produce no compile error here; the client
+ * would go on echoing a token the server no longer recognises, surfacing as a 409 on a save the user
+ * was told would proceed. `EditorsWidget` records the same lesson from the same mistake.
+ *
+ * ⚑ The `type` keyword is load-bearing and must stay. `isolatedModules` is on, so a type-only import
+ * is erased entirely and the bundler never sees an edge to `kernel.ts` — but a VALUE import from that
+ * module would drag drizzle and the payload barrel into the client bundle. `tests/http` already
+ * imports this same type from the same place.
+ */
+export type { RecoveryToken } from '../../lib/editRecovery/kernel'
+import type { RecoveryToken } from '../../lib/editRecovery/kernel'
 
 /**
  * The outcome of one capture attempt, classified by **what the server did**, not by what it said.
@@ -100,11 +114,18 @@ export const planSave = (outcome: CaptureOutcome, heldToken: RecoveryToken | nul
 }
 
 /**
- * A cheap content fingerprint (FNV-1a, 32-bit).
+ * A cheap fingerprint of THE REQUEST AS SENT (FNV-1a, 32-bit).
  *
- * Used only to answer "is this the same oversized payload the server just refused?", so that a 413 is
- * not retried against byte-identical content every debounce tick for the rest of the session. It is
- * not security-relevant and a collision costs one wasted request.
+ * Used only to answer "is this the byte-identical request the server just refused with a 413?", so
+ * that an oversized capture is not retried unchanged every debounce tick for the rest of the session.
+ *
+ * ⚑ It covers the whole body, including `generation` and `expectedRevision` — not just the document.
+ * That is equivalent to hashing the content only because a 413 advances neither counter, which is a
+ * property of the SERVER's capture statement and not of this file. Stated rather than assumed.
+ *
+ * Not security-relevant; a collision costs one wasted request. ⚑ Computed LAZILY by the caller —
+ * only once a 413 has happened — because a full pass over a ~550 KB body costs about as much as
+ * serialising it, and in the common case the result is never consulted.
  */
 export const fingerprint = (s: string): string => {
   let h = 0x811c9dc5
@@ -130,20 +151,26 @@ export type RecoveryStatus =
     }
   | { kind: 'conflict' }
 
-/** Map a failed outcome onto what the user is told. */
-export const statusForFailure = (outcome: CaptureOutcome): RecoveryStatus => {
+/**
+ * Map ANY outcome onto what the user is told.
+ *
+ * ⚑ Named for the outcome, not for failure: it handles all four kinds, and the `ok` branch is
+ * reached by every caller. An earlier name (`statusForFailure`) invited one call site to re-implement
+ * the success case inline, which is two places that must agree on what a successful capture displays.
+ */
+export const statusForOutcome = (outcome: CaptureOutcome): RecoveryStatus => {
   switch (outcome.kind) {
-    case 'conflict':
-      return { kind: 'conflict' }
-    case 'definite':
-      return outcome.reason === 'tooLarge'
-        ? { kind: 'notBackedUp', reason: 'tooLarge' }
-        : outcome.reason === 'rateLimited'
-          ? { kind: 'notBackedUp', reason: 'rateLimited', retryAfterSec: outcome.retryAfterSec }
-          : { kind: 'notBackedUp', reason: 'transport' }
-    case 'indeterminate':
-      return { kind: 'notBackedUp', reason: 'transport' }
     case 'ok':
       return { kind: 'backedUp', at: Date.now() }
+    case 'conflict':
+      return { kind: 'conflict' }
+    case 'indeterminate':
+      return { kind: 'notBackedUp', reason: 'transport' }
+    case 'definite':
+      // Only `rejected` is renamed on the way out; the other two keep their own name, so the
+      // special case is the one that is actually special.
+      return outcome.reason === 'rejected'
+        ? { kind: 'notBackedUp', reason: 'transport' }
+        : { kind: 'notBackedUp', reason: outcome.reason, retryAfterSec: outcome.retryAfterSec }
   }
 }

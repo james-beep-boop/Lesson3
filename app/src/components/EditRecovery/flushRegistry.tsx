@@ -23,49 +23,72 @@
  * would send stale work — the precise failure the revision precondition exists to catch, arriving from
  * our own side.
  */
-import React, { createContext, useCallback, useContext, useMemo, useRef } from 'react'
+import React, { createContext, useContext, useMemo, useRef } from 'react'
 
 /** Resolves when the flush has finished; never rejects — a failed flush is reported, not thrown. */
 export type PreExpiryFlush = () => Promise<void>
 
-type Registry = {
+export type FlushRegistry = {
   /** Register a flush; call the returned disposer on unmount. */
   register: (flush: PreExpiryFlush) => () => void
-  /** Run every registered flush. Used by `IdleLogout`; safe when nothing is registered. */
+  /** Run every registered flush. Safe when nothing is registered. */
   runAll: () => Promise<void>
 }
 
-const noop: Registry = {
+/**
+ * ⚑ The default is a NO-OP, and that is the failure mode worth knowing about: if the provider is ever
+ * missing or nested below its consumer, nothing throws — the pre-expiry flush simply never runs, and
+ * unsaved work is silently not backed up. That is why the provider and the component that triggers it
+ * are the same component (see `IdleLogout`), rather than two entries in `admin.components.providers`
+ * whose order could be changed by someone with no reason to connect the two.
+ */
+const FlushRegistryContext = createContext<FlushRegistry>({
   register: () => () => {},
   runAll: async () => {},
-}
+})
 
-const FlushRegistryContext = createContext<Registry>(noop)
-
-export function EditRecoveryFlushProvider({ children }: { children?: React.ReactNode }) {
+/**
+ * Build the registry value.
+ *
+ * Returned as a hook rather than a provider component so the host can BOTH own it and use it: a
+ * component cannot consume a context it renders itself, and the alternative was an inner wrapper
+ * component existing purely to read what its parent had just provided.
+ */
+export function useFlushRegistry(): FlushRegistry {
   // A Set, not a single slot: two editors could in principle be mounted (a drawer over a document),
   // and silently replacing one registration with another would drop a real flush.
-  const flushes = useRef<Set<PreExpiryFlush>>(new Set())
+  const flushes = useRef<Set<PreExpiryFlush> | null>(null)
+  flushes.current ??= new Set()
 
-  const register = useCallback((flush: PreExpiryFlush) => {
-    flushes.current.add(flush)
-    return () => {
-      flushes.current.delete(flush)
+  // One memo, empty deps: nothing here can ever change identity, so three separate memoised callbacks
+  // were three dependency arrays guarding a value that is stable by construction.
+  return useMemo<FlushRegistry>(() => {
+    const set = flushes.current as Set<PreExpiryFlush>
+    return {
+      register: (flush) => {
+        set.add(flush)
+        return () => {
+          set.delete(flush)
+        }
+      },
+      runAll: async () => {
+        // Snapshot first: a flush that unmounts its own editor would otherwise mutate the set
+        // mid-iteration. `allSettled` so one editor's failure cannot stop another's flush.
+        await Promise.allSettled([...set].map((flush) => flush()))
+      },
     }
   }, [])
+}
 
-  const runAll = useCallback(async () => {
-    // Snapshot first: a flush that unmounts its own editor would otherwise mutate the set mid-iteration.
-    const current = [...flushes.current]
-    // `allSettled`, because one editor's failure must not stop another's flush. The flushes themselves
-    // are contracted not to reject, so this is belt and braces rather than the primary handling.
-    await Promise.allSettled(current.map((flush) => flush()))
-  }, [])
-
-  const value = useMemo<Registry>(() => ({ register, runAll }), [register, runAll])
-
-  return <FlushRegistryContext value={value}>{children}</FlushRegistryContext>
+export function EditRecoveryFlushProvider({
+  registry,
+  children,
+}: {
+  registry: FlushRegistry
+  children?: React.ReactNode
+}) {
+  return <FlushRegistryContext value={registry}>{children}</FlushRegistryContext>
 }
 
 /** For the editor: register a flush for the lifetime of the calling component. */
-export const useEditRecoveryFlushRegistry = (): Registry => useContext(FlushRegistryContext)
+export const useEditRecoveryFlushRegistry = (): FlushRegistry => useContext(FlushRegistryContext)

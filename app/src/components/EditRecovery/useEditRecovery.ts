@@ -28,7 +28,7 @@ import {
   classifyResponse,
   fingerprint,
   planSave,
-  statusForFailure,
+  statusForOutcome,
   type CaptureOutcome,
   type RecoveryStatus,
   type RecoveryToken,
@@ -63,12 +63,26 @@ export function useEditRecovery(args: {
 
   const [status, setStatus] = useState<RecoveryStatus>({ kind: 'off' })
 
-  const token = useRef<RecoveryToken | null>(null)
-  const started = useRef(false)
+  /**
+   * Everything scoped to ONE editing session, in one cell with one reset.
+   *
+   * ⚑ Grouped deliberately. As four separate refs, "leaving edit mode ends the session" cleared three
+   * of them and left `oversized` alive into the next unlock of the same mount — not because that line
+   * was hard to write, but because nothing said what ending a session is supposed to clear. Now
+   * `endSession` is the answer, and the next piece of session state is added inside this object.
+   *
+   * `inFlight` and `timer` are deliberately NOT here: they are transport- and timer-scoped, torn down
+   * on their own schedule, and folding them in would make `endSession` cancel work it does not own.
+   */
+  const session = useRef<{
+    token: RecoveryToken | null
+    started: boolean
+    /** Fingerprint of a request the server refused as too large; never resent unchanged. */
+    oversized: string | null
+  }>({ token: null, started: false, oversized: null })
+
   const inFlight = useRef<Promise<CaptureOutcome> | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  /** Fingerprint of a payload the server refused as too large; never resent unchanged. */
-  const oversized = useRef<string | null>(null)
 
   // Refs mirroring props, so the registered flush and the timers read CURRENT values rather than the
   // closure they were created in. ⚑ Assigned in an effect, not during render: writing a ref while
@@ -87,7 +101,7 @@ export function useEditRecovery(args: {
 
   /** One capture attempt. Returns the classified outcome; never throws. */
   const captureOnce = useCallback(async (): Promise<CaptureOutcome> => {
-    const held = token.current
+    const held = session.current.token
     if (!held) return { kind: 'definite', reason: 'rejected' }
 
     const document = live.current.getDocument()
@@ -97,10 +111,15 @@ export function useEditRecovery(args: {
       document,
     })
 
-    // A payload the server already refused as too large is not resent unchanged — that would burn the
+    // A request the server already refused as too large is not resent unchanged — that would burn the
     // rate-limit budget every debounce tick for the rest of the session, to be refused identically.
-    const print = fingerprint(body)
-    if (oversized.current === print) return { kind: 'definite', reason: 'tooLarge' }
+    //
+    // ⚑ Hashed ONLY once a 413 has actually happened. Fingerprinting a ~550 KB body costs about as
+    // much as the `JSON.stringify` above it, and in the common case — no 413 all session — the result
+    // was computed and thrown away, doubling the synchronous work before every capture.
+    if (session.current.oversized !== null && session.current.oversized === fingerprint(body)) {
+      return { kind: 'definite', reason: 'tooLarge' }
+    }
 
     try {
       const res = await fetch(`/api/lesson-bundle-versions/${live.current.versionId}/recovery`, {
@@ -112,10 +131,12 @@ export function useEditRecovery(args: {
       const parsed = (await res.json().catch(() => null)) as { token?: RecoveryToken } | null
       const outcome = classifyResponse(res.status, parsed, res.headers.get('Retry-After'))
       if (outcome.kind === 'ok') {
-        token.current = outcome.token
-        oversized.current = null
+        session.current.token = outcome.token
+        session.current.oversized = null
       }
-      if (outcome.kind === 'definite' && outcome.reason === 'tooLarge') oversized.current = print
+      if (outcome.kind === 'definite' && outcome.reason === 'tooLarge') {
+        session.current.oversized = fingerprint(body)
+      }
       return outcome
     } catch {
       // Network error, abort, timeout — the request may or may not have committed.
@@ -143,10 +164,10 @@ export function useEditRecovery(args: {
    */
   const captureAndReport = useCallback(
     async function run(): Promise<void> {
-      if (!token.current || !live.current.active || !live.current.modified) return
+      if (!session.current.token || !live.current.active || !live.current.modified) return
       setStatus({ kind: 'saving' })
       const outcome = await capture()
-      setStatus(statusForFailure(outcome))
+      setStatus(statusForOutcome(outcome))
       if (outcome.kind === 'definite' && outcome.reason === 'rateLimited') {
         // Respect Retry-After rather than resuming the ordinary debounce, which would keep hitting a
         // limiter that has already told us how long to wait (matrix case 13).
@@ -157,14 +178,9 @@ export function useEditRecovery(args: {
     [capture, clearTimer],
   )
 
-  const scheduleCapture = useCallback(() => {
-    clearTimer()
-    timer.current = setTimeout(() => void captureAndReport(), CAPTURE_DEBOUNCE_MS)
-  }, [captureAndReport, clearTimer])
-
   const start = useCallback(() => {
-    if (started.current) return
-    started.current = true
+    if (session.current.started) return
+    session.current.started = true
     setStatus({ kind: 'starting' })
     void (async () => {
       try {
@@ -193,7 +209,7 @@ export function useEditRecovery(args: {
           setStatus({ kind: 'unavailable', reason: 'failed' })
           return
         }
-        token.current = body.token
+        session.current.token = body.token
         setStatus({ kind: 'idle' })
       } catch {
         setStatus({ kind: 'unavailable', reason: 'failed' })
@@ -205,38 +221,36 @@ export function useEditRecovery(args: {
     clearTimer()
     // Drain anything already running BEFORE capturing, or the two would share an `expectedRevision`.
     if (inFlight.current) await inFlight.current.catch(() => undefined)
-    if (!token.current) return { proceed: true, token: null }
-    if (!live.current.modified) return { proceed: true, token: token.current }
+    if (!session.current.token) return { proceed: true, token: null }
+    if (!live.current.modified) return { proceed: true, token: session.current.token }
 
     const outcome = await capture()
-    const plan = planSave(outcome, token.current)
-    setStatus(
-      outcome.kind === 'ok' ? { kind: 'backedUp', at: Date.now() } : statusForFailure(outcome),
-    )
+    const plan = planSave(outcome, session.current.token)
+    setStatus(statusForOutcome(outcome))
     return plan
   }, [capture, clearTimer])
 
   const adoptToken = useCallback((next: RecoveryToken | null | undefined) => {
-    if (next) token.current = next
+    if (next) session.current.token = next
   }, [])
 
   // Debounced capture while dirty and unlocked; inert otherwise.
   useEffect(() => {
-    if (!active || !modified || !token.current) {
+    if (!active || !modified || !session.current.token) {
       clearTimer()
       return
     }
-    scheduleCapture()
+    timer.current = setTimeout(() => void captureAndReport(), CAPTURE_DEBOUNCE_MS)
     return clearTimer
-  }, [active, modified, scheduleCapture, clearTimer])
+  }, [active, modified, captureAndReport, clearTimer])
 
   // Flush on blur and when the tab is hidden — the last chance before a backgrounded tab's timers are
   // throttled, which is also the path a closing laptop lid takes.
   useEffect(() => {
     if (!active) return
-    const flush = () => {
-      if (live.current.modified && token.current) void captureAndReport()
-    }
+    // No guard here: `captureAndReport` already tests token/active/modified unconditionally, and a
+    // second weaker copy of that predicate can only drift from it.
+    const flush = () => void captureAndReport()
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush()
     }
@@ -253,16 +267,15 @@ export function useEditRecovery(args: {
     if (!active) return
     return registerFlush(async () => {
       clearTimer()
-      if (live.current.modified && token.current) await captureAndReport()
+      await captureAndReport()
     })
   }, [active, registerFlush, captureAndReport, clearTimer])
 
-  // Leaving edit mode ends the session for this mount: stop the timer and drop the token.
+  // Leaving edit mode ends the session for this mount.
   useEffect(() => {
     if (active) return
     clearTimer()
-    started.current = false
-    token.current = null
+    session.current = { token: null, started: false, oversized: null }
   }, [active, clearTimer])
 
   // ⚑ `off` is DERIVED, not stored. Setting it from the effect above would be a setState-in-effect
