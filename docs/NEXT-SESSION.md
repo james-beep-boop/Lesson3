@@ -281,14 +281,19 @@ ones.
 **Typing one character into a large lesson-plan version 500s on `main` today.** No edit-recovery code
 involved — found while spiking PR 2's restore, and it is not that feature's bug:
 
-```
+```text
 POST /admin/collections/lesson-bundle-versions/13 → 500   Error: Body exceeded 1 MB limit
 ```
 
-Payload debounces an `onChange` posting the **full form state** to a Next.js Server Action; Server
-Actions default to a 1 MB body and `next.config.ts` sets no limit. Measured on version 13 (13 lessons,
-the largest shape in the corpus): raw document 0.59 MB, **Server Action body 1.51 MB — 2.57× the
-document**, 59% over the ceiling.
+Payload debounces an `onChange` posting the **full form state** to a Next.js Server Action; the default
+ceiling is `bytes('1mb')` = **1,048,576 B** and `next.config.ts` sets no limit. Measured on version 13
+(13 lessons, the largest shape in the corpus): raw document **618,518 B**, **Server Action body
+1,587,513 B — 2.57× the document, 51.4% over the ceiling.**
+
+⚑ Exact bytes, deliberately. An earlier version of this paragraph wrote those as "0.59 MB" and
+"1.51 MB" — which are MiB values mislabelled — and then divided by 1,000,000 to get "59% over". The
+true overshoot is 51.4%. The whole point of this paragraph is to carry a number into a production
+limit decision, so it states bytes and lets the reader convert.
 
 **What it does and does not break.** Save still works: `save-as-new` posts multipart to a REST
 endpoint, not a Server Action. What fails is Payload's own form-state sync, so field-level validation

@@ -411,7 +411,7 @@ Verified live in the admin editor against a real 12-lesson bundle, not inferred 
 Typing **one character** into a large lesson-plan version already fails, on `main`, with no recovery
 code involved:
 
-```
+```text
 POST /admin/collections/lesson-bundle-versions/13 → 500
 Error: Body exceeded 1 MB limit
 ```
@@ -428,26 +428,37 @@ Restore merely *reaches* the defect sooner. The one-character test with no probe
 **Measured on the largest production-shaped plan** (version 13, Chemistry Grade 10 Chemical Bonding,
 13 lessons):
 
-| | |
-|---|---|
-| Raw document | 618,518 B (0.59 MB) |
-| Server Action body | **1,587,513 B (1.51 MB)** |
-| Ratio | **2.57× the document** |
-| Next default | 1 MB — exceeded by 59% |
+⚑ **Byte counts are exact and are the authority here; the MiB figures are only for reading.** An
+earlier version of this table mixed the two — it labelled MiB values "MB" and then computed the
+overshoot against 1,000,000, reporting **59%** where the true figure is **51.4%**. Next's default is
+`bytes('1mb')` = **1,048,576 B**, so that is what the comparison must divide by. A measurement table
+that exists to justify a production limit is the worst place to be sloppy about units.
+
+| | Bytes | ≈ MiB |
+|---|---|---|
+| Raw document | 618,518 | 0.59 |
+| Server Action body | **1,587,513** | **1.51** |
+| Next default limit | 1,048,576 | 1.00 |
+
+- **Ratio: 2.57× the document** (unit-free, so unaffected by the above).
+- **Overshoot: 51.4% over the 1,048,576 B ceiling.**
 
 **The limit is an explicit PR decision, not a number to copy.** Do not reuse 4 MB just because
-`MAX_PREVIEW_JSON_BYTES` is 4 MB: that bounds raw document JSON, while a Server Action carries the
-much larger form-state structure. Two defensible readings, and the choice should be argued rather
+`MAX_PREVIEW_JSON_BYTES` is `4_000_000`: that bounds raw document JSON, while a Server Action carries
+the much larger form-state structure. Two defensible readings, and the choice should be argued rather
 than assumed:
 
-- **Cover today's corpus with headroom.** 1.51 MB measured ⇒ 4 MB is ~2.6× the largest real plan.
+- **Cover today's corpus with headroom.** 1,587,513 B measured ⇒ a 4 MB limit is ~2.6× the largest
+  real plan.
 - **Stay consistent with what the app already admits.** The save/preview path accepts documents up to
-  `MAX_PREVIEW_JSON_BYTES` (4 MB); at the measured 2.57× ratio that implies ~10 MB of form state, so
-  anything under ~12 MB leaves documents the app accepts but the editor cannot edit.
+  `MAX_PREVIEW_JSON_BYTES`, which is literally `4_000_000` (decimal bytes, not 4 MiB). At the measured
+  2.57× ratio a document at that ceiling implies ~10,270,000 B (~10.3 MB) of form state. ⚑ That is the
+  MEASURED REQUIREMENT, not a threshold: a limit of ~12 MB is a headroom *policy* on top of it, and an
+  earlier version of this bullet wrongly implied everything below 12 MB fails.
 
 ⚑ It raises the body ceiling for **every** Server Action, so it is a production posture change and
-belongs in its own commit, described as the pre-existing editor fix it is — **not** folded into the
-restore work that happened to find it.
+belongs in its own commit, documented as a separate fix for the pre-existing editor defect — **not**
+folded into the restore work that happened to find it.
 
 **409 on a stale tab.** Surface the stale content **read-only** so the user can copy it out before it
 goes. Silently discarding keystrokes the user really typed would defeat the point of the feature.
