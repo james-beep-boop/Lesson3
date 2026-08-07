@@ -32,21 +32,64 @@
  *
  * Mounted via admin.components.providers, so it's always present and (per Payload's provider
  * tree) rendered inside AuthProvider. It renders its children unchanged.
+ *
+ * ⚑ **It also HOSTS the edit-recovery flush registry**, and that is deliberate rather than incidental.
+ * The pre-expiry flush (design §5) needs code that lives in the editor — the live capture token, the
+ * in-flight write, the current form snapshot — but the deadline is known only here. Making this
+ * component the provider means ONE component owns the deadline and the thing to do before it, and
+ * removes any question about the ordering of two separate providers in `admin.components.providers`.
+ * The editor registers on mount and unregisters on unmount; see `EditRecovery/flushRegistry`.
  */
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useAuth } from '@payloadcms/ui'
+
+import {
+  EditRecoveryFlushProvider,
+  useEditRecoveryFlushRegistry,
+} from '../EditRecovery/flushRegistry'
 
 const CHECK_INTERVAL_MS = 30_000
 
+/**
+ * How far ahead of the deadline to flush unsaved work.
+ *
+ * ⚑ Comfortably longer than {@link CHECK_INTERVAL_MS}, because this fires from the same interval: a
+ * lead shorter than the polling period could fall entirely between two ticks and never run at all.
+ * It also has to leave the capture time to complete while the token is still VALID — a flush that
+ * starts at the deadline is a flush that 401s.
+ */
+const FLUSH_LEAD_MS = 90_000
+
 export default function IdleLogout({ children }: { children?: React.ReactNode }) {
+  return (
+    <EditRecoveryFlushProvider>
+      <IdleLogoutInner>{children}</IdleLogoutInner>
+    </EditRecoveryFlushProvider>
+  )
+}
+
+/** Split out so it can consume the registry its parent provides. */
+function IdleLogoutInner({ children }: { children?: React.ReactNode }) {
   const { user, tokenExpirationMs, logOut } = useAuth()
+  const { runAll } = useEditRecoveryFlushRegistry()
+  const flushed = useRef(false)
 
   useEffect(() => {
     if (!user || !tokenExpirationMs) return
 
+    // A new deadline (Payload refreshed the token, e.g. "Stay logged in") is a new session for this
+    // purpose, so the pre-expiry flush is armed again.
+    flushed.current = false
+
     let loggingOut = false
     const check = () => {
       if (loggingOut) return
+      // ⚑ BEFORE the expiry branch: once the deadline passes, the token is gone and a capture would
+      // 401. This is the last moment the work can still be saved.
+      if (!flushed.current && Date.now() >= tokenExpirationMs - FLUSH_LEAD_MS) {
+        flushed.current = true
+        void runAll()
+      }
       if (Date.now() >= tokenExpirationMs) {
         loggingOut = true
         void logOut()
@@ -66,7 +109,7 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
       window.removeEventListener('focus', check)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [user, tokenExpirationMs, logOut])
+  }, [user, tokenExpirationMs, logOut, runAll])
 
   return <>{children}</>
 }
