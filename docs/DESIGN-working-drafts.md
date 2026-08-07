@@ -1,7 +1,7 @@
 # DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: APPROVED; not implemented.** Reconciled 2026-08-05 after adversarial review (five rounds).
-First drafted 2026-07-20.
+**Status: PR 1 (server) MERGED to `main`; PR 2 (client) not started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
+⚑ Per-case status is §7's and only §7's — do not restate it here or in any other document.
 
 > **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,
 > `docs/NEXT-SESSION.md`, `docs/DESIGN-editor-usability-2026-07-25.md` and a source docstring. Renaming
@@ -284,8 +284,18 @@ against the newly committed row, which is what makes the second caller take the 
 see the first caller's result.
 
 **Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day expiry,
-Site-Admin cleanup. It atomically clears `content`, sets `retiredAt`, and advances
-revision/generation. **None hard-delete.** Preconditions, all evaluated in the update:
+Site-Admin cleanup. It atomically clears `content`, sets `retiredAt` and `updatedAt`, and advances the
+**revision**. **None hard-delete.**
+
+⚑ **It does NOT advance the generation** (amended 2026-08-06; this paragraph previously said
+"revision/generation", contradicting the `start` statement above, which already advances the generation
+on reactivation). Each counter has one meaning: `revision` fences writes and moves on every write
+including this one; `generation` identifies the active editing SESSION and moves only when a new session
+BEGINS, which is reactivation's job. Advancing it in both places double-counts — one
+retire-then-reactivate cycle would move it by two — and §7 case 22 already asserts a single advance
+across exactly that cycle.
+
+Preconditions, all evaluated in the update:
 
 | Caller | Precondition |
 |---|---|
@@ -298,9 +308,18 @@ exception:
 
 ```sql
 UPDATE edit_recovery SET …retirement…
-WHERE id = $id AND revision = $selectedRevision
+WHERE user_id = $user AND source_version_id = $version
+  AND revision = $selectedRevision
   AND retired_at IS NULL AND updated_at < $cutoff
 ```
+
+⚑ Targeting is by `(user, sourceVersion)` for ALL FOUR callers, not by row id (amended 2026-08-06 —
+this snippet said `WHERE id = $id`, a fossil of the abandoned plan where expiry was standalone SQL in
+`prune-db.sh`, which this section discards two paragraphs below). Three callers *cannot* use a row id:
+SPEC §5 closes the collection to clients, so no row id ever reaches a browser and the endpoints address
+by the authorized source version. Expiry merely happens to hold one. Letting it be the exception would
+force `retire` to take a union of TARGET shapes alongside its union of commands, for no safety — the
+compound unique index resolves the pair to exactly one row either way.
 
 Zero rows updated means a capture or a reactivation won the race, and the job simply moves on. Being
 precise about what that buys: `updated_at < $cutoff` **already** defeats that race on its own, because
@@ -387,15 +406,45 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-**None of these are executed yet — the implementation does not exist.** This is the acceptance matrix
-the two PRs in §8 must satisfy, not a report.
+**Status, as of 2026-08-06 — PR 1 (server) MERGED to `main`.** ⚑ **This block is the
+per-case authority. Nowhere else — not the CHANGELOG, not NEXT-SESSION — may claim a case is covered.**
+A suite total is not a case list, and quoting one as if it were is how "PR 1 is complete" got written
+before cases 20 and 29 existed.
+
+**EXECUTING and passing on that branch:**
+- **7, 19, 20, 29** — `tests/http/saveAsNewRecovery.http.spec.ts`, through the real save-as-new
+  transaction. 20 is a genuine interleaving (the save is parked mid-transaction by a database barrier
+  while a second capture lands), not a stale token prepared in advance; 19 injects a real Postgres
+  fault and proves it fired.
+- **14-16, 23-24** — `tests/http/recovery.http.spec.ts`, the six operations' wire authz plus the
+  Site-Admin metadata and cleanup guarantees.
+- **15, 17-18, 21-25, 30** — `tests/int/editRecovery*.int.spec.ts` (30 via the expiry pass: a
+  reactivated row is not selected, because `start` restarted its clock).
+
+**NOT executing:** 1-6, 8-13, 26-27 — all client cases, and PR 2's work.
+
+⚑ **Case 28 is RE-ASSIGNED from wire-level to unit, deliberately.** It is about `applyCapture`
+dropping an unknown row-id key, and `applyCapture` has **no server-side caller** — restoring is the
+client's job, so there is no endpoint for a wire test to drive. Its real coverage is
+`tests/unit/editRecoveryProjection.spec.ts` ("drops an unknown row-id key…"). When PR 2 builds the
+restore prompt, 28 gains a browser case; until then, wire-level was a layer this case could never
+have. Recorded rather than quietly ignored, because an unmeetable requirement in a matrix is how
+matrices stop being believed.
 
 Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
-**browser** (Playwright) for 1–13 and 26–27, since the defect is client-side; **DB-backed wire-level**
-(`tests/http`, which runs against the live app and its database) for 14–16, 23–24 and 28–29; and
-**DB-backed concurrency** (`tests/int`, needing two real transactions) for 17–22, 25 and 30. Case 29
-spans a chain of real requests against real rows, so it is wire-level *and* DB-backed — the two labels
-are not alternatives here.
+
+- **browser** (Playwright) — the defect is client-side.
+- **DB-backed wire-level** (`tests/http`) — runs against the live app and its database, so it is the
+  only layer that can exercise a real endpoint transaction, including one held open while a second
+  request lands.
+- **DB-backed concurrency** (`tests/int`) — two real transactions against the kernel, without the HTTP
+  surface.
+- **unit** — pure functions with no server-side caller to drive.
+
+⚑ **The case→layer assignment is the status block ABOVE, not this list.** An earlier version repeated
+the numbers here as well, and the two copies immediately disagreed: 19 and 20 moved to wire-level when
+save-as-new retirement was built, while this paragraph still assigned them to `tests/int`. A layer list
+describes the layers; the status block owns which case sits in which.
 
 | # | Case | Expected |
 |---|---|---|
@@ -405,7 +454,7 @@ are not alternatives here.
 | 4 | Same user re-logs in | capture offered, not auto-applied; content exact |
 | 5 | **DIFFERENT user logs in on the same browser** | **sees nothing — no prompt, no content** |
 | 6 | Explicit logout while dirty | capture retained for that user; screen cleared |
-| 7 | Successful save-as-new | retired: content cleared, marker kept, generation advanced |
+| 7 | Successful save-as-new | retired: content cleared, marker kept, **revision** advanced (NOT the generation — that moves only when a new session begins) |
 | 8 | Explicit discard | the same retirement transition |
 | 9 | Stale source (`baseUpdatedAt` mismatch) | view/copy/discard only — **never applied**, same as a schema mismatch |
 | 10 | Capture from an older `schemaVersion` | not applied; view/discard only |
@@ -459,7 +508,71 @@ the build rather than discovered mid-PR.
 **PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
 function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
 Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
-units, DB-backed wire-level and concurrency cases (15, 17–25, 28–30).
+units, and the DB-backed wire-level and concurrency cases — §7 above assigns which, and is the only
+place that does.
+
+**Retirement's four callers are a DISCRIMINATED UNION, not one options object with optional fields.**
+Decided 2026-08-06, before implementation. The callers do not differ in what they WRITE — that is the
+one shared `SET` — they differ in what they must PROVE first, and those preconditions are not
+interchangeable:
+
+```ts
+type RetireCommand =
+  | { by: 'save-as-new'; generation: number; expectedRevision: number }  // + a live transaction
+  | { by: 'discard';     generation: number; expectedRevision: number }
+  | { by: 'admin-cleanup'; expectedRevision: number }                    // revision from recovery/meta
+  | { by: 'expiry'; expectedRevision: number; cutoff: Date }
+```
+
+With optional fields on a single shape, `cutoff` can be forgotten and expiry silently retires an active
+session — that one genuinely becomes a **type error** under the union, because `cutoff` is required by
+the `expiry` variant.
+
+⚑ **The transaction requirement is NOT a compile-time guarantee, and saying otherwise would be the
+false-assurance failure this document keeps recording.** A discriminated union constrains the FIELDS of
+the command; it cannot constrain the `req` passed alongside it. `by: 'save-as-new'` selects
+`requireTransaction: true` internally, so no call site can forget the flag — but a caller handing over a
+transaction-less `req` is caught at RUNTIME by `txDb`'s fail-closed throw, not by `tsc`.
+
+Two ways to close that if it is worth closing, decided when retirement is written rather than assumed
+now: give `retire` an overload whose `save-as-new` signature demands a branded transaction-bearing
+request type, or accept runtime enforcement and pin it with the rollback test (case 19), which has to
+exist regardless. The second is probably right — a brand is only as honest as the one place that mints
+it — but the choice should be explicit.
+
+**The per-user ACTIVE-CAPTURE CAP (~20, SPEC §5) belongs in `start`**, by the same argument that puts
+the byte cap in `capture`: `start` is the only path that inserts a row, so it is the storage boundary
+for row COUNT exactly as `capture` is for row SIZE, and an approximate check folds into its existing
+single statement. Its acceptance cases, written before the code so they cannot be back-fitted to it:
+
+| | Case | Expected |
+|---|---|---|
+| C1 | resume an ALREADY-ACTIVE row while at capacity | **succeeds** — resume is a no-op and must never be blocked, or a teacher at the cap cannot reopen work they already have |
+| C2 | `start` a NEW pair while at capacity | rejected |
+| C3 | reactivate a RETIRED row while at capacity | rejected — reactivation creates an active session, so it counts |
+| C4 | two concurrent starts at capacity−1 | overshoot to 21 is ACCEPTABLE (§5 says approximate); what must not happen is an unbounded run |
+| C5 | retire one, then `start` a new pair | succeeds — retired rows are tombstones and must not count toward the cap |
+| C6 | below capacity | ordinary insert, unchanged |
+| C7 | **another user at capacity** | does not block this user — the cap is PER USER. Added 2026-08-06: not in the original five, and invisible to any single-user test; without `user_id` in the count one prolific editor caps everybody |
+| C8 | a refused `start` | creates no row |
+
+**IMPLEMENTED 2026-08-06** in `start`'s single statement: a CTE counts the user's ACTIVE rows, the
+INSERT is gated on `count < cap OR EXISTS(row for this pair)` — the `EXISTS` is what keeps RESUME
+working at capacity, since the INSERT must still be attempted for `ON CONFLICT` to fire — and the
+`DO UPDATE` carries `WHERE retired_at IS NULL OR count < cap`, so resume always passes and
+reactivation counts. `start` now returns a `StartResult` rather than throwing, because being at
+capacity is a condition the system chose, not an error.
+
+C1 and C5 are the ones that make the cap safe to ship: a cap that blocks resume, or that counts
+tombstones, locks a prolific editor out of their own work.
+
+⚑ **Cases 19-20 cannot be retirement unit tests.** They are about save-as-new: 19 is "retirement fails
+during save-as-new ⇒ the WHOLE save rolls back, no orphan version", and 20 is a concurrent save plus a
+second tab's capture. Neither says anything unless it runs through the real `endpoints/versionEdit.ts`
+transaction and its semver-retry loop — a mocked throw proves the mock. Case 19 in particular needs a
+REAL failing statement, not an injected exception, or it does not test the rollback path at all.
+Cases 23-25 are the opposite: they isolate the retirement statement's own guards and belong directly
+against the kernel.
 
 **PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
 clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.

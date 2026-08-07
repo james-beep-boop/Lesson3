@@ -5,9 +5,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" next build",
-    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
-    "devsafe": "rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next dev",
+    "check:approuter": "node scripts/check-approuter.mjs",
+    "build": "npm run check:approuter && cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" next build",
+    "dev": "npm run check:approuter && cross-env NODE_OPTIONS=--no-deprecation next dev",
+    "devsafe": "npm run check:approuter && rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next dev",
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types",
     "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint .",
@@ -49,7 +50,7 @@
     "undici": "7.29.0",
     "postcss": "8.5.23",
     "nodemailer": "9.0.1",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.1",
     "fast-uri": "3.1.5",
     "immutable": "4.3.9",
     "sharp": "0.35.3"

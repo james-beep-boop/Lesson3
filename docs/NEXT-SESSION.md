@@ -8,79 +8,345 @@ end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
-(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~6300 lines) — skim
-the most recent entries and grep it for the area you're touching; don't read it end to end.** This
+(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is long and still growing — skim
+the most recent entries and grep it for the area you're touching; don't read it end to end.** (No line
+count given: this one said "~6300" while the file had reached 8311, which is the derived-fact
+staleness the file's own rules warn about.) This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
 ---
 
-# ⚑ HANDOFF (2026-08-05) — A COMMIT STACK EXISTS OFF `main`. READ THIS FIRST.
+# ⚑ HANDOFF (2026-08-06) — edit recovery PR 1 (server) is MERGED; PR 2 (client) is next
 
-This work is being handed to a **different account**. The single thing that matters most:
+**Read this section, then `docs/DESIGN-working-drafts.md` §2-§4 and §8. Everything else in this file
+below the "Next steps" list is older history.**
 
-> **`chore/env-template-parity` holds a stack of commits branched from `main` `5843551`**, six review
-> rounds deep. It was held back from pushing while those rounds kept finding real defects; it has since
-> been **pushed and opened as a PR**, so it is no longer laptop-only. Confirm rather than trust this
-> sentence — the commands below say which is true today.
->
-> ⚑ **A missing remote branch is NOT proof the work is lost.** GitHub deletes the head branch on merge,
-> so `git ls-remote` going empty is the *expected* end state. Three places the commits can still be,
-> checked in order: **(1) merged** — they are in `origin/main`, nothing to recover; **(2) the PR's own
-> ref** — `refs/pull/<n>/head` survives head-branch deletion for *any* closed PR, merged or not, so
-> `git fetch origin refs/pull/<n>/head` brings the whole stack back; **(3)** the previous operator's
-> machine. Declare loss only when all three fail.
->
-> ⚑ **Do not trust any prose summary of what would then need rebuilding**, including one written here.
-> A stale version of this very sentence claimed it was "only the env-parity test and the CI mount" —
-> while the stack also carries SPEC §5/§13, `AGENTS.md`, `CLAUDE.md`, **both** `.env.example` templates
-> (including the `ARTIFACT_CACHE_DIR` fix that repairs a broken-on-arrival install), `IdleLogout`, and
-> four documents. It even cited SPEC §5 as an intact fallback while the stack is what *edits* SPEC. Ask
-> git for the scope instead of believing a list:
->
-> ```bash
-> git fetch origin refs/pull/<n>/head && git diff --stat origin/main...FETCH_HEAD
-> ```
->
-> ⚑ No head SHA, commit count, or PR number is given on purpose. Only the **branch point** (`5843551`)
-> is stable; naming the tip would be wrong the moment the commit *containing this sentence* landed —
-> which is exactly what happened on the first draft of this block, and twice before that elsewhere in
-> this file. A commit count made the same mistake one round later. Derive all of it from the commands
-> below.
+## Where the work is
 
-**Verify what actually landed before trusting any of this:**
+**PR 1 (server) is merged to `main` and `feat/edit-recovery-server` is deleted.** The next piece of
+work is **PR 2 (client)** — see "Next steps" item 3, and §7 for the cases it owes.
+
+⚑ **On `main` this feature is INERT until PR 2 ships.** Nothing sends a recovery token yet, so every
+save takes the no-token path and retires nothing; no capture is ever started, because starting one is
+the client's job. That is the optional-token contract working as designed, not a bug to hunt. It also
+means **no deploy is urgent** — merging changed no behaviour any user can reach.
+
+⚑ **It DOES carry a migration** (`20260806_185943_add_edit_recovery`), so a deploy must run
+`migrate`, unlike the docs-only batches above. The gate that verified it is below.
+
+**Deliberately SHA-free** — an earlier version of this block named one and was wrong within the hour,
+twice: first by claiming "pushed" while eleven files sat uncommitted, then by naming the pre-commit
+SHA moments before the commit landed. A SHA here is stale as soon as anything moves.
+
+⚑ **Verify state before believing anything below:**
 
 ```bash
-git fetch --all --prune
-
-# ASK THIS FIRST. Merged ⇒ the commits are already in origin/main and NOTHING is lost.
-gh pr list --state all --head chore/env-template-parity --json number,state,mergedAt,mergeCommit
-
-# Then the branch. Absent is NORMAL after a merge (GitHub deletes the head branch), so this tests
-# before logging: a bare `git log origin/main..origin/<branch>` on a pruned ref prints
-# `fatal: ambiguous argument … unknown revision`, which reads like data loss at the exact moment
-# you are checking for data loss.
-if git rev-parse --verify -q origin/chore/env-template-parity >/dev/null; then
-  git log --oneline origin/main..origin/chore/env-template-parity   # the stack, still unmerged
-else
-  echo "No remote branch. If the PR above shows merged, the work is in origin/main:"
-  git log --oneline -15 origin/main
-fi
-
-git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'   # Rock parity
+git status --short                      # not empty ⇒ the work below is not all committed
+git log --oneline origin/main..origin/feat/edit-recovery-server
+git rev-parse --short HEAD refs/remotes/origin/feat/edit-recovery-server   # equal ⇒ nothing unpushed
+gh pr list --state all --head feat/edit-recovery-server --json number,state,isDraft,mergeable
 ```
 
-`main` is **protected** (PR + passing `gate`, `enforce_admins`), so this stack lands by PR — it cannot be
-pushed straight to `main`. Required reviews are 0, so you can merge your own once the gate is green.
-List what is open, rather than trusting a number written here:
+## ✅ The probe image: what it actually was (2026-08-06, RESOLVED)
 
-```bash
-gh pr list --state open --json number,title,headRefName,mergeable,statusCheckRollup
+The symptom was "the standalone bundle is broken — every API route 500s with `ChunkLoadError`". That
+reading was wrong, and it sent two sessions after Turbopack and `output: 'standalone'`.
+
+**The real cause: an empty, untracked `app/app/` directory.** This project's App Router is at
+`src/app`. Next.js prefers a root-level `./app` over `./src/app` when both exist, so `next build`
+emitted a build with **zero application routes** — no `/login`, no `/api/[...slug]` — and exited 0.
+Every request then fell through to `_not-found`, whose chunk was genuinely missing, and the
+ChunkLoadError was the only thing anyone saw. Measured: the degraded build produced 0 `route.js`
+files; with `app/` removed the same commit builds every route and a complete standalone output.
+
+**How it got there, and why it was invisible:** the AGENTS.md probe recipe's
+`docker run -v "$PWD/app:/app" -v /app/node_modules …` run from inside `app/` instead of the repo root
+makes Docker CREATE `Lesson3/app/app/node_modules` on the host. Git cannot track an empty directory,
+so `git status` stayed clean, the Rock and CI never saw it, and only local image builds broke — the
+shape that reads as "works everywhere except here". Directory timestamp: 2026-08-05 14:26.
+
+**Guarded, not just cleaned:** `app/.dockerignore` now excludes `/app`, so an image build cannot be
+poisoned by it even if it reappears. ⚑ If this project ever genuinely moves its App Router to a
+root-level `app/`, that rule must be deleted or the same zero-route build returns with the cause
+hidden one layer deeper.
+
+**Two more traps found in the same session, both worth knowing:**
+
+- **`docker compose build app` does NOT rebuild `migrate`.** The `migrate` service builds the
+  `builder` target separately, so it ran a stale image and silently skipped the edit-recovery
+  migration while reporting "Done." Build both, or `docker compose -p … build` with no service.
+- **`payload migrate` HANGS on an interactive prompt against a push-contaminated database** — "you've
+  run Payload in dev mode… data loss will occur. Proceed? (y/N)" — with no TTY to answer it. The
+  container sits in `Up` forever and `app` never starts because it waits on the dependency. Drop and
+  recreate that database rather than waiting.
+
+## What held this PR as a draft, and what closed each reason
+
+Kept as history because every one of these was a real gate, and the next collection will face the
+same ones. In order: the collection had **no migration** (the demonstration below is why that was
+non-negotiable); the **wire suite had never run** against endpoints that authorise then write with
+`overrideAccess`; **migration gate step 4** was partial; and **save-as-new retirement was not built**,
+so a successful save left the capture active. All four are closed.
+
+⚑ **Do not quote a suite total as proof that a feature is complete.** A total proves the cases that
+were written; it says nothing about the ones that were not. Per-case status lives in
+`docs/DESIGN-working-drafts.md` §7 and nowhere else — this file used to keep its own copy and it went
+stale three times in two days.
+
+The paragraph below is kept because it is the demonstration that made the migration non-negotiable.
+⚑ The CI blind spot it describes is CLOSED as of 2026-08-06 — `test:http` runs with
+`NODE_ENV=production` so Payload's dev push is off. Read it as history, not as a live warning.
+
+The `edit-recovery` collection is registered in `payload.config.ts` and its two cascade hooks run on
+**every version delete and every user delete**. Before the migration existed, production's
+migrate-mode meant the table would not exist there. Demonstrated, not inferred: with the table renamed
+away, a version delete fails with
+
+```
+Failed query: select count(*) from "edit_recovery" where "edit_recovery"."source_version_id" = $1
 ```
 
-As of this handoff that was this branch's PR plus **PR #196** (`chore/pr195-review-followups`, green,
-unrelated).
+which breaks save-as-new `deleteSource`, make-official `deletePrevious`, plan deletion and user
+deletion. **Merging this before the migration would have made `main` undeployable.**
 
-## What that stack contains
+⚑ **CI CANNOT CATCH THIS — a green gate is not schema safety.** `test:http` loads no
+`vitest.setup.ts`, so it seeds via the Local API into the SAME database the running app serves
+(`lesson3`, migrate-mode), and CI's synthetic `.env` omits `NODE_ENV`, so that Local Payload is not in
+production mode and runs Payload's dev schema **push** — silently creating whatever the migrations
+forgot, before the destructive tests touch it.
+
+## What is DONE (all DB-proven on the disposable probe)
+
+- The `edit-recovery` collection: closed on all four operations for every role including Site Admin,
+  compound unique on `(user, sourceVersion)`, both parent cascades (user, version) plus the transitive
+  plan→version→recovery path.
+- The pure projection: `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` rather than restating them, with `normaliseProseValue` covering code units the
+  jsonb column cannot carry (unpaired surrogates AND U+0000).
+- **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
+  resume; now also enforcing the per-user ACTIVE-CAPTURE CAP), `capture` (CAS UPDATE, never an
+  insert), `retire` (ONE transition, three precondition shapes, and ALL FOUR designed callers now
+  wired: save-as-new, discard, admin cleanup, expiry), and `expireCaptures`
+  (select + per-row CAS), with `expireEditRecoveryTask` carrying a **schedule** so it actually runs.
+- **The active-capture cap (SPEC §5's second cap)** — per user, counting ACTIVE rows only, enforced
+  inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
+  `StartResult` rather than throwing, since being at capacity is a chosen condition, not an error.
+- `src/lib/txDb.ts`: the drizzle primitives, failing closed when a `transactionID` has no session.
+- **The six operations across four URL paths** (`endpoints/recovery.ts`) — §2's table lists five
+  rows because it bundles metadata and cleanup, and `/:id/recovery` carries POST, GET and DELETE, so
+  "five paths" was wrong wherever it appeared. Body guards split into
+  `endpoints/recoveryParse.ts` so they can be unit tested without a database or a served app — the
+  same split, for the same reason, as `previewParse.ts`. Wire coverage **has RUN**: 27/27 on
+  `recovery.http.spec.ts`, 125/125 across the whole suite, against a migration-only schema with push
+  off (2026-08-06).
+- **The `recovery` rate-limit bucket** in `lib/rateLimit.ts` (120/min default), and a **raw-body
+  ceiling** on top of it, because rate limiting bounds how OFTEN an editor may post, not how large one
+  post may be. Sizing and the reason it is not the kernel's 512 KB cap: the `MAX_RECOVERY_BODY_BYTES`
+  docblock, which is the authority. Reasoning: DECISIONS 2026-08-06.
+- **The migration**, generated on the Rock and hand-edited twice. See the gate below for what is and
+  is not verified about it.
+
+**Acceptance case status: `docs/DESIGN-working-drafts.md` §7, which is the only document that may
+carry it.** This line used to duplicate the list and was stale within days.
+
+**Regression coverage for the four fixes in `206252a`** — that commit changed three production files
+and no test, which is what let a reviewer ask, correctly, whether any of it was pinned. Now:
+`tests/unit/recoveryParse.spec.ts` (the malformed-`document` 400 and the body ceiling, including the
+assertion that matters — the body is never read), `tests/int/editRecoveryMetadata.int.spec.ts`
+(tombstones absent, and `bytes` banded against the compact serialised size), and
+`tests/unit/editRecoveryMigrationOrder.spec.ts` (the rollback's statement order). **Each was watched
+failing against a deliberately reverted fix before being kept** — five mutations, five named
+assertions red, all reverted. A guard never observed failing is a guess.
+
+## What is LEFT, in order
+
+⚑ Items 1, 2 and 4 of the previous version of this list — the six operations, the rate-limit bucket
+and the migration — are **BUILT** and are described under "What is DONE" above. They were still listed
+here as unbuilt two commits after they landed; check this list against `git log`, not against memory.
+
+✅ **RESOLVED — the probe app image, the wire suite, migration gate step 4, AND save-as-new
+retirement.** `retire` now has all four designed callers: save-as-new joined discard, admin cleanup
+and expiry on 2026-08-06.
+
+**PR 1 (server) is FEATURE-COMPLETE.** What remains before merge is judgement, not construction:
+
+1. **Nothing is blocking. The next step is a decision about merging**, and the PR should stay a draft
+   until you make it deliberately. Everything the design assigned to PR 1 is built and executing;
+   the remaining cases are PR 2 client cases and cannot run without a client — see
+   `docs/DESIGN-working-drafts.md` §7 for which, and "Next steps" item 3 for PR 2. ⚑ This sentence
+   used to enumerate them and had already gone stale in the direction that matters: it listed case 14
+   as outstanding when 14 executes in `recovery.http.spec.ts`.
+
+   Worth knowing before merge: **no client sends a recovery token yet**, so on `main` this feature is
+   inert by construction — every save takes the no-token path and retires nothing. That is the point
+   of the optional token, and it is what makes merging ahead of PR 2 safe rather than a flag day.
+
+   ### The implementation contract, as BUILT (operator review, 2026-08-06)
+
+   **The recovery token is OPTIONAL, because PR 1 is server-only and no client sends one yet.** That
+   is what keeps this shippable ahead of PR 2 rather than a flag day:
+
+   | Body | Behaviour |
+   |---|---|
+   | no token | existing save behaviour, unchanged; **nothing is retired** |
+   | `generation` **and** `expectedRevision` | retirement is **mandatory** |
+   | exactly one of the two | **400** — a half-token is a client bug, not a no-op |
+
+   ⚑ **Carry the token OUTSIDE the lesson document** — a separate multipart field, not a key in the
+   bundle. A Site Admin editing the raw document must not be able to persist recovery metadata as
+   lesson content, and the field-split whitelist is not a defence against a key that was never
+   supposed to be in the document in the first place.
+
+   **Inside each semver retry attempt, in this order:**
+
+   1. create the candidate version
+   2. retire the capture using the **same transactional `req`**
+   3. on a retirement conflict, throw a dedicated 409
+   4. only then perform the optional source deletion
+   5. commit, and return the retirement token
+
+   ⚑ **The two conflicts are not the same and the retry loop must tell them apart.** A semver
+   conflict rolls back and **retries**; a recovery conflict rolls back and is **NEVER retried**. The
+   reason, stated precisely: the token is fixed at request time, so every retry re-runs an identical,
+   identically-failing precondition — wasted transactions ending in the same 409, not a second
+   chance. It would NOT destroy the newer capture; the CAS keeps refusing it, which is the fencing
+   working. That distinction IS case 20.
+
+   **Tests: `tests/http/saveAsNewRecovery.http.spec.ts`.** Which cases, and their status: DESIGN §7.
+   A per-case list lived here too and had already gone stale twice — it claimed six cases after a
+   seventh landed, and still described case 20 in its pre-barrier form.
+
+   ⚑ **Case 20 counts retirement STATEMENTS rather than inferring "not retried" from the outcome** —
+   the obvious version of that test passes a loop that retried five times. Why, and the two tricks
+   the counting needs: DECISIONS 2026-08-06 (save-as-new retirement, i).
+
+   ⚑ **`tests/http` now runs `fileParallelism: false`**, matching the int suite and Playwright. The
+   binding reason is the namespace-wide fixture purge, not this feature's triggers: DECISIONS
+   2026-08-06 (save-as-new retirement, ii), and `tests/helpers/fixtures.ts` on `MARK`, which is the
+   authority.
+
+## The migration gate — all four steps, in order
+
+1. ✅ Generate the migration on the Rock (Node 22) once the schema is settled.
+2. ✅ Review **both** `up` and `down`. Two hand edits were needed and BOTH were found by running the
+   rollback rather than reading it: the locked-documents FK must be dropped before the CASCADE that
+   would already have removed it, and this task's `payload_jobs`/`payload_jobs_log` rows must be
+   deleted before the `task_slug` enum shrink casts them into a type that no longer lists them. That
+   ordering is now pinned by `tests/unit/editRecoveryMigrationOrder.spec.ts`, because the realistic
+   way to lose a hand edit is regeneration, and the file's "do not tidy this back" comment is a
+   request rather than a guard.
+3. ✅ Apply to a **completely fresh migration-only database with push disabled** — never the probe's
+   `lesson3`, which already has the table from a push-mode run and is therefore contaminated.
+⚑ **`git diff --check` reports mixed indent and trailing whitespace in the generated migration, and
+that is CORRECT to leave alone.** Payload's generator emits `  \t"col" …` inside a template literal;
+every migration in the tree does the same (`20260608_024132_initial.ts` 65 hits,
+`20260608_145602_lesson_entities.ts` 108, `20260608_224715_bundle_versioning.ts` 94). It is not a CI
+gate — nothing in `.github/` or `scripts/` runs `diff --check`. Normalising this one file would make it
+the only migration that diverges from generator output, which costs the next regeneration a spurious
+diff and buys nothing. Check `diff --check` on hand-written files; expect it to be noisy on generated
+ones.
+
+4. ✅ **DONE (2026-08-06), both halves.** The `lesson3` database was dropped and recreated, all 20
+   migrations applied to it from empty, and the **full wire suite ran against it with
+   `NODE_ENV=production`** — push OFF, so the schema could only have come from migrations. 125/125,
+   and that suite drives `save-as-new?deleteSource=true` and `make-official?deletePrevious=true`
+   directly (`tests/http/endpoints.http.spec.ts`), which is the part the gate demanded and previous
+   runs had substituted a cascade test for.
+
+   The second half is closed too: **`test:http` no longer pushes in CI.** `.github/workflows/ci.yml`
+   passes `-e NODE_ENV=production` on that step alone. ⚑ Not in the synthetic `.env` — `test:int`
+   DEPENDS on dev-mode push to build `lesson3_test` from the model, so the two steps want opposite
+   things and the setting has to be per-step. That closes the blind spot that let a collection with
+   no migration go green here while being undeployable.
+
+## Cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
+
+Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
+diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is urgent; both are real.
+
+- **The Content-Length pre-parse guard now exists in THREE hand-written copies** —
+  `endpoints/previewParse.ts`, `endpoints/uploadBundles.ts` and now `endpoints/recoveryParse.ts` —
+  each re-explaining the same "the header may be absent or dishonest" caveat in its own words. The
+  rule of three is reached. The extraction is `assertBodyWithin(req, maxBytes, message)` in shared
+  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Share the
+  CHECK, not the constants** — the three limits measure different payload classes and must stay
+  independent; coupling the numbers is the hazard, not the duplication. Worth doing with the next
+  change that touches any of those files.
+  Deeper version, if anyone wants it: `emailVersion.ts`, `forgotPassword.ts`, `markMessagesRead.ts`
+  and `userAssignments.ts` all call `req.json()` unguarded, so "no request may make the process
+  allocate an unbounded body" is currently opt-in and therefore permanently incomplete — every new
+  JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
+  And the part no application-layer guard can do — a body with a missing or lying header — wants a
+  limit at the proxy/Next layer; there is none in the repo today.
+
+- **Test-DDL helpers want their own module — on the SECOND SPEC FILE, not the third mechanism.**
+  `tests/http/saveAsNewRecovery.http.spec.ts` now installs three Postgres mechanisms (a fault trigger,
+  a statement counter, a barrier) and holds the generic primitives `seqCreate`/`seqDrop`/`seqValue` at
+  file scope. That is three mechanisms with ONE consumer, and the rule of three counts consumers — so
+  extracting now would be speculative generality. The moment a second spec needs fault injection, it
+  will otherwise re-derive all of: `nextval` survives rollback, the `is_called` normalisation, the
+  one-command-per-`execute` prepared-statement trap, drop-before-create, and the naming/scoping rules.
+  That re-derivation is exactly what `tests/helpers/db.ts` was created to end, and it is the natural
+  home. Take the conventions with it: **one `lesson3_<spec>_*` prefix per spec file**, `WHEN`-scope
+  every row-level trigger, take the baseline immediately before the measured window where a trigger
+  cannot be scoped (`FOR EACH STATEMENT` forbids `WHEN`), and drop in `finally`.
+
+  ⚑ **If a second barrier is ever needed, reach for `pg_advisory_xact_lock` instead of the polling
+  table.** The test holds the lock inside a Payload transaction (`initTransaction` gives the
+  connection affinity a pooled drizzle handle lacks) and the trigger body becomes one `PERFORM`. That
+  deletes the barrier table, the plpgsql loop, `pg_sleep`, the iteration bound and the
+  open-first-in-`finally` dance, and it wakes instantly rather than within 50 ms. The current shape
+  was kept because it self-heals: a test that dies before releasing parks the request only until the
+  loop bound, whereas an advisory lock is held until the connection closes. Not worth churning the
+  one that exists and passes.
+
+- **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect this branch just
+  fixed.** Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
+  a value — with **no** `DELETE FROM payload_jobs*` before the cast, so it aborts on any database
+  where the removed task had ever run. The other four enum-shrinking migrations all carry the
+  deletes. Found while checking whether `editRecoveryMigrationOrder.spec.ts` could be generalized
+  across all migrations: **it cannot, yet** — a glob-based check fails on this file, and an allowlist
+  exempting it would hollow out the guard. Fix that migration first, then generalize the test; the
+  generalized form is what would guard the NEXT `migrate:create`, which is where the generator will
+  reproduce this defect again. This is a correctness change to a stable migration, so it wants
+  `/code-review` rather than a cleanup pass.
+
+## Two known defects OUTSIDE this branch's diff, tracked here because they will otherwise be lost
+
+- **`endpoints/userAssignments.ts` (~line 81) has a fail-OPEN copy of the transaction lookup.**
+  `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
+  session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
+  `SELECT … FOR UPDATE` on a pooled connection OUTSIDE the transaction it exists to serialise —
+  defeating the row lock that stops two concurrent role changes both passing the freshness check.
+  Migrating it is a behaviour change on code outside this diff, so it was deliberately not done in
+  passing.
+- **Three near-identical cascade factories** (`Favorites`, `Messages`, `EditRecovery`) restate the
+  23502 NOT-NULL rule in four docblocks and enforce it nowhere. The prize is not DRY — it is a wiring
+  test that walks the config, finds every collection with a required relationship, and asserts the
+  parent's `beforeDelete` carries a cascade for it. The failure mode is OMISSION, and it surfaces in
+  production as an opaque error.
+
+## How to run the tests (the probe recipe is in `AGENTS.md` — read it, there are two traps)
+
+Short version: `docker compose -p lesson3-ci-probe up -d --build`, always pass `-p`, put
+`-e NODE_ENV=test` on the `docker run` (NOT on `docker compose up`), repoint the TRACKED `app/test.env`
+and restore it afterwards with `git diff --exit-code -- app/test.env`. A long session exhausts the
+shared daily rate-limit budgets and unrelated specs start failing; the reset command is in AGENTS.md.
+
+---
+
+# Landed 2026-08-05 — the env-parity + edit-recovery-design stack is IN `main`
+
+`chore/env-template-parity` was merged (squash, head branch deleted) after ten review rounds. Nothing
+about it is pending and there is nothing to recover; this section is history, kept because those rounds
+produced rules that outlive them.
+
+**Where the reasoning lives:** `docs/CHANGELOG.md` (2026-08-05) for what shipped; `docs/DECISIONS.md`
+(2026-08-05) for the durable rules.
+
+**It needs no deploy**: documentation, two config templates, one unit test, one CI mount, one docstring.
+
+## What that stack contained
 
 All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
 **No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
@@ -115,20 +381,36 @@ secret-free-to-publish, so **ask the operator**:
 
 ### Next steps, in priority order
 
-1. **Land the branch.** It is pushed and its PR is open; the gate has passed once. Confirm that is still
-   true (`gh pr list` above), then merge — required reviews are 0. Nothing else on this list should start
-   before it is merged, because item 2 builds on these documents.
+1. **✓ Land the branch — DONE 2026-08-05.** Merged as the squash commit on `main` titled
+   *"config+docs: env templates reconciled behind a parity test; edit recovery approved for build"*.
+   Item 2 is now the live priority.
 2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
-   losing user work today.* Collection + access closure + five endpoints + projection + fencing + shared
-   retirement function + two parent cascades + expiry job + migration (generated on the Rock per the
-   Node-22 workflow). Read `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original
-   draft did not survive review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int`
-   access matrix, `tests/http` wire authz, projection units, DB-backed concurrency (cases 15, 17–25,
-   28–30).
+   losing user work today.* Collection + access closure + the endpoints + projection + fencing + shared
+   retirement function (**four** callers: save-as-new, discard, expiry, Site-Admin cleanup) + two parent
+   cascades + expiry job + migration (generated on the Rock per the Node-22 workflow). Read
+   `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original draft did not survive
+   review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
+   `tests/http` wire authz, projection units, DB-backed concurrency; per-case assignment and status
+   are §7's, not this list's.
+
+   ⚑ **STATE, and the two traps, are in the HANDOFF BLOCK at the top of this file** — where the work
+   is, what is done, what is left, the migration gate, and the two known defects outside the branch's
+   diff. Not restated here, because two copies of a status drift and the top one is what a new session
+   reads first.
+
+   Two contract details worth carrying into the endpoint work, since they change its scope:
+   - **Five table rows, SIX operations, FOUR URL paths.** §2's endpoint table bundles Site-Admin metadata and cleanup
+     on one line, and the cleanup verb is unspecified — settle it. The wire-authz rule is per
+     OPERATION, so that is six sets of 401/403/404 plus happy path.
+   - **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload
+     bypasses collection access and closed-collection tests pass without testing anything. House
+     pattern: the docblock of `tests/int/access.int.spec.ts`.
+
 3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
-   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. Playwright
-   cases 1–13, 26–27. Case 5 (a different user on the same browser sees nothing) is what justifies the
-   whole server-side design.
+   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. The
+   Playwright cases it owes are §7's "NOT executing" list — this line used to name them and had
+   already drifted, claiming case 7 for PR 2 after the server implemented it. Case 5 (a different user
+   on the same browser sees nothing) is what justifies the whole server-side design.
 4. **The Official-pointer lock**, in parallel if there is capacity. An Official version can be deleted
    during a concurrent promotion (`hooks/bundleVersion.ts` read-then-write + `ON DELETE SET NULL`),
    destroying an approved snapshot. The fix is the existing in-house pattern — `lockSubjectGrades` in
@@ -163,8 +445,9 @@ carrying into the next PR:
 - **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
   written 40 lines below it and passed inspection twice, because each reading checked it against its own
   adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
-  those 30 cases are executed yet** — the doc says so explicitly, and it should keep saying so until they
-  are.
+  those 30 cases were executed when this was written.** What has executed since is §7's to say — this
+  sentence twice tried to keep its own copy in step and twice failed, which is the whole argument for
+  one authority.
 
 Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
 claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a

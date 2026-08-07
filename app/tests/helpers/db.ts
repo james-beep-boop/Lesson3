@@ -34,3 +34,17 @@ export async function clearRateLimitBuckets(payload: Payload, likePattern: strin
     sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${likePattern};`,
   )
 }
+
+/**
+ * Normalise a drizzle `execute` result to an array of rows.
+ *
+ * The adapter returns either a bare array or `{ rows }` depending on the driver path, so every caller
+ * that reads rows re-writes the same ternary — and because each one launders through `unknown`, a
+ * change in that shape is invisible to the compiler at all of them. There were four copies before
+ * this existed (`src/lib/txDb.ts`, `tests/helpers/editRecovery.ts`, and two added by one spec).
+ * Same charter as `drizzleOf` above: the one definition new code should use, with the pre-existing
+ * sites left as a landing place rather than rewritten in passing.
+ */
+export function rowsOf<T = Record<string, unknown>>(result: unknown): T[] {
+  return (Array.isArray(result) ? result : ((result as { rows?: unknown[] })?.rows ?? [])) as T[]
+}

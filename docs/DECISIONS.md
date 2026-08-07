@@ -5,13 +5,309 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 - **SPEC.md** remains canonical for *architecture and domain rules*. This file is for
   build-time decisions and corrections that don't rise to the level of spec changes.
-- **Newest entries on top.** Each entry: date, one-line title, then the decision/lesson
+- **Newest entries on top.** (No `(latest)` marker — it dates itself the moment another entry lands.) Each entry: date, one-line title, then the decision/lesson
   and the reasoning. When a correction teaches a general rule, capture the rule, not just
   the incident.
 
 ---
 
-## 2026-08-05 (latest) — the handoff block itself failed review, in the class it was documenting
+## 2026-08-06 (save-as-new retirement, iii) — the audit gate went red without a dependency change
+
+**What happened.** CI's `audit:prod` failed on a branch that does not touch `package-lock.json`. Not a
+regression from this work: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0–4.3.0, and
+the repo's `overrides` block pinned exactly 4.3.0. Advisory-database drift turns a green gate red with
+no commit in between, and that is normal, not alarming.
+
+**Decision: bump the existing pin to 4.3.1**, the patched release. One line in `overrides`, three in
+the lockfile, no dependency graph movement. That block already exists for precisely this
+(`undici`, `postcss`, `nodemailer`, `fast-uri`, `immutable`, `sharp` are all there for the same
+reason), so this is the house pattern rather than a new mechanism.
+
+⚑ **Do NOT run `npm audit fix --force`.** It proposes downgrading Payload to 2.x — a framework major
+downgrade to clear a transitive advisory, which would be catastrophic and is exactly the kind of
+"fix" an unattended command will happily apply.
+
+**The remaining 5 moderate advisories are deliberately NOT fixed.** They are `esbuild` ≤0.24.2 reached
+through `drizzle-kit` → `@payloadcms/db-postgres`, with **no fix available** upstream. The advisory is
+a DEV-SERVER issue (a website can make requests to an esbuild dev server and read the response);
+`drizzle-kit` is a build/migration tool that never runs in the served application. `audit:prod` runs
+`--audit-level=high` precisely so a moderate with no upstream fix does not block every merge — the
+threshold is the disposition, and it was chosen before this.
+
+**Rule:** *when an audit gate fails, first establish whether the LOCKFILE moved.* If it did not, this
+is advisory drift and the question is exploitability plus whether a patched version exists — not
+"what did I break". Both answers belong in writing, because the next person sees only a red gate.
+
+---
+
+## 2026-08-06 (save-as-new retirement, i) — a mutation that does not build is a FALSE PASS
+
+**The incident.** Verifying the new save-as-new retirement guards, two mutations were reverted and
+both "passed" — 6/6 green. Neither had been compiled. The mutation `if (false && recoveryToken)`
+narrowed the type and broke `tsc`, `next build` failed inside the Docker builder, no new image was
+produced, and the tests ran happily against the previous, CORRECT image. The build output had been
+sent to `/dev/null` to keep the loop quiet, so the failure was invisible.
+
+**Rule:** *a mutation harness must prove the mutated artefact is what ran.* Two cheap assertions turn
+a silent false pass into a loud error, and both are now in the loop used here: fail if the build
+fails (surfacing the type error), and fail if the image timestamp did not change. Without them the
+mutation test reports the OPPOSITE of the truth — "your guard is fine" when nothing was checked —
+which is worse than not running it, because it is believed.
+
+**Corollary that bit twice in one session:** *never silence the output of a step whose failure you
+are not otherwise checking.* This is the same shape as the `rm -rf app/app` that ran in the wrong
+directory and whose verification checked the same wrong path — the check has to be able to fail.
+
+**And a genuine finding it produced.** With the harness fixed, mutating "recovery conflict is
+retryable" failed only ONE assertion — the statement counter — while every outcome assertion stayed
+green. That is not a flaw in the mutation; it is the fact that **a retry leaves no observable trace
+in the outcome**. The token is fixed at request time, so every retry re-runs the same failing
+precondition and produces the same final state. Had the test not counted statements directly, it
+would have "covered" case 20 while being unable to detect the exact regression case 20 exists for.
+*When a property is about HOW MANY TIMES something happened, the outcome cannot testify to it.*
+
+---
+
+## 2026-08-06 (save-as-new retirement, ii) — one database, therefore one test file at a time
+
+**The defect.** `tests/http` had no `fileParallelism` setting, so vitest ran its files concurrently
+— against the single database the running app serves, which is the defining property of that suite.
+A Postgres trigger installed by `saveAsNewRecovery.http.spec.ts` to fault a retirement (matrix case
+19) fired inside `recovery.http.spec.ts`'s discard test in another worker, failing a spec that had no
+relationship to it. It appeared only in full-suite runs; both files passed alone.
+
+**Rule:** *a suite whose fixtures share one mutable database must not run its files in parallel.*
+The seconds saved are not worth failures that materialise only in the full run, which is the worst
+place to find them and the easiest place to dismiss as flake.
+
+⚑ **Correction to the first version of this entry, which said `tests/int` "is unaffected" because it
+has its own database.** That was wrong twice over. `vitest.config.mts` has set `fileParallelism: false`
+all along, and `playwright.config.ts` pins `workers: 1` — this http config was simply the one place
+MISSING the setting. And the binding reason is not the database boundary at all: `setupRoleFixture`
+opens with a namespace-wide `purgeMarked` sweep that reaches a concurrent run's rows, which
+`tests/helpers/fixtures.ts` documents on `MARK` and is the authority. The case-19 trigger was the
+DETECTOR, not the cause.
+
+**Second, independent fix, because one was not enough:** the trigger is now scoped with a `WHEN`
+clause to its own row. A database-wide `RAISE EXCEPTION` trigger is a landmine to leave lying around
+whatever the runner happens to do, and defence should not depend on a config setting a future change
+might flip back.
+
+⚑ **A trap worth knowing on the way:** adding that `WHEN (NEW.source_version_id = ${id})` clause broke
+the trigger install with "cannot insert multiple commands into a prepared statement". Binding a
+parameter moves drizzle from the simple-query path to a PREPARED statement, and a prepared statement
+may carry only one command — so multi-command DDL that worked unparameterised fails the moment any
+value is bound. Split DDL one command per `execute`.
+
+---
+
+## 2026-08-06 (regression-coverage pass, i) — a fix commit that changes no test is an unpinned fix
+
+**The correction.** `206252a` fixed four defects, two of them data-destroying, and touched exactly
+three production files and zero tests. Every one of the four was real and correctly fixed; not one was
+pinned. A reviewer asked the obvious question — what stops any of these regressing? — and the honest
+answer was nothing. The commit message was scrupulous about what had *not* been verified, which is
+good practice and is not a substitute for a test.
+
+**Rule:** *the diff of a fix commit should almost always contain a test file.* Not as ceremony: the
+defects worth fixing are by definition the ones that survived review, so review is demonstrably not
+what catches them. If a fix genuinely cannot be pinned at a proportionate cost, say so in the commit
+message and name what would be needed — do not leave the absence implicit.
+
+**What the pinning looked like here**, because the level differed per fix and choosing the level is
+most of the work:
+
+- **The malformed-`document` guard** got a UNIT test, which meant extracting the body guards into
+  `endpoints/recoveryParse.ts` — the same split, for the same reason, that `previewParse.ts` already
+  represents. The payoff was immediate: the wire suite cannot run at all right now (broken probe app
+  image), so an endpoint-only test would have been written and never executed. **Pure HTTP semantics
+  belong in a module that does not import the world.** The wire suite keeps the half only it can
+  prove: that the rejected capture left the previously captured prose intact.
+- **The tombstone filter and the byte quantity** got an INT test, because both are properties of one
+  SQL statement and neither is visible from outside the database. A wire test cannot observe the
+  absence of a row it was never shown.
+- **The migration's rollback ordering** got a SOURCE-TEXT test asserting statement order. Weak as
+  execution proof, and deliberately so — the real failure mode is not "the SQL is wrong" but "the hand
+  edit is lost on regeneration", and a text-order check catches exactly that. The migration file
+  carries a "do not tidy this back" comment; a comment is a request, a test is a guard.
+
+**And the rule that made all of it worth keeping:** every one of the five new guards was watched
+FAILING against a deliberately reverted fix, then reverted back. This is the 2026-08-05 lesson
+(*a guard never observed failing is a guess*) applied to guards written *for* a fix rather than
+during one. It paid for itself twice. The migration-order test failed on its first run for the wrong
+reason — its matcher was finding the statement quoted inside a `--` comment, since the hand-edit notes
+deliberately quote the SQL they describe, and it reported the order as reversed. **A test that reads
+source text must read only the part that executes.** And the byte-band assertion in the metadata spec
+was tight enough to go red when `octet_length` was reverted to `pg_column_size`, which is the only
+evidence that the band means anything.
+
+---
+
+## 2026-08-06 (regression-coverage pass, ii) — rate limiting bounds frequency, not per-request memory
+
+**The gap.** `endpoints/recovery.ts` called `req.json()` with no size guard. The 512 KB
+`MAX_CAPTURE_BYTES` cap runs in the kernel, *after* the body is parsed, and the `recovery` rate-limit
+bucket allows 120 requests a minute — so an authenticated editor could make the process materialise an
+arbitrarily large body 120 times a minute, and every layer that looked like a limit was measuring
+something else. The reasoning that produced this was "the endpoint is capped and rate limited",
+which was true and not responsive.
+
+**Rule:** *a byte cap enforced after parsing bounds what is STORED, not what is ALLOCATED, and a rate
+limit bounds frequency, not size. Neither is a body-size guard.* The repo already had the answer —
+`previewParse.ts` does a `Content-Length` pre-check before `formData()` buffers, with an honest
+docstring about the header being optional and possibly dishonest. Recovery was the one body-reading
+endpoint that had skipped the house pattern.
+
+**Sizing, which is the part that is easy to get wrong in the safe-looking direction.** The raw ceiling
+is 4 MB, NOT the 512 KB storage cap. `projectCapture` keeps only whitelisted prose fields, so it
+strictly shrinks its input: a legitimate form document is larger than its own projection, sometimes by
+a lot. Sizing the raw body at 512 KB would have rejected captures the storage cap accepts — losing
+exactly the unsaved work the feature exists to protect, while looking like defensive hardening. 4 MB
+is what `MAX_PREVIEW_JSON_BYTES` already puts on the same class of payload at a different endpoint.
+
+**The assertion that matters is not the status code.** `tests/unit/recoveryParse.spec.ts` asserts the
+413 *and* that `req.json()` was never called. A 413 returned after the body was already read costs
+precisely the memory the guard exists to refuse, and passes a status-code test.
+
+---
+
+## 2026-08-06 — a registered job is not a scheduled one; and enumerate-first only helps if you flip
+
+**The defect worth remembering.** `expireEditRecoveryTask` was written, registered in
+`payload.config.ts`, unit-tested, integration-tested, reviewed and committed — and would **never have
+run**. Registration teaches the job system that a task EXISTS; it neither queues it nor runs it. The
+30-day retention policy would have silently done nothing until someone manually queued it, and nothing
+in the test suite or the type system had an opinion about that.
+
+Fixed with `schedule: [{ cron, queue: 'default' }]` (Payload 3.85.1's `AutorunCronConfig
+.disableScheduling` defaults to false, so the existing autoRun cron handles schedules as well as queued
+jobs — verified in installed source). The durable part is the **wiring test**:
+`tests/unit/expireEditRecoveryTask.spec.ts` asserts the schedule exists, that its queue matches the one
+autoRun actually drains, and that the task is registered. Removing the schedule now fails a test.
+
+**Rule:** *a background job needs a test that it is SCHEDULED, not merely that it works.* Everything
+about a never-scheduled job looks correct in isolation — the handler is right, its tests pass, the
+config lists it. The gap is between two files that never reference each other, which is exactly the
+class no unit test finds by accident.
+
+**Corollary, and the reason this entry is here rather than in a commit message:** the same shape
+applies to the queue NAME. A schedule pointing at a queue no `autoRun` entry drains fails identically
+and just as silently, one layer along. The wiring test asserts both.
+
+---
+
+**Enumerate-first worked, and was not sufficient.** Before writing the expiry tests I wrote down every
+column the path touches and every input class it accepts (B1-B10), specifically because three earlier
+guards in this feature had each been pinned by asserting the effect I happened to be thinking about.
+The enumeration was a real improvement — and flips still found **four** of the tests it produced to be
+false coverage:
+
+1. **B8 (the cutoff boundary) was enforced in TWO independent places** — the SELECT and `retire`'s own
+   cutoff term — so "was it retired?" could not tell them apart, and loosening one left it green.
+2. **B6 and B4 asserted on a GLOBAL count** (`report.skipped`) that unrelated rows perturb.
+3. **B9 claimed to prove continue-on-conflict and created no conflict at all.**
+4. **B4 was not an interleaving**: the capture completed before the pass began, so the row was excluded
+   by the initial SELECT and nothing "landed after selection".
+5. And the enumeration listed a **B5 that never got a test** — the claim "every enumerated class has
+   one" was itself unverified.
+
+**Rule:** *enumerating the cases tells you WHAT to test; only flipping the code tells you whether the
+test does it.* The two are complementary and neither substitutes for the other. Enumeration prevents
+whole classes being forgotten; flipping catches the ones that were written but land on the wrong
+mechanism.
+
+**The structural fix that came out of it:** expiry is now `selectExpiredCaptures` + `retireSelected`,
+composed by `expireCaptures`. Within one call the SELECT and each UPDATE are adjacent, so nothing can
+move between them and the conflict branch is **unreachable** — a test could not exercise it, and a flip
+that broke it stayed green through two rewrites (one of which raced two concurrent passes and was
+merely probabilistic). Splitting the halves makes the interleaving deterministic without a test-only
+hook inside production code: the job still composes both, and the test drives them separately.
+
+**Also decided:** the expiry task takes **no input**. It previously accepted `ttlDays` and `limit`,
+which was unnecessary and unsafe — a negative `ttlDays` yields a cutoff in the FUTURE, and the pass
+would then retire every active capture in the system, destroying exactly the unsaved work the feature
+exists to protect. The policy is fixed at 30 days and 500 rows; the kernel still takes an injected
+cutoff and limit, which is the testing seam and is not reachable over the wire.
+
+---
+
+## 2026-08-06 — retirement advances the revision, NOT the generation (SPEC amendment)
+
+**The contradiction:** SPEC §5 and `DESIGN-working-drafts.md` §4 both said retirement "advances
+revision/generation". The `start` statement in the same design already advances the generation on
+REACTIVATION — so implementing the normative text literally would have advanced it twice per
+retire-then-reactivate cycle. §7 case 22, already shipped and passing, asserts a SINGLE advance across
+exactly that cycle, so the code and the spec were going to contradict each other the moment retirement
+was written.
+
+**Resolved in favour of the implemented model, because it gives each counter one meaning:**
+
+- `revision` fences concurrent WRITES and advances on every write to the row, retirement included.
+- `generation` identifies the active editing SESSION and advances only when a new session BEGINS —
+  that is, at reactivation, inside `start`.
+
+Retirement ends a session without beginning one, so it leaves the generation alone. Advancing it in
+both places makes "which session am I in" unanswerable by comparison, because the counter moves for two
+different reasons.
+
+Concretely: retirement is `content := NULL`, `retiredAt := now`, `updatedAt := now`, `revision += 1`;
+reactivation is `retiredAt := NULL`, `content := NULL`, fresh `baseUpdatedAt`/`schemaVersion`/
+`updatedAt`, `generation += 1`, `revision += 1`.
+
+Amended: `SPEC.md` §5 (normative), `DESIGN-working-drafts.md` §4, and §7 matrix case 7, which still
+described save-as-new as advancing the generation.
+
+**Rule this reinforces:** *a counter that advances for two different reasons has two meanings, and the
+second one is always discovered late.* The sweep that found case 7 is the same practice this file keeps
+recording — after changing a rule, grep for every place that states it, rather than fixing only the
+lines a reviewer cited.
+
+**Also decided, before implementation:** retirement's four callers are a discriminated union rather
+than one shape with optional precondition fields. They agree on what they WRITE and differ only in what
+they must PROVE, and those proofs are not interchangeable — with optional fields, expiry can omit its
+cutoff and retire an active session, and save-as-new can run without a transaction and commit a
+retirement independently of a save that rolled back. Under a union both are type errors, and
+"needs a transaction" is implied by the variant rather than passed at each call site.
+
+---
+
+## 2026-08-05 — edit recovery: the migration is generated AFTER the kernel, not before
+
+**Decision:** in PR 1, build and DB-test the persistence kernel (`start`, capture CAS, retirement,
+expiry) against the disposable **push**-built schema first, and only then generate the migration. The
+design's own build order put the migration earlier; this reverses that, deliberately.
+
+**Why:** the kernel is what discovers the schema's real requirements — a constraint, a column, or a
+composite index that capture's CAS, the active-count cap, or expiry selection actually needs. Generating
+the migration before those queries exist produces one of two bad outcomes: churn (regenerate repeatedly)
+or, worse, the temptation to amend an already-reviewed migration, which quietly invalidates the review.
+
+**The boundary, in order:**
+
+1. Build and DB-test `start`, capture, retirement, expiry against the disposable push schema.
+2. **Freeze** the collection schema and the raw-SQL column assumptions.
+3. Regenerate types and create the migration on the Rock (Node 22).
+4. Review **both** `up` and `down`.
+5. Apply to a **fresh migration-mode database with push disabled**.
+6. Re-run the kernel and concurrency tests **against that migrated schema**.
+
+⚑ **Step 6 is the load-bearing one and is not a formality.** Push proves the Payload *model*; only a
+fresh migration-mode run proves the *production artifact*. A kernel that passes only against a
+push-built schema has been tested against something the Rock will never run. These can differ — push
+infers from the model, the migration is generated code someone may have edited — and the difference is
+invisible until production.
+
+**Also decided:** `start` derives `lessonPlan`, `baseUpdatedAt` and `schemaVersion` **server-side from
+the authorized source version**, never from the client. A client-supplied `baseUpdatedAt` would let a
+caller defeat the staleness guard by asserting the source had not moved; a client-supplied
+`schemaVersion` would defeat the shape guard the same way; and a client-supplied `lessonPlan` would let
+a row be filed under a plan the caller does not hold rights to, corrupting admin metadata and cleanup
+scoping. All three are derivable from a source the endpoint has already re-authorized, so accepting
+them from the wire is a pure downside.
+
+---
+
+## 2026-08-05 — the handoff block itself failed review, in the class it was documenting
 
 The entry below closes with a stopping rule for the env-parity work. The handoff block written on top of
 it was then reviewed by a second model and found to contain four defects — **every one of them the same

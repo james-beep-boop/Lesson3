@@ -28,6 +28,25 @@ node_modules
 playwright-report
 test-results
 
+# ── ⚑ The stray `app/app/` directory — this one silently destroys the build ──────────────────────
+# This project's App Router lives at `src/app`. Next.js prefers a root-level `./app` over `./src/app`
+# when BOTH exist, so an empty `Lesson3/app/app/` makes `next build` emit a build with ZERO
+# application routes — no `/login`, no `/api/[...slug]`, nothing — and still exit 0. The served
+# container then 500s every request with a ChunkLoadError from `_not-found`, which points at the
+# bundler and not at the cause. That cost a session's worth of misdiagnosis, recorded as "the probe's
+# app image builds a broken standalone bundle".
+#
+# It is created BY ACCIDENT and is invisible: the AGENTS.md probe recipe runs
+# `docker run -v "$PWD/app:/app" -v /app/node_modules …` from the REPO ROOT, and running it from
+# inside `app/` instead makes Docker CREATE `Lesson3/app/app/node_modules` on the host. Git cannot
+# track an empty directory, so `git status` stays clean, the Rock and CI never see it, and only local
+# image builds break — which is exactly the shape that reads as "works everywhere except here".
+#
+# Ignoring it here means an image build cannot be poisoned by it even when it exists. ⚑ If this
+# project ever genuinely moves its App Router to a root-level `app/`, this rule must be DELETED, or
+# the same zero-route build returns with the cause hidden one layer deeper.
+/app
+
 # ── Deliberately NOT excluded ────────────────────────────────────────────────────────────────────
 # `src/` — the build needs it, and so does the `migrate` service, which runs from the `builder` stage
 #   because the slim runtime image has no Payload CLI.

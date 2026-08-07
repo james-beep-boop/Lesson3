@@ -8,10 +8,79 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-06 — edit recovery, PR 1: the server half (MERGED)
+
+Merged from `feat/edit-recovery-server` (squash). ⚑ **Carries a migration** — a deploy must run
+`migrate`, unlike the recent docs-only batches.
+
+⚑ **Inert on `main` until PR 2 (client) ships.** No client sends a recovery token, so every save takes
+the no-token path and retires nothing, and no capture is ever started. That is the optional-token
+contract doing its job: the server could land without a flag day, and nothing a user can reach
+changed on merge.
+
+- **The `edit-recovery` collection** — closed on all four operations for every role including Site
+  Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
+  plan→version→recovery path. DB-proven.
+- **The projection** — `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` so the save boundary and the capture boundary cannot drift apart, plus
+  `normaliseProseValue` for code units the jsonb column cannot carry (unpaired surrogates and U+0000 —
+  either of which previously made `capture` throw instead of returning a result).
+- **The fencing kernel, all four statements** — `start` (only insert/reactivate path, a total no-op on
+  resume), `capture` (CAS UPDATE, never an insert), `retire` (one transition, four callers, three
+  precondition shapes, with a real transaction-rollback test), `expireCaptures` (select + per-row CAS),
+  and `expireEditRecoveryTask` carrying a schedule so it actually runs.
+- **`src/lib/txDb.ts`** — the drizzle primitives extracted from the feature module, failing closed when
+  a `transactionID` has no resolvable session.
+- **SPEC amendment**: retirement advances the **revision**, not the generation. The normative text said
+  "revision/generation", which would have double-advanced across a retire-then-reactivate cycle and
+  contradicted matrix case 22.
+
+- **The six operations across four URL paths**, the `recovery` rate-limit bucket, and the migration.
+  (Design §2's table lists five rows because it bundles metadata and cleanup, and `/:id/recovery`
+  carries POST, GET and DELETE; the wire-authz rule counts OPERATIONS.) The body guards live in
+  `endpoints/recoveryParse.ts` rather than inline, so they are unit testable without a database or a
+  served app — the same split, for the same reason, as `previewParse.ts`.
+- **A raw-body ceiling before `req.json()`.** Rate limiting bounds how OFTEN an authenticated editor
+  may post, not how large a single post may be, so an oversized `Content-Length` is refused before the
+  body is materialised. It is deliberately not the kernel's 512 KB storage cap — see the
+  `MAX_RECOVERY_BODY_BYTES` docblock for the sizing, and DECISIONS 2026-08-06 for why.
+- **Regression coverage for four fixes that shipped without any**, each watched failing against a
+  deliberately reverted fix before being kept: the malformed-`document` guard and the body ceiling
+  (`tests/unit/recoveryParse.spec.ts`), tombstones absent from the admin metadata view and `bytes`
+  banded against the real serialised size (`tests/int/editRecoveryMetadata.int.spec.ts`), and the
+  rollback's statement order (`tests/unit/editRecoveryMigrationOrder.spec.ts`).
+- **The admin `bytes` figure is documented as APPROXIMATE.** `octet_length(content::text)` is the
+  right quantity where `pg_column_size` was the wrong one, but jsonb renders its text in Postgres's
+  canonical form — a space after every `:` and `,` — so it is consistently a few percent above the
+  compact `JSON.stringify` the 512 KB cap measures. The docblock said "the SAME quantity"; it no
+  longer does.
+
+- **Save-as-new retirement — the fourth and last `retire` caller.** `versionEdit.ts` now retires the
+  caller's capture inside the save's own transaction, after the candidate is created and BEFORE the
+  optional source delete (whose cascade would otherwise remove the row the precondition needs). The
+  recovery token is a SEPARATE multipart field, never a key in the bundle, so admin raw-document
+  editing cannot persist recovery metadata as lesson content. It is OPTIONAL — no token means the
+  pre-existing save behaviour and no retirement, which is what lets the server land before the client
+  — while a half-token is a 400 rather than a silent no-op. A retirement conflict is a 409 that is
+  **never retried**, unlike a semver conflict: the token is fixed at request time, so a retry re-runs
+  an identical, identically-failing precondition. (It would not destroy the newer capture — the CAS
+  keeps refusing it. Retrying is pointless work, not a data-loss path.)
+
+- **`audit:prod` unblocked without a dependency change.** The gate went red on a branch that does not
+  touch the lockfile: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0-4.3.0 and the
+  `overrides` block pinned exactly 4.3.0. Bumped to the patched 4.3.1 — one line, three in the
+  lockfile. The 5 remaining moderates (`esbuild` via `drizzle-kit`, no upstream fix, a dev-server
+  issue in a tool the served app never runs) are why the gate is `--audit-level=high`. ⚑ Never
+  `npm audit fix --force` here: it proposes downgrading Payload to 2.x.
+
+⚑ **Per-case acceptance status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else** — a
+suite total is not a case list. This entry deliberately quotes no case numbers: the first draft of it
+declared that rule and then enumerated the cases in the next sentence, which is precisely the second
+copy the rule exists to prevent.
+
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 
-A commit stack on `chore/env-template-parity`, branched from `main` `5843551`, landing by PR. See
-`docs/NEXT-SESSION.md` for the handoff state and how to land it.
+Merged to `main` from `chore/env-template-parity` (squash). No deploy required — see below.
 
 - **Both `.env.example` templates reconciled, and the sync made mechanical.** The root template — the
   file a Compose operator copies — declared **5 of the 58** variables the app reads. The consequential

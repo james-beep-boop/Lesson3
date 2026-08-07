@@ -46,6 +46,16 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_PREVIEW_MAX', 40),
     windowMs: positiveIntEnv('RATE_LIMIT_PREVIEW_WINDOW_MS', 60_000),
   },
+  // Edit-recovery capture/start/discard. Sized for the REAL worst case rather than a typical one: a
+  // teacher with several tabs open on one plan, each capturing on an ~8s idle debounce, each also
+  // flushing on blur, plus IdleLogout's pre-expiry flush. Too tight here does not merely annoy — a
+  // 429 that the client cannot retry through means unsaved work is not backed up, which is the
+  // failure this whole feature exists to prevent. A 429 must therefore be VISIBLE (Retry-After) and
+  // never silently swallowed (SPEC §5).
+  recovery: {
+    max: positiveIntEnv('RATE_LIMIT_RECOVERY_MAX', 120),
+    windowMs: positiveIntEnv('RATE_LIMIT_RECOVERY_WINDOW_MS', 60_000),
+  },
   // Synchronous unsaved "View as PDF" (editor): each call runs Gotenberg IN the request, so it is
   // tighter than both `preview` (mammoth, cheap) and `export` (async via the jobs queue). Rate here,
   // concurrency in `lib/conversionLimit.ts` — the two together bound the heavy synchronous path.
@@ -231,7 +241,11 @@ export async function enforceSharedRateLimit(
 }
 
 /** A small JSON error Response matching Payload's `{ errors: [{ message }] }` shape. */
-function jsonError(message: string, status: number, extraHeaders: Record<string, string> = {}): Response {
+function jsonError(
+  message: string,
+  status: number,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify({ errors: [{ message }] }), {
     status,
     headers: { 'Content-Type': 'application/json', ...extraHeaders },

@@ -267,10 +267,26 @@ observable contract, and a failed or backed-off capture must say so rather than 
     the TTL measures the age of the captured **content**, not of the session.
 - **Retirement is one state transition with four callers, and every caller carries a precondition.**
   Save-as-new, explicit discard, 30-day expiry and Site-Admin cleanup all atomically clear `content`,
-  mark retired, and advance revision/generation — one shared function, so "the same transition" is
-  testable rather than aspirational (which also means expiry cannot live in `scripts/prune-db.sh` as
-  SQL). **None hard-delete the marker.** The precondition differs per caller, and each is applied
-  inside the atomic update itself, never as a read-then-write:
+  mark retired, set `updatedAt`, and advance the **revision** — one shared function, so "the same
+  transition" is testable rather than aspirational (which also means expiry cannot live in
+  `scripts/prune-db.sh` as SQL). **None hard-delete the marker.** The precondition differs per caller,
+  and each is applied inside the atomic update itself, never as a read-then-write:
+  ⚑ **Retirement does NOT advance the generation** (amended 2026-08-06; earlier wording said
+  "revision/generation"). The two counters have one meaning each and the boundary is where a SESSION
+  begins, not where one ends:
+
+  - **`revision`** advances on every write to the row, retirement included — it fences concurrent
+    writes, so a tab holding a pre-retirement revision must be refused.
+  - **`generation`** identifies the active editing SESSION, and advances only when a new one begins —
+    i.e. at REACTIVATION, in `start`. Retirement ends a session without beginning one, so it leaves
+    the generation alone.
+
+  Advancing it in both places would double-count: one retire-then-reactivate cycle would move the
+  generation by two, and "which session am I in" stops being answerable by comparison. Retirement is
+  therefore `content := NULL`, `retiredAt := now`, `updatedAt := now`, `revision += 1`; reactivation is
+  `retiredAt := NULL`, `content := NULL`, fresh `baseUpdatedAt`/`schemaVersion`/`updatedAt`,
+  `generation += 1`, `revision += 1`.
+
   - **save-as-new** and **discard**: `generation` **and** `expectedRevision`.
   - **Site-Admin cleanup**: the `revision` returned by the metadata endpoint, so an operator cannot
     clear a capture that changed between looking and acting.
