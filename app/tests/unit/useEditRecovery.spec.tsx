@@ -71,21 +71,29 @@ function harness(initial: { active?: boolean; modified?: boolean; versionId?: st
     })
     ref.current = recovery
 
-    // Mirrors `LessonControls`: the hook does not start itself, so the consumer starts a session
-    // whenever the form is genuinely unlocked. Reproducing that here keeps the harness honest.
+    // Mirrors `LessonControls` exactly, INCLUDING its dependency on the version id — a different
+    // version starts a new session there, so it must here.
+    //
+    // ⚑ That dependency is load-bearing for the tests, not decoration. Without it the harness never
+    // re-started after a version change, so the new session had no token, so a stale retry timer
+    // no-opped on the token check and the version-change test passed whether or not the timer had
+    // been cancelled. A harness that is less faithful than the caller quietly turns a real assertion
+    // into a vacuous one.
     const { start } = recovery
     const activeNow = props.active as boolean
+    const versionNow = props.versionId as string
     React.useEffect(() => {
-      if (activeNow) start()
-    }, [activeNow, start])
+      if (activeNow && versionNow) start()
+    }, [activeNow, versionNow, start])
 
     return null
   }
 
-  render(<Probe />)
+  const { unmount } = render(<Probe />)
   return {
     ref,
     flushRef,
+    unmount,
     setProps: (p: Record<string, unknown>) => setProps((old) => ({ ...old, ...p })),
     bumpChange,
   }
@@ -387,20 +395,97 @@ describe('a 429 binds every capture path, not just the debounce', () => {
     ).toHaveLength(1)
   })
 
-  it('captures resume once the backoff has elapsed', async () => {
-    const h = await intoBackoff()
+  /**
+   * ⚑ Asserts the RETRY TIMER fires by itself, with no further edit.
+   *
+   * The first version of this test advanced past the deadline, then made an edit and waited out the
+   * debounce — which would have produced a second request even with the retry timer deleted
+   * entirely. It asserted `toBeGreaterThan(1)` and proved only that backoff does not latch forever.
+   * The promise the indicator makes is "retrying in Ns", so the retry has to be automatic.
+   */
+  it('retries AUTOMATICALLY once the backoff elapses, with no further edit', async () => {
+    await intoBackoff()
     await act(async () => {
       vi.advanceTimersByTime(61_000)
     })
     await flush()
-    await act(async () => {
-      h.bumpChange()
-    })
+    expect(captureCalls(), 'the scheduled retry must fire on its own').toHaveLength(2)
+  })
+})
+
+describe('a scheduled retry must not outlive its session', () => {
+  /**
+   * ⚑ The retry timer is the one piece of session state that survives on its own. If a session ends
+   * while a 429 retry is scheduled, that timer still holds the OLD document and the OLD token — and
+   * the next editor resumes the very same server row. The stale retry advances the revision under
+   * it, and the capture from the editor the user is actually looking at then 409s, caused by one
+   * that no longer exists.
+   */
+  const intoBackoffThen = async () => {
+    let served = 0
+    handler = async (url) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      served += 1
+      return served === 1
+        ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
+        : jsonResponse(200, { token: token(2) })
+    }
+    const h = harness()
+    await flush()
     await act(async () => {
       vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
     })
     await flush()
-    expect(captureCalls().length, 'backoff must expire, not latch').toBeGreaterThan(1)
+    expect(captureCalls()).toHaveLength(1)
+    return h
+  }
+
+  it('UNMOUNTING during backoff cancels the retry', async () => {
+    const h = await intoBackoffThen()
+    await act(async () => {
+      h.unmount()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(61_000)
+    })
+    await flush()
+    expect(captureCalls(), 'a closed editor must not capture later').toHaveLength(1)
+  })
+
+  /**
+   * ⚑ THERE IS NO version-change test here, and the absence is deliberate.
+   *
+   * A surviving retry timer is genuinely UNOBSERVABLE across a version change: the reset clears the
+   * token and `retryNotBefore`, the new session starts and installs its own token, and its ordinary
+   * 8-second debounce fires long before the 60-second retry — so a stale timer can only produce one
+   * redundant capture of the CURRENT document with the CURRENT token, addressed to the CURRENT
+   * version. Nothing about that is distinguishable from correct behaviour by count, target or
+   * payload.
+   *
+   * `endSession()` still runs on the version-change path, because not leaking a timer is obviously
+   * right and costs one call. But a test was written for it, passed against the defect, and was
+   * deleted rather than kept — a green test that cannot fail is worse than no test, because it
+   * reports coverage that does not exist.
+   */
+  /**
+   * ⚑ This one asserts the PROPERTY, not the mechanism, and says so because it does not discriminate
+   * between them. Three separate guards independently prevent a capture here — the session reset
+   * nulls the token, `run()` checks `live.current.active`, and the timer is cancelled — so no single
+   * mutation makes it fail. It is kept because "a locked form never captures" is worth pinning
+   * whatever enforces it; it is NOT evidence that the timer cancellation works. Only the unmount
+   * test above is that.
+   */
+  it('leaving EDIT MODE during backoff sends no further capture', async () => {
+    const h = await intoBackoffThen()
+    await act(async () => {
+      h.setProps({ active: false })
+    })
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(61_000)
+    })
+    await flush()
+    expect(captureCalls(), 'a locked form must not capture later').toHaveLength(1)
   })
 })
 

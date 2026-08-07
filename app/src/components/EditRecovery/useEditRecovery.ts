@@ -367,25 +367,42 @@ export function useEditRecovery(args: {
     })
   }, [active, registerFlush, captureAndReport, clearTimer])
 
-  // Leaving edit mode — or switching version — ends the session for this mount.
-  useEffect(() => {
-    if (active) return
+  /**
+   * End the session: stop BOTH timers, invalidate anything in flight, drop all session state.
+   *
+   * ⚑ One function because there are three ways a session ends — leaving edit mode, switching
+   * version, and unmounting — and they were drifting apart. The version-change path had been
+   * resetting state without stopping the timers, which left a scheduled 429 RETRY alive: it would
+   * fire later holding the old document and the old token, against the row the NEXT editor is now
+   * resuming, and advance the revision under it. The next capture from the editor the user is
+   * actually looking at then 409s, caused by one that no longer exists.
+   */
+  const endSession = useCallback(() => {
     clearAllTimers()
     // Bumping the epoch is what makes this a real teardown: any request still in flight will now
     // discard its own result instead of installing it over whatever comes next.
     epoch.current += 1
     inFlight.current = null
     session.current = { token: null, started: false, oversized: null, retryNotBefore: 0 }
+  }, [clearAllTimers])
+
+  // Leaving edit mode.
+  useEffect(() => {
+    if (active) return
+    endSession()
     setReady(false)
-  }, [active, clearAllTimers])
+  }, [active, endSession])
 
   // A different version is a different session, even without leaving edit mode.
   useEffect(() => {
-    epoch.current += 1
-    inFlight.current = null
-    session.current = { token: null, started: false, oversized: null, retryNotBefore: 0 }
+    endSession()
     setReady(false)
-  }, [versionId])
+  }, [versionId, endSession])
+
+  // ⚑ UNMOUNT, which neither effect above covers: both are no-ops while `active` stays true and the
+  // version does not change, so closing the editor mid-backoff previously left the retry scheduled.
+  // A cleanup with stable deps runs only on unmount, which is exactly the moment meant.
+  useEffect(() => () => endSession(), [endSession])
 
   // ⚑ `off` is DERIVED, not stored. Setting it from the effect above would be a setState-in-effect
   // cascade (and the lint rejects it), and it would also be a second source of truth for something
