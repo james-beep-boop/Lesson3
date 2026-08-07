@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-06 (save-as-new retirement, iii) — the audit gate went red without a dependency change
+
+**What happened.** CI's `audit:prod` failed on a branch that does not touch `package-lock.json`. Not a
+regression from this work: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0–4.3.0, and
+the repo's `overrides` block pinned exactly 4.3.0. Advisory-database drift turns a green gate red with
+no commit in between, and that is normal, not alarming.
+
+**Decision: bump the existing pin to 4.3.1**, the patched release. One line in `overrides`, three in
+the lockfile, no dependency graph movement. That block already exists for precisely this
+(`undici`, `postcss`, `nodemailer`, `fast-uri`, `immutable`, `sharp` are all there for the same
+reason), so this is the house pattern rather than a new mechanism.
+
+⚑ **Do NOT run `npm audit fix --force`.** It proposes downgrading Payload to 2.x — a framework major
+downgrade to clear a transitive advisory, which would be catastrophic and is exactly the kind of
+"fix" an unattended command will happily apply.
+
+**The remaining 5 moderate advisories are deliberately NOT fixed.** They are `esbuild` ≤0.24.2 reached
+through `drizzle-kit` → `@payloadcms/db-postgres`, with **no fix available** upstream. The advisory is
+a DEV-SERVER issue (a website can make requests to an esbuild dev server and read the response);
+`drizzle-kit` is a build/migration tool that never runs in the served application. `audit:prod` runs
+`--audit-level=high` precisely so a moderate with no upstream fix does not block every merge — the
+threshold is the disposition, and it was chosen before this.
+
+**Rule:** *when an audit gate fails, first establish whether the LOCKFILE moved.* If it did not, this
+is advisory drift and the question is exploitability plus whether a patched version exists — not
+"what did I break". Both answers belong in writing, because the next person sees only a red gate.
+
+---
+
 ## 2026-08-06 (save-as-new retirement, i) — a mutation that does not build is a FALSE PASS
 
 **The incident.** Verifying the new save-as-new retirement guards, two mutations were reverted and
@@ -49,9 +78,15 @@ relationship to it. It appeared only in full-suite runs; both files passed alone
 
 **Rule:** *a suite whose fixtures share one mutable database must not run its files in parallel.*
 The seconds saved are not worth failures that materialise only in the full run, which is the worst
-place to find them and the easiest place to dismiss as flake. `tests/int` is unaffected — its
-`vitest.setup.ts` points it at a separate `lesson3_test` database, which is the property that makes
-parallelism safe there and is worth preserving deliberately.
+place to find them and the easiest place to dismiss as flake.
+
+⚑ **Correction to the first version of this entry, which said `tests/int` "is unaffected" because it
+has its own database.** That was wrong twice over. `vitest.config.mts` has set `fileParallelism: false`
+all along, and `playwright.config.ts` pins `workers: 1` — this http config was simply the one place
+MISSING the setting. And the binding reason is not the database boundary at all: `setupRoleFixture`
+opens with a namespace-wide `purgeMarked` sweep that reaches a concurrent run's rows, which
+`tests/helpers/fixtures.ts` documents on `MARK` and is the authority. The case-19 trigger was the
+DETECTOR, not the cause.
 
 **Second, independent fix, because one was not enough:** the trigger is now scoped with a `WHEN`
 clause to its own row. A database-wide `RAISE EXCEPTION` trigger is a landmine to leave lying around

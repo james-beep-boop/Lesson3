@@ -80,12 +80,14 @@ The migration exists (closed first). The wire suite has RUN — 27/27 on recover
 against a migration-only schema with push off — and migration gate step 4 is complete, both halves
 (closed 2026-08-06, see below).
 
-**The remaining reason is a FEATURE GAP, not a test gap: save-as-new retirement is not built.**
-`endpoints/versionEdit.ts` never calls `retire`, so a successful save leaves the capture ACTIVE with
-its content intact. Matrix case 7 does not hold, and cases 19-20 cannot be written honestly. The
-125/125 wire result proves migration and schema compatibility; it does not prove edit recovery is
-complete, and it must not be quoted as if it did. Details and the implementation contract are in item
-1 of "What is LEFT".
+**Save-as-new retirement is now BUILT too** (2026-08-06, later): `versionEdit.ts` retires inside the
+save's transaction, and matrix cases 7, 19, 20 and 29 execute over the wire. An earlier version of
+this paragraph said it was unbuilt and was left standing after it shipped — it now contradicted a
+section forty lines below. ⚑ **Do not quote a wire-suite total as proof that edit recovery is
+complete.** It proves migration and schema compatibility plus the cases actually written; the
+per-case status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else.
+
+**What keeps it a draft is a judgement call plus one external gate** — see "What is LEFT".
 
 The paragraph below is kept because it is the demonstration that made the migration non-negotiable.
 ⚑ The CI blind spot it describes is CLOSED as of 2026-08-06 — `test:http` runs with

@@ -46,9 +46,14 @@ const SEMVER_CONFLICT_RETRIES = 4
  * ⚑ **Its entire purpose is to be UNRETRYABLE**, which is what makes it a distinct type rather than a
  * bare `APIError(…, 409)`. A semver conflict means "someone took the version number, recompute and go
  * again" — retrying is correct and invisible. A recovery conflict means "another tab captured newer
- * work after you built this request", and retrying it would re-run the retirement against the
- * revision that has since advanced, destroying precisely the unsaved work the precondition just
- * protected. The two conflicts arrive at the same `catch` and must never be confused there.
+ * work after you built this request", and no retry can fix that: the token is fixed at request time,
+ * so every attempt re-runs the SAME failing precondition. Retrying is therefore pointless work and a
+ * category error, four extra transactions ending in the same 409.
+ *
+ * ⚑ Stated precisely, because an earlier version of this comment overclaimed: a retry would NOT
+ * destroy the newer capture — the CAS keeps refusing it, which is the fencing working. The reason to
+ * refuse the retry is that "retry" means "the conflict may have cleared", and for a stale token it
+ * provably has not. The two conflicts arrive at the same `catch` and must never be confused there.
  *
  * The kernel returns `{ ok: false }` rather than throwing a database error, so this could not be
  * mistaken for a semver conflict by accident today. It is a named type anyway, and the retry guard
@@ -125,12 +130,15 @@ export const saveAsNewEndpoint: Endpoint = {
     // alongside the candidate because `req.formData()` is single-consumption and the edit-recovery
     // token is a separate field on it (see `readSaveRecoveryToken`).
     //
-    // ⚑ `parsed` is released immediately. The `FormData` holds the raw `data` string — up to
-    // `MAX_PREVIEW_JSON_BYTES` (4 MB) — and a binding in this async scope stays reachable across
-    // EVERY await below: the field split, both canonicalisations, the transaction, the create, the
-    // retire, the delete, the commit, and up to five retry attempts. Before this endpoint needed the
-    // form, that string died when `parsePreviewCandidate` returned. Nulling the reference restores
-    // that, and costs one line.
+    // ⚑ `parsed` is released as soon as the token is read. The `FormData` holds the raw `data` string
+    // — up to `MAX_PREVIEW_JSON_BYTES` (4 MB) — and this binding is in scope for every await below:
+    // the field split, both canonicalisations, the transaction, the create, the retire, the delete,
+    // the commit, and up to five retry attempts. Before this endpoint needed the form, that string
+    // became collectable when `parsePreviewCandidate` returned.
+    //
+    // Stated as what it is: an explicit release of a large reference that is dead after this line,
+    // costing one line. NOT a measured regression — whether V8 actually retains a captured-but-unused
+    // binding across awaits depends on its liveness analysis, and that was not profiled here.
     let parsed: { candidate: Record<string, unknown>; form: FormData } | null =
       await parsePreviewForm(req)
     const edited = parsed.candidate
@@ -229,14 +237,18 @@ export const saveAsNewEndpoint: Endpoint = {
         })
 
         // ⚑ RETIREMENT RUNS HERE — after the candidate exists, BEFORE the optional source delete,
-        // and on the SAME transactional `req` (design §336). The ordering is load-bearing in both
-        // directions:
+        // and on the SAME transactional `req` (design §336).
         //
-        //   - after the create, because retiring for a save that then fails would clear a capture for
-        //     work that was never persisted; the shared transaction is what undoes it (case 19)
-        //   - before the delete, because deleting the source cascades its recovery rows away, and a
+        // ⚑ The genuinely load-bearing constraints are BEFORE THE DELETE and BEFORE THE COMMIT:
+        //   - before the delete, because deleting the source cascades its recovery rows away, so a
         //     retirement afterwards would find no row and report a conflict for a save that
         //     succeeded — the precondition would be answering a question about a deleted row
+        //   - before the commit, and inside this transaction, so a failure anywhere in the save takes
+        //     the retirement with it and the capture survives (case 19)
+        //
+        // Placing it after the create is deliberate but NOT load-bearing on its own: retiring earlier
+        // in the same transaction would still roll back if the create failed. After the create simply
+        // keeps the order of events matching the order of the reasoning.
         //
         // `by: 'save-as-new'` selects `requireTransaction` inside the kernel, so this cannot silently
         // run on a pooled connection outside the transaction.
@@ -286,9 +298,9 @@ export const saveAsNewEndpoint: Endpoint = {
       } catch (e) {
         await killTransaction(req)
         // ⚑ A recovery conflict is NEVER retried, and it is tested before the semver check rather
-        // than relying on the two being distinguishable. Retrying would re-run retirement against a
-        // revision that has advanced since — silently destroying the newer capture whose existence
-        // is the only reason the precondition failed. That is §7 case 20.
+        // than relying on the two being distinguishable. The token is fixed at request time, so a
+        // retry re-runs an identical, identically-failing precondition — wasted transactions ending
+        // in the same 409, not a second chance. §7 case 20 pins the attempt count at one.
         if (e instanceof RecoveryConflictError) throw e
         if (isSemverConflict(e) && attempt < SEMVER_CONFLICT_RETRIES) continue
         throw e

@@ -10,11 +10,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## 2026-08-06 — edit recovery: the server kernel (IN PROGRESS, draft PR, NOT merged)
 
-Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged. The original
-blocker — no migration for a collection whose cascades run on every version and user delete — is now
-closed. It stays a draft because the **wire suite has never run** against these six operations and
-migration gate step 4 is partial, both blocked on the probe's broken app image. See the handoff block
-at the top of `docs/NEXT-SESSION.md`.
+Branch `feat/edit-recovery-server`, open as a **draft** PR and deliberately unmerged. Two earlier
+blockers are closed: the collection had no migration (fixed), and the wire suite had never run
+(it now does — the probe's app image was broken by a stray directory, not a bundler defect).
+Migration gate step 4 is complete. It stays a draft pending a merge decision and the `audit:prod`
+advisory disposition below. See the handoff block at the top of `docs/NEXT-SESSION.md`.
 
 - **The `edit-recovery` collection** — closed on all four operations for every role including Site
   Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
@@ -63,8 +63,17 @@ at the top of `docs/NEXT-SESSION.md`.
   **never retried**, unlike a semver conflict; retrying would destroy the newer capture the
   precondition just protected.
 
-Acceptance cases executing: 7, 15, 17-25, 30, plus the cap's C1-C8 — the whole server half of the
-matrix. PR 1 is feature-complete; cases 1-6, 8-14 and 26-27 are PR 2 client work.
+- **`audit:prod` unblocked without a dependency change.** The gate went red on a branch that does not
+  touch the lockfile: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0-4.3.0 and the
+  `overrides` block pinned exactly 4.3.0. Bumped to the patched 4.3.1 — one line, three in the
+  lockfile. The 5 remaining moderates (`esbuild` via `drizzle-kit`, no upstream fix, a dev-server
+  issue in a tool the served app never runs) are why the gate is `--audit-level=high`. ⚑ Never
+  `npm audit fix --force` here: it proposes downgrading Payload to 2.x.
+
+⚑ **Per-case acceptance status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else** — a
+suite total is not a case list. Executing on this branch: 7, 14-25, 29-30 plus the cap's C1-C8.
+Cases 1-6, 8-13 and 26-27 are PR 2 client work; 28 is re-assigned to unit (its subject, `applyCapture`,
+has no server-side caller).
 
 ## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
 

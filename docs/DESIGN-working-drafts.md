@@ -406,15 +406,36 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-**Status, as of 2026-08-06 (branch `feat/edit-recovery-server`, NOT merged).** Cases **15, 17-18,
-21-25 and 30 are implemented and passing on that branch** (30 via the expiry pass: a reactivated row is not selected, because `start` restarted its clock); every other case is still unexecuted because the
-code it covers does not exist. Update this line when that changes — a matrix that claims less coverage
-than it has trains readers to ignore it, and one that claims more is worse. This is the acceptance matrix
-the two PRs in §8 must satisfy, not a report.
+**Status, as of 2026-08-06 (branch `feat/edit-recovery-server`, NOT merged).** ⚑ **This line is the
+per-case authority. Nowhere else — not the CHANGELOG, not NEXT-SESSION — may claim a case is covered.**
+A suite total is not a case list, and quoting one as if it were is how "PR 1 is complete" got written
+before cases 20 and 29 existed.
+
+**EXECUTING and passing on that branch:**
+- **7, 19, 20, 29** — `tests/http/saveAsNewRecovery.http.spec.ts`, through the real save-as-new
+  transaction. 20 is a genuine interleaving (the save is parked mid-transaction by a database barrier
+  while a second capture lands), not a stale token prepared in advance; 19 injects a real Postgres
+  fault and proves it fired.
+- **14-16, 23-24** — `tests/http/recovery.http.spec.ts`, the six operations' wire authz plus the
+  Site-Admin metadata and cleanup guarantees.
+- **15, 17-18, 21-25, 30** — `tests/int/editRecovery*.int.spec.ts` (30 via the expiry pass: a
+  reactivated row is not selected, because `start` restarted its clock).
+
+**NOT executing:** 1-6, 8-13, 26-27 — all client cases, and PR 2's work.
+
+⚑ **Case 28 is RE-ASSIGNED from wire-level to unit, deliberately.** It is about `applyCapture`
+dropping an unknown row-id key, and `applyCapture` has **no server-side caller** — restoring is the
+client's job, so there is no endpoint for a wire test to drive. Its real coverage is
+`tests/unit/editRecoveryProjection.spec.ts` ("drops an unknown row-id key…"). When PR 2 builds the
+restore prompt, 28 gains a browser case; until then, wire-level was a layer this case could never
+have. Recorded rather than quietly ignored, because an unmeetable requirement in a matrix is how
+matrices stop being believed.
 
 Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
 **browser** (Playwright) for 1–13 and 26–27, since the defect is client-side; **DB-backed wire-level**
-(`tests/http`, which runs against the live app and its database) for 14–16, 23–24 and 28–29; and
+(`tests/http`, which runs against the live app and its database) for 14–16, 23–24 and 29 — plus 7, 19
+and 20, which the original split omitted because they were written before save-as-new retirement
+existed (28 moved to unit; see the status note below); and
 **DB-backed concurrency** (`tests/int`, needing two real transactions) for 17–22, 25 and 30. Case 29
 spans a chain of real requests against real rows, so it is wire-level *and* DB-backed — the two labels
 are not alternatives here.

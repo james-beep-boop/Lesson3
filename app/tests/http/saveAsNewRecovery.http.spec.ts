@@ -140,6 +140,37 @@ const versionExists = async (id: number): Promise<boolean> => {
   return totalDocs > 0
 }
 
+/**
+ * A NON-TRANSACTIONAL counter, for observing things that happen inside a transaction that then rolls
+ * back. `nextval` is explicitly exempt from rollback, which is the only reason these tests can see a
+ * statement that a `ROLLBACK` erased every other trace of. Names are literals in this file, so
+ * `sql.raw` carries no injection surface.
+ */
+const seqCreate = (name: string) => db().execute(sql.raw(`CREATE SEQUENCE IF NOT EXISTS ${name}`))
+const seqDrop = (name: string) => db().execute(sql.raw(`DROP SEQUENCE IF EXISTS ${name}`))
+const seqValue = async (name: string): Promise<number> => {
+  const rows = rowsOf<{ last_value: unknown; is_called: unknown }>(
+    await db().execute(sql.raw(`SELECT last_value, is_called FROM ${name}`)),
+  )
+  // A never-called sequence reports last_value 1 with is_called false; normalise both to a count.
+  return rows[0]?.is_called ? Number(rows[0].last_value) : 0
+}
+
+/** Poll until `read()` satisfies `done`, or fail loudly rather than hanging the suite. */
+async function waitFor(
+  what: string,
+  read: () => Promise<number>,
+  done: (n: number) => boolean,
+  timeoutMs = 20_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    if (done(await read())) return
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
+    await new Promise((r) => setTimeout(r, 50))
+  }
+}
+
 describe('C7 — a successful token-bearing save retires the capture', () => {
   it('clears the content, keeps the marker, advances the revision, leaves the generation', async () => {
     const v = await makeVersion()
@@ -205,37 +236,37 @@ describe('LEG — a save with NO token is unchanged, and retires nothing', () =>
 /**
  * ⚑ C19 — a REAL failing statement, not a mocked throw.
  *
- * The trigger below is installed on `edit_recovery` and raises on the retirement UPDATE, so the
- * failure comes from Postgres inside the endpoint's own transaction. What must hold afterwards: the
- * new version does NOT exist (the whole save rolled back with it) and the capture is untouched.
+ * A Postgres trigger raises on the retirement UPDATE, so the failure originates in the database
+ * inside the endpoint's own transaction, exactly as a genuine fault would. A mocked throw would prove
+ * only that the mock was called.
  *
- * ⚑ **It is SCOPED to this test's own row via a `WHEN` clause**, and that is not tidiness. The first
- * version fired on every row in the table; with vitest running http files in parallel it faulted the
- * discard test in `recovery.http.spec.ts` from another worker, failing a spec it had no relationship
- * with — and only when the whole suite ran, never when either file ran alone. `fileParallelism` is
- * now off for this suite as well, so this scoping is the second of two independent fixes: a
- * database-wide RAISE trigger is a landmine to leave lying around whatever the runner does.
+ * ⚑ **The fault is PROVEN to have fired, not assumed.** An earlier version accepted any status >= 400,
+ * which a validation error thrown BEFORE the retirement statement would also satisfy — with the
+ * version count and the capture equally untouched, and the test equally green, while testing nothing.
+ * The trigger now bumps a non-transactional sequence before raising, and the count is asserted at
+ * exactly one.
+ *
+ * ⚑ Scoped by `WHEN` to this test's own row: a database-wide RAISE trigger is a landmine regardless
+ * of what the runner does.
  */
 describe('C19 — a real database failure during retirement rolls the whole save back', () => {
-  /**
-   * ⚑ ONE COMMAND PER `execute`, and the id inlined rather than bound.
-   *
-   * A bound `${id}` makes drizzle send this as a PREPARED statement, and Postgres rejects a prepared
-   * statement carrying multiple commands — "cannot insert multiple commands into a prepared
-   * statement". The unparameterised version worked only because it took the simple-query path, so
-   * adding the `WHEN` clause broke it in a way that had nothing to do with the clause itself.
-   * Splitting the DDL keeps each statement single-command; the id is validated and interpolated,
-   * which is also what lets the `WHEN` clause exist at all.
-   */
+  const FAULT_SEQ = 'lesson3_test_fault_calls'
+
+  // One command per `execute`: binding a parameter moves drizzle onto the prepared-statement path,
+  // which rejects multi-command SQL. Splitting keeps that from mattering.
   const installTrigger = async (sourceVersionId: number) => {
     if (!Number.isSafeInteger(sourceVersionId)) throw new Error(`bad version id ${sourceVersionId}`)
-    await db().execute(sql`
-      CREATE OR REPLACE FUNCTION lesson3_test_block_retire() RETURNS trigger AS $$
-      BEGIN
-        RAISE EXCEPTION 'lesson3-test: simulated storage fault during retirement';
-      END;
-      $$ LANGUAGE plpgsql
-    `)
+    await seqCreate(FAULT_SEQ)
+    await db().execute(
+      sql.raw(`
+        CREATE OR REPLACE FUNCTION lesson3_test_block_retire() RETURNS trigger AS $$
+        BEGIN
+          PERFORM nextval('${FAULT_SEQ}');
+          RAISE EXCEPTION 'lesson3-test: simulated storage fault during retirement';
+        END;
+        $$ LANGUAGE plpgsql
+      `),
+    )
     // Defensive: an interrupted earlier run would otherwise leave this behind and fail the CREATE.
     await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`)
     await db().execute(
@@ -253,11 +284,12 @@ describe('C19 — a real database failure during retirement rolls the whole save
   const dropTrigger = async () => {
     await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_block_retire_trg ON edit_recovery`)
     await db().execute(sql`DROP FUNCTION IF EXISTS lesson3_test_block_retire()`)
+    await seqDrop(FAULT_SEQ)
   }
 
   afterAll(dropTrigger)
 
-  it('leaves NO orphan version and an intact capture', async () => {
+  it('the fault fires, and leaves NO orphan version and an intact capture', async () => {
     const v = await makeVersion()
     const token = await seedCapture(v.id, 'work that must survive a failed save')
     const before = await rawRow(v.id)
@@ -270,16 +302,27 @@ describe('C19 — a real database failure during retirement rolls the whole save
 
     await installTrigger(v.id)
     let res: Response
+    let faults: number
     try {
+      const faultsBefore = await seqValue(FAULT_SEQ)
       res = await saveAsNew(v.id, saveForm(v, 'C19-should-not-persist', token))
+      faults = (await seqValue(FAULT_SEQ)) - faultsBefore
     } finally {
       await dropTrigger()
     }
 
-    expect(res.status, 'the save fails rather than half-applying').toBeGreaterThanOrEqual(400)
+    // ⚑ Proof the injected failure is what failed the save. Without this, a validation error before
+    // the retirement statement passes every other assertion in this test.
+    expect(faults, 'the retirement statement ran and the injected fault fired, exactly once').toBe(
+      1,
+    )
+    expect(
+      res.status,
+      'a storage fault is a server error, not a client one',
+    ).toBeGreaterThanOrEqual(500)
 
-    // ⚑ The assertion that matters: no orphan. The create ran BEFORE the retirement, so a missing
-    // rollback would leave a version behind for a save that never completed.
+    // No orphan. The create ran BEFORE the retirement, so a missing rollback would leave a version
+    // behind for a save that never completed.
     const versionsAfter = await fx.payload.count({
       collection: 'lesson-bundle-versions',
       where: { lessonPlan: { equals: fx.plan.id } },
@@ -301,38 +344,50 @@ describe('C19 — a real database failure during retirement rolls the whole save
 })
 
 /**
- * ⚑ C20 — the conflict that must NEVER be retried.
+ * ⚑ C20 — the CONCURRENCY case, executed as one.
  *
- * A second tab captures after this save's token was minted, advancing the revision, so the save's
- * retirement precondition fails.
+ * The matrix specifies an interleaving: a save is in flight, a second tab's capture lands, and only
+ * THEN does retirement evaluate its compare-and-set. An earlier version of this test performed the
+ * second capture to completion BEFORE calling save-as-new at all — which proves a stale token 409s, a
+ * worthwhile but different property, and never exercises the endpoint's transaction against a
+ * concurrent writer. Case 20 exists precisely because the two can differ.
  *
- * ⚑ **"Not retried" is asserted DIRECTLY, by counting retirement statements — not inferred from the
- * surviving row.** The first version of this test checked only the 409 and the intact capture, and
- * would have passed a loop that retried five times: the token is fixed at request time, so every
- * retry re-runs the SAME failing precondition and leaves the same evidence behind. The outcome
- * assertions cannot distinguish one attempt from five, and a test that cannot see the property it
- * names is not testing it.
+ * The interleaving is made DETERMINISTIC with a database barrier rather than with timing:
  *
- * Counting needs two tricks, both forced by the situation:
- *   - a STATEMENT-level trigger, because a failed retirement matches ZERO rows and a row-level
- *     trigger would never fire for the case under test
- *   - a SEQUENCE as the counter, because the save's transaction rolls back and a counter table would
- *     roll back with it; `nextval` is explicitly non-transactional and survives
+ *   1. a BEFORE INSERT trigger on `lesson_bundle_versions`, scoped to this save's `source_version_id`,
+ *      parks the save inside its own transaction at candidate creation — after authorisation and the
+ *      no-op guard, before retirement
+ *   2. it announces arrival by bumping a non-transactional sequence, so the test knows the save is
+ *      parked rather than merely slow
+ *   3. the second capture lands on a different connection (nothing the save holds blocks it — the
+ *      save has not touched `edit_recovery` yet)
+ *   4. the barrier opens, retirement runs, and its CAS now meets a revision that advanced WHILE the
+ *      save was in flight
+ *
+ * ⚑ "Not retried" is asserted DIRECTLY by counting retirement statements. The outcome cannot
+ * distinguish one attempt from five: the token is fixed at request time, so every retry re-runs the
+ * same failing precondition and leaves identical evidence. Verified by mutation — making the conflict
+ * retryable fails only the count.
  */
-describe('C20 — a second tab’s newer capture is never silently retired', () => {
-  // One command per `execute` — see the note on C19's `installTrigger` for why multi-command DDL is
-  // a trap here even when it happens to work today.
+describe('C20 — a capture landing DURING the save is never silently retired', () => {
+  const RETIRE_SEQ = 'lesson3_test_retire_calls'
+  const HOLD_SEQ = 'lesson3_test_hold_calls'
+
   const installCounter = async () => {
-    await db().execute(sql`CREATE SEQUENCE IF NOT EXISTS lesson3_test_retire_calls`)
-    await db().execute(sql`
-      CREATE OR REPLACE FUNCTION lesson3_test_count_retire() RETURNS trigger AS $$
-      BEGIN
-        PERFORM nextval('lesson3_test_retire_calls');
-        RETURN NULL;
-      END;
-      $$ LANGUAGE plpgsql
-    `)
+    await seqCreate(RETIRE_SEQ)
+    await db().execute(
+      sql.raw(`
+        CREATE OR REPLACE FUNCTION lesson3_test_count_retire() RETURNS trigger AS $$
+        BEGIN
+          PERFORM nextval('${RETIRE_SEQ}');
+          RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql
+      `),
+    )
     await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_count_retire_trg ON edit_recovery`)
+    // STATEMENT-level: a refused retirement matches ZERO rows, so a row-level trigger would never
+    // fire for the very case under test.
     await db().execute(sql`
       CREATE TRIGGER lesson3_test_count_retire_trg
         AFTER UPDATE ON edit_recovery
@@ -340,34 +395,66 @@ describe('C20 — a second tab’s newer capture is never silently retired', () 
     `)
   }
 
-  const dropCounter = async () => {
+  /** Park the save inside its transaction at candidate creation, until `openBarrier()`. */
+  const installBarrier = async (sourceVersionId: number) => {
+    if (!Number.isSafeInteger(sourceVersionId)) throw new Error(`bad version id ${sourceVersionId}`)
+    await seqCreate(HOLD_SEQ)
+    await db().execute(
+      sql`CREATE TABLE IF NOT EXISTS lesson3_test_barrier (id int PRIMARY KEY, is_open boolean NOT NULL)`,
+    )
+    await db().execute(sql`
+      INSERT INTO lesson3_test_barrier (id, is_open) VALUES (1, false)
+      ON CONFLICT (id) DO UPDATE SET is_open = false
+    `)
+    // ⚑ Each SELECT in a plpgsql loop takes a FRESH snapshot under READ COMMITTED, which is what lets
+    // this observe a commit made by another connection while this transaction stays open. The loop
+    // bound is there so a failed test cannot park a request forever.
+    await db().execute(
+      sql.raw(`
+        CREATE OR REPLACE FUNCTION lesson3_test_hold() RETURNS trigger AS $$
+        DECLARE waited int := 0;
+        BEGIN
+          PERFORM nextval('${HOLD_SEQ}');
+          WHILE waited < 400 LOOP
+            IF (SELECT is_open FROM lesson3_test_barrier WHERE id = 1) THEN EXIT; END IF;
+            PERFORM pg_sleep(0.05);
+            waited := waited + 1;
+          END LOOP;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+      `),
+    )
+    await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_hold_trg ON lesson_bundle_versions`)
+    await db().execute(
+      sql.raw(`
+        CREATE TRIGGER lesson3_test_hold_trg
+          BEFORE INSERT ON lesson_bundle_versions
+          FOR EACH ROW
+          WHEN (NEW.source_version_id = ${sourceVersionId})
+          EXECUTE FUNCTION lesson3_test_hold()
+      `),
+    )
+  }
+
+  const openBarrier = () =>
+    db().execute(sql`UPDATE lesson3_test_barrier SET is_open = true WHERE id = 1`)
+
+  const dropAll = async () => {
+    await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_hold_trg ON lesson_bundle_versions`)
+    await db().execute(sql`DROP FUNCTION IF EXISTS lesson3_test_hold()`)
+    await db().execute(sql`DROP TABLE IF EXISTS lesson3_test_barrier`)
     await db().execute(sql`DROP TRIGGER IF EXISTS lesson3_test_count_retire_trg ON edit_recovery`)
     await db().execute(sql`DROP FUNCTION IF EXISTS lesson3_test_count_retire()`)
-    await db().execute(sql`DROP SEQUENCE IF EXISTS lesson3_test_retire_calls`)
+    await seqDrop(HOLD_SEQ)
+    await seqDrop(RETIRE_SEQ)
   }
 
-  const counter = async (): Promise<number> => {
-    const rows = rowsOf<{ last_value: unknown; is_called: unknown }>(
-      await db().execute(sql`SELECT last_value, is_called FROM lesson3_test_retire_calls`),
-    )
-    // A never-called sequence reports last_value 1 with is_called false; normalise both to a count.
-    return rows[0]?.is_called ? Number(rows[0].last_value) : 0
-  }
+  afterAll(dropAll)
 
-  afterAll(dropCounter)
-
-  it('409s, retires nothing, and runs the retirement statement EXACTLY ONCE', async () => {
+  it('409s mid-flight, retires nothing, and runs the retirement statement EXACTLY ONCE', async () => {
     const v = await makeVersion()
     const stale = await seedCapture(v.id, 'first tab')
-
-    // The second tab types again — same user, same version, so the SAME row advances.
-    const newer = await recovery(v.id, '', 'POST', {
-      generation: stale.generation,
-      expectedRevision: stale.revision,
-      document: { lessons: [{ id: 'L1', title: 'SECOND TAB newer work' }] },
-    })
-    expect(newer.status, 'fixture: the second capture must land').toBe(200)
-    const newerToken = ((await newer.json()) as { token: { revision: number } }).token
 
     const versionsBefore = await fx.payload.count({
       collection: 'lesson-bundle-versions',
@@ -375,35 +462,64 @@ describe('C20 — a second tab’s newer capture is never silently retired', () 
       overrideAccess: true,
     })
 
-    // Count only the statements this save issues — the trigger goes on after the fixture captures.
     await installCounter()
+    await installBarrier(v.id)
+
     let res: Response
     let attempts: number
+    let newerRevision: number
     try {
-      const before = await counter()
-      // The save carries the STALE token the first tab minted.
-      res = await saveAsNew(v.id, saveForm(v, 'C20-should-409', stale))
-      attempts = (await counter()) - before
+      const holdsBefore = await seqValue(HOLD_SEQ)
+
+      // The token is CURRENT as this request is issued. It goes stale mid-flight.
+      const inFlight = saveAsNew(v.id, saveForm(v, 'C20-should-409', stale))
+
+      // Park confirmed — the save is inside its transaction, past authorisation, before retirement.
+      await waitFor(
+        'the save to reach candidate creation',
+        () => seqValue(HOLD_SEQ),
+        (n) => n > holdsBefore,
+      )
+
+      // NOW the second tab types, on its own connection. The save holds nothing this needs.
+      const newer = await recovery(v.id, '', 'POST', {
+        generation: stale.generation,
+        expectedRevision: stale.revision,
+        document: { lessons: [{ id: 'L1', title: 'SECOND TAB newer work' }] },
+      })
+      expect(newer.status, 'fixture: the concurrent capture must land while the save waits').toBe(
+        200,
+      )
+      newerRevision = ((await newer.json()) as { token: { revision: number } }).token.revision
+
+      // ⚑ Baseline taken HERE, not before the save. The counter is a STATEMENT-level trigger on the
+      // whole table, so it also counts the concurrent capture's own UPDATE — reading it earlier
+      // measured "capture + retirement" and reported 2. Everything after this point is the save's.
+      const retiresBefore = await seqValue(RETIRE_SEQ)
+
+      await openBarrier()
+      res = await inFlight
+      attempts = (await seqValue(RETIRE_SEQ)) - retiresBefore
     } finally {
-      await dropCounter()
+      // Open first: a failure before this point would leave the request parked until the loop bound.
+      await openBarrier().catch(() => {})
+      await dropAll()
     }
 
     expect(res.status, 'a recovery conflict is a 409').toBe(409)
-    // ⚑ THE ASSERTION THIS TEST EXISTS FOR. A retrying loop would show 2..5 here while every other
-    // assertion below stayed green.
+    // ⚑ THE ASSERTION THIS TEST EXISTS FOR. A retrying loop shows 2..5 while everything else stays green.
     expect(
       attempts,
       'the retirement statement ran once — a recovery conflict is never retried',
     ).toBe(1)
 
     const after = await rawRow(v.id)
-    expect(after?.retired_at, 'the newer capture was NOT retired').toBeNull()
+    expect(after?.retired_at, 'the capture that landed mid-save was NOT retired').toBeNull()
     expect(JSON.stringify(after?.content), 'and it still holds the newer prose').toContain(
       'SECOND TAB newer work',
     )
-    expect(Number(after?.revision), 'nothing advanced it further').toBe(newerToken.revision)
+    expect(Number(after?.revision), 'nothing advanced it further').toBe(newerRevision)
 
-    // The rollback also took the candidate version with it.
     const versionsAfter = await fx.payload.count({
       collection: 'lesson-bundle-versions',
       where: { lessonPlan: { equals: fx.plan.id } },
@@ -424,7 +540,7 @@ describe('C20 — a second tab’s newer capture is never silently retired', () 
  */
 describe('DEL — retirement precedes the source cascade', () => {
   it('a token-bearing save WITH deleteSource succeeds and removes both', async () => {
-    // The editor must be the author for `deleteSource` to be permitted, so create through the API.
+    // The editor must be the author for `deleteSource` to be permitted.
     const source = await makeVersion()
     await fx.payload.update({
       collection: 'lesson-bundle-versions',
@@ -453,5 +569,53 @@ describe('DEL — retirement precedes the source cascade', () => {
     expect(await versionExists(source.id), 'the source is gone').toBe(false)
     expect(await versionExists(out.id), 'the new candidate persisted').toBe(true)
     expect(await rawRow(source.id), 'the recovery row went with its parent').toBeUndefined()
+  })
+})
+
+/**
+ * C29 — revision chaining. start → capture → capture → save, each call using the token the PREVIOUS
+ * call returned.
+ *
+ * This is the end-to-end proof of §4's token rule: every write returns an ADVANCED token and the
+ * client must adopt it. A caller that keeps the pair it sent 409s against a conflict it caused
+ * itself — a failure needing no concurrency at all, just an ordinary single-tab session, which is
+ * what makes it worth pinning end to end rather than per statement.
+ */
+describe('C29 — a single session chaining tokens never conflicts with itself', () => {
+  it('start → capture → capture → save all succeed, each adopting the returned token', async () => {
+    const v = await makeVersion()
+
+    const started = await recovery(v.id, '/start')
+    expect(started.status).toBe(200)
+    let token = ((await started.json()) as { token: { generation: number; revision: number } })
+      .token
+    expect(token).toMatchObject({ generation: 1, revision: 1 })
+
+    for (const prose of ['first keystrokes', 'second keystrokes']) {
+      const res = await recovery(v.id, '', 'POST', {
+        generation: token.generation,
+        expectedRevision: token.revision,
+        document: { lessons: [{ id: 'L1', title: prose }] },
+      })
+      expect(res.status, `capture "${prose}" must not conflict with its own predecessor`).toBe(200)
+      const next = ((await res.json()) as { token: { generation: number; revision: number } }).token
+      expect(next.revision, 'each write advances the revision by exactly one').toBe(
+        token.revision + 1,
+      )
+      expect(next.generation, 'and never the generation').toBe(token.generation)
+      token = next
+    }
+
+    // The save closes the chain with the token the LAST capture returned.
+    const res = await saveAsNew(v.id, saveForm(v, 'C29-chained', token))
+    expect(res.status, 'the save must not conflict with the chain that preceded it').toBe(200)
+    const out = (await res.json()) as { recoveryToken?: { generation: number; revision: number } }
+    expect(out.recoveryToken?.revision, 'retirement advances the chain one last time').toBe(
+      token.revision + 1,
+    )
+
+    const after = await rawRow(v.id)
+    expect(after?.retired_at, 'the chain ends retired').not.toBeNull()
+    expect(after?.content).toBeNull()
   })
 })
