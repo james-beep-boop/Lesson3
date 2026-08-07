@@ -49,6 +49,8 @@ import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClie
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery } from '../EditRecovery/useEditRecovery'
+// The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
+import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
 import EditJumpNav from './EditJumpNav'
 
@@ -189,6 +191,10 @@ export default function LessonControls() {
     // per-user active-capture cap doing it.
     active: Boolean(id) && editing,
     modified,
+    // ⚑ `fields` is Payload's form state and its identity changes on EVERY edit, which is what makes
+    // the capture debounce restart per keystroke. `modified` cannot do that job — it is a boolean
+    // that flips once and then never changes again.
+    changeSignal: fields,
     getDocument: currentContent,
     registerFlush: registerRecoveryFlush,
   })
@@ -283,8 +289,12 @@ export default function LessonControls() {
       // because another tab holds newer work and saving on would retire it.
       const plan = await recovery.prepareForSave()
       if (!plan.proceed) {
+        // ⚑ Deliberately NEUTRAL about the cause. The server returns one undifferentiated 409 for
+        // several states — a newer capture, a superseded session, a retired row — because saying
+        // which would leak whether another session exists. Naming "another tab" here would invent a
+        // certainty the response does not carry. PR 2b's GET reconciliation is what earns specifics.
         setMsg(
-          'Your unsaved work changed in another tab. Reload before saving, so the newer changes are not lost.',
+          'Your unsaved work is out of date. Reload before saving, so newer changes are not lost.',
         )
         setSaving(false)
         return
@@ -304,10 +314,7 @@ export default function LessonControls() {
         { method: 'POST', body, credentials: 'same-origin' },
       )
       if (!res.ok) throw new Error(await errorMessage(res, 'Save'))
-      const out = (await res.json()) as {
-        adminUrl: string
-        recoveryToken?: { generation: number; revision: number; updatedAt: string }
-      }
+      const out = (await res.json()) as { adminUrl: string; recoveryToken?: RecoveryToken }
       // Retirement advances the token one last time; adopt it rather than keeping the pair we sent.
       recovery.adoptToken(out.recoveryToken)
       // Navigate CLIENT-SIDE (router.push), not a full-page load. Payload's LeaveWithoutSaving guard

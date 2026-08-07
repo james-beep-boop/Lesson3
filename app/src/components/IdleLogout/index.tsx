@@ -43,7 +43,7 @@
  * consuming the registry's no-op default, the pre-expiry flush never runs, and nothing reports it.
  * The editor registers on mount and unregisters on unmount; see `EditRecovery/flushRegistry`.
  */
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import { useAuth } from '@payloadcms/ui'
 
 import { EditRecoveryFlushProvider, useFlushRegistry } from '../EditRecovery/flushRegistry'
@@ -69,28 +69,30 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
   // one provides.
   const registry = useFlushRegistry()
   const { runAll } = registry
-  const flushed = useRef(false)
 
   useEffect(() => {
     if (!user || !tokenExpirationMs) return
 
-    // A new deadline (Payload refreshed the token, e.g. "Stay logged in") is a new session for this
-    // purpose, so the pre-expiry flush is armed again.
-    flushed.current = false
-
     let loggingOut = false
     const check = () => {
       if (loggingOut) return
-      // ⚑ BEFORE the expiry branch: once the deadline passes, the token is gone and a capture would
-      // 401. This is the last moment the work can still be saved.
-      if (!flushed.current && Date.now() >= tokenExpirationMs - FLUSH_LEAD_MS) {
-        flushed.current = true
-        void runAll()
-      }
-      if (Date.now() >= tokenExpirationMs) {
+      const now = Date.now()
+
+      if (now >= tokenExpirationMs) {
         loggingOut = true
+        // ⚑ The flush is NOT retried here. The token is already dead, so a capture would 401; the
+        // work that survives is whatever the in-window flushes below already stored. Firing one
+        // last request alongside `logOut` would only race the logout and fail.
         void logOut()
+        return
       }
+
+      // ⚑ Runs on EVERY tick inside the window, not once. Two defects in the one-shot version:
+      // an editor that registers AFTER the window opens found the single attempt already spent on
+      // an empty registry, and anything typed after that attempt had no final flush at all — the
+      // guarantee held only for work that happened to exist at one instant 90 seconds out. Repeating
+      // is cheap: a flush with nothing dirty to send is a no-op inside the editor's own guard.
+      if (now >= tokenExpirationMs - FLUSH_LEAD_MS) void runAll()
     }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') check()

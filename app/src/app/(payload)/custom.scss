@@ -1647,9 +1647,12 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
 }
 
 @media (max-width: 640px) {
-  // The editing controls are unavailable below this width anyway (DESIGN-button-system §4), so the
-  // indicator has nothing to annotate; hiding it keeps the narrow bar from wrapping.
+  // ⚑ NOT hidden. The reasoning for hiding it was that editing is unavailable below this width
+  // (DESIGN-button-system §4) — but that guard is applied ON MOUNT, so a session unlocked at a wider
+  // width SURVIVES a resize, and the one moment a teacher most needs to know whether their work is
+  // safe is the moment the layout collapses around them. It takes the full row instead.
   .lp-recovery {
-    display: none;
+    flex-basis: 100%;
+    padding-inline: 0;
   }
 }

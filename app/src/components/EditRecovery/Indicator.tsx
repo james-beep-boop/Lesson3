@@ -70,9 +70,12 @@ export function EditRecoveryIndicator({
       case 'backedUp':
         return ['ok', `Unsaved changes backed up · ${ago(now - status.at)}`]
       case 'conflict':
-        // Not a failure of ours — a real second session. Named as such so the user knows the other
-        // window is the thing to look at, not this one.
-        return ['warn', 'Newer unsaved changes exist in another tab — reload before saving']
+        // ⚑ NEUTRAL about the cause, deliberately. The server collapses several states into one
+        // undifferentiated 409 — a newer capture, a superseded session, a retired row — precisely so
+        // it cannot leak whether another session exists. "Another tab" would be a guess dressed as a
+        // fact, and wrong whenever the real cause was a reactivated session. PR 2b's reconciling GET
+        // is what makes specifics honest.
+        return ['warn', 'Backup is out of date — reload before saving']
       case 'unavailable':
         return [
           'warn',
