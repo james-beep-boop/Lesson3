@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-08 — a failed test SUITE reports zero tests, not a failure
+
+**What happened.** A new unit spec never ran. Importing the component under test pulled
+`@payloadcms/ui`, which imports `react-image-crop/dist/ReactCrop.css`, and the node-environment runner
+cannot load a stylesheet — so the file failed to COLLECT. Vitest reports that as a failed *suite* with
+`0 test`, and the run summary still reads a large green `Tests N passed`. I read that line, saw the
+number go up, and moved on. A mutation check against those assertions then came back green — because
+the assertions had never executed.
+
+**Rule: read `Test Files` as well as `Tests`.** A count of passing tests says nothing about files that
+did not load. `Test Files 63 passed (63)` is the line that catches this; `Tests 545 passed` is not.
+
+**Second rule, which caught it: a mutation check must be confirmed to have LANDED.** Twice this week a
+mutation "passed" for a reason unrelated to the guard — once because the spec had not been collected,
+once because `cp app/src/...` was run from inside `app/` so the file was never edited (the same cwd
+trap AGENTS.md documents for `$PWD/app`). Verify the mutation is present — `grep -c` — before trusting
+the run that follows it.
+
+**The structural fix, not just the diagnosis.** The logic under test was pure — grouping a capture map
+into readable sections — and only lived in a component because that is where it was written. It moved
+to `components/EditRecovery/restoreGroups.ts`, which imports no UI. Pure rules in a module a plain
+test runner can import is the same split `protocol.ts` and `projection.ts` already use, and it makes
+the class of failure impossible rather than detectable.
+
+---
+
 ## 2026-08-07 (edit recovery PR 2b) — six corrections from building the restore path
 
 Grouped because they came from one piece of work, but each is a general rule.
