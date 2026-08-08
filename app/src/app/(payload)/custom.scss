@@ -1484,6 +1484,68 @@ a.btn.lp-btn {
   }
 }
 
+// The edit-recovery restore offer. A true modifier of the base `.modal` above — it adds only the
+// scrollable transcript of the captured prose, which is what makes this panel different from a
+// confirmation: the user is deciding about content they need to be able to READ first.
+.lp-restore {
+  max-width: 34rem;
+
+  &__warn {
+    margin: 0 0 var(--app-space-2);
+    padding: var(--app-space-2);
+    border-radius: var(--app-btn-radius);
+    background: var(--theme-warning-50, var(--theme-elevation-50));
+    color: var(--theme-elevation-800);
+    font-size: var(--app-secondary-size);
+  }
+
+  // Capped and scrollable: a capture can hold every prose field in the bundle, and a panel taller
+  // than the viewport would push its own buttons off-screen — the decision has to stay reachable.
+  //
+  // The rules bound it top and bottom so the cap reads as a scroll REGION. Without them the text just
+  // stops mid-sentence at the crop and there is nothing to say more follows.
+  &__body {
+    max-height: 40vh;
+    overflow-y: auto;
+    margin-block: var(--app-space-2) var(--app-space-3);
+    padding-block: var(--app-space-2);
+    padding-right: var(--app-space-1);
+    border-block: 1px solid var(--theme-elevation-100);
+  }
+
+  &__group + &__group {
+    margin-block-start: var(--app-space-3);
+  }
+
+  &__heading {
+    margin: 0 0 var(--app-space-1);
+    font-size: var(--app-secondary-size);
+    font-weight: 700;
+    color: var(--theme-elevation-1000);
+  }
+
+  &__list {
+    margin: 0;
+
+    dt {
+      color: var(--theme-elevation-600);
+      font-size: var(--app-secondary-size);
+      font-weight: 600;
+    }
+
+    dd {
+      margin: 0 0 var(--app-space-2);
+      // Captured prose is plain text where `\n` is a paragraph break (the editor's grammar, CLAUDE.md)
+      // — preserved here so what the user reads matches what would be restored.
+      white-space: pre-wrap;
+    }
+  }
+
+  .modal__actions {
+    justify-content: flex-end;
+  }
+}
+
 // Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
 // overflowing nav row cover ~7rem, so its scroll destinations clear it.
 
@@ -1601,5 +1663,58 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
     display: flex;
     align-items: center;
     min-height: 44px;
+  }
+}
+
+// ── Edit-recovery indicator (SPEC §5) ────────────────────────────────────────────────────────────
+// Sits in the version editor's control bar beside Save. The timestamp IS the contract, so this has
+// to be readable at a glance and unambiguous when it says NOT backed up — the whole feature is a
+// promise the teacher cannot otherwise verify.
+//
+// Deliberately NOT part of the button system: it is a status message, not a control, and giving it
+// button geometry would invite someone to click it. It borrows only the type tokens so it sits on
+// the same baseline as the controls it stands next to.
+.lp-recovery {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  // Matches --app-btn-min-height so the bar's row height does not shift when the indicator appears
+  // — a control bar that jumps as you type is its own small usability bug.
+  min-height: var(--app-btn-min-height);
+  padding: 0 var(--app-btn-padding-inline);
+  font-size: var(--app-btn-font-size);
+  line-height: 1.3;
+
+  &--ok {
+    color: #2f6b3a;
+  }
+
+  // ⚑ Colour is NOT the only signal: the text itself says "NOT backed up". A teacher with a colour
+  // vision deficiency, or a monochrome projector in a classroom, must get the same information.
+  &--warn {
+    color: #8a3d0b;
+    font-weight: 600;
+  }
+
+  &--muted {
+    color: #666;
+  }
+
+  &__scope {
+    font-size: 12px;
+    font-weight: 400;
+    color: #666;
+  }
+}
+
+@media (max-width: 640px) {
+  // ⚑ NOT hidden. The reasoning for hiding it was that editing is unavailable below this width
+  // (DESIGN-button-system §4) — but that guard is applied ON MOUNT, so a session unlocked at a wider
+  // width SURVIVES a resize, and the one moment a teacher most needs to know whether their work is
+  // safe is the moment the layout collapses around them. It takes the full row instead.
+  .lp-recovery {
+    flex-basis: 100%;
+    padding-inline: 0;
   }
 }

@@ -39,7 +39,14 @@ const rows = (result: unknown): Record<string, unknown>[] => {
 /** A non-Official sibling version, so it can be deleted (the Official one is protected). */
 export async function makeRecoveryVersion(
   payload: Payload,
-  args: { planId: number; subjectGradeId: number; sourceVersionId: number; semver: string },
+  args: {
+    planId: number
+    subjectGradeId: number
+    sourceVersionId: number
+    semver: string
+    /** Distinguishes one spec's candidates from another's in the shared fixture. */
+    titlePrefix?: string
+  },
 ) {
   return payload.create({
     collection: 'lesson-bundle-versions',
@@ -48,7 +55,7 @@ export async function makeRecoveryVersion(
       subjectGrade: args.subjectGradeId,
       semver: args.semver,
       sourceVersion: args.sourceVersionId,
-      title: `${MARK}ER-${args.semver}`,
+      title: `${MARK}${args.titlePrefix ?? 'ER-'}${args.semver}`,
       ...minimalBundleContent(),
     } as never,
     overrideAccess: true,
@@ -162,6 +169,46 @@ export async function setRecoveryUpdatedAt(
     UPDATE edit_recovery SET updated_at = ${iso}::timestamptz
     WHERE user_id = ${userId} AND source_version_id = ${versionId}
   `)
+}
+
+/**
+ * Rewrite a stored capture's PROVENANCE — the two fields the restore path compares against the live
+ * source to decide whether the capture may be applied at all.
+ *
+ * ⚑ Forged directly rather than produced by aging a real session, because the two mismatches this
+ * creates are otherwise unreachable in a test: `schema_version` only changes when the field shape
+ * itself changes (a future migration), and reproducing a genuine `base_updated_at` drift means saving
+ * the source between capture and restore, which is a different case (11) with a different assertion.
+ * What matters is only that the client sees a mismatch and refuses to apply it.
+ */
+export async function setRecoveryProvenance(
+  payload: Payload,
+  versionId: number,
+  userId: number,
+  args: { baseUpdatedAt?: string; schemaVersion?: string },
+) {
+  // ⚑ Fail LOUDLY when there is no row to rewrite. Both statements below happily affect zero rows,
+  // and the browser cases that depend on this (9 and 10) would then run against a capture that is
+  // still perfectly valid: no stale banner, a Restore button that should not be there, and a failure
+  // that reads as a client defect rather than a fixture that did nothing. `startFor` in this file
+  // already applies the rule.
+  if (!(await recoveryRow(payload, versionId, userId))) {
+    throw new Error(
+      `fixture: no edit_recovery row for user ${userId} / version ${versionId} to re-provenance`,
+    )
+  }
+  if (args.baseUpdatedAt !== undefined) {
+    await drizzleOf(payload).execute(sql`
+      UPDATE edit_recovery SET base_updated_at = ${args.baseUpdatedAt}::timestamptz
+      WHERE user_id = ${userId} AND source_version_id = ${versionId}
+    `)
+  }
+  if (args.schemaVersion !== undefined) {
+    await drizzleOf(payload).execute(sql`
+      UPDATE edit_recovery SET schema_version = ${args.schemaVersion}
+      WHERE user_id = ${userId} AND source_version_id = ${versionId}
+    `)
+  }
 }
 
 /**

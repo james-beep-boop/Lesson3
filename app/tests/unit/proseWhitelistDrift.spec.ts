@@ -19,6 +19,7 @@ import { lessonContentFields } from '../../src/fields/lessonContent'
 import { canEditProse } from '../../src/access/bundle'
 import {
   FINAL_EXPLANATION_PROSE,
+  PROSE_LABELS,
   FRAMEWORK_PROSE,
   LESSON_PROSE,
   SECTION_PROSE,
@@ -32,11 +33,26 @@ const isProseField = (f: Field): boolean =>
   (f as { access?: { update?: unknown } }).access?.update === canEditProse
 
 /** Named-field children of a group/array field (skips row-label UI, etc.). */
-const childrenOf = (f: Field): Field[] => ((f as { fields?: Field[] }).fields ?? [])
+const childrenOf = (f: Field): Field[] => (f as { fields?: Field[] }).fields ?? []
 
 /** Direct prose-field names within a container's field list. */
 const proseNamesIn = (fields: Field[]): string[] =>
-  fields.filter(isProseField).map((f) => (f as { name: string }).name).sort()
+  fields
+    .filter(isProseField)
+    .map((f) => (f as { name: string }).name)
+    .sort()
+
+/** Every prose field anywhere in the bundle, as `name → authored label`. */
+const allProseLabels = (fields: Field[], into: Map<string, string> = new Map()) => {
+  for (const f of fields) {
+    if (isProseField(f)) {
+      const { name, label } = f as { name: string; label?: unknown }
+      if (typeof label === 'string') into.set(name, label)
+    }
+    allProseLabels(childrenOf(f), into)
+  }
+  return into
+}
 
 /** Find a named field within a list. */
 const byName = (fields: Field[], name: string): Field =>
@@ -89,5 +105,28 @@ describe('prose() fields ↔ fieldSplit whitelist stay in sync', () => {
     )
     expect(exemplar).toBeDefined()
     expect(isProseField(exemplar!)).toBe(false) // proseAdmin answer key — NOT Editor prose
+  })
+})
+
+/**
+ * `PROSE_LABELS` ↔ the labels the editor actually shows.
+ *
+ * ⚑ The map exists so the edit-recovery restore prompt can name a field the way the FORM names it,
+ * while a teacher is comparing the two. It is a copy, so it drifts silently unless pinned — and it
+ * arrived already wrong when it was derived by regex instead: "Key inquiry" against the form's "Key
+ * inquiry question", "Purpose in storyline" against "Purpose in the storyline". Those two are exactly
+ * the non-mechanical labels `editorPlainLanguage.spec.ts` was written to protect.
+ */
+describe('PROSE_LABELS ↔ the labels prose() fields render', () => {
+  const authored = allProseLabels(lessonContentFields)
+
+  it('names every prose field', () => {
+    expect([...authored.keys()].sort()).toEqual(Object.keys(PROSE_LABELS).sort())
+  })
+
+  it('uses the authored wording, not a de-camelised guess', () => {
+    for (const [name, label] of authored) {
+      expect(PROSE_LABELS[name], `label for ${name}`).toBe(label)
+    }
   })
 })

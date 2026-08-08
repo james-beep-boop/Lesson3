@@ -8,6 +8,44 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-07 — large lesson plans became editable again (on DRAFT #204)
+
+⚑ **A pre-existing defect, unrelated to edit recovery**, found while spiking the restore path. Typing
+one character into a large plan 500'd: Payload posts the whole form state through a Next.js Server
+Action, whose default ceiling is 1 MiB, and the largest plan in the corpus produces ~1.5 MB. Saving
+was never affected. What failed was Payload's own form-state sync, so field validation and conditional
+logic silently stopped updating while the teacher typed — invisible without the console open.
+
+Verified as an A/B on the plan the original measurement used: default → `500 POST`; with the raised
+limit → no server errors. The value is derived from the document ceiling the save path already
+accepts, so a document this system will store cannot become one it refuses to edit; a unit test pins
+that relationship. Reasoning: `app/src/lib/serverActionBodyLimit.ts`.
+
+## 2026-08-07 — edit recovery, PR 2: the client half (DRAFT #204, not yet merged)
+
+On `feat/edit-recovery-client-capture`. ⚑ **Carries NO migration** — PR 1's is the only one this
+feature needs — so its deploy is an ordinary app deploy. Unlike PR 1 this one IS user-visible.
+
+**What a teacher gets.** Unsaved prose is captured while they type (debounced, plus on blur and ahead
+of session expiry), with an indicator beside Save that says so — including when it has FAILED, because
+a promise you cannot verify is worth nothing. Coming back to a plan with unsaved work from an earlier
+session offers it back: shown in full, attributed to the lesson it came from, and applied only if they
+press Restore. A capture whose source has moved since, or whose field shape has changed, is offered to
+read and copy but never applied — its row ids may no longer mean what they meant.
+
+**And the screen now clears at session expiry**, which it did not before: an idle tab used to leave the
+previous teacher's document on a shared school machine with a dead session. It clears only when every
+open editor confirms its unsaved work is stored; anything unproven leaves the work legible, because
+the text on screen is then the last copy.
+
+**Status:** open for review, fully verified on the branch — 545 unit tests, 156/156 integration,
+132/132 wire, 11/11 browser cases, `tsc` and ESLint clean. Per-case acceptance status is
+`docs/DESIGN-working-drafts.md` §7 — cases 1, 2, 3 and 11 are unclaimed there, with reasons.
+
+⚑ **One finding is wider than this PR and is NOT fixed:** the editor's "view mode" does not make prose
+fields read-only, because Payload's `useField()` ignores `useForm().disabled`. Nothing here depends on
+it, but do not believe "the form is locked" elsewhere. DECISIONS 2026-08-07 (i).
+
 ## 2026-08-06 — edit recovery, PR 1: the server half (MERGED)
 
 Merged from `feat/edit-recovery-server` (squash). ⚑ **Carries a migration** — a deploy must run

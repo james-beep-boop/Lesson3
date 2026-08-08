@@ -487,10 +487,10 @@ approximate enforcement acceptable; per-capture byte limit **hard**, checked bef
 
 ## 7. Verification matrix (required before calling this done)
 
-**Status, as of 2026-08-06 — PR 1 (server) MERGED to `main`.** ⚑ **This block is the
-per-case authority. Nowhere else — not the CHANGELOG, not NEXT-SESSION — may claim a case is covered.**
-A suite total is not a case list, and quoting one as if it were is how "PR 1 is complete" got written
-before cases 20 and 29 existed.
+**Status, as of 2026-08-07 — PR 1 (server) MERGED to `main`; PR 2 (client) on
+`feat/edit-recovery-client-capture`.** ⚑ **This block is the per-case authority. Nowhere else — not the
+CHANGELOG, not NEXT-SESSION — may claim a case is covered.** A suite total is not a case list, and
+quoting one as if it were is how "PR 1 is complete" got written before cases 20 and 29 existed.
 
 **EXECUTING and passing on `main`:**
 - **7, 19, 20, 29** — `tests/http/saveAsNewRecovery.http.spec.ts`, through the real save-as-new
@@ -502,14 +502,40 @@ before cases 20 and 29 existed.
 - **15, 17-18, 21-25, 30** — `tests/int/editRecovery*.int.spec.ts` (30 via the expiry pass: a
   reactivated row is not selected, because `start` restarted its clock).
 
-**NOT executing:** 1-6, 8-13, 26-27 — all client cases, and PR 2's work.
+**EXECUTING on the PR 2 branch (browser, `tests/e2e`):**
+- **13, 26, 27** — `tests/e2e/editRecovery.e2e.spec.ts` (PR 2a, capture): a 429 is visible with its
+  backoff and the form stays dirty; a 409 on the pre-save flush blocks the save; a dropped capture
+  does NOT block it.
+- **4, 5, 6, 8, 9, 10, 12** — `tests/e2e/editRecoveryRestore.e2e.spec.ts` (PR 2b, restore). 5 is
+  end-to-end on purpose: a second real user, same browser profile, same version, asserted against the
+  whole page rather than the field. 12 calls the endpoint DIRECTLY with the revoked user's own session
+  cookie and asserts 404 — asserting only that the UI shows nothing would pass against a server that
+  hands the capture straight back, because a Teacher never gets an Edit button to trigger the request.
+
+⚑ **The form is not locked while an offer is undecided, and never was.** Payload 3.85.1's `useField()`
+derives its `disabled` from `processing || initializing` alone and never consumes
+`useForm().disabled`, so `setDisabled` gates submission only. What protects an unread capture is the
+prompt covering the page — measured, and now asserted — plus the hook refusing to capture at all while
+an offer is unresolved. Recorded here because the natural reading of `setDisabled(!editing || gate)`
+is the opposite, and the code now says so too.
+
+**STILL NOT executing: 1, 2, 3, 11.**
+- **1, 2, 3** turn on a token actually EXPIRING, and `tokenExpiration` is a build-time constant in
+  `collections/Users.ts` (7200 s) that a browser spec cannot shorten against a running server — the
+  disposable stack this section already calls for. What 1 and 2 hinge on, *clear the screen only when
+  the work is provably stored*, is pinned deterministically in
+  `tests/unit/idleLogoutScreenClear.spec.tsx`, including the inverse: a refused capture leaves the
+  editor on screen, because the text there is then the last copy.
+- **11** (two tabs, same source) needs two live browser contexts against one version; the CAS itself is
+  covered at `tests/int` (21-22). Unclaimed rather than approximated.
 
 ⚑ **Case 28 is RE-ASSIGNED from wire-level to unit, deliberately.** It is about `applyCapture`
 dropping an unknown row-id key, and `applyCapture` has **no server-side caller** — restoring is the
 client's job, so there is no endpoint for a wire test to drive. Its real coverage is
-`tests/unit/editRecoveryProjection.spec.ts` ("drops an unknown row-id key…"). When PR 2 builds the
-restore prompt, 28 gains a browser case; until then, wire-level was a layer this case could never
-have. Recorded rather than quietly ignored, because an unmeetable requirement in a matrix is how
+`tests/unit/editRecoveryProjection.spec.ts` ("drops an unknown row-id key…"). PR 2b adds the other
+half at the same layer: `captureAnchors` returns no heading for a row the plan no longer has, so the
+prompt names it as gone instead of inventing a lesson number for it. Wire-level was a layer this case
+could never have. Recorded rather than quietly ignored, because an unmeetable requirement in a matrix is how
 matrices stop being believed.
 
 Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
