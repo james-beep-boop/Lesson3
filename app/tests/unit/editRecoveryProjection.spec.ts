@@ -475,6 +475,10 @@ describe('captureAnchors — naming recovered prose after the plan the user can 
     const keys = captureAnchors(source()).map((a) => a.key)
     expect(keys.indexOf('lesson:11')).toBeLessThan(keys.indexOf('lesson:12'))
     expect(keys.indexOf('framework:21')).toBeLessThan(keys.indexOf('framework:22'))
+    // ⚑ The NESTED boundary: a lesson's phases come before the NEXT lesson, not after every lesson.
+    // Without this, an implementation that emitted all lessons first and all frameworks afterwards
+    // would satisfy every other assertion here while reordering what the restore prompt reads out.
+    expect(keys.indexOf('framework:22')).toBeLessThan(keys.indexOf('lesson:12'))
     expect(keys.indexOf('lesson:12')).toBeLessThan(keys.indexOf(FINAL_EXPLANATION_KEY))
     expect(keys.indexOf(FINAL_EXPLANATION_KEY)).toBeLessThan(keys.indexOf('summaryLesson:51'))
   })

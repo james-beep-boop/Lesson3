@@ -38,8 +38,8 @@ previous teacher's document on a shared school machine with a dead session. It c
 open editor confirms its unsaved work is stored; anything unproven leaves the work legible, because
 the text on screen is then the last copy.
 
-**Status:** draft pending the DB-backed suites (`test:int`, `test:http`) on this branch. Proven so far:
-532 unit tests, 11/11 browser cases, `tsc` and ESLint clean. Per-case acceptance status is
+**Status:** open for review, fully verified on the branch — 545 unit tests, 156/156 integration,
+132/132 wire, 11/11 browser cases, `tsc` and ESLint clean. Per-case acceptance status is
 `docs/DESIGN-working-drafts.md` §7 — cases 1, 2, 3 and 11 are unclaimed there, with reasons.
 
 ⚑ **One finding is wider than this PR and is NOT fixed:** the editor's "view mode" does not make prose

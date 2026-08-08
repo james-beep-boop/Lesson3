@@ -38,11 +38,11 @@ vi.mock('@payloadcms/ui', () => ({
   }),
 }))
 
-import IdleLogout from '../../src/components/IdleLogout/index.js'
+import IdleLogout, {
+  CHECK_INTERVAL_MS,
+  FLUSH_LEAD_MS,
+} from '../../src/components/IdleLogout/index.js'
 import { useEditRecoveryFlushRegistry } from '../../src/components/EditRecovery/flushRegistry.js'
-
-const CHECK_INTERVAL_MS = 30_000
-const FLUSH_LEAD_MS = 90_000
 
 let replace: ReturnType<typeof vi.fn>
 
@@ -206,10 +206,6 @@ describe('the screen clears only when the work is provably stored', () => {
    */
   it('does not start a second flush while one is running', async () => {
     let started = 0
-    let release: (v: boolean) => void = () => {}
-    const gate = new Promise<boolean>((r) => {
-      release = r
-    })
 
     mocks.tokenExpirationMs = Date.now() + FLUSH_LEAD_MS - 1_000
     render(
@@ -234,7 +230,6 @@ describe('the screen clears only when the work is provably stored', () => {
     await settle()
 
     expect(started, 'concurrent triggers must join the run in progress').toBe(1)
-    release(true)
   })
 
   /**

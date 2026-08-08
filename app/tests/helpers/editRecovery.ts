@@ -187,6 +187,16 @@ export async function setRecoveryProvenance(
   userId: number,
   args: { baseUpdatedAt?: string; schemaVersion?: string },
 ) {
+  // ⚑ Fail LOUDLY when there is no row to rewrite. Both statements below happily affect zero rows,
+  // and the browser cases that depend on this (9 and 10) would then run against a capture that is
+  // still perfectly valid: no stale banner, a Restore button that should not be there, and a failure
+  // that reads as a client defect rather than a fixture that did nothing. `startFor` in this file
+  // already applies the rule.
+  if (!(await recoveryRow(payload, versionId, userId))) {
+    throw new Error(
+      `fixture: no edit_recovery row for user ${userId} / version ${versionId} to re-provenance`,
+    )
+  }
   if (args.baseUpdatedAt !== undefined) {
     await drizzleOf(payload).execute(sql`
       UPDATE edit_recovery SET base_updated_at = ${args.baseUpdatedAt}::timestamptz

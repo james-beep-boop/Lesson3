@@ -61,7 +61,8 @@ import { useAuth, useConfig } from '@payloadcms/ui'
 
 import { EditRecoveryFlushProvider, useFlushRegistry } from '../EditRecovery/flushRegistry'
 
-const CHECK_INTERVAL_MS = 30_000
+/** Exported so the spec asserts against the REAL cadence rather than a copy that can drift from it. */
+export const CHECK_INTERVAL_MS = 30_000
 
 /**
  * How far ahead of the deadline to flush unsaved work.
@@ -74,7 +75,7 @@ const CHECK_INTERVAL_MS = 30_000
  * trusted. It also has to leave the capture time to finish while the token is still VALID: a flush
  * that starts at the deadline is a flush that 401s.
  */
-const FLUSH_LEAD_MS = Math.max(90_000, CHECK_INTERVAL_MS * 3)
+export const FLUSH_LEAD_MS = Math.max(90_000, CHECK_INTERVAL_MS * 3)
 
 export default function IdleLogout({ children }: { children?: React.ReactNode }) {
   const { user, tokenExpirationMs, logOut } = useAuth()
@@ -115,7 +116,13 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
         // boolean would clear the screen over work that was never stored. `allSafe` is synchronous
         // and each editor answers for the content on screen at this instant.
         const clearScreen = allSafe()
-        void logOut().then(() => {
+        // ⚑ Runs on REJECTION as well as success. `logOut()` can fail — the network is exactly what
+        // an expiring session tends to have trouble with — and a bare `.then()` would leave an
+        // unhandled rejection AND skip the clear entirely, with `loggingOut` already latched so no
+        // later tick retries. The previous teacher's document would sit on the shared screen because
+        // a request failed. The session is dead either way, and the inactivity route re-establishes
+        // the logged-out state.
+        const clearIfSafe = () => {
           // ⚑ A HARD navigation, not `router.replace`. The point is that nothing of the previous
           // teacher's document survives on a shared machine, and a soft transition keeps the whole
           // React tree — including the form state we are trying to remove — alive in memory. This is
@@ -129,7 +136,8 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
             const back = path.startsWith(adminRoute) ? `?redirect=${encodeURIComponent(path)}` : ''
             window.location.replace(`${inactivityRoute}${back}`)
           }
-        })
+        }
+        void logOut().then(clearIfSafe, clearIfSafe)
         return
       }
 

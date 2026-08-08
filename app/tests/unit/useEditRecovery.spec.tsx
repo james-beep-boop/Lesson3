@@ -16,10 +16,12 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 
-import { useEditRecovery } from '../../src/components/EditRecovery/useEditRecovery.js'
+import {
+  CAPTURE_DEBOUNCE_MS,
+  CAPTURE_TIMEOUT_MS,
+  useEditRecovery,
+} from '../../src/components/EditRecovery/useEditRecovery.js'
 import type { UseEditRecovery } from '../../src/components/EditRecovery/useEditRecovery.js'
-
-const CAPTURE_DEBOUNCE_MS = 8_000
 
 const token = (revision: number) => ({
   generation: 1,
@@ -1052,5 +1054,94 @@ describe('the safety probe', () => {
     })
     await flush()
     expect(safe(h)).toBe(true)
+  })
+})
+
+/**
+ * Two refusals that look identical to `captureOnce` but must not look identical to the TEACHER.
+ */
+describe('what the indicator is allowed to blame', () => {
+  const storedOffer = () => ({
+    capture: {
+      content: { 'lesson:abc': { overview: 'from before' } },
+      capturedAt: '2026-08-07T12:00:00.000Z',
+      baseUpdatedAt: '2026-08-07T00:00:00.000Z',
+      schemaVersion: 'sv-1',
+      stale: false,
+      schemaMismatch: false,
+    },
+  })
+
+  /**
+   * ⚑ The entry gate refuses captures ON PURPOSE while an offer is unresolved. `captureOnce` reports
+   * that with the same `rejected` outcome a server refusal produces, and `statusForOutcome` paints
+   * that as "NOT backed up: could not reach the server" — so a debounce tick landing during the offer
+   * told the teacher their work was not being saved when nothing had gone wrong, while a modal sat in
+   * front of them. Reachable because fields are NOT read-only while an offer is open.
+   */
+  it('says nothing when the entry gate suppressed the capture', async () => {
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, storedOffer())
+      return jsonResponse(200, { token: token(2) })
+    }
+    const h = harness()
+    await flush()
+    expect(h.ref.current!.entry.phase, 'precondition: an offer is open').toBe('offer')
+    const before = h.ref.current!.status.kind
+
+    // Type, and let the debounce fire straight into the gate.
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+
+    expect(captureCalls(), 'the gate still refuses the capture').toHaveLength(0)
+    expect(h.ref.current!.status.kind, 'and it must not be reported as a failure').toBe(before)
+    expect(h.ref.current!.status.kind).not.toBe('notBackedUp')
+  })
+
+  /**
+   * ⚑ A capture that never settles used to hold `inFlight` forever — no later capture could run, and
+   * `prepareForSave` awaits it, so the teacher's SAVE hung with it. The feature would have been
+   * blocking the operation it exists to protect. An abandoned capture is `indeterminate`, which
+   * `planSave` already handles by saving tokenless.
+   */
+  it('abandons a capture that never answers, and lets the save through', async () => {
+    // ⚑ The stub must HONOUR the abort signal. A promise that simply never settles ignores
+    // `AbortController`, so the test would hang on its own fake rather than exercise the bound —
+    // real `fetch` rejects with an AbortError, and that rejection is what `captureOnce` classifies
+    // as indeterminate.
+    handler = withEntryGet((url, init) =>
+      url.endsWith('/recovery/start')
+        ? Promise.resolve(jsonResponse(200, { token: token(1) }))
+        : new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            )
+          }),
+    )
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    expect(captureCalls()).toHaveLength(1)
+
+    // The save must not wait on it for longer than the capture's own bound.
+    let plan: Awaited<ReturnType<UseEditRecovery['prepareForSave']>> | null = null
+    await act(async () => {
+      const pending = h.ref.current!.prepareForSave()
+      vi.advanceTimersByTime(CAPTURE_TIMEOUT_MS + 1_000)
+      plan = await pending
+    })
+
+    expect(plan, 'a save is never blocked by a stalled BACKUP').toEqual({
+      proceed: true,
+      token: null,
+    })
   })
 })

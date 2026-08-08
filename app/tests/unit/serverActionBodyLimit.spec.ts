@@ -41,6 +41,20 @@ describe('the Server Action body limit covers the documents this app accepts', (
    * form state (measured 2.57× on the largest plan in the corpus). If the limit stops clearing that,
    * the largest plans become uneditable — silently.
    */
+  /**
+   * ⚑ The multiplier must never UNDERSTATE the measurement. Rounding it down shrinks the derived
+   * requirement, which makes the assertion below easier to pass — it flatters the limit. An earlier
+   * version used 2.56 against a measured 2.5666…, with a comment claiming the opposite effect, and
+   * no test noticed because 12 MiB clears both. This is the assertion that notices.
+   */
+  it('never rounds the measured multiplier in the flattering direction', () => {
+    const MEASURED_BODY_BYTES = 1_587_513 // version 13, 13 lessons, 2026-08-07
+    const MEASURED_DOCUMENT_BYTES = 618_518
+    expect(FORM_STATE_MULTIPLIER).toBeGreaterThanOrEqual(
+      MEASURED_BODY_BYTES / MEASURED_DOCUMENT_BYTES,
+    )
+  })
+
   it('clears what a document at that ceiling actually costs', () => {
     expect(REQUIRED_BODY_BYTES).toBe(MAX_EDITABLE_DOCUMENT_BYTES * FORM_STATE_MULTIPLIER)
     expect(

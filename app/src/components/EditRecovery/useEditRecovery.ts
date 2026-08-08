@@ -38,8 +38,14 @@ import {
   type SavePlan,
 } from './protocol'
 
-/** Idle debounce before a capture (design §5: "~8 s idle, plus on blur"). */
-const CAPTURE_DEBOUNCE_MS = 8_000
+/**
+ * Idle debounce before a capture (design §5: "~8 s idle, plus on blur").
+ *
+ * Exported so `tests/unit/useEditRecovery.spec.tsx` advances the REAL debounce rather than a copy of
+ * the number — a copy makes every timing test describe a scenario it no longer exercises the moment
+ * this changes.
+ */
+export const CAPTURE_DEBOUNCE_MS = 8_000
 
 /**
  * How long the entry lookup may take before we give up and let the teacher work.
@@ -49,6 +55,20 @@ const CAPTURE_DEBOUNCE_MS = 8_000
  * is the right failure: not offering a capture back is a much smaller harm than not taking one.
  */
 const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
+
+/**
+ * How long one CAPTURE may take before it is abandoned.
+ *
+ * ⚑ Bounded for a different reason than the lookup above, and a worse one. A capture that never
+ * settles holds `inFlight` forever — so every later capture returns that same pending promise and no
+ * further backup is ever taken — and `prepareForSave` AWAITS `inFlight`, so the teacher's SAVE waits
+ * on it too, until the browser's own network timeout minutes later. The feature would be blocking the
+ * very operation it exists to protect.
+ *
+ * An abandoned capture classifies as `indeterminate`, which `planSave` already handles by saving
+ * tokenless — the same path a dropped connection takes.
+ */
+export const CAPTURE_TIMEOUT_MS = 20_000
 
 /**
  * What a just-opened editor found waiting for it.
@@ -263,12 +283,20 @@ export function useEditRecovery(args: {
     }
 
     try {
-      const res = await fetch(recoveryUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body,
-      })
+      const giveUp = new AbortController()
+      const captureTimer = setTimeout(() => giveUp.abort(), CAPTURE_TIMEOUT_MS)
+      let res: Response
+      try {
+        res = await fetch(recoveryUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body,
+          signal: giveUp.signal,
+        })
+      } finally {
+        clearTimeout(captureTimer)
+      }
       const parsed = (await res.json().catch(() => null)) as { token?: RecoveryToken } | null
       const outcome = classifyResponse(res.status, parsed, res.headers.get('Retry-After'))
       // The session moved on while this was in flight; its result belongs to nobody.
@@ -318,6 +346,14 @@ export function useEditRecovery(args: {
     /** Capture and paint the verdict. Whether the work is SAFE is answered by `isSafe`, not here. */
     async function run(): Promise<void> {
       if (!session.current.token || !live.current.active || !live.current.modified) return
+      // ⚑ The entry gate refuses captures ON PURPOSE while an offer is unresolved, and that refusal
+      // must not be REPORTED as one. `captureOnce` returns the same `rejected` outcome the server's
+      // own refusals produce, which `statusForOutcome` paints as "NOT backed up: could not reach the
+      // server" — so a debounce tick landing during `resolving` or `offer` told the teacher their work
+      // was not being saved when nothing had gone wrong. Reachable both ways: fields are not
+      // read-only while an offer is open (DECISIONS 2026-08-07 i), so typing restarts the debounce;
+      // and the 10 s lookup bound is longer than the 8 s debounce, so a slow lookup meets it too.
+      if (entryPhase.current === 'resolving' || entryPhase.current === 'offer') return
       const mine = epoch.current
       setStatus({ kind: 'saving' })
       const outcome = await capture()

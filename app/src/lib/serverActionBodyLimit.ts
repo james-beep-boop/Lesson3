@@ -53,12 +53,17 @@
 export const MAX_EDITABLE_DOCUMENT_BYTES = 4_000_000
 
 /**
- * How much Server Action body one byte of document costs, measured (1,587,513 / 618,518 = 2.566…).
- * Rounded DOWN to two places so the derived requirement is never flattered by the rounding.
+ * How much Server Action body one byte of document costs, measured (1,587,513 / 618,518 = 2.5666…).
+ *
+ * ⚑ Rounded UP. Rounding DOWN shrinks {@link REQUIRED_BODY_BYTES}, which makes the requirement easier
+ * to clear — it FLATTERS the limit. An earlier version of this used 2.56 and its comment claimed the
+ * opposite effect, which is the same direction-of-rounding error that once turned this feature's
+ * 51.4% overshoot into "59%". When a constant exists to make a check strict, round the way that keeps
+ * it strict.
  */
-export const FORM_STATE_MULTIPLIER = 2.56
+export const FORM_STATE_MULTIPLIER = 2.57
 
-/** The measured requirement: what the largest acceptable document implies. ~10.24 MB. */
+/** The measured requirement: what the largest acceptable document implies. ~10.28 MB. */
 export const REQUIRED_BODY_BYTES = MAX_EDITABLE_DOCUMENT_BYTES * FORM_STATE_MULTIPLIER
 
 /**
