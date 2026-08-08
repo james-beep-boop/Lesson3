@@ -26,9 +26,8 @@ history, kept for provenance.**
 
 **PR 1 (server) is merged and deployed to the Rock.** **PR 2 (client) is BUILT** on
 `feat/edit-recovery-client-capture` as **draft PR #204** — capture (2a) and restore (2b) both, plus a
-round of reviewer-found P1 fixes and a cleanup pass. It is still a DRAFT for one reason: **the
-DB-backed suites (`test:int`, `test:http`) have not been run on this branch.** That is the gate to
-"ready for review", and it is the first item under "What is LEFT".
+round of reviewer-found P1 fixes and a cleanup pass. **All suites are now green on it** — 536 unit, 11/11 browser, `test:int` 156/156, `test:http`
+132/132 — so it is ready to come out of draft and be reviewed.
 
 ⚑ **Deliberately SHA-free** (see the note further down about why). Verify state, don't trust it:
 
@@ -49,12 +48,10 @@ answer arrives, and OFFERS rather than applies. Stale or schema-mismatched captu
 read/copy/discard only, with no Restore button at all. `IdleLogout` now clears the screen at the
 session deadline — but only when a synchronous safety probe says every editor's work is stored.
 
-**Proven, locally:** 532 unit tests; 11/11 browser cases (8 in `editRecoveryRestore.e2e.spec.ts`,
-3 in `editRecovery.e2e.spec.ts`); `tsc` and ESLint clean. Per-case status is
-`docs/DESIGN-working-drafts.md` §7 and **nowhere else** — including here.
-
-**NOT proven:** `test:int` and `test:http` have not run on this branch. PR 2 changed one server file
-(`endpoints/recovery.ts` — the GET now returns `capturedAt`), so the wire suite is not a formality.
+**Proven:** 536 unit tests; 11/11 browser cases (8 in `editRecoveryRestore.e2e.spec.ts`, 3 in
+`editRecovery.e2e.spec.ts`); `test:int` 156/156; `test:http` 132/132 against an app image rebuilt from
+this branch. `tsc` and ESLint clean. Per-case acceptance status is `docs/DESIGN-working-drafts.md` §7
+and **nowhere else** — including here.
 
 ⚑ **Cases 1, 2, 3 and 11 are UNCLAIMED, and §7 says so per case.** 1-3 need a token to actually
 expire, which a browser spec cannot arrange against a running server (`tokenExpiration` is a
@@ -231,16 +228,21 @@ ordinary version deletion still works (the check that matters: the delete-time c
 reviewer-found P1 round and a four-angle cleanup pass. See the handoff block at the top for what is
 and is not proven.
 
-1. **Run the DB-backed suites on the PR 2 branch, then take #204 out of draft.** This is the only
-   thing holding it. `test:int` and `test:http` both need a database — use the disposable probe
-   recipe in `AGENTS.md` (⚑ two traps: always pass `-p`, and put `-e NODE_ENV=test` on the
-   `docker run`, NOT on `docker compose up`).
+1. ✅ **DONE — the DB-backed suites are GREEN on this branch** (2026-08-07, disposable probe):
+   `test:int` **156/156** across 19 files, `test:http` **132/132** across all three files
+   (`recovery.http.spec.ts` 27/27). The app image was rebuilt from this branch first, so the wire run
+   exercised PR 2's server change rather than a stale image.
 
-   PR 2 touches one server file — `endpoints/recovery.ts`, whose GET now returns `capturedAt` — so
-   `tests/http/recovery.http.spec.ts` is the suite that matters most. ⚑ **Consider adding a wire
-   assertion for that field while you are there.** It is currently pinned only by a browser case
-   (case 4 reads the `<time datetime>` and fails if the field disappears — verified by mutation), and
-   a wire fact deserves a wire test.
+   The GET's new `capturedAt` now has a wire assertion of its own — it was pinned only by a browser
+   case. ⚑ Verified by mutation: removing the field from the handler, rebuilding the app image and
+   re-running turns it red ("the capture must be datable: expected undefined to be truthy").
+
+   ⚑ **A mutation check that edits the wrong path proves nothing.** My first attempt ran
+   `cp app/src/...` from inside `app/`, so the file never changed and 27/27 "passed" — the same
+   cwd trap AGENTS.md documents for `$PWD/app`. Resolve `$ROOT` and use absolute paths, and confirm
+   the mutation landed (`grep -c`) BEFORE trusting the run.
+
+   **So #204 is ready to come out of draft.**
 
 2. ✅ **DONE — the pre-existing Server Action body limit is fixed** on this branch, as its own commit.
    See the section below for the value, why it was chosen, and how it was verified.

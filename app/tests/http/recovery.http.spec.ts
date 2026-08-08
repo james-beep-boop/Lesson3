@@ -220,9 +220,35 @@ describe('recovery endpoints: the happy paths', () => {
     expect(capBody.token.revision, 'the advanced token, not the one sent').toBe(t.revision + 1)
 
     const got = (await (await call(v, '/recovery', 'GET', 'editor')).json()) as {
-      capture: { content: Record<string, Record<string, string>> }
+      capture: {
+        content: Record<string, Record<string, string>>
+        capturedAt: string
+        baseUpdatedAt: string
+      }
+      token: { updatedAt: string }
     }
     expect(got.capture.content['lesson:L1'].title).toBe('unsaved over the wire')
+
+    /**
+     * ⚑ TWO timestamps, and the restore prompt shows one of them to a teacher. `capturedAt` is the
+     * recovery ROW's mtime — when this prose was stored; `baseUpdatedAt` is the SOURCE VERSION's, and
+     * exists only so the client can detect that the plan moved underneath the capture. The client
+     * originally reassembled `capturedAt` from the token, and an earlier build of the panel printed
+     * `baseUpdatedAt` under "Captured …", telling a teacher their afternoon's work dated from whenever
+     * the plan was last saved.
+     *
+     * Asserted at the wire because it IS a wire fact, and because the client now refuses any capture
+     * that arrives without it — so an endpoint that stopped sending it would present as "no work was
+     * recovered", which is indistinguishable from there being none.
+     */
+    expect(got.capture.capturedAt, 'the capture must be datable').toBeTruthy()
+    expect(got.capture.capturedAt, 'and it is the ROW mtime the token also carries').toBe(
+      got.token.updatedAt,
+    )
+    expect(
+      Date.parse(got.capture.capturedAt),
+      'stored after the source it was captured against',
+    ).toBeGreaterThanOrEqual(Date.parse(got.capture.baseUpdatedAt))
   })
 
   it('2 capture → 409 on a stale token, without disclosing which precondition failed', async () => {
