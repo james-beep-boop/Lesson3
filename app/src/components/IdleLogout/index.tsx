@@ -33,11 +33,15 @@
  * ⚑ **This component now CLEARS THE SCREEN at the deadline, but only when the work is provably safe.**
  * That conditional is the whole design, not caution: clearing an editor whose capture never landed
  * would make this component the thing that destroys unsaved work, which is precisely the failure the
- * recovery feature exists to prevent. So the in-window flushes report a verdict (see
- * `flushRegistry`'s `PreExpiryFlush`) and only an unbroken `true` earns the redirect. When anything is
- * unproven — a refused capture, a flush still in flight, no provider at all — the old zombie editor is
- * deliberately preserved: the session is dead either way, and leaving the work legible on screen is the
- * lesser harm, because the teacher can still select and copy it.
+ * recovery feature exists to prevent. When anything is unproven — a refused capture, an edit the
+ * debounce could not reach, no provider at all — the old zombie editor is deliberately preserved: the
+ * session is dead either way, and leaving the work legible on screen is the lesser harm, because the
+ * teacher can still select and copy it.
+ *
+ * ⚑ Safety is ASKED at the deadline (`allSafe`), never remembered from the last flush. A cached
+ * verdict is stale the moment the teacher types again, and the gap between the final in-window flush
+ * and the deadline is up to a full poll interval — comfortably longer than it takes to type a
+ * sentence, and longer than the 8-second capture debounce needs to be unable to finish.
  *
  * Mounted via admin.components.providers, so it's always present and (per Payload's provider
  * tree) rendered inside AuthProvider. It renders its children unchanged.
@@ -52,7 +56,7 @@
  * consuming the registry's no-op default, the pre-expiry flush never runs, and nothing reports it.
  * The editor registers on mount and unregisters on unmount; see `EditRecovery/flushRegistry`.
  */
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import { useAuth } from '@payloadcms/ui'
 
 import { EditRecoveryFlushProvider, useFlushRegistry } from '../EditRecovery/flushRegistry'
@@ -89,24 +93,12 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
   // Owned here, not consumed from a parent — so no inner component is needed just to read what this
   // one provides.
   const registry = useFlushRegistry()
-  const { runAll } = registry
-
-  /**
-   * Whether the most recent in-window flush confirmed every editor's work is stored.
-   *
-   * ⚑ Starts FALSE and is only ever set by a completed flush. At the deadline we cannot ask — the
-   * token is dead — so the screen clears on this remembered answer, and the safe default for
-   * "no flush has completed yet" is to leave the work on screen.
-   */
-  const workIsSafe = useRef(false)
+  const { runAll, allSafe } = registry
 
   useEffect(() => {
     if (!user || !tokenExpirationMs) return
 
     let loggingOut = false
-    // ⚑ A flush still in flight means the verdict in `workIsSafe` belongs to an EARLIER tick, and the
-    // user may have typed since. Treated as unproven rather than trusted.
-    let flushing = false
 
     const check = () => {
       if (loggingOut) return
@@ -117,7 +109,13 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
         // ⚑ The flush is NOT retried here. The token is already dead, so a capture would 401; the
         // work that survives is whatever the in-window flushes below already stored. Firing one
         // last request alongside `logOut` would only race the logout and fail.
-        const clearScreen = workIsSafe.current && !flushing
+        //
+        // ⚑ ASKED NOW, not remembered from the last flush. A remembered verdict is stale by
+        // construction: a flush that succeeded 29 seconds ago says nothing about text typed two
+        // seconds ago, and the 8-second capture debounce cannot land in that gap — so a cached
+        // boolean would clear the screen over work that was never stored. `allSafe` is synchronous
+        // and each editor answers for the content on screen at this instant.
+        const clearScreen = allSafe()
         void logOut().then(() => {
           // ⚑ A HARD navigation, not `router.replace`. The point is that nothing of the previous
           // teacher's document survives on a shared machine, and a soft transition keeps the whole
@@ -137,19 +135,10 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
       // an empty registry, and anything typed after that attempt had no final flush at all — the
       // guarantee held only for work that happened to exist at one instant 90 seconds out. Repeating
       // is cheap: a flush with nothing dirty to send is a no-op inside the editor's own guard.
-      if (now >= tokenExpirationMs - FLUSH_LEAD_MS) {
-        flushing = true
-        void runAll()
-          .then((safe) => {
-            workIsSafe.current = safe
-          })
-          .catch(() => {
-            workIsSafe.current = false
-          })
-          .finally(() => {
-            flushing = false
-          })
-      }
+      //
+      // Its RESULT is deliberately not stored: `allSafe()` above is the authority, and a second,
+      // ageing copy of the same question is exactly what made the earlier version wrong.
+      if (now >= tokenExpirationMs - FLUSH_LEAD_MS) void runAll()
     }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') check()
@@ -165,7 +154,7 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
       window.removeEventListener('focus', check)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [user, tokenExpirationMs, logOut, runAll])
+  }, [user, tokenExpirationMs, logOut, runAll, allSafe])
 
   return <EditRecoveryFlushProvider registry={registry}>{children}</EditRecoveryFlushProvider>
 }

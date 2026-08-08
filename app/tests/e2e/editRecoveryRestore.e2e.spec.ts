@@ -224,6 +224,64 @@ test.describe('case 4 — the same user is OFFERED their work, never given it ba
   })
 })
 
+test.describe('the offer is a real barrier, not just a panel on top', () => {
+  /**
+   * ⚑ **The form is NOT locked by `setDisabled`, so the modal is the only barrier — and it was never
+   * tested.** Payload 3.85.1's `useField()` derives its `disabled` from `processing || initializing`
+   * ONLY (verified in installed source): `useForm().setDisabled` gates SUBMISSION and never touches
+   * field editability. So `setDisabled(!editing || recoveryGate)` does not stop anyone typing, here or
+   * anywhere else in this editor, and everything that keeps an unread capture safe rests on two things
+   * instead — this dialog covering the page, and the hook refusing to capture while an offer is
+   * unresolved (`tests/unit/useEditRecovery.spec.tsx`). Both are now asserted rather than assumed.
+   *
+   * ⚑ The backdrop DOES cover the viewport, including from inside Payload's sticky `.doc-controls` —
+   * measured 2026-08-07 at 1280×720 from (0,0), with the bottom of the screen blocked. `position:
+   * sticky` does not create a containing block for a fixed descendant; only `transform`, `filter` and
+   * `contain` do. This test exists because that is easy to break by accident and nothing would say so.
+   */
+  test('a click on the form behind the offer does not reach it', async ({ page }) => {
+    const versionId = await makeVersion('7.8.0')
+
+    await loginAsRole(page, fx, 'editor')
+    await openEditor(page, versionId)
+    await captureProse(page, 'work behind the barrier')
+    await logOut(page)
+
+    await loginAsRole(page, fx, 'editor')
+    await openEditor(page, versionId)
+    await expect(prompt(page)).toBeVisible()
+
+    // ⚑ Asked of the DOM directly — what is on top at that point? — rather than clicking and looking
+    // for a side effect. Payload persists each row's expanded state per user, so "did Show All
+    // expand the rows" answers a question about a saved preference, not about the barrier.
+    const covered = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === 'Show All',
+      )
+      if (!btn) return { found: false, blocked: false, topmost: null as string | null }
+      const r = btn.getBoundingClientRect()
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return {
+        found: true,
+        blocked: Boolean(top?.closest('.modal-backdrop')),
+        topmost: top ? top.className || top.tagName : null,
+      }
+    })
+
+    expect(covered.found, 'the control must be on screen for this to mean anything').toBe(true)
+    expect(
+      covered.blocked,
+      `a control below the toolbar is reachable while the offer is open (topmost: ${covered.topmost})`,
+    ).toBe(true)
+
+    // And the panel itself is still interactive — a barrier that covered its own dialog would pass
+    // the assertion above for entirely the wrong reason.
+    await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible()
+    await page.getByRole('button', { name: 'Not now' }).click()
+    await expect(prompt(page)).toHaveCount(0)
+  })
+})
+
 test.describe('case 6 — an explicit logout keeps the capture for that user', () => {
   /**
    * Distinct from case 4 only in intent, and that is the point: a teacher who signs out deliberately
@@ -274,12 +332,35 @@ test.describe('case 8 — an explicit discard retires the capture', () => {
       .poll(async () => (await recoveryRow(fx.payload, versionId, editorId))?.content)
       .toBeNull()
     const after = await recoveryRow(fx.payload, versionId, editorId)
-    expect(after?.retired_at, 'discard retires the row').not.toBeNull()
     expect(Number(after?.revision)).toBeGreaterThan(Number(before?.revision))
 
-    // The form is usable immediately — the discard is not a gate on getting back to work.
+    /**
+     * ⚑ The row is RETIRED and then REACTIVATED, and the second half is what this asserts.
+     *
+     * `retire` sets `retired_at`; `capture` requires `retired_at IS NULL`. Leaving the row retired
+     * would mean every capture for the rest of the session 409s — the teacher declines yesterday's
+     * work and, without a word, today's stops being backed up. The client therefore restarts, which
+     * clears `retired_at` and advances the GENERATION: a new session, which is exactly what declining
+     * the old one means.
+     */
+    expect(
+      after?.retired_at,
+      'the row must be live again, or nothing more can be captured',
+    ).toBeNull()
+    expect(
+      Number(after?.generation),
+      'reactivation begins a new session, so the generation moves',
+    ).toBeGreaterThan(Number(before?.generation))
+
+    // ⚑ And the proof that matters: work typed AFTER the discard is still backed up. The row state
+    // above is the mechanism; this is the promise.
     await expandLessons(page)
     await expect(page.locator(OVERVIEW)).toBeEditable()
+    await page.locator(OVERVIEW).fill(`${MARK}typed after discarding`)
+    await expect(indicator(page)).toHaveClass(/lp-recovery--ok/, { timeout: 30_000 })
+    await expect
+      .poll(async () => (await recoveryRow(fx.payload, versionId, editorId))?.content)
+      .not.toBeNull()
   })
 })
 
@@ -370,5 +451,32 @@ test.describe('case 12 — editing access lost between capture and restore', () 
     await expect(page.locator('body'), 'and is shown none of it').not.toContainText(typed)
     // No session either: the indicator only appears once a capture session has started.
     await expect(indicator(page)).toHaveCount(0)
+
+    // ⚑ AND ASKED DIRECTLY. Everything above is true merely because the UI never renders an Edit
+    // button for a Teacher, so the endpoint is never called — which would leave this case passing
+    // against a server that hands the capture straight back. The gate under test is the endpoint's
+    // re-authorization, so the test has to be the thing that calls it, with this user's real session
+    // cookie and no UI in the way.
+    const direct = await page.evaluate(async (id) => {
+      const r = await fetch(`/api/lesson-bundle-versions/${id}/recovery`, {
+        credentials: 'same-origin',
+      })
+      return { status: r.status, body: await r.text() }
+    }, versionId)
+
+    expect(direct.status, 'the endpoint must refuse a user who lost editing access').toBe(404)
+    expect(direct.body, 'and must not leak the prose in the refusal').not.toContain(typed)
+
+    // The same for `start`: reactivating the row would be a second way back in.
+    const restart = await page.evaluate(async (id) => {
+      const r = await fetch(`/api/lesson-bundle-versions/${id}/recovery/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: '{}',
+      })
+      return r.status
+    }, versionId)
+    expect(restart).toBe(404)
   })
 })

@@ -196,16 +196,22 @@ export default function LessonControls() {
     registerFlush: registerRecoveryFlush,
   })
 
-  // Locked while we do not yet know what is waiting, and while the user is deciding about it.
+  // Held while we do not yet know what is waiting, and while the user is deciding about it.
   const recoveryGate = recovery.entry.phase === 'resolving' || recovery.entry.phase === 'offer'
 
-  // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
-  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
+  // Keep the form's submit state in sync with our edit/view mode (starts from the `?edit=1` intent;
+  // the Edit/Cancel buttons flip it), extended over the recovery entry so a save cannot land while an
+  // offer is undecided.
   //
-  // ⚑ `recoveryGate` holds it locked a moment longer. Entry is a small state machine — unlock is the
-  // LAST step, after the server has said whether anything is waiting. Without it a teacher could type
-  // into the two hundred milliseconds before the answer arrives, and applying a restore would `reset`
-  // the form and destroy exactly those keystrokes.
+  // ⚑ **`setDisabled` does NOT make fields read-only.** Payload 3.85.1's `useField()` derives its
+  // `disabled` from `processing || initializing` alone — verified in installed source — and never
+  // consumes `useForm().disabled`. So this gates SUBMISSION, and calling it "locking the form" (as an
+  // earlier version of this comment did) describes something the framework does not do.
+  //
+  // What actually protects an unread capture is therefore NOT this line, and must not be assumed to
+  // be: the restore prompt covers the page (asserted in `tests/e2e/editRecoveryRestore.e2e.spec.ts`),
+  // and `useEditRecovery` refuses to capture at all while an offer is unresolved — so even a teacher
+  // who does type cannot overwrite the work they have not been shown yet.
   useEffect(() => {
     setDisabled(!editing || recoveryGate)
   }, [editing, recoveryGate, setDisabled])
@@ -223,6 +229,14 @@ export default function LessonControls() {
    */
   const onRestore = async () => {
     if (recovery.entry.phase !== 'offer' || restoring) return
+    // ⚑ Re-checked here, not left to the button's absence. "A stale capture is never applied" is a
+    // data-integrity invariant — its row ids may no longer mean what they meant, so applying it can
+    // land one lesson's prose on another — and an invariant enforced only by which control renders is
+    // one refactor away from being enforced by nothing.
+    if (recovery.entry.readOnly) {
+      recovery.keepOffer()
+      return
+    }
     setRestoring(true)
     try {
       const { doc } = applyCapture(currentContent() as never, recovery.entry.capture.content)

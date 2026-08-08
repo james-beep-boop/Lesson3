@@ -42,6 +42,7 @@ const jsonResponse = (status: number, body: unknown, headers: Record<string, str
 function harness(initial: { active?: boolean; modified?: boolean; versionId?: string } = {}) {
   const ref: { current: UseEditRecovery | null } = { current: null }
   const flushRef: { current: (() => Promise<boolean>) | null } = { current: null }
+  const safeRef: { current: (() => boolean) | null } = { current: null }
   let setProps: React.Dispatch<React.SetStateAction<Record<string, unknown>>> = () => {}
   let bumpChange: () => void = () => {}
 
@@ -62,10 +63,12 @@ function harness(initial: { active?: boolean; modified?: boolean; versionId?: st
       modified: props.modified as boolean,
       changeSignal: change,
       getDocument: () => ({ lessons: [] }),
-      registerFlush: (fn) => {
-        flushRef.current = fn
+      registerFlush: ({ flush, isSafe }) => {
+        flushRef.current = flush
+        safeRef.current = isSafe
         return () => {
           flushRef.current = null
+          safeRef.current = null
         }
       },
     })
@@ -93,6 +96,7 @@ function harness(initial: { active?: boolean; modified?: boolean; versionId?: st
   return {
     ref,
     flushRef,
+    safeRef,
     unmount,
     setProps: (p: Record<string, unknown>) => setProps((old) => ({ ...old, ...p })),
     bumpChange,
@@ -230,12 +234,16 @@ describe('prepareForSave and the in-flight capture', () => {
    */
   it('uses an in-flight INDETERMINATE result and saves tokenless, without capturing again', async () => {
     let failCapture: (e: Error) => void = () => {}
-    handler = async (url) =>
-      url.endsWith('/recovery/start')
-        ? jsonResponse(200, { token: token(1) })
-        : new Promise<Response>((_resolve, reject) => {
-            failCapture = reject
-          })
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      // ⚑ The entry GET must ANSWER. It shares this URL with the capture POST, and `resolving`
+      // suppresses capture — so a stub that hangs everything makes these capture-timing tests
+      // vacuous rather than strict.
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
+      return new Promise<Response>((_resolve, reject) => {
+        failCapture = reject
+      })
+    }
 
     const h = harness()
     await flush()
@@ -261,12 +269,13 @@ describe('prepareForSave and the in-flight capture', () => {
 
   it('an in-flight CONFLICT blocks the save without capturing again', async () => {
     let resolveCapture: (r: Response) => void = () => {}
-    handler = async (url) =>
-      url.endsWith('/recovery/start')
-        ? jsonResponse(200, { token: token(1) })
-        : new Promise<Response>((resolve) => {
-            resolveCapture = resolve
-          })
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
+      return new Promise<Response>((resolve) => {
+        resolveCapture = resolve
+      })
+    }
 
     const h = harness()
     await flush()
@@ -516,11 +525,13 @@ describe('more requests from abandoned sessions', () => {
     let releaseA: (r: Response) => void = () => {}
     let started = 0
     let captures = 0
-    handler = async (url) => {
+    handler = async (url, init) => {
       if (url.endsWith('/recovery/start')) {
         started += 1
         return jsonResponse(200, { token: token(started === 1 ? 1 : 40) })
       }
+      // The entry GET shares this URL and must answer, or `resolving` suppresses every capture below.
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       captures += 1
       if (captures === 1) {
         return new Promise<Response>((resolve) => {
@@ -620,6 +631,12 @@ describe('the entry state machine', () => {
   // ⚑ A REAL capture-map key (`<scope>:<rowId>`, see `projectCapture`), not a field path. The restore
   // prompt decodes it to attribute prose to a lesson, so a made-up key shape here would let a decoding
   // bug through.
+  /** The shape the endpoint really returns: the capture AND the token that dates it. */
+  const withToken = (body: { capture: unknown }) => ({
+    ...body,
+    token: { generation: 1, revision: 1, updatedAt: '2026-08-07T12:00:00.000Z' },
+  })
+
   const storedCapture = (over: Record<string, unknown> = {}) => ({
     content: { 'lesson:0b6f1e2a': { overview: 'work from before' } },
     baseUpdatedAt: '2026-08-07T00:00:00.000Z',
@@ -629,7 +646,14 @@ describe('the entry state machine', () => {
     ...over,
   })
 
-  /** Serve `start`, then answer the entry GET with whatever this case is about. */
+  /**
+   * Serve `start`, then answer the entry GET with whatever this case is about.
+   *
+   * ⚑ Bodies default to carrying a TOKEN alongside the capture, because the real endpoint always sends
+   * both and a capture without one is now refused outright — the token is where the capture's own
+   * timestamp lives, and offering a capture we cannot date reinstates the timestamp lie. Cases that
+   * are ABOUT a missing token pass their own body.
+   */
   const offering = (body: unknown, status = 200) => {
     handler = async (url, init) => {
       if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
@@ -640,7 +664,7 @@ describe('the entry state machine', () => {
   }
 
   it('offers a stored capture, and asks for it only AFTER start', async () => {
-    offering({ capture: storedCapture() })
+    offering(withToken({ capture: storedCapture() }))
     const h = harness()
     await flush()
 
@@ -688,6 +712,20 @@ describe('the entry state machine', () => {
     ).toBe('2026-08-02T09:00:00.000Z')
   })
 
+  /**
+   * ⚑ A capture we cannot DATE is not offered. The panel's "Captured …" line comes from the token, and
+   * falling back to `baseUpdatedAt` would reinstate the exact lie the join exists to remove — dating a
+   * teacher's afternoon to whenever the plan was last saved — while doing it only under a malformed
+   * response, where nobody would look. The endpoint always sends both together.
+   */
+  it('refuses a capture that arrives without its token', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+  })
+
   it('does not offer when there is nothing stored', async () => {
     offering({ capture: null })
     const h = harness()
@@ -700,7 +738,7 @@ describe('the entry state machine', () => {
     ['stale', { stale: true }],
     ['schema-mismatched', { schemaMismatch: true }],
   ])('offers a %s capture as READ-ONLY', async (_label, over) => {
-    offering({ capture: storedCapture(over) })
+    offering(withToken({ capture: storedCapture(over) }))
     const h = harness()
     await flush()
 
@@ -724,7 +762,7 @@ describe('the entry state machine', () => {
   })
 
   it('keeping the offer unlocks and leaves the capture alone', async () => {
-    offering({ capture: storedCapture() })
+    offering(withToken({ capture: storedCapture() }))
     const h = harness()
     await flush()
     await act(async () => {
@@ -739,7 +777,7 @@ describe('the entry state machine', () => {
   })
 
   it('discarding retires the capture with the held token', async () => {
-    offering({ capture: storedCapture() })
+    offering(withToken({ capture: storedCapture() }))
     const h = harness()
     await flush()
     await act(async () => {
@@ -752,11 +790,76 @@ describe('the entry state machine', () => {
   })
 
   /**
+   * ⚑ **A DISCARD MUST RESTART THE SESSION, or recovery is dead for the rest of it.**
+   *
+   * `retire` sets `retired_at`; `capture` requires `retired_at IS NULL`. So after a discard the row is
+   * dormant and every later capture 409s — the teacher declines yesterday's work and, without a word,
+   * today's stops being backed up. Adopting the token the DELETE returns does not help: the token is
+   * fine, the ROW is retired. Only `start` reactivates it.
+   *
+   * The original case-8 browser test could not see this, because it stopped at the discard. This
+   * carries on to the thing the user does next.
+   */
+  it('discarding RESTARTS the session, so the next capture still works', async () => {
+    offering(withToken({ capture: storedCapture() }))
+    const h = harness()
+    await flush()
+    const startsBefore = calls.filter((c) => c.url.endsWith('/recovery/start')).length
+
+    await act(async () => {
+      await h.ref.current!.discardOffer()
+    })
+    await flush()
+
+    expect(
+      calls.filter((c) => c.url.endsWith('/recovery/start')).length,
+      'the retired row must be reactivated',
+    ).toBe(startsBefore + 1)
+
+    // And the session is usable again: an edit still produces a capture.
+    const capturesBefore = captureCalls().length
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls().length, 'work typed after a discard must still be backed up').toBe(
+      capturesBefore + 1,
+    )
+  })
+
+  /**
+   * ⚑ The restart runs even when the DELETE FAILED. A discard whose response was lost may well have
+   * committed, and `start` on a live row is a harmless resume — so attempting it is strictly safer
+   * than assuming the row survived.
+   */
+  it('restarts even when the retire request fails', async () => {
+    offering(withToken({ capture: storedCapture() }))
+    const priorHandler = handler
+    handler = async (url, init) => {
+      if (init?.method === 'DELETE') return jsonResponse(500, { errors: [{ message: 'boom' }] })
+      return priorHandler(url, init)
+    }
+    const h = harness()
+    await flush()
+    const startsBefore = calls.filter((c) => c.url.endsWith('/recovery/start')).length
+
+    await act(async () => {
+      await h.ref.current!.discardOffer()
+    })
+    await flush()
+
+    expect(calls.filter((c) => c.url.endsWith('/recovery/start')).length).toBe(startsBefore + 1)
+  })
+
+  /**
    * ⚑ The user asked to get on with editing. Holding the form hostage to a tidy-up they did not ask
    * about would be the wrong trade, and a capture that survives is retired by the 30-day pass anyway.
    */
   it('discarding unlocks even when the retire request fails', async () => {
-    offering({ capture: storedCapture() })
+    offering(withToken({ capture: storedCapture() }))
     const priorHandler = handler
     handler = async (url, init) => {
       if (init?.method === 'DELETE') throw new Error('offline')
@@ -773,7 +876,7 @@ describe('the entry state machine', () => {
 
   /** Leaving edit mode with a prompt open must not leave the next unlock holding a dead offer. */
   it('clears the offer when the session ends', async () => {
-    offering({ capture: storedCapture() })
+    offering(withToken({ capture: storedCapture() }))
     const h = harness()
     await flush()
     expect(h.ref.current!.entry.phase).toBe('offer')
@@ -784,5 +887,114 @@ describe('the entry state machine', () => {
     await flush()
 
     expect(h.ref.current!.entry.phase).toBe('idle')
+  })
+})
+
+/**
+ * The SAFETY PROBE — the synchronous answer `IdleLogout` destroys work on.
+ *
+ * ⚑ It exists because a remembered flush verdict is stale by construction: a capture that succeeded
+ * 29 seconds before the session deadline says nothing about text typed two seconds before it, and the
+ * 8-second debounce cannot land in that gap. The probe is evaluated at the moment of the decision and
+ * compares CONTENT, not the fate of the last request.
+ */
+describe('the safety probe', () => {
+  const safe = (h: ReturnType<typeof harness>) => h.safeRef.current!()
+
+  it('is safe when nothing is dirty', async () => {
+    const h = harness({ modified: false })
+    await flush()
+    expect(safe(h)).toBe(true)
+  })
+
+  it('is UNSAFE while dirty work has never been captured', async () => {
+    const h = harness()
+    await flush()
+    expect(safe(h)).toBe(false)
+  })
+
+  it('becomes safe once the server confirms that exact content', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(captureCalls()).toHaveLength(1)
+    expect(safe(h)).toBe(true)
+  })
+
+  /**
+   * ⚑ The stale-verdict case, at its source. The capture SUCCEEDED — a `runAll` result would say
+   * "safe" — and then the teacher typed. The probe reports the truth because it compares the content
+   * on screen against the content the server confirmed, not against whether a request went well.
+   */
+  it('goes UNSAFE again the moment the content changes after a successful capture', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(safe(h), 'precondition: the capture landed').toBe(true)
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    expect(safe(h), 'a keystroke the debounce has not reached is not backed up').toBe(false)
+  })
+
+  /**
+   * ⚑ An edit made WHILE a capture is in flight. The request carries the OLD content, so its success
+   * says nothing about what is now on screen. This is why the signal is snapshotted when the body is
+   * built rather than when the response lands — the other ordering marks content safe that was never
+   * sent.
+   */
+  it('does not credit a capture for content typed after its body was built', async () => {
+    let release: (r: Response) => void = () => {}
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
+      return new Promise<Response>((resolve) => {
+        release = resolve
+      })
+    }
+
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    expect(captureCalls()).toHaveLength(1)
+
+    // Type while it is in flight, THEN let it succeed.
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      release(jsonResponse(200, { token: token(2) }))
+    })
+    await flush()
+
+    expect(safe(h), 'the in-flight request never carried this text').toBe(false)
+  })
+
+  it('is safe again after the next capture catches up', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    await act(async () => {
+      h.bumpChange()
+    })
+    expect(safe(h)).toBe(false)
+
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    expect(safe(h)).toBe(true)
   })
 })

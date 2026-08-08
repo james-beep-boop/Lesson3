@@ -508,7 +508,16 @@ quoting one as if it were is how "PR 1 is complete" got written before cases 20 
   does NOT block it.
 - **4, 5, 6, 8, 9, 10, 12** — `tests/e2e/editRecoveryRestore.e2e.spec.ts` (PR 2b, restore). 5 is
   end-to-end on purpose: a second real user, same browser profile, same version, asserted against the
-  whole page rather than the field.
+  whole page rather than the field. 12 calls the endpoint DIRECTLY with the revoked user's own session
+  cookie and asserts 404 — asserting only that the UI shows nothing would pass against a server that
+  hands the capture straight back, because a Teacher never gets an Edit button to trigger the request.
+
+⚑ **The form is not locked while an offer is undecided, and never was.** Payload 3.85.1's `useField()`
+derives its `disabled` from `processing || initializing` alone and never consumes
+`useForm().disabled`, so `setDisabled` gates submission only. What protects an unread capture is the
+prompt covering the page — measured, and now asserted — plus the hook refusing to capture at all while
+an offer is unresolved. Recorded here because the natural reading of `setDisabled(!editing || gate)`
+is the opposite, and the code now says so too.
 
 **STILL NOT executing: 1, 2, 3, 11.**
 - **1, 2, 3** turn on a token actually EXPIRING, and `tokenExpiration` is a build-time constant in
