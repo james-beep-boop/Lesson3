@@ -165,6 +165,36 @@ export async function setRecoveryUpdatedAt(
 }
 
 /**
+ * Rewrite a stored capture's PROVENANCE — the two fields the restore path compares against the live
+ * source to decide whether the capture may be applied at all.
+ *
+ * ⚑ Forged directly rather than produced by aging a real session, because the two mismatches this
+ * creates are otherwise unreachable in a test: `schema_version` only changes when the field shape
+ * itself changes (a future migration), and reproducing a genuine `base_updated_at` drift means saving
+ * the source between capture and restore, which is a different case (11) with a different assertion.
+ * What matters is only that the client sees a mismatch and refuses to apply it.
+ */
+export async function setRecoveryProvenance(
+  payload: Payload,
+  versionId: number,
+  userId: number,
+  args: { baseUpdatedAt?: string; schemaVersion?: string },
+) {
+  if (args.baseUpdatedAt !== undefined) {
+    await drizzleOf(payload).execute(sql`
+      UPDATE edit_recovery SET base_updated_at = ${args.baseUpdatedAt}::timestamptz
+      WHERE user_id = ${userId} AND source_version_id = ${versionId}
+    `)
+  }
+  if (args.schemaVersion !== undefined) {
+    await drizzleOf(payload).execute(sql`
+      UPDATE edit_recovery SET schema_version = ${args.schemaVersion}
+      WHERE user_id = ${userId} AND source_version_id = ${versionId}
+    `)
+  }
+}
+
+/**
  * Fixture-bound wrappers for the three recovery specs.
  *
  * Each spec previously re-declared `poolReq`, `makeVersion`, `startFor` and `captureFor` locally, and
