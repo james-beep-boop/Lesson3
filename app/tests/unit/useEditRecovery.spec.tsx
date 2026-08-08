@@ -19,6 +19,7 @@ import { render, act, cleanup } from '@testing-library/react'
 import {
   CAPTURE_DEBOUNCE_MS,
   CAPTURE_TIMEOUT_MS,
+  ENTRY_LOOKUP_TIMEOUT_MS,
   useEditRecovery,
 } from '../../src/components/EditRecovery/useEditRecovery.js'
 import type { UseEditRecovery } from '../../src/components/EditRecovery/useEditRecovery.js'
@@ -637,39 +638,38 @@ describe('more requests from abandoned sessions', () => {
  * failure branches, because "unlock anyway" is the correct answer to a failed lookup and the easy
  * thing to get wrong is leaving the user locked out of their own document.
  */
-describe('the entry state machine', () => {
-  // ⚑ A REAL capture-map key (`<scope>:<rowId>`, see `projectCapture`), not a field path. The restore
-  // prompt decodes it to attribute prose to a lesson, so a made-up key shape here would let a decoding
-  // bug through.
-  const storedCapture = (over: Record<string, unknown> = {}) => ({
-    content: { 'lesson:0b6f1e2a': { overview: 'work from before' } },
-    // The CAPTURE's own mtime, sent by the endpoint alongside — and distinct from — the source
-    // version's `baseUpdatedAt` below.
-    capturedAt: '2026-08-07T12:00:00.000Z',
-    baseUpdatedAt: '2026-08-07T00:00:00.000Z',
-    schemaVersion: 'sv-1',
-    stale: false,
-    schemaMismatch: false,
-    ...over,
-  })
+// ⚑ A REAL capture-map key (`<scope>:<rowId>`, see `projectCapture`), not a field path. The restore
+// prompt decodes it to attribute prose to a lesson, so a made-up key shape here would let a decoding
+// bug through.
+const storedCapture = (over: Record<string, unknown> = {}) => ({
+  content: { 'lesson:0b6f1e2a': { overview: 'work from before' } },
+  // The CAPTURE's own mtime, sent by the endpoint alongside — and distinct from — the source
+  // version's `baseUpdatedAt` below.
+  capturedAt: '2026-08-07T12:00:00.000Z',
+  baseUpdatedAt: '2026-08-07T00:00:00.000Z',
+  schemaVersion: 'sv-1',
+  stale: false,
+  schemaMismatch: false,
+  ...over,
+})
 
-  /**
-   * Serve `start`, then answer the entry GET with whatever this case is about.
-   *
-   * ⚑ Bodies default to carrying a TOKEN alongside the capture, because the real endpoint always sends
-   * both and a capture without one is now refused outright — the token is where the capture's own
-   * timestamp lives, and offering a capture we cannot date reinstates the timestamp lie. Cases that
-   * are ABOUT a missing token pass their own body.
-   */
-  const offering = (body: unknown, status = 200) => {
-    handler = async (url, init) => {
-      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(status, body)
-      if (init?.method === 'DELETE') return jsonResponse(200, {})
-      return jsonResponse(200, { token: token(2) })
-    }
+/**
+ * Serve `start`, then answer the entry GET with whatever this case is about.
+ *
+ * ⚑ Module scope, so every block can reach it. The later blocks could not, and each grew its own
+ * near-copy — with small drifts (a different capture key, no DELETE arm) that read as if they were
+ * meaningful. One offer fixture per file.
+ */
+const offering = (body: unknown, status = 200) => {
+  handler = async (url, init) => {
+    if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+    if ((init?.method ?? 'GET') === 'GET') return jsonResponse(status, body)
+    if (init?.method === 'DELETE') return jsonResponse(200, {})
+    return jsonResponse(200, { token: token(2) })
   }
+}
 
+describe('the entry state machine', () => {
   it('offers a stored capture, and asks for it only AFTER start', async () => {
     offering({ capture: storedCapture() })
     const h = harness()
@@ -1061,17 +1061,6 @@ describe('the safety probe', () => {
  * Two refusals that look identical to `captureOnce` but must not look identical to the TEACHER.
  */
 describe('what the indicator is allowed to blame', () => {
-  const storedOffer = () => ({
-    capture: {
-      content: { 'lesson:abc': { overview: 'from before' } },
-      capturedAt: '2026-08-07T12:00:00.000Z',
-      baseUpdatedAt: '2026-08-07T00:00:00.000Z',
-      schemaVersion: 'sv-1',
-      stale: false,
-      schemaMismatch: false,
-    },
-  })
-
   /**
    * ⚑ The entry gate refuses captures ON PURPOSE while an offer is unresolved. `captureOnce` reports
    * that with the same `rejected` outcome a server refusal produces, and `statusForOutcome` paints
@@ -1080,11 +1069,7 @@ describe('what the indicator is allowed to blame', () => {
    * front of them. Reachable because fields are NOT read-only while an offer is open.
    */
   it('says nothing when the entry gate suppressed the capture', async () => {
-    handler = async (url, init) => {
-      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, storedOffer())
-      return jsonResponse(200, { token: token(2) })
-    }
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
     expect(h.ref.current!.entry.phase, 'precondition: an offer is open').toBe('offer')
@@ -1100,8 +1085,10 @@ describe('what the indicator is allowed to blame', () => {
     await flush()
 
     expect(captureCalls(), 'the gate still refuses the capture').toHaveLength(0)
-    expect(h.ref.current!.status.kind, 'and it must not be reported as a failure').toBe(before)
-    expect(h.ref.current!.status.kind).not.toBe('notBackedUp')
+    expect(
+      h.ref.current!.status.kind,
+      'a refusal we chose must not be reported as a backup failure',
+    ).toBe(before)
   })
 
   /**
@@ -1143,5 +1130,132 @@ describe('what the indicator is allowed to blame', () => {
       proceed: true,
       token: null,
     })
+  })
+})
+
+/**
+ * The request bounds, and the half of them that was missing.
+ */
+describe('every recovery request is bounded', () => {
+  /**
+   * ⚑ THE HALF THAT WAS MISSING. `fetch` resolves on HEADERS, so clearing the deadline around the
+   * fetch alone leaves `await res.json()` unbounded — and a stalled BODY reproduces the entire
+   * failure the deadline exists to prevent: `inFlight` is held forever, no later capture runs, and
+   * `prepareForSave` waits on it. The bound has to span the parse.
+   */
+  it('abandons a capture whose BODY never arrives, not just its headers', async () => {
+    handler = withEntryGet((url, init) =>
+      url.endsWith('/recovery/start')
+        ? Promise.resolve(jsonResponse(200, { token: token(1) }))
+        : // Headers arrive immediately; the body never does, and aborts when the deadline fires.
+          Promise.resolve({
+            status: 200,
+            headers: new Headers(),
+            json: () =>
+              new Promise((_resolve, reject) => {
+                init?.signal?.addEventListener('abort', () =>
+                  reject(new DOMException('Aborted', 'AbortError')),
+                )
+              }),
+          } as unknown as Response),
+    )
+
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    expect(captureCalls()).toHaveLength(1)
+
+    let plan: Awaited<ReturnType<UseEditRecovery['prepareForSave']>> | null = null
+    await act(async () => {
+      const pending = h.ref.current!.prepareForSave()
+      vi.advanceTimersByTime(CAPTURE_TIMEOUT_MS + 1_000)
+      plan = await pending
+    })
+
+    expect(plan, 'a save is never blocked by a stalled response body').toEqual({
+      proceed: true,
+      token: null,
+    })
+  })
+
+  /**
+   * ⚑ A `start` that never settles leaves `ready` false, so the debounce schedules nothing and the
+   * session takes NO backups — silently, with the indicator sitting on "starting". It had no bound at
+   * all until the other three did.
+   */
+  it('abandons a start that never answers', async () => {
+    handler = (url, init) =>
+      url.endsWith('/recovery/start')
+        ? new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            )
+          })
+        : Promise.resolve(jsonResponse(200, { capture: null }))
+
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(ENTRY_LOOKUP_TIMEOUT_MS + 1_000)
+    })
+    // The abort has to travel: listener → stub rejection → `withDeadline`'s finally → `requestStart`
+    // → `start`'s catch. Two microtask turns is not enough.
+    await flush()
+    await flush()
+    await flush()
+
+    // It gives up and SAYS so, rather than sitting on "starting" for the rest of the session.
+    expect(h.ref.current!.status.kind).toBe('unavailable')
+    expect(h.ref.current!.entry.phase, 'and the editor is not left waiting on an offer').toBe(
+      'clear',
+    )
+  })
+})
+
+/**
+ * ⚑ The blur and visibilitychange flushes re-sent content the server already had. `modified` cannot
+ * stop them — it is Payload's touched flag, which flips once and never clears — so every alt-tab
+ * during an editing session re-serialised the whole document, uploaded it, advanced the revision and
+ * spent rate-limit budget to store bytes already stored.
+ */
+describe('nothing is re-sent that the server already has', () => {
+  it('a blur after a confirmed capture sends nothing', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    const afterFirst = captureCalls().length
+    expect(afterFirst).toBe(1)
+
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        window.dispatchEvent(new Event('blur'))
+      })
+      await flush()
+    }
+    expect(captureCalls().length, 'already-stored content must not be re-sent').toBe(afterFirst)
+  })
+
+  it('but a blur after an EDIT still sends', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    const afterFirst = captureCalls().length
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      window.dispatchEvent(new Event('blur'))
+    })
+    await flush()
+    expect(captureCalls().length).toBe(afterFirst + 1)
   })
 })

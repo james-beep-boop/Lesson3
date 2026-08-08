@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { Registration } from './flushRegistry'
+import { captureAnchors } from '../../lib/editRecovery/projection'
 import {
   classifyResponse,
   fingerprint,
@@ -54,7 +55,7 @@ export const CAPTURE_DEBOUNCE_MS = 8_000
  * leave the session with no backup at all, silently, for as long as the editor stays open. Giving up
  * is the right failure: not offering a capture back is a much smaller harm than not taking one.
  */
-const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
+export const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
 
 /**
  * How long one CAPTURE may take before it is abandoned.
@@ -71,6 +72,34 @@ const ENTRY_LOOKUP_TIMEOUT_MS = 10_000
 export const CAPTURE_TIMEOUT_MS = 20_000
 
 /**
+ * Run `work` under a deadline, aborting it if the deadline passes.
+ *
+ * ⚑ **The bound spans the BODY READ, not just the headers.** `fetch` resolves as soon as headers
+ * arrive, so clearing the timer around the `fetch` alone — which the first version of this did —
+ * leaves `await res.json()` unbounded, and a stalled body reproduces the whole failure the deadline
+ * exists to prevent: `inFlight` is held forever, no later capture runs, and `prepareForSave` waits on
+ * it. Callers therefore do the fetch AND the parse inside the callback.
+ *
+ * ⚑ Hand-rolled rather than `AbortSignal.timeout(ms)` (which `generator/docxToPdf.ts` uses
+ * server-side). Node implements that timer natively rather than through `globalThis.setTimeout`, so
+ * vitest's fake timers cannot drive it — and the tests prove these bounds by advancing fake time.
+ */
+const withDeadline = async <T>(
+  ms: number,
+  work: (signal: AbortSignal) => Promise<T>,
+): Promise<T> => {
+  const giveUp = new AbortController()
+  const timer = setTimeout(() => giveUp.abort(), ms)
+  try {
+    // `await` inside the try, deliberately: returning the un-awaited promise would clear the timer
+    // immediately and leave the request unbounded again.
+    return await work(giveUp.signal)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
  * What a just-opened editor found waiting for it.
  *
  * `resolving` is a real state, not a loading detail: the form stays LOCKED through it. If typing
@@ -81,7 +110,25 @@ export type RecoveryEntry =
   | { phase: 'idle' }
   | { phase: 'resolving' }
   | { phase: 'clear' }
-  | { phase: 'offer'; capture: OfferedCapture; readOnly: boolean }
+  | {
+      phase: 'offer'
+      capture: OfferedCapture
+      readOnly: boolean
+      /**
+       * How each captured key is named and ordered, sampled from the LIVE document at the moment the
+       * offer opened.
+       *
+       * ⚑ Sampled ONCE, here, rather than derived during render. The caller used to compute it in
+       * JSX, which meant rebuilding the entire form document — `reduceFieldsToValues` over every
+       * field path, ~600 KB on the largest plan — on every render while the offer was open, and that
+       * includes the renders the restore itself causes (`setRestoring`, then a batch from `reset`),
+       * so it ran repeatedly during the one interaction the user is waiting on.
+       *
+       * Sampling here is also more correct: the anchors describe the document as it was when the
+       * offer was made, which by design must not change while the offer is undecided.
+       */
+      anchors: { key: string; heading: string }[]
+    }
 
 export type UseEditRecovery = {
   status: RecoveryStatus
@@ -176,6 +223,18 @@ export function useEditRecovery(args: {
    * stops a capture destroying an unread offer; a single site that updated only the state would
    * reopen that hole silently, with nothing to catch it.
    */
+  /**
+   * Is an offer still waiting on the user?
+   *
+   * ⚑ ONE owner for a predicate two guards depend on — this file already states the rule against a
+   * "second weaker copy of that predicate" for the token/active/modified test. A fourth entry phase,
+   * or a rename, must not have to be caught in two places.
+   */
+  const offerUnresolved = useCallback(
+    () => entryPhase.current === 'resolving' || entryPhase.current === 'offer',
+    [],
+  )
+
   const enterPhase = useCallback((next: RecoveryEntry) => {
     entryPhase.current = next.phase
     setEntry(next)
@@ -252,9 +311,7 @@ export function useEditRecovery(args: {
     // so `useForm().setDisabled` gates SUBMISSION, not field editability. The prompt is a portalled
     // modal with a focus trap, which is the interaction barrier; this is the guarantee underneath it,
     // and it holds whether or not any of that works.
-    if (entryPhase.current === 'resolving' || entryPhase.current === 'offer') {
-      return { kind: 'definite', reason: 'rejected' }
-    }
+    if (offerUnresolved()) return { kind: 'definite', reason: 'rejected' }
 
     // The single gate every caller passes through — debounce, blur, pre-expiry flush and the
     // pre-save flush alike. Refusing here is what makes the limiter's instruction actually binding.
@@ -283,22 +340,17 @@ export function useEditRecovery(args: {
     }
 
     try {
-      const giveUp = new AbortController()
-      const captureTimer = setTimeout(() => giveUp.abort(), CAPTURE_TIMEOUT_MS)
-      let res: Response
-      try {
-        res = await fetch(recoveryUrl(), {
+      const outcome = await withDeadline(CAPTURE_TIMEOUT_MS, async (signal) => {
+        const res = await fetch(recoveryUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
           body,
-          signal: giveUp.signal,
+          signal,
         })
-      } finally {
-        clearTimeout(captureTimer)
-      }
-      const parsed = (await res.json().catch(() => null)) as { token?: RecoveryToken } | null
-      const outcome = classifyResponse(res.status, parsed, res.headers.get('Retry-After'))
+        const parsed = (await res.json().catch(() => null)) as { token?: RecoveryToken } | null
+        return classifyResponse(res.status, parsed, res.headers.get('Retry-After'))
+      })
       // The session moved on while this was in flight; its result belongs to nobody.
       if (epoch.current !== mine) return { kind: 'indeterminate' }
       if (outcome.kind === 'ok') {
@@ -319,7 +371,7 @@ export function useEditRecovery(args: {
       // Network error, abort, timeout — the request may or may not have committed.
       return { kind: 'indeterminate' }
     }
-  }, [recoveryUrl])
+  }, [recoveryUrl, offerUnresolved])
 
   /** Capture, honouring the single-flight guard. Callers await the SAME promise. */
   const capture = useCallback(async (): Promise<CaptureOutcome> => {
@@ -342,6 +394,22 @@ export function useEditRecovery(args: {
    * use-before-declaration, and routing through a `useRef` adds a mutable cell whose only job is to
    * point at the function beside it.
    */
+  /**
+   * Is the unsaved work in THIS editor stored, as of right now?
+   *
+   * ⚑ Synchronous and evaluated at the moment of the question, because its caller destroys work on the
+   * answer. Nothing dirty is trivially safe. Otherwise the content on screen is safe only if the last
+   * CONFIRMED capture was of this very content — which an edit during a flush, or an edit two seconds
+   * before the deadline that the 8-second debounce cannot reach, makes false.
+   */
+  const isSafe = useCallback(
+    () =>
+      !live.current.active ||
+      !live.current.modified ||
+      (capturedSignal.current !== null && capturedSignal.current === live.current.changeSignal),
+    [],
+  )
+
   const captureAndReport = useCallback(
     /** Capture and paint the verdict. Whether the work is SAFE is answered by `isSafe`, not here. */
     async function run(): Promise<void> {
@@ -353,7 +421,15 @@ export function useEditRecovery(args: {
       // was not being saved when nothing had gone wrong. Reachable both ways: fields are not
       // read-only while an offer is open (DECISIONS 2026-08-07 i), so typing restarts the debounce;
       // and the 10 s lookup bound is longer than the 8 s debounce, so a slow lookup meets it too.
-      if (entryPhase.current === 'resolving' || entryPhase.current === 'offer') return
+      if (offerUnresolved()) return
+      // ⚑ Nothing to send when the server already has this exact content. Covers the blur and
+      // visibilitychange flushes and the 429 retry — `modified` cannot stop them, being Payload's
+      // touched flag, which flips once and never clears. Without this, every alt-tab re-serialised
+      // the whole ~600 KB document, uploaded it, advanced the server revision and spent rate-limit
+      // budget to store bytes already stored. It cannot suppress a NEEDED capture: `capturedSignal`
+      // is promoted only on `ok`, so any other outcome leaves `isSafe()` false. The save path goes
+      // through `capture()` directly and is unaffected.
+      if (isSafe()) return
       const mine = epoch.current
       setStatus({ kind: 'saving' })
       const outcome = await capture()
@@ -370,7 +446,7 @@ export function useEditRecovery(args: {
     },
     // `clearTimer` is gone from here deliberately: backoff now owns `retryTimer`, and this function
     // no longer touches the debounce at all.
-    [capture],
+    [capture, isSafe, offerUnresolved],
   )
 
   /**
@@ -387,11 +463,21 @@ export function useEditRecovery(args: {
    */
   const requestStart = useCallback(
     async (mine: number): Promise<boolean> => {
-      const res = await fetch(recoveryUrl('/start'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: '{}',
+      // ⚑ Bounded like every other recovery request. A `start` that never settles leaves `ready`
+      // false forever, so the debounce effect never schedules anything: the session takes NO backups
+      // at all while the indicator sits on "starting". Same class of harm the entry lookup's bound
+      // exists to prevent, one call earlier in the same block — and it had no bound until this.
+      const { res, body } = await withDeadline(ENTRY_LOOKUP_TIMEOUT_MS, async (signal) => {
+        const r = await fetch(recoveryUrl('/start'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: '{}',
+          signal,
+        })
+        // Parsed INSIDE the deadline: `fetch` resolves on headers, so a stalled body would otherwise
+        // be unbounded — the same half-bound this file just fixed for capture.
+        return { res: r, body: r.ok ? ((await r.json()) as { token?: RecoveryToken }) : null }
       })
       if (epoch.current !== mine) return false
       if (res.status === 409) {
@@ -405,11 +491,10 @@ export function useEditRecovery(args: {
         setStatus({ kind: 'unavailable', reason: 'failed' })
         return false
       }
-      const body = (await res.json()) as { token?: RecoveryToken }
-      // Re-checked AFTER awaiting the body: reading a response is itself a suspension point, and an
+      // Re-checked after the body: reading a response is itself a suspension point, and an
       // abandoned session must not install a token over the live one.
       if (epoch.current !== mine) return false
-      if (!body.token) {
+      if (!body?.token) {
         setStatus({ kind: 'unavailable', reason: 'failed' })
         return false
       }
@@ -437,18 +522,19 @@ export function useEditRecovery(args: {
         // reactivates the row, so asking first would race it: a brand-new session would be told
         // "nothing stored" by a request that arrived before the row existed.
         enterPhase({ phase: 'resolving' })
-        const giveUp = new AbortController()
-        const lookupTimer = setTimeout(() => giveUp.abort(), ENTRY_LOOKUP_TIMEOUT_MS)
-        let offer: Response
-        try {
-          offer = await fetch(recoveryUrl(), {
+        const { offer, offered } = await withDeadline(ENTRY_LOOKUP_TIMEOUT_MS, async (signal) => {
+          const r = await fetch(recoveryUrl(), {
             method: 'GET',
             credentials: 'same-origin',
-            signal: giveUp.signal,
+            signal,
           })
-        } finally {
-          clearTimeout(lookupTimer)
-        }
+          return {
+            offer: r,
+            offered: r.ok
+              ? ((await r.json()) as { capture: OfferedCapture | null })
+              : { capture: null },
+          }
+        })
         if (epoch.current !== mine) return
         if (!offer.ok) {
           // A failed read is not a failed session: capture still works, there is simply nothing to
@@ -457,8 +543,6 @@ export function useEditRecovery(args: {
           enterPhase({ phase: 'clear' })
           return
         }
-        const offered = (await offer.json()) as { capture: OfferedCapture | null }
-        if (epoch.current !== mine) return
         // ⚑ A capture we cannot DATE is not offered. The prompt's "Captured …" line is the whole
         // reason `capturedAt` exists, and an offer without it could only be labelled from
         // `baseUpdatedAt` — the source version's mtime — which is the exact lie the field was added
@@ -468,7 +552,12 @@ export function useEditRecovery(args: {
         enterPhase(
           kind === 'none' || !capture
             ? { phase: 'clear' }
-            : { phase: 'offer', capture, readOnly: kind === 'readOnly' },
+            : {
+                phase: 'offer',
+                capture,
+                readOnly: kind === 'readOnly',
+                anchors: captureAnchors(live.current.getDocument()),
+              },
         )
       } catch {
         // Same guard: a failed start from an abandoned session must not mark the CURRENT one
@@ -532,12 +621,17 @@ export function useEditRecovery(args: {
     session.current.token = null
     setReady(false)
     try {
-      const res = await fetch(recoveryUrl(), {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ generation: held.generation, expectedRevision: held.revision }),
-      })
+      // ⚑ Bounded: the token is already dropped above, so an unbounded DELETE would hold the session
+      // with no way to capture until the browser gave up on it.
+      const res = await withDeadline(CAPTURE_TIMEOUT_MS, (signal) =>
+        fetch(recoveryUrl(), {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ generation: held.generation, expectedRevision: held.revision }),
+          signal,
+        }),
+      )
       if (epoch.current !== mine) return
       // ⚑ RESTART, always — after a successful discard AND after a failed one.
       //
@@ -591,35 +685,16 @@ export function useEditRecovery(args: {
     }
   }, [active, captureAndReport])
 
-  /**
-   * Is the unsaved work in THIS editor stored, as of right now?
-   *
-   * ⚑ Synchronous and evaluated at the moment of the question, because its caller destroys work on the
-   * answer. Nothing dirty is trivially safe. Otherwise the content on screen is safe only if the last
-   * CONFIRMED capture was of this very content — which an edit during a flush, or an edit two seconds
-   * before the deadline that the 8-second debounce cannot reach, makes false.
-   */
-  const isSafe = useCallback(
-    () =>
-      !live.current.active ||
-      !live.current.modified ||
-      (capturedSignal.current !== null && capturedSignal.current === live.current.changeSignal),
-    [],
-  )
-
   // The pre-expiry flush, via the registry `IdleLogout` provides.
   useEffect(() => {
     if (!active) return
     return registerFlush({
+      // ⚑ No `isSafe()` check here: `captureAndReport` applies it unconditionally, so this would be
+      // the "second weaker copy of that predicate" the debounce effect below warns against — and the
+      // one that drifts. It moved down there when the blur and visibilitychange flushes turned out to
+      // need the same guard and had never had it.
       flush: async () => {
         clearTimer()
-        // ⚑ Nothing to send when the server already has this exact content. `runAll` fires on EVERY
-        // tick inside the 90-second window — three or more times, plus once per focus and
-        // visibilitychange — and `modified` cannot stop the repeats: it is Payload's touched flag,
-        // which flips once and never clears. Without this, each redundant tick re-serialised the
-        // whole bundle (~550 KB), uploaded it, and advanced the revision server-side, all to store
-        // bytes already stored.
-        if (isSafe()) return
         await captureAndReport()
       },
       isSafe,

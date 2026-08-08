@@ -1,8 +1,8 @@
 /**
- * The Server Action body ceiling ↔ the document ceiling it is derived from.
+ * The Server Action body ceiling ↔ the document ceilings it has to clear.
  *
  * ⚑ This pins a RELATIONSHIP, not a number. The failure it guards is silent and delayed: someone
- * raises the document ceiling that `MAX_PREVIEW_JSON_BYTES` / `MAX_RECOVERY_BODY_BYTES` set — a
+ * raises a document ceiling that `MAX_PREVIEW_JSON_BYTES` / `MAX_RECOVERY_BODY_BYTES` set — a
  * reasonable thing to do — and the Server Action limit stays where it is. Nothing fails at that
  * moment. What fails, later, is TYPING into a document that size: Payload's form-state sync 500s, so
  * field validation and conditional logic quietly stop updating, and the app becomes one that will
@@ -12,6 +12,14 @@
  * It is the same discipline as `FLUSH_LEAD_MS` being derived from `CHECK_INTERVAL_MS` in
  * `IdleLogout` rather than merely documented as larger: a constant whose correctness depends on
  * another constant should be enforced, not trusted.
+ *
+ * ⚑ **The two endpoint ceilings are compared with `max`, never with each other.** `recoveryParse.ts`
+ * records that its ceiling and preview's are deliberately separate and free to diverge — "the
+ * duplication is the point", since preview's may be tuned for what the generator can afford to
+ * render, which has nothing to do with what a capture may post. An earlier version of this file
+ * asserted the two were EQUAL, which would have red-failed the first legitimate tuning of either and
+ * invited someone to "fix" it by undoing a deliberate divergence. Whichever is larger is the one this
+ * limit must clear.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -19,28 +27,14 @@ import { MAX_PREVIEW_JSON_BYTES } from '../../src/endpoints/previewParse'
 import { MAX_RECOVERY_BODY_BYTES } from '../../src/endpoints/recoveryParse'
 import {
   FORM_STATE_MULTIPLIER,
-  MAX_EDITABLE_DOCUMENT_BYTES,
-  REQUIRED_BODY_BYTES,
   SERVER_ACTION_BODY_LIMIT,
   SERVER_ACTION_BODY_LIMIT_BYTES,
 } from '../../src/lib/serverActionBodyLimit'
 
-describe('the Server Action body limit covers the documents this app accepts', () => {
-  /**
-   * ⚑ The restatement this catches. `next.config.ts` is loaded before the app's module graph exists,
-   * so it cannot import an endpoint module without dragging Payload's access layer into Next's config
-   * pipeline — `MAX_EDITABLE_DOCUMENT_BYTES` is therefore a copy, and a copy needs a guard.
-   */
-  it('mirrors the document ceiling the storing paths already enforce', () => {
-    expect(MAX_EDITABLE_DOCUMENT_BYTES).toBe(MAX_PREVIEW_JSON_BYTES)
-    expect(MAX_EDITABLE_DOCUMENT_BYTES).toBe(MAX_RECOVERY_BODY_BYTES)
-  })
+/** The largest document any storing path currently accepts. */
+const largestAcceptedDocument = () => Math.max(MAX_PREVIEW_JSON_BYTES, MAX_RECOVERY_BODY_BYTES)
 
-  /**
-   * ⚑ THE ASSERTION THIS FILE EXISTS FOR. A document at the ceiling costs `multiplier ×` its size in
-   * form state (measured 2.57× on the largest plan in the corpus). If the limit stops clearing that,
-   * the largest plans become uneditable — silently.
-   */
+describe('the Server Action body limit covers the documents this app accepts', () => {
   /**
    * ⚑ The multiplier must never UNDERSTATE the measurement. Rounding it down shrinks the derived
    * requirement, which makes the assertion below easier to pass — it flatters the limit. An earlier
@@ -55,24 +49,16 @@ describe('the Server Action body limit covers the documents this app accepts', (
     )
   })
 
-  it('clears what a document at that ceiling actually costs', () => {
-    expect(REQUIRED_BODY_BYTES).toBe(MAX_EDITABLE_DOCUMENT_BYTES * FORM_STATE_MULTIPLIER)
+  /**
+   * ⚑ THE ASSERTION THIS FILE EXISTS FOR. A document at the ceiling costs `multiplier ×` its size in
+   * form state (measured 2.57× on the largest plan in the corpus). If the limit stops clearing that,
+   * the largest plans become uneditable — silently.
+   */
+  it('clears what a document at the largest accepted size actually costs', () => {
     expect(
       SERVER_ACTION_BODY_LIMIT_BYTES,
       'a document the app will store must remain editable',
-    ).toBeGreaterThan(REQUIRED_BODY_BYTES)
-  })
-
-  /**
-   * The string and the byte count are two spellings of one decision, and Next only reads the string —
-   * so a mismatch would leave the assertion above measuring a number the app does not use. `mb` is
-   * MiB here, matching Next's own `bytes('1mb')` default.
-   */
-  it('states the same value in both forms', () => {
-    const [, digits, unit] = /^(\d+)(kb|mb|gb)$/.exec(SERVER_ACTION_BODY_LIMIT) ?? []
-    expect(digits, `unparseable limit: ${SERVER_ACTION_BODY_LIMIT}`).toBeDefined()
-    const scale = { kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3 }[unit as 'kb' | 'mb' | 'gb']
-    expect(Number(digits) * scale).toBe(SERVER_ACTION_BODY_LIMIT_BYTES)
+    ).toBeGreaterThan(largestAcceptedDocument() * FORM_STATE_MULTIPLIER)
   })
 
   /**
@@ -86,5 +72,14 @@ describe('the Server Action body limit covers the documents this app accepts', (
 
     expect(LARGEST_OBSERVED_BODY_BYTES).toBeGreaterThan(NEXT_DEFAULT_BYTES)
     expect(SERVER_ACTION_BODY_LIMIT_BYTES / LARGEST_OBSERVED_BODY_BYTES).toBeGreaterThan(4)
+  })
+
+  /**
+   * Next reads the STRING; the byte count is what the assertions above reason about. They are now
+   * derived from one `LIMIT_MIB`, so this only confirms the two forms still describe one number —
+   * cheap insurance against someone reintroducing a second literal.
+   */
+  it('states one number in both forms', () => {
+    expect(SERVER_ACTION_BODY_LIMIT).toBe(`${SERVER_ACTION_BODY_LIMIT_BYTES / (1024 * 1024)}mb`)
   })
 })
