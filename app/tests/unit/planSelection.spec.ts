@@ -93,8 +93,11 @@ describe('toggleGroup', () => {
     // Asserted as a SET, deliberately: the panel's delete loop no longer depends on this function's
     // insertion order (it records the ids it actually removed), so pinning order here would invent a
     // contract nothing needs.
+    // Numeric comparator, not a bare `.sort()`: the default sorts by STRING conversion, so this would
+    // pass on single-digit ids and then fail the moment a fixture used 10 — for a reason that has
+    // nothing to do with toggleGroup. An order-independent claim needs an order-independent normaliser.
     const next = toggleGroup(new Set([2]), [1, 2, 3])
-    expect([...next].sort()).toEqual([1, 2, 3])
+    expect([...next].sort((a, b) => a - b)).toEqual([1, 2, 3])
   })
 
   it('leaves ids outside the group untouched', () => {
