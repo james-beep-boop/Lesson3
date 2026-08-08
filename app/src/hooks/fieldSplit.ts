@@ -91,12 +91,64 @@ const sameSequence = (
 export const META_IDENTITY_KEYS = ['subject', 'grade', 'substrand_id'] as const
 
 export const LESSON_PROSE = ['title', 'overview', 'teacherReflection']
-export const SLO_PROSE = ['purpose', 'knowledge', 'skills', 'attitudes', 'keyInquiry', 'purposeInStoryline', 'safetyNotes']
-export const FRAMEWORK_PROSE = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment']
+export const SLO_PROSE = [
+  'purpose',
+  'knowledge',
+  'skills',
+  'attitudes',
+  'keyInquiry',
+  'purposeInStoryline',
+  'safetyNotes',
+]
+export const FRAMEWORK_PROSE = [
+  'learnerExperience',
+  'teacherMoves',
+  'sensemakingStrategy',
+  'formativeAssessment',
+]
 export const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
 export const FINAL_EXPLANATION_PROSE = ['instructions']
 export const SECTION_PROSE = ['prompt']
 export const SUMMARY_LESSON_PROSE = ['title', 'observed', 'learned', 'explained']
+
+/**
+ * The teacher-facing label for each prose field — the SAME words the editor puts above the textarea.
+ *
+ * ⚑ Restated here rather than derived from the field name, because the authored labels are not
+ * mechanical: `keyInquiry` is "Key inquiry question" and `purposeInStoryline` is "Purpose in the
+ * storyline", and `tests/unit/editorPlainLanguage.spec.ts` exists because that plain-language wording
+ * was chosen deliberately. A de-camelising regex gets both of those wrong, which is exactly what the
+ * edit-recovery restore prompt did until it was measured — naming a field one thing in the panel and
+ * another in the form the teacher was comparing it against.
+ *
+ * ⚑ A COPY, and therefore pinned: `tests/unit/proseWhitelistDrift.spec.ts` asserts every entry matches
+ * the `prose()` label in `fields/lessonContent.ts`, and that none is missing. The alternative —
+ * importing `lessonContentFields` — drags the access-control module into a client component.
+ *
+ * Names are unique across the sub-objects they appear in (`title` and `observed` recur with the same
+ * label), so one flat map serves every scope.
+ */
+export const PROSE_LABELS: Record<string, string> = {
+  title: 'Title',
+  overview: 'Overview',
+  teacherReflection: 'Teacher reflection',
+  purpose: 'Purpose',
+  knowledge: 'Knowledge',
+  skills: 'Skills',
+  attitudes: 'Attitudes',
+  keyInquiry: 'Key inquiry question',
+  purposeInStoryline: 'Purpose in the storyline',
+  safetyNotes: 'Safety notes',
+  learnerExperience: 'Learner experience',
+  teacherMoves: 'Teacher moves',
+  sensemakingStrategy: 'Sensemaking strategy',
+  formativeAssessment: 'Formative assessment',
+  observed: 'Observed',
+  learned: 'Learned',
+  explained: 'Explained',
+  instructions: 'Instructions',
+  prompt: 'Prompt',
+}
 
 /** Return a copy of `base` with only `proseKeys` overlaid from `sub` (when present). */
 const overlayProse = (base: Doc, sub: Doc | undefined, proseKeys: string[]): Doc => {
@@ -152,7 +204,8 @@ const normalizeEmptyArrayContainers = (data: Doc): void => {
     if (holder && holder[key] === 0) holder[key] = []
   }
   fix(data, 'lessons')
-  if (Array.isArray(data.lessons)) for (const lesson of data.lessons) fix(lesson as Doc, 'framework')
+  if (Array.isArray(data.lessons))
+    for (const lesson of data.lessons) fix(lesson as Doc, 'framework')
   fix(data.finalExplanation as Doc | undefined, 'sections')
   fix(data.finalExplanation as Doc | undefined, 'rubric')
   fix(data.summaryTable as Doc | undefined, 'lessons')
@@ -256,8 +309,16 @@ export const applyEditorFieldSplit = ({
   if (data.finalExplanation) {
     const fe = data.finalExplanation
     const feBefore = originalDoc.finalExplanation ?? {}
-    if ('sections' in fe && !sameSequence(idsOf(storedRows(feBefore.sections)), idsOf(submittedRows(fe.sections, reject)))) reject()
-    if ('rubric' in fe && !sameSequence(idsOf(storedRows(feBefore.rubric)), idsOf(submittedRows(fe.rubric, reject)))) reject()
+    if (
+      'sections' in fe &&
+      !sameSequence(idsOf(storedRows(feBefore.sections)), idsOf(submittedRows(fe.sections, reject)))
+    )
+      reject()
+    if (
+      'rubric' in fe &&
+      !sameSequence(idsOf(storedRows(feBefore.rubric)), idsOf(submittedRows(fe.rubric, reject)))
+    )
+      reject()
   }
   if (data.summaryTable && 'lessons' in data.summaryTable) {
     const stBefore = originalDoc.summaryTable ?? {}
@@ -283,17 +344,26 @@ export const applyEditorFieldSplit = ({
   }
 
   if (Array.isArray(d.lessons)) {
-    d.lessons = overlayRows(orig.lessons, d.lessons as Doc[], LESSON_PROSE, (baseRow, subRow, out) => {
-      out.slo = overlayProse((baseRow.slo ?? {}) as Doc, subRow.slo as Doc, SLO_PROSE)
-      out.summaryTablePrompt = overlayProse(
-        (baseRow.summaryTablePrompt ?? {}) as Doc,
-        subRow.summaryTablePrompt as Doc,
-        SUMMARY_PROMPT_PROSE,
-      )
-      if (Array.isArray(subRow.framework)) {
-        out.framework = overlayRows(baseRow.framework as Doc[] | undefined, subRow.framework as Doc[], FRAMEWORK_PROSE)
-      }
-    })
+    d.lessons = overlayRows(
+      orig.lessons,
+      d.lessons as Doc[],
+      LESSON_PROSE,
+      (baseRow, subRow, out) => {
+        out.slo = overlayProse((baseRow.slo ?? {}) as Doc, subRow.slo as Doc, SLO_PROSE)
+        out.summaryTablePrompt = overlayProse(
+          (baseRow.summaryTablePrompt ?? {}) as Doc,
+          subRow.summaryTablePrompt as Doc,
+          SUMMARY_PROMPT_PROSE,
+        )
+        if (Array.isArray(subRow.framework)) {
+          out.framework = overlayRows(
+            baseRow.framework as Doc[] | undefined,
+            subRow.framework as Doc[],
+            FRAMEWORK_PROSE,
+          )
+        }
+      },
+    )
   }
 
   if (d.finalExplanation) {
@@ -301,7 +371,11 @@ export const applyEditorFieldSplit = ({
     const sub = d.finalExplanation as Doc
     const out = overlayProse(feo, sub, FINAL_EXPLANATION_PROSE)
     if (Array.isArray(sub.sections)) {
-      out.sections = overlayRows(feo.sections as Doc[] | undefined, sub.sections as Doc[], SECTION_PROSE)
+      out.sections = overlayRows(
+        feo.sections as Doc[] | undefined,
+        sub.sections as Doc[],
+        SECTION_PROSE,
+      )
     }
     d.finalExplanation = out
   }
@@ -311,7 +385,11 @@ export const applyEditorFieldSplit = ({
     const sub = d.summaryTable as Doc
     const out = overlayProse(sto, sub, []) // subStrand, drivingQuestion are admin-only
     if (Array.isArray(sub.lessons)) {
-      out.lessons = overlayRows(sto.lessons as Doc[] | undefined, sub.lessons as Doc[], SUMMARY_LESSON_PROSE)
+      out.lessons = overlayRows(
+        sto.lessons as Doc[] | undefined,
+        sub.lessons as Doc[],
+        SUMMARY_LESSON_PROSE,
+      )
     }
     d.summaryTable = out
   }

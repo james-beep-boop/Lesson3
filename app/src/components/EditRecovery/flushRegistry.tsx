@@ -26,14 +26,15 @@
 import React, { createContext, useContext, useMemo, useRef } from 'react'
 
 /**
- * Runs the flush and reports whether that editor's unsaved work is now SAFE — stored server-side, or
- * absent because nothing is dirty. Never rejects; a failed flush resolves `false`.
+ * Store whatever this editor has, now, because the session is about to end.
  *
- * ⚑ The boolean is not diagnostics. `IdleLogout` decides whether to CLEAR THE SCREEN on it, and
- * clearing a screen whose work was never captured would destroy it. Anything short of a confirmed
- * store — a 409, a 429 backoff, a dropped connection, a token this hook never obtained — is `false`.
+ * ⚑ Returns NOTHING, deliberately. It used to report a boolean that `IdleLogout` remembered and later
+ * cleared the screen on — and a remembered verdict is stale the moment the teacher types again, which
+ * is the defect {@link SafetyProbe} replaced it with. Leaving the boolean in place afterwards would
+ * keep a second, plausible-looking answer to "is the work safe?" sitting next to the real one, for a
+ * future caller to reach for.
  */
-export type PreExpiryFlush = () => Promise<boolean>
+export type PreExpiryFlush = () => Promise<void>
 
 /**
  * Is this editor's unsaved work SAFE **right now** — synchronously, with no request?
@@ -44,6 +45,9 @@ export type PreExpiryFlush = () => Promise<boolean>
  * over uncaptured work. Only the editor can answer for the CURRENT form, and it can answer instantly:
  * it knows whether the form is dirty and whether the content it last stored is still the content on
  * screen.
+ *
+ * It is also what lets a flush skip its own work: a probe that already says safe means the server has
+ * this exact content, so there is nothing to send.
  */
 export type SafetyProbe = () => boolean
 
@@ -56,17 +60,14 @@ export type FlushRegistry = {
   /** Register an editor's flush and safety probe; call the returned disposer on unmount. */
   register: (entry: Registration) => () => void
   /**
-   * Run every registered flush; resolves true only when EVERY one reported safe.
+   * Run every registered flush.
    *
    * ⚑ SINGLE-FLIGHT. Three separate triggers — the interval, `focus` and `visibilitychange` — can all
    * reach this within the pre-expiry window, and concurrent runs would have each editor capturing
    * against a token another run had just advanced, producing self-inflicted 409s. A run already in
    * progress is joined rather than duplicated.
-   *
-   * Vacuously true when nothing is registered — no editor mounted means no unsaved work to lose,
-   * which is the common case for an admin session idling on a list view.
    */
-  runAll: () => Promise<boolean>
+  runAll: () => Promise<void>
   /**
    * Ask every editor, synchronously, whether its unsaved work is stored.
    *
@@ -85,9 +86,9 @@ export type FlushRegistry = {
  */
 const FlushRegistryContext = createContext<FlushRegistry>({
   register: () => () => {},
+  runAll: async () => {},
   // ⚑ false, not true. If the provider is ever missing, the honest answer to "is the work safe?" is
-  // "we have no idea" — and the caller must not clear a screen on that.
-  runAll: async () => false,
+  // "we have no idea" — and the caller must not destroy a screenful of work on that.
   allSafe: () => false,
 })
 
@@ -104,7 +105,7 @@ export function useFlushRegistry(): FlushRegistry {
   const flushes = useRef<Set<Registration> | null>(null)
   flushes.current ??= new Set()
   /** The join point for the single-flight `runAll`. */
-  const running = useRef<Promise<boolean> | null>(null)
+  const running = useRef<Promise<void> | null>(null)
 
   // One memo, empty deps: nothing here can ever change identity, so three separate memoised callbacks
   // were three dependency arrays guarding a value that is stable by construction.
@@ -120,16 +121,13 @@ export function useFlushRegistry(): FlushRegistry {
       runAll: () => {
         // Join an in-progress run rather than starting a second one — see the type's note.
         if (running.current) return running.current
-        const run = (async () => {
-          // Snapshot first: a flush that unmounts its own editor would otherwise mutate the set
-          // mid-iteration. `allSettled` so one editor's failure cannot stop another's flush.
-          const results = await Promise.allSettled([...set].map((e) => e.flush()))
-          // A rejection counts as unsafe even though `PreExpiryFlush` promises not to throw — the
-          // contract is a comment, and this decision gates destroying work.
-          return results.every((r) => r.status === 'fulfilled' && r.value === true)
-        })().finally(() => {
-          running.current = null
-        })
+        // Snapshot first: a flush that unmounts its own editor would otherwise mutate the set
+        // mid-iteration. `allSettled` so one editor's failure cannot stop another's flush.
+        const run = Promise.allSettled([...set].map((e) => e.flush()))
+          .then(() => undefined)
+          .finally(() => {
+            running.current = null
+          })
         running.current = run
         return run
       },

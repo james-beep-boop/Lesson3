@@ -16,8 +16,10 @@
  */
 import { test, expect, type Page } from '@playwright/test'
 
-import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
+import { loginAs as loginAsRole } from '../helpers/e2e'
+import { makeRecoveryVersion } from '../helpers/editRecovery'
+import { expandLessons, indicator, openEditor, typeProse } from '../helpers/editRecoveryUi'
+import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 
 let fx: RoleFixture
 
@@ -31,54 +33,23 @@ test.afterAll(async () => {
 
 /** A candidate version this spec owns, so a failed run cannot disturb the shared fixture's own. */
 async function makeVersion(semver: string): Promise<number> {
-  const v = (await fx.payload.create({
-    collection: 'lesson-bundle-versions',
-    data: {
-      lessonPlan: fx.plan.id,
-      subjectGrade: fx.subjectGrade.id,
-      semver,
-      title: `${MARK}Recovery ${semver}`,
-      ...minimalBundleContent(),
-    } as never,
-    overrideAccess: true,
+  const v = (await makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver,
+    titlePrefix: 'Recovery ',
   })) as { id: number }
   return v.id
 }
 
-const indicator = (page: Page) => page.locator('.lp-recovery')
-
-/**
- * Open the editor UNLOCKED and wait until a recovery session exists.
- *
- * ⚑ Waits for the indicator rather than for a timeout. `start` is a real round trip, and a fixed
- * sleep here would be the flake every later assertion inherits.
- */
+/** Open the editor and expand the lesson rows. No offer is possible here — these are fresh rows. */
 async function openUnlockedEditor(page: Page, versionId: number): Promise<void> {
-  await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${versionId}`)
-  await page.getByRole('button', { name: 'Edit', exact: true }).click()
-  await expect(indicator(page)).toBeVisible()
-
-  // ⚑ Lesson rows render COLLAPSED by default (the 2026-07-25 editor-usability change), so the prose
-  // fields are in the DOM but hidden — a click on one waits forever on an element that will never
-  // become visible. "Show All" is the editor's own control for this, so the test drives what a
-  // teacher would actually press rather than reaching past the UI.
-  await page.getByRole('button', { name: 'Show All' }).first().click()
-  await expect(page.locator('#field-lessons__0__overview')).toBeVisible()
+  await openEditor(page, versionId)
+  await expandLessons(page)
 }
 
-/**
- * Type into the first lesson's overview — a PROSE field.
- *
- * ⚑ Not the document title, which an Editor cannot touch. `title` is admin scope (META), so
- * field-level access keeps it disabled even with the form fully unlocked; an earlier version of this
- * helper typed there and timed out on a disabled input while the page was, correctly, in editing
- * mode. Prose is both what this feature captures and what the role under test may actually edit.
- */
-async function typeSomething(page: Page, text: string): Promise<void> {
-  const overview = page.locator('#field-lessons__0__overview')
-  await overview.click()
-  await overview.fill(`${MARK}${text}`)
-}
+const typeSomething = (page: Page, text: string) => typeProse(page, `${MARK}${text}`)
 
 test.describe('case 13 — a rate limit is visible, not silent', () => {
   /**

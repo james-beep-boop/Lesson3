@@ -253,6 +253,28 @@ export const captureAnchors = (doc: Doc | undefined | null): { key: string; head
   return out
 }
 
+/**
+ * What to call a captured key whose row the plan NO LONGER HAS.
+ *
+ * ⚑ Here rather than in the restore prompt, for the same reason {@link captureAnchors} is: these are
+ * the scope literals `keyFor` mints, and a table of them living in a React component would make
+ * `<scope>:<rowId>` a contract between files instead of this module's private detail. Keeping both
+ * naming tables beside the format they depend on also means a scope rename is one edit — the split
+ * version silently degraded to rendering the raw scope string as a heading.
+ *
+ * Unnumbered on purpose: there is no row left to count, so any number would be invented.
+ */
+export const orphanHeading = (scope: string): string =>
+  ({
+    lesson: 'A lesson that is no longer in this plan',
+    slo: 'A lesson that is no longer in this plan',
+    prompt: 'A lesson that is no longer in this plan',
+    framework: 'A teaching phase that is no longer in this plan',
+    [FINAL_EXPLANATION_KEY]: 'Final explanation',
+    section: 'A section that is no longer in this plan',
+    summaryLesson: 'A summary table row that is no longer in this plan',
+  })[scope] ?? 'No longer in this plan'
+
 /** What `applyCapture` did, so the caller can surface a partial restore rather than pretend. */
 export type ApplyReport = {
   /** Keys in the capture with no counterpart in the current source — dropped, never created. */

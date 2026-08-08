@@ -57,7 +57,7 @@
  * The editor registers on mount and unregisters on unmount; see `EditRecovery/flushRegistry`.
  */
 import React, { useEffect } from 'react'
-import { useAuth } from '@payloadcms/ui'
+import { useAuth, useConfig } from '@payloadcms/ui'
 
 import { EditRecoveryFlushProvider, useFlushRegistry } from '../EditRecovery/flushRegistry'
 
@@ -76,20 +76,19 @@ const CHECK_INTERVAL_MS = 30_000
  */
 const FLUSH_LEAD_MS = Math.max(90_000, CHECK_INTERVAL_MS * 3)
 
-/**
- * Payload's own post-inactivity destination — `admin.routes.inactivity`, which
- * `payload/dist/config/defaults` defaults to `/logout-inactivity` and this project does not override.
- * A real view, so the redirect lands somewhere that explains itself rather than on a bare login form,
- * and the `redirect` param is the shape Payload's own `redirectToInactivityRoute` uses, so signing
- * back in returns the user to the document they were editing.
- *
- * ⚑ Hardcoded because it is read from a plain `useEffect`, outside the config. If `admin.routes` ever
- * gains an override, this constant is the thing that has to move with it.
- */
-const INACTIVITY_ROUTE = '/admin/logout-inactivity'
-
 export default function IdleLogout({ children }: { children?: React.ReactNode }) {
   const { user, tokenExpirationMs, logOut } = useAuth()
+  /**
+   * Payload's own post-inactivity destination, DERIVED rather than restated.
+   *
+   * `admin.routes.inactivity` defaults to `/logout-inactivity` and `routes.admin` to `/admin`; a
+   * hardcoded `/admin/logout-inactivity` pins BOTH, and this component sits inside `ConfigProvider`
+   * (that is also why `useAuth` works here), so there is nothing stopping it asking. It is a real
+   * view, so the redirect lands somewhere that explains itself rather than on a bare login form.
+   */
+  const { config } = useConfig()
+  const adminRoute = config.routes.admin
+  const inactivityRoute = `${adminRoute}${config.admin.routes.inactivity}`
   // Owned here, not consumed from a parent — so no inner component is needed just to read what this
   // one provides.
   const registry = useFlushRegistry()
@@ -123,8 +122,12 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
           // also why it runs after `logOut()` resolves: navigating first would abandon the logout
           // request and leave a live session cookie behind.
           if (clearScreen) {
+            // ⚑ `?redirect=` only for a path INSIDE the admin, matching Payload's own
+            // `redirectToInactivityRoute`. Appending it unconditionally — as this did while the route
+            // was hardcoded — hands the login form a return path it may have no business honouring.
             const path = window.location.pathname
-            window.location.replace(`${INACTIVITY_ROUTE}?redirect=${encodeURIComponent(path)}`)
+            const back = path.startsWith(adminRoute) ? `?redirect=${encodeURIComponent(path)}` : ''
+            window.location.replace(`${inactivityRoute}${back}`)
           }
         })
         return
@@ -154,7 +157,7 @@ export default function IdleLogout({ children }: { children?: React.ReactNode })
       window.removeEventListener('focus', check)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [user, tokenExpirationMs, logOut, runAll, allSafe])
+  }, [user, tokenExpirationMs, logOut, runAll, allSafe, adminRoute, inactivityRoute])
 
   return <EditRecoveryFlushProvider registry={registry}>{children}</EditRecoveryFlushProvider>
 }

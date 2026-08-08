@@ -48,7 +48,6 @@ import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
-import { offerKind } from '../EditRecovery/protocol'
 import { applyCapture, captureAnchors } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery } from '../EditRecovery/useEditRecovery'
@@ -659,7 +658,7 @@ export default function LessonControls() {
           // Resolved against the LIVE form, so a heading says "Lesson 2" only when it really is the
           // teacher's Lesson 2 — the capture's own keys are row UUIDs in JSONB order and cannot.
           anchors={captureAnchors(currentContent() as never)}
-          readOnly={offerKind(recovery.entry.capture) === 'readOnly'}
+          readOnly={recovery.entry.readOnly}
           busy={restoring}
           onRestore={onRestore}
           onKeep={recovery.keepOffer}

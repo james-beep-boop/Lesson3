@@ -205,6 +205,14 @@ export const recoveryGetEndpoint: Endpoint = {
     return json({
       capture: {
         content: active.content,
+        // ⚑ When the CAPTURE was written — the row's own `updated_at`, which is what the restore
+        // prompt shows the teacher. Distinct from `baseUpdatedAt` below, which is the SOURCE
+        // VERSION's mtime and exists only for the staleness comparison; showing that one dates a
+        // teacher's afternoon to whenever the plan was last saved. Sent here rather than left for the
+        // client to re-attach from the token: it is a fact about the row, and the client assembling
+        // it from a second field made `OfferedCapture` a description of what the client rebuilt
+        // rather than of what the wire carries.
+        capturedAt: active.token.updatedAt,
         baseUpdatedAt: active.baseUpdatedAt,
         schemaVersion: active.schemaVersion,
         stale: active.baseUpdatedAt !== new Date(String(version.updatedAt)).toISOString(),

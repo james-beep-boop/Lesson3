@@ -28,6 +28,14 @@ vi.mock('@payloadcms/ui', () => ({
     tokenExpirationMs: mocks.tokenExpirationMs,
     logOut: mocks.logOut,
   }),
+  // Payload's own defaults, which this project does not override — the component derives the
+  // inactivity URL from these rather than restating `/admin/logout-inactivity`.
+  useConfig: () => ({
+    config: {
+      routes: { admin: '/admin' },
+      admin: { routes: { inactivity: '/logout-inactivity' } },
+    },
+  }),
 }))
 
 import IdleLogout from '../../src/components/IdleLogout/index.js'
@@ -38,7 +46,8 @@ const FLUSH_LEAD_MS = 90_000
 
 let replace: ReturnType<typeof vi.fn>
 
-type Verdict = boolean | 'reject' | 'hang'
+/** What the flush does — it no longer RETURNS anything, so this is about how it completes. */
+type Verdict = 'ok' | 'reject' | 'hang'
 
 /**
  * An editor mounted inside the provider, registering a flush and a safety probe.
@@ -47,42 +56,37 @@ type Verdict = boolean | 'reject' | 'hang'
  * the hand-off between the two components is half of what this file is checking, and a test that
  * bypassed it would keep passing if the provider stopped being wired up at all.
  *
- * ⚑ `flush` and `safe` are SEPARATE inputs on purpose. The defect this file now pins is precisely
- * the case where they disagree: a flush that succeeded, followed by a keystroke, so the stored
- * verdict says "safe" while the editor itself knows better.
+ * ⚑ `flush` and `safe` are SEPARATE inputs on purpose. The defect this file pins is precisely the
+ * case where they disagree: a flush that succeeded, followed by a keystroke, so a verdict remembered
+ * from that flush says "safe" while the editor itself knows better.
  */
 function FakeEditor({
-  flush = true,
+  flush = 'ok',
   safe,
   onFlush,
 }: {
-  flush?: Verdict | Verdict[]
-  /** The probe's answer. Defaults to agreeing with a plain boolean flush verdict. */
+  flush?: Verdict
+  /** The probe's answer. Defaults to agreeing with a flush that completed. */
   safe?: boolean | (() => boolean)
   onFlush?: () => void
 }) {
   const { register } = useEditRecoveryFlushRegistry()
-  const nth = React.useRef(0)
-  React.useEffect(() => {
-    nth.current = 0
-    return register({
-      flush: async () => {
-        onFlush?.()
-        // An array is a per-tick script: the flush window contains several polls, and some cases need
-        // the LAST one to behave differently from the ones before it.
-        const seq = Array.isArray(flush) ? flush : [flush]
-        const v = seq[Math.min(nth.current++, seq.length - 1)]
-        if (v === 'reject') throw new Error('flush blew up')
-        if (v === 'hang') return new Promise<boolean>(() => {})
-        return v
-      },
-      isSafe: () => {
-        if (typeof safe === 'function') return safe()
-        if (typeof safe === 'boolean') return safe
-        return flush === true
-      },
-    })
-  }, [register, flush, safe, onFlush])
+  React.useEffect(
+    () =>
+      register({
+        flush: async () => {
+          onFlush?.()
+          if (flush === 'reject') throw new Error('flush blew up')
+          if (flush === 'hang') return new Promise<void>(() => {})
+        },
+        isSafe: () => {
+          if (typeof safe === 'function') return safe()
+          if (typeof safe === 'boolean') return safe
+          return flush === 'ok'
+        },
+      }),
+    [register, flush, safe, onFlush],
+  )
   return null
 }
 
@@ -132,7 +136,7 @@ afterEach(() => {
 
 describe('the screen clears only when the work is provably stored', () => {
   it('navigates away when every editor reports SAFE', async () => {
-    await runToDeadline(<FakeEditor flush={true} />)
+    await runToDeadline(<FakeEditor />)
 
     expect(mocks.logOut).toHaveBeenCalledTimes(1)
     expect(replace, 'a confirmed capture earns the screen clear').toHaveBeenCalledTimes(1)
@@ -143,12 +147,15 @@ describe('the screen clears only when the work is provably stored', () => {
   })
 
   /**
-   * ⚑ THE ASSERTION THIS FILE EXISTS FOR. A refused capture (429, 409, dropped connection) means the
-   * only copy of that teacher's work is the text on screen. Logging out is still correct — the token
-   * is dead either way — but wiping the screen would delete the last copy.
+   * ⚑ THE ASSERTION THIS FILE EXISTS FOR, and it covers two routes to the same state. A refused
+   * capture (429, 409, dropped connection) leaves the text on screen as the only copy. So does a
+   * capture that SUCCEEDED followed by a keystroke two seconds before the deadline, inside the
+   * 8-second debounce that cannot finish — which is why safety is asked of the editor at the deadline
+   * rather than remembered from the last flush. Both arrive here as one thing: the probe says no.
+   * Logging out is still correct either way; wiping the screen would delete the last copy.
    */
   it('leaves the editor on screen when an editor reports UNSAFE', async () => {
-    await runToDeadline(<FakeEditor flush={false} />)
+    await runToDeadline(<FakeEditor safe={false} />)
 
     expect(mocks.logOut, 'the session must still end').toHaveBeenCalledTimes(1)
     expect(replace, 'the last copy of the work must not be wiped').not.toHaveBeenCalled()
@@ -157,7 +164,6 @@ describe('the screen clears only when the work is provably stored', () => {
   it('treats a THROWN probe as unsafe', async () => {
     await runToDeadline(
       <FakeEditor
-        flush="reject"
         safe={() => {
           throw new Error('probe blew up')
         }}
@@ -165,23 +171,6 @@ describe('the screen clears only when the work is provably stored', () => {
     )
 
     expect(replace).not.toHaveBeenCalled()
-  })
-
-  /**
-   * ⚑ **THE STALE-VERDICT DEFECT.** Every flush in the window SUCCEEDS, and then the teacher types two
-   * seconds before the deadline — inside the 8-second capture debounce, which cannot possibly finish.
-   * A remembered `runAll` result says "safe" and would clear the screen over text that was never sent.
-   * Asking the editor at the deadline gets the true answer, because only the editor knows the content
-   * changed after the last confirmed capture.
-   */
-  it('does not trust a SUCCESSFUL flush once the content has changed since', async () => {
-    await runToDeadline(<FakeEditor flush={true} safe={false} />)
-
-    expect(mocks.logOut, 'the session must still end').toHaveBeenCalledTimes(1)
-    expect(
-      replace,
-      'a verdict from before the last keystroke must not clear the screen',
-    ).not.toHaveBeenCalled()
   })
 
   /**
@@ -195,14 +184,14 @@ describe('the screen clears only when the work is provably stored', () => {
   })
 
   /**
-   * ⚑ Two editors, one safe and one not — the whole point of `runAll` returning a conjunction. An
-   * `Array.some` here would clear the screen on the strength of the editor that had nothing to lose.
+   * ⚑ Two editors, one safe and one not — the whole point of `allSafe` being a conjunction. An
+   * `Array.some` there would clear the screen on the strength of the editor that had nothing to lose.
    */
   it('requires EVERY editor to be safe, not just one', async () => {
     await runToDeadline(
       <>
-        <FakeEditor flush={true} />
-        <FakeEditor flush={false} />
+        <FakeEditor />
+        <FakeEditor safe={false} />
       </>,
     )
 
@@ -226,7 +215,7 @@ describe('the screen clears only when the work is provably stored', () => {
     render(
       <IdleLogout>
         <FakeEditor
-          flush={'hang'}
+          flush="hang"
           safe={true}
           onFlush={() => {
             started += 1

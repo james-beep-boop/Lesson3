@@ -25,14 +25,17 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
-import { recoveryRow, setRecoveryProvenance } from '../helpers/editRecovery'
+import { makeRecoveryVersion, recoveryRow, setRecoveryProvenance } from '../helpers/editRecovery'
 import {
-  MARK,
-  createUserVerified,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-} from '../helpers/fixtures'
+  OVERVIEW,
+  awaitCaptured,
+  expandLessons,
+  indicator,
+  openEditor,
+  restorePrompt as prompt,
+  typeProse,
+} from '../helpers/editRecoveryUi'
+import { MARK, createUserVerified, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { login } from '../helpers/login'
 
 let fx: RoleFixture
@@ -47,68 +50,25 @@ test.afterAll(async () => {
 
 /** A candidate version this spec owns, so a failed run cannot disturb the shared fixture's own. */
 async function makeVersion(semver: string): Promise<number> {
-  const v = (await fx.payload.create({
-    collection: 'lesson-bundle-versions',
-    data: {
-      lessonPlan: fx.plan.id,
-      subjectGrade: fx.subjectGrade.id,
-      semver,
-      title: `${MARK}Restore ${semver}`,
-      ...minimalBundleContent(),
-    } as never,
-    overrideAccess: true,
+  const v = (await makeRecoveryVersion(fx.payload, {
+    planId: fx.plan.id,
+    subjectGradeId: fx.subjectGrade.id,
+    sourceVersionId: fx.version.id,
+    semver,
+    titlePrefix: 'Restore ',
   })) as { id: number }
   return v.id
 }
 
-const OVERVIEW = '#field-lessons__0__overview'
-const prompt = (page: Page) => page.locator('.lp-restore')
-const indicator = (page: Page) => page.locator('.lp-recovery')
-
-/** Open the editor UNLOCKED, past the entry gate. */
-async function openEditor(page: Page, versionId: number): Promise<void> {
-  await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${versionId}`)
-  await page.getByRole('button', { name: 'Edit', exact: true }).click()
-  await expect(indicator(page)).toBeVisible()
-}
-
-/**
- * Expand the lesson rows so the prose fields are reachable.
- *
- * ⚑ SEPARATE from `openEditor`, and that separation is a finding rather than tidiness. Lesson rows
- * render COLLAPSED by default (the 2026-07-25 editor-usability change) and "Show All" is the editor's
- * own control for that — but while a restore offer is open the prompt is a modal, so this click is
- * intercepted by its backdrop. Which is correct: the form is locked until the offer is resolved, and
- * that is the entry gate working. Callers therefore settle the prompt FIRST and expand afterwards.
- */
-async function expandLessons(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Show All' }).first().click()
-  await expect(page.locator(OVERVIEW)).toBeVisible()
-}
-
-/**
- * Type prose and wait until the indicator CONFIRMS it is stored.
- *
- * ⚑ Waits on the indicator, never a fixed sleep. The debounce is 8 s and the round trip is real; a
- * sleep tuned to pass on this laptop is the flake every assertion downstream inherits. The indicator
- * saying so is also exactly the promise SPEC §5 makes to the user, so waiting on it is waiting on the
- * contract rather than on an implementation detail.
- *
- * ⚑ Waits on the `--ok` TONE, not on the text "backed up". The idle copy is "Unsaved changes WILL BE
- * backed up", so a `toContainText('backed up')` matches instantly, before anything has been sent —
- * every test in this file then ran against an empty capture. The tone is the one signal that is
- * false until the server has confirmed the write.
- */
+/** Type prose and wait until the server confirms it is stored, returning both texts. */
 async function captureProse(page: Page, text: string): Promise<{ typed: string; saved: string }> {
   const typed = `${MARK}${text}`
   await expandLessons(page)
   // Read the SAVED value before overwriting it — the restore cases need to tell "still showing what
   // was saved" apart from "silently replaced", and afterwards it is unrecoverable from the page.
   const saved = await page.locator(OVERVIEW).inputValue()
-  await page.locator(OVERVIEW).click()
-  await page.locator(OVERVIEW).fill(typed)
-  await expect(indicator(page)).toHaveClass(/lp-recovery--ok/, { timeout: 30_000 })
-  await expect(indicator(page)).toContainText('Unsaved changes backed up')
+  await typeProse(page, typed)
+  await awaitCaptured(page)
   return { typed, saved }
 }
 
@@ -122,8 +82,9 @@ async function logOut(page: Page): Promise<void> {
   await page.evaluate(() =>
     fetch('/api/users/logout', { method: 'POST', credentials: 'include' }).then(() => undefined),
   )
+  // ⚑ `/login` and nothing more. Every caller but case 6 goes straight on to `loginAs`, which loads
+  // this same route itself; asserting the form is visible here only duplicated that load.
   await page.goto(`${BASE}/login`)
-  await expect(page.locator('input[type="email"]')).toBeVisible()
   await releaseDocumentLocks()
 }
 
@@ -133,7 +94,7 @@ async function logOut(page: Page): Promise<void> {
  * ⚑ Nothing to do with edit recovery, and that is exactly why it is here. Payload marks a document as
  * being edited and shows the NEXT person to open it a blocking "document locked" dialog; the lock
  * outlives a logout (it expires on a timer). Every case in this file leaves a document and comes back
- * to it, so without this an unrelated feature sits across the path of all seven.
+ * to it, so without this an unrelated feature sits across the path of all of them.
  *
  * ⚑ Cleared rather than dismissed through its "Take over" button. The dialog appears only once the
  * lock query resolves, so a test that looked for it raced its own render — visible on one run,
@@ -296,6 +257,7 @@ test.describe('case 6 — an explicit logout keeps the capture for that user', (
     await logOut(page)
 
     // The screen is cleared by the logout itself — there is no editor left to inspect.
+    await expect(page.locator('input[type="email"]')).toBeVisible()
     await expect(page.locator(OVERVIEW)).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(typed)
 
@@ -372,14 +334,24 @@ test.describe('cases 9 and 10 — a capture that cannot be trusted is READ-ONLY'
    * mean what they meant, and applying them could land one lesson's prose on another lesson. Showing
    * the text is what keeps this a recovery rather than a deletion — the teacher can still copy it out.
    */
-  for (const [label, provenance, expectedCopy] of [
-    ['case 9 — stale source', { baseUpdatedAt: '2000-01-01T00:00:00.000Z' }, /has been saved/i],
-    ['case 10 — older schema', { schemaVersion: 'sv-ancient' }, /older version of the editor/i],
+  for (const [label, semver, provenance, expectedCopy] of [
+    [
+      'case 9 — stale source',
+      '7.5.0',
+      { baseUpdatedAt: '2000-01-01T00:00:00.000Z' },
+      /has been saved/i,
+    ],
+    [
+      'case 10 — older schema',
+      '7.6.0',
+      { schemaVersion: 'sv-ancient' },
+      /older version of the editor/i,
+    ],
   ] as const) {
     test(`${label}: offered to read and discard, with no Restore control at all`, async ({
       page,
     }) => {
-      const versionId = await makeVersion(label.startsWith('case 9') ? '7.5.0' : '7.6.0')
+      const versionId = await makeVersion(semver)
       const editorId = fx.users.editor.id as number
 
       await loginAsRole(page, fx, 'editor')

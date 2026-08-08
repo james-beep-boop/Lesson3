@@ -21,29 +21,26 @@
 import { Button } from '@payloadcms/ui'
 import React from 'react'
 
-import { parseKey } from '../../lib/editRecovery/projection'
+import { PROSE_LABELS } from '../../hooks/fieldSplit'
+import { orphanHeading, parseKey } from '../../lib/editRecovery/projection'
 import Modal from '../Modal'
 import type { OfferedCapture } from './protocol'
 
-/**
- * The fallback heading for a key the live source no longer has — the dropped-row case, which
- * `applyCapture` refuses to restore (matrix case 28). Unnumbered on purpose: there is no row left to
- * count, so any number would be invented.
- */
-const ORPHAN_LABEL: Record<string, string> = {
-  lesson: 'A lesson that is no longer in this plan',
-  slo: 'A lesson that is no longer in this plan',
-  prompt: 'A lesson that is no longer in this plan',
-  framework: 'A teaching phase that is no longer in this plan',
-  finalExplanation: 'Final explanation',
-  section: 'A section that is no longer in this plan',
-  summaryLesson: 'A summary table row that is no longer in this plan',
-}
-
 type Group = { heading: string; lines: { field: string; value: string }[] }
 
-/** `keyInquiry` → `Key inquiry`. The stored names are field paths, not labels. */
+/**
+ * The label the EDITOR puts above this field.
+ *
+ * ⚑ Looked up, never derived. The authored labels are not mechanical — `keyInquiry` is "Key inquiry
+ * question", `purposeInStoryline` is "Purpose in the storyline" — and a de-camelising regex got both
+ * wrong, so the panel named fields differently from the form the teacher was comparing them against
+ * while deciding. `PROSE_LABELS` is pinned to the field config by
+ * `tests/unit/proseWhitelistDrift.spec.ts`; the de-camelise survives only as a fallback for a field
+ * added to the whitelist and not yet to the map.
+ */
 const fieldLabel = (field: string): string => {
+  const authored = PROSE_LABELS[field]
+  if (authored) return authored
   const spaced = field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
@@ -96,14 +93,17 @@ const groupsOf = (
   for (const key of Object.keys(content)) {
     if (seen.has(key)) continue
     const { scope } = parseKey(key)
-    take(key, ORPHAN_LABEL[scope] ?? scope)
+    take(key, orphanHeading(scope))
   }
   return groups
 }
 
+/** Matches how every other user-facing timestamp in the app reads (`VersionTimestamps`, Manage). */
 const when = (iso: string): string => {
   const t = Date.parse(iso)
-  return Number.isNaN(t) ? 'an earlier session' : new Date(t).toLocaleString()
+  return Number.isNaN(t)
+    ? 'an earlier session'
+    : new Date(t).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })
 }
 
 export function EditRecoveryRestorePrompt({

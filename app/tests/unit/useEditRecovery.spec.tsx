@@ -38,10 +38,25 @@ const jsonResponse = (status: number, body: unknown, headers: Record<string, str
     headers: { 'Content-Type': 'application/json', ...headers },
   })
 
+/**
+ * Answer the ENTRY GET with "nothing stored", then defer to `inner` for everything else.
+ *
+ * ⚑ Every handler needs this. The GET shares its URL with the capture POST, and the hook suppresses
+ * capture until the entry lookup resolves — so a stub that only thinks about captures hangs the whole
+ * session and makes the test vacuous rather than strict. Wrapping means a future change to the entry
+ * response is one edit here, not five scattered through the file.
+ */
+const withEntryGet =
+  (inner: Handler): Handler =>
+  (url, init) =>
+    (init?.method ?? 'GET') === 'GET' && !url.endsWith('/recovery/start')
+      ? Promise.resolve(jsonResponse(200, { capture: null }))
+      : inner(url, init)
+
 /** Drives the hook from a component, exposing its latest value plus a way to change props. */
 function harness(initial: { active?: boolean; modified?: boolean; versionId?: string } = {}) {
   const ref: { current: UseEditRecovery | null } = { current: null }
-  const flushRef: { current: (() => Promise<boolean>) | null } = { current: null }
+  const flushRef: { current: (() => Promise<void>) | null } = { current: null }
   const safeRef: { current: (() => boolean) | null } = { current: null }
   let setProps: React.Dispatch<React.SetStateAction<Record<string, unknown>>> = () => {}
   let bumpChange: () => void = () => {}
@@ -112,13 +127,13 @@ const flush = async () => {
 
 beforeEach(() => {
   calls = []
-  handler = async (url, init) => {
-    if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-    // The entry GET: no stored capture, so these timing tests start from an unlocked form. Tests
-    // about the OFFER override this handler.
-    if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
-    return jsonResponse(200, { token: token(2) })
-  }
+  // Tests about the OFFER replace this handler wholesale; everything else starts from "nothing
+  // stored", which is what an editor opening a fresh version sees.
+  handler = withEntryGet(async (url) =>
+    url.endsWith('/recovery/start')
+      ? jsonResponse(200, { token: token(1) })
+      : jsonResponse(200, { token: token(2) }),
+  )
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     calls.push({
       url: String(url),
@@ -234,16 +249,13 @@ describe('prepareForSave and the in-flight capture', () => {
    */
   it('uses an in-flight INDETERMINATE result and saves tokenless, without capturing again', async () => {
     let failCapture: (e: Error) => void = () => {}
-    handler = async (url, init) => {
-      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      // ⚑ The entry GET must ANSWER. It shares this URL with the capture POST, and `resolving`
-      // suppresses capture — so a stub that hangs everything makes these capture-timing tests
-      // vacuous rather than strict.
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
-      return new Promise<Response>((_resolve, reject) => {
-        failCapture = reject
-      })
-    }
+    handler = withEntryGet(async (url) =>
+      url.endsWith('/recovery/start')
+        ? jsonResponse(200, { token: token(1) })
+        : new Promise<Response>((_resolve, reject) => {
+            failCapture = reject
+          }),
+    )
 
     const h = harness()
     await flush()
@@ -269,13 +281,13 @@ describe('prepareForSave and the in-flight capture', () => {
 
   it('an in-flight CONFLICT blocks the save without capturing again', async () => {
     let resolveCapture: (r: Response) => void = () => {}
-    handler = async (url, init) => {
-      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
-      return new Promise<Response>((resolve) => {
-        resolveCapture = resolve
-      })
-    }
+    handler = withEntryGet(async (url) =>
+      url.endsWith('/recovery/start')
+        ? jsonResponse(200, { token: token(1) })
+        : new Promise<Response>((resolve) => {
+            resolveCapture = resolve
+          }),
+    )
 
     const h = harness()
     await flush()
@@ -359,15 +371,14 @@ describe('a 429 binds every capture path, not just the debounce', () => {
    */
   const rateLimitedThenOk = () => {
     let served = 0
-    handler = async (url, init) => {
+    // Wrapped, so the entry GET cannot consume the limiter's one refusal.
+    handler = withEntryGet(async (url) => {
       if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      // The entry GET shares this URL and must not consume the limiter's one refusal.
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       served += 1
       return served === 1
         ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
         : jsonResponse(200, { token: token(2) })
-    }
+    })
   }
 
   /** Drive the first capture into a 429 and return the harness sitting inside the backoff. */
@@ -446,15 +457,14 @@ describe('a scheduled retry must not outlive its session', () => {
    */
   const intoBackoffThen = async () => {
     let served = 0
-    handler = async (url, init) => {
+    // Wrapped, so the entry GET cannot consume the limiter's one refusal.
+    handler = withEntryGet(async (url) => {
       if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      // The entry GET shares this URL and must not consume the limiter's one refusal.
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       served += 1
       return served === 1
         ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
         : jsonResponse(200, { token: token(2) })
-    }
+    })
     const h = harness()
     await flush()
     await act(async () => {
@@ -525,13 +535,11 @@ describe('more requests from abandoned sessions', () => {
     let releaseA: (r: Response) => void = () => {}
     let started = 0
     let captures = 0
-    handler = async (url, init) => {
+    handler = withEntryGet(async (url) => {
       if (url.endsWith('/recovery/start')) {
         started += 1
         return jsonResponse(200, { token: token(started === 1 ? 1 : 40) })
       }
-      // The entry GET shares this URL and must answer, or `resolving` suppresses every capture below.
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       captures += 1
       if (captures === 1) {
         return new Promise<Response>((resolve) => {
@@ -539,7 +547,7 @@ describe('more requests from abandoned sessions', () => {
         })
       }
       return new Promise<Response>(() => {}) // B's capture stays in flight
-    }
+    })
 
     const h = harness()
     await flush()
@@ -631,14 +639,11 @@ describe('the entry state machine', () => {
   // ⚑ A REAL capture-map key (`<scope>:<rowId>`, see `projectCapture`), not a field path. The restore
   // prompt decodes it to attribute prose to a lesson, so a made-up key shape here would let a decoding
   // bug through.
-  /** The shape the endpoint really returns: the capture AND the token that dates it. */
-  const withToken = (body: { capture: unknown }) => ({
-    ...body,
-    token: { generation: 1, revision: 1, updatedAt: '2026-08-07T12:00:00.000Z' },
-  })
-
   const storedCapture = (over: Record<string, unknown> = {}) => ({
     content: { 'lesson:0b6f1e2a': { overview: 'work from before' } },
+    // The CAPTURE's own mtime, sent by the endpoint alongside — and distinct from — the source
+    // version's `baseUpdatedAt` below.
+    capturedAt: '2026-08-07T12:00:00.000Z',
     baseUpdatedAt: '2026-08-07T00:00:00.000Z',
     schemaVersion: 'sv-1',
     stale: false,
@@ -664,7 +669,7 @@ describe('the entry state machine', () => {
   }
 
   it('offers a stored capture, and asks for it only AFTER start', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
 
@@ -691,15 +696,18 @@ describe('the entry state machine', () => {
   })
 
   /**
-   * ⚑ CAPTURE time, not source time. The endpoint returns the row's own `updatedAt` on the TOKEN and
-   * the source version's mtime as `baseUpdatedAt`; an early build of the prompt printed the latter
-   * under "Captured …" and told a teacher their afternoon's work dated from whenever the lesson plan
-   * was last saved. Browser-verified 2026-08-07, and pinned here so it cannot come back.
+   * ⚑ CAPTURE time and SOURCE time are different facts and must stay apart. `capturedAt` is the
+   * recovery row's own mtime and is what the prompt shows; `baseUpdatedAt` is the source version's,
+   * and exists only for the staleness comparison. An early build printed the latter under
+   * "Captured …" and told a teacher their afternoon's work dated from whenever the lesson plan was
+   * last saved. Browser-verified 2026-08-07, and pinned here so the two cannot be confused again.
    */
-  it('takes the offer timestamp from the token, not from the source mtime', async () => {
+  it('carries the capture time and the source mtime as separate values', async () => {
     offering({
-      capture: storedCapture({ baseUpdatedAt: '2026-08-02T09:00:00.000Z' }),
-      token: { generation: 1, revision: 4, updatedAt: '2026-08-07T15:30:00.000Z' },
+      capture: storedCapture({
+        capturedAt: '2026-08-07T15:30:00.000Z',
+        baseUpdatedAt: '2026-08-02T09:00:00.000Z',
+      }),
     })
     const h = harness()
     await flush()
@@ -713,13 +721,14 @@ describe('the entry state machine', () => {
   })
 
   /**
-   * ⚑ A capture we cannot DATE is not offered. The panel's "Captured …" line comes from the token, and
-   * falling back to `baseUpdatedAt` would reinstate the exact lie the join exists to remove — dating a
-   * teacher's afternoon to whenever the plan was last saved — while doing it only under a malformed
-   * response, where nobody would look. The endpoint always sends both together.
+   * ⚑ A capture we cannot DATE is not offered. The panel's "Captured …" line is the whole reason
+   * `capturedAt` exists; without it the only date to hand is `baseUpdatedAt`, which would reinstate
+   * the exact lie the field was added to remove — and only under a malformed response, where nobody
+   * would look.
    */
-  it('refuses a capture that arrives without its token', async () => {
-    offering({ capture: storedCapture() })
+  it('refuses a capture that arrives without its timestamp', async () => {
+    const { capturedAt: _dropped, ...undatable } = storedCapture()
+    offering({ capture: undatable })
     const h = harness()
     await flush()
 
@@ -738,7 +747,7 @@ describe('the entry state machine', () => {
     ['stale', { stale: true }],
     ['schema-mismatched', { schemaMismatch: true }],
   ])('offers a %s capture as READ-ONLY', async (_label, over) => {
-    offering(withToken({ capture: storedCapture(over) }))
+    offering({ capture: storedCapture(over) })
     const h = harness()
     await flush()
 
@@ -762,7 +771,7 @@ describe('the entry state machine', () => {
   })
 
   it('keeping the offer unlocks and leaves the capture alone', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
     await act(async () => {
@@ -777,7 +786,7 @@ describe('the entry state machine', () => {
   })
 
   it('discarding retires the capture with the held token', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
     await act(async () => {
@@ -801,7 +810,7 @@ describe('the entry state machine', () => {
    * carries on to the thing the user does next.
    */
   it('discarding RESTARTS the session, so the next capture still works', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
     const startsBefore = calls.filter((c) => c.url.endsWith('/recovery/start')).length
@@ -836,7 +845,7 @@ describe('the entry state machine', () => {
    * than assuming the row survived.
    */
   it('restarts even when the retire request fails', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const priorHandler = handler
     handler = async (url, init) => {
       if (init?.method === 'DELETE') return jsonResponse(500, { errors: [{ message: 'boom' }] })
@@ -859,7 +868,7 @@ describe('the entry state machine', () => {
    * about would be the wrong trade, and a capture that survives is retired by the 30-day pass anyway.
    */
   it('discarding unlocks even when the retire request fails', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const priorHandler = handler
     handler = async (url, init) => {
       if (init?.method === 'DELETE') throw new Error('offline')
@@ -876,7 +885,7 @@ describe('the entry state machine', () => {
 
   /** Leaving edit mode with a prompt open must not leave the next unlock holding a dead offer. */
   it('clears the offer when the session ends', async () => {
-    offering(withToken({ capture: storedCapture() }))
+    offering({ capture: storedCapture() })
     const h = harness()
     await flush()
     expect(h.ref.current!.entry.phase).toBe('offer')
@@ -952,13 +961,13 @@ describe('the safety probe', () => {
    */
   it('does not credit a capture for content typed after its body was built', async () => {
     let release: (r: Response) => void = () => {}
-    handler = async (url, init) => {
-      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
-      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
-      return new Promise<Response>((resolve) => {
-        release = resolve
-      })
-    }
+    handler = withEntryGet(async (url) =>
+      url.endsWith('/recovery/start')
+        ? jsonResponse(200, { token: token(1) })
+        : new Promise<Response>((resolve) => {
+            release = resolve
+          }),
+    )
 
     const h = harness()
     await flush()
@@ -977,6 +986,53 @@ describe('the safety probe', () => {
     await flush()
 
     expect(safe(h), 'the in-flight request never carried this text').toBe(false)
+  })
+
+  /**
+   * ⚑ The probe also SHORT-CIRCUITS the pre-expiry flush. `runAll` fires on every tick inside the
+   * 90-second window — three or more times, plus once per focus and visibilitychange — and `modified`
+   * cannot stop the repeats, because it is Payload's touched flag: it flips once and never clears.
+   * Without this, each redundant tick re-serialised the whole bundle, uploaded it, and advanced the
+   * revision server-side, to store bytes the server already had.
+   */
+  it('a flush sends nothing when the server already has this content', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    const afterFirst = captureCalls().length
+    expect(afterFirst).toBe(1)
+
+    // Three flushes, as the pre-expiry window would produce, with nothing typed in between.
+    for (let i = 0; i < 3; i += 1) {
+      await act(async () => {
+        await h.flushRef.current?.()
+      })
+    }
+    await flush()
+    expect(captureCalls().length, 'already-stored content must not be re-sent').toBe(afterFirst)
+  })
+
+  /** And it still sends when there IS something new — the skip must not swallow a real flush. */
+  it('a flush still sends when the content has changed since the last capture', async () => {
+    const h = harness()
+    await flush()
+    await act(async () => {
+      vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)
+    })
+    await flush()
+    const afterFirst = captureCalls().length
+
+    await act(async () => {
+      h.bumpChange()
+    })
+    await act(async () => {
+      await h.flushRef.current?.()
+    })
+    await flush()
+    expect(captureCalls().length).toBe(afterFirst + 1)
   })
 
   it('is safe again after the next capture catches up', async () => {

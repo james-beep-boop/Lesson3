@@ -39,7 +39,14 @@ const rows = (result: unknown): Record<string, unknown>[] => {
 /** A non-Official sibling version, so it can be deleted (the Official one is protected). */
 export async function makeRecoveryVersion(
   payload: Payload,
-  args: { planId: number; subjectGradeId: number; sourceVersionId: number; semver: string },
+  args: {
+    planId: number
+    subjectGradeId: number
+    sourceVersionId: number
+    semver: string
+    /** Distinguishes one spec's candidates from another's in the shared fixture. */
+    titlePrefix?: string
+  },
 ) {
   return payload.create({
     collection: 'lesson-bundle-versions',
@@ -48,7 +55,7 @@ export async function makeRecoveryVersion(
       subjectGrade: args.subjectGradeId,
       semver: args.semver,
       sourceVersion: args.sourceVersionId,
-      title: `${MARK}ER-${args.semver}`,
+      title: `${MARK}${args.titlePrefix ?? 'ER-'}${args.semver}`,
       ...minimalBundleContent(),
     } as never,
     overrideAccess: true,
