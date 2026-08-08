@@ -16,7 +16,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-08) — edit recovery is COMPLETE on `main`, and NOT yet deployed
+# ⚑ HANDOFF (2026-08-08) — edit recovery is COMPLETE, DEPLOYED and verified in production
 
 **Read this section, then `docs/DESIGN-working-drafts.md` §5 and §7. This file's current material ends
 at "How to run the tests"; everything below the `Landed 2026-08-05` heading is older history, kept for
@@ -24,21 +24,34 @@ provenance.**
 
 ## Where the work is
 
-**Both halves are merged.** PR 1 (server, #198) is merged and deployed. PR 2 (client, #204) is
-**merged but NOT deployed** — it is the first part of this feature a user can see, so the deploy is
-the next action. #205 (Payload 3.87.1 + nanoid pins, advisory drift) merged ahead of it.
+**Both halves are merged AND deployed.** PR 1 (server, #198) and PR 2 (client, #204) are on `main` and
+running on the Rock. #205 (Payload 3.87.1 + nanoid pins) merged ahead of PR 2 to clear three HIGH
+advisories; `audit:prod` is green.
 
-⚑ **PR 2 carries NO migration.** PR 1's `20260806_185943_add_edit_recovery` is the only one this
-feature needs and it is already applied, so this is an ordinary `scripts/deploy.sh`, not a migrate
-cycle.
+**Verified in production on 2026-08-08**, in this order:
+- pre-migration snapshot taken for the deployed SHA (`…premigrate-4f73046.dump.age`)
+- migrations ran (`Done.`); ⚑ PR 2 carries **no** migration — PR 1's is the only one this feature needs
+- app healthy: `/` → 307, `/login` → 200 (⚑ on **port 3001**, not 80 — the app publishes `3001:3000`)
+- `edit_recovery` table + compound unique index exist; the version-delete and user-delete cascade
+  queries both execute against real rows (`app/scripts/verify-edit-recovery-cascade.ts`, read-only;
+  `APPLY=1` runs the full create-seed-delete drill if a stronger check is ever wanted)
+- **the operator typed into the largest plan** (Chemistry Grade 10: Chemical Bonding, 13 lessons — the
+  one that used to 500 on a single keystroke) and saw no error, the Save button arm, and
+  "Unsaved changes backed up · 10s ago". Cancel-and-return then offered the work back.
 
-⚑ **Deliberately SHA-free** (see the note below). Verify state, don't trust it:
+## ⚑ THREE PRs are open — read this before starting anything
 
-```bash
-gh pr view 204 --json state,mergedAt          # MERGED
-git log --oneline -3 origin/main
-ssh Rock5b 'cd /srv/lesson3 && git log --oneline -1'   # what is actually deployed
-```
+| PR | Branch | State | What it is |
+|---|---|---|---|
+| **#207** | `fix/edit-recovery-cleanup-round-2` | open | **Two real defects in DEPLOYED code.** Not urgent — both need a stalled connection or a long alt-tab session to bite — but they are the most valuable thing outstanding. |
+| **#206** | `docs/post-merge-edit-recovery` | open | This documentation. Merge whenever. |
+| **#196** | `chore/pr195-review-followups` | **STALE** | Opened 2026-08-05, untouched since, now 9 commits behind `main`. Predates this whole arc. **Decide: rebase and merge, or close it.** Nobody has looked at it in three days. |
+
+**What #207 fixes, so it is not re-derived:** the request deadline added to the capture path cleared on
+the fetch, which resolves on HEADERS — so `await res.json()` was unbounded and a stalled response body
+still held `inFlight` forever and blocked the user's save. Two of the four recovery requests (`start`,
+`discard`) had no deadline at all. Also: blur/visibilitychange re-sent content the server already had
+on every alt-tab, and the restore prompt rebuilt the whole ~600 KB document on every render while open.
 
 ## What shipped, and what is proven about it
 
