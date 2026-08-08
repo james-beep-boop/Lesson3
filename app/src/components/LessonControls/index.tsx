@@ -48,7 +48,7 @@ import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
-import { applyCapture, captureAnchors } from '../../lib/editRecovery/projection'
+import { applyCapture } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery } from '../EditRecovery/useEditRecovery'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
@@ -655,9 +655,11 @@ export default function LessonControls() {
       {recovery.entry.phase === 'offer' && (
         <EditRecoveryRestorePrompt
           capture={recovery.entry.capture}
-          // Resolved against the LIVE form, so a heading says "Lesson 2" only when it really is the
-          // teacher's Lesson 2 — the capture's own keys are row UUIDs in JSONB order and cannot.
-          anchors={captureAnchors(currentContent() as never)}
+          // Sampled by the hook when the offer opened — resolved against the LIVE form, so a heading
+          // says "Lesson 2" only when it really is the teacher's Lesson 2 (the capture's own keys are
+          // row UUIDs in JSONB order and cannot). Read rather than recomputed: deriving it here meant
+          // rebuilding the whole document on every render for as long as the prompt was open.
+          anchors={recovery.entry.anchors}
           readOnly={recovery.entry.readOnly}
           busy={restoring}
           onRestore={onRestore}

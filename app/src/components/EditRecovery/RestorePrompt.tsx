@@ -19,7 +19,7 @@
  * second place where that question is answered.
  */
 import { Button } from '@payloadcms/ui'
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import Modal from '../Modal'
 import type { OfferedCapture } from './protocol'
@@ -57,7 +57,10 @@ export function EditRecoveryRestorePrompt({
   onKeep: () => void
   onDiscard: () => void
 }) {
-  const groups = groupsOf(capture, anchors)
+  // Both inputs are stable for the life of the offer — the capture came off one response and the
+  // anchors were sampled once when the phase opened — so this recomputes only when the offer changes,
+  // and the prose list stops being re-reconciled on every unrelated re-render.
+  const groups = useMemo(() => groupsOf(capture, anchors), [capture, anchors])
 
   return (
     // ⚑ `onClose` routes to KEEP, never discard. Escape and backdrop-click are ambiguous gestures,

@@ -161,6 +161,19 @@ describe('the screen clears only when the work is provably stored', () => {
     expect(replace, 'the last copy of the work must not be wiped').not.toHaveBeenCalled()
   })
 
+  /**
+   * ⚑ A flush that REJECTS is a different path from one that hangs, and this file's thesis — a failed
+   * flush does not condemn work the editor knows is stored — was only ever proven for the hang. The
+   * `reject` mode existed in the test double with nothing exercising it, which reads as if a third
+   * behaviour were covered.
+   */
+  it('clears the screen when the probe says safe despite a flush that THREW', async () => {
+    await runToDeadline(<FakeEditor flush="reject" safe={true} />)
+
+    expect(mocks.logOut).toHaveBeenCalledTimes(1)
+    expect(replace, 'a thrown flush is not evidence the work is missing').toHaveBeenCalledTimes(1)
+  })
+
   it('treats a THROWN probe as unsafe', async () => {
     await runToDeadline(
       <FakeEditor
