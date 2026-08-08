@@ -11,6 +11,82 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-07 (edit recovery PR 2b) — six corrections from building the restore path
+
+Grouped because they came from one piece of work, but each is a general rule.
+
+**i. `setDisabled` does not lock fields — the editor has never been read-only in "view" mode.**
+Payload 3.85.1's `useField()` derives its `disabled` from `processing || initializing` ONLY (installed
+source, `forms/useField/index.js:114`); it never consumes `useForm().disabled`. So
+`setDisabled(!editing)` gates SUBMISSION, and `LessonControls`' comment calling it "the single source
+of truth for whether fields are editable" described something the framework does not do. Confirmed in
+the browser: a prose textarea carries no `readOnly`/`disabled` while the bar reads "Viewing:".
+
+⚑ **Scope: this is broader than edit recovery and is NOT fixed.** Nothing in PR 2 made it worse and
+nothing there depends on it — what protects an unread capture is the restore prompt covering the page
+(asserted) plus the hook refusing to capture while an offer is unresolved (asserted). But "the form is
+locked" should not be believed anywhere else in this editor until someone checks.
+
+**Rule:** *a framework call whose name implies an effect is not evidence of that effect.* Read the
+installed source, or observe the DOM, before writing a comment that a future reader will build on.
+
+**ii. `position: sticky` does NOT create a containing block for a `position: fixed` descendant — and
+I asserted the opposite, in a commit message, having "fixed" it.** I diagnosed the restore prompt's
+backdrop as confined to Payload's sticky `.doc-controls`, portalled `Modal` to `document.body`, and
+wrote up the measurement. Then the test passed with the portal reverted. Measured properly: the
+backdrop is 1280×720 at (0,0) with the bottom of the viewport blocked, portalled or not. Only
+`transform`, `filter`, `contain` and `will-change` create that containing block. The portal was
+reverted rather than kept on a false justification.
+
+**Rule:** *when a fix and a test land together and the test passes, revert the fix and watch it fail.*
+A test written against a theory will pass under a wrong theory. This is the same discipline as the
+mutation checks used elsewhere in this repo, applied to the diagnosis rather than to the guard.
+
+**iii. JSONB does not preserve object key order.** Postgres reorders `jsonb` object keys by key
+length, then bytewise. The edit-recovery capture map is a `jsonb` column keyed on `<scope>:<rowId>`
+with no ordinal, so **neither the order nor a position-derived number in it means anything**. The
+restore prompt briefly numbered its groups from that order and would have labelled recovered prose
+"Lesson 2" when the teacher's Lesson 2 was untouched. Headings now come from `captureAnchors`, which
+walks the LIVE source document. A wrong number is worse than no number, because the user acts on it.
+
+**iv. Two timestamps on one record, and the wrong one reached the user.** `baseUpdatedAt` is the
+SOURCE VERSION's mtime, carried only so the client can detect staleness; the capture's own mtime lived
+on the token. The prompt printed the former under "Captured …", telling a teacher their afternoon's
+work dated from whenever the plan was last saved. The endpoint now sends `capturedAt` explicitly.
+**Rule:** *when a record carries two timestamps, name them for what they are, and never let a
+display fall back from one to the other* — the fallback is where the lie hides, under a malformed
+response nobody looks at.
+
+**v. A discard retires the row, and `capture` requires `retired_at IS NULL`.** So discarding an
+offered capture silently ended backup for the rest of the editing session: the teacher declines
+yesterday's work and today's stops being stored, with nothing on screen to say so. Adopting the token
+the DELETE returns does not help — the token is fine, the ROW is dormant; only `start` reactivates it.
+The client now restarts after a discard, including after a FAILED one (a lost response may have
+committed, and `start` on a live row is a harmless resume). ⚑ The test that missed this stopped at the
+discard; a state-transition test must continue to **the thing the user does next**.
+
+**vi. A remembered safety verdict is stale by construction.** `IdleLogout` cached whether the last
+pre-expiry flush succeeded and cleared the screen on it. A flush that succeeds 29 s before the deadline
+says nothing about text typed 2 s before it — inside the 8-second capture debounce, which cannot
+finish. Replaced with a synchronous probe each editor answers at the moment of the decision, comparing
+the content on screen against the content the server confirmed. The confirmed-content marker is
+snapshotted when the request BODY is built, not when the response lands, so an edit made mid-flight
+correctly reports unsafe. **Rule:** *if a cached answer gates a destructive action, ask instead —
+or prove the cache cannot go stale between write and read.*
+
+**Browser-testing notes from the same work, kept because each cost a full run:**
+- Waiting on the text "backed up" matched instantly against the IDLE copy "Unsaved changes **will be**
+  backed up". Assert on the state that is false until the server confirms (here, the `--ok` tone).
+- Payload persists each array row's expanded/collapsed state per user, so "did Show All expand the
+  rows" answers a question about a saved preference, not about the thing under test.
+- Payload's document-lock dialog appears only once its lock query resolves, so looking for it races
+  its own render. Clearing `payload-locked-documents` beats polling for a dialog that may never come.
+- A UI-only assertion cannot prove a SERVER gate. Matrix case 12 ("editing access lost") passed while
+  never calling the endpoint, because a Teacher gets no Edit button to trigger it. It now fetches
+  directly with the revoked user's session cookie and asserts 404.
+
+---
+
 ## 2026-08-06 (save-as-new retirement, iii) — the audit gate went red without a dependency change
 
 **What happened.** CI's `audit:prod` failed on a branch that does not touch `package-lock.json`. Not a
