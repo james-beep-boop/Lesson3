@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyCapture,
+  captureAnchors,
   FINAL_EXPLANATION_KEY,
   parseKey,
   projectCapture,
@@ -413,5 +414,84 @@ describe('prose normalisation — the class, not two instances', () => {
     )
     const lessons = (doc as { lessons: { title: string }[] }).lessons
     expect(lessons[0].title).toBe('bad \uD800 value')
+  })
+})
+
+/**
+ * `captureAnchors` — how the restore prompt names and orders what it found.
+ *
+ * ⚑ This exists because the capture map CANNOT answer "which lesson is this?" on its own. Its keys
+ * are `<scope>:<rowId>` with no ordinal, and it comes back from a JSONB column, which reorders object
+ * keys by length then bytes. A prompt that numbered groups from the map's own order would confidently
+ * label recovered prose "Lesson 2" when the teacher's Lesson 2 was never touched — a wrong number is
+ * worse than no number, because the user acts on it.
+ */
+describe('captureAnchors — naming recovered prose after the plan the user can see', () => {
+  it('names every capture key `projectCapture` produces', () => {
+    const doc = source()
+    const anchored = new Set(captureAnchors(doc).map((a) => a.key))
+    for (const key of Object.keys(projectCapture(doc))) {
+      expect(anchored.has(key), `${key} has no heading`).toBe(true)
+    }
+  })
+
+  it('gives the three lesson-keyed scopes ONE shared heading', () => {
+    const headings = new Map(captureAnchors(source()).map((a) => [a.key, a.heading]))
+    // All keyed on the lesson row's own id: its prose, its outcomes, its summary-table prompt.
+    expect(headings.get('lesson:11')).toBe('Lesson 1')
+    expect(headings.get('slo:11')).toBe('Lesson 1')
+    expect(headings.get('prompt:11')).toBe('Lesson 1')
+    // Framework rows have ids of their own and are phases WITHIN that lesson.
+    expect(headings.get('framework:21')).toBe('Lesson 1 — phase 1')
+    expect(headings.get('framework:22')).toBe('Lesson 1 — phase 2')
+  })
+
+  /**
+   * ⚑ The lesson's OWN `number`, not its array index. That is what the teacher sees in the editor and
+   * on the printed plan; a plan whose lessons are numbered from 3 would otherwise be relabelled from 1
+   * by the one panel whose job is to be recognisable.
+   */
+  it("uses the lesson's own number, falling back to position when it has none", () => {
+    const doc = source()
+    doc.lessons[0].number = 4
+    delete doc.lessons[1].number
+    const headings = new Map(captureAnchors(doc).map((a) => [a.key, a.heading]))
+    expect(headings.get('lesson:11')).toBe('Lesson 4')
+    expect(headings.get('lesson:12'), 'unnumbered falls back to its position').toBe('Lesson 2')
+  })
+
+  it('names the singletons and the trailing sections', () => {
+    const headings = new Map(captureAnchors(source()).map((a) => [a.key, a.heading]))
+    expect(headings.get(FINAL_EXPLANATION_KEY)).toBe('Final explanation')
+    expect(headings.get('section:31')).toBe('Final explanation — section 1')
+    expect(headings.get('summaryLesson:51')).toBe('Summary table — row 1')
+  })
+
+  /**
+   * ⚑ ORDER is the other half of the contract, and the one JSONB destroys. The prompt renders groups
+   * by walking this array, so document order here IS reading order there.
+   */
+  it('returns keys in document order', () => {
+    const keys = captureAnchors(source()).map((a) => a.key)
+    expect(keys.indexOf('lesson:11')).toBeLessThan(keys.indexOf('lesson:12'))
+    expect(keys.indexOf('framework:21')).toBeLessThan(keys.indexOf('framework:22'))
+    expect(keys.indexOf('lesson:12')).toBeLessThan(keys.indexOf(FINAL_EXPLANATION_KEY))
+    expect(keys.indexOf(FINAL_EXPLANATION_KEY)).toBeLessThan(keys.indexOf('summaryLesson:51'))
+  })
+
+  /**
+   * A row deleted since the capture has no anchor — the same dropped-key case `applyCapture` refuses
+   * to restore. The prompt falls back to a heading that says so, which is only possible because this
+   * returns nothing rather than inventing a number.
+   */
+  it('has no heading for a row the plan no longer has', () => {
+    const doc = source()
+    doc.lessons = [doc.lessons[1]]
+    expect(captureAnchors(doc).some((a) => a.key === 'lesson:11')).toBe(false)
+  })
+
+  it('is empty for a missing document rather than throwing', () => {
+    expect(captureAnchors(null)).toEqual([])
+    expect(captureAnchors(undefined)).toEqual([])
   })
 })

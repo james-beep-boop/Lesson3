@@ -27,9 +27,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   classifyResponse,
   fingerprint,
+  offerKind,
   planSave,
   statusForOutcome,
   type CaptureOutcome,
+  type OfferedCapture,
   type RecoveryStatus,
   type RecoveryToken,
   type SavePlan,
@@ -38,14 +40,32 @@ import {
 /** Idle debounce before a capture (design §5: "~8 s idle, plus on blur"). */
 const CAPTURE_DEBOUNCE_MS = 8_000
 
+/**
+ * What a just-opened editor found waiting for it.
+ *
+ * `resolving` is a real state, not a loading detail: the form stays LOCKED through it. If typing
+ * could begin before the answer arrived, applying a restore would `reset` the form and destroy those
+ * keystrokes — so entry is a small state machine and this is its middle.
+ */
+export type RecoveryEntry =
+  | { phase: 'idle' }
+  | { phase: 'resolving' }
+  | { phase: 'clear' }
+  | { phase: 'offer'; capture: OfferedCapture; readOnly: boolean }
+
 export type UseEditRecovery = {
   status: RecoveryStatus
+  entry: RecoveryEntry
   /** Call when the form ACTUALLY unlocks. Idempotent; a second call while active is a no-op. */
   start: () => void
   /** Pause, drain, capture, and report how the save should proceed. */
   prepareForSave: () => Promise<SavePlan>
   /** Adopt the token a successful save-as-new returned (retirement advances it one last time). */
   adoptToken: (token: RecoveryToken | null | undefined) => void
+  /** Dismiss the offer and begin editing, leaving the capture untouched. */
+  keepOffer: () => void
+  /** Discard the offered capture — retires it server-side — and begin editing. */
+  discardOffer: () => Promise<void>
 }
 
 export function useEditRecovery(args: {
@@ -67,11 +87,12 @@ export function useEditRecovery(args: {
   /** The live form document. Called at capture time so the snapshot is never stale. */
   getDocument: () => Record<string, unknown>
   /** Registers the pre-expiry flush; see `flushRegistry`. */
-  registerFlush: (flush: () => Promise<void>) => () => void
+  registerFlush: (flush: () => Promise<boolean>) => () => void
 }): UseEditRecovery {
   const { versionId, active, modified, changeSignal, getDocument, registerFlush } = args
 
   const [status, setStatus] = useState<RecoveryStatus>({ kind: 'off' })
+  const [entry, setEntry] = useState<RecoveryEntry>({ phase: 'idle' })
   /**
    * Set once `start` has a token. STATE, not the ref below, because the debounce effect has to
    * re-run when it becomes true: a user who starts typing before `start` resolves would otherwise
@@ -228,14 +249,21 @@ export function useEditRecovery(args: {
    * point at the function beside it.
    */
   const captureAndReport = useCallback(
-    async function run(): Promise<void> {
-      if (!session.current.token || !live.current.active || !live.current.modified) return
+    /**
+     * Capture and paint the verdict. Resolves whether the unsaved work is now SAFE — see
+     * `PreExpiryFlush`, whose caller clears the screen on this answer.
+     */
+    async function run(): Promise<boolean> {
+      // Nothing dirty (or nothing editable) is SAFE: there is no work here to lose.
+      if (!live.current.active || !live.current.modified) return true
+      // Dirty with no session token is the opposite — work exists and was never stored.
+      if (!session.current.token) return false
       const mine = epoch.current
       setStatus({ kind: 'saving' })
       const outcome = await capture()
       // The session moved on while this was in flight — reporting now would paint a stale verdict
       // over whatever the current one is showing.
-      if (epoch.current !== mine) return
+      if (epoch.current !== mine) return false
       setStatus(statusForOutcome(outcome))
       if (outcome.kind === 'definite' && outcome.reason === 'rateLimited') {
         // Its OWN timer: the debounce's cleanup runs on every edit and would otherwise cancel this,
@@ -243,6 +271,8 @@ export function useEditRecovery(args: {
         if (retryTimer.current) clearTimeout(retryTimer.current)
         retryTimer.current = setTimeout(() => void run(), (outcome.retryAfterSec ?? 30) * 1000)
       }
+      // Only a confirmed store counts. A scheduled retry is a promise to try again, not a backup.
+      return outcome.kind === 'ok'
     },
     // `clearTimer` is gone from here deliberately: backoff now owns `retryTimer`, and this function
     // no longer touches the debounce at all.
@@ -267,6 +297,7 @@ export function useEditRecovery(args: {
         )
         if (epoch.current !== mine) return
         if (res.status === 409) {
+          setEntry({ phase: 'clear' })
           // At the per-user active-capture cap. Editing proceeds normally — refusing to let someone
           // work because their backup quota is full would be a worse failure than no backup — but the
           // indicator says so and the save sends no token.
@@ -274,6 +305,7 @@ export function useEditRecovery(args: {
           return
         }
         if (!res.ok) {
+          setEntry({ phase: 'clear' })
           setStatus({ kind: 'unavailable', reason: 'failed' })
           return
         }
@@ -282,16 +314,55 @@ export function useEditRecovery(args: {
         // an abandoned session must not install a token over the live one.
         if (epoch.current !== mine) return
         if (!body.token) {
+          setEntry({ phase: 'clear' })
           setStatus({ kind: 'unavailable', reason: 'failed' })
           return
         }
         session.current.token = body.token
         setReady(true)
         setStatus({ kind: 'idle' })
+
+        // ⚑ The GET runs AFTER `start`, deliberately. `start` is the only path that creates or
+        // reactivates the row, so asking first would race it: a brand-new session would be told
+        // "nothing stored" by a request that arrived before the row existed.
+        setEntry({ phase: 'resolving' })
+        const offer = await fetch(
+          `/api/lesson-bundle-versions/${live.current.versionId}/recovery`,
+          { method: 'GET', credentials: 'same-origin' },
+        )
+        if (epoch.current !== mine) return
+        if (!offer.ok) {
+          // A failed read is not a failed session: capture still works, there is simply nothing to
+          // offer back. Unlocking is the right outcome — refusing to let someone edit because we
+          // could not check for a backup would be a worse failure than not offering one.
+          setEntry({ phase: 'clear' })
+          return
+        }
+        const offered = (await offer.json()) as {
+          capture: (Omit<OfferedCapture, 'capturedAt'> & { capturedAt?: string }) | null
+          token?: RecoveryToken
+        }
+        if (epoch.current !== mine) return
+        // ⚑ CAPTURE time comes from the token, which carries the row's own `updatedAt`; the endpoint's
+        // `capture` object carries `baseUpdatedAt`, which is the SOURCE VERSION's mtime and belongs to
+        // the staleness comparison, not to anything a user reads. Joined here rather than at the
+        // endpoint so PR 1's wire contract and its tests stay untouched — the value was already on the
+        // response, just under the other key.
+        const capture = offered.capture && {
+          ...offered.capture,
+          capturedAt: offered.token?.updatedAt ?? offered.capture.baseUpdatedAt,
+        }
+        const kind = offerKind(capture)
+        setEntry(
+          kind === 'none' || !capture
+            ? { phase: 'clear' }
+            : { phase: 'offer', capture, readOnly: kind === 'readOnly' },
+        )
       } catch {
         // Same guard: a failed start from an abandoned session must not mark the CURRENT one
         // unavailable, which would tell the user their live session has no backup when it does.
         if (epoch.current !== mine) return
+        setEntry({ phase: 'clear' })
         setStatus({ kind: 'unavailable', reason: 'failed' })
       }
     })()
@@ -323,6 +394,31 @@ export function useEditRecovery(args: {
 
   const adoptToken = useCallback((next: RecoveryToken | null | undefined) => {
     if (next) session.current.token = next
+  }, [])
+
+  const keepOffer = useCallback(() => setEntry({ phase: 'clear' }), [])
+
+  /**
+   * Discard: retire the capture server-side, then begin editing.
+   *
+   * ⚑ Unlocks even when the retire FAILS. The user asked to get on with editing; refusing because
+   * the tidy-up did not land would hold their work hostage to a cleanup they did not ask about. A
+   * capture that survives is retired by the 30-day pass anyway.
+   */
+  const discardOffer = useCallback(async () => {
+    const held = session.current.token
+    setEntry({ phase: 'clear' })
+    if (!held) return
+    try {
+      await fetch(`/api/lesson-bundle-versions/${live.current.versionId}/recovery`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ generation: held.generation, expectedRevision: held.revision }),
+      })
+    } catch {
+      // Deliberately swallowed — see above.
+    }
   }, [])
 
   // Debounced capture, restarted by every edit.
@@ -363,7 +459,7 @@ export function useEditRecovery(args: {
     if (!active) return
     return registerFlush(async () => {
       clearTimer()
-      await captureAndReport()
+      return captureAndReport()
     })
   }, [active, registerFlush, captureAndReport, clearTimer])
 
@@ -391,12 +487,14 @@ export function useEditRecovery(args: {
     if (active) return
     endSession()
     setReady(false)
+    setEntry({ phase: 'idle' })
   }, [active, endSession])
 
   // A different version is a different session, even without leaving edit mode.
   useEffect(() => {
     endSession()
     setReady(false)
+    setEntry({ phase: 'idle' })
   }, [versionId, endSession])
 
   // ⚑ UNMOUNT, which neither effect above covers: both are no-ops while `active` stays true and the
@@ -408,5 +506,13 @@ export function useEditRecovery(args: {
   // cascade (and the lint rejects it), and it would also be a second source of truth for something
   // `active` already decides: while the form is locked there is nothing to report, whatever the last
   // capture did.
-  return { status: active ? status : { kind: 'off' }, start, prepareForSave, adoptToken }
+  return {
+    status: active ? status : { kind: 'off' },
+    entry: active ? entry : { phase: 'idle' },
+    start,
+    prepareForSave,
+    adoptToken,
+    keepOffer,
+    discardOffer,
+  }
 }

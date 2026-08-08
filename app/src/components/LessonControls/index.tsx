@@ -47,6 +47,9 @@ import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
+import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
+import { offerKind } from '../EditRecovery/protocol'
+import { applyCapture, captureAnchors } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery } from '../EditRecovery/useEditRecovery'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
@@ -171,12 +174,6 @@ export default function LessonControls() {
   // `canEdit` — can resolve after first render; a one-shot initialiser would latch the wrong answer.
   const editing = editIntent && canEdit
 
-  // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
-  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
-  useEffect(() => {
-    setDisabled(!editing)
-  }, [editing, setDisabled])
-
   // The live form values, read at call time. Declared here because edit recovery (below) is the
   // first consumer; the save path uses the same function so both send an identical snapshot.
   const currentContent = () => reduceFieldsToValues(fields, true)
@@ -198,6 +195,47 @@ export default function LessonControls() {
     getDocument: currentContent,
     registerFlush: registerRecoveryFlush,
   })
+
+  // Locked while we do not yet know what is waiting, and while the user is deciding about it.
+  const recoveryGate = recovery.entry.phase === 'resolving' || recovery.entry.phase === 'offer'
+
+  // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
+  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
+  //
+  // ⚑ `recoveryGate` holds it locked a moment longer. Entry is a small state machine — unlock is the
+  // LAST step, after the server has said whether anything is waiting. Without it a teacher could type
+  // into the two hundred milliseconds before the answer arrives, and applying a restore would `reset`
+  // the form and destroy exactly those keystrokes.
+  useEffect(() => {
+    setDisabled(!editing || recoveryGate)
+  }, [editing, recoveryGate, setDisabled])
+  const [restoring, setRestoring] = useState(false)
+
+  /**
+   * Apply the offered capture to the live form.
+   *
+   * ⚑ `reset(doc)` then `setModified(true)` — browser-verified 2026-08-07, see
+   * `docs/DESIGN-working-drafts.md` §5. `reset` hands the whole document to Payload's `getFormState`,
+   * which rebuilds every field path server-side; there is deliberately NO client-side key→path
+   * mapper, which would make this a second owner of the bundle's structure. `reset` ends with
+   * `setModified(false)` internally, hence the explicit re-dirty afterwards: restored work is
+   * unsaved work, and a clean form would let the user navigate away and lose it.
+   */
+  const onRestore = async () => {
+    if (recovery.entry.phase !== 'offer' || restoring) return
+    setRestoring(true)
+    try {
+      const { doc } = applyCapture(currentContent() as never, recovery.entry.capture.content)
+      await reset(doc as never)
+      setModified(true)
+      recovery.keepOffer()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
+      recovery.keepOffer()
+    } finally {
+      setRestoring(false)
+    }
+  }
 
   // Starting is separate from `active` so the hook never fires a request from its own render path;
   // the effect is the one place that says "this session has begun".
@@ -599,6 +637,21 @@ export default function LessonControls() {
       {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
           already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
       <EditJumpNav />
+      {/* The restore offer. Rendered only in the `offer` phase, which is also the phase that keeps
+          the form locked — so the panel is never behind a form the user can already type into. */}
+      {recovery.entry.phase === 'offer' && (
+        <EditRecoveryRestorePrompt
+          capture={recovery.entry.capture}
+          // Resolved against the LIVE form, so a heading says "Lesson 2" only when it really is the
+          // teacher's Lesson 2 — the capture's own keys are row UUIDs in JSONB order and cannot.
+          anchors={captureAnchors(currentContent() as never)}
+          readOnly={offerKind(recovery.entry.capture) === 'readOnly'}
+          busy={restoring}
+          onRestore={onRestore}
+          onKeep={recovery.keepOffer}
+          onDiscard={recovery.discardOffer}
+        />
+      )}
       {/* Pressing Edit below the width threshold explains itself here instead of unlocking the form.
           Reuses the Editing-help modal's admin styling (Payload's admin root does not load the
           frontend `.modal` rules, so `lesson-edit-help` IS the admin modal skin, not a variant). */}

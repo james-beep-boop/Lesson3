@@ -25,14 +25,26 @@
  */
 import React, { createContext, useContext, useMemo, useRef } from 'react'
 
-/** Resolves when the flush has finished; never rejects — a failed flush is reported, not thrown. */
-export type PreExpiryFlush = () => Promise<void>
+/**
+ * Runs the flush and reports whether that editor's unsaved work is now SAFE — stored server-side, or
+ * absent because nothing is dirty. Never rejects; a failed flush resolves `false`.
+ *
+ * ⚑ The boolean is not diagnostics. `IdleLogout` decides whether to CLEAR THE SCREEN on it, and
+ * clearing a screen whose work was never captured would destroy it. Anything short of a confirmed
+ * store — a 409, a 429 backoff, a dropped connection, a token this hook never obtained — is `false`.
+ */
+export type PreExpiryFlush = () => Promise<boolean>
 
 export type FlushRegistry = {
   /** Register a flush; call the returned disposer on unmount. */
   register: (flush: PreExpiryFlush) => () => void
-  /** Run every registered flush. Safe when nothing is registered. */
-  runAll: () => Promise<void>
+  /**
+   * Run every registered flush; resolves true only when EVERY one reported safe.
+   *
+   * Vacuously true when nothing is registered — no editor mounted means no unsaved work to lose,
+   * which is the common case for an admin session idling on a list view.
+   */
+  runAll: () => Promise<boolean>
 }
 
 /**
@@ -44,7 +56,9 @@ export type FlushRegistry = {
  */
 const FlushRegistryContext = createContext<FlushRegistry>({
   register: () => () => {},
-  runAll: async () => {},
+  // ⚑ false, not true. If the provider is ever missing, the honest answer to "is the work safe?" is
+  // "we have no idea" — and the caller must not clear a screen on that.
+  runAll: async () => false,
 })
 
 /**
@@ -74,7 +88,10 @@ export function useFlushRegistry(): FlushRegistry {
       runAll: async () => {
         // Snapshot first: a flush that unmounts its own editor would otherwise mutate the set
         // mid-iteration. `allSettled` so one editor's failure cannot stop another's flush.
-        await Promise.allSettled([...set].map((flush) => flush()))
+        const results = await Promise.allSettled([...set].map((flush) => flush()))
+        // A rejection counts as unsafe even though `PreExpiryFlush` promises not to throw — the
+        // contract is a comment, and this decision gates destroying work.
+        return results.every((r) => r.status === 'fulfilled' && r.value === true)
       },
     }
   }, [])

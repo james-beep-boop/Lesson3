@@ -201,6 +201,58 @@ export const projectCapture = (doc: Doc | undefined | null): CaptureMap => {
   return map
 }
 
+/**
+ * Human headings for capture keys, in DOCUMENT order, resolved against the live source.
+ *
+ * ⚑ **The capture map alone cannot answer "which lesson is this?"** Its keys are `<scope>:<rowId>`
+ * with row UUIDs and no ordinal, and the map arrives from a JSONB column, which does NOT preserve
+ * insertion order — Postgres reorders object keys by length then bytes. So neither the key nor its
+ * position tells you anything a teacher would recognise, and a heading numbered from the map's own
+ * order is worse than none: it would confidently label recovered prose "Lesson 2" when the teacher's
+ * Lesson 2 was never touched.
+ *
+ * Walking the SOURCE in the same order `projectCapture` does is what makes the numbering true. A key
+ * with no anchor here is a row that no longer exists — the dropped-key case `applyCapture` already
+ * refuses to restore (matrix case 28) — and the caller falls back to naming the scope alone.
+ *
+ * Lives here because this module already owns the key format; deriving headings in a React component
+ * would make `<scope>:<rowId>` a contract between files instead of a private detail.
+ */
+export const captureAnchors = (doc: Doc | undefined | null): { key: string; heading: string }[] => {
+  const out: { key: string; heading: string }[] = []
+  const add = (key: string | null, heading: string) => {
+    if (key) out.push({ key, heading })
+  }
+  if (!doc) return out
+
+  asRows(doc.lessons).forEach((lesson, i) => {
+    // The lesson's own `number` when it has one — that is what the teacher sees in the editor and on
+    // the printed plan; the array index is only a fallback for a row that has not been numbered.
+    const label = `Lesson ${lesson.number ?? i + 1}`
+    // Three scopes share the LESSON's id (prose, outcomes, summary prompt), so they share a heading.
+    add(keyFor('lesson', lesson.id), label)
+    add(keyFor('slo', lesson.id), label)
+    add(keyFor('prompt', lesson.id), label)
+    asRows(lesson.framework).forEach((fw, j) => {
+      add(keyFor('framework', fw.id), `${label} — phase ${j + 1}`)
+    })
+  })
+
+  const fe = asDoc(doc.finalExplanation)
+  if (fe) {
+    add(FINAL_EXPLANATION_KEY, 'Final explanation')
+    asRows(fe.sections).forEach((sec, i) => {
+      add(keyFor('section', sec.id), `Final explanation — section ${i + 1}`)
+    })
+  }
+
+  asRows(asDoc(doc.summaryTable)?.lessons).forEach((sl, i) => {
+    add(keyFor('summaryLesson', sl.id), `Summary table — row ${i + 1}`)
+  })
+
+  return out
+}
+
 /** What `applyCapture` did, so the caller can surface a partial restore rather than pretend. */
 export type ApplyReport = {
   /** Keys in the capture with no counterpart in the current source — dropped, never created. */

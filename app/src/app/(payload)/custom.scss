@@ -1484,6 +1484,68 @@ a.btn.lp-btn {
   }
 }
 
+// The edit-recovery restore offer. A true modifier of the base `.modal` above — it adds only the
+// scrollable transcript of the captured prose, which is what makes this panel different from a
+// confirmation: the user is deciding about content they need to be able to READ first.
+.lp-restore {
+  max-width: 34rem;
+
+  &__warn {
+    margin: 0 0 var(--app-space-2);
+    padding: var(--app-space-2);
+    border-radius: var(--app-btn-radius);
+    background: var(--theme-warning-50, var(--theme-elevation-50));
+    color: var(--theme-elevation-800);
+    font-size: var(--app-secondary-size);
+  }
+
+  // Capped and scrollable: a capture can hold every prose field in the bundle, and a panel taller
+  // than the viewport would push its own buttons off-screen — the decision has to stay reachable.
+  //
+  // The rules bound it top and bottom so the cap reads as a scroll REGION. Without them the text just
+  // stops mid-sentence at the crop and there is nothing to say more follows.
+  &__body {
+    max-height: 40vh;
+    overflow-y: auto;
+    margin-block: var(--app-space-2) var(--app-space-3);
+    padding-block: var(--app-space-2);
+    padding-right: var(--app-space-1);
+    border-block: 1px solid var(--theme-elevation-100);
+  }
+
+  &__group + &__group {
+    margin-block-start: var(--app-space-3);
+  }
+
+  &__heading {
+    margin: 0 0 var(--app-space-1);
+    font-size: var(--app-secondary-size);
+    font-weight: 700;
+    color: var(--theme-elevation-1000);
+  }
+
+  &__list {
+    margin: 0;
+
+    dt {
+      color: var(--theme-elevation-600);
+      font-size: var(--app-secondary-size);
+      font-weight: 600;
+    }
+
+    dd {
+      margin: 0 0 var(--app-space-2);
+      // Captured prose is plain text where `\n` is a paragraph break (the editor's grammar, CLAUDE.md)
+      // — preserved here so what the user reads matches what would be restored.
+      white-space: pre-wrap;
+    }
+  }
+
+  .modal__actions {
+    justify-content: flex-end;
+  }
+}
+
 // Jump targets land below the floating toolbar (EditJumpNav): the sticky .doc-controls + the
 // overflowing nav row cover ~7rem, so its scroll destinations clear it.
 

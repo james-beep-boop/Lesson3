@@ -140,6 +140,51 @@ export const fingerprint = (s: string): string => {
   return h.toString(16)
 }
 
+/**
+ * A capture the server is offering back, as `GET /:id/recovery` returns it.
+ *
+ * ⚑ `stale` and `schemaMismatch` are the server's verdict, not hints. `stale` means the source moved
+ * under the capture, so the row ids the overlay is keyed on may no longer mean what they meant;
+ * `schemaMismatch` means the field shape changed. Either makes the capture **view/copy/discard
+ * only** (SPEC §5) — never applied. An earlier draft of the design said a base mismatch merely
+ * "warns", which would have let a stale overlay land on a changed source.
+ */
+export type OfferedCapture = {
+  content: Record<string, Record<string, string | null>> | null
+  /**
+   * The SOURCE version's `updatedAt` as it was when the session began — the value `stale` is computed
+   * from server-side.
+   *
+   * ⚑ NOT when the capture was taken, and never show it to a user as if it were. An early build of the
+   * prompt printed it under "Captured …" and told a teacher their afternoon's work had been captured
+   * five days ago, because that is when the lesson plan was last saved. Capture time is
+   * {@link OfferedCapture.capturedAt}.
+   */
+  baseUpdatedAt: string
+  /**
+   * When the capture itself was last written. Supplied by the hook from the token the GET returns
+   * alongside the capture — the row's own `updatedAt`, which the token already carries.
+   */
+  capturedAt: string
+  schemaVersion: string
+  stale: boolean
+  schemaMismatch: boolean
+}
+
+/**
+ * Can this offer be APPLIED, or only read?
+ *
+ * ⚑ A capture with `content: null` is not an offer at all. `start` creates the row and the first
+ * `capture` fills it, so a freshly started session has exactly that shape — prompting on "a row
+ * exists" would show an empty restore dialog on every single Edit click.
+ */
+export const offerKind = (
+  capture: OfferedCapture | null | undefined,
+): 'none' | 'restorable' | 'readOnly' => {
+  if (!capture || !capture.content || Object.keys(capture.content).length === 0) return 'none'
+  return capture.stale || capture.schemaMismatch ? 'readOnly' : 'restorable'
+}
+
 /** What the indicator shows. The timestamp IS the contract (SPEC §5), so silence is not an option. */
 export type RecoveryStatus =
   | { kind: 'off' }

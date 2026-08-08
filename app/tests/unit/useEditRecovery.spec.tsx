@@ -30,7 +30,7 @@ const token = (revision: number) => ({
 /** A fetch stub whose per-URL behaviour each test sets. Records every call for assertions. */
 type Handler = (url: string, init?: RequestInit) => Promise<Response>
 let handler: Handler
-let calls: { url: string; body: unknown }[]
+let calls: { url: string; method: string; body: unknown }[]
 
 const jsonResponse = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
@@ -41,7 +41,7 @@ const jsonResponse = (status: number, body: unknown, headers: Record<string, str
 /** Drives the hook from a component, exposing its latest value plus a way to change props. */
 function harness(initial: { active?: boolean; modified?: boolean; versionId?: string } = {}) {
   const ref: { current: UseEditRecovery | null } = { current: null }
-  const flushRef: { current: (() => Promise<void>) | null } = { current: null }
+  const flushRef: { current: (() => Promise<boolean>) | null } = { current: null }
   let setProps: React.Dispatch<React.SetStateAction<Record<string, unknown>>> = () => {}
   let bumpChange: () => void = () => {}
 
@@ -108,12 +108,19 @@ const flush = async () => {
 
 beforeEach(() => {
   calls = []
-  handler = async (url) =>
-    url.endsWith('/recovery/start')
-      ? jsonResponse(200, { token: token(1) })
-      : jsonResponse(200, { token: token(2) })
+  handler = async (url, init) => {
+    if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+    // The entry GET: no stored capture, so these timing tests start from an unlocked form. Tests
+    // about the OFFER override this handler.
+    if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
+    return jsonResponse(200, { token: token(2) })
+  }
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
-    calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : null })
+    calls.push({
+      url: String(url),
+      method: init?.method ?? 'GET',
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    })
     return handler(String(url), init)
   })
   vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -125,7 +132,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const captureCalls = () => calls.filter((c) => c.url.endsWith('/recovery'))
+/**
+ * ⚑ Filtered by METHOD, not URL alone. Three verbs share `/recovery`: POST captures, GET reads the
+ * stored offer on entry, DELETE discards it. Matching on the path alone counted the entry GET as a
+ * capture and made every "exactly one capture" assertion in this file wrong by one.
+ */
+const captureCalls = () => calls.filter((c) => c.url.endsWith('/recovery') && c.method === 'POST')
 
 describe('the capture debounce follows real edits', () => {
   /**
@@ -338,8 +350,10 @@ describe('a 429 binds every capture path, not just the debounce', () => {
    */
   const rateLimitedThenOk = () => {
     let served = 0
-    handler = async (url) => {
+    handler = async (url, init) => {
       if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      // The entry GET shares this URL and must not consume the limiter's one refusal.
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       served += 1
       return served === 1
         ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
@@ -423,8 +437,10 @@ describe('a scheduled retry must not outlive its session', () => {
    */
   const intoBackoffThen = async () => {
     let served = 0
-    handler = async (url) => {
+    handler = async (url, init) => {
       if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      // The entry GET shares this URL and must not consume the limiter's one refusal.
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(200, { capture: null })
       served += 1
       return served === 1
         ? jsonResponse(429, { errors: [{ message: 'slow down' }] }, { 'Retry-After': '60' })
@@ -588,5 +604,185 @@ describe('more requests from abandoned sessions', () => {
       h.ref.current!.status.kind,
       "the abandoned session's failure must not surface here",
     ).toBe('idle')
+  })
+})
+
+/**
+ * ENTRY — what a just-opened editor finds waiting for it, and the lock that depends on the answer.
+ *
+ * ⚑ The form stays LOCKED through `resolving`, and `LessonControls` derives that lock directly from
+ * `entry.phase`. So an entry that never leaves `resolving` is not a slow prompt — it is an editor
+ * nobody can type into. Every branch below therefore asserts the phase it settles on, including the
+ * failure branches, because "unlock anyway" is the correct answer to a failed lookup and the easy
+ * thing to get wrong is leaving the user locked out of their own document.
+ */
+describe('the entry state machine', () => {
+  // ⚑ A REAL capture-map key (`<scope>:<rowId>`, see `projectCapture`), not a field path. The restore
+  // prompt decodes it to attribute prose to a lesson, so a made-up key shape here would let a decoding
+  // bug through.
+  const storedCapture = (over: Record<string, unknown> = {}) => ({
+    content: { 'lesson:0b6f1e2a': { overview: 'work from before' } },
+    baseUpdatedAt: '2026-08-07T00:00:00.000Z',
+    schemaVersion: 'sv-1',
+    stale: false,
+    schemaMismatch: false,
+    ...over,
+  })
+
+  /** Serve `start`, then answer the entry GET with whatever this case is about. */
+  const offering = (body: unknown, status = 200) => {
+    handler = async (url, init) => {
+      if (url.endsWith('/recovery/start')) return jsonResponse(200, { token: token(1) })
+      if ((init?.method ?? 'GET') === 'GET') return jsonResponse(status, body)
+      if (init?.method === 'DELETE') return jsonResponse(200, {})
+      return jsonResponse(200, { token: token(2) })
+    }
+  }
+
+  it('offers a stored capture, and asks for it only AFTER start', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('offer')
+
+    // ⚑ Order, not merely presence. `start` is the only path that creates or reactivates the row, so
+    // a GET that overtook it would be answered "nothing stored" for a session that has a capture —
+    // and the teacher would be shown an empty editor with their work sitting on the server.
+    const seq = calls.map((c) => `${c.method} ${c.url.replace(/^.*versions\/[^/]+/, '')}`)
+    expect(seq.indexOf('POST /recovery/start')).toBeLessThan(seq.indexOf('GET /recovery'))
+  })
+
+  /**
+   * ⚑ `start` has just created the row, so an active capture with NO content is the normal shape of a
+   * brand-new session — not an offer. Treating "a row exists" as the test would prompt every editor,
+   * every time, with nothing in the panel.
+   */
+  it('does NOT offer a freshly started row with null content', async () => {
+    offering({ capture: storedCapture({ content: null }) })
+    const h = harness()
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+  })
+
+  /**
+   * ⚑ CAPTURE time, not source time. The endpoint returns the row's own `updatedAt` on the TOKEN and
+   * the source version's mtime as `baseUpdatedAt`; an early build of the prompt printed the latter
+   * under "Captured …" and told a teacher their afternoon's work dated from whenever the lesson plan
+   * was last saved. Browser-verified 2026-08-07, and pinned here so it cannot come back.
+   */
+  it('takes the offer timestamp from the token, not from the source mtime', async () => {
+    offering({
+      capture: storedCapture({ baseUpdatedAt: '2026-08-02T09:00:00.000Z' }),
+      token: { generation: 1, revision: 4, updatedAt: '2026-08-07T15:30:00.000Z' },
+    })
+    const h = harness()
+    await flush()
+
+    const entry = h.ref.current!.entry
+    expect(entry.phase === 'offer' && entry.capture.capturedAt).toBe('2026-08-07T15:30:00.000Z')
+    expect(
+      entry.phase === 'offer' && entry.capture.baseUpdatedAt,
+      'the source mtime is still carried, for the staleness comparison',
+    ).toBe('2026-08-02T09:00:00.000Z')
+  })
+
+  it('does not offer when there is nothing stored', async () => {
+    offering({ capture: null })
+    const h = harness()
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+  })
+
+  it.each([
+    ['stale', { stale: true }],
+    ['schema-mismatched', { schemaMismatch: true }],
+  ])('offers a %s capture as READ-ONLY', async (_label, over) => {
+    offering({ capture: storedCapture(over) })
+    const h = harness()
+    await flush()
+
+    const entry = h.ref.current!.entry
+    expect(entry.phase).toBe('offer')
+    // The flag the prompt uses to withhold the Restore button entirely. Applying either kind could
+    // land prose on the wrong row, so this is the difference between recovery and corruption.
+    expect(entry.phase === 'offer' && entry.readOnly).toBe(true)
+  })
+
+  /**
+   * ⚑ UNLOCK on a failed lookup. Refusing to let someone edit because we could not check for a
+   * backup is a strictly worse failure than not offering them one.
+   */
+  it('unlocks when the entry GET fails', async () => {
+    offering({ errors: [{ message: 'nope' }] }, 500)
+    const h = harness()
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+  })
+
+  it('keeping the offer unlocks and leaves the capture alone', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+    await act(async () => {
+      h.ref.current!.keepOffer()
+    })
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+    expect(
+      calls.some((c) => c.method === 'DELETE'),
+      'Not now must not destroy it',
+    ).toBe(false)
+  })
+
+  it('discarding retires the capture with the held token', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+    await act(async () => {
+      await h.ref.current!.discardOffer()
+    })
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+    const del = calls.find((c) => c.method === 'DELETE')
+    expect(del?.body).toEqual({ generation: 1, expectedRevision: 1 })
+  })
+
+  /**
+   * ⚑ The user asked to get on with editing. Holding the form hostage to a tidy-up they did not ask
+   * about would be the wrong trade, and a capture that survives is retired by the 30-day pass anyway.
+   */
+  it('discarding unlocks even when the retire request fails', async () => {
+    offering({ capture: storedCapture() })
+    const priorHandler = handler
+    handler = async (url, init) => {
+      if (init?.method === 'DELETE') throw new Error('offline')
+      return priorHandler(url, init)
+    }
+    const h = harness()
+    await flush()
+    await act(async () => {
+      await h.ref.current!.discardOffer()
+    })
+
+    expect(h.ref.current!.entry.phase).toBe('clear')
+  })
+
+  /** Leaving edit mode with a prompt open must not leave the next unlock holding a dead offer. */
+  it('clears the offer when the session ends', async () => {
+    offering({ capture: storedCapture() })
+    const h = harness()
+    await flush()
+    expect(h.ref.current!.entry.phase).toBe('offer')
+
+    await act(async () => {
+      h.setProps({ active: false })
+    })
+    await flush()
+
+    expect(h.ref.current!.entry.phase).toBe('idle')
   })
 })
