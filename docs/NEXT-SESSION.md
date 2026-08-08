@@ -242,9 +242,8 @@ and is not proven.
    (case 4 reads the `<time datetime>` and fails if the field disappears — verified by mutation), and
    a wire fact deserves a wire test.
 
-2. **Fix the pre-existing Server Action body limit** — the next section. It is a one-line config
-   change whose VALUE is a decision, and it is independent of everything above. Do it as its own
-   commit described as a pre-existing editor fix.
+2. ✅ **DONE — the pre-existing Server Action body limit is fixed** on this branch, as its own commit.
+   See the section below for the value, why it was chosen, and how it was verified.
 
 3. **Deploy PR 2 once merged.** ⚑ It carries **no migration** — PR 1's is the only one this feature
    needs — so this is an ordinary app deploy. Unlike PR 1, this one IS user-visible: the indicator
@@ -287,7 +286,7 @@ ones.
    things and the setting has to be per-step. That closes the blind spot that let a collection with
    no migration go green here while being undeployable.
 
-## ⚑ A PRE-EXISTING editor defect, found 2026-08-07 and NOT yet fixed
+## ✅ A PRE-EXISTING editor defect, found 2026-08-07 and FIXED the same day
 
 **Typing one character into a large lesson-plan version 500s on `main` today.** No edit-recovery code
 involved — found while spiking PR 2's restore, and it is not that feature's bug:
@@ -317,25 +316,22 @@ readings (cover today's corpus with headroom ⇒ ~4 MB; stay consistent with the
 the save path already accepts ⇒ ~12 MB). It raises the ceiling for EVERY Server Action, so it is a
 production posture change and wants its own commit described as a pre-existing editor fix.
 
-⚑ **STILL NOT FIXED as of 2026-08-07**, and PR 2b shipped without it. The earlier note here said "do
-it before or alongside PR 2b"; that did not happen, and the honest status is that PR 2b's restore path
-calls `reset`, which marks the form modified, which reaches this defect on the NEXT keystroke rather
-than after a few. Restoring still works — the failure is Payload's own form-state sync, not the
-restore — but a teacher who restores and then types into a large plan is the most likely person to
-meet it.
+✅ **FIXED on the PR 2 branch** (its own commit, `experimental.serverActions.bodySizeLimit = '12mb'`).
+**The authority for the value and its derivation is `src/lib/serverActionBodyLimit.ts`** — do not
+restate the numbers here; an earlier version of this file kept its own copy of a per-case list and it
+went stale three times in two days.
 
-**The decision to make, stated so it is not re-derived:** `experimental.serverActions.bodySizeLimit`
-is currently unset in `next.config.ts`, so the ceiling is Next's default 1,048,576 B. Two defensible
-values, both in `docs/DESIGN-working-drafts.md` §5:
+The short version: 12 MiB was chosen over 4 MB because 4,000,000 B is the DOCUMENT ceiling the save
+and preview paths already accept, and form state measures ~2.57× the document — so a 4 MB Server
+Action limit would mean documents this system will happily store cannot be edited, failing the same
+silent way on the largest plans. `tests/unit/serverActionBodyLimit.spec.ts` pins that relationship, so
+raising the document ceiling without raising this now fails a test rather than a teacher.
 
-- **~4 MB** — ~2.6× the largest body measured in today's corpus. Covers what exists, with headroom.
-- **~12 MB** — consistent with the 4 MB DOCUMENT ceiling the save path already accepts
-  (`MAX_PREVIEW_JSON_BYTES`, `MAX_RECOVERY_BODY_BYTES`). Form state measured 2.57× the document, so a
-  document at that ceiling implies ~10.3 MB of form state. Picking 4 MB means documents that are
-  saveable are not editable, which is an incoherent posture.
-
-⚑ The ~10.3 MB is a MEASURED REQUIREMENT; 12 MB is a headroom POLICY on top of it. It raises the
-ceiling for every Server Action in the app, so whoever picks should say why in the commit.
+⚑ **Verified as an A/B on version 13**, typing one character: Next's 1 MiB default → `500 POST`; with
+the limit → no server errors. ⚑ Two earlier control runs proved nothing — one failed on Payload's
+document-lock dialog, one on this feature's own restore prompt holding the previous run's keystroke.
+Clear `payload_locked_documents` AND `edit_recovery` between arms, or the control measures the wrong
+thing.
 
 ## Cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
 

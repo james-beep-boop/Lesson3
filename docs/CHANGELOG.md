@@ -8,6 +8,19 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-07 — large lesson plans became editable again (on DRAFT #204)
+
+⚑ **A pre-existing defect, unrelated to edit recovery**, found while spiking the restore path. Typing
+one character into a large plan 500'd: Payload posts the whole form state through a Next.js Server
+Action, whose default ceiling is 1 MiB, and the largest plan in the corpus produces ~1.5 MB. Saving
+was never affected. What failed was Payload's own form-state sync, so field validation and conditional
+logic silently stopped updating while the teacher typed — invisible without the console open.
+
+Verified as an A/B on the plan the original measurement used: default → `500 POST`; with the raised
+limit → no server errors. The value is derived from the document ceiling the save path already
+accepts, so a document this system will store cannot become one it refuses to edit; a unit test pins
+that relationship. Reasoning: `app/src/lib/serverActionBodyLimit.ts`.
+
 ## 2026-08-07 — edit recovery, PR 2: the client half (DRAFT #204, not yet merged)
 
 On `feat/edit-recovery-client-capture`. ⚑ **Carries NO migration** — PR 1's is the only one this
