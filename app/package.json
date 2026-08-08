@@ -25,11 +25,11 @@
     "test:unit": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.unit.config.mts"
   },
   "dependencies": {
-    "@payloadcms/db-postgres": "3.85.1",
-    "@payloadcms/email-nodemailer": "3.85.1",
-    "@payloadcms/next": "3.85.1",
-    "@payloadcms/richtext-lexical": "3.85.1",
-    "@payloadcms/ui": "3.85.1",
+    "@payloadcms/db-postgres": "3.87.1",
+    "@payloadcms/email-nodemailer": "3.87.1",
+    "@payloadcms/next": "3.87.1",
+    "@payloadcms/richtext-lexical": "3.87.1",
+    "@payloadcms/ui": "3.87.1",
     "@sentry/node": "10.63.0",
     "acorn": "8.16.0",
     "cross-env": "7.0.3",
@@ -41,19 +41,25 @@
     "jszip": "3.10.1",
     "mammoth": "1.12.0",
     "next": "16.2.12",
-    "payload": "3.85.1",
+    "payload": "3.87.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "sharp": "0.35.3"
   },
   "overrides": {
     "undici": "7.29.0",
-    "postcss": "8.5.23",
+    "postcss": {
+      ".": "8.5.23",
+      "nanoid": "3.3.17"
+    },
     "nodemailer": "9.0.1",
     "js-yaml": "4.3.1",
     "fast-uri": "3.1.5",
     "immutable": "4.3.9",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "docx": {
+      "nanoid": "5.1.16"
+    }
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
