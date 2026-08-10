@@ -795,7 +795,8 @@ intent. One plan gets the dialog without the field.
 **Searching flattens and drops the group checkboxes.** A group checkbox beside filtered results reads
 ambiguously as "all 12 in this strand" or "the 2 you can see", and both readings are dangerous on a
 delete control. The absence is a safety property, so it is asserted, not merely commented. Selection
-survives a search, so the panel states `N selected lesson plans not shown` and offers `Clear selection`
+survives a search, so the panel states `N lesson plans selected but not shown by this search` and offers
+`Clear selection`
 — otherwise an administrator could search, see two rows, and delete three.
 
 **Never `aria-label` a control that lives inside a heading.** Review found the group checkboxes could
