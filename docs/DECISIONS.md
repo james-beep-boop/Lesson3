@@ -11,6 +11,83 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-08 (edit recovery, cleanup round 2) — half a bound, and a justification the file disproved
+
+Three lessons from a four-angle review of code that was already merged and deployed.
+
+**i. A deadline that stops at the headers is not a deadline.** `fetch` resolves as soon as response
+HEADERS arrive. A `clearTimeout` in a `finally` around the fetch alone therefore leaves the body read
+unbounded — so a stalled `res.json()` reproduced the entire failure the deadline was added to prevent:
+the single-flight guard held forever, no later request ran, and the user's save waited on it. The fix
+is to run the fetch AND the parse inside one deadline scope.
+
+**Rule:** *when bounding a request, bound the part that carries the data.* And when adding a bound,
+ask what the timer is actually racing — here it was racing only the connection, not the transfer.
+
+**ii. Two of four sibling requests had no bound at all, and inlining hid it.** The same eight-line
+`AbortController` + `setTimeout` + `try/finally` shape written twice made it invisible that the other
+two call sites had nothing. Extracting the scope into one helper turned "does this request have a
+deadline?" from something you had to notice into something you can see. **Rule:** *duplication does not
+just risk divergence — it hides omission.* The third and fourth copies are the ones that never get
+written, and nothing points at their absence.
+
+**iii. A restated constant defended by a false justification, pinned by a test that revoked a
+documented decision.** `serverActionBodyLimit.ts` copied the 4 MB document ceiling with a comment
+claiming `next.config.ts` cannot import from `src/` — which `next.config.ts` disproves on its own line
+6, where it imports that very file. The real constraint was narrower and unstated: the two endpoint
+modules value-import `payload`.
+
+Worse than the wrong reason: the copy was pinned EQUAL to both endpoint ceilings by a new test, while
+`endpoints/recoveryParse.ts` states in terms that its ceiling and preview's are deliberately separate
+and free to diverge — *"Do not couple them to remove the duplicate literal; the duplication is the
+point."* The test would have red-failed the first legitimate tuning of either, under a title naming a
+third subject, and the obvious repair would have been to undo the divergence.
+
+**Rule:** *before writing a test that couples two constants, grep for whether one of them documents
+that it must not be coupled.* An assertion is a decision; making it in a third file does not make it
+someone else's.
+
+⚑ **A reviewer disagreement worth recording.** Three independent reviews flagged this module and
+proposed three different fixes — consolidate the constants into one owner, move the derivation into
+the spec, or just change the assertion. The consolidation was the most attractive and was REJECTED,
+because it would have silently overridden `recoveryParse.ts`'s documented independence. Adjudicating
+between reviewers meant reading the source they were all arguing about, not counting votes.
+
+**iv. Third silently-unapplied edit of the arc, and the first one a test caught.** The fix bounding
+`start` did not apply — the anchor text had shifted under a formatter — and the suite went green with
+the fix missing. It surfaced only because the test for it had been written first and failed. Combined
+with the earlier `cp` run from the wrong directory and the spec that never got collected, the standing
+rule is now: **confirm the change is PRESENT (`grep -c`) before believing the run that follows it** —
+for fixes, not only for mutations.
+
+---
+
+## 2026-08-08 — a failed test SUITE reports zero tests, not a failure
+
+**What happened.** A new unit spec never ran. Importing the component under test pulled
+`@payloadcms/ui`, which imports `react-image-crop/dist/ReactCrop.css`, and the node-environment runner
+cannot load a stylesheet — so the file failed to COLLECT. Vitest reports that as a failed *suite* with
+`0 test`, and the run summary still reads a large green `Tests N passed`. I read that line, saw the
+number go up, and moved on. A mutation check against those assertions then came back green — because
+the assertions had never executed.
+
+**Rule: read `Test Files` as well as `Tests`.** A count of passing tests says nothing about files that
+did not load. `Test Files 63 passed (63)` is the line that catches this; `Tests 545 passed` is not.
+
+**Second rule, which caught it: a mutation check must be confirmed to have LANDED.** Twice this week a
+mutation "passed" for a reason unrelated to the guard — once because the spec had not been collected,
+once because `cp app/src/...` was run from inside `app/` so the file was never edited (the same cwd
+trap AGENTS.md documents for `$PWD/app`). Verify the mutation is present — `grep -c` — before trusting
+the run that follows it.
+
+**The structural fix, not just the diagnosis.** The logic under test was pure — grouping a capture map
+into readable sections — and only lived in a component because that is where it was written. It moved
+to `components/EditRecovery/restoreGroups.ts`, which imports no UI. Pure rules in a module a plain
+test runner can import is the same split `protocol.ts` and `projection.ts` already use, and it makes
+the class of failure impossible rather than detectable.
+
+---
+
 ## 2026-08-07 (edit recovery PR 2b) — six corrections from building the restore path
 
 Grouped because they came from one piece of work, but each is a general rule.

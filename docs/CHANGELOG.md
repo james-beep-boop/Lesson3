@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-08-07 — large lesson plans became editable again (on DRAFT #204)
+## 2026-08-07 — large lesson plans became editable again (MERGED #204)
 
 ⚑ **A pre-existing defect, unrelated to edit recovery**, found while spiking the restore path. Typing
 one character into a large plan 500'd: Payload posts the whole form state through a Next.js Server
@@ -21,7 +21,7 @@ limit → no server errors. The value is derived from the document ceiling the s
 accepts, so a document this system will store cannot become one it refuses to edit; a unit test pins
 that relationship. Reasoning: `app/src/lib/serverActionBodyLimit.ts`.
 
-## 2026-08-07 — edit recovery, PR 2: the client half (DRAFT #204, not yet merged)
+## 2026-08-07 — edit recovery, PR 2: the client half (MERGED #204; deploy pending)
 
 On `feat/edit-recovery-client-capture`. ⚑ **Carries NO migration** — PR 1's is the only one this
 feature needs — so its deploy is an ordinary app deploy. Unlike PR 1 this one IS user-visible.
@@ -38,8 +38,8 @@ previous teacher's document on a shared school machine with a dead session. It c
 open editor confirms its unsaved work is stored; anything unproven leaves the work legible, because
 the text on screen is then the last copy.
 
-**Status:** open for review, fully verified on the branch — 545 unit tests, 156/156 integration,
-132/132 wire, 11/11 browser cases, `tsc` and ESLint clean. Per-case acceptance status is
+**Status:** merged, deploy pending. Verified on the merge commit — 545 unit tests across 63 files,
+156/156 integration, 132/132 wire, 11/11 browser cases, `tsc` and ESLint clean, `audit:prod` green. Per-case acceptance status is
 `docs/DESIGN-working-drafts.md` §7 — cases 1, 2, 3 and 11 are unclaimed there, with reasons.
 
 ⚑ **One finding is wider than this PR and is NOT fixed:** the editor's "view mode" does not make prose

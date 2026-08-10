@@ -16,89 +16,85 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-07) — edit recovery PR 1 MERGED + DEPLOYED; PR 2 (client) BUILT, in draft
+# ⚑ HANDOFF (2026-08-08) — edit recovery is COMPLETE, DEPLOYED and verified in production
 
-**Read this section, then `docs/DESIGN-working-drafts.md` §2-§4, §5 and §7. This file's current
-material ends at "How to run the tests"; everything below the `Landed 2026-08-05` heading is older
-history, kept for provenance.**
+**Read this section, then `docs/DESIGN-working-drafts.md` §5 and §7. This file's current material ends
+at "How to run the tests"; everything below the `Landed 2026-08-05` heading is older history, kept for
+provenance.**
 
-## Where the work is, in one paragraph
+## Where the work is
 
-**PR 1 (server) is merged and deployed to the Rock.** **PR 2 (client) is BUILT** on
-`feat/edit-recovery-client-capture` as **draft PR #204** — capture (2a) and restore (2b) both, plus a
-round of reviewer-found P1 fixes and a cleanup pass. **All suites are now green on it** — 536 unit, 11/11 browser, `test:int` 156/156, `test:http`
-132/132 — so it is ready to come out of draft and be reviewed.
+**Both halves are merged AND deployed.** PR 1 (server, #198) and PR 2 (client, #204) are on `main` and
+running on the Rock. #205 (Payload 3.87.1 + nanoid pins) merged ahead of PR 2 to clear three HIGH
+advisories; `audit:prod` is green.
 
-⚑ **Deliberately SHA-free** (see the note further down about why). Verify state, don't trust it:
+**Verified in production on 2026-08-08**, in this order:
+- pre-migration snapshot taken for the deployed SHA (`…premigrate-4f73046.dump.age`)
+- migrations ran (`Done.`); ⚑ PR 2 carries **no** migration — PR 1's is the only one this feature needs
+- app healthy: `/` → 307, `/login` → 200 (⚑ on **port 3001**, not 80 — the app publishes `3001:3000`)
+- `edit_recovery` table + compound unique index exist; the version-delete and user-delete cascade
+  queries both execute against real rows (`app/scripts/verify-edit-recovery-cascade.ts`, read-only;
+  `APPLY=1` runs the full create-seed-delete drill if a stronger check is ever wanted)
+- **the operator typed into the largest plan** (Chemistry Grade 10: Chemical Bonding, 13 lessons — the
+  one that used to 500 on a single keystroke) and saw no error, the Save button arm, and
+  "Unsaved changes backed up · 10s ago". Cancel-and-return then offered the work back.
 
-```bash
-gh pr view 204 --json state,isDraft,commits          # draft, on feat/edit-recovery-client-capture
-git log --oneline origin/main..origin/feat/edit-recovery-client-capture
-cd app && npm run test:unit                          # DB-free; should be all green
-```
+## ⚑ THREE PRs are open — read this before starting anything
 
-## What PR 2 contains, and what is actually proven about it
+| PR | Branch | State | What it is |
+|---|---|---|---|
+| **#207** | `fix/edit-recovery-cleanup-round-2` | open | **Two real defects in DEPLOYED code.** Not urgent — both need a stalled connection or a long alt-tab session to bite — but they are the most valuable thing outstanding. |
+| **#206** | `docs/post-merge-edit-recovery` | open | This documentation. Merge whenever. |
+| **#196** | `chore/pr195-review-followups` | **STALE** | Opened 2026-08-05, untouched since, now 9 commits behind `main`. Predates this whole arc. **Decide: rebase and merge, or close it.** Nobody has looked at it in three days. |
 
-**2a — capture.** A debounced capture while the form is dirty, a flush on blur and before token
-expiry, and a pre-save flush whose verdict decides the save. The indicator is the contract: every
-failure branch is visible text, because a promise the user cannot verify is worth nothing.
+**What #207 fixes, so it is not re-derived:** the request deadline added to the capture path cleared on
+the fetch, which resolves on HEADERS — so `await res.json()` was unbounded and a stalled response body
+still held `inFlight` forever and blocked the user's save. Two of the four recovery requests (`start`,
+`discard`) had no deadline at all. Also: blur/visibilitychange re-sent content the server already had
+on every alt-tab, and the restore prompt rebuilt the whole ~600 KB document on every render while open.
 
-**2b — restore.** A just-opened editor asks what is waiting, holds the entry state machine until the
-answer arrives, and OFFERS rather than applies. Stale or schema-mismatched captures are
-read/copy/discard only, with no Restore button at all. `IdleLogout` now clears the screen at the
-session deadline — but only when a synchronous safety probe says every editor's work is stored.
+## What shipped, and what is proven about it
 
-**Proven:** 536 unit tests; 11/11 browser cases (8 in `editRecoveryRestore.e2e.spec.ts`, 3 in
-`editRecovery.e2e.spec.ts`); `test:int` 156/156; `test:http` 132/132 against an app image rebuilt from
-this branch. `tsc` and ESLint clean. Per-case acceptance status is `docs/DESIGN-working-drafts.md` §7
-and **nowhere else** — including here.
+**Capture.** A debounced capture while the form is dirty, a flush on blur and ahead of token expiry,
+and a pre-save flush whose verdict decides the save. The indicator is the contract: every failure
+branch is visible text.
 
-⚑ **Cases 1, 2, 3 and 11 are UNCLAIMED, and §7 says so per case.** 1-3 need a token to actually
-expire, which a browser spec cannot arrange against a running server (`tokenExpiration` is a
-build-time constant in `collections/Users.ts`); the decision they hinge on is pinned in
-`tests/unit/idleLogoutScreenClear.spec.tsx` instead. 11 needs two live browser contexts against one
-version; the CAS itself is covered at `tests/int`.
+**Restore.** A just-opened editor asks what is waiting, holds an entry state machine until the answer
+arrives, and OFFERS rather than applies. Stale or schema-mismatched captures are read/copy/discard
+only, with no Restore button at all.
 
-## ⚑ The one finding from PR 2 that is BIGGER than PR 2
+**Screen clear at expiry.** `IdleLogout` now clears the screen at the session deadline — but only when
+a synchronous probe says every open editor's unsaved work is stored. Anything unproven leaves the work
+legible, because the text on screen is then the last copy.
 
-**The editor's "view mode" does not make prose fields read-only, and never has.** Payload 3.85.1's
-`useField()` derives `disabled` from `processing || initializing` only — it never consumes
-`useForm().disabled` — so `setDisabled(!editing)` gates SUBMISSION and nothing else. Verified in
-installed source and observed in the browser.
+**Also shipped, unrelated to recovery:** the Server Action body limit (`'12mb'`), which fixed typing
+into a large plan 500ing. See `src/lib/serverActionBodyLimit.ts` — the authority for the value.
 
-Nothing in PR 2 depends on it (the restore prompt covers the page, and the capture path refuses to
-overwrite an unread offer — both asserted), and PR 2 did not make it worse. But **do not believe "the
-form is locked" anywhere in this editor** until someone checks what, if anything, currently enforces
-it. Full reasoning: DECISIONS 2026-08-07 (i).
+**Verified on the merge commit:** 545 unit tests across **63 files**, `test:int` 156/156, `test:http`
+132/132, 11/11 browser cases, `tsc` and ESLint clean, `audit:prod` green. Per-case acceptance status is
+`docs/DESIGN-working-drafts.md` §7 and nowhere else; cases 1, 2, 3 and 11 are unclaimed there, with
+reasons.
 
-## The state of `main` vs the branch, and why SHAs are absent here
+## ⚑ Two things that outlive this feature
 
-**On `main` today the feature is UI-INERT — which is NOT runtime-inert.** No normal UI path starts a
-capture, so every save takes the no-token path and retires nothing, and no user-visible behaviour has
-changed for anyone. But the server half is LIVE and deployed: the six recovery endpoints are mounted
-and reachable, the expiry task is registered and scheduled, and the version-delete and user-delete
-hooks query `edit_recovery` on every delete. That last one is why PR 1's migration
-(`20260806_185943_add_edit_recovery`) was never optional, and it has been applied on the Rock.
+**1. The editor's "view mode" does not make prose fields read-only, and never has.** Payload's
+`useField()` derives `disabled` from `processing || initializing` alone and never consumes
+`useForm().disabled`, so `setDisabled` gates SUBMISSION only. Nothing in edit recovery depends on it —
+the restore prompt covers the page and the capture path refuses to overwrite an unread offer, both
+asserted — but **do not believe "the form is locked" anywhere in this editor** until someone checks
+what, if anything, enforces it. This is unfixed. DECISIONS 2026-08-07 (i).
 
-**Merging PR 2 is what makes it user-visible** — the indicator appears beside Save, and a returning
-editor may be offered work back.
+**2. A failed test SUITE reports zero tests, not a failure.** A whole spec file sat "passing" by never
+running: importing a component pulled `@payloadcms/ui` and a stylesheet the node runner cannot load, so
+the file failed to COLLECT, and a mutation check against it came back green for that reason. **Read
+`Test Files` as well as `Tests`** — 63 files is the number to watch. DECISIONS 2026-08-08.
 
-**Deliberately SHA-free**, and please keep it that way — an earlier version of this block named one and
-was wrong within the hour, twice: first by claiming "pushed" while eleven files sat uncommitted, then
-by naming the pre-commit SHA moments before the commit landed.
+## Why there are no SHAs here
 
-⚑ **Verify before believing any of it.** PR 1's branch is deleted, so its checks run against `main`:
-
-```bash
-gh pr view 198 --json state,mergedAt                                          # PR 1: MERGED
-git ls-tree origin/main app/src/migrations/ --name-only | grep edit_recovery
-git show origin/main:app/src/migrations/index.ts | grep add_edit_recovery     # present ⇒ registered
-ssh Rock5b 'cd /srv/lesson3 && git log --oneline -1'                          # what is actually deployed
-```
-
-⚑ An earlier version of this block still ran `git log origin/main..origin/feat/edit-recovery-server`
-against a branch deleted at merge — every command in it failed. A verification block that cannot run
-is worse than none: it reads like assurance.
+An earlier version of this file named one and was wrong within the hour, twice: first by claiming
+"pushed" while eleven files sat uncommitted, then by naming the pre-commit SHA moments before the
+commit landed. An earlier verification block also still ran `git log` against a branch deleted at
+merge — every command in it failed, which reads like assurance. Commands that can run, not SHAs.
 
 ## ✅ The probe image: what it actually was (2026-08-06, RESOLVED)
 
@@ -216,43 +212,26 @@ assertions red, all reverted. A guard never observed failing is a guess.
 
 ## What is LEFT, in order
 
-⚑ Check this list against `git log`, not against memory. A previous version of it still described
+⚑ Check this against `git log`, not against memory. A previous version of this list still described
 three items as unbuilt two commits after they landed.
 
-✅ **PR 1 (server) MERGED 2026-08-06 and DEPLOYED to the Rock 2026-08-07**, on its own, ahead of the
-client — so migration risk stayed separated from client risk. Migration applied, app healthy, and an
-ordinary version deletion still works (the check that matters: the delete-time cascades query
-`edit_recovery`, so a missing table shows up there and nowhere else).
+✅ PR 1 merged + deployed. ✅ PR 2 merged (all suites green on the merge commit). ✅ #205 merged.
+✅ The Server Action body limit fixed. ✅ The DB-backed suites run on the client branch.
 
-✅ **PR 2a + 2b BUILT** on `feat/edit-recovery-client-capture` (draft #204), including a
-reviewer-found P1 round and a four-angle cleanup pass. See the handoff block at the top for what is
-and is not proven.
+1. **DEPLOY `main`.** No migration — an ordinary `scripts/deploy.sh`. Unlike PR 1's deploy this one IS
+   user-visible: the indicator appears beside Save, and a returning editor may be offered work back.
 
-1. ✅ **DONE — the DB-backed suites are GREEN on this branch** (2026-08-07, disposable probe):
-   `test:int` **156/156** across 19 files, `test:http` **132/132** across all three files
-   (`recovery.http.spec.ts` 27/27). The app image was rebuilt from this branch first, so the wire run
-   exercised PR 2's server change rather than a stale image.
+   Verify afterwards, in this order:
+   - the app is healthy (`/` → 307 `/login`, `/login` → 200)
+   - an ordinary version deletion still works (the delete-time cascades query `edit_recovery`)
+   - open a large plan, type one character, and confirm no 500 — that is the body-limit fix, and it
+     is the one thing on this deploy that a teacher would notice immediately if it regressed
 
-   The GET's new `capturedAt` now has a wire assertion of its own — it was pinned only by a browser
-   case. ⚑ Verified by mutation: removing the field from the handler, rebuilding the app image and
-   re-running turns it red ("the capture must be datable: expected undefined to be truthy").
+2. **Watch the first real captures.** The per-user active-capture cap is 20 and the expiry pass runs
+   on a schedule; `/:id/recovery/meta` is the Site-Admin view of existence and shape, never content.
 
-   ⚑ **A mutation check that edits the wrong path proves nothing.** My first attempt ran
-   `cp app/src/...` from inside `app/`, so the file never changed and 27/27 "passed" — the same
-   cwd trap AGENTS.md documents for `$PWD/app`. Resolve `$ROOT` and use absolute paths, and confirm
-   the mutation landed (`grep -c`) BEFORE trusting the run.
-
-   **So #204 is ready to come out of draft.**
-
-2. ✅ **DONE — the pre-existing Server Action body limit is fixed** on this branch, as its own commit.
-   See the section below for the value, why it was chosen, and how it was verified.
-
-3. **Deploy PR 2 once merged.** ⚑ It carries **no migration** — PR 1's is the only one this feature
-   needs — so this is an ordinary app deploy. Unlike PR 1, this one IS user-visible: the indicator
-   appears beside Save, and a returning editor may be offered work back.
-
-4. Then pick from "Cleanups this branch DECLINED" and "Two known defects OUTSIDE this branch" below,
-   both of which are decided rather than forgotten.
+3. Then pick from "Cleanups this branch DECLINED" and "Two known defects OUTSIDE this branch" below,
+   both decided rather than forgotten. The unlocked-form finding above is the biggest of them.
 
 ## The migration gate — all four steps, in order
 
