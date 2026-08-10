@@ -1,176 +1,689 @@
-# DESIGN DRAFT — recoverable working drafts (unsaved-edit durability)
+# DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: DRAFT for review. Not implemented. No code written.**
-Author: assistant, 2026-07-20 session. Baseline `main` `dcfc8dc`.
+**Status: PR 1 (server) MERGED to `main`; PR 2 (client) not started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
+⚑ Per-case status is §7's and only §7's — do not restate it here or in any other document.
+
+> **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,
+> `docs/NEXT-SESSION.md`, `docs/DESIGN-editor-usability-2026-07-25.md` and a source docstring. Renaming
+> it would break every one of those references for a cosmetic gain; the *feature* is renamed (below),
+> the path is not.
+
+The normative rules live in **`SPEC.md` §5** (the invariant, the guarantee's boundaries, access
+posture, the storage exception, fencing, retirement, caps) and **§13** (shared computers, reserved
+words); the `AGENTS.md` native-fields rule was narrowed to admit this one exception. **This document
+is the implementation design and the verification matrix** — read SPEC §5 first for what is promised,
+then this for how it gets built.
 
 Addresses **L3-13** (session expiry silently destroys unsaved lesson edits) and the broader
 edit-durability gap: browser crash, forced refresh, device sleep, accidental tab close.
+
+> **Naming.** The feature is **edit recovery**, never "drafts" — `draft` already means an unofficial
+> *saved version* in this product (SPEC §13 reserved words), so "draft saved" would tell a teacher
+> their version was saved when it was not. Collection `edit-recovery`; UI "Unsaved changes backed up ·
+> <when>". Earlier revisions of this file said "working drafts" throughout; that name is retired.
+
+---
+
+## 0. What changed in the 2026-08-05 reconciliation, and why
+
+Recorded rather than silently overwritten, because the first draft was reviewed *against the code* and
+five of its provisions did not survive. Anyone holding an older copy should know which parts were wrong.
+
+| First draft said | Now | Why |
+|---|---|---|
+| Content = editor-writable **top-level keys** (`lessons`, `finalExplanation`, `summaryTable`) | Deep projection from the `*_PROSE` constants | `lessons` carries `resourceLinks`, `framework[].phase`, `duration`, `number` — a top-level whitelist would have persisted system and admin-only data into a user-readable row, violating this document's own prohibition |
+| Hard-delete on save/discard | Clear content, keep a **retirement marker** | A stale tab's next capture *recreates* a deleted row — resurrection, not a lost update, and no revision token can fence a row that no longer exists |
+| "Two tabs: last write wins, and the restore prompt makes divergence visible" | Server-issued **generations** + **revision** preconditions | Untrue as written: one tab can silently overwrite another's capture, or recreate it after the first tab saved |
+| Staleness (`baseUpdatedAt`) would catch a stale tab | It cannot | `save-as-new` leaves the source version untouched, so a stale tab's timestamp still matches. This is exactly why markers are retained for the source version's lifetime |
+| (unstated) | Prose-only scope is explicit, and the indicator is **role-aware** | Subject Admins edit structure, phases, durations and answer keys in the same editor; an unqualified "saved" would be false for them |
+| (unstated) | The guarantee is the **last server-confirmed capture** | The debounce window, an in-flight request and offline time are necessarily outside it; client-side persistence is disqualified by SPEC §13 |
+
+Also corrected: §1 of the first draft implied our `IdleLogout` was the work-destroying path. It is not
+— `logOut()` performs no navigation (verified in installed `@payloadcms/ui` 3.85.1). That one wrong
+inference cost a later reviewer a misfiled finding. See §1.
+
+**A second review round (same day, before any push) found three more, all in the protocol this file
+had just specified.** Recorded here because they are the kind of gap that reads as complete:
+
+| Reconciled version said | Now | Why |
+|---|---|---|
+| Retirement is fenced by `generation` | **Every** retirement caller carries a **revision** precondition too | An ordinary capture bumps `revision` and leaves `generation` alone — so a generation check cannot see that another tab captured newer work, and save/discard/expiry/cleanup could all retire it |
+| "`start` returns the active generation or mints a new one" | A **single atomic upsert** returning `generation` **and** `revision` | Two simultaneous first starts race the unique insert; two starts against a retired row race reactivation. And without the revision, the first capture has no correct precondition to send |
+| "a *failed* flush must not block the save" | Transport failure ⇒ save proceeds; **409 ⇒ it does not** | A 409 flush failure specifically means another tab holds newer work, which is exactly the case where saving on would retire it |
+
+Plus a documentation contradiction: the projection was described as "keyed by row id" *and* as
+excluding row ids. Both are true of different things — §3 now says so explicitly.
+
+**A third round found that the fix for the second round's `start` flaw did not satisfy the very cases
+it was written for.** The upsert incremented `revision` on *every* conflict, including the resume path:
+two first starts returned `(1,1)` and `(1,2)`, two retired-row starts `(G+1,R+1)` and `(G+1,R+2)`. So
+the first caller's revision was stale the moment it was handed out, and its first capture would 409
+against a conflict that did not exist — exactly what matrix cases 21–22 assert must not happen. The
+governing rule was missing rather than the SQL being subtly off: **`start` on an already-active row must
+be a total no-op that reports state**, since it fires on every Edit click in every tab. Reactivation
+must also take a fresh `baseUpdatedAt`/`schemaVersion`, or a new session inherits the retired
+generation's baseline and compares staleness against the wrong one. See §4.
+
+Worth noting what that says about review: the case that would have caught it was already written down
+in §7, and still passed inspection twice, because the SQL was checked against its own comment rather
+than against the case. A test asserting cases 21–22 will not have that luxury.
+
+**A fifth round found the two worst of the set — both places where this file described the protocol as
+doing the opposite of what it specifies.**
+
+| Said | Now | Why |
+|---|---|---|
+| "Capture is an upsert" (§2 and the endpoint table) | Capture is a **CAS UPDATE of an existing active row**; only `start` may insert or reactivate | An upserting capture recreates a retired row — the exact resurrection retirement markers exist to prevent — and makes the explicit-start step optional. The protocol's central mechanism, undone by one word |
+| Expiry's precondition was "active **and** untouched since the cutoff" | It also carries the `revision` read at selection | The document stated a universal rule ("every caller carries a revision precondition") and then exempted one caller. The cutoff term alone does defeat the race, so this is defence in depth — but a stated universal with a silent exception is precisely the defect these five rounds kept finding |
+
+**A fourth round found two more, both in the same protocol, both about a write that forgot to publish
+its own result.** The pattern is now unmistakable enough to name: *state the rule, not the instance.*
+
+| Reconciled version said | Now | Why |
+|---|---|---|
+| Capture *requires* `expectedRevision` | Every advancing endpoint also **returns** the resulting token, and the client adopts it | Otherwise the client keeps the token it sent, which its own successful write just superseded — its next capture and then the save would 409 against a self-inflicted conflict |
+| Reactivation refreshes `baseUpdatedAt` and `schemaVersion` | It also sets `updated_at = NOW()` | Payload maintains that column in its application update path, and the column default fires only on INSERT — there is no DB trigger. Expiry keys off "untouched since the cutoff", so an aged marker could be reactivated and re-expired within seconds |
+
+Both were specified as a property of one call rather than as a rule over all of them, which is exactly
+how the second and third rounds' gaps arose too. The token rule and the `updated_at` rule are therefore
+stated once, in §2 and §4, as obligations on *every* advancing write. Also fixed: a base-source mismatch
+said merely "warn" here while SPEC §5 required view/discard-only — SPEC's stricter rule governs.
 
 ---
 
 ## 1. The problem this solves
 
-Confirmed by source trace (see the session audit; every link verified in installed Payload 3.85.1):
+Verified against installed Payload 3.85.1 (`providers/Auth/index.js`):
 
-1. `tokenExpiration: 7200` (2 h); `admin.autoRefresh` off. A 60 s "Stay logged in?" modal precedes expiry.
-2. If unattended, Payload's `forceLogOutTimeout` calls `redirectToInactivityRoute()` →
-   **`router.replace()`**, a *programmatic client-side* navigation.
+1. `tokenExpiration: 7200` (2 h); `admin.autoRefresh` off. A reminder modal precedes expiry by
+   `min(60 s, expiresIn / 2)`.
+2. **Path A — Payload's own `forceLogOutTimeout`** (≈ line 101) calls `revokeTokenAndExpire()` then
+   `redirectToInactivityRoute()`, which is `startRouteTransition(() => router.replace(…))`.
 3. Payload's dirty-form guard `usePreventLeave` registers **only** `beforeunload` and a document
-   **click** listener. Neither intercepts programmatic navigation.
+   **click** listener. Neither intercepts a programmatic navigation.
 4. The editor unmounts. **All unsaved form state is destroyed with no prompt**, and because it is
    `replace` (not `push`) the page leaves history, so Back cannot recover it.
-5. There is **no autosave and no draft persistence** anywhere — no `localStorage`/`sessionStorage` in
-   `src/`, no Payload drafts/autosave on `lesson-bundle-versions` (deliberately: immutable versions).
-
-**Two distinct expiry paths** (do not assume one):
+5. **Path B — our `IdleLogout`** calls `logOut()` (≈ line 164), which POSTs `/<collection>/logout` and
+   clears the in-memory user. **It does not navigate.** The editor stays mounted: a **zombie editor**
+   — work on screen, session dead, every save 401ing — and on a shared machine the previous teacher's
+   content is left visible to whoever sits down next.
+6. There is **no autosave and no recovery persistence** anywhere: no `localStorage`/`sessionStorage` in
+   `src/`, and no Payload drafts/autosave on `lesson-bundle-versions` (deliberately — versions are
+   immutable).
 
 | Path | Mechanism | Current outcome |
 |---|---|---|
-| Foreground | Payload `forceLogOutTimeout` fires at the deadline | editor unmounts, **work destroyed** |
-| Backgrounded → refocused | our `IdleLogout` fires first; `logOut()` clears both timers, no navigation | **zombie editor**: work on screen, session dead, saves 401 |
+| A — foreground expiry | Payload `forceLogOutTimeout` → `router.replace()` | editor unmounts, **work destroyed** |
+| B — backgrounded → refocused | our `IdleLogout` fires first; `logOut()` clears both timers, no navigation | **zombie editor**: work on screen, session dead, saves 401 |
 
-Note `IdleLogout`'s docstring (`src/components/IdleLogout/index.tsx:15`) claims `logOut()` performs a
-"logout + redirect". **That is factually wrong** — `logOut()` (`providers/Auth/index.js:164`) performs
-no navigation. The comment should be corrected regardless of this design.
+Both need fixing, and the fix for both is *capture the working copy, then clear the screen* — clearing
+is itself the privacy control (SPEC §13), so "stop unmounting" is never the answer.
 
-## 2. Deployment constraint that drives the design
+---
 
-**Shared computers are effectively universal in Kenyan schools** (operator, 2026-07-20). Consequences:
+## 2. Model — the `edit-recovery` collection
 
-- **Client-side storage is disqualified.** A draft in `localStorage`/IndexedDB persists in the browser
-  profile across logout and users; the next person at that machine can read it with devtools.
-  Namespacing by user id prevents an accidental *restore* — it does not prevent *exposure*.
-- **The destructive unmount is doing double duty.** Clearing the editor off screen is itself a privacy
-  control on a shared machine. So the fix is NOT "stop unmounting" — it is
-  **capture the working copy, then clear the screen.** Both expiry paths must clear.
-- **Session expiry must stay.** On shared machines the walk-away case is the normal case, and the next
-  user may be a student, not a colleague. `admin.autoRefresh` must remain **off** (an indefinitely
-  refreshing session on a shared box is the opposite of what is wanted).
-
-This reverses the assistant's earlier `localStorage` recommendation and its earlier suggestion to
-consider enabling `autoRefresh`. Both were wrong for this deployment.
-
-## 3. Proposed model — a `working-drafts` collection
-
-A **separate, user-owned, mutable** collection. It does NOT create `lesson-bundle-versions` rows, so
-it introduces no version churn and does not touch the immutable-version model or the no-op-save guard.
-
-```
-working-drafts
-  user          relationship -> users     (required, system-stamped, never client-supplied)
-  sourceVersion relationship -> lesson-bundle-versions  (required)
-  lessonPlan    relationship -> lesson-plans            (denormalised, for listing/cleanup)
-  baseUpdatedAt date        (the source's updatedAt when editing began — staleness check)
-  schemaVersion text        (guards restoring a draft written against an older field shape)
-  content       json        (ONLY editor-writable keys; see §4)
-  updatedAt     (native)
+```text
+edit-recovery
+  user           relationship -> users                    (required, server-stamped)
+  sourceVersion  relationship -> lesson-bundle-versions   (required)
+  lessonPlan     relationship -> lesson-plans             (denormalised, for listing/cleanup)
+  generation     number    (server-issued; fences RETIREMENT)
+  revision       number    (monotonic per write; fences CONCURRENT WRITES)
+  retiredAt      date      (null = active; set = tombstone, content cleared)
+  baseUpdatedAt  date      (the source's updatedAt when the session began)
+  schemaVersion  text      (guards restoring against an older field shape)
+  content        json      (sparse prose overlay; NULL once retired)
+  updatedAt      (native)
 ```
 
-**Uniqueness:** one draft per `(user, sourceVersion)`. Upsert on autosave.
+**Uniqueness:** one row per `(user, sourceVersion)` — that row is either an active capture or that
+pair's retirement marker.
 
-### Access rules — mirror the existing user-owned idiom (`Favorites.ts:30`)
+⚑ **Only `start` may INSERT or reactivate. Capture never creates a row** — it is a compare-and-set
+UPDATE against an existing *active* row, and returns 409 when the row is missing, retired, or its
+revision has moved. Calling capture an "upsert" (as an earlier revision of this file did) quietly
+undoes the whole protocol: an upserting capture recreates a retired row, which is exactly the
+resurrection that retirement markers exist to prevent, and it makes the explicit-start step optional.
 
+**Access — nothing client-facing.** `read`, `create`, `update`, `delete` all closed;
+`admin.hidden: true`. Rationale and the Payload-first gap are recorded in SPEC §5; briefly: `start`
+needs an atomic upsert and default REST has none, closing `read` makes "lost editing access ⇒ cannot
+restore" structural rather than incidental, and closing `delete` stops an owner erasing their own
+retirement marker.
+
+**Endpoints** — on `lesson-bundle-versions`, beside `/:id/preview` and `/:id/save-as-new`. Each
+re-loads the source and re-runs `authorize(req, 'editor')` on every call, then writes with
+`overrideAccess`:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /:id/recovery/start` | Explicit session start. The **only** insert/reactivate path; one atomic upsert (§4). Returns the token. Never called implicitly. |
+| `POST /:id/recovery` | Capture. **CAS UPDATE of an existing active row — never an insert.** Requires `generation` + `expectedRevision`; returns the advanced token. Missing, retired or stale ⇒ **409**. |
+| `GET /:id/recovery` | Fetch the active capture, for the restore prompt. Returns the token with it. |
+| `DELETE /:id/recovery` | Explicit discard ⇒ retire. Requires `generation` + `expectedRevision`. |
+| `GET /:id/recovery/meta` (+ cleanup op) | Site Admin: existence/metadata (incl. `revision`) and authorized retirement, which must echo that revision. Never content. |
+
+**Token rule, applying to every one of them: any endpoint that advances the row returns the resulting
+`{generation, revision, updatedAt}` from the same atomic statement, and the client must adopt it.**
+Otherwise the client is left holding the token it *sent*, which the successful write just superseded —
+so its next capture, and then the save, would 409 against a conflict it caused itself. Stated once, as
+a rule, because the first version of this design specified the precondition on capture and forgot the
+response; a per-endpoint description invites exactly that asymmetry.
+
+Each ships wire-level 401/403/404 plus happy-path coverage in `tests/http` in the same PR (CLAUDE.md
+standing rule), and a `recovery` bucket in `lib/rateLimit.ts` sized for the real worst case — several
+tabs, blur flushes, the pre-expiry flush. **A 429 must produce visible backoff, never silent
+abandonment** (§5).
+
+---
+
+## 3. What is stored
+
+A **sparse map of prose leaves keyed by row id**, derived from the deep whitelist already in
+`hooks/fieldSplit.ts` — `LESSON_PROSE`, `SLO_PROSE`, `FRAMEWORK_PROSE`, `SUMMARY_PROMPT_PROSE`,
+`FINAL_EXPLANATION_PROSE`, `SECTION_PROSE`, `SUMMARY_LESSON_PROSE` — which
+`tests/unit/proseWhitelistDrift.spec.ts` pins mechanically to the `canEditProse` field factories.
+
+Consequences, by construction rather than by policy:
+
+- `resourceLinks` (lesson-level), `framework[].phase`, `duration`, `number`, `sections[].exemplar`,
+  `rubric[*]`, `META`, `semver` and `author` **cannot** enter a capture as content.
+- An admin/system field added later is excluded automatically, in the secure direction.
+- The projection inherits the existing drift test for free.
+
+**Row ids are map KEYS, not content.** Stated explicitly because "keyed by row id" and "row ids cannot
+enter a capture" read as a contradiction. A row id appears only as a key, used to align the overlay
+with the source's rows on restore. Each key is **validated against the current source** and an
+unrecognised one is dropped, never created. Ids are never written back as field values, and no capture
+can change one — structure is not editable through this path at all. Tests assert both halves: an
+unknown key is dropped, and no id appears as a restored value.
+
+**One source of truth:** the same constants define "what an Editor may write" at the save boundary and
+"what a capture may hold". On restore a capture supplies prose only; `applyEditorFieldSplit` remains
+the write-time authority.
+
+**v1 is prose-only** (SPEC §5). Structural edits change row identity, so a sparse overlay has nothing
+stable to key on — admin-scope recovery is a *different storage model* (a full snapshot, with the
+answer-key sensitivity that implies) and is deferred rather than half-built.
+
+---
+
+## 4. Fencing protocol
+
+Two mechanisms, two jobs — keeping them separate is what keeps this comprehensible — but **both** apply
+to retirement, which was the second review's first finding:
+
+- **`generation` fences retirement across sessions.** Server-issued, never the client's choice.
+- **`revision` fences individual writes.** Every capture supplies `expectedRevision`; on mismatch the
+  client refetches rather than overwriting.
+
+**A generation check alone is not enough for retirement.** An ordinary capture bumps `revision` and
+leaves `generation` untouched, so generation cannot distinguish "same session" from "same session, but
+another tab has captured newer work since you loaded". Every retirement caller therefore carries a
+revision precondition, applied **inside the atomic update** rather than read-then-write.
+
+**`start` is one statement.** Two simultaneous first starts would otherwise race the unique insert, and
+two starts against a retired row would race reactivation:
+
+**The governing rule: `start` on an ALREADY-ACTIVE row must be a total no-op that merely reports
+state.** It fires on every Edit click and in every tab, so any mutation on the resume path makes it a
+write — and a write invalidates the preconditions other tabs are holding. An earlier version of this
+SQL incremented `revision` unconditionally, which broke both of the cases it was written for: two first
+starts returned `(1,1)` and `(1,2)`, and two starts against a retired row returned `(G+1,R+1)` and
+`(G+1,R+2)`, so the first caller's returned revision was already stale and its first capture would 409
+against a conflict that did not exist.
+
+```sql
+INSERT INTO edit_recovery
+  (user_id, source_version_id, lesson_plan_id, generation, revision, base_updated_at, schema_version, …)
+VALUES ($user, $version, $plan, 1, 1, $sourceUpdatedAt, $schemaVersion, …)
+ON CONFLICT (user_id, source_version_id) DO UPDATE SET
+  -- Reactivation advances the generation, fencing out any stale tab holding the old one.
+  generation = edit_recovery.generation
+             + (CASE WHEN edit_recovery.retired_at IS NULL THEN 0 ELSE 1 END),
+  -- RESUME MUST NOT BUMP THE REVISION: an active row is reported, not written.
+  revision   = CASE WHEN edit_recovery.retired_at IS NULL
+                    THEN edit_recovery.revision
+                    ELSE edit_recovery.revision + 1 END,
+  -- A new session needs its OWN baseline; a resumed one keeps the baseline it started with.
+  base_updated_at = CASE WHEN edit_recovery.retired_at IS NULL
+                         THEN edit_recovery.base_updated_at
+                         ELSE EXCLUDED.base_updated_at END,
+  schema_version  = CASE WHEN edit_recovery.retired_at IS NULL
+                         THEN edit_recovery.schema_version
+                         ELSE EXCLUDED.schema_version END,
+  -- Reactivation is a real write and must restart the TTL clock; resume preserves it (see below).
+  updated_at = CASE WHEN edit_recovery.retired_at IS NULL
+                    THEN edit_recovery.updated_at
+                    ELSE NOW() END,
+  retired_at = NULL
+RETURNING generation, revision, updated_at;
 ```
-read:   own only          ({ user: { equals: u.id } })
-create: authenticated     (user stamped server-side in beforeValidate)
-update: own only
-delete: own only
+
+**`updated_at` must be set explicitly on every raw-SQL write.** Payload maintains that column in its
+own application update path, and the column's `DEFAULT now()` fires only on INSERT — there is no
+database trigger. So a statement like this one leaves it untouched unless told otherwise, and expiry is
+conditioned on the row being *untouched since the cutoff*: a 40-day-old marker could be reactivated and
+then immediately re-expired by the next expiry run, destroying a session seconds after it began.
+
+Resume deliberately preserves `updated_at`, which has a consequence worth stating rather than
+discovering: **the TTL measures the age of the captured content, not of the session.** Resuming a
+29-day-old capture and typing nothing can still let it expire; the first real capture restarts the
+clock. That is the intended reading of a 30-day retention on unsaved work.
+
+So: a retired row is reactivated by **advancing** the generation and taking a **fresh**
+`baseUpdatedAt`/`schemaVersion` — without that refresh the new session would inherit the retired
+generation's metadata and compare staleness against the wrong baseline. An active row is resumed
+genuinely unchanged, so the race loser reads exactly the winner's values instead of a version of them
+that has already moved on. It returns **both** values — without the revision, the client's first
+capture has no correct precondition to send.
+
+Postgres serialises the two conflicting updates on the row, and `ON CONFLICT DO UPDATE` re-evaluates
+against the newly committed row, which is what makes the second caller take the now-active branch and
+see the first caller's result.
+
+**Retirement is one shared function with four callers** — save-as-new, explicit discard, 30-day expiry,
+Site-Admin cleanup. It atomically clears `content`, sets `retiredAt` and `updatedAt`, and advances the
+**revision**. **None hard-delete.**
+
+⚑ **It does NOT advance the generation** (amended 2026-08-06; this paragraph previously said
+"revision/generation", contradicting the `start` statement above, which already advances the generation
+on reactivation). Each counter has one meaning: `revision` fences writes and moves on every write
+including this one; `generation` identifies the active editing SESSION and moves only when a new session
+BEGINS, which is reactivation's job. Advancing it in both places double-counts — one
+retire-then-reactivate cycle would move it by two — and §7 case 22 already asserts a single advance
+across exactly that cycle.
+
+Preconditions, all evaluated in the update:
+
+| Caller | Precondition |
+|---|---|
+| save-as-new, discard | `generation` **and** `expectedRevision` from the editing tab |
+| Site-Admin cleanup | the `revision` returned by `recovery/meta` — so an operator cannot clear a capture that changed between looking and acting |
+| 30-day expiry | the `revision` read when the row was selected, **and** still active, **and** still untouched since the cutoff |
+
+Expiry carries the revision it selected, so the rule really is universal rather than universal-with-an-
+exception:
+
+```sql
+UPDATE edit_recovery SET …retirement…
+WHERE user_id = $user AND source_version_id = $version
+  AND revision = $selectedRevision
+  AND retired_at IS NULL AND updated_at < $cutoff
 ```
 
-**Deliberately stricter than Favorites:** `read` must NOT include a Site-Admin bypass. A draft is a
-user's private unsaved work; there is no operational need for an admin to read it, and on shared
-hardware the smallest possible audience is the right default. Admin needs are met by *counts* and
-*deletion*, not content.
+⚑ Targeting is by `(user, sourceVersion)` for ALL FOUR callers, not by row id (amended 2026-08-06 —
+this snippet said `WHERE id = $id`, a fossil of the abandoned plan where expiry was standalone SQL in
+`prune-db.sh`, which this section discards two paragraphs below). Three callers *cannot* use a row id:
+SPEC §5 closes the collection to clients, so no row id ever reaches a browser and the endpoints address
+by the authorized source version. Expiry merely happens to hold one. Letting it be the exception would
+force `retire` to take a union of TARGET shapes alongside its union of commands, for no safety — the
+compound unique index resolves the pair to exactly one row either way.
 
-`user` is stamped from the session in a `beforeValidate` hook (same pattern as `stampFavoriteUser`) so
-a REST POST cannot supply a foreign id.
+Zero rows updated means a capture or a reactivation won the race, and the job simply moves on. Being
+precise about what that buys: `updated_at < $cutoff` **already** defeats that race on its own, because
+every advancing write sets `updated_at = NOW()` — a capture landing mid-job pushes the row out of the
+cutoff window. The revision term is defence in depth, not the primary guard. It is worth having anyway
+because it makes expiry's safety self-contained rather than contingent on an invariant maintained in
+four other places, and because a document that states a universal rule and then quietly exempts one
+caller is the precise defect this review kept finding.
 
-## 4. What is stored
+Because all four share one function, expiry cannot be SQL inside `scripts/prune-db.sh` (a second
+implementation, free to drift); it becomes a Payload job, and `prune-db.sh` keeps only the bookkeeping
+tables it already handles.
 
-**Only editor-writable content** — the same scope the save boundary already enforces:
-`VERSION_EDITOR_KEYS = { lessons, finalExplanation, summaryTable }` (`hooks/bundleVersion.ts:19`).
+**On save-as-new**, retirement joins the existing transaction in `endpoints/versionEdit.ts` **inside
+the semver retry attempt**, so it can neither half-apply nor double-apply. A precondition failure there
+fails the whole save with 409 rather than retiring newer work — and unlike a semver conflict, it is
+**not** retryable.
 
-Explicitly NOT stored: `meta`/`unit` structure, `semver`, `sourceVersion` identity fields, `author`,
-row ids, and **`resourceLinks`** (system-owned; it is restored from the source on save anyway, so
-persisting it would duplicate system data into a user-readable row for no benefit).
+**Row deletion happens only by parent cascade.** Required relationships mean NOT NULL columns with
+`ON DELETE SET NULL` FKs, so a parent delete must remove these rows first or Postgres raises 23502 —
+the trap `cascadeDeleteFavoritesBy` already documents. Add a `beforeDelete` cascade to **both**
+`LessonBundleVersions.ts` (today `[enforceOfficialNotDeletable, cascadeDeleteVersionFavorites]`) and
+`Users.ts` (today `[cascadeDeleteUserFavorites, cascadeDeleteUserMessages]`), threaded through the
+parent's transaction. One hook per parent covers every path: `save-as-new?deleteSource=true`,
+`make-official?deletePrevious=true` and the plan cascade all run the row's own `beforeDelete`.
 
-Rationale: a draft must never become a second, weaker channel for data the field-split protects.
-On restore, the draft supplies prose only; everything else comes from the source version, and the
-existing `applyEditorFieldSplit` remains the write-time authority.
+---
 
 ## 5. Lifecycle
 
-**Capture.** Debounced autosave (~5–10 s idle, or on blur) from the editor while the form is dirty.
-Upsert `(user, sourceVersion)`. Cheap: content-only, no version creation.
+**Start.** Clicking Edit calls `recovery/start`. `LessonControls` already holds `useForm`,
+`useAllFormFields` and `useFormModified` and drives the read-only lock, so it is the host.
 
-**Pre-expiry flush.** `IdleLogout` already holds `tokenExpirationMs`; add a flush shortly before the
-deadline so the last edits land while the token is still valid. (A server autosave cannot write after
-expiry — but continuous autosave means the last write is seconds old, so this is belt-and-braces.)
+**Capture.** Debounced ~8 s idle, plus on blur, while the form is modified and unlocked. Inert while
+the form is read-only.
 
-**Clear the screen on BOTH expiry paths.** Foreground already unmounts. The `IdleLogout`/zombie path
-must also clear — currently it leaves the previous teacher's content visible on a shared machine.
+**Pre-expiry flush.** `IdleLogout` holds `tokenExpirationMs`; flush shortly before the deadline so the
+final capture lands while the token is still valid.
 
-**Restore.** On opening the editor for a version, if a draft exists for `(user, sourceVersion)`:
-offer it — never auto-apply. Show when it was saved. Applying it marks the form dirty; discarding
-deletes the draft.
+**Save.** Pause capture → flush → await any in-flight write → `save-as-new` with the current
+`generation` + `expectedRevision`. The two flush failures are **not** treated alike:
 
-**Staleness.** If `draft.baseUpdatedAt !== source.updatedAt`, warn that the underlying version changed.
-(Rare — versions are immutable — but possible via a trusted/migration path.)
+- **Transport failure** (network, 429, 5xx) ⇒ **save anyway.** The version save is the operation that
+  matters and the capture is only insurance; blocking a real save on failed insurance inverts the
+  priority exactly.
+- **409** ⇒ **do not proceed.** A 409 means another tab holds newer work, so this is precisely the case
+  where saving on would retire it. Surface the conflict and let the user reload.
 
-**Schema drift.** If `draft.schemaVersion` ≠ current, do not silently apply; offer view/discard only.
+**Failure surfacing.** The indicator shows the confirmed timestamp — "Unsaved changes backed up · 12 s
+ago". On 429 or network failure it must show **not backed up** and keep the form dirty; the timestamp
+*is* the contract (SPEC §5), so silence would make the guarantee a lie. Role-aware: administrators see
+explicitly that structural and answer-key edits are not covered.
 
-**Cleanup.** Delete on successful save-as-new, on explicit discard, and by TTL (proposal: 30 days) via
-a scheduled job. Also delete when the source version is deleted (the save-as-new `deleteSource` path).
+**Clear the screen on BOTH expiry paths.** Path A already unmounts. Path B must clear too — today it
+leaves the previous teacher's content on screen.
 
-**Concurrency.** Two tabs, same user, same source: last write wins on the upsert, and the restore
-prompt makes divergence visible rather than silent. Acceptable for v1; note it explicitly.
+**Restore.** On opening the editor, if an active capture exists for `(user, sourceVersion)`: offer it,
+never auto-apply, showing when it was captured. Applying marks the form dirty; discarding retires it.
 
-## 6. Operator decisions (ANSWERED 2026-07-20)
+⚑ **An active row is NOT the same as a restorable capture.** `start` creates the row; the first
+`capture` fills it. A freshly started row has `content: null`, and prompting on "a row exists" would
+show an empty restore offer on every single Edit click.
 
-1. **TTL — 30 days** after last touch. Long enough for a teacher to return to a plan weeks later;
-   beyond that it is almost certainly abandoned.
-2. **Storage ceiling — capped.** Per-user draft count is bounded (~20) and a single oversized draft
-   is refused. Bounds growth as users x corpus grow.
-3. **Site Admin sees EXISTENCE ONLY** — count/metadata, never content. Enough to answer "the teacher
-   says they lost work, is there a draft?" during support without reading private unsaved work.
-   Access to draft CONTENT stays owner-only, with no admin bypass.
-4. **Cross-device recovery — YES**, surfaced through the same explicit restore prompt (never
-   auto-applied), so resuming on another machine cannot surprise anyone or silently overwrite.
+### How applying works — BROWSER-VERIFIED 2026-08-07
 
-Now recorded in `SPEC.md` §5 (durability invariant) and §13 (shared-computer constraint).
+```ts
+await reset(applyCapture(currentValues, capture).doc)
+setModified(true)
+```
+
+⚑ **There is NO key→path mapper, and there must not be one.** The obvious design — resolve
+`lesson:L1` to `lessons.0.overview` in the client — would make the restore UI a SECOND owner of the
+bundle's structure, obliged to stay in step with §3's scopes forever. `reset` sends the whole document
+to Payload's `getFormState`, which rebuilds every path server-side, so the document is the only
+interface needed and `applyCapture` is used exactly as designed.
+
+Verified live in the admin editor against a real 12-lesson bundle, not inferred from source:
+
+- `applyCapture` reported `applied=1, dropped=[]`; the value landed on exactly
+  `field-lessons__0__overview` and no other field. 289 textareas, 0 empty — the form survived intact.
+- **`setModified(true)` after an awaited `reset` STICKS.** Save went from disabled to enabled. This
+  needed checking because `reset` ends with `setModified(false)` internally.
+- **`reset` does NOT disturb the read-only lock.** Fields stayed editable and the bar still read
+  "Editing:" — the whole edit-mode model depends on that.
+- ~150 ms round trip, twice measured. Wants a pending state; does not want a spinner.
+
+### ⚑ A PRE-EXISTING editor defect found by that spike — NOT edit recovery's
+
+Typing **one character** into a large lesson-plan version already fails, on `main`, with no recovery
+code involved:
+
+```text
+POST /admin/collections/lesson-bundle-versions/13 → 500
+Error: Body exceeded 1 MB limit
+```
+
+Payload debounces an `onChange` that posts the **full form state** to a Next.js Server Action, and
+Server Actions default to a 1 MB body. `next.config.ts` sets no limit.
+
+⚑ **The first reading of this was wrong and is recorded so it is not repeated.** It looked like
+`reset` sending "document plus form state" in one oversized request — i.e. a restore-specific problem.
+It is two separate actions: `reset(data)` posts the overlaid document and returns **200**;
+`setModified(true)` then triggers the debounced `onChange`, which posts form state and returns **500**.
+Restore merely *reaches* the defect sooner. The one-character test with no probe is what proved it.
+
+**Measured on the largest production-shaped plan** (version 13, Chemistry Grade 10 Chemical Bonding,
+13 lessons):
+
+⚑ **Byte counts are exact and are the authority here; the MiB figures are only for reading.** An
+earlier version of this table mixed the two — it labelled MiB values "MB" and then computed the
+overshoot against 1,000,000, reporting **59%** where the true figure is **51.4%**. Next's default is
+`bytes('1mb')` = **1,048,576 B**, so that is what the comparison must divide by. A measurement table
+that exists to justify a production limit is the worst place to be sloppy about units.
+
+| | Bytes | ≈ MiB |
+|---|---|---|
+| Raw document | 618,518 | 0.59 |
+| Server Action body | **1,587,513** | **1.51** |
+| Next default limit | 1,048,576 | 1.00 |
+
+- **Ratio: 2.57× the document** (unit-free, so unaffected by the above).
+- **Overshoot: 51.4% over the 1,048,576 B ceiling.**
+
+**The limit is an explicit PR decision, not a number to copy.** Do not reuse 4 MB just because
+`MAX_PREVIEW_JSON_BYTES` is `4_000_000`: that bounds raw document JSON, while a Server Action carries
+the much larger form-state structure. Two defensible readings, and the choice should be argued rather
+than assumed:
+
+- **Cover today's corpus with headroom.** 1,587,513 B measured ⇒ a 4 MB limit is ~2.6× the largest
+  real plan.
+- **Stay consistent with what the app already admits.** The save/preview path accepts documents up to
+  `MAX_PREVIEW_JSON_BYTES`, which is literally `4_000_000` (decimal bytes, not 4 MiB). At the measured
+  2.57× ratio a document at that ceiling implies ~10,270,000 B (~10.3 MB) of form state. ⚑ That is the
+  MEASURED REQUIREMENT, not a threshold: a limit of ~12 MB is a headroom *policy* on top of it, and an
+  earlier version of this bullet wrongly implied everything below 12 MB fails.
+
+⚑ It raises the body ceiling for **every** Server Action, so it is a production posture change and
+belongs in its own commit, documented as a separate fix for the pre-existing editor defect — **not**
+folded into the restore work that happened to find it.
+
+**409 on a stale tab.** Surface the stale content **read-only** so the user can copy it out before it
+goes. Silently discarding keystrokes the user really typed would defeat the point of the feature.
+
+**Staleness / schema drift — both are view/copy/discard only, never applied.** `baseUpdatedAt` mismatch
+means the source moved under the capture, so the row ids the overlay is keyed on may no longer mean what
+they meant; `schemaVersion` mismatch means the field shape changed. An earlier version of this section
+said a base mismatch merely "warns", implying it could still be applied — which contradicted SPEC §5 and
+would have let a stale overlay land on a changed source. SPEC's rule governs, and it is the safer one:
+the user can read the content and copy from it, but the system will not overlay it.
+
+**Caps.** Per-user **active** count ~20 (tombstones excluded, or a prolific editor gets locked out),
+approximate enforcement acceptable; per-capture byte limit **hard**, checked before storage.
+
+---
+
+## 6. Operator decisions (ANSWERED 2026-07-20, unchanged)
+
+1. **TTL — 30 days** after last touch, then retire (clear content, keep the marker).
+2. **Storage ceiling — capped.** Active count bounded (~20); an oversized capture refused.
+3. **Site Admin sees EXISTENCE ONLY** — count/metadata plus a cleanup operation, never content. No
+   admin read bypass, so a support question is answerable without reading private unsaved work.
+4. **Cross-device recovery — YES**, through the same explicit restore prompt.
+
+---
 
 ## 7. Verification matrix (required before calling this done)
 
-Disposable stack, shortened `tokenExpiration`. Browser-level, since the defect is client-side.
+**Status, as of 2026-08-07 — PR 1 (server) MERGED to `main`; PR 2 (client) on
+`feat/edit-recovery-client-capture`.** ⚑ **This block is the per-case authority. Nowhere else — not the
+CHANGELOG, not NEXT-SESSION — may claim a case is covered.** A suite total is not a case list, and
+quoting one as if it were is how "PR 1 is complete" got written before cases 20 and 29 existed.
+
+**EXECUTING and passing on `main`:**
+- **7, 19, 20, 29** — `tests/http/saveAsNewRecovery.http.spec.ts`, through the real save-as-new
+  transaction. 20 is a genuine interleaving (the save is parked mid-transaction by a database barrier
+  while a second capture lands), not a stale token prepared in advance; 19 injects a real Postgres
+  fault and proves it fired.
+- **14-16, 23-24** — `tests/http/recovery.http.spec.ts`, the six operations' wire authz plus the
+  Site-Admin metadata and cleanup guarantees.
+- **15, 17-18, 21-25, 30** — `tests/int/editRecovery*.int.spec.ts` (30 via the expiry pass: a
+  reactivated row is not selected, because `start` restarted its clock).
+
+**EXECUTING on the PR 2 branch (browser, `tests/e2e`):**
+- **13, 26, 27** — `tests/e2e/editRecovery.e2e.spec.ts` (PR 2a, capture): a 429 is visible with its
+  backoff and the form stays dirty; a 409 on the pre-save flush blocks the save; a dropped capture
+  does NOT block it.
+- **4, 5, 6, 8, 9, 10, 12** — `tests/e2e/editRecoveryRestore.e2e.spec.ts` (PR 2b, restore). 5 is
+  end-to-end on purpose: a second real user, same browser profile, same version, asserted against the
+  whole page rather than the field. 12 calls the endpoint DIRECTLY with the revoked user's own session
+  cookie and asserts 404 — asserting only that the UI shows nothing would pass against a server that
+  hands the capture straight back, because a Teacher never gets an Edit button to trigger the request.
+
+⚑ **The form is not locked while an offer is undecided, and never was.** Payload 3.85.1's `useField()`
+derives its `disabled` from `processing || initializing` alone and never consumes
+`useForm().disabled`, so `setDisabled` gates submission only. What protects an unread capture is the
+prompt covering the page — measured, and now asserted — plus the hook refusing to capture at all while
+an offer is unresolved. Recorded here because the natural reading of `setDisabled(!editing || gate)`
+is the opposite, and the code now says so too.
+
+**STILL NOT executing: 1, 2, 3, 11.**
+- **1, 2, 3** turn on a token actually EXPIRING, and `tokenExpiration` is a build-time constant in
+  `collections/Users.ts` (7200 s) that a browser spec cannot shorten against a running server — the
+  disposable stack this section already calls for. What 1 and 2 hinge on, *clear the screen only when
+  the work is provably stored*, is pinned deterministically in
+  `tests/unit/idleLogoutScreenClear.spec.tsx`, including the inverse: a refused capture leaves the
+  editor on screen, because the text there is then the last copy.
+- **11** (two tabs, same source) needs two live browser contexts against one version; the CAS itself is
+  covered at `tests/int` (21-22). Unclaimed rather than approximated.
+
+⚑ **Case 28 is RE-ASSIGNED from wire-level to unit, deliberately.** It is about `applyCapture`
+dropping an unknown row-id key, and `applyCapture` has **no server-side caller** — restoring is the
+client's job, so there is no endpoint for a wire test to drive. Its real coverage is
+`tests/unit/editRecoveryProjection.spec.ts` ("drops an unknown row-id key…"). PR 2b adds the other
+half at the same layer: `captureAnchors` returns no heading for a row the plan no longer has, so the
+prompt names it as gone instead of inventing a lesson number for it. Wire-level was a layer this case
+could never have. Recorded rather than quietly ignored, because an unmeetable requirement in a matrix is how
+matrices stop being believed.
+
+Disposable stack, shortened `tokenExpiration`. Layers, using this project's existing suites:
+
+- **browser** (Playwright) — the defect is client-side.
+- **DB-backed wire-level** (`tests/http`) — runs against the live app and its database, so it is the
+  only layer that can exercise a real endpoint transaction, including one held open while a second
+  request lands.
+- **DB-backed concurrency** (`tests/int`) — two real transactions against the kernel, without the HTTP
+  surface.
+- **unit** — pure functions with no server-side caller to drive.
+
+⚑ **The case→layer assignment is the status block ABOVE, not this list.** An earlier version repeated
+the numbers here as well, and the two copies immediately disagreed: 19 and 20 moved to wire-level when
+save-as-new retirement was built, while this paragraph still assigned them to `tests/int`. A layer list
+describes the layers; the status block owns which case sits in which.
 
 | # | Case | Expected |
 |---|---|---|
-| 1 | Foreground expiry, dirty form | draft persisted; screen cleared; recoverable after re-login |
-| 2 | Backgrounded → refocus expiry | same; **no zombie editor left on screen** |
-| 3 | "Stay logged in" clicked | session refreshes; no spurious draft prompt |
-| 4 | Same user re-logs in | draft offered, not auto-applied; content exact |
+| 1 | Path A foreground expiry, dirty form | captured; screen cleared; recoverable after re-login |
+| 2 | Path B backgrounded → refocus expiry | same; **no zombie editor left on screen** |
+| 3 | "Stay logged in" clicked | session refreshes; no spurious restore prompt |
+| 4 | Same user re-logs in | capture offered, not auto-applied; content exact |
 | 5 | **DIFFERENT user logs in on the same browser** | **sees nothing — no prompt, no content** |
-| 6 | Explicit logout while dirty | draft retained for that user; screen cleared |
-| 7 | Successful save-as-new | draft deleted |
-| 8 | Explicit discard | draft deleted |
-| 9 | Stale source (`baseUpdatedAt` mismatch) | warned, not silently applied |
-| 10 | Draft from older `schemaVersion` | not applied; view/discard only |
-| 11 | Two tabs, same source | last write wins; restore prompt shows divergence |
-| 12 | Role lost between draft and restore | restore denied by normal access; no leak |
-| 13 | Source version deleted | draft cleaned up |
-| 14 | Wire authz | 401/403 for another user's draft over REST (`tests/http`, per CLAUDE.md) |
+| 6 | Explicit logout while dirty | capture retained for that user; screen cleared |
+| 7 | Successful save-as-new | retired: content cleared, marker kept, **revision** advanced (NOT the generation — that moves only when a new session begins) |
+| 8 | Explicit discard | the same retirement transition |
+| 9 | Stale source (`baseUpdatedAt` mismatch) | view/copy/discard only — **never applied**, same as a schema mismatch |
+| 10 | Capture from an older `schemaVersion` | not applied; view/discard only |
+| 11 | Two tabs, same source | revision CAS ⇒ 409; loser refetches; no silent overwrite |
+| 12 | Editing access lost between capture and restore | restore denied by the endpoint's re-authorization; no leak |
+| 13 | 429 / network loss mid-session | indicator shows **not backed up**; form stays dirty; backoff visible |
+| 14 | Wire authz, all five endpoints | 401/403/404 for another user's capture and for unauthorized versions |
+| 15 | Capture carrying a retired generation | 409; **no new row created** — resurrection blocked |
+| 16 | Admin metadata endpoint | metadata + cleanup only; content never returned to a non-owner |
+| 17 | Source version deleted | rows removed by cascade, inside the parent's transaction |
+| 18 | User deleted | same |
+| 19 | Retirement fails during save-as-new | **whole save rolls back**; no orphan version (real failing statement, not a mocked throw) |
+| 20 | Concurrent save-as-new + capture from a second tab | newer capture never silently retired; save 409s on the revision precondition and is not retried |
+| 21 | Two simultaneous **first** `start`s | one row; both callers get the same generation; neither errors on the unique index |
+| 22 | Two simultaneous `start`s against a **retired** row | generation advances exactly once; both callers see the same advanced pair; the retired generation stays fenced |
+| 23 | Discard with a stale `expectedRevision` | 409; nothing retired |
+| 24 | Admin cleanup with a stale revision | 409; the capture that changed between metadata and cleanup is not cleared |
+| 25 | Expiry job vs a capture landing at the cutoff | the fresh capture is not retired — precondition is evaluated in the update, not read-then-write |
+| 26 | Flush 409 on save | save does **not** proceed; conflict surfaced; the other tab's newer capture survives |
+| 27 | Flush transport failure (429 / offline) on save | save **does** proceed; indicator shows not-backed-up |
+| 28 | Restore with an unknown row-id key | key dropped, never created; no id restored as a field value |
+| 29 | **Revision chaining:** start → capture → capture → save, each using the token the previous call returned | every step succeeds; no self-inflicted 409 anywhere in the chain |
+| 30 | **Reactivation TTL:** retire a row, age it past the cutoff, `start` it, then run the expiry job | the reactivated session survives — `updated_at` was restarted, so it is not "untouched since the cutoff" |
 
-Case **5** is the one that justifies the whole server-side choice — it is the case client-side storage
-cannot pass on a shared machine.
+Case **5** justifies the server-side choice — client storage cannot pass it on a shared machine. Case
+**15** justifies lifetime markers. Cases **21–22** are why `start` is a single statement. Cases
+**23–25** are why generation alone was insufficient: an ordinary capture bumps only the revision, so a
+generation-only check would have let all three retire newer work. Cases **26–27** are why the two flush
+failures are distinguished. Case **29** is why every advancing endpoint returns its token, and case
+**30** is why reactivation restarts `updated_at`. Case **19** also closes the separately-flagged gap that forced second-step
+rollback was untested.
 
-## 8. Cost / risk
+**Sanity-flip discipline.** There is no pre-existing buggy implementation to test against, so
+sensitivity is demonstrated honestly: temporarily weaken the projection and the retirement guard and
+confirm the relevant tests go red. Projection tests assert against the expected field-split result
+using `canonicalJson` **structural** equality (not literal byte ordering), and include an identity
+round-trip — project → restore onto source ⇒ source unchanged — which is what catches
+projection/restore *asymmetry*, the failure mode that corrupts prose rather than leaking it. Negative
+cases target `resourceLinks` at its real location (the lesson row), `framework[].phase`, `duration`,
+and an arbitrary unknown nested key.
 
-Real infrastructure: a collection + migration, access rules, autosave client, restore UI, cleanup job,
-plus the tests above. Larger than any fix currently on the audit list.
+---
 
-It is **not** a simplification — it adds a new durability guarantee. Per CLAUDE.md this warrants a SPEC
-amendment (§5/§7 touch the editing and versioning model) before implementation, not after.
+## 8. Cost / sequencing
 
-**Recommended sequencing:** treat as its own project *after* the small Tier-1 fixes (L3-04, L3-09,
-L3-10) land. In the interim, the honest mitigation is operational, not technical: tell editors to save
-often on long sessions.
+Real infrastructure: a collection and migration, five endpoints with wire tests, a rate-limit bucket,
+the fencing protocol, two parent cascades, a retirement job, the capture/restore client, a role-aware
+indicator, and the matrix above. Materially larger than the first draft implied — stated here before
+the build rather than discovered mid-PR.
+
+**PR 1 (server).** Collection, access closure, endpoints, projection, fencing, the shared retirement
+function, both cascades, the expiry job, and the migration (generated on the Rock per the documented
+Node-22 deps-image workflow). Tests: `tests/int` access matrix, `tests/http` wire authz, projection
+units, and the DB-backed wire-level and concurrency cases — §7 above assigns which, and is the only
+place that does.
+
+**Retirement's four callers are a DISCRIMINATED UNION, not one options object with optional fields.**
+Decided 2026-08-06, before implementation. The callers do not differ in what they WRITE — that is the
+one shared `SET` — they differ in what they must PROVE first, and those preconditions are not
+interchangeable:
+
+```ts
+type RetireCommand =
+  | { by: 'save-as-new'; generation: number; expectedRevision: number }  // + a live transaction
+  | { by: 'discard';     generation: number; expectedRevision: number }
+  | { by: 'admin-cleanup'; expectedRevision: number }                    // revision from recovery/meta
+  | { by: 'expiry'; expectedRevision: number; cutoff: Date }
+```
+
+With optional fields on a single shape, `cutoff` can be forgotten and expiry silently retires an active
+session — that one genuinely becomes a **type error** under the union, because `cutoff` is required by
+the `expiry` variant.
+
+⚑ **The transaction requirement is NOT a compile-time guarantee, and saying otherwise would be the
+false-assurance failure this document keeps recording.** A discriminated union constrains the FIELDS of
+the command; it cannot constrain the `req` passed alongside it. `by: 'save-as-new'` selects
+`requireTransaction: true` internally, so no call site can forget the flag — but a caller handing over a
+transaction-less `req` is caught at RUNTIME by `txDb`'s fail-closed throw, not by `tsc`.
+
+Two ways to close that if it is worth closing, decided when retirement is written rather than assumed
+now: give `retire` an overload whose `save-as-new` signature demands a branded transaction-bearing
+request type, or accept runtime enforcement and pin it with the rollback test (case 19), which has to
+exist regardless. The second is probably right — a brand is only as honest as the one place that mints
+it — but the choice should be explicit.
+
+**The per-user ACTIVE-CAPTURE CAP (~20, SPEC §5) belongs in `start`**, by the same argument that puts
+the byte cap in `capture`: `start` is the only path that inserts a row, so it is the storage boundary
+for row COUNT exactly as `capture` is for row SIZE, and an approximate check folds into its existing
+single statement. Its acceptance cases, written before the code so they cannot be back-fitted to it:
+
+| | Case | Expected |
+|---|---|---|
+| C1 | resume an ALREADY-ACTIVE row while at capacity | **succeeds** — resume is a no-op and must never be blocked, or a teacher at the cap cannot reopen work they already have |
+| C2 | `start` a NEW pair while at capacity | rejected |
+| C3 | reactivate a RETIRED row while at capacity | rejected — reactivation creates an active session, so it counts |
+| C4 | two concurrent starts at capacity−1 | overshoot to 21 is ACCEPTABLE (§5 says approximate); what must not happen is an unbounded run |
+| C5 | retire one, then `start` a new pair | succeeds — retired rows are tombstones and must not count toward the cap |
+| C6 | below capacity | ordinary insert, unchanged |
+| C7 | **another user at capacity** | does not block this user — the cap is PER USER. Added 2026-08-06: not in the original five, and invisible to any single-user test; without `user_id` in the count one prolific editor caps everybody |
+| C8 | a refused `start` | creates no row |
+
+**IMPLEMENTED 2026-08-06** in `start`'s single statement: a CTE counts the user's ACTIVE rows, the
+INSERT is gated on `count < cap OR EXISTS(row for this pair)` — the `EXISTS` is what keeps RESUME
+working at capacity, since the INSERT must still be attempted for `ON CONFLICT` to fire — and the
+`DO UPDATE` carries `WHERE retired_at IS NULL OR count < cap`, so resume always passes and
+reactivation counts. `start` now returns a `StartResult` rather than throwing, because being at
+capacity is a condition the system chose, not an error.
+
+C1 and C5 are the ones that make the cap safe to ship: a cap that blocks resume, or that counts
+tombstones, locks a prolific editor out of their own work.
+
+⚑ **Cases 19-20 cannot be retirement unit tests.** They are about save-as-new: 19 is "retirement fails
+during save-as-new ⇒ the WHOLE save rolls back, no orphan version", and 20 is a concurrent save plus a
+second tab's capture. Neither says anything unless it runs through the real `endpoints/versionEdit.ts`
+transaction and its semver-retry loop — a mocked throw proves the mock. Case 19 in particular needs a
+REAL failing statement, not an injected exception, or it does not test the rollback path at all.
+Cases 23-25 are the opposite: they isolate the retirement statement's own guards and belong directly
+against the kernel.
+
+**PR 2 (client).** Start/capture/flush in `LessonControls`, the pre-expiry flush in `IdleLogout`,
+clearing on both expiry paths, the restore prompt, the role-aware indicator, 409 and 429 handling.
+Tests: Playwright cases 1–13, 26–27.
+
+Interim mitigation until PR 2 ships stays operational, not technical: tell editors to save often on
+long sessions.

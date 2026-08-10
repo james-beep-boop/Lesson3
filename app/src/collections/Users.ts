@@ -27,6 +27,7 @@ import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userA
 import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
 import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
 import { cascadeDeleteUserFavorites } from './Favorites'
+import { cascadeDeleteUserRecovery } from './EditRecovery'
 import { cascadeDeleteUserMessages } from './Messages'
 
 /**
@@ -101,7 +102,11 @@ export const Users: CollectionConfig = {
     // A user's favorites and messages are personal rows with NOT NULL user FKs — cascade them, or
     // the delete 23502s (same shape as the lesson-plan cascades). See collections/Favorites and
     // collections/Messages.
-    beforeDelete: [cascadeDeleteUserFavorites, cascadeDeleteUserMessages],
+    beforeDelete: [
+      cascadeDeleteUserFavorites,
+      cascadeDeleteUserMessages,
+      cascadeDeleteUserRecovery,
+    ],
   },
   endpoints: [
     // Narrow, freshness-guarded Editor grant/removal for the Manage Editors widget — replaces the

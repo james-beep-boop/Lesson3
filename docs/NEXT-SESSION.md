@@ -8,25 +8,546 @@ end to end.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
-(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is large (~6300 lines) — skim
-the most recent entries and grep it for the area you're touching; don't read it end to end.** This
+(build-time decisions + reasoning; newest on top). **`DECISIONS.md` is long and still growing — skim
+the most recent entries and grep it for the area you're touching; don't read it end to end.** (No line
+count given: this one said "~6300" while the file had reached 8311, which is the derived-fact
+staleness the file's own rules warn about.) This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
 
-**Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
-migration or re-upload the corpus.** The Rock holds 42 plans, each with an Official 1.0.0, 384 lessons
-in those Official versions, 1,950 fully-populated resource rows and 0 unsafe URLs (verified by direct
-SSH inspection 2026-07-20). Both cutover migrations are applied. Treat any older block below that
-presents that work as upcoming as HISTORY.
+---
 
-**The live Rock is DEPLOYED with the current `app/` tree, and nothing app-side is pending.** Check it,
-do not trust a SHA written here — compare the app TREE HASH on both sides:
+# ⚑ HANDOFF (2026-08-08) — edit recovery is COMPLETE, DEPLOYED and verified in production
+
+**Read this section, then `docs/DESIGN-working-drafts.md` §5 and §7. This file's current material ends
+at "How to run the tests"; everything below the `Landed 2026-08-05` heading is older history, kept for
+provenance.**
+
+## Where the work is
+
+**Both halves are merged AND deployed.** PR 1 (server, #198) and PR 2 (client, #204) are on `main` and
+running on the Rock. #205 (Payload 3.87.1 + nanoid pins) merged ahead of PR 2 to clear three HIGH
+advisories; `audit:prod` is green.
+
+**Verified in production on 2026-08-08**, in this order:
+- pre-migration snapshot taken for the deployed SHA (`…premigrate-4f73046.dump.age`)
+- migrations ran (`Done.`); ⚑ PR 2 carries **no** migration — PR 1's is the only one this feature needs
+- app healthy: `/` → 307, `/login` → 200 (⚑ on **port 3001**, not 80 — the app publishes `3001:3000`)
+- `edit_recovery` table + compound unique index exist; the version-delete and user-delete cascade
+  queries both execute against real rows (`app/scripts/verify-edit-recovery-cascade.ts`, read-only;
+  `APPLY=1` runs the full create-seed-delete drill if a stronger check is ever wanted)
+- **the operator typed into the largest plan** (Chemistry Grade 10: Chemical Bonding, 13 lessons — the
+  one that used to 500 on a single keystroke) and saw no error, the Save button arm, and
+  "Unsaved changes backed up · 10s ago". Cancel-and-return then offered the work back.
+
+## ⚑ THREE PRs are open — read this before starting anything
+
+| PR | Branch | State | What it is |
+|---|---|---|---|
+| **#207** | `fix/edit-recovery-cleanup-round-2` | open | **Two real defects in DEPLOYED code.** Not urgent — both need a stalled connection or a long alt-tab session to bite — but they are the most valuable thing outstanding. |
+| **#206** | `docs/post-merge-edit-recovery` | open | This documentation. Merge whenever. |
+| **#196** | `chore/pr195-review-followups` | **STALE** | Opened 2026-08-05, untouched since, now 9 commits behind `main`. Predates this whole arc. **Decide: rebase and merge, or close it.** Nobody has looked at it in three days. |
+
+**What #207 fixes, so it is not re-derived:** the request deadline added to the capture path cleared on
+the fetch, which resolves on HEADERS — so `await res.json()` was unbounded and a stalled response body
+still held `inFlight` forever and blocked the user's save. Two of the four recovery requests (`start`,
+`discard`) had no deadline at all. Also: blur/visibilitychange re-sent content the server already had
+on every alt-tab, and the restore prompt rebuilt the whole ~600 KB document on every render while open.
+
+## What shipped, and what is proven about it
+
+**Capture.** A debounced capture while the form is dirty, a flush on blur and ahead of token expiry,
+and a pre-save flush whose verdict decides the save. The indicator is the contract: every failure
+branch is visible text.
+
+**Restore.** A just-opened editor asks what is waiting, holds an entry state machine until the answer
+arrives, and OFFERS rather than applies. Stale or schema-mismatched captures are read/copy/discard
+only, with no Restore button at all.
+
+**Screen clear at expiry.** `IdleLogout` now clears the screen at the session deadline — but only when
+a synchronous probe says every open editor's unsaved work is stored. Anything unproven leaves the work
+legible, because the text on screen is then the last copy.
+
+**Also shipped, unrelated to recovery:** the Server Action body limit (`'12mb'`), which fixed typing
+into a large plan 500ing. See `src/lib/serverActionBodyLimit.ts` — the authority for the value.
+
+**Verified on the merge commit:** 545 unit tests across **63 files**, `test:int` 156/156, `test:http`
+132/132, 11/11 browser cases, `tsc` and ESLint clean, `audit:prod` green. Per-case acceptance status is
+`docs/DESIGN-working-drafts.md` §7 and nowhere else; cases 1, 2, 3 and 11 are unclaimed there, with
+reasons.
+
+## ⚑ Two things that outlive this feature
+
+**1. The editor's "view mode" does not make prose fields read-only, and never has.** Payload's
+`useField()` derives `disabled` from `processing || initializing` alone and never consumes
+`useForm().disabled`, so `setDisabled` gates SUBMISSION only. Nothing in edit recovery depends on it —
+the restore prompt covers the page and the capture path refuses to overwrite an unread offer, both
+asserted — but **do not believe "the form is locked" anywhere in this editor** until someone checks
+what, if anything, enforces it. This is unfixed. DECISIONS 2026-08-07 (i).
+
+**2. A failed test SUITE reports zero tests, not a failure.** A whole spec file sat "passing" by never
+running: importing a component pulled `@payloadcms/ui` and a stylesheet the node runner cannot load, so
+the file failed to COLLECT, and a mutation check against it came back green for that reason. **Read
+`Test Files` as well as `Tests`** — 63 files is the number to watch. DECISIONS 2026-08-08.
+
+## Why there are no SHAs here
+
+An earlier version of this file named one and was wrong within the hour, twice: first by claiming
+"pushed" while eleven files sat uncommitted, then by naming the pre-commit SHA moments before the
+commit landed. An earlier verification block also still ran `git log` against a branch deleted at
+merge — every command in it failed, which reads like assurance. Commands that can run, not SHAs.
+
+## ✅ The probe image: what it actually was (2026-08-06, RESOLVED)
+
+The symptom was "the standalone bundle is broken — every API route 500s with `ChunkLoadError`". That
+reading was wrong, and it sent two sessions after Turbopack and `output: 'standalone'`.
+
+**The real cause: an empty, untracked `app/app/` directory.** This project's App Router is at
+`src/app`. Next.js prefers a root-level `./app` over `./src/app` when both exist, so `next build`
+emitted a build with **zero application routes** — no `/login`, no `/api/[...slug]` — and exited 0.
+Every request then fell through to `_not-found`, whose chunk was genuinely missing, and the
+ChunkLoadError was the only thing anyone saw. Measured: the degraded build produced 0 `route.js`
+files; with `app/` removed the same commit builds every route and a complete standalone output.
+
+**How it got there, and why it was invisible:** the AGENTS.md probe recipe's
+`docker run -v "$PWD/app:/app" -v /app/node_modules …` run from inside `app/` instead of the repo root
+makes Docker CREATE `Lesson3/app/app/node_modules` on the host. Git cannot track an empty directory,
+so `git status` stayed clean, the Rock and CI never saw it, and only local image builds broke — the
+shape that reads as "works everywhere except here". Directory timestamp: 2026-08-05 14:26.
+
+**Guarded, not just cleaned:** `app/.dockerignore` now excludes `/app`, so an image build cannot be
+poisoned by it even if it reappears. ⚑ If this project ever genuinely moves its App Router to a
+root-level `app/`, that rule must be deleted or the same zero-route build returns with the cause
+hidden one layer deeper.
+
+**Two more traps found in the same session, both worth knowing:**
+
+- **`docker compose build app` does NOT rebuild `migrate`.** The `migrate` service builds the
+  `builder` target separately, so it ran a stale image and silently skipped the edit-recovery
+  migration while reporting "Done." Build both, or `docker compose -p … build` with no service.
+- **`payload migrate` HANGS on an interactive prompt against a push-contaminated database** — "you've
+  run Payload in dev mode… data loss will occur. Proceed? (y/N)" — with no TTY to answer it. The
+  container sits in `Up` forever and `app` never starts because it waits on the dependency. Drop and
+  recreate that database rather than waiting.
+
+## What held this PR as a draft, and what closed each reason
+
+Kept as history because every one of these was a real gate, and the next collection will face the
+same ones. In order: the collection had **no migration** (the demonstration below is why that was
+non-negotiable); the **wire suite had never run** against endpoints that authorise then write with
+`overrideAccess`; **migration gate step 4** was partial; and **save-as-new retirement was not built**,
+so a successful save left the capture active. All four are closed.
+
+⚑ **Do not quote a suite total as proof that a feature is complete.** A total proves the cases that
+were written; it says nothing about the ones that were not. Per-case status lives in
+`docs/DESIGN-working-drafts.md` §7 and nowhere else — this file used to keep its own copy and it went
+stale three times in two days.
+
+The paragraph below is kept because it is the demonstration that made the migration non-negotiable.
+⚑ The CI blind spot it describes is CLOSED as of 2026-08-06 — `test:http` runs with
+`NODE_ENV=production` so Payload's dev push is off. Read it as history, not as a live warning.
+
+The `edit-recovery` collection is registered in `payload.config.ts` and its two cascade hooks run on
+**every version delete and every user delete**. Before the migration existed, production's
+migrate-mode meant the table would not exist there. Demonstrated, not inferred: with the table renamed
+away, a version delete fails with
+
+```
+Failed query: select count(*) from "edit_recovery" where "edit_recovery"."source_version_id" = $1
+```
+
+which breaks save-as-new `deleteSource`, make-official `deletePrevious`, plan deletion and user
+deletion. **Merging this before the migration would have made `main` undeployable.**
+
+⚑ **CI CANNOT CATCH THIS — a green gate is not schema safety.** `test:http` loads no
+`vitest.setup.ts`, so it seeds via the Local API into the SAME database the running app serves
+(`lesson3`, migrate-mode), and CI's synthetic `.env` omits `NODE_ENV`, so that Local Payload is not in
+production mode and runs Payload's dev schema **push** — silently creating whatever the migrations
+forgot, before the destructive tests touch it.
+
+## What PR 1 (server) delivered — all DB-proven on the disposable probe
+
+⚑ This section is PR 1's scope only. What the CLIENT delivered is in the handoff block at the top of
+this file; what is verified per acceptance case is `docs/DESIGN-working-drafts.md` §7.
+
+- The `edit-recovery` collection: closed on all four operations for every role including Site Admin,
+  compound unique on `(user, sourceVersion)`, both parent cascades (user, version) plus the transitive
+  plan→version→recovery path.
+- The pure projection: `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` rather than restating them, with `normaliseProseValue` covering code units the
+  jsonb column cannot carry (unpaired surrogates AND U+0000).
+- **The kernel, all four statements**: `start` (the only insert/reactivate path; a total no-op on
+  resume; now also enforcing the per-user ACTIVE-CAPTURE CAP), `capture` (CAS UPDATE, never an
+  insert), `retire` (ONE transition, three precondition shapes, and ALL FOUR designed callers now
+  wired: save-as-new, discard, admin cleanup, expiry), and `expireCaptures`
+  (select + per-row CAS), with `expireEditRecoveryTask` carrying a **schedule** so it actually runs.
+- **The active-capture cap (SPEC §5's second cap)** — per user, counting ACTIVE rows only, enforced
+  inside `start`'s single statement. Resume is never refused; reactivation counts. `start` returns a
+  `StartResult` rather than throwing, since being at capacity is a chosen condition, not an error.
+- `src/lib/txDb.ts`: the drizzle primitives, failing closed when a `transactionID` has no session.
+- **The six operations across four URL paths** (`endpoints/recovery.ts`) — §2's table lists five
+  rows because it bundles metadata and cleanup, and `/:id/recovery` carries POST, GET and DELETE, so
+  "five paths" was wrong wherever it appeared. Body guards split into
+  `endpoints/recoveryParse.ts` so they can be unit tested without a database or a served app — the
+  same split, for the same reason, as `previewParse.ts`. Wire coverage **has RUN**: 27/27 on
+  `recovery.http.spec.ts`, 125/125 across the whole suite, against a migration-only schema with push
+  off (2026-08-06).
+- **The `recovery` rate-limit bucket** in `lib/rateLimit.ts` (120/min default), and a **raw-body
+  ceiling** on top of it, because rate limiting bounds how OFTEN an editor may post, not how large one
+  post may be. Sizing and the reason it is not the kernel's 512 KB cap: the `MAX_RECOVERY_BODY_BYTES`
+  docblock, which is the authority. Reasoning: DECISIONS 2026-08-06.
+- **The migration**, generated on the Rock and hand-edited twice. See the gate below for what is and
+  is not verified about it.
+
+**Acceptance case status: `docs/DESIGN-working-drafts.md` §7, which is the only document that may
+carry it.** This line used to duplicate the list and was stale within days.
+
+**Regression coverage for the four fixes in `206252a`** — that commit changed three production files
+and no test, which is what let a reviewer ask, correctly, whether any of it was pinned. Now:
+`tests/unit/recoveryParse.spec.ts` (the malformed-`document` 400 and the body ceiling, including the
+assertion that matters — the body is never read), `tests/int/editRecoveryMetadata.int.spec.ts`
+(tombstones absent, and `bytes` banded against the compact serialised size), and
+`tests/unit/editRecoveryMigrationOrder.spec.ts` (the rollback's statement order). **Each was watched
+failing against a deliberately reverted fix before being kept** — five mutations, five named
+assertions red, all reverted. A guard never observed failing is a guess.
+
+## What is LEFT, in order
+
+⚑ Check this against `git log`, not against memory. A previous version of this list still described
+three items as unbuilt two commits after they landed.
+
+✅ PR 1 merged + deployed. ✅ PR 2 merged (all suites green on the merge commit). ✅ #205 merged.
+✅ The Server Action body limit fixed. ✅ The DB-backed suites run on the client branch.
+
+1. **DEPLOY `main`.** No migration — an ordinary `scripts/deploy.sh`. Unlike PR 1's deploy this one IS
+   user-visible: the indicator appears beside Save, and a returning editor may be offered work back.
+
+   Verify afterwards, in this order:
+   - the app is healthy (`/` → 307 `/login`, `/login` → 200)
+   - an ordinary version deletion still works (the delete-time cascades query `edit_recovery`)
+   - open a large plan, type one character, and confirm no 500 — that is the body-limit fix, and it
+     is the one thing on this deploy that a teacher would notice immediately if it regressed
+
+2. **Watch the first real captures.** The per-user active-capture cap is 20 and the expiry pass runs
+   on a schedule; `/:id/recovery/meta` is the Site-Admin view of existence and shape, never content.
+
+3. Then pick from "Cleanups this branch DECLINED" and "Two known defects OUTSIDE this branch" below,
+   both decided rather than forgotten. The unlocked-form finding above is the biggest of them.
+
+## The migration gate — all four steps, in order
+
+1. ✅ Generate the migration on the Rock (Node 22) once the schema is settled.
+2. ✅ Review **both** `up` and `down`. Two hand edits were needed and BOTH were found by running the
+   rollback rather than reading it: the locked-documents FK must be dropped before the CASCADE that
+   would already have removed it, and this task's `payload_jobs`/`payload_jobs_log` rows must be
+   deleted before the `task_slug` enum shrink casts them into a type that no longer lists them. That
+   ordering is now pinned by `tests/unit/editRecoveryMigrationOrder.spec.ts`, because the realistic
+   way to lose a hand edit is regeneration, and the file's "do not tidy this back" comment is a
+   request rather than a guard.
+3. ✅ Apply to a **completely fresh migration-only database with push disabled** — never the probe's
+   `lesson3`, which already has the table from a push-mode run and is therefore contaminated.
+⚑ **`git diff --check` reports mixed indent and trailing whitespace in the generated migration, and
+that is CORRECT to leave alone.** Payload's generator emits `  \t"col" …` inside a template literal;
+every migration in the tree does the same (`20260608_024132_initial.ts` 65 hits,
+`20260608_145602_lesson_entities.ts` 108, `20260608_224715_bundle_versioning.ts` 94). It is not a CI
+gate — nothing in `.github/` or `scripts/` runs `diff --check`. Normalising this one file would make it
+the only migration that diverges from generator output, which costs the next regeneration a spurious
+diff and buys nothing. Check `diff --check` on hand-written files; expect it to be noisy on generated
+ones.
+
+4. ✅ **DONE (2026-08-06), both halves.** The `lesson3` database was dropped and recreated, all 20
+   migrations applied to it from empty, and the **full wire suite ran against it with
+   `NODE_ENV=production`** — push OFF, so the schema could only have come from migrations. 125/125,
+   and that suite drives `save-as-new?deleteSource=true` and `make-official?deletePrevious=true`
+   directly (`tests/http/endpoints.http.spec.ts`), which is the part the gate demanded and previous
+   runs had substituted a cascade test for.
+
+   The second half is closed too: **`test:http` no longer pushes in CI.** `.github/workflows/ci.yml`
+   passes `-e NODE_ENV=production` on that step alone. ⚑ Not in the synthetic `.env` — `test:int`
+   DEPENDS on dev-mode push to build `lesson3_test` from the model, so the two steps want opposite
+   things and the setting has to be per-step. That closes the blind spot that let a collection with
+   no migration go green here while being undeployable.
+
+## ✅ A PRE-EXISTING editor defect, found 2026-08-07 and FIXED the same day
+
+**Typing one character into a large lesson-plan version 500s on `main` today.** No edit-recovery code
+involved — found while spiking PR 2's restore, and it is not that feature's bug:
+
+```text
+POST /admin/collections/lesson-bundle-versions/13 → 500   Error: Body exceeded 1 MB limit
+```
+
+Payload debounces an `onChange` posting the **full form state** to a Next.js Server Action; the default
+ceiling is `bytes('1mb')` = **1,048,576 B** and `next.config.ts` sets no limit. Measured on version 13
+(13 lessons, the largest shape in the corpus): raw document **618,518 B**, **Server Action body
+1,587,513 B — 2.57× the document, 51.4% over the ceiling.**
+
+⚑ Exact bytes, deliberately. An earlier version of this paragraph wrote those as "0.59 MB" and
+"1.51 MB" — which are MiB values mislabelled — and then divided by 1,000,000 to get "59% over". The
+true overshoot is 51.4%. The whole point of this paragraph is to carry a number into a production
+limit decision, so it states bytes and lets the reader convert.
+
+**What it does and does not break.** Save still works: `save-as-new` posts multipart to a REST
+endpoint, not a Server Action. What fails is Payload's own form-state sync, so field-level validation
+and conditional logic silently stop updating while the user types. That is why nobody has reported it —
+it is invisible until you look at the console.
+
+**Fixing it is `experimental.serverActions.bodySizeLimit`**, and ⚑ the VALUE IS A DECISION, not a copy
+of an existing constant. `docs/DESIGN-working-drafts.md` §5 carries the measurement and both defensible
+readings (cover today's corpus with headroom ⇒ ~4 MB; stay consistent with the 4 MB document ceiling
+the save path already accepts ⇒ ~12 MB). It raises the ceiling for EVERY Server Action, so it is a
+production posture change and wants its own commit described as a pre-existing editor fix.
+
+✅ **FIXED on the PR 2 branch** (its own commit, `experimental.serverActions.bodySizeLimit = '12mb'`).
+**The authority for the value and its derivation is `src/lib/serverActionBodyLimit.ts`** — do not
+restate the numbers here; an earlier version of this file kept its own copy of a per-case list and it
+went stale three times in two days.
+
+The short version: 12 MiB was chosen over 4 MB because 4,000,000 B is the DOCUMENT ceiling the save
+and preview paths already accept, and form state measures ~2.57× the document — so a 4 MB Server
+Action limit would mean documents this system will happily store cannot be edited, failing the same
+silent way on the largest plans. `tests/unit/serverActionBodyLimit.spec.ts` pins that relationship, so
+raising the document ceiling without raising this now fails a test rather than a teacher.
+
+⚑ **Verified as an A/B on version 13**, typing one character: Next's 1 MiB default → `500 POST`; with
+the limit → no server errors. ⚑ Two earlier control runs proved nothing — one failed on Payload's
+document-lock dialog, one on this feature's own restore prompt holding the previous run's keystroke.
+Clear `payload_locked_documents` AND `edit_recovery` between arms, or the control measures the wrong
+thing.
+
+## Cleanups this branch DECLINED, with the reasoning, so they are decided rather than forgotten
+
+Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
+diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is urgent; both are real.
+
+- **The Content-Length pre-parse guard now exists in THREE hand-written copies** —
+  `endpoints/previewParse.ts`, `endpoints/uploadBundles.ts` and now `endpoints/recoveryParse.ts` —
+  each re-explaining the same "the header may be absent or dishonest" caveat in its own words. The
+  rule of three is reached. The extraction is `assertBodyWithin(req, maxBytes, message)` in shared
+  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Do not let it
+  delay PR 2** (operator, 2026-08-07) — do it when one of those endpoints is next touched anyway. ⚑ **Share the
+  CHECK, not the constants** — the three limits measure different payload classes and must stay
+  independent; coupling the numbers is the hazard, not the duplication. Worth doing with the next
+  change that touches any of those files.
+  Deeper version, if anyone wants it: `emailVersion.ts`, `forgotPassword.ts`, `markMessagesRead.ts`
+  and `userAssignments.ts` all call `req.json()` unguarded, so "no request may make the process
+  allocate an unbounded body" is currently opt-in and therefore permanently incomplete — every new
+  JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
+  And the part no application-layer guard can do — a body with a missing or lying header — wants a
+  limit at the proxy/Next layer; there is none in the repo today.
+
+- **Test-DDL helpers want their own module — on the SECOND SPEC FILE, not the third mechanism.**
+  `tests/http/saveAsNewRecovery.http.spec.ts` now installs three Postgres mechanisms (a fault trigger,
+  a statement counter, a barrier) and holds the generic primitives `seqCreate`/`seqDrop`/`seqValue` at
+  file scope. That is three mechanisms with ONE consumer, and the rule of three counts consumers — so
+  extracting now would be speculative generality. The moment a second spec needs fault injection, it
+  will otherwise re-derive all of: `nextval` survives rollback, the `is_called` normalisation, the
+  one-command-per-`execute` prepared-statement trap, drop-before-create, and the naming/scoping rules.
+  That re-derivation is exactly what `tests/helpers/db.ts` was created to end, and it is the natural
+  home. Take the conventions with it: **one `lesson3_<spec>_*` prefix per spec file**, `WHEN`-scope
+  every row-level trigger, take the baseline immediately before the measured window where a trigger
+  cannot be scoped (`FOR EACH STATEMENT` forbids `WHEN`), and drop in `finally`.
+
+  ⚑ **If a second barrier is ever needed, reach for `pg_advisory_xact_lock` instead of the polling
+  table.** The test holds the lock inside a Payload transaction (`initTransaction` gives the
+  connection affinity a pooled drizzle handle lacks) and the trigger body becomes one `PERFORM`. That
+  deletes the barrier table, the plpgsql loop, `pg_sleep`, the iteration bound and the
+  open-first-in-`finally` dance, and it wakes instantly rather than within 50 ms. The current shape
+  was kept because it self-heals: a test that dies before releasing parks the request only until the
+  loop bound, whereas an advisory lock is held until the connection closes. Not worth churning the
+  one that exists and passes.
+
+- **`20260625_125532_drop_lesson_bundles.ts` has the same latent rollback defect PR 1 just fixed —
+  and it wants its own small reviewed PR** (operator, 2026-08-07), not a passing edit. Its `down` rebuilds both `task_slug` enums as `('inline', 'generateArtifact')` — dropping
+  a value — with **no** `DELETE FROM payload_jobs*` before the cast, so it aborts on any database
+  where the removed task had ever run. The other four enum-shrinking migrations all carry the
+  deletes. Found while checking whether `editRecoveryMigrationOrder.spec.ts` could be generalized
+  across all migrations: **it cannot, yet** — a glob-based check fails on this file, and an allowlist
+  exempting it would hollow out the guard. Fix that migration first, then generalize the test; the
+  generalized form is what would guard the NEXT `migrate:create`, which is where the generator will
+  reproduce this defect again. This is a correctness change to a stable migration, so it wants
+  `/code-review` rather than a cleanup pass.
+
+## Two known defects OUTSIDE this branch's diff, tracked here because they will otherwise be lost
+
+- **`endpoints/userAssignments.ts` (~line 81) has a fail-OPEN copy of the transaction lookup.**
+  `src/lib/txDb.ts` now owns that reach and THROWS when a `transactionID` has no resolvable drizzle
+  session; `userAssignments` still falls through to `?? adapter.drizzle`, which would run its
+  `SELECT … FOR UPDATE` on a pooled connection OUTSIDE the transaction it exists to serialise —
+  defeating the row lock that stops two concurrent role changes both passing the freshness check.
+  Migrating it is a behaviour change on code outside this diff, so it was deliberately not done in
+  passing.
+- **Three near-identical cascade factories** (`Favorites`, `Messages`, `EditRecovery`) restate the
+  23502 NOT-NULL rule in four docblocks and enforce it nowhere. The prize is not DRY — it is a wiring
+  test that walks the config, finds every collection with a required relationship, and asserts the
+  parent's `beforeDelete` carries a cascade for it. The failure mode is OMISSION, and it surfaces in
+  production as an opaque error.
+
+## How to run the tests (the probe recipe is in `AGENTS.md` — read it, there are two traps)
+
+Short version: `docker compose -p lesson3-ci-probe up -d --build`, always pass `-p`, put
+`-e NODE_ENV=test` on the `docker run` (NOT on `docker compose up`), repoint the TRACKED `app/test.env`
+and restore it afterwards with `git diff --exit-code -- app/test.env`. A long session exhausts the
+shared daily rate-limit budgets and unrelated specs start failing; the reset command is in AGENTS.md.
+
+---
+
+# Landed 2026-08-05 — the env-parity + edit-recovery-design stack is IN `main`
+
+`chore/env-template-parity` was merged (squash, head branch deleted) after ten review rounds. Nothing
+about it is pending and there is nothing to recover; this section is history, kept because those rounds
+produced rules that outlive them.
+
+**Where the reasoning lives:** `docs/CHANGELOG.md` (2026-08-05) for what shipped; `docs/DECISIONS.md`
+(2026-08-05) for the durable rules.
+
+**It needs no deploy**: documentation, two config templates, one unit test, one CI mount, one docstring.
+
+## What that stack contained
+
+All documentation, config templates, one new unit test, one CI mount change, one corrected docstring.
+**No product behaviour changes**, so the deployed Rock is unaffected and needs no deploy. Full summary in
+`docs/CHANGELOG.md` (2026-08-05); reasoning and lessons in `docs/DECISIONS.md` (2026-08-05).
+
+1. **Both `.env.example` templates reconciled**, pinned by `app/tests/unit/envTemplateParity.spec.ts`.
+   The root template declared 5 of 58 variables the app reads; the missing `ARTIFACT_CACHE_DIR` breaks
+   every export with `EACCES` on a fresh install. Reverses the Codex #5 deferral.
+2. **A CI blocker this branch introduced, caught by a `/simplify` pass**: `test:unit` mounts only `app/`,
+   so the spec could not see the root template and would have failed *every* CI run.
+   `.github/workflows/ci.yml` now bind-mounts **the root `.env.example` alone** at `LESSON3_REPO_ROOT`,
+   with `--network none`. It briefly mounted the whole workspace instead — which put `.git`, and the
+   token a checkout persists in it, inside a container running third-party dev dependencies. Do not
+   widen it back.
+3. **`IdleLogout` docstring corrected** — it claimed `logOut()` redirects; it does not navigate at all.
+4. **Edit recovery reconciled and APPROVED, with no code written**: `SPEC.md` §5 (normative) + §13
+   (reserved words), `AGENTS.md` native-fields rule narrowed, `docs/DESIGN-working-drafts.md` rewritten
+   with a §0 changelog and a **30-case acceptance matrix**.
+
+### ⚠ What the new account will NOT inherit
+
+The previous account held some operational knowledge in private memory, not in the repo. None of it is
+secret-free-to-publish, so **ask the operator**:
+
+- **Rock SSH access** (`ssh Rock5b`, `david@rock5b` over Tailscale) — key must be added to the new
+  machine's agent.
+- **Seeded user passwords** (Teacher / Editor / Subject-Admin on the Rock) — deliberately **not** in the
+  repo. Ask; do not reseed a shared box to get around it.
+- **The `age` backup private key** is Mac-only on the previous machine. Encrypted Drive backups are
+  active and restore-verified, but **the cron was never installed** — see "next steps" below.
+- Local stack procedure is in the repo (`AGENTS.md` → Local stack); logins are `local1234` by design.
+
+### Next steps, in priority order
+
+1. **✓ Land the branch — DONE 2026-08-05.** Merged as the squash commit on `main` titled
+   *"config+docs: env templates reconciled behind a parity test; edit recovery approved for build"*.
+   Item 2 is now the live priority.
+2. **Edit recovery, PR 1 (server).** *This is the real priority and the only item on any list that is
+   losing user work today.* Collection + access closure + the endpoints + projection + fencing + shared
+   retirement function (**four** callers: save-as-new, discard, expiry, Site-Admin cleanup) + two parent
+   cascades + expiry job + migration (generated on the Rock per the Node-22 workflow). Read
+   `docs/DESIGN-working-drafts.md` **§0 first** — five provisions of the original draft did not survive
+   review — then §2–§4 for the protocol and §8 for the PR split. Tests: `tests/int` access matrix,
+   `tests/http` wire authz, projection units, DB-backed concurrency; per-case assignment and status
+   are §7's, not this list's.
+
+   ⚑ **STATE, and the two traps, are in the HANDOFF BLOCK at the top of this file** — where the work
+   is, what is done, what is left, the migration gate, and the two known defects outside the branch's
+   diff. Not restated here, because two copies of a status drift and the top one is what a new session
+   reads first.
+
+   Two contract details worth carrying into the endpoint work, since they change its scope:
+   - **Five table rows, SIX operations, FOUR URL paths.** §2's endpoint table bundles Site-Admin metadata and cleanup
+     on one line, and the cleanup verb is unspecified — settle it. The wire-authz rule is per
+     OPERATION, so that is six sets of 401/403/404 plus happy path.
+   - **Local-API access tests must pass `overrideAccess: false`** plus an explicit `user`, or Payload
+     bypasses collection access and closed-collection tests pass without testing anything. House
+     pattern: the docblock of `tests/int/access.int.spec.ts`.
+
+3. **Edit recovery, PR 2 (client).** Capture/flush in `LessonControls`, pre-expiry flush in `IdleLogout`,
+   clearing on **both** expiry paths, restore prompt, role-aware indicator, 409/429 handling. The
+   Playwright cases it owes are §7's "NOT executing" list — this line used to name them and had
+   already drifted, claiming case 7 for PR 2 after the server implemented it. Case 5 (a different user
+   on the same browser sees nothing) is what justifies the whole server-side design.
+4. **The Official-pointer lock**, in parallel if there is capacity. An Official version can be deleted
+   during a concurrent promotion (`hooks/bundleVersion.ts` read-then-write + `ON DELETE SET NULL`),
+   destroying an approved snapshot. The fix is the existing in-house pattern — `lockSubjectGrades` in
+   `src/ingest/index.ts` is the template — applied to `lesson_plans`, **plus a real concurrent Postgres
+   regression test**. Do not ship the lock without the test.
+5. **First-user bootstrap atomicity.** `grantSiteAdminToFirstUser` counts then writes, so two
+   simultaneous anonymous registrations can both become Site Admin. Narrow (empty DB, internal host —
+   `lib/publicPosture.ts` covers the exposed case) but real. Needs `pg_advisory_xact_lock`, not
+   `FOR UPDATE`: on an empty table there is no row to lock.
+6. **Install the backup cron on the Rock** (`docs/OPS.md` has the block). Scripts and restore are
+   verified; only the schedule is missing. Confirm with `crontab -l` first.
+7. **Going public**, when the host decision is made: `docs/OPS.md` → "Going public", in its stated order.
+   `SERVER_URL` is the single switch and cannot be half-applied. **Seed users before DNS points at the
+   box** — on an empty DB Payload's first-register hands Site Admin to the first visitor.
+
+Deferred and noted in code rather than done: deriving `COMPOSE_ONLY` in the parity test from
+`docker-compose*.yml` and Dockerfile `ENV` lines (adds coverage, wants its own flips).
+
+### How this work was reviewed, and what it taught — read before the next round
+
+Six adversarial rounds (two models plus CodeRabbit) went over one 400-line test and one design document.
+**Every round found a real defect.** The full analysis is in `DECISIONS.md` 2026-08-05; three rules worth
+carrying into the next PR:
+
+- **A check that enumerates what is FORBIDDEN can always be one form short.** Rounds 1–3 and 5–6 all made
+  the same move — add the newly-named bypass — and each fix was correct and insufficient. Only two changes
+  closed anything: *classify or report* every route to `process`, and *resolve* module identity instead of
+  pattern-matching it. Prefer resolving the real thing, or enumerating what is allowed.
+- **A guard never observed failing is a guess.** Every hole lived in code that read correctly, and four
+  were in guards added by earlier rounds of the same review. Mutate the tree, watch the named assertion go
+  red, revert. Do this for the guards you add *while fixing* a guard.
+- **Prose that explains itself is not evidence.** A `start` SQL statement contradicted the acceptance case
+  written 40 lines below it and passed inspection twice, because each reading checked it against its own
+  adjacent comment. The 30-case matrix in the design doc is there so PR 1 does not repeat that; **none of
+  those 30 cases were executed when this was written.** What has executed since is §7's to say — this
+  sentence twice tried to keep its own copy in step and twice failed, which is the whole argument for
+  one authority.
+
+Two admissions worth inheriting, both from this session's own handoff notes: a "trimmed the docstring"
+claim that was measured against an intermediate commit rather than `main` (it was a net *addition*), and a
+"provably a strict superset" comment on an optimisation that provably was not. **Check claims about your
+own diff against `main`, not against your last commit.**
+
+---
+
+**Current state: the ARES `resourceLinks` cutover is DONE and VERIFIED LIVE — do NOT re-run its
+migration or re-upload the corpus.** Both cutover migrations are applied; 1,950 fully-populated
+resource rows and 0 unsafe URLs at the time of the cutover (verified by direct SSH inspection
+2026-07-20). Treat any older block below that presents that work as upcoming as HISTORY.
+
+⚑ **The Rock now holds 85 plans / 85 versions / 85 with an Official** (verified 2026-08-07). This
+line said 42 — correct on 2026-07-20 and stale since the corpus grew. A count in a document is a
+measurement with a date on it, not a fact; the command is what stays true:
 
 ```bash
-git rev-parse HEAD:app
+ssh Rock5b "cd /srv/lesson3 && docker compose exec -T postgres psql -U lesson3 -d lesson3 -c \
+  \"SELECT (SELECT count(*) FROM lesson_plans) plans, (SELECT count(*) FROM lesson_bundle_versions) versions;\""
+```
+
+⚑ **SUPERSEDED — this paragraph is about the 2026-08-05 env-parity stack, which merged long ago.** It
+is NOT deploy guidance for what is on `main` today: **edit recovery PR 1 carries a migration and its
+deploy is mandatory** (top of this file). Kept only because the tree-hash comparison below it is still
+the right technique. Do not read "no deploy is required" as current.
+
+**No runtime change was pending for the Rock from that stack.** It changed documentation, two
+`.env.example` templates, one unit test, one CI mount and one docstring — nothing the server executes.
+
+⚠️ **`app/` tree hashes did NOT match while that stack was unmerged, and that was expected.** Four of its
+files live under `app/` (`app/.env.example`, `app/tests/unit/envTemplateParity.spec.ts`,
+`app/vitest.unit.config.mts`, and a comment-only edit to `app/src/components/IdleLogout/index.tsx`), so
+the tree hash differs from `origin/main` even though no runtime behaviour does. Compare the Rock against
+**`origin/main`**, not your working branch:
+
+```bash
+git rev-parse origin/main:app
 ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'
 ```
 
-Equal ⇒ the deployed app code is byte-identical to yours, whatever commits sit either side of it.
+Equal ⇒ the deployed app code is byte-identical to `origin/main`, whatever commits sit either side of it.
+Once the stack merges, these two stay equal: a tree hash is not a promise about behaviour, but an
+inequality here is always worth explaining before you deploy.
 
 ⚑ **Compare the same thing on both sides.** The first version of this check was
 `git log -1 --format=%h -- app/` locally against `git rev-parse --short HEAD` on the Rock — two
@@ -453,7 +974,13 @@ clone does not carry): **`~/Desktop/icloud-git-migration.md`**. Do this before t
 **Remaining queue (nothing else is blocking).** Note the operator has since chosen the 640px mobile work
 above as the next feature; item 1 below was the previous "operator-chosen next" and keeps its analysis.
 Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED on 2026-07-28.
-1. **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, ready to optimise.**
+1. **~~Unsaved editor PDF-preview latency~~ — CLOSED BY THE OPERATOR 2026-08-05: "much better than
+   before and is good enough."** Do not spend time here. The diagnosis below is kept because it is
+   accurate and names the LibreOffice floor (~5.5 s for the lessonSequence render) that any future
+   complaint will run into — but treat optimisation (a)/(b)/(c) as not wanted unless the operator raises
+   it again. Original entry follows as reference.
+
+   **Unsaved editor PDF-preview latency (~10 s) — DIAGNOSED, then CLOSED unoptimised (reference only).**
    Confirmed on the Rock 2026-07-22 by direct measurement, corroborated by GPT's independent read.
    Two edit-page paths, and it's the FIRST that hurts repeatedly:
    - **Unsaved** (editing, form dirty) → `POST …/preview-pdf?doc=<tag>`: generates one DOCX from the
@@ -494,9 +1021,12 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    Gotenberg instance would help concurrent-user throughput, not single-preview latency.
    **Note:** (a) is a compose/ops change and (b)/(c) are runtime changes — this item, unlike recent
    docs work, needs a deploy.
-2. **Working drafts** — *the only confirmed silent work-loss path, and the data-integrity priority.*
-   Spec'd (SPEC §5/§13) and designed (`docs/DESIGN-working-drafts.md`, operator decisions answered).
-   Multi-session project; start from the design doc.
+2. **Edit recovery** (formerly "working drafts") — *the only confirmed silent work-loss path, and the
+   data-integrity priority.* **RECONCILED + APPROVED 2026-08-05; ready to implement.** Normative rules
+   in SPEC §5/§13, implementation design + the 30-case verification matrix in
+   `docs/DESIGN-working-drafts.md` (path kept; the FEATURE is renamed — `draft` is now a reserved word,
+   SPEC §13). Read the design doc's §0 first: five provisions of the original draft did not survive
+   review of the code. Build in two PRs, server then client, per its §8. Multi-session project.
 3. **(small) `emailVersionArtifact.ts` has the same orphan-hard-fail shape** that #139 fixed in
    `generateVersionArtifact` (`generateForVersion` + a version `findByID`). It is not prewarmed today,
    so it cannot orphan yet — but if email artifacts ever get the same prewarm treatment, it wants the

@@ -30,6 +30,8 @@ import {
 import { makeOfficialEndpoint, saveAsNewEndpoint } from '../endpoints/versionEdit'
 import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { cascadeDeleteVersionFavorites } from './Favorites'
+import { cascadeDeleteVersionRecovery } from './EditRecovery'
+import { recoveryEndpoints } from '../endpoints/recovery'
 import { lessonContentFields } from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
@@ -78,7 +80,11 @@ export const LessonBundleVersions: CollectionConfig = {
     delete: lessonBundleVersionDelete,
   },
   hooks: {
-    beforeValidate: [numberBundleVersionRows, enforceVersionPlanConsistency, enforceBundleVersionGeneratable],
+    beforeValidate: [
+      numberBundleVersionRows,
+      enforceVersionPlanConsistency,
+      enforceBundleVersionGeneratable,
+    ],
     // Stage 2 model: versions are IMMUTABLE — `enforceVersionImmutable` rejects every authenticated
     // in-place `update` (a stray/direct PATCH included); it pairs with the form-render-only update
     // grant above (see access/versionImmutability.ts). Authoring goes through the save-as-new
@@ -88,9 +94,15 @@ export const LessonBundleVersions: CollectionConfig = {
     // Retention: the Official version cannot be deleted (would orphan the plan pointer). Favorites
     // are per-version (§10) with a NOT NULL version FK — cascade them before the row goes; this
     // runs per row on bulk deletes too, so the plan-delete cascade path is covered here as well.
-    beforeDelete: [enforceOfficialNotDeletable, cascadeDeleteVersionFavorites],
+    beforeDelete: [
+      enforceOfficialNotDeletable,
+      cascadeDeleteVersionFavorites,
+      cascadeDeleteVersionRecovery,
+    ],
   },
   endpoints: [
+    // Edit recovery (SPEC §5): six operations across four URL paths. Each re-authorizes on every call.
+    ...recoveryEndpoints,
     // GET /:id/export — serve-only download (idempotent). Warm → 200 .zip; cold → 409. SPEC §9.
     exportVersionEndpoint,
     // GET /:id/export/doc?doc=<tag> — serve ONE deliverable: PDF inline, DOCX attachment (T1).

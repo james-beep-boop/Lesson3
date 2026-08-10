@@ -74,6 +74,7 @@ export interface Config {
     users: User;
     favorites: Favorite;
     messages: Message;
+    'edit-recovery': EditRecovery;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -89,6 +90,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
     messages: MessagesSelect<false> | MessagesSelect<true>;
+    'edit-recovery': EditRecoverySelect<false> | EditRecoverySelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -99,8 +101,12 @@ export interface Config {
     defaultIDType: number;
   };
   fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'payload-jobs-stats': PayloadJobsStat;
+  };
+  globalsSelect: {
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
+  };
   locale: null;
   widgets: {
     collections: CollectionsWidget;
@@ -110,6 +116,7 @@ export interface Config {
     tasks: {
       generateVersionArtifact: TaskGenerateVersionArtifact;
       emailVersionArtifact: TaskEmailVersionArtifact;
+      expireEditRecovery: TaskExpireEditRecovery;
       messagePing: TaskMessagePing;
       passwordResetEmail: TaskPasswordResetEmail;
       inline: {
@@ -415,6 +422,32 @@ export interface Message {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "edit-recovery".
+ */
+export interface EditRecovery {
+  id: number;
+  user: number | User;
+  sourceVersion: number | LessonBundleVersion;
+  lessonPlan: number | LessonPlan;
+  generation: number;
+  revision: number;
+  retiredAt?: string | null;
+  baseUpdatedAt: string;
+  schemaVersion: string;
+  content?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -482,7 +515,13 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail';
+        taskSlug:
+          | 'inline'
+          | 'generateVersionArtifact'
+          | 'emailVersionArtifact'
+          | 'expireEditRecovery'
+          | 'messagePing'
+          | 'passwordResetEmail';
         taskID: string;
         input?:
           | {
@@ -516,11 +555,27 @@ export interface PayloadJob {
       }[]
     | null;
   taskSlug?:
-    | ('inline' | 'generateVersionArtifact' | 'emailVersionArtifact' | 'messagePing' | 'passwordResetEmail')
+    | (
+        | 'inline'
+        | 'generateVersionArtifact'
+        | 'emailVersionArtifact'
+        | 'expireEditRecovery'
+        | 'messagePing'
+        | 'passwordResetEmail'
+      )
     | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -558,6 +613,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'messages';
         value: number | Message;
+      } | null)
+    | ({
+        relationTo: 'edit-recovery';
+        value: number | EditRecovery;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -852,6 +911,23 @@ export interface MessagesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "edit-recovery_select".
+ */
+export interface EditRecoverySelect<T extends boolean = true> {
+  user?: T;
+  sourceVersion?: T;
+  lessonPlan?: T;
+  generation?: T;
+  revision?: T;
+  retiredAt?: T;
+  baseUpdatedAt?: T;
+  schemaVersion?: T;
+  content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -886,6 +962,7 @@ export interface PayloadJobsSelect<T extends boolean = true> {
   queue?: T;
   waitUntil?: T;
   processing?: T;
+  meta?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -923,6 +1000,34 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats".
+ */
+export interface PayloadJobsStat {
+  id: number;
+  stats?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats_select".
+ */
+export interface PayloadJobsStatsSelect<T extends boolean = true> {
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -954,6 +1059,14 @@ export interface TaskEmailVersionArtifact {
     requestedByUserId: number;
     requestedByName: string;
   };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskExpireEditRecovery".
+ */
+export interface TaskExpireEditRecovery {
+  input?: unknown;
   output?: unknown;
 }
 /**

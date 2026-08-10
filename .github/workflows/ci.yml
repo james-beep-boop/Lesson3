@@ -20,12 +20,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege, stated explicitly rather than inherited from the repo default (which can be
+# read/write). Nothing in this job writes to the repo, comments on the PR, or publishes anything — it
+# builds images and runs tests.
+permissions:
+  contents: read
+
 jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
+        with:
+          # `persist-credentials: true` (the default) writes an `http.extraheader` holding the
+          # GITHUB_TOKEN into `.git/config`. Nothing here needs it: no step runs an authenticated git
+          # command after checkout (`test-deploy-sidecar.sh` STUBS git rather than invoking it), and the
+          # test containers must never be able to read a token out of the checkout.
+          persist-credentials: false
 
       - name: Write a synthetic CI .env
         run: |
@@ -67,7 +79,24 @@ jobs:
         run: ./scripts/test-deploy-sidecar.sh
 
       - name: test:unit
-        run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run test:unit
+        # `envTemplateParity.spec.ts` compares the ROOT `.env.example` (what a Compose operator copies)
+        # against the app's own template, so it needs a file from outside `app/`. With only `app/`
+        # mounted it fails six named assertions telling you to mount that ONE FILE at
+        # $LESSON3_REPO_ROOT/.env.example — the guard in `readTemplate` makes that failure
+        # self-explaining rather than a bare collection-time ENOENT, and it names the narrow remedy
+        # rather than the workspace mount this step used to use. `app/` stays mounted at `/app` so the image's
+        # `node_modules` volume trick keeps working unchanged.
+        #
+        # ONLY that one file is mounted, NOT the workspace. Mounting `$PWD` would put `.git` inside a
+        # container running third-party dev dependencies, and a checkout persists a GITHUB_TOKEN into
+        # `.git/config` by default — so the whole test process, and anything in node_modules, could
+        # read it. `--network none` removes the egress half of that: these tests are deliberately
+        # DB-free and Payload-free, so they need no network at all. `REPO_DIR` is used for exactly one
+        # path (`join(REPO_DIR, '.env.example')`), which is why one file is sufficient.
+        run: |
+          docker run --rm --network none -v "$PWD/app:/app" -v /app/node_modules \
+            -v "$PWD/.env.example:/repo/.env.example:ro" \
+            -e LESSON3_REPO_ROOT=/repo -w /app lesson3-deps npm run test:unit
 
       - name: lint
         run: docker run --rm -v "$PWD/app:/app" -v /app/node_modules -w /app lesson3-deps npm run lint
@@ -96,9 +125,29 @@ jobs:
             --env-file .env lesson3-deps npm run test:int
 
       - name: test:http (over the wire, hits the running app)
+        # ⚑ `-e NODE_ENV=production` is a SCHEMA-SAFETY control, not a performance setting, and it is
+        # the fix for the blind spot that made the edit-recovery migration's absence invisible.
+        #
+        # This step's fixtures seed through the LOCAL API into `lesson3` — the same database the
+        # running app serves, and the one the `migrate` service just migrated. The synthetic CI `.env`
+        # above sets no NODE_ENV, so without this line that Local Payload boots in development mode
+        # and runs Payload's dev schema PUSH, silently creating any table the migrations forgot before
+        # the tests touch it. A collection registered with no migration therefore went GREEN here
+        # while being undeployable to production, which runs migrate-mode. A green gate was not
+        # schema safety.
+        #
+        # In production mode push is off, so this step now proves the migration-only schema is
+        # sufficient for every wire path — including the version deletes that save-as-new
+        # `deleteSource` and make-official `deletePrevious` cascade through.
+        #
+        # ⚑ Do NOT "simplify" this by putting NODE_ENV in the synthetic .env. The `test:int` step
+        # above DEPENDS on dev-mode push to build `lesson3_test` from the model (its own comment
+        # explains why it is deliberately not pre-migrated), so a shared NODE_ENV would break it.
+        # The two steps want opposite things; that is why this is set per-step.
         run: |
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
-            --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
+            --env-file .env -e NODE_ENV=production -e E2E_BASE_URL=http://app:3000 \
+            lesson3-deps npm run test:http
 
       - name: test:e2e (BROWSER — role-scoped Manage UI, real Chromium)
         # Closes the L3-07 assurance gap: role-specific UI, admin customisations, retired-route

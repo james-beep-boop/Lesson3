@@ -8,6 +8,156 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-07 — large lesson plans became editable again (MERGED #204)
+
+⚑ **A pre-existing defect, unrelated to edit recovery**, found while spiking the restore path. Typing
+one character into a large plan 500'd: Payload posts the whole form state through a Next.js Server
+Action, whose default ceiling is 1 MiB, and the largest plan in the corpus produces ~1.5 MB. Saving
+was never affected. What failed was Payload's own form-state sync, so field validation and conditional
+logic silently stopped updating while the teacher typed — invisible without the console open.
+
+Verified as an A/B on the plan the original measurement used: default → `500 POST`; with the raised
+limit → no server errors. The value is derived from the document ceiling the save path already
+accepts, so a document this system will store cannot become one it refuses to edit; a unit test pins
+that relationship. Reasoning: `app/src/lib/serverActionBodyLimit.ts`.
+
+## 2026-08-07 — edit recovery, PR 2: the client half (MERGED #204; deploy pending)
+
+On `feat/edit-recovery-client-capture`. ⚑ **Carries NO migration** — PR 1's is the only one this
+feature needs — so its deploy is an ordinary app deploy. Unlike PR 1 this one IS user-visible.
+
+**What a teacher gets.** Unsaved prose is captured while they type (debounced, plus on blur and ahead
+of session expiry), with an indicator beside Save that says so — including when it has FAILED, because
+a promise you cannot verify is worth nothing. Coming back to a plan with unsaved work from an earlier
+session offers it back: shown in full, attributed to the lesson it came from, and applied only if they
+press Restore. A capture whose source has moved since, or whose field shape has changed, is offered to
+read and copy but never applied — its row ids may no longer mean what they meant.
+
+**And the screen now clears at session expiry**, which it did not before: an idle tab used to leave the
+previous teacher's document on a shared school machine with a dead session. It clears only when every
+open editor confirms its unsaved work is stored; anything unproven leaves the work legible, because
+the text on screen is then the last copy.
+
+**Status:** merged, deploy pending. Verified on the merge commit — 545 unit tests across 63 files,
+156/156 integration, 132/132 wire, 11/11 browser cases, `tsc` and ESLint clean, `audit:prod` green. Per-case acceptance status is
+`docs/DESIGN-working-drafts.md` §7 — cases 1, 2, 3 and 11 are unclaimed there, with reasons.
+
+⚑ **One finding is wider than this PR and is NOT fixed:** the editor's "view mode" does not make prose
+fields read-only, because Payload's `useField()` ignores `useForm().disabled`. Nothing here depends on
+it, but do not believe "the form is locked" elsewhere. DECISIONS 2026-08-07 (i).
+
+## 2026-08-06 — edit recovery, PR 1: the server half (MERGED)
+
+Merged from `feat/edit-recovery-server` (squash). ⚑ **Carries a migration** — a deploy must run
+`migrate`, unlike the recent docs-only batches.
+
+⚑ **UI-inert until PR 2 (client) ships — which is NOT runtime-inert.** No client sends a recovery
+token, so every save takes the no-token path and retires nothing, no capture is ever started, and
+nothing a user can reach changed on merge. But the server half is live: the six recovery endpoints are
+mounted, the expiry task is scheduled, and the version-delete and user-delete hooks now query
+`edit_recovery` on every delete. That is the optional-token contract doing its job — the server landed
+without a flag day — and it is also why the migration is mandatory rather than merely tidy.
+
+**DEPLOYED AND VERIFIED ON THE ROCK (2026-08-07).** Migration applied; `edit_recovery` present with
+its compound unique index; health unchanged; corpus intact at 85 plans; the expiry task enqueued
+itself on schedule. The check that mattered — a real version deleted through Payload with a seeded
+capture attached, confirming the cascade REMOVES rows rather than merely querying them — passed via
+`scripts/verify-edit-recovery-cascade.ts`, added for exactly this purpose.
+
+- **The `edit-recovery` collection** — closed on all four operations for every role including Site
+  Admin, compound unique on `(user, sourceVersion)`, both parent cascades plus the transitive
+  plan→version→recovery path. DB-proven.
+- **The projection** — `projectCapture` / `applyCapture`, importing the prose whitelists from
+  `hooks/fieldSplit` so the save boundary and the capture boundary cannot drift apart, plus
+  `normaliseProseValue` for code units the jsonb column cannot carry (unpaired surrogates and U+0000 —
+  either of which previously made `capture` throw instead of returning a result).
+- **The fencing kernel, all four statements** — `start` (only insert/reactivate path, a total no-op on
+  resume), `capture` (CAS UPDATE, never an insert), `retire` (one transition, four callers, three
+  precondition shapes, with a real transaction-rollback test), `expireCaptures` (select + per-row CAS),
+  and `expireEditRecoveryTask` carrying a schedule so it actually runs.
+- **`src/lib/txDb.ts`** — the drizzle primitives extracted from the feature module, failing closed when
+  a `transactionID` has no resolvable session.
+- **SPEC amendment**: retirement advances the **revision**, not the generation. The normative text said
+  "revision/generation", which would have double-advanced across a retire-then-reactivate cycle and
+  contradicted matrix case 22.
+
+- **The six operations across four URL paths**, the `recovery` rate-limit bucket, and the migration.
+  (Design §2's table lists five rows because it bundles metadata and cleanup, and `/:id/recovery`
+  carries POST, GET and DELETE; the wire-authz rule counts OPERATIONS.) The body guards live in
+  `endpoints/recoveryParse.ts` rather than inline, so they are unit testable without a database or a
+  served app — the same split, for the same reason, as `previewParse.ts`.
+- **A raw-body ceiling before `req.json()`.** Rate limiting bounds how OFTEN an authenticated editor
+  may post, not how large a single post may be, so an oversized `Content-Length` is refused before the
+  body is materialised. It is deliberately not the kernel's 512 KB storage cap — see the
+  `MAX_RECOVERY_BODY_BYTES` docblock for the sizing, and DECISIONS 2026-08-06 for why.
+- **Regression coverage for four fixes that shipped without any**, each watched failing against a
+  deliberately reverted fix before being kept: the malformed-`document` guard and the body ceiling
+  (`tests/unit/recoveryParse.spec.ts`), tombstones absent from the admin metadata view and `bytes`
+  banded against the real serialised size (`tests/int/editRecoveryMetadata.int.spec.ts`), and the
+  rollback's statement order (`tests/unit/editRecoveryMigrationOrder.spec.ts`).
+- **The admin `bytes` figure is documented as APPROXIMATE.** `octet_length(content::text)` is the
+  right quantity where `pg_column_size` was the wrong one, but jsonb renders its text in Postgres's
+  canonical form — a space after every `:` and `,` — so it is consistently a few percent above the
+  compact `JSON.stringify` the 512 KB cap measures. The docblock said "the SAME quantity"; it no
+  longer does.
+
+- **Save-as-new retirement — the fourth and last `retire` caller.** `versionEdit.ts` now retires the
+  caller's capture inside the save's own transaction, after the candidate is created and BEFORE the
+  optional source delete (whose cascade would otherwise remove the row the precondition needs). The
+  recovery token is a SEPARATE multipart field, never a key in the bundle, so admin raw-document
+  editing cannot persist recovery metadata as lesson content. It is OPTIONAL — no token means the
+  pre-existing save behaviour and no retirement, which is what lets the server land before the client
+  — while a half-token is a 400 rather than a silent no-op. A retirement conflict is a 409 that is
+  **never retried**, unlike a semver conflict: the token is fixed at request time, so a retry re-runs
+  an identical, identically-failing precondition. (It would not destroy the newer capture — the CAS
+  keeps refusing it. Retrying is pointless work, not a data-loss path.)
+
+- **`audit:prod` unblocked without a dependency change.** The gate went red on a branch that does not
+  touch the lockfile: GHSA-5p4m-2wfm-xmqj was newly published against `js-yaml` 4.0.0-4.3.0 and the
+  `overrides` block pinned exactly 4.3.0. Bumped to the patched 4.3.1 — one line, three in the
+  lockfile. The 5 remaining moderates (`esbuild` via `drizzle-kit`, no upstream fix, a dev-server
+  issue in a tool the served app never runs) are why the gate is `--audit-level=high`. ⚑ Never
+  `npm audit fix --force` here: it proposes downgrading Payload to 2.x.
+
+⚑ **Per-case acceptance status lives in `docs/DESIGN-working-drafts.md` §7 and nowhere else** — a
+suite total is not a case list. This entry deliberately quotes no case numbers: the first draft of it
+declared that rule and then enumerated the cases in the next sentence, which is precisely the second
+copy the rule exists to prevent.
+
+## 2026-08-05 — env templates reconciled behind a test; edit recovery approved for build
+
+Merged to `main` from `chore/env-template-parity` (squash). No deploy required — see below.
+
+- **Both `.env.example` templates reconciled, and the sync made mechanical.** The root template — the
+  file a Compose operator copies — declared **5 of the 58** variables the app reads. The consequential
+  omission was `ARTIFACT_CACHE_DIR`: unset, the cache falls back to a path the non-root container cannot
+  write, and every export job fails with `EACCES` while the client polls a `202` forever, so a fresh
+  correctly-followed install was broken on arrival. `app/.env.example` was a verbatim copy of the Compose
+  file, pointing host-local dev at `postgres:5432` and carrying Compose-only `POSTGRES_PASSWORD`. Both
+  now exist for their own consumer, pinned by `tests/unit/envTemplateParity.spec.ts` (7 assertions,
+  AST-based). This reverses the Codex #5 deferral of 2026-07-06 — the deferral is what produced the
+  broken install.
+- **A CI blocker fixed that this branch introduced and a cleanup review caught.** `test:unit` runs in a
+  container mounting only `app/`, where the root template is invisible; the spec would have failed every
+  CI run. CI now bind-mounts the root `.env.example` alone at `LESSON3_REPO_ROOT`, with `--network none`
+  — an interim fix mounted the entire workspace, exposing `.git` and its persisted checkout token to the
+  test container, and was replaced before merge.
+- **`IdleLogout`'s docstring claimed a redirect that never happens.** `logOut()` performs no navigation
+  (verified in installed `@payloadcms/ui` 3.85.1); the destroying path is Payload's own
+  `forceLogOutTimeout`. That one false clause had already sent a reviewer to the wrong mechanism.
+- **Edit recovery (formerly "working drafts") reconciled and APPROVED for implementation** — no code yet.
+  Normative rules in `SPEC.md` §5/§13, implementation design and a 30-case acceptance matrix in
+  `docs/DESIGN-working-drafts.md`, reasoning in `DECISIONS.md`. Five provisions of the July draft did not
+  survive review against the code (top-level content keys, hard deletion, last-write-wins, a staleness
+  check that cannot fire, and an unqualified durability promise). `draft` is now a **reserved word**
+  (SPEC §13) — it already means an unofficial *saved version*, so the feature is "edit recovery".
+  `AGENTS.md`'s native-nested-fields rule is narrowed to the content of record, admitting one documented
+  JSON exception.
+
+No product behaviour changed: documentation, two config templates, one new unit test, one CI mount, one
+corrected docstring. Unit **394/394**; tsc clean; eslint 0 errors; prettier clean on all changed TS;
+`git diff --check` clean.
+
 ## 2026-08-03 — two manifest/test inconsistencies from the Node bump
 
 - **The `as never` cast was fixed on the reviewed line and left on its twin.** The previous pass

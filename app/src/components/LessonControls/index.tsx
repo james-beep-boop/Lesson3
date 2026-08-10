@@ -46,6 +46,13 @@ import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
+import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
+import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
+import { applyCapture } from '../../lib/editRecovery/projection'
+import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
+import { useEditRecovery } from '../EditRecovery/useEditRecovery'
+// The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
+import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
 import EditJumpNav from './EditJumpNav'
 
@@ -125,7 +132,8 @@ export default function LessonControls() {
   useEffect(() => {
     if (!pdfMenuOpen) return
     const onPointer = (e: MouseEvent) => {
-      if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node)) setPdfMenuOpen(false)
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node))
+        setPdfMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setPdfMenuOpen(false)
@@ -151,7 +159,10 @@ export default function LessonControls() {
   // swapped in Save/Cancel while every field stayed locked — measured on the Rock 2026-07-28, 23 of
   // 23 sampled fields still disabled after pressing Edit, with Save reading "No changes to save".
   // Not a security hole (field-level access held) but a dead end, which is worse UI than no button.
-  const canEdit = isEditorFor(user as User | null, toId((savedDocumentData?.subjectGrade ?? null) as never))
+  const canEdit = isEditorFor(
+    user as User | null,
+    toId((savedDocumentData?.subjectGrade ?? null) as never),
+  )
   const canEditStructure = isSubjectAdminFor(
     user as User | null,
     toId((savedDocumentData?.subjectGrade ?? null) as never),
@@ -162,11 +173,89 @@ export default function LessonControls() {
   // `canEdit` — can resolve after first render; a one-shot initialiser would latch the wrong answer.
   const editing = editIntent && canEdit
 
-  // Keep the form's locked state in sync with our edit/view mode — the single source of truth for
-  // whether fields are editable (starts from the `?edit=1` intent; the Edit/Cancel buttons flip it).
+  // The live form values, read at call time. Declared here because edit recovery (below) is the
+  // first consumer; the save path uses the same function so both send an identical snapshot.
+  const currentContent = () => reduceFieldsToValues(fields, true)
+
+  // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
+  const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
+  const recovery = useEditRecovery({
+    versionId: id ?? '',
+    // ⚑ `editing`, NOT `editIntent`. It is the ACTUAL unlock: at ≤640px Edit opens the
+    // narrow-screen dialog without unlocking, and `?edit=1` is neutralised on load. Starting a
+    // session on intent would mint rows for people who cannot type into them and spend their
+    // per-user active-capture cap doing it.
+    active: Boolean(id) && editing,
+    modified,
+    // ⚑ `fields` is Payload's form state and its identity changes on EVERY edit, which is what makes
+    // the capture debounce restart per keystroke. `modified` cannot do that job — it is a boolean
+    // that flips once and then never changes again.
+    changeSignal: fields,
+    getDocument: currentContent,
+    registerFlush: registerRecoveryFlush,
+  })
+
+  // Held while we do not yet know what is waiting, and while the user is deciding about it.
+  const recoveryGate = recovery.entry.phase === 'resolving' || recovery.entry.phase === 'offer'
+
+  // Keep the form's submit state in sync with our edit/view mode (starts from the `?edit=1` intent;
+  // the Edit/Cancel buttons flip it), extended over the recovery entry so a save cannot land while an
+  // offer is undecided.
+  //
+  // ⚑ **`setDisabled` does NOT make fields read-only.** Payload 3.85.1's `useField()` derives its
+  // `disabled` from `processing || initializing` alone — verified in installed source — and never
+  // consumes `useForm().disabled`. So this gates SUBMISSION, and calling it "locking the form" (as an
+  // earlier version of this comment did) describes something the framework does not do.
+  //
+  // What actually protects an unread capture is therefore NOT this line, and must not be assumed to
+  // be: the restore prompt covers the page (asserted in `tests/e2e/editRecoveryRestore.e2e.spec.ts`),
+  // and `useEditRecovery` refuses to capture at all while an offer is unresolved — so even a teacher
+  // who does type cannot overwrite the work they have not been shown yet.
   useEffect(() => {
-    setDisabled(!editing)
-  }, [editing, setDisabled])
+    setDisabled(!editing || recoveryGate)
+  }, [editing, recoveryGate, setDisabled])
+  const [restoring, setRestoring] = useState(false)
+
+  /**
+   * Apply the offered capture to the live form.
+   *
+   * ⚑ `reset(doc)` then `setModified(true)` — browser-verified 2026-08-07, see
+   * `docs/DESIGN-working-drafts.md` §5. `reset` hands the whole document to Payload's `getFormState`,
+   * which rebuilds every field path server-side; there is deliberately NO client-side key→path
+   * mapper, which would make this a second owner of the bundle's structure. `reset` ends with
+   * `setModified(false)` internally, hence the explicit re-dirty afterwards: restored work is
+   * unsaved work, and a clean form would let the user navigate away and lose it.
+   */
+  const onRestore = async () => {
+    if (recovery.entry.phase !== 'offer' || restoring) return
+    // ⚑ Re-checked here, not left to the button's absence. "A stale capture is never applied" is a
+    // data-integrity invariant — its row ids may no longer mean what they meant, so applying it can
+    // land one lesson's prose on another — and an invariant enforced only by which control renders is
+    // one refactor away from being enforced by nothing.
+    if (recovery.entry.readOnly) {
+      recovery.keepOffer()
+      return
+    }
+    setRestoring(true)
+    try {
+      const { doc } = applyCapture(currentContent() as never, recovery.entry.capture.content)
+      await reset(doc as never)
+      setModified(true)
+      recovery.keepOffer()
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Could not restore those changes')
+      recovery.keepOffer()
+    } finally {
+      setRestoring(false)
+    }
+  }
+
+  // Starting is separate from `active` so the hook never fires a request from its own render path;
+  // the effect is the one place that says "this session has begun".
+  const { start: startRecovery } = recovery
+  useEffect(() => {
+    if (Boolean(id) && editing) startRecovery()
+  }, [id, editing, startRecovery])
 
   useEffect(() => {
     const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
@@ -197,7 +286,8 @@ export default function LessonControls() {
   const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
   // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
   // untouched (it is generator input).
-  const title = typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
+  const title =
+    typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
 
   // Whether the CALLER may delete THIS version — the per-doc form of the server's deletion scope
   // (`canDeleteVersionDoc` == `deletableVersionsWhere`, single source), gated on it being a candidate
@@ -233,8 +323,6 @@ export default function LessonControls() {
     setMsg(null)
   }
 
-  const currentContent = () => reduceFieldsToValues(fields, true)
-
   const onSave = async () => {
     if (saving) return
     // Decide up front whether to also delete the version being edited — offered only for a deletable
@@ -246,14 +334,42 @@ export default function LessonControls() {
     setSaving(true)
     setMsg(null)
     try {
+      // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
+      // (design §5). The two failure kinds are not alike: a transport failure still saves — the
+      // version save is what matters and the capture is only insurance — while a 409 must stop,
+      // because some precondition on the capture failed and saving on could retire work this
+      // client cannot see. The server does not say WHICH precondition (that would leak whether
+      // another session exists), so neither does this.
+      const plan = await recovery.prepareForSave()
+      if (!plan.proceed) {
+        // ⚑ Deliberately NEUTRAL about the cause. The server returns one undifferentiated 409 for
+        // several states — a newer capture, a superseded session, a retired row — because saying
+        // which would leak whether another session exists. Naming "another tab" here would invent a
+        // certainty the response does not carry. PR 2b's GET reconciliation is what earns specifics.
+        setMsg(
+          'Your unsaved work is out of date. Reload before saving, so newer changes are not lost.',
+        )
+        setSaving(false)
+        return
+      }
+
       const body = new FormData()
       body.set('data', JSON.stringify(currentContent()))
+      // Separate multipart fields, never keys in the document: a Site Admin editing the raw document
+      // must not be able to persist recovery metadata as lesson content. Absent when the flush was
+      // indeterminate, which takes the server's no-token path deliberately.
+      if (plan.token) {
+        body.set('recoveryGeneration', String(plan.token.generation))
+        body.set('recoveryExpectedRevision', String(plan.token.revision))
+      }
       const res = await fetch(
         `/api/lesson-bundle-versions/${id}/save-as-new${deleteSource ? '?deleteSource=true' : ''}`,
         { method: 'POST', body, credentials: 'same-origin' },
       )
       if (!res.ok) throw new Error(await errorMessage(res, 'Save'))
-      const out = (await res.json()) as { adminUrl: string }
+      const out = (await res.json()) as { adminUrl: string; recoveryToken?: RecoveryToken }
+      // Retirement advances the token one last time; adopt it rather than keeping the pair we sent.
+      recovery.adoptToken(out.recoveryToken)
       // Navigate CLIENT-SIDE (router.push), not a full-page load. Payload's LeaveWithoutSaving guard
       // only fires its "Leave site?" browser dialog on a real page unload (`beforeunload`) — a client
       // transition triggers neither that nor its anchor-click interceptor, so no prompt, whatever the
@@ -276,7 +392,9 @@ export default function LessonControls() {
   // leave the (now-gone) admin doc and return to the lesson, which still shows its Official version.
   const onDelete = async () => {
     if (saving) return
-    if (!window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)) {
+    if (
+      !window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)
+    ) {
       return
     }
     setSaving(true)
@@ -449,6 +567,14 @@ export default function LessonControls() {
               <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
                 Cancel
               </Button>
+              {/* ⚑ Rendered beside Save, where someone deciding whether their work is safe is
+                  already looking. Admins additionally see that structural and answer-key edits are
+                  not covered — v1 captures prose only (design §3), and an administrator who assumed
+                  otherwise would be the one person the feature actively misleads. */}
+              <EditRecoveryIndicator
+                status={recovery.status}
+                structuralEditsUncovered={canEditStructure}
+              />
             </>
           )}
           <Button
@@ -524,6 +650,23 @@ export default function LessonControls() {
       {/* In-form jump nav (2026-07-13): floats with the toolbar (the enclosing .doc-controls is
           already sticky), the edit-page counterpart to the lesson page's .doc-nav. */}
       <EditJumpNav />
+      {/* The restore offer. Rendered only in the `offer` phase, which is also the phase that keeps
+          the form locked — so the panel is never behind a form the user can already type into. */}
+      {recovery.entry.phase === 'offer' && (
+        <EditRecoveryRestorePrompt
+          capture={recovery.entry.capture}
+          // Sampled by the hook when the offer opened — resolved against the LIVE form, so a heading
+          // says "Lesson 2" only when it really is the teacher's Lesson 2 (the capture's own keys are
+          // row UUIDs in JSONB order and cannot). Read rather than recomputed: deriving it here meant
+          // rebuilding the whole document on every render for as long as the prompt was open.
+          anchors={recovery.entry.anchors}
+          readOnly={recovery.entry.readOnly}
+          busy={restoring}
+          onRestore={onRestore}
+          onKeep={recovery.keepOffer}
+          onDiscard={recovery.discardOffer}
+        />
+      )}
       {/* Pressing Edit below the width threshold explains itself here instead of unlocking the form.
           Reuses the Editing-help modal's admin styling (Payload's admin root does not load the
           frontend `.modal` rules, so `lesson-edit-help` IS the admin modal skin, not a variant). */}
