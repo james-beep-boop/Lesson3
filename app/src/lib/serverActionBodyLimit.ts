@@ -25,32 +25,35 @@
  * ## Why 12 MiB and not 4 MB
  *
  * Both were defensible. 4 MB covers today's corpus with ~2.6× headroom over the largest body seen.
- * It was rejected because it makes the app INCOHERENT: {@link MAX_EDITABLE_DOCUMENT_BYTES} is the
- * ceiling the save and preview paths already accept, so a 4 MB Server Action limit would mean
- * documents this system will happily STORE cannot be EDITED — and the failure would be the same
- * silent one, hitting exactly the largest and most valuable plans.
+ * It was rejected because it makes the app INCOHERENT: 4,000,000 B is the ceiling the preview and
+ * capture paths already accept (`MAX_PREVIEW_JSON_BYTES`, `MAX_RECOVERY_BODY_BYTES`), so a 4 MB
+ * Server Action limit would mean documents this system will happily STORE cannot be EDITED — and the
+ * failure would be the same silent one, hitting exactly the largest and most valuable plans.
  *
- * The requirement is therefore derived from the document ceiling, not from today's corpus:
+ * The requirement is therefore derived from those ceilings, not from today's corpus:
  * 4,000,000 B × 2.57 ≈ **10,280,000 B of form state**. That is a MEASURED REQUIREMENT. 12 MiB
  * (12,582,912 B) is a headroom POLICY on top of it — about 22% — chosen so the limit is not itself
  * the next thing to tune.
+ *
+ * ⚑ **The endpoint ceilings are NOT imported here, and NOT restated here either.**
+ * `tests/unit/serverActionBodyLimit.spec.ts` imports them and asserts this limit clears the largest
+ * of them — so the relationship is checked without this module depending on them.
+ *
+ * Importing them would drag Payload into Next's config pipeline: both `endpoints/previewParse.ts` and
+ * `endpoints/recoveryParse.ts` value-import `payload` for `APIError`. ⚑ An earlier version of this
+ * comment justified a *copy* of the number by claiming `next.config.ts` cannot import from `src/` at
+ * all — which `next.config.ts` disproves on its own line 6, where it imports this file. The
+ * constraint is on those two modules, not on the config.
+ *
+ * ⚑ And a copy would have been wrong regardless: `recoveryParse.ts` states that its ceiling and
+ * preview's are deliberately separate and free to diverge — "the duplication is the point". A third
+ * copy here, pinned equal by a test, would have quietly revoked that.
  *
  * ⚑ **It raises the ceiling for EVERY Server Action in the app**, which is why it is a deliberate
  * production-posture decision rather than a copied constant. The exposure is bounded by what already
  * bounds those routes: Server Actions are POST-only to the authenticated admin surface, and the app's
  * own upload/preview/recovery endpoints keep their own, much smaller, independent ceilings.
  */
-
-/**
- * The largest document the app already accepts on the paths that STORE one — `MAX_PREVIEW_JSON_BYTES`
- * and `MAX_RECOVERY_BODY_BYTES` are both this value, independently chosen.
- *
- * ⚑ Restated rather than imported, deliberately: `next.config.ts` is loaded by Next's own config
- * pipeline before the app's module graph exists, and pulling an endpoint module into it would drag
- * Payload's access layer along with it. The DRIFT that restating risks is what
- * `tests/unit/serverActionBodyLimit.spec.ts` exists to catch — it imports both and asserts they agree.
- */
-export const MAX_EDITABLE_DOCUMENT_BYTES = 4_000_000
 
 /**
  * How much Server Action body one byte of document costs, measured (1,587,513 / 618,518 = 2.5666…).
@@ -63,14 +66,20 @@ export const MAX_EDITABLE_DOCUMENT_BYTES = 4_000_000
  */
 export const FORM_STATE_MULTIPLIER = 2.57
 
-/** The measured requirement: what the largest acceptable document implies. ~10.28 MB. */
-export const REQUIRED_BODY_BYTES = MAX_EDITABLE_DOCUMENT_BYTES * FORM_STATE_MULTIPLIER
+/**
+ * The ceiling, as ONE number in MiB — every other form is derived from it.
+ *
+ * ⚑ Written once. As two literals ('12mb' and `12 * 1024 * 1024`) they could drift, and the guard
+ * against that was a test re-implementing Next's unit parser to check one against the other. Deriving
+ * both makes drift impossible and deletes the parser.
+ */
+const LIMIT_MIB = 12
 
 /**
  * The configured ceiling, in the form Next parses with `bytes` — so `mb` here is MiB (1024²),
  * matching Next's own default of `bytes('1mb')`.
  */
-export const SERVER_ACTION_BODY_LIMIT = '12mb'
+export const SERVER_ACTION_BODY_LIMIT = `${LIMIT_MIB}mb`
 
-/** The same value in bytes, for the test that checks it clears {@link REQUIRED_BODY_BYTES}. */
-export const SERVER_ACTION_BODY_LIMIT_BYTES = 12 * 1024 * 1024
+/** The same value in bytes, for the test that checks what it clears. */
+export const SERVER_ACTION_BODY_LIMIT_BYTES = LIMIT_MIB * 1024 * 1024
