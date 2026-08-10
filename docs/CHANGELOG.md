@@ -8,6 +8,31 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-09 — edit recovery, cleanup round 2 (MERGED #207; DEPLOYED)
+
+Two real defects in code that was already live, found in a four-angle review pass. **The capture
+request's deadline stopped at the response headers** — `fetch` resolves as soon as headers arrive, so a
+stalled response body was unbounded, holding the single-flight guard forever and blocking the user's
+save. **Two of the four recovery requests (`start`, `discard`) had no deadline at all** — `start` is the
+worse one: if it never settles the debounce never schedules a capture, so the session silently takes no
+backups while the indicator sits on "starting".
+
+Also fixed: blur and visibilitychange were re-sending content the server already had on every alt-tab
+(only the pre-expiry flush had the `isSafe()` short-circuit), and the restore prompt was rebuilding the
+whole ~600 KB document on every render while open, including the renders the restore itself causes.
+
+Deployed the same day, alongside #196 (an unrelated stale chore, rebased in) and #206 (documentation).
+No migration. Verified: app healthy, and the read-only edit-recovery cascade probe green on the
+redeployed image.
+
+## 2026-08-08 — edit recovery deployed to production
+
+PR 1 (server, #198) and PR 2 (client, #204) went live together, along with #205 (Payload 3.87.1 +
+scoped nanoid pins, clearing three HIGH advisories). Verified: pre-migration snapshot taken, migration
+ran clean, app healthy, `edit_recovery` table and cascade queries confirmed against real rows, and an
+operator typed into the largest plan in the corpus (13 lessons, the one that used to 500 on a single
+keystroke) and saw the indicator confirm the backup instead of a server error.
+
 ## 2026-08-07 — large lesson plans became editable again (MERGED #204)
 
 ⚑ **A pre-existing defect, unrelated to edit recovery**, found while spiking the restore path. Typing
@@ -21,7 +46,7 @@ limit → no server errors. The value is derived from the document ceiling the s
 accepts, so a document this system will store cannot become one it refuses to edit; a unit test pins
 that relationship. Reasoning: `app/src/lib/serverActionBodyLimit.ts`.
 
-## 2026-08-07 — edit recovery, PR 2: the client half (MERGED #204; deploy pending)
+## 2026-08-07 — edit recovery, PR 2: the client half (MERGED #204; deployed 2026-08-08)
 
 On `feat/edit-recovery-client-capture`. ⚑ **Carries NO migration** — PR 1's is the only one this
 feature needs — so its deploy is an ordinary app deploy. Unlike PR 1 this one IS user-visible.

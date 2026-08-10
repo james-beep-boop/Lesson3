@@ -16,7 +16,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-08) — edit recovery is COMPLETE, DEPLOYED and verified in production
+# ⚑ HANDOFF (2026-08-09) — edit recovery arc is CLOSED: all PRs merged, both deploys verified
 
 **Read this section, then `docs/DESIGN-working-drafts.md` §5 and §7. This file's current material ends
 at "How to run the tests"; everything below the `Landed 2026-08-05` heading is older history, kept for
@@ -24,11 +24,12 @@ provenance.**
 
 ## Where the work is
 
-**Both halves are merged AND deployed.** PR 1 (server, #198) and PR 2 (client, #204) are on `main` and
-running on the Rock. #205 (Payload 3.87.1 + nanoid pins) merged ahead of PR 2 to clear three HIGH
-advisories; `audit:prod` is green.
+**Everything is merged AND deployed. No PRs open.** PR 1 (server, #198), PR 2 (client, #204), #205
+(Payload 3.87.1 + nanoid pins), #206 (this documentation), #207 (cleanup round 2) and #196 (an
+unrelated stale chore, rebased and merged in the same pass) are all on `main` and running on the Rock.
+`audit:prod` is green.
 
-**Verified in production on 2026-08-08**, in this order:
+**Verified in production on 2026-08-08** (deploy at `4f73046` — PR 1 + PR 2 + #205), in this order:
 - pre-migration snapshot taken for the deployed SHA (`…premigrate-4f73046.dump.age`)
 - migrations ran (`Done.`); ⚑ PR 2 carries **no** migration — PR 1's is the only one this feature needs
 - app healthy: `/` → 307, `/login` → 200 (⚑ on **port 3001**, not 80 — the app publishes `3001:3000`)
@@ -39,19 +40,17 @@ advisories; `audit:prod` is green.
   one that used to 500 on a single keystroke) and saw no error, the Save button arm, and
   "Unsaved changes backed up · 10s ago". Cancel-and-return then offered the work back.
 
-## ⚑ THREE PRs are open — read this before starting anything
+**Verified in production on 2026-08-09** (deploy at `dd9aa4b` — #207 + #206 + #196; no migration):
+- pre-migration snapshot taken (`…premigrate-dd9aa4b.dump.age`); `migrate` found nothing pending
+- app healthy: `/` → 307, `/login` → 200
+- the read-only cascade probe passed again on the redeployed image: table, compound unique index, and
+  both cascade query shapes all green
 
-| PR | Branch | State | What it is |
-|---|---|---|---|
-| **#207** | `fix/edit-recovery-cleanup-round-2` | open | **Two real defects in DEPLOYED code.** Not urgent — both need a stalled connection or a long alt-tab session to bite — but they are the most valuable thing outstanding. |
-| **#206** | `docs/post-merge-edit-recovery` | open | This documentation. Merge whenever. |
-| **#196** | `chore/pr195-review-followups` | **STALE** | Opened 2026-08-05, untouched since, now 9 commits behind `main`. Predates this whole arc. **Decide: rebase and merge, or close it.** Nobody has looked at it in three days. |
-
-**What #207 fixes, so it is not re-derived:** the request deadline added to the capture path cleared on
-the fetch, which resolves on HEADERS — so `await res.json()` was unbounded and a stalled response body
-still held `inFlight` forever and blocked the user's save. Two of the four recovery requests (`start`,
-`discard`) had no deadline at all. Also: blur/visibilitychange re-sent content the server already had
-on every alt-tab, and the restore prompt rebuilt the whole ~600 KB document on every render while open.
+**What #207 fixed, now live:** the request deadline added to the capture path cleared on the fetch,
+which resolves on HEADERS — so `await res.json()` was unbounded and a stalled response body still held
+`inFlight` forever and blocked the user's save. Two of the four recovery requests (`start`, `discard`)
+had no deadline at all. Also: blur/visibilitychange re-sent content the server already had on every
+alt-tab, and the restore prompt rebuilt the whole ~600 KB document on every render while open.
 
 ## What shipped, and what is proven about it
 
@@ -215,22 +214,14 @@ assertions red, all reverted. A guard never observed failing is a guess.
 ⚑ Check this against `git log`, not against memory. A previous version of this list still described
 three items as unbuilt two commits after they landed.
 
-✅ PR 1 merged + deployed. ✅ PR 2 merged (all suites green on the merge commit). ✅ #205 merged.
-✅ The Server Action body limit fixed. ✅ The DB-backed suites run on the client branch.
+✅ PR 1 merged + deployed. ✅ PR 2 merged + deployed. ✅ #205 merged. ✅ #207 merged + deployed.
+✅ #196 merged. ✅ The Server Action body limit fixed. ✅ The DB-backed suites run on the client branch.
+✅ `main` is deployed at `dd9aa4b` and verified — see the HANDOFF block above.
 
-1. **DEPLOY `main`.** No migration — an ordinary `scripts/deploy.sh`. Unlike PR 1's deploy this one IS
-   user-visible: the indicator appears beside Save, and a returning editor may be offered work back.
-
-   Verify afterwards, in this order:
-   - the app is healthy (`/` → 307 `/login`, `/login` → 200)
-   - an ordinary version deletion still works (the delete-time cascades query `edit_recovery`)
-   - open a large plan, type one character, and confirm no 500 — that is the body-limit fix, and it
-     is the one thing on this deploy that a teacher would notice immediately if it regressed
-
-2. **Watch the first real captures.** The per-user active-capture cap is 20 and the expiry pass runs
+1. **Watch the first real captures.** The per-user active-capture cap is 20 and the expiry pass runs
    on a schedule; `/:id/recovery/meta` is the Site-Admin view of existence and shape, never content.
 
-3. Then pick from "Cleanups this branch DECLINED" and "Two known defects OUTSIDE this branch" below,
+2. Then pick from "Cleanups this branch DECLINED" and "Two known defects OUTSIDE this branch" below,
    both decided rather than forgotten. The unlocked-form finding above is the biggest of them.
 
 ## The migration gate — all four steps, in order
