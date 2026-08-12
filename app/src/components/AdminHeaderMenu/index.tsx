@@ -19,7 +19,7 @@ export default function AdminHeaderMenu({ user }: { user?: User | null }) {
           regardless; this hides the tab for everyone else (everywhere), plus all doc tabs on the
           lesson-version edit view (where the Edit tab is already hidden for all roles — so a non-Site
           Admin would otherwise see an empty tab bar). `hideAPIURL` would hide it for ALL roles, so a CSS
-          rule is used instead — couples to Payload's `.doc-tab` markup (verified payload@3.85.1).
+          rule is used instead — couples to Payload's `.doc-tab` markup (verified payload@3.87.1).
           The second rule is scoped via `body:has()`, not a plain descendant selector: `.doc-tabs` is
           rendered by Payload's `DocumentHeader`, a preceding SIBLING of the `.collection-edit--…`
           wrapper (see the identical trap documented in custom.scss for the Edit tab), so
