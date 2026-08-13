@@ -355,7 +355,32 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
 
 1. **TLS + reverse proxy (host decision executes here).** Terminate TLS in front (Caddy is the
    low-config option; nginx/Cloudflare fine too). The proxy must forward `Host` and
-   `X-Forwarded-Proto: https`.
+   `X-Forwarded-Proto: https`. On a public host, bind port 3001 to loopback or block it at the host/
+   cloud firewall so clients cannot bypass the proxy. (The base Compose file intentionally keeps
+   3001 reachable for the supported private Tailscale/offline deployment.)
+   **A hard request-body ceiling is mandatory at this layer**: application `Content-Length` checks
+   are bypassable by an omitted/false header or chunked transfer. The largest legitimate endpoint is
+   the Site-Admin batch upload (`262,406,144` bytes including framing), so set a global ceiling just
+   above it (for example nginx `client_max_body_size 252m;`). Keep the endpoint's smaller application
+   checks as defense in depth. Caddy's `request_body { max_size ... }` is acceptable only on Caddy
+   v2.10+ (where that directive is currently experimental); validate the installed version before
+   using it. Verify both a declared-length and chunked request over the public URL receive `413`
+   before reaching application logs.
+
+   Minimal nginx shape (add the host's certificate/listen configuration separately):
+
+   ```nginx
+   server {
+       client_max_body_size 252m;
+
+       location / {
+           proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-Proto https;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_pass http://127.0.0.1:3001;
+       }
+   }
+   ```
 2. **Edge rate limiting** at that proxy — connection/request throttles in front of the app-level
    Postgres limiter (which stays; it's the inner wall). Start conservative (e.g. Caddy
    `rate_limit`/nginx `limit_req` ~10 r/s per IP with burst, tighter on `/api/users/login` and

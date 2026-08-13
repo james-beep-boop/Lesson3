@@ -19,6 +19,7 @@ import * as migration_20260719_185124_ares_resource_links_cutover from './202607
 import * as migration_20260719_210359_resource_links_child_rows from './20260719_210359_resource_links_child_rows'
 import * as migration_20260721_025518_add_password_reset_email_task from './20260721_025518_add_password_reset_email_task'
 import * as migration_20260806_185943_add_edit_recovery from './20260806_185943_add_edit_recovery'
+import * as migration_20260812_180000_dedupe_pending_export_jobs from './20260812_180000_dedupe_pending_export_jobs'
 
 export const migrations = [
   {
@@ -125,5 +126,10 @@ export const migrations = [
     up: migration_20260806_185943_add_edit_recovery.up,
     down: migration_20260806_185943_add_edit_recovery.down,
     name: '20260806_185943_add_edit_recovery',
+  },
+  {
+    up: migration_20260812_180000_dedupe_pending_export_jobs.up,
+    down: migration_20260812_180000_dedupe_pending_export_jobs.down,
+    name: '20260812_180000_dedupe_pending_export_jobs',
   },
 ]

@@ -6,7 +6,11 @@
  */
 import { describe, it, expect } from 'vitest'
 
-import { firstUserBootRefusal, isHttpsServerUrl } from '../../src/lib/publicPosture'
+import {
+  firstUserBootRefusal,
+  isHttpsServerUrl,
+  isUndefinedTableError,
+} from '../../src/lib/publicPosture'
 
 describe('isHttpsServerUrl (drives auth cookie Secure)', () => {
   it('true only for https URLs', () => {
@@ -39,6 +43,15 @@ describe('firstUserBootRefusal (onInit boot guard)', () => {
 
   it('boots: explicit ALLOW_FIRST_USER_BOOTSTRAP escape hatch', () => {
     expect(firstUserBootRefusal({ ...base, allowBootstrap: true })).toBeNull()
+  })
+})
+
+describe('isUndefinedTableError (onInit failure filter)', () => {
+  it('accepts only PostgreSQL undefined_table, including a wrapped driver error', () => {
+    expect(isUndefinedTableError({ code: '42P01' })).toBe(true)
+    expect(isUndefinedTableError({ cause: { code: '42P01' } })).toBe(true)
+    expect(isUndefinedTableError({ code: '08006' })).toBe(false)
+    expect(isUndefinedTableError(new Error('connection refused'))).toBe(false)
   })
 })
 

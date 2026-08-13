@@ -18,8 +18,8 @@ import { enqueueDetached } from '../lib/enqueue'
 import { isExportReady, versionScope } from '../generator/exportArtifacts'
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
-  findPendingExportJobs,
-  jobMatchesSpec,
+  findPendingExportJob,
+  isPendingExportJobConflict,
   type GenerateVersionArtifactInput,
 } from './generateVersionArtifact'
 import { captureException } from '../lib/errorTracking'
@@ -35,10 +35,14 @@ const KINDS = ['docx', 'pdf'] as const
  */
 export async function prewarmVersionArtifacts(req: IngestReq, versionId: number): Promise<void> {
   try {
-    // The fs readiness checks and the single pending-jobs read are independent — overlap them.
+    // The fs readiness checks and exact pending-job reads are independent — overlap them.
     const [ready, pending] = await Promise.all([
       Promise.all(KINDS.map((kind) => isExportReady({ scope: versionScope(versionId), kind }))),
-      findPendingExportJobs(req.payload),
+      Promise.all(
+        KINDS.map((kind) =>
+          findPendingExportJob(req.payload, { versionId, kind }),
+        ),
+      ),
     ])
     // ORPHAN CASE (the primary write rolls back after we enqueue) is tolerable here: a missing
     // pre-warm just means the teacher takes the normal cold 202/poll path. The artifact job
@@ -51,11 +55,17 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
     // overlap — two per version, and this runs once per file across a 42-file ingest.
     const wanted = KINDS.map((kind) => ({ kind, input: { versionId, kind } as GenerateVersionArtifactInput }))
       .filter(({ kind }) => !ready[KINDS.indexOf(kind)])
-      .filter(({ input }) => !pending.some((j) => jobMatchesSpec(j, input)))
+      .filter(({ kind }) => !pending[KINDS.indexOf(kind)])
     await Promise.all(
-      wanted.map(({ input }) =>
-        enqueueDetached(req.payload, { task: GENERATE_VERSION_ARTIFACT_SLUG, input }),
-      ),
+      wanted.map(async ({ input }) => {
+        try {
+          await enqueueDetached(req.payload, { task: GENERATE_VERSION_ARTIFACT_SLUG, input })
+        } catch (error) {
+          // Another promotion/request won the exact same pending-job insert. The database invariant
+          // has already achieved the desired state, so this is a successful coalesce, not an alert.
+          if (!isPendingExportJobConflict(error)) throw error
+        }
+      }),
     )
   } catch (err) {
     req.payload.logger.error({ err, versionId }, 'prewarmVersionArtifacts enqueue failed')

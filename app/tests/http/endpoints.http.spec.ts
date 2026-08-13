@@ -49,7 +49,13 @@ type HttpLesson = Record<string, unknown> & {
   title?: string
   resourceLinks: HttpResourceLinkRow[]
 }
-type HttpVersion = Record<string, unknown> & { lessons?: HttpLesson[] }
+type HttpVersion = Record<string, unknown> & {
+  lessons?: HttpLesson[]
+  finalExplanation?: { sections?: unknown; rubric?: unknown }
+  summaryTable?: { lessons?: unknown }
+  meta?: Record<string, unknown>
+  sourceVersion?: string | number
+}
 
 let fx: RoleFixture
 const token: Record<string, string> = {}
@@ -242,13 +248,13 @@ describe('Preview endpoint (SPEC §5)', () => {
 
   it('Teacher POST unsaved-preview → 404 (EDIT-gated, not just read)', async () => {
     const form = new FormData()
-    form.set('data', JSON.stringify({ lessons: (fx.version as any).lessons ?? [] }))
+    form.set('data', JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }))
     const res = await fetch(url(previewUrl()), { method: 'POST', headers: auth('teacher'), body: form })
     expect(res.status).toBe(404)
   })
 
   it('Editor POST unsaved-preview with a prose overlay → 200 (shows the edit)', async () => {
-    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+    const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}PREVIEW-OVERLAY` } : l,
     )
     const form = new FormData()
@@ -261,7 +267,7 @@ describe('Preview endpoint (SPEC §5)', () => {
   })
 
   it('Editor POST unsaved-preview with a STRUCTURAL change → 422', async () => {
-    const lessons = [...((fx.version as any).lessons ?? [])]
+    const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const form = new FormData()
     form.set('data', JSON.stringify({ lessons }))
@@ -296,25 +302,28 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
 
   it('Teacher POST → 404 (EDIT-gated, not just read)', async () => {
     const form = new FormData()
-    form.set('data', JSON.stringify({ lessons: (fx.version as any).lessons ?? [] }))
+    form.set('data', JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }))
     const res = await fetch(url(pdfUrl()), { method: 'POST', headers: auth('teacher'), body: form })
     expect(res.status).toBe(404)
   })
 
   it('Editor POST for a deliverable the plan lacks (no Final Explanation) → 404', async () => {
-    const res = await postOverlay((fx.version as any).lessons ?? [], 'finalExplanation')
+    const res = await postOverlay(
+      (fx.version as unknown as HttpVersion).lessons ?? [],
+      'finalExplanation',
+    )
     expect(res.status).toBe(404)
   })
 
   it('Editor POST with a STRUCTURAL change → 422 (field boundary)', async () => {
-    const lessons = [...((fx.version as any).lessons ?? [])]
+    const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const res = await postOverlay(lessons)
     expect(res.status).toBe(422)
   })
 
   it('Editor POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
-    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+    const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY` } : l,
     )
     const res = await postOverlay(lessons)
@@ -335,7 +344,7 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
     // form both would be the same size. (A byte-inequality check would be unsound: LibreOffice may
     // stamp a per-conversion CreationDate, so two PDFs can differ without any content difference.)
     const overlay = (text: string) =>
-      ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+      ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
         i === 0 ? { ...l, overview: text } : l,
       )
     const bigText = Array.from({ length: 1200 }, (_, i) => `token${i}`).join(' ')
@@ -633,13 +642,13 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
 
   it('Editor saves a new candidate — Official pointer unchanged, source unchanged', async () => {
     const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
-    const lessons = ((fx.version as any).lessons ?? []).map((l: any, i: number) =>
+    const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}SAVED-AS-NEW` } : l,
     )
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any), lessons }),
+      body: dataForm({ ...(fx.version as unknown as HttpVersion), lessons }),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceId: number; sourceIsOfficial: boolean }
@@ -653,8 +662,8 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       collection: 'lesson-bundle-versions',
       id: out.id,
       depth: 0,
-    })) as any
-    expect(created.lessons[0].overview).toBe(`${MARK}SAVED-AS-NEW`)
+    })) as unknown as HttpVersion
+    expect(created.lessons![0].overview).toBe(`${MARK}SAVED-AS-NEW`)
     expect(String(created.sourceVersion)).toBe(String(fx.version.id))
 
     // The source version is untouched (immutable snapshot).
@@ -662,8 +671,8 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       collection: 'lesson-bundle-versions',
       id: fx.version.id,
       depth: 0,
-    })) as any
-    expect(src.lessons[0].overview).not.toBe(`${MARK}SAVED-AS-NEW`)
+    })) as unknown as HttpVersion
+    expect(src.lessons![0].overview).not.toBe(`${MARK}SAVED-AS-NEW`)
 
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
@@ -678,7 +687,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     //
     // The fixture's `finalExplanation` / `summaryTable` are `{}`, which store as empty arrays — so
     // `fx.version` IS the affected shape and needs no special setup.
-    const stored = fx.version as any
+    const stored = fx.version as unknown as HttpVersion
     expect(stored.finalExplanation?.sections, 'fixture must have an empty array to be meaningful')
       .toEqual([])
 
@@ -699,13 +708,13 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       collection: 'lesson-bundle-versions',
       id: out.id,
       depth: 0,
-    })) as any
+    })) as unknown as HttpVersion
     // The number must not have been persisted where an array belongs…
     expect(Array.isArray(created.finalExplanation?.sections)).toBe(true)
-    expect(created.finalExplanation.sections).toEqual([])
-    expect(created.summaryTable.lessons).toEqual([])
+    expect(created.finalExplanation!.sections).toEqual([])
+    expect(created.summaryTable!.lessons).toEqual([])
     // …and the prose edit that motivated the save still landed.
-    expect(created.lessons[0].overview).toContain(`${MARK}prose-edit`)
+    expect(created.lessons![0].overview).toContain(`${MARK}prose-edit`)
 
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
@@ -714,7 +723,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('teacher'),
-      body: dataForm({ lessons: (fx.version as any).lessons ?? [] }),
+      body: dataForm({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }),
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
@@ -727,7 +736,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any) }),
+      body: dataForm({ ...(fx.version as unknown as HttpVersion) }),
     })
     expect(res.status).toBe(400)
     const after = await fx.payload.count({ collection: 'lesson-bundle-versions' })
@@ -738,7 +747,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const resAdmin = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('subjectAdmin'),
-      body: dataForm({ ...(fx.version as any) }),
+      body: dataForm({ ...(fx.version as unknown as HttpVersion) }),
     })
     expect(resAdmin.status).toBe(400)
     const afterAdmin = await fx.payload.count({ collection: 'lesson-bundle-versions' })
@@ -746,12 +755,12 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
   })
 
   it("Editor's structural change is rejected (prose-only field-split) → 4xx", async () => {
-    const lessons = [...((fx.version as any).lessons ?? [])]
+    const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any), lessons }),
+      body: dataForm({ ...(fx.version as unknown as HttpVersion), lessons }),
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
@@ -816,12 +825,12 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
   it("Subject Admin's META identity edit is silently preserved (Site-Admin-only repair fields)", async () => {
     // subject / grade / substrand_id are corruption-repair data (decided 2026-07-05): the split
     // restores them from the source; the rest of META (titleDoc here) stays Subject-Admin-editable.
-    const srcMeta = (fx.version as any).meta ?? {}
+    const srcMeta = (fx.version as unknown as HttpVersion).meta ?? {}
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('subjectAdmin'),
       body: dataForm({
-        ...(fx.version as any),
+        ...(fx.version as unknown as HttpVersion),
         meta: {
           ...srcMeta,
           subject: 'Chemistry',
@@ -837,21 +846,21 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       collection: 'lesson-bundle-versions',
       id: out.id,
       depth: 0,
-    })) as any
-    expect(created.meta.subject).toBe(srcMeta.subject) // preserved
-    expect(created.meta.grade).toBe(srcMeta.grade) // preserved
-    expect(created.meta.substrand_id).toBe(srcMeta.substrand_id) // preserved (re-ingest key)
-    expect(created.meta.titleDoc).toBe(`${MARK}ADMIN-TITLEDOC`) // legitimate META edit kept
+    })) as unknown as HttpVersion
+    expect(created.meta!.subject).toBe(srcMeta.subject) // preserved
+    expect(created.meta!.grade).toBe(srcMeta.grade) // preserved
+    expect(created.meta!.substrand_id).toBe(srcMeta.substrand_id) // preserved (re-ingest key)
+    expect(created.meta!.titleDoc).toBe(`${MARK}ADMIN-TITLEDOC`) // legitimate META edit kept
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 
   it('Site Admin CAN change META identity (the corruption-repair path)', async () => {
-    const srcMeta = (fx.version as any).meta ?? {}
+    const srcMeta = (fx.version as unknown as HttpVersion).meta ?? {}
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('siteAdmin'),
       body: dataForm({
-        ...(fx.version as any),
+        ...(fx.version as unknown as HttpVersion),
         meta: { ...srcMeta, subject: `${MARK}Repaired`, grade: 7 },
       }),
     })
@@ -861,9 +870,9 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       collection: 'lesson-bundle-versions',
       id: out.id,
       depth: 0,
-    })) as any
-    expect(created.meta.subject).toBe(`${MARK}Repaired`)
-    expect(created.meta.grade).toBe(7)
+    })) as unknown as HttpVersion
+    expect(created.meta!.subject).toBe(`${MARK}Repaired`)
+    expect(created.meta!.grade).toBe(7)
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 
@@ -871,7 +880,10 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any), updatedAt: '2000-01-01T00:00:00.000Z' }),
+      body: dataForm({
+        ...(fx.version as unknown as HttpVersion),
+        updatedAt: '2000-01-01T00:00:00.000Z',
+      }),
     })
     expect(res.status).toBe(409)
   })
@@ -883,7 +895,10 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm({ ...(fx.version as any), updatedAt: '2999-01-01T00:00:00.000Z' }),
+      body: dataForm({
+        ...(fx.version as unknown as HttpVersion),
+        updatedAt: '2999-01-01T00:00:00.000Z',
+      }),
     })
     expect(res.status).toBe(409)
   })
@@ -967,7 +982,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const res = await fetch(url(`${saveUrl()}?deleteSource=true`), {
       method: 'POST',
       headers: auth('editor'),
-      body: dataForm(withProseEdit({ ...(fx.version as any) })),
+      body: dataForm(withProseEdit({ ...(fx.version as unknown as HttpVersion) })),
     })
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceIsOfficial: boolean; sourceDeleted: boolean }

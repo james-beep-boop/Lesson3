@@ -163,7 +163,9 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
       overrideAccess: true,
     })
     expect(legit.grade, 'a free grade must be accepted').toBe(base + 42)
-    expect(legit.displayName, 'displayName follows the new grade').toContain(`Grade ${base + 42}`)
+    expect(legit.displayName, 'displayName follows the new grade without losing its subject').toBe(
+      `${typeof fx.subjectGrade.subject === 'object' ? fx.subjectGrade.subject.name : fx.subject.name} — Grade ${base + 42}`,
+    )
 
     // The state the rejected update below must leave completely untouched.
     const before = await fx.payload.findByID({
@@ -218,5 +220,94 @@ describe('SubjectGrade duplicate guard surfaces a readable error', () => {
     expect(resaved.grade, 'an unchanged re-save must be allowed').toBe(base + 42)
 
     await fx.payload.delete({ collection: 'subject-grades', id: row.id, overrideAccess: true })
+  })
+
+  it('merges the stored grade into a subject-only partial update and refreshes displayName', async () => {
+    const subjectId = fixtureSubjectId()
+    const grade = (fx.subjectGrade.grade ?? 10) + 43
+    const targetSubject = await fx.payload.create({
+      collection: 'subjects',
+      data: { name: `${MARK}Partial-update target` },
+      overrideAccess: true,
+    })
+    const row = await fx.payload.create({
+      collection: 'subject-grades',
+      data: { subject: subjectId, grade },
+      overrideAccess: true,
+    })
+
+    // PATCH semantics: only `subject` is submitted. The hook must use originalDoc.grade for both
+    // duplicate validation and the derived title rather than skipping either operation.
+    const moved = await fx.payload.update({
+      collection: 'subject-grades',
+      id: row.id,
+      data: { subject: targetSubject.id },
+      overrideAccess: true,
+    })
+    expect(moved.grade).toBe(grade)
+    expect(moved.displayName).toBe(`${targetSubject.name} — Grade ${grade}`)
+
+    await fx.payload.delete({ collection: 'subject-grades', id: row.id, overrideAccess: true })
+    await fx.payload.delete({ collection: 'subjects', id: targetSubject.id, overrideAccess: true })
+  })
+
+  it('lets the database serialize concurrent subject-only moves onto the same unique pair', async () => {
+    const grade = (fx.subjectGrade.grade ?? 10) + 44
+    const [sourceA, sourceB, target] = await Promise.all(
+      ['A', 'B', 'target'].map((suffix) =>
+        fx.payload.create({
+          collection: 'subjects',
+          data: { name: `${MARK}Concurrent ${suffix}` },
+          overrideAccess: true,
+        }),
+      ),
+    )
+    const [rowA, rowB] = await Promise.all([
+      fx.payload.create({
+        collection: 'subject-grades',
+        data: { subject: sourceA.id, grade },
+        overrideAccess: true,
+      }),
+      fx.payload.create({
+        collection: 'subject-grades',
+        data: { subject: sourceB.id, grade },
+        overrideAccess: true,
+      }),
+    ])
+
+    // Both friendly pre-checks can observe the target pair as free. The compound unique index is the
+    // authoritative race-safe guarantee: exactly one transaction may claim it.
+    const outcomes = await Promise.allSettled(
+      [rowA, rowB].map((row) =>
+        fx.payload.update({
+          collection: 'subject-grades',
+          id: row.id,
+          data: { subject: target.id },
+          overrideAccess: true,
+        }),
+      ),
+    )
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1)
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1)
+
+    const claimed = await fx.payload.find({
+      collection: 'subject-grades',
+      depth: 0,
+      overrideAccess: true,
+      where: { and: [{ subject: { equals: target.id } }, { grade: { equals: grade } }] },
+    })
+    expect(claimed.totalDocs, 'the unique pair must exist exactly once after the race').toBe(1)
+    expect(claimed.docs[0]?.displayName).toBe(`${target.name} — Grade ${grade}`)
+
+    await Promise.all(
+      [rowA, rowB].map((row) =>
+        fx.payload.delete({ collection: 'subject-grades', id: row.id, overrideAccess: true }),
+      ),
+    )
+    await Promise.all(
+      [sourceA, sourceB, target].map((subject) =>
+        fx.payload.delete({ collection: 'subjects', id: subject.id, overrideAccess: true }),
+      ),
+    )
   })
 })

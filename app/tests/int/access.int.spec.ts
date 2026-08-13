@@ -228,7 +228,7 @@ describe('Server-side invariants (Bucket A)', () => {
         ...minimalBundleContent(),
       } as never,
       overrideAccess: true,
-    })) as any
+    })) as { id: number }
     await fx.payload.update({
       collection: 'lesson-plans',
       id: p.id,
@@ -369,7 +369,7 @@ describe('Server-side invariants (Bucket A)', () => {
         ...minimalBundleContent(),
       } as never,
       overrideAccess: true,
-    })) as any
+    })) as { id: number }
     const next = await nextSemverForPlan(fx.payload, fx.plan.id)
     expect(next).toBe('1.0.2')
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v101.id, overrideAccess: true })
@@ -388,7 +388,7 @@ describe('Server-side invariants (Bucket A)', () => {
         } as never,
         overrideAccess: true,
       })
-    const first = (await mk('5.5.5')) as any
+    const first = (await mk('5.5.5')) as { id: number }
     await expect(mk('5.5.5')).rejects.toThrow() // same (plan, semver) → unique-index violation
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: first.id, overrideAccess: true })
   })

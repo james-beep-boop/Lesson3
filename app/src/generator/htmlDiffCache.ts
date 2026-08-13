@@ -19,6 +19,7 @@ import { HtmlDiff } from '@payloadcms/ui/elements/HTMLDiff/diff'
 
 import { getArtifact, putArtifact } from './artifactCache'
 import { HTML_RENDER_CACHE_VERSION, renderVersionSectionsCached } from './htmlSectionsCache'
+import { decodeCachedJson, isStringRecord } from './cacheCodecs'
 
 export interface CompareDiffSection {
   label: string
@@ -33,6 +34,10 @@ const keyFor = (fromId: number | string, toId: number | string): string =>
 
 /** Single-flight coalescing, same as htmlSectionsCache: one in-flight compute per pair. */
 const inFlight = new Map<string, Promise<CompareDiffSection[]>>()
+
+const isCompareDiffSections = (value: unknown): value is CompareDiffSection[] =>
+  Array.isArray(value) &&
+  value.every((section) => isStringRecord(section, ['label', 'oldHtml', 'newHtml']))
 
 /**
  * Section-by-section diff of two versions' rendered documents, cached by the (from, to) pair.
@@ -52,11 +57,9 @@ export async function diffVersionSectionsCached(
 
   const cached = await getArtifact(key).catch(() => null)
   if (cached) {
-    try {
-      return JSON.parse(cached.toString('utf8')) as CompareDiffSection[]
-    } catch {
-      // Corrupt entry → treat as a miss and rewrite below.
-    }
+    const sections = decodeCachedJson(cached, isCompareDiffSections)
+    if (sections) return sections
+    // Syntactically or structurally corrupt entry → treat as a miss and rewrite below.
   }
 
   const existing = inFlight.get(key)

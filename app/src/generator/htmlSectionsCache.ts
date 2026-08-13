@@ -27,6 +27,7 @@ import { getArtifact, putArtifact } from './artifactCache'
 import { generateForVersion } from './generateForVersion'
 import { docxToSections, type PreviewSection } from './previewBundle'
 import { GENERATOR_RENDER_VERSION } from './renderVersion'
+import { decodeCachedJson, isStringRecord } from './cacheCodecs'
 
 /** The HTML preview/compare cache-buster. Now DERIVED from `GENERATOR_RENDER_VERSION` (the single
  *  render-version knob — bump THAT for any generator / mammoth / sanitizer output change) rather than
@@ -46,6 +47,9 @@ const keyFor = (versionId: number | string): string =>
  */
 const inFlight = new Map<string, Promise<PreviewSection[]>>()
 
+const isPreviewSections = (value: unknown): value is PreviewSection[] =>
+  Array.isArray(value) && value.every((section) => isStringRecord(section, ['label', 'html']))
+
 /**
  * Return the sanitized content-HTML sections for a saved version, from cache when present, else
  * generate + render + cache. `generateForVersion` fetches the version with overrideAccess — a
@@ -63,11 +67,9 @@ export async function renderVersionSectionsCached(
 
   const cached = await getArtifact(key).catch(() => null)
   if (cached) {
-    try {
-      return JSON.parse(cached.toString('utf8')) as PreviewSection[]
-    } catch {
-      // Corrupt entry → treat as a miss and rewrite below.
-    }
+    const sections = decodeCachedJson(cached, isPreviewSections)
+    if (sections) return sections
+    // Syntactically or structurally corrupt entry → treat as a miss and rewrite below.
   }
 
   // Miss (or corrupt): coalesce concurrent renders of this key onto one in-flight promise.

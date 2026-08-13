@@ -28,13 +28,14 @@
  */
 import { APIError, forgotPasswordOperation, type Endpoint } from 'payload'
 
-import { json } from './respond'
+import { assertDeclaredBodyWithin, json } from './respond'
 import { enqueueDetached } from '../lib/enqueue'
 import { positiveIntEnv } from '../lib/env'
 import { PASSWORD_RESET_EMAIL_SLUG } from '../jobs/passwordResetEmail'
 
 /** One body for every outcome. Must never vary on whether the account exists. */
 const UNIFORM_MESSAGE = 'If an account exists for that address, a reset link is on its way.'
+const MAX_FORGOT_PASSWORD_BODY_BYTES = 16 * 1024
 
 /**
  * Uniform-response-time floor. Every answer from this endpoint takes at least this long, so the
@@ -70,7 +71,13 @@ export const forgotPasswordQueuedEndpoint: Endpoint = {
   handler: async (req) => {
     // Captured FIRST so the floor covers the whole handler, parsing included.
     const startedAt = Date.now()
-    const body = (await req.json?.()) as { email?: unknown } | undefined
+    assertDeclaredBodyWithin(req, MAX_FORGOT_PASSWORD_BODY_BYTES, 'Request body too large.')
+    let body: { email?: unknown } | undefined
+    try {
+      body = (await req.json?.()) as { email?: unknown } | undefined
+    } catch {
+      throw new APIError('Invalid JSON body.', 400)
+    }
     const email = typeof body?.email === 'string' ? body.email : ''
     // A MISSING field is a malformed request, not an account signal — the native operation 400s on
     // this too, identically for everyone, so mirroring it leaks nothing.

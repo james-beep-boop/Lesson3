@@ -5,6 +5,7 @@
  * so the existing import sites are unchanged. Depends only on `APIError`/`PayloadRequest`.
  */
 import { APIError, type PayloadRequest } from 'payload'
+import { assertDeclaredBodyWithin } from './respond'
 
 /** Cap the posted form-state JSON before we parse + generate from it. Bundles are large prose, so
  *  this is generous. NOTE: this is a soft memory guard, not a hard DoS boundary — the precise check
@@ -50,10 +51,7 @@ export async function parsePreviewForm(
   // the whole multipart payload into memory. Compared against the larger BODY cap (field cap +
   // framing overhead) so a valid near-limit `data` field is not falsely rejected; the header may be
   // absent or wrong, so the precise per-field cap below is the authority.
-  const declaredLength = Number(req.headers?.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_PREVIEW_BODY_BYTES) {
-    throw new APIError(PAYLOAD_TOO_LARGE, 413)
-  }
+  assertDeclaredBodyWithin(req, MAX_PREVIEW_BODY_BYTES, PAYLOAD_TOO_LARGE)
 
   let form: FormData
   try {

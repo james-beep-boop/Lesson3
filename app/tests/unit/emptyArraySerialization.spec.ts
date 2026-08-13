@@ -21,6 +21,12 @@ import { VERSION_EDITOR_KEYS } from '../../src/hooks/bundleVersion'
 const SG_ID = 7
 const editor = { id: 11, assignments: [{ subjectGrade: SG_ID, role: 'editor' }] } as never
 
+type SplitOutput = Record<string, unknown> & {
+  lessons: Array<{ framework: unknown; overview?: unknown }>
+  finalExplanation: { sections: unknown; rubric: unknown; instructions?: unknown }
+  summaryTable: { lessons: unknown }
+}
+
 /** Stored doc whose optional arrays are EMPTY — what the seeded/minimal bundle actually looks like. */
 const originalEmpty = () => ({
   subjectGrade: SG_ID,
@@ -44,7 +50,7 @@ const run = (data: Record<string, unknown>, originalDoc: Record<string, unknown>
     operation: 'update',
     req: { user: editor } as never,
     editorTopLevelKeys: VERSION_EDITOR_KEYS,
-  }) as Record<string, any>
+  }) as unknown as SplitOutput
 
 /** The exact shape the editor's Save posts for a bundle whose optional arrays are all empty. */
 const zeroContainers = () => ({
@@ -140,7 +146,7 @@ describe('submitted array field that is not an array', () => {
         operation: 'update',
         req: { user: admin } as never,
         editorTopLevelKeys: VERSION_EDITOR_KEYS,
-      }) as Record<string, any>
+      }) as unknown as SplitOutput
       expect(out.finalExplanation.sections, JSON.stringify(admin)).toEqual([])
       expect(out.finalExplanation.rubric).toEqual([])
       expect(out.summaryTable.lessons).toEqual([])
@@ -178,7 +184,7 @@ describe('submitted array field that is not an array', () => {
       operation: 'update',
       req: { user: { id: 2, roles: ['siteAdmin'] } } as never,
       editorTopLevelKeys: VERSION_EDITOR_KEYS,
-    }) as Record<string, any>
+    }) as unknown as SplitOutput
     expect(out.lessons[0].framework).toEqual([])
   })
 

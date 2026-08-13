@@ -34,6 +34,8 @@ describe('compareSubstrandId', () => {
     expect(sign(compareSubstrandId('1.1', ''))).toBe(-1) // valid before empty
     expect(sign(compareSubstrandId('', '1.1'))).toBe(1)
     expect(sign(compareSubstrandId('1.1', 'abc'))).toBe(-1) // valid before non-numeric
+    expect(sign(compareSubstrandId('1.1', '1..2'))).toBe(-1)
+    expect(sign(compareSubstrandId('1.1', '1. 2'))).toBe(-1)
   })
 })
 
@@ -45,6 +47,9 @@ describe('strandNumberOf', () => {
   it('returns null for missing/invalid ids', () => {
     expect(strandNumberOf('')).toBeNull()
     expect(strandNumberOf('x.y')).toBeNull()
+    expect(strandNumberOf('1..2')).toBeNull()
+    expect(strandNumberOf('.1')).toBeNull()
+    expect(strandNumberOf('1.')).toBeNull()
   })
 })
 

@@ -19,13 +19,17 @@ let pass = 0
 let fail = 0
 const check = (label: string, ok: boolean) => {
   console.log(`${ok ? 'PASS' : 'FAIL'}: ${label}`)
-  ok ? pass++ : fail++
+  if (ok) pass++
+  else fail++
 }
 
 const run = async () => {
   const payload = await getPayload({ config })
   const created: { collection: 'users' | 'subjects' | 'subject-grades'; id: number }[] = []
-  const track = <T extends { id: number }>(collection: any, doc: T): T => {
+  const track = <T extends { id: number }>(
+    collection: 'users' | 'subjects' | 'subject-grades',
+    doc: T,
+  ): T => {
     created.push({ collection, id: doc.id })
     return doc
   }
@@ -83,13 +87,13 @@ const run = async () => {
       }),
     )
     const aAfter = await payload.findByID({ collection: 'users', id: userA.id, depth: 0 })
-    const aRole = (aAfter.assignments ?? []).find((x: any) => {
+    const aRole = (aAfter.assignments ?? []).find((x) => {
       const id = typeof x.subjectGrade === 'object' ? x.subjectGrade.id : x.subjectGrade
       return id === sg.id
     })?.role
     check('prior subject-admin (A) auto-demoted to editor when B promoted', aRole === 'editor')
     const bAfter = await payload.findByID({ collection: 'users', id: userB.id, depth: 0 })
-    const bRole = (bAfter.assignments ?? []).find((x: any) => {
+    const bRole = (bAfter.assignments ?? []).find((x) => {
       const id = typeof x.subjectGrade === 'object' ? x.subjectGrade.id : x.subjectGrade
       return id === sg.id
     })?.role

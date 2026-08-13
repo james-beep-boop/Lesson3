@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    -- Stage 3: drop stale completed jobs from the retired bundle-export task so the
    -- task_slug enum can be rebuilt without the now-removed 'generateArtifact' value.
@@ -50,7 +50,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   DROP TYPE IF EXISTS "public"."enum__lesson_bundles_v_version_status";`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    CREATE TYPE "public"."enum_lesson_bundles_lessons_framework_phase" AS ENUM('Predict Phase', 'Observe Phase', 'Explain Phase', 'Driving Question Board (DQB) Creation', 'Model Building Phase');
   CREATE TYPE "public"."enum_lesson_bundles_bump_type" AS ENUM('patch', 'minor', 'major');

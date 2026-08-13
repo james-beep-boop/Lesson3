@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import { SERVER_ACTION_BODY_LIMIT } from './src/lib/serverActionBodyLimit'
+import { isHttpsServerUrl } from './src/lib/publicPosture'
 
 const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
@@ -50,6 +51,14 @@ const nextConfig: NextConfig = {
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-DNS-Prefetch-Control', value: 'off' },
+      ...(isHttpsServerUrl(process.env.SERVER_URL)
+        ? [
+            {
+              key: 'Strict-Transport-Security',
+              value: 'max-age=31536000; includeSubDomains',
+            },
+          ]
+        : []),
     ]
     return [{ source: '/:path*', headers: baseline }]
   },

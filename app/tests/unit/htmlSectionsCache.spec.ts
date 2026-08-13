@@ -67,6 +67,14 @@ describe('renderVersionSectionsCached', () => {
     expect(putArtifact).toHaveBeenCalledTimes(1) // corrupt entry is repaired
   })
 
+  it('STRUCTURALLY corrupt JSON: falls through instead of trusting a cast', async () => {
+    getArtifact.mockResolvedValue(Buffer.from('{"label":"not-an-array"}'))
+
+    await expect(renderVersionSectionsCached(payload, 7)).resolves.toEqual(SECTIONS)
+    expect(generateForVersion).toHaveBeenCalledTimes(1)
+    expect(putArtifact).toHaveBeenCalledTimes(1)
+  })
+
   it('SINGLE-FLIGHT: concurrent misses for one key render once, not N times', async () => {
     getArtifact.mockResolvedValue(null)
     // Hold the render open so both calls overlap in flight.

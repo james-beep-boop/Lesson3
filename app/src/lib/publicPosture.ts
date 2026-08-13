@@ -25,6 +25,23 @@ export const isHttpsServerUrl = (serverUrl: string | undefined): boolean =>
   Boolean(serverUrl?.startsWith('https://'))
 
 /**
+ * Payload starts before migrations on a brand-new database, so the public-posture user count may
+ * legitimately fail because the users table does not exist yet. PostgreSQL reports that one case as
+ * `42P01` (undefined_table). Everything else is an operational failure and must abort startup rather
+ * than silently disabling the public first-user guard.
+ */
+export function isUndefinedTableError(error: unknown): boolean {
+  let current: unknown = error
+  const seen = new Set<unknown>()
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    if ('code' in current && current.code === '42P01') return true
+    current = 'cause' in current ? current.cause : undefined
+  }
+  return false
+}
+
+/**
  * Decide whether boot may proceed for a given (posture, user-count) combination.
  * Returns null to proceed, or the refusal message to throw. `userCount === null` means the count
  * could not be taken (e.g. the very first migrate against an empty database, before the users

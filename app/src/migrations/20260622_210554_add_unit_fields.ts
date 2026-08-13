@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "lesson_bundles" ADD COLUMN IF NOT EXISTS "unit_grade_level" varchar;
   ALTER TABLE "lesson_bundles" ADD COLUMN IF NOT EXISTS "unit_subject" varchar;
@@ -40,7 +40,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "_lesson_bundles_v" DROP COLUMN IF EXISTS "version_unit_overview";`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE "lesson_bundles" ADD COLUMN IF NOT EXISTS "unit_overview" varchar;
   ALTER TABLE "_lesson_bundles_v" ADD COLUMN IF NOT EXISTS "version_unit_overview" varchar;
