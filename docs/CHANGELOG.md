@@ -8,6 +8,20 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-12 — Node 24 Docker migration (PR pending)
+
+Moved every shipped/tested Docker stage and both `.nvmrc` files from Node 22.23.2 to Node 24.19.0.
+Local npm rejects non-24 majors but accepts supported 24.x patches; the unused Volta pin is gone.
+The ARM64 Alpine production image now explicitly traces sharp's libvips shared library and proves a
+real one-pixel render during the final image build, preventing a build-green/runtime-dead image.
+
+Verification on native ARM64: the full production and Chromium images build; the migrated standalone
+app starts; and the exact pushed commit also builds and renders through sharp on the Rock 5B itself.
+The complete migration chain applies to a fresh database; 558 unit, 158 integration, 132 HTTP/authz,
+and 25 browser tests pass; and both DOCX fidelity gates remain byte/content green. Two latent E2E
+false-greens exposed by the new runtime were corrected: an intermediate-state race and fixture emails
+that exhausted their own real signup quota.
+
 ## 2026-08-09 — edit recovery, cleanup round 2 (MERGED #207; DEPLOYED)
 
 Two real defects in code that was already live, found in a four-angle review pass. **The capture

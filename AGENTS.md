@@ -6,8 +6,9 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 
 ## Stack conventions
 
-- **Language:** TypeScript on Node.js (pinned to **22.23.2** via `.nvmrc` + volta, matching the
-  Rock). One runtime end to end — do not add a second language on the core path.
+- **Language:** TypeScript on Node.js (Docker and `.nvmrc` pin **24.19.0**; `devEngines` accepts
+  supported 24.x patches and rejects other majors). One runtime end to end — do not add a second
+  language on the core path.
 - **Framework:** Payload CMS 3 (Postgres adapter) on Next.js. Define content as **native nested
   fields**, not JSON blobs. Use Payload **access control** for authz (collection-, operation-, and
   field-level) and **hooks** (`beforeChange`/`afterChange`) for versioning side-effects and generator
@@ -103,7 +104,7 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
     `docker compose -p lesson3-ci-probe exec -T postgres psql -U lesson3 -d lesson3_test -c "DELETE FROM rate_limit_counters WHERE bucket_key LIKE '%Global:all';"`
 
 - **Build:** `npm run build` (`next build`, **needs a DB → Rock only**).
-- **Codegen (run on the Rock, Node 22):** `npm run generate:types`, `npm run generate:importmap` —
+- **Codegen (run in the pinned Node 24 deps image):** `npm run generate:types`, `npm run generate:importmap` —
   commit the output. The local CLIs can break on newer Node.
 
 ## Local stack (browser-verify UI **before** it ships)
