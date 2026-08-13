@@ -16,10 +16,11 @@ The ARM64 Alpine production image now explicitly traces sharp's libvips shared l
 real one-pixel render during the final image build, preventing a build-green/runtime-dead image.
 
 Verification on native ARM64: the full production and Chromium images build; the migrated standalone
-app starts; the complete migration chain applies to a fresh database; 558 unit, 158 integration, 132
-HTTP/authz, and 25 browser tests pass; and both DOCX fidelity gates remain byte/content green. Two
-latent E2E false-greens exposed by the new runtime were corrected: an intermediate-state race and
-fixture emails that exhausted their own real signup quota.
+app starts; and the exact pushed commit also builds and renders through sharp on the Rock 5B itself.
+The complete migration chain applies to a fresh database; 558 unit, 158 integration, 132 HTTP/authz,
+and 25 browser tests pass; and both DOCX fidelity gates remain byte/content green. Two latent E2E
+false-greens exposed by the new runtime were corrected: an intermediate-state race and fixture emails
+that exhausted their own real signup quota.
 
 ## 2026-08-09 — edit recovery, cleanup round 2 (MERGED #207; DEPLOYED)
 
