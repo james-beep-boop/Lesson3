@@ -1,7 +1,7 @@
-# To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.mjs file.
+# To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.ts file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:22.23.2-alpine AS base
+FROM node:24.19.0-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -23,13 +23,13 @@ RUN \
 
 
 # Rebuild the source code only when needed
-# Browser-test runner for CI `test:e2e`. Deliberately NOT `base` (node:22-alpine) — Playwright needs
-# glibc — and deliberately NOT `mcr.microsoft.com/playwright`, which ships Node 24 while this repo
-# pins 22.23.2; CI must reproduce the runtime we actually ship. `.npmrc` is copied for the same
-# legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at BUILD time so
-# the test step doesn't redo them on every run, matching how `deps` front-loads installs for the
-# other test steps.
-FROM node:22.23.2-bookworm AS e2e
+# Browser-test runner for CI `test:e2e`. Deliberately NOT `base` (node:24-alpine) — Playwright needs
+# glibc — and deliberately NOT `mcr.microsoft.com/playwright`, whose Node patch moves with the
+# Playwright image. CI must reproduce the exact runtime we actually ship. `.npmrc` is copied for
+# the same legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at
+# BUILD time so the test step doesn't redo them on every run, matching how `deps` front-loads
+# installs for the other test steps.
+FROM node:24.19.0-bookworm AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
 RUN npm ci --include=dev
@@ -56,7 +56,7 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
@@ -74,13 +74,17 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Prove the final standalone trace contains sharp's native addon and libvips. This caught a real
+# ARM64 failure where the full deps image worked but the production image could not start.
+RUN node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: '#00000000' } }).png().toBuffer()"
 RUN mkdir -p /var/cache/lesson3 && chown nextjs:nogroup /var/cache/lesson3
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD HOSTNAME="0.0.0.0" node server.js
+CMD ["node", "server.js"]

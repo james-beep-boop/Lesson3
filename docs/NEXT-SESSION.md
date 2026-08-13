@@ -1026,7 +1026,7 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    so it is the ideal thing to run WHILE waiting on human reviewers — it complements them rather than
    racing them, and never dirties the tree.
 5. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
-   unbounded read; CI dependency caching; Node 22 → 24; going-public ops (edge rate limiting,
+   unbounded read; CI dependency caching; going-public ops (edge rate limiting,
    GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
    went red on the gate mid-PR this session (js-yaml, fast-uri, immutable, sharp/next).
 6. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
@@ -2726,8 +2726,7 @@ Docker compose (`app` on host :3001, `postgres` + `gotenberg` internal-only, one
 **Deploy:**
 - *Code/data only (no schema change):* `git pull` → `docker compose up -d --build`. (Script-only
   changes that don't rebuild the app: `git pull` + re-run via the deps image, see below.)
-- *Schema change:* regenerate types + migration ON THE ROCK (Node 22) and commit them, because the
-  local `payload generate:*` CLIs break on newer Node:
+- *Schema change:* regenerate types + migration in the pinned Node 24 deps image and commit them:
   ```
   docker build --target deps -t lesson3-deps ./app
   docker run --rm -v /srv/lesson3/app:/app -v /app/node_modules -w /app --env-file .env \

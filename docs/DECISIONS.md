@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-12 — Docker owns Node; Node 24 exposed two false-green packaging/test gates
+
+**Runtime policy.** The deployable images and both `.nvmrc` files pin Node **24.19.0**. Local npm
+commands accept the supported `>=24.19.0 <25` range through `engines` + `devEngines`, so a future
+patched 24.x is not rejected merely because the Docker patch has not moved yet, while Node 25 and
+future majors fail early. The Volta manifest was removed: no deploy uses it, no version manager is
+installed on the development Mac, and adding one would solve host-shell convenience rather than the
+Docker/ARM64 portability goal. Docker remains the reproducible authority on every host.
+
+**Native modules must be proven in the final image, not the dependency stage.** `sharp` loaded and
+rendered correctly in the ARM64 Alpine `deps` image, but the first production smoke test crashed:
+Next standalone tracing copied sharp's addon and omitted its separately packaged libvips `.so`.
+`outputFileTracingIncludes` now carries the architecture-neutral musl library glob, and the runner
+stage executes a one-pixel sharp render during `docker build`. A green dependency image is not
+evidence that a traced production image contains the same native runtime.
+
+**A two-request transition needs a two-state wait.** The discard E2E waited only for `content = NULL`,
+which is already true after DELETE retires the row, then asserted that the following POST had
+reactivated it. Node 24 timing made the intermediate state observable. The test now polls for the
+whole cleared + active + generation-advanced transition.
+
+**Test fixtures must not consume one another's abuse budgets.** Four Playwright files reused one
+fixture email while the real signup limit permits three attempts per address. CI retries happened to
+restart the worker with a new address and hid the failure. Each fixture setup now keeps the shared
+cleanup marker but adds a unique email component, so production throttles stay enabled and the suite
+passes in one attempt.
+
+---
+
 ## 2026-08-12 — copied dependencies are disposable; proxy features need version checks
 
 **The source move did not create the audit's application defects, but copying an installed dependency
