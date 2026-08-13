@@ -73,9 +73,10 @@ nanoclaw's containers are untouched — `docker ps` should show `onecli`,
 `onecli-postgres-1`, `lesson3-app-1`, `lesson3-postgres-1`.
 
 **ARM64 note:** Node, Postgres, and the `docx` generator run natively. `sharp` ships
-prebuilt musl/arm64 binaries, so the Alpine build normally works. If the build fails
-on a native module (e.g. `sharp`), switch the Dockerfile's base image from
-`node:22-alpine` to a Debian-based `node:22-slim` and rebuild.
+prebuilt musl/arm64 binaries. The production build explicitly traces sharp's separate libvips
+library and renders a one-pixel image in the final stage; a missing native runtime therefore fails
+the build instead of the deployed app. If another native module still fails, switch the Dockerfile's
+base image from `node:24-alpine` to a Debian-based `node:24-slim` and rebuild.
 
 ## Step 4 — First login
 

@@ -12,6 +12,12 @@ const dirname = path.dirname(__filename)
 const nextConfig: NextConfig = {
   // Required by the generated Dockerfile (copies .next/standalone).
   output: 'standalone',
+  // Next's tracer follows sharp's native addon but can omit the separately packaged libvips
+  // shared library. Without this include, an ARM64 Alpine image builds successfully and then
+  // crashes at runtime with ERR_DLOPEN_FAILED. The wildcard keeps the rule architecture-neutral.
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/@img/sharp-libvips-linuxmusl-*/lib/libvips-cpp.so.*'],
+  },
   // ⚑ Raises the Server Action body ceiling from Next's 1 MiB default. This fixes a PRE-EXISTING
   // editor defect — typing one character into a large lesson plan 500s, because Payload posts the
   // whole form state through a Server Action — and it is a deliberate production-posture change,

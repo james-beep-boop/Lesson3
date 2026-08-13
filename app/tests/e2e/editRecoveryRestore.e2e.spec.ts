@@ -290,9 +290,19 @@ test.describe('case 8 — an explicit discard retires the capture', () => {
     await page.getByRole('button', { name: 'Discard them' }).click()
     await expect(prompt(page)).toHaveCount(0)
 
+    // DELETE first clears and retires the row; the following POST /start then reactivates it. Polling
+    // only for `content = NULL` can observe that intentional intermediate state and race the restart.
+    // Wait for the complete transition the assertions below describe.
     await expect
-      .poll(async () => (await recoveryRow(fx.payload, versionId, editorId))?.content)
-      .toBeNull()
+      .poll(async () => {
+        const row = await recoveryRow(fx.payload, versionId, editorId)
+        return {
+          content: row?.content ?? null,
+          retired: row?.retired_at !== null,
+          generationAdvanced: Number(row?.generation) > Number(before?.generation),
+        }
+      })
+      .toEqual({ content: null, retired: false, generationAdvanced: true })
     const after = await recoveryRow(fx.payload, versionId, editorId)
     expect(Number(after?.revision)).toBeGreaterThan(Number(before?.revision))
 

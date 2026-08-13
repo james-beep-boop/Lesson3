@@ -175,6 +175,10 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
   const payload = await getPayload({ config })
   // Crashed-run safety sweep: clear leftovers from ANY prior run (match the whole namespace).
   await purgeMarked(payload, MARK_BASE)
+  // A Playwright worker can call this once per spec file. Reusing MARK's email four times trips the
+  // real per-address signup limit (3) and CI only hides that defect by retrying in a fresh worker.
+  // Keep MARK in every address for cleanup, but give each setup its own rate-limit target.
+  const setupId = randomUUID()
 
   const subject = await payload.create({
     collection: 'subjects',
@@ -196,7 +200,7 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
     createUserVerified(payload, {
       ...data,
       name: `${MARK}${key}`,
-      email: `${MARK.toLowerCase()}${key.toLowerCase()}@example.com`,
+      email: `${MARK.toLowerCase()}${setupId}_${key.toLowerCase()}@example.com`,
       password,
     })
 
