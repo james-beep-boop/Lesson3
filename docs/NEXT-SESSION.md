@@ -2784,3 +2784,4 @@ Editor seeded (ask the user for the passwords — they are NOT in the repo).
   production interchange contract, intentionally re-baselined as schema 1.0.0.
 - Corpus is expected to grow from 13 to dozens→hundreds (Chemistry/Physics incoming) — informs the
   pagination item and any browse/search work.
+
