@@ -11,6 +11,33 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-12 — a PR stacked on a non-`main` branch can silently never get a CI run, even retargeted
+
+**Symptom.** #211 (Node 24 migration) was opened stacked on #210's branch (`base:
+codex/audit-remediation`), which never matched `ci.yml`'s `pull_request: branches: [main]` filter, so
+no run was expected yet. After #210 merged, #211 was retargeted to `main` (`gh pr edit --base main`)
+— and no CI run appeared. Neither did a close/reopen, nor a fresh empty-commit push (`synchronize`).
+Four different trigger mechanisms, zero runs, confirmed via both the Actions API (`total_count: 0` for
+that SHA) and the Actions UI (0 of 575 runs matched the branch). A throwaway probe branch/PR opened
+moments later, from scratch, triggered a run within seconds — ruling out an account- or repo-wide
+Actions outage. The cause was specific to that one branch/PR's history and was never root-caused;
+GitHub's PR object (or its trigger-eligibility cache) appears to be able to get stuck once a PR's
+*original* base never matched the workflow filter, in a way none of the normal remediations
+(retarget, reopen, resynchronize) clear.
+
+**Workaround, not a fix.** `git cherry-pick`ed the two commits onto a fresh branch cut from current
+`main` and opened a brand-new PR from that. Clean pick, CI triggered immediately, ran green in 11
+minutes on real amd64 runners. This is the reliable escape hatch if it recurs: don't debug a
+non-triggering retargeted PR indefinitely — replay its commits onto a fresh branch off `main` and open
+a new PR. Cherry-picking is safe here specifically because the base PR (#210) had already merged, so
+the fresh branch's starting point already contained everything the stacked commits assumed.
+
+**Rule going forward:** after retargeting any PR whose original base wasn't `main`, verify a CI run
+actually appears (`gh run list --branch <branch>`) before doing anything else with it — don't assume
+the retarget alone re-enables the trigger.
+
+---
+
 ## 2026-08-12 — Docker owns Node; Node 24 exposed two false-green packaging/test gates
 
 **Runtime policy.** The deployable images and both `.nvmrc` files pin Node **24.19.0**. Local npm
