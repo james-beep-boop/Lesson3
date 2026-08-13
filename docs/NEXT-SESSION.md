@@ -16,6 +16,64 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-12) — full audit remediation + Node 24 migration: both merged, deployed
+
+**This supersedes the 2026-08-09 handoff below, which is kept for provenance.**
+
+## Where the work is
+
+**Everything is merged AND deployed. No PRs open.** #210 (the full 15-finding external code audit
+remediation) and #214 (Node 24 Docker migration, stacked on #210) are both on `main` and running on
+the Rock. Detail: `docs/CHANGELOG.md` (what shipped), `docs/DECISIONS.md` (why, and the CI-trigger
+lesson from this session).
+
+**#210 — audit remediation**, highlights: Payload's public-posture boot guard now fails closed on any
+DB error except the expected pre-schema `42P01`; the first-user-to-Site-Admin race is closed with a
+transaction-scoped Postgres advisory lock (`grantSiteAdminToFirstUser`); `SubjectGrade` partial
+updates (PATCH with only `subject` or only `grade`) no longer skip the duplicate check or lose the
+other field, and it has real concurrent-DB-write test coverage, not just a mock; export-job dedup is
+now DB-enforced via a partial unique index on `payload_jobs` instead of a racy application-level find;
+cached JSON (preview sections, diffs, export manifests) is now schema-validated instead of trusted
+`as X` casts; DOMPurify bumped to 3.4.13 (GHSA-55q2-fjhq-7xh7) with `GENERATOR_RENDER_VERSION` bumped
+to invalidate stale rendered caches; the catalogue's full corpus version-scan became a `GROUP BY`;
+`node_modules` had 265 Finder-style `" 2"` duplicate dirs from the Documents→Developer move, which
+broke `tsc` — cleaned via `npm ci`, and ESLint now enforces `--max-warnings=0` (was 100 warnings, now
+0).
+
+**#214 — Node 24 migration**, highlights: every shipped/tested Docker stage plus both `.nvmrc` files
+moved from Node 22.23.2 to 24.19.0; local `npm` now rejects non-24.x majors via `engines`/`devEngines`
+(`>=24.19.0 <25`) instead of the old open-ended `>=22.23.2`; the unused Volta manifest is gone (Docker
+is the authoritative runtime — Volta only affects local shells, not what ships); the ARM64 Alpine
+production image now explicitly traces sharp's separately-packaged libvips `.so` via
+`outputFileTracingIncludes` and renders a real one-pixel PNG through sharp during `docker build`,
+so a missing native runtime fails the build instead of shipping a build-green/runtime-dead image (this
+caught a real bug, not a hypothetical one). Two latent E2E false-greens the new runtime exposed were
+fixed for real rather than retried away: a two-request state transition the discard-recovery test only
+half-waited for, and fixture emails that were quietly exhausting their own real per-address signup
+rate limit.
+
+**Verified before merge:** #210's GitHub CI green; #214's GitHub CI green on real **amd64** runners
+(11m0s — unit/integration/HTTP/E2E/audit, this was the one architecture Node 24 hadn't been proven on
+yet) plus a separate native **ARM64** build+test pass on the Rock 5B itself (production + Chromium
+images build, sharp renders through the final image, full test matrix, DOCX fidelity 4/4 + 6/6).
+
+**Deployed 2026-08-12** via `scripts/deploy.sh` on the Rock (operator-run). Claude verified
+`test.kenyalessons.org/login` reachable and healthy post-deploy (200, login page renders, no console
+errors) — this confirms the app is up, not specifically that it's running the Node 24 build; nobody
+in this session had Rock shell access to check `node --version` directly, so treat that as the
+operator's deploy.sh output being the authority on which commit is actually live.
+
+## What's next
+
+Nothing urgent is queued from this arc. See `docs/DECISIONS.md`'s newest entries for the CI-trigger
+lesson (a PR stacked on a non-`main` branch, later retargeted, may silently never get a CI run — verify
+one actually appears before trusting a retarget, and replay the commits onto a fresh branch off `main`
+if it doesn't) and the going-public / Docker-hygiene follow-ups noted during the audit
+(edge rate limiting, base-image digest pinning, scheduled dependency-update PRs, SBOM/image scanning)
+that were deliberately deferred as their own future initiative, not part of this remediation.
+
+---
+
 # ⚑ HANDOFF (2026-08-09) — edit recovery arc is CLOSED: all PRs merged, both deploys verified
 
 **Read this section, then `docs/DESIGN-working-drafts.md` §5 and §7. This file's current material ends

@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## 2026-08-12 — Node 24 Docker migration (PR pending)
+## 2026-08-12 — Node 24 Docker migration (MERGED #214; DEPLOYED)
 
 Moved every shipped/tested Docker stage and both `.nvmrc` files from Node 22.23.2 to Node 24.19.0.
 Local npm rejects non-24 majors but accepts supported 24.x patches; the unused Volta pin is gone.
@@ -20,7 +20,25 @@ app starts; and the exact pushed commit also builds and renders through sharp on
 The complete migration chain applies to a fresh database; 558 unit, 158 integration, 132 HTTP/authz,
 and 25 browser tests pass; and both DOCX fidelity gates remain byte/content green. Two latent E2E
 false-greens exposed by the new runtime were corrected: an intermediate-state race and fixture emails
-that exhausted their own real signup quota.
+that exhausted their own real signup quota. Merged onto `main` after a real amd64 GitHub Actions run
+(the one architecture native ARM64 verification couldn't cover) went green in 11 minutes. See
+`docs/DECISIONS.md` 2026-08-12 for the CI-trigger issue hit while landing this — the original PR
+never got a CI run after being retargeted onto `main` and had to be replayed onto a fresh branch.
+
+## 2026-08-12 — full audit remediation (MERGED #210; DEPLOYED)
+
+Closed out a full external code audit (security, concurrency, resource-cleanup, and performance
+findings across ~31k lines). Security: the Payload boot guard now fails closed on any DB error except
+the expected pre-schema condition; the first-user-to-Site-Admin race is closed with a transaction-
+scoped Postgres advisory lock; DOMPurify bumped to 3.4.13 with the render-cache version bumped to
+match. Data integrity: `SubjectGrade` partial updates (PATCH with only one of `subject`/`grade`) no
+longer skip the duplicate check or drop the other field, with real concurrent-write integration
+coverage; cached JSON (preview/diff/export) is now schema-validated instead of trusted via unchecked
+casts. Concurrency/resources: export-job dedup is DB-enforced via a partial unique index instead of a
+racy application-level scan; failed artifact cache writes no longer leak temp files. Performance: the
+catalogue's full-corpus version scan became a single `GROUP BY`; curriculum grouping's O(N²) lookup
+became a map. Cleanup: `node_modules` had 265 Finder-style duplicate directories from the
+Documents→Developer move, breaking `tsc`; ESLint now enforces zero warnings (was 100).
 
 ## 2026-08-09 — edit recovery, cleanup round 2 (MERGED #207; DEPLOYED)
 
