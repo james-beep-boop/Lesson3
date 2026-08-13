@@ -28,7 +28,7 @@ import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
 import { canonicalJson } from '../lib/canonicalJson'
 import { stripIds } from '../lib/stripIds'
 
-type Doc = Record<string, any>
+type Doc = Record<string, unknown> & { id?: string | number }
 type Row = { id?: string | number }
 type Req = Parameters<CollectionBeforeChangeHook>[0]['req']
 
@@ -307,8 +307,8 @@ export const applyEditorFieldSplit = ({
     }
   }
   if (data.finalExplanation) {
-    const fe = data.finalExplanation
-    const feBefore = originalDoc.finalExplanation ?? {}
+    const fe = data.finalExplanation as Doc
+    const feBefore = (originalDoc.finalExplanation ?? {}) as Doc
     if (
       'sections' in fe &&
       !sameSequence(idsOf(storedRows(feBefore.sections)), idsOf(submittedRows(fe.sections, reject)))
@@ -320,15 +320,18 @@ export const applyEditorFieldSplit = ({
     )
       reject()
   }
-  if (data.summaryTable && 'lessons' in data.summaryTable) {
-    const stBefore = originalDoc.summaryTable ?? {}
-    if (
-      !sameSequence(
-        idsOf(storedRows(stBefore.lessons)),
-        idsOf(submittedRows(data.summaryTable.lessons, reject)),
+  if (data.summaryTable) {
+    const summaryTable = data.summaryTable as Doc
+    if ('lessons' in summaryTable) {
+      const stBefore = (originalDoc.summaryTable ?? {}) as Doc
+      if (
+        !sameSequence(
+          idsOf(storedRows(stBefore.lessons)),
+          idsOf(submittedRows(summaryTable.lessons, reject)),
+        )
       )
-    )
-      reject()
+        reject()
+    }
   }
 
   // 2. WHITELIST: write = original, with only prose overlaid from the submission.
@@ -345,7 +348,7 @@ export const applyEditorFieldSplit = ({
 
   if (Array.isArray(d.lessons)) {
     d.lessons = overlayRows(
-      orig.lessons,
+      orig.lessons as Doc[] | undefined,
       d.lessons as Doc[],
       LESSON_PROSE,
       (baseRow, subRow, out) => {

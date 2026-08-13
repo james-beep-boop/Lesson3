@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    -- Clean contract cutover: required fallback URLs cannot be added safely over retained old
    -- lesson rows. The user permanently deleted the former corpus; fail actionably if any rows remain
@@ -117,7 +117,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "lesson_bundle_versions_lessons_framework" DROP COLUMN "resources_reading_search_url";`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    -- Data-safety guard (mirrors up()): rolling back DROPs all 95 lesson-level resource_links_*
    -- columns and restores only the six sparse legacy framework resource columns, which CANNOT

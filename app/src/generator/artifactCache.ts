@@ -31,6 +31,26 @@ const CACHE_DIR =
 // Fail fast on a malformed override rather than the old `Number(env) || default`, which would
 // silently ignore a typo and keep the 512 MB default (audit 2026-07-05, Codex #7).
 const MAX_BYTES = positiveIntEnv('ARTIFACT_CACHE_MAX_BYTES', 512 * 1024 * 1024) // 512 MB
+const STALE_TMP_AGE_MS = 60 * 60 * 1000
+let staleTempCleanup: Promise<void> | null = null
+
+async function removeStaleTempFiles(): Promise<void> {
+  const cutoff = Date.now() - STALE_TMP_AGE_MS
+  const names = await fs.readdir(CACHE_DIR).catch(() => [])
+  await Promise.all(
+    names
+      .filter((name) => name.endsWith('.tmp'))
+      .map(async (name) => {
+        const file = path.join(CACHE_DIR, name)
+        try {
+          const stat = await fs.stat(file)
+          if (stat.mtimeMs < cutoff) await fs.unlink(file)
+        } catch {
+          // Best-effort startup hygiene: another writer/cleaner may have won the race.
+        }
+      }),
+  )
+}
 
 /**
  * Build a stable cache key from its parts. Each part is coerced to a string and joined with
@@ -85,12 +105,20 @@ export async function getArtifact(key: string): Promise<Buffer | null> {
  */
 export async function putArtifact(key: string, bytes: Buffer): Promise<void> {
   await fs.mkdir(CACHE_DIR, { recursive: true })
+  staleTempCleanup ??= removeStaleTempFiles()
+  await staleTempCleanup
   const file = fileForKey(key)
   // Per-WRITE unique temp (pid + uuid): two concurrent jobs producing the same key (duplicate
   // cold exports) must not share a temp path and clobber each other's write before rename.
   const tmp = `${file}.${process.pid}.${randomUUID()}.tmp`
-  await fs.writeFile(tmp, bytes)
-  await fs.rename(tmp, file)
+  try {
+    await fs.writeFile(tmp, bytes)
+    await fs.rename(tmp, file)
+  } finally {
+    // rename removes the temp on success; unlink closes interrupted-write leaks on failure.
+    // Cleanup is best-effort so an unlink fault cannot mask the original write/rename failure.
+    await fs.unlink(tmp).catch(() => {})
+  }
   await evictIfNeeded()
 }
 

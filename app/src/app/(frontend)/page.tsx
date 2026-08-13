@@ -8,6 +8,7 @@ import { isEditorFor } from '@/access'
 import type { User } from '@/payload-types'
 import LibraryBrowser from './LibraryBrowser'
 import { lessonDisplayName, type LessonRow } from '@/lib/substrand'
+import { versionCountsByPlan } from '@/lib/versionCounts'
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
@@ -41,12 +42,12 @@ export default async function BrowsePage({
   // key their star to the plan's OFFICIAL version (the version the row opens), so a favorite on a
   // non-Official version (saved from the lesson page) simply never matches a row's lookup here —
   // deliberately not surfaced yet; the versions-panel redesign PR ② adds the any-version indicator.
-  // The third fetch (PR ②) is the whole corpus' version→plan mapping, projected to ONE relationship
-  // column — it feeds the per-plan version COUNT behind the `[N versions ▾]` chip. Same corpus-size
-  // posture as the plans fetch (revisit with the documented ~1–2k thresholds).
+  // The third fetch is a DB-side GROUP BY for the per-plan version COUNT behind the
+  // `[N versions ▾]` chip. Returning one aggregate row per plan avoids transferring one stub per
+  // version as history grows.
   // Timed individually, with no wrapper around the `Promise.all`: these start together, so the
   // barrier the render waits on is just the largest of the three — derivable, not worth an indent.
-  const [{ docs: plans }, { docs: favorites }, { docs: versionStubs }] = await Promise.all([
+  const [{ docs: plans }, { docs: favorites }, versionCountByPlan] = await Promise.all([
     t.time('plans', () =>
       payload.find({
         collection: 'lesson-plans',
@@ -67,22 +68,8 @@ export default async function BrowsePage({
         select: { version: true },
       }),
     ),
-    t.time('versionStubs', () =>
-      payload.find({
-        collection: 'lesson-bundle-versions',
-        overrideAccess: false,
-        user,
-        depth: 0,
-        pagination: false,
-        select: { lessonPlan: true },
-      }),
-    ),
+    t.time('versionCounts', () => versionCountsByPlan(payload)),
   ])
-  const versionCountByPlan = new Map<number, number>()
-  for (const v of versionStubs) {
-    const pid = relId(v.lessonPlan)
-    if (pid != null) versionCountByPlan.set(pid, (versionCountByPlan.get(pid) ?? 0) + 1)
-  }
   const officialIds = distinctIds(plans.map((p) => relId(p.officialVersion)))
 
   // version id → the caller's favorite row id (drives the star's filled state + DELETE target).

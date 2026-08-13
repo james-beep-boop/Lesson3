@@ -21,7 +21,7 @@ import { expireEditRecoveryTask } from './jobs/expireEditRecovery'
 import { messagePingTask } from './jobs/messagePing'
 import { passwordResetEmailTask } from './jobs/passwordResetEmail'
 import { isSiteAdmin } from './access'
-import { firstUserBootRefusal } from './lib/publicPosture'
+import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
 
 const filename = fileURLToPath(import.meta.url)
@@ -202,8 +202,12 @@ export default buildConfig({
     let userCount: number | null = null
     try {
       userCount = (await payload.count({ collection: 'users' })).totalDocs
-    } catch {
-      return // pre-schema boot (first migrate) — nothing to guard yet
+    } catch (error) {
+      // The very first migration runs before the users table exists. That specific PostgreSQL
+      // condition is expected; every other count failure must abort boot or public posture would
+      // silently lose its first-user protection during a database/network fault.
+      if (isUndefinedTableError(error)) return
+      throw error
     }
     const refusal = firstUserBootRefusal({
       serverUrl: process.env.SERVER_URL,

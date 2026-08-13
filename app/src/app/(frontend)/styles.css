@@ -1498,8 +1498,6 @@ a {
      as dropped. A row of mixed-height controls wants centring. */
   .app-header {
     align-items: flex-start;
-  }
-  .app-header {
     flex-direction: column;
   }
   .app-nav {

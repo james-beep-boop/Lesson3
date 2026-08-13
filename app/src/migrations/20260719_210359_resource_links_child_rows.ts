@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    -- The preceding cutover's flattened schema could not successfully create/read a version, and
    -- the cutover was explicitly deployed over an empty corpus. Refuse to drop those columns if a
@@ -141,7 +141,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "lesson_bundle_versions_lessons" DROP COLUMN "resource_links_model_fallback_search_url";`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    -- Rolling back drops the normalized resource rows. Keep the same empty-corpus safety boundary
    -- as up() so a rollback can never silently erase lesson resources.

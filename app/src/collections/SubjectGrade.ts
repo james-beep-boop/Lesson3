@@ -127,20 +127,23 @@ export const SubjectGrade: CollectionConfig = {
       // an unexplained error, Payload keeps the submitted values in the form, and a form that will not
       // save while showing the old values reads exactly like a value that is stuck.
       async ({ data, req, originalDoc }) => {
-        if (!data?.subject || data?.grade == null) return data
-        const subjectId = typeof data.subject === 'object' ? data.subject.id : data.subject
+        if (!data) return data
+        const subjectValue = 'subject' in data ? data.subject : originalDoc?.subject
+        const gradeValue = 'grade' in data ? data.grade : originalDoc?.grade
+        if (!subjectValue || gradeValue == null) return data
+        const subjectId = typeof subjectValue === 'object' ? subjectValue.id : subjectValue
         const existing = await req.payload.find({
           collection: 'subject-grades',
           depth: 0,
           limit: 1,
           req,
           where: {
-            and: [{ subject: { equals: subjectId } }, { grade: { equals: data.grade } }],
+            and: [{ subject: { equals: subjectId } }, { grade: { equals: gradeValue } }],
           },
         })
         const clash = existing.docs[0]
         if (clash && clash.id !== originalDoc?.id) {
-          throw new APIError(`Grade ${data.grade} already exists for that subject.`, 400)
+          throw new APIError(`Grade ${gradeValue} already exists for that subject.`, 400)
         }
         return data
       },
@@ -148,19 +151,19 @@ export const SubjectGrade: CollectionConfig = {
     beforeChange: [
       // Maintain the stored "<Subject> — Grade N" title (a virtual field can't be
       // useAsTitle unless it maps to a single relationship field).
-      async ({ data, req }) => {
-        if (!data || data.grade == null) return data
-        const subjectId = typeof data.subject === 'object' ? data.subject?.id : data.subject
-        let subjectName: string | undefined
-        if (subjectId != null) {
-          const subject = await req.payload
-            .findByID({ collection: 'subjects', id: subjectId, depth: 0, req })
-            .catch(() => null)
-          subjectName = subject?.name
-        }
-        data.displayName = subjectName
-          ? `${subjectName} — Grade ${data.grade}`
-          : `Grade ${data.grade}`
+      async ({ data, req, originalDoc }) => {
+        if (!data) return data
+        const subjectValue = 'subject' in data ? data.subject : originalDoc?.subject
+        const gradeValue = 'grade' in data ? data.grade : originalDoc?.grade
+        if (!subjectValue || gradeValue == null) return data
+        const subjectId = typeof subjectValue === 'object' ? subjectValue.id : subjectValue
+        const subject = await req.payload.findByID({
+          collection: 'subjects',
+          id: subjectId,
+          depth: 0,
+          req,
+        })
+        data.displayName = `${subject.name} — Grade ${gradeValue}`
         return data
       },
     ],

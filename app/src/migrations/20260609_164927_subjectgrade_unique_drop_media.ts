@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TABLE IF EXISTS "media" DISABLE ROW LEVEL SECURITY;
   DROP TABLE IF EXISTS "media" CASCADE;
@@ -11,7 +11,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN IF EXISTS "media_id";`)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    CREATE TABLE "media" (
   	"id" serial PRIMARY KEY NOT NULL,

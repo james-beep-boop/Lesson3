@@ -1222,7 +1222,7 @@ describe('every recovery request is bounded', () => {
  */
 describe('nothing is re-sent that the server already has', () => {
   it('a blur after a confirmed capture sends nothing', async () => {
-    const h = harness()
+    harness()
     await flush()
     await act(async () => {
       vi.advanceTimersByTime(CAPTURE_DEBOUNCE_MS)

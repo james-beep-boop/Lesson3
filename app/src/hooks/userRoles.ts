@@ -5,6 +5,7 @@ import { sql } from '@payloadcms/db-postgres'
 import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
+import { txDb } from '../lib/txDb'
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
 
@@ -22,6 +23,13 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   if (operation !== 'create' || !data) return data
+
+  // Two simultaneous first-register requests can both observe zero users under READ COMMITTED.
+  // Serialize that count-and-grant decision on the request transaction so only the actual first
+  // committed user receives Site Admin. A fixed two-int advisory key is app-local and avoids
+  // colliding with row-id advisory locks used by unrelated features.
+  const db = await txDb(req, { requireTransaction: true })
+  await db.execute(sql`SELECT pg_advisory_xact_lock(1280527187, 1)`)
   const { totalDocs } = await req.payload.count({ collection: 'users', req })
   if (totalDocs === 0) {
     data.roles = [...new Set([...(data.roles ?? []), 'siteAdmin' as const])]

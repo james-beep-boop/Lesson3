@@ -11,6 +11,27 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-12 — copied dependencies are disposable; proxy features need version checks
+
+**The source move did not create the audit's application defects, but copying an installed dependency
+tree did contaminate the local toolchain.** The moved `app/node_modules` contained 265 directories
+with Finder-style `" 2"` suffixes and made TypeScript fail while resolving packages. That shape is
+consistent with a conflict-preserving folder merge during the Documents → Developer move; it is not a
+shape npm, git, or a clean clone creates. The exact copy mechanism cannot be recovered after the fact,
+so this is evidence-backed attribution rather than certainty.
+
+**Rule:** never copy, merge, restore, or cloud-sync `node_modules`. Move only tracked source and the
+lockfile, then reconstruct dependencies with `npm ci`. Treat `.next`, coverage, and other generated
+trees the same way. A generated tree is disposable state, not project data.
+
+**Reverse-proxy correction.** Caddy's `request_body { max_size ... }` directive is experimental in
+Caddy 2.10+, so it must not be prescribed as a generic stable solution. Verify the deployed proxy and
+version first; use a stable equivalent such as nginx `client_max_body_size` when that is the chosen
+edge. The application-level declared-length and streaming checks remain defense in depth, not a
+substitute for rejecting an oversized body before Node buffers it.
+
+---
+
 ## 2026-08-08 (edit recovery, cleanup round 2) — half a bound, and a justification the file disproved
 
 Three lessons from a four-angle review of code that was already merged and deployed.

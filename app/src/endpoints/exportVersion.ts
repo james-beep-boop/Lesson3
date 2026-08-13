@@ -28,6 +28,7 @@ import {
 import {
   GENERATE_VERSION_ARTIFACT_SLUG,
   findPendingExportJob,
+  isPendingExportJobConflict,
   jobMatchesSpec,
   type GenerateVersionArtifactInput,
 } from '../jobs/generateVersionArtifact'
@@ -123,8 +124,22 @@ export const exportVersionPrepareEndpoint: Endpoint = {
     // Dedupe: coalesce onto an already in-flight job for the SAME {versionId, kind} rather than
     // enqueuing a duplicate (repeated clicks / poll races / two tabs). The artifact cache already makes
     // COMPLETED repeats free (the isExportReady short-circuit above); this guards the in-flight window.
-    const existing = await findPendingExportJob(req.payload, input)
-    const job = existing ?? (await req.payload.jobs.queue({ task: GENERATE_VERSION_ARTIFACT_SLUG, input, req }))
+    let job = await findPendingExportJob(req.payload, input)
+    if (!job) {
+      try {
+        job = await req.payload.jobs.queue({
+          task: GENERATE_VERSION_ARTIFACT_SLUG,
+          input,
+          req,
+        })
+      } catch (error) {
+        if (!isPendingExportJobConflict(error)) throw error
+        // The unique index made the concurrent request wait for the winning insert. Resolve that
+        // committed job exactly and coalesce this response onto it.
+        job = await findPendingExportJob(req.payload, input)
+        if (!job) throw error
+      }
+    }
 
     const statusUrl = `/api/lesson-bundle-versions/${version.id}/export/status?jobId=${job.id}&as=${kind}`
     return json({ state: 'preparing', jobId: job.id, statusUrl, retryAfterMs: 1500 }, 202)

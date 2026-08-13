@@ -18,6 +18,7 @@
  * Depends only on `APIError`/`PayloadRequest`.
  */
 import { APIError, type PayloadRequest } from 'payload'
+import { assertDeclaredBodyWithin } from './respond'
 
 /**
  * Coarse ceiling on the WHOLE request body, checked from `Content-Length` BEFORE `req.json()`
@@ -61,10 +62,7 @@ export async function readRecoveryBody(req: PayloadRequest): Promise<Record<stri
   // Pre-parse guard: reject via Content-Length BEFORE `req.json()` reads the stream into memory.
   // `Number(null)` is 0 and `Number('')` is 0, so a missing header falls through to the parse, which
   // is the intended behaviour — see the honesty caveat on the constant.
-  const declaredLength = Number(req.headers?.get('content-length'))
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_RECOVERY_BODY_BYTES) {
-    throw new APIError('Request body too large', 413)
-  }
+  assertDeclaredBodyWithin(req, MAX_RECOVERY_BODY_BYTES, 'Request body too large')
 
   try {
     return ((await req.json?.()) ?? {}) as Record<string, unknown>

@@ -75,9 +75,9 @@ export interface SubjectGradeGroup<T extends CurriculumRow> {
 
 /** Parse a dotted id into numeric segments, or null if any segment isn't a number (invalid id). */
 function parseSegments(id: string): number[] | null {
-  if (!id) return null
-  const segs = id.split('.').map((s) => Number(s.trim()))
-  return segs.some((n) => !Number.isFinite(n)) ? null : segs
+  const normalized = id.trim()
+  if (!/^\d+(?:\.\d+)*$/.test(normalized)) return null
+  return normalized.split('.').map(Number)
 }
 
 /**
@@ -184,6 +184,7 @@ function strandLabel(strandNumber: number | null, name: string): string {
  */
 export function groupLessons<T extends CurriculumRow>(rows: readonly T[]): SubjectGradeGroup<T>[] {
   const groups = new Map<string, SubjectGradeGroup<T>>()
+  const strandsBySubjectGrade = new Map<string, Map<string, StrandGroup<T>>>()
   for (const r of rows) {
     const sgKey = `${r.subjectName}::${r.grade ?? ''}`
     let sg = groups.get(sgKey)
@@ -196,13 +197,16 @@ export function groupLessons<T extends CurriculumRow>(rows: readonly T[]): Subje
         strands: [],
       }
       groups.set(sgKey, sg)
+      strandsBySubjectGrade.set(sgKey, new Map())
     }
     const n = strandNumberOf(r.substrandId)
     const stKey = n != null ? `n${n}` : r.strandName ? `s${r.strandName}` : 'other'
-    let st = sg.strands.find((s) => s.key === stKey)
+    const strandIndex = strandsBySubjectGrade.get(sgKey)!
+    let st = strandIndex.get(stKey)
     if (!st) {
       st = { key: stKey, label: strandLabel(n, cleanStrandName(r.strandName)), strandNumber: n, rows: [] }
       sg.strands.push(st)
+      strandIndex.set(stKey, st)
     }
     st.rows.push(r)
   }
@@ -283,4 +287,3 @@ export function filterRows<T extends CurriculumRow>(
       matchesTokens(r, tokens),
   )
 }
-

@@ -21,6 +21,7 @@ import { ingestItems, type IngestItem } from '../ingest'
 import { IngestError } from '../ingest/errors'
 import { extractAresJson } from '../ingest/extract'
 import type { User } from '../payload-types'
+import { assertDeclaredBodyWithin } from './respond'
 
 const MAX_FILES = 50
 const MAX_FILE_BYTES = 5 * 1024 * 1024 // 5 MB/file (real bundles are ≪ 1 MB)
@@ -41,10 +42,7 @@ export const uploadBundlesEndpoint: Endpoint = {
     // Coarse pre-parse guard: reject an oversized body via Content-Length BEFORE `formData()` buffers
     // the whole multipart payload into memory. The header may be absent or wrong, so the per-file caps
     // below stay the authority; this just bounds the buffering for an honest (or huge-and-honest) client.
-    const declaredLength = Number(req.headers?.get('content-length'))
-    if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
-      throw new APIError(`Upload too large (max ${MAX_BODY_BYTES} bytes)`, 413)
-    }
+    assertDeclaredBodyWithin(req, MAX_BODY_BYTES, `Upload too large (max ${MAX_BODY_BYTES} bytes)`)
 
     let form: FormData
     try {

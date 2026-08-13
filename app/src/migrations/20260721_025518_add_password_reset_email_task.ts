@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
    ALTER TYPE "public"."enum_payload_jobs_log_task_slug" ADD VALUE 'passwordResetEmail';
   ALTER TYPE "public"."enum_payload_jobs_task_slug" ADD VALUE 'passwordResetEmail';`)
@@ -19,7 +19,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
  * first place (see `jobs/passwordResetEmail.ts`), so the delete leaks nothing and strands no user:
  * the token still sits on the user record, and anyone affected can simply request a new reset.
  */
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
    DELETE FROM "payload_jobs_log" WHERE "task_slug" = 'passwordResetEmail';
   DELETE FROM "payload_jobs" WHERE "task_slug" = 'passwordResetEmail';

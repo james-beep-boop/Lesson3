@@ -14,6 +14,7 @@
  * by the version export endpoint; the task itself uses overrideAccess.
  */
 import type { Payload, TaskConfig } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
 
 import {
   assertExportKind,
@@ -26,6 +27,7 @@ import {
 import { generateFromVersionSnapshot } from '../generator/generateForVersion'
 import { docxToPdf } from '../generator/docxToPdf'
 import { captureException } from '../lib/errorTracking'
+import { rowsOf } from '../lib/txDb'
 import type { LessonBundleVersion, PayloadJob } from '../payload-types'
 
 export interface GenerateVersionArtifactInput {
@@ -116,31 +118,53 @@ export function jobMatchesSpec(job: PayloadJob, input: GenerateVersionArtifactIn
 }
 
 /**
- * All in-flight `generateVersionArtifact` jobs (not completed, not in a terminal error state).
- * `payload-jobs.input` is a JSON column, so callers match specs in-memory over the (few) pending
- * rows rather than via a nested-JSON `where`. The pending set for one task slug is tiny — autoRun
- * drains it every ~3s and the prepare dedupe coalesces repeats — so a small bound comfortably
- * covers any realistic in-flight window.
+ * The in-flight job matching this exact spec, or null. Query the JSON scalars directly: a bounded
+ * Payload page can miss the match during a backlog and re-open the duplicate-enqueue window.
  */
-export async function findPendingExportJobs(payload: Payload): Promise<PayloadJob[]> {
-  const { docs } = await payload.find({
-    collection: 'payload-jobs',
-    where: {
-      taskSlug: { equals: GENERATE_VERSION_ARTIFACT_SLUG },
-      completedAt: { exists: false },
-      hasError: { not_equals: true },
-    },
-    limit: 20,
-    depth: 0,
-    overrideAccess: true,
-  })
-  return docs
-}
-
-/** The in-flight job matching this exact spec, or null. */
 export async function findPendingExportJob(
   payload: Payload,
   input: GenerateVersionArtifactInput,
 ): Promise<PayloadJob | null> {
-  return (await findPendingExportJobs(payload)).find((j) => jobMatchesSpec(j, input)) ?? null
+  const adapter = payload.db as unknown as {
+    drizzle: { execute: (query: unknown) => Promise<unknown> }
+  }
+  const result = await adapter.drizzle.execute(sql`
+    SELECT "id"
+    FROM "payload_jobs"
+    WHERE "task_slug" = ${GENERATE_VERSION_ARTIFACT_SLUG}
+      AND "completed_at" IS NULL
+      AND "has_error" IS NOT TRUE
+      AND "input" ->> 'versionId' = ${String(input.versionId)}
+      AND "input" ->> 'kind' = ${input.kind}
+    ORDER BY "id" DESC
+    LIMIT 1
+  `)
+  const id = rowsOf(result)[0]?.id
+  if (typeof id !== 'number' && typeof id !== 'string') return null
+  return payload.findByID({
+    collection: 'payload-jobs',
+    id,
+    depth: 0,
+    overrideAccess: true,
+  })
+}
+
+export const PENDING_EXPORT_JOB_UNIQUE_INDEX =
+  'payload_jobs_generate_version_artifact_pending_unique'
+
+/** True only for the migration-backed pending-export uniqueness conflict. */
+export function isPendingExportJobConflict(error: unknown): boolean {
+  let current: unknown = error
+  const seen = new Set<unknown>()
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    const record = current as { code?: unknown; constraint?: unknown; cause?: unknown }
+    if (
+      record.code === '23505' && record.constraint === PENDING_EXPORT_JOB_UNIQUE_INDEX
+    ) {
+      return true
+    }
+    current = record.cause
+  }
+  return false
 }

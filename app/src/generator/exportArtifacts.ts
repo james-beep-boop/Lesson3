@@ -18,6 +18,7 @@ import { createRequire } from 'node:module'
 import { artifactKey, getArtifact, hasArtifact, putArtifact } from './artifactCache'
 import type { GeneratedDocx } from './index'
 import { GENERATOR_RENDER_VERSION } from './renderVersion'
+import { decodeCachedJson, isStringRecord } from './cacheCodecs'
 
 const require = createRequire(import.meta.url)
 const JSZip = require('jszip') as new () => {
@@ -178,11 +179,27 @@ export async function isExportReady(spec: ArtifactSpec): Promise<boolean> {
 async function readManifest(spec: ArtifactSpec): Promise<Manifest | null> {
   const manifestBytes = await getArtifact(keyFor(spec, MANIFEST_DOC))
   if (!manifestBytes) return null
-  try {
-    return JSON.parse(manifestBytes.toString('utf8')) as Manifest
-  } catch {
-    return null
-  }
+  return decodeCachedJson(manifestBytes, (value): value is Manifest => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value) || !('docs' in value)) {
+      return false
+    }
+    const docs = value.docs
+    if (!Array.isArray(docs) || docs.length < 1 || docs.length > DELIVERABLE_TAGS.length) return false
+    const tags = new Set<DeliverableTag>()
+    for (const doc of docs) {
+      if (!isStringRecord(doc, ['tag', 'name'])) return false
+      const candidate = doc as DocMeta
+      if (
+        !DELIVERABLE_TAGS.includes(candidate.tag) ||
+        !/^[A-Za-z0-9._-]+$/.test(candidate.name) ||
+        tags.has(candidate.tag)
+      ) {
+        return false
+      }
+      tags.add(candidate.tag)
+    }
+    return tags.has('lessonSequence')
+  })
 }
 
 /** One deliverable's serve-ready bytes, or why not: `cold` = manifest/bytes missing (prepare

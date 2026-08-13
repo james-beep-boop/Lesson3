@@ -310,21 +310,19 @@ thing.
 Both surfaced in a four-angle `/simplify` pass and both were judged out of scope for a fix-pinning
 diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is urgent; both are real.
 
-- **The Content-Length pre-parse guard now exists in THREE hand-written copies** —
-  `endpoints/previewParse.ts`, `endpoints/uploadBundles.ts` and now `endpoints/recoveryParse.ts` —
-  each re-explaining the same "the header may be absent or dishonest" caveat in its own words. The
-  rule of three is reached. The extraction is `assertBodyWithin(req, maxBytes, message)` in shared
-  endpoint infrastructure (`endpoints/respond.ts` already exists for exactly this). ⚑ **Do not let it
-  delay PR 2** (operator, 2026-08-07) — do it when one of those endpoints is next touched anyway. ⚑ **Share the
-  CHECK, not the constants** — the three limits measure different payload classes and must stay
-  independent; coupling the numbers is the hazard, not the duplication. Worth doing with the next
-  change that touches any of those files.
+- ✅ **The duplicated Content-Length pre-parse guard was extracted** to
+  `assertDeclaredBodyWithin(req, maxBytes, message)` in `endpoints/respond.ts` (2026-08-12).
+  Preview, upload, recovery, and forgot-password share the check while retaining independent limits;
+  the constants measure different payload classes and must not be coupled.
   Deeper version, if anyone wants it: `emailVersion.ts`, `forgotPassword.ts`, `markMessagesRead.ts`
-  and `userAssignments.ts` all call `req.json()` unguarded, so "no request may make the process
+  and `userAssignments.ts` included unguarded `req.json()` call sites when this was written;
+  forgot-password is now guarded. The broader rule remains: "no request may make the process
   allocate an unbounded body" is currently opt-in and therefore permanently incomplete — every new
   JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
   And the part no application-layer guard can do — a body with a missing or lying header — wants a
-  limit at the proxy/Next layer; there is none in the repo today.
+  limit at the public proxy. `docs/OPS.md` now makes that ceiling and its chunked-request verification
+  mandatory, but it remains operator configuration because the private/offline deployment has no
+  public reverse proxy.
 
 - **Test-DDL helpers want their own module — on the SECOND SPEC FILE, not the third mechanism.**
   `tests/http/saveAsNewRecovery.http.spec.ts` now installs three Postgres mechanisms (a fault trigger,
