@@ -7,6 +7,12 @@ import type {
 import { NotFound, ValidationError } from 'payload'
 
 import { isEditorFor, toId } from '../access'
+import {
+  derivePublicSlug,
+  isValidPublicSlug,
+  normalisePublicSlug,
+  suffixedPublicSlug,
+} from '../lib/publicSlug'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import type { User } from '../payload-types'
@@ -106,6 +112,169 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   }
 
   return data
+}
+
+/** Visibility values that put a plan on the public internet (anything but `private`). */
+const isPublishedVisibility = (v: unknown): boolean => v === 'unlisted' || v === 'listed'
+
+const slugError = (message: string, req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
+  new ValidationError(
+    { collection: 'lesson-plans', errors: [{ message, path: 'publicSlug' }] },
+    req.t,
+  )
+
+/**
+ * Publication rules for a lesson plan (SPEC §2; `docs/DESIGN-public-library.md`).
+ *
+ * Three invariants, all of which exist because a public slug is a link a teacher forwards:
+ *
+ *   1. **A published plan HAS a slug.** Publishing without one would mint a plan that is public in
+ *      the database and unreachable in the world — the worst of both, and invisible until someone
+ *      goes looking. Derived from subject/grade/title when blank, and REFUSED when nothing usable
+ *      can be derived, rather than falling back to a nameless URL.
+ *   2. **The slug is FROZEN once the plan has been published.** Editable freely while `private`;
+ *      immutable from the first moment visibility leaves `private`. This is what makes a shared
+ *      link permanent by construction and is why there is no old-slug redirect table to maintain.
+ *      The accepted cost is that a typo is only fixable by unpublishing first — the rarer event, and
+ *      a deliberate administrative act.
+ *   3. **The slug is well formed and unique.** Format is `lib/publicSlug.ts`'s business; uniqueness
+ *      needs the database and is settled here, walking past collisions with a numeric suffix.
+ *
+ * ⚑ Uniqueness is ALSO enforced by a unique index on the column, and that is the authority — this
+ * probe is a friendly error, not the guarantee. Two concurrent publishes can both find the same slug
+ * free; the index is what makes exactly one of them win. Same division of labour as the
+ * SubjectGrade duplicate-pair guard.
+ *
+ * Runs on create and update. Unlike `validateOfficialVersionPointer` there is no `req.user` carve-out
+ * for system paths: ingest creates plans as `private` with no slug, which these rules already permit,
+ * and a migration or fixture that publishes something should be held to the same invariants as a
+ * human — a nameless public plan is not more acceptable for having been made by a script.
+ */
+export const validatePublication: CollectionBeforeValidateHook = async ({
+  data,
+  originalDoc,
+  req,
+}) => {
+  if (!data) return data
+
+  const previousVisibility = (originalDoc as { visibility?: unknown } | undefined)?.visibility
+  const previousSlug = (originalDoc as { publicSlug?: unknown } | undefined)?.publicSlug
+  const wasPublished = isPublishedVisibility(previousVisibility)
+
+  // The effective post-write state: a PATCH may carry only one of the two fields.
+  const nextVisibility = 'visibility' in data ? data.visibility : previousVisibility
+  const slugSubmitted = 'publicSlug' in data
+  const rawNextSlug = slugSubmitted ? data.publicSlug : previousSlug
+  const nextSlug = typeof rawNextSlug === 'string' ? rawNextSlug.trim() : ''
+
+  // 2. IMMUTABILITY — checked before anything else, so a rejected change cannot also be normalised
+  // or de-duplicated on its way to being refused.
+  if (wasPublished && slugSubmitted && typeof previousSlug === 'string' && nextSlug !== previousSlug) {
+    throw slugError(
+      'The public link for a published lesson plan cannot be changed — teachers may already have shared it. Set visibility back to Private first.',
+      req,
+    )
+  }
+
+  if (!isPublishedVisibility(nextVisibility)) {
+    // Still private: a slug may be set, cleared or reshaped freely, but it must be VALID if present,
+    // so an unusable value cannot sit waiting to be frozen by the next publish.
+    if (nextSlug && !isValidPublicSlug(normalisePublicSlug(nextSlug))) {
+      throw slugError(
+        'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.',
+        req,
+      )
+    }
+    if (slugSubmitted && nextSlug) data.publicSlug = normalisePublicSlug(nextSlug)
+    return data
+  }
+
+  // 3. Published from here down. Normalise what was given, or derive one.
+  let candidate = nextSlug ? normalisePublicSlug(nextSlug) : ''
+  if (candidate && !isValidPublicSlug(candidate)) {
+    throw slugError(
+      'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.',
+      req,
+    )
+  }
+
+  if (!candidate) {
+    // Already published and keeping its slug (e.g. a visibility change unlisted → listed): nothing
+    // to derive, and nothing to check. Leaving early also keeps this off the write path's hot line.
+    if (wasPublished && typeof previousSlug === 'string' && previousSlug) return data
+
+    const subjectGradeId = idFrom(data.subjectGrade ?? (originalDoc as { subjectGrade?: unknown } | undefined)?.subjectGrade)
+    candidate = derivePublicSlug({
+      ...(await subjectGradeParts(req, subjectGradeId)),
+      title: (data.title ?? (originalDoc as { title?: unknown } | undefined)?.title) as string | undefined,
+    })
+  }
+
+  // 1. A published plan HAS a slug — refuse rather than invent one.
+  if (!candidate) {
+    throw slugError(
+      'This lesson plan needs a public link before it can be published, and one could not be derived from its title. Enter one.',
+      req,
+    )
+  }
+
+  data.publicSlug = await firstFreeSlug(req, candidate, idFrom(originalDoc?.id))
+  return data
+}
+
+/** The subject name and grade behind a subject-grade id, for slug derivation. Absent parts are skipped. */
+async function subjectGradeParts(
+  req: Parameters<CollectionBeforeValidateHook>[0]['req'],
+  subjectGradeId: number | undefined,
+): Promise<{ subjectName?: string | null; grade?: number | null }> {
+  if (subjectGradeId == null) return {}
+  try {
+    const sg = (await req.payload.findByID({
+      collection: 'subject-grades' as CollectionSlug,
+      id: subjectGradeId,
+      depth: 1,
+      overrideAccess: true,
+      req,
+    })) as { grade?: number | null; subject?: unknown }
+    const subject = sg.subject as { name?: string } | number | null | undefined
+    return {
+      subjectName: typeof subject === 'object' && subject ? subject.name : undefined,
+      grade: sg.grade ?? undefined,
+    }
+  } catch {
+    // A missing subject-grade is not this hook's error to raise — the required-relationship
+    // validation owns it. Derivation simply falls back to the title.
+    return {}
+  }
+}
+
+/**
+ * The first slug in `base`, `base-2`, `base-3`… not already held by ANOTHER plan.
+ *
+ * Bounded rather than looping until success: an unbounded search would turn a pathological corpus
+ * (or a bug) into a hang inside a write transaction. On exhaustion the caller gets the raw candidate
+ * and the unique index produces the error, which is the honest outcome — a friendly probe that
+ * cannot find an answer should defer to the authority, not invent one.
+ */
+async function firstFreeSlug(
+  req: Parameters<CollectionBeforeValidateHook>[0]['req'],
+  base: string,
+  selfId: number | undefined,
+): Promise<string> {
+  for (let attempt = 1; attempt <= 25; attempt += 1) {
+    const candidate = suffixedPublicSlug(base, attempt)
+    const { totalDocs } = await req.payload.count({
+      collection: 'lesson-plans' as CollectionSlug,
+      where:
+        selfId == null
+          ? { publicSlug: { equals: candidate } }
+          : { and: [{ publicSlug: { equals: candidate } }, { id: { not_equals: selfId } }] },
+      overrideAccess: true,
+      req,
+    })
+    if (totalDocs === 0) return candidate
+  }
+  return base
 }
 
 /**

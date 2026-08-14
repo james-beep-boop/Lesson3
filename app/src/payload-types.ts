@@ -157,6 +157,14 @@ export interface LessonPlan {
    * The approved version shown first to teachers.
    */
   officialVersion?: (number | null) | LessonBundleVersion;
+  /**
+   * Public visibility. Independent of Official: approving a version never publishes it.
+   */
+  visibility?: ('private' | 'unlisted' | 'listed') | null;
+  /**
+   * The permanent public URL name. Derived on first publish if left blank, and FROZEN once the plan has been published — a shared link must not rot.
+   */
+  publicSlug?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -668,6 +676,8 @@ export interface LessonPlansSelect<T extends boolean = true> {
   title?: T;
   subjectGrade?: T;
   officialVersion?: T;
+  visibility?: T;
+  publicSlug?: T;
   updatedAt?: T;
   createdAt?: T;
 }
