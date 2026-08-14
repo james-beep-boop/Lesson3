@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-14 — three locks were written for the Official-pointer race; only one could be shown to do anything
+
+**The race is real and the fix is one line.** `enforceOfficialNotDeletable` decides whether a version
+may be deleted from a plain `SELECT` of the plan's pointer. Under READ COMMITTED that read does not
+block on another transaction's uncommitted `UPDATE` — it returns the OLD value. So a delete can be
+waved through while a promotion of that very version is in flight, and when the promotion commits
+first the delete's `ON DELETE SET NULL` nulls the pointer it just set. `lockLessonPlan` takes the
+plan row before the read; the guard then waits and reads what was actually committed.
+
+**Two of the three locks were removed, and the reasoning is the durable part.** The instinct on
+seeing a read-then-write race is to lock both sides. Here that was wrong twice:
+
+- `validateOfficialVersionPointer` — a pointer move ends in `UPDATE lesson_plans`, which takes that
+  row's write lock unaided. An explicit lock only moves the same acquisition earlier, widening the
+  window the row is held. **The test written to justify it passed just as happily with it reverted**,
+  because it was observing Postgres's row lock rather than the hook's.
+- `makeOfficialEndpoint` — walking every interleaving, the mandatory `expectedPreviousOfficialId`
+  stale-consent check plus the transaction's rollback already make each ordering safe. No concrete
+  failure could be named, so it went too.
+
+**Rule: a lock you cannot make a test fail without is not defence in depth, it is decoration** — and
+worse than decoration, because it adds contention and reads to the next maintainer as evidence that
+the invariant is handled. The asymmetry is the thing to carry: lock the side that decides from a
+*read*, not the side that decides from a *write*, because only the read is invisible to the database.
+
+**And the sharper lesson: mutation testing caught a test that was itself the guess.** Two successive
+versions of the spec drove the real delete and promotion concurrently, and **both passed with the
+lock removed.** The cause was not flakiness — it was that Postgres already serialises the orderings a
+test can easily construct. Holding the delete makes the promotion block on the foreign key; holding
+the promotion inside its `UPDATE` means the FK's `KEY SHARE` lock is not yet taken, so the delete
+simply wins. The genuinely destructive interleaving needs the delete paused BETWEEN its guard's read
+and its DML — application time, with no trigger point to hang a barrier on.
+
+So the spec was rewritten to pin the **mechanism** (hold the plan row in an independent transaction
+via drizzle's `transaction`, then assert the delete blocks) rather than to replay the race. It goes
+red in 45 ms against a reverted lock. ⚑ **Both earlier versions would have been committed as
+passing guards.** The only thing that distinguished them from the real one was running them against
+a deliberately broken tree — which is exactly what `DECISIONS.md` has said since 2026-08-05, now
+demonstrated against a test rather than against production code.
+
+**Also settled, by reading rather than assuming:** `initTransaction` precedes `beforeDelete` in both
+`deleteByID` and bulk `delete` (installed Payload source), and nothing in this tree passes
+`disableTransaction` — which is what makes `txDb`'s `requireTransaction: true` correct here rather
+than an outage. `FOR UPDATE` on a pooled connection outside a transaction is released immediately and
+holds nothing, so failing closed is the only safe posture for a lock.
+
+⚑ **`ingest/index.ts`'s `lockSubjectGrades` has the same fail-open `?? adapter.drizzle` ending as the
+known `endpoints/userAssignments.ts` defect.** That is a SECOND instance the backlog did not record.
+Left alone here under the surgical-edits rule; it wants its own small PR alongside the tracked one.
+
 ## 2026-08-12 — public discovery is a gated product mode; the login page remains the front door
 
 The next product track is not “replace the app homepage with marketing.” The app has two materially
