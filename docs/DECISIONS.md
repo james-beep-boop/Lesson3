@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-12 — public discovery is a gated product mode; the login page remains the front door
+
+The next product track is not “replace the app homepage with marketing.” The app has two materially
+different deployment settings: a public internet service intended to put useful lesson plans in front
+of as many teachers as possible, and local school servers that may have no internet connection at all.
+Making every installation render the public website would burden the offline product with navigation,
+sharing and promotional concepts it does not need.
+
+**Decision:** keep the restrained `/login` page as the normal unauthenticated front door. On an
+internet deployment where public discovery is explicitly enabled, add one secondary **Explore free
+lesson plans** action leading to `/explore`. On an offline/disabled deployment the action and every
+public route are absent/404. Do not derive this from `SERVER_URL`: that variable already controls
+strict CSRF, Secure cookies and the empty-user boot guard, so reusing it would couple security posture
+to product presentation. Use an explicit opt-in setting (proposed `PUBLIC_LIBRARY_ENABLED`; final name
+belongs to the implementation).
+
+**A shared lesson link bypasses the login front door.** The useful loop is lesson → preview/PDF → share
+with another teacher → that teacher reaches the lesson. Redirecting a deep link through login would
+erase the value that caused the visit. Ordinary root visits stay quiet; deliberate public URLs open
+directly.
+
+**The public boundary resolves Plan → current Official, never arbitrary version.** Existing
+`lessonBundleVersionRead` intentionally lets every *authenticated* user read every retained version;
+Official is a trust/default marker, not that collection's permission boundary. Relaxing the whole
+collection for anonymous callers would therefore expose working copies. Public visibility must be a
+separate plan-level decision, proven by a narrow route before a trusted system read. The likely
+`private | unlisted | listed` + unique-slug schema is a proposal until migration design, but the
+invariant is locked: public AND Official, not either one alone.
+
+**Phones are the primary public viewport.** Laptop polish remains required, but discovery is designed
+first at 360–390 px: compact hero, search near the top, one-column lesson cards, real 44 px targets,
+native share/WhatsApp/copy, and a lightweight online preview before a potentially large PDF. The
+laptop treatment expands the same hierarchy; it is not a second interface.
+
+**PDF is public; Word requires an account.** Anonymous visitors may use the generator-derived online
+preview and open/download the PDF, but DOCX is an editable artifact and therefore stays behind login.
+This is a server-side artifact rule, not merely a hidden button: an anonymous request for Word/DOCX
+must be rejected even if someone constructs the URL directly. Requiring an account at the point a
+teacher wants to edit preserves broad read/share access while establishing an intentional relationship
+for editable downloads.
+
+**Documents become their own route back to the library.** Every generated deliverable should carry a
+visible creator credit and website on every page, because a printed, photographed or forwarded page
+loses an end-of-document credit. The change belongs upstream in the ARES DOCX generator so DOCX and
+derived PDF agree; re-vendor it and bump `GENERATOR_RENDER_VERSION` to invalidate existing cached
+artifacts. Exact “ARES / Seavuria” relationship wording and the permanent printed domain are open—do
+not bake the mockup copy into production before those are confirmed.
+
+Full product brief, explicit non-decisions and proposed slices: `docs/DESIGN-public-library.md`.
+
 ## 2026-08-12 — a PR stacked on a non-`main` branch can silently never get a CI run, even retargeted
 
 **Symptom.** #211 (Node 24 migration) was opened stacked on #210's branch (`base:
