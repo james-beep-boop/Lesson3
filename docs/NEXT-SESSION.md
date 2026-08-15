@@ -24,7 +24,7 @@ the boundary, the publication model and the anonymous resolver are all on `main`
 
 ## Where the work is
 
-**Everything is merged AND deployed. No PRs open.** Seven PRs landed in one session:
+**Everything is merged. No PRs open.** Nine PRs landed in one session:
 
 | PR | What |
 |---|---|
@@ -35,12 +35,20 @@ the boundary, the publication model and the anonymous resolver are all on `main`
 | #220 | the publication model, resolver and migration |
 | #221 | three row locks that could silently hold nothing |
 | #222 | the dev server and seed made runnable again |
+| #223 | this handoff |
+| #224 | cleanup pass on the row locks — four comments describing deleted code, and the race moved to its call site |
 
-**Verified in production on 2026-08-15**, after an operator-run `scripts/deploy.sh`: `/` → 307,
-`/login` → 200 rendering with no console errors, `/explore` → **404**, and `/api/lesson-plans` +
-`/api/lesson-bundle-versions` → **403** to an anonymous caller. The operator additionally exercised
-the Subject-Administrator promote/demote path by hand — the one place the new fail-closed row lock
-could have surfaced — and it worked.
+**Verified in production on 2026-08-15**, after an operator-run `scripts/deploy.sh` covering #216–#222:
+`/` → 307, `/login` → 200 rendering with no console errors, `/explore` → **404**, and
+`/api/lesson-plans` + `/api/lesson-bundle-versions` → **403** to an anonymous caller. The operator
+additionally exercised the Subject-Administrator promote/demote path by hand — the one place the new
+fail-closed row lock could have surfaced — and it worked.
+
+⚑ **#224 was deployed separately, at the end of the same session, and its verification is the
+operator's `deploy.sh` output rather than anything recorded here.** It carries no migration, and its
+only production-code change is `lockLessonPlan` inlined to `lockRows(req, 'lesson_plans', [planId])`
+— provably identical, since that call was the deleted function's entire body. The way to check the
+Rock is running it is the tree-hash comparison further down this file, not a SHA.
 
 ## What is true now, and what is deliberately NOT
 
