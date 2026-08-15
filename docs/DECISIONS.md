@@ -11,6 +11,58 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-15 — three things the row-lock consolidation deferred, and one it disproved
+
+Recorded because each will otherwise be rediscovered by whoever adds the next lock — one of them for
+the third time.
+
+**Two of the three locks use a row as a MUTEX TOKEN, not as data they protect.** `ingest/index.ts`
+and `hooks/userRoles.ts` both take `FOR UPDATE` on `subject_grades` rows, and neither reads or writes
+`subject_grades` — ingest writes lesson plans and versions, the demote hook writes
+`users_assignments`. The row is standing in for a named mutex. That is invisible in the code: a
+future reader sees a row lock and reasonably concludes the subject-grade's own state is guarded, and
+whoever adds a genuine `subject_grades` write will contend with ingest for no reason. It also
+inherits a hole the token idiom does not need — `FOR UPDATE` matching no row locks nothing, silently,
+which is the exact failure class the consolidation existed to remove.
+
+The honest idiom is `pg_advisory_xact_lock(namespace, id)`, which this repo already uses correctly
+twenty lines above one of those sites (`grantSiteAdminToFirstUser`). It names a mutex without
+touching a table and cannot silently match zero rows. **Deferred** because it wants an advisory-key
+registry designed first — there is currently one magic key pair, inline — and because the change is
+conceptual rather than corrective. Take it when a third advisory lock appears.
+
+**Ingest's sub-strand identity IS constraint-shaped, and is the one place a constraint would strictly
+dominate the lock.** The invariant is "at most one lesson plan per `(subject_grade, substrand_id)`",
+and it is currently enforced by THREE application mechanisms: the subject-grade lock, an intra-batch
+duplicate check, and a runtime ambiguity guard in `findExistingPlan` that throws
+`IngestError('resolve the duplicate before re-ingesting')`. That third one is the tell — the code
+already concedes the invariant can be violated and ships a manual repair path. And the lock is coarse
+where the key is fine: it serialises ALL ingest for a subject-grade to protect a per-sub-strand key.
+
+A partial unique index on `lesson_plans (subject_grade_id, substrand_id)` is the repo's own
+`payload_jobs` precedent, whose migration says the quiet part out loud: *"application-level
+find-then-enqueue cannot serialize two requests."* **Deferred as a tracked ticket, not a refactor:**
+the key lives per-version today (`meta.substrand_id`), so it needs a denormalised immutable column, a
+backfill, a 23505 → `IngestError` mapping, and a product decision about what a re-upload that CHANGES
+`META.substrand_id` means.
+
+**⚑ DISPROVED: "≤1 Subject Admin per subject-grade" is NOT expressible as a Postgres constraint.**
+Worth recording as a negative result, because it looks obviously available and this is at least the
+second time it has been considered. Three independent blockers: the semantics are *demote the other
+holder*, not *reject the second grant*, so the constraint would have to be `DEFERRABLE INITIALLY
+DEFERRED`; Postgres has no deferrable PARTIAL unique, because `DEFERRABLE` requires a table
+constraint and constraints cannot carry a `WHERE`; and Payload writes array fields by
+delete-all-then-reinsert, so a non-deferred index fires mid-write, before the hook that resolves the
+conflict runs. A side table keyed on `subject_grade_id` would work, but creates a second source of
+truth against `user.assignments`, which every access function reads. **The lock is the right altitude
+here. Do not re-derive this.**
+
+**Also deferred: splitting `lib/locks.ts` out of `lib/txDb.ts`.** `txDb.ts` documents itself as being
+about "the ADAPTER, not any feature", and `lockRows` makes it domain-aware — it hard-codes a
+`LockableTable` union of application table names and encodes a concurrency policy. A pure file move,
+worth doing when either a fourth lockable table or a second advisory lock needs a home; not worth
+breaking a deployed tree for today.
+
 ## 2026-08-14 — public discovery, phase 1: two Payload behaviours worth knowing before the read slice
 
 **Field access DENIES BY STRIPPING, not by erroring.** A Subject Administrator who attempts to

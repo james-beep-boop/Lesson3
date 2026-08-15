@@ -68,11 +68,18 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
       try {
         // Serialize concurrent role changes on this user: take a ROW LOCK on the target before the
         // freshness read (Codex round-3 #1 — two requests carrying the same fresh token could
-        // otherwise both pass the check, and the later write would drop the earlier delta). The lock
-        // must run on THIS transaction's connection: `db.sessions[txID].db` is the tx-bound drizzle
-        // instance — the same lookup @payloadcms/drizzle's own (unexported) getTransaction() does,
-        // verified against installed source. The second request blocks here until the first commits,
-        // then its fresh read sees the NEW updatedAt → 409.
+        // otherwise both pass the check, and the later write would drop the earlier delta). The
+        // second request blocks here until the first commits, then its fresh read sees the NEW
+        // updatedAt → 409. `lockRows` owns the connection mechanics and fails closed.
+        //
+        // ⚑ THIS LOCK IS LOAD-BEARING, unlike make-official's, which DECISIONS 2026-08-14 removed
+        // on the grounds that a stale-consent check plus rollback already covered every ordering.
+        // The docblock above likens `expectedUpdatedAt` to `expectedPreviousOfficialId`, so the same
+        // argument looks like it should apply here — it does not. There the consent value decides
+        // only whether to proceed. Here the check is a READ-then-COMPARE followed by a SEPARATE
+        // unconditional write of the whole assignments array, so two requests can both pass the
+        // compare before either writes and the later one silently drops the earlier delta. Do not
+        // delete this by analogy.
         await lockRows(req, 'users', [targetId])
 
         // Fresh read inside the transaction (post-lock) — the freshness check and the delta both

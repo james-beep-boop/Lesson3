@@ -84,16 +84,16 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   // both sides of a race" is the obvious instinct and it is wrong on this side.
   //
   // A pointer move ends in `UPDATE lesson_plans`, and that statement takes the row's write lock on
-  // its own. Adding `lockLessonPlan` here would only move the same acquisition earlier, widening the
+  // its own. Adding an explicit lock here would only move the same acquisition earlier, widening the
   // window the row is held while this hook does its validation reads — pure contention for no
   // additional guarantee. It was written, and then removed when the test meant to justify it passed
   // just as happily with it gone: the test was observing Postgres's own row lock, not the hook's.
   //
   // The asymmetry is the whole point. The DELETE side has no such statement — its guard decides from
   // a plain `SELECT`, which under READ COMMITTED reads straight past an uncommitted `UPDATE` — so the
-  // lock is load-bearing there and only there. See `enforceOfficialNotDeletable` and
-  // `lib/officialPointer.ts`, and `tests/int/officialPointerLock.int.spec.ts` for the mutation run
-  // that settled it.
+  // lock is load-bearing there and only there. See `enforceOfficialNotDeletable` in
+  // `hooks/bundleVersion.ts`, which carries the full race, and
+  // `tests/int/officialPointerLock.int.spec.ts` for the mutation run that settled it.
 
   const version = (await req.payload.findByID({
     collection: LESSON_BUNDLE_VERSIONS,

@@ -23,53 +23,9 @@ import { describe, it, expect } from 'vitest'
 import type { Payload } from 'payload'
 
 import { lockSubjectGrades } from '../../src/ingest'
+import { renderSql } from '../helpers/renderSql'
 
 type Executed = { via: 'session' | 'drizzle'; text: string; params: number[] }
-
-/**
- * Render a drizzle sql template object.
- *
- * RECURSIVE, because `lockRows` composes its statement from nested `SQL` objects — `sql.raw` for the
- * table identifier and `sql.join` for the bound id list — rather than one flat chunk list. A
- * non-recursive reader sees those as opaque placeholders and reports an empty parameter list, which
- * looks exactly like "the lock bound nothing". Shape verified against the installed package.
- */
-function renderSql(q: unknown): { text: string; params: number[] } {
-  const text: string[] = []
-  const params: number[] = []
-
-  const walk = (node: unknown): void => {
-    if (node == null) return
-    if (typeof node === 'number') {
-      params.push(node)
-      text.push('¶')
-      return
-    }
-    if (Array.isArray(node)) {
-      node.forEach(walk)
-      return
-    }
-    if (typeof node === 'object') {
-      const chunks = (node as { queryChunks?: unknown[] }).queryChunks
-      if (chunks) {
-        chunks.forEach(walk)
-        return
-      }
-      const value = (node as { value?: unknown }).value
-      if (Array.isArray(value)) {
-        text.push(value.join(''))
-        return
-      }
-      if (typeof value === 'number') {
-        params.push(value)
-        text.push('¶')
-      }
-    }
-  }
-
-  walk(q)
-  return { text: text.join(''), params }
-}
 
 function makePayload(events: Executed[], transactionID?: string): Payload {
   return {
