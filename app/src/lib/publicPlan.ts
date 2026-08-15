@@ -23,7 +23,8 @@
  */
 import type { Payload } from 'payload'
 
-import { isPublicLibraryEnabled } from './publicLibrary'
+import { isPublicLibraryEnabled, isPubliclyVisible } from './publicLibrary'
+import { relId } from './relId'
 import type { LessonBundleVersion, LessonPlan } from '../payload-types'
 
 /**
@@ -41,9 +42,6 @@ export type PublicPlanMiss =
 export type PublicPlanResult =
   | { ok: true; plan: LessonPlan; version: LessonBundleVersion }
   | { ok: false; reason: PublicPlanMiss }
-
-/** Visibility values that put a plan on the public internet. `listed` additionally appears in Explore. */
-const PUBLIC_VISIBILITIES = new Set(['unlisted', 'listed'])
 
 /**
  * Resolve a public slug to the plan and the exact version an anonymous visitor may see.
@@ -67,33 +65,33 @@ export async function resolvePublicPlanBySlug(
   const trimmed = slug.trim()
   if (!trimmed) return { ok: false, reason: 'not-found' }
 
-  // Slug → plan. `limit: 2` rather than 1 so an impossible duplicate is detectable rather than
-  // silently resolved to whichever row sorted first; the unique index should make this unreachable.
+  // Slug → plan. `pagination: false` because this is the anonymous entry point every public page
+  // will funnel through, and a paginated find spends a second round trip on a COUNT whose answer is
+  // never read. `depth: 0` deliberately does NOT populate `officialVersion`: population happens
+  // before the visibility gate below, so a private plan's 404 would pay for the heaviest read in the
+  // system (a bundle version fans out across every nested lesson/framework table) to then discard it.
   const { docs } = await payload.find({
     collection: 'lesson-plans',
     where: { publicSlug: { equals: trimmed } },
-    limit: 2,
+    limit: 1,
+    pagination: false,
     depth: 0,
     overrideAccess: true,
   })
 
   const plan = docs[0] as LessonPlan | undefined
-  if (!plan || docs.length > 1) return { ok: false, reason: 'not-found' }
+  if (!plan) return { ok: false, reason: 'not-found' }
 
   // ⚑ The visibility check is on the RESOLVED ROW, not folded into the query above. Expressing it as
   // a `where` clause would make a private plan indistinguishable from a missing one in the code —
   // correct for the caller, but it also means a later edit that loosens the query has nothing left
   // asserting the rule. Kept explicit so the gate is visible at the point it is enforced.
-  if (!PUBLIC_VISIBILITIES.has(String(plan.visibility))) {
-    return { ok: false, reason: 'not-public' }
-  }
+  if (!isPubliclyVisible(plan.visibility)) return { ok: false, reason: 'not-public' }
 
-  const officialId = typeof plan.officialVersion === 'object' && plan.officialVersion
-    ? (plan.officialVersion as { id?: number }).id
-    : (plan.officialVersion as number | null | undefined)
+  const officialId = relId(plan.officialVersion)
   if (officialId == null) return { ok: false, reason: 'no-official-version' }
 
-  let version: LessonBundleVersion | null = null
+  let version: LessonBundleVersion
   try {
     version = (await payload.findByID({
       collection: 'lesson-bundle-versions',
@@ -110,10 +108,8 @@ export async function resolvePublicPlanBySlug(
   // Belt-and-braces on the relationship itself: the version must belong to THIS plan. A pointer that
   // crossed plans would be an integrity bug elsewhere, and this is the surface where it would become
   // a disclosure rather than a display glitch.
-  const versionPlanId = typeof version.lessonPlan === 'object' && version.lessonPlan
-    ? (version.lessonPlan as { id?: number }).id
-    : (version.lessonPlan as number | null | undefined)
-  if (versionPlanId != null && String(versionPlanId) !== String(plan.id)) {
+  const versionPlanId = relId(version.lessonPlan)
+  if (versionPlanId != null && versionPlanId !== plan.id) {
     return { ok: false, reason: 'no-official-version' }
   }
 

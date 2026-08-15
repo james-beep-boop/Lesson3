@@ -15,7 +15,7 @@
  *
  * Requires a DB (like all of `tests/int`).
  */
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, beforeEach, afterAll, expect } from 'vitest'
 
 import {
   MARK,
@@ -38,13 +38,22 @@ const disableFeature = () => {
   delete process.env.PUBLIC_LIBRARY_ENABLED
 }
 
-/** A fresh plan + its own Official version, so cases cannot interfere with one another. */
-async function makePlanWithOfficial(label: string): Promise<{ plan: LessonPlan; version: LessonBundleVersion }> {
-  const plan = (await fx.payload.create({
+/** A fresh plan, so cases cannot interfere with one another. Publication rules never read a version. */
+async function makePlan(label: string): Promise<LessonPlan> {
+  return (await fx.payload.create({
     collection: 'lesson-plans',
     data: { title: `${MARK}${label}`, subjectGrade: fx.subjectGrade.id },
     overrideAccess: true,
   })) as LessonPlan
+}
+
+/**
+ * A fresh plan AND its Official version — three writes including a full bundle body, so it is used
+ * only by the cases that actually resolve a version. The publication-rule and access cases take
+ * `makePlan` above.
+ */
+async function makePlanWithOfficial(label: string): Promise<{ plan: LessonPlan; version: LessonBundleVersion }> {
+  const plan = await makePlan(label)
 
   const version = (await fx.payload.create({
     collection: 'lesson-bundle-versions',
@@ -107,13 +116,13 @@ afterAll(async () => {
 
 describe('publication rules', () => {
   it('defaults every plan to private with no public slug — publication is opt-in', async () => {
-    const { plan } = await makePlanWithOfficial('Defaults')
+    const plan = await makePlan('Defaults')
     expect(plan.visibility, 'a new plan is private').toBe('private')
     expect(plan.publicSlug ?? null, 'a new plan has no public link').toBeNull()
   })
 
   it('derives a slug from subject, grade and title on first publish', async () => {
-    const { plan } = await makePlanWithOfficial('Cells and Cell Structure')
+    const plan = await makePlan('Cells and Cell Structure')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 
     expect(published.publicSlug).toBeTruthy()
@@ -122,7 +131,7 @@ describe('publication rules', () => {
   })
 
   it('accepts an explicit slug and normalises it', async () => {
-    const { plan } = await makePlanWithOfficial('Explicit slug')
+    const plan = await makePlan('Explicit slug')
     const published = (await publish(plan.id, {
       visibility: 'unlisted',
       publicSlug: 'My Chosen Link',
@@ -137,7 +146,7 @@ describe('publication rules', () => {
    * silently becomes a 404 the moment an admin edits a title-derived slug.
    */
   it('REFUSES to change the slug of a published plan', async () => {
-    const { plan } = await makePlanWithOfficial('Frozen link')
+    const plan = await makePlan('Frozen link')
     const published = (await publish(plan.id, {
       visibility: 'listed',
       publicSlug: 'frozen-link',
@@ -157,7 +166,7 @@ describe('publication rules', () => {
   })
 
   it('allows the slug to change again once the plan is back to private', async () => {
-    const { plan } = await makePlanWithOfficial('Unpublish to rename')
+    const plan = await makePlan('Unpublish to rename')
     await publish(plan.id, { visibility: 'listed', publicSlug: 'first-name' })
     await publish(plan.id, { visibility: 'private' })
 
@@ -166,7 +175,7 @@ describe('publication rules', () => {
   })
 
   it('lets a published plan move between unlisted and listed without touching its slug', async () => {
-    const { plan } = await makePlanWithOfficial('Visibility shuffle')
+    const plan = await makePlan('Visibility shuffle')
     const first = (await publish(plan.id, { visibility: 'unlisted' })) as LessonPlan
     const second = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 
@@ -174,18 +183,18 @@ describe('publication rules', () => {
   })
 
   it('rejects a malformed slug rather than silently mangling it into something permanent', async () => {
-    const { plan } = await makePlanWithOfficial('Bad slug')
+    const plan = await makePlan('Bad slug')
     const errors = await fieldErrors(publish(plan.id, { visibility: 'listed', publicSlug: '42' }))
     expect(errors[0]?.path).toBe('publicSlug')
     expect(errors[0]?.message).toMatch(/lowercase letters, numbers and hyphens/i)
   })
 
   it('gives two plans with the same title distinct links', async () => {
-    const a = await makePlanWithOfficial('Twin Title')
-    const b = await makePlanWithOfficial('Twin Title')
+    const a = await makePlan('Twin Title')
+    const b = await makePlan('Twin Title')
 
-    const publishedA = (await publish(a.plan.id, { visibility: 'listed' })) as LessonPlan
-    const publishedB = (await publish(b.plan.id, { visibility: 'listed' })) as LessonPlan
+    const publishedA = (await publish(a.id, { visibility: 'listed' })) as LessonPlan
+    const publishedB = (await publish(b.id, { visibility: 'listed' })) as LessonPlan
 
     expect(publishedA.publicSlug).toBeTruthy()
     expect(publishedB.publicSlug).toBeTruthy()
@@ -231,6 +240,10 @@ describe('publication field access', () => {
   it.each(['subjectAdmin', 'editor', 'teacher'] as const)(
     'does not let a %s publish a lesson plan',
     async (userKey) => {
+      // ⚑ Needs the FULL fixture, unlike the publication-rule cases above. These write as a real
+      // user, and `validateOfficialVersionPointer` refuses an AUTHENTICATED update to a plan whose
+      // Official pointer is absent ("the pointer cannot be cleared") — its system-path carve-out is
+      // what lets the `overrideAccess: true` cases get away with a plan that has no version.
       const { plan } = await makePlanWithOfficial(`Access ${userKey}`)
 
       await attemptPublish(userKey, plan.id).catch(() => undefined)
@@ -261,8 +274,11 @@ describe('publication field access', () => {
 })
 
 describe('resolvePublicPlanBySlug', () => {
+  // Public discovery is off by default; every case here needs it on. The one case that asserts the
+  // DISABLED behaviour turns it off explicitly, mid-test, after publishing.
+  beforeEach(enableFeature)
+
   it('serves a published plan at its CURRENT Official version', async () => {
-    enableFeature()
     const { plan, version } = await makePlanWithOfficial('Resolvable')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 
@@ -274,7 +290,6 @@ describe('resolvePublicPlanBySlug', () => {
   })
 
   it('serves an unlisted plan too — it is reachable by link, just not browsable', async () => {
-    enableFeature()
     const { plan } = await makePlanWithOfficial('Unlisted but reachable')
     const published = (await publish(plan.id, { visibility: 'unlisted' })) as LessonPlan
 
@@ -284,20 +299,16 @@ describe('resolvePublicPlanBySlug', () => {
 
   /** GATE 1 — the deployment switch. An offline installation serves nothing, whatever the data says. */
   it('resolves NOTHING when public discovery is disabled, even for a published plan', async () => {
-    enableFeature()
     const { plan } = await makePlanWithOfficial('Disabled deployment')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 
     disableFeature()
     const result = await resolvePublicPlanBySlug(fx.payload, published.publicSlug as string)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toBe('feature-disabled')
+    expect(result).toEqual({ ok: false, reason: 'feature-disabled' })
   })
 
   /** GATE 3 — publication is deliberate. A private plan is not public merely for having a slug. */
   it('refuses a PRIVATE plan that still carries a slug from an earlier publication', async () => {
-    enableFeature()
     const { plan } = await makePlanWithOfficial('Withdrawn')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
     const slug = published.publicSlug as string
@@ -305,18 +316,13 @@ describe('resolvePublicPlanBySlug', () => {
     await publish(plan.id, { visibility: 'private' })
 
     const result = await resolvePublicPlanBySlug(fx.payload, slug)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason, 'unpublishing must actually withdraw it').toBe('not-public')
+    expect(result, 'unpublishing must actually withdraw it').toEqual({ ok: false, reason: 'not-public' })
   })
 
   /** GATE 2 — an unknown slug is a miss, not an error and not a hint. */
   it.each(['no-such-plan', '', '   '])('refuses the unknown slug %o', async (slug) => {
-    enableFeature()
     const result = await resolvePublicPlanBySlug(fx.payload, slug)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toBe('not-found')
+    expect(result).toEqual({ ok: false, reason: 'not-found' })
   })
 
   /**
@@ -325,7 +331,6 @@ describe('resolvePublicPlanBySlug', () => {
    * are editors' working copies and must never be public.
    */
   it('refuses a published plan with no Official version rather than falling back', async () => {
-    enableFeature()
     const { plan } = await makePlanWithOfficial('Pointerless')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 
@@ -338,9 +343,7 @@ describe('resolvePublicPlanBySlug', () => {
     })
 
     const result = await resolvePublicPlanBySlug(fx.payload, published.publicSlug as string)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.reason).toBe('no-official-version')
+    expect(result).toEqual({ ok: false, reason: 'no-official-version' })
   })
 
   /**
@@ -349,7 +352,6 @@ describe('resolvePublicPlanBySlug', () => {
    * unsaved-in-spirit working copy from appearing on the public internet the moment it is saved.
    */
   it('keeps serving the Official version when a newer non-Official version exists', async () => {
-    enableFeature()
     const { plan, version } = await makePlanWithOfficial('Newer draft exists')
     const published = (await publish(plan.id, { visibility: 'listed' })) as LessonPlan
 

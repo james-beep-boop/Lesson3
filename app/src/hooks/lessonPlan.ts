@@ -4,9 +4,10 @@ import type {
   CollectionBeforeValidateHook,
   CollectionSlug,
 } from 'payload'
-import { NotFound, ValidationError } from 'payload'
+import { NotFound, ValidationError, type PayloadRequest } from 'payload'
 
 import { isEditorFor, toId } from '../access'
+import { isPubliclyVisible } from '../lib/publicLibrary'
 import {
   derivePublicSlug,
   isValidPublicSlug,
@@ -31,14 +32,17 @@ const idFrom = (value: unknown): number | undefined => {
   return typeof id === 'number' ? id : undefined
 }
 
-const validationError = (message: string, req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
-  new ValidationError(
-    {
-      collection: 'lesson-plans',
-      errors: [{ message, path: 'officialVersion' }],
-    },
-    req.t,
-  )
+/**
+ * A field-scoped `ValidationError` for this collection. `path` defaults to `officialVersion` because
+ * that was the only rule when this existed; publication rules pass `publicSlug`. Parameterised
+ * rather than copied, so Payload's error shape (`{ collection, errors: [{ message, path }] }` plus
+ * `req.t`) — a vendor API this project pins deliberately — is spelled out in exactly one place.
+ */
+const validationError = (
+  message: string,
+  req: PayloadRequest,
+  path: 'officialVersion' | 'publicSlug' = 'officialVersion',
+) => new ValidationError({ collection: 'lesson-plans', errors: [{ message, path }] }, req.t)
 
 export const validateOfficialVersionPointer: CollectionBeforeValidateHook = async ({
   data,
@@ -114,14 +118,11 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   return data
 }
 
-/** Visibility values that put a plan on the public internet (anything but `private`). */
-const isPublishedVisibility = (v: unknown): boolean => v === 'unlisted' || v === 'listed'
+/** The one user-facing sentence for a malformed slug, stated once so the two paths cannot drift. */
+const SLUG_FORMAT_MESSAGE =
+  'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.'
 
-const slugError = (message: string, req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
-  new ValidationError(
-    { collection: 'lesson-plans', errors: [{ message, path: 'publicSlug' }] },
-    req.t,
-  )
+const slugError = (message: string, req: PayloadRequest) => validationError(message, req, 'publicSlug')
 
 /**
  * Publication rules for a lesson plan (SPEC §2; `docs/DESIGN-public-library.md`).
@@ -157,56 +158,55 @@ export const validatePublication: CollectionBeforeValidateHook = async ({
 }) => {
   if (!data) return data
 
-  const previousVisibility = (originalDoc as { visibility?: unknown } | undefined)?.visibility
-  const previousSlug = (originalDoc as { publicSlug?: unknown } | undefined)?.publicSlug
-  const wasPublished = isPublishedVisibility(previousVisibility)
+  const prev = originalDoc as
+    | { visibility?: unknown; publicSlug?: unknown; subjectGrade?: unknown; title?: unknown }
+    | undefined
+  const previousSlug = typeof prev?.publicSlug === 'string' ? prev.publicSlug : ''
+  const wasPublished = isPubliclyVisible(prev?.visibility)
 
   // The effective post-write state: a PATCH may carry only one of the two fields.
-  const nextVisibility = 'visibility' in data ? data.visibility : previousVisibility
+  const nextVisibility = 'visibility' in data ? data.visibility : prev?.visibility
   const slugSubmitted = 'publicSlug' in data
   const rawNextSlug = slugSubmitted ? data.publicSlug : previousSlug
   const nextSlug = typeof rawNextSlug === 'string' ? rawNextSlug.trim() : ''
 
   // 2. IMMUTABILITY — checked before anything else, so a rejected change cannot also be normalised
   // or de-duplicated on its way to being refused.
-  if (wasPublished && slugSubmitted && typeof previousSlug === 'string' && nextSlug !== previousSlug) {
+  if (wasPublished && slugSubmitted && nextSlug !== previousSlug) {
     throw slugError(
       'The public link for a published lesson plan cannot be changed — teachers may already have shared it. Set visibility back to Private first.',
       req,
     )
   }
 
-  if (!isPublishedVisibility(nextVisibility)) {
-    // Still private: a slug may be set, cleared or reshaped freely, but it must be VALID if present,
-    // so an unusable value cannot sit waiting to be frozen by the next publish.
-    if (nextSlug && !isValidPublicSlug(normalisePublicSlug(nextSlug))) {
-      throw slugError(
-        'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.',
-        req,
-      )
-    }
-    if (slugSubmitted && nextSlug) data.publicSlug = normalisePublicSlug(nextSlug)
+  // Format is checked ONCE, for both the private and published paths — they applied the identical
+  // rule and the identical message from two places before.
+  const candidateFromInput = nextSlug ? normalisePublicSlug(nextSlug) : ''
+  if (candidateFromInput && !isValidPublicSlug(candidateFromInput)) {
+    throw slugError(SLUG_FORMAT_MESSAGE, req)
+  }
+
+  if (!isPubliclyVisible(nextVisibility)) {
+    // Still private: a slug may be set, cleared or reshaped freely — it is only frozen once published.
+    if (slugSubmitted && candidateFromInput) data.publicSlug = candidateFromInput
     return data
   }
 
-  // 3. Published from here down. Normalise what was given, or derive one.
-  let candidate = nextSlug ? normalisePublicSlug(nextSlug) : ''
-  if (candidate && !isValidPublicSlug(candidate)) {
-    throw slugError(
-      'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.',
-      req,
-    )
-  }
+  // 3. Published from here down.
+  //
+  // ⚑ A plan that is ALREADY published and is not changing its slug is done: the value is frozen and
+  // unique-indexed, so re-deriving or re-probing it can only confirm what the last publish settled.
+  // This return covers every later write to a published plan — a visibility toggle, a title edit,
+  // make-official — and keeps a `count` query off each of them. (It sat inside the `if (!candidate)`
+  // block before, where it was unreachable: `nextSlug` falls back to the stored slug, so `candidate`
+  // was never empty on exactly the path the return existed to catch.)
+  if (wasPublished && candidateFromInput === previousSlug) return data
 
+  let candidate = candidateFromInput
   if (!candidate) {
-    // Already published and keeping its slug (e.g. a visibility change unlisted → listed): nothing
-    // to derive, and nothing to check. Leaving early also keeps this off the write path's hot line.
-    if (wasPublished && typeof previousSlug === 'string' && previousSlug) return data
-
-    const subjectGradeId = idFrom(data.subjectGrade ?? (originalDoc as { subjectGrade?: unknown } | undefined)?.subjectGrade)
     candidate = derivePublicSlug({
-      ...(await subjectGradeParts(req, subjectGradeId)),
-      title: (data.title ?? (originalDoc as { title?: unknown } | undefined)?.title) as string | undefined,
+      ...(await subjectGradeParts(req, idFrom(data.subjectGrade ?? prev?.subjectGrade))),
+      title: (data.title ?? prev?.title) as string | undefined,
     })
   }
 
@@ -222,9 +222,12 @@ export const validatePublication: CollectionBeforeValidateHook = async ({
   return data
 }
 
+/** How far the collision walk goes before deferring to the unique index. */
+const MAX_SLUG_ATTEMPTS = 25
+
 /** The subject name and grade behind a subject-grade id, for slug derivation. Absent parts are skipped. */
 async function subjectGradeParts(
-  req: Parameters<CollectionBeforeValidateHook>[0]['req'],
+  req: PayloadRequest,
   subjectGradeId: number | undefined,
 ): Promise<{ subjectName?: string | null; grade?: number | null }> {
   if (subjectGradeId == null) return {}
@@ -251,30 +254,39 @@ async function subjectGradeParts(
 /**
  * The first slug in `base`, `base-2`, `base-3`… not already held by ANOTHER plan.
  *
+ * ONE query, not one per candidate. The obvious shape — probe, increment, probe again — issues up to
+ * `MAX_SLUG_ATTEMPTS` sequential round trips *inside the caller's write transaction*, so a collision
+ * would hold the plan row locked for that whole walk (negligible against a local Postgres, far less
+ * so when the database is a network hop away). Asking which of the candidates are taken costs the
+ * same single index scan on `lesson_plans_public_slug_idx` whether none or all of them exist, so the
+ * common case — a free base slug — is one query either way and nothing regresses.
+ *
  * Bounded rather than looping until success: an unbounded search would turn a pathological corpus
- * (or a bug) into a hang inside a write transaction. On exhaustion the caller gets the raw candidate
- * and the unique index produces the error, which is the honest outcome — a friendly probe that
- * cannot find an answer should defer to the authority, not invent one.
+ * (or a bug) into a hang inside that transaction. On exhaustion the caller gets the raw candidate and
+ * the unique index produces the error, which is the honest outcome — a friendly probe that cannot
+ * find an answer should defer to the authority, not invent one.
  */
 async function firstFreeSlug(
-  req: Parameters<CollectionBeforeValidateHook>[0]['req'],
+  req: PayloadRequest,
   base: string,
   selfId: number | undefined,
 ): Promise<string> {
-  for (let attempt = 1; attempt <= 25; attempt += 1) {
-    const candidate = suffixedPublicSlug(base, attempt)
-    const { totalDocs } = await req.payload.count({
-      collection: 'lesson-plans' as CollectionSlug,
-      where:
-        selfId == null
-          ? { publicSlug: { equals: candidate } }
-          : { and: [{ publicSlug: { equals: candidate } }, { id: { not_equals: selfId } }] },
-      overrideAccess: true,
-      req,
-    })
-    if (totalDocs === 0) return candidate
-  }
-  return base
+  const candidates = Array.from({ length: MAX_SLUG_ATTEMPTS }, (_, i) =>
+    suffixedPublicSlug(base, i + 1),
+  )
+  const taken = { publicSlug: { in: candidates } }
+  const { docs } = await req.payload.find({
+    collection: 'lesson-plans' as CollectionSlug,
+    where: selfId == null ? taken : { and: [taken, { id: { not_equals: selfId } }] },
+    select: { publicSlug: true },
+    pagination: false,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })
+
+  const used = new Set(docs.map((doc) => (doc as { publicSlug?: string | null }).publicSlug))
+  return candidates.find((candidate) => !used.has(candidate)) ?? base
 }
 
 /**
