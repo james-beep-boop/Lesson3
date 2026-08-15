@@ -1,6 +1,7 @@
 /**
  * The Official-pointer lock: both sides of a promotion/delete race must WAIT on the plan row
- * (SPEC §7; the lock itself is `src/lib/officialPointer.ts`).
+ * (SPEC §7; the lock and the full race narrative live at `enforceOfficialNotDeletable` in
+ * `src/hooks/bundleVersion.ts`).
  *
  * THE BUG THIS GUARDS, with no attacker and no operator error — two authorized admins:
  *
