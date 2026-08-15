@@ -39,27 +39,12 @@ import { sql } from '@payloadcms/db-postgres'
 
 import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { drizzleOf, rowsOf } from '../helpers/db.js'
+import { stillPendingAfterWindow, whileRowLocked } from '../helpers/rowLocks.js'
 import type { LessonBundleVersion } from '../../src/payload-types.js'
 
 let fx: RoleFixture
 
-/**
- * How long a blocked operation is given to prove it is blocked.
- *
- * This is the one number that decides whether the spec is a guard or a coin flip, in BOTH
- * directions. Too short and an ordinarily slow-but-unblocked operation looks blocked (false green on
- * a reverted lock); too long and every run pays for it. 1.5 s sits far above the few milliseconds an
- * unblocked delete/update takes here — the mutation runs completed in ~40 ms — and the assertion is
- * one-sided: it only ever claims "did not finish", never "finished in time".
- */
-const BLOCKED_WINDOW_MS = 1_500
-
 const db = () => drizzleOf(fx.payload)
-
-/** Drizzle's transaction API, which takes a DEDICATED connection — the point of using it here. */
-type TxRunner = {
-  transaction: <T>(fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<T>) => Promise<T>
-}
 
 /** Create a second, NOT-Official version under the fixture plan — the one the race would delete. */
 async function makeCandidateVersion(semver: string): Promise<LessonBundleVersion> {
@@ -85,62 +70,6 @@ async function officialVersionId(): Promise<number | null> {
   return raw == null ? null : Number(raw)
 }
 
-/**
- * Hold `lesson_plans.id = planId` locked in an independent transaction for as long as the caller's
- * `work` runs, then release it and return what `work` produced.
- *
- * Uses drizzle's own `transaction`, which checks out a dedicated connection — a `FOR UPDATE` issued
- * on the shared pool would be released the moment the statement returned and would hold nothing.
- * The gate is resolved in a `finally`, so a throwing `work` still releases the row rather than
- * parking a connection for the rest of the suite.
- */
-async function whilePlanRowLocked<T>(planId: number, work: () => Promise<T>): Promise<T> {
-  let release!: () => void
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
-
-  let started!: () => void
-  const holding = new Promise<void>((resolve) => {
-    started = resolve
-  })
-
-  const holder = (db() as unknown as TxRunner).transaction(async (tx) => {
-    await tx.execute(sql`SELECT id FROM "lesson_plans" WHERE id = ${planId} FOR UPDATE`)
-    started()
-    await gate
-  })
-
-  await holding
-  try {
-    return await work()
-  } finally {
-    release()
-    await holder
-  }
-}
-
-/**
- * Run `op` and report whether it was still unfinished after `BLOCKED_WINDOW_MS`.
- *
- * The promise is always awaited afterwards by the caller — an unawaited rejection would surface as
- * an unhandled rejection and fail an unrelated spec later in the run.
- */
-async function stillPendingAfterWindow(op: Promise<unknown>): Promise<boolean> {
-  const marker = Symbol('pending')
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  const timer = new Promise<typeof marker>((resolve) => {
-    timeout = setTimeout(() => resolve(marker), BLOCKED_WINDOW_MS)
-  })
-  try {
-    const settled = op.then(() => 'settled' as const).catch(() => 'settled' as const)
-    return (await Promise.race([settled, timer])) === marker
-  } finally {
-    // Cleared so an early-settling run — i.e. a FAILING one — does not leave a live timer behind it.
-    clearTimeout(timeout)
-  }
-}
-
 beforeAll(async () => {
   fx = await setupRoleFixture()
 }, 60_000)
@@ -159,7 +88,7 @@ describe('Official-pointer lock', () => {
     let blocked = false
     let deleting!: Promise<unknown>
 
-    await whilePlanRowLocked(fx.plan.id, async () => {
+    await whileRowLocked(fx.payload, 'lesson_plans', fx.plan.id, async () => {
       // `enforceOfficialNotDeletable` must not be able to read the pointer while a promotion holds
       // this row. Unlocked, its plain SELECT returns the stale value and the delete sails through.
       deleting = fx.payload.delete({

@@ -1,12 +1,11 @@
 import { sql } from '@payloadcms/db-postgres'
 import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
-import { lockRows } from '../lib/txDb'
 import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
-import { txDb } from '../lib/txDb'
+import { lockRows, txDb } from '../lib/txDb'
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
 
@@ -122,7 +121,7 @@ export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({
         .map((a: Assignment) => toId(a.subjectGrade))
         .filter((id: number | undefined): id is number => id != null),
     ),
-  ].sort((a, b) => a - b)
+  ]
 
   if (grantedSubjectGradeIds.length === 0) return doc
 
@@ -131,10 +130,13 @@ export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({
   // before the other commits — under READ COMMITTED neither sees the other's uncommitted grant, so
   // neither demotes and both commit: two Subject Admins. Row-locking the granted subject_grades
   // rows first makes the second transaction block HERE until the first commits; its scan then sees
-  // the committed grant and demotes it. Locks are taken in ascending id order so a save granting
-  // multiple grades can't deadlock a concurrent one. The tx-bound-connection lookup mirrors
-  // endpoints/userAssignments.ts (verified there against installed @payloadcms/drizzle source);
-  // outside a transaction the lock is a harmless no-op, as there.
+  // the committed grant and demotes it.
+  //
+  // `lockRows` owns the mechanics — ascending order so a save granting multiple grades cannot
+  // deadlock a concurrent one, and a REFUSAL rather than a pool fallback when no transaction is
+  // active. This comment used to claim the no-transaction case was "a harmless no-op": it is a
+  // no-op, and it was never harmless, since a lock that holds nothing leaves the race above wide
+  // open with nothing to say so.
   await lockRows(req, 'subject_grades', grantedSubjectGradeIds)
 
   for (const sgId of grantedSubjectGradeIds) {

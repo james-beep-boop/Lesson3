@@ -18,14 +18,17 @@
  * is the thing being contended — not the version — because the pointer lives on it, and because a
  * lock on the version would leave two different versions of the same plan racing each other.
  *
- * ⚑ **This lock is useless outside a transaction, which is why it REFUSES to run there.**
+ * ⚑ **This lock is useless outside a transaction, which is why `lockRows` REFUSES to run there.**
  * `SELECT … FOR UPDATE` holds only until the enclosing transaction ends; issued on a pooled
  * connection with no transaction open, Postgres releases it at once and the statement becomes an
- * expensive no-op that reads exactly like protection. `lockSubjectGrades` tolerates that case and
- * documents it as "a harmless no-op" — true for ingest, where the caller is always transactional and
- * the lock is defence in depth. It is NOT true here: the window this closes is a handful of
- * milliseconds between a read and a write, so a lock that silently fails to hold restores the
- * original bug while looking fixed. Hence `requireTransaction: true`.
+ * expensive no-op that reads exactly like protection. The window this closes is a handful of
+ * milliseconds between a read and a write, so a lock that silently fails to hold would restore the
+ * original bug while looking fixed.
+ *
+ * (An earlier version of this paragraph contrasted that with `lockSubjectGrades`, which "tolerates
+ * that case and documents it as a harmless no-op". That contrast is gone: ingest's lock had the same
+ * fail-open fallback, it was never harmless there either, and all of them now refuse. Kept as a note
+ * because the sentence outlived the code it described by one commit.)
  *
  * DEADLOCK. Both call sites lock the same single object, so there is no lock-ordering hazard to
  * manage. Re-entrance is safe: `make-official?deletePrevious=true` runs the version delete inside

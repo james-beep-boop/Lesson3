@@ -3,11 +3,12 @@
  * surround it.
  *
  * These are statements about the ADAPTER, not about any feature, which is why they live here rather
- * than inside the module that first needed them. `endpoints/userAssignments.ts` hand-writes the same
- * `db.sessions[txID].db` reach for its `SELECT … FOR UPDATE`, and `tests/helpers/db.ts` centralises
- * the pool-only half for tests. Keeping a third copy inside a feature module would mean a Payload
- * upgrade that moves `sessions` breaks in several places with different failure modes, and the next
- * caller copies whichever it finds first.
+ * than inside the module that first needed them. Three feature modules used to hand-write the same
+ * `db.sessions[txID].db` reach for a `SELECT … FOR UPDATE` — `ingest/index.ts`, `hooks/userRoles.ts`
+ * and `endpoints/userAssignments.ts` — and all three ended in a pool fallback that made the lock hold
+ * nothing. They now go through `lockRows` below. `tests/helpers/db.ts` centralises the pool-only half
+ * for tests. One definition means a Payload upgrade that moves `sessions` breaks in one place, rather
+ * than in several with different failure modes.
  */
 import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
@@ -17,9 +18,10 @@ type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
 /**
  * The minimum needed to find a transaction-bound connection.
  *
- * A `PayloadRequest` satisfies it, and so does the bare `{ payload, transactionID }` that
- * `ingest/index.ts` carries — which has no `req` to hand, and previously used that as the reason to
- * re-derive the adapter reach itself.
+ * A full `PayloadRequest` satisfies it, and so — the reason it exists — does ingest's `IngestReq`,
+ * which is a `Partial<PayloadRequest>` and therefore NOT assignable to the `PayloadRequest` this
+ * function used to demand. Widening to the two fields actually read is what let those callers stop
+ * re-deriving the adapter reach for themselves.
  */
 export type TxSource = Pick<PayloadRequest, 'payload' | 'transactionID'>
 
@@ -98,19 +100,21 @@ export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
  * the locks in that order, so two callers over overlapping id sets queue instead of deadlocking —
  * and it does so in ONE round trip rather than one per id.
  *
- * `requireTransaction` defaults to TRUE: a lock with no transaction to belong to is never what the
- * caller meant. Every current caller was checked to run inside one before this default was chosen.
+ * ⚑ THERE IS NO OPT-OUT, deliberately. This took a `requireTransaction` option briefly; no caller
+ * passed it, and the only thing it could express is the pool lock this function exists to abolish —
+ * so it re-opened the door in the API while the docblock, both wiring specs and the integration spec
+ * all said it must stay shut. A transaction-less lock is now unrepresentable through this function.
+ * (`txDb` keeps the option: its edit-recovery callers legitimately split both ways.)
  */
 export async function lockRows(
   source: TxSource,
   table: LockableTable,
   ids: ReadonlyArray<number>,
-  opts?: { requireTransaction?: boolean },
 ): Promise<void> {
   const unique = [...new Set(ids)].sort((a, b) => a - b)
   if (unique.length === 0) return
 
-  const db = await txDb(source, { requireTransaction: opts?.requireTransaction ?? true })
+  const db = await txDb(source, { requireTransaction: true })
 
   // Each id is BOUND as its own parameter. `= ANY(${array})` reads better and was tried first, but
   // drizzle renders it as `ANY(($1))` and node-postgres then serialises the JS array as a plain

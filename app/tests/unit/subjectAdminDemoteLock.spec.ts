@@ -15,49 +15,12 @@ import { describe, it, expect } from 'vitest'
 
 import { Users } from '../../src/collections/Users'
 import { autoDemotePriorSubjectAdmins } from '../../src/hooks/userRoles'
+import { renderSql } from '../helpers/renderSql'
 
 type Event =
   | { type: 'lock'; via: 'session' | 'drizzle'; text: string; params: number[] }
   | { type: 'find'; sgId: unknown; page: unknown }
   | { type: 'demote'; userId: number; assignments: unknown }
-
-/** Render a drizzle sql template object (shape verified against the installed package). */
-function renderSql(q: unknown): { text: string; params: number[] } {
-  const text: string[] = []
-  const params: number[] = []
-
-  const walk = (node: unknown): void => {
-    if (node == null) return
-    if (typeof node === 'number') {
-      params.push(node)
-      text.push('¶')
-      return
-    }
-    if (Array.isArray(node)) {
-      node.forEach(walk)
-      return
-    }
-    if (typeof node === 'object') {
-      const chunks = (node as { queryChunks?: unknown[] }).queryChunks
-      if (chunks) {
-        chunks.forEach(walk)
-        return
-      }
-      const value = (node as { value?: unknown }).value
-      if (Array.isArray(value)) {
-        text.push(value.join(''))
-        return
-      }
-      if (typeof value === 'number') {
-        params.push(value)
-        text.push('¶')
-      }
-    }
-  }
-
-  walk(q)
-  return { text: text.join(''), params }
-}
 
 function makeHarness(opts: {
   transactionID?: string
