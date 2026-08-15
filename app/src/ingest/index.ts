@@ -25,8 +25,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 import { commitTransaction, initTransaction, killTransaction } from 'payload'
+import { lockRows } from '../lib/txDb'
 import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
-import { sql } from 'drizzle-orm'
 
 import { contractDrift } from './contract'
 import { IngestError } from './errors'
@@ -62,26 +62,23 @@ export interface IngestResult {
  * inside the write transaction (audit 2026-07-06 #2). Without it, two simultaneous uploads of the
  * same NEW non-empty substrand_id both preflight to "no existing plan" and both create Official
  * 1.0.0 plans — every later upload of that sub-strand then hits the duplicate-plan ambiguity guard.
- * Locks are taken in ascending id order so two batches over different grade sets can't deadlock;
- * the tx-bound-connection lookup mirrors hooks/userRoles.ts (PR #50, verified there against the
- * installed @payloadcms/drizzle source). Outside a transaction the lock is a harmless no-op there
- * and here. Exported for the wiring spec (true concurrency can't be pinned in a unit test).
+ *
+ * ⚑ The ascending-order and tx-bound-connection mechanics now live in `lib/txDb.ts`'s `lockRows`.
+ * This function had hand-rolled them, and its fallback to the pool meant that an unresolvable
+ * transaction session produced a lock holding NOTHING while ingest proceeded as though serialised —
+ * the docblock's old claim that "outside a transaction the lock is a harmless no-op" was true only
+ * of the no-op, not of the harmlessness. `lockRows` fails closed; every caller was checked to run
+ * inside a transaction (this one via `initTransaction` in `ingestItems`).
+ *
+ * Kept as a named function rather than inlined: it is the documented seam for the wiring spec, since
+ * true concurrency can't be pinned in a unit test.
  */
 export async function lockSubjectGrades(
   payload: Payload,
   transactionID: PayloadRequest['transactionID'],
   subjectGradeIds: number[],
 ): Promise<void> {
-  const adapter = payload.db as unknown as {
-    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
-    drizzle: { execute: (q: unknown) => Promise<unknown> }
-  }
-  const txDb =
-    (transactionID != null ? adapter.sessions?.[String(await transactionID)]?.db : undefined) ??
-    adapter.drizzle
-  for (const sgId of [...new Set(subjectGradeIds)].sort((a, b) => a - b)) {
-    await txDb.execute(sql`SELECT id FROM "subject_grades" WHERE id = ${sgId} FOR UPDATE`)
-  }
+  await lockRows({ payload, transactionID }, 'subject_grades', subjectGradeIds)
 }
 
 /** The sub-strand identity within a subject-grade: `META.substrand_id`, trimmed ('' = absent). */

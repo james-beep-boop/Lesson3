@@ -32,21 +32,19 @@
  * its own transaction, so `enforceOfficialNotDeletable` re-locks a row this transaction already
  * holds — which Postgres treats as a no-op, not a self-deadlock.
  */
-import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
-import { txDb } from './txDb'
+import { lockRows } from './txDb'
 
 /**
  * Take the plan's row lock inside the caller's transaction, blocking any concurrent holder until
  * that transaction commits or rolls back.
  *
- * Reuses `txDb` rather than re-deriving the `db.sessions[txID].db` reach a fourth time (after
- * `ingest/index.ts`, `endpoints/userAssignments.ts` and `tests/helpers/db.ts`). That matters more
- * here than readability: both of those hand-written copies end in `?? adapter.drizzle`, and falling
- * back to the pool is precisely the failure this lock cannot survive — see the module header.
+ * A named wrapper over `lockRows` rather than a call site of it, because the RACE is the thing worth
+ * finding — a reader who follows `lockRows` from `enforceOfficialNotDeletable` should land on the
+ * module header above, not on a generic row-lock helper shared with ingest and role changes.
+ * `lockRows` fails closed and orders its locks; this adds only the domain meaning.
  */
-export async function lockLessonPlan(req: PayloadRequest, planId: number | string): Promise<void> {
-  const db = await txDb(req, { requireTransaction: true })
-  await db.execute(sql`SELECT id FROM "lesson_plans" WHERE id = ${planId} FOR UPDATE`)
+export async function lockLessonPlan(req: PayloadRequest, planId: number): Promise<void> {
+  await lockRows(req, 'lesson_plans', [planId])
 }
