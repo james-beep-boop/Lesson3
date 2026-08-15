@@ -113,21 +113,36 @@ UI defects are invisible to `tsc`, ESLint and the unit suite — three in the bu
 reached the deployed site because there was no local stack (DECISIONS 2026-07-30). There is one now.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres   # from the repo root
-docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate # first run only
-cd app && npx payload run scripts/seed-local-dev.ts                               # logins + one lesson plan
+docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrate  # first run only
+scripts/dev-seed.sh                                                                # logins + one lesson plan
+scripts/dev-server.sh                                                              # then browse localhost:3000
 ```
 
-Then start the dev server (`.claude/launch.json` → `lesson3-dev`, plain `npx next dev` on the host
-node — it had been pinned to a node@22 path that no longer exists, so it could not start) and sign in at
-`http://localhost:3000/login` as `editor@local.test` / `local1234` (also `siteadmin`, `subjectadmin`,
-`teacher` at the same domain and password).
+Sign in at `http://localhost:3000/login` as `editor@local.test` / `local1234` (also `siteadmin`,
+`subjectadmin`, `teacher` at the same domain and password). `.claude/launch.json` → `lesson3-dev`
+runs the same dev-server script. Both scripts start Postgres themselves, so there is no separate
+`up -d postgres` step.
+
+- ⚑ **Both scripts run in the `lesson3-deps` CONTAINER, not on the host node**, and that is not a
+  preference: the `devEngines` gate in the stack conventions above rejects every npm invocation on a
+  host whose Node major isn't 24, which is why `cd app && npx payload run …` — what the seed step
+  used to say — could not work either. `scripts/dev-server.sh`'s header carries the full failure
+  trace and ties it to #214; DECISIONS 2026-08-12 has the decision.
+- To exercise the **public library** locally, pass both switches — it refuses to boot with only the
+  first, by design (`src/lib/publicLibrary.ts`). ⚑ `SERVER_URL` also turns on strict CSRF and Secure
+  cookies, which do not suit plain-HTTP localhost, so expect to work on the public pages while
+  signed out (`app/.env.example` explains the trade):
+
+  ```bash
+  PUBLIC_LIBRARY_ENABLED=1 SERVER_URL=http://localhost:3000 scripts/dev-server.sh
+  ```
 
 - `docker-compose.local.yml` publishes Postgres on **127.0.0.1:55432** and is **opt-in via `-f`**. It
   is deliberately NOT named `docker-compose.override.yml`, which Compose auto-loads on every
   invocation *including* `scripts/deploy.sh` — that would silently publish the database on the Rock.
-- `app/.env` (gitignored, host-only) must point at that port. Containers are unaffected: they read
-  the root `.env` and reach `postgres:5432` over the compose network.
+- `app/.env` (gitignored, host-only) must point at that port — it serves the host-side tools
+  (`psql`, `test.env` juggling), not the dev server, which reads the root `.env` and reaches
+  `postgres:5432` over the compose network like every other container.
 - `scripts/seed-local-dev.ts` **refuses to run unless `DATABASE_URI` is localhost** — it creates
   accounts with a known password, so it must be impossible to aim at a shared database.
 - ⚠ A stale `app/.next` can serve **empty bodies with a 200** after a big change
