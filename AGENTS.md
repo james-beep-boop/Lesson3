@@ -118,10 +118,30 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm migrat
 cd app && npx payload run scripts/seed-local-dev.ts                               # logins + one lesson plan
 ```
 
-Then start the dev server (`.claude/launch.json` → `lesson3-dev`, plain `npx next dev` on the host
-node — it had been pinned to a node@22 path that no longer exists, so it could not start) and sign in at
-`http://localhost:3000/login` as `editor@local.test` / `local1234` (also `siteadmin`, `subjectadmin`,
-`teacher` at the same domain and password).
+Then start the dev server and sign in at `http://localhost:3000/login` as `editor@local.test` /
+`local1234` (also `siteadmin`, `subjectadmin`, `teacher` at the same domain and password):
+
+```bash
+scripts/dev-server.sh
+```
+
+(`.claude/launch.json` → `lesson3-dev` runs the same script.)
+
+- ⚑ **The dev server runs in the `lesson3-deps` CONTAINER, not on the host node**, and that is not a
+  preference. Since the Node 24 migration the app declares `devEngines: node >=24.19.0 <25` with
+  `onFail: error`, which npm enforces on every invocation — so `npx next dev` on a host running any
+  other major (the development Mac is on 25) aborts with `EBADDEVENGINES` before Next is reached.
+  `./node_modules/.bin/next` would bypass npm, but populating `node_modules` needs `npm ci`, blocked
+  by the same gate. Since #214 deliberately removed the Volta pin rather than adopt a host version
+  manager — "Docker remains the reproducible authority on every host" — the dev server follows suit.
+  The script is idempotent: it starts Postgres if needed, builds the deps image on first run, and
+  replaces a stale container.
+- To exercise the **public library** locally, pass both switches — it refuses to boot with only the
+  first, by design (`src/lib/publicLibrary.ts`):
+
+  ```bash
+  PUBLIC_LIBRARY_ENABLED=1 SERVER_URL=http://localhost:3000 scripts/dev-server.sh
+  ```
 
 - `docker-compose.local.yml` publishes Postgres on **127.0.0.1:55432** and is **opt-in via `-f`**. It
   is deliberately NOT named `docker-compose.override.yml`, which Compose auto-loads on every

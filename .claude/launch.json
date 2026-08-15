@@ -2,12 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "//": "Bare `npx next dev` on the host's default node. This was PINNED to /opt/homebrew/opt/node@22/bin/node, which NO LONGER EXISTS on this Mac (only node@25 is installed) — so the one launch config AGENTS.md points developers at could not start at all.",
-      "//2": "The old comment claimed node 25 'breaks tsx and makes Next/Payload hang at startup with no output and ~0% CPU'. That is FALSE for `next dev`: verified Ready in ~300ms on v25.8.1 / Next 16.2.12, and every browser verification in the 2026-08-02 visual work ran on it. It stays TRUE for the PAYLOAD CLI (`npx payload run …`, e.g. generate:types and seed-local-dev) — run those in the lesson3-deps container, per AGENTS.md → Local stack.",
+      "//": "Runs the dev server IN THE lesson3-deps CONTAINER, via scripts/dev-server.sh. It used to be a bare `npx next dev` on the host node, which has been unable to start since the Node 24 migration (#214): the app declares `devEngines: node >=24.19.0 <25` with onFail:error, npm enforces that on every invocation, and the development Mac runs Node 25. `./node_modules/.bin/next` would bypass npm, but populating node_modules needs `npm ci` — blocked by the same gate.",
+      "//2": "#214 removed the Volta pin rather than adopt a host version manager, on the grounds that Docker remains the reproducible authority on every host. This is that decision applied to the dev server, so the config works on any machine with Docker regardless of its node.",
+      "//3": "The script is idempotent: it starts local Postgres if needed, builds the deps image on first run, and replaces any stale container. To exercise the public library, run it directly with PUBLIC_LIBRARY_ENABLED=1 SERVER_URL=http://localhost:3000 — see AGENTS.md → Local stack.",
       "name": "lesson3-dev",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "dev"],
-      "cwd": "app",
+      "runtimeExecutable": "scripts/dev-server.sh",
+      "runtimeArgs": [],
       "port": 3000
     }
   ]
