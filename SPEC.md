@@ -22,7 +22,7 @@ The decisive facts:
 
 ## 1. Product, in one paragraph
 
-A **versioned lesson-plan repository**. ARES-generated CBE lesson plans are uploaded/imported as version **1.0.0 Official**; later edits create retained, immutable versions; exactly one version per lesson plan is **Official** at a time; any version can be viewed and exported as **high-fidelity DOCX and PDF**. Running on offline local servers is a **secondary** goal, not a primary constraint.
+A **versioned lesson-plan repository**. ARES-generated CBE lesson plans are uploaded/imported as version **1.0.0 Official**; later edits create retained, immutable versions; exactly one version per lesson plan is **Official** at a time; any authenticated user can view and export retained versions as **high-fidelity DOCX and PDF**. An optional public-discovery mode distributes deliberately published Official lesson plans without login; local school installations can disable that entire surface and run the authenticated service with no internet dependency. Running on offline local servers is a **secondary** goal, not a primary constraint.
 
 Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RACHEL serve that need), not a Word round-trip editor.
 
@@ -52,6 +52,24 @@ The product has **two front-ends over one Payload backend** (one runtime, one au
 2. **Payload `/admin`** — the **back-office** for the roles that manage content: structured editing (Phase 1), versioning, user/role/taxonomy management, ingest/upload. Editors & Subject Admins edit here; Site Admins administer here.
 
 Rationale: the common features above are *product* features every role uses; giving teachers a separate app would force duplicating them (or making editors switch apps). One shared App + an admin back-office avoids that. This **resolves the former "editor placement" open decision** (start in `/admin`; a custom editor may later move editing into the App — SPEC §5 Phase 2) and confirms the §10 workflows as in-scope. It is a **Phase-2+ track** that does not block current `/admin` editing/publishing work.
+
+### Deployment modes and public discovery (decided 2026-08-12)
+
+The authenticated App above is present everywhere. A separate public-discovery surface is an
+**explicit opt-in deployment feature**, not something inferred from `SERVER_URL` (which remains the
+public-security-posture switch in §11/OPS). Its detailed design is
+`docs/DESIGN-public-library.md`.
+
+- `/login` remains the normal unauthenticated entry. An enabled internet deployment adds one
+  secondary **Explore free lesson plans** action to `/explore`; it does not replace the restrained
+  sign-in page. A shared public lesson URL opens that lesson directly.
+- A disabled/offline installation renders no Explore action and returns 404 from every public browse,
+  lesson, metadata and artifact route. This is enforced server-side; hiding UI is not the boundary.
+- The public experience is **mobile-first** (360–390 px phones are the primary constraint) while
+  expanding cleanly on laptops. It exposes only deliberately public Lesson Plans through their
+  current Official pointer—never arbitrary version ids and never general anonymous collection read.
+- Public visibility and Official status are independent. Approval does not silently publish, and
+  publication cannot expose a non-Official version.
 
 ### Open decisions (not yet made)
 - **Exact host** for production and for the offline box.
@@ -131,6 +149,12 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
   rendered beneath the phase label inside Section C's first cell. There is no separate Resource column,
   no live Python/SQLite lookup, and no user-editable resource field.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
+- **Document attribution (decided in principle 2026-08-12):** every Lesson Sequence, Final
+  Explanation and Summary Table should carry a visible creator credit and permanent website URL on
+  every page, inherited by PDF from DOCX. Implement this once in the upstream ARES generator and
+  re-vendor; do not inject a PDF-only overlay or store repeated credit prose in lesson content. Exact
+  ARES/Seavuria relationship wording and the permanent printed URL remain to be confirmed. Any such
+  change increments `GENERATOR_RENDER_VERSION` and reruns the DOCX/PDF fidelity and pagination gates.
 
 Because `generateOne()` is deterministic on the stored strings, **regeneration is byte-stable** — store the field strings, and the document reproduces exactly. Integrate the generator via a Payload hook/endpoint; refactor ARES's `generateOne()` to accept a data object instead of a file on disk.
 
@@ -438,6 +462,15 @@ observable contract, and a failed or backed-off capture must say so rather than 
   Official (make-official or first ingest), both kinds are **pre-warmed** into the cache via the
   Jobs Queue, so teachers effectively read stored official PDFs/DOCX; the cache stays a disposable
   optimization, never a storage layer of record.
+- **Public artifacts (direction decided 2026-08-12; launch corpus/licence still open):** public
+  discovery may serve a generator-derived online preview and PDF for a deliberately public Lesson
+  Plan's **current Official** version. This is a narrow public route, not anonymous read access to
+  `lesson-bundle-versions`; non-Official versions are never public. Anonymous PDF requests are
+  serve-only from pre-warmed artifacts and must not become an unbounded Gotenberg trigger. **PDF is
+  the only anonymous download format. Word/DOCX requires an authenticated account because it is the
+  editable artifact.** Public UI omission is not the access boundary: every public artifact handler
+  must reject DOCX server-side. Favorites, editing, internal messaging and version history also
+  remain authenticated. See `docs/DESIGN-public-library.md`.
 
 ---
 

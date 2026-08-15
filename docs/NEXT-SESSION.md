@@ -65,12 +65,50 @@ operator's deploy.sh output being the authority on which commit is actually live
 
 ## What's next
 
-Nothing urgent is queued from this arc. See `docs/DECISIONS.md`'s newest entries for the CI-trigger
+Nothing urgent is queued from *this* arc. See `docs/DECISIONS.md`'s newest entries for the CI-trigger
 lesson (a PR stacked on a non-`main` branch, later retargeted, may silently never get a CI run — verify
 one actually appears before trusting a retarget, and replay the commits onto a fresh branch off `main`
 if it doesn't) and the going-public / Docker-hygiene follow-ups noted during the audit
 (edge rate limiting, base-image digest pinning, scheduled dependency-update PRs, SBOM/image scanning)
 that were deliberately deferred as their own future initiative, not part of this remediation.
+
+**The agreed next PRODUCT track is public discovery.** Read `docs/DESIGN-public-library.md`, then
+SPEC §2/§4/§9. Do not reconstruct the brief from this summary — the design doc is the authority for
+the security boundary, the mobile-first UX, the proposed slices and the open rights/copy questions.
+
+Add an optional, mobile-first public lesson library without replacing the restrained login front door
+or burdening offline school installations. Locked shape:
+
+- `/login` stays first; an enabled internet deployment adds **Explore free lesson plans** → `/explore`;
+- shared public lesson URLs open directly, without a detour through login;
+- an explicit opt-in setting controls the feature — **`PUBLIC_LIBRARY_ENABLED=1`, never `SERVER_URL`**,
+  which already owns security posture and must not acquire an unrelated product meaning;
+- ⚑ **`PUBLIC_LIBRARY_ENABLED` set without `SERVER_URL` refuses to boot** — public discovery needs an
+  absolute base URL for OG tags, share links and the printed footer, and those degrade silently on
+  exactly the surface built to travel. Same fail-loud shape as `firstUserBootRefusal`;
+- disabled/offline means no Explore action and 404 for every public route, enforced server-side;
+- phones (360–390 px) are the primary public design constraint; laptops expand the same hierarchy;
+- anonymous access resolves only deliberately public Lesson Plans through their current Official
+  pointer — never arbitrary version ids, never broad anonymous collection read;
+- ⚑ **a public slug is immutable once the plan has been published** (editable only while private).
+  A shared WhatsApp link is then permanent by construction, with no redirect table to maintain;
+- anonymous visitors may use the online preview and PDF, but **Word/DOCX requires an account** because
+  it is the editable artifact — enforce that in the artifact handler, not by hiding the button;
+- public PDF is pre-warmed/serve-only, so anonymous traffic cannot fan out unbounded Gotenberg work;
+- all generated documents should eventually carry a per-page website/creator footer, implemented
+  upstream in the ARES generator and cache-versioned. Exact wording and permanent URL still open.
+
+⚑ **Build the Official-pointer lock FIRST.** Public discovery makes the Official pointer the sole
+resolution path for anonymous content, and that pointer still has the open read-then-write race
+described under "Next steps, in priority order" below (item 4): an Official version can be deleted
+during a concurrent promotion, destroying an approved snapshot and dropping the plan out of the
+library. Verified still unfixed on 2026-08-14 — there is no row lock on either
+`enforceOfficialNotDeletable` or `makeOfficialEndpoint`. Do not build the public contract on it first.
+
+The first PRODUCT/LEGAL gate is separate and blocks the launch corpus, not the schema: confirm which
+plans may be public, the licence and attribution wording, the permanent domain, and whether launch
+means a curated sample or every explicitly listed plan. Then implement in the slices the design doc
+lists; do not mix the generator-attribution change into the public-routing/security PR.
 
 ---
 
