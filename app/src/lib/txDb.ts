@@ -9,9 +9,19 @@
  * upgrade that moves `sessions` breaks in several places with different failure modes, and the next
  * caller copies whichever it finds first.
  */
+import { sql } from '@payloadcms/db-postgres'
 import type { PayloadRequest } from 'payload'
 
 type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
+
+/**
+ * The minimum needed to find a transaction-bound connection.
+ *
+ * A `PayloadRequest` satisfies it, and so does the bare `{ payload, transactionID }` that
+ * `ingest/index.ts` carries — which has no `req` to hand, and previously used that as the reason to
+ * re-derive the adapter reach itself.
+ */
+export type TxSource = Pick<PayloadRequest, 'payload' | 'transactionID'>
 
 /**
  * The transaction-bound drizzle instance, or the pool when there is legitimately no transaction.
@@ -36,7 +46,7 @@ type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
  * transaction-less `req`; what it cannot do is have that silently succeed.
  */
 export const txDb = async (
-  req: PayloadRequest,
+  req: TxSource,
   opts?: { requireTransaction?: boolean },
 ): Promise<DrizzleHandle> => {
   const adapter = req.payload.db as unknown as {
@@ -59,6 +69,61 @@ export const txDb = async (
     )
   }
   return session ?? adapter.drizzle
+}
+
+/**
+ * Tables this project takes row locks on.
+ *
+ * A CLOSED UNION, because a table name cannot be a bound parameter — it is interpolated into the
+ * statement as an identifier, so it must never be able to originate in caller data. Adding a table
+ * here is a deliberate edit; passing one through from a request is impossible.
+ */
+export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
+
+/**
+ * Take `SELECT … FOR UPDATE` row locks inside the caller's transaction, in ascending id order.
+ *
+ * ⚑ WHY THIS EXISTS RATHER THAN THREE HAND-ROLLED COPIES. `ingest/index.ts`, `hooks/userRoles.ts`
+ * and `endpoints/userAssignments.ts` each spelled this out themselves, and **all three ended in
+ * `?? adapter.drizzle`** — falling back to the pool when the transaction session could not be
+ * resolved. That fallback is not a degradation, it is a silent failure: `FOR UPDATE` on a pooled
+ * connection outside a transaction is released the instant the statement returns, so the lock holds
+ * nothing while every caller continues as though it does. Each of those three locks exists to
+ * serialise a read-then-write, and each was one unresolvable session away from not serialising
+ * anything. Routing them through `txDb` makes that case throw.
+ *
+ * ⚑ ASCENDING ORDER IS THE DEADLOCK GUARD, and it is now universal rather than remembered.
+ * `lockSubjectGrades` sorted its ids for this reason and the other two did not (each locking a
+ * single row, so it did not arise). `ORDER BY id` inside the locking statement makes Postgres take
+ * the locks in that order, so two callers over overlapping id sets queue instead of deadlocking —
+ * and it does so in ONE round trip rather than one per id.
+ *
+ * `requireTransaction` defaults to TRUE: a lock with no transaction to belong to is never what the
+ * caller meant. Every current caller was checked to run inside one before this default was chosen.
+ */
+export async function lockRows(
+  source: TxSource,
+  table: LockableTable,
+  ids: ReadonlyArray<number>,
+  opts?: { requireTransaction?: boolean },
+): Promise<void> {
+  const unique = [...new Set(ids)].sort((a, b) => a - b)
+  if (unique.length === 0) return
+
+  const db = await txDb(source, { requireTransaction: opts?.requireTransaction ?? true })
+
+  // Each id is BOUND as its own parameter. `= ANY(${array})` reads better and was tried first, but
+  // drizzle renders it as `ANY(($1))` and node-postgres then serialises the JS array as a plain
+  // string — Postgres answers `22P02: Array value must start with "{"`. Joining bound chunks is the
+  // form that actually parameterises. Only the table name is interpolated, and it comes from a
+  // closed union, never from caller data.
+  const idList = sql.join(
+    unique.map((id) => sql`${id}`),
+    sql`, `,
+  )
+  await db.execute(
+    sql`SELECT id FROM ${sql.raw(`"${table}"`)} WHERE id IN (${idList}) ORDER BY id FOR UPDATE`,
+  )
 }
 
 /**

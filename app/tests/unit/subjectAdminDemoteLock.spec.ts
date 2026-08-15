@@ -23,15 +23,40 @@ type Event =
 
 /** Render a drizzle sql template object (shape verified against the installed package). */
 function renderSql(q: unknown): { text: string; params: number[] } {
-  const chunks = (q as { queryChunks?: unknown[] }).queryChunks ?? []
-  const text = chunks
-    .map((c) => {
-      const v = (c as { value?: unknown })?.value
-      return Array.isArray(v) ? v.join('') : '¶'
-    })
-    .join('')
-  const params = chunks.filter((c): c is number => typeof c === 'number')
-  return { text, params }
+  const text: string[] = []
+  const params: number[] = []
+
+  const walk = (node: unknown): void => {
+    if (node == null) return
+    if (typeof node === 'number') {
+      params.push(node)
+      text.push('¶')
+      return
+    }
+    if (Array.isArray(node)) {
+      node.forEach(walk)
+      return
+    }
+    if (typeof node === 'object') {
+      const chunks = (node as { queryChunks?: unknown[] }).queryChunks
+      if (chunks) {
+        chunks.forEach(walk)
+        return
+      }
+      const value = (node as { value?: unknown }).value
+      if (Array.isArray(value)) {
+        text.push(value.join(''))
+        return
+      }
+      if (typeof value === 'number') {
+        params.push(value)
+        text.push('¶')
+      }
+    }
+  }
+
+  walk(q)
+  return { text: text.join(''), params }
 }
 
 function makeHarness(opts: {
@@ -99,25 +124,33 @@ describe('subject-admin grant lock wiring', () => {
     })
 
     const locks = events.filter((e) => e.type === 'lock')
-    expect(locks.map((l) => l.params)).toEqual([[3], [7]]) // ascending → deadlock-free
-    for (const l of locks) {
-      expect(l.text).toContain('"subject_grades"')
-      expect(l.text).toContain('FOR UPDATE')
-      expect(l.via).toBe('session') // the TRANSACTION's connection, not the global pool
-    }
+    // ONE statement for the whole set now (`lib/txDb.ts` → `lockRows`), ascending via ORDER BY.
+    expect(locks).toHaveLength(1)
+    expect(locks[0].params).toEqual([3, 7]) // ascending → deadlock-free
+    expect(locks[0].text).toContain('"subject_grades"')
+    expect(locks[0].text).toContain('FOR UPDATE')
+    expect(locks[0].text).toContain('ORDER BY id')
+    expect(locks[0].via).toBe('session') // the TRANSACTION's connection, not the global pool
     const firstFind = events.findIndex((e) => e.type === 'find')
     const lastLock = events.map((e) => e.type).lastIndexOf('lock')
     expect(firstFind).toBeGreaterThan(lastLock) // every lock precedes every scan
   })
 
-  it('falls back to the global drizzle connection when no transaction exists', async () => {
+  /**
+   * ⚑ THIS CASE USED TO ASSERT THE BUG — it required a fallback to the global pool when no
+   * transaction existed, which produced a `FOR UPDATE` that is released the instant it returns and
+   * therefore serialised nothing, silently. `lockRows` refuses instead.
+   */
+  it('REFUSES to lock outside a transaction rather than running on the pool', async () => {
     const { events, req } = makeHarness({})
-    await run({
-      req,
-      context: {},
-      doc: { id: 1, assignments: [{ subjectGrade: 5, role: 'subjectAdmin' }] },
-    })
-    expect(events.filter((e) => e.type === 'lock').map((l) => l.via)).toEqual(['drizzle'])
+    await expect(
+      run({
+        req,
+        context: {},
+        doc: { id: 1, assignments: [{ subjectGrade: 5, role: 'subjectAdmin' }] },
+      }),
+    ).rejects.toThrow(/must run inside the caller’s transaction/i)
+    expect(events.filter((e) => e.type === 'lock')).toHaveLength(0)
   })
 
   it('paginates the demote scan and demotes subjectAdmin rows of others on every page', async () => {

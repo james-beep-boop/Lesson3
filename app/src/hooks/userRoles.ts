@@ -1,6 +1,7 @@
-import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
-import { Forbidden } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
+import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
+import { lockRows } from '../lib/txDb'
+import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
@@ -134,17 +135,7 @@ export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({
   // multiple grades can't deadlock a concurrent one. The tx-bound-connection lookup mirrors
   // endpoints/userAssignments.ts (verified there against installed @payloadcms/drizzle source);
   // outside a transaction the lock is a harmless no-op, as there.
-  const adapter = req.payload.db as unknown as {
-    sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
-    drizzle: { execute: (q: unknown) => Promise<unknown> }
-  }
-  const txDb =
-    (req.transactionID != null
-      ? adapter.sessions?.[String(await req.transactionID)]?.db
-      : undefined) ?? adapter.drizzle
-  for (const sgId of grantedSubjectGradeIds) {
-    await txDb.execute(sql`SELECT id FROM "subject_grades" WHERE id = ${sgId} FOR UPDATE`)
-  }
+  await lockRows(req, 'subject_grades', grantedSubjectGradeIds)
 
   for (const sgId of grantedSubjectGradeIds) {
     // depth: 0 → assignment.subjectGrade comes back as raw IDs (no normalization needed).

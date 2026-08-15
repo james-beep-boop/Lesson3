@@ -30,8 +30,8 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
-import { sql } from '@payloadcms/db-postgres'
 
+import { lockRows } from '../lib/txDb'
 import { json } from './respond'
 import { toId, type Assignment } from '../access'
 import type { User } from '../payload-types'
@@ -73,15 +73,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
         // instance — the same lookup @payloadcms/drizzle's own (unexported) getTransaction() does,
         // verified against installed source. The second request blocks here until the first commits,
         // then its fresh read sees the NEW updatedAt → 409.
-        const adapter = req.payload.db as unknown as {
-          sessions?: Record<string, { db: { execute: (q: unknown) => Promise<unknown> } }>
-          drizzle: { execute: (q: unknown) => Promise<unknown> }
-        }
-        const txDb =
-          (req.transactionID != null
-            ? adapter.sessions?.[String(await req.transactionID)]?.db
-            : undefined) ?? adapter.drizzle
-        await txDb.execute(sql`SELECT id FROM "users" WHERE id = ${targetId} FOR UPDATE`)
+        await lockRows(req, 'users', [targetId])
 
         // Fresh read inside the transaction (post-lock) — the freshness check and the delta both
         // work on it.
