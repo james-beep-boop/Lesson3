@@ -48,6 +48,13 @@ nothing while their callers proceeded believing a read-then-write was serialised
 ascending-order deadlock guard universal. Two unit tests had asserted the pool fallback as correct
 behaviour, one calling it a "harmless no-op lock"; both now assert the refusal.
 
+Cleaned up in #224 (no product change, so no separate entry): the consolidation had moved the code
+but left the explanation copied at four former call sites, so four comments — including `txDb.ts`'s
+own header — described code the same commit deleted. `lockLessonPlan` was inlined and its 46-line
+race narrative moved to the call site, on the reasoning that the person most likely to delete the
+lock is the one reading that line. `docs/DECISIONS.md` 2026-08-15 records what was deferred, and
+proves that "≤1 Subject Admin per subject-grade" cannot be expressed as a Postgres constraint.
+
 ## 2026-08-15 — local development runs in the pinned container (MERGED #222)
 
 `.claude/launch.json` had been unable to start since the Node 24 migration: `devEngines` rejects every
