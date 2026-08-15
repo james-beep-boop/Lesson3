@@ -8,6 +8,7 @@ import { APIError, ValidationError } from 'payload'
 
 import { toId } from '../access'
 import { applyEditorFieldSplit } from './fieldSplit'
+import { lockLessonPlan } from '../lib/officialPointer'
 import { DELETING_LESSON_PLAN_IDS } from './lessonPlan'
 import { validateGeneratable } from '../ingest/validateGeneratable'
 
@@ -83,6 +84,17 @@ export const enforceOfficialNotDeletable: CollectionBeforeDeleteHook = async ({ 
   // Official pointer is moot, so the cascade may legitimately remove this version. Stand down.
   const deletingPlans = req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined
   if (deletingPlans?.has(String(planId))) return
+  // ⚑ SERIALISE against a concurrent promotion BEFORE the read that decides — and note that the
+  // read alone is NOT protected by the database. A plain `SELECT` under READ COMMITTED does not
+  // block on another transaction's uncommitted `UPDATE` of this row: it simply returns the OLD
+  // pointer. So without this lock the guard can decide "not Official" from a value that is already
+  // being replaced, allow the delete, and let `ON DELETE SET NULL` null the pointer the promotion
+  // just committed — destroying the approved snapshot. Taking the lock here makes the guard wait for
+  // that promotion and then read the value it actually committed.
+  //
+  // Deliberately AFTER the cascade stand-down above: a plan being deleted in this same request has
+  // no pointer left to protect, and locking it there would be pure contention.
+  await lockLessonPlan(req, planId)
   if (await isOfficialVersion(req, planId, id)) {
     throw new APIError(
       'This version is Official and cannot be deleted. Make another version Official first.',
