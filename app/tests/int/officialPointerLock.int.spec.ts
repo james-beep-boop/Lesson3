@@ -94,7 +94,7 @@ async function officialVersionId(): Promise<number | null> {
  * The gate is resolved in a `finally`, so a throwing `work` still releases the row rather than
  * parking a connection for the rest of the suite.
  */
-async function whileePlanRowLocked<T>(planId: number, work: () => Promise<T>): Promise<T> {
+async function whilePlanRowLocked<T>(planId: number, work: () => Promise<T>): Promise<T> {
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
     release = resolve
@@ -128,11 +128,17 @@ async function whileePlanRowLocked<T>(planId: number, work: () => Promise<T>): P
  */
 async function stillPendingAfterWindow(op: Promise<unknown>): Promise<boolean> {
   const marker = Symbol('pending')
-  const timer = new Promise<typeof marker>((resolve) =>
-    setTimeout(() => resolve(marker), BLOCKED_WINDOW_MS),
-  )
-  const winner = await Promise.race([op.then(() => 'settled' as const).catch(() => 'settled' as const), timer])
-  return winner === marker
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const timer = new Promise<typeof marker>((resolve) => {
+    timeout = setTimeout(() => resolve(marker), BLOCKED_WINDOW_MS)
+  })
+  try {
+    const settled = op.then(() => 'settled' as const).catch(() => 'settled' as const)
+    return (await Promise.race([settled, timer])) === marker
+  } finally {
+    // Cleared so an early-settling run — i.e. a FAILING one — does not leave a live timer behind it.
+    clearTimeout(timeout)
+  }
 }
 
 beforeAll(async () => {
@@ -153,7 +159,7 @@ describe('Official-pointer lock', () => {
     let blocked = false
     let deleting!: Promise<unknown>
 
-    await whileePlanRowLocked(fx.plan.id, async () => {
+    await whilePlanRowLocked(fx.plan.id, async () => {
       // `enforceOfficialNotDeletable` must not be able to read the pointer while a promotion holds
       // this row. Unlocked, its plain SELECT returns the stale value and the delete sails through.
       deleting = fx.payload.delete({
