@@ -8,11 +8,13 @@ import {
   lessonPlanUpdate,
 } from '../access/versioning'
 import { canEditStructure } from '../access/bundle'
+import { siteAdminField } from '../access'
 import {
   cascadeDeleteLessonPlanVersions,
   prewarmOfficialArtifacts,
   retargetFollowerFavorites,
   validateOfficialVersionPointer,
+  validatePublication,
 } from '../hooks/lessonPlan'
 import { uploadBundlesEndpoint } from '../endpoints/uploadBundles'
 import { requestEditingEndpoint } from '../endpoints/requestEditing'
@@ -39,7 +41,7 @@ export const LessonPlans: CollectionConfig = {
     delete: lessonPlanDelete,
   },
   hooks: {
-    beforeValidate: [validateOfficialVersionPointer],
+    beforeValidate: [validateOfficialVersionPointer, validatePublication],
     // Any authenticated Official-pointer move pre-warms that version's export artifacts (T1);
     // any pointer move re-points follower (non-editor) favorites to the new Official (T4).
     afterChange: [prewarmOfficialArtifacts, retargetFollowerFavorites],
@@ -79,6 +81,58 @@ export const LessonPlans: CollectionConfig = {
       access: {
         update: canSetOfficialVersion,
       },
+    },
+    /**
+     * PUBLICATION (SPEC §2; `docs/DESIGN-public-library.md`). Independent of Official, deliberately:
+     * approving a version must never publish it to the internet, and publishing must never be able
+     * to expose a version that is not the plan's current Official one. Two orthogonal fields, two
+     * separate decisions, made by different people at different times.
+     *
+     * Site-Admin-only, a narrower gate than the `canEditStructure` guarding title/subjectGrade: a
+     * Subject Administrator curates content, but putting a lesson plan in front of the open internet
+     * is a decision about the deployment, not about the subject.
+     */
+    {
+      /**
+       * ⚑ NOT `required: true`, deliberately, even though every plan has a visibility.
+       *
+       * Payload's `required` conflates two things: the column being NOT NULL, and the CALLER having
+       * to supply a value. With a `defaultValue` the second is wrong — it makes `visibility` a
+       * mandatory argument of every `payload.create` for a lesson plan, so ingest, the seed script
+       * and six test fixtures would each have to restate `visibility: 'private'`, which is precisely
+       * the default they would get anyway. That is noise at every existing call site and every future
+       * one.
+       *
+       * Nothing about the security posture depends on it: `resolvePublicPlanBySlug` treats anything
+       * that is not exactly `unlisted` or `listed` as private, so a NULL — reachable only by raw SQL
+       * or a migration, never through Payload — fails closed like everything else.
+       */
+      name: 'visibility',
+      type: 'select',
+      defaultValue: 'private',
+      options: [
+        { label: 'Private — authenticated users only', value: 'private' },
+        { label: 'Unlisted — anyone with the link', value: 'unlisted' },
+        { label: 'Listed — public, and shown in Explore', value: 'listed' },
+      ],
+      admin: {
+        position: 'sidebar',
+        description:
+          'Public visibility. Independent of Official: approving a version never publishes it.',
+      },
+      access: { update: siteAdminField },
+    },
+    {
+      name: 'publicSlug',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description:
+          'The permanent public URL name. Derived on first publish if left blank, and FROZEN once the plan has been published — a shared link must not rot.',
+      },
+      access: { update: siteAdminField },
     },
   ],
 }

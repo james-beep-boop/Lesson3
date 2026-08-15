@@ -11,6 +11,41 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-14 — public discovery, phase 1: two Payload behaviours worth knowing before the read slice
+
+**Field access DENIES BY STRIPPING, not by erroring.** A Subject Administrator who attempts to
+publish a lesson plan passes collection access (`lessonPlanUpdate` admits them) and is stopped by the
+field-level `siteAdminField` on `visibility` — and Payload's response is to silently remove the field
+it will not let them write. **The update RESOLVES, reporting success, having published nothing.** An
+access test written to expect a rejection failed on exactly this, which is how it was found; Editors
+and Teachers *do* throw, because they are stopped one layer earlier at collection access, so a test
+covering only those two would have "confirmed" a rejection that does not happen for the role that
+matters.
+
+The security property holds either way — the plan is not published — so the test now asserts the
+OUTCOME rather than the mechanism. But the consequence is a live trap for the read slice: **any UI
+that offers a publish control to a Subject Administrator will appear to work and do nothing.** Gate
+the control on the role, or expect a silent no-op.
+
+**`required: true` conflates NOT NULL with "the caller must supply it", and with a `defaultValue` the
+second is wrong.** Marking `visibility` required made it a mandatory argument of every
+`payload.create` for a lesson plan — nine call sites across ingest, the seed script and six fixtures,
+each forced to restate `visibility: 'private'`, which is precisely the default they would otherwise
+receive. That is noise at every existing call site and every future one, to buy a NOT NULL constraint
+that nothing depends on: the resolver treats anything that is not exactly `unlisted` or `listed` as
+private, so a NULL fails closed like everything else. Dropped it. **Rule: reach for `required` when
+there is no sensible default, not to express "this column should always have a value".**
+
+**The public boundary is a RESOLVER, not an access rule, and that is not a stylistic choice.**
+Relaxing `lessonBundleVersionRead` for anonymous callers cannot express the invariant, because
+`Official` is a trust marker rather than that collection's permission boundary — there is no `where`
+clause for "only the one the plan currently points at". Anonymous access therefore resolves
+plan-first through the Official pointer and never names a version id. That also makes the
+Official-pointer lock (same day, separate PR) a prerequisite rather than adjacent housekeeping.
+
+**A slug frozen at first publish removes a whole subsystem.** Permanence by construction means no
+retained old-slug table, no redirect resolution, and no way for a forwarded link to rot. The cost is
+that a typo is fixable only by unpublishing first — the rarer event, and a deliberate act.
 ## 2026-08-14 — three locks were written for the Official-pointer race; only one could be shown to do anything
 
 **The race is real and the fix is one line.** `enforceOfficialNotDeletable` decides whether a version

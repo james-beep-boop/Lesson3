@@ -20,6 +20,7 @@
  * without a database or a server — the same split as `publicPosture.ts`, whose wiring call lives in
  * `payload.config.ts` rather than in the module that decides.
  */
+import { notFound } from 'next/navigation'
 
 /**
  * Is public discovery switched on for this deployment?
@@ -47,6 +48,45 @@ export const isPublicLibraryEnabled = (): boolean => process.env.PUBLIC_LIBRARY_
  * without this flag is the ordinary authenticated internet deployment and boots normally. Only the
  * combination that cannot work is rejected.
  */
+/**
+ * The visibility values that put a lesson plan on the public internet.
+ *
+ * ONE definition, because this rule is read from both sides of the system and they must never
+ * disagree: the write side decides what publishing MEANS (`hooks/lessonPlan.ts`), and the read side
+ * decides what an anonymous visitor GETS (`lib/publicPlan.ts`). Those were briefly two spellings —
+ * a `===` predicate and a `Set.has(String(...))` — in two modules with no link between them, which
+ * is a rule that can be half-changed. Adding a fourth visibility must be one edit, not three.
+ *
+ * `listed` additionally appears in Explore's browse list; `unlisted` is reachable only by link.
+ * Anything else — including a NULL that only raw SQL could produce — reads as private, so this
+ * fails closed by construction.
+ */
+export const isPubliclyVisible = (visibility: unknown): boolean =>
+  visibility === 'unlisted' || visibility === 'listed'
+
+/**
+ * The server-side gate every public route MUST call. Throws Next's not-found, so a disabled
+ * deployment serves a real 404 rather than an empty shell.
+ *
+ * ⚑ WHY A SHARED CALLABLE AND NOT A LAYOUT. A layout cannot carry this boundary: `route.ts`
+ * handlers are not wrapped by layouts at all — and the public artifact handler, the highest-stakes
+ * route in the plan, is one — and neither are the `opengraph-image`, `sitemap` and `robots` special
+ * files the design doc requires. (An earlier version of this comment said layouts "do not run for
+ * every rendering path", which is simply wrong for nested pages; the real reason is narrower and is
+ * the one above.)
+ *
+ * ⚑ WHY IT IS A FUNCTION AND NOT AN INLINE `if`. This codebase has already paid for the alternative:
+ * *"duplication does not just risk divergence — it hides omission. The third and fourth copies are
+ * the ones that never get written, and nothing points at their absence"* (DECISIONS 2026-08-08). An
+ * inlined check is also individually mis-writable — an inverted condition, or a `return null` where
+ * a 404 was meant — with no shared implementation to be wrong in exactly one place. Mirrors
+ * `requireUser()` in `lib/session.ts`, which is this project's established idiom for a per-route
+ * gate that deliberately is not a layout.
+ */
+export function requirePublicLibrary(): void {
+  if (!isPublicLibraryEnabled()) notFound()
+}
+
 export function publicLibraryBootRefusal(opts: {
   enabled: boolean
   serverUrl: string | undefined

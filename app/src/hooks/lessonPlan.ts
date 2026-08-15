@@ -4,9 +4,16 @@ import type {
   CollectionBeforeValidateHook,
   CollectionSlug,
 } from 'payload'
-import { NotFound, ValidationError } from 'payload'
+import { NotFound, ValidationError, type PayloadRequest } from 'payload'
 
 import { isEditorFor, toId } from '../access'
+import { isPubliclyVisible } from '../lib/publicLibrary'
+import {
+  derivePublicSlug,
+  isValidPublicSlug,
+  normalisePublicSlug,
+  suffixedPublicSlug,
+} from '../lib/publicSlug'
 import { prewarmVersionArtifacts } from '../jobs/prewarmVersionArtifacts'
 import { relId } from '../lib/relId'
 import type { User } from '../payload-types'
@@ -25,14 +32,17 @@ const idFrom = (value: unknown): number | undefined => {
   return typeof id === 'number' ? id : undefined
 }
 
-const validationError = (message: string, req: Parameters<CollectionBeforeValidateHook>[0]['req']) =>
-  new ValidationError(
-    {
-      collection: 'lesson-plans',
-      errors: [{ message, path: 'officialVersion' }],
-    },
-    req.t,
-  )
+/**
+ * A field-scoped `ValidationError` for this collection. `path` defaults to `officialVersion` because
+ * that was the only rule when this existed; publication rules pass `publicSlug`. Parameterised
+ * rather than copied, so Payload's error shape (`{ collection, errors: [{ message, path }] }` plus
+ * `req.t`) — a vendor API this project pins deliberately — is spelled out in exactly one place.
+ */
+const validationError = (
+  message: string,
+  req: PayloadRequest,
+  path: 'officialVersion' | 'publicSlug' = 'officialVersion',
+) => new ValidationError({ collection: 'lesson-plans', errors: [{ message, path }] }, req.t)
 
 export const validateOfficialVersionPointer: CollectionBeforeValidateHook = async ({
   data,
@@ -106,6 +116,177 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   }
 
   return data
+}
+
+/** The one user-facing sentence for a malformed slug, stated once so the two paths cannot drift. */
+const SLUG_FORMAT_MESSAGE =
+  'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.'
+
+const slugError = (message: string, req: PayloadRequest) => validationError(message, req, 'publicSlug')
+
+/**
+ * Publication rules for a lesson plan (SPEC §2; `docs/DESIGN-public-library.md`).
+ *
+ * Three invariants, all of which exist because a public slug is a link a teacher forwards:
+ *
+ *   1. **A published plan HAS a slug.** Publishing without one would mint a plan that is public in
+ *      the database and unreachable in the world — the worst of both, and invisible until someone
+ *      goes looking. Derived from subject/grade/title when blank, and REFUSED when nothing usable
+ *      can be derived, rather than falling back to a nameless URL.
+ *   2. **The slug is FROZEN once the plan has been published.** Editable freely while `private`;
+ *      immutable from the first moment visibility leaves `private`. This is what makes a shared
+ *      link permanent by construction and is why there is no old-slug redirect table to maintain.
+ *      The accepted cost is that a typo is only fixable by unpublishing first — the rarer event, and
+ *      a deliberate administrative act.
+ *   3. **The slug is well formed and unique.** Format is `lib/publicSlug.ts`'s business; uniqueness
+ *      needs the database and is settled here, walking past collisions with a numeric suffix.
+ *
+ * ⚑ Uniqueness is ALSO enforced by a unique index on the column, and that is the authority — this
+ * probe is a friendly error, not the guarantee. Two concurrent publishes can both find the same slug
+ * free; the index is what makes exactly one of them win. Same division of labour as the
+ * SubjectGrade duplicate-pair guard.
+ *
+ * Runs on create and update. Unlike `validateOfficialVersionPointer` there is no `req.user` carve-out
+ * for system paths: ingest creates plans as `private` with no slug, which these rules already permit,
+ * and a migration or fixture that publishes something should be held to the same invariants as a
+ * human — a nameless public plan is not more acceptable for having been made by a script.
+ */
+export const validatePublication: CollectionBeforeValidateHook = async ({
+  data,
+  originalDoc,
+  req,
+}) => {
+  if (!data) return data
+
+  const prev = originalDoc as
+    | { visibility?: unknown; publicSlug?: unknown; subjectGrade?: unknown; title?: unknown }
+    | undefined
+  const previousSlug = typeof prev?.publicSlug === 'string' ? prev.publicSlug : ''
+  const wasPublished = isPubliclyVisible(prev?.visibility)
+
+  // The effective post-write state: a PATCH may carry only one of the two fields.
+  const nextVisibility = 'visibility' in data ? data.visibility : prev?.visibility
+  const slugSubmitted = 'publicSlug' in data
+  const rawNextSlug = slugSubmitted ? data.publicSlug : previousSlug
+  const nextSlug = typeof rawNextSlug === 'string' ? rawNextSlug.trim() : ''
+
+  // 2. IMMUTABILITY — checked before anything else, so a rejected change cannot also be normalised
+  // or de-duplicated on its way to being refused.
+  if (wasPublished && slugSubmitted && nextSlug !== previousSlug) {
+    throw slugError(
+      'The public link for a published lesson plan cannot be changed — teachers may already have shared it. Set visibility back to Private first.',
+      req,
+    )
+  }
+
+  // Format is checked ONCE, for both the private and published paths — they applied the identical
+  // rule and the identical message from two places before.
+  const candidateFromInput = nextSlug ? normalisePublicSlug(nextSlug) : ''
+  if (candidateFromInput && !isValidPublicSlug(candidateFromInput)) {
+    throw slugError(SLUG_FORMAT_MESSAGE, req)
+  }
+
+  if (!isPubliclyVisible(nextVisibility)) {
+    // Still private: a slug may be set, cleared or reshaped freely — it is only frozen once published.
+    if (slugSubmitted && candidateFromInput) data.publicSlug = candidateFromInput
+    return data
+  }
+
+  // 3. Published from here down.
+  //
+  // ⚑ A plan that is ALREADY published and is not changing its slug is done: the value is frozen and
+  // unique-indexed, so re-deriving or re-probing it can only confirm what the last publish settled.
+  // This return covers every later write to a published plan — a visibility toggle, a title edit,
+  // make-official — and keeps a `count` query off each of them. (It sat inside the `if (!candidate)`
+  // block before, where it was unreachable: `nextSlug` falls back to the stored slug, so `candidate`
+  // was never empty on exactly the path the return existed to catch.)
+  if (wasPublished && candidateFromInput === previousSlug) return data
+
+  let candidate = candidateFromInput
+  if (!candidate) {
+    candidate = derivePublicSlug({
+      ...(await subjectGradeParts(req, idFrom(data.subjectGrade ?? prev?.subjectGrade))),
+      title: (data.title ?? prev?.title) as string | undefined,
+    })
+  }
+
+  // 1. A published plan HAS a slug — refuse rather than invent one.
+  if (!candidate) {
+    throw slugError(
+      'This lesson plan needs a public link before it can be published, and one could not be derived from its title. Enter one.',
+      req,
+    )
+  }
+
+  data.publicSlug = await firstFreeSlug(req, candidate, idFrom(originalDoc?.id))
+  return data
+}
+
+/** How far the collision walk goes before deferring to the unique index. */
+const MAX_SLUG_ATTEMPTS = 25
+
+/** The subject name and grade behind a subject-grade id, for slug derivation. Absent parts are skipped. */
+async function subjectGradeParts(
+  req: PayloadRequest,
+  subjectGradeId: number | undefined,
+): Promise<{ subjectName?: string | null; grade?: number | null }> {
+  if (subjectGradeId == null) return {}
+  try {
+    const sg = (await req.payload.findByID({
+      collection: 'subject-grades' as CollectionSlug,
+      id: subjectGradeId,
+      depth: 1,
+      overrideAccess: true,
+      req,
+    })) as { grade?: number | null; subject?: unknown }
+    const subject = sg.subject as { name?: string } | number | null | undefined
+    return {
+      subjectName: typeof subject === 'object' && subject ? subject.name : undefined,
+      grade: sg.grade ?? undefined,
+    }
+  } catch {
+    // A missing subject-grade is not this hook's error to raise — the required-relationship
+    // validation owns it. Derivation simply falls back to the title.
+    return {}
+  }
+}
+
+/**
+ * The first slug in `base`, `base-2`, `base-3`… not already held by ANOTHER plan.
+ *
+ * ONE query, not one per candidate. The obvious shape — probe, increment, probe again — issues up to
+ * `MAX_SLUG_ATTEMPTS` sequential round trips *inside the caller's write transaction*, so a collision
+ * would hold the plan row locked for that whole walk (negligible against a local Postgres, far less
+ * so when the database is a network hop away). Asking which of the candidates are taken costs the
+ * same single index scan on `lesson_plans_public_slug_idx` whether none or all of them exist, so the
+ * common case — a free base slug — is one query either way and nothing regresses.
+ *
+ * Bounded rather than looping until success: an unbounded search would turn a pathological corpus
+ * (or a bug) into a hang inside that transaction. On exhaustion the caller gets the raw candidate and
+ * the unique index produces the error, which is the honest outcome — a friendly probe that cannot
+ * find an answer should defer to the authority, not invent one.
+ */
+async function firstFreeSlug(
+  req: PayloadRequest,
+  base: string,
+  selfId: number | undefined,
+): Promise<string> {
+  const candidates = Array.from({ length: MAX_SLUG_ATTEMPTS }, (_, i) =>
+    suffixedPublicSlug(base, i + 1),
+  )
+  const taken = { publicSlug: { in: candidates } }
+  const { docs } = await req.payload.find({
+    collection: 'lesson-plans' as CollectionSlug,
+    where: selfId == null ? taken : { and: [taken, { id: { not_equals: selfId } }] },
+    select: { publicSlug: true },
+    pagination: false,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })
+
+  const used = new Set(docs.map((doc) => (doc as { publicSlug?: string | null }).publicSlug))
+  return candidates.find((candidate) => !used.has(candidate)) ?? base
 }
 
 /**
