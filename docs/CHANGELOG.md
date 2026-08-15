@@ -8,6 +8,55 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-15 — public discovery, phase 1 (MERGED #216/#217/#219/#220; DEPLOYED)
+
+The boundary and the data model for an optional public lesson library. **Nothing is public yet:**
+`PUBLIC_LIBRARY_ENABLED` is unset, every existing plan backfilled to `private`, and the anonymous
+resolver has no route consuming it. What shipped is the part that has to be right before a surface
+exists at all.
+
+`PUBLIC_LIBRARY_ENABLED=1` decides whether a deployment serves a public library. Off — the default,
+and what every offline school installation runs — means absent: no Explore action on `/login`, and 404
+from every public route, enforced server-side. Only the literal string `1` enables it, because `false`
+and `0` are truthy strings in JS and a loose check would publish a school's corpus on a typo. Setting
+it without `SERVER_URL` refuses to boot, since share cards and the printed footer need an absolute
+base and degrade silently on exactly the pages built to travel.
+
+Lesson plans gained `visibility` (private/unlisted/listed) and a unique `publicSlug`, Site-Admin-only.
+Publication and Official stay independent in both directions: approving a version never publishes it,
+and a published plan is served only at its current Official version — so an editor's retained working
+copy cannot reach the public even though any authenticated user may read it. That is why the public
+path is a narrow resolver rather than relaxed collection access: "Official only" cannot be expressed
+as a permission, because Official is a trust marker. A slug is frozen once published, which makes a
+forwarded link permanent by construction and removes any need for a redirect table.
+
+Also fixed, as a prerequisite: the Official-pointer delete guard could decide from a stale read. A
+plain `SELECT` under READ COMMITTED does not block on an uncommitted `UPDATE`, so a version could be
+deleted while a promotion of that same version was in flight, and `ON DELETE SET NULL` then nulled the
+pointer — destroying an approved snapshot and dropping the plan out of the library.
+
+Verified in production 2026-08-15: `/` → 307, `/login` → 200 with no console errors, `/explore` → 404,
+and both content collections 403 to anonymous callers. Reasoning: `docs/DECISIONS.md` 2026-08-14.
+
+## 2026-08-15 — three row locks could silently hold nothing (MERGED #221; DEPLOYED)
+
+`ingest`, `hooks/userRoles` and `endpoints/userAssignments` each hand-rolled a `SELECT … FOR UPDATE`
+and each fell back to the connection pool when the transaction session could not be resolved. A row
+lock on a pooled connection is released the instant the statement returns, so all three could hold
+nothing while their callers proceeded believing a read-then-write was serialised. Replaced by one
+`lockRows` helper that fails closed, locks the whole set in a single round trip, and makes the
+ascending-order deadlock guard universal. Two unit tests had asserted the pool fallback as correct
+behaviour, one calling it a "harmless no-op lock"; both now assert the refusal.
+
+## 2026-08-15 — local development runs in the pinned container (MERGED #222)
+
+`.claude/launch.json` had been unable to start since the Node 24 migration: `devEngines` rejects every
+npm invocation on a host whose Node major isn't 24, and `npm ci` — the only way to populate
+`node_modules` and bypass npm — is blocked by the same gate. `scripts/dev-server.sh` and
+`scripts/dev-seed.sh` run in the `lesson3-deps` image instead, so both work on any host with Docker.
+The seed step had the identical breakage and is fixed too; it joins the Postgres container's network
+namespace so the seed script's loopback guard is satisfied honestly rather than argued past.
+
 ## 2026-08-12 — Node 24 Docker migration (MERGED #214; DEPLOYED)
 
 Moved every shipped/tested Docker stage and both `.nvmrc` files from Node 22.23.2 to Node 24.19.0.

@@ -16,6 +16,91 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-15) — public discovery PHASE 1 is merged and deployed
+
+**This supersedes the 2026-08-12 handoff below, which is kept for provenance.** Note especially that
+its "the agreed next PRODUCT track is public discovery … no implementation exists yet" is now HISTORY:
+the boundary, the publication model and the anonymous resolver are all on `main` and on the Rock.
+
+## Where the work is
+
+**Everything is merged AND deployed. No PRs open.** Seven PRs landed in one session:
+
+| PR | What |
+|---|---|
+| #218 | `nanoid` past GHSA-2v37-7h3g-55p8 — `main`'s `audit:prod` was RED and blocking every PR |
+| #216 | the public-discovery design, replayed off a branch that had been stranded since 2026-08-12 |
+| #217 | the Official-pointer stale-read fix |
+| #219 | the `PUBLIC_LIBRARY_ENABLED` deployment boundary |
+| #220 | the publication model, resolver and migration |
+| #221 | three row locks that could silently hold nothing |
+| #222 | the dev server and seed made runnable again |
+
+**Verified in production on 2026-08-15**, after an operator-run `scripts/deploy.sh`: `/` → 307,
+`/login` → 200 rendering with no console errors, `/explore` → **404**, and `/api/lesson-plans` +
+`/api/lesson-bundle-versions` → **403** to an anonymous caller. The operator additionally exercised
+the Subject-Administrator promote/demote path by hand — the one place the new fail-closed row lock
+could have surfaced — and it worked.
+
+## What is true now, and what is deliberately NOT
+
+**Nothing is public.** `PUBLIC_LIBRARY_ENABLED` is unset on the Rock, every existing plan backfilled
+to `private`, and `resolvePublicPlanBySlug` has no route consuming it yet. Phase 1 built the boundary,
+not the surface.
+
+**The collections stay shut to anonymous callers, permanently.** `lessonPlanRead` /
+`lessonBundleVersionRead` were NOT loosened and must not be: the versions collection retains editors'
+Not-Official working copies, and "Official only" cannot be expressed as collection access, because
+Official is a trust marker rather than that collection's permission boundary. The public path resolves
+plan-first through the current Official pointer and never names a version id. That is the whole design;
+`docs/DESIGN-public-library.md` is the authority.
+
+## ⚑ Three things to carry into the read slice
+
+1. **Payload field access denies by SILENTLY STRIPPING the field, not by erroring.** A Subject Admin's
+   attempt to publish passes collection access, is stopped at field access, and the write RESOLVES
+   reporting success while publishing nothing. Any UI that offers a publish control to a Subject Admin
+   will appear to work and do nothing. DECISIONS 2026-08-14.
+2. **Every new public route calls `requirePublicLibrary()`** (`lib/publicLibrary.ts`). It is a shared
+   function specifically so the third and fourth copies cannot go missing — the omission failure this
+   codebase has already recorded. A layout cannot carry the boundary: `route.ts` handlers (the public
+   artifact handler above all) and the `opengraph-image`/`sitemap` files are not wrapped by layouts.
+3. **A public slug is frozen once published**, which is why there is no redirect table. Publishing
+   without a derivable slug is REFUSED rather than defaulted.
+
+## What's next
+
+**The first gate is PRODUCT/LEGAL, not code**, and it blocks the launch corpus rather than the schema:
+which plans may be public, the licence and attribution wording, whether `kenyalessons.org` is the
+permanent printed URL, and whether launch means a curated sample or every explicitly listed plan.
+
+Then the remaining slices, in `docs/DESIGN-public-library.md`'s order — the mobile-first `/explore`
+read slice (4), the pre-warmed/serve-only public artifact path with anonymous DOCX rejected
+server-side (5), sharing and measurement (6), and the generator attribution footer (7). Do not mix the
+generator change into the public-routing work.
+
+Two structural improvements were deliberately DEFERRED with reasoning during #222's cleanup, and both
+get cheaper the sooner they are taken: a general `scripts/in-deps.sh <cmd>` wrapper (the
+`docker run … lesson3-deps` shape recurs ~9 times across CI and the docs), and expressing the dev
+server as a compose service under a `dev` profile, which would get healthcheck gating and network
+naming declaratively instead of by hand. The second needs its Ctrl-C behaviour checked against
+`--init` first.
+
+## Local development changed — read this before running anything
+
+`npx next dev` on the host **cannot work** and cannot be made to: the `devEngines` gate rejects every
+npm invocation on a host whose Node major isn't 24, and populating `node_modules` to bypass npm needs
+`npm ci`, which the same gate blocks. Use the scripts:
+
+```bash
+scripts/dev-seed.sh      # accounts + one lesson plan
+scripts/dev-server.sh    # then browse localhost:3000
+```
+
+Both run in the pinned `lesson3-deps` container and start Postgres themselves. AGENTS.md → Local stack
+has the detail, including the public-library switches and why `SERVER_URL` on plain-HTTP localhost
+means working signed out.
+
 # ⚑ HANDOFF (2026-08-12) — full audit remediation + Node 24 migration: both merged, deployed
 
 **This supersedes the 2026-08-09 handoff below, which is kept for provenance.**
@@ -72,6 +157,10 @@ if it doesn't) and the going-public / Docker-hygiene follow-ups noted during the
 (edge rate limiting, base-image digest pinning, scheduled dependency-update PRs, SBOM/image scanning)
 that were deliberately deferred as their own future initiative, not part of this remediation.
 
+⚑ **SUPERSEDED — the section below describes public discovery as UNBUILT. Phase 1 shipped on
+2026-08-15; see the newest handoff at the top.** Its statement of the locked shape is still accurate
+and worth reading; its "not started" framing is not.
+
 **The agreed next PRODUCT track is public discovery.** Read `docs/DESIGN-public-library.md`, then
 SPEC §2/§4/§9. Do not reconstruct the brief from this summary — the design doc is the authority for
 the security boundary, the mobile-first UX, the proposed slices and the open rights/copy questions.
@@ -98,7 +187,7 @@ or burdening offline school installations. Locked shape:
 - all generated documents should eventually carry a per-page website/creator footer, implemented
   upstream in the ARES generator and cache-versioned. Exact wording and permanent URL still open.
 
-⚑ **Build the Official-pointer lock FIRST.** Public discovery makes the Official pointer the sole
+⚑ **DONE (#217, deployed).** Build the Official-pointer lock FIRST. Public discovery makes the Official pointer the sole
 resolution path for anonymous content, and that pointer still has the open read-then-write race
 described under "Next steps, in priority order" below (item 4): an Official version can be deleted
 during a concurrent promotion, destroying an approved snapshot and dropping the plan out of the
