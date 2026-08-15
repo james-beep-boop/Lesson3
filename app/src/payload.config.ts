@@ -21,6 +21,7 @@ import { expireEditRecoveryTask } from './jobs/expireEditRecovery'
 import { messagePingTask } from './jobs/messagePing'
 import { passwordResetEmailTask } from './jobs/passwordResetEmail'
 import { isSiteAdmin } from './access'
+import { isPublicLibraryEnabled, publicLibraryBootRefusal } from './lib/publicLibrary'
 import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
 
@@ -199,6 +200,16 @@ export default buildConfig({
   // creation). Escape hatch for one deliberate bootstrap boot: ALLOW_FIRST_USER_BOOTSTRAP=1.
   // Decision logic + rationale: lib/publicPosture.ts; runbook: docs/OPS.md "Going public".
   onInit: async (payload) => {
+    // ⚑ FIRST, and deliberately so. This check needs no database, and the user-count block below
+    // RETURNS EARLY when the users table does not exist yet (the very first migrate). Ordering it
+    // after that would mean a fresh deployment — the one most likely to have the misconfiguration —
+    // boots straight past it. Decision logic + rationale: lib/publicLibrary.ts.
+    const publicLibraryRefusal = publicLibraryBootRefusal({
+      enabled: isPublicLibraryEnabled(),
+      serverUrl: process.env.SERVER_URL,
+    })
+    if (publicLibraryRefusal) throw new Error(publicLibraryRefusal)
+
     let userCount: number | null = null
     try {
       userCount = (await payload.count({ collection: 'users' })).totalDocs
