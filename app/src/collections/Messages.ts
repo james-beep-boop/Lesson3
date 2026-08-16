@@ -68,7 +68,17 @@ const stampSenderAndRateLimit: CollectionBeforeValidateHook = async ({ data, ope
  *  A's Official version, HIDING the mismatch rather than surfacing it. Enforce it server-side: a
  *  linked version must belong to the linked plan (and the sender must be able to read it). System
  *  paths (no `req.user` — fixtures/tests) are trusted. */
-const validateContextLink: CollectionBeforeValidateHook = async ({ data, operation, req }) => {
+/**
+ * Exported for `tests/unit/messageContextLink.spec.ts` — the same reason `applyEditorFieldSplit` is
+ * exported from `hooks/fieldSplit.ts`. A hook reachable only through `payload.create` can only be
+ * tested against a real database, and the case that matters here is an operational FAULT in the
+ * lookup, which is precisely what a real database will not do on request.
+ */
+export const validateContextLink: CollectionBeforeValidateHook = async ({
+  data,
+  operation,
+  req,
+}) => {
   if (operation !== 'create' || !req.user || data?.version == null) return data
   if (data.lessonPlan == null) {
     throw new APIError('A linked lesson version must include its lesson plan.', 400)
