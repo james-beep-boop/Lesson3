@@ -28,17 +28,27 @@ import type { User } from '../payload-types'
  * whatever arrives before `parseIds` sees a single element — and Next's App Router route handlers
  * impose no default body limit (the 4 MB default is Pages API routes and Server Actions;
  * `experimental.serverActions.bodySizeLimit` does not reach REST routes, and `src/middleware.ts`
- * only sets CSP). This endpoint is also the one body-reader with no rate bucket of its own, so
- * nothing else bounded the repetition either: `emailVersion` spends a per-user daily cap first, and
- * `forgotPassword` already carries this guard.
+ * only sets CSP).
  *
  * 64 KiB against a legitimate worst case of ~4 KB (500 ids at 8 characters each, plus framing) —
  * generous enough that no honest client is ever refused, small enough that a dishonest one is.
+ *
+ * ⚑ AN EARLIER VERSION OF THIS BLOCK CLAIMED this was "the one body-reader with no rate bucket of
+ * its own". That was false when written: `endpoints/userAssignments.ts` has neither a rate bucket
+ * nor a body guard. The claim came from surveying the sibling endpoints by hand, which is precisely
+ * what a per-endpoint guard forces every author to redo and nobody will — see
+ * `docs/NEXT-SESSION.md` on `readJsonBody`, the structural fix that would end the survey. Kept as a
+ * note because a rationale that rots is the argument for the deeper fix, not a footnote to it.
  */
 export const MAX_MARK_READ_BODY_BYTES = 64 * 1024
 
-/** Coerce an untrusted body value to a bounded list of positive integer ids (dedup, cap 500). */
-function parseIds(raw: unknown): number[] {
+/**
+ * Coerce an untrusted body value to a bounded list of positive integer ids (dedup, cap 500).
+ *
+ * Exported for `tests/unit/markReadBody.spec.ts`, so the coercion rules can be asserted directly
+ * rather than through a fake request that has nothing to do with them.
+ */
+export function parseIds(raw: unknown): number[] {
   if (!Array.isArray(raw)) return []
   const ids = new Set<number>()
   for (const v of raw) {

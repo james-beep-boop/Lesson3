@@ -18,28 +18,30 @@
  * finalExplanation/summaryTable is only a non-blocking `deliverableWarnings` entry. `lessons` was
  * protected by that gate; its two siblings were protected by nothing.
  *
+ * ⚑ EVERY REJECTION ASSERTS `Forbidden`, NOT A BARE THROW. The pre-fix code threw a `TypeError` on
+ * several of these inputs (`'sections' in 42`), so a bare `.toThrow()` passes against the very bug
+ * this file exists to pin — the trap `emptyArraySerialization.spec.ts` documents for this same
+ * family. Two of these cases were originally written that way and proved nothing.
+ *
  * DB-free and Payload-boot-free → runs in `test:unit`.
  */
 import { describe, expect, it } from 'vitest'
+import { Forbidden } from 'payload'
 
 import { applyEditorFieldSplit } from '../../src/hooks/fieldSplit.js'
+import { VERSION_EDITOR_KEYS } from '../../src/hooks/bundleVersion.js'
 
-const EDITOR_KEYS = new Set(['lessons', 'finalExplanation', 'summaryTable', 'updatedAt'])
-
-/** A stored version with admin-authored content in all three containers. */
+/**
+ * A stored version carrying admin-authored content in both group containers.
+ *
+ * A FUNCTION, not a const: `overlayProse` shallow-copies, so a shared object would let `toEqual`
+ * compare a value against itself and prove nothing. Only what the assertions read is modelled —
+ * `subjectGrade` for the authority lookup, one id-bearing lesson to satisfy the cardinality check,
+ * and the two containers under test.
+ */
 const original = () => ({
-  id: 1,
   subjectGrade: 7,
-  meta: { subject: 'Biology', grade: 10, substrand_id: 'B10.1', titleDoc: 'Cells' },
-  lessons: [
-    {
-      id: 'L1',
-      title: 'Lesson one',
-      slo: { purpose: 'admin purpose' },
-      summaryTablePrompt: { observed: 'o' },
-      framework: [{ id: 'F1', phase: 'Engage', learnerExperience: 'x' }],
-    },
-  ],
+  lessons: [{ id: 'L1' }],
   finalExplanation: {
     instructions: 'admin instructions',
     sections: [{ id: 'S1', prompt: 'admin prompt', adminOnly: 'keep me' }],
@@ -52,7 +54,7 @@ const original = () => ({
   },
 })
 
-/** An Editor: no roles, no assignments beyond an `editor` grant on the document's subject-grade. */
+/** An Editor: no roles, and an `editor` grant on the document's own subject-grade. */
 const editor = { id: 99, roles: [], assignments: [{ subjectGrade: 7, role: 'editor' }] }
 
 const runSplit = (data: Record<string, unknown>) =>
@@ -60,36 +62,51 @@ const runSplit = (data: Record<string, unknown>) =>
     data,
     originalDoc: original() as never,
     operation: 'update',
-    req: { user: editor, t: ((k: string) => k) as never } as never,
-    editorTopLevelKeys: EDITOR_KEYS,
+    req: { user: editor } as never,
+    editorTopLevelKeys: VERSION_EDITOR_KEYS,
   }) as Record<string, unknown>
 
 describe('group containers cannot be deleted by an Editor', () => {
-  it('REFUSES a null finalExplanation rather than passing it through', () => {
-    expect(() => runSplit({ finalExplanation: null })).toThrow()
-  })
+  it.each([null, 0, 'nope', 42, []])(
+    'REFUSES a malformed finalExplanation (%o)',
+    (bad) => {
+      expect(() => runSplit({ finalExplanation: bad })).toThrow(Forbidden)
+    },
+  )
 
-  it('REFUSES a null summaryTable', () => {
-    expect(() => runSplit({ summaryTable: null })).toThrow()
-  })
-
-  it.each([0, 'nope', 42, []])('REFUSES the malformed container %o', (bad) => {
-    expect(() => runSplit({ finalExplanation: bad })).toThrow()
+  it.each([null, 0, 'nope', 42, []])('REFUSES a malformed summaryTable (%o)', (bad) => {
+    expect(() => runSplit({ summaryTable: bad })).toThrow(Forbidden)
   })
 
   /**
    * ⚑ THE CASE THE NULL BUG EXPOSED. Omitting the key was as effective as nulling it, and no guard
-   * could fire on a key that is not there — so the fix is that the container is REBUILT from the
+   * can fire on a key that is not there — so the fix is that the container is REBUILT from the
    * original rather than merely checked. Absent means unchanged.
    */
-  it('restores an OMITTED finalExplanation from the original, whole', () => {
+  it('restores OMITTED containers from the original, whole', () => {
     const out = runSplit({ lessons: original().lessons })
     expect(out.finalExplanation).toEqual(original().finalExplanation)
+    expect(out.summaryTable).toEqual(original().summaryTable)
   })
 
-  it('restores an OMITTED summaryTable from the original, whole', () => {
+  /**
+   * ⚑ THE RECURRENCE GUARD, parametrised over the REAL `VERSION_EDITOR_KEYS`.
+   *
+   * Every key in that set is exempt from the blanket restore, and each therefore carries an unwritten
+   * obligation to re-derive itself in step 2. That unmet obligation IS the bug above. A fourth
+   * container added to the set without a `rebuildGroup` call fails here by name, instead of shipping
+   * the same hole again.
+   *
+   * `lessons` is the one deliberate exclusion: absence must reach `validateGeneratable` as a loud 422
+   * rather than be silently restored. `updatedAt` is metadata, not a container.
+   */
+  const CONTAINERS = [...VERSION_EDITOR_KEYS].filter((k) => k !== 'lessons' && k !== 'updatedAt')
+
+  it.each(CONTAINERS)('container %s is restored when omitted', (key) => {
     const out = runSplit({ lessons: original().lessons })
-    expect(out.summaryTable).toEqual(original().summaryTable)
+    expect(out[key], `${key} is exempt from the blanket restore and must be rebuilt`).toEqual(
+      (original() as Record<string, unknown>)[key],
+    )
   })
 })
 
@@ -132,11 +149,16 @@ describe('group containers still accept legitimate prose edits', () => {
     expect(rows[0].observed).toBe('editor obs')
   })
 
-  it('still refuses a cardinality change inside a group container', () => {
-    expect(() =>
-      runSplit({
-        finalExplanation: { sections: [{ id: 'S1', prompt: 'a' }, { id: 'S2', prompt: 'new' }] },
-      }),
-    ).toThrow()
+  /**
+   * Cardinality inside a group container. `emptyArraySerialization.spec.ts` already covers added and
+   * reordered `sections`, so this takes the row sets that spec does not: `rubric` and
+   * `summaryTable.lessons`. All three now run through one `guardRows` path, so covering the
+   * uncovered two is what actually widens the guard.
+   */
+  it.each([
+    ['finalExplanation', { rubric: [{ id: 'R1' }, { id: 'R2' }] }],
+    ['summaryTable', { lessons: [] }],
+  ])('still refuses a cardinality change in %s', (key, container) => {
+    expect(() => runSplit({ [key]: container })).toThrow(Forbidden)
   })
 })

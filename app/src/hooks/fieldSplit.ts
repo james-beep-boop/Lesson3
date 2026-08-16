@@ -25,6 +25,7 @@ import { Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
+import { isObject } from '../ingest/resourceLinks'
 import { canonicalJson } from '../lib/canonicalJson'
 import { stripIds } from '../lib/stripIds'
 
@@ -73,6 +74,9 @@ const submittedRows = (value: unknown, reject: () => never): Row[] => {
   return reject()
 }
 
+/** The submitted group when it is one, else undefined — for the overlay, which tolerates absence. */
+const asSubmittedGroup = (value: unknown): Doc | undefined => (isObject(value) ? value : undefined)
+
 /**
  * A SUBMITTED group container (`finalExplanation`, `summaryTable`), or reject.
  *
@@ -81,15 +85,13 @@ const submittedRows = (value: unknown, reject: () => never): Row[] => {
  * check". `null` is rejected rather than treated as absence — Payload's form state posts a group as
  * an object, so a null container is not a shape any real client produces, and silently accepting it
  * is precisely how the whole group used to reach the write unguarded.
+ *
+ * Derived from `asSubmittedGroup` rather than repeating the predicate: a group is never nullish when
+ * it matches, so `?? reject()` fires on exactly the values the long form rejected. Two hand-written
+ * copies of one security predicate is the drift hazard this whole fix was about.
  */
-const submittedGroup = (value: unknown, reject: () => never): Doc => {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value as Doc
-  return reject()
-}
-
-/** The submitted group when it is one, else undefined — for the overlay, which tolerates absence. */
-const asSubmittedGroup = (value: unknown): Doc | undefined =>
-  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Doc) : undefined
+const submittedGroup = (value: unknown, reject: () => never): Doc =>
+  asSubmittedGroup(value) ?? reject()
 
 const sameSequence = (
   a: Array<string | number | undefined>,
@@ -324,33 +326,31 @@ export const applyEditorFieldSplit = ({
       }
     }
   }
+  // ⚑ THESE ROW CHECKS ARE STILL LOAD-BEARING after the step-2 rebuild, which is not obvious and was
+  // nearly lost: `overlayRows` iterates the SUBMITTED array, and a row whose id has no match in the
+  // original is returned RAW (`if (!baseRow) return sub`). So the rebuild guarantees only that
+  // UNMENTIONED fields come from the original — it does nothing about added, deleted or reordered
+  // rows. Without this, an Editor could append a section carrying arbitrary admin subfields and have
+  // it pass straight through. The `unreachable` comment inside `overlayRows` is true only because
+  // this runs first.
+  const guardRows = (before: Doc, sub: Doc, key: string): void => {
+    if (
+      key in sub &&
+      !sameSequence(idsOf(storedRows(before[key])), idsOf(submittedRows(sub[key], reject)))
+    )
+      reject()
+  }
+
   // PRESENCE, not truthiness — see the rebuild note in step 2 for what the truthiness form let past.
   if ('finalExplanation' in data) {
     const fe = submittedGroup(data.finalExplanation, reject)
     const feBefore = (originalDoc.finalExplanation ?? {}) as Doc
-    if (
-      'sections' in fe &&
-      !sameSequence(idsOf(storedRows(feBefore.sections)), idsOf(submittedRows(fe.sections, reject)))
-    )
-      reject()
-    if (
-      'rubric' in fe &&
-      !sameSequence(idsOf(storedRows(feBefore.rubric)), idsOf(submittedRows(fe.rubric, reject)))
-    )
-      reject()
+    guardRows(feBefore, fe, 'sections')
+    guardRows(feBefore, fe, 'rubric')
   }
   if ('summaryTable' in data) {
-    const summaryTable = submittedGroup(data.summaryTable, reject)
-    if ('lessons' in summaryTable) {
-      const stBefore = (originalDoc.summaryTable ?? {}) as Doc
-      if (
-        !sameSequence(
-          idsOf(storedRows(stBefore.lessons)),
-          idsOf(submittedRows(summaryTable.lessons, reject)),
-        )
-      )
-        reject()
-    }
+    const stBefore = (originalDoc.summaryTable ?? {}) as Doc
+    guardRows(stBefore, submittedGroup(data.summaryTable, reject), 'lessons')
   }
 
   // 2. WHITELIST: write = original, with only prose overlaid from the submission.
@@ -394,43 +394,40 @@ export const applyEditorFieldSplit = ({
   //
   // This and the structural guard above both used to test TRUTHINESS while the `lessons` guard tested
   // PRESENCE, and the gap between them was reachable: a submitted `null` — or simply OMITTING the key
-  // — skipped the cardinality check here AND the blanket restore in step 2, because
-  // `editorTopLevelKeys` deliberately exempts these keys from it. The whole group then reached
-  // `payload.create` as null, so an Editor's save-as-new could drop the admin-authored Final
-  // Explanation or Summary Table wholesale.
+  // — skipped the cardinality check AND the blanket restore in step 2, because `editorTopLevelKeys`
+  // deliberately exempts these keys from it. The whole group then reached `payload.create` as null,
+  // so an Editor's save-as-new could drop the admin-authored Final Explanation or Summary Table.
   //
   // `lessons` was never exposed the same way, which is why the asymmetry survived: a version with no
   // lessons is REFUSED by `validateGeneratable`, whereas a missing finalExplanation/summaryTable is
   // only a non-blocking `deliverableWarnings` entry — nothing downstream would have caught it. That
   // gate is also why `lessons` is left alone below rather than made symmetric here: restoring it
   // silently would turn today's loud 422 into a quiet pass.
-  if (orig.finalExplanation != null || d.finalExplanation != null) {
-    const feo = (orig.finalExplanation ?? {}) as Doc
-    const sub = asSubmittedGroup(d.finalExplanation)
-    const out = overlayProse(feo, sub, FINAL_EXPLANATION_PROSE)
-    if (sub && Array.isArray(sub.sections)) {
-      out.sections = overlayRows(
-        feo.sections as Doc[] | undefined,
-        sub.sections as Doc[],
-        SECTION_PROSE,
-      )
+  //
+  // ⚑ BOTH HALVES OF THE CONDITION ARE LOAD-BEARING. Drop the `orig` half and an omitted key stops
+  // being restored — the bug above returns. Drop the `d` half and a container the original never had
+  // but the submission supplies is skipped entirely, so the RAW submission survives onto `d` with no
+  // prose filtering at all. When both are absent nothing is written, which is correct: inventing an
+  // empty container would be a false difference to the `comparableContent` no-op guard in
+  // `endpoints/versionEdit.ts`, exactly like the `0` sentinel documented above.
+  //
+  // Parametrised because the two bodies were identical but for four values, and the change that
+  // created this comment had to be made twice — which is the shape of the bug it fixes.
+  const rebuildGroup = (key: string, prose: string[], rowsKey: string, rowProse: string[]): void => {
+    if (orig[key] == null && d[key] == null) return
+    const base = (orig[key] ?? {}) as Doc
+    const sub = asSubmittedGroup(d[key])
+    const out = overlayProse(base, sub, prose)
+    if (sub && Array.isArray(sub[rowsKey])) {
+      out[rowsKey] = overlayRows(base[rowsKey] as Doc[] | undefined, sub[rowsKey] as Doc[], rowProse)
     }
-    d.finalExplanation = out
+    d[key] = out
   }
 
-  if (orig.summaryTable != null || d.summaryTable != null) {
-    const sto = (orig.summaryTable ?? {}) as Doc
-    const sub = asSubmittedGroup(d.summaryTable)
-    const out = overlayProse(sto, sub, []) // subStrand, drivingQuestion are admin-only
-    if (sub && Array.isArray(sub.lessons)) {
-      out.lessons = overlayRows(
-        sto.lessons as Doc[] | undefined,
-        sub.lessons as Doc[],
-        SUMMARY_LESSON_PROSE,
-      )
-    }
-    d.summaryTable = out
-  }
+  rebuildGroup('finalExplanation', FINAL_EXPLANATION_PROSE, 'sections', SECTION_PROSE)
+  // No prose keys: `subStrand` and `drivingQuestion` are admin-only, so the headers are preserved
+  // wholesale from the base. `rubric` is preserved the same way, by having no overlay above.
+  rebuildGroup('summaryTable', [], 'lessons', SUMMARY_LESSON_PROSE)
 
   return data
 }
