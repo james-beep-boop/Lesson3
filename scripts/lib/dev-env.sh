@@ -97,20 +97,38 @@ dev_ensure_deps_image() {
   # long-term shape — recorded as a follow-up rather than done here, since it changes the caching
   # design rather than tidying it.)
   #
-  # `|| true` on the removal: a volume still referenced by a running container (a `dev-server.sh` in
-  # another terminal) refuses removal, which is correct and must not fail an inner-loop build.
+  # ⚑ `|| true` ON THE GREP IS LOAD-BEARING, and its absence broke CI on the first fresh runner.
   #
-  # ⚑ A `while read` loop rather than `xargs -r`. `-r` is GNU-only — BSD/macOS `xargs` rejects it as
-  # an illegal option, and with stderr suppressed this whole prune would have silently never run on
-  # the machine that most needs it. The loop is portable and needs no empty-input special case.
-  local keep name
+  # A `grep` matching nothing exits 1. Under `set -euo pipefail` that status propagates through the
+  # pipeline and aborts the script — AFTER `docker build` has already succeeded, so the step fails
+  # with a green build above it and no error of its own. A fresh runner has no
+  # `lesson3_node_modules_*` volume yet, which is exactly the no-match case, and no developer machine
+  # reproduces it because every developer machine has one. This is the SAME trap `dev_env_value`
+  # documents twenty lines above; it was written under that comment and walked into anyway.
+  #
+  # Captured into a variable and tested for emptiness rather than piped straight into the loop, so
+  # the no-match case is an explicit early return instead of a status that has to survive a pipeline.
+  #
+  # `|| true` on the removal too: a volume still referenced by a running container (a `dev-server.sh`
+  # in another terminal) refuses removal, which is correct and must not fail an inner-loop build.
+  #
+  # A `while read` loop rather than `xargs -r`: `-r` is GNU-only — BSD/macOS `xargs` rejects it as an
+  # illegal option, and with stderr suppressed the prune would have silently never run on the machine
+  # that most needs it.
+  local keep name existing
   keep="$(dev_node_modules_volume)"
-  docker volume ls --format '{{.Name}}' 2>/dev/null | grep '^lesson3_node_modules_' \
-    | while read -r name; do
-        [ "$name" = "$keep" ] && continue
-        echo "› reclaiming superseded node_modules volume $name"
-        docker volume rm "$name" >/dev/null 2>&1 || true
-      done
+  existing="$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep '^lesson3_node_modules_' || true)"
+  [ -n "$existing" ] || return 0
+
+  printf '%s\n' "$existing" | while read -r name; do
+    [ "$name" = "$keep" ] && continue
+    echo "› reclaiming superseded node_modules volume $name"
+    docker volume rm "$name" >/dev/null 2>&1 || true
+  done
+
+  # Explicit, so the function's status is never whatever the last loop iteration happened to leave.
+  # A genuine build failure has already aborted above under `set -e`; nothing here should fail the run.
+  return 0
 }
 
 # ⚑ A NAMED volume, and the single biggest thing about these scripts' speed.
