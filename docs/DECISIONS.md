@@ -11,6 +11,50 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 — a guard that must be remembered is a guard that will be forgotten
+
+The Content-Length ceiling was extracted to `assertDeclaredBodyWithin` on 2026-08-12, and the note
+recording that extraction listed, by name, four endpoints whose `req.json()` calls were still
+unguarded. Two of them — `emailVersion.ts` and `userAssignments.ts` — were **still unguarded four
+days later**, after an audit and two security PRs had passed through the same directory. The note was
+read. It just was not a mechanism.
+
+The general rule: **an invariant enforced by remembering to call something is not enforced.** Fold it
+into the thing an author already has to call. `readJsonBody(req, max)` returns the parsed body and
+takes the ceiling as a required argument, so the guarded read is now the SHORTEST way to read a body,
+not the diligent way.
+
+Three sub-decisions worth not re-deriving:
+
+- **`MAX_CONTROL_BODY_BYTES` is shared, and that does not contradict `recoveryParse.ts`'s "do not
+  couple the duplicate literal".** That note refuses to couple two 4 MB constants derived
+  independently for different payload classes. These call sites are one class — a fixed-shape object
+  of a few scalars — with one rationale. Independent derivation is the test, not literal equality.
+- **The tolerant/strict split was kept, deliberately.** `readJsonBody` returns `null` for an
+  unreadable body so the caller's own field check produces a 400 that NAMES the missing field.
+  `recoveryParse.ts` and `forgotPassword.ts` want `400 Invalid JSON body` and keep their own reads;
+  both were already guarded, so nothing is unbounded because of it. Adding a mode flag to serve both
+  would have made the common call site carry an argument about the rare one.
+- **What keeps this fixed is the drift guard, not the helper.** `tests/unit/jsonBodyCeiling.spec.ts`
+  parses `src/endpoints/*.ts` and fails on a raw `x.json()` outside a three-file allowlist. It is AST,
+  not regex, per `envTemplateParity.spec.ts`, whose header records three regex versions each shipping
+  a bypass — and it earned that choice immediately: the first run flagged `Response.json(...)` in
+  `uploadBundles.ts`, a response builder, which a name-only match would have had to be loosened to
+  admit. It was excluded by an explicit object allowlist instead, so the rule stayed broad.
+
+⚑ **The mutation that mattered** was not "delete the ceiling" but "move it AFTER the parse". It still
+returns 413 and still looks correct from the outside, while having already allocated exactly what the
+guard exists to refuse. Every ceiling case therefore asserts the body reader was **never called**, and
+that mutation reddens five of them. A ceiling test that only checks the status code proves nothing.
+
+**Toolchain correction, same session:** `npm run test:unit` in the deps container fails six
+`envTemplateParity` cases that have nothing to do with the change under test — the AGENTS.md recipe
+mounts only `app/`, so the ROOT `.env.example` is not there. The spec's own error message carries the
+fix (`-v "$ROOT/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo`, and never the
+workspace, which would put `.git` and its token in the container). AGENTS.md now carries it too.
+
+---
+
 ## 2026-08-15 — three things the row-lock consolidation deferred, and one it disproved
 
 Recorded because each will otherwise be rediscovered by whoever adds the next lock — one of them for

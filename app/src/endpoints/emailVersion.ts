@@ -17,7 +17,7 @@
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
-import { json } from './respond'
+import { json, readJsonBody, MAX_CONTROL_BODY_BYTES } from './respond'
 import { authorizeVersionExportRequest } from './exportAuth'
 import { enforceSharedRateLimit, enforceUserRateLimit } from '../lib/rateLimit'
 import { parseRecipientEmail } from '../lib/emailAddress'
@@ -26,6 +26,25 @@ import {
   type EmailVersionArtifactInput,
 } from '../jobs/emailVersionArtifact'
 import type { User } from '../payload-types'
+
+/**
+ * Read and validate the recipient, refusing an honestly declared oversized body before it is
+ * buffered.
+ *
+ * ⚑ The per-user daily `email` bucket is spent BEFORE this runs, and that ordering is deliberate
+ * (probing must not be free) — but a rate limit bounds how OFTEN a body may arrive, never how large
+ * one may be. Five permitted requests a day are still five unbounded allocations without the ceiling,
+ * which is what this endpoint had until 2026-08-16.
+ *
+ * Exported for `tests/unit/jsonBodyCeiling.spec.ts`, so the guard can be asserted without a database,
+ * a queue, or a served app.
+ */
+export async function readEmailRecipient(req: PayloadRequest): Promise<string> {
+  const body = await readJsonBody<{ to?: unknown }>(req, MAX_CONTROL_BODY_BYTES)
+  const to = parseRecipientEmail(body?.to)
+  if (!to) throw new APIError('A valid recipient email address ("to") is required.', 400)
+  return to
+}
 
 export const emailVersionEndpoint: Endpoint = {
   path: '/:id/email',
@@ -36,11 +55,7 @@ export const emailVersionEndpoint: Endpoint = {
     const limited = await enforceUserRateLimit(req, 'email')
     if (limited) return limited
 
-    const body = (typeof req.json === 'function' ? await req.json().catch(() => null) : null) as {
-      to?: unknown
-    } | null
-    const to = parseRecipientEmail(body?.to)
-    if (!to) throw new APIError('A valid recipient email address ("to") is required.', 400)
+    const to = await readEmailRecipient(req)
 
     // Authorize (READ gate + spec) BEFORE spending the SHARED caps. The per-user cap above is the
     // deliberate anti-probe deterrent (a probe costs the prober their own budget), but the pooled

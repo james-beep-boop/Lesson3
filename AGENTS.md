@@ -51,6 +51,20 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   **`npm run test:unit`** (own `vitest.unit.config.mts`) runs pure DB-free unit specs in `tests/unit/`
   **locally** (no Rock) — use it for pure logic like `src/lib/substrand.ts`; it's separate from
   `test`/`test:int`.
+
+  ⚑ **"Locally" means a Node 24 host.** The `devEngines` gate rejects every npm invocation on any
+  other major, so on a Node 25/23 machine this runs in the deps container like everything else — and
+  there it needs the ROOT env template mounted, or `envTemplateParity.spec.ts` fails six cases that
+  have nothing to do with your change:
+
+  ```bash
+  ROOT=$(git rev-parse --show-toplevel) && docker run --rm -v "$ROOT/app:/app" -v /app/node_modules \
+    -v "$ROOT/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo \
+    -w /app lesson3-deps npm run test:unit
+  ```
+
+  Mount **that one file, never the workspace** — a workspace mount puts `.git`, and the token a
+  checkout persists in it, inside the container. The spec's own header is the authority.
 - **`test:int` on a disposable local stack** (added 2026-08-05, so the Rock is no longer the only
   option). Its own `lesson3-ci-probe_*` volumes; the seeded `lesson3_*` ones are never touched.
   **Always pass `-p`** — a bare `docker compose down -v` targets the preserved project and destroys the

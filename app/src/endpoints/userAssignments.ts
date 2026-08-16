@@ -32,16 +32,29 @@ import {
 } from 'payload'
 
 import { lockRows } from '../lib/txDb'
-import { json } from './respond'
+import { json, readJsonBody, MAX_CONTROL_BODY_BYTES } from './respond'
 import { toId, type Assignment } from '../access'
 import type { User } from '../payload-types'
 
-/** Parse + validate the shared body; throws 400s with actionable messages. */
-async function parseBody(req: PayloadRequest): Promise<{ subjectGradeId: number; expectedUpdatedAt: string }> {
-  const body = (typeof req.json === 'function' ? await req.json().catch(() => null) : null) as {
-    subjectGradeId?: unknown
-    expectedUpdatedAt?: unknown
-  } | null
+/**
+ * Parse + validate the shared body; throws 400s with actionable messages, and a 413 for an honestly
+ * declared oversized one.
+ *
+ * ⚑ THE CEILING MATTERS MORE HERE THAN THE MESSAGES DO. This endpoint reads its body BEFORE it has
+ * authorized anything beyond "you are signed in" — the scope check lives in `enforceAssignmentScope`,
+ * which does not run until the update below — and it declares no rate bucket. Until 2026-08-16 that
+ * made it the cheapest unbounded allocation any authenticated Teacher could ask this process for.
+ *
+ * Exported for `tests/unit/jsonBodyCeiling.spec.ts`: the guard is unit-testable only if the read is
+ * reachable without a database, which is the same split `readMarkReadIds` and `readRecoveryBody` use.
+ */
+export async function readAssignmentBody(
+  req: PayloadRequest,
+): Promise<{ subjectGradeId: number; expectedUpdatedAt: string }> {
+  const body = await readJsonBody<{ subjectGradeId?: unknown; expectedUpdatedAt?: unknown }>(
+    req,
+    MAX_CONTROL_BODY_BYTES,
+  )
   const subjectGradeId = Number(body?.subjectGradeId)
   if (!Number.isFinite(subjectGradeId)) {
     throw new APIError('subjectGradeId is required.', 400)
@@ -62,7 +75,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
       if (!req.user) throw new APIError('Unauthorized', 401)
       const targetId = Number(req.routeParams?.id)
       if (!Number.isFinite(targetId)) throw new APIError('Missing user id', 400)
-      const { subjectGradeId, expectedUpdatedAt } = await parseBody(req)
+      const { subjectGradeId, expectedUpdatedAt } = await readAssignmentBody(req)
 
       const shouldCommit = await initTransaction(req)
       try {
