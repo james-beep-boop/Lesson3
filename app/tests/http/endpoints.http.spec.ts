@@ -17,8 +17,12 @@
  *   - Talks to the app at `E2E_BASE_URL` (default `http://app:3000`, the compose service) and
  *     authenticates with the login token via `Authorization: JWT …` (token auth → no CSRF dance).
  *   - Run in the deps image on `--network lesson3_default`:
- *       docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules \
- *         -w /app --env-file .env -e E2E_BASE_URL=http://app:3000 lesson3-deps npm run test:http
+ *       scripts/in-deps.sh --network lesson3_default --env-file .env \
+ *         -e E2E_BASE_URL=http://app:3000 -- npm run test:http
+ *     (The wrapper owns the mounts, the workdir and the image-freshness check. This block used to
+ *     spell out a `docker run` with the slow anonymous `-v /app/node_modules` and a hardcoded
+ *     `/srv/lesson3/app` — the two habits `scripts/in-deps.sh` exists to retire. A recipe inside a
+ *     test file is a high-traffic place to copy from, so it is worth keeping current.)
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Where } from 'payload'

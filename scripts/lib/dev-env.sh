@@ -6,6 +6,14 @@
 # it brings a cron-shaped PATH and a `cd` honouring `BACKUP_REPO_DIR` — neither of which a dev script
 # wants. Its `env_get` would be the right parser if anything here still parsed `.env`, and almost
 # nothing does; see the `--env-file` note in `dev-server.sh`.
+#
+# ⚑ SOURCING THIS CDs TO THE REPO ROOT, exactly as `lib.sh:12-13` does for the ops family, and for the
+# same reason: every helper below reads `.env`/`app/…` by relative path, so the root is a precondition
+# of the file rather than a courtesy each caller performs. It used to be three hand-written copies of
+# `cd "$(dirname "${BASH_SOURCE[0]}")/.."`, in the one script family whose headline documented trap is
+# a bind mount resolving against the wrong cwd. (The lib.sh reasoning declined above covers the cron
+# PATH, `BACKUP_REPO_DIR` and `env_get` — it never covered the root cd.)
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
 
 DEV_COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.local.yml)
 
@@ -74,6 +82,53 @@ dev_ensure_deps_image() {
     echo "› building the lesson3-deps image (first run)"
   fi
   docker build --target deps -t lesson3-deps --label "lesson3.deps.hash=$want" ./app
+
+  # ⚑ RECLAIM THE SUPERSEDED VOLUMES HERE, because this is the one moment they are PROVABLY stale:
+  # the hash just moved, so every `lesson3_node_modules_*` other than the new one was populated from
+  # an image that no longer exists under that name.
+  #
+  # Without this the note below ("old ones are garbage; `docker volume prune` reclaims them") is true
+  # but manual, and each orphan is 877 MB. `dev-server.sh` already records this machine accumulating
+  # 8 GB of exactly this. Widening the hash to the Dockerfile makes them appear MORE often — an edit
+  # to the `runner` or `e2e` stage cannot change the install but does move the hash — so the leak had
+  # to stop being a footnote. (Narrowing the hash to just the deps stage was the alternative and is
+  # refused: slicing one stage out of a Dockerfile by text is fragile in precisely the way this hash
+  # exists to avoid. Keying the volume on the built image's ID would be exact and is the better
+  # long-term shape — recorded as a follow-up rather than done here, since it changes the caching
+  # design rather than tidying it.)
+  #
+  # ⚑ `|| true` ON THE GREP IS LOAD-BEARING, and its absence broke CI on the first fresh runner.
+  #
+  # A `grep` matching nothing exits 1. Under `set -euo pipefail` that status propagates through the
+  # pipeline and aborts the script — AFTER `docker build` has already succeeded, so the step fails
+  # with a green build above it and no error of its own. A fresh runner has no
+  # `lesson3_node_modules_*` volume yet, which is exactly the no-match case, and no developer machine
+  # reproduces it because every developer machine has one. This is the SAME trap `dev_env_value`
+  # documents twenty lines above; it was written under that comment and walked into anyway.
+  #
+  # Captured into a variable and tested for emptiness rather than piped straight into the loop, so
+  # the no-match case is an explicit early return instead of a status that has to survive a pipeline.
+  #
+  # `|| true` on the removal too: a volume still referenced by a running container (a `dev-server.sh`
+  # in another terminal) refuses removal, which is correct and must not fail an inner-loop build.
+  #
+  # A `while read` loop rather than `xargs -r`: `-r` is GNU-only — BSD/macOS `xargs` rejects it as an
+  # illegal option, and with stderr suppressed the prune would have silently never run on the machine
+  # that most needs it.
+  local keep name existing
+  keep="$(dev_node_modules_volume)"
+  existing="$(docker volume ls --format '{{.Name}}' 2>/dev/null | grep '^lesson3_node_modules_' || true)"
+  [ -n "$existing" ] || return 0
+
+  printf '%s\n' "$existing" | while read -r name; do
+    [ "$name" = "$keep" ] && continue
+    echo "› reclaiming superseded node_modules volume $name"
+    docker volume rm "$name" >/dev/null 2>&1 || true
+  done
+
+  # Explicit, so the function's status is never whatever the last loop iteration happened to leave.
+  # A genuine build failure has already aborted above under `set -e`; nothing here should fail the run.
+  return 0
 }
 
 # ⚑ A NAMED volume, and the single biggest thing about these scripts' speed.
@@ -88,6 +143,24 @@ dev_ensure_deps_image() {
 # from the freshly built image. Old ones are garbage; `docker volume prune` reclaims them.
 dev_node_modules_volume() {
   echo "lesson3_node_modules_$(dev_deps_hash | cut -c1-12)"
+}
+
+# The mounts every deps-image container needs: the app source, the node_modules volume, the workdir.
+#
+# ⚑ THESE THREE LINES ARE WHERE THE ANONYMOUS-VOLUME DEFECT LIVED. They were written out separately
+# in `in-deps.sh`, `dev-server.sh` and `dev-seed.sh`, and the named-volume fix reached some copies
+# and not others — CI ran the slow form for months while the dev scripts ran the fast one. Sharing
+# them from the layer that already owns the hash, the freshness check and the volume name is what
+# makes the next fix reach every caller instead of the ones someone remembered.
+#
+# Sets an ARRAY rather than echoing a string: a path containing a space must survive, and word
+# splitting an echoed mount list is how that breaks. Callers expand `"${DEV_DEPS_MOUNTS[@]}"`.
+dev_deps_mounts() {
+  DEV_DEPS_MOUNTS=(
+    -v "$PWD/app:/app"
+    -v "$(dev_node_modules_volume):/app/node_modules"
+    -w /app
+  )
 }
 
 # The compose network is DERIVED, not hardcoded. `lesson3_default` appears in no compose file — it is

@@ -22,9 +22,11 @@
 #
 # ⚑ AND ONE THING THAT IS A FIX, NOT A MOVE: the node_modules mount is the hash-keyed NAMED volume,
 # where every hand-written copy used an anonymous `-v /app/node_modules`. An anonymous volume is
-# repopulated from the image on every single run — 877 MB / 66,283 files, measured at 5.4s of a 5.9s
-# startup. CI runs this image six times per job and paid that copy six times. The named volume is
-# keyed to the dependency hash, so a lockfile change mints a new one and it cannot go stale.
+# repopulated from the image on every single run — 877 MB / 66,283 files, measured at ~3.85s against
+# ~0.25s for the named one. CI invokes this image six times per job and paid that copy every time;
+# on a fresh runner the FIRST run still populates the volume, so the saving is the five after it,
+# not six. The name is keyed to the dependency hash, so a change mints a new volume and it cannot go
+# stale — and `dev_ensure_deps_image` reclaims the superseded ones, since each is 877 MB.
 #
 # Usage:
 #   scripts/in-deps.sh                              # just ensure the image is built and current
@@ -38,19 +40,24 @@
 # wrapper is worse than the duplication it removes.
 #
 # NOT COVERED, deliberately:
-#   - CI's `test:e2e` step, which runs the `lesson3-e2e` image (glibc + chromium, a different build
-#     target). Parameterising the image for one call site would be speculative generality; when a
-#     second e2e invocation appears, add an `--image` flag then.
+#   - CI's `test:e2e` step, which runs the `lesson3-e2e` image. ⚑ An `--image` flag is NOT the cheap
+#     generalization it looks like: `deps` is `node:24.19.0-alpine` (musl) and `e2e` is
+#     `node:24.19.0-bookworm` (glibc), while `dev_node_modules_volume` is keyed on the dependency
+#     hash and nothing else — so the flag would mount an alpine `node_modules`, native addons
+#     included, into the glibc runner. It is blocked on keying the volume by IMAGE rather than by
+#     dependency hash, not on a second call site appearing. The anonymous volume there is also
+#     correct: that step runs once per job, and the named volume's whole advantage is reuse.
 #   - `dev-server.sh` and `dev-seed.sh`. Each passes six to eight genuinely bespoke flags (`-p`,
-#     `--init`, `--name`, `--network container:…`), so routing them through here would save one line
-#     and add an indirection. They already share the parts that matter — the hash, the image
-#     freshness check and the named volume — via `scripts/lib/dev-env.sh`, which is this file's
-#     source too.
+#     `--init`, `--name`, `--network container:…`), and both already `cd` to the root themselves, so
+#     routing them through here would add an indirection and the `/repo` mount neither wants. The
+#     part worth sharing — the three mount lines where the anonymous-volume defect actually lived —
+#     is now `dev_deps_mounts` in `scripts/lib/dev-env.sh`, which all three call.
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Sourcing the prelude is what puts us at the repo root — see its header. Referenced by this file's
+# own path so the source itself does not depend on the cwd it is about to fix.
 # shellcheck source=scripts/lib/dev-env.sh
-source scripts/lib/dev-env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/dev-env.sh"
 
 # ⚑ THE FIRST ARGUMENT DECIDES WHETHER A SEPARATOR IS EVEN LOOKED FOR, and that is not a nicety.
 #
@@ -64,36 +71,31 @@ source scripts/lib/dev-env.sh
 #
 # So: docker flags always begin with `-`. If the first argument does not, there are no docker args,
 # the whole line is the command, and no separator scanning happens. If it does, a `--` is REQUIRED,
-# and only the first one is consumed.
+# and only the first one is consumed — whatever remains is the command, `--` and all.
+#
+# ⚑ PASS-THROUGH PATHS ARE ROOT-RELATIVE. Sourcing the prelude moved us to the repo root, so a
+# relative path inside a docker arg resolves against the ROOT, not against the caller's cwd:
+# `--env-file .env` means the root `.env` wherever you invoked this from. That is what every caller
+# wants, but it is worth stating rather than leaving as a happy accident — trap #1 above is the cwd
+# trap, and this channel does not inherit the fix, it merely lands the same way. Absolute paths
+# (`--env-file "$ROOT/.env"`) are equally fine and read more obviously.
 docker_args=()
-cmd=()
-
-if [ $# -eq 0 ]; then
-  : # image-only mode; both arrays stay empty
-elif [ "${1#-}" = "$1" ]; then
-  cmd=("$@")
-else
-  seen_separator=false
-  for arg in "$@"; do
-    if [ "$seen_separator" = false ]; then
-      if [ "$arg" = "--" ]; then
-        seen_separator=true
-      else
-        docker_args+=("$arg")
-      fi
-      continue
-    fi
-    cmd+=("$arg")
+if [ $# -gt 0 ] && [ "${1#-}" != "$1" ]; then
+  while [ $# -gt 0 ] && [ "$1" != "--" ]; do
+    docker_args+=("$1")
+    shift
   done
 
-  if [ "$seen_separator" = false ]; then
+  if [ $# -eq 0 ]; then
     echo "error: docker options were given without a '--' separator." >&2
     echo "  Use: scripts/in-deps.sh ${docker_args[*]} -- <command…>" >&2
     echo "  (A line that starts with a non-flag is taken as the command entire, so" >&2
     echo "   'scripts/in-deps.sh npm run lint' needs no separator.)" >&2
     exit 2
   fi
+  shift # consume the separator itself
 fi
+cmd=("$@")
 
 # ⚑ Checked, not assumed, because a MISSING bind source is the failure this wrapper exists to prevent
 # — Docker creates it as an empty DIRECTORY rather than erroring, and `envTemplateParity` would then
@@ -111,11 +113,21 @@ if [ ${#cmd[@]} -eq 0 ]; then
   exit 0
 fi
 
+# ⚑ ONE FILE IS MOUNTED FROM OUTSIDE `app/`, NEVER THE WORKSPACE — and this is the line that has to
+# keep that true, not the comment in `ci.yml` that asserts it.
+#
+# Mounting `$PWD` would put `.git` inside a container running third-party dev dependencies, and a
+# checkout persists a GITHUB_TOKEN into `.git/config` by default, so the whole test process and
+# anything in node_modules could read it. That property used to be self-evident because the mount
+# list was inline in the CI step making the claim; consolidating here made it MORE consequential
+# (one edit now falsifies it at five call sites), so the reasoning lives with the code.
+#
+# If a spec ever needs a second file from the root, add another single-file `:ro` mount. Do not
+# widen this to a directory.
+dev_deps_mounts
 exec docker run --rm \
-  -v "$PWD/app:/app" \
-  -v "$(dev_node_modules_volume):/app/node_modules" \
+  "${DEV_DEPS_MOUNTS[@]}" \
   -v "$PWD/.env.example:/repo/.env.example:ro" \
   -e LESSON3_REPO_ROOT=/repo \
-  -w /app \
   ${docker_args[@]+"${docker_args[@]}"} \
   lesson3-deps "${cmd[@]}"
