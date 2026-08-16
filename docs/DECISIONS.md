@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 — three corrections from the Manage-plan review (two authorization facts, one process rule)
+
+Design work on `docs/DESIGN-manage-accordion-2026-08-16.md` produced a document that stated several
+things as *verified* which were not. An external review caught two; rebasing caught a third. All three
+teach a rule beyond the incident, which is why they are here and not only in that document's §10.
+
+**1. A separate auth collection is NOT an authorization boundary.** The plan argued that putting
+future *students* in their own Payload collection would keep them out of the lesson library, because
+`lessonPlanRead` / `lessonBundleVersionRead` / `usersCollectionRead` are all `Boolean(user)`. **It
+would not.** Payload's JWT strategy reads the collection name *from the token*, loads the document
+from that collection, and puts it in `req.user`
+(`node_modules/payload/dist/auth/strategies/jwt.js`). A student is therefore a perfectly good
+`req.user` and `Boolean(user)` is true.
+
+⚑ **The general rule: `Boolean(user)` means "some authenticated principal", never "a staff user".**
+Any second auth collection makes every such gate wrong on the day it is introduced, silently — the
+type system will not help, because `req.user` is cast to `User` in hooks throughout this codebase.
+The decision to separate students survived, but on a different and narrower argument: a positive
+check (`user?.collection === 'users'`) is an allowlist that excludes a *third* principal type by
+default, whereas a `!roles.includes('student')` denylist admits it. Prefer the allowlist shape when
+the set of principals can grow.
+
+**2. `enforceAssignmentScope` gates a row's subject-grade, never its role.** The plan's access-model
+table claimed only a Site Admin may grant Subject Administrator. Reading the hook
+(`src/hooks/userRoles.ts`) shows it collects the subject-grade of every *touched* assignment row and
+requires `isSubjectAdminFor(actor, sgId)`; the only role-sensitive rule is that a **Site Admin's**
+assignments may be changed only by a Site Admin. **So today a Subject Admin can write a `subjectAdmin`
+row in a grade they administer — i.e. appoint their own successor**, demoting themselves to editor via
+`autoDemotePriorSubjectAdmins` in the process. SPEC §8's "manage scoped roles" does not disambiguate.
+Now decided (Site-Admin-only) and needing a real server-side guard.
+
+⚑ **The general rule: do not state authorization behaviour from the prose model.** `CLAUDE.md` and
+SPEC describe the *intended* role model; the hook is the *actual* one, and here they differed on a
+question that matters. Read the hook. A corollary that cost real effort in this review: **hiding a
+control is never the fix for an over-broad server permission** — the generic `PATCH /api/users/:id`
+path remains open regardless of what the UI offers.
+
+**3. A plan grounded in `file:line` claims has a shelf life measured in commits, not days.** The
+document was written against `a88a48f` while `origin/main` was already **18 commits ahead**, and was
+nearly circulated for external review in that state. The rebase falsified one claim outright — it
+asserted the app has no unauthenticated surface, which public discovery (#219/#220) had already made
+false — superseded its concurrency guidance, which `lib/txDb.ts` `lockRows` now owns (#221/#224), and
+moved three cited line numbers. Nothing about the local tree looked wrong: it was clean, and `git log`
+showed a plausible recent commit.
+
+⚑ **The general rule: `git fetch` before grounding any document in the tree, and state the commit the
+claims were verified at.** A clean working tree says nothing about currency. The operator caught this,
+not the process — so the process is now: cite the verification commit in the document header, and
+re-verify before circulating if anything has landed since. This is the same family as the CI-trigger
+lesson below (verify the thing actually happened rather than assuming the usual mechanism ran).
+
+---
+
 ## 2026-08-16 — the deps-container wrapper, and the compose `dev` profile declined for good
 
 `docs/NEXT-SESSION.md` carried two deferred toolchain items. Both are now decided.
