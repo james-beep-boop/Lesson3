@@ -16,35 +16,98 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-15) — public discovery PHASE 1 is merged and deployed
+# ⚑ HANDOFF (2026-08-16) — a security pass and a tooling pass on top of phase 1
 
-**This supersedes the 2026-08-12 handoff below, which is kept for provenance.** Note especially that
-its "the agreed next PRODUCT track is public discovery … no implementation exists yet" is now HISTORY:
-the boundary, the publication model and the anonymous resolver are all on `main` and on the Rock.
-
-⚑ **SINCE THIS HANDOFF WAS WRITTEN (2026-08-16), five more PRs landed on `main`.** The "everything is
-merged and deployed" line below is true of the nine it describes and NOT of these — read the deploy
-status here, not there:
-
-| PR | What |
-|---|---|
-| #225 | session close-out docs |
-| #226 | a raw-body ceiling on mark-read |
-| #227 | **an Editor could delete whole content groups past the field-split** |
-| #228 | cleanup pass on #226/#227 |
-| #229 | the body ceiling folded into the read; `emailVersion` + `userAssignments` were still unguarded |
-
-None carries a migration. #227 is the one that mattered: the hole was reachable by any Editor through
-`save-as-new` and silently DROPPED admin-authored content rather than erroring.
-
-⚑ **An operator `scripts/deploy.sh` covering these was started on 2026-08-16 and its outcome is the
-operator's deploy output, not anything recorded here** — the same caveat this file already carries for
-#224. The way to check what the Rock is actually running is the tree-hash comparison further down,
-not a SHA and not this table.
+**This supersedes the 2026-08-15 handoff below, which is kept for provenance.** Phase 1 of public
+discovery is unchanged and still correct — read that section for the design; read this one for what
+has happened since and what to do next.
 
 ## Where the work is
 
-**Everything is merged. No PRs open.** Nine PRs landed in one session:
+Six PRs landed after the phase-1 nine. **No product behaviour changed**: this was one security pass
+over the custom endpoints and one toolchain pass.
+
+| PR | What | Migration |
+|---|---|---|
+| #225 | session close-out docs | — |
+| #226 | a raw-body ceiling on `mark-read` | no |
+| #227 | **an Editor could delete whole content groups past the field-split** | no |
+| #228 | cleanup pass on #226/#227 | no |
+| #229 | the ceiling folded INTO the read; `emailVersion` + `userAssignments` were still unguarded | no |
+| #230 | `scripts/in-deps.sh`, and two defects it exposed | no |
+
+**#227 is the one that mattered.** An Editor could submit `finalExplanation: null` — or simply omit
+the key — through `POST /:id/save-as-new`, and the group reached `payload.create` as null/absent, so
+the admin-authored content was DROPPED from the new version. Nothing downstream caught it:
+`validateGeneratable` refuses a version with no `lessons`, but a missing
+`finalExplanation`/`summaryTable` is only a non-blocking `deliverableWarnings` entry.
+
+**Deployed 2026-08-16.** An operator-run `scripts/deploy.sh` covering #226–#229 completed and was
+reported clean by the operator; no migration was involved, so there was no schema step. As with #224,
+the operator's deploy output is the record — the way to check what the Rock is running is the
+tree-hash comparison further down this file, not a SHA and not this table.
+
+## ⚑ Four things a future session must not re-derive
+
+1. **Never write a raw `req.json()` in `src/endpoints`.** Use `readJsonBody(req, max)` from
+   `endpoints/respond.ts`; the ceiling is a required argument, so the guarded read is the shortest
+   one. `tests/unit/jsonBodyCeiling.spec.ts` parses the directory and FAILS on a raw member `json()`
+   outside a three-file allowlist. Read that spec's header before adding to the list — the two
+   allowlisted readers are there because they throw `400 Invalid JSON body` rather than returning
+   null, and the spec asserts they guard themselves.
+2. **Every key in `VERSION_EDITOR_KEYS` carries an unwritten obligation to re-derive itself.** Those
+   keys are exempt from the field-split's blanket restore, so a container added to the set without a
+   matching `rebuildGroup` call ships #227's hole again. `fieldSplitContainers.spec.ts` walks the real
+   set and fails by name — `lessons` is the one deliberate exclusion (its absence must reach
+   `validateGeneratable` as a loud 422 rather than be silently restored).
+3. **`scripts/in-deps.sh` is the only way to invoke the deps container.** Hand-writing the
+   `docker run … lesson3-deps` shape is how the root `.env.example` mount came to exist in CI and
+   nowhere else — six `envTemplateParity` failures unrelated to whatever you changed. AGENTS.md has
+   the usage; the `--` rule is that a first argument which is not a flag means the whole line is the
+   command.
+4. **A ceiling test that only checks the status code proves nothing.** The mutation that matters is
+   moving the guard AFTER the parse: it still returns 413 and still looks right from outside, having
+   already allocated exactly what the guard refuses. Assert the body reader was never CALLED.
+
+## What is true now, and what is deliberately NOT
+
+Unchanged from phase 1, and worth restating because it is the thing most likely to be "fixed" by
+mistake: **nothing is public.** `PUBLIC_LIBRARY_ENABLED` is unset on the Rock, every plan is
+backfilled to `private`, and `resolvePublicPlanBySlug` still has no route consuming it. The
+collections stay shut to anonymous callers permanently — see the phase-1 handoff below for why
+`lessonPlanRead` / `lessonBundleVersionRead` must not be loosened.
+
+## What's next
+
+**Unchanged: the first gate is PRODUCT/LEGAL, not code**, and it blocks the launch corpus rather than
+the schema — which plans may be public, the licence and attribution wording, whether
+`kenyalessons.org` is the permanent printed URL, and whether launch means a curated sample or every
+explicitly listed plan.
+
+The code work is the mobile-first `/explore` read slice (slice 4 in
+`docs/DESIGN-public-library.md`), which is NOT blocked by that gate: nothing becomes visible until an
+operator sets the switch. Carry the three read-slice warnings from the phase-1 handoff below —
+especially that Payload field access denies by silently STRIPPING the field, so a publish control
+offered to a Subject Admin will appear to work and do nothing.
+
+Both toolchain deferrals are now closed (one taken, one declined) — see the phase-1 handoff's
+"What's next" and DECISIONS 2026-08-16. **Two areas have had no `/code-review` pass**: `src/lib` and
+`src/app`. The recent sweep covered `access`, `endpoints`, `hooks` and `collections`, and found a real
+defect in each of the last two.
+
+---
+
+# ⚑ HANDOFF (2026-08-15) — public discovery PHASE 1 is merged and deployed
+
+**Superseded by the 2026-08-16 handoff above; kept for provenance and because its design notes are
+still the authority on phase 1.** Note that its "the agreed next PRODUCT track is public discovery …
+no implementation exists yet" is HISTORY: the boundary, the publication model and the anonymous
+resolver are all on `main` and on the Rock.
+
+## Where the work is
+
+**Everything is merged. No PRs open.** *(As at 2026-08-15. Six more PRs landed the next day — the
+handoff above has them.)* Nine PRs landed in one session:
 
 | PR | What |
 |---|---|
