@@ -11,6 +11,90 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 (round 6) — enumerate a shared seam's consumers, not just the one that prompted the change
+
+Sixth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Two linked omissions, one of
+which is a pointed follow-on from round 4.
+
+**What happened.** The plan adds a `beforeLogin` hook throwing a new `AccountDisabled` error carrying
+a machine-readable code, so the password-reset form can distinguish "account disabled" from "invalid
+token". `beforeLogin` runs in **two** operations — and only the reset one was considered.
+
+The other is ordinary login, where `src/app/(frontend)/login/LoginForm.tsx` maps **every** 403 to
+"This account isn't verified yet". A disabled user typing correct credentials would be told to go find
+a verification email that does not exist.
+
+⚑ **The code had already written down the invariant the change breaks.** That form's comment says:
+*"Payload rejects unverified accounts with the login op's ONLY 403 (UnverifiedEmail; bad credentials
+and lockout are 401, the throttle 429 — verified in installed errors/). … Status, not message text."*
+The reasoning is correct **only while 403 has one cause.** So the fix is not only the branch but the
+comment: a comment explaining a now-false invariant is worse than no comment, because the next reader
+trusts it.
+
+⚑ **The general rule: when adding a new error or return value to a shared seam, enumerate every
+consumer of that seam before writing the plan** — and grep for code that documents assumptions about
+what that seam can produce. A comment asserting "the ONLY X" is a tripwire; treat it as a search
+target when adding a second X.
+
+**Why this one stings.** Round 4's finding was literally *"`beforeLogin` is not a login-only hook"* —
+that `resetPassword` runs it too. That insight was applied to the newly-discovered consumer and the
+**original** consumer was never revisited.
+
+⚑ **Learning that a seam has more callers than its name suggests is worth nothing if the audit stops
+at the caller that prompted it.** The correction created by a finding should trigger a re-sweep of the
+whole seam, not just the site under discussion.
+
+**Also, the third instance of "corrected here, stale there"** (rounds 3 and 4 were the first two).
+D13a step 2 still said "throw `Forbidden`" while step 4 had been rewritten to require the new error
+class. Round 3's structural fix — make derived sections point at decisions rather than restate them —
+did not anticipate the same duplication **inside a single multi-step decision**. When revising one
+step, re-read the others.
+
+---
+
+## 2026-08-16 (round 5) — prefer a hook seam over shadowing an auth endpoint; and two kinds of unmade decision
+
+Fifth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. One Payload fact worth keeping
+and two process rules.
+
+**1. Shadowing an auth endpoint costs more than shadowing an auth *operation*.** The plan offered two
+ways to surface an `ACCOUNT_DISABLED` code on password reset: throw a custom `APIError` from
+`beforeLogin`, or shadow `POST /api/users/reset-password`. They are not comparable. The native
+`resetPasswordHandler` (`auth/endpoints/resetPassword.js`) wraps the operation with
+`generatePayloadCookie`, the `removeTokenFromResponses` branch, `headersWithCors`, and the translated
+`authentication:passwordResetSuccessfully` message — **all of which a shadow must re-implement, with
+a botched auth cookie as the silent failure mode on the SUCCESS path.**
+
+⚑ **The general rule: shadow an endpoint only when there is no hook seam.** This repo's two existing
+shadows are good precedent for the case they solve — `forgotPasswordQueuedEndpoint` needed to change
+*when email is sent*, and `verifyEmailThrottledEndpoint` needed a hook the native op does not offer.
+Neither had an alternative. Where a hook can carry the information, use it.
+
+Also recorded, because it will bite whoever implements this: Payload's `formatErrors` emits the
+`{ name, data, message }` error shape **only when `error.data` is truthy**
+(`utilities/formatErrors.js`). An `APIError` thrown without `data` silently degrades to a bare
+`{ message }` — and plain `Forbidden` carries none — so a machine-readable error code disappears with
+no failure anywhere except the client's branch not matching.
+
+**2. Two options in a plan are an unresolved decision wearing a plan's clothes.** The document
+simultaneously claimed "no blocking decisions outstanding" and "file-by-file", while deferring this
+choice to "implementation time". The cheaper-*looking* option was the dangerous one.
+
+⚑ **The general rule: where a plan offers alternatives, either pick one or label it an open
+decision.** Anything else lets an implementer make an architectural choice under time pressure, with
+none of the review the plan exists to provide.
+
+**3. An unstated default is still a decision — made by whoever types the code first.** The plan never
+said whether closing a disclosure panel unmounts its contents. `{open && <Panel/>}` is the shorter and
+more natural thing to write, and it would have destroyed a half-built multi-select, an active search,
+or a chosen upload file on any stray click of a heading.
+
+⚑ **The general rule: specifying behaviour without specifying lifecycle leaves the most consequential
+detail to reflex.** For any disclosure, tab, modal or route that hides live UI, state explicitly
+whether it unmounts — and check what local state the hidden subtree owns before answering.
+
+---
+
 ## 2026-08-16 (round 4) — a promised behaviour the wire could not carry; and a premature "converged"
 
 Fourth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. One substantive finding, four
