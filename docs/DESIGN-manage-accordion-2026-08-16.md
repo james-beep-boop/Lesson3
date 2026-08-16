@@ -1,8 +1,9 @@
 # Manage page — accordion redesign
 
-**Date:** 2026-08-16 · **Revised twice the same day** — external review, then rebase onto
-`origin/main` (see §10)
+**Date:** 2026-08-16 · **Revised three times the same day** — external review, rebase onto
+`origin/main`, then a second external review (see §10)
 **Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
+**Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
 re-checked at that commit.
 **Author:** Claude, from an operator-led design discussion on 2026-08-16.
@@ -325,6 +326,21 @@ administrator standing next to a locked-out teacher must still be able to recove
 the fallback on the same budget as the thing it is a fallback for defeats its purpose. It takes its
 own modest cap instead, keyed to the authenticated administrator.
 
+⚑ **Name the mechanism, don't leave it to implementation** (added in review round 2). "Not gated by
+the public budget" is a requirement, not a design, and the obvious cheap implementations are wrong —
+sniffing `req.user` inside `rateLimitAuthOperations` would exempt *any* authenticated caller, which
+is a bypass rather than a carve-out.
+
+The mechanism: a **server-only `req.context` flag**, set by the admin endpoint **only after** two
+things have both happened — the caller has been authorized as a Site Admin, **and** the
+admin-specific cap has been consumed. `rateLimitAuthOperations` skips the public budget only when
+that flag is present. `req.context` is server-side and cannot be set by a request body, which is the
+property that makes this safe.
+
+Two tests, not one: the admin path is not throttled by the public budget, **and the ordinary public
+`POST /forgot-password` still is**. The second is the one that catches a carve-out that quietly
+became a bypass.
+
 **(ii) A queued job can email an admin-minted token.** Because the delivery job reads the user's
 current token at send time (§2.6), a job queued by the *user's own* earlier forgot-password request
 will send whatever token is live when it runs — including one an administrator has just minted for
@@ -388,8 +404,17 @@ relevant group. Read-only display in two places is fine; two places to *change* 
 
 ⚑ **Doc consequence:** SPEC §8 and `CLAUDE.md` both name "Manage → Editing access" for the email
 carve-out, and `CLAUDE.md` flags it with "read SPEC §8 before 'fixing' it as a leak". Both must be
-amended. The carve-out's justification **strengthens**: disambiguating two identical display names now
-precedes handing over *administrator* rights, not merely editor rights.
+amended **for the rename only**.
+
+⚑ **The carve-out does NOT widen** (corrected in review round 2). An earlier draft claimed its
+justification "strengthens" because disambiguation would now precede handing over *administrator*
+rights. That was written before D6a resolved to Site-Admin-only, and D6a makes it false: only Site
+Administrators may grant `subjectAdmin`, and they already have general email visibility under
+`emailReadAccess`, so the carve-out does no work for them. **For Subject Administrators — the people
+the carve-out actually exists for — it remains justified by exactly what it was justified by before:
+granting and revoking Editor access.** The SPEC amendment must say that rather than broaden the
+stated exception; broadening a deliberate privacy exception on the strength of a superseded draft
+is precisely the drift the ⚑ in `CLAUDE.md` warns about.
 
 ⚑ **Wording trap:** the Subject Administrator confirmation must say the outgoing administrator
 **"will become an editor for this subject grade"**, not "will be removed" — see §2.5.
@@ -617,6 +642,26 @@ current scope that is the delete-plans curriculum tree with its group checkboxes
 its own responsive treatment. Touch targets continue to follow `--app-btn-touch-min-height`
 (WCAG 2.5.5).
 
+⚑ **This is not a fresh judgement — it restates a standing operator decision, and re-opening it needs
+the operator.** `DECISIONS.md` 2026-07-28 ("editing is a laptop/tablet surface below 640px", entry at
+line ~2696) already scopes the 640px rule to the lesson-content editor and rules `/admin` explicitly
+IN for phones:
+
+> "User administration (promote/demote) lives in the admin too and **must keep working on a phone** —
+> it is a small form, not a 3350px lesson body."
+> "**Delete stays.** Operator: *'editing needs room, deleting does not.'*"
+
+Review round 2 proposed reversing this — making Manage read-only below 640px — and the operator
+**declined, reaffirming the 2026-07-28 decision** (2026-08-16). The proposal's supporting details
+(explain rather than silently remove; evaluate eligibility once on load, never on resize; viewport is
+not a device class and never an authorization boundary) are all *already in that entry*, near
+verbatim — which is corroboration of the constraints, and a sign the entry had not been found.
+
+⚑ **That has now happened twice in one review cycle. If a future reviewer proposes a phone-width
+management ban, read `DECISIONS.md` 2026-07-28 first** — the counter-argument it must answer is
+"a small form is not a lesson body, and deleting does not need room", which neither proposal engaged
+with.
+
 ### D13 — Deletion of users
 
 Approved. The FK behaviour is now settled (§2.8): `author_id` is `ON DELETE set null`, so authored
@@ -652,9 +697,22 @@ secondary choice.
 
 **What it requires — this is real scope in PR 2, not a checkbox:**
 
-1. **A `signInDisabled` field on `users`**, `siteAdminField` for create/update, readable per the same
-   rule as `_verified` (self or Site Admin). It is authorization state, so it follows `roles`, not
-   profile data.
+1. **A `signInDisabled` field on `users`** — readable per the same rule as `_verified` (self or Site
+   Admin). It is authorization state, so it follows `roles`, not profile data.
+
+   ⚑ **On UPDATE it must be system-set, not merely `siteAdminField`** (corrected in review round 2).
+   Payload's base `sessions` field carries `update: () => false`
+   ([auth/baseFields/sessions.js](../app/node_modules/payload/dist/auth/baseFields/sessions.js)), so
+   only an `overrideAccess: true` path can clear sessions. If the flag itself were ordinarily
+   PATCHable, a Site Admin could flip it through generic REST or the native document route and **no
+   session clearing would happen** — an account disabled on paper whose holder is still signed in for
+   up to two hours. Partial disablement is worse than none, because the UI would report success.
+
+   The freshness-guarded endpoint is therefore the **only** writer, and it sets `signInDisabled` and
+   `sessions: []` **atomically**, with `overrideAccess: true`, *after* authorizing the caller. The
+   last-admin and self-disable guards must still fire on that trusted path — an endpoint that
+   authorizes and then writes with `overrideAccess` is exactly the shape `CLAUDE.md` requires
+   wire-level tests for.
 2. **A login gate.** Payload exposes a `beforeLogin` collection hook
    (`collections/config/types.d.ts`), which is the correct seam — `Users` currently registers only
    `beforeOperation`. Throw `Forbidden` for a disabled account.
@@ -666,11 +724,30 @@ secondary choice.
    immediately**. Do that; do not rely on token expiry. ⚑ Verify the session-clearing behaviour
    against installed source before relying on it — this is a claim about Payload internals, and the
    house rule is to trust installed source over recollection.
-4. **Leave the forgot-password path alone.** A disabled user attempting a reset must get the same
-   uniform response as everyone else — the endpoint is deliberately non-oracular (L3-R1), and
-   special-casing disabled accounts would reintroduce exactly the account-status oracle that
-   [endpoints/forgotPassword.ts](../app/src/endpoints/forgotPassword.ts) exists to close. Let the
-   reset succeed; the login gate still refuses. This is the safe design *and* the smaller one.
+4. **Requesting a reset stays uniform; CONSUMING one is refused while disabled.**
+
+   ⚑ **An earlier draft of this step was wrong** (corrected in review round 2). It said "let the reset
+   succeed; the login gate still refuses." It will not succeed: Payload's `resetPassword` operation
+   **creates a session and runs the collection's `beforeLogin` hooks inline** before signing the token
+   ([auth/operations/resetPassword.js:113](../app/node_modules/payload/dist/auth/operations/resetPassword.js:113)).
+   A `beforeLogin` hook that rejects disabled accounts therefore rejects the *reset* too and rolls the
+   password change back — the user would see a failure with no explanation of why.
+
+   The honest behaviour, and what we build:
+
+   - **Requesting** a reset is unchanged and uniform for every address. The forgot-password endpoint
+     is deliberately non-oracular (L3-R1) and must not learn about `signInDisabled`; special-casing it
+     would reintroduce the account-status oracle
+     [endpoints/forgotPassword.ts](../app/src/endpoints/forgotPassword.ts) exists to close.
+   - **Consuming** the link is refused while the account is disabled, with copy that names the reason
+     and says to contact an administrator. This is not an oracle: the person consuming a valid token
+     for an account is that account's owner, so telling them their own account is disabled leaks
+     nothing.
+   - **"Reveal reset link" is not offered for a disabled account.** Minting a credential that cannot
+     be used is a support call waiting to happen; re-enable first.
+
+   The rejected alternative — customising the reset flow to change a password without creating a
+   session — is more machinery than this earns.
 5. **The last-Site-Admin guard must cover disabling.** Disabling the only Site Admin's sign-in locks
    the installation out exactly as deleting or demoting them would. Disable joins grant, demote and
    delete under the one shared advisory lock (§2.8 ⚑) — this is why that guard is specified as one
@@ -744,14 +821,20 @@ not the raw `roles` array — fixing §2.3.
 
 ## 6. Implementation plan
 
-Four stacked PRs. Each is independently reviewable and deployable, so an unwanted later stage can be
-dropped without unwinding the earlier ones.
+**Five** stacked PRs (PR 2 split in review round 2). Each is independently reviewable and deployable,
+so an unwanted later stage can be dropped without unwinding the earlier ones.
 
-### PR 1 — Accordion shell (no behaviour change)
+### PR 1 — Accordion shell, plus three small additive changes
+
+⚑ **Retitled in review round 2.** This was "no behaviour change", which stopped being true once the
+missing D1/D3/D4 items were folded in (§10 finding 5): it now also adds candidate-version search,
+display-name editing in the avatar menu, and the People→Users terminology change. Those are all
+additive and low-risk, but the old title would have told a reviewer not to look for behaviour — which
+is exactly when behaviour slips through.
 
 **Goal:** ship the disclosure component, the URL state and the visual system, with today's sections
-moved inside it and nothing else altered. A reviewer should be able to confirm that no function
-changed hands.
+moved inside it. **No authorization behaviour changes here** — that is the claim a reviewer should
+verify, and it remains true. All access-model changes are in PR 2a and PR 4.
 
 | File | Change |
 |---|---|
@@ -767,7 +850,25 @@ changed hands.
 
 Existing panels keep their server-side loading (D11).
 
-### PR 2 — Users panel
+### PR 2 — Users: split into 2a (security foundation) and 2b (panel UI)
+
+⚑ **Split in review round 2.** As originally scoped this PR carried a schema migration, login
+behaviour, session revocation, reset-link handling, last-admin concurrency, deletion **and** the whole
+Users UI. That is too much to review as one unit, and the risky half would be reviewed alongside a
+large volume of straightforward React.
+
+**PR 2a — user security & offboarding foundation.** Server only, no Manage UI: the `signInDisabled`
+field and its migration, the `beforeLogin` gate, the atomic disable+session-revocation endpoint, the
+reset-link endpoint with its `req.context` rate-limit carve-out, and the last-admin/self-action guards
+with their shared advisory lock. Every authorization change in the Users half lands here, reviewable
+against the test matrix without UI noise.
+
+**PR 2b — the Users panel.** The search endpoint, the list, the row disclosure and the controls that
+call 2a's endpoints. If 2b slips, 2a still closes the account-recovery gap that motivated D5 — the
+capabilities are reachable via the API even before the panel exists.
+
+The file table below is the union of both; the split is by concern, and the second column notes which
+half each row belongs to.
 
 | File | Change |
 |---|---|
@@ -825,7 +926,7 @@ a deliberate change.
 | PR | Tests |
 |---|---|
 | 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`** |
-| 2 | **`tests/http`**: `userSearch` and every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget** (D5a-i). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); a disabled user's forgot-password response is byte-identical to an enabled user's — the oracle test. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. E2E: **the `users` list route redirects to Manage** |
+| 2 | **`tests/http`**: `userSearch` and every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget** (D5a-i). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — this is the one that fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **Rate limit**: the admin reset-link path is exempt from the public budget **and** the ordinary public `POST /forgot-password` is still throttled — the second test is what distinguishes a carve-out from a bypass. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. E2E: **the `users` list route redirects to Manage** |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
 | 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless |
 
@@ -924,3 +1025,19 @@ this before review. Fast-forwarded and re-verified every citation. What the reba
 
 **Lesson worth keeping:** a plan whose value rests on verified file:line claims has a shelf life
 measured in commits, not days. Re-verify against `origin/main` before circulating one for review.
+
+### 2026-08-16 (round 2) — external review of the revised plan
+
+Two genuine defects, both in D13a — the section added *between* rounds, and therefore the only part
+that had never been reviewed. Worth noting as a pattern: the corrections a review produces are
+themselves unreviewed until the next round.
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | D13a step 4 was wrong — `resetPassword` runs `beforeLogin` hooks inline, so a disabled-account gate rejects the *reset* and rolls back the password change | **Accepted.** Verified at [resetPassword.js:113](../app/node_modules/payload/dist/auth/operations/resetPassword.js:113). Step 4 rewritten: requesting stays uniform, consuming is refused while disabled, no reset link offered for a disabled account. Test now consumes a token, not just the request |
+| 2 | An ordinarily-PATCHable `signInDisabled` allows partial disablement — flag set, session still live — because `sessions` is `update: () => false` and only the endpoint clears it | **Accepted.** Verified at [sessions.js](../app/node_modules/payload/dist/auth/baseFields/sessions.js). Field is system-set on update; endpoint is sole writer and sets flag + `sessions: []` atomically; guards still fire on the trusted path |
+| 3 | The email carve-out does not "strengthen" after D6a — only Site Admins grant `subjectAdmin`, and they already see all emails | **Accepted.** D6 corrected; the SPEC amendment is rename-only. For Subject Admins the carve-out still rests on Editor grants alone |
+| 4 | PR 1 is no longer "no behaviour change" | **Accepted.** Retitled; the surviving, checkable claim is "no authorization behaviour changes here" |
+| 5 | The rate-limit carve-out needs a named mechanism | **Accepted.** Server-only `req.context` flag, set only after Site-Admin authorization *and* admin-cap consumption; plus a test that the public endpoint stays throttled |
+| 6 | PR 2 is too large | **Accepted.** Split into 2a (security foundation, server only) and 2b (panel UI) |
+| 7 | Proposed making Manage read-only below 640px, reversing revised D12 | **Declined by the operator**, reaffirming the 2026-07-28 decision. ⚑ The proposal's own implementation details were already in that DECISIONS entry near-verbatim, and this is the **second** time in one review cycle it has been re-derived rather than found — so D12 now quotes it directly and names the argument any future proposal must answer |

@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 (round 2) — Payload runs `beforeLogin` inside password reset; and a re-derived decision, twice
+
+Second external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Two Payload facts worth
+keeping, and one process observation about reviews themselves.
+
+**1. `resetPassword` creates a session and runs `beforeLogin` hooks inline.** The plan proposed
+gating disabled accounts with a `beforeLogin` hook and letting password resets proceed normally,
+reasoning that reset and login are separate operations. **They are not.**
+`node_modules/payload/dist/auth/operations/resetPassword.js` calls `addSessionToUser`, then runs
+every `collectionConfig.hooks.beforeLogin`, then signs a token — all before committing. A hook that
+throws for disabled users therefore rejects the *reset* and rolls the password change back.
+
+⚑ **The general rule: in Payload, `beforeLogin` is not a login-only hook.** Any operation that mints
+a session runs it. Before using it as an account-state gate, check every operation that produces a
+token — reset-password is the non-obvious one, because nothing in its name suggests a login.
+
+**2. Base-field access can silently split a two-part write.** Payload's `sessions` base field is
+`update: () => false` (`auth/baseFields/sessions.js`), so only an `overrideAccess: true` path can
+clear it. The plan gave a new `signInDisabled` flag ordinary Site-Admin field access while putting
+session revocation in a custom endpoint — so flipping the flag through generic REST or the native
+document route would disable the account **and leave the holder signed in for up to two hours**.
+
+⚑ **The general rule: when a state change requires two writes with different access rules, the
+weaker-gated half must not be independently writable.** Otherwise every path that isn't the intended
+one produces a half-applied state that reports success. Make the flag system-set on update and let one
+authorized endpoint own both writes atomically. This generalises past auth: the same shape exists
+wherever a hook or endpoint is the only thing keeping two fields consistent.
+
+**3. Corrections produced by a review are themselves unreviewed.** Both defects above were in D13a —
+the section *added between rounds* in response to round 1, and therefore the only substantial part
+that had never been read by a reviewer. The rest of the document, which had been reviewed, produced
+only cosmetic findings.
+
+⚑ **The general rule: treat a section written in response to review as new code, not as a fix.** It
+carries the same defect rate as the original draft and has had less scrutiny, not more.
+
+**4. A decision was re-derived rather than found — twice in one cycle.** Review proposed making
+Manage read-only below 640px. The operator declined, reaffirming the 2026-07-28 entry above, which
+already scopes the 640px rule to the lesson-content editor and rules `/admin` explicitly IN for phones
+("a small form, not a 3350px lesson body"; *"editing needs room, deleting does not"*). The proposal's
+own implementation details — explain rather than silently remove, evaluate once on load, viewport is
+not an authorization boundary — are in that entry near-verbatim.
+
+⚑ **This is a finding about the file, not the reviewer.** `DECISIONS.md` is past 8,400 lines and its
+own header tells readers to grep by area rather than read it through — so a decision recorded under a
+heading about *the lesson editor* is effectively invisible to someone reasoning about *Manage*, even
+though its scoping clause is the whole point. Where an entry rules on something outside its own
+title's subject, the design doc for that other area should quote it. D12 now does.
+
+---
+
 ## 2026-08-16 — three corrections from the Manage-plan review (two authorization facts, one process rule)
 
 Design work on `docs/DESIGN-manage-accordion-2026-08-16.md` produced a document that stated several
