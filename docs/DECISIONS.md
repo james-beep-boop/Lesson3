@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 (round 4) — a promised behaviour the wire could not carry; and a premature "converged"
+
+Fourth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. One substantive finding, four
+bookkeeping ones. The substantive one matters because of *how* it was missed.
+
+**What happened.** The plan said a user consuming a password-reset link for a disabled account would
+see copy naming the reason, while an invalid or expired token would keep the existing generic message.
+Nobody checked whether the client could tell the two apart. **It cannot.** An invalid/expired token
+throws `APIError('Token is either invalid or has expired.', FORBIDDEN)`
+(`auth/operations/resetPassword.js`), and `Forbidden` is also `httpStatus.FORBIDDEN`
+(`errors/Forbidden.js`) — **both are HTTP 403**. The only remaining discriminator would be the
+translated message string, which breaks silently on any locale change or upstream copy edit, in the
+direction of showing the *wrong* message.
+
+Fixed by requiring a stable machine-readable `ACCOUNT_DISABLED` code, emitted only after Payload has
+validated the token, with the **wire contract** pinned by tests rather than the rendered string.
+
+⚑ **The general rule: when a plan promises the user will see DIFFERENT outcomes for two situations,
+verify the transport can distinguish them, and pin it as a wire contract.** "Show a different message"
+is a UI requirement that silently assumes a protocol capability. A rendered-string test would have
+passed against an implementation that guessed from message text — and would have kept passing until a
+translation changed.
+
+**Second lesson: a quiet review round is not evidence of convergence.** After round 3 the assistant
+told the operator review had "converged", reasoning that round 3 found nothing requiring a code fact
+to be re-checked. That reasoning was wrong, and round 4 disproved it immediately.
+
+Rounds 2 and 3 were *consistency* passes — they compared the document against itself, which is why
+they surfaced no code facts. Round 4 went back to comparing the document against the **code** and
+found a design promise the code could not keep, on the first look.
+
+⚑ **The general rule: absence of findings in one dimension says nothing about the others.** Before
+calling a review converged, ask which dimension the last round actually exercised — document-internal
+consistency, agreement with the code, or fitness of the design — and treat only the dimension that was
+tested as evidence. Convergence in one is routinely mistaken for convergence overall.
+
+---
+
 ## 2026-08-16 (round 3) — a corrected decision that did not reach its duplicates
 
 Third external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Five findings, all internal
