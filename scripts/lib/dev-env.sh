@@ -25,10 +25,26 @@ dev_env_value() {
   grep -E "^$1=" .env | cut -d= -f2- || true
 }
 
-# One hash over the dependency manifest, driving BOTH the image and the node_modules volume below —
-# so a lockfile change invalidates them together and neither can go stale behind the other.
+# One hash over EVERY INPUT TO THE INSTALL, driving BOTH the image and the node_modules volume below
+# — so a change invalidates them together and neither can go stale behind the other.
+#
+# ⚑ THE DOCKERFILE IS IN THE HASH, and leaving it out was a real hole rather than a tidiness point.
+# This function used to cover the two manifests only, while the image's install is also decided by
+# the base image and the install command — both of which live in the Dockerfile — and by `.npmrc`
+# (`legacy-peer-deps=true`, without which the install resolves differently or fails outright).
+#
+# Concretely: bump `FROM node:24.19.0-alpine` with no lockfile change and the hash did not move, so
+# `dev_ensure_deps_image` skipped the rebuild AND the hash-keyed volume below went on serving a
+# `node_modules` installed by the previous base. That is not hypothetical for this repo — #214 was
+# exactly a Node major migration, and DECISIONS records a `lesson3-deps` that "went on answering as
+# Node 22" afterwards. The hash now moves when the thing it is standing in for moves.
+#
+# `.npmrc` is optional in the Dockerfile's COPY (`.npmrc*`), so it is included only when present
+# rather than making `cat` fail the script under `set -e`.
 dev_deps_hash() {
-  cat app/package.json app/package-lock.json | shasum | cut -d' ' -f1
+  local inputs=(app/package.json app/package-lock.json app/Dockerfile)
+  [ -f app/.npmrc ] && inputs+=(app/.npmrc)
+  cat "${inputs[@]}" | shasum | cut -d' ' -f1
 }
 
 dev_ensure_postgres() {

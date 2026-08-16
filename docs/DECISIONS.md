@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 — the deps-container wrapper, and the compose `dev` profile declined for good
+
+`docs/NEXT-SESSION.md` carried two deferred toolchain items. Both are now decided.
+
+**`scripts/in-deps.sh` landed, and building it found two real defects** — which is the argument for
+wrappers over conventions generally: a shape repeated by hand cannot be fixed in one place, so its
+fixes land unevenly and nobody can see where.
+
+- **The ROOT `.env.example` mount existed in CI and nowhere else.** `envTemplateParity.spec.ts` reads
+  a file outside `app/`, so every hand-typed copy of the `docker run` shape — AGENTS.md's included —
+  failed six named assertions that had nothing to do with the change under test. The mount is now
+  unconditional in the wrapper; one read-only file costs nothing when unused.
+- **`dev_deps_hash` did not cover the Dockerfile.** It hashed `package.json` + `package-lock.json`
+  while the image's install is also decided by the base image, the install command and `.npmrc`. Bump
+  `FROM node:24.19.0-alpine` with no lockfile change and the hash did not move, so the conditional
+  rebuild was skipped AND the hash-keyed `node_modules` volume kept serving an install from the
+  previous base. Demonstrated by mutation: the old expression returned an identical hash across a
+  simulated Node 24→26 bump, the new one moved. This is not a hypothetical for this repo — #214 was a
+  Node major migration and this file already records a `lesson3-deps` that "went on answering as
+  Node 22" afterwards.
+
+⚑ **The wrapper also fixed CI's node_modules mount, which was a performance bug nobody had costed.**
+Every CI step used an anonymous `-v /app/node_modules`, repopulated from the image on each run — 877
+MB / 66,283 files. Measured on this machine: **~3.85 s per run anonymous vs ~0.25 s with the
+hash-keyed named volume**, three runs each. CI invokes the image five times per job. The named volume
+was already the local dev design and its reasoning was already written down in `dev-env.sh`; CI
+simply never inherited it.
+
+**The compose `dev` profile is DECLINED.** The deferral asked for its Ctrl-C behaviour to be checked
+against `--init` first. That check was not run, because it is not the deciding question and answering
+it would not change the outcome — recorded plainly so the item is not revived by someone answering it.
+
+Compose genuinely wins on two things: `depends_on: {condition: service_healthy}` replaces
+`up -d --wait postgres`, and network naming becomes declarative instead of `docker inspect`. Both are
+one line each, both already factored into `scripts/lib/dev-env.sh`, and both are shared with
+`dev-seed.sh` already.
+
+What compose **cannot** express is the two decisions that have measurements behind them:
+
+- the hash-**labelled** conditional image rebuild — compose either rebuilds on every `up --build`
+  (~35 s, rejected on measurement as an inner-loop tax) or never rebuilds on plain `up` (serves stale
+  dependencies, the failure above);
+- the hash-**keyed** named `node_modules` volume — compose interpolates `${VAR}` into a volume name,
+  but something must export it.
+
+Both require a script to compute the hash, so `dev-server.sh` does not go away. The result would be
+an invocation split across two files, with the compose service's `env_file`/`environment` block
+duplicating what `--env-file .env` plus three overrides already does. **The general rule: prefer the
+declarative form when it can express the whole decision. When it can express most of it, you get both
+forms and a seam between them.**
+
+---
+
 ## 2026-08-16 — a guard that must be remembered is a guard that will be forgotten
 
 The Content-Length ceiling was extracted to `assertDeclaredBodyWithin` on 2026-08-12, and the note

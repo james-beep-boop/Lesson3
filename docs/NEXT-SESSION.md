@@ -22,6 +22,26 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 its "the agreed next PRODUCT track is public discovery … no implementation exists yet" is now HISTORY:
 the boundary, the publication model and the anonymous resolver are all on `main` and on the Rock.
 
+⚑ **SINCE THIS HANDOFF WAS WRITTEN (2026-08-16), five more PRs landed on `main`.** The "everything is
+merged and deployed" line below is true of the nine it describes and NOT of these — read the deploy
+status here, not there:
+
+| PR | What |
+|---|---|
+| #225 | session close-out docs |
+| #226 | a raw-body ceiling on mark-read |
+| #227 | **an Editor could delete whole content groups past the field-split** |
+| #228 | cleanup pass on #226/#227 |
+| #229 | the body ceiling folded into the read; `emailVersion` + `userAssignments` were still unguarded |
+
+None carries a migration. #227 is the one that mattered: the hole was reachable by any Editor through
+`save-as-new` and silently DROPPED admin-authored content rather than erroring.
+
+⚑ **An operator `scripts/deploy.sh` covering these was started on 2026-08-16 and its outcome is the
+operator's deploy output, not anything recorded here** — the same caveat this file already carries for
+#224. The way to check what the Rock is actually running is the tree-hash comparison further down,
+not a SHA and not this table.
+
 ## Where the work is
 
 **Everything is merged. No PRs open.** Nine PRs landed in one session:
@@ -87,12 +107,24 @@ read slice (4), the pre-warmed/serve-only public artifact path with anonymous DO
 server-side (5), sharing and measurement (6), and the generator attribution footer (7). Do not mix the
 generator change into the public-routing work.
 
-Two structural improvements were deliberately DEFERRED with reasoning during #222's cleanup, and both
-get cheaper the sooner they are taken: a general `scripts/in-deps.sh <cmd>` wrapper (the
-`docker run … lesson3-deps` shape recurs ~9 times across CI and the docs), and expressing the dev
-server as a compose service under a `dev` profile, which would get healthcheck gating and network
-naming declaratively instead of by hand. The second needs its Ctrl-C behaviour checked against
-`--init` first.
+Two structural improvements were deferred with reasoning during #222's cleanup. **Both are now
+decided** (2026-08-16):
+
+- ✅ **`scripts/in-deps.sh` landed.** It owns the whole `docker run … lesson3-deps` shape — root
+  resolution, the node_modules volume, the ROOT `.env.example` mount, and the image-freshness check —
+  and CI calls it in five places. Two real defects fell out of building it: the root-template mount
+  existed in CI and nowhere else (so every hand-typed copy failed six `envTemplateParity` cases), and
+  `dev_deps_hash` did not cover the Dockerfile, so a base-image bump left both the image and the
+  hash-keyed volume stale. See DECISIONS 2026-08-16.
+- ❌ **The dev server as a compose service under a `dev` profile is DECLINED**, and the reasoning is
+  in DECISIONS 2026-08-16 so it is not re-proposed. Short version: compose wins on two lines
+  (`depends_on: service_healthy`, declarative network naming) and cannot express the two decisions
+  that have measured justifications behind them — the hash-labelled conditional image rebuild
+  (unconditional rebuild is a 35s inner-loop tax) and the hash-keyed named node_modules volume
+  (5.9s → 0.5s startup). Both need a script to compute the hash, so `dev-server.sh` does not go away;
+  the invocation would simply be split across two files. ⚑ The Ctrl-C/`--init` check this note asked
+  for was NOT the deciding question and was not run — `init: true` is a compose key and would very
+  likely work. Do not revive the item by answering it.
 
 ## Local development changed — read this before running anything
 
@@ -2929,13 +2961,14 @@ Docker compose (`app` on host :3001, `postgres` + `gotenberg` internal-only, one
   changes that don't rebuild the app: `git pull` + re-run via the deps image, see below.)
 - *Schema change:* regenerate types + migration in the pinned Node 24 deps image and commit them:
   ```
-  docker build --target deps -t lesson3-deps ./app
-  docker run --rm -v /srv/lesson3/app:/app -v /app/node_modules -w /app --env-file .env \
-    lesson3-deps npx payload generate:types            # commit app/src/payload-types.ts
-  docker run --rm --network lesson3_default -v /srv/lesson3/app:/app -v /app/node_modules \
-    -w /app --env-file .env lesson3-deps npx payload migrate:create <name>   # make up/down idempotent; commit
-  docker compose up -d --build                          # one-shot `migrate` applies pending, then `app` starts
+  scripts/in-deps.sh --env-file .env -- npx payload generate:types   # commit app/src/payload-types.ts
+  scripts/in-deps.sh --network lesson3_default --env-file .env \
+    -- npx payload migrate:create <name>       # make up/down idempotent; commit
+  docker compose up -d --build                 # one-shot `migrate` applies pending, then `app` starts
   ```
+  (`scripts/in-deps.sh` builds the image itself when the dependency hash has moved, so the separate
+  `docker build --target deps` line this recipe used to open with is gone. It derives the repo root
+  from its own location, so it does not need the `/srv/lesson3` absolute paths either.)
   Verify with `verify-rbac.ts` / `roundtrip-regression.ts` via the same deps-image + `--network` line.
   *(The Phase 5 `payload-jobs` migration and the 2026-06-24 Official-version migration were generated
   + committed this way; both are now on `main`.)*
