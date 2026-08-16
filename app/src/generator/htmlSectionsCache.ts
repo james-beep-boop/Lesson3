@@ -23,7 +23,7 @@
  */
 import type { Payload } from 'payload'
 
-import { getArtifact, putArtifact } from './artifactCache'
+import { bestEffortArtifact, getArtifact, putArtifact } from './artifactCache'
 import { generateForVersion } from './generateForVersion'
 import { docxToSections, type PreviewSection } from './previewBundle'
 import { GENERATOR_RENDER_VERSION } from './renderVersion'
@@ -55,9 +55,10 @@ const isPreviewSections = (value: unknown): value is PreviewSection[] =>
  * generate + render + cache. `generateForVersion` fetches the version with overrideAccess — a
  * TRUSTED SYSTEM read, NOT an authorization boundary: the caller MUST have already enforced the
  * requester's READ access to this version (the lesson page loads it access-gated; the GET preview
- * endpoint runs `findReadableVersion` first). A cache write failure never breaks the render — the
- * bytes were produced, so log-free best-effort: on any cache error we still return freshly-rendered
- * sections.
+ * endpoint runs `findReadableVersion` first). A cache failure never breaks the render — the bytes
+ * were produced either way — but it is no longer SILENT: `bestEffortArtifact` logs the first read
+ * failure and the first write failure, because a cache that is broken rather than cold makes every
+ * request repeat the full generate + convert + sanitize while the system still looks healthy.
  */
 export async function renderVersionSectionsCached(
   payload: Payload,
@@ -65,7 +66,7 @@ export async function renderVersionSectionsCached(
 ): Promise<PreviewSection[]> {
   const key = keyFor(versionId)
 
-  const cached = await getArtifact(key).catch(() => null)
+  const cached = await bestEffortArtifact(payload.logger, 'read', () => getArtifact(key), null)
   if (cached) {
     const sections = decodeCachedJson(cached, isPreviewSections)
     if (sections) return sections
@@ -78,7 +79,12 @@ export async function renderVersionSectionsCached(
 
   const render = (async (): Promise<PreviewSection[]> => {
     const sections = await docxToSections(await generateForVersion(payload, versionId))
-    await putArtifact(key, Buffer.from(JSON.stringify(sections))).catch(() => {})
+    await bestEffortArtifact(
+      payload.logger,
+      'write',
+      () => putArtifact(key, Buffer.from(JSON.stringify(sections))),
+      undefined,
+    )
     return sections
   })()
   inFlight.set(key, render)

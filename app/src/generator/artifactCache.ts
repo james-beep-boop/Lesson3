@@ -122,6 +122,53 @@ export async function putArtifact(key: string, bytes: Buffer): Promise<void> {
   await evictIfNeeded()
 }
 
+/**
+ * Run a cache operation best-effort: never fail the caller, but make the FIRST failure of each kind
+ * visible.
+ *
+ * ⚑ WHY THIS EXISTS RATHER THAN `.catch(() => null)` AT EACH CALL SITE. Both HTML caches swallowed
+ * every cache error silently, and the failure mode that hides is the expensive one: a permissions
+ * fault, a full disk or an exhausted file-descriptor table makes every read miss AND every write
+ * fail, so the process silently repeats full DOCX generation, Mammoth conversion, sanitization and
+ * HTML diffing on every single request — with the cache reporting nothing at all. The system looks
+ * healthy and merely runs at a fraction of its speed, which is the hardest kind of fault to find.
+ *
+ * ⚑ A MISS IS NOT A FAILURE and must not log. `getArtifact` already returns null for `ENOENT` — the
+ * ordinary cold-cache case — and throws only for real faults, so only genuine faults reach here.
+ * That distinction lives in `getArtifact`; do not reintroduce a catch that erases it.
+ *
+ * Logged ONCE per operation kind. A broken cache fails on every request, so an unbounded log would
+ * bury the signal it exists to raise; the guard set is bounded to two entries by construction and
+ * cannot grow into a leak the way an error-keyed set would.
+ */
+type CacheOperation = 'read' | 'write'
+const warnedCacheOperations = new Set<CacheOperation>()
+
+export async function bestEffortArtifact<T>(
+  logger: { warn: (obj: unknown, msg: string) => void },
+  operation: CacheOperation,
+  work: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await work()
+  } catch (err) {
+    if (!warnedCacheOperations.has(operation)) {
+      warnedCacheOperations.add(operation)
+      logger.warn(
+        { err, operation, cacheDir: CACHE_DIR },
+        'Artifact cache unavailable — falling back to uncached generation. This is a PERFORMANCE fault, not a correctness one: responses stay correct while every request repeats the full render. Check the cache directory’s existence, permissions and free space.',
+      )
+    }
+    return fallback
+  }
+}
+
+/** Test seam: forget which operations have already warned, so a spec can assert the once-only rule. */
+export function resetArtifactCacheWarnings(): void {
+  warnedCacheOperations.clear()
+}
+
 /** Delete oldest-by-mtime files until total size is back under the cap. Best-effort. */
 async function evictIfNeeded(): Promise<void> {
   let names: string[]

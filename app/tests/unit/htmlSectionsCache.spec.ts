@@ -15,17 +15,35 @@ const { getArtifact, putArtifact, generateForVersion, docxToSections } = vi.hois
   docxToSections: vi.fn(),
 }))
 
-vi.mock('../../src/generator/artifactCache', () => ({ getArtifact, putArtifact }))
+// ⚑ ONLY THE TWO IO FUNCTIONS ARE STUBBED — `bestEffortArtifact` and `resetArtifactCacheWarnings`
+// come through REAL via `importActual`.
+//
+// An earlier version of this mock supplied its own catch-and-fallback stand-in for the helper. That
+// made the cache-failure cases pass whether or not the consumer actually routed through the helper:
+// reverting `htmlSectionsCache` to a bare `.catch(() => null)` left the entire suite green, so the
+// original defect could be reintroduced undetected. Running the real helper is what makes the
+// "logs once" assertions below observe the CONSUMER's wiring rather than the mock's.
+vi.mock('../../src/generator/artifactCache', async () => {
+  const actual = await vi.importActual<typeof import('../../src/generator/artifactCache')>(
+    '../../src/generator/artifactCache',
+  )
+  return { ...actual, getArtifact, putArtifact }
+})
 vi.mock('../../src/generator/generateForVersion', () => ({ generateForVersion }))
 vi.mock('../../src/generator/previewBundle', () => ({ docxToSections }))
 
 import { renderVersionSectionsCached } from '../../src/generator/htmlSectionsCache'
+import { resetArtifactCacheWarnings } from '../../src/generator/artifactCache'
 
 const SECTIONS = [{ label: 'Lesson Sequence', html: '<p>hi</p>' }]
-const payload = {} as never
+// Carries a logger now: the cache helpers take `payload.logger` so a broken cache is reported once
+// rather than silently degrading every request into a full re-render.
+const payload = { logger: { warn: vi.fn() } } as never
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // The real helper's warned-set is module state that survives calls by design.
+  resetArtifactCacheWarnings()
   generateForVersion.mockResolvedValue({ lessonSequence: Buffer.from('x') })
   docxToSections.mockResolvedValue(SECTIONS)
   putArtifact.mockResolvedValue(undefined)
@@ -96,17 +114,43 @@ describe('renderVersionSectionsCached', () => {
     expect(putArtifact).toHaveBeenCalledTimes(1)
   })
 
-  it('cache WRITE failure is swallowed — the render still returns', async () => {
+  /**
+   * ⚑ THESE TWO ASSERT THE CONSUMER'S WIRING, not just its tolerance.
+   *
+   * "The render still returns" passes under a bare `.catch(() => null)` too, so on its own it
+   * cannot tell whether this module routes failures through `bestEffortArtifact` at all — and that
+   * was demonstrated on this branch by reverting the call sites and watching the whole suite stay
+   * green. The `logger.warn` expectation is the part that fails when the helper call is removed,
+   * and it only means anything because the mock above lets the REAL helper run.
+   */
+  it('cache WRITE failure: render still returns, and the fault is reported once', async () => {
     getArtifact.mockResolvedValue(null)
     putArtifact.mockRejectedValue(new Error('disk full'))
 
     await expect(renderVersionSectionsCached(payload, 7)).resolves.toEqual(SECTIONS)
+
+    const warn = (payload as unknown as { logger: { warn: ReturnType<typeof vi.fn> } }).logger.warn
+    expect(warn, 'a silently broken cache re-renders on every request').toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toMatchObject({ operation: 'write' })
   })
 
-  it('cache READ failure is swallowed — falls through to render', async () => {
+  it('cache READ failure: falls through to render, and the fault is reported once', async () => {
     getArtifact.mockRejectedValue(new Error('io error'))
 
     await expect(renderVersionSectionsCached(payload, 7)).resolves.toEqual(SECTIONS)
     expect(generateForVersion).toHaveBeenCalledTimes(1)
+
+    const warn = (payload as unknown as { logger: { warn: ReturnType<typeof vi.fn> } }).logger.warn
+    expect(warn.mock.calls.map((c) => (c[0] as { operation: string }).operation)).toContain('read')
+  })
+
+  /** A MISS is the ordinary cold-cache case and must never warn, or the signal is worthless. */
+  it('a cache MISS is not a fault and reports nothing', async () => {
+    getArtifact.mockResolvedValue(null)
+
+    await renderVersionSectionsCached(payload, 7)
+
+    const warn = (payload as unknown as { logger: { warn: ReturnType<typeof vi.fn> } }).logger.warn
+    expect(warn).not.toHaveBeenCalled()
   })
 })
