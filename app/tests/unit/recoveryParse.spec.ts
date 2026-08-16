@@ -37,26 +37,8 @@ import {
   RECOVERY_GENERATION_FIELD,
   RECOVERY_EXPECTED_REVISION_FIELD,
 } from '../../src/endpoints/recoveryParse.js'
+import { jsonReq as reqWith, statusOf } from '../helpers/fakeReq.js'
 
-/** The status an APIError carries, or `undefined` when the call resolved. */
-const statusOf = async (run: () => unknown): Promise<number | undefined> => {
-  try {
-    await run()
-    return undefined
-  } catch (e) {
-    return (e as { status?: number }).status
-  }
-}
-
-/** A fake PayloadRequest with an optional Content-Length and a JSON body. */
-const reqWith = (json: () => Promise<unknown>, contentLength?: number) =>
-  ({
-    headers: {
-      get: (k: string) =>
-        k === 'content-length' && contentLength != null ? String(contentLength) : null,
-    },
-    json,
-  }) as never
 
 describe('readRecoveryBody — the raw-body ceiling', () => {
   it('413 when Content-Length exceeds the cap, WITHOUT reading the body', async () => {
