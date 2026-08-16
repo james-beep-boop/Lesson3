@@ -1,7 +1,7 @@
 # Manage page — accordion redesign
 
-**Date:** 2026-08-16 · **Revised four times the same day** — external review, rebase onto
-`origin/main`, then two further external reviews (see §10)
+**Date:** 2026-08-16 · **Revised five times the same day** — external review, rebase onto
+`origin/main`, then three further external reviews (see §10)
 **Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
 **Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
@@ -708,8 +708,20 @@ secondary choice.
 
 **What it requires — this is real scope in PR 2, not a checkbox:**
 
-1. **A `signInDisabled` field on `users`** — readable per the same rule as `_verified` (self or Site
-   Admin). It is authorization state, so it follows `roles`, not profile data.
+1. **A `signInDisabled` field on `users`.** It is authorization state, so it follows `roles`, not
+   profile data.
+
+   ⚑ **State every access axis separately** (corrected in review round 4). An earlier draft said it
+   "follows `_verified`", but `_verified` is not one rule — it is three
+   ([collections/Users.ts:152](../app/src/collections/Users.ts:152)): `create: siteAdminField`,
+   `read: emailReadAccess`, `update: siteAdminField`. Summarising three rules as one is how the
+   partial-disablement defect got in the first time.
+
+   | Axis | Rule | Why |
+   |---|---|---|
+   | `create` | `() => false` | **Nobody is created disabled.** An account is disabled *after* it exists, which also answers "does 'the endpoint is the only writer' include creation?" — there is nothing to include, because no create path may set it |
+   | `read` | `emailReadAccess` (self or Site Admin) | Account status is personal, exactly like `_verified` and `email` |
+   | `update` | `() => false` to callers | The disable endpoint is the **only** writer, via `overrideAccess: true` after authorizing — see the ⚑ below |
 
    ⚑ **On UPDATE it must be system-set, not merely `siteAdminField`** (corrected in review round 2).
    Payload's base `sessions` field carries `update: () => false`
@@ -754,6 +766,28 @@ secondary choice.
      and says to contact an administrator. This is not an oracle: the person consuming a valid token
      for an account is that account's owner, so telling them their own account is disabled leaks
      nothing.
+
+     ⚑ **This requires a machine-readable error code — the status code cannot carry it** (raised in
+     review round 4; this was an implementation-blocking gap, not a wording detail). **Both failure
+     modes are HTTP 403:** an invalid or expired token throws
+     `APIError('Token is either invalid or has expired.', FORBIDDEN)`
+     ([resetPassword.js:53](../app/node_modules/payload/dist/auth/operations/resetPassword.js:53)),
+     and `Forbidden` is also `httpStatus.FORBIDDEN`
+     ([errors/Forbidden.js](../app/node_modules/payload/dist/errors/Forbidden.js)). So the form
+     cannot tell them apart by status, and matching on translated message strings is brittle — it
+     breaks on any locale change or upstream copy edit, silently, in the direction of showing the
+     *wrong* message.
+
+     **Requirement:** the disabled refusal returns a **stable machine-readable code**
+     (`ACCOUNT_DISABLED`) that the client keys on, never prose. It must be emitted **only after
+     Payload has validated the token** — order matters, so that a caller holding a bogus token learns
+     nothing about any account's status. Two viable routes, chosen at implementation time: a custom
+     `APIError` subclass carrying the code in its `data`, thrown from the `beforeLogin` hook (which
+     already runs after the user lookup); or a shadowed `POST /api/users/reset-password` endpoint,
+     following the established precedent of `forgotPasswordQueuedEndpoint` and
+     `verifyEmailThrottledEndpoint`.
+
+     **The wire contract is what gets tested**, not the rendered string — see §7.
    - **"Reveal reset link" is not offered for a disabled account.** Minting a credential that cannot
      be used is a support call waiting to happen; re-enable first.
 
@@ -869,11 +903,14 @@ behaviour, session revocation, reset-link handling, last-admin concurrency, dele
 Users UI. That is too much to review as one unit, and the risky half would be reviewed alongside a
 large volume of straightforward React.
 
-**PR 2a — user security & offboarding foundation.** Server only, no Manage UI: the `signInDisabled`
-field and its migration, the `beforeLogin` gate, the atomic disable+session-revocation endpoint, the
-reset-link endpoint with its `req.context` rate-limit carve-out, and the last-admin/self-action guards
-with their shared advisory lock. Every authorization change in the Users half lands here, reviewable
-against the test matrix without UI noise.
+**PR 2a — user security & recovery foundation. No Manage UI.** *(Was "server only" until review round
+4 — that stopped being true when it took ownership of `ResetPasswordForm.tsx`. It is one small
+frontend file on the account-recovery path, not Manage surface, and it belongs with the wire contract
+it consumes.)* Contents: the `signInDisabled` field and its migration, the `beforeLogin` gate, the
+atomic disable+session-revocation endpoint, the `ACCOUNT_DISABLED` wire contract and the reset form
+that keys on it, the reset-link endpoint with its `req.context` rate-limit carve-out, and the
+last-admin/self-action guards with their shared advisory lock. Every authorization change in the Users
+half lands here, reviewable against the test matrix without Manage-UI noise.
 
 **PR 2b — the Users panel.** The search endpoint, the list, the row disclosure and the controls that
 call 2a's endpoints. If 2b slips, 2a still closes the account-recovery gap that motivated D5 — the
@@ -885,11 +922,11 @@ column, because "independently deployable" is only a checkable claim if the boun
 
 | PR | File | Change |
 |---|---|---|
-| **2a** | `src/collections/Users.ts` | Add the `signInDisabled` field. ⚑ **Read `access` per D13a step 1 — NOT `siteAdminField` on update.** `create`/`read` follow `_verified` (Site Admin / self); **`update` is system-set (`() => false` to callers)** so the endpoint below is the only writer. An earlier draft of this row said `siteAdminField`, which is exactly the partial-disablement defect D13a exists to prevent. Also register a **`beforeLogin`** hook — the collection currently has only `beforeOperation` — mount the new endpoints, and wire the guards |
+| **2a** | `src/collections/Users.ts` | Add the `signInDisabled` field with **all three access axes stated separately** — see D13a step 1. `create: () => false` · `read: emailReadAccess` · `update: () => false`. Also register a **`beforeLogin`** hook — the collection currently has only `beforeOperation` — mount the new endpoints, and wire the guards |
 | **2a** | `src/migrations/…` *(new)* | `signInDisabled` column |
 | **2a** | `src/endpoints/userAdminActions.ts` *(new)* | `POST /api/users/:id/reveal-reset-link`, `…/set-site-admin`, `…/set-sign-in-disabled` — all freshness-guarded on `expectedUpdatedAt`, modelled on [userAssignments.ts](../app/src/endpoints/userAssignments.ts). Reset-link path: own cap, **not** the public budget (D5a-i); `no-store`; token redacted from logs. Disable path writes the flag **and** `sessions: []` atomically with `overrideAccess: true`, after authorizing |
 | **2a** | `src/hooks/userRoles.ts` | Add last-Site-Admin guard covering **grant, demote, delete and disable**, plus self-delete and self-disable guards, **all serialized on one shared advisory key** (§2.8 ⚑) |
-| **2a** | `src/app/(frontend)/reset-password/ResetPasswordForm.tsx` | ⚑ **Added in review round 3 — D13a promised a disabled-account message and no PR owned the file.** The form currently flattens *every* non-OK response into "This reset link is invalid or has expired" ([line 29](<../app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx:29>)), so a disabled user would be told their valid link is broken. Distinguish the disabled case — "This account is disabled — contact an administrator" — while leaving every other failure on the existing generic string |
+| **2a** | `src/app/(frontend)/reset-password/ResetPasswordForm.tsx` | ⚑ **Added in review round 3.** The form flattens *every* non-OK response into "This reset link is invalid or has expired" ([line 29](<../app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx:29>)), so a disabled user would be told their valid link is broken. Branch on the **`ACCOUNT_DISABLED` code** from D13a step 4 — **not** on status (both cases are 403) and **not** on message text (brittle across locales) — showing "This account is disabled — contact an administrator"; every other failure keeps the existing generic string |
 | **2b** | `src/endpoints/userSearch.ts` *(new)* | `GET /api/users/search` — paginated, `q` over name+email, explicit `type` filter. Site-Admin-only. Runs with the caller's access, never `overrideAccess: true` for the read |
 | **2b** | `src/components/Manage/UsersPanel.tsx` *(new)* | Search, list with computed type, row disclosure, the actions in §5.1 |
 | **2b** | `src/components/AdminDashboard/index.tsx` | Replace the People link with the panel |
@@ -940,7 +977,8 @@ a deliberate change.
 | PR | Tests |
 |---|---|
 | 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`** |
-| 2 | **`tests/http`**: `userSearch` and every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget** (D5a-i). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — this is the one that fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **Rate limit**: the admin reset-link path is exempt from the public budget **and** the ordinary public `POST /forgot-password` is still throttled — the second test is what distinguishes a carve-out from a bypass. **Reset form copy (round 3)**: a valid token for a *disabled* account shows "This account is disabled — contact an administrator", and an *invalid* token still shows the existing generic string — both, since a change that collapses the two directions is as wrong as the current collapse. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. E2E: **the `users` list route redirects to Manage** |
+| **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4)**: the refusal carries the machine-readable code, **an invalid/expired token does NOT**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug |
+| **2b** | **`tests/http`**: `userSearch` — 401 / 403 non-Site-Admin / happy path, and that the `type` filter is honoured server-side. **E2E**: **the `users` list route redirects to Manage**; the Users panel's row disclosure and its actions against 2a's endpoints |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
 | 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
 
@@ -1068,6 +1106,28 @@ root cause**, which is the finding worth keeping.
 | 3 | The target IA showed Subject Administrators a Subject Administrator *picker*, which D6a removes | **Accepted.** IA now says read-only for Subject Admins; D6a specifies what they see; an E2E visibility assertion added, because a server guard behind a visible control produces "the app is broken" |
 | 4 | D13a promised a disabled-account reset message, but `ResetPasswordForm.tsx` flattens every failure into "invalid or has expired" — and no PR owned the file | **Accepted.** Verified at [line 29](<../app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx:29>). File assigned to PR 2a with tests for **both** directions |
 | 5 | The PR 2 table claimed a second column identified 2a vs 2b; no such column existed | **Accepted.** Explicit `PR` column added — "independently deployable" is only checkable if the boundary is written down |
+
+### 2026-08-16 (round 4) — a promised behaviour the wire could not carry
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | **The reset form has no stable way to identify "account disabled".** Both an invalid/expired token and a `Forbidden` throw return **HTTP 403**, so the client cannot distinguish them by status, and matching translated message strings is brittle | **Accepted — implementation-blocking, not bookkeeping.** Verified at [resetPassword.js:53](../app/node_modules/payload/dist/auth/operations/resetPassword.js:53) and [Forbidden.js](../app/node_modules/payload/dist/errors/Forbidden.js). D13a step 4 now requires a stable `ACCOUNT_DISABLED` code, emitted only after token validation, with the wire contract itself pinned by tests |
+| 2 | The "explicit" field-access row was still ambiguous — `_verified` is three different rules, not one | **Accepted.** D13a step 1 now states all three axes in a table. `create: () => false` also answers the raised question "does 'only writer' include creation?" — nobody is created disabled |
+| 3 | PR 2a is no longer server-only; it owns `ResetPasswordForm.tsx` | **Accepted.** Retitled "security & recovery foundation. No Manage UI." in both the design doc and `NEXT-SESSION.md` |
+| 4 | The test table still combined everything under "2" while the file table had split | **Accepted.** Split into 2a and 2b rows, so `userSearch`, the reset-form tests and the users-route redirect have owners |
+| 5 | `NEXT-SESSION.md` still said reviewed "twice" | **Accepted.** |
+
+⚑ **The lesson from finding 1, and why the previous round's "converged" call was wrong.** Rounds 2
+and 3 were consistency passes, and their quietness was read as the design having settled. It had not:
+**round 4 went back to checking the design against the code and immediately found a promise the
+protocol could not keep.** D13a asserted a user-visible distinction ("copy that names the reason")
+without anyone checking whether the wire could carry the distinction — and it could not, because the
+two cases are indistinguishable at the status level.
+
+**The general rule: when a plan promises that the user will see *different* outcomes for two
+situations, verify the transport can tell them apart, and pin that as a wire contract rather than a
+copy requirement.** A rendered-string test would have passed against an implementation that guessed
+from message text and broke on the next locale change.
 
 ⚑ **The root cause of 1, 2 and 5: this document states the same fact in two places — once as a
 decision, once as a file-table row — and review round 2 corrected only the decisions.** The tables
