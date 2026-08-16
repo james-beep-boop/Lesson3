@@ -18,8 +18,24 @@
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
-import { json } from './respond'
+import { assertDeclaredBodyWithin, json } from './respond'
 import type { User } from '../payload-types'
+
+/**
+ * Raw-body ceiling for this endpoint.
+ *
+ * ⚑ The 500-id cap below bounds what is USED, not what is READ. Without this, `req.json()` buffers
+ * whatever arrives before `parseIds` sees a single element — and Next's App Router route handlers
+ * impose no default body limit (the 4 MB default is Pages API routes and Server Actions;
+ * `experimental.serverActions.bodySizeLimit` does not reach REST routes, and `src/middleware.ts`
+ * only sets CSP). This endpoint is also the one body-reader with no rate bucket of its own, so
+ * nothing else bounded the repetition either: `emailVersion` spends a per-user daily cap first, and
+ * `forgotPassword` already carries this guard.
+ *
+ * 64 KiB against a legitimate worst case of ~4 KB (500 ids at 8 characters each, plus framing) —
+ * generous enough that no honest client is ever refused, small enough that a dishonest one is.
+ */
+export const MAX_MARK_READ_BODY_BYTES = 64 * 1024
 
 /** Coerce an untrusted body value to a bounded list of positive integer ids (dedup, cap 500). */
 function parseIds(raw: unknown): number[] {
@@ -33,16 +49,31 @@ function parseIds(raw: unknown): number[] {
   return [...ids]
 }
 
+/**
+ * Guard the declared body size, then read the ids out of it.
+ *
+ * Split out and exported ONLY so the ceiling is unit-testable without a database or a served app —
+ * the same split, for the same reason, as `recoveryParse.ts` and `previewParse.ts`. The assertion
+ * that matters is that an oversized body is refused WITHOUT `req.json()` being called, since a 413
+ * returned after the body had already materialised would have cost exactly the memory the guard
+ * exists to refuse.
+ */
+export async function readMarkReadIds(req: PayloadRequest): Promise<number[]> {
+  assertDeclaredBodyWithin(req, MAX_MARK_READ_BODY_BYTES, 'Request body too large')
+
+  const body = (typeof req.json === 'function' ? await req.json().catch(() => null) : null) as {
+    ids?: unknown
+  } | null
+  return parseIds(body?.ids)
+}
+
 export const markMessagesReadEndpoint: Endpoint = {
   path: '/mark-read',
   method: 'post',
   handler: async (req: PayloadRequest): Promise<Response> => {
     if (!req.user) throw new APIError('Unauthorized', 401)
 
-    const body = (typeof req.json === 'function' ? await req.json().catch(() => null) : null) as {
-      ids?: unknown
-    } | null
-    const ids = parseIds(body?.ids)
+    const ids = await readMarkReadIds(req)
     if (ids.length === 0) return json({ ok: true, updated: 0 })
 
     const userId = (req.user as User).id
