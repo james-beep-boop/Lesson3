@@ -73,6 +73,24 @@ const submittedRows = (value: unknown, reject: () => never): Row[] => {
   return reject()
 }
 
+/**
+ * A SUBMITTED group container (`finalExplanation`, `summaryTable`), or reject.
+ *
+ * The group counterpart to {@link submittedRows}, and it exists for the same reason: this feeds a
+ * SECURITY control, so a shape the guard cannot verify is refused rather than read as "nothing to
+ * check". `null` is rejected rather than treated as absence — Payload's form state posts a group as
+ * an object, so a null container is not a shape any real client produces, and silently accepting it
+ * is precisely how the whole group used to reach the write unguarded.
+ */
+const submittedGroup = (value: unknown, reject: () => never): Doc => {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) return value as Doc
+  return reject()
+}
+
+/** The submitted group when it is one, else undefined — for the overlay, which tolerates absence. */
+const asSubmittedGroup = (value: unknown): Doc | undefined =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Doc) : undefined
+
 const sameSequence = (
   a: Array<string | number | undefined>,
   b: Array<string | number | undefined>,
@@ -306,8 +324,9 @@ export const applyEditorFieldSplit = ({
       }
     }
   }
-  if (data.finalExplanation) {
-    const fe = data.finalExplanation as Doc
+  // PRESENCE, not truthiness — see the rebuild note in step 2 for what the truthiness form let past.
+  if ('finalExplanation' in data) {
+    const fe = submittedGroup(data.finalExplanation, reject)
     const feBefore = (originalDoc.finalExplanation ?? {}) as Doc
     if (
       'sections' in fe &&
@@ -320,8 +339,8 @@ export const applyEditorFieldSplit = ({
     )
       reject()
   }
-  if (data.summaryTable) {
-    const summaryTable = data.summaryTable as Doc
+  if ('summaryTable' in data) {
+    const summaryTable = submittedGroup(data.summaryTable, reject)
     if ('lessons' in summaryTable) {
       const stBefore = (originalDoc.summaryTable ?? {}) as Doc
       if (
@@ -369,11 +388,27 @@ export const applyEditorFieldSplit = ({
     )
   }
 
-  if (d.finalExplanation) {
+  // ⚑ REBUILT FROM THE ORIGINAL, ALWAYS. A submission can only OVERLAY prose onto the stored
+  // container, so an absent or null `finalExplanation` / `summaryTable` means "unchanged", never
+  // "deleted".
+  //
+  // This and the structural guard above both used to test TRUTHINESS while the `lessons` guard tested
+  // PRESENCE, and the gap between them was reachable: a submitted `null` — or simply OMITTING the key
+  // — skipped the cardinality check here AND the blanket restore in step 2, because
+  // `editorTopLevelKeys` deliberately exempts these keys from it. The whole group then reached
+  // `payload.create` as null, so an Editor's save-as-new could drop the admin-authored Final
+  // Explanation or Summary Table wholesale.
+  //
+  // `lessons` was never exposed the same way, which is why the asymmetry survived: a version with no
+  // lessons is REFUSED by `validateGeneratable`, whereas a missing finalExplanation/summaryTable is
+  // only a non-blocking `deliverableWarnings` entry — nothing downstream would have caught it. That
+  // gate is also why `lessons` is left alone below rather than made symmetric here: restoring it
+  // silently would turn today's loud 422 into a quiet pass.
+  if (orig.finalExplanation != null || d.finalExplanation != null) {
     const feo = (orig.finalExplanation ?? {}) as Doc
-    const sub = d.finalExplanation as Doc
+    const sub = asSubmittedGroup(d.finalExplanation)
     const out = overlayProse(feo, sub, FINAL_EXPLANATION_PROSE)
-    if (Array.isArray(sub.sections)) {
+    if (sub && Array.isArray(sub.sections)) {
       out.sections = overlayRows(
         feo.sections as Doc[] | undefined,
         sub.sections as Doc[],
@@ -383,11 +418,11 @@ export const applyEditorFieldSplit = ({
     d.finalExplanation = out
   }
 
-  if (d.summaryTable) {
+  if (orig.summaryTable != null || d.summaryTable != null) {
     const sto = (orig.summaryTable ?? {}) as Doc
-    const sub = d.summaryTable as Doc
+    const sub = asSubmittedGroup(d.summaryTable)
     const out = overlayProse(sto, sub, []) // subStrand, drivingQuestion are admin-only
-    if (Array.isArray(sub.lessons)) {
+    if (sub && Array.isArray(sub.lessons)) {
       out.lessons = overlayRows(
         sto.lessons as Doc[] | undefined,
         sub.lessons as Doc[],
