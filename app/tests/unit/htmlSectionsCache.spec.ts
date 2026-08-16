@@ -15,14 +15,34 @@ const { getArtifact, putArtifact, generateForVersion, docxToSections } = vi.hois
   docxToSections: vi.fn(),
 }))
 
-vi.mock('../../src/generator/artifactCache', () => ({ getArtifact, putArtifact }))
+// `bestEffortArtifact` is given a working stand-in rather than a `vi.fn()`: this file's subject is
+// the CACHING behaviour, and every assertion below runs through it. Its own contract — the
+// once-per-operation warning — is pinned in `artifactCacheBestEffort.spec.ts`.
+vi.mock('../../src/generator/artifactCache', () => ({
+  getArtifact,
+  putArtifact,
+  bestEffortArtifact: async <T,>(
+    _logger: unknown,
+    _operation: string,
+    work: () => Promise<T>,
+    fallback: T,
+  ): Promise<T> => {
+    try {
+      return await work()
+    } catch {
+      return fallback
+    }
+  },
+}))
 vi.mock('../../src/generator/generateForVersion', () => ({ generateForVersion }))
 vi.mock('../../src/generator/previewBundle', () => ({ docxToSections }))
 
 import { renderVersionSectionsCached } from '../../src/generator/htmlSectionsCache'
 
 const SECTIONS = [{ label: 'Lesson Sequence', html: '<p>hi</p>' }]
-const payload = {} as never
+// Carries a logger now: the cache helpers take `payload.logger` so a broken cache is reported once
+// rather than silently degrading every request into a full re-render.
+const payload = { logger: { warn: vi.fn() } } as never
 
 beforeEach(() => {
   vi.clearAllMocks()

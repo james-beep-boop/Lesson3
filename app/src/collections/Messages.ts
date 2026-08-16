@@ -10,6 +10,7 @@ import { APIError } from 'payload'
 
 import { consumeRateLimit } from '../lib/rateLimit'
 import { enqueueDetached } from '../lib/enqueue'
+import { findReadableVersion } from '../lib/readBundle'
 import { relId } from '../lib/relId'
 import { MESSAGE_PING_SLUG, type MessagePingInput } from '../jobs/messagePing'
 import { markMessagesReadEndpoint } from '../endpoints/markMessagesRead'
@@ -72,15 +73,22 @@ const validateContextLink: CollectionBeforeValidateHook = async ({ data, operati
   if (data.lessonPlan == null) {
     throw new APIError('A linked lesson version must include its lesson plan.', 400)
   }
-  const version = await req.payload
-    .findByID({
-      collection: 'lesson-bundle-versions',
-      id: data.version as number | string,
-      depth: 0,
-      overrideAccess: false,
-      user: req.user,
-    })
-    .catch(() => null)
+  // ⚑ `findReadableVersion`, NOT a bare `.catch(() => null)`. The catch this replaces swallowed
+  // EVERY failure — so a database outage, a driver fault or any unexpected runtime error was
+  // reported to the client as `400 A linked lesson version must belong to the linked lesson plan`:
+  // a confident, specific, wrong diagnosis that also bypassed the 500 path and the error tracker.
+  // The shared helper returns null for the two answers that genuinely mean "you cannot see it"
+  // (Payload's 404 and 403) and rethrows everything else, which is exactly the distinction this
+  // check needs and the one place it is already written down.
+  //
+  // The read now also carries `req`, which the inline version omitted, so it runs on the create's
+  // own transaction rather than a separate pooled connection. Safe — the version is a pre-existing
+  // row in another collection — and it matches how every other `findReadable*` caller passes it.
+  const version = await findReadableVersion(req.payload, {
+    id: data.version as number | string,
+    user: req.user as User,
+    req,
+  })
   if (!version || relId(version.lessonPlan) !== relId(data.lessonPlan)) {
     throw new APIError('A linked lesson version must belong to the linked lesson plan.', 400)
   }

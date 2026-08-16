@@ -17,7 +17,7 @@ import type { Payload } from 'payload'
 // Output contract (data-match-type annotations) pinned by tests/unit/htmlDiffContract.spec.ts.
 import { HtmlDiff } from '@payloadcms/ui/elements/HTMLDiff/diff'
 
-import { getArtifact, putArtifact } from './artifactCache'
+import { bestEffortArtifact, getArtifact, putArtifact } from './artifactCache'
 import { HTML_RENDER_CACHE_VERSION, renderVersionSectionsCached } from './htmlSectionsCache'
 import { decodeCachedJson, isStringRecord } from './cacheCodecs'
 
@@ -55,7 +55,7 @@ export async function diffVersionSectionsCached(
 ): Promise<CompareDiffSection[]> {
   const key = keyFor(fromId, toId)
 
-  const cached = await getArtifact(key).catch(() => null)
+  const cached = await bestEffortArtifact(payload.logger, 'read', () => getArtifact(key), null)
   if (cached) {
     const sections = decodeCachedJson(cached, isCompareDiffSections)
     if (sections) return sections
@@ -83,7 +83,12 @@ export async function diffVersionSectionsCached(
       ).getSideBySideContents()
       return { label, oldHtml, newHtml }
     })
-    await putArtifact(key, Buffer.from(JSON.stringify(diffs))).catch(() => {})
+    await bestEffortArtifact(
+      payload.logger,
+      'write',
+      () => putArtifact(key, Buffer.from(JSON.stringify(diffs))),
+      undefined,
+    )
     return diffs
   })()
   inFlight.set(key, compute)
