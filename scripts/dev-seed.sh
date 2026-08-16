@@ -19,9 +19,9 @@
 # Usage:  scripts/dev-seed.sh
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Sourcing the prelude cds to the repo root — see its header.
 # shellcheck source=scripts/lib/dev-env.sh
-source scripts/lib/dev-env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/dev-env.sh"
 
 dev_require_env_file
 PGPASSWORD_VALUE="$(dev_env_value POSTGRES_PASSWORD)"
@@ -39,11 +39,10 @@ PG_CONTAINER="$("${DEV_COMPOSE[@]}" ps -q postgres)"
 echo "› seeding"
 # DATABASE_URI is overridden rather than taken from `.env` precisely because of the loopback guard
 # above; everything else comes from the file, as in dev-server.sh.
+dev_deps_mounts
 docker run --rm \
   --network "container:${PG_CONTAINER}" \
-  -v "$PWD/app:/app" \
-  -v "$(dev_node_modules_volume):/app/node_modules" \
-  -w /app \
+  "${DEV_DEPS_MOUNTS[@]}" \
   --env-file .env \
   -e NODE_ENV=development \
   -e DATABASE_URI="postgres://lesson3:${PGPASSWORD_VALUE}@127.0.0.1:5432/lesson3" \

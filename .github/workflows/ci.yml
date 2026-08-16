@@ -53,10 +53,16 @@ jobs:
           EOF
 
       - name: Build deps image (test/lint/audit runner)
-        # `scripts/in-deps.sh` with no command builds the image and exits. Going through the wrapper
-        # rather than calling `docker build` here is what stamps the dependency-hash LABEL that every
-        # later step's freshness check reads — a bare build leaves it unlabelled, and the first
-        # wrapped step would then rebuild it a second time.
+        # `scripts/in-deps.sh` with no command builds the image and exits.
+        #
+        # ⚑ This step is NOT load-bearing for correctness — every wrapped step below ensures the image
+        # itself, so deleting it would change nothing but which step's log the build time lands in.
+        # It is kept for fail-fast and attribution: a broken dependency install surfaces here, under a
+        # step named for it, rather than inside `test:unit`.
+        #
+        # It must stay a wrapper call rather than a bare `docker build`, though: the wrapper stamps
+        # the dependency-hash LABEL that the freshness checks read, and an unlabelled image would make
+        # the first wrapped step rebuild it a second time.
         run: scripts/in-deps.sh
 
       - name: Build e2e image (browser runner — glibc + pinned Node + chromium)

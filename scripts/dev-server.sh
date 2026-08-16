@@ -20,9 +20,9 @@
 # Stop:   Ctrl-C
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Sourcing the prelude cds to the repo root — see its header.
 # shellcheck source=scripts/lib/dev-env.sh
-source scripts/lib/dev-env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/dev-env.sh"
 
 dev_require_env_file
 echo "› ensuring local Postgres is up and healthy (publishes 127.0.0.1:55432)"
@@ -53,12 +53,11 @@ echo "  (sign in with the seeded local users — see AGENTS.md → Local stack)"
 # the feature switches pass through without the unquotable `${VAR:+-e VAR="$VAR"}` idiom.
 #
 # `--init` so Ctrl-C reaches Next rather than being swallowed by PID 1.
+dev_deps_mounts
 exec docker run --rm --init --name lesson3-dev-server \
   --network "$(dev_compose_network)" \
   -p 3000:3000 \
-  -v "$PWD/app:/app" \
-  -v "$(dev_node_modules_volume):/app/node_modules" \
-  -w /app \
+  "${DEV_DEPS_MOUNTS[@]}" \
   --env-file .env \
   -e NODE_ENV=development \
   -e ADMIN_URL=http://localhost:3000 \
