@@ -11,6 +11,50 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 (round 3) — a corrected decision that did not reach its duplicates
+
+Third external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Five findings, all internal
+inconsistencies — no code fact needed re-checking. Three shared one cause, and it is a cause this
+codebase has already written down about itself.
+
+**What happened.** The document stated several facts twice: once in the decisions section (§3) and
+once as a row in the implementation file-tables (§6). Review round 2 corrected the decisions. **The
+tables kept the superseded text.** So the plan simultaneously said `signInDisabled` must be system-set
+on update (decision) and that it uses `siteAdminField` (file table); that the SPEC §8 amendment is
+rename-only (decision) and that it should cover administrator grants (file table).
+
+⚑ **An implementer reads the implementation plan.** These are not cosmetic disagreements — the table
+rows are the half that would have been built, and one of them re-created the exact
+partial-disablement defect that round 2 had just been convened to fix.
+
+**The codebase already says this.** `src/components/AdminDashboard/EditorsWidget.tsx`, on a type
+declared in two places: *"Declaring `EditorsGroup` in both places type-checked — the shapes were
+identical — which is exactly why it needed catching: **two declarations that agree today are two
+declarations to keep in step**."* Prose has no type-checker, so the same duplication is strictly more
+dangerous in a design document than in TypeScript.
+
+⚑ **The general rule: in a long document, make derived sections POINT at the decision rather than
+restate it** — "per D13a step 1", not a second copy of D13a's content. Where restatement is
+unavoidable, say what it must agree with. And when revising a decision, grep the document for the
+same fact before considering the revision done. This generalises past design docs: it is the same
+reason `NEXT-SESSION.md` warns against derived facts like line counts, and the same reason
+`docs/DECISIONS.md` entries are written as reasoning rather than as summaries that would need
+maintaining.
+
+**A related process observation, now three rounds deep.** Each review round's defects lived in
+whatever the *previous* round produced:
+
+- **Round 1** found wrong claims about the code (the original draft).
+- **Round 2** found defects in D13a — the section round 1 caused to be written, and the only
+  substantial part never reviewed.
+- **Round 3** found defects created by round 2's corrections failing to propagate.
+
+⚑ **Corrections are the highest-defect-density material in any document, because they are written
+fastest, under the confidence of having just been proven right, and reviewed least.** Budget a pass
+for them specifically rather than treating a review round as closing the matter.
+
+---
+
 ## 2026-08-16 (round 2) — Payload runs `beforeLogin` inside password reset; and a re-derived decision, twice
 
 Second external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Two Payload facts worth

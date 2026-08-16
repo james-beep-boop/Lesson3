@@ -1,7 +1,7 @@
 # Manage page — accordion redesign
 
-**Date:** 2026-08-16 · **Revised three times the same day** — external review, rebase onto
-`origin/main`, then a second external review (see §10)
+**Date:** 2026-08-16 · **Revised four times the same day** — external review, rebase onto
+`origin/main`, then two further external reviews (see §10)
 **Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
 **Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
@@ -445,6 +445,17 @@ existing grants, and it should not try to.
 SPEC §8 must be amended to state this explicitly rather than leaving "manage scoped roles" to be
 re-litigated.
 
+⚑ **What a Subject Administrator SEES, specified (review round 3).** The target IA implied they get
+the picker, which D6a takes away. They must see **who the current Subject Administrator is** — that is
+useful, scoped information they already effectively hold — rendered **read-only**, with no picker and
+no remove control. Their Editors list is unchanged and fully interactive.
+
+**This needs its own E2E assertion, not just the server-side PATCH test.** A guard that refuses the
+write while the UI still offers the control produces an administrator who clicks, sees an error, and
+concludes the app is broken — the same "explain, don't just remove" principle the 2026-07-28 decision
+applies to phone editing (D12). The server test proves the boundary holds; the E2E test proves nobody
+is invited to cross it.
+
 ### D7 — Accordion mechanics
 
 - **Two levels maximum.** A per-row edit form is an **inline row disclosure**, deliberately named as
@@ -779,7 +790,8 @@ Manage
 ├── Users                    [Site Admin only]        search + type filter, server-side, lazy
 │     └── (row disclosure)   view / edit one user
 ├── Roles & Access           [Site Admin, Subject Admin]   search
-│     └── per subject-grade  Subject Administrator picker + Editors list
+│     └── per subject-grade  Subject Administrator (picker for Site Admin;
+│                            READ-ONLY for Subject Admin) + Editors list
 ├── Subjects                 [Site Admin only]        search
 │     └── (row disclosure)   rename / delete
 ├── Subject Grades           [Site Admin only]        search
@@ -867,19 +879,21 @@ against the test matrix without UI noise.
 call 2a's endpoints. If 2b slips, 2a still closes the account-recovery gap that motivated D5 — the
 capabilities are reachable via the API even before the panel exists.
 
-The file table below is the union of both; the split is by concern, and the second column notes which
-half each row belongs to.
+⚑ **Corrected in review round 3:** an earlier draft of this paragraph said the second column notes
+which half each row belongs to. There was no such column. The table now carries an explicit **PR**
+column, because "independently deployable" is only a checkable claim if the boundary is written down.
 
-| File | Change |
-|---|---|
-| `src/endpoints/userSearch.ts` *(new)* | `GET /api/users/search` — paginated, `q` over name+email, explicit `type` filter. Site-Admin-only. Runs with the caller's access, never `overrideAccess: true` for the read |
-| `src/endpoints/userAdminActions.ts` *(new)* | `POST /api/users/:id/reveal-reset-link` and `POST /api/users/:id/set-site-admin`, both freshness-guarded on `expectedUpdatedAt`, modelled on [userAssignments.ts](../app/src/endpoints/userAssignments.ts). Reset-link path: own cap, **not** the public budget (D5a-i); `no-store`; token redacted from logs |
-| `src/hooks/userRoles.ts` | Add last-Site-Admin guard covering **grant, demote, delete and disable**, plus self-delete and self-disable guards, **all serialized on one shared advisory key** (§2.8 ⚑) |
-| `src/collections/Users.ts` | Add the `signInDisabled` field (`siteAdminField`); register a **`beforeLogin`** hook — the collection currently has only `beforeOperation`; mount the new endpoints; wire the guards (D13a) |
-| `src/endpoints/userAdminActions.ts` | Also carries the disable/enable action, clearing `sessions` on disable so live tokens die immediately (D13a step 3) |
-| `src/components/Manage/UsersPanel.tsx` *(new)* | Search, list with computed type, row disclosure, the actions in §5.1 |
-| `src/components/AdminDashboard/index.tsx` | Replace the People link with the panel |
-| `src/components/RedirectToManage/index.tsx` + config | **Redirect the native `users` list route** — promised by D2, missing from the first draft (which redirected only Subjects and Subject Grades) |
+| PR | File | Change |
+|---|---|---|
+| **2a** | `src/collections/Users.ts` | Add the `signInDisabled` field. ⚑ **Read `access` per D13a step 1 — NOT `siteAdminField` on update.** `create`/`read` follow `_verified` (Site Admin / self); **`update` is system-set (`() => false` to callers)** so the endpoint below is the only writer. An earlier draft of this row said `siteAdminField`, which is exactly the partial-disablement defect D13a exists to prevent. Also register a **`beforeLogin`** hook — the collection currently has only `beforeOperation` — mount the new endpoints, and wire the guards |
+| **2a** | `src/migrations/…` *(new)* | `signInDisabled` column |
+| **2a** | `src/endpoints/userAdminActions.ts` *(new)* | `POST /api/users/:id/reveal-reset-link`, `…/set-site-admin`, `…/set-sign-in-disabled` — all freshness-guarded on `expectedUpdatedAt`, modelled on [userAssignments.ts](../app/src/endpoints/userAssignments.ts). Reset-link path: own cap, **not** the public budget (D5a-i); `no-store`; token redacted from logs. Disable path writes the flag **and** `sessions: []` atomically with `overrideAccess: true`, after authorizing |
+| **2a** | `src/hooks/userRoles.ts` | Add last-Site-Admin guard covering **grant, demote, delete and disable**, plus self-delete and self-disable guards, **all serialized on one shared advisory key** (§2.8 ⚑) |
+| **2a** | `src/app/(frontend)/reset-password/ResetPasswordForm.tsx` | ⚑ **Added in review round 3 — D13a promised a disabled-account message and no PR owned the file.** The form currently flattens *every* non-OK response into "This reset link is invalid or has expired" ([line 29](<../app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx:29>)), so a disabled user would be told their valid link is broken. Distinguish the disabled case — "This account is disabled — contact an administrator" — while leaving every other failure on the existing generic string |
+| **2b** | `src/endpoints/userSearch.ts` *(new)* | `GET /api/users/search` — paginated, `q` over name+email, explicit `type` filter. Site-Admin-only. Runs with the caller's access, never `overrideAccess: true` for the read |
+| **2b** | `src/components/Manage/UsersPanel.tsx` *(new)* | Search, list with computed type, row disclosure, the actions in §5.1 |
+| **2b** | `src/components/AdminDashboard/index.tsx` | Replace the People link with the panel |
+| **2b** | `src/components/RedirectToManage/index.tsx` + config | **Redirect the native `users` list route** — promised by D2, missing from the first draft (which redirected only Subjects and Subject Grades) |
 
 **Do not add a `src/lib/userType.ts`.** `userTypeLabel` already exists and is tested
 ([access/index.ts:106](../app/src/access/index.ts:106)); the panel reuses it. *(First draft proposed a
@@ -909,7 +923,7 @@ hook.
 | `src/endpoints/userAssignments.ts` | Add the Subject Administrator grant path (or a sibling endpoint) with the same freshness guard |
 | `src/hooks/userRoles.ts` | **Required (D6a resolved):** guard `enforceAssignmentScope` so a non-Site-Admin cannot add, remove or change a row whose `role` is `subjectAdmin`. A behaviour change to shipped code — the hook currently checks only the row's subject-grade |
 | `src/lib/editorGroups.ts` | **Reshape the projection** to one shared deduplicated roster + per-group `editorIds` / `subjectAdminId`, so payload is `users + subject-grades` rather than their product (D11a). Also carries the current Subject Admin. **This remains the single `overrideAccess: true` projection for the email carve-out — do not add a second** |
-| `SPEC.md` §8 | Amend the carve-out to name "Roles & Access" and cover administrator grants; **state the D6a answer explicitly** rather than leaving "manage scoped roles" ambiguous |
+| `SPEC.md` §8 | ⚑ **RENAME-ONLY** — per corrected D6, the carve-out does **not** widen to administrator grants; for Subject Administrators it still rests on Editor grants alone. Amend the name "Manage → Editing access" → "Roles & Access", and separately **state the D6a answer explicitly** rather than leaving "manage scoped roles" ambiguous. *(An earlier draft of this row said "cover administrator grants", contradicting D6 — caught in review round 3.)* |
 | `CLAUDE.md` | Same amendment, including the ⚑ note |
 | `docs/DECISIONS.md` | Entries for D4, D5, D6, D6a, D8, D11, D11a — and the three corrections external review produced (§10) |
 
@@ -926,9 +940,9 @@ a deliberate change.
 | PR | Tests |
 |---|---|
 | 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`** |
-| 2 | **`tests/http`**: `userSearch` and every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget** (D5a-i). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — this is the one that fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **Rate limit**: the admin reset-link path is exempt from the public budget **and** the ordinary public `POST /forgot-password` is still throttled — the second test is what distinguishes a carve-out from a bypass. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. E2E: **the `users` list route redirects to Manage** |
+| 2 | **`tests/http`**: `userSearch` and every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget** (D5a-i). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — this is the one that fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **Rate limit**: the admin reset-link path is exempt from the public budget **and** the ordinary public `POST /forgot-password` is still throttled — the second test is what distinguishes a carve-out from a bypass. **Reset form copy (round 3)**: a valid token for a *disabled* account shows "This account is disabled — contact an administrator", and an *invalid* token still shows the existing generic string — both, since a change that collapses the two directions is as wrong as the current collapse. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. E2E: **the `users` list route redirects to Manage** |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
-| 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless |
+| 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
 
 This follows the standing rule in `CLAUDE.md`: every new or changed endpoint lands with wire-level
 authz coverage in the **same** PR, because these endpoints authorize with the caller's access and then
@@ -1041,3 +1055,32 @@ themselves unreviewed until the next round.
 | 5 | The rate-limit carve-out needs a named mechanism | **Accepted.** Server-only `req.context` flag, set only after Site-Admin authorization *and* admin-cap consumption; plus a test that the public endpoint stays throttled |
 | 6 | PR 2 is too large | **Accepted.** Split into 2a (security foundation, server only) and 2b (panel UI) |
 | 7 | Proposed making Manage read-only below 640px, reversing revised D12 | **Declined by the operator**, reaffirming the 2026-07-28 decision. ⚑ The proposal's own implementation details were already in that DECISIONS entry near-verbatim, and this is the **second** time in one review cycle it has been re-derived rather than found — so D12 now quotes it directly and names the argument any future proposal must answer |
+
+### 2026-08-16 (round 3) — internal consistency: corrections that did not propagate
+
+Five findings, all valid, none requiring a code fact to be re-checked. **Three of the five share one
+root cause**, which is the finding worth keeping.
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | The PR 2 file table still said `signInDisabled` uses `siteAdminField`, contradicting D13a's system-set rule and re-creating the partial-disablement defect | **Accepted.** Row rewritten to spell out per-axis access explicitly |
+| 2 | The PR 4 table still said the SPEC §8 amendment should "cover administrator grants", contradicting corrected D6 | **Accepted.** Row marked RENAME-ONLY |
+| 3 | The target IA showed Subject Administrators a Subject Administrator *picker*, which D6a removes | **Accepted.** IA now says read-only for Subject Admins; D6a specifies what they see; an E2E visibility assertion added, because a server guard behind a visible control produces "the app is broken" |
+| 4 | D13a promised a disabled-account reset message, but `ResetPasswordForm.tsx` flattens every failure into "invalid or has expired" — and no PR owned the file | **Accepted.** Verified at [line 29](<../app/src/app/(frontend)/reset-password/ResetPasswordForm.tsx:29>). File assigned to PR 2a with tests for **both** directions |
+| 5 | The PR 2 table claimed a second column identified 2a vs 2b; no such column existed | **Accepted.** Explicit `PR` column added — "independently deployable" is only checkable if the boundary is written down |
+
+⚑ **The root cause of 1, 2 and 5: this document states the same fact in two places — once as a
+decision, once as a file-table row — and review round 2 corrected only the decisions.** The tables
+kept the superseded text, and a reader working from the implementation plan (which is what an
+implementer reads) would have built the defect the decision section forbids.
+
+This codebase already knows this failure mode and says so in its own source. From
+[EditorsWidget.tsx:26](../app/src/components/AdminDashboard/EditorsWidget.tsx:26), on a type declared
+in two places: *"two declarations that agree today are two declarations to keep in step."* The
+document committed that error three times in one revision.
+
+**Structural fix, applied here:** file-table rows now **point at the decision** ("per D13a step 1",
+"per corrected D6") rather than restating its content, so the decision stays the single source. Where
+a row must restate something, it says so and names what it must agree with. **When revising a
+decision in §3, grep §6 for the same fact** — the tables are the duplicate most likely to be missed,
+and the most likely to be read by whoever writes the code.
