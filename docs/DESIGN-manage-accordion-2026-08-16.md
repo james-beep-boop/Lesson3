@@ -1,7 +1,7 @@
 # Manage page — accordion redesign
 
-**Date:** 2026-08-16 · **Revised six times the same day** — external review, rebase onto
-`origin/main`, then four further external reviews (see §10)
+**Date:** 2026-08-16 · **Revised seven times the same day** — external review, rebase onto
+`origin/main`, then five further external reviews (see §10)
 **Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
 **Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
@@ -768,7 +768,23 @@ secondary choice.
    wire-level tests for.
 2. **A login gate.** Payload exposes a `beforeLogin` collection hook
    (`collections/config/types.d.ts`), which is the correct seam — `Users` currently registers only
-   `beforeOperation`. Throw `Forbidden` for a disabled account.
+   `beforeOperation`. **Throw `AccountDisabledError`** — the `APIError` subclass defined in step 4,
+   carrying `data: { code: 'ACCOUNT_DISABLED' }`.
+
+   ⚑ **NOT plain `Forbidden`** (corrected in review round 6, where an earlier draft of this step still
+   said so). `Forbidden` carries no `data`, so `formatErrors` degrades it to a bare `{ message }` and
+   the machine-readable code step 4 depends on never reaches the client — in *both* consumers below.
+
+   ⚑ **This hook fires on ordinary login too, and that breaks a documented invariant.**
+   `LoginForm.tsx` currently maps **every** 403 to "This account isn't verified yet", and says why in
+   a comment: *"Payload rejects unverified accounts with the login op's ONLY 403 (UnverifiedEmail; bad
+   credentials and lockout are 401, the throttle 429 — verified in installed errors/). … Status, not
+   message text"* ([LoginForm.tsx:24](<../app/src/app/(frontend)/login/LoginForm.tsx:24>)). That
+   reasoning is correct **only while 403 has one cause**. Adding a second one makes a disabled user
+   with correct credentials be told to go find a verification email that does not exist.
+
+   Both consumers of this seam must therefore be updated, and the comment's stated premise corrected
+   along with the code — a comment that explains a now-false invariant is worse than none.
 3. **Existing sessions must be dealt with explicitly.** A `beforeLogin` hook stops *new* logins; it
    does nothing about a live JWT, and `tokenExpiration` is 7200s, so a disabled user would otherwise
    stay signed in for up to two hours. Payload's `auth.useSessions` defaults to **true**
@@ -981,6 +997,7 @@ column, because "independently deployable" is only a checkable claim if the boun
 |---|---|---|
 | **2a** | `src/collections/Users.ts` | Add the `signInDisabled` field with **all three access axes stated separately** — see D13a step 1. `create: () => false` · `read: emailReadAccess` · `update: () => false`. Also register a **`beforeLogin`** hook — the collection currently has only `beforeOperation` — mount the new endpoints, and wire the guards |
 | **2a** | `src/errors/AccountDisabled.ts` *(new)* | The `APIError` subclass carrying `data: { code: 'ACCOUNT_DISABLED' }` at 403, thrown by the `beforeLogin` hook. ⚑ Must set `data` — `formatErrors` drops to a bare `{ message }` when it is falsy, and plain `Forbidden` carries none (D13a step 4) |
+| **2a** | `src/app/(frontend)/login/LoginForm.tsx` | ⚑ **Added in review round 6 — `beforeLogin` fires on ordinary login, not just reset.** The form maps **every** 403 to "This account isn't verified yet" ([line 24](<../app/src/app/(frontend)/login/LoginForm.tsx:24>)), so a disabled user with correct credentials would be sent hunting for a verification email. Check `errors[0].data.code === 'ACCOUNT_DISABLED'` **first** → disabled/contact-an-administrator; else keep 403 → unverified; else keep the generic "Invalid email or password." ⚑ **Update the comment too** — it documents "the login op's ONLY 403", which this change makes false |
 | **2a** | `src/migrations/…` *(new)* | `signInDisabled` column |
 | **2a** | `src/endpoints/userAdminActions.ts` *(new)* | `POST /api/users/:id/reveal-reset-link`, `…/set-site-admin`, `…/set-sign-in-disabled` — all freshness-guarded on `expectedUpdatedAt`, modelled on [userAssignments.ts](../app/src/endpoints/userAssignments.ts). Reset-link path: own cap, **not** the public budget (D5a-i); `no-store`; token redacted from logs. Disable path writes the flag **and** `sessions: []` atomically with `overrideAccess: true`, after authorizing |
 | **2a** | `src/hooks/userRoles.ts` | Add last-Site-Admin guard covering **grant, demote, delete and disable**, plus self-delete and self-disable guards, **all serialized on one shared advisory key** (§2.8 ⚑) |
@@ -1035,7 +1052,7 @@ a deliberate change.
 | PR | Tests |
 |---|---|
 | 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`**. **⚑ State survives close/reopen (round 5)**: type a search and select rows in the delete panel, close it, reopen it, and find both intact — this is the test that fails if a panel is conditionally rendered instead of hidden |
-| **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4, exact shape pinned in round 5)**: the refusal serialises to `errors[0].data.code === 'ACCOUNT_DISABLED'`, **an invalid/expired token does NOT carry it**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. Assert the parsed JSON shape, not a substring of the body, so the test fails if `data` is dropped. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug |
+| **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4, exact shape pinned in round 5)**: the refusal serialises to `errors[0].data.code === 'ACCOUNT_DISABLED'`, **an invalid/expired token does NOT carry it**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. Assert the parsed JSON shape, not a substring of the body, so the test fails if `data` is dropped. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug. **⚑ Login form, all three outcomes (round 6)**: a **disabled** account with *correct* credentials shows disabled/contact-an-administrator; an **unverified** account still shows the verification message; **bad credentials** still show the generic "Invalid email or password." Two of the three are 403, which is exactly why all three are asserted — and this pins the `ACCOUNT_DISABLED` contract through **both** operations that run `beforeLogin`, not only reset |
 | **2b** | **`tests/http`**: `userSearch` — 401 / 403 non-Site-Admin / happy path, and that the `type` filter is honoured server-side. **E2E**: **the `users` list route redirects to Manage**; the Users panel's row disclosure and its actions against 2a's endpoints |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
 | 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
@@ -1194,6 +1211,27 @@ with none of the review this document exists to provide.
 code first.** `{open && <Panel/>}` is the shorter and more natural thing to write, and it would have
 silently destroyed a half-built multi-select or a chosen upload file on any stray click. A plan that
 specifies behaviour but not lifecycle has left its most consequential detail to reflex.
+
+### 2026-08-16 (round 6) — the other consumer of the shared seam
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | D13a **step 2** still said "Throw `Forbidden`", contradicting step 4's newly-chosen `AccountDisabledError` and removing the machine-readable code | **Accepted.** Step 2 now names `AccountDisabledError` and states why `Forbidden` cannot work — it carries no `data`, so `formatErrors` degrades it |
+| 2 | The new error also flows through **ordinary login**, where `LoginForm.tsx` maps every 403 to "This account isn't verified yet" — so a disabled user with correct credentials is sent to find a verification email that does not exist | **Accepted.** `LoginForm.tsx` added to PR 2a, with all three outcomes tested. ⚑ The form's comment *documents* the now-false invariant "the login op's ONLY 403", so the comment is corrected with the code |
+
+⚑ **The lesson from finding 2, and it is pointed.** Round 4's finding was literally *"`beforeLogin` is
+not a login-only hook"* — that reset also runs it. That insight was applied to the new consumer
+(reset) and the **original** consumer (login) was never revisited. Learning that a seam has more
+callers than its name suggests is worth nothing if the audit stops at the caller that prompted it.
+
+**The general rule: when adding a new error or return value to a shared seam, enumerate every consumer
+of that seam before writing the plan.** Here there were exactly two, both in this repo, both easy to
+find — `beforeLogin` runs in `login` and in `resetPassword`.
+
+⚑ **Finding 1 is the third instance of "corrected here, stale there"** (see rounds 3 and 4). Round 3's
+structural fix made §6's tables point at decisions rather than restate them; it did not anticipate the
+same duplication **inside a single decision**, where step 4 was rewritten and step 2 left alone. When
+revising one step of a multi-step decision, re-read the other steps.
 
 ⚑ **The lesson from finding 1, and why the previous round's "converged" call was wrong.** Rounds 2
 and 3 were consistency passes, and their quietness was read as the design having settled. It had not:

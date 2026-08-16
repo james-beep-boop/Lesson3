@@ -97,7 +97,7 @@ defect in each of the last two.
 
 ### A second arc is planned and not started: the Manage accordion redesign
 
-`docs/DESIGN-manage-accordion-2026-08-16.md` — agreed with the operator, reviewed externally **five
+`docs/DESIGN-manage-accordion-2026-08-16.md` — agreed with the operator, reviewed externally **six
 times**, **no blocking decisions outstanding, nothing implemented.** Five stacked PRs: accordion shell
 → 2a user security & recovery foundation (no Manage UI) → 2b Users panel → Subjects/Subject Grades
 panels → "Roles & Access" consolidation.
