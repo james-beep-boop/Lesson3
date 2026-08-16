@@ -18,7 +18,7 @@
  */
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
-import { assertDeclaredBodyWithin, json } from './respond'
+import { json, readJsonBody } from './respond'
 import type { User } from '../payload-types'
 
 /**
@@ -31,14 +31,9 @@ import type { User } from '../payload-types'
  * only sets CSP).
  *
  * 64 KiB against a legitimate worst case of ~4 KB (500 ids at 8 characters each, plus framing) —
- * generous enough that no honest client is ever refused, small enough that a dishonest one is.
- *
- * ⚑ AN EARLIER VERSION OF THIS BLOCK CLAIMED this was "the one body-reader with no rate bucket of
- * its own". That was false when written: `endpoints/userAssignments.ts` has neither a rate bucket
- * nor a body guard. The claim came from surveying the sibling endpoints by hand, which is precisely
- * what a per-endpoint guard forces every author to redo and nobody will — see
- * `docs/NEXT-SESSION.md` on `readJsonBody`, the structural fix that would end the survey. Kept as a
- * note because a rationale that rots is the argument for the deeper fix, not a footnote to it.
+ * generous enough that no honest client is ever refused, small enough that a dishonest one is. This
+ * is why the constant is still local: it is sized against THIS endpoint's list, not against the
+ * scalar `MAX_CONTROL_BODY_BYTES` shape its siblings use.
  */
 export const MAX_MARK_READ_BODY_BYTES = 64 * 1024
 
@@ -69,11 +64,7 @@ export function parseIds(raw: unknown): number[] {
  * exists to refuse.
  */
 export async function readMarkReadIds(req: PayloadRequest): Promise<number[]> {
-  assertDeclaredBodyWithin(req, MAX_MARK_READ_BODY_BYTES, 'Request body too large')
-
-  const body = (typeof req.json === 'function' ? await req.json().catch(() => null) : null) as {
-    ids?: unknown
-  } | null
+  const body = await readJsonBody<{ ids?: unknown }>(req, MAX_MARK_READ_BODY_BYTES)
   return parseIds(body?.ids)
 }
 

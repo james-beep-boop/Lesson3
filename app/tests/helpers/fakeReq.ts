@@ -21,6 +21,14 @@ const headersWith = (contentLength?: number) => ({
 export const jsonReq = (json: () => Promise<unknown>, contentLength?: number) =>
   ({ headers: headersWith(contentLength), json }) as never
 
+/**
+ * A request carrying NO `json()` at all — the shape Payload hands a handler for some non-JSON
+ * requests, and the reason every reader here checks `typeof req.json === 'function'` rather than
+ * calling it hopefully.
+ */
+export const bodylessReq = (contentLength?: number) =>
+  ({ headers: headersWith(contentLength) }) as never
+
 /** A request whose body arrives as multipart form data. */
 export const formReq = (formData: () => Promise<unknown>, contentLength?: number) =>
   ({ headers: headersWith(contentLength), formData }) as never

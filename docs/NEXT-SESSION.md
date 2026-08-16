@@ -507,15 +507,23 @@ diff under CLAUDE.md's "don't refactor stable code in passing" rule. Neither is 
   `assertDeclaredBodyWithin(req, maxBytes, message)` in `endpoints/respond.ts` (2026-08-12).
   Preview, upload, recovery, and forgot-password share the check while retaining independent limits;
   the constants measure different payload classes and must not be coupled.
-  Deeper version, if anyone wants it: `emailVersion.ts`, `forgotPassword.ts`, `markMessagesRead.ts`
-  and `userAssignments.ts` included unguarded `req.json()` call sites when this was written;
-  forgot-password is now guarded. The broader rule remains: "no request may make the process
-  allocate an unbounded body" is currently opt-in and therefore permanently incomplete — every new
-  JSON endpoint starts unguarded. A shared `readJsonBody(req, max)` would make the guard the default.
-  And the part no application-layer guard can do — a body with a missing or lying header — wants a
-  limit at the public proxy. `docs/OPS.md` now makes that ceiling and its chunked-request verification
-  mandatory, but it remains operator configuration because the private/offline deployment has no
-  public reverse proxy.
+  ✅ **The deeper version landed too** (2026-08-16, `#229`): `readJsonBody(req, max)` in
+  `endpoints/respond.ts` folds the ceiling INTO the read, so the guard is no longer something an
+  author has to remember. The two endpoints this note listed as unguarded — `emailVersion.ts` and
+  `userAssignments.ts` — were still unguarded when it was fixed, a year and one audit later, which is
+  the whole argument for a structural guard over a documented one. `userAssignments` was the worse of
+  the two: it read its body before any authorization beyond "signed in", and it has no rate bucket.
+
+  ⚑ **What keeps it fixed is `tests/unit/jsonBodyCeiling.spec.ts`'s drift guard**, not the helper. It
+  parses `src/endpoints/*.ts` (AST, per this repo's rule against regex source checks) and fails on any
+  raw `x.json()` outside a three-file allowlist — `respond.ts` plus the two STRICT readers
+  (`recoveryParse.ts`, `forgotPassword.ts`), which throw `400 Invalid JSON body` instead of returning
+  null and are asserted to guard themselves. Read the spec's header before adding to that list.
+
+  Still open, and no application-layer guard can close it: a body with a missing or lying
+  `Content-Length` reaches the parse untouched, and wants a limit at the public proxy. `docs/OPS.md`
+  makes that ceiling and its chunked-request verification mandatory, but it remains operator
+  configuration because the private/offline deployment has no public reverse proxy.
 
 - **Test-DDL helpers want their own module — on the SECOND SPEC FILE, not the third mechanism.**
   `tests/http/saveAsNewRecovery.http.spec.ts` now installs three Postgres mechanisms (a fault trigger,
