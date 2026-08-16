@@ -95,6 +95,37 @@ Both toolchain deferrals are now closed (one taken, one declined) — see the ph
 `src/app`. The recent sweep covered `access`, `endpoints`, `hooks` and `collections`, and found a real
 defect in each of the last two.
 
+### A second arc is planned and not started: the Manage accordion redesign
+
+`docs/DESIGN-manage-accordion-2026-08-16.md` — agreed with the operator, reviewed externally, **no
+blocking decisions outstanding, nothing implemented.** Four stacked PRs: accordion shell → Users
+panel → Subjects/Subject Grades panels → "Roles & Access" consolidation.
+
+The problem it solves: Manage links out to three NATIVE Payload collection views, which keep the full
+admin shell and so read as a different product — and the native Users table shows an **empty roles
+column for a Subject Administrator**, because those grants live in `assignments`, not `roles`.
+
+It is **independent of the `/explore` read slice** above (different surface, no shared files), so the
+two can be sequenced either way.
+
+⚑ **Three things a session picking this up must not re-derive:**
+
+1. **It is NOT a purely additive UI change.** Two decisions alter shipped authorization behaviour:
+   (a) `enforceAssignmentScope` gains a guard so only a Site Admin may write a `subjectAdmin`
+   assignment row — today a Subject Admin can appoint their own successor, because the hook checks a
+   row's subject-grade and never its role; (b) a new disable-sign-in control needs a `beforeLogin`
+   hook AND session clearing, since a `beforeLogin` gate alone leaves a live 2h token working.
+2. **§10 is a review log.** Three claims the plan first presented as verified were wrong and were
+   corrected — most notably that a separate `students` collection would by itself keep students out
+   of the lesson library. It would not: Payload's JWT strategy authenticates against the token's
+   collection and populates `req.user` regardless, so `Boolean(user)` stays true. The decision
+   survives on allowlist-vs-denylist grounds. Read §10 before re-opening any of the three.
+3. **Its citations were verified at `7ecf7d0`.** The plan was originally written 18 commits behind
+   and the rebase falsified one claim outright (it asserted the app has no unauthenticated surface,
+   which public discovery had already changed) and superseded its locking guidance, which
+   `lib/txDb.ts` `lockRows` now owns. If much lands before this arc starts, re-verify the file:line
+   claims first — that failure mode has now happened once.
+
 ---
 
 # ⚑ HANDOFF (2026-08-15) — public discovery PHASE 1 is merged and deployed
