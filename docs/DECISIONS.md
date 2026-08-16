@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-16 (round 5) — prefer a hook seam over shadowing an auth endpoint; and two kinds of unmade decision
+
+Fifth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. One Payload fact worth keeping
+and two process rules.
+
+**1. Shadowing an auth endpoint costs more than shadowing an auth *operation*.** The plan offered two
+ways to surface an `ACCOUNT_DISABLED` code on password reset: throw a custom `APIError` from
+`beforeLogin`, or shadow `POST /api/users/reset-password`. They are not comparable. The native
+`resetPasswordHandler` (`auth/endpoints/resetPassword.js`) wraps the operation with
+`generatePayloadCookie`, the `removeTokenFromResponses` branch, `headersWithCors`, and the translated
+`authentication:passwordResetSuccessfully` message — **all of which a shadow must re-implement, with
+a botched auth cookie as the silent failure mode on the SUCCESS path.**
+
+⚑ **The general rule: shadow an endpoint only when there is no hook seam.** This repo's two existing
+shadows are good precedent for the case they solve — `forgotPasswordQueuedEndpoint` needed to change
+*when email is sent*, and `verifyEmailThrottledEndpoint` needed a hook the native op does not offer.
+Neither had an alternative. Where a hook can carry the information, use it.
+
+Also recorded, because it will bite whoever implements this: Payload's `formatErrors` emits the
+`{ name, data, message }` error shape **only when `error.data` is truthy**
+(`utilities/formatErrors.js`). An `APIError` thrown without `data` silently degrades to a bare
+`{ message }` — and plain `Forbidden` carries none — so a machine-readable error code disappears with
+no failure anywhere except the client's branch not matching.
+
+**2. Two options in a plan are an unresolved decision wearing a plan's clothes.** The document
+simultaneously claimed "no blocking decisions outstanding" and "file-by-file", while deferring this
+choice to "implementation time". The cheaper-*looking* option was the dangerous one.
+
+⚑ **The general rule: where a plan offers alternatives, either pick one or label it an open
+decision.** Anything else lets an implementer make an architectural choice under time pressure, with
+none of the review the plan exists to provide.
+
+**3. An unstated default is still a decision — made by whoever types the code first.** The plan never
+said whether closing a disclosure panel unmounts its contents. `{open && <Panel/>}` is the shorter and
+more natural thing to write, and it would have destroyed a half-built multi-select, an active search,
+or a chosen upload file on any stray click of a heading.
+
+⚑ **The general rule: specifying behaviour without specifying lifecycle leaves the most consequential
+detail to reflex.** For any disclosure, tab, modal or route that hides live UI, state explicitly
+whether it unmounts — and check what local state the hidden subtree owns before answering.
+
+---
+
 ## 2026-08-16 (round 4) — a promised behaviour the wire could not carry; and a premature "converged"
 
 Fourth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. One substantive finding, four

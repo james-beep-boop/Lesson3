@@ -1,7 +1,7 @@
 # Manage page — accordion redesign
 
-**Date:** 2026-08-16 · **Revised five times the same day** — external review, rebase onto
-`origin/main`, then three further external reviews (see §10)
+**Date:** 2026-08-16 · **Revised six times the same day** — external review, rebase onto
+`origin/main`, then four further external reviews (see §10)
 **Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
 **Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
@@ -471,9 +471,17 @@ is invited to cross it.
 - **Multiple panels may be open at once.** This is a disclosure list, not a strict accordion; an
   admin comparing Users against Roles & Access should not have one snap shut.
 - **Open state lives in the URL query** (e.g. `?open=users,access`). React state alone is lost on a
-  full reload — and `EditorsWidget` already calls `router.refresh()` after every grant, while an
-  upload reloads the page. The URL also makes the Users → Roles & Access jump link work and gives
-  back-button behaviour for free. **No localStorage.**
+  genuine full page load — arriving at `/admin` fresh, a bookmark, a shared link, a browser reload —
+  and the URL is also what makes the Users → Roles & Access jump link work, with back-button
+  behaviour for free. **No localStorage.**
+
+  ⚑ **Corrected in review round 5:** an earlier draft justified this partly by saying "an upload
+  reloads the page". It does not — `UploadBundles` calls `router.refresh()`
+  ([UploadBundles/index.tsx:80](../app/src/components/UploadBundles/index.tsx:80)), exactly as
+  `EditorsWidget` does after a grant. `router.refresh()` re-renders server components while
+  **preserving client state**, so neither is a case where React state is lost. The conclusion stands
+  on the genuine-page-load cases above; the example was wrong and is removed rather than left
+  propping up a right answer.
 
 #### D7a — URL state mechanics (specified after external review, 2026-08-16)
 
@@ -496,6 +504,28 @@ pushing a history entry per open/close. Both are wrong. Precisely:
   and not an empty panel implying something was hidden from them.
 - **A11y:** APG disclosure pattern — `<h2><button aria-expanded="…" aria-controls="…">` — matching
   the pattern already used in `UserMenu` (Escape returns focus to the trigger).
+- ⚑ **Closing a panel must NOT unmount it** (specified in review round 5; the first draft left this
+  undefined, which would have been settled by whichever `{open && <Panel/>}` an implementer typed
+  first). **Panels stay mounted and are hidden with the `hidden` attribute.**
+
+  This is not a preference — today's panels hold consequential local state that a stray click on a
+  heading would otherwise destroy:
+
+  | Panel | State lost on unmount |
+  |---|---|
+  | `DeletePlansPanel` | the selected rows **and** the active search — a multi-select assembled across a curriculum tree |
+  | `UploadBundles` | the chosen files, including the native input's value |
+  | `EditorsWidget` / Roles & Access | the pending per-group picker selections |
+
+  Losing an upload selection or a half-built delete set to an accidental toggle is real destroyed
+  work, and the accordion is precisely the affordance that makes such a click easy.
+
+  **Lazy Users (D11) mounts on first open and then stays mounted** — "lazy" means *deferred first
+  fetch*, not *remount on every open*; re-fetching a paginated search on every reopen would also
+  discard the administrator's query and page position.
+
+  Needs one E2E assertion: type a search, select rows, close the panel, reopen it, and find both
+  intact.
 - **Heading sizes come from the existing scale**, not new values. A top-level accordion header *is*
   the 20px section heading it replaces; nested panels take 18px. See
   [app/src/app/app-tokens.scss](../app/src/app/app-tokens.scss), whose comments make the 20/18/16
@@ -780,12 +810,39 @@ secondary choice.
 
      **Requirement:** the disabled refusal returns a **stable machine-readable code**
      (`ACCOUNT_DISABLED`) that the client keys on, never prose. It must be emitted **only after
-     Payload has validated the token** — order matters, so that a caller holding a bogus token learns
-     nothing about any account's status. Two viable routes, chosen at implementation time: a custom
-     `APIError` subclass carrying the code in its `data`, thrown from the `beforeLogin` hook (which
-     already runs after the user lookup); or a shadowed `POST /api/users/reset-password` endpoint,
-     following the established precedent of `forgotPasswordQueuedEndpoint` and
-     `verifyEmailThrottledEndpoint`.
+     Payload has validated the token** — order matters, so a caller holding a bogus token learns
+     nothing about any account's status.
+
+     ⚑ **Mechanism DECIDED (review round 5): a custom `APIError` subclass thrown from the
+     `beforeLogin` hook. The shadow-endpoint alternative is rejected.** An earlier draft left both
+     open "at implementation time", which is an unresolved decision wearing a plan's clothes — and
+     the two are not comparable in risk.
+
+     Shadowing `POST /api/users/reset-password` means re-implementing everything the native handler
+     does around the operation
+     ([auth/endpoints/resetPassword.js](../app/node_modules/payload/dist/auth/endpoints/resetPassword.js)):
+     `generatePayloadCookie`, the `removeTokenFromResponses` branch, `headersWithCors`, and the
+     translated `authentication:passwordResetSuccessfully` message. Getting the cookie wrong breaks
+     sign-in silently on the success path. The existing shadows (`forgotPasswordQueuedEndpoint`,
+     `verifyEmailThrottledEndpoint`) are precedent for shadowing *when there is no hook seam* — here
+     there is one, and `beforeLogin` already runs after the user lookup, which is exactly the ordering
+     the requirement above needs.
+
+     **The wire contract, stated exactly** — verified against installed source:
+
+     ```
+     HTTP 403
+     { "errors": [ { "name": "...", "data": { "code": "ACCOUNT_DISABLED" }, "message": "..." } ] }
+     ```
+
+     The client keys on `errors[0].data.code === 'ACCOUNT_DISABLED'`.
+
+     ⚑ **Implementation trap: `data` must be truthy or the contract silently disappears.**
+     `formatErrors` emits the `{ name, data, message }` shape **only** when the thrown error is an
+     `APIError`/`ValidationError` *and* `incoming.data` is truthy
+     ([utilities/formatErrors.js](../app/node_modules/payload/dist/utilities/formatErrors.js));
+     otherwise it falls through to a bare `{ message }` and the code is gone. Note that plain
+     `Forbidden` carries **no** `data`, so it cannot be used here — this needs its own subclass.
 
      **The wire contract is what gets tested**, not the rendered string — see §7.
    - **"Reveal reset link" is not offered for a disabled account.** Minting a credential that cannot
@@ -923,6 +980,7 @@ column, because "independently deployable" is only a checkable claim if the boun
 | PR | File | Change |
 |---|---|---|
 | **2a** | `src/collections/Users.ts` | Add the `signInDisabled` field with **all three access axes stated separately** — see D13a step 1. `create: () => false` · `read: emailReadAccess` · `update: () => false`. Also register a **`beforeLogin`** hook — the collection currently has only `beforeOperation` — mount the new endpoints, and wire the guards |
+| **2a** | `src/errors/AccountDisabled.ts` *(new)* | The `APIError` subclass carrying `data: { code: 'ACCOUNT_DISABLED' }` at 403, thrown by the `beforeLogin` hook. ⚑ Must set `data` — `formatErrors` drops to a bare `{ message }` when it is falsy, and plain `Forbidden` carries none (D13a step 4) |
 | **2a** | `src/migrations/…` *(new)* | `signInDisabled` column |
 | **2a** | `src/endpoints/userAdminActions.ts` *(new)* | `POST /api/users/:id/reveal-reset-link`, `…/set-site-admin`, `…/set-sign-in-disabled` — all freshness-guarded on `expectedUpdatedAt`, modelled on [userAssignments.ts](../app/src/endpoints/userAssignments.ts). Reset-link path: own cap, **not** the public budget (D5a-i); `no-store`; token redacted from logs. Disable path writes the flag **and** `sessions: []` atomically with `overrideAccess: true`, after authorizing |
 | **2a** | `src/hooks/userRoles.ts` | Add last-Site-Admin guard covering **grant, demote, delete and disable**, plus self-delete and self-disable guards, **all serialized on one shared advisory key** (§2.8 ⚑) |
@@ -976,8 +1034,8 @@ a deliberate change.
 
 | PR | Tests |
 |---|---|
-| 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`** |
-| **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4)**: the refusal carries the machine-readable code, **an invalid/expired token does NOT**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug |
+| 1 | E2E: per-role section visibility; open state survives reload; deep link opens the named panel; unknown/inaccessible panel ids are ignored and scrubbed; toggling adds **no** history entry while a cross-panel jump adds exactly one; keyboard operation of the disclosure; **the display-name change flow in `UserMenu`**. **⚑ State survives close/reopen (round 5)**: type a search and select rows in the delete panel, close it, reopen it, and find both intact — this is the test that fails if a panel is conditionally rendered instead of hidden |
+| **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4, exact shape pinned in round 5)**: the refusal serialises to `errors[0].data.code === 'ACCOUNT_DISABLED'`, **an invalid/expired token does NOT carry it**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. Assert the parsed JSON shape, not a substring of the body, so the test fails if `data` is dropped. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug |
 | **2b** | **`tests/http`**: `userSearch` — 401 / 403 non-Site-Admin / happy path, and that the `type` filter is honoured server-side. **E2E**: **the `users` list route redirects to Manage**; the Users panel's row disclosure and its actions against 2a's endpoints |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
 | 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
@@ -1116,6 +1174,26 @@ root cause**, which is the finding worth keeping.
 | 3 | PR 2a is no longer server-only; it owns `ResetPasswordForm.tsx` | **Accepted.** Retitled "security & recovery foundation. No Manage UI." in both the design doc and `NEXT-SESSION.md` |
 | 4 | The test table still combined everything under "2" while the file table had split | **Accepted.** Split into 2a and 2b rows, so `userSearch`, the reset-form tests and the users-route redirect have owners |
 | 5 | `NEXT-SESSION.md` still said reviewed "twice" | **Accepted.** |
+
+### 2026-08-16 (round 5) — an undecided decision, and undefined mount semantics
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | The `ACCOUNT_DISABLED` mechanism was left as two options "at implementation time", so "no blocking decisions" and "file-by-file plan" were not quite true | **Accepted and decided: custom `APIError` from `beforeLogin`; shadow endpoint rejected.** Verified that the native handler also owns cookie generation, `removeTokenFromResponses`, CORS headers and translated success copy ([auth/endpoints/resetPassword.js](../app/node_modules/payload/dist/auth/endpoints/resetPassword.js)) — all of which a shadow must re-implement, with a silent sign-in break as the failure mode. The exact wire shape is now pinned from `formatErrors` source, including the falsy-`data` trap |
+| 2 | D7 never said whether closing a disclosure unmounts its contents. It must not — today's panels hold selected delete rows, search text, pending picker choices and chosen upload files | **Accepted.** Panels stay mounted and use `hidden`; lazy Users mounts on first open and stays mounted ("lazy" = deferred first fetch, not remount-per-open). E2E assertion added |
+| 3 | D7 said an upload "reloads the page"; `UploadBundles` calls `router.refresh()` | **Accepted.** Corrected — and since `router.refresh()` preserves client state, that example did not support the claim at all. The URL-state decision stands on genuine full page loads; the wrong example is removed rather than left propping up a right answer |
+
+⚑ **The lesson from finding 1: two options in a plan are an unresolved decision wearing a plan's
+clothes.** The document simultaneously claimed "no blocking decisions outstanding" and "file-by-file",
+while deferring a choice with materially different risk profiles — and the cheaper-looking option was
+the dangerous one. **Where a plan offers alternatives, either pick one or label it explicitly as an
+open decision**; anything else lets an implementer make an architectural choice under time pressure,
+with none of the review this document exists to provide.
+
+⚑ **The lesson from finding 2: an unstated default is still a decision — made by whoever types the
+code first.** `{open && <Panel/>}` is the shorter and more natural thing to write, and it would have
+silently destroyed a half-built multi-select or a chosen upload file on any stray click. A plan that
+specifies behaviour but not lifecycle has left its most consequential detail to reflex.
 
 ⚑ **The lesson from finding 1, and why the previous round's "converged" call was wrong.** Rounds 2
 and 3 were consistency passes, and their quietness was read as the design having settled. It had not:

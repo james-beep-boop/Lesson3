@@ -97,10 +97,15 @@ defect in each of the last two.
 
 ### A second arc is planned and not started: the Manage accordion redesign
 
-`docs/DESIGN-manage-accordion-2026-08-16.md` — agreed with the operator, reviewed externally **four
+`docs/DESIGN-manage-accordion-2026-08-16.md` — agreed with the operator, reviewed externally **five
 times**, **no blocking decisions outstanding, nothing implemented.** Five stacked PRs: accordion shell
 → 2a user security & recovery foundation (no Manage UI) → 2b Users panel → Subjects/Subject Grades
 panels → "Roles & Access" consolidation.
+
+**Start with PR 1.** It is the only one that touches no authorization behaviour, and the dimension no
+amount of further review can settle is whether the accordion actually works against Payload's admin
+surface — the chrome-stripping `:has()` selectors, `router.refresh()` vs URL state, the disclosure in
+the existing type scale. That needs a browser, not another prose pass.
 
 The problem it solves: Manage links out to three NATIVE Payload collection views, which keep the full
 admin shell and so read as a different product — and the native Users table shows an **empty roles
