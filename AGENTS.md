@@ -53,18 +53,30 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   `test`/`test:int`.
 
   ⚑ **"Locally" means a Node 24 host.** The `devEngines` gate rejects every npm invocation on any
-  other major, so on a Node 25/23 machine this runs in the deps container like everything else — and
-  there it needs the ROOT env template mounted, or `envTemplateParity.spec.ts` fails six cases that
-  have nothing to do with your change:
+  other major, so on a Node 25/23 machine this runs in the deps container like everything else. **Use
+  the wrapper — do not hand-write the `docker run`:**
 
   ```bash
-  ROOT=$(git rev-parse --show-toplevel) && docker run --rm -v "$ROOT/app:/app" -v /app/node_modules \
-    -v "$ROOT/.env.example:/repo/.env.example:ro" -e LESSON3_REPO_ROOT=/repo \
-    -w /app lesson3-deps npm run test:unit
+  scripts/in-deps.sh --network none -- npm run test:unit
   ```
 
-  Mount **that one file, never the workspace** — a workspace mount puts `.git`, and the token a
-  checkout persists in it, inside the container. The spec's own header is the authority.
+- **⚑ `scripts/in-deps.sh` is the ONLY way to invoke the deps container.** It resolves the repo root
+  from its own location (so it is cwd-independent — see the `app/app` trap below), mounts the
+  hash-keyed `node_modules` volume, mounts the ROOT `.env.example` that `envTemplateParity.spec.ts`
+  needs, and rebuilds the image only when the dependency hash moved. Everything before a literal `--`
+  goes to `docker run`; everything after is the command; with no `--`, it is all command. With no
+  arguments it just ensures the image.
+
+  ```bash
+  scripts/in-deps.sh npm run lint
+  scripts/in-deps.sh npx tsc --noEmit -p tsconfig.json
+  scripts/in-deps.sh --network none -- npm run test:unit
+  ```
+
+  Hand-writing the shape is how the root-template mount came to exist in CI and nowhere else, and how
+  a base-image bump left a stale image answering as the previous Node major. Mount **one file, never
+  the workspace** — a workspace mount puts `.git`, and the token a checkout persists in it, inside a
+  container running third-party dev dependencies.
 - **`test:int` on a disposable local stack** (added 2026-08-05, so the Rock is no longer the only
   option). Its own `lesson3-ci-probe_*` volumes; the seeded `lesson3_*` ones are never touched.
   **Always pass `-p`** — a bare `docker compose down -v` targets the preserved project and destroys the
@@ -86,10 +98,9 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   PW=$(grep -E '^POSTGRES_PASSWORD=' "$ROOT/.env" | cut -d= -f2-)
   sed -i '' -E "s#^DATABASE_URI=.*#DATABASE_URI=postgres://lesson3:${PW}@postgres:5432/lesson3_test#" "$ROOT/app/test.env"
 
-  # 4. run — note `-e NODE_ENV=test` is on `docker run`, NOT on `docker compose up`
-  docker run --rm --network lesson3-ci-probe_default \
-    -v "$ROOT/app:/app" -v /app/node_modules -w /app \
-    --env-file "$ROOT/.env" -e NODE_ENV=test lesson3-deps npm run test:int
+  # 4. run — note `-e NODE_ENV=test` goes to `docker run` (before the `--`), NOT to `compose up`
+  scripts/in-deps.sh --network lesson3-ci-probe_default \
+    --env-file "$ROOT/.env" -e NODE_ENV=test -- npm run test:int
 
   # 5. restore the tracked file and PROVE it
   git -C "$ROOT" checkout -- app/test.env && git -C "$ROOT" diff --exit-code -- app/test.env
@@ -100,8 +111,10 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
   source**, so it silently mints `<root>/app/app/node_modules`. Next.js prefers a root-level `./app`
   over `./src/app`, so `next build` then emits a build with **zero application routes** and exits 0;
   the served app 500s every request with a `ChunkLoadError` that points at the bundler. Git cannot
-  track an empty directory, so `git status` stays clean and the Rock and CI never see it. `$ROOT` is
-  the fix, and `npm run check:approuter` (below) is the net under it.
+  track an empty directory, so `git status` stays clean and the Rock and CI never see it.
+  `scripts/in-deps.sh` now owns the mount and derives the root from its own location, so the trap is
+  unreachable through the wrapper; `$ROOT` still matters for steps 2–5, and
+  `npm run check:approuter` (below) is the net under all of it.
 
   The container joins the probe's network and reaches postgres by service name; the probe's postgres
   publishes **no host port**, so a host-side `psql`/`DATABASE_URI=localhost` will not reach it.
