@@ -193,7 +193,7 @@ export default async function UserGuidePage() {
           <li>
             <strong>Everything lives on Manage:</strong> upload lesson plans (each upload creates a
             lesson plan and its first Official version), repair plans that have no Official version,
-            delete lesson plans (with all their versions), and reach the People and Curriculum lists.
+            delete lesson plans (with all their versions), and reach the Users and Curriculum lists.
           </li>
           <li>
             <strong>Manage people:</strong> create users, grant Site administrator access, and grant

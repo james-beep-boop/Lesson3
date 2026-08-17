@@ -255,3 +255,30 @@ made as styling inside a visual pass (the change arrived during
 **Explicit non-goals:** no change to `access/*.ts` *logic*, `hooks/userRoles.ts`, the `editor` stored
 value, the ≤1-subject-admin invariant, endpoints, or the DB. If any of those seem necessary, stop — the
 plan has drifted out of "presentation only."
+
+---
+
+## Amendment (2026-08-17) — "People" → "Users"
+
+The one collection noun this document did not settle. Decided in
+`docs/DESIGN-manage-accordion-2026-08-16.md` **D1** and landed with the accordion shell (PR 1):
+the word **"Users"** replaces **"People"** everywhere it appeared as a label —
+
+| Where | Was | Now |
+|---|---|---|
+| Payload nav group (`collections/Users.ts` `admin.group`) | `People` | `Users` |
+| Manage's "Curriculum & people" action label | `People` | `Users` |
+| In-app guide, site-administrator section | "the People and Curriculum lists" | "the Users and Curriculum lists" |
+
+⚑ **The three TYPE labels are unchanged** — Teacher / Subject-grade administrator / Site
+administrator. This amendment is about the noun for the *collection*, not for a person's role, and
+the distinction this document draws between the two is exactly why the rename is safe to make in
+isolation.
+
+**Why "Users" stays accurate later:** students are planned as a **separate collection**
+(D8), so "Users" will not quietly come to mean "staff users" once they arrive — they get their own
+"Students" surface rather than being filtered out of this one.
+
+The Manage *section* heading "Curriculum & people" is unchanged for now: PR 3 of the accordion arc
+replaces that section with separate Subjects and Subject Grades panels, at which point the phrase
+disappears rather than being reworded twice.

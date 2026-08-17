@@ -7,12 +7,13 @@
  * 2026-07-01), ✕ deletes it after a confirm (`DELETE /api/lesson-bundle-versions/:id` — the server
  * access + Official guard remain the authority) and refreshes the server view.
  */
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
+import { matchesTokenAnd, tokenise } from '../../lib/substrand'
 
 export interface CandidateRow {
   id: number
@@ -35,7 +36,28 @@ export function CandidateList({
   const router = useRouter()
   const { config } = useConfig()
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
 
+  // Client-side, like the other bounded Manage lists (D11): these rows are already loaded and scoped
+  // to what the caller may delete, so filtering them is a string comparison, not a round trip.
+  //
+  // The rule itself comes from `lib/substrand.ts` — the SAME one `DeletePlansPanel` reaches through
+  // `filterRows`, so the two boxes on this page cannot disagree about what a query means. Tokenised
+  // ONCE for the whole pass, per that module's own note about per-row re-splitting.
+  const shown = useMemo(() => {
+    const tokens = tokenise(query)
+    if (tokens.length === 0) return rows
+    return rows.filter((r) =>
+      matchesTokenAnd(
+        [r.label, r.sgLabel, `Version ${r.semver}`, r.authorName ?? ''].join(' '),
+        tokens,
+      ),
+    )
+  }, [rows, query])
+
+  // The empty STATE (no candidates at all) is instructional copy and predates the search box; it is
+  // not the same thing as "your search matched nothing", which is a dead end the reader can back out
+  // of. Keeping them distinct means the instructional text never appears as the answer to a query.
   if (rows.length === 0) return <p className="lp-manage__empty">{emptyText}</p>
 
   const apiBase = apiBaseFrom(config)
@@ -63,8 +85,22 @@ export function CandidateList({
   }
 
   return (
-    <ul className="lp-manage__list">
-      {rows.map((row) => {
+    <>
+      <div className="lp-admin-list__bar">
+        <input
+          className="lp-admin-list__search"
+          type="search"
+          aria-label="Search saved versions"
+          placeholder="Search saved versions…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      {shown.length === 0 && (
+        <p className="lp-manage__empty">No saved versions match “{query.trim()}”.</p>
+      )}
+      <ul className="lp-manage__list">
+      {shown.map((row) => {
         const href = `/admin/collections/lesson-bundle-versions/${row.id}?edit=1`
         // One metadata LINE, not a row of floating chips. The version is ordinary metadata here:
         // it used to render as `.lp-admin-list__badge`, which gave a piece of status the shape of a
@@ -102,6 +138,7 @@ export function CandidateList({
           </li>
         )
       })}
-    </ul>
+      </ul>
+    </>
   )
 }

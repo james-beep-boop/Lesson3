@@ -1,0 +1,192 @@
+'use client'
+
+/**
+ * Manage accordion — open state, mirrored into the URL (D7/D7a).
+ *
+ * The panels' open state is CLIENT state that is mirrored into the address bar for reload survival
+ * and deep linking; it is not state the server renders from. That distinction is the whole design:
+ *
+ *   - **Ordinary toggles write with `history.replaceState`** — no RSC navigation, no refetch, no
+ *     history entry per open/close. ⚑ VERIFIED on `/admin` itself (2026-08-17), not inferred from
+ *     the frontend: after a `replaceState`, resource-timing recorded zero new entries, a live
+ *     `PerformanceObserver` recorded zero, and the dev server logged no second `GET /admin`. The
+ *     instrument was independently shown to capture `?_rsc=` requests when they do occur. This
+ *     matters because `router.push` here would re-run the dashboard server component and its ~9
+ *     queries on every click — the documented 8.0s → 170ms optimization is what that would spend.
+ *   - **Cross-panel jumps use router `push`**, so a jump is one meaningful, reversible history entry.
+ *
+ * `LibraryBrowser.tsx` already runs this exact pattern on the frontend (`?q=&subject=&grade=`) and
+ * this hook deliberately follows its shape, including the part D7a does not mention: state is read
+ * back **on popstate**, or the back button after a jump would restore the URL while leaving the
+ * panels showing the pre-navigation state.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+import {
+  AT_PARAM,
+  OPEN_PARAM,
+  parseOpen,
+  serialiseOpen,
+  withAncestors,
+  withoutDescendants,
+  type PanelId,
+} from './panelState'
+
+export interface OpenPanels {
+  /** Is this panel currently disclosed? */
+  isOpen: (id: string) => boolean
+  /** Toggle one panel. Writes the URL with `replaceState` — never a navigation. */
+  toggle: (id: string) => void
+  /** Open a panel (and its ancestors) as a JUMP: one history entry, via the router. */
+  jumpTo: (id: string, at?: string) => void
+  /** The `at` target this page was arrived at with, consumed once and then scrubbed. */
+  jumpTarget: string | null
+}
+
+export function useOpenPanels(
+  available: readonly string[],
+  /**
+   * The open set computed by the SERVER from the request's query string.
+   *
+   * ⚑ This prop exists to prevent a hydration mismatch, and the mismatch was real: deriving the
+   * initial state from `window.location` meant the server rendered `aria-expanded="false"` / `hidden`
+   * while the client's first render computed `true` / not-hidden, and React reported
+   * "A tree hydrated but some attributes of the server rendered HTML didn't match… This won't be
+   * patched up" (caught in the browser on 2026-08-17). Deferring the read to an effect would have
+   * fixed the warning by making every deep link visibly flash open after paint. Reading the query
+   * server-side fixes both: a deep-linked page renders in its final shape on FIRST paint — the same
+   * property `LibraryBrowser` has for its filters. See `AdminDashboard` for WHERE the server gets
+   * the query from, which is not the obvious place.
+   */
+  serverOpen: readonly string[],
+  serverAt: string | null,
+): OpenPanels {
+  const router = useRouter()
+  const [open, setOpen] = useState<PanelId[]>(() => serverOpen as PanelId[])
+  const [jumpTarget, setJumpTarget] = useState<string | null>(serverAt)
+
+  // `available` is a fresh array identity on every render of the server component, so the popstate
+  // listener below depends on its VALUE rather than its reference — otherwise the listener would be
+  // torn down and reinstalled on every render for no reason. The memo turns that key back into the
+  // array ONCE, instead of the handler re-splitting a string it just joined (an encode/decode pair
+  // sitting forty lines apart, in which a panel id containing a comma would silently become two).
+  const availableKey = available.join(',')
+  const availableIds = useMemo(() => availableKey.split(','), [availableKey])
+
+  /**
+   * The open set actually in effect: raw state re-gated against CURRENT availability.
+   *
+   * ⚑ Availability is not fixed for the session — it is data-dependent. Deleting the last candidate
+   * version calls `router.refresh()`, the server re-renders with `showSaved` false, and the
+   * `versions` panel stops existing. Without this re-gate, `open` would keep an id for a panel that
+   * is no longer on the page and the URL write below would keep advertising `?open=versions` — state
+   * the page is not in, which is exactly what the scrub rule exists to prevent. The mount-time gate
+   * cannot cover it: the panel was legitimately available at mount.
+   *
+   * ⚑ DERIVED during render, not synced in an effect. The effect version (`setOpen` filtered by
+   * availability) is what one reaches for first, and `react-hooks/set-state-in-effect` rejects it —
+   * rightly, since it renders once with the stale set before correcting itself. Deriving needs no
+   * second render and cannot fall out of step.
+   *
+   * ⚑ NOT COVERED BY A TEST, deliberately, and this is the honest reason rather than an oversight.
+   * The only panel whose availability moves today is `versions`, and `showSaved` is
+   * `candidates.length > 0 || !isAdmin` — so it disappears only for an ADMINISTRATOR whose
+   * corpus-wide candidate count reaches zero. `tests/e2e` runs against a shared database where other
+   * specs' fixtures are candidates too, so "delete the last one" is not something a test can arrange
+   * without serialising the whole suite. A non-admin never loses the panel at all. If PR 2b/3 add a
+   * panel with a cheaper disappearance condition, pin it then — that is the moment this becomes
+   * testable, not a reason to fake it now.
+   */
+  const openNow = useMemo(
+    () => open.filter((id) => availableIds.includes(id)),
+    [open, availableIds],
+  )
+
+  /**
+   * Mirror the open set into the address bar — on mount (which is also the scrub of whatever the URL
+   * arrived with) and after every change.
+   *
+   * ⚑ THE URL WRITE LIVES IN AN EFFECT, and both of the obvious shorter alternatives are wrong:
+   *
+   *   - Inside a `setState` updater: React may invoke an updater during render, and
+   *     `history.replaceState` synchronously notifies Next's router, which produced a real
+   *     "Cannot update a component (`Router`) while rendering a different component
+   *     (`AccordionProvider`)" error on the first working build (caught in the browser 2026-08-17 —
+   *     neither `tsc` nor the unit suite sees it, because the projection itself is correct).
+   *   - Beside the `setState` in the handler: it works, but it needs a ref holding the current open
+   *     set to build the next one, and mutating a ref during render is what `react-hooks/refs`
+   *     forbids — this repo lints at `--max-warnings=0`.
+   *
+   * An effect keyed on `open` covers the mount scrub and every subsequent change with one rule, no
+   * refs, and no side effect inside an updater.
+   *
+   * It writes only when the URL would actually change. That keeps a `router.push` from `jumpTo` from
+   * being immediately overwritten by an equivalent `replaceState`, and it is what makes `at`
+   * one-shot: `serialiseOpen` drops it, so the first write after arrival consumes it — by which time
+   * `jumpTarget` is already state, and removing it from the URL cannot take it away.
+   */
+  useEffect(() => {
+    const target = serialiseOpen(window.location.pathname, window.location.search, openNow)
+    if (target !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, '', target)
+    }
+  }, [openNow])
+
+
+  // Back/forward restores whatever open set that history entry carried. D7a does not mention this,
+  // but `LibraryBrowser` learned it: without it, going back after a cross-panel jump changes the URL
+  // and leaves the panels showing the pre-navigation state.
+  useEffect(() => {
+    const onPop = () => {
+      const search = window.location.search
+      setOpen(parseOpen(search, availableIds))
+      setJumpTarget(new URLSearchParams(search).get(AT_PARAM))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [availableIds])
+
+  const isOpen = useCallback((id: string) => openNow.includes(id as PanelId), [openNow])
+
+  // A pure updater — no side effects, so React may safely call it during render.
+  const toggle = useCallback((id: string) => {
+    setOpen((current) =>
+      current.includes(id as PanelId)
+        ? // Closing a parent closes its subtree, so reopening does not spring back to a shape the
+          // user last saw several interactions ago.
+          withoutDescendants(current, id)
+        : withAncestors([...current, id as PanelId]),
+    )
+  }, [])
+
+  /**
+   * A jump is a navigation, not a toggle: it moves the reader to a different part of the page in
+   * response to a deliberate "go to…" affordance, so it earns exactly one history entry and the back
+   * button returns them. `push` re-runs the server component — acceptable once per jump, and wrong
+   * per toggle, which is the distinction D7a draws.
+   *
+   * ⚑ NO CONSUMER YET. The only jump D7a specifies is Users → Roles & Access, and the Users panel
+   * arrives in PR 2b — so this path is unexercised in the browser today and its history-entry
+   * behaviour is asserted only at the serialisation level (`tests/unit/panelState.spec.ts`). §7
+   * assigns PR 1 a browser assertion for it, which PR 1 cannot honestly make; **PR 2b owns it**, and
+   * should drive a real jump before trusting this.
+   */
+  const jumpTo = useCallback(
+    (id: string, at?: string) => {
+      // Closes over `open` rather than reading a ref — this is an event handler, so a changing
+      // identity costs nothing and keeps every side effect out of the updaters above.
+      const next = withAncestors([...openNow, id as PanelId])
+      setOpen(next)
+      setJumpTarget(at ?? null)
+      const params = new URLSearchParams(window.location.search)
+      params.set(OPEN_PARAM, next.join(','))
+      if (at) params.set(AT_PARAM, at)
+      else params.delete(AT_PARAM)
+      router.push(`${window.location.pathname}?${params.toString()}`)
+    },
+    [openNow, router],
+  )
+
+  return { isOpen, toggle, jumpTo, jumpTarget }
+}

@@ -45,6 +45,11 @@ const GROUP_STRAND = 'Strand 77: Group Delete'
 // would have nothing hidden.
 const GROUP_PLAN_A = `${MARK}Group Plan Alpha`
 const GROUP_PLAN_B = `${MARK}Group Plan Beta`
+// ⚑ The accordion's state-preservation test needs a plan that is still there when it runs, and the
+// group-delete tests above it CONSUME `GROUP_PLAN_A`/`B`. Reusing those made the suite pass or fail
+// on declaration order — a dependency nothing states and any reordering breaks silently. This plan
+// belongs to that one test and is deleted by nothing.
+const STATE_PLAN = `${MARK}State Survives Plan`
 
 let fx: RoleFixture
 
@@ -62,6 +67,29 @@ const strandPick = (page: Page, strand: string, sgLabel: string) =>
 /** Thin wrapper so the many call sites below keep reading `loginAs(page, 'editor')`. */
 const loginAs = (page: Page, key: RoleKey): Promise<void> => loginAsRole(page, fx, key)
 
+/**
+ * Open one disclosure panel by its heading (the accordion redesign, D7).
+ *
+ * ⚑ Sections are now COLLAPSED by default for any role that sees more than one of them, so a test
+ * that wants a panel's contents must say so. That is a deliberate behaviour change, not a
+ * regression: the operator's brief was that Manage grows long and unwieldy.
+ *
+ * Idempotent, and it asserts the post-condition rather than assuming the click landed — a disclosure
+ * that silently failed to open would otherwise surface as a confusing failure in the assertion after
+ * it, several lines from the cause.
+ */
+const openPanel = async (page: Page, name: string) => {
+  const trigger = page.getByRole('button', { name, exact: true })
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+}
+
+/** Open "Lesson plans" → "Delete lesson plans", the two-step most tests below need. */
+const openDeletePanel = async (page: Page) => {
+  await openPanel(page, 'Lesson plans')
+  await openPanel(page, 'Delete lesson plans')
+}
+
 test.describe('Manage page', () => {
   test.beforeAll(async () => {
     fx = await setupRoleFixture()
@@ -75,6 +103,12 @@ test.describe('Manage page', () => {
     await fx.payload.create({
       collection: 'lesson-plans',
       data: { title: DELETABLE_TITLE, subjectGrade: sg },
+      overrideAccess: true,
+    })
+    // Owned by the accordion state-preservation test alone — see the ⚑ on STATE_PLAN.
+    await fx.payload.create({
+      collection: 'lesson-plans',
+      data: { title: STATE_PLAN, subjectGrade: sg },
       overrideAccess: true,
     })
     // A genuine non-Official CANDIDATE on the fixture plan (whose Official is still v1.0.0). Required
@@ -180,18 +214,33 @@ test.describe('Manage page', () => {
   }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    // The "Lesson plans" section is a top-level panel, so its HEADING is visible while collapsed;
+    // its three nested panels live inside the hidden body and appear once it is opened.
+    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeHidden()
+    await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Repair' })).toBeVisible()
+    await openPanel(page, 'Repair')
     await expect(page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE })).toBeVisible()
 
-    // Section separators (2026-08-04). Pins the ONE thing review could not otherwise catch: the rules
-    // come from `__section ~ __section` in CSS, so a future wrapper element around a section would
-    // silently drop every rule, or a `:first-of-type`-style regression would draw one directly under
-    // the page title. Purely visual, so no other assertion would fail.
-    const sections = page.locator('.lp-admin-dash__section')
-    await expect(sections.first()).toHaveCSS('border-top-width', '0px')
-    await expect(sections.last()).not.toHaveCSS('border-top-width', '0px')
+    // Section separators (2026-08-04; MOVED to the panel wrapper 2026-08-17). Pins the ONE thing
+    // review could not otherwise catch. It used to come from `__section ~ __section`, whose own
+    // comment predicted that a wrapper element would silently drop every rule — the accordion is that
+    // wrapper, and it did exactly that (measured: `0px, 1px, 1px` → `0px, 0px, 0px`), so the rule now
+    // hangs off `.lp-admin-dash > .lp-accordion ~ .lp-accordion`. Same property, one level out: no
+    // rule above the first panel, no trailing rule below the last. Purely visual, so nothing else here
+    // would fail if it broke.
+    const panels = page.locator('.lp-admin-dash > .lp-accordion')
+    await expect(panels.first()).toHaveCSS('border-top-width', '0px')
+    await expect(panels.last()).not.toHaveCSS('border-top-width', '0px')
+    // …and nested panels are deliberately NOT separated, matching the pre-accordion rule that only
+    // main sections get a rule.
+    await expect(page.locator('.lp-accordion .lp-accordion').first()).toHaveCSS(
+      'border-top-width',
+      '0px',
+    )
     // And a bordered list never closes with its own divider (that plus a section rule reads as a
     // table edge) — checked on Curriculum & people, which is a flat <ul>.
     await expect(page.locator('.lp-admin-dash__actions li').last()).toHaveCSS(
@@ -242,6 +291,7 @@ test.describe('Manage page', () => {
     // from the plan's own title — `lessonDisplayName` prefers the sub-strand name. fx.plan is titled
     // `${MARK}Plan` while its Official's sub-strand is `${MARK}Sub-strand`, so seeing the latter proves
     // the lookup resolved rather than falling back to the title.
+    await openDeletePanel(page)
     await expect(page.getByLabel(`Select ${MARK}Sub-strand`)).toBeVisible()
     await expect(page.getByLabel(`Select ${MARK}Plan`, { exact: true })).toHaveCount(0)
   })
@@ -278,6 +328,7 @@ test.describe('Manage page', () => {
   }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await openDeletePanel(page)
     const sgLabel = `${fx.subject.name} · Grade 99`
 
     // Unfiltered: the curriculum tree, with a checkbox at each level. `exact` on the subject-grade
@@ -325,6 +376,7 @@ test.describe('Manage page', () => {
   }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await openDeletePanel(page)
     const sgLabel = `${fx.subject.name} · Grade 99`
 
     await sgPick(page, sgLabel).check()
@@ -357,6 +409,7 @@ test.describe('Manage page', () => {
   test('Site Admin can delete a plan from the Delete panel', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await openDeletePanel(page)
 
     await page.getByLabel('Search lesson plans to delete').fill(DELETABLE_TITLE)
     const checkbox = page.getByLabel(`Select ${DELETABLE_TITLE}`)
@@ -378,6 +431,7 @@ test.describe('Manage page', () => {
   test('Site Admin deletes a whole strand from one group checkbox', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await openDeletePanel(page)
 
     await strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`).check()
     await expect(page.getByLabel(`Select ${GROUP_PLAN_A}`)).toBeChecked()
@@ -406,5 +460,205 @@ test.describe('Manage page', () => {
     await expect(page.getByLabel(`Select ${GROUP_PLAN_B}`)).toHaveCount(0)
     // The strand was derived from those plans, so its heading goes with them.
     await expect(strandPick(page, GROUP_STRAND, `${fx.subject.name} · Grade 99`)).toHaveCount(0)
+  })
+
+  /**
+   * The accordion shell (D7/D7a). These assert the MECHANICS the design doc specifies, each of which
+   * would otherwise be settled by whichever implementation an author reached for first:
+   * conditional-render vs `hidden`, `router.push` vs `replaceState`, and what a stale deep link does.
+   */
+  test.describe('accordion', () => {
+    test('a role with ONE section gets it expanded; a role with several starts collapsed', async ({
+      page,
+    }) => {
+      // An Editor's saved versions are the whole page — nobody should click to reveal their only
+      // panel (D7).
+      await loginAs(page, 'editor')
+      await page.goto(`${BASE}/admin`)
+      await expect(
+        page.getByRole('button', { name: 'My saved versions', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
+
+      // A Site Admin sees several, so nothing is open. This is the redesign's whole point (the page
+      // grows long and unwieldy), so it is pinned rather than left as an emergent default.
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      for (const name of ['Curriculum & people', 'Editing access', 'Lesson plans']) {
+        await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
+          'aria-expanded',
+          'false',
+        )
+      }
+      // Nested panels are never auto-opened either — including Upload, which is the frequent action
+      // and therefore the one most likely to be special-cased by a well-meaning later change.
+      await openPanel(page, 'Lesson plans')
+      await expect(
+        page.getByRole('button', { name: 'Upload lesson plans', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    test('toggling writes the URL but adds NO history entry', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      const depth = () => page.evaluate(() => window.history.length)
+      const before = await depth()
+
+      await openPanel(page, 'Editing access')
+      await expect(page).toHaveURL(/[?&]open=access/)
+      await openPanel(page, 'Lesson plans')
+      await expect(page).toHaveURL(/[?&]open=access,plans/)
+
+      // ⚑ The point of `replaceState` (D7a): a reader who opened four panels must not have to press
+      // Back four times to leave the page. `router.push` here would also re-run the dashboard server
+      // component and its ~9 queries on every click.
+      expect(await depth()).toBe(before)
+
+      // …and closing removes it again rather than accumulating stale ids.
+      await page.getByRole('button', { name: 'Editing access', exact: true }).click()
+      await expect(page).toHaveURL(/[?&]open=plans/)
+      await expect(page).not.toHaveURL(/access/)
+      expect(await depth()).toBe(before)
+    })
+
+    test('open state survives a genuine reload', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      await openPanel(page, 'Editing access')
+      // A full page load is the case React state cannot survive and the reason the URL carries this
+      // at all (D7).
+      await page.reload()
+      await expect(
+        page.getByRole('button', { name: 'Editing access', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    test('a deep link opens the named panels, including a nested one', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      // `plans.delete` without `plans` — the ancestor must be opened too, or the child would be
+      // rendered inside a hidden parent and the URL would describe a state the page is not in.
+      await page.goto(`${BASE}/admin?open=plans.delete`)
+      await expect(page.getByRole('button', { name: 'Lesson plans', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      await expect(
+        page.getByRole('button', { name: 'Delete lesson plans', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.getByLabel('Search lesson plans to delete')).toBeVisible()
+    })
+
+    test('unknown and role-inaccessible panel ids are ignored silently and scrubbed', async ({
+      page,
+    }) => {
+      // A Subject Admin following a link containing a Site-Admin panel id must land on a normal page
+      // — not an error, and not an empty panel implying something was withheld (D7a).
+      await loginAs(page, 'subjectAdmin')
+      await page.goto(`${BASE}/admin?open=curriculum,nonsense,access&at=sg-999`)
+      await expect(page.getByRole('heading', { name: 'Manage' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Editing access', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      // The URL is rewritten to what the page is actually showing: the inaccessible id, the typo and
+      // the consumed one-shot `at` are all gone, and the valid one survives.
+      await expect(page).toHaveURL(/[?&]open=access(&|$)/)
+      await expect(page).not.toHaveURL(/curriculum|nonsense|at=/)
+    })
+
+    test('the disclosure is operable from the keyboard', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      const trigger = page.getByRole('button', { name: 'Editing access', exact: true })
+      await trigger.focus()
+      await page.keyboard.press('Enter')
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      await page.keyboard.press('Space')
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      // The control keeps focus across the toggle — a disclosure that drops the user at the top of
+      // the document on every press is unusable by keyboard.
+      await expect(trigger).toBeFocused()
+    })
+
+    /**
+     * ⚑ THE TEST THAT FAILS IF A PANEL IS CONDITIONALLY RENDERED (D7a, review round 5).
+     *
+     * `{open && <Panel/>}` is the shorter and more natural thing to write, and it silently destroys a
+     * half-built multi-select or a chosen upload file on any stray click of a heading. Nothing else in
+     * this file would notice.
+     */
+    test('closing a panel does not destroy its state: search and selection survive reopen', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      await openDeletePanel(page)
+
+      await page.getByLabel('Search lesson plans to delete').fill(STATE_PLAN)
+      await page.getByLabel(`Select ${STATE_PLAN}`).check()
+      await expect(page.getByRole('button', { name: /Delete selected \(1\)/ })).toBeVisible()
+
+      // Close the OUTER panel — the stray-click case, which hides the whole subtree.
+      await page.getByRole('button', { name: 'Lesson plans', exact: true }).click()
+      await expect(page.getByLabel('Search lesson plans to delete')).toBeHidden()
+
+      // Reopen BOTH: closing a parent also closes its children, so that reopening it does not spring
+      // back to a subtree the user last saw several interactions ago. The work is preserved either
+      // way — that is what this test is about — but it takes the same two clicks to get back to it.
+      await openDeletePanel(page)
+      await expect(page.getByLabel('Search lesson plans to delete')).toHaveValue(STATE_PLAN)
+      await expect(page.getByLabel(`Select ${STATE_PLAN}`)).toBeChecked()
+      await expect(page.getByRole('button', { name: /Delete selected \(1\)/ })).toBeVisible()
+    })
+
+    test('Candidate versions has a search that filters the rows (D3)', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin`)
+      await openPanel(page, 'Candidate versions')
+      const search = page.getByLabel('Search saved versions')
+      await expect(search).toBeVisible()
+
+      await expect(page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK })).toHaveCount(1)
+      await search.fill('definitely-no-such-version')
+      await expect(
+        page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
+      ).toHaveCount(0)
+      // A query that matches nothing says so, rather than falling back to the instructional empty
+      // state — which would read as "you have never saved anything".
+      await expect(page.locator('.lp-manage__empty')).toContainText('No saved versions match')
+    })
+  })
+
+  /**
+   * D4 — display-name editing lives in the avatar menu, not a "My Account" accordion: Manage is
+   * unreachable by plain Teachers, so account self-service placed there would be invisible to most
+   * users. Driven here as an Editor to prove it is not a Site-Admin-only affordance.
+   */
+  test('a user can change their own display name from the avatar menu', async ({ page }) => {
+    await loginAs(page, 'editor')
+    await page.goto(`${BASE}/admin`)
+    const newName = `${MARK}renamed`
+
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await page.getByRole('button', { name: 'Change display name' }).click()
+    await page.getByLabel('Display name').fill(newName)
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+    // ⚑ ASSERT THE NEW VALUE, not merely that the menu still renders. An earlier version of this test
+    // checked only that the account button and dropdown were visible after saving — which is true
+    // whether or not the PATCH did anything, so it would have passed against a no-op Save.
+    //
+    // The form's value is the observable that proves it: the avatar INITIALS are not, because every
+    // fixture name shares the `ZZ_INT_…` MARK prefix, so `${MARK}editor` and `${MARK}renamed` derive
+    // identical initials and the avatar looks the same either way.
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await page.getByRole('button', { name: 'Change display name' }).click()
+    await expect(page.getByLabel('Display name')).toHaveValue(newName)
+
+    // Restore, so this test does not rename a fixture the rest of the file identifies by name.
+    await page.getByLabel('Display name').fill(`${MARK}editor`)
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await page.getByRole('button', { name: 'Change display name' }).click()
+    await expect(page.getByLabel('Display name')).toHaveValue(`${MARK}editor`)
   })
 })

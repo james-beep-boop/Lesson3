@@ -11,6 +11,128 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-17 — the accordion shell: three browser questions answered, and two defects only a browser could find
+
+PR 1 of `docs/DESIGN-manage-accordion-2026-08-16.md`. Its stated purpose was to settle what no amount
+of further prose review could: whether the accordion survives contact with Payload's admin surface.
+It did, and the answers are worth keeping because two of them contradict a reasonable expectation.
+
+**1. The chrome-stripping `:has()` selectors are unaffected; the section separator is not.**
+Wrapping each section in its own `<section>` — measured on the live page BEFORE writing the change —
+left `body:has(.lp-admin-dash)` matching, the nav and app-header at `display: none`, and
+`.template-default` at a single full-width column. Those selectors match an ANCESTOR, so wrapping
+descendants is invisible to them. But `.lp-admin-dash__section ~ __section` went `0px, 1px, 1px` →
+`0px, 0px, 0px`: every rule vanished. That selector's own comment predicted this exactly ("If a
+wrapper is ever introduced this fails loudly — all rules vanish"), and `manage.e2e.spec.ts` pinned
+it. The separator moved to `.lp-admin-dash > .lp-accordion ~ .lp-accordion`, keeping the same
+"however the role- and data-dependent branches fall" property one level out.
+
+⚑ **The prediction-in-a-comment plus the test is why this cost ten minutes rather than a puzzled
+afternoon.** A comment that names the future change that will break a rule is worth more than one
+that explains why the rule is written the way it is.
+
+**2. `history.replaceState` triggers no RSC refetch — confirmed on `/admin`, not inferred.**
+Zero new resource-timing entries, zero `PerformanceObserver` entries, and no second `GET /admin` in
+the server log. The instrument was separately shown to record `?_rsc=` when it happens. Worth doing
+on the admin surface specifically: the frontend's `LibraryBrowser` already ships this pattern, but it
+lives in a different route group with a different provider tree, so it is evidence about `/`, not
+about `/admin`.
+
+**3. `[hidden]` works inside Payload's grid, and is ONE declaration from silently failing.**
+A bare `<div hidden>` inside `.lp-admin-dash` computes `display: none` with zero client rects. The
+same div carrying any class with a `display` value renders in full — 1 rect, ~25px tall — while
+`aria-expanded` says closed. **No `[hidden]` guard existed in any loaded stylesheet.** Since D7a
+requires panels to stay MOUNTED and hidden (they hold half-built delete selections and chosen upload
+files), the guard on `.lp-accordion__panel[hidden]` is load-bearing, not defensive: without it the
+first panel that needs a layout container leaks its contents onto a page that says it is collapsed.
+
+### Two defects `tsc`, ESLint and the unit suite all passed
+
+Both were caught only by reading the browser console, and both were in code whose *logic* was correct.
+
+**(a) `history.replaceState` inside a `setState` updater → "Cannot update a component (`Router`)
+while rendering a different component".** React may invoke an updater during render, and
+`replaceState` synchronously notifies Next's router. The URL write belongs in an effect keyed on the
+state — which also covers the mount-time scrub with the same rule. ⚑ The obvious alternative (write
+the URL beside the `setState` in the handler) needs a ref holding the current value to build the next
+one, and mutating a ref during render is what `react-hooks/refs` forbids — so at
+`--max-warnings=0` the effect is the only shape that satisfies both.
+
+**(b) A hydration mismatch from deriving initial state on the client.** Reading
+`window.location.search` in a `useState` initialiser meant the server rendered `aria-expanded="false"`
+while the client's first render computed `true`, and React reported "This won't be patched up".
+Deferring the read to an effect would have silenced the warning by making every deep link visibly
+flash open after paint. Resolving it on the SERVER fixes both, and gives a shared `?open=` link its
+final shape on first paint.
+
+⚑ **And the non-obvious part, which cost a wrong turn: the query string is NOT on `req`.**
+`PayloadRequest` genuinely exposes `search`/`searchParams` (`Pick<URL, … 'search' | 'searchParams'>`),
+which is what made reaching for it feel verified rather than guessed — and it is **empty** for a
+custom admin view. The symptom was a deep link silently opening nothing and then having its own query
+scrubbed away. `@payloadcms/next`'s Root view awaits Next's `searchParams` and passes it to the custom
+view as **its own `searchParams` prop** (`ServerProps.searchParams`, `views/Root/index.js`); that is
+the only copy carrying the page's query. **A type existing is not evidence that it is populated in
+your context** — the browser said so in fifteen seconds and the type signature would never have.
+
+### A guard that fired for the right reason
+
+`guideCompareVisual.spec.ts` asserts set equality between the selectors given button GEOMETRY and
+those given the ≤640px TOUCH minimum. Adding `min-height: var(--app-btn-touch-min-height)` to the
+accordion trigger in its own block broke it — because the helper reads the **first** rule declaring
+each token, and the new rule had jumped ahead of the shared one. The fix was to join the shared touch
+rule rather than compete with it, which is precisely the single-list discipline that guard exists to
+enforce (it was written after a 26px compact button shipped to phones in #179). A disclosure heading
+is deliberately NOT a button-system control — no fill, no border, no button geometry, because a page
+section must not look like an action — but it does take the phone touch target, so it joins the
+form-control half of that list alongside `.lp-manage__select` and `.lp-admin-list__search`.
+
+### Four more from the review round after it (same day)
+
+- **A half-implemented mechanism is worse than an absent one.** D7a's `?at=` names a target INSIDE a
+  panel (`?open=access&at=sg-12` — a subject-grade group), but the first implementation compared
+  `jumpTarget` against the *panel's own id*. `'sg-12' === 'access'` is never true, so the scroll/focus
+  effect was dead code wearing the shape of a working feature — and nothing failed, because its only
+  observable is behaviour nobody had yet asked for. Removed, and replaced with an exported
+  `useJumpTarget()` so PR 4's real consumer (a component that is NOT an `AccordionPanel`, and so
+  cannot read the private context) has a seam to use.
+
+- **E2E fixtures consumed by destructive tests make the suite order-dependent, silently.** The
+  state-preservation test selected `GROUP_PLAN_A`, which an earlier test in the same file deletes.
+  Declaration order was load-bearing and nothing said so. Fixed with a fixture owned by that one test.
+  ⚑ The general rule: a test that needs a row to still exist must not borrow one another test destroys.
+
+- **"The UI still renders" is not an assertion.** The display-name test checked that the account
+  button and dropdown were visible after saving — true whether or not the PATCH did anything, so it
+  would have passed against a no-op Save. It now reopens the form and asserts the value. The avatar
+  INITIALS could not serve as the oracle: every fixture name shares the `ZZ_INT_…` MARK prefix, so
+  both names derive identical initials.
+
+- **`react-hooks/set-state-in-effect` is right, and the fix is to derive.** Re-gating open panels
+  against changed availability by `setOpen` inside an effect renders once with the stale set before
+  correcting itself. Computing it during render needs no second render and cannot fall out of step.
+  Together with the earlier `react-hooks/refs` finding, that is twice in one change that the lint rule
+  named the better shape rather than an inconvenience.
+
+### Decisions recorded here because the plan left them open
+
+- **Panel ids are a URL contract**: `curriculum`, `access`, `plans`, `plans.upload`, `plans.delete`,
+  `plans.repair`, `versions`. `versions` rather than `saved`, because the same panel is titled
+  "Candidate versions" for administrators and "My saved versions" for Editors — an id must not encode
+  one role's label. `curriculum` is transitional and dissolves in PRs 2b/3; a stale link then degrades
+  through the scrub rule instead of erroring, which is what that rule is for.
+- **Initial state**: a valid `?open=` wins; otherwise a role with exactly ONE top-level section gets
+  it expanded; otherwise nothing opens. **Nested panels are never auto-opened, including Upload.**
+  Uniform-closed costs a Site Admin one extra click; the alternative is a special case needing
+  re-justification every time a child is added. Pinned in `tests/unit/panelState.spec.ts` per round
+  5's lesson that an unstated default is a decision made by whoever types the code first.
+- **§7's cross-panel-jump E2E belongs to PR 2b, not PR 1.** The only jump D7a specifies is
+  Users → Roles & Access, and the Users panel does not exist yet, so PR 1 cannot drive it in a browser
+  without inventing a transitional affordance. PR 1 pins the serialisation half as a unit test and
+  asserts the half that IS real ("toggling adds no history entry"); `jumpTo` carries a ⚑ saying its
+  first real consumer must exercise it.
+
+---
+
 ## 2026-08-16 (round 6) — enumerate a shared seam's consumers, not just the one that prompted the change
 
 Sixth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Two linked omissions, one of

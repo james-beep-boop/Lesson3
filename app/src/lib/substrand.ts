@@ -247,16 +247,35 @@ export function bundleSearchText(r: CurriculumRow): string {
     .toLowerCase()
 }
 
-/** Split a query into the lowercase tokens every match must contain. */
-const tokenise = (query: string): string[] =>
+/**
+ * Split a query into the lowercase tokens every match must contain.
+ *
+ * Exported because this is THE search rule for the whole product, not just the catalogue's: Manage
+ * runs two search boxes on one page (Delete lesson plans and Candidate versions), and two boxes that
+ * disagree about what a query means is worse than either rule on its own. A later refinement —
+ * quoted phrases, punctuation or diacritic folding, prefix-only matching — has to land in one place.
+ */
+export const tokenise = (query: string): string[] =>
   query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 
-/** Match against ALREADY-tokenised terms — so a filter over N rows tokenises once, not N times. */
-const matchesTokens = (r: CurriculumRow, tokens: readonly string[]): boolean => {
+/**
+ * The token-AND rule over an arbitrary haystack string, for callers whose rows are not
+ * `CurriculumRow`s.
+ *
+ * ⚑ Takes ALREADY-tokenised terms, and that is the point rather than an optimisation detail: the
+ * shape that takes a raw query invites being called from inside a `rows.filter(…)`, which re-splits
+ * the query once per row. See `filterRows` below, whose comment records that exact regression being
+ * found and fixed.
+ */
+export function matchesTokenAnd(text: string, tokens: readonly string[]): boolean {
   if (tokens.length === 0) return true
-  const text = bundleSearchText(r)
-  return tokens.every((t) => text.includes(t))
+  const haystack = text.toLowerCase()
+  return tokens.every((t) => haystack.includes(t))
 }
+
+/** Match against ALREADY-tokenised terms — so a filter over N rows tokenises once, not N times. */
+const matchesTokens = (r: CurriculumRow, tokens: readonly string[]): boolean =>
+  matchesTokenAnd(bundleSearchText(r), tokens)
 
 /** Whitespace-tokenised AND match over the modest search fields (every token must appear). */
 export function matchesQuery(r: CurriculumRow, query: string): boolean {
