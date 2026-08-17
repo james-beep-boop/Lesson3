@@ -189,6 +189,22 @@ export const guardLastSiteAdmin: CollectionBeforeChangeHook = async ({
 
   if (wasUsable && !willBeUsable) {
     await assertAnotherUsableSiteAdminRemains(req, before.id)
+  } else if (!wasUsable && willBeUsable) {
+    /**
+     * A GRANT — this write ADDS a usable administrator. It cannot break the invariant, so there is
+     * nothing to assert, but it still takes the shared key.
+     *
+     * ⚑ WHY, given it is provably safe on its own: the design fixes ONE key across grant, demote,
+     * delete and disable, and a grant that skips it is not merely a documentation gap. Without it, a
+     * grant and a concurrent demote are serialised only by chance — the demote's COUNT either sees
+     * the grant's committed row or does not, and when it does not it refuses a demotion that would
+     * in fact have been safe. That is fail-CLOSED, so nothing is lost but an administrator gets a
+     * confusing refusal they cannot act on. Joining the key removes the coin flip.
+     *
+     * It is also what makes the rule stated on `ADMIN_COUNT_LOCK` literally true, rather than true
+     * of three operations out of the four it names.
+     */
+    await takeAdminCountLock(req)
   }
   return data
 }

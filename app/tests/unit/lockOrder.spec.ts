@@ -30,49 +30,71 @@ const here = dirname(fileURLToPath(import.meta.url))
 const FILES = ['userAdminActions.ts', 'userAssignments.ts'] as const
 
 /**
- * The call order of the two lock-taking functions within one file, in source position order.
+ * The lock-call sequence PER ENCLOSING FUNCTION.
  *
- * Position order is the honest proxy for execution order here because every call sits directly in a
- * handler's straight-line `try` block — no branching, no callbacks. A file that grows a conditional
- * lock would need a different check, and would deserve one.
+ * ⚑ PER FUNCTION, NOT PER FILE, and the difference is a real hole the first version had. A
+ * file-wide counter treats one handler's `takeAdminCountLock` as covering every other handler's row
+ * lock — so deleting the acquisition from `booleanSetterEndpoint` alone left the guard green,
+ * because `revealResetLinkEndpoint` earlier in the file had already incremented it. Each handler
+ * opens its own transaction and must take the pair in order on its own.
+ *
+ * Position order within a body is the honest proxy for execution order here: every call sits in a
+ * handler's straight-line `try` block, no branching and no callbacks. A file that grows a
+ * conditional lock would need a different check, and would deserve one.
  */
-function lockCallSequence(source: string, file: string): string[] {
+function lockCallsByFunction(source: string, file: string): Map<string, string[]> {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
-  const calls: { pos: number; name: string }[] = []
-  const walk = (node: ts.Node): void => {
+  const byFunction = new Map<string, string[]>()
+
+  const walk = (node: ts.Node, enclosing: string): void => {
+    let scope = enclosing
+    // Name the nearest enclosing function-ish node, so each handler is its own bucket.
+    if (
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isMethodDeclaration(node)
+    ) {
+      const named =
+        (ts.isFunctionDeclaration(node) && node.name?.text) ||
+        `anonymous@${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1}`
+      scope = String(named)
+    }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
       const name = node.expression.text
       if (name === 'takeAdminCountLock' || name === 'lockAndVerifyFresh' || name === 'lockRows') {
-        calls.push({ pos: node.getStart(sf), name })
+        byFunction.set(scope, [...(byFunction.get(scope) ?? []), name])
       }
     }
-    ts.forEachChild(node, walk)
+    ts.forEachChild(node, (child) => walk(child, scope))
   }
-  walk(sf)
-  return calls.sort((a, b) => a.pos - b.pos).map((c) => c.name)
+  walk(sf, '<module>')
+  return byFunction
 }
 
 describe('users write paths take the global admin-count key before any row lock', () => {
   it.each(FILES)('%s', (file) => {
     const path = resolve(here, '../../src/endpoints', file)
-    const sequence = lockCallSequence(readFileSync(path, 'utf8'), path)
+    const byFunction = lockCallsByFunction(readFileSync(path, 'utf8'), path)
 
-    expect(sequence.length, `${file} should take both locks`).toBeGreaterThan(0)
+    expect(byFunction.size, `${file} should take locks in at least one handler`).toBeGreaterThan(0)
 
-    // Every row lock must be preceded by at least one global-key acquisition.
-    let globalTaken = 0
-    sequence.forEach((name, i) => {
-      if (name === 'takeAdminCountLock') {
-        globalTaken += 1
-        return
-      }
-      expect(
-        globalTaken,
-        `${file}: \`${name}\` at call #${i + 1} takes a row lock with no preceding ` +
-          '`takeAdminCountLock`. That inverts the pair against every generic PATCH/DELETE, which ' +
-          'meets the global key in its hooks before the DML takes the row — an ABBA deadlock.',
-      ).toBeGreaterThan(0)
-    })
+    for (const [fn, sequence] of byFunction) {
+      let globalTaken = 0
+      sequence.forEach((name, i) => {
+        if (name === 'takeAdminCountLock') {
+          globalTaken += 1
+          return
+        }
+        expect(
+          globalTaken,
+          `${file} → ${fn}: \`${name}\` at call #${i + 1} takes a row lock with no preceding ` +
+            '`takeAdminCountLock` IN THE SAME FUNCTION. That inverts the pair against every generic ' +
+            'PATCH/DELETE, which meets the global key in its hooks before the DML takes the row — ' +
+            'an ABBA deadlock.',
+        ).toBeGreaterThan(0)
+      })
+    }
   })
 
   it('the guard itself still takes the key, so the generic path is covered too', () => {

@@ -75,26 +75,43 @@ beforeAll(async () => {
 }, 60_000)
 
 afterAll(async () => {
-  // ⚑ Park every administrator BEFORE deleting, or the last-admin guard refuses to delete the keeper
-  // and it survives into the next run. A blanket `.catch(() => undefined)` hid that: the fixtures
-  // simply accumulated. Failures are now collected and reported rather than swallowed.
-  await parkOtherAdmins([])
+  /**
+   * ⚑ STRIP THE ROLE FROM THIS SPEC'S OWN FIXTURES ONLY.
+   *
+   * The last-admin guard refuses to delete the last usable administrator, so the keeper cannot be
+   * removed while it still holds the role — but the fix for that must not be `parkOtherAdmins([])`.
+   * That parks EVERY administrator in the shared `lesson3_test` database and, with no restore in
+   * teardown, hands every later spec a database with no site admins at all. It was invisible to a
+   * leaked-fixture check, which counts users and not roles.
+   *
+   * Deleting the role rows for `created` — and nothing else — leaves other specs' administrators
+   * exactly as they were found.
+   */
+  for (const id of created) {
+    await drizzleOf(payload)
+      .execute(sql`DELETE FROM users_roles WHERE parent_id = ${id}`)
+      .catch(() => undefined)
+  }
   const failures: string[] = []
   for (const id of created) {
     await payload
       .delete({ collection: 'users', id, overrideAccess: true })
       .catch((e: unknown) => failures.push(`${id}: ${e instanceof Error ? e.message : String(e)}`))
   }
-  if (failures.length > 0) {
-    // Not a thrown error — teardown must still clear the rate-limit keys below — but it must not be
-    // silent either, because a leaked fixture is a later spec's mysterious failure.
-    console.warn(`userSecurity teardown could not delete ${failures.length} user(s):`, failures)
-  }
   // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
   // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
   // exact failure this helper was written after: a leaked daily budget takes out a LATER, unrelated
   // spec with "Sign-ups are temporarily paused".
   await clearRateLimitBuckets(payload, `%${RUN}%`)
+
+  // ⚑ THROWN, not warned, and thrown AFTER the rate-limit cleanup above so that cleanup still runs.
+  // A leaked fixture is a later spec's mysterious failure, and a `console.warn` in a passing run is
+  // read by nobody — the whole reason the original blanket `.catch()` hid the problem for so long.
+  if (failures.length > 0) {
+    throw new Error(
+      `userSecurity teardown could not delete ${failures.length} user(s): ${failures.join('; ')}`,
+    )
+  }
 })
 
 describe('signInDisabled — the login gate', () => {

@@ -93,12 +93,17 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
         // compare before either writes and the later one silently drops the earlier delta. Do not
         // delete this by analogy.
         //
-        // ⚑ GLOBAL KEY FIRST. This update runs `guardLastSiteAdmin`, which takes `ADMIN_COUNT_LOCK`
-        // — and a generic PATCH reaches that key BEFORE its row lock, because hooks run ahead of the
-        // DML. Taking the row lock first here would invert the pair against every other writer and
-        // deadlock a same-user race. Acquiring it up front also makes GRANTS participate in the
-        // shared key, which the design asks for and which a demote-vs-grant race otherwise leaves to
-        // fail-closed luck.
+        // ⚑ GLOBAL KEY FIRST, as ordering insurance. This file row-locks `users` and then updates
+        // them, and a generic PATCH reaches `ADMIN_COUNT_LOCK` in its hooks BEFORE its DML takes the
+        // row — so taking the row first here would invert the pair and deadlock a same-user race.
+        //
+        // ⚑ Today this endpoint's writes touch `assignments` only, so `guardLastSiteAdmin` never
+        // actually takes the key on this path and the lock is precautionary. An earlier version of
+        // this comment claimed it "makes GRANTS participate in the shared key" — it does not: these
+        // are EDITOR assignments, and the site-admin grant case is handled in the guard itself. The
+        // cost of keeping it is serialising editor grants against each other, which are single
+        // administrator actions; the benefit is that a future change to what the guard covers cannot
+        // silently invert this pair.
         await takeAdminCountLock(req)
         const target = await lockAndVerifyFresh<User>(
           req,
