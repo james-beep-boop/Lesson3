@@ -178,12 +178,30 @@ describe('happy paths', () => {
   })
 
   it('refuses a reset link for a DISABLED account (409), rather than minting a dead credential', async () => {
+    // ⚑ SELF-CONTAINED. An earlier version relied on the preceding test having left the account
+    // disabled — declaration order as a hidden precondition, which is the same defect class already
+    // fixed once in `manage.e2e.spec.ts`. This disables the account itself and re-enables it at the
+    // end, so it passes in isolation and in any order.
+    const disable = await act(
+      `${targetId}/set-sign-in-disabled`,
+      { expectedUpdatedAt: await freshUpdatedAt(), enabled: true },
+      'siteAdmin',
+    )
+    expect(disable.status).toBe(200)
+
     const { status } = await act(
       `${targetId}/reveal-reset-link`,
       { expectedUpdatedAt: await freshUpdatedAt() },
       'siteAdmin',
     )
     expect(status).toBe(409)
+
+    const restore = await act(
+      `${targetId}/set-sign-in-disabled`,
+      { expectedUpdatedAt: await freshUpdatedAt(), enabled: false },
+      'siteAdmin',
+    )
+    expect(restore.status).toBe(200)
   })
 
   it('set-site-admin grants and revokes the role', async () => {

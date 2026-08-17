@@ -46,9 +46,29 @@ describe('withAdminResetLinkAllowance', () => {
     expect(req.context?.somethingElse).toBe(1)
   })
 
-  it('works when the request has no context object at all', async () => {
+  it('works when the request has no context object at all, and still runs the callback', async () => {
+    // ⚑ The `ran` flag is the point. Without it this test passes whether or not the callback was
+    // invoked — "the key is absent afterwards" is trivially true for a function that does nothing.
     const req: { context?: Record<string, unknown> } = {}
-    await withAdminResetLinkAllowance(req, async () => undefined)
+    let ran = false
+    let seenInside: unknown
+    await withAdminResetLinkAllowance(req, async () => {
+      ran = true
+      seenInside = req.context?.[ADMIN_RESET_LINK_CONTEXT]
+    })
+    expect(ran).toBe(true)
+    expect(seenInside).toBe(true)
     expect(req.context?.[ADMIN_RESET_LINK_CONTEXT]).toBeUndefined()
+  })
+
+  it('preserves the identity of an existing context object', async () => {
+    // Anything that captured `req.context` earlier in the request must still observe the allowance.
+    // Replacing the object rather than mutating it would leave such a holder with a detached copy.
+    const req: { context?: Record<string, unknown> } = { context: {} }
+    const captured = req.context
+    await withAdminResetLinkAllowance(req, async () => {
+      expect(captured?.[ADMIN_RESET_LINK_CONTEXT]).toBe(true)
+    })
+    expect(req.context).toBe(captured)
   })
 })

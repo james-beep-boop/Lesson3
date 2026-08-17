@@ -71,13 +71,27 @@ export const refuseDisabledLogin: CollectionBeforeLoginHook = ({ user }) => {
 /**
  * Is this user a Site Administrator who can actually sign in?
  *
- * ⚑ "USABLE" IS THE WHOLE POINT. A disabled Site Admin cannot log in, so they do not keep the
- * installation administrable — counting them would let the last enabled administrator be demoted
- * while a disabled one "covers" the invariant, locking everyone out exactly as the guard exists to
- * prevent. The role alone is not enough.
+ * ⚑ "USABLE" IS THE WHOLE POINT, and it takes THREE conditions — the role is not enough, and
+ * neither are two of them. An administrator who cannot sign in does not keep the installation
+ * administrable, so counting them lets the last real administrator be demoted while they "cover" the
+ * invariant, which is exactly the lockout this guard exists to prevent.
+ *
+ *   role            — obviously
+ *   !signInDisabled — the gate this PR adds
+ *   _verified       — ⚑ AND THIS ONE IS EASY TO MISS. Payload refuses an unverified account at BOTH
+ *                     doors: the login op throws `UnverifiedEmail` (`auth/operations/login.js:184`)
+ *                     and the JWT strategy resolves `user && (!auth.verify || user._verified)`,
+ *                     returning no user otherwise (`auth/strategies/jwt.js:72`). An unverified Site
+ *                     Admin therefore cannot administer anything.
+ *
+ * ⚑ AND IT IS REACHABLE, not theoretical: `grantSiteAdminToFirstUser` grants the role on the first
+ * CREATE, and under open registration that account is unverified until someone clicks a link. A
+ * fresh deployment thus has an unverified Site Admin by construction — precisely the "cover" that
+ * would let the last verified one be demoted.
  */
-const isUsableSiteAdmin = (u: Pick<User, 'roles' | 'signInDisabled'> | null | undefined): boolean =>
-  Boolean(u) && isSiteAdmin(u as User) && !u!.signInDisabled
+const isUsableSiteAdmin = (
+  u: Pick<User, 'roles' | 'signInDisabled' | '_verified'> | null | undefined,
+): boolean => Boolean(u) && isSiteAdmin(u as User) && !u!.signInDisabled && Boolean(u!._verified)
 
 /**
  * Refuse an operation that would remove the LAST usable Site Administrator.
@@ -134,6 +148,9 @@ async function assertAnotherUsableSiteAdminRemains(
         // would be silently excluded from the count — making the guard MORE likely to refuse, but
         // for an invisible reason. State both accepted shapes instead.
         { or: [{ signInDisabled: { equals: false } }, { signInDisabled: { exists: false } }] },
+        // ⚑ `equals: true`, not "not false". An unverified administrator cannot authenticate at all
+        // (see `isUsableSiteAdmin`), so counting one as cover is the lockout this guard prevents.
+        { _verified: { equals: true } },
       ],
     },
     overrideAccess: true,
@@ -173,8 +190,16 @@ export const guardLastSiteAdmin: CollectionBeforeChangeHook = async ({
   const nextRoles = 'roles' in data ? (data.roles as User['roles']) : before.roles
   const nextDisabled =
     'signInDisabled' in data ? Boolean(data.signInDisabled) : Boolean(before.signInDisabled)
+  // ⚑ `_verified` is a usability axis too, so UNVERIFYING the last usable administrator is a
+  // count-reducing change and is guarded exactly like a demotion. `_verified` is Site-Admin-writable
+  // (it is the manual-verify repair action), so this is a real path, not a hypothetical one.
+  const nextVerified = '_verified' in data ? Boolean(data._verified) : Boolean(before._verified)
   const wasUsable = isUsableSiteAdmin(before)
-  const willBeUsable = isUsableSiteAdmin({ roles: nextRoles, signInDisabled: nextDisabled })
+  const willBeUsable = isUsableSiteAdmin({
+    roles: nextRoles,
+    signInDisabled: nextDisabled,
+    _verified: nextVerified,
+  })
 
   // Self-disable guard: an administrator locking themselves out is always a mistake, and it is the
   // one case where the last-admin count would NOT catch it (another admin may well remain).
@@ -221,7 +246,7 @@ export const guardLastSiteAdminOnDelete: CollectionBeforeDeleteHook = async ({ i
     collection: 'users',
     id,
     depth: 0,
-    select: { roles: true, signInDisabled: true },
+    select: { roles: true, signInDisabled: true, _verified: true },
     overrideAccess: true,
     req,
   })) as User

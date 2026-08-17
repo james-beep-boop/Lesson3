@@ -90,9 +90,14 @@ export async function withAdminResetLinkAllowance<T>(
   req: { context?: Record<string, unknown> },
   work: () => Promise<T>,
 ): Promise<T> {
-  const had = Object.prototype.hasOwnProperty.call(req.context ?? {}, ADMIN_RESET_LINK_CONTEXT)
-  const previous = req.context?.[ADMIN_RESET_LINK_CONTEXT]
-  req.context = { ...(req.context ?? {}), [ADMIN_RESET_LINK_CONTEXT]: true }
+  // ⚑ MUTATE IN PLACE; do not replace `req.context`. Assigning a fresh object works today only
+  // because Payload happens to read the property off `req` later — anything that captured the
+  // ORIGINAL context object earlier in the request would be left holding a detached copy, and the
+  // allowance would be invisible to it. Preserving object identity removes that coupling entirely.
+  req.context ??= {}
+  const had = Object.prototype.hasOwnProperty.call(req.context, ADMIN_RESET_LINK_CONTEXT)
+  const previous = req.context[ADMIN_RESET_LINK_CONTEXT]
+  req.context[ADMIN_RESET_LINK_CONTEXT] = true
   try {
     return await work()
   } finally {

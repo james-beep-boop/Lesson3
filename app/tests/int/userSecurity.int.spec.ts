@@ -87,16 +87,32 @@ afterAll(async () => {
    * Deleting the role rows for `created` — and nothing else — leaves other specs' administrators
    * exactly as they were found.
    */
+  const failures: string[] = []
   for (const id of created) {
+    // Capture the roles before stripping them, so a fixture that then FAILS to delete can be put
+    // back exactly as it was. Without this, a delete failure leaves a silently demoted account
+    // behind — a subtler version of the bug this whole block replaced.
+    const roles = rowsOf<{ value: string; order: number }>(
+      await drizzleOf(payload).execute(
+        sql`SELECT value, "order" FROM users_roles WHERE parent_id = ${id}`,
+      ),
+    )
     await drizzleOf(payload)
       .execute(sql`DELETE FROM users_roles WHERE parent_id = ${id}`)
       .catch(() => undefined)
-  }
-  const failures: string[] = []
-  for (const id of created) {
-    await payload
-      .delete({ collection: 'users', id, overrideAccess: true })
-      .catch((e: unknown) => failures.push(`${id}: ${e instanceof Error ? e.message : String(e)}`))
+
+    try {
+      await payload.delete({ collection: 'users', id, overrideAccess: true })
+    } catch (e) {
+      failures.push(`${id}: ${e instanceof Error ? e.message : String(e)}`)
+      for (const r of roles) {
+        await drizzleOf(payload)
+          .execute(
+            sql`INSERT INTO users_roles ("order", parent_id, value) VALUES (${r.order}, ${id}, ${r.value})`,
+          )
+          .catch(() => undefined)
+      }
+    }
   }
   // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
   // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
@@ -299,6 +315,48 @@ describe('the last-Site-Admin invariant', () => {
         collection: 'users',
         id: enabled,
         data: { roles: [] } as never,
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow(/last site administrator/i)
+  })
+
+  /**
+   * ⚑ THE THIRD USABILITY AXIS. An unverified administrator cannot authenticate at all — Payload
+   * refuses at the login op AND in the JWT strategy — so counting one as cover leaves an
+   * installation with nobody able to administer it. Reachable rather than theoretical:
+   * `grantSiteAdminToFirstUser` grants the role on the first CREATE, and under open registration
+   * that account is unverified.
+   */
+  it('does not count an UNVERIFIED administrator as cover for demoting the verified one', async () => {
+    const verified = await mkUser('vcover-verified', { roles: ['siteAdmin'] })
+    const unverified = await mkUser('vcover-unverified', { roles: ['siteAdmin'] })
+    await payload.update({
+      collection: 'users',
+      id: unverified,
+      data: { _verified: false } as never,
+      overrideAccess: true,
+    })
+    await parkOtherAdmins([verified, unverified])
+    await expect(
+      payload.update({
+        collection: 'users',
+        id: verified,
+        data: { roles: [] } as never,
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow(/last site administrator/i)
+  })
+
+  it('refuses to UNVERIFY the last usable administrator', async () => {
+    // Un-verifying is a count-reducing change like any other, and `_verified` is Site-Admin-writable
+    // (it is the manual-verify repair action), so this is a real path to lockout.
+    const only = await mkUser('unverify-last', { roles: ['siteAdmin'] })
+    await parkOtherAdmins([only])
+    await expect(
+      payload.update({
+        collection: 'users',
+        id: only,
+        data: { _verified: false } as never,
         overrideAccess: true,
       }),
     ).rejects.toThrow(/last site administrator/i)
