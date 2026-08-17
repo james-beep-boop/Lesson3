@@ -31,8 +31,8 @@ import {
   type PayloadRequest,
 } from 'payload'
 
-import { lockRows } from '../lib/txDb'
-import { json, readJsonBody, MAX_CONTROL_BODY_BYTES } from './respond'
+import { lockAndVerifyFresh } from '../lib/txDb'
+import { json, readJsonBody, requireExpectedUpdatedAt, MAX_CONTROL_BODY_BYTES } from './respond'
 import { toId, type Assignment } from '../access'
 import type { User } from '../payload-types'
 
@@ -59,11 +59,13 @@ export async function readAssignmentBody(
   if (!Number.isFinite(subjectGradeId)) {
     throw new APIError('subjectGradeId is required.', 400)
   }
-  const expectedUpdatedAt = body?.expectedUpdatedAt
-  if (typeof expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(expectedUpdatedAt))) {
-    throw new APIError('expectedUpdatedAt is required — reload before changing roles.', 400)
+  return {
+    subjectGradeId,
+    expectedUpdatedAt: requireExpectedUpdatedAt(
+      body?.expectedUpdatedAt,
+      'expectedUpdatedAt is required — reload before changing roles.',
+    ),
   }
-  return { subjectGradeId, expectedUpdatedAt }
 }
 
 /** Shared handler: apply a one-row Editor grant/removal for `subjectGradeId` on user `:id`. */
@@ -79,11 +81,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
 
       const shouldCommit = await initTransaction(req)
       try {
-        // Serialize concurrent role changes on this user: take a ROW LOCK on the target before the
-        // freshness read (Codex round-3 #1 — two requests carrying the same fresh token could
-        // otherwise both pass the check, and the later write would drop the earlier delta). The
-        // second request blocks here until the first commits, then its fresh read sees the NEW
-        // updatedAt → 409. `lockRows` owns the connection mechanics and fails closed.
+        // Serialize concurrent role changes on this user, then refuse a stale consent token.
         //
         // ⚑ THIS LOCK IS LOAD-BEARING, unlike make-official's, which DECISIONS 2026-08-14 removed
         // on the grounds that a stale-consent check plus rollback already covered every ordering.
@@ -93,23 +91,16 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
         // unconditional write of the whole assignments array, so two requests can both pass the
         // compare before either writes and the later one silently drops the earlier delta. Do not
         // delete this by analogy.
-        await lockRows(req, 'users', [targetId])
-
-        // Fresh read inside the transaction (post-lock) — the freshness check and the delta both
-        // work on it.
-        const target = (await req.payload.findByID({
-          collection: 'users',
-          id: targetId,
-          depth: 0,
-          overrideAccess: true,
+        //
+        // `lockAndVerifyFresh` owns the lock/re-read/compare order, and the row-before-global lock
+        // rule that `guardLastSiteAdmin` depends on — see its docblock in `lib/txDb.ts`.
+        const target = await lockAndVerifyFresh<User>(
           req,
-        })) as User
-        if (Date.parse(String(target.updatedAt)) !== Date.parse(expectedUpdatedAt)) {
-          throw new APIError(
-            'This user’s roles changed since you loaded the page — reload before changing them.',
-            409,
-          )
-        }
+          'users',
+          targetId,
+          expectedUpdatedAt,
+          'This user’s roles changed since you loaded the page — reload before changing them.',
+        )
 
         const rows: Assignment[] = (target.assignments ?? []) as Assignment[]
         const isEditorRowForSg = (a: Assignment) =>

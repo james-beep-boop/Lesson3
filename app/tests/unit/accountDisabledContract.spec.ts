@@ -16,18 +16,23 @@ import { describe, it, expect } from 'vitest'
 // `payload/shared` — checked against the installed package's own exports rather than assumed.
 import { APIError, Forbidden, formatErrors } from 'payload'
 
-import { AccountDisabledError, ACCOUNT_DISABLED_CODE } from '../../src/errors/AccountDisabled'
+import {
+  AccountDisabledError,
+  ACCOUNT_DISABLED_CODE,
+  readErrorCode,
+  type ErrorWire,
+} from '../../src/errors/AccountDisabled'
 
-/** The shape the two client forms destructure. Mirrors what they actually read, nothing more. */
-type Wire = { errors: { name?: string; message?: string; data?: { code?: string } }[] }
+// The shape is imported, not redeclared: a local copy would let this spec keep passing while the
+// readers drifted, which is the opposite of what a contract test is for.
 
 describe('AccountDisabledError', () => {
   it('serialises to the exact shape both forms key on', () => {
-    const wire = formatErrors(new AccountDisabledError()) as Wire
-    expect(wire.errors).toHaveLength(1)
-    expect(wire.errors[0]!.data?.code).toBe(ACCOUNT_DISABLED_CODE)
+    const wire = formatErrors(new AccountDisabledError()) as ErrorWire
+    expect(wire.errors!).toHaveLength(1)
+    expect(wire.errors![0]!.data?.code).toBe(ACCOUNT_DISABLED_CODE)
     // The message still reaches the client — the code is what is branched on, not what is shown.
-    expect(wire.errors[0]!.message).toBeTruthy()
+    expect(wire.errors![0]!.message).toBeTruthy()
   })
 
   it('is a 403, like every other refusal on this path', () => {
@@ -37,9 +42,23 @@ describe('AccountDisabledError', () => {
     expect(new AccountDisabledError().status).toBe(403)
   })
 
+  it('is read back by the SHARED reader both forms use, straight off a Response', async () => {
+    // ⚑ Exercises `readErrorCode` itself, not a re-implementation of it. The forms call this exact
+    // function, so a change that breaks their branch breaks this assertion — which was NOT true while
+    // each form spelled the shape out by hand and this spec declared a third copy.
+    const wire = formatErrors(new AccountDisabledError())
+    const res = new Response(JSON.stringify(wire), { status: 403 })
+    expect(await readErrorCode(res)).toBe(ACCOUNT_DISABLED_CODE)
+  })
+
+  it('the shared reader returns undefined for a non-JSON body rather than throwing', async () => {
+    // An error path must not produce a second error: the forms fall back to a generic message.
+    expect(await readErrorCode(new Response('<html>502</html>', { status: 502 }))).toBeUndefined()
+  })
+
   it('carries the code even with custom copy', () => {
-    const wire = formatErrors(new AccountDisabledError('Different words entirely.')) as Wire
-    expect(wire.errors[0]!.data?.code).toBe(ACCOUNT_DISABLED_CODE)
+    const wire = formatErrors(new AccountDisabledError('Different words entirely.')) as ErrorWire
+    expect(wire.errors![0]!.data?.code).toBe(ACCOUNT_DISABLED_CODE)
   })
 
   /**
@@ -49,15 +68,15 @@ describe('AccountDisabledError', () => {
    * way that would be invisible in review.
    */
   it('a plain Forbidden CANNOT carry the code — which is why this class exists', () => {
-    const wire = formatErrors(new Forbidden()) as Wire
-    expect(wire.errors[0]!.data).toBeUndefined()
+    const wire = formatErrors(new Forbidden()) as ErrorWire
+    expect(wire.errors![0]!.data).toBeUndefined()
   })
 
   it('an APIError with no data degrades to a bare message', () => {
-    const wire = formatErrors(new APIError('Token is either invalid or has expired.', 403)) as Wire
-    expect(wire.errors[0]!.data).toBeUndefined()
+    const wire = formatErrors(new APIError('Token is either invalid or has expired.', 403)) as ErrorWire
+    expect(wire.errors![0]!.data).toBeUndefined()
     // …and this is the OTHER 403 the forms must not mistake for a disabled account. Its absence of a
     // code is the whole disambiguator, so it is asserted rather than assumed.
-    expect(wire.errors[0]!.message).toContain('invalid or has expired')
+    expect(wire.errors![0]!.message).toContain('invalid or has expired')
   })
 })

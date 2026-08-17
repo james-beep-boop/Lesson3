@@ -11,10 +11,10 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { getPayload, type Payload } from 'payload'
-import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
 import { createUserVerified } from '../helpers/fixtures.js'
+import { clearRateLimitBuckets } from '../helpers/db.js'
 import { ADMIN_RESET_LINK_CONTEXT } from '../../src/hooks/authRateLimit.js'
 
 const RUN = `carveout-${Date.now()}`
@@ -42,9 +42,11 @@ afterAll(async () => {
   for (const id of created) {
     await payload.delete({ collection: 'users', id, overrideAccess: true }).catch(() => undefined)
   }
-  await payload.db.drizzle
-    .execute(sql`DELETE FROM rate_limit_counters WHERE key LIKE ${`%${RUN}%`}`)
-    .catch(() => undefined)
+  // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
+  // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
+  // exact failure this helper was written after: a leaked daily budget takes out a LATER, unrelated
+  // spec with "Sign-ups are temporarily paused".
+  await clearRateLimitBuckets(payload, `%${RUN}%`)
 })
 
 describe('the admin reset-link carve-out', () => {

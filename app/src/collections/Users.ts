@@ -112,10 +112,11 @@ export const Users: CollectionConfig = {
     // the token — verified in auth/operations/resetPassword.js:113). One hook, two entry points;
     // see `refuseDisabledLogin` for why that is intended rather than incidental.
     beforeLogin: [refuseDisabledLogin],
-    // ⚑ `guardLastSiteAdmin` runs LAST of the beforeChange hooks: it is the one that takes the
-    // shared advisory lock, and holding it for the shortest possible span keeps the serialised
-    // region small. It still fires on the disable endpoint's `overrideAccess: true` write —
-    // overrideAccess bypasses access control, not hooks.
+    // ⚑ `guardLastSiteAdmin` runs LAST of the beforeChange hooks, so the other three do their work
+    // before the shared advisory key is taken. That is ordering hygiene, NOT a hold-duration
+    // optimisation — `pg_advisory_xact_lock` releases at commit, so the key is held across the
+    // UPDATE and afterChange regardless (see its docblock). It still fires on the disable endpoint's
+    // `overrideAccess: true` write: overrideAccess bypasses access control, not hooks.
     beforeChange: [
       grantSiteAdminToFirstUser,
       guardPasswordChange,

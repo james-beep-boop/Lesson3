@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react'
 
 import PasswordInput from '@/components/PasswordInput'
-import { ACCOUNT_DISABLED_CODE } from '@/errors/AccountDisabled'
+import { ACCOUNT_DISABLED_CODE, readErrorCode } from '@/errors/AccountDisabled'
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('')
@@ -59,10 +59,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         // rolls back. Flattening both into "invalid or expired" told them their good link was broken.
         //
         // Branch on the code, never the status and never the message text (i18n).
-        const code = await res
-          .json()
-          .then((b: { errors?: { data?: { code?: string } }[] }) => b?.errors?.[0]?.data?.code)
-          .catch(() => undefined)
+        const code = await readErrorCode(res)
         setError(
           code === ACCOUNT_DISABLED_CODE
             ? 'This account is disabled — contact an administrator.'

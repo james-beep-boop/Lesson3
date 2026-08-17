@@ -39,9 +39,7 @@ import { APIError } from 'payload'
  */
 export const ACCOUNT_DISABLED_CODE = 'ACCOUNT_DISABLED' as const
 
-export type AccountDisabledData = { code: typeof ACCOUNT_DISABLED_CODE }
-
-export class AccountDisabledError extends APIError<AccountDisabledData> {
+export class AccountDisabledError extends APIError<{ code: typeof ACCOUNT_DISABLED_CODE }> {
   constructor(
     // Default copy names the reason and the next step. It is still not what the client branches on.
     message = 'This account is disabled — contact an administrator.',
@@ -51,4 +49,29 @@ export class AccountDisabledError extends APIError<AccountDisabledData> {
     // account, so the reader is the account's owner. See D13a step 4.
     super(message, 403, { code: ACCOUNT_DISABLED_CODE }, true)
   }
+}
+
+/**
+ * The serialised error shape both client forms read, and the reader itself.
+ *
+ * ⚑ THE SHAPE BELONGS BESIDE THE CODE, not copied into each consumer. `ACCOUNT_DISABLED_CODE` was
+ * exported so the STRING has one spelling — but the first version left `errors[0].data.code` spelled
+ * out by hand in `LoginForm`, in `ResetPasswordForm`, and again as a local type in the contract spec.
+ * Three hand-maintained readers of a shape whose whole point is that it fails silently when it drifts.
+ */
+export type ErrorWire = {
+  errors?: { name?: string; message?: string; data?: { code?: string } }[]
+}
+
+/**
+ * Read the machine-readable error code out of a failed `Response`, or `undefined`.
+ *
+ * Returns `undefined` rather than throwing on a non-JSON body: an error path must not produce a
+ * second error, and every caller falls back to a status-based or generic message anyway.
+ */
+export async function readErrorCode(res: Response): Promise<string | undefined> {
+  return res
+    .json()
+    .then((body: ErrorWire) => body?.errors?.[0]?.data?.code)
+    .catch(() => undefined)
 }

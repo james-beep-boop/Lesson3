@@ -73,6 +73,34 @@ const THROTTLED = {
  */
 export const ADMIN_RESET_LINK_CONTEXT = 'adminResetLink' as const
 
+/**
+ * Run `work` with the admin reset-link allowance in effect, and take it away again afterwards.
+ *
+ * ⚑ THE ALLOWANCE IS SCOPED, not set-and-forget. The first version assigned
+ * `req.context[ADMIN_RESET_LINK_CONTEXT] = true` in the endpoint and never cleared it, so the
+ * exemption covered the remainder of the request. Only one operation follows today, which makes that
+ * a maintenance hazard rather than a defect — but it is one maintained by a comment, and the next
+ * write added to that handler would silently inherit an unlimited public forgot-password budget with
+ * nothing failing.
+ *
+ * Restoring the previous value in a `finally` makes the narrow scope structural, and puts the
+ * mechanism in the module that OWNS the limiter rather than in the endpoint that benefits from it.
+ */
+export async function withAdminResetLinkAllowance<T>(
+  req: { context?: Record<string, unknown> },
+  work: () => Promise<T>,
+): Promise<T> {
+  const had = Object.prototype.hasOwnProperty.call(req.context ?? {}, ADMIN_RESET_LINK_CONTEXT)
+  const previous = req.context?.[ADMIN_RESET_LINK_CONTEXT]
+  req.context = { ...(req.context ?? {}), [ADMIN_RESET_LINK_CONTEXT]: true }
+  try {
+    return await work()
+  } finally {
+    if (had) req.context[ADMIN_RESET_LINK_CONTEXT] = previous
+    else delete req.context[ADMIN_RESET_LINK_CONTEXT]
+  }
+}
+
 export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   args,
   operation,

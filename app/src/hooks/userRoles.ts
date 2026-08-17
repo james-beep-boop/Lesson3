@@ -30,9 +30,14 @@ const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.rol
  * and both commit — leaving zero. A concurrent test that races demote-against-demote would pass
  * against that broken implementation, which is why the matrix races demote against DISABLE.
  *
- * ⚑ LOCK ORDER, fixed here so callers cannot disagree: take THIS global lock BEFORE any per-user
- * `lockRows`. Two paths acquiring the same two locks in opposite orders is a deadlock, and the
- * endpoints do take row locks for their freshness check.
+ * ⚑ LOCK ORDER: the per-user row lock comes FIRST, then this global key. That is what the code does
+ * — an endpoint calls `lockAndVerifyFresh` (row lock) and the subsequent `payload.update` runs this
+ * guard, which takes the key. Two paths acquiring the pair in opposite orders is a deadlock.
+ *
+ * ⚑ An earlier draft of this comment stated the rule BACKWARDS while a comment in
+ * `endpoints/userAdminActions.ts` stated it correctly, so one protocol was described two ways in two
+ * files. The rule now lives at the step both paths share — `lockAndVerifyFresh` in `lib/txDb.ts` —
+ * and this note points there rather than restating it a third time.
  */
 export const ADMIN_COUNT_LOCK = { classifier: 1280527187, key: 2 } as const
 
@@ -84,11 +89,16 @@ const isUsableSiteAdmin = (u: Pick<User, 'roles' | 'signInDisabled'> | null | un
  * ⚑ A LOCK THAT HOLDS NOTHING MUST FAIL, not no-op — the discipline #221 established after a
  * pool-fallback lock left a race wide open with nothing to say so. `txDb(..., requireTransaction)`
  * refuses outside a transaction rather than silently proceeding unlocked.
+ *
+ * ⚑ `pg_advisory_xact_lock` is TRANSACTION-scoped: it releases at COMMIT/ROLLBACK, not when this
+ * function returns. Hook ordering therefore shortens the hold only by the runtime of the hooks ahead
+ * of it — the lock still spans the UPDATE, the afterChange hooks and the commit. That is fine here
+ * (these writes happen a handful of times in an installation's life, so contention is nil), but do
+ * not read the ordering as a hold-duration optimisation.
  */
 async function assertAnotherUsableSiteAdminRemains(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
   excludeUserId: number | string,
-  message: string,
 ): Promise<void> {
   const db = await txDb(req, { requireTransaction: true })
   await db.execute(
@@ -110,7 +120,14 @@ async function assertAnotherUsableSiteAdminRemains(
     overrideAccess: true,
     req,
   })
-  if (totalDocs === 0) throw new APIError(message, 403)
+  if (totalDocs === 0) {
+    // One sentence for one invariant. It was briefly a parameter, with both call sites passing the
+    // identical string — a variation point with no variation, duplicated across two files.
+    throw new APIError(
+      'This is the last site administrator who can sign in — grant the role to someone else first.',
+      403,
+    )
+  }
 }
 
 /**
@@ -152,11 +169,7 @@ export const guardLastSiteAdmin: CollectionBeforeChangeHook = async ({
   }
 
   if (wasUsable && !willBeUsable) {
-    await assertAnotherUsableSiteAdminRemains(
-      req,
-      before.id,
-      'This is the last site administrator who can sign in — grant the role to someone else first.',
-    )
+    await assertAnotherUsableSiteAdminRemains(req, before.id)
   }
   return data
 }
@@ -167,19 +180,18 @@ export const guardLastSiteAdminOnDelete: CollectionBeforeDeleteHook = async ({ i
   if (actor && String(actor.id) === String(id)) {
     throw new APIError('You cannot delete your own account.', 403)
   }
+  // Projected to the two fields the predicate reads: a full hydrate would pull the `assignments` and
+  // `sessions` array tables and run afterRead hooks, on every user delete, to answer a boolean.
   const target = (await req.payload.findByID({
     collection: 'users',
     id,
     depth: 0,
+    select: { roles: true, signInDisabled: true },
     overrideAccess: true,
     req,
   })) as User
   if (!isUsableSiteAdmin(target)) return
-  await assertAnotherUsableSiteAdminRemains(
-    req,
-    id,
-    'This is the last site administrator who can sign in — grant the role to someone else first.',
-  )
+  await assertAnotherUsableSiteAdminRemains(req, id)
 }
 
 /**

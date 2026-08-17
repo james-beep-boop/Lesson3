@@ -15,8 +15,14 @@
  * ⚑ AUTHORIZE FIRST, THEN WRITE WITH `overrideAccess: true`. That pattern is only as safe as the
  * test proving the gate runs first, which is why CLAUDE.md requires wire-level 401/403/404/409
  * coverage in this same PR. The `overrideAccess` is not a convenience: `signInDisabled` and the base
- * `sessions` field both carry `update: () => false`, so a caller-scoped write CANNOT set them — that
- * is deliberate, and it is what makes this endpoint the single writer.
+ * `sessions` field both carry `update: () => false`, so a caller-scoped write CANNOT set them.
+ *
+ * ⚑ "SOLE WRITER" IS TRUE OF `set-sign-in-disabled` ONLY, and the distinction matters. That field IS
+ * closed to every other path, which is what forces the atomic flag+`sessions: []` pair through this
+ * door. `set-site-admin` is different: `roles.update` is `siteAdminField`, so a Site Admin can still
+ * change roles through a generic `PATCH /api/users/:id`. That endpoint adds the freshness guard and
+ * the row lock, not exclusivity — the real invariant, `guardLastSiteAdmin`, is a collection hook and
+ * therefore fires on the PATCH path too. Do not read this file as closing the generic route.
  *
  * ⚑ LOCK ORDER is fixed across this file and `hooks/userRoles.ts`: the global `ADMIN_COUNT_LOCK`
  * (taken inside `guardLastSiteAdmin`, during the update) is acquired AFTER this file's per-user
@@ -33,20 +39,28 @@ import {
   type PayloadRequest,
 } from 'payload'
 
-import { isSiteAdmin } from '../access'
-import { ADMIN_RESET_LINK_CONTEXT } from '../hooks/authRateLimit'
+import { withAdminResetLinkAllowance } from '../hooks/authRateLimit'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { consumeRateLimit } from '../lib/rateLimit'
-import { lockRows } from '../lib/txDb'
+import { lockAndVerifyFresh } from '../lib/txDb'
 import type { User } from '../payload-types'
-import { json, readJsonBody, MAX_CONTROL_BODY_BYTES } from './respond'
+import {
+  assertSiteAdmin,
+  json,
+  readJsonBody,
+  requireExpectedUpdatedAt,
+  MAX_CONTROL_BODY_BYTES,
+} from './respond'
 
 /**
  * Every response here is `no-store` (D5a-iii). The reset-link body carries a live credential, and
  * the two setters carry account status — neither belongs in a shared or browser cache.
  *
- * Applied to the whole file rather than just the reveal path so a future action cannot be added to
- * this file and quietly inherit default caching.
+ * ⚑ Passed at each `json()` return, so it covers the SUCCESS bodies. Thrown refusals (400/409/429)
+ * are rendered by Payload's error handler and carry no such header — acceptable, because none of
+ * those bodies contains a credential or account status, but it means the property is per-return
+ * rather than structural. If a future action returns anything sensitive on an error path, wrap the
+ * handlers instead of adding a fourth hand-passed header.
  */
 const NO_STORE = { 'Cache-Control': 'no-store' } as const
 
@@ -59,55 +73,32 @@ const NO_STORE = { 'Cache-Control': 'no-store' } as const
  */
 async function readActionBody(
   req: PayloadRequest,
-): Promise<{ expectedUpdatedAt: string; enabled: boolean | undefined }> {
+): Promise<{ expectedUpdatedAt: string; enabled?: boolean }> {
   const body = await readJsonBody<{ expectedUpdatedAt?: unknown; enabled?: unknown }>(
     req,
     MAX_CONTROL_BODY_BYTES,
   )
-  const expectedUpdatedAt = body?.expectedUpdatedAt
-  if (typeof expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(expectedUpdatedAt))) {
-    throw new APIError('expectedUpdatedAt is required — reload before changing this account.', 400)
-  }
   return {
-    expectedUpdatedAt,
+    expectedUpdatedAt: requireExpectedUpdatedAt(
+      body?.expectedUpdatedAt,
+      'expectedUpdatedAt is required — reload before changing this account.',
+    ),
     enabled: typeof body?.enabled === 'boolean' ? body.enabled : undefined,
   }
 }
 
-/** Site-Admin gate + target id, shared by all three actions. 401 before 403 before 404. */
+/**
+ * The Site-Admin gate plus the target id, in that order.
+ *
+ * The gate itself is `assertSiteAdmin` from `respond.ts` — this is the third endpoint file to need
+ * it, and the first three copies had already drifted into three different 403 bodies. Only the id
+ * parse is local, because it is the part that is genuinely about this file's `/:id/…` routes.
+ */
 function requireSiteAdminCaller(req: PayloadRequest): number {
-  if (!req.user) throw new APIError('Unauthorized', 401)
-  if (!isSiteAdmin(req.user as User)) throw new APIError('Forbidden', 403)
+  assertSiteAdmin(req)
   const targetId = Number(req.routeParams?.id)
   if (!Number.isFinite(targetId)) throw new APIError('Missing user id', 400)
   return targetId
-}
-
-/**
- * Load the target inside the transaction, after a row lock, and enforce the freshness check.
- *
- * Returns the fresh row so callers decide from post-lock state rather than the pre-lock read.
- */
-async function lockAndVerifyFresh(
-  req: PayloadRequest,
-  targetId: number,
-  expectedUpdatedAt: string,
-): Promise<User> {
-  await lockRows(req, 'users', [targetId])
-  const target = (await req.payload.findByID({
-    collection: 'users',
-    id: targetId,
-    depth: 0,
-    overrideAccess: true,
-    req,
-  })) as User
-  if (Date.parse(String(target.updatedAt)) !== Date.parse(expectedUpdatedAt)) {
-    throw new APIError(
-      'This account changed since you loaded the page — reload before changing it.',
-      409,
-    )
-  }
-  return target
 }
 
 /**
@@ -142,7 +133,13 @@ const revealResetLinkEndpoint: Endpoint = {
 
     const shouldCommit = await initTransaction(req)
     try {
-      const target = await lockAndVerifyFresh(req, targetId, expectedUpdatedAt)
+      const target = await lockAndVerifyFresh<User>(
+        req,
+        'users',
+        targetId,
+        expectedUpdatedAt,
+        'This account changed since you loaded the page — reload before changing it.',
+      )
       if (target.signInDisabled) {
         throw new APIError(
           'This account’s sign-in is disabled — re-enable it before generating a reset link.',
@@ -150,18 +147,20 @@ const revealResetLinkEndpoint: Endpoint = {
         )
       }
 
-      // Only NOW mark the operation as the admin path. Both preconditions have been met: the caller
-      // is an authorized Site Admin, and the admin cap above was consumed.
-      req.context = { ...(req.context ?? {}), [ADMIN_RESET_LINK_CONTEXT]: true }
-
-      const token = await forgotPasswordOperation({
-        collection: req.payload.collections.users,
-        // Same `as never` idiom as `forgotPassword.ts`: the installed arg type demands a `password`
-        // it never reads.
-        data: { email: target.email } as never,
-        disableEmail: true,
-        req,
-      })
+      // Only NOW is the allowance granted, and only AROUND this one call. Both preconditions have
+      // been met: the caller is an authorized Site Admin, and the admin cap above was consumed.
+      // The wrapper takes the allowance away again in a `finally`, so nothing added after this
+      // inherits it.
+      const token = await withAdminResetLinkAllowance(req, () =>
+        forgotPasswordOperation({
+          collection: req.payload.collections.users,
+          // Same `as never` idiom as `forgotPassword.ts`: the installed arg type demands a
+          // `password` it never reads.
+          data: { email: target.email } as never,
+          disableEmail: true,
+          req,
+        }),
+      )
       if (!token) {
         // Can't-happen: the target was just read by id inside this transaction. Fail loudly rather
         // than returning a link-shaped string with an empty token.
@@ -207,7 +206,13 @@ function booleanSetterEndpoint(kind: 'site-admin' | 'sign-in-disabled'): Endpoin
 
       const shouldCommit = await initTransaction(req)
       try {
-        const target = await lockAndVerifyFresh(req, targetId, expectedUpdatedAt)
+        const target = await lockAndVerifyFresh<User>(
+        req,
+        'users',
+        targetId,
+        expectedUpdatedAt,
+        'This account changed since you loaded the page — reload before changing it.',
+      )
 
         const data =
           kind === 'site-admin'

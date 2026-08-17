@@ -5,6 +5,42 @@
  */
 import { APIError, type PayloadRequest } from 'payload'
 
+import { isSiteAdmin } from '../access'
+import type { User } from '../payload-types'
+
+/**
+ * The 401-then-403 gate every Site-Admin endpoint opens with.
+ *
+ * ⚑ ORDER IS THE POINT, not the brevity: an unauthenticated caller must get 401, and only a
+ * SIGNED-IN non-admin 403 — swapping them tells an anonymous prober that the route exists and is
+ * admin-only. Three files had hand-rolled this before it was extracted (`uploadBundles`, `recovery`,
+ * `userAdminActions`) and had already produced three different 403 bodies, each pinned by its own
+ * wire test.
+ *
+ * `access/index.ts` cannot supply this: `isSiteAdmin` is a plain predicate and `siteAdminOnly` is a
+ * Payload `Access` function returning a boolean. Neither THROWS, which is what an endpoint needs.
+ */
+export function assertSiteAdmin(req: PayloadRequest): void {
+  if (!req.user) throw new APIError('Unauthorized', 401)
+  if (!isSiteAdmin(req.user as User)) throw new APIError('Forbidden', 403)
+}
+
+/**
+ * The `expectedUpdatedAt` optimistic-concurrency token, parsed and validated.
+ *
+ * ⚑ ONE ACCEPTANCE RULE for every endpoint that guards an authorization write. `userAssignments` and
+ * `userAdminActions` each defined this independently; nothing pinned the rule, so loosening one —
+ * accepting an epoch number from a future client, say — would have made two authorization endpoints
+ * silently disagree about what consent looks like. The caller supplies the message because the
+ * actionable half ("reload before changing roles" vs "…this account") is genuinely per-endpoint.
+ */
+export function requireExpectedUpdatedAt(value: unknown, message: string): string {
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
+    throw new APIError(message, 400)
+  }
+  return value
+}
+
 /**
  * `extraHeaders` is optional and additive — existing callers are unaffected. It exists for responses
  * that must not be cached: `userAdminActions` returns a live reset token and account status, which

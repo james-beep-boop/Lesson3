@@ -16,9 +16,10 @@ import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
 import { createUserVerified } from '../helpers/fixtures.js'
+import { clearRateLimitBuckets, drizzleOf, rowsOf } from '../helpers/db.js'
 import { ACCOUNT_DISABLED_CODE } from '../../src/errors/AccountDisabled.js'
 import { ADMIN_COUNT_LOCK } from '../../src/hooks/userRoles.js'
-import { stillPendingAfterWindow } from '../helpers/rowLocks.js'
+import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
 
 const RUN = `usersec-${Date.now()}`
 const PASSWORD = `pw-${RUN}-Str0ng!`
@@ -77,9 +78,11 @@ afterAll(async () => {
   for (const id of created) {
     await payload.delete({ collection: 'users', id, overrideAccess: true }).catch(() => undefined)
   }
-  await payload.db.drizzle
-    .execute(sql`DELETE FROM rate_limit_counters WHERE key LIKE ${`%${RUN}%`}`)
-    .catch(() => undefined)
+  // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
+  // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
+  // exact failure this helper was written after: a leaked daily budget takes out a LATER, unrelated
+  // spec with "Sign-ups are temporarily paused".
+  await clearRateLimitBuckets(payload, `%${RUN}%`)
 })
 
 describe('signInDisabled — the login gate', () => {
@@ -186,30 +189,39 @@ describe('signInDisabled — the login gate', () => {
  * to set up its own preconditions), then restore them. Restoring matters: a later spec in the same
  * run may legitimately expect an administrator to exist.
  */
-let parkedAdminIds: number[] = []
+let parkedAdminRows: { parentId: number; order: number }[] = []
 
 async function parkOtherAdmins(keep: number[]): Promise<void> {
-  const rows = (await payload.db.drizzle.execute(
-    sql`SELECT parent_id FROM users_roles WHERE value = 'siteAdmin'`,
-  )) as unknown as { rows: { parent_id: number }[] }
-  parkedAdminIds = rows.rows.map((r) => Number(r.parent_id)).filter((id) => !keep.includes(id))
+  // `drizzleOf`/`rowsOf` rather than reaching through `payload.db.drizzle` and assuming the `{rows}`
+  // driver shape — `rowsOf` normalises both shapes the adapter can return.
+  const rows = rowsOf<{ parent_id: number; order: number }>(
+    await drizzleOf(payload).execute(
+      sql`SELECT parent_id, "order" FROM users_roles WHERE value = 'siteAdmin'`,
+    ),
+  )
+  parkedAdminRows = rows
+    .map((r) => ({ parentId: Number(r.parent_id), order: Number(r.order) }))
+    .filter((r) => !keep.includes(r.parentId))
   // One statement per id rather than `= ANY($1)`: the array binding is the kind of detail that fails
   // silently (deleting nothing, so the guard sees stray admins and the test fails for the wrong
   // reason), and the list here is a handful of rows.
-  for (const id of parkedAdminIds) {
-    await payload.db.drizzle.execute(
-      sql`DELETE FROM users_roles WHERE value = 'siteAdmin' AND parent_id = ${id}`,
+  for (const { parentId } of parkedAdminRows) {
+    await drizzleOf(payload).execute(
+      sql`DELETE FROM users_roles WHERE value = 'siteAdmin' AND parent_id = ${parentId}`,
     )
   }
 }
 
 async function restoreParkedAdmins(): Promise<void> {
-  for (const id of parkedAdminIds) {
-    await payload.db.drizzle.execute(
-      sql`INSERT INTO users_roles ("order", parent_id, value) VALUES (0, ${id}, 'siteAdmin')`,
+  // ⚑ Restores the ORIGINAL `"order"`, not 0. A user with several roles would otherwise come back
+  // with a different ordering than they had, which is a silent mutation of state this spec only
+  // borrowed — and the kind of thing a later spec asserting on role order would blame on itself.
+  for (const { parentId, order } of parkedAdminRows) {
+    await drizzleOf(payload).execute(
+      sql`INSERT INTO users_roles ("order", parent_id, value) VALUES (${order}, ${parentId}, 'siteAdmin')`,
     )
   }
-  parkedAdminIds = []
+  parkedAdminRows = []
 }
 
 describe('the last-Site-Admin invariant', () => {
@@ -338,40 +350,31 @@ describe('concurrency: the shared advisory key', () => {
     await parkOtherAdmins([a, b])
 
     // Hold ADMIN_COUNT_LOCK from a dedicated connection, exactly as a concurrent disable would.
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => (release = resolve))
-    let started!: () => void
-    const holding = new Promise<void>((resolve) => (started = resolve))
+    // `whileLockHeld` owns the gate/holder mechanics and the release-in-`finally`; the first draft
+    // here copied that body and changed one statement, which is the duplication `rowLocks.ts` exists
+    // to prevent.
+    await whileLockHeld(
+      payload,
+      sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
+      async () => {
+        const demote = payload.update({
+          collection: 'users',
+          id: a,
+          data: { roles: [] } as never,
+          overrideAccess: true,
+        })
+        try {
+          expect(
+            await stillPendingAfterWindow(demote),
+            'the demotion must wait on the shared admin-count key, not decide from a stale count',
+          ).toBe(true)
+        } finally {
+          // Swallowed here: the helper releases the lock on the way out, after which this settles.
+          void demote.catch(() => undefined)
+        }
+      },
+    )
 
-    const holder = (
-      payload.db.drizzle as unknown as {
-        transaction: <T>(fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<T>) => Promise<T>
-      }
-    ).transaction(async (tx) => {
-      await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
-      )
-      started()
-      await gate
-    })
-    await holding
-
-    const demote = payload.update({
-      collection: 'users',
-      id: a,
-      data: { roles: [] } as never,
-      overrideAccess: true,
-    })
-    try {
-      expect(
-        await stillPendingAfterWindow(demote),
-        'the demotion must wait on the shared admin-count key, not decide from a stale count',
-      ).toBe(true)
-    } finally {
-      release()
-      await holder
-      await demote.catch(() => undefined)
-    }
     // `b` is untouched — the point is the WAIT, not the outcome.
     expect(b).toBeTruthy()
   })

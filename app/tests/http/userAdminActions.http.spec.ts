@@ -16,8 +16,13 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { MARK, setupRoleFixture, type RoleFixture, type RoleKey } from '../helpers/fixtures.js'
+// `HTTP_BASE`/`url`/`login` from the shared wire helper — its own docblock records that it exists
+// because the third copy had drifted, and its `login` throws with the address and status on failure
+// (a hand-rolled one dies inside `beforeAll` on a proxy HTML page with no clue which account).
+import { login, url } from '../helpers/httpWire.js'
+// The code constant, not a hardcoded string: one spelling shared with the thrower and both forms.
+import { ACCOUNT_DISABLED_CODE, type ErrorWire } from '../../src/errors/AccountDisabled.js'
 
-const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
 let fx: RoleFixture
@@ -26,24 +31,13 @@ const token: Record<string, string> = {}
 let targetId = 0
 let targetUpdatedAt = ''
 
-async function login(email: string, password: string): Promise<string> {
-  const res = await fetch(`${BASE}/api/users/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  const body = (await res.json()) as { token?: string }
-  if (!body.token) throw new Error(`login returned no token for ${email}`)
-  return body.token
-}
-
 /** POST one of the three actions. `as` omitted → unauthenticated. */
 async function act(
   path: string,
   body: unknown,
   as?: RoleKey,
 ): Promise<{ status: number; json: Record<string, unknown>; headers: Headers }> {
-  const res = await fetch(`${BASE}/api/users/${path}`, {
+  const res = await fetch(url(`/api/users/${path}`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,7 +51,7 @@ async function act(
 
 /** Re-read the target's `updatedAt` so a freshness-guarded call can succeed. */
 async function freshUpdatedAt(): Promise<string> {
-  const res = await fetch(`${BASE}/api/users/${targetId}?depth=0`, {
+  const res = await fetch(url(`/api/users/${targetId}?depth=0`), {
     headers: { Authorization: `JWT ${token.siteAdmin!}` },
   })
   const body = (await res.json()) as { updatedAt?: string }
@@ -165,15 +159,15 @@ describe('happy paths', () => {
     )
     expect(status).toBe(200)
 
-    const res = await fetch(`${BASE}/api/users/login`, {
+    const res = await fetch(url('/api/users/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: `${MARK}action-target@lesson3.local`, password: fx.password }),
     })
     expect(res.status).toBe(403)
-    const body = (await res.json()) as { errors?: { data?: { code?: string } }[] }
+    const body = (await res.json()) as ErrorWire
     // The wire contract, over the real network — not just in the unit test's serialiser.
-    expect(body.errors?.[0]?.data?.code).toBe('ACCOUNT_DISABLED')
+    expect(body.errors?.[0]?.data?.code).toBe(ACCOUNT_DISABLED_CODE)
   })
 
   it('refuses a reset link for a DISABLED account (409), rather than minting a dead credential', async () => {
@@ -192,7 +186,7 @@ describe('happy paths', () => {
       'siteAdmin',
     )
     expect(status).toBe(200)
-    const res = await fetch(`${BASE}/api/users/login`, {
+    const res = await fetch(url('/api/users/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: `${MARK}action-target@lesson3.local`, password: fx.password }),
