@@ -24,10 +24,11 @@
  * the row lock, not exclusivity — the real invariant, `guardLastSiteAdmin`, is a collection hook and
  * therefore fires on the PATCH path too. Do not read this file as closing the generic route.
  *
- * ⚑ LOCK ORDER is fixed across this file and `hooks/userRoles.ts`: the global `ADMIN_COUNT_LOCK`
- * (taken inside `guardLastSiteAdmin`, during the update) is acquired AFTER this file's per-user
- * `lockRows`. Every path here takes the row lock first and the global lock second, so two requests
- * can never acquire the pair in opposite orders.
+ * ⚑ LOCK ORDER: `takeAdminCountLock` FIRST, then the per-user row lock inside `lockAndVerifyFresh`.
+ * That order is not a preference — a generic `PATCH`/`DELETE` runs its hooks (which take the global
+ * key) before Payload issues the DML that takes the row lock, so advisory-then-row is what every
+ * other writer already does. An earlier version of this file did the opposite, which deadlocks a
+ * same-user endpoint request against a concurrent PATCH. Pinned by `tests/unit/lockOrder.spec.ts`.
  */
 import {
   APIError,
@@ -40,6 +41,7 @@ import {
 } from 'payload'
 
 import { withAdminResetLinkAllowance } from '../hooks/authRateLimit'
+import { takeAdminCountLock } from '../hooks/userRoles'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { consumeRateLimit } from '../lib/rateLimit'
 import { lockAndVerifyFresh } from '../lib/txDb'
@@ -133,6 +135,8 @@ const revealResetLinkEndpoint: Endpoint = {
 
     const shouldCommit = await initTransaction(req)
     try {
+      // Global key BEFORE the row lock — see the ⚑ in this file's header.
+      await takeAdminCountLock(req)
       const target = await lockAndVerifyFresh<User>(
         req,
         'users',
@@ -167,16 +171,34 @@ const revealResetLinkEndpoint: Endpoint = {
         throw new APIError('Could not generate a reset link for this account.', 500)
       }
 
+      // ⚑ MINTING MOVED `updatedAt`, so the caller's freshness token is now stale.
+      // `forgotPasswordOperation` writes `resetPasswordToken`/`resetPasswordExpiration` through
+      // `payload.update` (verified in installed source), which bumps the row. A caller that reveals a
+      // link and then performs any other row action with the `expectedUpdatedAt` it started with
+      // would get a spurious 409. Returning the NEW value lets the panel carry on without a refetch;
+      // it is part of the response contract, not a convenience.
+      const minted = (await req.payload.findByID({
+        collection: 'users',
+        id: targetId,
+        depth: 0,
+        select: { updatedAt: true },
+        overrideAccess: true,
+        req,
+      })) as User
+
       if (shouldCommit) await commitTransaction(req)
 
       // ⚑ THE TOKEN IS NEVER LOGGED. It is a live credential and the logger is a JSON stream, so
-      // there is deliberately no `payload.logger` call on this path carrying `token`, `link`, or the
-      // whole response object. `tests/int/…` asserts the log stream stays clean, because "we didn't
-      // log it" is exactly the kind of claim that stops being true when someone adds a debug line.
+      // there is deliberately no `payload.logger` call anywhere in this file. That is enforced, not
+      // merely intended: `tests/unit/resetLinkNotLogged.spec.ts` parses this file and fails on any
+      // `logger` access. An earlier version of this comment claimed an integration test did so and
+      // none existed — a claim in a comment is not a guard, which is why that spec now exists.
       return json(
         {
           ok: true,
           link: `${emailLinkBase()}/reset-password?token=${token}`,
+          // The post-mint value — see the ⚑ above. Callers must use THIS for their next action.
+          updatedAt: minted.updatedAt,
           // Stated so the panel can tell the administrator, rather than hard-coding an hour in the
           // UI: Payload's default is one hour and `Users.auth` sets no override (D5a-iv).
           expiresInMinutes: 60,
@@ -206,13 +228,15 @@ function booleanSetterEndpoint(kind: 'site-admin' | 'sign-in-disabled'): Endpoin
 
       const shouldCommit = await initTransaction(req)
       try {
+        // Global key BEFORE the row lock — see the ⚑ in this file's header.
+        await takeAdminCountLock(req)
         const target = await lockAndVerifyFresh<User>(
-        req,
-        'users',
-        targetId,
-        expectedUpdatedAt,
-        'This account changed since you loaded the page — reload before changing it.',
-      )
+          req,
+          'users',
+          targetId,
+          expectedUpdatedAt,
+          'This account changed since you loaded the page — reload before changing it.',
+        )
 
         const data =
           kind === 'site-admin'

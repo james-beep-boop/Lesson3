@@ -75,8 +75,20 @@ beforeAll(async () => {
 }, 60_000)
 
 afterAll(async () => {
+  // ⚑ Park every administrator BEFORE deleting, or the last-admin guard refuses to delete the keeper
+  // and it survives into the next run. A blanket `.catch(() => undefined)` hid that: the fixtures
+  // simply accumulated. Failures are now collected and reported rather than swallowed.
+  await parkOtherAdmins([])
+  const failures: string[] = []
   for (const id of created) {
-    await payload.delete({ collection: 'users', id, overrideAccess: true }).catch(() => undefined)
+    await payload
+      .delete({ collection: 'users', id, overrideAccess: true })
+      .catch((e: unknown) => failures.push(`${id}: ${e instanceof Error ? e.message : String(e)}`))
+  }
+  if (failures.length > 0) {
+    // Not a thrown error — teardown must still clear the rate-limit keys below — but it must not be
+    // silent either, because a leaked fixture is a later spec's mysterious failure.
+    console.warn(`userSecurity teardown could not delete ${failures.length} user(s):`, failures)
   }
   // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
   // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
@@ -344,6 +356,15 @@ describe('self-action guards', () => {
 describe('concurrency: the shared advisory key', () => {
   afterEach(restoreParkedAdmins)
 
+  /**
+   * ⚑ THIS ALSO PINS THE LOCK ORDER, which the previous version could not.
+   *
+   * The endpoints once took the per-user ROW lock first and met the global key later, inside the
+   * update — while a generic PATCH/DELETE meets the key in its hooks, i.e. BEFORE the DML takes the
+   * row. Two writers acquiring the same pair in opposite orders is an ABBA deadlock that Postgres
+   * resolves by aborting one transaction. Holding the global key and asserting that a row-touching
+   * write WAITS is what catches an implementation that reached for the row first.
+   */
   it('a demotion BLOCKS while another transaction holds the shared admin-count key', async () => {
     const a = await mkUser('race-a', { roles: ['siteAdmin'] })
     const b = await mkUser('race-b', { roles: ['siteAdmin'] })
@@ -353,27 +374,29 @@ describe('concurrency: the shared advisory key', () => {
     // `whileLockHeld` owns the gate/holder mechanics and the release-in-`finally`; the first draft
     // here copied that body and changed one statement, which is the duplication `rowLocks.ts` exists
     // to prevent.
+    // ⚑ The operation is created and awaited OUTSIDE the held-lock callback. A first version left it
+    // running with only a `.catch()` attached: the demotion then completed after the lock released,
+    // overlapping `afterEach` and whatever ran next — a cross-test mutation, which is precisely what
+    // this helper's release-in-`finally` exists to avoid.
+    let demote!: Promise<unknown>
     await whileLockHeld(
       payload,
       sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
       async () => {
-        const demote = payload.update({
+        demote = payload.update({
           collection: 'users',
           id: a,
           data: { roles: [] } as never,
           overrideAccess: true,
         })
-        try {
-          expect(
-            await stillPendingAfterWindow(demote),
-            'the demotion must wait on the shared admin-count key, not decide from a stale count',
-          ).toBe(true)
-        } finally {
-          // Swallowed here: the helper releases the lock on the way out, after which this settles.
-          void demote.catch(() => undefined)
-        }
+        expect(
+          await stillPendingAfterWindow(demote),
+          'the demotion must wait on the shared admin-count key, not decide from a stale count',
+        ).toBe(true)
       },
     )
+    // The lock is released; let the demotion finish before this test hands over.
+    await demote.catch(() => undefined)
 
     // `b` is untouched — the point is the WAIT, not the outcome.
     expect(b).toBeTruthy()

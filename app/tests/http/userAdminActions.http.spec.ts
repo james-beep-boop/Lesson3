@@ -111,14 +111,15 @@ describe.each([
     expect(status).toBe(403)
   })
 
-  it('404-or-400 for an unknown user id', async () => {
+  it('404 for an unknown user id', async () => {
+    // Exactly 404, not "some 4xx". A range assertion would pass on a 400 from a body-shape change or
+    // a 403 from a broken gate — i.e. it would keep passing through the failures it exists to catch.
     const { status } = await act(
       `99999999/${action}`,
       { expectedUpdatedAt: targetUpdatedAt, ...extra },
       'siteAdmin',
     )
-    expect(status).toBeGreaterThanOrEqual(400)
-    expect(status).toBeLessThan(500)
+    expect(status).toBe(404)
   })
 
   it('400 when expectedUpdatedAt is missing', async () => {
@@ -138,7 +139,7 @@ describe.each([
 })
 
 describe('happy paths', () => {
-  it('reveal-reset-link returns a usable link, no-store, and never echoes the raw token alone', async () => {
+  it('reveal-reset-link returns a usable link, no-store, and a refreshed updatedAt', async () => {
     const { status, json, headers } = await act(
       `${targetId}/reveal-reset-link`,
       { expectedUpdatedAt: await freshUpdatedAt() },
@@ -149,6 +150,12 @@ describe('happy paths', () => {
     expect(json.expiresInMinutes).toBe(60)
     // D5a-iii: a live credential must not sit in a shared or browser cache.
     expect(headers.get('cache-control')).toBe('no-store')
+    // ⚑ The post-mint `updatedAt`, because minting the token WROTE to the user row
+    // (`forgotPasswordOperation` sets `resetPasswordToken`/`Expiration` via `payload.update`). Without
+    // this in the response, the caller's next action would carry a token the mint itself invalidated
+    // and take a spurious 409.
+    expect(typeof json.updatedAt).toBe('string')
+    expect(Date.parse(String(json.updatedAt))).toBeGreaterThan(Date.parse(targetUpdatedAt))
   })
 
   it('set-sign-in-disabled disables the account, and the user can no longer log in', async () => {
@@ -177,6 +184,34 @@ describe('happy paths', () => {
       'siteAdmin',
     )
     expect(status).toBe(409)
+  })
+
+  it('set-site-admin grants and revokes the role', async () => {
+    // The third endpoint's happy path, which the first draft left untested — every other assertion
+    // about it was a refusal, so a completely broken write would have looked fine.
+    const grant = await act(
+      `${targetId}/set-site-admin`,
+      { expectedUpdatedAt: await freshUpdatedAt(), enabled: true },
+      'siteAdmin',
+    )
+    expect(grant.status).toBe(200)
+    const afterGrant = await fetch(url(`/api/users/${targetId}?depth=0`), {
+      headers: { Authorization: `JWT ${token.siteAdmin!}` },
+    })
+    expect(((await afterGrant.json()) as { roles?: string[] }).roles).toContain('siteAdmin')
+
+    const revoke = await act(
+      `${targetId}/set-site-admin`,
+      { expectedUpdatedAt: await freshUpdatedAt(), enabled: false },
+      'siteAdmin',
+    )
+    expect(revoke.status).toBe(200)
+    const afterRevoke = await fetch(url(`/api/users/${targetId}?depth=0`), {
+      headers: { Authorization: `JWT ${token.siteAdmin!}` },
+    })
+    expect(((await afterRevoke.json()) as { roles?: string[] }).roles ?? []).not.toContain(
+      'siteAdmin',
+    )
   })
 
   it('re-enabling restores sign-in', async () => {

@@ -73,7 +73,9 @@ describe('AccountDisabledError', () => {
   })
 
   it('an APIError with no data degrades to a bare message', () => {
-    const wire = formatErrors(new APIError('Token is either invalid or has expired.', 403)) as ErrorWire
+    const wire = formatErrors(
+      new APIError('Token is either invalid or has expired.', 403),
+    ) as ErrorWire
     expect(wire.errors![0]!.data).toBeUndefined()
     // …and this is the OTHER 403 the forms must not mistake for a disabled account. Its absence of a
     // code is the whole disambiguator, so it is asserted rather than assumed.

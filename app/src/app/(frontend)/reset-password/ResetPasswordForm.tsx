@@ -10,6 +10,24 @@ import React, { useEffect, useState } from 'react'
 import PasswordInput from '@/components/PasswordInput'
 import { ACCOUNT_DISABLED_CODE, readErrorCode } from '@/errors/AccountDisabled'
 
+/**
+ * Which reset failure the reader is looking at.
+ *
+ * ⚑ BOTH FAILURES ARE HTTP 403, so status cannot separate them: Payload throws
+ * `APIError('Token is either invalid or has expired.', FORBIDDEN)` for a bad token, and the
+ * disabled-account gate throws its own 403 — `resetPassword` runs `beforeLogin` INLINE before signing
+ * the token, so a disabled user's VALID link fails and the password change rolls back. Flattening
+ * both into "invalid or expired" told that user their good link was broken.
+ *
+ * Branch on the code, never the status and never the message text (i18n). Exported so the matrix §7
+ * locks in can be asserted without a DOM.
+ */
+export function resetErrorMessage(code: string | undefined): string {
+  return code === ACCOUNT_DISABLED_CODE
+    ? 'This account is disabled — contact an administrator.'
+    : 'This reset link is invalid or has expired — request a new one.'
+}
+
 export function ResetPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,19 +70,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         body: JSON.stringify({ token, password }),
       })
       if (!res.ok) {
-        // ⚑ BOTH FAILURES HERE ARE 403, so status cannot separate them: Payload throws
-        // `APIError('Token is either invalid or has expired.', FORBIDDEN)` for a bad token, and the
-        // disabled-account gate throws its own 403 — `resetPassword` runs `beforeLogin` INLINE
-        // before signing the token, so a disabled user's valid link fails and the password change
-        // rolls back. Flattening both into "invalid or expired" told them their good link was broken.
-        //
-        // Branch on the code, never the status and never the message text (i18n).
-        const code = await readErrorCode(res)
-        setError(
-          code === ACCOUNT_DISABLED_CODE
-            ? 'This account is disabled — contact an administrator.'
-            : 'This reset link is invalid or has expired — request a new one.',
-        )
+        setError(resetErrorMessage(await readErrorCode(res)))
         return
       }
       // Payload has just signed the user in, so this is an auth transition: same

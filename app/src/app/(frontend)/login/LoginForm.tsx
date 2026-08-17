@@ -9,7 +9,7 @@ import { ACCOUNT_DISABLED_CODE, readErrorCode } from '@/errors/AccountDisabled'
  * Which failure the reader is looking at. A named function rather than a nested ternary inside
  * `setError`, so the three-way choice is readable and unit-testable without a DOM.
  */
-function signInErrorMessage(code: string | undefined, status: number): string {
+export function signInErrorMessage(code: string | undefined, status: number): string {
   if (code === ACCOUNT_DISABLED_CODE) return 'This account is disabled — contact an administrator.'
   // ⚑ 403 NO LONGER HAS ONE CAUSE, which is why the code is checked first. This branch used to read
   // "the login op's ONLY 403 is UnverifiedEmail (bad credentials and lockout are 401, the throttle

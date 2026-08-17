@@ -30,14 +30,18 @@ const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.rol
  * and both commit — leaving zero. A concurrent test that races demote-against-demote would pass
  * against that broken implementation, which is why the matrix races demote against DISABLE.
  *
- * ⚑ LOCK ORDER: the per-user row lock comes FIRST, then this global key. That is what the code does
- * — an endpoint calls `lockAndVerifyFresh` (row lock) and the subsequent `payload.update` runs this
- * guard, which takes the key. Two paths acquiring the pair in opposite orders is a deadlock.
+ * ⚑ LOCK ORDER, AND IT IS UNIVERSAL: **this global key FIRST, then any per-user row lock.**
  *
- * ⚑ An earlier draft of this comment stated the rule BACKWARDS while a comment in
- * `endpoints/userAdminActions.ts` stated it correctly, so one protocol was described two ways in two
- * files. The rule now lives at the step both paths share — `lockAndVerifyFresh` in `lib/txDb.ts` —
- * and this note points there rather than restating it a third time.
+ * That order is forced by the generic path and cannot be chosen freely. A plain `PATCH /api/users/:id`
+ * or a `DELETE` runs its `beforeChange`/`beforeDelete` hooks — including this guard, which takes the
+ * key — BEFORE Payload issues the DML that takes the row lock. So every generic write is
+ * advisory-then-row, and nothing in the hook layer can reorder it.
+ *
+ * ⚑ THE CUSTOM ENDPOINTS THEREFORE HAVE TO MATCH, and the first version did not: it took the row
+ * lock in `lockAndVerifyFresh` and only met this key later, inside the update. A same-user endpoint
+ * request racing a generic PATCH then deadlocks — A holds the row and waits for the key, B holds the
+ * key and waits for the row — which Postgres resolves by aborting one transaction. `takeAdminCountLock`
+ * exists so the endpoints can acquire the key up front and join the one order.
  */
 export const ADMIN_COUNT_LOCK = { classifier: 1280527187, key: 2 } as const
 
@@ -96,14 +100,29 @@ const isUsableSiteAdmin = (u: Pick<User, 'roles' | 'signInDisabled'> | null | un
  * (these writes happen a handful of times in an installation's life, so contention is nil), but do
  * not read the ordering as a hold-duration optimisation.
  */
-async function assertAnotherUsableSiteAdminRemains(
+/**
+ * Take the shared administrator-count key on the caller's transaction.
+ *
+ * Exported so a custom endpoint can acquire it BEFORE its per-user row lock and thereby match the
+ * order every generic write already uses (see `ADMIN_COUNT_LOCK`). Acquiring twice within one
+ * transaction is harmless — `pg_advisory_xact_lock` is re-entrant and releases everything at commit
+ * — so the guard below still takes it unconditionally and does not need to know whether an endpoint
+ * got there first.
+ */
+export async function takeAdminCountLock(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
-  excludeUserId: number | string,
 ): Promise<void> {
   const db = await txDb(req, { requireTransaction: true })
   await db.execute(
     sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
   )
+}
+
+async function assertAnotherUsableSiteAdminRemains(
+  req: Parameters<CollectionBeforeChangeHook>[0]['req'],
+  excludeUserId: number | string,
+): Promise<void> {
+  await takeAdminCountLock(req)
   const { totalDocs } = await req.payload.count({
     collection: 'users',
     where: {

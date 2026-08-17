@@ -32,6 +32,7 @@ import {
 } from 'payload'
 
 import { lockAndVerifyFresh } from '../lib/txDb'
+import { takeAdminCountLock } from '../hooks/userRoles'
 import { json, readJsonBody, requireExpectedUpdatedAt, MAX_CONTROL_BODY_BYTES } from './respond'
 import { toId, type Assignment } from '../access'
 import type { User } from '../payload-types'
@@ -92,8 +93,13 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
         // compare before either writes and the later one silently drops the earlier delta. Do not
         // delete this by analogy.
         //
-        // `lockAndVerifyFresh` owns the lock/re-read/compare order, and the row-before-global lock
-        // rule that `guardLastSiteAdmin` depends on — see its docblock in `lib/txDb.ts`.
+        // ⚑ GLOBAL KEY FIRST. This update runs `guardLastSiteAdmin`, which takes `ADMIN_COUNT_LOCK`
+        // — and a generic PATCH reaches that key BEFORE its row lock, because hooks run ahead of the
+        // DML. Taking the row lock first here would invert the pair against every other writer and
+        // deadlock a same-user race. Acquiring it up front also makes GRANTS participate in the
+        // shared key, which the design asks for and which a demote-vs-grant race otherwise leaves to
+        // fail-closed luck.
+        await takeAdminCountLock(req)
         const target = await lockAndVerifyFresh<User>(
           req,
           'users',

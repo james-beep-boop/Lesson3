@@ -178,11 +178,11 @@ export const toPositiveInt = (v: unknown): number => {
  * wrong: reading BEFORE the lock lets two requests carrying the same fresh token both pass the
  * comparison, and the later write silently drops the earlier delta.
  *
- * ⚑ THIS IS ALSO WHERE THE TWO-LOCK ORDERING LIVES. Callers take this per-row lock FIRST; the global
- * `ADMIN_COUNT_LOCK` is acquired later, inside `guardLastSiteAdmin`, during the update this function
- * precedes. Row-then-global, on every path. Two paths taking the same pair in opposite orders is a
- * deadlock, and the rule is stated here — at the only step both paths share — rather than in prose in
- * each caller, which is how it came to be documented backwards in one file and forwards in another.
+ * ⚑ THIS TAKES THE ROW LOCK ONLY, and it is the SECOND of two locks. Any caller whose write can
+ * reach `guardLastSiteAdmin` must call `takeAdminCountLock` BEFORE this — a generic `PATCH`/`DELETE`
+ * meets that global key in its hooks, i.e. before Payload's DML takes the row, so advisory-then-row
+ * is the order every writer must share. Doing it the other way round deadlocks a same-user race, and
+ * that is not hypothetical: the first version of `userAdminActions` did exactly that.
  */
 export async function lockAndVerifyFresh<T extends { updatedAt?: unknown }>(
   req: PayloadRequest,
