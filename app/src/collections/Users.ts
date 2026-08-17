@@ -18,12 +18,20 @@ import {
   autoDemotePriorSubjectAdmins,
   enforceAssignmentScope,
   grantSiteAdminToFirstUser,
+  guardLastSiteAdmin,
+  guardLastSiteAdminOnDelete,
   guardPasswordChange,
+  refuseDisabledLogin,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { isHttpsServerUrl } from '../lib/publicPosture'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
+import {
+  revealResetLinkEndpoint,
+  setSignInDisabledEndpoint,
+  setSiteAdminEndpoint,
+} from '../endpoints/userAdminActions'
 import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
 import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
 import { cascadeDeleteUserFavorites } from './Favorites'
@@ -100,12 +108,27 @@ export const Users: CollectionConfig = {
     // Throttle the unauthenticated auth surface (SPEC §11 "generation, auth"): login and
     // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
     beforeOperation: [rateLimitAuthOperations],
-    beforeChange: [grantSiteAdminToFirstUser, guardPasswordChange, enforceAssignmentScope],
+    // ⚑ `beforeLogin` runs in BOTH `login` and `resetPassword` (the latter inline, before it signs
+    // the token — verified in auth/operations/resetPassword.js:113). One hook, two entry points;
+    // see `refuseDisabledLogin` for why that is intended rather than incidental.
+    beforeLogin: [refuseDisabledLogin],
+    // ⚑ `guardLastSiteAdmin` runs LAST of the beforeChange hooks: it is the one that takes the
+    // shared advisory lock, and holding it for the shortest possible span keeps the serialised
+    // region small. It still fires on the disable endpoint's `overrideAccess: true` write —
+    // overrideAccess bypasses access control, not hooks.
+    beforeChange: [
+      grantSiteAdminToFirstUser,
+      guardPasswordChange,
+      enforceAssignmentScope,
+      guardLastSiteAdmin,
+    ],
     afterChange: [autoDemotePriorSubjectAdmins],
     // A user's favorites and messages are personal rows with NOT NULL user FKs — cascade them, or
     // the delete 23502s (same shape as the lesson-plan cascades). See collections/Favorites and
     // collections/Messages.
     beforeDelete: [
+      // Before the cascades: refusing the delete must happen before its children are removed.
+      guardLastSiteAdminOnDelete,
       cascadeDeleteUserFavorites,
       cascadeDeleteUserMessages,
       cascadeDeleteUserRecovery,
@@ -122,6 +145,11 @@ export const Users: CollectionConfig = {
     // SHADOWS the native POST /verify/:id (custom endpoints match first) to add the site-global
     // rate cap the native op has no hook seam for. See endpoints/verifyEmail.
     verifyEmailThrottledEndpoint,
+    // Site-Admin account actions (D5/D13a). Each authorizes the caller, then writes with
+    // `overrideAccess: true` because the fields involved are system-set — see endpoints/userAdminActions.
+    revealResetLinkEndpoint,
+    setSiteAdminEndpoint,
+    setSignInDisabledEndpoint,
   ],
   fields: [
     {
@@ -158,6 +186,48 @@ export const Users: CollectionConfig = {
         create: siteAdminField,
         read: emailReadAccess, // self or Site Admin — verification status is personal, like email
         update: siteAdminField, // manual verify = Site-Admin repair action
+      },
+    },
+    {
+      /**
+       * Sign-in disabled — the normal offboarding action (D13a). Disabling preserves attribution
+       * where deleting destroys it irreversibly, so this is the presented default and deletion the
+       * deliberate secondary choice.
+       *
+       * ⚑ EVERY ACCESS AXIS IS STATED SEPARATELY, and that is not verbosity. An earlier plan draft
+       * said this field "follows `_verified`" — but `_verified` directly above is THREE different
+       * rules, and summarising them as one is how the partial-disablement defect got in.
+       *
+       *   create  `() => false`      Nobody is created disabled. An account is disabled AFTER it
+       *                              exists, so there is no create path to permit — which also
+       *                              answers "does 'the endpoint is the only writer' include
+       *                              creation?": there is nothing to include.
+       *   read    `emailReadAccess`  Self or Site Admin. Account status is personal, exactly like
+       *                              `_verified` and `email`.
+       *   update  `() => false`      SYSTEM-SET. The disable endpoint is the only writer.
+       *
+       * ⚑ THE UPDATE AXIS IS THE LOAD-BEARING ONE, and `siteAdminField` would be WRONG here even
+       * though a Site Admin is the only person who may disable anyone. Payload's base `sessions`
+       * field carries `update: () => false` (`auth/baseFields/sessions.js`, verified), so only an
+       * `overrideAccess: true` path can clear sessions. If this flag were ordinarily PATCHable, a
+       * Site Admin could flip it through generic REST or the native document view and **no session
+       * clearing would happen** — an account disabled on paper whose holder stays signed in for up
+       * to two hours. Partial disablement is worse than none, because every UI reports success.
+       *
+       * The freshness-guarded endpoint therefore sets this and `sessions: []` atomically, with
+       * `overrideAccess: true`, AFTER authorizing the caller.
+       */
+      name: 'signInDisabled',
+      type: 'checkbox',
+      defaultValue: false,
+      access: {
+        create: () => false,
+        read: emailReadAccess,
+        update: () => false,
+      },
+      admin: {
+        description:
+          'Set from Manage. Disabling signs the user out immediately and blocks future sign-in; their authored versions are untouched.',
       },
     },
     {

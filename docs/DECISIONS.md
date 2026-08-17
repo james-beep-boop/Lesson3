@@ -133,6 +133,83 @@ form-control half of that list alongside `.lp-manage__select` and `.lp-admin-lis
 
 ---
 
+## 2026-08-17 — PR 2a: the user security foundation, and two tests that proved nothing
+
+Disable-sign-in, the last-Site-Admin invariant, and the admin reset-link carve-out. Every Payload
+internal the design rested on was re-verified against installed source first, because the plan was
+written at `7ecf7d0` and this repo has already been burned once by stale citations. All five held,
+including **§8's open item 1** — `useSessions` defaults true and the JWT strategy resolves
+`(user.sessions || []).find(({id}) => id === decodedPayload.sid)`, returning `user: null` when it is
+absent. Clearing `sessions` therefore terminates a live token immediately, so disable does not need a
+fallback mechanism.
+
+### The two things that had to be measured, not reasoned about
+
+**1. A concurrency test can pass against the unlocked implementation.** The first version raced a
+demote against a disable with `Promise.allSettled` and asserted "exactly one succeeds". It passed —
+and it passed just as happily with the advisory lock DELETED. Two Local-API operations in one process
+do not reliably interleave between the guard's COUNT and its write, which is the only window that
+matters.
+
+⚑ `officialPointerLock.int.spec.ts` records this identical lesson: two earlier versions of that file
+raced the real operations and both passed against a reverted lock. **The repo had already learned
+this and the knowledge did not reach the next author** — which is the strongest argument for the
+mechanism-assertion pattern being the house default rather than one spec's local cleverness.
+
+The kept version holds `ADMIN_COUNT_LOCK` from an independent transaction and asserts the demotion
+**blocks** (`stillPendingAfterWindow`). Watched red against the mutant: 102 ms, i.e. it completed
+instantly instead of waiting. It does not claim to reproduce the destructive interleaving, and says so.
+
+**2. A guard cannot be used to set up its own preconditions.** Every last-admin test failed on first
+run, and none of the failures were the guard's fault:
+
+- `grantSiteAdminToFirstUser` makes the FIRST account in a fresh `lesson3_test` a Site Admin, so the
+  spec's own first fixture silently became one and then tripped the guard when the test disabled it.
+- `test:int` shares one database across specs, so other specs' administrators were still present and
+  "the only admin" was never true.
+
+Fixed with a deliberate keeper administrator created first (absorbing the bootstrap grant) plus raw
+SQL that parks every OTHER administrator for the duration — SQL specifically because a Payload update
+would be refused by the very guard under test. The parked rows are restored afterwards, since a later
+spec in the same run may legitimately expect an administrator to exist.
+
+### Decisions worth keeping
+
+- **`Forbidden` takes a translation FUNCTION, not an Error.** `new Forbidden(new Error(msg))` makes
+  Payload call `t(...)` and throw `t is not a function`, which surfaces as a completely unrelated
+  failure. Custom refusal copy wants `new APIError(message, 403)`; `Forbidden` is for the generic case
+  and the existing call sites pass `req.t`.
+- **The field's UPDATE axis is `() => false`, not `siteAdminField`,** even though only a Site Admin
+  may disable anyone. The base `sessions` field is `update: () => false`, so only an
+  `overrideAccess: true` path can clear it — an ordinarily-PATCHable flag would let an admin disable
+  an account through generic REST with no session clearing, i.e. disabled on paper while the holder
+  stays signed in for two hours, with every UI reporting success. Partial disablement is worse than none.
+- **"Usable" administrator, not "administrator".** The count excludes disabled admins: otherwise a
+  disabled one "covers" the invariant and the last ENABLED administrator can be demoted, locking
+  everyone out. Pinned by its own test.
+- **The rate-limit carve-out is two tests or it is nothing.** "The admin path is not throttled" is
+  satisfied equally well by deleting the public throttle. The second test — the public
+  `forgotPassword` is STILL throttled — is what distinguishes a carve-out from a bypass, and is what
+  fails if the `req.context` check is ever "simplified" to `if (req.user)`.
+- **`Referrer-Policy` was already correct.** Review asked for one; `next.config.ts` has set
+  `strict-origin-when-cross-origin` on `/:path*` since the baseline security headers landed, which
+  already prevents the reset token being forwarded off-site. Verified rather than duplicated.
+- **A pre-existing broken `down` migration**, found while running the gate:
+  `20260624_221905_official_version_model` fails rolling back on a constraint that does not exist at
+  that point in the chain. NOT introduced here. It only bites on a fresh database where the whole
+  chain is one batch; in production each deploy is its own batch, so `migrate:down` reverts only the
+  last. Worth fixing on its own.
+
+### The migration gate, all four steps
+
+Generated LOCALLY under Node 24 — the "generate on the Rock (Node 22)" wording is stale history since
+#214. Both directions were RUN, not read, against a fresh push-disabled database: the full chain
+applied and `sign_in_disabled` existed with `default false`; `migrate:down` removed it and
+`migrate:status` reported it un-applied. `DEFAULT false` backfills existing rows, so no account is
+disabled by being migrated.
+
+---
+
 ## 2026-08-16 (round 6) — enumerate a shared seam's consumers, not just the one that prompted the change
 
 Sixth external review of `docs/DESIGN-manage-accordion-2026-08-16.md`. Two linked omissions, one of

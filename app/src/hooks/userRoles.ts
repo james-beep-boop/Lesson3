@@ -1,13 +1,186 @@
 import { sql } from '@payloadcms/db-postgres'
-import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
-import { Forbidden } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeChangeHook,
+  CollectionBeforeDeleteHook,
+  CollectionBeforeLoginHook,
+} from 'payload'
+import { APIError, Forbidden } from 'payload'
 
 import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
+import { AccountDisabledError } from '../errors/AccountDisabled'
 import { lockRows, txDb } from '../lib/txDb'
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
+
+/**
+ * ⚑ THE ADVISORY-LOCK REGISTRY for this collection. Both keys share classifier `1280527187` and
+ * differ in the second int, so they are visibly one family and cannot collide with the row-id
+ * advisory locks unrelated features use.
+ *
+ *   (…, 1)  first-user bootstrap — `grantSiteAdminToFirstUser`
+ *   (…, 2)  the ADMINISTRATOR-COUNT invariant — every operation that can reduce the number of
+ *           usable Site Administrators: grant/demote (roles), delete, and disable.
+ *
+ * ⚑ ONE KEY ACROSS ALL FOUR OPERATIONS, not one per operation, and that is the whole point. The
+ * invariant is an AGGREGATE ("at least one administrator remains"), so a per-operation or per-user
+ * key would let a demotion and a disable of the two last administrators both observe a count of two
+ * and both commit — leaving zero. A concurrent test that races demote-against-demote would pass
+ * against that broken implementation, which is why the matrix races demote against DISABLE.
+ *
+ * ⚑ LOCK ORDER, fixed here so callers cannot disagree: take THIS global lock BEFORE any per-user
+ * `lockRows`. Two paths acquiring the same two locks in opposite orders is a deadlock, and the
+ * endpoints do take row locks for their freshness check.
+ */
+export const ADMIN_COUNT_LOCK = { classifier: 1280527187, key: 2 } as const
+
+/**
+ * Refuse sign-in for a disabled account (D13a step 2).
+ *
+ * ⚑ THIS HOOK HAS TWO CALLERS, and the second one is easy to miss: Payload runs `beforeLogin` in
+ * the `login` operation AND inline inside `resetPassword` before it signs the token
+ * (`auth/operations/resetPassword.js:113`, verified). So this also refuses to CONSUME a reset link
+ * while disabled — which is the intended behaviour (D13a step 4), not a side effect: the password
+ * change is rolled back and the user is told why.
+ *
+ * ⚑ `AccountDisabledError`, never a plain `Forbidden`. Both this refusal and Payload's own
+ * invalid-token error are HTTP 403, so the client cannot separate them by status; the machine-
+ * readable `data.code` is the only stable discriminator, and `Forbidden` carries no `data` at all.
+ * See `errors/AccountDisabled.ts` and its contract spec.
+ *
+ * ⚑ NOT AN ORACLE. This fires only after Payload has matched credentials or validated a reset
+ * token, so whoever sees it is the account's owner. A caller holding a bogus token still learns
+ * nothing — the token check throws first.
+ */
+export const refuseDisabledLogin: CollectionBeforeLoginHook = ({ user }) => {
+  if ((user as User | undefined)?.signInDisabled) throw new AccountDisabledError()
+  return user
+}
+
+/**
+ * Is this user a Site Administrator who can actually sign in?
+ *
+ * ⚑ "USABLE" IS THE WHOLE POINT. A disabled Site Admin cannot log in, so they do not keep the
+ * installation administrable — counting them would let the last enabled administrator be demoted
+ * while a disabled one "covers" the invariant, locking everyone out exactly as the guard exists to
+ * prevent. The role alone is not enough.
+ */
+const isUsableSiteAdmin = (u: Pick<User, 'roles' | 'signInDisabled'> | null | undefined): boolean =>
+  Boolean(u) && isSiteAdmin(u as User) && !u!.signInDisabled
+
+/**
+ * Refuse an operation that would remove the LAST usable Site Administrator.
+ *
+ * ⚑ CONCURRENCY-SAFE BY CONSTRUCTION, and a read-then-write hook is not. Under READ COMMITTED two
+ * concurrent operations each observe a count of two and both commit, leaving zero — so the count
+ * happens AFTER taking `ADMIN_COUNT_LOCK`, inside the caller's transaction, and the write follows in
+ * that same transaction.
+ *
+ * ⚑ ONE KEY FOR EVERY COUNT-REDUCING OPERATION (demote, delete, disable). A per-operation key would
+ * serialize demote-against-demote and still let demote race DISABLE to zero. See `ADMIN_COUNT_LOCK`.
+ *
+ * ⚑ A LOCK THAT HOLDS NOTHING MUST FAIL, not no-op — the discipline #221 established after a
+ * pool-fallback lock left a race wide open with nothing to say so. `txDb(..., requireTransaction)`
+ * refuses outside a transaction rather than silently proceeding unlocked.
+ */
+async function assertAnotherUsableSiteAdminRemains(
+  req: Parameters<CollectionBeforeChangeHook>[0]['req'],
+  excludeUserId: number | string,
+  message: string,
+): Promise<void> {
+  const db = await txDb(req, { requireTransaction: true })
+  await db.execute(
+    sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
+  )
+  const { totalDocs } = await req.payload.count({
+    collection: 'users',
+    where: {
+      and: [
+        { roles: { contains: 'siteAdmin' } },
+        { id: { not_equals: excludeUserId } },
+        // ⚑ `not_equals: true` would be WRONG: in SQL `NULL != true` is NULL, so a row whose flag is
+        // NULL (any account created before the column existed, had the migration not defaulted it)
+        // would be silently excluded from the count — making the guard MORE likely to refuse, but
+        // for an invisible reason. State both accepted shapes instead.
+        { or: [{ signInDisabled: { equals: false } }, { signInDisabled: { exists: false } }] },
+      ],
+    },
+    overrideAccess: true,
+    req,
+  })
+  if (totalDocs === 0) throw new APIError(message, 403)
+}
+
+/**
+ * The last-Site-Admin and self-action guards for UPDATES — demotion and disabling (D13a steps 5–6).
+ *
+ * Deletion is guarded separately in `guardLastSiteAdminOnDelete` because it is a different hook.
+ *
+ * ⚑ THIS FIRES ON THE ENDPOINT'S TRUSTED WRITE TOO. `overrideAccess: true` bypasses ACCESS control,
+ * not hooks — which is exactly why the disable endpoint is allowed to be the sole writer of a field
+ * whose `update` access is `() => false` and still be guarded here.
+ */
+export const guardLastSiteAdmin: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  if (operation !== 'update' || !originalDoc || !data) return data
+  const before = originalDoc as User
+  const actor = (req.user as User) ?? null
+
+  // Would this write leave the target a usable administrator? `data` carries only changed keys, so
+  // fall back to the current value for anything absent.
+  const nextRoles = 'roles' in data ? (data.roles as User['roles']) : before.roles
+  const nextDisabled =
+    'signInDisabled' in data ? Boolean(data.signInDisabled) : Boolean(before.signInDisabled)
+  const wasUsable = isUsableSiteAdmin(before)
+  const willBeUsable = isUsableSiteAdmin({ roles: nextRoles, signInDisabled: nextDisabled })
+
+  // Self-disable guard: an administrator locking themselves out is always a mistake, and it is the
+  // one case where the last-admin count would NOT catch it (another admin may well remain).
+  if (
+    actor &&
+    String(actor.id) === String(before.id) &&
+    !Boolean(before.signInDisabled) &&
+    nextDisabled
+  ) {
+    throw new APIError('You cannot disable your own sign-in — ask another administrator.', 403)
+  }
+
+  if (wasUsable && !willBeUsable) {
+    await assertAnotherUsableSiteAdminRemains(
+      req,
+      before.id,
+      'This is the last site administrator who can sign in — grant the role to someone else first.',
+    )
+  }
+  return data
+}
+
+/** The same invariant on the delete path, plus the self-delete guard (D13). */
+export const guardLastSiteAdminOnDelete: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const actor = (req.user as User) ?? null
+  if (actor && String(actor.id) === String(id)) {
+    throw new APIError('You cannot delete your own account.', 403)
+  }
+  const target = (await req.payload.findByID({
+    collection: 'users',
+    id,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as User
+  if (!isUsableSiteAdmin(target)) return
+  await assertAnotherUsableSiteAdminRemains(
+    req,
+    id,
+    'This is the last site administrator who can sign in — grant the role to someone else first.',
+  )
+}
 
 /**
  * Bootstrap: make the very first user a Site Administrator (SPEC §8).

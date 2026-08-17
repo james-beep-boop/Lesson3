@@ -5,8 +5,21 @@
  */
 import { APIError, type PayloadRequest } from 'payload'
 
-export const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+/**
+ * `extraHeaders` is optional and additive — existing callers are unaffected. It exists for responses
+ * that must not be cached: `userAdminActions` returns a live reset token and account status, which
+ * belong in no shared or browser cache (D5a-iii). Merged after the content type, so a caller could
+ * override it deliberately, and spelled as a plain record so a caller cannot forget the base header.
+ */
+export const json = (
+  body: unknown,
+  status = 200,
+  extraHeaders?: Record<string, string>,
+): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+  })
 
 /**
  * Cheap pre-parse rejection for an honestly declared oversized request. This is defense in depth,

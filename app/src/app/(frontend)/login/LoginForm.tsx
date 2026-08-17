@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 
 import PasswordInput from '@/components/PasswordInput'
+import { ACCOUNT_DISABLED_CODE } from '@/errors/AccountDisabled'
 
 export function LoginForm() {
   const [email, setEmail] = useState('')
@@ -22,14 +23,25 @@ export function LoginForm() {
         body: JSON.stringify({ email, password }),
       })
       if (!res.ok) {
-        // Payload rejects unverified accounts with the login op's ONLY 403 (UnverifiedEmail; bad
-        // credentials and lockout are 401, the throttle 429 — verified in installed errors/).
-        // Surface it, or a just-signed-up teacher reads "invalid password" and resets in circles.
-        // Status, not message text: the copy is i18n and shifts with Payload upgrades.
+        // ⚑ 403 NO LONGER HAS ONE CAUSE. This branch used to read "the login op's ONLY 403 is
+        // UnverifiedEmail (bad credentials and lockout are 401, the throttle 429)" and map every 403
+        // to the verification message. That reasoning was correct while it held — and the
+        // `signInDisabled` gate (D13a) broke it by adding a SECOND 403 to the same operation, which
+        // would have sent a disabled user hunting for a verification email that does not exist.
+        //
+        // So: check the machine-readable code FIRST, then fall back to the old status rule. Still
+        // never message text — the copy is i18n and shifts with Payload upgrades; `data.code` is a
+        // contract this repo owns and pins (`tests/unit/accountDisabledContract.spec.ts`).
+        const code = await res
+          .json()
+          .then((b: { errors?: { data?: { code?: string } }[] }) => b?.errors?.[0]?.data?.code)
+          .catch(() => undefined)
         setError(
-          res.status === 403
-            ? 'This account isn’t verified yet — use the verification link we emailed you, then sign in.'
-            : 'Invalid email or password.',
+          code === ACCOUNT_DISABLED_CODE
+            ? 'This account is disabled — contact an administrator.'
+            : res.status === 403
+              ? 'This account isn’t verified yet — use the verification link we emailed you, then sign in.'
+              : 'Invalid email or password.',
         )
         return
       }

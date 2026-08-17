@@ -21,6 +21,7 @@ import * as migration_20260721_025518_add_password_reset_email_task from './2026
 import * as migration_20260806_185943_add_edit_recovery from './20260806_185943_add_edit_recovery';
 import * as migration_20260812_180000_dedupe_pending_export_jobs from './20260812_180000_dedupe_pending_export_jobs';
 import * as migration_20260814_235248_add_public_publication from './20260814_235248_add_public_publication';
+import * as migration_20260817_141942_add_sign_in_disabled from './20260817_141942_add_sign_in_disabled';
 
 export const migrations = [
   {
@@ -136,6 +137,11 @@ export const migrations = [
   {
     up: migration_20260814_235248_add_public_publication.up,
     down: migration_20260814_235248_add_public_publication.down,
-    name: '20260814_235248_add_public_publication'
+    name: '20260814_235248_add_public_publication',
+  },
+  {
+    up: migration_20260817_141942_add_sign_in_disabled.up,
+    down: migration_20260817_141942_add_sign_in_disabled.down,
+    name: '20260817_141942_add_sign_in_disabled'
   },
 ];

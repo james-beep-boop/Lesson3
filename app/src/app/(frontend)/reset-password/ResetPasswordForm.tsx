@@ -5,14 +5,40 @@
  * token + the new password. On success Payload signs the user in (sets the auth cookie), so we
  * land straight on the library.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import PasswordInput from '@/components/PasswordInput'
+import { ACCOUNT_DISABLED_CODE } from '@/errors/AccountDisabled'
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * Scrub `?token=` from the address bar once this component holds it (D5a-iii).
+   *
+   * The token is a live credential travelling in a query string, so it lands in browser history and
+   * in any proxy access log. **This does not fix the log exposure** — the request already happened —
+   * and it is not claimed to: it removes the token from the history entry and from anything the user
+   * later copies out of the address bar or shares over someone's shoulder. The server-side half is
+   * already covered: `next.config.ts` sets `Referrer-Policy: strict-origin-when-cross-origin` on
+   * every route, so the query is never forwarded off-site.
+   *
+   * `replaceState`, so Back does not return to a URL that still carries it. The token lives on in
+   * React state — this is a URL change, not a state change, and submitting still works.
+   *
+   * ⚑ The proper fix for the log half is a URL fragment or a one-time handover code, which would
+   * improve the emailed path too. That is its own work and deliberately not a gate on this feature,
+   * which inherits the exposure rather than creating it.
+   */
+  useEffect(() => {
+    if (!token) return
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('token')) return
+    url.searchParams.delete('token')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [token])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,7 +52,22 @@ export function ResetPasswordForm({ token }: { token: string }) {
         body: JSON.stringify({ token, password }),
       })
       if (!res.ok) {
-        setError('This reset link is invalid or has expired — request a new one.')
+        // ⚑ BOTH FAILURES HERE ARE 403, so status cannot separate them: Payload throws
+        // `APIError('Token is either invalid or has expired.', FORBIDDEN)` for a bad token, and the
+        // disabled-account gate throws its own 403 — `resetPassword` runs `beforeLogin` INLINE
+        // before signing the token, so a disabled user's valid link fails and the password change
+        // rolls back. Flattening both into "invalid or expired" told them their good link was broken.
+        //
+        // Branch on the code, never the status and never the message text (i18n).
+        const code = await res
+          .json()
+          .then((b: { errors?: { data?: { code?: string } }[] }) => b?.errors?.[0]?.data?.code)
+          .catch(() => undefined)
+        setError(
+          code === ACCOUNT_DISABLED_CODE
+            ? 'This account is disabled — contact an administrator.'
+            : 'This reset link is invalid or has expired — request a new one.',
+        )
         return
       }
       // Payload has just signed the user in, so this is an auth transition: same
