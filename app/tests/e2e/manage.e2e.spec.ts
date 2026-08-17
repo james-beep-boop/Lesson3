@@ -90,6 +90,17 @@ const openDeletePanel = async (page: Page) => {
   await openPanel(page, 'Delete lesson plans')
 }
 
+/**
+ * The separator between panel ids in `?open=`, as it appears IN THE ADDRESS BAR.
+ *
+ * ⚑ `URLSearchParams.toString()` percent-encodes the comma, so the URL reads `open=access%2Cplans`
+ * even though D7a's example writes `?open=users,access`. The two are the same URL — `%2C` decodes
+ * to `,` — but an assertion matching a literal comma silently never matches, which is how this was
+ * first written and how CI caught it. Accept either, rather than hand-rolling the encoding in
+ * `serialiseOpen` just to make a test read nicely.
+ */
+const SEP = '(?:,|%2C)'
+
 test.describe('Manage page', () => {
   test.beforeAll(async () => {
     fx = await setupRoleFixture()
@@ -468,9 +479,13 @@ test.describe('Manage page', () => {
    * conditional-render vs `hidden`, `router.push` vs `replaceState`, and what a stale deep link does.
    */
   test.describe('accordion', () => {
-    test('a role with ONE section gets it expanded; a role with several starts collapsed', async ({
-      page,
-    }) => {
+    /**
+     * ⚑ ONE `loginAs` PER TEST — the whole file's idiom, and not a stylistic one. `login()` navigates
+     * to `/login` and waits for the email input, but an authenticated session redirects away from
+     * that route, so a second sign-in inside one test hangs until the 30s timeout. The first draft
+     * covered both roles in a single test and failed in CI for exactly that reason.
+     */
+    test('an Editor’s only section is expanded for them', async ({ page }) => {
       // An Editor's saved versions are the whole page — nobody should click to reveal their only
       // panel (D7).
       await loginAs(page, 'editor')
@@ -478,9 +493,11 @@ test.describe('Manage page', () => {
       await expect(
         page.getByRole('button', { name: 'My saved versions', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
+    })
 
-      // A Site Admin sees several, so nothing is open. This is the redesign's whole point (the page
-      // grows long and unwieldy), so it is pinned rather than left as an emergent default.
+    test('a Site Admin, who sees several sections, starts fully collapsed', async ({ page }) => {
+      // This is the redesign's whole point (the page grows long and unwieldy), so it is pinned
+      // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
       for (const name of ['Curriculum & people', 'Editing access', 'Lesson plans']) {
@@ -506,7 +523,7 @@ test.describe('Manage page', () => {
       await openPanel(page, 'Editing access')
       await expect(page).toHaveURL(/[?&]open=access/)
       await openPanel(page, 'Lesson plans')
-      await expect(page).toHaveURL(/[?&]open=access,plans/)
+      await expect(page).toHaveURL(new RegExp(`[?&]open=access${SEP}plans`))
 
       // ⚑ The point of `replaceState` (D7a): a reader who opened four panels must not have to press
       // Back four times to leave the page. `router.push` here would also re-run the dashboard server
