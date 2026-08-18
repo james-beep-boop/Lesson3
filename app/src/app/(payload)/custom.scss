@@ -163,45 +163,11 @@ body {
   // two separator mechanisms in one file with only one live means the next reader has to grep to
   // learn which. `.lp-accordion__heading` carries the 20/18 step now, from the same tokens.
 
-  &__actions {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border-top: 1px solid var(--theme-elevation-150);
-
-    li {
-      border-bottom: 1px solid var(--theme-elevation-150);
-    }
-
-    // No trailing divider — see the shared note on .lp-manage__list.
-    li:last-child {
-      border-bottom: 0;
-    }
-  }
-
-  &__action {
-    display: block;
-    padding: 0.75rem 0.1rem;
-    text-decoration: none;
-
-    &:hover .lp-admin-dash__action-label,
-    &:focus-visible .lp-admin-dash__action-label {
-      text-decoration: underline;
-    }
-  }
-
-  &__action-label {
-    display: block;
-    font-size: 1rem;
-    color: var(--theme-elevation-1000);
-  }
-
-  &__action-desc {
-    display: block;
-    font-size: 0.9rem;
-    margin-top: 0.1rem;
-    color: var(--theme-elevation-600);
-  }
+  // (`&__actions` / `__action` / `__action-label` / `__action-desc` were the "Curriculum & people"
+  // link list and are DELETED with it in PR 3 — the two links became real panels, so nothing renders
+  // them. Kept-in-case-it-returns is the instinct this file already argues against directly above:
+  // two idioms with only one live means the next reader has to grep to learn which. The bordered-list
+  // behaviour they demonstrated lives on in `.lp-manage__list`, which the taxonomy panels use.)
 }
 
 // Manage page additions (src/components/AdminDashboard — the role-scoped functions page, IA
@@ -748,6 +714,73 @@ body {
 
     &__jump {
       min-height: var(--app-btn-touch-min-height);
+    }
+  }
+}
+
+// Taxonomy panels — Manage → Subjects and Manage → Subject grades (PR 3).
+//
+// ⚑ NO CONTROL GEOMETRY LIVES HERE. The inputs use `.lp-users__input` and the pickers
+// `.lp-manage__select`, both of which are already members of the shared form-control rule and its
+// phone touch-target list. PR 2b shipped `.lp-users__input` as a private copy of both halves and it
+// had to be unpicked; this block exists only for LAYOUT, and a control-geometry declaration
+// appearing below is the signal that the same mistake is being made again.
+//
+// Rows are `.lp-manage__row--tight` — the one row idiom on this page, as the delete panel's note
+// says — so a subject sits on one line with its controls, not stacked.
+.lp-taxonomy {
+  display: grid;
+  gap: var(--app-space-3);
+
+  &__create,
+  &__form {
+    display: flex;
+    align-items: end;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+  }
+
+  // The row's form takes the free width so the Delete control stays right-aligned beside it.
+  &__form {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__field {
+    display: grid;
+    gap: var(--app-space-1);
+    min-width: min(14rem, 100%);
+    flex: 1;
+  }
+
+  // Grade is one or two digits — a field as wide as the subject picker beside it reads as a mistake.
+  &__field--narrow {
+    min-width: 6rem;
+    flex: 0 0 auto;
+  }
+
+  &__label {
+    color: var(--theme-elevation-700);
+    font-size: var(--app-secondary-size);
+  }
+
+  // The derived "<Subject> — Grade N". Read-only by nature, so it takes the row's primary label
+  // treatment rather than a control's.
+  &__title {
+    flex: 0 0 auto;
+    font-size: var(--app-body-size);
+  }
+
+  @media (max-width: 640px) {
+    &__create,
+    &__form {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    // Full width on a phone, matching the Users panel's action treatment at this width.
+    &__field--narrow {
+      flex: 1;
     }
   }
 }

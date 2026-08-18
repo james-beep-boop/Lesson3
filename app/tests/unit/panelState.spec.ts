@@ -28,7 +28,8 @@ import {
 /** Everything a Site Admin's page can render, which is the widest `available` in the product. */
 const SITE_ADMIN = [
   'users',
-  'curriculum',
+  'subjects',
+  'subject-grades',
   'access',
   'plans',
   'plans.upload',
@@ -54,9 +55,24 @@ describe('parseOpen', () => {
   })
 
   it('drops ids the CALLER cannot see, even though they are valid ids', () => {
-    // The Subject Admin case: `curriculum` is a real panel, just not one this page rendered. It must
+    // The Subject Admin case: `subjects` is a real panel, just not one this page rendered. It must
     // vanish silently — an error or an empty panel would tell them something was withheld.
-    expect(parseOpen('?open=curriculum,access', ['access', 'versions'])).toEqual(['access'])
+    expect(parseOpen('?open=subjects,access', ['access', 'versions'])).toEqual(['access'])
+  })
+
+  /**
+   * ⚑ A RETIRED id, which is a different case from an unknown one and from an inaccessible one — and
+   * the only one of the three that a REAL bookmark can hit. `curriculum` shipped as a panel id, so
+   * links carrying it exist; PR 3 dissolved it into `subjects` and `subject-grades`. The vocabulary
+   * is a URL contract, and this is what retiring an entry in it is supposed to feel like from the
+   * outside: a normal Manage page with nothing opened, not an error and not a resurrected panel.
+   *
+   * Pinned because the tempting "fix" for a broken old link is to re-add the id, and doing that would
+   * quietly reintroduce a panel the product no longer has.
+   */
+  it('drops a RETIRED id, so an old bookmark degrades instead of erroring', () => {
+    expect(parseOpen('?open=curriculum', SITE_ADMIN)).toEqual([])
+    expect(parseOpen('?open=curriculum,access', SITE_ADMIN)).toEqual(['access'])
   })
 
   it('is order-stable, so a parsed value re-serialises to itself', () => {
@@ -129,9 +145,7 @@ describe('withAncestors / withoutDescendants', () => {
   })
 
   it('closing a parent leaves unrelated panels alone', () => {
-    expect(withoutDescendants(['curriculum', 'plans', 'plans.upload'], 'plans')).toEqual([
-      'curriculum',
-    ])
+    expect(withoutDescendants(['subjects', 'plans', 'plans.upload'], 'plans')).toEqual(['subjects'])
   })
 })
 

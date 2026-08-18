@@ -6,6 +6,7 @@ import type { AdminViewServerProps } from 'payload'
 import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
+import { assignmentCountsBySubjectGrade, NO_ASSIGNMENTS } from '../../lib/assignmentCounts'
 import { relId, distinctIds } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
@@ -17,6 +18,8 @@ import { startRenderTimings } from '../../lib/renderTimings'
 import { EditorsWidget } from './EditorsWidget'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, type PanelId } from '../Manage/panelState'
+import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
+import { SubjectsPanel, type SubjectRow } from '../Manage/SubjectsPanel'
 import { UsersPanel } from '../Manage/UsersPanel'
 
 /**
@@ -64,54 +67,100 @@ export default async function AdminDashboard({
   // the `Promise.all` barrier is deliberately NOT wrapped, since it is just the largest of them.
   const t = startRenderTimings('/admin')
   const deletable = deletableVersionsWhere(user)
-  const [{ typeLabel: role, lines: roleLines }, versionsRes, editorGroups, plansRes] =
-    await Promise.all([
-      t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
-      // ---- Saved versions (deletable candidates) ----
-      deletable === false
-        ? null
-        : t.time('versions', () =>
-            payload.find({
-              collection: 'lesson-bundle-versions',
-              overrideAccess: false,
-              user,
-              depth: 0,
-              pagination: false,
-              sort: '-createdAt',
-              where: deletable === true ? {} : deletable,
-              select: {
-                title: true,
-                semver: true,
-                subjectGrade: true,
-                lessonPlan: true,
-                author: true,
-                meta: { substrand_name: true },
-                createdAt: true,
-              },
-            }),
-          ),
-      // ---- Editors widget: the whole role gate + trusted query + projection, as ONE unit ----
-      // `buildEditorGroups` (lib/editorGroups.ts) owns the gate, the `overrideAccess: true` read and
-      // the client projection together, because the email carve-out is only sound while they cannot be
-      // separated — inlined here it was an emergent property of several conditions consulting the same
-      // general-purpose `isAdmin`. It returns [] for a non-administrator without querying, and it is
-      // covered per-role by `tests/int/editorGroupsAccess.int.spec.ts`.
-      t.time('editorGroups', () => buildEditorGroups({ payload, user })),
-      // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
-      siteAdmin
-        ? t.time('plans', () =>
-            payload.find({
-              collection: 'lesson-plans',
-              overrideAccess: false,
-              user,
-              depth: 0,
-              pagination: false,
-              sort: 'title',
-              select: { title: true, subjectGrade: true, officialVersion: true },
-            }),
-          )
-        : null,
-    ])
+  const [
+    { typeLabel: role, lines: roleLines },
+    versionsRes,
+    editorGroups,
+    plansRes,
+    taxonomySubjectsRes,
+    taxonomyGradesRes,
+    assignmentCounts,
+  ] = await Promise.all([
+    t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
+    // ---- Saved versions (deletable candidates) ----
+    deletable === false
+      ? null
+      : t.time('versions', () =>
+          payload.find({
+            collection: 'lesson-bundle-versions',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            sort: '-createdAt',
+            where: deletable === true ? {} : deletable,
+            select: {
+              title: true,
+              semver: true,
+              subjectGrade: true,
+              lessonPlan: true,
+              author: true,
+              meta: { substrand_name: true },
+              createdAt: true,
+            },
+          }),
+        ),
+    // ---- Editors widget: the whole role gate + trusted query + projection, as ONE unit ----
+    // `buildEditorGroups` (lib/editorGroups.ts) owns the gate, the `overrideAccess: true` read and
+    // the client projection together, because the email carve-out is only sound while they cannot be
+    // separated — inlined here it was an emergent property of several conditions consulting the same
+    // general-purpose `isAdmin`. It returns [] for a non-administrator without querying, and it is
+    // covered per-role by `tests/int/editorGroupsAccess.int.spec.ts`.
+    t.time('editorGroups', () => buildEditorGroups({ payload, user })),
+    // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
+    siteAdmin
+      ? t.time('plans', () =>
+          payload.find({
+            collection: 'lesson-plans',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            sort: 'title',
+            select: { title: true, subjectGrade: true, officialVersion: true },
+          }),
+        )
+      : null,
+    // ---- Taxonomy panels (PR 3) ----
+    // ⚑ THE WHOLE TAXONOMY, not the subset the delete panel resolves further down. That lookup is
+    // keyed by the subject-grades this page's CONTENT references; these panels edit the taxonomy
+    // itself, so a subject with no grades yet — exactly the one an administrator is most likely to
+    // be here to fix — would be missing from it. Two separate reads for two separate jobs.
+    //
+    // Server-loaded rather than lazy: D11 makes only the Users panel lazy and keeps every bounded
+    // panel server-rendered, and a curriculum is tens of rows. The panels filter what is already
+    // here instead of issuing a request per keystroke.
+    siteAdmin
+      ? t.time('taxonomySubjects', () =>
+          payload.find({
+            collection: 'subjects',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            sort: 'name',
+            select: { name: true },
+          }),
+        )
+      : null,
+    siteAdmin
+      ? t.time('taxonomyGrades', () =>
+          payload.find({
+            collection: 'subject-grades',
+            overrideAccess: false,
+            user,
+            depth: 0,
+            pagination: false,
+            sort: 'displayName',
+            select: { displayName: true, subject: true, grade: true },
+          }),
+        )
+      : null,
+    // Counts only — no identities, so this is a plain trusted aggregate rather than a second
+    // `editorGroups`-style projection. It feeds the delete confirmation's cascade warning; see the
+    // ⚑ in lib/assignmentCounts.ts for why that warning exists at all.
+    siteAdmin ? t.time('assignmentCounts', () => assignmentCountsBySubjectGrade(payload)) : null,
+  ])
   const versionDocs = versionsRes?.docs ?? []
   const planDocs = plansRes?.docs ?? []
 
@@ -360,13 +409,51 @@ export default async function AdminDashboard({
    * with nothing to tidy (`showSaved`), and `plans.repair` only exists while some plan has no Official
    * pointer. "A Site Admin has N panels" is not a true statement about this page.
    */
+  /**
+   * The taxonomy panels' rows (PR 3).
+   *
+   * `subjectGradeCount` is tallied from the grades list already fetched rather than counted per
+   * subject: it exists only to tell an administrator why `guardSubjectDelete` will refuse — a Subject
+   * cannot be deleted while grades still belong to it — and one pass over a bounded list beats one
+   * query per row for a number that is advisory either way.
+   */
+  const taxonomyGradeDocs = taxonomyGradesRes?.docs ?? []
+  const gradeCountBySubject = new Map<number, number>()
+  for (const doc of taxonomyGradeDocs) {
+    const subjectId = relId(doc.subject)
+    if (subjectId != null)
+      gradeCountBySubject.set(subjectId, (gradeCountBySubject.get(subjectId) ?? 0) + 1)
+  }
+  const taxonomySubjects: SubjectRow[] = (taxonomySubjectsRes?.docs ?? []).map((doc) => ({
+    id: doc.id,
+    name: doc.name,
+    subjectGradeCount: gradeCountBySubject.get(doc.id) ?? 0,
+  }))
+  const taxonomyGrades: SubjectGradeRow[] = taxonomyGradeDocs.flatMap((doc) => {
+    const subjectId = relId(doc.subject)
+    // A subject-grade with no resolvable subject cannot be edited by a form whose subject control is
+    // a picker over known subjects, so drop it rather than render a row whose Save would be a guess.
+    // `subject` is required and NOT NULL, so this is unreachable rather than expected.
+    if (subjectId == null || doc.grade == null) return []
+    return [
+      {
+        id: doc.id,
+        displayName: doc.displayName ?? `Subject grade ${doc.id}`,
+        subjectId,
+        grade: doc.grade,
+        assignments: assignmentCounts?.get(doc.id) ?? NO_ASSIGNMENTS,
+      },
+    ]
+  })
+
   // One entry per `AccordionPanel` below, in the same order and with the same condition, so the two
   // can be diffed by eye. Typed `PanelId`, so a typo is a compile error rather than a panel that
   // silently refuses to open.
   const availablePanels = (
     [
       siteAdmin && 'users',
-      siteAdmin && 'curriculum',
+      siteAdmin && 'subjects',
+      siteAdmin && 'subject-grades',
       editorGroups.length > 0 && 'access',
       siteAdmin && 'plans',
       siteAdmin && 'plans.upload',
@@ -423,26 +510,22 @@ export default async function AdminDashboard({
           </AccordionPanel>
         )}
 
-        {/* Plain `&` in the title — a JSX attribute string is not HTML, so it needs no entity and
-            must not carry one (the accessible name is matched literally by the E2E role queries). */}
         {siteAdmin && (
-          <AccordionPanel id="curriculum" title="Curriculum & people">
-            <ul className="lp-admin-dash__actions">
-              <li>
-                <Link className="lp-admin-dash__action" href="/admin/collections/subjects">
-                  <span className="lp-admin-dash__action-label">Subjects</span>
-                  <span className="lp-admin-dash__action-desc">Academic disciplines.</span>
-                </Link>
-              </li>
-              <li>
-                <Link className="lp-admin-dash__action" href="/admin/collections/subject-grades">
-                  <span className="lp-admin-dash__action-label">Subject grades</span>
-                  <span className="lp-admin-dash__action-desc">
-                    Subject + grade units that roles and lesson plans attach to.
-                  </span>
-                </Link>
-              </li>
-            </ul>
+          <AccordionPanel id="subjects" title="Subjects">
+            <p className="lp-manage__desc">
+              Academic disciplines. Grade is not part of a subject — it lives on a subject grade.
+            </p>
+            <SubjectsPanel subjects={taxonomySubjects} />
+          </AccordionPanel>
+        )}
+
+        {siteAdmin && (
+          <AccordionPanel id="subject-grades" title="Subject grades">
+            <p className="lp-manage__desc">
+              Subject + grade units that roles and lesson plans attach to. The displayed name is
+              derived from the two, so renaming a subject updates every grade beneath it.
+            </p>
+            <SubjectGradesPanel rows={taxonomyGrades} subjects={taxonomySubjects} />
           </AccordionPanel>
         )}
 

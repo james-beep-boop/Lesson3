@@ -93,6 +93,13 @@ export const SubjectGrade: CollectionConfig = {
     useAsTitle: 'displayName',
     defaultColumns: ['displayName', 'subject', 'grade'],
     group: 'Curriculum',
+    // Subject grades are managed in Manage → Subject grades (PR 3); the native table is replaced, not
+    // hidden — see components/RedirectToManage for why the collection stays visible.
+    components: {
+      views: {
+        list: { Component: '@/components/RedirectToManage#RedirectSubjectGradesToManage' },
+      },
+    },
     hidden: ({ user }) => !canManageCurriculum(user as User),
   },
   // DB-level guarantee that (subject, grade) is unique — Payload's native compound index

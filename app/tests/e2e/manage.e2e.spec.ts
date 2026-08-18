@@ -6,7 +6,7 @@
  * interactive flows:
  *
  *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
- *      versions" + "Editing access"; Site Admin: + "Curriculum & people" and "Lesson plans" (with
+ *      versions" + "Editing access"; Site Admin: + "Subjects", "Subject grades" and "Lesson plans" (with
  *      Upload / Delete / Repair as sub-headings beneath it).
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
@@ -261,9 +261,8 @@ test.describe('Manage page', () => {
     // `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default, so a
     // bare 'Lesson plans' would also match "Upload lesson plans" and stop testing the new h2 itself.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toHaveCount(0)
-    await expect(
-      page.getByRole('heading', { name: 'Curriculum & people', exact: true }),
-    ).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Subject grades', exact: true })).toHaveCount(0)
   })
 
   test('retired list routes redirect to Manage', async ({ page }) => {
@@ -274,6 +273,11 @@ test.describe('Manage page', () => {
     await expect(page).toHaveURL(`${BASE}/admin`)
     await page.goto(`${BASE}/admin/collections/users`)
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=users$`))
+    // PR 3: the two taxonomy tables are replaced by panels the same way.
+    await page.goto(`${BASE}/admin/collections/subjects`)
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=subjects$`))
+    await page.goto(`${BASE}/admin/collections/subject-grades`)
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=subject-grades$`))
   })
 
   test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({
@@ -310,8 +314,14 @@ test.describe('Manage page', () => {
       '0px',
     )
     // And a bordered list never closes with its own divider (that plus a section rule reads as a
-    // table edge) — checked on Curriculum & people, which is a flat <ul>.
-    await expect(page.locator('.lp-admin-dash__actions li').last()).toHaveCSS(
+    // table edge).
+    //
+    // ⚑ RE-ANCHORED IN PR 3. This read `.lp-admin-dash__actions li`, the "Curriculum & people" link
+    // list, chosen because it was a flat <ul>. That panel became two real panels and the class is
+    // gone — and a `.last()` matching nothing is a locator that PASSES nothing, so the assertion
+    // would have gone quiet rather than failed. `.lp-manage__list` is the rule's actual owner (the
+    // Subjects panel renders one flat), so anchoring here tests the rule where it lives.
+    await expect(page.locator('.lp-taxonomy .lp-manage__list li').last()).toHaveCSS(
       'border-bottom-width',
       '0px',
     )
@@ -556,7 +566,13 @@ test.describe('Manage page', () => {
       // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      for (const name of ['Users', 'Curriculum & people', 'Editing access', 'Lesson plans']) {
+      for (const name of [
+        'Users',
+        'Subjects',
+        'Subject grades',
+        'Editing access',
+        'Lesson plans',
+      ]) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -872,6 +888,90 @@ test.describe('Manage page', () => {
       await expect(
         page.getByRole('button', { name: 'Editing access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'false')
+    })
+  })
+
+  /**
+   * PR 3 — the taxonomy panels. The SERVER side of both guards is already covered by
+   * `tests/int/taxonomyDelete.int.spec.ts`; what is untested until here is whether their messages
+   * ever reach a human. That is the entire premise of these panels: the design doc specifies
+   * "surface the existing 409 guard messages rather than implementing new guards", and a panel that
+   * collapsed a 409 into "Delete failed" would leave the guards working and useless.
+   */
+  test.describe('Taxonomy panels', () => {
+    test("a blocked delete shows the guard's own message, and the confirm names the cascade", async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=subject-grades`)
+
+      // ⚑ LOCATED BY THE DELETE CONTROL'S ACCESSIBLE NAME, not by row text. These rows identify
+      // themselves through input VALUES and <option> text, and `hasText` matches neither the way it
+      // looks like it does — the first draft of this locator matched by accident, or not at all.
+      const remove = page.getByRole('button', { name: `Delete ${MARK}Biology — Grade 99` })
+      await expect(remove).toBeVisible()
+
+      /**
+       * ⚑ THE CONFIRMATION NAMES WHAT THE DELETE WOULD TAKE AWAY. `guardSubjectGradeDelete` blocks on
+       * lesson plans, but role assignments do NOT block it — they are cascaded away silently. The
+       * fixture puts exactly one editing-access holder and one Subject Administrator on this
+       * subject-grade, so both halves of the sentence are exercised, and asserting the text is what
+       * stops the warning being quietly dropped later (it costs a query, which is what gets removed
+       * when nothing is watching).
+       */
+      const prompt = await acceptConfirmation(page, () => remove.click())
+      expect(prompt).toContain('1 person loses editing access')
+      expect(prompt).toContain('1 Subject Administrator is demoted')
+
+      // The delete then FAILS on the content guard, and its 409 text — not a generic failure — is
+      // what the panel renders. `Manage → Delete lesson plans` is the actionable part of that
+      // message and the reason surfacing it verbatim matters.
+      const error = page.locator('.lp-taxonomy .lp-users__error')
+      await expect(error).toContainText('still use this subject grade')
+      await expect(error).toContainText('Manage → Delete lesson plans')
+      // Still there: a refused delete must not look like a successful one.
+      await expect(remove).toBeVisible()
+    })
+
+    test('a duplicate subject grade shows the friendly message, not an opaque failure', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=subject-grades`)
+
+      /**
+       * The `beforeValidate` duplicate check exists ONLY to replace an opaque failure with a readable
+       * one, and for its whole life it produced an opaque failure of its own — it threw a bare `Error`,
+       * which Payload renders as a 500 "Something went wrong." (fixed 2026-08-03; see the ⚑ in
+       * SubjectGrade.ts). This asserts the readable message actually lands in the panel, which is the
+       * only place that regression would ever be visible again.
+       */
+      const create = page.locator('.lp-taxonomy__create').first()
+      await create.getByLabel('Subject').selectOption({ label: `${MARK}Biology` })
+      await create.getByLabel('Grade').fill('99')
+      await create.getByRole('button', { name: 'Add subject grade' }).click()
+
+      await expect(page.locator('.lp-taxonomy .lp-users__error')).toContainText(
+        'Grade 99 already exists for that subject.',
+      )
+      // The typed values survive the refusal — retyping a rejected value to read its message again is
+      // how a refusal starts reading like a broken page.
+      await expect(create.getByLabel('Grade')).toHaveValue('99')
+    })
+
+    test('a subject that still has grades cannot be deleted, and says why', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=subjects`)
+
+      const remove = page.getByRole('button', { name: `Delete ${MARK}Biology`, exact: true })
+      await expect(remove).toBeVisible()
+      // No cascade warning here, and the asymmetry with subject grades is deliberate: a Subject with
+      // grades cannot be deleted at all, so there is nothing silent to warn about.
+      await acceptConfirmation(page, () => remove.click())
+      await expect(page.locator('.lp-taxonomy .lp-users__error')).toContainText(
+        'still belong to this subject',
+      )
+      await expect(remove).toBeVisible()
     })
   })
 
