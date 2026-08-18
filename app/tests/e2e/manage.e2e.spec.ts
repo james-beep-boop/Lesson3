@@ -883,6 +883,22 @@ test.describe('Manage page', () => {
   test('a user can change their own display name from the avatar menu', async ({ page }) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
+
+    // ⚑ WAIT FOR THE ACCORDION'S MOUNT SCRUB BEFORE TOUCHING THE MENU, and note that this role is the
+    // only one that has a scrub to wait for. `initialOpen` auto-opens the sole top-level panel when a
+    // role has exactly one, and a Teacher with editing access sees only "My saved versions" — so a
+    // bare `/admin` rewrites the address bar to `?open=versions` shortly after load, while a Site
+    // Admin (several panels) gets `[]` and no rewrite at all.
+    //
+    // Playwright counts that `history.replaceState` as a navigation. Clicking the avatar menu inside
+    // the window where it lands tore the dropdown's client state down mid-interaction, and the
+    // 'Change display name' button never reappeared: 30s timeout, on the merge-to-main run for #239
+    // (`01417e4`) — green on that PR's own run minutes earlier, which is how a timing race presents.
+    //
+    // This asserts the product's intended behaviour rather than sleeping through it: the URL SHOULD
+    // become `?open=versions` for this role, so waiting for it is both the fix and a check.
+    await expect(page).toHaveURL(/[?&]open=versions/)
+
     const newName = `${MARK}renamed`
 
     await page.getByRole('button', { name: /Account menu/ }).click()
