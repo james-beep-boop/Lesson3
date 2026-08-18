@@ -1,4 +1,4 @@
-import { APIError } from 'payload'
+import { APIError, type AfterErrorHook } from 'payload'
 
 /**
  * "This account's sign-in is disabled" — thrown by the `beforeLogin` hook on `users` (D13a step 2).
@@ -48,6 +48,49 @@ export class AccountDisabledError extends APIError<{ code: typeof ACCOUNT_DISABL
     // an oracle: reaching it requires either correct credentials or a valid reset token for THIS
     // account, so the reader is the account's owner. See D13a step 4.
     super(message, 403, { code: ACCOUNT_DISABLED_CODE }, true)
+  }
+}
+
+/**
+ * Keep the machine-readable code at the REST boundary even when a production bundle gives Payload's
+ * error formatter a different `APIError` constructor identity from the one this subclass extended.
+ *
+ * ⚑ WHY THE SUBCLASS IS NOT ENOUGH. Payload's `formatErrors` preserves `data` only when
+ * `incoming instanceof APIError`. That holds in the unit module graph, but the production Next build
+ * proved it can fail across server chunks: the logged error still carried `data.code`, while the
+ * response had already degraded to `{ message }`. Collection `afterError` runs after Payload's
+ * public-error filtering and receives both the original error and the formatted result, so this hook
+ * repairs only the stable marker this repo owns without depending on class identity.
+ *
+ * The three structural checks are deliberate. A generic 403 must keep Payload's normal response; an
+ * internal error must not be made public; and no other custom error code is widened by this repair.
+ */
+export const preserveAccountDisabledWire: AfterErrorHook = ({ error, result }) => {
+  const candidate = error as Error & {
+    data?: { code?: unknown }
+    isPublic?: unknown
+    status?: unknown
+  }
+  if (
+    candidate.status !== 403 ||
+    candidate.isPublic !== true ||
+    candidate.data?.code !== ACCOUNT_DISABLED_CODE
+  ) {
+    return
+  }
+
+  return {
+    status: 403,
+    response: {
+      ...result,
+      errors: [
+        {
+          name: error.name,
+          data: { code: ACCOUNT_DISABLED_CODE },
+          message: error.message,
+        },
+      ],
+    },
   }
 }
 

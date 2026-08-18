@@ -58,11 +58,11 @@ import {
  * Every response here is `no-store` (D5a-iii). The reset-link body carries a live credential, and
  * the two setters carry account status — neither belongs in a shared or browser cache.
  *
- * ⚑ Passed at each `json()` return, so it covers the SUCCESS bodies. Thrown refusals (400/409/429)
- * are rendered by Payload's error handler and carry no such header — acceptable, because none of
- * those bodies contains a credential or account status, but it means the property is per-return
- * rather than structural. If a future action returns anything sensitive on an error path, wrap the
- * handlers instead of adding a fourth hand-passed header.
+ * ⚑ Passed at each `json()` return, so it covers the SUCCESS bodies and the admin-cap 429. Thrown
+ * refusals (400/409) are rendered by Payload's error handler and carry no such header — acceptable,
+ * because none of those bodies contains a credential or account status, but it means the property is
+ * per-return rather than structural. If a future action returns anything sensitive on an error path,
+ * wrap the handlers instead of adding another hand-passed header.
  */
 const NO_STORE = { 'Cache-Control': 'no-store' } as const
 
@@ -127,9 +127,16 @@ const revealResetLinkEndpoint: Endpoint = {
     // this a carve-out rather than a bypass (see ADMIN_RESET_LINK_CONTEXT).
     const budget = await consumeRateLimit(req, 'adminResetLink', String((req.user as User).id))
     if (!budget.ok) {
-      throw new APIError(
-        `Too many reset links generated — please wait ${budget.retryAfterSec}s.`,
+      return json(
+        {
+          errors: [
+            {
+              message: `Too many reset links generated — please wait ${budget.retryAfterSec}s.`,
+            },
+          ],
+        },
         429,
+        { ...NO_STORE, 'Retry-After': String(budget.retryAfterSec) },
       )
     }
 

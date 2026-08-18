@@ -11,7 +11,7 @@
  * than in several with different failure modes.
  */
 import { sql } from '@payloadcms/db-postgres'
-import { APIError, type PayloadRequest } from 'payload'
+import { APIError, type CollectionSlug, type PayloadRequest } from 'payload'
 
 type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
 
@@ -81,6 +81,18 @@ export const txDb = async (
  * here is a deliberate edit; passing one through from a request is impossible.
  */
 export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
+
+/**
+ * The collection represented by each lockable database table.
+ *
+ * Keep this explicit: a string transform cannot prove that a new table has a corresponding Payload
+ * collection, while `satisfies` makes every member of the closed table union name a real slug.
+ */
+const COLLECTION_OF = {
+  lesson_plans: 'lesson-plans',
+  subject_grades: 'subject-grades',
+  users: 'users',
+} as const satisfies Record<LockableTable, CollectionSlug>
 
 /**
  * Take `SELECT … FOR UPDATE` row locks inside the caller's transaction, in ascending id order.
@@ -193,7 +205,7 @@ export async function lockAndVerifyFresh<T extends { updatedAt?: unknown }>(
 ): Promise<T> {
   await lockRows(req, table, [id])
   const target = (await req.payload.findByID({
-    collection: table.replace(/_/g, '-') as 'users',
+    collection: COLLECTION_OF[table],
     id,
     depth: 0,
     overrideAccess: true,

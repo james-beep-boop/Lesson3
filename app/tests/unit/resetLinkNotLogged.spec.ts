@@ -23,27 +23,83 @@ import ts from 'typescript'
 const here = dirname(fileURLToPath(import.meta.url))
 const FILE = resolve(here, '../../src/endpoints/userAdminActions.ts')
 
-/** Every property name accessed anywhere in the file, e.g. the `logger` in `payload.logger.info`. */
-function accessedProperties(source: string): Set<string> {
+/** Logging sinks referenced by executable syntax, excluding comments and docblocks. */
+function loggingSinks(source: string): string[] {
   const sf = ts.createSourceFile(FILE, source, ts.ScriptTarget.Latest, true)
-  const names = new Set<string>()
+  const sinks: string[] = []
   const walk = (node: ts.Node): void => {
-    if (ts.isPropertyAccessExpression(node)) names.add(node.name.text)
+    // Covers `logger(...)`, `logger.info(...)`, `payload.logger`, and destructured `{ logger }`.
+    if (ts.isIdentifier(node) && node.text === 'logger') sinks.push('logger')
+
+    // Element access has no Identifier named logger: `payload['logger']`.
+    if (
+      ts.isElementAccessExpression(node) &&
+      ts.isStringLiteral(node.argumentExpression) &&
+      node.argumentExpression.text === 'logger'
+    ) {
+      sinks.push("['logger']")
+    }
+
+    // A console call is logging even though it never mentions a property named `logger`.
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression
+      const consoleCall =
+        (ts.isPropertyAccessExpression(callee) &&
+          ts.isIdentifier(callee.expression) &&
+          callee.expression.text === 'console') ||
+        (ts.isElementAccessExpression(callee) &&
+          ts.isIdentifier(callee.expression) &&
+          callee.expression.text === 'console')
+      if (consoleCall) sinks.push(callee.getText(sf))
+    }
     ts.forEachChild(node, walk)
   }
   walk(sf)
-  return names
+  return sinks
+}
+
+/** Count all `${token}` spans, and the subset inside the returned reset-link property. */
+function tokenInterpolationCounts(source: string): { all: number; resetLink: number } {
+  const sf = ts.createSourceFile(FILE, source, ts.ScriptTarget.Latest, true)
+  let all = 0
+  let resetLink = 0
+
+  const walk = (node: ts.Node): void => {
+    if (ts.isTemplateSpan(node) && ts.isIdentifier(node.expression)) {
+      if (node.expression.text === 'token') all += 1
+    }
+
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'link' &&
+      ts.isTemplateExpression(node.initializer)
+    ) {
+      const template = node.initializer
+      const staticText =
+        template.head.text + template.templateSpans.map((span) => span.literal.text).join('')
+      if (staticText.includes('/reset-password?token=')) {
+        resetLink += template.templateSpans.filter(
+          (span) => ts.isIdentifier(span.expression) && span.expression.text === 'token',
+        ).length
+      }
+    }
+
+    ts.forEachChild(node, walk)
+  }
+  walk(sf)
+  return { all, resetLink }
 }
 
 describe('the reveal-reset-link endpoint never logs', () => {
   it('makes no reference to a logger', () => {
     const source = readFileSync(FILE, 'utf8')
     expect(
-      accessedProperties(source).has('logger'),
-      'userAdminActions.ts must not touch payload.logger — it handles a live credential, and the ' +
-        'logger is a JSON stream. If a log line is genuinely needed here, it must not carry the ' +
-        'token, the link, or the whole response object, and this guard must be narrowed deliberately.',
-    ).toBe(false)
+      loggingSinks(source),
+      'userAdminActions.ts must not call a logger or console — it handles a live credential. If a ' +
+        'log line is genuinely needed, it must not carry the token, link, or response object, and ' +
+        'this guard must be narrowed deliberately.',
+    ).toEqual([])
   })
 
   it('interpolates the token into exactly one string — the link it returns', () => {
@@ -55,18 +111,11 @@ describe('the reveal-reset-link endpoint never logs', () => {
     // would have been "fixed" by loosening the guard. Template spans carry no comments, so counting
     // them asks the question that was actually meant. (Same AST-over-regex rule as
     // `jsonBodyCeiling.spec.ts`.)
-    const sf = ts.createSourceFile(FILE, readFileSync(FILE, 'utf8'), ts.ScriptTarget.Latest, true)
-    let interpolations = 0
-    const walk = (node: ts.Node): void => {
-      if (ts.isTemplateSpan(node) && ts.isIdentifier(node.expression)) {
-        if (node.expression.text === 'token') interpolations += 1
-      }
-      ts.forEachChild(node, walk)
-    }
-    walk(sf)
+    const counts = tokenInterpolationCounts(readFileSync(FILE, 'utf8'))
+    expect(counts.all, 'the token may appear in exactly one interpolation: the reset link').toBe(1)
     expect(
-      interpolations,
-      'the token may appear in exactly one interpolation: the reset link',
+      counts.resetLink,
+      'the one token interpolation must belong to the returned /reset-password?token= link',
     ).toBe(1)
   })
 })

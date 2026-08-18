@@ -142,6 +142,6 @@ export const migrations = [
   {
     up: migration_20260817_141942_add_sign_in_disabled.up,
     down: migration_20260817_141942_add_sign_in_disabled.down,
-    name: '20260817_141942_add_sign_in_disabled'
+    name: '20260817_141942_add_sign_in_disabled',
   },
 ];

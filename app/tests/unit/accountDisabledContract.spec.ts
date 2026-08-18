@@ -19,6 +19,7 @@ import { APIError, Forbidden, formatErrors } from 'payload'
 import {
   AccountDisabledError,
   ACCOUNT_DISABLED_CODE,
+  preserveAccountDisabledWire,
   readErrorCode,
   type ErrorWire,
 } from '../../src/errors/AccountDisabled'
@@ -33,6 +34,51 @@ describe('AccountDisabledError', () => {
     expect(wire.errors![0]!.data?.code).toBe(ACCOUNT_DISABLED_CODE)
     // The message still reaches the client — the code is what is branched on, not what is shown.
     expect(wire.errors![0]!.message).toBeTruthy()
+  })
+
+  it('repairs the wire shape without relying on Payload APIError identity', async () => {
+    // This is the production failure that the direct formatErrors test above cannot reproduce: the
+    // error crosses a Next server-chunk boundary, so it still has every public APIError property but
+    // is not an instance of the formatter's constructor. Payload therefore hands `afterError` a bare
+    // message even though the original error still carries the code.
+    const foreignError = Object.assign(
+      new Error('This account is disabled — contact an administrator.'),
+      {
+        data: { code: ACCOUNT_DISABLED_CODE },
+        isPublic: true,
+        status: 403,
+      },
+    )
+    expect(foreignError).not.toBeInstanceOf(APIError)
+
+    const repaired = await preserveAccountDisabledWire({
+      error: foreignError,
+      result: { errors: [{ message: foreignError.message }] },
+    } as never)
+
+    expect(repaired).toMatchObject({
+      status: 403,
+      response: {
+        errors: [
+          {
+            data: { code: ACCOUNT_DISABLED_CODE },
+            message: foreignError.message,
+          },
+        ],
+      },
+    })
+  })
+
+  it('does not rewrite an unrelated public 403', async () => {
+    const invalidToken = Object.assign(new Error('Token is either invalid or has expired.'), {
+      isPublic: true,
+      status: 403,
+    })
+    const result = await preserveAccountDisabledWire({
+      error: invalidToken,
+      result: { errors: [{ message: invalidToken.message }] },
+    } as never)
+    expect(result).toBeUndefined()
   })
 
   it('is a 403, like every other refusal on this path', () => {

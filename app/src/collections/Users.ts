@@ -24,6 +24,7 @@ import {
   refuseDisabledLogin,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
+import { preserveAccountDisabledWire } from '../errors/AccountDisabled'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { isHttpsServerUrl } from '../lib/publicPosture'
 import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
@@ -105,6 +106,10 @@ export const Users: CollectionConfig = {
     delete: siteAdminOnly,
   },
   hooks: {
+    // Payload's production error formatter can lose custom `APIError.data` across Next server chunks
+    // when its `instanceof APIError` check sees a different constructor identity. Repair only the
+    // public ACCOUNT_DISABLED marker after formatting; the real-network test pins the exact result.
+    afterError: [preserveAccountDisabledWire],
     // Throttle the unauthenticated auth surface (SPEC §11 "generation, auth"): login and
     // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
     beforeOperation: [rateLimitAuthOperations],

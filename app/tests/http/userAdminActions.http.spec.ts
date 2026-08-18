@@ -24,12 +24,15 @@ import { login, url } from '../helpers/httpWire.js'
 import { ACCOUNT_DISABLED_CODE, type ErrorWire } from '../../src/errors/AccountDisabled.js'
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
+const ADMIN_RESET_MAX = Number(process.env.RATE_LIMIT_ADMIN_RESET_LINK_MAX) || 30
 
 let fx: RoleFixture
 const token: Record<string, string> = {}
 /** A throwaway target so no assertion depends on mutating a shared fixture account. */
 let targetId = 0
 let targetUpdatedAt = ''
+let rateAdminId = 0
+let rateAdminToken = ''
 
 /** POST one of the three actions. `as` omitted → unauthenticated. */
 async function act(
@@ -75,12 +78,33 @@ beforeAll(async () => {
   })
   targetId = target.id
   targetUpdatedAt = String(target.updatedAt)
+
+  // A dedicated caller for the admin-cap test. Its bucket is isolated from every authorization and
+  // happy-path request above, so the exact request at which it reaches 429 is deterministic.
+  const rateAdmin = await fx.payload.create({
+    collection: 'users',
+    data: {
+      email: `${MARK}action-rate-admin@lesson3.local`,
+      password: fx.password,
+      name: `${MARK}Action Rate Admin`,
+      roles: ['siteAdmin'],
+      _verified: true,
+    } as never,
+    overrideAccess: true,
+  })
+  rateAdminId = rateAdmin.id
+  rateAdminToken = await login(`${MARK}action-rate-admin@lesson3.local`, fx.password)
 }, 120_000)
 
 afterAll(async () => {
   if (targetId) {
     await fx?.payload
       .delete({ collection: 'users', id: targetId, overrideAccess: true })
+      .catch(() => undefined)
+  }
+  if (rateAdminId) {
+    await fx?.payload
+      .delete({ collection: 'users', id: rateAdminId, overrideAccess: true })
       .catch(() => undefined)
   }
   await fx?.teardown()
@@ -233,6 +257,15 @@ describe('happy paths', () => {
   })
 
   it('re-enabling restores sign-in', async () => {
+    // Establish the precondition here. A previous version only sent `enabled: false`, so it passed
+    // when the account was already enabled and proved nothing about the disabled → enabled transition.
+    const disable = await act(
+      `${targetId}/set-sign-in-disabled`,
+      { expectedUpdatedAt: await freshUpdatedAt(), enabled: true },
+      'siteAdmin',
+    )
+    expect(disable.status).toBe(200)
+
     const { status } = await act(
       `${targetId}/set-sign-in-disabled`,
       { expectedUpdatedAt: await freshUpdatedAt(), enabled: false },
@@ -245,5 +278,30 @@ describe('happy paths', () => {
       body: JSON.stringify({ email: `${MARK}action-target@lesson3.local`, password: fx.password }),
     })
     expect(res.status).toBe(200)
+  })
+})
+
+describe('admin reset-link rate limit', () => {
+  it('returns 429 with Retry-After when the dedicated admin exhausts its own budget', async () => {
+    let blocked: Response | undefined
+    for (let i = 0; i <= ADMIN_RESET_MAX; i++) {
+      const res = await fetch(url(`/api/users/${targetId}/reveal-reset-link`), {
+        method: 'POST',
+        headers: {
+          Authorization: `JWT ${rateAdminToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expectedUpdatedAt: await freshUpdatedAt() }),
+      })
+      if (res.status === 429) {
+        blocked = res
+        break
+      }
+      expect(res.status, `admin reset-link request #${i + 1}`).toBe(200)
+    }
+
+    expect(blocked?.status).toBe(429)
+    expect(Number(blocked?.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
+    expect(blocked?.headers.get('Cache-Control')).toBe('no-store')
   })
 })

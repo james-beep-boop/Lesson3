@@ -101,6 +101,6 @@ describe('users write paths take the global admin-count key before any row lock'
     // The endpoints acquiring it early is an ORDERING fix, not a replacement: a plain PATCH never
     // touches those files, and its only protection is the hook.
     const hooks = readFileSync(resolve(here, '../../src/hooks/userRoles.ts'), 'utf8')
-    expect(hooks).toContain('await takeAdminCountLock(req)')
+    expect(hooks).toMatch(/await\s+takeAdminCountLock\s*\(/)
   })
 })
