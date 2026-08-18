@@ -6,6 +6,14 @@ them under field-level RBAC, tracks one **Official** version pointer per lesson 
 high-fidelity DOCX/PDF by reusing ARES's own generator. Node/TypeScript + Payload CMS (Postgres)
 end to end.
 
+⚑ **VOCABULARY, before you read any of the history below.** The product has **three user types** —
+Teacher, Subject-grade administrator, Site administrator. **"Editor" is not one of them.** A Teacher
+starts without editing rights and may be granted **editing access** for particular subject-grades;
+that never changes their type. Older handoff blocks, PR summaries and verification notes in this file
+say "Editor" because that is what the label was at the time — read those as the editing-access
+capability, and do not take their wording as licence to reintroduce a fourth type. Canonical:
+`SPEC.md` §8; operating rule: `CLAUDE.md`; reasoning: `docs/DECISIONS.md` 2026-08-17.
+
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
 (build-time decisions + reasoning; newest on top). **`DECISIONS.md` is long and still growing — skim

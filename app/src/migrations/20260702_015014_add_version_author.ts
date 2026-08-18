@@ -1,7 +1,7 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 /**
- * Adds `lesson_bundle_versions.author_id` (authorship stamp for the Editor delete scope — IA
+ * Adds `lesson_bundle_versions.author_id` (authorship stamp for the teacher with editing access delete scope — IA
  * redesign PR ①, DECISIONS 2026-07-01 late). Existing rows stay NULL (= pre-authorship,
  * admin-only-deletable by decision; no backfill is possible or wanted).
  *

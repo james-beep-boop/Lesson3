@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   search: 'edit=1',
   // Captured so we can assert the form's locked/unlocked state after the guard settles.
   setDisabled: vi.fn(),
-  // An Editor for the document's subject-grade — the baseline where the edit lifecycle is offered.
+  // A teacher with editing access for the document's subject-grade — the baseline where the edit lifecycle is offered.
   user: { id: 1, roles: [], assignments: [{ subjectGrade: 5, role: 'editor' }] } as unknown,
 }))
 

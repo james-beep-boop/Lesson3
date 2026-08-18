@@ -504,7 +504,7 @@ body {
   }
 
   // Reading-first mobile pass (IA redesign PR ⑤): Manage lists stay usable on a phone — rows wrap
-  // (label full-width, meta + action beneath), the search bar stacks, and the Editors picker fits.
+  // (label full-width, meta + action beneath), the search bar stacks, and the teachers with editing access picker fits.
   @media (max-width: 640px) {
     // Phone: title + metadata first, actions beneath and full-width-ish. The row becomes a column
     // rather than a wrapping flex row — with named actions there are now two controls to place, and

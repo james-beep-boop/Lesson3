@@ -10,8 +10,8 @@ import { canEditProse } from '../access/bundle'
 
 /**
  * Prose value (SPEC §5). `prose()` carries `canEditProse` for UI/create; the actual
- * Editor/admin split is enforced by the WHITELIST in
- * `applyEditorFieldSplit` (hooks/fieldSplit.ts) — a field is Editor-editable only if it is listed in that
+ * editing-access/admin split is enforced by the WHITELIST in
+ * `applyEditorFieldSplit` (hooks/fieldSplit.ts) — a field is editing-access-editable only if it is listed in that
  * hook's prose constants, regardless of which factory created it.
  */
 export const prose = (name: string, label: string): TextareaField => ({

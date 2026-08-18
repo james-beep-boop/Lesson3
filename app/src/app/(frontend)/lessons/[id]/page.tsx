@@ -67,7 +67,7 @@ export default async function LessonView({
     .filter(Boolean)
     .join(' · ')
 
-  // Edit affordances (Stage 2b, working-copy model): Editors (and admins) for this plan's
+  // Edit affordances (Stage 2b, working-copy model): teachers with editing access (and admins) for this plan's
   // subject-grade may fork a working copy and prose-edit it; only Subject/Site Admins may move the
   // Official pointer (Make Official).
   const sgId = toId(plan.subjectGrade as never)

@@ -5,7 +5,7 @@
  * Why this exists: the export path runs its heavy conversion through Payload's Jobs Queue, which is
  * globally capped (`payload.config.ts` → `jobs.limit`). The unsaved PDF preview cannot use that queue
  * (working-copy bytes are uncacheable and the affordance is a one-shot synchronous open), so without a
- * bound a burst of clicks — even from one Editor — could pin many multi-second LibreOffice conversions
+ * bound a burst of clicks — even from one editing access — could pin many multi-second LibreOffice conversions
  * and exhaust Node request slots. Per-user rate limiting caps RATE, not CONCURRENCY; this caps
  * concurrency.
  *

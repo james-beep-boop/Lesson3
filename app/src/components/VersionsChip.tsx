@@ -2,7 +2,7 @@
 
 /**
  * The `[N versions ▾]` chip + floating `VersionsPanel` (version-browser redesign PR ②,
- * DECISIONS 2026-07-06; Editor+-only per the 2026-07-08 teacher-first amendment — the SERVER
+ * DECISIONS 2026-07-06; editing-access-and-above only per the 2026-07-08 teacher-first amendment — the SERVER
  * decides whether to render this at all). One reusable pair for the catalogue row and the
  * lesson page (PR ③).
  *

@@ -200,7 +200,7 @@ cd /srv/lesson3 && docker compose run --rm -e APPLY=1 migrate npx payload run sc
 Idempotent and safe to repeat. New preferences accumulate again as soon as anyone toggles a row — that
 is intended.
 
-⚠ **Run it when editors are idle, and have anyone with the editor open reload afterwards.** The script
+⚠ **Run it when nobody is editing, and have anyone with the editor open reload afterwards.** The script
 reads each preference document, strips the collapse state, and writes the snapshot back, so a
 preference saved between those two steps is lost. Worse, an already-open tab holds Payload's in-memory
 preference cache and can write the old collapse values straight back after you finish. A quiet moment

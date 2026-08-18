@@ -1,23 +1,23 @@
 /**
- * Editor field-split (SPEC §5) — the WHITELIST that constrains a non-admin Editor's writes to prose
- * values, preserving all structure / admin / system fields from the original. Enforces the Editor/
+ * editing-access field-split (SPEC §5) — the WHITELIST that constrains a non-admin writes made under editing access to prose
+ * values, preserving all structure / admin / system fields from the original. Enforces the teacher with editing access/
  * Admin boundary for the `lesson-bundle-versions` working copies (via `enforceVersionFieldSplit`).
  *
  * Site Admins (and trusted system / overrideAccess calls with no `req.user`) are unrestricted.
  * Subject Admins are unrestricted EXCEPT the META identity fields (subject / grade / substrand_id),
- * which are Site-Admin-only repair data and preserved from the original. For an Editor this:
- *   1. Rejects any change to array cardinality or order (Editors edit values, not structure).
- *   2. Writes = the original with ONLY the Editor-editable *prose* fields overlaid from the
+ * which are Site-Admin-only repair data and preserved from the original. For a teacher with editing access this:
+ *   1. Rejects any change to array cardinality or order (teachers with editing access edit values, not structure).
+ *   2. Writes = the original with ONLY the editing-access-editable *prose* fields overlaid from the
  *      submission. Everything not on the prose whitelist (META, phase, durations, answer keys,
  *      structure, system fields, identity/version metadata…) is preserved from the original.
  *
  * Why a whitelist (not field-level access): Payload field access NULLS optional admin-only subfields
  * inside open arrays when a non-admin submits the array, so those subfields carry no field-level
  * `access` and protection lives here. A whitelist is also secure by default: a NEW admin/system field
- * is preserved automatically — forgetting to list a field can only make it non-editable by an Editor
- * (a visible annoyance), never silently Editor-writable (a security hole).
+ * is preserved automatically — forgetting to list a field can only make it non-editable by a teacher with editing access
+ * (a visible annoyance), never silently writable under editing access (a security hole).
  *
- * The set of TOP-LEVEL keys an Editor may influence is passed in (`editorTopLevelKeys`), so the
+ * The set of TOP-LEVEL keys a teacher with editing access may influence is passed in (`editorTopLevelKeys`), so the
  * whitelist stays decoupled from any one collection's identity/version metadata.
  */
 import type { CollectionBeforeChangeHook } from 'payload'
@@ -33,7 +33,7 @@ type Doc = Record<string, unknown> & { id?: string | number }
 type Row = { id?: string | number }
 type Req = Parameters<CollectionBeforeChangeHook>[0]['req']
 
-/** Ids in order — the structural fingerprint the Editor guard compares. */
+/** Ids in order — the structural fingerprint the teacher with editing access guard compares. */
 const idsOf = (rows: Row[]): Array<string | number | undefined> => rows.map((r) => r.id)
 
 /** Rows from a STORED field. The DB always yields an array (or nothing) for an array field. */
@@ -54,12 +54,12 @@ const storedRows = (value: unknown): Row[] => (Array.isArray(value) ? value : []
  *
  * So an EMPTY array field posts as `0` — and ONLY ever `0`, since every non-empty count takes the
  * `disableFormData` branch. Calling `.map` on it threw a TypeError that surfaced as a bare 500: no
- * Editor could save a bundle with an empty `finalExplanation.sections`, `finalExplanation.rubric` or
+ * a teacher with editing access could save a bundle with an empty `finalExplanation.sections`, `finalExplanation.rubric` or
  * `summaryTable.lessons` (fixed 2026-07-31).
  *
  * `0` is therefore the ONLY non-array this accepts, and the allowance is exactly as wide as the
  * serializer that produces it. Anything else — `2`, `'bad'`, `{}` — is malformed and REJECTED rather
- * than read as "no rows": this feeds a SECURITY control (Editors may not change structure), so a
+ * than read as "no rows": this feeds a SECURITY control (teachers with editing access may not change structure), so a
  * blanket coercion would silently pass junk whenever the stored field happened to be empty, and would
  * hide a future client-side serialization change instead of failing loudly. Rejecting is also the
  * safe direction — the guard's job is to refuse what it cannot verify, and it has no way to tell a
@@ -98,10 +98,10 @@ const sameSequence = (
   b: Array<string | number | undefined>,
 ): boolean => a.length === b.length && a.every((v, i) => v === b[i])
 
-// Editor-editable prose fields, by container. Anything NOT listed is admin/system and is preserved
+// editing-access-editable prose fields, by container. Anything NOT listed is admin/system and is preserved
 // from the original. Must stay in sync with the `prose()` fields in fields/lessonContent.ts —
 // exported so tests/unit/proseWhitelistDrift.spec.ts can enforce that sync mechanically (a field is
-// "intended Editor prose" exactly when its factory attached `canEditProse`).
+// "intended editing-access prose" exactly when its factory attached `canEditProse`).
 // META identity — Site-Admin-only corruption-repair fields (decided 2026-07-05): subject/grade only
 // label the printed document (the plan's subjectGrade relationship is the categorization truth) and
 // substrand_id is the re-ingest matching key. SINGLE SOURCE for the rule's key list: the carve-out
@@ -207,7 +207,7 @@ const overlayRows = (
  * Payload's empty-array sentinel (`0`) → `[]`, on the array containers this content uses.
  *
  * Runs ABOVE the role fork, beside `preserveLessonResourceLinks`, because it is a SHAPE concern and
- * not a role one. The Editor guard below defends itself regardless (see `submittedRows`), but admins
+ * not a role one. The editing-access guard below defends itself regardless (see `submittedRows`), but admins
  * return before ever reaching it, so without this their `0` survives all the way into the merged
  * document — where it does not corrupt storage (Payload drops a non-array for an array column) but
  * DOES defeat the no-op guard in `endpoints/versionEdit.ts`: that compares
@@ -215,7 +215,7 @@ const overlayRows = (
  * nothing mints a byte-identical duplicate version instead of returning 400. Every bundle with an
  * empty `sections` / `rubric` / `summaryTable.lessons` was in that state.
  *
- * Only the exact `0` sentinel is rewritten. Anything else is left untouched for the Editor guard to
+ * Only the exact `0` sentinel is rewritten. Anything else is left untouched for the teacher with editing access guard to
  * reject; admins are not structurally constrained, so silently reshaping their input is not this
  * function's business.
  */
@@ -257,8 +257,8 @@ export const preserveLessonResourceLinks = (data: Doc, originalDoc: Doc): void =
 }
 
 /**
- * Apply the Editor whitelist to `data` (an UPDATE candidate), parameterised by the top-level keys an
- * Editor may influence on this collection. Mutates and returns `data`. Caller is responsible for any
+ * Apply the teacher with editing access whitelist to `data` (an UPDATE candidate), parameterised by the top-level keys an
+ * editing access may influence on this collection. Mutates and returns `data`. Caller is responsible for any
  * numbering/versioning that should run for ALL users (kept out of here).
  */
 export const applyEditorFieldSplit = ({
@@ -290,7 +290,7 @@ export const applyEditorFieldSplit = ({
   if (!req.user || isSiteAdmin(req.user as User)) return data
   // Subject Admins are unrestricted EXCEPT the META identity fields (META_IDENTITY_KEYS —
   // Site-Admin-only repair data, decided 2026-07-05): those are restored from the stored doc, the
-  // same silent-preserve idiom as the Editor whitelist below. The rest of META (titleDoc, column
+  // same silent-preserve idiom as the teacher with editing access whitelist below. The rest of META (titleDoc, column
   // labels, …) stays Subject-Admin-editable per SPEC §5.
   if (isSubjectAdminFor(req.user as User, subjectGradeId)) {
     const origMeta = originalDoc.meta as Doc | undefined
@@ -306,7 +306,7 @@ export const applyEditorFieldSplit = ({
     throw new Forbidden(req.t)
   }
 
-  // 1. Cardinality / order is structural — Editors may not change it.
+  // 1. Cardinality / order is structural — teachers with editing access may not change it.
   // Stored side coerces (the DB always yields an array); submitted side VALIDATES — see
   // `submittedRows`, which admits only a real array or Payload's `0` empty-container sentinel.
   if ('lessons' in data) {
@@ -330,7 +330,7 @@ export const applyEditorFieldSplit = ({
   // nearly lost: `overlayRows` iterates the SUBMITTED array, and a row whose id has no match in the
   // original is returned RAW (`if (!baseRow) return sub`). So the rebuild guarantees only that
   // UNMENTIONED fields come from the original — it does nothing about added, deleted or reordered
-  // rows. Without this, an Editor could append a section carrying arbitrary admin subfields and have
+  // rows. Without this, a teacher with editing access could append a section carrying arbitrary admin subfields and have
   // it pass straight through. The `unreachable` comment inside `overlayRows` is true only because
   // this runs first.
   const guardRows = (before: Doc, sub: Doc, key: string): void => {
@@ -357,7 +357,7 @@ export const applyEditorFieldSplit = ({
   const orig = originalDoc as Doc
   const d = data as Doc
 
-  // Restore EVERY top-level key from the original except the ones an Editor legitimately influences
+  // Restore EVERY top-level key from the original except the ones a teacher with editing access legitimately influences
   // (the content containers overlaid below + collection-specific version fields). So a NEW top-level
   // field nobody wired up is reset to the original automatically.
   for (const key of Object.keys(d)) {
@@ -396,7 +396,7 @@ export const applyEditorFieldSplit = ({
   // PRESENCE, and the gap between them was reachable: a submitted `null` — or simply OMITTING the key
   // — skipped the cardinality check AND the blanket restore in step 2, because `editorTopLevelKeys`
   // deliberately exempts these keys from it. The whole group then reached `payload.create` as null,
-  // so an Editor's save-as-new could drop the admin-authored Final Explanation or Summary Table.
+  // so a teacher with editing access's save-as-new could drop the admin-authored Final Explanation or Summary Table.
   //
   // `lessons` was never exposed the same way, which is why the asymmetry survived: a version with no
   // lessons is REFUSED by `validateGeneratable`, whereas a missing finalExplanation/summaryTable is

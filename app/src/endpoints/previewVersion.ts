@@ -10,7 +10,7 @@
  * Mounted on the lesson-bundle-versions collection:
  *   - `GET  /api/lesson-bundle-versions/:id/preview` — the stored version.
  *   - `POST /api/lesson-bundle-versions/:id/preview` — the editor's CURRENT (possibly UNSAVED)
- *     form state, so an Editor can preview working-copy edits before saving. Values ride in a
+ *     form state, so a teacher with editing access can preview working-copy edits before saving. Values ride in a
  *     `data` field and are OVERLAID onto the stored, access-checked version.
  *   - `POST /api/lesson-bundle-versions/:id/preview-pdf?doc=<tag>` — the FORMATTED counterpart: the
  *     same unsaved working copy rendered as the real document (DOCX→PDF via Gotenberg), ONE deliverable
@@ -20,7 +20,7 @@
  * SECURITY (mirrors previewBundle): GET is READ-gated via `findReadableVersion`. The POST verbs are
  * gated HARDER — because they render caller-supplied content, they require EDIT authority
  * (`isEditorFor`) and then run the posted data through the real version field-split hook
- * (`enforceVersionFieldSplit`) so an Editor can preview only what they could actually save. The two
+ * (`enforceVersionFieldSplit`) so a teacher with editing access can preview only what they could actually save. The two
  * `/preview` verbs return HTML; `/preview-pdf` returns an inline PDF (never DOCX bytes) — none can be
  * an export bypass.
  *
@@ -61,7 +61,7 @@ async function loadReadable(req: PayloadRequest, id: string): Promise<LessonBund
  *      access already passed. A non-editor → 404.
  *   3. Overlay the posted content (pinning stored id/subjectGrade/lessonPlan — authority pinning,
  *      audit 2026-07-04) and run the real version save hook (`enforceVersionFieldSplit`): admin →
- *      unchanged; Editor → prose-only overlay; a structural change an Editor can't make → 422.
+ *      unchanged; editing access → prose-only overlay; a structural change a teacher with editing access can't make → 422.
  */
 async function resolveUnsavedEffective(req: PayloadRequest, id: string): Promise<LessonBundleVersion> {
   const stored = await loadReadable(req, id)
@@ -121,7 +121,7 @@ export const previewVersionEndpoint: Endpoint = {
  *   1. AUTHORIZE as an EDIT, not a read. Unsaved preview is an editing affordance, so it requires
  *      edit authority for the version's subject-grade (`isEditorFor`). A non-editor → 404.
  *   2. ENFORCE THE FIELD BOUNDARY by reusing the real version save hook (`enforceVersionFieldSplit`,
- *      a pure function) on the posted candidate: an Editor's admin-only/structural changes are
+ *      a pure function) on the posted candidate: a teacher with editing access's admin-only/structural changes are
  *      stripped or rejected exactly as on save (Subject/Site Admins are unrestricted there).
  *
  * Output is HTML only, never DOCX bytes.

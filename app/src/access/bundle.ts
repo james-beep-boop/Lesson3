@@ -8,9 +8,9 @@ import { isEditorFor, isSubjectAdminFor, toId } from './index'
  * Field-level access for the lesson-plan content fields (SPEC §5), shared by the
  * `lesson-bundle-versions` collection (and `lesson-plans` for its structural fields).
  *
- * Editors edit prose values; Subject Admins additionally edit META / aresKeywords / phase /
+ * Teachers with editing access edit prose values; Subject Admins additionally edit META / aresKeywords / phase /
  * duration / structure / answer keys; the resource column and lesson numbers are system-only.
- * The authoritative Editor/admin split for array rows lives in the field-split hook
+ * The authoritative editing-access/admin split for array rows lives in the field-split hook
  * (`hooks/fieldSplit.ts`); these field-access fns cover the create/UI path.
  */
 
@@ -22,7 +22,7 @@ const subjectGradeIdFor = (args: { doc?: unknown; data?: unknown }): number | un
   return toId(doc?.subjectGrade ?? data?.subjectGrade)
 }
 
-/** Editors (and above) may set this field's value. */
+/** Teachers with editing access (and above) may set this field's value. */
 export const canEditProse: FieldAccess = ({ req: { user }, doc, data }) =>
   isEditorFor(user as User, subjectGradeIdFor({ doc, data }))
 

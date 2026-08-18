@@ -328,7 +328,7 @@ export default async function AdminDashboard({
     ? 'Saved, non-Official versions you may delete.'
     : 'Continue working on versions you have saved.'
   // Empty state carries the explanation the list would otherwise have to: what belongs here and how
-  // something gets here. A bare "You have no saved versions." tells a new Editor nothing.
+  // something gets here. A bare "You have no saved versions." tells a teacher new to editing access nothing.
   //
   // ⚑ It names SAVING, not Edit. The first draft said "choose Edit, and your saved work will appear
   // here" — but entering edit mode creates nothing. A row appears only when someone SAVES, so copy
@@ -341,7 +341,7 @@ export default async function AdminDashboard({
     'You have no saved versions yet. Open a lesson plan, choose Edit, then save your changes. Your saved work will appear here.'
   // An administrator with nothing to tidy gets no section at all (2026-08-04, page-length request):
   // heading + description + empty state spent three rows saying "nothing here" to someone who already
-  // knows what the list is. An Editor still sees it empty — for them the copy above is instructional,
+  // knows what the list is. A teacher with editing access still sees it empty — for them the copy above is instructional,
   // and this list is their only route back to unfinished work.
   const showSaved = candidates.length > 0 || !isAdmin
 

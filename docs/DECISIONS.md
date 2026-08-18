@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-17 — "Editor" is not a user type; it is editing access held by a Teacher
+
+The user-model decision from 2026-07-29 is canonical, not merely a preferred label: the product has
+three user types — **Teacher**, **Subject-grade administrator**, and **Site administrator**. A Teacher
+may acquire editing access for one or more subject-grades without becoming a fourth kind of user.
+
+The stored assignment value `'editor'`, predicates such as `isEditorFor`, endpoint names such as
+`assign-editor`, and old fixture keys may remain as implementation identifiers. They describe the
+capability enforced by the authorization layer; they must not surface as an **Editor** account type.
+User-facing lists show **Teacher** as the type and list **Editing access** separately. New prose and
+tests should say "Teacher with editing access" when the distinction matters.
+
+Historical entries below still use "Editor" when recording the vocabulary and code that existed at
+the time. Read those as references to the stored editing-access capability unless an entry is
+explicitly discussing the retired presentation. Do not use their historical wording to reintroduce
+a fourth type. This clarification was prompted by PR 2b briefly rendering a grant as "Editor" even
+though its search endpoint correctly classified the same account as Teacher.
+
+---
+
 ## 2026-08-17 — a wire contract cannot depend on JavaScript constructor identity
 
 PR 2a's first `ACCOUNT_DISABLED` contract test passed while the production HTTP path was broken.

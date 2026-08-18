@@ -2,7 +2,14 @@
 
 **Date:** 2026-08-16 · **Revised seven times the same day** — external review, rebase onto
 `origin/main`, then five further external reviews (see §10)
-**Status:** Plan, complete. No blocking decisions outstanding. Not yet implemented.
+**Status:** In build. PR 1 (accordion shell, #239) and PR 2a (user-security foundation, #240) are
+merged; PR 2b (Users panel) is in progress. PRs 3 and 4 remain unstarted. No blocking decisions
+outstanding.
+⚑ **Vocabulary (amended 2026-08-17):** three user types — Teacher, Subject-grade administrator, Site
+administrator. **"Editor" is not one.** A Teacher may hold **editing access** for particular
+subject-grades without changing type; the stored `role: 'editor'` value and names built on it stay as
+implementation identifiers. The §10 review log preserves the older wording as a historical record —
+do not carry it into new panels, labels or tests. Canonical: `SPEC.md` §8.
 **Five PRs**, not four: PR 2 is split into 2a (security foundation) and 2b (panel UI).
 **Verified against:** `7ecf7d0` (`origin/main` as of 2026-08-16). Every file:line citation below was
 re-checked at that commit.
@@ -89,8 +96,9 @@ the three views we actually need.
 ### 2.3 The native Users table also reads *wrong*
 
 `roles` is a `select` whose only option is `siteAdmin` ([collections/Users.ts](../app/src/collections/Users.ts)).
-Subject Administrator and Editor grants live in `assignments`, not `roles`. So the native table's
-"Roles" column renders **empty for a Subject Administrator and empty for an Editor**. A management
+Subject Administrator and editing-access grants live in `assignments`, not `roles`. So the native
+table's "Roles" column renders **empty for a Subject Administrator and empty for a Teacher with
+editing access**. A management
 table that shows nothing in the roles column for a person who administers a subject grade is not
 merely ugly — it is misleading. This is an independent argument for replacement.
 
@@ -114,12 +122,17 @@ D9.
 
 ### 2.5 Access data model
 
-| Grant | Stored as | Scope | Who may give it **today** |
+Every account is one of the three user types in SPEC §8. The table below is narrower: it describes
+the additional authorities/capabilities stored on an account, not a fourth account taxonomy.
+
+| Authority / capability | Stored as | Scope | Who may give it **today** |
 |---|---|---|---|
 | Site administrator | `roles: ['siteAdmin']` | global | Site Admin only |
 | Subject administrator | `assignments[]` row | one subject-grade, **≤1 person** | Site Admin **and Subject Admin within own scope** — see ⚑ below |
-| Editor | `assignments[]` row | one subject-grade, many people | Site Admin; Subject Admin within own scope |
-| Teacher | *absence of the above* | — | default |
+| Editing access | `assignments[]` row with role `editor` | one subject-grade, many people | Site Admin; Subject Admin within own scope |
+
+A **Teacher** is the baseline user type, not an entry in this authority table. A Teacher may hold
+zero or more editing-access grants without changing type.
 
 ⚑ **Corrected 2026-08-16 after external review.** An earlier draft of this table claimed Subject
 Administrator could be granted only by a Site Admin. That is **not** what the code does.
@@ -394,7 +407,7 @@ Two candidate homes were considered:
   with its endpoints and per-role test.
 
 **Decision: subject-grade-centred, renamed "Roles & Access"**, extended to grant Subject
-Administrator as well as Editor.
+Administrator as well as editing access.
 
 **One necessary exception:** the Site Administrator grant is global and has no subject-grade to hang
 from, so its toggle lives in the Users panel. That is the only grant control there.
@@ -412,7 +425,7 @@ rights. That was written before D6a resolved to Site-Admin-only, and D6a makes i
 Administrators may grant `subjectAdmin`, and they already have general email visibility under
 `emailReadAccess`, so the carve-out does no work for them. **For Subject Administrators — the people
 the carve-out actually exists for — it remains justified by exactly what it was justified by before:
-granting and revoking Editor access.** The SPEC amendment must say that rather than broaden the
+granting and revoking editing access.** The SPEC amendment must say that rather than broaden the
 stated exception; broadening a deliberate privacy exception on the strength of a superseded draft
 is precisely the drift the ⚑ in `CLAUDE.md` warns about.
 
@@ -448,7 +461,7 @@ re-litigated.
 ⚑ **What a Subject Administrator SEES, specified (review round 3).** The target IA implied they get
 the picker, which D6a takes away. They must see **who the current Subject Administrator is** — that is
 useful, scoped information they already effectively hold — rendered **read-only**, with no picker and
-no remove control. Their Editors list is unchanged and fully interactive.
+no remove control. Their editing-access list is unchanged and fully interactive.
 
 **This needs its own E2E assertion, not just the server-side PATCH test.** A guard that refuses the
 write while the UI still offers the control produces an administrator who clicks, sees an error, and
@@ -898,7 +911,7 @@ Manage
 │     └── (row disclosure)   view / edit one user
 ├── Roles & Access           [Site Admin, Subject Admin]   search
 │     └── per subject-grade  Subject Administrator (picker for Site Admin;
-│                            READ-ONLY for Subject Admin) + Editors list
+│                            READ-ONLY for Subject Admin) + editing-access list
 ├── Subjects                 [Site Admin only]        search
 │     └── (row disclosure)   rename / delete
 ├── Subject Grades           [Site Admin only]        search
@@ -916,8 +929,8 @@ By role:
 |---|---|
 | Site Administrator | all of the above |
 | Subject Administrator | Roles & Access (own subject-grades), Candidate versions |
-| Editor | My saved versions *(single section → auto-expanded, per D7)* |
-| Teacher | cannot reach Manage at all (§2.4) |
+| Teacher with editing access | My saved versions *(single section → auto-expanded, per D7)* |
+| Teacher without editing access | cannot reach Manage (§2.4) |
 
 ### 5.1 Users panel — actions
 
@@ -931,7 +944,7 @@ By role:
 | Site Administrator toggle | **new endpoint** | freshness-guarded; confirms with name **and** email; last-admin guard |
 | **Disable / enable sign-in** | **new field + `beforeLogin` gate** | D13a — the presented default for offboarding; clears live sessions; self-disable and last-admin guards |
 | Delete | `DELETE /api/users/:id` | already `siteAdminOnly`; the deliberate secondary choice, not the default; confirmation states consequences (D13); self-delete and last-admin guards |
-| Grants (Subject Admin / Editor) | **read-only**, with jump link to Roles & Access | D6 |
+| Grants (Subject Administrator / editing access) | **read-only**, with jump link to Roles & Access | D6 |
 
 The list shows the **computed type** (Teacher / Subject-grade administrator / Site administrator),
 not the raw `roles` array — fixing §2.3.
@@ -1035,7 +1048,7 @@ hook.
 | `src/endpoints/userAssignments.ts` | Add the Subject Administrator grant path (or a sibling endpoint) with the same freshness guard |
 | `src/hooks/userRoles.ts` | **Required (D6a resolved):** guard `enforceAssignmentScope` so a non-Site-Admin cannot add, remove or change a row whose `role` is `subjectAdmin`. A behaviour change to shipped code — the hook currently checks only the row's subject-grade |
 | `src/lib/editorGroups.ts` | **Reshape the projection** to one shared deduplicated roster + per-group `editorIds` / `subjectAdminId`, so payload is `users + subject-grades` rather than their product (D11a). Also carries the current Subject Admin. **This remains the single `overrideAccess: true` projection for the email carve-out — do not add a second** |
-| `SPEC.md` §8 | ⚑ **RENAME-ONLY** — per corrected D6, the carve-out does **not** widen to administrator grants; for Subject Administrators it still rests on Editor grants alone. Amend the name "Manage → Editing access" → "Roles & Access", and separately **state the D6a answer explicitly** rather than leaving "manage scoped roles" ambiguous. *(An earlier draft of this row said "cover administrator grants", contradicting D6 — caught in review round 3.)* |
+| `SPEC.md` §8 | ⚑ **RENAME-ONLY** — per corrected D6, the carve-out does **not** widen to administrator grants; for Subject Administrators it still rests on editing-access grants alone. Amend the name "Manage → Editing access" → "Roles & Access", and separately **state the D6a answer explicitly** rather than leaving "manage scoped roles" ambiguous. *(An earlier draft of this row said "cover administrator grants", contradicting D6 — caught in review round 3.)* |
 | `CLAUDE.md` | Same amendment, including the ⚑ note |
 | `docs/DECISIONS.md` | Entries for D4, D5, D6, D6a, D8, D11, D11a — and the three corrections external review produced (§10) |
 
@@ -1044,8 +1057,9 @@ hook.
 ## 7. Test coverage
 
 **`tests/e2e/manage.e2e.spec.ts` is the safety net and is extended in PR 1, before the restructuring
-lands.** Its existing per-role assertions ("Editor sees ONLY My saved versions", "Subject Admin sees
-candidates + Editing access, no Site-Admin panels") are exactly the invariant at risk. Extending
+lands.** Its existing per-role assertions ("a Teacher with editing access sees ONLY My saved
+versions", "Subject Admin sees candidates + Editing access, no Site-Admin panels") are exactly the
+invariant at risk. Extending
 first means a quietly-dropped section fails a test; extending afterwards means it looks identical to
 a deliberate change.
 
@@ -1055,7 +1069,7 @@ a deliberate change.
 | **2a** | **`tests/http`**: every admin-action endpoint — 401 unauthenticated, 403 non-Site-Admin, 404 unknown user, 409 stale `expectedUpdatedAt`, plus happy path. **`tests/int`**: last-Site-Admin guard blocks delete, demote **and disable**; self-delete and self-disable blocked; reset-link endpoint returns a token the existing reset flow accepts; **the reset-link path is not throttled by the public forgot-password budget**, **and** the ordinary public `POST /forgot-password` still is (D5a-i — the second test is what distinguishes a carve-out from a bypass). **Disable (D13a)**: a disabled user cannot log in; **an already–signed-in user's live token stops working once disabled** (the session-clearing claim, tested rather than assumed); **a Site Admin flipping `signInDisabled` by any path other than the endpoint cannot produce a disabled-but-still-signed-in account** (the partial-disablement test — fails if the field is left ordinarily PATCHable); a disabled user's forgot-password **request** response is byte-identical to an enabled user's (the oracle test), **and consuming a valid reset token while disabled is refused with the password left unchanged** — not merely the request tested, since `resetPassword` runs `beforeLogin` inline. **⚑ `ACCOUNT_DISABLED` wire contract (round 4, exact shape pinned in round 5)**: the refusal serialises to `errors[0].data.code === 'ACCOUNT_DISABLED'`, **an invalid/expired token does NOT carry it**, and the code appears only *after* token validation — this is the contract the form depends on, and both cases are 403, so status alone proves nothing. Assert the parsed JSON shape, not a substring of the body, so the test fails if `data` is dropped. **Concurrency**: two simultaneous demotions of the two remaining Site Admins, exactly one succeeds (§2.8 ⚑) — sequential tests pass against the racy implementation and prove nothing. **Reset form**: a valid token on a disabled account shows the disabled message; an invalid token still shows the generic one — both directions, since collapsing them either way is the bug. **⚑ Login form, all three outcomes (round 6)**: a **disabled** account with *correct* credentials shows disabled/contact-an-administrator; an **unverified** account still shows the verification message; **bad credentials** still show the generic "Invalid email or password." Two of the three are 403, which is exactly why all three are asserted — and this pins the `ACCOUNT_DISABLED` contract through **both** operations that run `beforeLogin`, not only reset |
 | **2b** | **`tests/http`**: `userSearch` — 401 / 403 non-Site-Admin / happy path, and that the `type` filter is honoured server-side. **E2E**: **the `users` list route redirects to Manage**; the Users panel's row disclosure and its actions against 2a's endpoints |
 | 3 | E2E: the two list routes redirect to Manage; the existing 409 guard message and the friendly duplicate-subject-grade message are displayed in-panel. Existing `taxonomyDelete.int.spec.ts` already covers the server side |
-| 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their Editor grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
+| 4 | **`tests/int`**: extend `editorGroupsAccess.int.spec.ts` for the reshaped projection, per role — including that the shared roster carries emails only when `mayIdentifyGrantCandidates` allows. **`tests/http`**: the Subject Administrator grant path — 401/403/404/409 + happy path, and that `autoDemotePriorSubjectAdmins` still fires. **D6a guard (required)**: a Subject Admin's direct `PATCH /api/users/:id` writing a `subjectAdmin` row is refused, and their editing-access grants still succeed — the UI-only version of this guard is untested and worthless. **E2E (round 3)**: a Subject Admin sees the current Subject Administrator **read-only, with no picker and no remove control**, while a Site Admin sees the picker — the server test proves the boundary holds, this one proves nobody is invited to cross it |
 
 This follows the standing rule in `CLAUDE.md`: every new or changed endpoint lands with wire-level
 authz coverage in the **same** PR, because these endpoints authorize with the caller's access and then

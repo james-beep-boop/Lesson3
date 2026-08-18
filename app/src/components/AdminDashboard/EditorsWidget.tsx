@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Manage — the Editors promote/demote widget (decided 2026-07-01: a compact purpose-built widget,
- * NOT the native Users table). One group per subject-grade in the caller's scope: current Editors
+ * Manage — the teachers with editing access promote/demote widget (decided 2026-07-01: a compact purpose-built widget,
+ * NOT the native Users table). One group per subject-grade in the caller's scope: current teachers with editing access
  * with ×Remove, plus a picker to add one (any non-site-admin user with no assignment in that
  * subject-grade — i.e. a Teacher there).
  *

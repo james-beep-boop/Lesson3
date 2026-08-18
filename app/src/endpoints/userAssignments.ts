@@ -1,8 +1,8 @@
 /**
  * Narrow role-assignment endpoints (Codex 2026-07-01 round-2 #2), mounted on `users`:
  *
- *   - POST /:id/assign-editor    — grant  the Editor role for ONE subject-grade
- *   - POST /:id/unassign-editor  — remove the Editor role for ONE subject-grade
+ *   - POST /:id/assign-editor    — grant  the teacher with editing access role for ONE subject-grade
+ *   - POST /:id/unassign-editor  — remove the teacher with editing access role for ONE subject-grade
  *
  * Body (JSON): { subjectGradeId: number, expectedUpdatedAt: string }.
  *
@@ -69,7 +69,7 @@ export async function readAssignmentBody(
   }
 }
 
-/** Shared handler: apply a one-row Editor grant/removal for `subjectGradeId` on user `:id`. */
+/** Shared handler: apply a one-row editing-access grant/removal for `subjectGradeId` on user `:id`. */
 function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
   return {
     path: `/:id/${mode}-editor`,

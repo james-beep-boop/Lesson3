@@ -312,7 +312,7 @@ test.describe('Manage page', () => {
   }) => {
     // Editor-shell smoke (Codex rounds 1–2: the chrome strip depends on pinned-Payload class names —
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
-    // intent as the Editor.
+    // intent as the teacher with editing access.
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`)
     // Our control bar renders, with the shared page-level Back control at the far right. It uses the
@@ -500,7 +500,7 @@ test.describe('Manage page', () => {
       // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      for (const name of ['Curriculum & people', 'Editing access', 'Lesson plans']) {
+      for (const name of ['Users', 'Curriculum & people', 'Editing access', 'Lesson plans']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',

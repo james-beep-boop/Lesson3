@@ -1,10 +1,10 @@
 /**
- * The Editor field-split's GROUP containers — `finalExplanation` and `summaryTable`
+ * The editing-access field-split's GROUP containers — `finalExplanation` and `summaryTable`
  * (`src/hooks/fieldSplit.ts`).
  *
  * WHAT THIS PINS, and why it did not exist before. The `lessons` guard tests PRESENCE
  * (`'lessons' in data`); the two group guards used to test TRUTHINESS. The gap between those was
- * reachable by an Editor through `POST /:id/save-as-new`, in two shapes:
+ * reachable by a teacher with editing access through `POST /:id/save-as-new`, in two shapes:
  *
  *   - submitting `finalExplanation: null` — the cardinality check was skipped because null is falsy;
  *   - simply OMITTING the key — nothing to be falsy about, and nothing restored it either.
@@ -54,7 +54,7 @@ const original = () => ({
   },
 })
 
-/** An Editor: no roles, and an `editor` grant on the document's own subject-grade. */
+/** A teacher with editing access: no roles, and an `editor` grant on the document's own subject-grade. */
 const editor = { id: 99, roles: [], assignments: [{ subjectGrade: 7, role: 'editor' }] }
 
 const runSplit = (data: Record<string, unknown>) =>
@@ -66,7 +66,7 @@ const runSplit = (data: Record<string, unknown>) =>
     editorTopLevelKeys: VERSION_EDITOR_KEYS,
   }) as Record<string, unknown>
 
-describe('group containers cannot be deleted by an Editor', () => {
+describe('group containers cannot be deleted by a teacher with editing access', () => {
   it.each([null, 0, 'nope', 42, []])(
     'REFUSES a malformed finalExplanation (%o)',
     (bad) => {
@@ -120,10 +120,10 @@ describe('group containers still accept legitimate prose edits', () => {
       },
     })
     const fe = out.finalExplanation as Record<string, unknown>
-    expect(fe.instructions, 'prose is the Editor’s').toBe('editor instructions')
+    expect(fe.instructions, 'prose is the one submitted under editing access').toBe('editor instructions')
 
     const sections = fe.sections as Record<string, unknown>[]
-    expect(sections[0].prompt, 'section prose is the Editor’s').toBe('editor prompt')
+    expect(sections[0].prompt, 'section prose is the one submitted under editing access').toBe('editor prompt')
     expect(sections[0].adminOnly, 'admin subfields survive untouched').toBe('keep me')
 
     const rubric = fe.rubric as Record<string, unknown>[]

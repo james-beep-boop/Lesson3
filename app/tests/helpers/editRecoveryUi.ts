@@ -55,7 +55,7 @@ export async function expandLessons(page: Page): Promise<void> {
 /**
  * Type into the first lesson's overview.
  *
- * ⚑ Not the document title, which an Editor cannot touch — `title` is admin scope (META), so
+ * ⚑ Not the document title, which a teacher with editing access cannot touch — `title` is admin scope (META), so
  * field-level access keeps it disabled even with the form fully unlocked. Prose is both what this
  * feature captures and what the role under test may actually edit.
  */

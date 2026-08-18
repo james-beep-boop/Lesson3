@@ -257,7 +257,7 @@ describe('Preview endpoint (SPEC §5)', () => {
     expect(res.status).toBe(404)
   })
 
-  it('Editor POST unsaved-preview with a prose overlay → 200 (shows the edit)', async () => {
+  it('A teacher with editing access POST unsaved-preview with a prose overlay → 200 (shows the edit)', async () => {
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}PREVIEW-OVERLAY` } : l,
     )
@@ -270,7 +270,7 @@ describe('Preview endpoint (SPEC §5)', () => {
     expect(html).toContain(`${MARK}PREVIEW-OVERLAY`)
   })
 
-  it('Editor POST unsaved-preview with a STRUCTURAL change → 422', async () => {
+  it('A teacher with editing access POST unsaved-preview with a STRUCTURAL change → 422', async () => {
     const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const form = new FormData()
@@ -283,7 +283,7 @@ describe('Preview endpoint (SPEC §5)', () => {
 describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved preview, per-document PDF', () => {
   const pdfUrl = (doc = 'lessonSequence') =>
     `/api/lesson-bundle-versions/${fx.version.id}/preview-pdf?doc=${doc}`
-  // POST the given lessons overlay as an Editor; return the raw Response.
+  // POST the given lessons overlay as a teacher with editing access; return the raw Response.
   const postOverlay = (lessons: unknown, doc = 'lessonSequence') => {
     const form = new FormData()
     form.set('data', JSON.stringify({ lessons }))
@@ -295,7 +295,7 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
     expect(res.status).toBe(401)
   })
 
-  it('Editor POST with a missing/invalid ?doc → 400', async () => {
+  it('A teacher with editing access POST with a missing/invalid ?doc → 400', async () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/preview-pdf`), {
       method: 'POST',
       headers: auth('editor'),
@@ -311,7 +311,7 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
     expect(res.status).toBe(404)
   })
 
-  it('Editor POST for a deliverable the plan lacks (no Final Explanation) → 404', async () => {
+  it('A teacher with editing access POST for a deliverable the plan lacks (no Final Explanation) → 404', async () => {
     const res = await postOverlay(
       (fx.version as unknown as HttpVersion).lessons ?? [],
       'finalExplanation',
@@ -319,14 +319,14 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
     expect(res.status).toBe(404)
   })
 
-  it('Editor POST with a STRUCTURAL change → 422 (field boundary)', async () => {
+  it('A teacher with editing access POST with a STRUCTURAL change → 422 (field boundary)', async () => {
     const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const res = await postOverlay(lessons)
     expect(res.status).toBe(422)
   })
 
-  it('Editor POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
+  it('A teacher with editing access POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY` } : l,
     )
@@ -644,7 +644,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     }
   }
 
-  it('Editor saves a new candidate — Official pointer unchanged, source unchanged', async () => {
+  it('A teacher with editing access saves a new candidate — Official pointer unchanged, source unchanged', async () => {
     const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}SAVED-AS-NEW` } : l,
@@ -681,8 +681,8 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
   })
 
-  it('Editor saves when optional arrays are EMPTY (client posts the row COUNT, not [])', async () => {
-    // Regression: this was a bare 500 for every Editor whose bundle had an empty optional array
+  it('A teacher with editing access saves when optional arrays are EMPTY (client posts the row COUNT, not [])', async () => {
+    // Regression: this was a bare 500 for every editing-access holder whose bundle had an empty optional array
     // (fixed 2026-07-31). Payload's `reduceFieldsToValues` — what the editor's Save posts — reduces
     // an array container to its row COUNT and only sets `disableFormData` when the array is
     // non-empty, so an EMPTY array arrives as the number `0`. The cardinality guard then called
@@ -758,7 +758,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(afterAdmin.totalDocs).toBe(before.totalDocs)
   })
 
-  it("Editor's structural change is rejected (prose-only field-split) → 4xx", async () => {
+  it("a structural change made under editing access is rejected (prose-only field-split) → 4xx", async () => {
     const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const res = await fetch(url(saveUrl()), {
@@ -942,7 +942,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
 
   it('?deleteSource=true is skipped for a source the editor did NOT author (kept)', async () => {
     // Authorship delete scope (IA redesign 2026-07-01): an AUTHORLESS candidate (pre-authorship /
-    // system-created) is admin-only-deletable, so an Editor's deleteSource is skipped — the save still
+    // system-created) is admin-only-deletable, so a teacher with editing access's deleteSource is skipped — the save still
     // succeeds and the source stays. The NEW version carries the caller's authorship stamp.
     const cand = (await fx.payload.create({
       collection: 'lesson-bundle-versions',
@@ -1129,7 +1129,7 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
-  it('Editor cannot make-official → 4xx', async () => {
+  it('A teacher with editing access cannot make-official → 4xx', async () => {
     const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/make-official`), {
       method: 'POST',
       headers: auth('editor'),
@@ -1201,7 +1201,7 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
   })
 
   it('a Site Admin target is untouchable by a Subject Admin → 4xx (roles are hidden from them)', async () => {
-    // Codex round-3 #2 over the wire: even with a perfectly fresh token, assigning an Editor row to
+    // Codex round-3 #2 over the wire: even with a perfectly fresh token, assigning a teacher with editing access row to
     // a Site Admin is rejected server-side (enforceAssignmentScope), and nothing changes.
     const t = await freshUpdatedAt(fx.users.siteAdmin.id)
     const res = await call('assign', fx.users.siteAdmin.id, {
@@ -1219,7 +1219,7 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
     expect(unchanged.assignments ?? []).toHaveLength(0)
   })
 
-  it('a non-admin (Editor) cannot grant roles → 4xx', async () => {
+  it('a non-admin (teacher with editing access) cannot grant roles → 4xx', async () => {
     const t = await freshUpdatedAt(fx.users.teacher.id)
     const res = await call(
       'assign',
@@ -1306,7 +1306,7 @@ describe('email-a-doc (SPEC §10) — POST /:id/email', () => {
   })
 
   it('the per-user DAILY cap → 429 with Retry-After (invalid bodies spend budget too)', async () => {
-    // Run as the Editor (fresh per-run fixture user, so the bucket starts empty) and post INVALID
+    // Run as the teacher with editing access (fresh per-run fixture user, so the bucket starts empty) and post INVALID
     // bodies: the limiter is checked before validation, so budget is spent without ever enqueuing
     // a job or sending mail — probing is not free, and this test emits nothing.
     for (let i = 0; i < EMAIL_MAX; i++) {
@@ -1860,7 +1860,7 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     expect(res.status).toBe(403)
   })
 
-  it('403 for an Editor and a Subject Admin (only Site Admin may upload)', async () => {
+  it('403 for a teacher with editing access and a Subject Admin (only Site Admin may upload)', async () => {
     expect((await post('editor', (f) => f.append('files', jsonFile('a.json', '90.3')))).status).toBe(403)
     expect((await post('subjectAdmin', (f) => f.append('files', jsonFile('a.json', '90.4')))).status).toBe(
       403,

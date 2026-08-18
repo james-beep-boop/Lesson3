@@ -3,13 +3,13 @@
  *
  * WHY THESE TESTS EXIST SEPARATELY FROM THE DRIFT GUARD. `proseWhitelistDrift.spec.ts` pins the
  * `*_PROSE` constants to the `canEditProse` field factories, and `projection.ts` imports those same
- * constants — so a field becoming Editor-editable is picked up here for free. That inheritance covers
+ * constants — so a field becoming editing-access-editable is picked up here for free. That inheritance covers
  * the CONSTANTS drifting. It does not cover this file *misusing* them: reading the wrong container,
  * capturing a key it should not, or letting a row id escape as a value. Those are the assertions
  * below, and they are the ones that would otherwise be assumed.
  *
  * The security-relevant half is NEGATIVE. A capture that quietly carried `resourceLinks`, `phase` or
- * `rubric` would let an Editor round-trip admin-owned data through recovery — the exact boundary
+ * `rubric` would let a teacher with editing access round-trip admin-owned data through recovery — the exact boundary
  * `applyEditorFieldSplit` enforces at the save path. Positive tests cannot detect that; only naming
  * the forbidden fields and asserting their absence can.
  */

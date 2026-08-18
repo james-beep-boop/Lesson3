@@ -7,7 +7,7 @@
  *   - POST /:id/make-official — point this version's plan at it (move `officialVersion`; no content copy).
  *
  * AUTHORIZATION is enforced HERE (state-changing POSTs, CSRF-guarded by the SameSite=Lax cookie):
- *   - save-as-new: Editor or admin for the version's subject-grade (Editor edits are prose-only).
+ *   - save-as-new: a teacher with editing access, or an admin for the version's subject-grade (edits under editing access are prose-only).
  *   - make-official: Subject/Site Admin only (designating Official is an admin action).
  * A caller without the required role gets 403.
  */
@@ -207,7 +207,7 @@ export const saveAsNewEndpoint: Endpoint = {
     const deleteSource = req.query?.deleteSource === 'true'
 
     // Delete-source permission (IA redesign 2026-07-01, mirrors `lessonBundleVersionDelete`): admins in
-    // scope may delete any source; an Editor only a source THEY authored. The delete below runs via
+    // scope may delete any source; a teacher with editing access only a source THEY authored. The delete below runs via
     // overrideAccess inside the transaction, so the rule is enforced here; when not permitted the save
     // still succeeds and the source is simply kept (`sourceDeleted: false` reports it).
     const caller = req.user as User
@@ -219,7 +219,7 @@ export const saveAsNewEndpoint: Endpoint = {
       const shouldCommit = await initTransaction(req)
       try {
         // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
-        // also lets an Editor create a version (the collection create access is admin-only).
+        // also lets a teacher with editing access create a version (the collection create access is admin-only).
         const created = await req.payload.create({
           collection: 'lesson-bundle-versions',
           data: {

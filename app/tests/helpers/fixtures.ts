@@ -4,7 +4,7 @@
  * Seeds, via the Local API with `overrideAccess: true`, a complete authorization world that the
  * access-control specs assert against, then tears it all down:
  *   - one Subject + one SubjectGrade (the scope the unit roles attach to),
- *   - one user per role: Site Admin, Subject Admin, Editor (both scoped to the SG), Teacher,
+ *   - one user per role: Site Admin, Subject Admin, one with editing access (both scoped to the SG), Teacher,
  *   - one LessonPlan + its Official `1.0.0` LessonBundleVersion (a MINIMAL but generatable bundle).
  *
  * Unlike `scripts/verify-*.ts` (which lean on pre-seeded Rock corpus + users via `payload run`),

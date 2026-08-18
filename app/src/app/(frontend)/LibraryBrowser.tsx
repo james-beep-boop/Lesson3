@@ -312,7 +312,7 @@ function SubstrandRow({
           {row.status === 'draft' && <span className="status-pill">Draft</span>}
           {row.lessonCount} lesson{row.lessonCount === 1 ? '' : 's'}
         </span>
-        {/* PR ② (Editor+-only): the versions chip, only when there is a real choice. Pinned rows
+        {/* PR ② (editing-access-and-above only): the versions chip, only when there is a real choice. Pinned rows
             skip it — their plan's main row carries it. The slot span is ALWAYS rendered for
             editor rows (D4): reserving the column keeps the star aligned whether or not a row
             has version history. */}

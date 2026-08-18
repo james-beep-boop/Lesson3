@@ -1,7 +1,27 @@
 # Design — reframe "Editor" as editing access (language/UI, not security)
 
-**Status:** implemented 2026-07-29 (see `docs/DECISIONS.md`). Presentation only — no schema/authz change.
-**Type:** presentation / terminology change. **No** schema, data-migration, or authorization-logic change.
+**Status:** implemented 2026-07-29 (see `docs/DECISIONS.md`).
+**Type:** at the time, a presentation / terminology change. **No** schema, data-migration, or
+authorization-logic change — that remains true of the code.
+
+> ## ⚑ AMENDED 2026-08-17 — this is the CANONICAL user model, not a display preference
+>
+> This document was written as "presentation only", and that framing has since proved too weak. It
+> describes what the product *is*: **there are three user types — Teacher, Subject-grade
+> administrator, Site administrator — and "Editor" is not one of them.** A Teacher starts without
+> editing rights and may be *granted* editing access for particular subject-grades; acquiring it does
+> not change what kind of user they are.
+>
+> The distinction matters because "presentation only" invites the reading that an Editor type still
+> exists and is merely hidden. It does not exist. What survives is the stored `assignments[].role ===
+> 'editor'` value and the identifiers built on it (`isEditorFor`, `assign-editor`,
+> `lib/editorGroups.ts`) — implementation names for the *capability*, deliberately kept, and not a
+> licence to reintroduce the account class they are named after.
+>
+> Canonical statement: `SPEC.md` §8. Operating rule: `CLAUDE.md` "Authorization model". Reasoning and
+> the incident that prompted the clarification: `docs/DECISIONS.md` 2026-08-17.
+>
+> Everything below is the original 2026-07-29 plan, unchanged, and still accurate about the *code*.
 **Origin:** a partner/tester suggested the product needs only three user types — Teacher, subject-grade
 admin, site admin — with teachers starting without editing rights and being *granted* them. This
 document works that idea into a concrete, phased plan.

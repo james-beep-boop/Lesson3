@@ -27,7 +27,7 @@ export interface EditorsGroup {
  *
  * The rules it enforces, in order:
  *
- *  1. **Non-administrators get NOTHING.** An Editor or Teacher returns `[]` — no query runs, so no
+ *  1. **Non-administrators get NOTHING.** A teacher with editing access or Teacher returns `[]` — no query runs, so no
  *     address is even fetched, let alone serialized into the page.
  *  2. **Subject-grade scoping** on the groups shown: a Subject Admin sees only the subject-grades they
  *     administer. A Site Admin sees all.

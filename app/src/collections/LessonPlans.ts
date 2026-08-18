@@ -53,7 +53,7 @@ export const LessonPlans: CollectionConfig = {
   endpoints: [
     // POST /api/lesson-plans/upload — Site-Admin-only JSON ingest (SPEC §7 deviation).
     uploadBundlesEndpoint,
-    // POST /api/lesson-plans/:id/request-editing — message the sg's admins for Editor access (T3).
+    // POST /api/lesson-plans/:id/request-editing — message the sg's admins for editing access (T3).
     requestEditingEndpoint,
   ],
   fields: [

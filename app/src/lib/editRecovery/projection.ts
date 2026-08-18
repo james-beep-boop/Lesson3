@@ -8,7 +8,7 @@
  *   `applyCapture(doc, m)` — source document + map → document with that prose overlaid.
  *
  * ⚑ **The whitelists are imported, never restated.** `LESSON_PROSE`, `SLO_PROSE`, … are the same
- * constants `applyEditorFieldSplit` uses at the save boundary, so "what an Editor may write" and
+ * constants `applyEditorFieldSplit` uses at the save boundary, so "what a teacher with editing access may write" and
  * "what a capture may hold" cannot drift apart — and `tests/unit/proseWhitelistDrift.spec.ts` already
  * pins those constants to the `canEditProse` field factories. That inheritance covers the CONSTANTS
  * drifting; it does not cover this file misusing them, so the projection has its own negative and

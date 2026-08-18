@@ -11,10 +11,10 @@
  *
  * | # | Method + path                        | Who         | unauth | wrong role |
  * |---|--------------------------------------|-------------|--------|------------|
- * | 1 | `POST   /:id/recovery/start`         | Editor      | 401    | 404        |
- * | 2 | `POST   /:id/recovery`   (capture)   | Editor      | 401    | 404        |
- * | 3 | `GET    /:id/recovery`               | Editor      | 401    | 404        |
- * | 4 | `DELETE /:id/recovery`   (discard)   | Editor      | 401    | 404        |
+ * | 1 | `POST   /:id/recovery/start`         | editing access      | 401    | 404        |
+ * | 2 | `POST   /:id/recovery`   (capture)   | editing access      | 401    | 404        |
+ * | 3 | `GET    /:id/recovery`               | editing access      | 401    | 404        |
+ * | 4 | `DELETE /:id/recovery`   (discard)   | editing access      | 401    | 404        |
  * | 5 | `GET    /:id/recovery/meta`          | Site Admin  | 401    | 403        |
  * | 6 | `POST   /:id/recovery/meta/cleanup`  | Site Admin  | 401    | 403        |
  *
