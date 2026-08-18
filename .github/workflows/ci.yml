@@ -15,6 +15,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual re-run, against any ref.
+  #
+  # ⚑ THE TRIGGER THAT WAS MISSING WHEN IT WAS NEEDED. Merging #241 produced `34f02aa` on `main` and
+  # GitHub never delivered the `push` event — zero workflow runs and zero check-runs against that SHA,
+  # with the workflow `active` and no `paths` filter to explain it. `main` was therefore left with no
+  # run of its own, and with only `push` and `pull_request` declared there was no way to ask for one:
+  # the only remedies were an empty commit, or this.
+  #
+  # A dropped event is not the only case. #239's merge-to-main run went red while its PR run was green,
+  # and re-running the gate on `main` unchanged is the first thing you want then — this repo's whole
+  # premise is that the gate runs somewhere other than the deploy box.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
