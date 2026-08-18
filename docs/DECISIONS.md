@@ -11,6 +11,43 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-18 — http/e2e fixtures go to the probe stack, never the seeded dev database
+
+Verifying PR 2b's `test:http` and `test:e2e` locally, I pointed the fixture-backed suites at the
+running dev server and therefore at the **seeded `lesson3` dev database**. Everything that followed
+was downstream of that one choice, and none of it looked like the cause at the time:
+
+- `setupRoleFixture` writes real users/subjects/plans and opens with a namespace-wide
+  `purgeMarked(payload, MARK_BASE)` sweep. That sweep deletes anything whose identifying text
+  contains `ZZ_INT_` — in the developer's own database, not a scratch one.
+- Fixture user creation is an UNAUTHENTICATED `create`, so `rateLimitAuthOperations` counts it as a
+  signup. Four repeated suite runs drove `signupGlobal:all` to 104 and the suite began failing with
+  "Sign-ups are temporarily paused" — a correct limiter reporting a self-inflicted condition.
+- Killing a run mid-flight left `idle in transaction (aborted)` backends holding `payload_jobs`.
+  A schema-push `ALTER TABLE payload_jobs` then queued behind them and starved the pool to
+  `FATAL: sorry, too many clients already` (95 backends, all `wait_event_type = Lock`).
+
+⚑ **`AGENTS.md` already documents the fix and I did not use it.** The disposable `lesson3-ci-probe`
+stack has its own volumes and network, and its entry states plainly that the seeded `lesson3_*`
+volumes are never touched. It exists precisely so a fixture suite cannot reach real data.
+
+Two general rules, not just the incident:
+
+1. **A fixture-backed suite gets a disposable database.** `tests/http` and `tests/e2e` seed through
+   the Local API into whatever database they are pointed at; "point them at the dev server" is
+   therefore a data-destructive instruction wearing a convenience costume.
+2. **Do not add `-e NODE_ENV=development` to a test container.** It turns drizzle schema push on in
+   the TEST process, whose `ALTER TABLE` then contends with the app's own job-queue transactions.
+   `vitest.http.config.mts` says to pass `--env-file .env` (production, migrate mode) for this
+   reason; overriding it was mine, and it produced a deadlock I spent an hour attributing to Docker.
+
+A related discipline point: when the one E2E assertion I had edited failed in CI, the cause was that
+the retired `Name (email)` spelling was pinned in FOUR assertions and I had updated only the one my
+grep surfaced. Fixing the first hit of a duplicated contract and not searching for its siblings is
+the same failure the shared helper was extracted to prevent, reproduced in the test file.
+
+---
+
 ## 2026-08-17 — "Editor" is not a user type; it is editing access held by a Teacher
 
 The user-model decision from 2026-07-29 is canonical, not merely a preferred label: the product has
