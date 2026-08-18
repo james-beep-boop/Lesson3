@@ -17,19 +17,20 @@ import { startRenderTimings } from '../../lib/renderTimings'
 import { EditorsWidget } from './EditorsWidget'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, type PanelId } from '../Manage/panelState'
+import { UsersPanel } from '../Manage/UsersPanel'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
  * old quiet dashboard. ONE scrollable page of stacked sections, strictly cumulative by role;
  * everything else in the product happens in the library (`/`) and on the lesson page.
  *
- * Order (reordered 2026-08-04) is Curriculum & people → Editing access → Lesson plans (Upload /
- * Delete / Repair) → Candidate versions, the same for every role — a role simply sees fewer sections.
+ * Order is Users → Curriculum & people → Editing access → Lesson plans (Upload / Delete / Repair) →
+ * Candidate versions, the same for every role — a role simply sees fewer sections.
  * The per-section rationale lives at each section in the JSX rather than in a second inventory here,
  * which drifted the last time the order changed. Two claims worth keeping out of the JSX:
  *
  *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
- *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Editors see
+ *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Teachers with editing access see
  *     only versions THEY authored; Subject/Site Admins see every candidate in scope, union'd with
  *     their own drafts (so an admin who also edits elsewhere misses nothing).
  *   - The editors widget is deliberately NOT the native Users table (decided); the server-side
@@ -364,6 +365,7 @@ export default async function AdminDashboard({
   // silently refuses to open.
   const availablePanels = (
     [
+      siteAdmin && 'users',
       siteAdmin && 'curriculum',
       editorGroups.length > 0 && 'access',
       siteAdmin && 'plans',
@@ -407,28 +409,25 @@ export default async function AdminDashboard({
         </div>
       )}
 
-      {/* SECTION ORDER (2026-08-04, operator request): things done often first, the janitorial
-          inventory last. One order for every role; a role simply sees fewer sections (a Subject Admin
-          gets Editing access → Candidate versions, an Editor only their saved versions).
-          Each section is now a disclosure panel (D7); the ORDER is unchanged. */}
-      <AccordionProvider
-        available={availablePanels}
-        initialOpen={serverOpen}
-        initialAt={serverAt}
-      >
+      {/* SECTION ORDER: people and access work first, lesson-plan operations next, the janitorial
+          version inventory last. One order for every role; a role simply sees fewer sections (a
+          Subject Admin gets Editing access → Candidate versions, a teacher with editing access only their saved
+          versions). */}
+      <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
+        {siteAdmin && (
+          <AccordionPanel id="users" title="Users">
+            <p className="lp-manage__desc">
+              Search accounts, repair access and use disable sign-in for routine offboarding.
+            </p>
+            <UsersPanel />
+          </AccordionPanel>
+        )}
+
         {/* Plain `&` in the title — a JSX attribute string is not HTML, so it needs no entity and
             must not carry one (the accessible name is matched literally by the E2E role queries). */}
         {siteAdmin && (
           <AccordionPanel id="curriculum" title="Curriculum & people">
             <ul className="lp-admin-dash__actions">
-              <li>
-                <Link className="lp-admin-dash__action" href="/admin/collections/users">
-                  <span className="lp-admin-dash__action-label">Users</span>
-                  <span className="lp-admin-dash__action-desc">
-                    All accounts, roles and assignments.
-                  </span>
-                </Link>
-              </li>
               <li>
                 <Link className="lp-admin-dash__action" href="/admin/collections/subjects">
                   <span className="lp-admin-dash__action-label">Subjects</span>

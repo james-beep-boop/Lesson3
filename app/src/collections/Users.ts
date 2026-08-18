@@ -33,6 +33,7 @@ import {
   setSignInDisabledEndpoint,
   setSiteAdminEndpoint,
 } from '../endpoints/userAdminActions'
+import { userSearchEndpoint } from '../endpoints/userSearch'
 import { verifyEmailThrottledEndpoint } from '../endpoints/verifyEmail'
 import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
 import { cascadeDeleteUserFavorites } from './Favorites'
@@ -95,6 +96,11 @@ export const Users: CollectionConfig = {
     // for the collection, and it stays accurate when students arrive as their own collection (D8).
     group: 'Users',
     hidden: ({ user }) => !canManageUsers(user as User),
+    components: {
+      views: {
+        list: { Component: '@/components/RedirectToManage#RedirectUsersToManage' },
+      },
+    },
   },
   access: {
     admin: adminPanelAccess,
@@ -141,7 +147,12 @@ export const Users: CollectionConfig = {
     ],
   },
   endpoints: [
-    // Narrow, freshness-guarded Editor grant/removal for the Manage Editors widget — replaces the
+    // Lazy, paginated Site-Admin directory for Manage → Users (D11). Registered before the dynamic
+    // account-action routes so `/search` is unambiguously a collection endpoint, never a user id —
+    // an ORDER dependency, and therefore pinned by `tests/unit/userSearchWiring.spec.ts` rather than
+    // left to this comment.
+    userSearchEndpoint,
+    // Narrow, freshness-guarded editing-access grant/removal for the Manage Editors widget — replaces the
     // widget's full-array PATCH (lost-update hazard on authorization data). See endpoints/userAssignments.
     assignEditorEndpoint,
     unassignEditorEndpoint,

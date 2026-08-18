@@ -269,13 +269,19 @@ describe('admin button-system scope coverage', () => {
     const geometry = scopeListFor('--app-btn-min-height')
     const touch = scopeListFor('--app-btn-touch-min-height')
     // The extras are the controls that take the phone touch target WITHOUT being button-system
-    // controls: two form controls, and (2026-08-17) Manage's accordion disclosure heading, which is
+    // controls: three form controls, and (2026-08-17) Manage's accordion disclosure heading, which is
     // the primary control on that page at 375px but must not look like an action.
+    //
+    // ⚑ `.lp-users__input` was added here when the Users panel's inputs JOINED the shared form-control
+    // rule. They shipped with a private copy of both the geometry and the touch declaration, which
+    // this guard could not see — it watches the shared lists, so a control that opts out of them is
+    // invisible to it. That is not a hole to plug here: the answer is that controls join the list.
     expect(new Set(touch)).toEqual(
       new Set([
         ...geometry,
         '.lp-manage__select',
         '.lp-admin-list__search',
+        '.lp-users__input',
         '.lp-accordion__trigger',
       ]),
     )

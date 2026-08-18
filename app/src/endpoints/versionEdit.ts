@@ -109,8 +109,8 @@ async function authorize(
 /**
  * POST /:id/save-as-new — save the editor's current form content as a NEW candidate version of this
  * plan (Stage 2 editing model). Does NOT move the Official pointer — designating Official is a separate
- * admin-only action (`make-official`). Editor authorship is enforced server-side: the submitted content
- * is run through `applyEditorFieldSplit` against THIS version as the source, so an Editor's structural /
+ * admin-only action (`make-official`). Authorship is enforced server-side: the submitted content
+ * is run through `applyEditorFieldSplit` against THIS version as the source, so a teacher with editing access's structural /
  * META changes are ignored (prose only); a Subject/Site Admin's edits pass through. Body: multipart with
  * a `data` field carrying the JSON nested bundle (same shape the preview endpoint accepts).
  *
@@ -164,9 +164,9 @@ export const saveAsNewEndpoint: Endpoint = {
       throw new APIError('This version changed since you opened it — reload before saving.', 409)
     }
 
-    // Enforce Editor-prose-only: overlay the submitted prose onto THIS version (the source) and preserve
+    // Enforce prose-only: overlay the submitted prose onto THIS version (the source) and preserve
     // its admin/structure fields. Admins (and the system) pass through unchanged. Cardinality/order
-    // changes by an Editor are rejected inside the helper.
+    // changes by a teacher with editing access are rejected inside the helper.
     const merged = applyEditorFieldSplit({
       data: { ...edited, subjectGrade: toId(source.subjectGrade as never) },
       originalDoc: source as unknown as Record<string, unknown>,
@@ -229,7 +229,7 @@ export const saveAsNewEndpoint: Endpoint = {
             semver: await nextSemverForPlan(req.payload, planId, req),
             sourceVersion: source.id,
             // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
-            // submitted content (DROP_KEYS) — drives the Editor delete scope ("My saved versions").
+            // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("My saved versions").
             author: caller.id,
           } as never,
           req,

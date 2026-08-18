@@ -46,13 +46,35 @@ function useAccordion(): OpenPanels {
  * not a panel. `'sg-12' === 'access'` is never true, so that effect was dead code that looked like a
  * working feature.
  *
- * The real consumer is the per-subject-grade group in PR 4, which does not exist yet — hence this
- * hook rather than a private context read: the target has to be reachable from a component that is
- * not an `AccordionPanel`. Until then `at` is parsed and scrubbed (so the URL contract holds and a
- * stale `at` cannot re-fire) and nothing acts on it. Do not wire scroll/focus to a panel id.
+ * The consumer is the per-subject-grade group in `EditorsWidget`, reached from a grant in the Users
+ * panel. This stays a hook rather than a private context read because the target has to be reachable
+ * from a component that is not itself an `AccordionPanel`. Do not wire scroll/focus to a panel id.
  */
-export function useJumpTarget(): string | null {
-  return useAccordion().jumpTarget
+const INERT_JUMP_TARGET = {
+  consume: (_target: string) => undefined,
+  target: null,
+} as const
+
+export function useJumpTarget(): {
+  consume: OpenPanels['consumeJumpTarget']
+  target: string | null
+} {
+  // Null outside Manage keeps independently-tested/reused group widgets inert; only the provider
+  // can supply a URL target, so there is no useful failure to surface in that case.
+  const context = useContext(AccordionContext)
+  return context
+    ? { consume: context.consumeJumpTarget, target: context.jumpTarget }
+    : INERT_JUMP_TARGET
+}
+
+/** Whether a panel is currently disclosed. Used by lazy children so a hidden panel does no work. */
+export function usePanelOpen(id: PanelId): boolean {
+  return useAccordion().isOpen(id)
+}
+
+/** Navigate to another panel as one reversible history entry (D7a). */
+export function usePanelJump(): OpenPanels['jumpTo'] {
+  return useAccordion().jumpTo
 }
 
 /**

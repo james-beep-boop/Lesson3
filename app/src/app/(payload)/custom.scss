@@ -555,6 +555,203 @@ body {
   }
 }
 
+// Lazy Users panel (Manage PR 2b). The outer accordion keeps this component mounted when closed;
+// its own row disclosures follow the same rule so a half-edited profile is not destroyed by a stray
+// click on the person's summary.
+.lp-users {
+  &__filters {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    margin-bottom: var(--app-space-2);
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--theme-elevation-150);
+  }
+
+  &__row {
+    border-bottom: 1px solid var(--theme-elevation-150);
+  }
+
+  &__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--app-space-3);
+    width: 100%;
+    padding: 0.75rem 0.1rem;
+    border: 0;
+    background: none;
+    color: var(--theme-elevation-1000);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover .lp-users__name,
+    &:focus-visible .lp-users__name {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: var(--app-btn-focus-ring) solid var(--app-accent);
+      outline-offset: var(--app-btn-focus-ring-offset);
+    }
+  }
+
+  &__summary-main {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+  }
+
+  &__name {
+    font-size: var(--app-body-size);
+  }
+
+  &__email,
+  &__summary-meta {
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    overflow-wrap: anywhere;
+  }
+
+  &__summary-meta {
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  // Same load-bearing rule as the outer accordion: this element has grid layout when visible, so a
+  // bare UA `[hidden]` rule would lose in the cascade and expose a row that claims to be collapsed.
+  &__details[hidden] {
+    display: none;
+  }
+
+  &__details {
+    display: grid;
+    gap: var(--app-space-3);
+    padding: 0 var(--app-space-2) var(--app-space-4);
+  }
+
+  &__profile,
+  &__reset {
+    display: flex;
+    align-items: end;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+  }
+
+  &__field {
+    display: grid;
+    gap: var(--app-space-1);
+    min-width: min(18rem, 100%);
+    flex: 1;
+    color: var(--theme-elevation-700);
+    font-size: var(--app-secondary-size);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-1);
+    flex-wrap: wrap;
+  }
+
+  &__grants {
+    h3 {
+      margin: 0 0 var(--app-space-1);
+      font-size: var(--app-body-size);
+      font-weight: 600;
+    }
+
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--app-space-2);
+      padding: var(--app-space-1) 0;
+      color: var(--theme-elevation-700);
+      font-size: var(--app-secondary-size);
+    }
+  }
+
+  &__jump {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--app-accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: var(--app-btn-focus-ring) solid var(--app-accent);
+      outline-offset: var(--app-btn-focus-ring-offset);
+    }
+  }
+
+  &__error {
+    margin: 0;
+    color: var(--theme-error-500);
+    font-size: var(--app-secondary-size);
+  }
+
+  &__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--app-space-2);
+    margin-top: var(--app-space-3);
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+  }
+
+  @media (max-width: 640px) {
+    &__filters,
+    &__profile,
+    &__reset {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    &__summary {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: var(--app-space-1);
+      min-height: var(--app-btn-touch-min-height);
+    }
+
+    &__summary-meta {
+      text-align: left;
+    }
+
+    &__actions .btn,
+    &__profile .btn,
+    &__reset .btn {
+      width: 100%;
+    }
+
+    &__grants li,
+    &__pagination {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    &__jump {
+      min-height: var(--app-btn-touch-min-height);
+    }
+  }
+}
+
 // Delete lesson plans — the curriculum tree (2026-08-04 operator request: the flat list had no
 // organisation, with the scope in small type off to the right). Structure and TYPE SCALE mirror the
 // library catalogue's `.sg-head` / `.strand-head` exactly, via the shared tokens: the two surfaces
@@ -1485,16 +1682,22 @@ a.btn.lp-btn {
   font-size: var(--app-btn-font-size);
 }
 
-// Manage's FORM controls — the Editors picker and the delete-plans search. They take the button
+// Manage's FORM controls — the teachers with editing access picker, the delete-plans search, and the
+// Users panel's profile/reset inputs. They take the button
 // system's GEOMETRY (height, radius, type) so they sit level with the action button beside them,
 // and deliberately NOT its appearance: a `<select>` keeps its native chevron and an input keeps
 // looking like an input. Exactly the rule applied to the frontend's compare pickers in this same
 // PR — one policy for "form control next to a system button", stated on both surfaces.
 //
-// Before this, the Editors row put a 31.19px/14.4px UA-default select next to what is now a 38px
+// Before this, the teachers with editing access row put a 31.19px/14.4px UA-default select next to what is now a 38px
 // Add button, and `.lp-manage__select` had NO rule of its own at all.
+//
+// ⚑ `.lp-users__input` JOINED THIS LIST rather than restating it. PR 2b shipped it as a private copy
+// of both halves — this block AND the ≤640px touch target below — which is the two-lists-kept-in-step
+// failure the touch note argues against, arriving in the same file that argues it.
 .lp-manage__select,
-.lp-admin-list__search {
+.lp-admin-list__search,
+.lp-users__input {
   min-height: var(--app-btn-min-height);
   padding: var(--app-btn-padding-block) var(--app-btn-padding-inline);
   border: 1px solid var(--theme-elevation-150);
@@ -1528,6 +1731,7 @@ a.btn.lp-btn {
   .btn.lp-btn,
   .lp-manage__select,
   .lp-admin-list__search,
+  .lp-users__input,
   .lp-accordion__trigger {
     min-height: var(--app-btn-touch-min-height);
   }

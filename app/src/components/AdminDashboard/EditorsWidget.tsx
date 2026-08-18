@@ -13,13 +13,16 @@
  * server-side and unchanged (collection/field access + `enforceAssignmentScope`); the widget is a
  * convenience, not a policy.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 import { personLabel, type WidgetUser } from '../../lib/widgetUser'
+import { wireErrorMessage } from '../../lib/wireError'
 import type { EditorsGroup } from '../../lib/editorGroups'
+import { useJumpTarget } from '../Manage/Accordion'
+import { subjectGradeAnchor } from '../Manage/panelState'
 
 /**
  * Both types are declared in `lib/` beside the code that BUILDS them (`widgetUser.ts`,
@@ -37,6 +40,20 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
   const [picks, setPicks] = useState<Record<number, string>>({})
 
   const apiBase = apiBaseFrom(config)
+  const { target: jumpTarget, consume: consumeJumpTarget } = useJumpTarget()
+
+  useEffect(() => {
+    if (!jumpTarget || !groups.some((group) => subjectGradeAnchor(group.sgId) === jumpTarget))
+      return
+    // The URL parser already restricts the target grammar, and the membership check above narrows
+    // it further to a group this caller actually received. Focus the group heading container rather
+    // than an arbitrary selector supplied by the URL.
+    const target = document.getElementById(jumpTarget)
+    if (!target) return
+    target.scrollIntoView({ block: 'center' })
+    target.focus({ preventScroll: true })
+    if (document.activeElement === target) consumeJumpTarget(jumpTarget)
+  }, [consumeJumpTarget, groups, jumpTarget])
 
   const changeRole = async (
     mode: 'assign' | 'unassign',
@@ -52,12 +69,7 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subjectGradeId: group.sgId, expectedUpdatedAt: user.updatedAt }),
       })
-      if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as {
-          errors?: { message: string }[]
-        } | null
-        throw new Error(json?.errors?.[0]?.message || `Update failed (${res.status})`)
-      }
+      if (!res.ok) throw new Error(await wireErrorMessage(res, 'Update failed'))
       toast.success(okMsg)
       router.refresh()
     } catch (e) {
@@ -103,7 +115,13 @@ export function EditorsWidget({ groups }: { groups: EditorsGroup[] }) {
         const canAdd = group.addable.length > 0
         return (
           <div key={group.sgId} className="lp-manage__editors-group">
-            <h3 className="lp-manage__editors-head">{group.sgLabel}</h3>
+            <h3
+              id={subjectGradeAnchor(group.sgId)}
+              className="lp-manage__editors-head"
+              tabIndex={-1}
+            >
+              {group.sgLabel}
+            </h3>
             {hasEditors && (
               <ul className="lp-manage__list">
                 {group.editors.map((u) => (
