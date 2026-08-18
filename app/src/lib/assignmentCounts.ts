@@ -84,6 +84,19 @@ export async function assignmentCountsBySubjectGrade(
  * config, which pushed its coverage into the E2E — where the first attempt asserted "1 person loses
  * editing access" and was really counting how many accounts that spec happened to seed. Agreement
  * between a number and its verb is logic, and it belongs beside the counts it describes.
+ *
+ * ⚑ THE NUMBER IS A SNAPSHOT, and knowingly so. It is resolved in the same server render as the rows
+ * and refreshed by `router.refresh()` after every write on this page — so a grant made in Manage →
+ * Editing access IS reflected here. What it cannot see is a grant made by ANOTHER administrator in
+ * another session between this page rendering and the delete being confirmed, which would leave the
+ * sentence understating the loss by one.
+ *
+ * Left as a snapshot deliberately. Re-counting at confirm time needs an endpoint, and PR 3 adds none
+ * — the panels drive existing REST routes precisely so there is no new gate to get wrong. The
+ * trade is sound because this number is ADVISORY: the cascade itself runs server-side in
+ * `guardSubjectGradeDelete`, against the rows as they are at delete time, and is unaffected by
+ * anything stale on a client. A warning that is occasionally one short is worth far more than no
+ * warning, which is what this replaced.
  */
 export function deleteConsequences({
   displayName,
