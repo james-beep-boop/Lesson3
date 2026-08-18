@@ -45,6 +45,19 @@ export const OPEN_PARAM = 'open'
 /** The query parameter naming a nested target to reveal + focus on arrival, then scrubbed (D7a). */
 export const AT_PARAM = 'at'
 
+/**
+ * `at` is a dynamic DOM target rather than a panel id, so it cannot use the closed vocabulary
+ * above. Keep it to the id fragment PR 4's focus consumer can safely accept; malformed values are
+ * ignored just like unknown panel ids rather than handed to a future selector or focus lookup.
+ */
+const AT_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
+
+/** Parse a one-shot nested target from a query string, rejecting unsafe or unbounded ids. */
+export function parseAt(search: string): string | null {
+  const at = new URLSearchParams(search).get(AT_PARAM)
+  return at !== null && AT_PATTERN.test(at) ? at : null
+}
+
 /** A panel's parent, or null for a top-level panel. `plans.upload` → `plans`. */
 export function parentOf(id: string): string | null {
   const dot = id.indexOf('.')
@@ -111,9 +124,7 @@ export function parseOpen(search: string, available: readonly string[]): PanelId
  */
 export function withoutDescendants(open: readonly string[], closing: string): PanelId[] {
   const prefix = `${closing}.`
-  return inRenderOrder(
-    [...open].filter((id) => id !== closing && !id.startsWith(prefix)),
-  )
+  return inRenderOrder([...open].filter((id) => id !== closing && !id.startsWith(prefix)))
 }
 
 /**
@@ -174,5 +185,8 @@ export function resolveServerPanelState(
     for (const one of Array.isArray(value) ? value : [value]) params.append(key, one)
   }
   const search = params.toString()
-  return { open: initialOpen(search, available), at: params.get(AT_PARAM) }
+  return {
+    open: initialOpen(search, available),
+    at: parseAt(search),
+  }
 }

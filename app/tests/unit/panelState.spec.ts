@@ -105,6 +105,13 @@ describe('resolveServerPanelState', () => {
     expect(resolveServerPanelState({ open: 'access' }, SITE_ADMIN).at).toBeNull()
   })
 
+  it('ignores malformed dynamic jump targets before a focus consumer can receive them', () => {
+    expect(resolveServerPanelState({ at: 'sg-12' }, SITE_ADMIN).at).toBe('sg-12')
+    expect(resolveServerPanelState({ at: '' }, SITE_ADMIN).at).toBeNull()
+    expect(resolveServerPanelState({ at: 'sg 12' }, SITE_ADMIN).at).toBeNull()
+    expect(resolveServerPanelState({ at: 'x'.repeat(65) }, SITE_ADMIN).at).toBeNull()
+  })
+
   it('applies the single-section auto-expand when the query says nothing', () => {
     expect(resolveServerPanelState({}, ['versions']).open).toEqual(['versions'])
   })

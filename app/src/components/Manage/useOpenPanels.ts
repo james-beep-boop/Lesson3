@@ -21,11 +21,12 @@
  * panels showing the pre-navigation state.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import {
   AT_PARAM,
   OPEN_PARAM,
+  parseAt,
   parseOpen,
   serialiseOpen,
   withAncestors,
@@ -63,8 +64,8 @@ export function useOpenPanels(
   serverAt: string | null,
 ): OpenPanels {
   const router = useRouter()
-  const [open, setOpen] = useState<PanelId[]>(() => serverOpen as PanelId[])
-  const [jumpTarget, setJumpTarget] = useState<string | null>(serverAt)
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   // `available` is a fresh array identity on every render of the server component, so the popstate
   // listener below depends on its VALUE rather than its reference — otherwise the listener would be
@@ -73,6 +74,50 @@ export function useOpenPanels(
   // sitting forty lines apart, in which a panel id containing a comma would silently become two).
   const availableKey = available.join(',')
   const availableIds = useMemo(() => availableKey.split(','), [availableKey])
+
+  const locationSearch = searchParams.toString()
+  const urlOpen = parseOpen(locationSearch, availableIds)
+  const locationKey = serialiseOpen(pathname, locationSearch, urlOpen)
+  const urlAt = parseAt(locationSearch)
+  const [storedState, setState] = useState<{
+    locationKey: string
+    observedAt: string | null
+    open: PanelId[]
+    jumpTarget: string | null
+  }>(() => ({
+    locationKey,
+    observedAt: serverAt,
+    open: serverOpen as PanelId[],
+    jumpTarget: serverAt,
+  }))
+  let state = storedState
+
+  /**
+   * Next integrates native history writes with `usePathname` / `useSearchParams`, so this is the one
+   * place every URL arrival is read back: router navigation, Back/Forward, and our own replaceState.
+   *
+   * This is the documented React "adjust state while rendering" pattern, gated by a previous-value
+   * comparison. An effect would paint the OLD disclosure state once and then correct it, while a
+   * remounting `key` on the provider would destroy the local form/search/selection state D7a exists
+   * to preserve. React immediately retries this component with the new snapshot before committing
+   * its children, so a navigation cannot expose the stale panel set.
+   */
+  if (state.locationKey !== locationKey || state.observedAt !== urlAt) {
+    const onlyScrubbedAt =
+      state.locationKey === locationKey && state.observedAt !== null && urlAt === null
+    const next = onlyScrubbedAt
+      ? // `at` was consumed by our canonicalising replaceState. Preserve its in-memory value for
+        // the focus consumer; a later real navigation changes the semantic location key.
+        { ...state, observedAt: null }
+      : {
+          locationKey,
+          observedAt: urlAt,
+          open: urlOpen,
+          jumpTarget: urlAt,
+        }
+    setState(next)
+    state = next
+  }
 
   /**
    * The open set actually in effect: raw state re-gated against CURRENT availability.
@@ -99,8 +144,8 @@ export function useOpenPanels(
    * testable, not a reason to fake it now.
    */
   const openNow = useMemo(
-    () => open.filter((id) => availableIds.includes(id)),
-    [open, availableIds],
+    () => state.open.filter((id) => availableIds.includes(id)),
+    [state.open, availableIds],
   )
 
   /**
@@ -121,44 +166,35 @@ export function useOpenPanels(
    * An effect keyed on `open` covers the mount scrub and every subsequent change with one rule, no
    * refs, and no side effect inside an updater.
    *
-   * It writes only when the URL would actually change. That keeps a `router.push` from `jumpTo` from
-   * being immediately overwritten by an equivalent `replaceState`, and it is what makes `at`
-   * one-shot: `serialiseOpen` drops it, so the first write after arrival consumes it — by which time
-   * `jumpTarget` is already state, and removing it from the URL cannot take it away.
+   * It writes only when the URL would actually change. `jumpTo` deliberately does not update local
+   * state before its `router.push` arrives, so this effect cannot rewrite the history entry the jump
+   * is meant to preserve. Once the destination URL arrives, the location snapshot above adopts its
+   * open set and `at`; this effect then consumes that one-shot parameter. `jumpTarget` is already in
+   * state by then, so removing it from the address bar cannot take it away.
    */
   useEffect(() => {
     const target = serialiseOpen(window.location.pathname, window.location.search, openNow)
     if (target !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, '', target)
     }
-  }, [openNow])
-
-
-  // Back/forward restores whatever open set that history entry carried. D7a does not mention this,
-  // but `LibraryBrowser` learned it: without it, going back after a cross-panel jump changes the URL
-  // and leaves the panels showing the pre-navigation state.
-  useEffect(() => {
-    const onPop = () => {
-      const search = window.location.search
-      setOpen(parseOpen(search, availableIds))
-      setJumpTarget(new URLSearchParams(search).get(AT_PARAM))
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [availableIds])
+  }, [openNow, state.jumpTarget, pathname, locationSearch])
 
   const isOpen = useCallback((id: string) => openNow.includes(id as PanelId), [openNow])
 
   // A pure updater — no side effects, so React may safely call it during render.
-  const toggle = useCallback((id: string) => {
-    setOpen((current) =>
-      current.includes(id as PanelId)
-        ? // Closing a parent closes its subtree, so reopening does not spring back to a shape the
-          // user last saw several interactions ago.
-          withoutDescendants(current, id)
-        : withAncestors([...current, id as PanelId]),
-    )
-  }, [])
+  const toggle = useCallback(
+    (id: string) => {
+      setState((current) => ({
+        ...current,
+        open: current.open.includes(id as PanelId)
+          ? // Closing a parent closes its subtree, so reopening does not spring back to a shape the
+            // user last saw several interactions ago.
+            withoutDescendants(current.open, id)
+          : withAncestors([...current.open, id as PanelId]),
+      }))
+    },
+    [setState],
+  )
 
   /**
    * A jump is a navigation, not a toggle: it moves the reader to a different part of the page in
@@ -174,11 +210,10 @@ export function useOpenPanels(
    */
   const jumpTo = useCallback(
     (id: string, at?: string) => {
-      // Closes over `open` rather than reading a ref — this is an event handler, so a changing
-      // identity costs nothing and keeps every side effect out of the updaters above.
+      // Do NOT set local state here. The push is asynchronous; doing so lets the URL-mirror effect
+      // run against the OLD location, replacing the history entry this jump is meant to preserve.
+      // The reactive location snapshot above adopts the destination state when the push arrives.
       const next = withAncestors([...openNow, id as PanelId])
-      setOpen(next)
-      setJumpTarget(at ?? null)
       const params = new URLSearchParams(window.location.search)
       params.set(OPEN_PARAM, next.join(','))
       if (at) params.set(AT_PARAM, at)
@@ -188,5 +223,5 @@ export function useOpenPanels(
     [openNow, router],
   )
 
-  return { isOpen, toggle, jumpTo, jumpTarget }
+  return { isOpen, toggle, jumpTo, jumpTarget: state.jumpTarget }
 }

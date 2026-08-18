@@ -72,7 +72,9 @@ export function CandidateList({
         credentials: 'include',
       })
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
+        const json = (await res.json().catch(() => null)) as {
+          errors?: { message: string }[]
+        } | null
         throw new Error(json?.errors?.[0]?.message || `Delete failed (${res.status})`)
       }
       toast.success(`Deleted “${row.label}” v${row.semver}.`)
@@ -99,46 +101,48 @@ export function CandidateList({
       {shown.length === 0 && (
         <p className="lp-manage__empty">No saved versions match “{query.trim()}”.</p>
       )}
-      <ul className="lp-manage__list">
-      {shown.map((row) => {
-        const href = `/admin/collections/lesson-bundle-versions/${row.id}?edit=1`
-        // One metadata LINE, not a row of floating chips. The version is ordinary metadata here:
-        // it used to render as `.lp-admin-list__badge`, which gave a piece of status the shape of a
-        // control — exactly what the button system's "status is not a variant" rule forbids.
-        const meta = [
-          row.sgLabel,
-          `Version ${row.semver}`,
-          showAuthor ? (row.authorName ?? 'Unknown author') : null,
-          row.savedAt ? `Saved ${row.savedAt}` : null,
-        ].filter(Boolean)
-        return (
-          <li key={row.id} className="lp-manage__row">
-            <div className="lp-manage__row-main">
-              <Link className="lp-manage__link" href={href}>
-                {row.label}
-              </Link>
-              <p className="lp-manage__meta">{meta.join(' · ')}</p>
-            </div>
-            {/* The title is still the obvious link, but the action is also NAMED: "click the row to
+      {shown.length > 0 && (
+        <ul className="lp-manage__list">
+          {shown.map((row) => {
+            const href = `/admin/collections/lesson-bundle-versions/${row.id}?edit=1`
+            // One metadata LINE, not a row of floating chips. The version is ordinary metadata here:
+            // it used to render as `.lp-admin-list__badge`, which gave a piece of status the shape of a
+            // control — exactly what the button system's "status is not a variant" rule forbids.
+            const meta = [
+              row.sgLabel,
+              `Version ${row.semver}`,
+              showAuthor ? (row.authorName ?? 'Unknown author') : null,
+              row.savedAt ? `Saved ${row.savedAt}` : null,
+            ].filter(Boolean)
+            return (
+              <li key={row.id} className="lp-manage__row">
+                <div className="lp-manage__row-main">
+                  <Link className="lp-manage__link" href={href}>
+                    {row.label}
+                  </Link>
+                  <p className="lp-manage__meta">{meta.join(' · ')}</p>
+                </div>
+                {/* The title is still the obvious link, but the action is also NAMED: "click the row to
                 resume editing" was never stated anywhere on the page. */}
-            <div className="lp-manage__row-actions">
-              <Link className="btn lp-btn" href={href}>
-                Continue editing
-              </Link>
-              <Button
-                className="lp-btn"
-                buttonStyle="error"
-                size="small"
-                disabled={busyId != null}
-                onClick={() => void onDelete(row)}
-              >
-                {busyId === row.id ? 'Deleting…' : 'Delete'}
-              </Button>
-            </div>
-          </li>
-        )
-      })}
-      </ul>
+                <div className="lp-manage__row-actions">
+                  <Link className="btn lp-btn" href={href}>
+                    Continue editing
+                  </Link>
+                  <Button
+                    className="lp-btn"
+                    buttonStyle="error"
+                    size="small"
+                    disabled={busyId != null}
+                    onClick={() => void onDelete(row)}
+                  >
+                    {busyId === row.id ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </>
   )
 }

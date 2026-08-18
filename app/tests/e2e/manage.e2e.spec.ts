@@ -572,10 +572,9 @@ test.describe('Manage page', () => {
       await loginAs(page, 'subjectAdmin')
       await page.goto(`${BASE}/admin?open=curriculum,nonsense,access&at=sg-999`)
       await expect(page.getByRole('heading', { name: 'Manage' })).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Editing access', exact: true })).toHaveAttribute(
-        'aria-expanded',
-        'true',
-      )
+      await expect(
+        page.getByRole('button', { name: 'Editing access', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
       // The URL is rewritten to what the page is actually showing: the inaccessible id, the typo and
       // the consumed one-shot `at` are all gone, and the valid one survives.
       await expect(page).toHaveURL(/[?&]open=access(&|$)/)
@@ -634,7 +633,9 @@ test.describe('Manage page', () => {
       const search = page.getByLabel('Search saved versions')
       await expect(search).toBeVisible()
 
-      await expect(page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK })).toHaveCount(1)
+      await expect(
+        page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
+      ).toHaveCount(1)
       await search.fill('definitely-no-such-version')
       await expect(
         page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK }),
@@ -642,6 +643,10 @@ test.describe('Manage page', () => {
       // A query that matches nothing says so, rather than falling back to the instructional empty
       // state — which would read as "you have never saved anything".
       await expect(page.locator('.lp-manage__empty')).toContainText('No saved versions match')
+      const panel = page.locator('section.lp-accordion').filter({
+        has: page.getByRole('button', { name: 'Candidate versions', exact: true }),
+      })
+      await expect(panel.locator('.lp-manage__list')).toHaveCount(0)
     })
   })
 
@@ -657,6 +662,17 @@ test.describe('Manage page', () => {
 
     await page.getByRole('button', { name: /Account menu/ }).click()
     await page.getByRole('button', { name: 'Change display name' }).click()
+
+    // Cancel is a real reset, not merely a mode switch: stale draft text and validation errors must
+    // not return when the form is reopened inside the still-mounted dropdown.
+    await page.getByLabel('Display name').fill('')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.locator('.user-menu__edit-error')).toContainText('Enter a display name')
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.getByRole('button', { name: 'Change display name' }).click()
+    await expect(page.getByLabel('Display name')).toHaveValue(`${MARK}editor`)
+    await expect(page.locator('.user-menu__edit-error')).toHaveCount(0)
+
     await page.getByLabel('Display name').fill(newName)
     await page.getByRole('button', { name: 'Save', exact: true }).click()
 

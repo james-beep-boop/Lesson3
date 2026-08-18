@@ -34,9 +34,21 @@ export function DisplayNameForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const beginEditing = () => {
+    setDraft(displayName)
+    setError(null)
+    setEditing(true)
+  }
+  const exitEditing = () => {
+    setDraft(displayName)
+    setError(null)
+    setSaving(false)
+    setEditing(false)
+  }
+
   if (!editing) {
     return (
-      <button type="button" className="user-menu__item" onClick={() => setEditing(true)}>
+      <button type="button" className="user-menu__item" onClick={beginEditing}>
         Change display name
       </button>
     )
@@ -52,7 +64,7 @@ export function DisplayNameForm({
       return
     }
     if (name === displayName) {
-      setEditing(false)
+      exitEditing()
       return
     }
     setSaving(true)
@@ -63,9 +75,13 @@ export function DisplayNameForm({
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
+        // Without a bound, one lost connection leaves Save and Cancel disabled forever.
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { errors?: { message: string }[] } | null
+        const json = (await res.json().catch(() => null)) as {
+          errors?: { message: string }[]
+        } | null
         throw new Error(json?.errors?.[0]?.message || `Could not save (${res.status})`)
       }
       // A full reload rather than `router.refresh()`: the name is rendered by BOTH root layouts (the
@@ -73,7 +89,15 @@ export function DisplayNameForm({
       // single router whose refresh updates every surface the name appears on.
       window.location.reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save')
+      const timedOut =
+        err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')
+      setError(
+        timedOut
+          ? 'Saving took too long — please try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not save',
+      )
       setSaving(false)
     }
   }
@@ -106,7 +130,7 @@ export function DisplayNameForm({
           type="button"
           className="user-menu__edit-btn"
           disabled={saving}
-          onClick={() => setEditing(false)}
+          onClick={exitEditing}
         >
           Cancel
         </button>
