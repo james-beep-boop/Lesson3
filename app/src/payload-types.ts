@@ -368,6 +368,10 @@ export interface User {
    */
   name: string;
   /**
+   * Set from Manage. Disabling signs the user out immediately and blocks future sign-in; their authored versions are untouched.
+   */
+  signInDisabled?: boolean | null;
+  /**
    * Gives this person full access to the system.
    */
   roles?: 'siteAdmin'[] | null;
@@ -868,6 +872,7 @@ export interface SubjectGradesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  signInDisabled?: T;
   roles?: T;
   assignments?:
     | T

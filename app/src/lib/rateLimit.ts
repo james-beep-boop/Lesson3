@@ -142,6 +142,23 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_MAX', 100),
     windowMs: positiveIntEnv('RATE_LIMIT_FORGOT_PASSWORD_GLOBAL_WINDOW_MS', 86_400_000),
   },
+  // A Site Administrator revealing a reset link for hand-delivery (D5/D5a-i). Its OWN cap, keyed to
+  // the authenticated administrator, deliberately NOT the two `forgotPassword*` buckets above.
+  //
+  // ⚑ THE REASON IS AVAILABILITY, NOT CONVENIENCE. In a deployment with no reliable email — which is
+  // the case this feature exists for — this endpoint is the ONLY account-recovery path in the
+  // product. Gating it on the same site-global daily budget as the public forgot-password form means
+  // ordinary traffic (or an attacker) exhausting that budget also disables the fallback, exactly
+  // when an administrator is standing next to a locked-out teacher. A fallback gated on the thing it
+  // is a fallback FOR is not a fallback.
+  //
+  // It is still capped: this is authenticated Site-Admin-only, mints live credentials, and sends no
+  // mail, so a modest per-administrator hourly ceiling bounds abuse of a compromised admin session
+  // without touching the availability argument.
+  adminResetLink: {
+    max: positiveIntEnv('RATE_LIMIT_ADMIN_RESET_LINK_MAX', 30),
+    windowMs: positiveIntEnv('RATE_LIMIT_ADMIN_RESET_LINK_WINDOW_MS', 3_600_000),
+  },
   // Email-verification attempts (Codex 2026-07-10): the verify endpoint is public and token-only,
   // so there is no per-target identifier to key on (an attacker varies the token) and no reliable
   // IP without the Phase-5 edge proxy — a site-global daily ceiling is the honest app-level bound.

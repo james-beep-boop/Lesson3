@@ -50,6 +50,30 @@ export async function whileRowLocked<T>(
   id: number,
   work: () => Promise<T>,
 ): Promise<T> {
+  return whileLockHeld(
+    payload,
+    sql`SELECT id FROM ${sql.raw(`"${table}"`)} WHERE id = ${id} FOR UPDATE`,
+    work,
+  )
+}
+
+/**
+ * Hold an ARBITRARY lock — whatever `lockStatement` acquires — for as long as `work` runs.
+ *
+ * ⚑ THIS IS THE GENERAL FORM, and `whileRowLocked` is now a one-line wrapper over it. It was
+ * extracted when a spec needed to hold `pg_advisory_xact_lock` rather than a row: the first version
+ * copied this function's body and changed one statement, which is precisely the re-derivation this
+ * file's header says centralising was meant to stop. A caller that needs a different lock passes a
+ * different statement instead of a seventh copy of the gate/holder pair.
+ *
+ * The statement must acquire a TRANSACTION-scoped lock, since that is what the dedicated connection
+ * below holds open — a lock released at statement end would hold nothing.
+ */
+export async function whileLockHeld<T>(
+  payload: Payload,
+  lockStatement: ReturnType<typeof sql>,
+  work: () => Promise<T>,
+): Promise<T> {
   let release!: () => void
   const gate = new Promise<void>((resolve) => {
     release = resolve
@@ -61,7 +85,7 @@ export async function whileRowLocked<T>(
   })
 
   const holder = (drizzleOf(payload) as unknown as TxRunner).transaction(async (tx) => {
-    await tx.execute(sql`SELECT id FROM ${sql.raw(`"${table}"`)} WHERE id = ${id} FOR UPDATE`)
+    await tx.execute(lockStatement)
     started()
     await gate
   })

@@ -63,6 +63,49 @@ const THROTTLED = {
   }
 >
 
+/**
+ * The `req.context` key marking a forgot-password operation as the ADMIN reset-link path, which has
+ * already paid its own `adminResetLink` toll and must not also consume the public budgets.
+ *
+ * Exported so the one endpoint allowed to set it and the hook that honours it share a spelling —
+ * a literal repeated in two files is a silent carve-out failure waiting to happen (it would fail
+ * OPEN, throttling the admin path, which is the safer direction but still wrong).
+ */
+export const ADMIN_RESET_LINK_CONTEXT = 'adminResetLink' as const
+
+/**
+ * Run `work` with the admin reset-link allowance in effect, and take it away again afterwards.
+ *
+ * ⚑ THE ALLOWANCE IS SCOPED, not set-and-forget. The first version assigned
+ * `req.context[ADMIN_RESET_LINK_CONTEXT] = true` in the endpoint and never cleared it, so the
+ * exemption covered the remainder of the request. Only one operation follows today, which makes that
+ * a maintenance hazard rather than a defect — but it is one maintained by a comment, and the next
+ * write added to that handler would silently inherit an unlimited public forgot-password budget with
+ * nothing failing.
+ *
+ * Restoring the previous value in a `finally` makes the narrow scope structural, and puts the
+ * mechanism in the module that OWNS the limiter rather than in the endpoint that benefits from it.
+ */
+export async function withAdminResetLinkAllowance<T>(
+  req: { context?: Record<string, unknown> },
+  work: () => Promise<T>,
+): Promise<T> {
+  // ⚑ MUTATE IN PLACE; do not replace `req.context`. Assigning a fresh object works today only
+  // because Payload happens to read the property off `req` later — anything that captured the
+  // ORIGINAL context object earlier in the request would be left holding a detached copy, and the
+  // allowance would be invisible to it. Preserving object identity removes that coupling entirely.
+  req.context ??= {}
+  const had = Object.prototype.hasOwnProperty.call(req.context, ADMIN_RESET_LINK_CONTEXT)
+  const previous = req.context[ADMIN_RESET_LINK_CONTEXT]
+  req.context[ADMIN_RESET_LINK_CONTEXT] = true
+  try {
+    return await work()
+  } finally {
+    if (had) req.context[ADMIN_RESET_LINK_CONTEXT] = previous
+    else delete req.context[ADMIN_RESET_LINK_CONTEXT]
+  }
+}
+
 export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   args,
   operation,
@@ -78,6 +121,28 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
         ? ('signup' as const)
         : null
   if (!kind) return args
+
+  /**
+   * ⚑ THE ADMIN RESET-LINK CARVE-OUT (D5a-i). A Site Administrator minting a hand-delivered reset
+   * link runs `forgotPasswordOperation`, which fires this hook — so without this it would consume the
+   * PUBLIC per-address and site-global daily budgets, and exhausting those would disable the only
+   * account-recovery path a no-email deployment has.
+   *
+   * ⚑ THIS IS A CARVE-OUT, NOT A BYPASS, and the difference is the whole design. The cheap
+   * implementations are wrong in the same way: testing `req.user` here would exempt EVERY
+   * authenticated caller, so any signed-in Teacher could drive unlimited forgot-password operations.
+   * Instead the flag is set by ONE endpoint, only after BOTH (a) the caller was authorized as a Site
+   * Admin and (b) that endpoint's own `adminResetLink` cap was consumed. It is therefore not "an
+   * authenticated request" that is exempt, it is "a request that already paid an admin-scoped toll".
+   *
+   * ⚑ `req.context` IS THE SAFE CARRIER precisely because it is server-side only — Payload builds it
+   * per request and no request body, header or query parameter can populate it. A client cannot
+   * forge this. That property is what makes the carve-out sound; do not move it to a header.
+   *
+   * Two tests, not one: the admin path is not throttled by the public budget, AND the ordinary public
+   * `POST /forgot-password` still is. The second is what catches this quietly becoming a bypass.
+   */
+  if (kind === 'forgotPassword' && req.context?.[ADMIN_RESET_LINK_CONTEXT] === true) return args
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email
   // recipient cap). A missing/garbage email still consumes a bucket ('invalid') — probing with

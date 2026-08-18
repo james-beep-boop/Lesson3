@@ -11,7 +11,7 @@
  * than in several with different failure modes.
  */
 import { sql } from '@payloadcms/db-postgres'
-import type { PayloadRequest } from 'payload'
+import { APIError, type CollectionSlug, type PayloadRequest } from 'payload'
 
 type DrizzleHandle = { execute: (q: unknown) => Promise<unknown> }
 
@@ -81,6 +81,18 @@ export const txDb = async (
  * here is a deliberate edit; passing one through from a request is impossible.
  */
 export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
+
+/**
+ * The collection represented by each lockable database table.
+ *
+ * Keep this explicit: a string transform cannot prove that a new table has a corresponding Payload
+ * collection, while `satisfies` makes every member of the closed table union name a real slug.
+ */
+const COLLECTION_OF = {
+  lesson_plans: 'lesson-plans',
+  subject_grades: 'subject-grades',
+  users: 'users',
+} as const satisfies Record<LockableTable, CollectionSlug>
 
 /**
  * Take `SELECT … FOR UPDATE` row locks inside the caller's transaction, in ascending id order.
@@ -167,4 +179,40 @@ export const toPositiveInt = (v: unknown): number => {
     throw new Error(`expected a positive safe integer from a numeric column, got: ${String(v)}`)
   }
   return n
+}
+
+/**
+ * Lock one row of `table`, then read it back and refuse a STALE optimistic-concurrency token.
+ *
+ * The sequence — lock, re-read post-lock, compare `updatedAt`, 409 — is the shape every
+ * freshness-guarded authorization endpoint needs, and it was written out twice (`userAssignments`,
+ * `userAdminActions`) before being extracted. The order is what matters and is easy to get subtly
+ * wrong: reading BEFORE the lock lets two requests carrying the same fresh token both pass the
+ * comparison, and the later write silently drops the earlier delta.
+ *
+ * ⚑ THIS TAKES THE ROW LOCK ONLY, and it is the SECOND of two locks. Any caller whose write can
+ * reach `guardLastSiteAdmin` must call `takeAdminCountLock` BEFORE this — a generic `PATCH`/`DELETE`
+ * meets that global key in its hooks, i.e. before Payload's DML takes the row, so advisory-then-row
+ * is the order every writer must share. Doing it the other way round deadlocks a same-user race, and
+ * that is not hypothetical: the first version of `userAdminActions` did exactly that.
+ */
+export async function lockAndVerifyFresh<T extends { updatedAt?: unknown }>(
+  req: PayloadRequest,
+  table: LockableTable,
+  id: number,
+  expectedUpdatedAt: string,
+  staleMessage: string,
+): Promise<T> {
+  await lockRows(req, table, [id])
+  const target = (await req.payload.findByID({
+    collection: COLLECTION_OF[table],
+    id,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })) as unknown as T
+  if (Date.parse(String(target.updatedAt)) !== Date.parse(expectedUpdatedAt)) {
+    throw new APIError(staleMessage, 409)
+  }
+  return target
 }
