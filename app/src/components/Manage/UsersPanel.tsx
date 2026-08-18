@@ -9,6 +9,7 @@ import { apiBaseFrom } from '../../lib/apiBase'
 // quietly broken: who a person is must not be decided in four places — and the destructive
 // confirmations below are the same class of decision as the Editing-access widget's, which sits on
 // this very page and was identifying the same accounts a different way.
+import { plural } from '../../lib/assignmentCounts'
 import { personLabel } from '../../lib/widgetUser'
 import {
   grantRoleLabel,
@@ -21,11 +22,6 @@ import {
 import { wireErrorMessage } from '../../lib/wireError'
 import { usePanelJump, usePanelOpen } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
-
-/** "1 version" / "3 versions". Regular plurals only — the irregular caller was conjugating a VERB. */
-function plural(count: number, one: string): string {
-  return `${count} ${count === 1 ? one : `${one}s`}`
-}
 
 function UserRow({
   user,
@@ -345,7 +341,7 @@ function UserRow({
         </div>
 
         {error && (
-          <p className="lp-users__error" role="alert">
+          <p className="lp-manage__error" role="alert">
             {error}
           </p>
         )}
@@ -452,7 +448,7 @@ export function UsersPanel() {
 
       {!result && loading && <p className="lp-manage__empty">Loading users…</p>}
       {error && (
-        <p className="lp-users__error" role="alert">
+        <p className="lp-manage__error" role="alert">
           {error}{' '}
           <button type="button" className="lp-users__jump" onClick={() => void load()}>
             Try again

@@ -78,6 +78,13 @@ export const Subject: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name'],
     group: 'Curriculum',
+    // Subjects are managed in Manage → Subjects (PR 3); the native table is replaced, not hidden —
+    // see components/RedirectToManage for why the collection stays visible.
+    components: {
+      views: {
+        list: { Component: '@/components/RedirectToManage#RedirectSubjectsToManage' },
+      },
+    },
     hidden: ({ user }) => !canManageCurriculum(user as User),
   },
   access: {

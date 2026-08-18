@@ -23,14 +23,18 @@
  * the same panel is titled "Candidate versions" for administrators and "My saved versions" for
  * Teachers with editing access, and an id must not encode one role's label.
  *
- * `curriculum` is transitional: PR 2b moved Users out; PR 3 dissolves the remaining Subjects and
- * Subject Grades links into their own panels. When that lands, a stale
- * `?open=curriculum` degrades to "nothing opened" through the scrub rule below rather than erroring
- * — which is exactly why the scrub rule exists.
+ * ⚑ `curriculum` IS GONE, and its removal is the scrub rule's first real exercise rather than a
+ * hypothetical. It was a holding pen: PR 2b moved Users out of it, and PR 3 dissolved the remaining
+ * two links into `subjects` and `subject-grades`. A bookmark or shared link carrying
+ * `?open=curriculum` therefore names a panel that no longer exists — and lands on a normal Manage
+ * page with nothing opened and the parameter scrubbed, because `parseOpen` drops ids outside this
+ * list instead of erroring. Retiring a URL contract is a thing this vocabulary is supposed to
+ * survive; do not re-add the id to make an old link work.
  */
 export const PANEL_IDS = [
   'users',
-  'curriculum',
+  'subjects',
+  'subject-grades',
   'access',
   'plans',
   'plans.upload',

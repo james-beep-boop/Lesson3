@@ -19,6 +19,11 @@ import {
   setupRoleFixture,
   type RoleFixture,
 } from '../helpers/fixtures.js'
+import {
+  assignmentCountsBySubjectGrade,
+  deleteConsequences,
+  NO_ASSIGNMENTS,
+} from '../../src/lib/assignmentCounts'
 import { toId } from '../../src/access/index.js'
 
 let fx: RoleFixture
@@ -73,6 +78,49 @@ describe('SubjectGrade delete guard', () => {
       overrideAccess: true,
     })
     expect((after.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id)).toBe(false)
+  })
+
+  /**
+   * ⚑ THE COUNTS THE DELETE CONFIRMATION IS BUILT FROM, against REAL rows.
+   *
+   * `assignmentCountsBySubjectGrade` is raw SQL with two `FILTER (WHERE role = …)` clauses, and
+   * nothing else can pin that they land in the right fields: the unit spec feeds hand-written rows,
+   * and the E2E fixture seeds at least one of each role. Swap the two clauses and the panel would
+   * tell an administrator that N people lose editing access when N is the count of Subject
+   * Administrators — with every other test in this PR still green.
+   *
+   * The two counts are deliberately DIFFERENT here, so a swap cannot produce the same numbers.
+   */
+  it('counts assignments by role, mapping each role to its own field', async () => {
+    const sg = await fx.payload.create({
+      collection: 'subject-grades',
+      data: { subject: fx.subject.id, grade: 97 },
+      overrideAccess: true,
+    })
+    for (const n of [1, 2]) {
+      await createUserVerified(fx.payload, {
+        name: `${MARK}sgCount${n}`,
+        email: `${MARK.toLowerCase()}sgcount${n}@example.com`,
+        password: 'test1234',
+        assignments: [{ subjectGrade: sg.id, role: 'editor' }],
+      })
+    }
+    await createUserVerified(fx.payload, {
+      name: `${MARK}sgCountAdmin`,
+      email: `${MARK.toLowerCase()}sgcountadmin@example.com`,
+      password: 'test1234',
+      assignments: [{ subjectGrade: sg.id, role: 'subjectAdmin' }],
+    })
+
+    const counts = await assignmentCountsBySubjectGrade(fx.payload)
+    expect(counts.get(sg.id)).toEqual({ editors: 2, subjectAdmins: 1 })
+
+    // …and the sentence an administrator actually reads, built from those real counts.
+    expect(
+      deleteConsequences({ displayName: 'X', assignments: counts.get(sg.id) ?? NO_ASSIGNMENTS }),
+    ).toContain('2 people lose editing access and 1 Subject Administrator is demoted')
+
+    await fx.payload.delete({ collection: 'subject-grades', id: sg.id, overrideAccess: true })
   })
 })
 
