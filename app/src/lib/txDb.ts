@@ -74,6 +74,24 @@ export const txDb = async (
 }
 
 /**
+ * The POOL drizzle handle, for a trusted read-only aggregate that belongs to no caller's transaction.
+ *
+ * ⚑ THE CAST LIVES HERE, ONCE. This file opens by claiming to own "how this project talks to
+ * drizzle… one definition means a Payload upgrade that moves `sessions` breaks in one place, rather
+ * than in several with different failure modes" — and two count helpers then re-derived the adapter
+ * themselves anyway (`versionCounts.ts`, and `assignmentCounts.ts` copied it from there). The cast is
+ * `as unknown as`, so it defeats type-checking outright: an upgrade that moves `drizzle` off the
+ * adapter compiles clean and fails at runtime as "Cannot read properties of undefined".
+ *
+ * ⚑ DELIBERATELY NOT `txDb`. `txDb` REFUSES the pool when a transaction is active, which is right for
+ * a write that must commit with its caller. These are read-only aggregates issued from a server
+ * render with no transaction in play, and they want the pool — so they get a named door rather than
+ * a second private copy of the same cast.
+ */
+export const poolDb = (payload: { db: unknown }): DrizzleHandle =>
+  (payload.db as { drizzle: DrizzleHandle }).drizzle
+
+/**
  * Tables this project takes row locks on.
  *
  * A CLOSED UNION, because a table name cannot be a bound parameter — it is interpolated into the

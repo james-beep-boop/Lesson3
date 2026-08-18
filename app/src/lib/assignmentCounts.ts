@@ -1,7 +1,24 @@
 import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
-import { rowsOf } from './txDb'
+/**
+ * The stored assignment-role values, named so the SQL below and the collection cannot disagree.
+ * `'editor'` is the CAPABILITY a Teacher holds, never a user type (SPEC §8, CLAUDE.md).
+ */
+const EDITOR_ROLE = 'editor'
+const SUBJECT_ADMIN_ROLE = 'subjectAdmin'
+
+import { poolDb, rowsOf } from './txDb'
+
+/**
+ * "1 version" / "3 versions". Regular plurals only — a caller conjugating a VERB wants
+ * `deleteConsequences` below.
+ *
+ * ⚑ Moved out of `UsersPanel.tsx`, where it was module-private, so the third caller in
+ * `components/Manage/` could reach it instead of inlining the ternary again.
+ */
+export const plural = (count: number, one: string): string =>
+  `${count} ${count === 1 ? one : `${one}s`}`
 
 /** How many people hold each kind of grant on one subject-grade. */
 export interface AssignmentCounts {
@@ -39,16 +56,16 @@ export const NO_ASSIGNMENTS: AssignmentCounts = { editors: 0, subjectAdmins: 0 }
 export async function assignmentCountsBySubjectGrade(
   payload: Payload,
 ): Promise<Map<number, AssignmentCounts>> {
-  const adapter = payload.db as unknown as {
-    drizzle: { execute: (query: unknown) => Promise<unknown> }
-  }
-  const result = await adapter.drizzle.execute(sql`
+  // ⚑ THE ROLE VALUES ARE BOUND PARAMETERS, not literals in the SQL text — about failure mode, not
+  // injection (they are constants). A table or column rename fails LOUDLY; a renamed assignment role
+  // spelled inline would not: the query would still parse, still succeed, and simply return zero
+  // editors for every subject-grade, so the cascade warning would stop appearing. Silently.
+  const result = await poolDb(payload).execute(sql`
     SELECT
       "subject_grade_id" AS "subjectGradeId",
-      COUNT(*) FILTER (WHERE "role" = 'editor')::integer       AS "editors",
-      COUNT(*) FILTER (WHERE "role" = 'subjectAdmin')::integer AS "subjectAdmins"
+      COUNT(*) FILTER (WHERE "role" = ${EDITOR_ROLE})::integer        AS "editors",
+      COUNT(*) FILTER (WHERE "role" = ${SUBJECT_ADMIN_ROLE})::integer AS "subjectAdmins"
     FROM "users_assignments"
-    WHERE "subject_grade_id" IS NOT NULL
     GROUP BY "subject_grade_id"
   `)
   const counts = new Map<number, AssignmentCounts>()

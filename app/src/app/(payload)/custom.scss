@@ -602,15 +602,24 @@ body {
     padding: 0 var(--app-space-2) var(--app-space-4);
   }
 
+  // ⚑ SHARED WITH THE TAXONOMY PANELS, listed rather than copied. PR 3 shipped `.lp-taxonomy__create`
+  // and `__form` as a private restatement of these four declarations — the same two-lists-kept-in-
+  // step failure `.lp-users__input` was unpicked for one PR earlier, in this file. Layout is no more
+  // exempt from that rule than control geometry was.
   &__profile,
-  &__reset {
+  &__reset,
+  .lp-taxonomy__create,
+  .lp-taxonomy__form {
     display: flex;
     align-items: end;
     gap: var(--app-space-2);
     flex-wrap: wrap;
   }
 
-  &__field {
+  // `.lp-taxonomy__label` is deliberately NOT listed: it is a <span> inside `__field`, so it inherits
+  // the colour and size set here and needs no rule of its own.
+  &__field,
+  .lp-taxonomy__field {
     display: grid;
     gap: var(--app-space-1);
     min-width: min(18rem, 100%);
@@ -665,12 +674,6 @@ body {
     }
   }
 
-  &__error {
-    margin: 0;
-    color: var(--theme-error-500);
-    font-size: var(--app-secondary-size);
-  }
-
   &__pagination {
     display: flex;
     align-items: center;
@@ -684,7 +687,9 @@ body {
   @media (max-width: 640px) {
     &__filters,
     &__profile,
-    &__reset {
+    &__reset,
+    .lp-taxonomy__create,
+    .lp-taxonomy__form {
       align-items: stretch;
       flex-direction: column;
     }
@@ -718,6 +723,17 @@ body {
   }
 }
 
+// The in-panel refusal message. ⚑ `.lp-manage__error`, NOT `.lp-users__error`: three panels render
+// it and two are not Users, so the rule was reachable only by borrowing another component's
+// namespace. Deleting or renaming the `.lp-users` block would have silently unstyled it — red text
+// falling back to body text, on the one element in these panels that MUST be noticed. Same promotion
+// `.lp-users__input` got in PR 2b; this class was simply missed then.
+.lp-manage__error {
+  margin: 0;
+  color: var(--theme-error-500);
+  font-size: var(--app-secondary-size);
+}
+
 // Taxonomy panels — Manage → Subjects and Manage → Subject grades (PR 3).
 //
 // ⚑ NO CONTROL GEOMETRY LIVES HERE. The inputs use `.lp-users__input` and the pickers
@@ -732,13 +748,8 @@ body {
   display: grid;
   gap: var(--app-space-3);
 
-  &__create,
-  &__form {
-    display: flex;
-    align-items: end;
-    gap: var(--app-space-2);
-    flex-wrap: wrap;
-  }
+  // (Form-row and field LAYOUT are shared with the Users panel — see `.lp-users__profile, … ,
+  // .lp-taxonomy__create` above. Only the genuine deltas live here.)
 
   // The row's form takes the free width so the Delete control stays right-aligned beside it.
   &__form {
@@ -746,22 +757,16 @@ body {
     min-width: 0;
   }
 
+  // Narrower than the Users panel's 18rem: these fields sit two-and-a-button to a row. Later in the
+  // file than the shared rule, so it wins at equal specificity.
   &__field {
-    display: grid;
-    gap: var(--app-space-1);
     min-width: min(14rem, 100%);
-    flex: 1;
   }
 
   // Grade is one or two digits — a field as wide as the subject picker beside it reads as a mistake.
   &__field--narrow {
     min-width: 6rem;
     flex: 0 0 auto;
-  }
-
-  &__label {
-    color: var(--theme-elevation-700);
-    font-size: var(--app-secondary-size);
   }
 
   // The derived "<Subject> — Grade N". Read-only by nature, so it takes the row's primary label
@@ -772,12 +777,7 @@ body {
   }
 
   @media (max-width: 640px) {
-    &__create,
-    &__form {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
+    // (Stacking is shared with the Users panel's ≤640px rule — see that block.)
     // Full width on a phone, matching the Users panel's action treatment at this width.
     &__field--narrow {
       flex: 1;

@@ -162,6 +162,8 @@ export default async function AdminDashboard({
     siteAdmin ? t.time('assignmentCounts', () => assignmentCountsBySubjectGrade(payload)) : null,
   ])
   const versionDocs = versionsRes?.docs ?? []
+  // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
+  const taxonomyGradeDocs = taxonomyGradesRes?.docs ?? []
   const planDocs = plansRes?.docs ?? []
 
   // ---- Wave 2: resolve the few display strings the rows need, EXPLICITLY. ----
@@ -191,7 +193,10 @@ export default async function AdminDashboard({
   const exclusionPlanIds = siteAdmin ? [] : distinctIds(versionDocs.map((v) => relId(v.lessonPlan)))
 
   const [sgRes, authorRes, exclusionRes, officialMetaRes] = await Promise.all([
-    sgIds.length === 0
+    // ⚑ SKIPPED FOR A SITE ADMIN, who already holds every subject-grade from the taxonomy read in
+    // wave 1 with this exact projection. PR 3 introduced that superset read and left this subset
+    // query running beside it — two concurrent scans of one table for one page.
+    sgIds.length === 0 || siteAdmin
       ? null
       : t.time('subjectGrades', () =>
           payload.find({
@@ -270,25 +275,14 @@ export default async function AdminDashboard({
   // past the subject-grade rows, hence one more depth-0 find over distinct ids. Sequential because
   // the subject ids live on those rows (the catalogue page resolves the same thing the same way,
   // for ~8ms). Site-Admin-only: nothing else on the page needs it, so no other role pays for it.
-  const subjectIds = siteAdmin
-    ? distinctIds((sgRes?.docs ?? []).map((sg) => relId(sg.subject)))
-    : []
-  const subjectRes =
-    subjectIds.length === 0
-      ? null
-      : await t.time('subjects', () =>
-          payload.find({
-            collection: 'subjects',
-            overrideAccess: false,
-            user,
-            depth: 0,
-            pagination: false,
-            where: { id: { in: subjectIds } },
-            select: { name: true },
-          }),
-        )
+  // ⚑ THIS WAVE IS GONE, and it was the page's ONLY sequential await outside a barrier. It existed
+  // because the subject ids lived on the subject-grade rows fetched in wave 2 — a real dependency
+  // when written, and gated `siteAdmin` because only the delete panel needed it. PR 3 then fetched
+  // EVERY subject in wave 1, for the same role, with the identical projection and access posture,
+  // which made this read a strict subset of data already in memory and its serialising dependency
+  // false. A Site Admin's Manage render now runs two DB waves instead of three.
   const subjectNameById = new Map<number, string>()
-  for (const s of subjectRes?.docs ?? []) if (s.name) subjectNameById.set(s.id, s.name)
+  for (const s of taxonomySubjectsRes?.docs ?? []) if (s.name) subjectNameById.set(s.id, s.name)
   /**
    * subject-grade id → every display field the rows on this page read off it: the stored
    * `displayName` for candidate rows, and the subject name + grade the delete panel's curriculum
@@ -296,7 +290,9 @@ export default async function AdminDashboard({
    * and one home for the missing-subject fallback.
    */
   const sgById = new Map<number, { label: string; subjectName: string; grade: number | null }>()
-  for (const sg of sgRes?.docs ?? []) {
+  // One source or the other, never both: a Site Admin has the whole taxonomy from wave 1, every
+  // other role has the referenced subset from wave 2.
+  for (const sg of sgRes?.docs ?? taxonomyGradeDocs) {
     const subjectId = relId(sg.subject)
     sgById.set(sg.id, {
       label: sg.displayName ?? '',
@@ -417,7 +413,6 @@ export default async function AdminDashboard({
    * cannot be deleted while grades still belong to it — and one pass over a bounded list beats one
    * query per row for a number that is advisory either way.
    */
-  const taxonomyGradeDocs = taxonomyGradesRes?.docs ?? []
   const gradeCountBySubject = new Map<number, number>()
   for (const doc of taxonomyGradeDocs) {
     const subjectId = relId(doc.subject)
@@ -438,7 +433,12 @@ export default async function AdminDashboard({
     return [
       {
         id: doc.id,
-        displayName: doc.displayName ?? `Subject grade ${doc.id}`,
+        // ⚑ `||`, NOT `??` — and I wrote the ⚑ recording exactly this in `endpoints/userSearch.ts`
+        // during PR 2b, then copied the pre-fix spelling here. `displayName` can be a present EMPTY
+        // string, which `??` passes through. Not cosmetic on this row: the same value becomes the
+        // delete button's accessible name and the confirmation sentence, so an empty one yields a
+        // destructive control called "Delete " and a dialog reading "Delete ? This cannot be undone."
+        displayName: doc.displayName || `Subject grade ${doc.id}`,
         subjectId,
         grade: doc.grade,
         assignments: assignmentCounts?.get(doc.id) ?? NO_ASSIGNMENTS,

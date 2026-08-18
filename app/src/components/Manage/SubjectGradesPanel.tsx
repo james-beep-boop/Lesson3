@@ -10,8 +10,10 @@ import React, { useMemo, useState } from 'react'
 import { Button } from '@payloadcms/ui'
 
 import { deleteConsequences, type AssignmentCounts } from '../../lib/assignmentCounts'
+import { matchesTokenAnd, tokenise } from '../../lib/substrand'
 import { useTaxonomyActions } from './taxonomyActions'
-import type { SubjectRow } from './SubjectsPanel'
+/** Only what the picker reads — a Subjects-panel-shaped change should not reach this file. */
+export type SubjectOption = { id: number; name: string }
 
 export interface SubjectGradeRow {
   id: number
@@ -24,11 +26,12 @@ export interface SubjectGradeRow {
 
 function SubjectGradeItem({
   row,
-  subjects,
+  subjectOptions,
   actions,
 }: {
   row: SubjectGradeRow
-  subjects: SubjectRow[]
+  /** Built once by the panel — see the ⚑ where it is created. */
+  subjectOptions: React.ReactNode
   actions: ReturnType<typeof useTaxonomyActions>
 }) {
   const [grade, setGrade] = useState(String(row.grade))
@@ -42,12 +45,14 @@ function SubjectGradeItem({
     setSubjectId(String(row.subjectId))
   }
 
-  const changed = Number(grade) !== row.grade || Number(subjectId) !== row.subjectId
+  const nextGrade = Number(grade)
+  const changed = nextGrade !== row.grade || Number(subjectId) !== row.subjectId
+  // One predicate for the guard and the control, so they cannot disagree.
+  const canSave = !disabled && changed && Number.isInteger(nextGrade) && nextGrade >= 1
 
   const save = (event: React.FormEvent) => {
     event.preventDefault()
-    const nextGrade = Number(grade)
-    if (!Number.isInteger(nextGrade) || nextGrade < 1 || !changed) return
+    if (!canSave) return
     // The friendly duplicate refusal ("Grade N already exists for that subject.") comes from the
     // collection's `beforeValidate` and reaches the panel through `wireErrorMessage` — this is one of
     // the two messages PR 3 exists to surface.
@@ -69,11 +74,7 @@ function SubjectGradeItem({
             disabled={disabled}
             onChange={(event) => setSubjectId(event.target.value)}
           >
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
+            {subjectOptions}
           </select>
         </label>
         <label className="lp-taxonomy__field lp-taxonomy__field--narrow">
@@ -93,7 +94,7 @@ function SubjectGradeItem({
           buttonStyle="primary"
           size="small"
           type="submit"
-          disabled={disabled || !changed}
+          disabled={!canSave}
         >
           Save
         </Button>
@@ -120,23 +121,57 @@ export function SubjectGradesPanel({
   subjects,
 }: {
   rows: SubjectGradeRow[]
-  subjects: SubjectRow[]
+  subjects: SubjectOption[]
 }) {
   const actions = useTaxonomyActions('subject-grades')
   const [query, setQuery] = useState('')
   const [newSubjectId, setNewSubjectId] = useState('')
   const [newGrade, setNewGrade] = useState('')
 
+  // ⚑ THE PRODUCT'S SEARCH RULE (see the note in SubjectsPanel). It matters most here: `displayName`
+  // is "<Subject> — Grade N", so under a substring test "Biology Grade 10" matched NOTHING — the em
+  // dash sits between the words — while the same query matched in the Delete lesson plans box on the
+  // same screen.
+  // ⚑ ONE option list for every row. Each row rendered its own identical `subjects.map(…)`, so a
+  // realistic curriculum (≈12 subjects × 8 grades) allocated and reconciled ~1,150 <option> elements
+  // per render — including on every keystroke in the search box below.
+  const subjectOptions = useMemo(
+    () =>
+      subjects.map((subject) => (
+        <option key={subject.id} value={subject.id}>
+          {subject.name}
+        </option>
+      )),
+    [subjects],
+  )
+
   const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return needle ? rows.filter((r) => r.displayName.toLowerCase().includes(needle)) : rows
+    const tokens = tokenise(query)
+    return tokens.length === 0 ? rows : rows.filter((r) => matchesTokenAnd(r.displayName, tokens))
   }, [query, rows])
+
+  /**
+   * ⚑ ONE predicate, and the pair it replaces had genuinely drifted: the button tested only
+   * `newGrade.trim() !== ''`, so it enabled for "0" and "abc" — and the handler's stricter check then
+   * returned silently. A click that does nothing and says nothing is the worst of the three available
+   * behaviours.
+   */
+  const newGradeValue = Number(newGrade)
+  const canAdd =
+    actions.busy === null &&
+    newSubjectId !== '' &&
+    Number.isInteger(newGradeValue) &&
+    newGradeValue >= 1
 
   const add = async (event: React.FormEvent) => {
     event.preventDefault()
-    const grade = Number(newGrade)
-    if (!newSubjectId || !Number.isInteger(grade) || grade < 1) return
-    if (await actions.create({ subject: Number(newSubjectId), grade }, 'Added subject grade.')) {
+    if (!canAdd) return
+    if (
+      await actions.create(
+        { subject: Number(newSubjectId), grade: newGradeValue },
+        'Added subject grade.',
+      )
+    ) {
       setNewGrade('')
     }
   }
@@ -163,11 +198,7 @@ export function SubjectGradesPanel({
             onChange={(event) => setNewSubjectId(event.target.value)}
           >
             <option value="">Choose a subject…</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
+            {subjectOptions}
           </select>
         </label>
         <label className="lp-taxonomy__field lp-taxonomy__field--narrow">
@@ -188,9 +219,9 @@ export function SubjectGradesPanel({
           buttonStyle="primary"
           size="small"
           type="submit"
-          disabled={actions.busy !== null || !newSubjectId || newGrade.trim() === ''}
+          disabled={!canAdd}
         >
-          {actions.busy === 'Create' ? 'Adding…' : 'Add subject grade'}
+          {actions.busy === 'create' ? 'Adding…' : 'Add subject grade'}
         </Button>
       </form>
 
@@ -206,7 +237,7 @@ export function SubjectGradesPanel({
       )}
 
       {actions.error && (
-        <p className="lp-users__error" role="alert">
+        <p className="lp-manage__error" role="alert">
           {actions.error}
         </p>
       )}
@@ -218,7 +249,12 @@ export function SubjectGradesPanel({
       ) : (
         <ul className="lp-manage__list">
           {shown.map((row) => (
-            <SubjectGradeItem key={row.id} row={row} subjects={subjects} actions={actions} />
+            <SubjectGradeItem
+              key={row.id}
+              row={row}
+              subjectOptions={subjectOptions}
+              actions={actions}
+            />
           ))}
         </ul>
       )}

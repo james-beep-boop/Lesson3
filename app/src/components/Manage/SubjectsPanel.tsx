@@ -11,6 +11,8 @@
 import React, { useMemo, useState } from 'react'
 import { Button } from '@payloadcms/ui'
 
+import { plural } from '../../lib/assignmentCounts'
+import { matchesTokenAnd, tokenise } from '../../lib/substrand'
 import { useTaxonomyActions } from './taxonomyActions'
 
 export interface SubjectRow {
@@ -38,11 +40,15 @@ function SubjectItem({
     setName(subject.name)
   }
 
+  // ⚑ ONE predicate for the guard AND the control. Written twice they had already drifted in the
+  // sibling panel — the button enabled for input the handler then silently rejected, so a click did
+  // nothing and said nothing.
+  const canSave = !disabled && name.trim() !== '' && name.trim() !== subject.name
+
   const save = (event: React.FormEvent) => {
     event.preventDefault()
-    const next = name.trim()
-    if (!next || next === subject.name) return
-    void actions.rename(subject.id, { name: next }, `Renamed to ${next}.`)
+    if (!canSave) return
+    void actions.rename(subject.id, { name: name.trim() }, `Renamed to ${name.trim()}.`)
   }
 
   const remove = () => {
@@ -71,16 +77,12 @@ function SubjectItem({
           buttonStyle="primary"
           size="small"
           type="submit"
-          disabled={disabled || name.trim() === subject.name || name.trim() === ''}
+          disabled={!canSave}
         >
           Save
         </Button>
       </form>
-      <span className="lp-manage__meta">
-        {subject.subjectGradeCount === 1
-          ? '1 subject grade'
-          : `${subject.subjectGradeCount} subject grades`}
-      </span>
+      <span className="lp-manage__meta">{plural(subject.subjectGradeCount, 'subject grade')}</span>
       {/* ⚑ Per-row accessible name. The visible label is only "Delete", and this row identifies its
           subject through an INPUT VALUE — which is not text content, so neither a screen reader's
           button list nor a test locator can tell two rows apart without this. */}
@@ -103,15 +105,22 @@ export function SubjectsPanel({ subjects }: { subjects: SubjectRow[] }) {
   const [query, setQuery] = useState('')
   const [newName, setNewName] = useState('')
 
+  // ⚑ THE PRODUCT'S SEARCH RULE, not a substring test. `lib/substrand.ts` states plainly that
+  // `tokenise`/`matchesTokenAnd` is THE rule "for the whole product… two boxes that disagree about
+  // what a query means is worse than either rule on its own" — and Manage now runs FOUR search boxes
+  // on one page, behind the same `.lp-admin-list__search` class. Tokenised once OUTSIDE the filter,
+  // per that module's own note about re-splitting per row.
   const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return needle ? subjects.filter((s) => s.name.toLowerCase().includes(needle)) : subjects
+    const tokens = tokenise(query)
+    return tokens.length === 0 ? subjects : subjects.filter((s) => matchesTokenAnd(s.name, tokens))
   }, [query, subjects])
+
+  const canAdd = actions.busy === null && newName.trim() !== ''
 
   const add = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (!canAdd) return
     const name = newName.trim()
-    if (!name) return
     // Clear only on success — a refused create keeps what was typed, so the message can be read
     // beside the value that caused it.
     if (await actions.create({ name }, `Added ${name}.`)) setNewName('')
@@ -139,9 +148,9 @@ export function SubjectsPanel({ subjects }: { subjects: SubjectRow[] }) {
           buttonStyle="primary"
           size="small"
           type="submit"
-          disabled={actions.busy !== null || newName.trim() === ''}
+          disabled={!canAdd}
         >
-          {actions.busy === 'Create' ? 'Adding…' : 'Add subject'}
+          {actions.busy === 'create' ? 'Adding…' : 'Add subject'}
         </Button>
       </form>
 
@@ -157,7 +166,7 @@ export function SubjectsPanel({ subjects }: { subjects: SubjectRow[] }) {
       )}
 
       {actions.error && (
-        <p className="lp-users__error" role="alert">
+        <p className="lp-manage__error" role="alert">
           {actions.error}
         </p>
       )}

@@ -317,14 +317,21 @@ test.describe('Manage page', () => {
     // table edge).
     //
     // ⚑ RE-ANCHORED IN PR 3. This read `.lp-admin-dash__actions li`, the "Curriculum & people" link
-    // list, chosen because it was a flat <ul>. That panel became two real panels and the class is
-    // gone — and a `.last()` matching nothing is a locator that PASSES nothing, so the assertion
-    // would have gone quiet rather than failed. `.lp-manage__list` is the rule's actual owner (the
-    // Subjects panel renders one flat), so anchoring here tests the rule where it lives.
-    await expect(page.locator('.lp-taxonomy .lp-manage__list li').last()).toHaveCSS(
-      'border-bottom-width',
-      '0px',
-    )
+    // list, chosen because it was a flat <ul>; that panel became two real panels and the class is
+    // gone.
+    //
+    // ⚑ AND A CORRECTION, because the first version of this note asserted the opposite: a `.last()`
+    // matching nothing does NOT pass here. `toHaveCSS` resolves an element and times out when the
+    // locator matches none, so the stale anchor would have failed LOUDLY — verified by running the
+    // case rather than reasoning about it. It is `toHaveCount(0)` that passes on an empty locator; a
+    // real rot risk, but not this assertion's. The re-anchor was needed, the alarming reason given
+    // for it was wrong, and a wrong tooling fact in a comment this repo treats as canon is worse
+    // than no comment.
+    //
+    // Unscoped by panel deliberately: `li:last-child { border-bottom: 0 }` belongs to the SHARED
+    // `.lp-manage__list` idiom, and tying it to one consumer's namespace is what made the previous
+    // anchor rot when that consumer went away.
+    await expect(page.locator('.lp-manage__list li').last()).toHaveCSS('border-bottom-width', '0px')
   })
 
   // ⚑ INVARIANT, pinned deliberately BEFORE the depth-0 perf rewrite (2026-08-04): an Official version
@@ -925,14 +932,16 @@ test.describe('Manage page', () => {
       // How many accounts this spec happens to seed with a grant is not what the warning is for, and
       // pinning it means any future fixture breaks a test about a sentence. The pluralisation itself
       // is pinned properly in tests/unit/subjectGradeDelete.spec.ts, where it is a pure function.
-      expect(prompt).toMatch(/\d+ (person loses|people lose) editing access/)
-      expect(prompt).toMatch(/\d+ Subject Administrators? (is|are) demoted/)
+      // Shape only. The unit spec owns the grammar (tests/unit/subjectGradeDelete.spec.ts); a regex
+      // here would restate logic that is already pinned against a pure function.
+      expect(prompt).toContain('editing access')
+      expect(prompt).toContain('demoted')
       expect(prompt).toContain('This cannot be undone.')
 
       // The delete then FAILS on the content guard, and its 409 text — not a generic failure — is
       // what the panel renders. `Manage → Delete lesson plans` is the actionable part of that
       // message and the reason surfacing it verbatim matters.
-      const error = page.locator('.lp-taxonomy .lp-users__error')
+      const error = page.locator('.lp-taxonomy .lp-manage__error')
       await expect(error).toContainText('still use this subject grade')
       await expect(error).toContainText('Manage → Delete lesson plans')
       // Still there: a refused delete must not look like a successful one.
@@ -960,7 +969,7 @@ test.describe('Manage page', () => {
       await create.getByLabel('Grade').fill('99')
       await create.getByRole('button', { name: 'Add subject grade' }).click()
 
-      await expect(page.locator('.lp-taxonomy .lp-users__error')).toContainText(
+      await expect(page.locator('.lp-taxonomy .lp-manage__error')).toContainText(
         'Grade 99 already exists for that subject.',
       )
       // The typed values survive the refusal — retyping a rejected value to read its message again is
@@ -977,7 +986,7 @@ test.describe('Manage page', () => {
       // No cascade warning here, and the asymmetry with subject grades is deliberate: a Subject with
       // grades cannot be deleted at all, so there is nothing silent to warn about.
       await acceptConfirmation(page, () => remove.click())
-      await expect(page.locator('.lp-taxonomy .lp-users__error')).toContainText(
+      await expect(page.locator('.lp-taxonomy .lp-manage__error')).toContainText(
         'still belong to this subject',
       )
       await expect(remove).toBeVisible()
