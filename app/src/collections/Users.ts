@@ -81,7 +81,10 @@ export const Users: CollectionConfig = {
   admin: {
     useAsTitle: 'name',
     defaultColumns: ['name', 'roles'],
-    group: 'People',
+    // "Users", not "People" (D1, docs/DESIGN-manage-accordion-2026-08-16.md). The three TYPE labels
+    // (Teacher / Subject-grade administrator / Site administrator) are unchanged — this is the noun
+    // for the collection, and it stays accurate when students arrive as their own collection (D8).
+    group: 'Users',
     hidden: ({ user }) => !canManageUsers(user as User),
   },
   access: {

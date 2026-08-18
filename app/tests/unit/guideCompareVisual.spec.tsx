@@ -217,15 +217,37 @@ describe('Guide + Compare visual system', () => {
  */
 describe('admin button-system scope coverage', () => {
   /**
-   * The selector list of the first compiled rule declaring `var(<token>)`.
+   * The selector list of the SHARED rule declaring `var(<token>)` — the one whose list both callers
+   * are about.
    *
    * Media queries are NOT excluded: the touch token exists only inside the ≤640px block, so the two
    * callers below deliberately resolve to a base rule and a media rule respectively.
+   *
+   * ⚑ THIS USED TO TAKE THE FIRST RULE IN SOURCE ORDER, and that made the guard fail OPEN. Three
+   * rules declare the touch token (the shared list plus compact's height and width), so "first" was
+   * positional luck — and when Manage's accordion trigger was added in its own block earlier in the
+   * file, that block silently became the one inspected, and the set-equality assertion below started
+   * comparing a one-selector rule against the geometry list. Worse, the stylesheet was then edited to
+   * suit the helper: a comment in `custom.scss` briefly justified where a rule lived by what this test
+   * reads. A test that dictates where CSS may be written is at the wrong altitude.
+   *
+   * Anchoring on `.btn.lp-btn` — the opt-in class the whole button system is built on — names the
+   * shared rule by INTENT and is immune to source order. It matches exactly one rule per token:
+   * compact's selector is `.btn.lp-btn.lp-btn--compact`, a different string, so it cannot collide.
    */
+  const SHARED_ANCHOR = '.btn.lp-btn'
   const scopeListFor = (token: string): string[] => {
-    const hit = adminRules.find((r) => r.body.includes(`var(${token})`))
-    if (!hit) throw new Error(`no rule declares var(${token})`)
-    return hit.selectors
+    const hits = adminRules.filter(
+      (r) => r.body.includes(`var(${token})`) && r.selectors.includes(SHARED_ANCHOR),
+    )
+    if (hits.length === 0) throw new Error(`no shared rule declares var(${token})`)
+    if (hits.length > 1) {
+      throw new Error(
+        `${hits.length} rules declare var(${token}) alongside ${SHARED_ANCHOR} — the shared list has ` +
+          `been split, which is exactly the drift this guard exists to catch`,
+      )
+    }
+    return hits[0]!.selectors
   }
 
   const EDITOR_SCOPE = '.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn'
@@ -246,8 +268,16 @@ describe('admin button-system scope coverage', () => {
     // the whole failure mode, and a per-item `toContain` loop cannot see an extra entry.
     const geometry = scopeListFor('--app-btn-min-height')
     const touch = scopeListFor('--app-btn-touch-min-height')
+    // The extras are the controls that take the phone touch target WITHOUT being button-system
+    // controls: two form controls, and (2026-08-17) Manage's accordion disclosure heading, which is
+    // the primary control on that page at 375px but must not look like an action.
     expect(new Set(touch)).toEqual(
-      new Set([...geometry, '.lp-manage__select', '.lp-admin-list__search']),
+      new Set([
+        ...geometry,
+        '.lp-manage__select',
+        '.lp-admin-list__search',
+        '.lp-accordion__trigger',
+      ]),
     )
     expect(geometry, 'the version editor keeps a container scope — see the rule comment').toContain(
       EDITOR_SCOPE,

@@ -15,6 +15,8 @@ import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
 import { buildEditorGroups } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { EditorsWidget } from './EditorsWidget'
+import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
+import { resolveServerPanelState, type PanelId } from '../Manage/panelState'
 
 /**
  * Manage — THE role-scoped functions page (IA redesign, DECISIONS 2026-07-01 "late"), replacing the
@@ -40,7 +42,10 @@ import { EditorsWidget } from './EditorsWidget'
 /** Heading fallback when a subject-grade's Subject can't be resolved (can't-happen; fails visibly). */
 const UNKNOWN_SUBJECT = 'Unknown subject'
 
-export default async function AdminDashboard({ initPageResult }: AdminViewServerProps) {
+export default async function AdminDashboard({
+  initPageResult,
+  searchParams,
+}: AdminViewServerProps) {
   const { req } = initPageResult
   const user = (req.user as User | null) ?? null
   const payload = req.payload
@@ -340,6 +345,48 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
   // and this list is their only route back to unfinished work.
   const showSaved = candidates.length > 0 || !isAdmin
 
+  /**
+   * The panel ids this caller's page ACTUALLY renders, in render order — the role gate for the
+   * accordion (D7a).
+   *
+   * ⚑ This list and the JSX below must agree, and the agreement is what makes "unknown, stale or
+   * role-inaccessible ids are ignored silently" true by construction: an id the server never rendered
+   * can never be opened, whatever a shared URL asks for, with no second role check on the client. A
+   * panel added below without a matching entry here simply refuses to open, which is the failure
+   * direction to prefer — but it is still a defect, so keep the two in step.
+   *
+   * ⚑ Note this is DATA-dependent, not only role-dependent: `versions` is absent for an administrator
+   * with nothing to tidy (`showSaved`), and `plans.repair` only exists while some plan has no Official
+   * pointer. "A Site Admin has N panels" is not a true statement about this page.
+   */
+  // One entry per `AccordionPanel` below, in the same order and with the same condition, so the two
+  // can be diffed by eye. Typed `PanelId`, so a typo is a compile error rather than a panel that
+  // silently refuses to open.
+  const availablePanels = (
+    [
+      siteAdmin && 'curriculum',
+      editorGroups.length > 0 && 'access',
+      siteAdmin && 'plans',
+      siteAdmin && 'plans.upload',
+      siteAdmin && 'plans.delete',
+      siteAdmin && repairPlans.length > 0 && 'plans.repair',
+      showSaved && 'versions',
+    ] satisfies (PanelId | false)[]
+  ).filter((id): id is PanelId => id !== false)
+
+  // Resolve the accordion's opening state HERE, on the server. Deriving it on the client instead
+  // produced a genuine hydration mismatch — server "closed" against client "open" — which React
+  // reports and does NOT patch up; deferring it to an effect would instead make every deep link
+  // visibly flash open after paint. Server-resolved, a shared `?open=…` link renders in its final
+  // shape on first paint, the same property the frontend's `LibraryBrowser` has for its filters.
+  //
+  // ⚑ The query comes from the `searchParams` PROP, not from `req`. `PayloadRequest` does expose a
+  // `search`, and it is EMPTY here — verified in the browser (2026-08-17), where a deep link silently
+  // opened nothing and then had its query scrubbed away. `@payloadcms/next`'s Root view awaits Next's
+  // `searchParams` and passes it to the custom view as its own prop
+  // (`views/Root/index.js`), which is the only copy that carries the page's query.
+  const { open: serverOpen, at: serverAt } = resolveServerPanelState(searchParams, availablePanels)
+
   return (
     <Gutter className="lp-admin-dash lp-manage">
       {/* Title + role on one line. The role stays a SIBLING of the h1 rather than moving inside it, so
@@ -362,95 +409,102 @@ export default async function AdminDashboard({ initPageResult }: AdminViewServer
 
       {/* SECTION ORDER (2026-08-04, operator request): things done often first, the janitorial
           inventory last. One order for every role; a role simply sees fewer sections (a Subject Admin
-          gets Editing access → Candidate versions, an Editor only their saved versions). */}
-      {siteAdmin && (
-        <>
-          <h2 className="lp-admin-dash__section">Curriculum &amp; people</h2>
-          <ul className="lp-admin-dash__actions">
-            <li>
-              <Link className="lp-admin-dash__action" href="/admin/collections/users">
-                <span className="lp-admin-dash__action-label">People</span>
-                <span className="lp-admin-dash__action-desc">
-                  All accounts, roles and assignments.
-                </span>
-              </Link>
-            </li>
-            <li>
-              <Link className="lp-admin-dash__action" href="/admin/collections/subjects">
-                <span className="lp-admin-dash__action-label">Subjects</span>
-                <span className="lp-admin-dash__action-desc">Academic disciplines.</span>
-              </Link>
-            </li>
-            <li>
-              <Link className="lp-admin-dash__action" href="/admin/collections/subject-grades">
-                <span className="lp-admin-dash__action-label">Subject grades</span>
-                <span className="lp-admin-dash__action-desc">
-                  Subject + grade units that roles and lesson plans attach to.
-                </span>
-              </Link>
-            </li>
-          </ul>
-        </>
-      )}
+          gets Editing access → Candidate versions, an Editor only their saved versions).
+          Each section is now a disclosure panel (D7); the ORDER is unchanged. */}
+      <AccordionProvider
+        available={availablePanels}
+        initialOpen={serverOpen}
+        initialAt={serverAt}
+      >
+        {/* Plain `&` in the title — a JSX attribute string is not HTML, so it needs no entity and
+            must not carry one (the accessible name is matched literally by the E2E role queries). */}
+        {siteAdmin && (
+          <AccordionPanel id="curriculum" title="Curriculum & people">
+            <ul className="lp-admin-dash__actions">
+              <li>
+                <Link className="lp-admin-dash__action" href="/admin/collections/users">
+                  <span className="lp-admin-dash__action-label">Users</span>
+                  <span className="lp-admin-dash__action-desc">
+                    All accounts, roles and assignments.
+                  </span>
+                </Link>
+              </li>
+              <li>
+                <Link className="lp-admin-dash__action" href="/admin/collections/subjects">
+                  <span className="lp-admin-dash__action-label">Subjects</span>
+                  <span className="lp-admin-dash__action-desc">Academic disciplines.</span>
+                </Link>
+              </li>
+              <li>
+                <Link className="lp-admin-dash__action" href="/admin/collections/subject-grades">
+                  <span className="lp-admin-dash__action-label">Subject grades</span>
+                  <span className="lp-admin-dash__action-desc">
+                    Subject + grade units that roles and lesson plans attach to.
+                  </span>
+                </Link>
+              </li>
+            </ul>
+          </AccordionPanel>
+        )}
 
-      {editorGroups.length > 0 && (
-        <>
-          <h2 className="lp-admin-dash__section">Editing access</h2>
-          <p className="lp-manage__desc">
-            Who may edit lesson plans, per subject grade. Granting access lets a teacher edit;
-            removing it returns them to view-only.
-          </p>
-          <EditorsWidget groups={editorGroups} />
-        </>
-      )}
+        {editorGroups.length > 0 && (
+          <AccordionPanel id="access" title="Editing access">
+            <p className="lp-manage__desc">
+              Who may edit lesson plans, per subject grade. Granting access lets a teacher edit;
+              removing it returns them to view-only.
+            </p>
+            <EditorsWidget groups={editorGroups} />
+          </AccordionPanel>
+        )}
 
-      {/* Upload / Delete / Repair are three operations on ONE noun, so they now sit under a single
-          "Lesson plans" section as h3 sub-headings (18px vs the section's 20px — the documented
-          hierarchy step, app-tokens.scss). Sub-headings deliberately get NO rule; only main sections
-          are separated. Repair is last: it is conditional and rare. */}
-      {siteAdmin && (
-        <>
-          <h2 className="lp-admin-dash__section">Lesson plans</h2>
+        {/* Upload / Delete / Repair are three operations on ONE noun, so they sit under a single
+            "Lesson plans" section. They were h3 sub-headings; they are now NESTED panels (D7 names
+            Lesson Plans as one of the two places nesting is warranted). The heading rank and 18px
+            size are unchanged — `AccordionPanel` derives both from the dotted id, so the documented
+            hierarchy step survives the change of mechanism without being restated per call site.
+            Repair is last: it is conditional and rare. */}
+        {siteAdmin && (
+          <AccordionPanel id="plans" title="Lesson plans">
+            <AccordionPanel id="plans.upload" title="Upload lesson plans">
+              <UploadBundles />
+            </AccordionPanel>
 
-          <h3 className="lp-admin-dash__subsection">Upload lesson plans</h3>
-          <UploadBundles />
-
-          <h3 className="lp-admin-dash__subsection">Delete lesson plans</h3>
-          <p className="lp-manage__desc">
-            Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
-          </p>
-          <DeletePlansPanel rows={planRows} />
-
-          {repairPlans.length > 0 && (
-            <>
-              <h3 className="lp-admin-dash__subsection">Repair</h3>
+            <AccordionPanel id="plans.delete" title="Delete lesson plans">
               <p className="lp-manage__desc">
-                Lesson plans with no Official version — open one to set its Official pointer.
+                Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
               </p>
-              <ul className="lp-manage__list">
-                {repairPlans.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      className="lp-manage__link"
-                      href={`/admin/collections/lesson-plans/${p.id}`}
-                    >
-                      {p.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </>
-      )}
+              <DeletePlansPanel rows={planRows} />
+            </AccordionPanel>
 
-      {showSaved && (
-        <>
-          <h2 className="lp-admin-dash__section">{savedTitle}</h2>
-          <p className="lp-manage__desc">{savedDesc}</p>
-          <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
-        </>
-      )}
+            {repairPlans.length > 0 && (
+              <AccordionPanel id="plans.repair" title="Repair">
+                <p className="lp-manage__desc">
+                  Lesson plans with no Official version — open one to set its Official pointer.
+                </p>
+                <ul className="lp-manage__list">
+                  {repairPlans.map((p) => (
+                    <li key={p.id}>
+                      <Link
+                        className="lp-manage__link"
+                        href={`/admin/collections/lesson-plans/${p.id}`}
+                      >
+                        {p.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionPanel>
+            )}
+          </AccordionPanel>
+        )}
+
+        {showSaved && (
+          <AccordionPanel id="versions" title={savedTitle}>
+            <p className="lp-manage__desc">{savedDesc}</p>
+            <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
+          </AccordionPanel>
+        )}
+      </AccordionProvider>
     </Gutter>
   )
 }

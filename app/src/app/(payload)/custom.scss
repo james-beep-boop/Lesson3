@@ -148,37 +148,20 @@ body {
     color: var(--theme-elevation-600);
   }
 
-  &__section {
-    // Page SECTION (20px) — a step above a list/group heading (18px). See app-tokens.scss.
-    font-size: var(--app-section-title-size);
-    font-weight: 600;
-    margin: var(--app-space-4) 0 var(--app-space-1);
-    color: var(--theme-elevation-1000);
-  }
-
-  // Light rule BETWEEN the main sections (2026-08-04 operator request). Deliberately on the heading
-  // rather than hand-placed <hr>s: section order and which sections render are both role- and
-  // data-dependent in the component, so anchoring to the heading keeps the separators correct however
-  // those branches fall, with no trailing rule after the last section.
+  // ⚑ `&__section` / `&__subsection` and the `&__section ~ &__section` separator USED TO LIVE HERE and
+  // were deleted on 2026-08-17. The accordion (D7) replaced every heading on this page with
+  // `.lp-accordion__heading`, so all three had zero renderers left — `grep` over `src/` and `tests/`
+  // finds only prose mentions.
   //
-  // The general sibling combinator states "a section that follows another section" DIRECTLY. The first
-  // rendered section is excluded because nothing precedes it — no `:first-of-type` exception, which
-  // would have been true only by coincidence (that React fragments emit no DOM nodes, so every heading
-  // lands as a sibling here). If a wrapper is ever introduced this fails loudly — all rules vanish —
-  // instead of quietly drawing one under the page title. Pinned by manage.e2e.spec.ts.
-  &__section ~ &__section {
-    border-top: 1px solid var(--theme-elevation-150);
-    padding-block-start: var(--app-space-3);
-  }
-
-  // Sub-heading inside a section (Upload / Delete / Repair under "Lesson plans"). 18px — see the
-  // heading-rank note in app-tokens.scss. No rule: only main sections are separated.
-  &__subsection {
-    font-size: var(--app-list-heading-size);
-    font-weight: 600;
-    margin: var(--app-space-4) 0 var(--app-space-1);
-    color: var(--theme-elevation-1000);
-  }
+  // The separator's own comment had predicted its death precisely ("If a wrapper is ever introduced
+  // this fails loudly — all rules vanish"), and that is exactly what was MEASURED on the live page
+  // before the change was written: `0px, 1px, 1px` became `0px, 0px, 0px`. It now hangs off the panel
+  // wrapper (`.lp-admin-dash > .lp-accordion ~ .lp-accordion`), keeping the same "however the role-
+  // and data-dependent branches fall" property one level out.
+  //
+  // Keeping the type rules "in case a plain section returns" was the first instinct and it was wrong:
+  // two separator mechanisms in one file with only one live means the next reader has to grep to
+  // learn which. `.lp-accordion__heading` carries the 20/18 step now, from the same tokens.
 
   &__actions {
     list-style: none;
@@ -225,6 +208,122 @@ body {
 // redesign 2026-07-01). Extends the .lp-admin-dash scale; interactive lists share one row idiom.
 // (Page width now comes from .lp-admin-dash == the shared --app-content-width; the former 46rem cap
 // here was overriding it and is dropped — descriptive text is capped per-element below instead.)
+// Manage accordion (D7/D7a, src/components/Manage/Accordion.tsx). A disclosure LIST: several panels
+// may be open at once. Sizes come from the EXISTING scale — a top-level accordion header IS the 20px
+// section heading it replaces, a nested one is the 18px sub-region — so this block sets structure and
+// interaction, and borrows type from `.lp-admin-dash__section` / `__subsection` values via the same
+// tokens rather than inventing a parallel scale.
+.lp-accordion {
+  // ⚑ THIS GUARD IS LOAD-BEARING, not defensive. `[hidden]`'s `display: none` is a UA-stylesheet rule,
+  // so ANY class on the same element that declares a `display` value beats it and the panel renders in
+  // full while `aria-expanded` says it is closed. Measured on this page (2026-08-17): a bare
+  // `<div hidden>` inside `.lp-admin-dash` computes `display: none` with 0 client rects — Payload's
+  // cascade does not interfere — but the same div with `display: flex` or `display: block` renders
+  // 1 rect, ~25px tall. No `[hidden]` rule existed in ANY loaded stylesheet. Since `__panel` is a
+  // layout container that will eventually want a `display`, the alternative to this guard is a
+  // standing promise never to style it, which is not a guard at all.
+  &__panel[hidden] {
+    display: none;
+  }
+
+  // The separator between MAIN sections, moved here from `.lp-admin-dash__section ~ __section` when
+  // the accordion introduced the wrapper that selector's own comment predicted would kill it. Same
+  // property, one level out: "a top-level panel that follows another top-level panel", so the first
+  // rendered panel has no rule and the last draws no trailing one, however the role- and
+  // data-dependent branches fall.
+  //
+  // Scoped with the CHILD combinator so it means top-level panels only. Nested panels (Upload /
+  // Delete / Repair) are inside their parent's `__panel` and are deliberately NOT separated — the
+  // pre-accordion rule said the same thing about sub-headings. ⚑ Like its predecessor this fails
+  // LOUDLY rather than quietly: introduce a wrapper between `.lp-admin-dash` and its panels and every
+  // rule vanishes at once, which manage.e2e.spec.ts asserts.
+  .lp-admin-dash > & ~ & {
+    border-top: 1px solid var(--theme-elevation-150);
+    padding-block-start: var(--app-space-3);
+  }
+
+  &__heading {
+    margin: var(--app-space-4) 0 0;
+    font-size: var(--app-list-heading-size); // nested default (18px)
+    font-weight: 600;
+    color: var(--theme-elevation-1000);
+
+    // Top-level: the 20px page-section step. Same value the heading it replaces used.
+    &--section {
+      font-size: var(--app-section-title-size);
+    }
+  }
+
+  // The whole heading is the control (APG disclosure). A full-width button so the click target is the
+  // heading row, not just its words — an accordion whose 4px of text is the only hit area reads as
+  // broken on a phone.
+  &__trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    width: 100%;
+    padding: var(--app-space-1) 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--theme-elevation-800);
+    }
+
+    // Keyboard focus must be visible on a control that carries no border or fill of its own. Same
+    // TOKENS as every other focus ring in the admin (the button system, `.lp-admin-list__search`, the
+    // modal input) — this is the only control on the page that a hardcoded `2px` would leave behind
+    // when the ring is next adjusted for visibility, and nothing would catch it.
+    &:focus-visible {
+      outline: var(--app-btn-focus-ring) solid var(--app-accent);
+      outline-offset: var(--app-btn-focus-ring-offset);
+    }
+  }
+
+  // Disclosure marker — a CSS triangle, so it needs no icon font and no inline SVG. Rotates rather
+  // than swapping glyphs, so the two states are one element and cannot drift apart.
+  &__marker {
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid var(--theme-elevation-500);
+    transition: transform 120ms ease;
+  }
+
+  &__trigger[aria-expanded='true'] &__marker {
+    transform: rotate(90deg);
+  }
+
+  // A panel's contents start under the heading, not jammed against it. The first child's own top
+  // margin is suppressed so the gap is this value and not this value plus whatever the panel opens
+  // with (headings and paragraphs inside the panels carry their own).
+  &__panel > :first-child {
+    margin-block-start: 0;
+  }
+
+  &__panel {
+    padding-block-end: var(--app-space-2);
+  }
+
+  // Motion is decorative here; a user who asked for less should not get a spinning marker.
+  @media (prefers-reduced-motion: reduce) {
+    &__marker {
+      transition: none;
+    }
+  }
+
+  // ⚑ The ≤640px touch target for `&__trigger` is deliberately NOT here — it lives in the shared
+  // touch block further down this file, beside the other controls that take the same minimum. See
+  // the ⚑ there for why (D12, and DECISIONS 2026-07-28, which rules /admin explicitly IN for
+  // phones). The panels' own contents keep their existing responsive treatments.
+}
+
 .lp-manage {
   &__desc {
     font-size: var(--app-secondary-size);
@@ -762,6 +861,80 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
 
     &:hover {
       text-decoration: underline;
+    }
+  }
+
+  // `.user-menu__item` was written for the Messages <a>; "Change display name" is a <button> using the
+  // same class, so it needs the same reset `.user-menu__logout` already carries. Only the side/bottom
+  // borders are cleared — the divider above is the item's own `border-top`.
+  button.user-menu__item {
+    width: 100%;
+    border-inline: none;
+    border-block-end: none;
+    background: none;
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  // Display-name edit (D4). A small stacked form inside the dropdown; same divider idiom as the items
+  // above it, so it reads as one more row of the menu rather than a panel dropped into it.
+  .user-menu__edit {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--theme-elevation-150);
+  }
+
+  .user-menu__edit-label {
+    color: var(--theme-elevation-600);
+    font-size: 0.72rem;
+  }
+
+  .user-menu__edit-input {
+    width: 100%;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 4px;
+    background: var(--theme-elevation-0);
+    color: var(--theme-elevation-1000);
+    font: inherit;
+    font-size: 0.85rem;
+  }
+
+  .user-menu__edit-error {
+    margin: 0;
+    color: var(--theme-error-500);
+    font-size: 0.72rem;
+  }
+
+  .user-menu__edit-actions {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  // Deliberately NOT `.btn.lp-btn`: the button system's 36px geometry would tower over a 0.85rem
+  // dropdown built on 0.45rem rhythm. These are menu-scale controls, like `.user-menu__logout`.
+  .user-menu__edit-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: 4px;
+    background: var(--theme-elevation-50);
+    color: var(--theme-elevation-1000);
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--theme-elevation-100);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
   }
 
@@ -1341,11 +1514,21 @@ a.btn.lp-btn {
 // for geometry — which is the point of the opt-in class: there is one list, not two that have to be
 // kept in step by hand. The form controls beside them take the same target, because a 31px select
 // next to a 44px button is the mismatch this pass exists to remove.
+//
+// ⚑ `.lp-accordion__trigger` joins the FORM-CONTROL half of this list, not the button system. A
+// disclosure heading is not a button-system control — it has no fill, border or button geometry, and
+// giving it one would make a page section look like an action. What it does share is the phone touch
+// target: it is the primary control on Manage at 375px, so it belongs in the ONE list that decides
+// what gets a touch target, for the same "one list, not two kept in step by hand" reason as the rest.
+// (An earlier draft of this note justified the placement by what `guideCompareVisual.spec.ts` happened
+// to read. That was backwards — the test was order-dependent and has been fixed to find this rule by
+// intent instead. Placement is a stylesheet decision; a guard should observe it, not dictate it.)
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
   .btn.lp-btn,
   .lp-manage__select,
-  .lp-admin-list__search {
+  .lp-admin-list__search,
+  .lp-accordion__trigger {
     min-height: var(--app-btn-touch-min-height);
   }
 
@@ -1367,6 +1550,26 @@ a.btn.lp-btn {
   // stayed a single row and simply let the brand wrap, measuring 56px against the frontend's stacked
   // 109.8px. Same column layout, same flex-start reasoning as `styles.css` — the nav stays a ROW of
   // mixed-height controls, so it centres while the header itself starts left.
+  // ⚑ The avatar dropdown's rows are touch targets too, and were NOT (measured at 390px, 2026-08-17:
+  // Messages 29px, Log Out 30px). That is pre-existing — this menu predates the button system's
+  // touch pass and was never swept into it — but the display-name form (D4) adds new controls to it,
+  // and shipping a 28px Save while the same file argues for 44px elsewhere is not defensible.
+  //
+  // Raised as a GROUP rather than just the new controls: a 44px Save above a 30px Log Out in one
+  // small menu reads as a mistake. Phone-width only, so the desktop menu's density is untouched.
+  .user-menu__item,
+  .user-menu__logout,
+  .user-menu__edit-btn,
+  .user-menu__edit-input {
+    min-height: var(--app-btn-touch-min-height);
+  }
+
+  .user-menu__edit-btn {
+    // A min-height alone leaves width riding on the label — WCAG 2.5.5 asks for 44 in BOTH
+    // dimensions, and "Save" is short. Same reasoning as `.btn.lp-btn--compact` above.
+    min-width: var(--app-btn-touch-min-height);
+  }
+
   .lp-admin-header {
     flex-direction: column;
     align-items: flex-start;

@@ -58,6 +58,7 @@ export async function AppNav({ user }: { user: User }) {
         displayName={user.name ?? user.email}
         loginName={user.email}
         unread={unread}
+        userId={user.id}
       />
     </nav>
   )

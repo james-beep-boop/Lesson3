@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 
 import type { UserTypeLabel } from '../../access'
 import { initials } from '../../lib/initials'
+import { DisplayNameForm } from './DisplayNameForm'
 
 /**
  * Top-right user menu — the two-letter initials avatar that opens a small dropdown:
@@ -26,6 +27,7 @@ export function UserMenu({
   displayName,
   loginName,
   unread,
+  userId,
 }: {
   typeLabel: UserTypeLabel
   /** Pre-formatted access-scope lines ("Administrator: …" / "Editing access: …"), already ordered
@@ -37,6 +39,8 @@ export function UserMenu({
   loginName: string
   /** Unread message count — badges the avatar and the Messages item (0 hides both). */
   unread: number
+  /** The signed-in user's id — the PATCH target for the display-name edit. */
+  userId: number
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -100,6 +104,7 @@ export function UserMenu({
             </div>
           ))}
           <div className="user-menu__name">{loginName}</div>
+          <DisplayNameForm userId={userId} displayName={displayName} />
           {/* Cross-surface (admin → frontend) → a plain <a>, like the rest of the nav. */}
           <a className="user-menu__item" href="/messages">
             Messages

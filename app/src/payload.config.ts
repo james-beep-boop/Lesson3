@@ -120,7 +120,7 @@ export default buildConfig({
     },
   },
   // Order here drives the admin nav order (groups appear by first-seen): Lesson plans →
-  // Curriculum (Subjects, Subject Grades) → People (Users). See each collection's admin.group.
+  // Curriculum (Subjects, Subject Grades) → Users. See each collection's admin.group.
   collections: [
     LessonPlans,
     LessonBundleVersions,

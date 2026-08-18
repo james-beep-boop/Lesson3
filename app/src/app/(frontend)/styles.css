@@ -370,6 +370,71 @@ a {
 .user-menu__item:hover {
   text-decoration: underline;
 }
+/* `.user-menu__item` was written for the Messages <a>; "Change display name" is a <button> using the
+   same class, so it takes the same reset `.user-menu__logout` already carries. Only the side/bottom
+   borders are cleared — the divider above is the item's own border-top. */
+button.user-menu__item {
+  width: 100%;
+  border-inline: none;
+  border-block-end: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+/* Display-name edit (D4) — a small stacked form inside the dropdown, using the same divider idiom as
+   the items above it so it reads as one more row rather than a panel dropped in. Mirrors the admin
+   copy in (payload)/custom.scss; only the palette differs, per this file's standing split. */
+.user-menu__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+.user-menu__edit-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.user-menu__edit-input {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.user-menu__edit-error {
+  margin: 0;
+  color: #b3261e;
+  font-size: 0.72rem;
+}
+.user-menu__edit-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+/* Deliberately NOT .btn: the button system's 36px geometry would tower over a 0.85rem dropdown built
+   on 0.45rem rhythm. Menu-scale controls, like .user-menu__logout. */
+.user-menu__edit-btn {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-soft);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.user-menu__edit-btn:hover:not(:disabled) {
+  background: var(--line);
+}
+.user-menu__edit-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 /* .user-menu__badge: geometry entirely from the shared badge rule (header section). */
 .user-menu__logout {
   margin-top: 0.45rem;
@@ -1503,6 +1568,22 @@ a {
   .app-nav {
     flex-wrap: wrap;
     gap: 0.5rem 0.85rem;
+  }
+
+  /* ⚑ The avatar dropdown's rows are touch targets too, and were NOT (measured at 390px on the admin
+     copy, 2026-08-17: Messages 29px, Log Out 30px). Pre-existing — this menu predates the button
+     system's touch pass — but the display-name form (D4) adds new controls to it, so they are raised
+     as a GROUP: a 44px Save above a 30px Log Out in one small menu reads as a mistake. Mirrors the
+     admin rule in (payload)/custom.scss. */
+  .user-menu__item,
+  .user-menu__logout,
+  .user-menu__edit-btn,
+  .user-menu__edit-input {
+    min-height: var(--app-btn-touch-min-height);
+  }
+  /* Height alone leaves width riding on the label; 2.5.5 asks for 44 in both dimensions. */
+  .user-menu__edit-btn {
+    min-width: var(--app-btn-touch-min-height);
   }
 
   /* Tighter page gutter on small screens — shared tokens, so the admin column matches. Was
