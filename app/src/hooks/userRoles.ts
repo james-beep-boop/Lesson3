@@ -349,7 +349,7 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({ data, origi
 /**
  * Enforce "≤1 Subject Admin per subject-grade" (SPEC §8): when a user is granted
  * Subject Admin for a subject-grade, demote any *other* holder of that grant to
- * Editor — in the same transaction (`req` threaded) and guarded by a context flag
+ * editing access — in the same transaction (`req` threaded) and guarded by a context flag
  * so the cascading update doesn't re-trigger this hook.
  */
 export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({

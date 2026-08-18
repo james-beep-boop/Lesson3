@@ -22,10 +22,11 @@
  * Every seeded record's visible text carries the per-run MARK, so assertions locate exactly this
  * run's rows regardless of real corpus.
  */
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 import { E2E_BASE as BASE, loginAs as loginAsRole } from '../helpers/e2e'
 import {
+  createUserVerified,
   MARK,
   minimalBundleContent,
   setupRoleFixture,
@@ -50,6 +51,13 @@ const GROUP_PLAN_B = `${MARK}Group Plan Beta`
 // on declaration order — a dependency nothing states and any reordering breaks silently. This plan
 // belongs to that one test and is deleted by nothing.
 const STATE_PLAN = `${MARK}State Survives Plan`
+const MANAGE_USER_NAME = `${MARK}Manage action target`
+const MANAGE_USER_RENAMED = `${MARK}Manage action renamed`
+const MANAGE_USER_EMAIL = `${MARK.toLowerCase()}manage-action@example.com`
+const UNVERIFIED_USER_NAME = `${MARK}Manage unverified target`
+const UNVERIFIED_USER_EMAIL = `${MARK.toLowerCase()}manage-unverified@example.com`
+const DELETE_USER_NAME = `${MARK}Manage deletion target`
+const DELETE_USER_EMAIL = `${MARK.toLowerCase()}manage-delete@example.com`
 
 let fx: RoleFixture
 
@@ -88,6 +96,30 @@ const openPanel = async (page: Page, name: string) => {
 const openDeletePanel = async (page: Page) => {
   await openPanel(page, 'Lesson plans')
   await openPanel(page, 'Delete lesson plans')
+}
+
+/** Search the lazy directory for exactly one fixture account and disclose its mounted details. */
+const openUser = async (page: Page, email: string): Promise<Locator> => {
+  await page.getByLabel('Search users by name or email').fill(email)
+  const row = page.locator('.lp-users__row').filter({ hasText: email })
+  await expect(row).toBeVisible()
+  const summary = row.locator('.lp-users__summary')
+  if ((await summary.getAttribute('aria-expanded')) !== 'true') await summary.click()
+  await expect(summary).toHaveAttribute('aria-expanded', 'true')
+  return row
+}
+
+/** Accept one native confirmation while returning its exact message for consequence assertions. */
+const acceptConfirmation = async (page: Page, action: () => Promise<void>): Promise<string> => {
+  const message = new Promise<string>((resolve) => {
+    page.once('dialog', async (dialog) => {
+      const text = dialog.message()
+      await dialog.accept()
+      resolve(text)
+    })
+  })
+  await action()
+  return message
 }
 
 /**
@@ -173,16 +205,37 @@ test.describe('Manage page', () => {
         overrideAccess: true,
       })
     }
+
+    // Dedicated Users-panel accounts. Keep them separate from the role fixture: the UI test mutates
+    // authorization state deliberately, and no later assertion should inherit that state by accident.
+    await createUserVerified(fx.payload, {
+      name: MANAGE_USER_NAME,
+      email: MANAGE_USER_EMAIL,
+      password: fx.password,
+      assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'editor' }],
+    })
+    await createUserVerified(fx.payload, {
+      name: UNVERIFIED_USER_NAME,
+      email: UNVERIFIED_USER_EMAIL,
+      password: fx.password,
+      _verified: false,
+    })
+    await createUserVerified(fx.payload, {
+      name: DELETE_USER_NAME,
+      email: DELETE_USER_EMAIL,
+      password: fx.password,
+    })
   })
 
   test.afterAll(async () => {
     await fx?.teardown()
   })
 
-  test('Editor sees ONLY "My saved versions"', async ({ page }) => {
+  test('a Teacher with editing access sees ONLY "My saved versions"', async ({ page }) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Editing access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
@@ -202,6 +255,7 @@ test.describe('Manage page', () => {
     // subject-grade, and this run's subject-grade is freshly MARK-seeded.
     await expect(page.locator('.lp-manage__row:has(.lp-manage__row-main)')).toHaveCount(1)
     await expect(page.getByRole('heading', { name: 'Editing access' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
     // `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default, so a
@@ -218,6 +272,8 @@ test.describe('Manage page', () => {
     await expect(page).toHaveURL(`${BASE}/admin`)
     await page.goto(`${BASE}/admin/collections/lesson-bundle-versions`)
     await expect(page).toHaveURL(`${BASE}/admin`)
+    await page.goto(`${BASE}/admin/collections/users`)
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=users$`))
   })
 
   test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({
@@ -225,6 +281,7 @@ test.describe('Manage page', () => {
   }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
     // The "Lesson plans" section is a top-level panel, so its HEADING is visible while collapsed;
     // its three nested panels live inside the hidden body and appear once it is opened.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
@@ -312,7 +369,7 @@ test.describe('Manage page', () => {
   }) => {
     // Editor-shell smoke (Codex rounds 1–2: the chrome strip depends on pinned-Payload class names —
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
-    // intent as the Editor.
+    // intent as the teacher with editing access.
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`)
     // Our control bar renders, with the shared page-level Back control at the far right. It uses the
@@ -327,7 +384,7 @@ test.describe('Manage page', () => {
     await expect(page.locator('.app-header')).toBeHidden()
     // The native Save button stays hidden (our bar owns Save via save-as-new).
     await expect(page.locator('.doc-controls .form-submit')).toBeHidden()
-    // Edit intent honoured: a prose textarea is editable for the Editor (form landed unlocked).
+    // Edit intent honoured: a prose textarea is editable for this Teacher's granted scope.
     await expect(page.locator('textarea').first()).toBeEditable()
   })
 
@@ -485,9 +542,8 @@ test.describe('Manage page', () => {
      * that route, so a second sign-in inside one test hangs until the 30s timeout. The first draft
      * covered both roles in a single test and failed in CI for exactly that reason.
      */
-    test('an Editor’s only section is expanded for them', async ({ page }) => {
-      // An Editor's saved versions are the whole page — nobody should click to reveal their only
-      // panel (D7).
+    test('a Teacher with editing access has their only section expanded', async ({ page }) => {
+      // Their saved versions are the whole page — nobody should click to reveal their only panel.
       await loginAs(page, 'editor')
       await page.goto(`${BASE}/admin`)
       await expect(
@@ -500,7 +556,7 @@ test.describe('Manage page', () => {
       // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      for (const name of ['Curriculum & people', 'Editing access', 'Lesson plans']) {
+      for (const name of ['Users', 'Curriculum & people', 'Editing access', 'Lesson plans']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -650,10 +706,179 @@ test.describe('Manage page', () => {
     })
   })
 
+  test.describe('Users panel', () => {
+    test('loads only when opened; disclosures preserve a draft and actions remain usable on mobile', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await loginAs(page, 'siteAdmin')
+      const searches: string[] = []
+      page.on('request', (request) => {
+        if (new URL(request.url()).pathname === '/api/users/search') searches.push(request.url())
+      })
+
+      await page.goto(`${BASE}/admin`)
+      await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
+      // Negative assertions need to let the zero-delay lazy effect run. If the panel fetched merely
+      // because it was mounted inside a hidden accordion, this pause observes it.
+      await page.waitForTimeout(300)
+      expect(searches).toHaveLength(0)
+
+      await openPanel(page, 'Users')
+      const row = await openUser(page, MANAGE_USER_EMAIL)
+      expect(searches.length).toBeGreaterThan(0)
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Teacher')
+      await expect(row.locator('.lp-users__grants')).toContainText(
+        `Editing access · ${fx.subjectGrade.displayName}`,
+      )
+      await expect(row.locator('.lp-users__grants')).not.toContainText('Editor ·')
+      const details = row.locator('.lp-users__details')
+      await expect(details).toHaveCSS('display', 'grid')
+
+      // Both disclosure layers stay mounted. A half-edited name survives a row close/reopen, while
+      // the load-bearing `[hidden]` rule still wins over the visible grid declaration.
+      const name = row.getByLabel('Display name')
+      await name.fill(`${MANAGE_USER_NAME} draft`)
+      await row.locator('.lp-users__summary').click()
+      await expect(details).toBeHidden()
+      await expect(details).toHaveCSS('display', 'none')
+      await row.locator('.lp-users__summary').click()
+      await expect(name).toHaveValue(`${MANAGE_USER_NAME} draft`)
+
+      // D12: the simple management workflow is fully available on phones, with touch-sized stacked
+      // controls and no page-level horizontal overflow.
+      const geometry = await page.evaluate(() => {
+        const action = document.querySelector<HTMLElement>(
+          '.lp-users__details:not([hidden]) .lp-users__actions .btn',
+        )
+        const actions = document.querySelector<HTMLElement>(
+          '.lp-users__details:not([hidden]) .lp-users__actions',
+        )
+        const actionRect = action?.getBoundingClientRect()
+        const actionsRect = actions?.getBoundingClientRect()
+        return {
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+          actionHeight: actionRect?.height ?? 0,
+          actionWidth: actionRect?.width ?? 0,
+          actionsWidth: actionsRect?.width ?? 0,
+        }
+      })
+      expect(geometry.overflow).toBeLessThanOrEqual(0)
+      expect(geometry.actionHeight).toBeGreaterThanOrEqual(44)
+      expect(geometry.actionWidth).toBeGreaterThanOrEqual(geometry.actionsWidth - 1)
+    })
+
+    test('row actions call the PR 2a account endpoints and show their resulting state', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=users`)
+
+      let row = await openUser(page, MANAGE_USER_EMAIL)
+      await row.getByLabel('Display name').fill(MANAGE_USER_RENAMED)
+      await row.getByRole('button', { name: 'Save profile', exact: true }).click()
+      await expect(row.locator('.lp-users__summary')).toContainText(MANAGE_USER_RENAMED)
+
+      await row.getByRole('button', { name: 'Reveal reset link', exact: true }).click()
+      await expect(row.getByLabel(/Password reset link/)).toHaveValue(/\/reset-password\?token=/)
+
+      const grantPrompt = await acceptConfirmation(page, () =>
+        row.getByRole('button', { name: 'Make Site Administrator', exact: true }).click(),
+      )
+      expect(grantPrompt).toContain(
+        `Grant Site Administrator to ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
+      )
+      await expect(
+        row.getByRole('button', { name: 'Remove Site Administrator', exact: true }),
+      ).toBeVisible()
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Site administrator')
+
+      const revokePrompt = await acceptConfirmation(page, () =>
+        row.getByRole('button', { name: 'Remove Site Administrator', exact: true }).click(),
+      )
+      expect(revokePrompt).toContain(
+        `Remove Site Administrator from ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
+      )
+      await expect(
+        row.getByRole('button', { name: 'Make Site Administrator', exact: true }),
+      ).toBeVisible()
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Teacher')
+
+      const disablePrompt = await acceptConfirmation(page, () =>
+        row.getByRole('button', { name: 'Disable sign-in', exact: true }).click(),
+      )
+      expect(disablePrompt).toContain(
+        `Disable sign-in for ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
+      )
+      expect(disablePrompt).toContain('Every live session will end immediately.')
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Sign-in disabled')
+      await expect(row.getByRole('button', { name: 'Reveal reset link', exact: true })).toHaveCount(
+        0,
+      )
+
+      await acceptConfirmation(page, () =>
+        row.getByRole('button', { name: 'Enable sign-in', exact: true }).click(),
+      )
+      await expect(row.getByRole('button', { name: 'Disable sign-in', exact: true })).toBeVisible()
+      await expect(row.locator('.lp-users__summary-meta')).not.toContainText('Sign-in disabled')
+
+      row = await openUser(page, UNVERIFIED_USER_EMAIL)
+      await expect(row.locator('.lp-users__summary-meta')).toContainText('Unverified')
+      await row.getByRole('button', { name: 'Mark verified', exact: true }).click()
+      await expect(row.locator('.lp-users__summary-meta')).not.toContainText('Unverified')
+      await expect(row.getByRole('button', { name: 'Mark verified', exact: true })).toHaveCount(0)
+
+      row = await openUser(page, DELETE_USER_EMAIL)
+      const deletePrompt = await acceptConfirmation(page, () =>
+        row.getByRole('button', { name: 'Delete account', exact: true }).click(),
+      )
+      // `personLabel`'s em-dash form — the SAME string the Editing-access widget's remove dialog uses
+      // on this page. The panel shipped with its own `Name (email)` spelling, and this assertion was
+      // what held the fork in place.
+      expect(deletePrompt).toContain(`Delete ${DELETE_USER_NAME} — ${DELETE_USER_EMAIL}?`)
+      expect(deletePrompt).toContain('authored 0 versions; 0 are currently Official.')
+      expect(deletePrompt).toContain('their author attribution becomes unknown')
+      expect(deletePrompt).toContain('Messages, favorites and edit-recovery rows are deleted')
+      expect(deletePrompt).toContain('This cannot be undone.')
+      await expect(row).toHaveCount(0)
+    })
+
+    test('a grant jumps to its access group as exactly one reversible history entry', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=users`)
+      const row = await openUser(page, fx.users.editor.email)
+      const before = await page.evaluate(() => window.history.length)
+
+      await row.getByRole('button', { name: 'Open access controls', exact: true }).click()
+      await expect(page).toHaveURL(new RegExp(`[?&]open=users${SEP}access`))
+      await expect(page).not.toHaveURL(/[?&]at=/)
+      await expect(
+        page.getByRole('button', { name: 'Editing access', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.locator(`#sg-${fx.subjectGrade.id}`)).toBeFocused()
+      expect(await page.evaluate(() => window.history.length)).toBe(before + 1)
+
+      await page.goBack()
+      await expect(page).toHaveURL(/[?&]open=users(&|$)/)
+      await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      await expect(
+        page.getByRole('button', { name: 'Editing access', exact: true }),
+      ).toHaveAttribute('aria-expanded', 'false')
+    })
+  })
+
   /**
    * D4 — display-name editing lives in the avatar menu, not a "My Account" accordion: Manage is
    * unreachable by plain Teachers, so account self-service placed there would be invisible to most
-   * users. Driven here as an Editor to prove it is not a Site-Admin-only affordance.
+   * users. Driven here as a Teacher with editing access to prove it is not Site-Admin-only.
    */
   test('a user can change their own display name from the avatar menu', async ({ page }) => {
     await loginAs(page, 'editor')

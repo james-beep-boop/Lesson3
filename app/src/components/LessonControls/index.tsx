@@ -548,7 +548,7 @@ export default function LessonControls() {
         <div className="lesson-controls__group lesson-controls__group--output">
           {/* Nothing here for a viewer who cannot edit THIS version (`canEdit`): no Edit button
               rather than one that unlocks nothing. Preview and PDF stay — they are what a Teacher,
-              or an Editor looking at another subject-grade, actually came for. */}
+              or a teacher with editing access looking at another subject-grade, actually came for. */}
           {!canEdit ? null : !editing ? (
             <Button buttonStyle="primary" size="small" onClick={onEdit}>
               Edit

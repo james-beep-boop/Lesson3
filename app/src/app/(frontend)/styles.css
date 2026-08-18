@@ -621,7 +621,7 @@ button.user-menu__item {
   justify-content: flex-end;
   min-width: 6.5rem;
 }
-/* PR ②: the [N versions ▾] chip (Editor+-only) and its floating VersionsPanel. The chip is a plain
+/* PR ②: the [N versions ▾] chip (editing-access-and-above only) and its floating VersionsPanel. The chip is a plain
    `.btn--quiet` from the shared system — compact on catalogue rows, page-level beside Compare on the
    lesson page. It was a 999px pill in muted gray, the only control shaped that way, and it needs no
    rule of its own: the catalogue's reserved column (`.substrand-versions`) already holds the space. */

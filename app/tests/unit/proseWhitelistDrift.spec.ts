@@ -1,16 +1,16 @@
 /**
  * Whitelist ↔ field-schema drift guard (audit 2026-07-04, Phase 2 invariant tripwires).
  *
- * The Editor/Admin boundary is enforced by the WHITELIST in `hooks/fieldSplit.ts` (the `*_PROSE`
+ * The editing-access/Admin boundary is enforced by the WHITELIST in `hooks/fieldSplit.ts` (the `*_PROSE`
  * constants), NOT by Payload field access. That whitelist is hand-kept in sync with the `prose()`
  * fields in `fields/lessonContent.ts` via a "keep in sync" comment — exactly the kind of coupling
  * that silently rots. This test makes the sync mechanical: `prose()` is the ONLY field factory that
  * attaches `access.update === canEditProse` (verified: `proseAdmin`/`structureText` attach none),
- * so "fields the schema intends as Editor-editable" is computable by walking the field tree and
+ * so "fields the schema intends as editing-access-editable" is computable by walking the field tree and
  * collecting the `canEditProse`-guarded leaves per container. That set must equal the whitelist.
  *
  * A drift fails HERE (fast, named) instead of leaking as a silently-dropped edit or — worse — a
- * newly Editor-writable admin field. DB-free → `test:unit`.
+ * newly writable under editing access admin field. DB-free → `test:unit`.
  */
 import { describe, it, expect } from 'vitest'
 import type { Field } from 'payload'
@@ -104,7 +104,7 @@ describe('prose() fields ↔ fieldSplit whitelist stay in sync', () => {
       (f) => (f as { name?: string }).name === 'exemplar',
     )
     expect(exemplar).toBeDefined()
-    expect(isProseField(exemplar!)).toBe(false) // proseAdmin answer key — NOT Editor prose
+    expect(isProseField(exemplar!)).toBe(false) // proseAdmin answer key — NOT editing-access prose
   })
 })
 

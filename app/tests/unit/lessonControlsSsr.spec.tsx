@@ -13,7 +13,7 @@ import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
-// `user` is the signed-in caller; the document under edit belongs to subject-grade SG. An Editor
+// `user` is the signed-in caller; the document under edit belongs to subject-grade SG. A teacher with editing access
 // grant for SG is the baseline — without one the bar offers no edit lifecycle at all (see the
 // permission block at the bottom), which is the 2026-07-28 change these first cases sit on top of.
 const SG = 5

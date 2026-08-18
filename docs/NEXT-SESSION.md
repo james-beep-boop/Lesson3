@@ -1,10 +1,19 @@
 # Start here — plan the next phase
 
 You are picking up the **ARES Lesson Library (Lesson3)**: a versioned lesson-plan repository that
-uploads/imports ARES CBE lesson plans as structured lesson data, lets teachers/editors view + edit
+uploads/imports ARES CBE lesson plans as structured lesson data, lets teachers view and, when granted
+editing access, edit
 them under field-level RBAC, tracks one **Official** version pointer per lesson plan, and exports
 high-fidelity DOCX/PDF by reusing ARES's own generator. Node/TypeScript + Payload CMS (Postgres)
 end to end.
+
+⚑ **VOCABULARY, before you read any of the history below.** The product has **three user types** —
+Teacher, Subject-grade administrator, Site administrator. **"Editor" is not one of them.** A Teacher
+starts without editing rights and may be granted **editing access** for particular subject-grades;
+that never changes their type. Older handoff blocks, PR summaries and verification notes in this file
+say "Editor" because that is what the label was at the time — read those as the editing-access
+capability, and do not take their wording as licence to reintroduce a fourth type. Canonical:
+`SPEC.md` §8; operating rule: `CLAUDE.md`; reasoning: `docs/DECISIONS.md` 2026-08-17.
 
 **Read first, in order:** `CLAUDE.md` (working rules — auto-loaded each session anyway) → `SPEC.md`
 (canonical architecture/domain) → `AGENTS.md` (stack, layout, commands) → `docs/DECISIONS.md`
@@ -13,6 +22,51 @@ the most recent entries and grep it for the area you're touching; don't read it 
 count given: this one said "~6300" while the file had reached 8311, which is the derived-fact
 staleness the file's own rules warn about.) This
 file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consult only for provenance).
+
+---
+
+# ⚑ HANDOFF (2026-08-17) — Manage PR 1 and PR 2a are merged; start PR 2b
+
+**This supersedes the 2026-08-16 handoff below.** The public-discovery track described there is
+unchanged. The second arc is no longer merely planned: its UI shell and security foundation are now
+on `main`.
+
+## What landed
+
+| PR | What | Migration |
+|---|---|---|
+| #239 | Manage accordion shell, URL state, candidate search, display-name form, Users terminology | no |
+| #240 | User-security foundation: disable/session revocation, last-admin guards, reset links and `ACCOUNT_DISABLED` wire contract | `sign_in_disabled` |
+
+The second squash merge is `26c0483`. Both PRs were rebased/merged in order and received a fresh full
+CI run after their shared `collections/Users.ts` overlap was resolved.
+
+## What is next
+
+Start **PR 2b — the Users panel** from §6 of
+`docs/DESIGN-manage-accordion-2026-08-16.md`:
+
+1. `GET /api/users/search`: Site-Admin-only, paginated, name/email query, explicit computed-type
+   filter, and no `overrideAccess: true` read.
+2. Lazy-load only the Users panel; keep every existing bounded Manage panel server-loaded (D11).
+3. Add the row disclosure and controls that call PR 2a's endpoints. Grants stay read-only here and
+   jump to Roles & Access.
+4. Redirect the native Users list route to Manage.
+5. Ship the §7 wire matrix and E2E coverage in the same PR, including the cross-panel jump/history/
+   focus case deferred from PR 1.
+
+## Three things not to re-derive
+
+1. **Local development still uses `scripts/dev-seed.sh` and `scripts/dev-server.sh`.** A bare
+   `npx next dev` cannot reach the Compose-only database. Docker must be running.
+2. **A production Next bundle can split one logical error class across module realms.** Constructor
+   identity is therefore not a wire contract: `instanceof APIError` passed in the unit harness and
+   failed in the production HTTP suite. `preserveAccountDisabledWire` reads the narrowly guarded
+   public `data.code` property in `afterError`, and `accountDisabledWiring.spec.ts` pins the hook's
+   registration. Do not replace either with a same-module `instanceof` test.
+3. **A green result must contain executed tests.** `test:int` reporting 200 skipped cases after
+   `ECONNREFUSED localhost:5432` is not a pass. Use AGENTS.md's disposable-stack recipe, restore
+   `app/test.env`, and confirm the real `24 files / 200 tests` summary.
 
 ---
 

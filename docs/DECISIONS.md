@@ -11,6 +11,89 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-18 — http/e2e fixtures go to the probe stack, never the seeded dev database
+
+Verifying PR 2b's `test:http` and `test:e2e` locally, I pointed the fixture-backed suites at the
+running dev server and therefore at the **seeded `lesson3` dev database**. Everything that followed
+was downstream of that one choice, and none of it looked like the cause at the time:
+
+- `setupRoleFixture` writes real users/subjects/plans and opens with a namespace-wide
+  `purgeMarked(payload, MARK_BASE)` sweep. That sweep deletes anything whose identifying text
+  contains `ZZ_INT_` — in the developer's own database, not a scratch one.
+- Fixture user creation is an UNAUTHENTICATED `create`, so `rateLimitAuthOperations` counts it as a
+  signup. Four repeated suite runs drove `signupGlobal:all` to 104 and the suite began failing with
+  "Sign-ups are temporarily paused" — a correct limiter reporting a self-inflicted condition.
+- Killing a run mid-flight left `idle in transaction (aborted)` backends holding `payload_jobs`.
+  A schema-push `ALTER TABLE payload_jobs` then queued behind them and starved the pool to
+  `FATAL: sorry, too many clients already` (95 backends, all `wait_event_type = Lock`).
+
+⚑ **`AGENTS.md` already documents the fix and I did not use it.** The disposable `lesson3-ci-probe`
+stack has its own volumes and network, and its entry states plainly that the seeded `lesson3_*`
+volumes are never touched. It exists precisely so a fixture suite cannot reach real data.
+
+Two general rules, not just the incident:
+
+1. **A fixture-backed suite gets a disposable database.** `tests/http` and `tests/e2e` seed through
+   the Local API into whatever database they are pointed at; "point them at the dev server" is
+   therefore a data-destructive instruction wearing a convenience costume.
+2. **Do not add `-e NODE_ENV=development` to a test container.** It turns drizzle schema push on in
+   the TEST process, whose `ALTER TABLE` then contends with the app's own job-queue transactions.
+   `vitest.http.config.mts` says to pass `--env-file .env` (production, migrate mode) for this
+   reason; overriding it was mine, and it produced a deadlock I spent an hour attributing to Docker.
+
+A related discipline point: when the one E2E assertion I had edited failed in CI, the cause was that
+the retired `Name (email)` spelling was pinned in FOUR assertions and I had updated only the one my
+grep surfaced. Fixing the first hit of a duplicated contract and not searching for its siblings is
+the same failure the shared helper was extracted to prevent, reproduced in the test file.
+
+---
+
+## 2026-08-17 — "Editor" is not a user type; it is editing access held by a Teacher
+
+The user-model decision from 2026-07-29 is canonical, not merely a preferred label: the product has
+three user types — **Teacher**, **Subject-grade administrator**, and **Site administrator**. A Teacher
+may acquire editing access for one or more subject-grades without becoming a fourth kind of user.
+
+The stored assignment value `'editor'`, predicates such as `isEditorFor`, endpoint names such as
+`assign-editor`, and old fixture keys may remain as implementation identifiers. They describe the
+capability enforced by the authorization layer; they must not surface as an **Editor** account type.
+User-facing lists show **Teacher** as the type and list **Editing access** separately. New prose and
+tests should say "Teacher with editing access" when the distinction matters.
+
+Historical entries below still use "Editor" when recording the vocabulary and code that existed at
+the time. Read those as references to the stored editing-access capability unless an entry is
+explicitly discussing the retired presentation. Do not use their historical wording to reintroduce
+a fourth type. This clarification was prompted by PR 2b briefly rendering a grant as "Editor" even
+though its search endpoint correctly classified the same account as Teacher.
+
+---
+
+## 2026-08-17 — a wire contract cannot depend on JavaScript constructor identity
+
+PR 2a's first `ACCOUNT_DISABLED` contract test passed while the production HTTP path was broken.
+The test created an `APIError` subclass and called Payload's `formatErrors` from the same module
+instance, so `incoming instanceof APIError` was guaranteed true. Next's production server bundle
+loaded the error and formatter through different chunks: the object kept its status, message and
+public `data`, but failed that constructor-identity check, so Payload dropped `data.code` from the
+wire response. Disabled users were consequently shown the ordinary bad-password or expired-link
+copy even though every unit test was green.
+
+**Decision:** cross-boundary error handling uses a narrow structural contract, never constructor
+identity alone. `preserveAccountDisabledWire` is registered as the Users collection's `afterError`
+hook and preserves only the exact public 403/`ACCOUNT_DISABLED` shape. Generic 403s keep Payload's
+normal formatting. The regression suite includes both halves that the original test missed:
+
+- an error-shaped value that is deliberately **not** an `instanceof APIError` still serialises the
+  code; and
+- a DB-free wiring test fails if the `afterError` registration is removed.
+
+The production HTTP suite remains the authoritative proof. Unit tests can pin the structural repair
+and its registration, but they cannot prove two bundled call sites share—or do not share—a module
+realm. This is also why CI must be watched to completion before a wire-contract change is reported
+ready; both pre-repair pushes were locally green and remotely red.
+
+---
+
 ## 2026-08-17 — the accordion shell: three browser questions answered, and two defects only a browser could find
 
 PR 1 of `docs/DESIGN-manage-accordion-2026-08-16.md`. Its stated purpose was to settle what no amount
@@ -117,8 +200,8 @@ form-control half of that list alongside `.lp-manage__select` and `.lp-admin-lis
 
 - **Panel ids are a URL contract**: `curriculum`, `access`, `plans`, `plans.upload`, `plans.delete`,
   `plans.repair`, `versions`. `versions` rather than `saved`, because the same panel is titled
-  "Candidate versions" for administrators and "My saved versions" for Editors — an id must not encode
-  one role's label. `curriculum` is transitional and dissolves in PRs 2b/3; a stale link then degrades
+  "Candidate versions" for administrators and "My saved versions" for Teachers with editing access —
+  an id must not encode one user's label. `curriculum` is transitional and dissolves in PRs 2b/3; a stale link then degrades
   through the scrub rule instead of erroring, which is what that rule is for.
 - **Initial state**: a valid `?open=` wins; otherwise a role with exactly ONE top-level section gets
   it expanded; otherwise nothing opens. **Nested panels are never auto-opened, including Upload.**

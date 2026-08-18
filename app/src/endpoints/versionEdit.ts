@@ -7,7 +7,7 @@
  *   - POST /:id/make-official — point this version's plan at it (move `officialVersion`; no content copy).
  *
  * AUTHORIZATION is enforced HERE (state-changing POSTs, CSRF-guarded by the SameSite=Lax cookie):
- *   - save-as-new: Editor or admin for the version's subject-grade (Editor edits are prose-only).
+ *   - save-as-new: a teacher with editing access, or an admin for the version's subject-grade (edits under editing access are prose-only).
  *   - make-official: Subject/Site Admin only (designating Official is an admin action).
  * A caller without the required role gets 403.
  */
@@ -109,8 +109,8 @@ async function authorize(
 /**
  * POST /:id/save-as-new — save the editor's current form content as a NEW candidate version of this
  * plan (Stage 2 editing model). Does NOT move the Official pointer — designating Official is a separate
- * admin-only action (`make-official`). Editor authorship is enforced server-side: the submitted content
- * is run through `applyEditorFieldSplit` against THIS version as the source, so an Editor's structural /
+ * admin-only action (`make-official`). Authorship is enforced server-side: the submitted content
+ * is run through `applyEditorFieldSplit` against THIS version as the source, so a teacher with editing access's structural /
  * META changes are ignored (prose only); a Subject/Site Admin's edits pass through. Body: multipart with
  * a `data` field carrying the JSON nested bundle (same shape the preview endpoint accepts).
  *
@@ -164,9 +164,9 @@ export const saveAsNewEndpoint: Endpoint = {
       throw new APIError('This version changed since you opened it — reload before saving.', 409)
     }
 
-    // Enforce Editor-prose-only: overlay the submitted prose onto THIS version (the source) and preserve
+    // Enforce prose-only: overlay the submitted prose onto THIS version (the source) and preserve
     // its admin/structure fields. Admins (and the system) pass through unchanged. Cardinality/order
-    // changes by an Editor are rejected inside the helper.
+    // changes by a teacher with editing access are rejected inside the helper.
     const merged = applyEditorFieldSplit({
       data: { ...edited, subjectGrade: toId(source.subjectGrade as never) },
       originalDoc: source as unknown as Record<string, unknown>,
@@ -207,7 +207,7 @@ export const saveAsNewEndpoint: Endpoint = {
     const deleteSource = req.query?.deleteSource === 'true'
 
     // Delete-source permission (IA redesign 2026-07-01, mirrors `lessonBundleVersionDelete`): admins in
-    // scope may delete any source; an Editor only a source THEY authored. The delete below runs via
+    // scope may delete any source; a teacher with editing access only a source THEY authored. The delete below runs via
     // overrideAccess inside the transaction, so the rule is enforced here; when not permitted the save
     // still succeeds and the source is simply kept (`sourceDeleted: false` reports it).
     const caller = req.user as User
@@ -219,7 +219,7 @@ export const saveAsNewEndpoint: Endpoint = {
       const shouldCommit = await initTransaction(req)
       try {
         // overrideAccess: authorship was just enforced via the field-split (same trust model as fork); this
-        // also lets an Editor create a version (the collection create access is admin-only).
+        // also lets a teacher with editing access create a version (the collection create access is admin-only).
         const created = await req.payload.create({
           collection: 'lesson-bundle-versions',
           data: {
@@ -229,7 +229,7 @@ export const saveAsNewEndpoint: Endpoint = {
             semver: await nextSemverForPlan(req.payload, planId, req),
             sourceVersion: source.id,
             // Authorship stamp: the authenticated caller saved this candidate. Never taken from the
-            // submitted content (DROP_KEYS) — drives the Editor delete scope ("My saved versions").
+            // submitted content (DROP_KEYS) — drives the teacher with editing access delete scope ("My saved versions").
             author: caller.id,
           } as never,
           req,

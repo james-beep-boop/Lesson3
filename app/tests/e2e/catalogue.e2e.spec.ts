@@ -6,7 +6,7 @@
  * populated relationship into a bare id, and a naive version degrades SILENTLY. `subjectName` falls back
  * to 'Unknown subject', `grade` to null, and `canEdit` to site-admin-only. Nothing throws.
  *
- * `canEdit` is the one worth stating: it fails CLOSED, so a broken lookup removes an Editor's edit
+ * `canEdit` is the one worth stating: it fails CLOSED, so a broken lookup removes a teacher with editing access's edit
  * affordance while a Teacher's view still looks perfect — which is why the load-bearing assertion is the
  * EDITOR case, and why the Teacher case is not evidence on its own (it passes against broken code).
  *
@@ -63,7 +63,7 @@ test.describe('Catalogue (/)', () => {
     await expect(row.locator('.substrand-versions')).toHaveCount(0)
   })
 
-  test('canEdit: an Editor gets the edit affordance on their subject-grade', async ({ page }) => {
+  test('canEdit: a teacher with editing access gets the edit affordance on their subject-grade', async ({ page }) => {
     await loginAs(page, fx, 'editor')
     await expect(rowFor(page)).toHaveCount(1)
     await expect(rowFor(page).locator('.substrand-versions')).toHaveCount(1)

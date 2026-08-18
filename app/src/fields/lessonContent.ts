@@ -19,20 +19,20 @@ import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
  * generation adapter maps them back to the generator's exact keys. Inner keys already match the ARES
  * data verbatim.
  *
- * Field-level access (SPEC §5): Editors edit prose; Subject Admins edit META / aresKeywords / phase /
+ * Field-level access (SPEC §5): teachers with editing access edit prose; Subject Admins edit META / aresKeywords / phase /
  * duration / structure / answer keys; lesson-level ARES resources and lesson numbers are system-only.
  *
- * IMPORTANT — the authority for the Editor/admin split is the field-split hook (`applyEditorFieldSplit`,
+ * IMPORTANT — the authority for the teacher with editing access/admin split is the field-split hook (`applyEditorFieldSplit`,
  * via `enforceVersionFieldSplit`), NOT Payload field-level access (which can't gate array rows and
- * silently nulls optional admin-only array subfields). The hook is a WHITELIST: for a non-admin Editor
- * it writes the original document with only the Editor-editable *prose* fields overlaid. Consequences
+ * silently nulls optional admin-only array subfields). The hook is a WHITELIST: for a non-admin holder of editing access
+ * it writes the original document with only the editing-access-editable *prose* fields overlaid. Consequences
  * for anyone adding fields here:
  *   • A new field is admin-only BY DEFAULT.
- *   • To make a field Editor-editable you must add it to the matching prose whitelist constant in
+ *   • To make a field editing-access-editable you must add it to the matching prose whitelist constant in
  *     `hooks/fieldSplit.ts` (and use `prose()` for the grammar hint). Forgetting only makes it
- *     non-editable by Editors — never silently editable.
+ *     non-editable by teachers with editing access — never silently editable.
  *   • Editing a container's array via the API requires submitting the FULL array (same rows/order);
- *     the hook rejects cardinality/order changes by Editors.
+ *     the hook rejects cardinality/order changes by teachers with editing access.
  *
  * `LESSONS[].resourceLinks` is required by the definitive ARES 1.0.0 contract (SPEC §3/§4). It is
  * resolved upstream, stored losslessly, hidden from the form, and protected again in fieldSplit
@@ -95,22 +95,22 @@ const collapsedRow = (field: string, noun: string) => ({
 
 // Admin-form VISIBILITY for the admin-only structure sections (META / UNIT): show them only to whoever
 // may edit them — Subject Admins for THIS doc's subject-grade, and Site Admins — and hide them from
-// everyone else (an Editor) rather than showing them read-only. Reuses the SAME pure predicate the
+// everyone else (a teacher with editing access) rather than showing them read-only. Reuses the SAME pure predicate the
 // server rule uses (`canEditStructure` → `isSubjectAdminFor`); `@/access` is type-only at runtime
 // (already bundled via `access/bundle`), so it is safe in this client-bundled `condition`. Server
 // access is unchanged — presentation only; the field-split hook remains the write-time authority.
 const structureCondition = (data: unknown, _siblingData: unknown, { user }: { user: unknown }): boolean =>
   isSubjectAdminFor(user as User, toId((data as { subjectGrade?: unknown } | undefined)?.subjectGrade as never))
 
-// Hide an admin-only field from anyone who can't edit it (an Editor): via `structureCondition`, show
+// Hide an admin-only field from anyone who can't edit it (a teacher with editing access): via `structureCondition`, show
 // it only to structure editors (Subject Admins for this doc's subject-grade + Site Admins). Used for
 // every admin-only field below — the whole META and UNIT groups, plus the scattered structural /
-// answer-key fields inside LESSONS / FINAL_EXPLANATION / SUMMARY_TABLE. This keeps the Editor's form
+// answer-key fields inside LESSONS / FINAL_EXPLANATION / SUMMARY_TABLE. This keeps the teacher with editing access's form
 // to ONLY the fields they can actually change, removing both greyed inputs AND the subtler trap of
 // fields that look editable but are silently dropped by the field-split whitelist
 // (`applyEditorFieldSplit`) on save. Presentation
 // only — the hook remains the write-time authority; hidden fields keep their original values (an
-// Editor's save overlays prose onto the original doc), so answer keys/structure are never wiped. The
+// a save made under editing access overlays prose onto the original doc), so answer keys/structure are never wiped. The
 // value still lives in row `data`, so collapsed array RowLabels (e.g. by `phase`/`title`) still show.
 // Merges into any existing `admin` (descriptions, row labels) rather than replacing it.
 const adminOnly = (field: Field): Field => {
@@ -174,8 +174,8 @@ export const lessonContentFields: Field[] = [
     type: 'group',
     label: 'Sub-strand overview',
     access: { update: canEditStructure },
-    // All UNIT fields are admin-only (SPEC §5 does not list UNIT among Editor prose): the
-    // whitelist hook preserves the whole `unit` group wholesale for Editors, so none of these
+    // All UNIT fields are admin-only (SPEC §5 does not list UNIT among editing-access prose): the
+    // whitelist hook preserves the whole `unit` group wholesale for teachers with editing access, so none of these
     // need field-level access or the prose() whitelist. Field set + names mirror the generator's
     // subStrandOverview() reader (vendor/lib/sections.js) and the ARES contract's UNIT block
     // (ingest/ares-contract.schema.json) — canonical names only.

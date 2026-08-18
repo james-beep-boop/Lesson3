@@ -43,6 +43,8 @@ export interface OpenPanels {
   jumpTo: (id: string, at?: string) => void
   /** The `at` target this page was arrived at with, consumed once and then scrubbed. */
   jumpTarget: string | null
+  /** A focus consumer acknowledges only the target it actually found and focused. */
+  consumeJumpTarget: (target: string) => void
 }
 
 export function useOpenPanels(
@@ -181,6 +183,16 @@ export function useOpenPanels(
 
   const isOpen = useCallback((id: string) => openNow.includes(id as PanelId), [openNow])
 
+  // URL scrubbing and focus consumption are separate acknowledgements. The former prevents a
+  // reload from replaying `at`; the latter prevents an unrelated data refresh from stealing focus
+  // after the destination component already handled it. A missing target is deliberately retained
+  // so it can still be handled if its data arrives later.
+  const consumeJumpTarget = useCallback((target: string) => {
+    setState((current) =>
+      current.jumpTarget === target ? { ...current, jumpTarget: null } : current,
+    )
+  }, [])
+
   // A pure updater — no side effects, so React may safely call it during render.
   const toggle = useCallback(
     (id: string) => {
@@ -202,11 +214,9 @@ export function useOpenPanels(
    * button returns them. `push` re-runs the server component — acceptable once per jump, and wrong
    * per toggle, which is the distinction D7a draws.
    *
-   * ⚑ NO CONSUMER YET. The only jump D7a specifies is Users → Roles & Access, and the Users panel
-   * arrives in PR 2b — so this path is unexercised in the browser today and its history-entry
-   * behaviour is asserted only at the serialisation level (`tests/unit/panelState.spec.ts`). §7
-   * assigns PR 1 a browser assertion for it, which PR 1 cannot honestly make; **PR 2b owns it**, and
-   * should drive a real jump before trusting this.
+   * The Users-panel grant link is the first real consumer. Its browser test asserts the destination
+   * group receives focus and Back restores the prior panel set, so the meaningful-history-entry
+   * claim is pinned at the rendered boundary rather than only in the serialisation unit tests.
    */
   const jumpTo = useCallback(
     (id: string, at?: string) => {
@@ -223,5 +233,5 @@ export function useOpenPanels(
     [openNow, router],
   )
 
-  return { isOpen, toggle, jumpTo, jumpTarget: state.jumpTarget }
+  return { consumeJumpTarget, isOpen, toggle, jumpTo, jumpTarget: state.jumpTarget }
 }

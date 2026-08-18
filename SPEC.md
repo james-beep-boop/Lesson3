@@ -36,8 +36,8 @@ Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RAC
 | App framework / backend | **Payload CMS** (MIT) — data model, auth, RBAC, versioning, admin UI, REST/GraphQL API |
 | Database | **PostgreSQL** (Payload's recommended production adapter) |
 | DOCX/PDF generation | **Reuse ARES's `cbe-generation-system`** (the `docx` npm package; `docx_kit.js`, `sections.js`, `build_docs.js`), embedded in-process |
-| Editor (phase 1) | **Payload admin edit screen** with field-level access control |
-| Editor (phase 2, only if needed) | Custom React editor on Payload's API |
+| Editing UI (phase 1) | **Payload admin edit screen** with field-level access control |
+| Editing UI (phase 2, only if needed) | Custom React editor on Payload's API |
 | Hosting | A **Node-capable host** (cloud VPS now; a local Node box for offline later) |
 
 **Why Payload + embedded generator:** the generator is the irreducible Node component and the product's whole reason for existing. Wrapping it in a Node app keeps everything in one runtime — `generateOne(dataObject)` is an in-process call, no second service, no PHP↔Node serialization. Payload then supplies, already-built-and-debugged, the parts we would otherwise hand-write: auth, users, **field-level RBAC**, **content versioning**, admin UI, API, media, migrations, and hooks. The custom remainder (editor UX, live preview, generator glue) is the same in any framework — so Payload removes plumbing rather than adding work.
@@ -48,10 +48,10 @@ Non-goals: not an LMS, not an offline content-distribution platform (Kolibri/RAC
 
 The product has **two front-ends over one Payload backend** (one runtime, one auth, one access layer):
 
-1. **The App** — a unified, role-aware front-of-house frontend (`app/src/app/(frontend)`) that **all four roles log into**, built on Payload's API + auth. It is the home for everything **common to all users**: browse/search lesson plans, view all versions, export/print, **email a document**, **internal messaging + notifications**, **translation** (e.g. Swahili), and **AI features** (summaries, etc.). Per the §13 minimal-UI principle it shows each role only what it can do. **Teachers — the majority — live entirely here** (they are intentionally excluded from `/admin`).
-2. **Payload `/admin`** — the **back-office** for the roles that manage content: structured editing (Phase 1), versioning, user/role/taxonomy management, ingest/upload. Editors & Subject Admins edit here; Site Admins administer here.
+1. **The App** — a unified, role-aware front-of-house frontend (`app/src/app/(frontend)`) that **all users log into**, built on Payload's API + auth. It is the home for everything **common to all users**: browse/search lesson plans, view all versions, export/print, **email a document**, **internal messaging + notifications**, **translation** (e.g. Swahili), and **AI features** (summaries, etc.). Per the §13 minimal-UI principle it shows each user only what they can do. **Teachers without an administrative role or editing access — the majority — live entirely here** (they are intentionally excluded from `/admin`).
+2. **Payload `/admin`** — the **back-office** for content-management work: structured editing (Phase 1), versioning, user/role/taxonomy management, ingest/upload. Teachers with editing access and Subject Administrators edit here; Site Administrators administer here.
 
-Rationale: the common features above are *product* features every role uses; giving teachers a separate app would force duplicating them (or making editors switch apps). One shared App + an admin back-office avoids that. This **resolves the former "editor placement" open decision** (start in `/admin`; a custom editor may later move editing into the App — SPEC §5 Phase 2) and confirms the §10 workflows as in-scope. It is a **Phase-2+ track** that does not block current `/admin` editing/publishing work.
+Rationale: the common features above are *product* features every user needs; giving teachers a separate app would force duplicating them (or making teachers with editing access switch apps). One shared App + an admin back-office avoids that. This **resolves the former "editing placement" open decision** (start in `/admin`; a custom editing UI may later move into the App — SPEC §5 Phase 2) and confirms the §10 workflows as in-scope. It is a **Phase-2+ track** that does not block current `/admin` editing/publishing work.
 
 ### Deployment modes and public discovery (decided 2026-08-12)
 
@@ -180,14 +180,14 @@ Lesson-content editing is offered only at **viewport width > 640px** (i.e. block
 - **Behaviour:** at 640px or narrower, **new edit intent is neutralised on initial load** (a mount-time JS guard; needed because `?edit=1` seeds `editing` during SSR, so CSS alone can't decide the mode without a hydration mismatch). **An edit session already underway is not cancelled when the viewport is resized** — the guard evaluates once on load, never on resize, so a user who narrows the window mid-edit keeps Save/Cancel. The CSS button↔notice swap is cosmetic; the guard is what decides edit mode.
 
 ### Field-level edit permissions (maps directly to Payload field access control)
-- **Editor (teacher):** prose values — `slo.*`, `overview`, `framework[].{learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment}`, `teacherReflection`, `summaryTablePrompt.*`, `SUMMARY_TABLE.lessons[].{observed, learned, explained}`, lesson `title`, `FINAL_EXPLANATION.instructions`, `sections[].prompt`.
+- **Teacher with editing access for the subject-grade:** prose values — `slo.*`, `overview`, `framework[].{learnerExperience, teacherMoves, sensemakingStrategy, formativeAssessment}`, `teacherReflection`, `summaryTablePrompt.*`, `SUMMARY_TABLE.lessons[].{observed, learned, explained}`, lesson `title`, `FINAL_EXPLANATION.instructions`, `sections[].prompt`.
 - **Subject Admin only:** `META.*` (except the identity fields below), `aresKeywords`, `framework[].phase`, `duration`, structural changes (add/remove/reorder lessons & phases), and **assessment answer keys** — `sections[].exemplar`, `rubric[*]`.
 - **Site Admin only (amended 2026-07-05):** `META.subject`, `META.grade`, `META.substrand_id` — corruption-repair fields, not curation. Subject/grade only label the printed document (the plan's `subjectGrade` relationship is the categorization truth, fixed at ingest), and `substrand_id` is the re-ingest matching key (§7) — a wrong edit silently redirects future re-uploads. A Subject Admin's submitted values are preserved from the source (`hooks/fieldSplit.ts`); the fields render read-only for them.
 - **System (never editable):** `LESSONS[].resourceLinks`; `LESSONS[].number` (set by order).
 
-> **Vocabulary note.** "Editor (teacher)" above names the *capability*, not a user type. In the UI this
-> capability is presented as **"editing access"** granted to a Teacher, never as an "Editor" type — see
-> §8's displayed-vocabulary note. The `editor` assignment value and the field access above are unchanged.
+> **Vocabulary note.** Editing is a *capability*, not a user type. It is presented as **"editing
+> access"** granted to a Teacher, never as an "Editor" account. The stored `editor` assignment value
+> is an implementation identifier retained for compatibility; it does not define a fourth type.
 
 ### Unsaved-work durability — edit recovery (amended 2026-07-20; reconciled 2026-08-05)
 
@@ -395,30 +395,29 @@ observable contract, and a failed or backed-off capture must say so rather than 
   only at create, so a self-service change would claim an unproven address); the verify
   endpoint is rate-capped site-globally.
 
-| Role | Scope |
+| User type | Scope |
 |---|---|
-| Teacher | Global (any signed-in user) — view/export only |
-| Editor | Per subject-grade — edit prose field values |
+| Teacher | Global baseline — view/export; may additionally hold editing access for specific subject-grades |
 | Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, manage scoped roles |
 | Site Administrator | Global — everything, incl. user/role/taxonomy management |
 
-- **Displayed vocabulary (presentation only, DESIGN-user-model-language 2026-07-29).** The table above
-  is the **authorization** model and is unchanged. To users it is presented as **three types** —
-  *Teacher*, *Subject-grade administrator*, *Site administrator* (sentence case). **"Editor" is not a
-  displayed type:** an `editor` grant is a per-subject-grade *capability*, so an editor-only user
-  displays as **Teacher** with a separate **"Editing access: …"** scope line; governance roles
-  (subject-grade / site admin) stay named types. The stored assignment value remains `'editor'` and
-  every access function is untouched — this is language/UI, not security. The accurate title
+- **Canonical user model (amended 2026-07-29; clarified 2026-08-17).** There are **three user types**:
+  *Teacher*, *Subject-grade administrator*, and *Site administrator* (sentence case). **"Editor" is
+  not a user type.** An `editor` assignment is a per-subject-grade *editing-access capability*, so a
+  Teacher who holds one remains a **Teacher** and shows a separate **"Editing access: …"** scope line.
+  The stored assignment value remains `'editor'` and the access functions continue to enforce it;
+  retaining that internal identifier does not restore the retired account class. The accurate title
   *Subject-grade administrator* is used wherever the scope is not shown beside it (the grant is one
   subject-grade, not a whole subject).
 - **Subject** = academic discipline only. **SubjectGrade** = subject + **integer** grade; the assignable unit roles attach to. Display as "Grade N". "Math Grade 4" and "Math Grade 5" are independent.
 - Per-subject-grade scoping is expressed inside Payload access functions.
-- Promoting a Subject Admin where one exists **auto-demotes** the prior holder to Editor for that subject-grade, in one transaction.
+- Promoting a Subject Admin where one exists **auto-demotes** the prior holder to a Teacher with editing access for that subject-grade, in one transaction.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
 - **Amended 2026-08-02 — one carve-out, for granting editing access.** A **Subject Administrator**
   sees the email addresses of the users listed in **Manage → Editing access** for their *own*
-  subject-grades: both the current editors and the candidates in the grant picker. Operator decision.
+  subject-grades: both the current editing-access holders and the candidates in the grant picker.
+  Operator decision.
   **Rationale:** granting editing access is an authorization decision, and a display name is not an
   identifier — two teachers can share one, so a name-only picker lets an administrator grant edit
   rights over a subject's content to the wrong person, with no way to notice. The address is the
@@ -427,10 +426,11 @@ observable contract, and a failed or backed-off capture must say so rather than 
   **Bounds — this is a carve-out, not a repeal.** `emailReadAccess` (the `users.email` field access)
   is UNCHANGED: still Site-Admin-or-self, so the REST/Local API and every other surface keep hiding
   addresses from Subject Admins. The carve-out is delivered by a trusted server-side projection in
-  the Manage view only. Editors and Teachers see no part of this section.
+  the Manage view only. Teachers without an administrative role see no part of this section.
   ⚑ **State the exposure honestly: the grant picker necessarily lists the WHOLE roster.** An earlier
   draft of this clause said the carve-out "reaches only the subject-grades that administrator already
-  administers." That is true of the *current editors* list, and FALSE of the *candidates* list: to
+  administers." That is true of the *current editing-access holders* list, and FALSE of the
+  *candidates* list: to
   grant access you must be able to pick anyone, so `addable` is every non-Site-Admin user with no
   assignment in that subject-grade — effectively every teacher in the system. A Subject Administrator
   therefore sees **every non-Site-Admin user's address**, not only those of people in their subjects.

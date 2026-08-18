@@ -94,7 +94,7 @@ describe('version immutability (Stage 2 model: no in-place updates)', () => {
 })
 
 describe('version deletion scope (authorship — IA redesign 2026-07-01)', () => {
-  it('Editor CAN delete a non-Official candidate they authored', async () => {
+  it('A teacher with editing access CAN delete a non-Official candidate they authored', async () => {
     const wc = await makeWorkingCopy('2.0.1', fx.users.editor.id)
     await expect(
       fx.payload.delete({
@@ -106,7 +106,7 @@ describe('version deletion scope (authorship — IA redesign 2026-07-01)', () =>
     ).resolves.toBeTruthy()
   })
 
-  it('Editor CANNOT delete an AUTHORLESS candidate (pre-authorship → admin-only)', async () => {
+  it('A teacher with editing access CANNOT delete an AUTHORLESS candidate (pre-authorship → admin-only)', async () => {
     const wc = await makeWorkingCopy('2.0.2')
     await expect(
       fx.payload.delete({
@@ -119,7 +119,7 @@ describe('version deletion scope (authorship — IA redesign 2026-07-01)', () =>
     await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
   })
 
-  it("Editor CANNOT delete another user's candidate", async () => {
+  it("A teacher with editing access CANNOT delete another user's candidate", async () => {
     const wc = await makeWorkingCopy('2.0.3', fx.users.subjectAdmin.id)
     await expect(
       fx.payload.delete({
@@ -145,7 +145,7 @@ describe('version deletion scope (authorship — IA redesign 2026-07-01)', () =>
   })
 })
 
-// NOTE: the Editor prose-only field-split and the stale-source guard now live on the save-as-new write
+// NOTE: the teacher with editing access prose-only field-split and the stale-source guard now live on the save-as-new write
 // path (POST /:id/save-as-new), not an in-place update — so they're covered over HTTP in
 // tests/http/endpoints.http.spec.ts, not here.
 
@@ -494,7 +494,7 @@ describe('Server-side invariants (Bucket A)', () => {
 
 describe('People rules (SPEC §8)', () => {
   it('keeps ≤1 Subject Admin per SubjectGrade (fixture editor was auto-demote-safe)', async () => {
-    // Promote the fixture Editor to subjectAdmin → the existing subjectAdmin must be demoted.
+    // Promote the fixture editing-access user to subjectAdmin → the existing subjectAdmin must be demoted.
     await fx.payload.update({
       collection: 'users',
       id: fx.users.editor.id,
@@ -548,7 +548,7 @@ describe('People rules (SPEC §8)', () => {
 
   it("Subject Admin cannot change a Site Admin's assignment rows (Codex round-3 #2)", async () => {
     // roles is field-hidden from Subject Admins, so the SERVER owns this rule (enforceAssignmentScope)
-    // for every write path — a stale/hostile client cannot add an Editor row to a Site Admin.
+    // for every write path — a stale/hostile client cannot add a teacher with editing access row to a Site Admin.
     await expect(
       fx.payload.update({
         collection: 'users',

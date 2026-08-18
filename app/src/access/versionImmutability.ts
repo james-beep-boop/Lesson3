@@ -5,7 +5,7 @@
  * mechanism: an update-access grant that must never be read as permission to write.
  *
  * The product rule (SPEC §6): a saved lesson-plan version is an IMMUTABLE snapshot. Authoring goes
- * through `POST /:id/save-as-new` (a CREATE applying the Editor field-split); nothing is ever
+ * through `POST /:id/save-as-new` (a CREATE applying the teacher with editing access field-split); nothing is ever
  * written back to an existing row, so retained versions stay byte-stable and the Official pointer
  * always names exactly the content it named yesterday.
  *
@@ -14,7 +14,7 @@
  * source). The editing UX needs the form typeable (LessonControls' Edit/Save drive save-as-new),
  * so:
  *
- *  - {@link versionUpdateGrantForFormRenderOnly} (`access.update`) answers "yes" for Editors and
+ *  - {@link versionUpdateGrantForFormRenderOnly} (`access.update`) answers "yes" for teachers with editing access and
  *    Subject Admins in their subject-grades — ONLY so Payload renders the form editable. IT IS NOT
  *    A WRITE GRANT: nothing may cite it as authorization to persist an update, and reusing it in
  *    another access decision is a bug.
@@ -36,7 +36,7 @@ import { isSiteAdmin, subjectGradeIdsByRole } from './index'
 
 /**
  * `access.update` for lesson-bundle-versions — a FORM-RENDER grant, not a write grant (see the
- * module block). Scope mirrors delete: Editors + Subject Admins in their subject-grades, Site
+ * module block). Scope mirrors delete: teachers with editing access + Subject Admins in their subject-grades, Site
  * Admin everywhere. Every write this appears to allow is rejected by {@link enforceVersionImmutable}.
  */
 export const versionUpdateGrantForFormRenderOnly: Access = ({ req: { user } }) => {

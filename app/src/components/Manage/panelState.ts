@@ -21,14 +21,15 @@
  * ⚑ These are a URL CONTRACT, not internal names: they appear in bookmarks and shared links, so
  * renaming one silently breaks a link that used to work. `versions` is deliberately not `saved` —
  * the same panel is titled "Candidate versions" for administrators and "My saved versions" for
- * Editors, and an id must not encode one role's label.
+ * Teachers with editing access, and an id must not encode one role's label.
  *
- * `curriculum` is transitional: PRs 2b/3 dissolve it into `users`, `subjects` and `subject-grades`
- * as those panels replace the three links it holds today. When that lands, a stale
+ * `curriculum` is transitional: PR 2b moved Users out; PR 3 dissolves the remaining Subjects and
+ * Subject Grades links into their own panels. When that lands, a stale
  * `?open=curriculum` degrades to "nothing opened" through the scrub rule below rather than erroring
  * — which is exactly why the scrub rule exists.
  */
 export const PANEL_IDS = [
+  'users',
   'curriculum',
   'access',
   'plans',
@@ -51,6 +52,18 @@ export const AT_PARAM = 'at'
  * ignored just like unknown panel ids rather than handed to a future selector or focus lookup.
  */
 const AT_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
+
+/**
+ * The `at` anchor for one subject-grade's Editing-access group.
+ *
+ * ⚑ THE GRAMMAR IS DECIDED HERE, not spelled inline at each end. The widget WRITES this id onto its
+ * group heading and the Users panel's grant rows LINK to it, in different component trees — so the
+ * literal `sg-${id}` was a contract held together by two files agreeing on a template string. It
+ * fails silently in exactly one direction: a renamed prefix leaves the jump landing on nothing, with
+ * no error and a URL that still looks right. It belongs beside `AT_PATTERN`, which is the other half
+ * of the same grammar, and its output is deliberately within that pattern.
+ */
+export const subjectGradeAnchor = (subjectGradeId: number): string => `sg-${subjectGradeId}`
 
 /** Parse a one-shot nested target from a query string, rejecting unsafe or unbounded ids. */
 export function parseAt(search: string): string | null {
@@ -150,7 +163,7 @@ export function serialiseOpen(pathname: string, search: string, open: readonly s
  *
  *   1. A valid `?open=` wins outright: a deep link or a reload restores exactly what was open.
  *   2. Otherwise, a role seeing exactly ONE top-level section gets it expanded, so nobody clicks to
- *      reveal their only panel (an Editor's "My saved versions" is the whole page).
+ *      reveal their only panel (a teacher with editing access's "My saved versions" is the whole page).
  *   3. Otherwise nothing is open. Multi-section roles start collapsed — that IS the redesign; the
  *      operator's brief was that the page grows long and unwieldy.
  *

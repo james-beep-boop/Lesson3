@@ -225,7 +225,7 @@ describe('publication field access', () => {
    * ⚑ ASSERTS THE OUTCOME, NOT THE MECHANISM — because the two differ by role, and only the outcome
    * is the security property.
    *
-   * An Editor and a Teacher are stopped by COLLECTION access (`lessonPlanUpdate` admits Site and
+   * A teacher with editing access and a Teacher are stopped by COLLECTION access (`lessonPlanUpdate` admits Site and
    * Subject Admins only), so their write throws. A Subject Administrator passes that gate and is
    * stopped by FIELD access instead — and Payload's behaviour there is to SILENTLY STRIP the field
    * it will not let you write, so the update RESOLVES, reporting success, having quietly not

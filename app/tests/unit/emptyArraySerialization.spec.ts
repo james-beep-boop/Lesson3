@@ -1,12 +1,12 @@
 /**
- * The Editor structural guard against a submitted array field that is NOT an array.
+ * The editing-access structural guard against a submitted array field that is NOT an array.
  *
  * Why one can arrive at all — Payload posts an empty array field as the number `0` — is documented on
  * `submittedRows` in src/hooks/fieldSplit.ts, which is also where the accept/reject rule lives.
  *
  * This suite pins BOTH halves, because fixing only the crash would be easy to get dangerously wrong.
- * The guard is a security control (Editors may not change structure), so:
- *   - `0` must be accepted, or no Editor can save a bundle with an empty optional array (the 500);
+ * The guard is a security control (teachers with editing access may not change structure), so:
+ *   - `0` must be accepted, or nobody with editing access can save a bundle with an empty optional array (the 500);
  *   - every OTHER non-array must be REJECTED, not read as "no rows" — otherwise junk passes silently
  *     whenever the stored field happens to be empty, and a future client-side serialization change
  *     hides instead of failing loudly.
@@ -132,7 +132,7 @@ describe('submitted array field that is not an array', () => {
   })
 
   it('normalizes the sentinel for ADMINS too, so the no-op guard still works', () => {
-    // Admins return before the Editor guard, so nothing down there can help them. Left as `0`, the
+    // Admins return before the teacher with editing access guard, so nothing down there can help them. Left as `0`, the
     // merged doc differs from the source under `comparableContent` (canonicalJson: `0` is never
     // `[]`), and endpoints/versionEdit.ts mints a byte-identical duplicate version instead of
     // returning 400 for a save that changed nothing. Both admin roles, since they fork separately.

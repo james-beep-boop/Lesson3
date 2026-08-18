@@ -8,7 +8,7 @@ import type { User } from '@/payload-types'
  *  - Site Administrator  — global; `roles` includes 'siteAdmin'. Can do everything.
  *  - Subject Administrator — per subject-grade; an `assignments[]` row with role
  *    'subjectAdmin'. Structural + admin-only fields, mark official, scoped role mgmt.
- *  - Editor — per subject-grade; an `assignments[]` row with role 'editor'. Prose values.
+ *  - editing access — per subject-grade; an `assignments[]` row with role 'editor'. Prose values.
  *  - Teacher — any authenticated user with no grant. View/export only (implicit default).
  *
  * `req.user` is the full user document (the JWT strategy re-fetches it via findByID),
@@ -46,7 +46,7 @@ export const isSubjectAdminFor = (
   isSiteAdmin(user) ||
   assignmentsForSubjectGrade(user, subjectGradeId).some((a) => a.role === 'subjectAdmin')
 
-/** Site admin, Subject Admin, or Editor for this subject-grade (anyone who may edit prose). */
+/** Site admin, Subject Admin, or a teacher with editing access for this subject-grade (anyone who may edit prose). */
 export const isEditorFor = (
   user: User | null | undefined,
   subjectGradeId: number | undefined,
@@ -83,7 +83,7 @@ export const siteAdminOnly: Access = ({ req: { user } }) => isSiteAdmin(asUser(u
 
 /**
  * Who may use the Payload admin panel (SPEC §5): Site Admins + anyone holding a subject-grade
- * assignment (Editor / Subject Admin). Plain Teachers (authenticated, no grant) are excluded.
+ * assignment (editing access / Subject Admin). Plain Teachers (authenticated, no grant) are excluded.
  * Exposed as a plain `User` predicate so "The App" nav can reuse the *same* rule — keeping the
  * Admin link's visibility tracking panel access exactly (no forbidden controls, §13).
  */

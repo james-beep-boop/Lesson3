@@ -29,6 +29,9 @@ function Probe({ revision = 0 }: { revision?: number }) {
       <button type="button" onClick={() => panels.jumpTo('access', 'sg-12')}>
         Jump
       </button>
+      <button type="button" onClick={() => panels.consumeJumpTarget('sg-12')}>
+        Consume
+      </button>
       <output data-testid="access-open">{String(panels.isOpen('access'))}</output>
       <output data-testid="jump-target">{panels.jumpTarget ?? ''}</output>
     </div>
@@ -77,17 +80,34 @@ describe('jump navigation', () => {
     view.rerender(<Probe revision={2} />)
     expect(screen.getByTestId('jump-target').textContent).toBe('sg-12')
 
+    // The focus consumer acknowledges the target only after it finds and focuses the destination.
+    // A later rerender must not replay that instruction and steal focus from an active control.
+    fireEvent.click(screen.getByRole('button', { name: 'Consume' }))
+    expect(screen.getByTestId('jump-target').textContent).toBe('')
+    view.rerender(<Probe revision={3} />)
+    expect(screen.getByTestId('jump-target').textContent).toBe('')
+
+    // The same target remains reusable: a later deliberate jump carrying a fresh `at` is a new
+    // instruction, even though the open-panel set is unchanged.
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }))
+    const secondDestination = String(navigation.push.mock.calls[1]![0])
+    window.history.pushState(null, '', secondDestination)
+    view.rerender(<Probe revision={4} />)
+    await waitFor(() => expect(screen.getByTestId('jump-target').textContent).toBe('sg-12'))
+    fireEvent.click(screen.getByRole('button', { name: 'Consume' }))
+    expect(screen.getByTestId('jump-target').textContent).toBe('')
+
     // A genuine history arrival has a different semantic location and must still restore its own
     // disclosure state rather than being mistaken for the `at` scrub above.
     window.history.replaceState(null, '', '/admin?open=plans')
-    view.rerender(<Probe revision={3} />)
+    view.rerender(<Probe revision={5} />)
     expect(screen.getByTestId('access-open').textContent).toBe('false')
     expect(screen.getByTestId('jump-target').textContent).toBe('')
 
     // Even when panel state is otherwise unchanged, a client arrival carrying an unsafe target is
     // scrubbed rather than being left in the address bar for a future focus consumer.
     window.history.pushState(null, '', '/admin?open=plans&at=not%20an%20id')
-    view.rerender(<Probe revision={4} />)
+    view.rerender(<Probe revision={6} />)
     await waitFor(() => expect(window.location.search).not.toContain('at='))
     expect(screen.getByTestId('jump-target').textContent).toBe('')
   })

@@ -1,7 +1,7 @@
 /**
  * POST /api/lesson-plans/:id/request-editing (teacher-first T3, DECISIONS 2026-07-08 §6).
  *
- * A viewer asks for Editor access to this plan's subject-grade. The server composes a standard
+ * A viewer asks for editing access to this plan's subject-grade. The server composes a standard
  * internal message to the subject-grade's Subject Admin plus every Site Admin — the roster is
  * deliberately names-only (SPEC §8), so a teacher CANNOT know who the admins are; resolving the
  * recipients is this endpoint's one privileged step. The messages themselves are created AS THE

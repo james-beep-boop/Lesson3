@@ -45,7 +45,7 @@ export interface LessonRow extends CurriculumRow {
   deliverables?: DeliverableTag[]
   /** Total versions of this plan (PR ②) — drives the `[N versions ▾]` chip (only when 2+). */
   versionCount?: number
-  /** Whether the CALLER may edit this row's subject-grade (PR ②) — the chip is Editor+-only. */
+  /** Whether the CALLER may edit this row's subject-grade (PR ②) — the chip is editing-access-and-above only. */
   canEdit?: boolean
   /** "My favorites" as a list of VERSIONS (PR ②): set on a row representing a PINNED non-Official
    *  favorite — display suffix + the ?version= link target. */

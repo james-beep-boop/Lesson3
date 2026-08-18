@@ -65,7 +65,7 @@ export const lessonBundleVersionCreate: Access = () => false
 // Read that module's header before touching anything about version updates.
 
 // Deletion scope (IA redesign 2026-07-01): Site Admin — anything; Subject Admin — any candidate in
-// their subject-grades; Editor — ONLY candidates they personally authored (`author` = self, stamped by
+// their subject-grades; editing access — ONLY candidates they personally authored (`author` = self, stamped by
 // save-as-new) in their subject-grades. Versions predating authorship tracking have `author` = null and
 // are therefore admin-only-deletable (decided: strict, no scope fallback). The Official version is never
 // deletable — `enforceOfficialNotDeletable` (beforeDelete) blocks it regardless of this grant.
@@ -90,11 +90,11 @@ export const lessonBundleVersionDelete: Access = ({ req: { user } }) =>
 
 /**
  * Per-DOCUMENT form of `deletableVersionsWhere` — the SAME policy evaluated against one version's
- * fields instead of as a query (Site Admin → any; Subject Admin → any in their sg; Editor → ONLY a
+ * fields instead of as a query (Site Admin → any; Subject Admin → any in their sg; editing access → ONLY a
  * version they authored in their editor sg). The client (LessonControls) can't run a `Where`, so it
  * uses this to decide whether to OFFER Delete; keeping both forms here, adjacent, is what the
  * "never drift" invariant above requires. Authorship ALONE is not enough — a since-demoted author who
- * is no longer an Editor for the sg is refused, matching the server. The Official-not-deletable rule
+ * is no longer a teacher with editing access for the sg is refused, matching the server. The Official-not-deletable rule
  * is separate (`enforceOfficialNotDeletable`); callers gate on that too.
  */
 export const canDeleteVersionDoc = (
@@ -104,7 +104,7 @@ export const canDeleteVersionDoc = (
   const sgId = toId(version.subjectGrade as Assignment['subjectGrade'])
   // Site Admin (any sg) or Subject Admin of this sg → any candidate.
   if (isSubjectAdminFor(u, sgId)) return true
-  // Editor of this sg → only a candidate they authored.
+  // a teacher with editing access for this sg → only a candidate they authored.
   return (
     sgId != null &&
     subjectGradeIdsByRole(u, ['editor']).includes(sgId) &&

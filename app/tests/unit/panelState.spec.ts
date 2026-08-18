@@ -27,6 +27,7 @@ import {
 
 /** Everything a Site Admin's page can render, which is the widest `available` in the product. */
 const SITE_ADMIN = [
+  'users',
   'curriculum',
   'access',
   'plans',
@@ -162,7 +163,7 @@ describe('initialOpen', () => {
   })
 
   it('a role with exactly ONE top-level section gets it expanded', () => {
-    // An Editor: "My saved versions" is the whole page, so nobody clicks to reveal their only panel.
+    // A teacher with editing access: "My saved versions" is the whole page, so nobody clicks to reveal their only panel.
     expect(initialOpen('', ['versions'])).toEqual(['versions'])
   })
 

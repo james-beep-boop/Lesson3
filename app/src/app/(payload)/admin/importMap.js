@@ -3,6 +3,7 @@ import { default as default_b05f13962071af295724d75873776e05 } from '@/component
 import { default as default_d53377545c60cf2eb8a7ca799edfb528 } from '@/components/SubjectSelectField'
 import { default as default_d4655109717a6f5707cd0a6520a4fd9e } from '@/components/RowLabel'
 import { default as default_1977dab3faaeed591047a7da1ebb7030 } from '@/components/LessonControls'
+import { RedirectUsersToManage as RedirectUsersToManage_e185546b7ba48bca827c8e3f7a96ac79 } from '@/components/RedirectToManage'
 import { default as default_dc44d321c241d781a4edae652eb0753a } from '@/components/AdminHeaderMenu'
 import { default as default_79e6734a5c9b4ec0de2f6598950b4867 } from '@/components/Brand/Icon'
 import { default as default_995be77b64d8095bd75b1d6ef6b05821 } from '@/components/IdleLogout'
@@ -17,6 +18,7 @@ export const importMap = {
   "@/components/SubjectSelectField#default": default_d53377545c60cf2eb8a7ca799edfb528,
   "@/components/RowLabel#default": default_d4655109717a6f5707cd0a6520a4fd9e,
   "@/components/LessonControls#default": default_1977dab3faaeed591047a7da1ebb7030,
+  "@/components/RedirectToManage#RedirectUsersToManage": RedirectUsersToManage_e185546b7ba48bca827c8e3f7a96ac79,
   "@/components/AdminHeaderMenu#default": default_dc44d321c241d781a4edae652eb0753a,
   "@/components/Brand/Icon#default": default_79e6734a5c9b4ec0de2f6598950b4867,
   "@/components/IdleLogout#default": default_995be77b64d8095bd75b1d6ef6b05821,

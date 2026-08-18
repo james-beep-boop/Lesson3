@@ -2,10 +2,10 @@
  * `canDeleteVersionDoc` — the per-document form of the version-deletion scope, DB-free.
  *
  * It MUST stay in lockstep with `deletableVersionsWhere` (the Where form the server access function +
- * the Manage list query use): Site Admin → any; Subject Admin → any in their sg; Editor → ONLY a
+ * the Manage list query use): Site Admin → any; Subject Admin → any in their sg; editing access → ONLY a
  * version they authored in their editor sg. The client (LessonControls) can't run a Where, so it uses
  * this to decide whether to OFFER Delete — a drift here shows a destructive button that then 403s.
- * The load-bearing case is the LAST one: authorship alone must NOT grant delete once the Editor role
+ * The load-bearing case is the LAST one: authorship alone must NOT grant delete once the teacher with editing access role
  * for that sg is gone (a since-demoted author retaining a role elsewhere).
  */
 import { describe, it, expect } from 'vitest'
@@ -31,18 +31,18 @@ describe('canDeleteVersionDoc', () => {
     expect(canDeleteVersionDoc(u, { subjectGrade: SG, author: 999 })).toBe(true)
   })
 
-  it('Editor of the sg can delete a version they authored', () => {
+  it('A teacher with editing access for the sg can delete a version they authored', () => {
     const u = user({ assignments: [{ subjectGrade: SG, role: 'editor' }] })
     expect(canDeleteVersionDoc(u, version)).toBe(true)
   })
 
-  it('Editor of the sg CANNOT delete a version authored by someone else', () => {
+  it('A teacher with editing access for the sg CANNOT delete a version authored by someone else', () => {
     const u = user({ assignments: [{ subjectGrade: SG, role: 'editor' }] })
     expect(canDeleteVersionDoc(u, { subjectGrade: SG, author: 999 })).toBe(false)
   })
 
-  it('role loss: an author who is no longer an Editor for the sg cannot delete it', () => {
-    // Authored the version while an Editor for SG, since reassigned to only OTHER_SG. Server refuses,
+  it('role loss: an author who is no longer a teacher with editing access for the sg cannot delete it', () => {
+    // Authored the version while a teacher with editing access for SG, since reassigned to only OTHER_SG. Server refuses,
     // so the client must not offer Delete (the drift GPT flagged).
     const u = user({ assignments: [{ subjectGrade: OTHER_SG, role: 'editor' }] })
     expect(canDeleteVersionDoc(u, version)).toBe(false)
