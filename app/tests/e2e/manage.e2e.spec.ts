@@ -789,7 +789,7 @@ test.describe('Manage page', () => {
         row.getByRole('button', { name: 'Make Site Administrator', exact: true }).click(),
       )
       expect(grantPrompt).toContain(
-        `Grant Site Administrator to ${MANAGE_USER_RENAMED} (${MANAGE_USER_EMAIL})?`,
+        `Grant Site Administrator to ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
       )
       await expect(
         row.getByRole('button', { name: 'Remove Site Administrator', exact: true }),
@@ -800,7 +800,7 @@ test.describe('Manage page', () => {
         row.getByRole('button', { name: 'Remove Site Administrator', exact: true }).click(),
       )
       expect(revokePrompt).toContain(
-        `Remove Site Administrator from ${MANAGE_USER_RENAMED} (${MANAGE_USER_EMAIL})?`,
+        `Remove Site Administrator from ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
       )
       await expect(
         row.getByRole('button', { name: 'Make Site Administrator', exact: true }),
@@ -811,7 +811,7 @@ test.describe('Manage page', () => {
         row.getByRole('button', { name: 'Disable sign-in', exact: true }).click(),
       )
       expect(disablePrompt).toContain(
-        `Disable sign-in for ${MANAGE_USER_RENAMED} (${MANAGE_USER_EMAIL})?`,
+        `Disable sign-in for ${MANAGE_USER_RENAMED} — ${MANAGE_USER_EMAIL}?`,
       )
       expect(disablePrompt).toContain('Every live session will end immediately.')
       await expect(row.locator('.lp-users__summary-meta')).toContainText('Sign-in disabled')
