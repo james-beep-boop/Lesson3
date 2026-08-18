@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-17 — a wire contract cannot depend on JavaScript constructor identity
+
+PR 2a's first `ACCOUNT_DISABLED` contract test passed while the production HTTP path was broken.
+The test created an `APIError` subclass and called Payload's `formatErrors` from the same module
+instance, so `incoming instanceof APIError` was guaranteed true. Next's production server bundle
+loaded the error and formatter through different chunks: the object kept its status, message and
+public `data`, but failed that constructor-identity check, so Payload dropped `data.code` from the
+wire response. Disabled users were consequently shown the ordinary bad-password or expired-link
+copy even though every unit test was green.
+
+**Decision:** cross-boundary error handling uses a narrow structural contract, never constructor
+identity alone. `preserveAccountDisabledWire` is registered as the Users collection's `afterError`
+hook and preserves only the exact public 403/`ACCOUNT_DISABLED` shape. Generic 403s keep Payload's
+normal formatting. The regression suite includes both halves that the original test missed:
+
+- an error-shaped value that is deliberately **not** an `instanceof APIError` still serialises the
+  code; and
+- a DB-free wiring test fails if the `afterError` registration is removed.
+
+The production HTTP suite remains the authoritative proof. Unit tests can pin the structural repair
+and its registration, but they cannot prove two bundled call sites share—or do not share—a module
+realm. This is also why CI must be watched to completion before a wire-contract change is reported
+ready; both pre-repair pushes were locally green and remotely red.
+
+---
+
 ## 2026-08-17 — the accordion shell: three browser questions answered, and two defects only a browser could find
 
 PR 1 of `docs/DESIGN-manage-accordion-2026-08-16.md`. Its stated purpose was to settle what no amount
@@ -117,8 +143,8 @@ form-control half of that list alongside `.lp-manage__select` and `.lp-admin-lis
 
 - **Panel ids are a URL contract**: `curriculum`, `access`, `plans`, `plans.upload`, `plans.delete`,
   `plans.repair`, `versions`. `versions` rather than `saved`, because the same panel is titled
-  "Candidate versions" for administrators and "My saved versions" for Editors — an id must not encode
-  one role's label. `curriculum` is transitional and dissolves in PRs 2b/3; a stale link then degrades
+  "Candidate versions" for administrators and "My saved versions" for Teachers with editing access —
+  an id must not encode one user's label. `curriculum` is transitional and dissolves in PRs 2b/3; a stale link then degrades
   through the scrub rule instead of erroring, which is what that rule is for.
 - **Initial state**: a valid `?open=` wins; otherwise a role with exactly ONE top-level section gets
   it expanded; otherwise nothing opens. **Nested panels are never auto-opened, including Upload.**
