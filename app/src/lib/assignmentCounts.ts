@@ -69,3 +69,37 @@ export async function assignmentCountsBySubjectGrade(
   }
   return counts
 }
+
+/**
+ * ⚑ THE SENTENCE THE SUBJECT-GRADES PANEL EXISTS TO SAY. `guardSubjectGradeDelete` refuses a delete
+ * that would orphan lesson plans or versions, but role assignments do NOT block it — they are
+ * CASCADED, stripped from every holder without a word. That is deliberate and predates the panel;
+ * what the panel changes is reach, which is the situation the design doc's §2.8 names ("these gaps
+ * matter more once a convenient delete button exists"). An administrator may still choose to delete
+ * — that is their call — but revoking three teachers' editing access should not be something they
+ * discover afterwards.
+ *
+ * ⚑ IT LIVES HERE, NOT IN THE PANEL, so it can be tested as what it is. Inside the component it was
+ * reachable only through an import that drags `@payloadcms/ui` (and its CSS) into a DB-free unit
+ * config, which pushed its coverage into the E2E — where the first attempt asserted "1 person loses
+ * editing access" and was really counting how many accounts that spec happened to seed. Agreement
+ * between a number and its verb is logic, and it belongs beside the counts it describes.
+ */
+export function deleteConsequences({
+  displayName,
+  assignments,
+}: {
+  displayName: string
+  assignments: AssignmentCounts
+}): string {
+  const losses = [
+    assignments.editors > 0 &&
+      `${assignments.editors} ${assignments.editors === 1 ? 'person loses' : 'people lose'} editing access`,
+    assignments.subjectAdmins > 0 &&
+      `${assignments.subjectAdmins} Subject ${assignments.subjectAdmins === 1 ? 'Administrator is' : 'Administrators are'} demoted`,
+  ].filter((line): line is string => line !== false)
+
+  return losses.length === 0
+    ? `Delete ${displayName}? This cannot be undone.`
+    : `Delete ${displayName}? ${losses.join(' and ')}. This cannot be undone.`
+}

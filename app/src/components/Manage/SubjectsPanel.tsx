@@ -119,7 +119,11 @@ export function SubjectsPanel({ subjects }: { subjects: SubjectRow[] }) {
 
   return (
     <div className="lp-taxonomy">
-      <form className="lp-taxonomy__create" onSubmit={add}>
+      {/* ⚑ NAMED. Both taxonomy panels are mounted at once (the accordion hides, it does not
+          unmount), so this page carries two create forms whose first control is labelled "Subject".
+          Without a name on the form they are indistinguishable — in a screen reader's form list, and
+          to any locator that has to pick one. */}
+      <form className="lp-taxonomy__create" aria-label="Add a subject" onSubmit={add}>
         <label className="lp-taxonomy__field">
           <span className="lp-taxonomy__label">New subject</span>
           <input

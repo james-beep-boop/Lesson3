@@ -920,8 +920,14 @@ test.describe('Manage page', () => {
        * when nothing is watching).
        */
       const prompt = await acceptConfirmation(page, () => remove.click())
-      expect(prompt).toContain('1 person loses editing access')
-      expect(prompt).toContain('1 Subject Administrator is demoted')
+      // ⚑ STRUCTURE, NOT A CENSUS. The first draft asserted "1 person loses editing access" and CI
+      // returned "2 people lose…" — the FEATURE was right and the assertion was counting fixtures.
+      // How many accounts this spec happens to seed with a grant is not what the warning is for, and
+      // pinning it means any future fixture breaks a test about a sentence. The pluralisation itself
+      // is pinned properly in tests/unit/subjectGradeDelete.spec.ts, where it is a pure function.
+      expect(prompt).toMatch(/\d+ (person loses|people lose) editing access/)
+      expect(prompt).toMatch(/\d+ Subject Administrators? (is|are) demoted/)
+      expect(prompt).toContain('This cannot be undone.')
 
       // The delete then FAILS on the content guard, and its 409 text — not a generic failure — is
       // what the panel renders. `Manage → Delete lesson plans` is the actionable part of that
@@ -946,7 +952,10 @@ test.describe('Manage page', () => {
        * SubjectGrade.ts). This asserts the readable message actually lands in the panel, which is the
        * only place that regression would ever be visible again.
        */
-      const create = page.locator('.lp-taxonomy__create').first()
+      // ⚑ BY NAME, not `.first()`. Both taxonomy panels stay MOUNTED while collapsed, so `.first()`
+      // resolved to the Subjects panel's create form — hidden, so the action timed out after 30s
+      // against an element that was never the intended one.
+      const create = page.getByRole('form', { name: 'Add a subject grade' })
       await create.getByLabel('Subject').selectOption({ label: `${MARK}Biology` })
       await create.getByLabel('Grade').fill('99')
       await create.getByRole('button', { name: 'Add subject grade' }).click()

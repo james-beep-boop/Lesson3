@@ -9,7 +9,7 @@
 import React, { useMemo, useState } from 'react'
 import { Button } from '@payloadcms/ui'
 
-import type { AssignmentCounts } from '../../lib/assignmentCounts'
+import { deleteConsequences, type AssignmentCounts } from '../../lib/assignmentCounts'
 import { useTaxonomyActions } from './taxonomyActions'
 import type { SubjectRow } from './SubjectsPanel'
 
@@ -20,30 +20,6 @@ export interface SubjectGradeRow {
   grade: number
   /** Who would lose a grant if this row were deleted — see `deleteConsequences` below. */
   assignments: AssignmentCounts
-}
-
-/**
- * ⚑ THE SENTENCE THIS PANEL EXISTS TO SAY. `guardSubjectGradeDelete` refuses a delete that would
- * orphan lesson plans or versions, but role assignments do NOT block it — they are CASCADED, stripped
- * from every holder without a word. That behaviour is deliberate and predates this panel; what this
- * panel changes is that the cascade now sits behind a convenient button, which is precisely the
- * situation the design doc's §2.8 flags ("these gaps matter more once a convenient delete button
- * exists").
- *
- * So the confirmation names it. An administrator may still choose to delete — that is their call —
- * but revoking three teachers' editing access should not be something they discover afterwards.
- */
-export function deleteConsequences({ displayName, assignments }: SubjectGradeRow): string {
-  const losses = [
-    assignments.editors > 0 &&
-      `${assignments.editors} ${assignments.editors === 1 ? 'person loses' : 'people lose'} editing access`,
-    assignments.subjectAdmins > 0 &&
-      `${assignments.subjectAdmins} Subject ${assignments.subjectAdmins === 1 ? 'Administrator is' : 'Administrators are'} demoted`,
-  ].filter((line): line is string => line !== false)
-
-  return losses.length === 0
-    ? `Delete ${displayName}? This cannot be undone.`
-    : `Delete ${displayName}? ${losses.join(' and ')}. This cannot be undone.`
 }
 
 function SubjectGradeItem({
@@ -173,7 +149,11 @@ export function SubjectGradesPanel({
 
   return (
     <div className="lp-taxonomy">
-      <form className="lp-taxonomy__create" onSubmit={add}>
+      {/* ⚑ NAMED. Both taxonomy panels are mounted at once (the accordion hides, it does not
+          unmount), so this page carries two create forms whose first control is labelled "Subject".
+          Without a name on the form they are indistinguishable — in a screen reader's form list, and
+          to any locator that has to pick one. */}
+      <form className="lp-taxonomy__create" aria-label="Add a subject grade" onSubmit={add}>
         <label className="lp-taxonomy__field">
           <span className="lp-taxonomy__label">Subject</span>
           <select
