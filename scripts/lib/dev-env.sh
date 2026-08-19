@@ -101,7 +101,16 @@ dev_warn_stuck_transactions() {
   # pile-up bad enough to exhaust `max_connections` makes psql fail FAST with "too many clients", which
   # discarded looks identical to "found nothing" — silence in precisely the worst case. Still never
   # blocks; it just says which of the two happened.
-  report="$("${DEV_COMPOSE[@]}" exec -T -e PGCONNECT_TIMEOUT=5 \
+  # ⚑ THE ASSIGNMENT IS THE `if` CONDITION, and that is load-bearing rather than stylistic. Both
+  # callers run `set -euo pipefail`, under which a bare `report="$(failing-command)"` EXITS THE SHELL
+  # before the next line can read `$?` — so a psql that could not run would have killed the dev server
+  # it was only supposed to warn about, inverting this function's one promise. Inside an `if`
+  # condition, errexit is suppressed and the else branch gets the status.
+  #
+  # ⚑ My own test of "warns, never blocks" missed it, and the reason is worth keeping: it invoked the
+  # function from a shell WITHOUT errexit. Same shape as testing this file's earlier guard from zsh
+  # when the scripts are bash — a guard exercised under conditions the caller does not use is untested.
+  if report="$("${DEV_COMPOSE[@]}" exec -T -e PGCONNECT_TIMEOUT=5 \
     -e "PGOPTIONS=-c statement_timeout=5000" postgres \
     psql -U lesson3 -d lesson3 -tAc "
     SELECT string_agg(line, E'\n') FROM (
@@ -119,8 +128,11 @@ dev_warn_stuck_transactions() {
           OR cardinality(pg_blocking_pids(pid)) > 0
         )
       ORDER BY state_change
-    ) AS t;" 2>&1)"
-  status=$?
+    ) AS t;" 2>&1)"; then
+    status=0
+  else
+    status=$?
+  fi
 
   if [ "$status" -ne 0 ]; then
     echo "⚠ Could not check the database for stuck sessions (exit $status). Not fatal — but if pages" >&2

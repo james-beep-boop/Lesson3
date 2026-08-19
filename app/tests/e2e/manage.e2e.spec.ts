@@ -314,7 +314,20 @@ test.describe('Manage page', () => {
     // …and its children are inside the closed box, so they are in the DOM but not on screen. Same
     // property as "Lesson plans" below; asserted here too because the Users box is where the
     // regrouping put a panel that used to be top-level.
-    await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toBeHidden()
+    //
+    // ⚑ `includeHidden` AND A COUNT, because `toBeHidden()` ALONE ASSERTED NOTHING HERE. `getByRole`
+    // excludes the hidden subtree by default, so the locator matched zero elements — and `toBeHidden()`
+    // passes on an empty locator (a node that does not exist is not visible). It would have gone on
+    // passing if the panel were deleted outright. `toHaveCount(1)` is what makes the pair meaningful:
+    // the heading EXISTS, and it is not on screen. Same vacuity as the sibling case that failed with
+    // "element(s) not found" during this work — one direction is loud, the other silent.
+    const accountsHeading = page.getByRole('heading', {
+      name: 'Accounts',
+      exact: true,
+      includeHidden: true,
+    })
+    await expect(accountsHeading).toHaveCount(1)
+    await expect(accountsHeading).toBeHidden()
     // The "Lesson plans" section is a top-level panel, so its HEADING is visible while collapsed;
     // its three nested panels live inside the hidden body and appear once it is opened.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
