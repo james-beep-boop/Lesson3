@@ -273,9 +273,18 @@ Also verified against the PRODUCTION build rather than a harness: the served bun
 appear in both client and SSR chunks. That check exists because `up --build` completing in seconds looks
 exactly like the stale-image trap this repo has been bitten by before.
 
-**Still not verified:** the spec fixes above have NOT been re-run (the probe stack was torn down first),
-and neither change has been seen on the real Payload page by eye — Payload's own cascade and its exact
-`--theme-elevation-*` values remain assumed. `tsc`, ESLint, Prettier and 785 unit tests pass.
+**Closed out.** The spec fixes were re-run on a fresh probe stack — **28 passed**, the one flake being
+`Taxonomy panels › a duplicate subject grade` timing out in the LOGIN helper and passing on retry, which
+is unrelated to the accordion and reproduced across runs. `tsc`, ESLint, Prettier and 786 unit tests
+pass, and CI's `gate` (which adds the int and http suites this session had no disposable DB for) went
+green in 12m24s on PR #247.
+
+⚑ **And it has now been seen on the real Payload page** — deployed 2026-08-19 and confirmed by the
+operator: four boxes, chevrons at the trailing edge, no user type beside the title, and the nested
+Upload/Delete rows reading as rows inside the box rather than as boxes of their own. So Payload's own
+cascade and its exact `--theme-elevation-*` values are no longer assumptions. **Do not go looking for
+this check — it happened.** An earlier draft of this paragraph said the opposite, which is precisely the
+kind of stale caveat that sends the next session chasing work that is already done.
 
 ## 2026-08-18 — a Subject Administrator may not appoint their own successor (D6a)
 
