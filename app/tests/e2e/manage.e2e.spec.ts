@@ -364,6 +364,24 @@ test.describe('Manage page', () => {
       'border-top-width',
       '0px',
     )
+    // ⚑ THE ROW OWNS THE GAP BETWEEN NESTED PANELS, NOT ITS HEADING (2026-08-19). This is the one
+    // assertion standing between that refactor and its own undoing, and it is here because the same
+    // rule caused two visible defects in a single day: ~40px of dead air at the top of every open box,
+    // and — in a rejected mockup that bordered nested rows — an unfilled white stripe above rows 2 and
+    // 3 while row 1 was clean. Both were patched by zeroing one more first child, which fixes a row at
+    // a time and leaves the rest latent.
+    //
+    // A heading's margin ESCAPES its `<section>` (no border, no padding to stop it collapsing through),
+    // so a margin there is spacing that belongs to the row but cannot be wrapped by it. The pair below
+    // pins both halves: 24px between sibling ROWS, and nothing on the heading. Purely visual, so
+    // nothing else in this file would notice if it regressed — which is exactly why it is asserted.
+    const nestedPanels = page.locator('.lp-admin-dash > .lp-accordion .lp-accordion')
+    await expect(nestedPanels.nth(1)).toHaveCSS('margin-top', '24px')
+    await expect(nestedPanels.nth(1).locator('.lp-accordion__heading').first()).toHaveCSS(
+      'margin-top',
+      '0px',
+    )
+
     // The open panel's header carries the divider that separates it from the body it now owns, driven
     // off `aria-expanded` rather than a class — so this also pins that there is no second source of
     // open/closed truth to drift from the attribute.
