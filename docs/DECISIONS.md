@@ -11,6 +11,88 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-18 — a Subject Administrator may not appoint their own successor (D6a)
+
+**Operator decision (2026-08-16), implemented in PR 4.** Only a **Site Administrator** may appoint or
+vacate a Subject Administrator. A Subject Administrator manages **editing access** within their
+subject-grades and nothing above it.
+
+⚑ **The shipped code permitted the opposite, and nothing said so.** `enforceAssignmentScope` collected
+the subject-grade of every touched assignment row and required the actor to administer it — it never
+inspected the row's `role`. So a Subject Administrator could write a `subjectAdmin` row inside a grade
+they administered: appointing a successor and, through `autoDemotePriorSubjectAdmins`, demoting
+themselves to editing access in the same write. SPEC §8's "manage scoped roles" did not disambiguate
+it either way, which is precisely why it was re-litigated during design.
+
+Three things worth keeping from how this was implemented:
+
+1. **Hiding the picker is not the fix, and the design doc said so before any code was written.** The
+   generic `PATCH /api/users/:id` authority already permitted the write, so a UI-only guard would have
+   changed nothing an attacker or a curious administrator could reach. The guard lives in the hook,
+   which covers every write path; the dedicated routes assert it a second time so a caller gets an
+   honest 403 on the route they used rather than a confusing failure deeper in the stack.
+
+2. **The role is baked into the route, never read from the body.** The endpoint factory is
+   parameterised over the role at MODULE level, so `assign-editor` and `assign-subject-admin` are two
+   routes with two authorization postures. A single role-carrying endpoint would have put "which role
+   am I granting" into a request body on a path Subject Administrators may legitimately call — one
+   validation slip from exactly what this decision forbids.
+
+3. **The test that matters proves the guard is NARROW.** Refusing every assignment write by a Subject
+   Administrator would pass a naive version of every test here while removing the power they are
+   supposed to keep. So the distinguishing pair is asserted with the same caller and the same target:
+   the `subjectAdmin` row is refused, AND the editing-access row still succeeds.
+
+   ⚑ **And the first version of that coverage was worthless, which is the more useful lesson.** The
+   branch cases lived in the wire spec, after a happy-path test that appoints a new administrator —
+   and `autoDemotePriorSubjectAdmins` demotes the previous one, which was the account those
+   assertions used as their CALLER. From that point the caller was a Teacher, so the refusal arrived
+   from collection access before the hook ran, and the test passed identically with the D6a guard
+   deleted. Found by `/simplify`, not by CI, because it was green either way.
+
+   The branch cases now live in `tests/unit/enforceAssignmentScope.spec.ts`, where the hook is called
+   directly with hand-built rows — no fixtures, no ordering, and mutation-verified: deleting the guard
+   fails three of them. The wire spec keeps its own caller and target and proves the refusal over a
+   real request. **A test whose subject can be mutated by an earlier test is not a guard.**
+
+**Forward-only, deliberately.** A deployment made before this guard may already hold `subjectAdmin`
+rows written by a Subject Administrator. The rule changes what is permitted from now on; it does not
+retroactively invalidate those grants. Check for them before deploying — informationally, since there
+is no audit trail of who granted what.
+
+**And the presentation half is part of the decision, not a detail.** A Subject Administrator still
+sees WHO administers their subject-grade, read-only, with no picker and no remove control. Removing
+the control while hiding the fact would leave them unable to answer a question they legitimately need
+answered; leaving the control while refusing the write teaches them the app is broken — the same
+"explain, don't just remove" principle D12 applies to phone editing. It has its own E2E assertion
+because the server test proves the boundary holds and only a browser test proves nobody is invited to
+cross it.
+
+---
+
+## 2026-08-18 — Roles & Access sends people once, not once per subject-grade (D11a)
+
+`buildEditorGroups` built one group per subject-grade, each carrying its own `editors` and `addable`
+arrays of full user objects. The visible list is bounded by curriculum size — which is what D6 relied
+on — but **the payload was not**: it grew as roughly users × subject-grades. At 100 users and 40
+subject-grades that is thousands of serialized entries, each carrying an email address under the
+SPEC §8 carve-out, and adding a Subject Administrator picker per group would have multiplied it again.
+
+**Reshaped to one deduplicated roster plus per-group id lists** (`editorIds`, `subjectAdminId`,
+`addableIds`); the pickers resolve ids against the roster on the client. Payload is now
+users + subject-grades.
+
+⚑ **This is a reshape, not a split.** `lib/editorGroups.ts` remains the SINGLE `overrideAccess: true`
+projection for the email carve-out — it owns the role gate, the trusted query and the client
+projection together, and that is what makes the boundary sound. Changing its shape is fine; adding a
+second projection is not.
+
+The int spec asserts the new shape as a PROPERTY — every group id resolves against the roster, and the
+roster is deduplicated — rather than as a size, so it cannot be satisfied by a fixture that happens to
+be small.
+
+---
+
 ## 2026-08-18 — http/e2e fixtures go to the probe stack, never the seeded dev database
 
 Verifying PR 2b's `test:http` and `test:e2e` locally, I pointed the fixture-backed suites at the

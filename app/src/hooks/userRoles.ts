@@ -320,9 +320,28 @@ export const guardPasswordChange: CollectionBeforeChangeHook = ({ data, operatio
  * PATCH, the native admin form). Applied only when rows actually change, so an incidental
  * unchanged-array resubmit stays a no-op.
  */
-export const enforceAssignmentScope: CollectionBeforeChangeHook = ({ data, originalDoc, req }) => {
+export const enforceAssignmentScope: CollectionBeforeChangeHook = ({
+  context,
+  data,
+  originalDoc,
+  req,
+}) => {
   const actor = (req.user as User) ?? null
   if (!actor || isSiteAdmin(actor)) return data
+  /**
+   * ⚑ A SYSTEM WRITE IS NOT AN ACTOR EXERCISING AUTHORITY. `overrideAccess` bypasses access control
+   * but NOT hooks, so the two invariant-maintaining cascades re-enter here carrying whatever user
+   * happened to make the original request — `autoDemotePriorSubjectAdmins` rewriting the previous
+   * administrator's row, and `guardSubjectGradeDelete` stripping rows off a deleted subject-grade.
+   *
+   * Both are today unreachable under a non-Site-Admin actor, but only by facts living in other files
+   * (subject-grade delete is Site-Admin-only; the demote fires only when a second `subjectAdmin`
+   * holder exists, which ≤1 prevents). D6a is explicitly FORWARD-ONLY, so legacy rows that violate
+   * ≤1 exist by design — and then a Subject Administrator's legitimate editing-access grant would 403
+   * from a cascade they never asked for, pointing at the wrong write. Naming the intent makes the
+   * exemption structural instead of emergent; `skipAutoDemote` is the same idea one hook over.
+   */
+  if (context?.systemAssignmentWrite === true) return data
   if (!data || !('assignments' in data)) return data
 
   const before: Assignment[] = originalDoc?.assignments ?? []
@@ -330,11 +349,45 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({ data, origi
   const beforeSigs = new Set(before.map(rowSignature))
   const afterSigs = new Set(after.map(rowSignature))
 
-  const touchedSubjectGradeIds = new Set<number | undefined>()
-  for (const a of after) if (!beforeSigs.has(rowSignature(a))) touchedSubjectGradeIds.add(toId(a.subjectGrade))
-  for (const b of before) if (!afterSigs.has(rowSignature(b))) touchedSubjectGradeIds.add(toId(b.subjectGrade))
+  // Collect the touched ROWS, not just their subject-grades — the D6a guard below has to see the
+  // row's `role`, which the previous version discarded here.
+  const touchedRows: Assignment[] = [
+    ...after.filter((a) => !beforeSigs.has(rowSignature(a))),
+    ...before.filter((b) => !afterSigs.has(rowSignature(b))),
+  ]
+  const touchedSubjectGradeIds = new Set<number | undefined>(
+    touchedRows.map((r) => toId(r.subjectGrade)),
+  )
 
   if (touchedSubjectGradeIds.size > 0 && (originalDoc as User | undefined)?.roles?.includes('siteAdmin')) {
+    throw new Forbidden(req.t)
+  }
+
+  /**
+   * ⚑ D6a — ONLY A SITE ADMINISTRATOR MAY GRANT OR REVOKE THE SUBJECT ADMINISTRATOR ROLE.
+   * (Operator decision 2026-08-16; SPEC §8.)
+   *
+   * ⚑ THIS IS A BEHAVIOUR CHANGE TO SHIPPED CODE, and hiding the picker is explicitly NOT the fix.
+   * Until now this hook gated only WHICH subject-grade a touched row belonged to and never inspected
+   * the row's `role`, so a Subject Administrator could write a `subjectAdmin` row inside a grade they
+   * administer — appointing their own successor and, through `autoDemotePriorSubjectAdmins`, demoting
+   * themselves to editing access in the same click. "≤1 per subject-grade" plus "the incumbent picks
+   * their replacement" is an unusual governance property for a role that also controls marking
+   * versions Official.
+   *
+   * ⚑ BOTH DIRECTIONS, and that falls out of `rowSignature` including the role: a promotion appears
+   * as an added `subjectAdmin` row, a demotion as a removed one, and a role CHANGE as both. Checking
+   * `touchedRows` therefore catches grant, revoke and swap without three separate rules.
+   *
+   * ⚑ FORWARD-ONLY. A deployed installation may already hold `subjectAdmin` rows written by a Subject
+   * Administrator, because the old code permitted it. This changes what is permitted from now on; it
+   * does not retroactively invalidate those grants and must not try to.
+   *
+   * The wire-level proof that this is a server rule and not a UI one lives in `tests/http` — a
+   * Subject Admin's direct `PATCH /api/users/:id` carrying a `subjectAdmin` row is refused, while
+   * their editing-access grants still succeed.
+   */
+  if (touchedRows.some((r) => r.role === 'subjectAdmin')) {
     throw new Forbidden(req.t)
   }
 
@@ -424,7 +477,7 @@ export const autoDemotePriorSubjectAdmins: CollectionAfterChangeHook = async ({
           data: { assignments },
           req,
           overrideAccess: true, // system invariant; the triggering change was already authorized
-          context: { skipAutoDemote: true },
+          context: { skipAutoDemote: true, systemAssignmentWrite: true },
         })
       }
     }

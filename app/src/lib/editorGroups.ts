@@ -5,11 +5,53 @@ import type { User } from '../payload-types'
 import { toWidgetUser } from './widgetUser'
 import type { WidgetUser } from './widgetUser'
 
-export interface EditorsGroup {
+/**
+ * One subject-grade's roles, as ID LISTS against the shared roster below.
+ *
+ * ⚑ IDS, NOT PEOPLE (D11a, external review 2026-08-16). Each group used to carry its own `editors`
+ * and `addable` arrays of full user objects, so the serialized RSC payload grew as roughly
+ * users × subject-grades — at 100 users and 40 subject-grades, thousands of entries, each carrying
+ * an email address under the SPEC §8 carve-out.
+ *
+ * ⚑ AND `addableIds` IS GONE, which is what actually makes that claim true. The first version of
+ * this reshape kept a per-group `addableIds` array — ~every non-site-admin user, per group — so the
+ * payload was STILL users × subject-grades, just in integers rather than objects. Measured at
+ * 100 × 40 it was 14.7 KB of the 21.3 KB total. The grant pool is `grantableIds` minus whoever holds
+ * a role here, which the client can derive from what it already has, so it crosses the wire ONCE.
+ */
+export interface RolesAccessGroup {
   sgId: number
   sgLabel: string
-  editors: WidgetUser[]
-  addable: WidgetUser[]
+  /** Users with an `editor` grant here. */
+  editorIds: number[]
+  /** The current Subject Administrator, or null when the subject-grade has none. */
+  subjectAdminId: number | null
+}
+
+/**
+ * The whole payload for Manage → Roles & Access: one deduplicated roster plus per-subject-grade id
+ * lists.
+ *
+ * ⚑ DATA AND DISCLOSURE ONLY. Whether the viewer may CHANGE a Subject Administrator is a
+ * presentational capability and is passed to the panel as a prop by the render site, which already
+ * holds `siteAdmin`. It briefly lived here, which put a presentation flag inside the return type of
+ * the email-carve-out projection — the one function whose docblock exists to keep its role gate,
+ * trusted query and projection inseparable. The first person wanting "may vacate but not appoint"
+ * would then have edited a boolean inside the carve-out.
+ */
+export interface RolesAccess {
+  /** Every user the pickers and lists resolve against, listed ONCE. */
+  roster: WidgetUser[]
+  /**
+   * Everyone who may be granted a role anywhere — the whole non-site-admin roster, once.
+   *
+   * Per-group eligibility is this minus the people who already hold a role in that group, which the
+   * client derives; see the ⚑ on `RolesAccessGroup`. Site admins are excluded here because they are
+   * never grant candidates and `roles` never reaches the client, so the exclusion has to happen
+   * server-side to happen at all.
+   */
+  grantableIds: number[]
+  groups: RolesAccessGroup[]
 }
 
 /**
@@ -46,18 +88,20 @@ export interface EditorsGroup {
  * `emailReadAccess` on the `users` collection is UNCHANGED (Site-Admin-or-self), so every other
  * surface — REST, Local API, the messaging roster — still withholds addresses.
  */
-export async function buildEditorGroups({
+export async function buildRolesAccess({
   payload,
   user,
 }: {
   payload: Payload
   user: User | null
-}): Promise<EditorsGroup[]> {
+}): Promise<RolesAccess> {
   const siteAdmin = isSiteAdmin(user)
   const adminSgIds = subjectGradeIdsByRole(user, ['subjectAdmin'])
   // Rule 1. Returning before either query is what makes "no address reaches a non-admin" a property
   // of this function rather than of the caller's markup.
-  if (!siteAdmin && adminSgIds.length === 0) return []
+  if (!siteAdmin && adminSgIds.length === 0) {
+    return { roster: [], grantableIds: [], groups: [] }
+  }
 
   const withEmail = mayIdentifyGrantCandidates(user)
 
@@ -94,20 +138,59 @@ export async function buildEditorGroups({
   const widgetUser = (u: (typeof allUsers)[number]) =>
     toWidgetUser(u as typeof u & { email?: string | null; updatedAt: string })
 
-  return sgsRes.docs.map((sg) => {
-    const editors = allUsers.filter((u) =>
-      (u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id && a.role === 'editor'),
-    )
-    const addable = allUsers.filter(
-      (u) =>
-        !u.roles?.includes('siteAdmin') &&
-        !(u.assignments ?? []).some((a) => toId(a.subjectGrade) === sg.id),
-    )
-    return {
-      sgId: sg.id,
-      sgLabel: sg.displayName ?? `Subject grade ${sg.id}`,
-      editors: editors.map(widgetUser),
-      addable: addable.map(widgetUser),
+  /**
+   * ONE pass over the roster, not three per subject-grade.
+   *
+   * The first version filtered `allUsers` once for editors, once for the administrator and once for
+   * the grant pool, inside a `.map` over subject-grades — so each user's assignment list was walked
+   * three times per group (12,000 predicate calls at 100 users × 40 subject-grades, to describe 100
+   * people). Walking assignments instead of users is the natural shape: an assignment row already
+   * names the subject-grade it belongs to.
+   */
+  const byGroup = new Map<number, { editorIds: number[]; subjectAdminId: number | null }>()
+  for (const sg of sgsRes.docs) byGroup.set(sg.id, { editorIds: [], subjectAdminId: null })
+  for (const u of allUsers) {
+    for (const a of u.assignments ?? []) {
+      const slot = byGroup.get(toId(a.subjectGrade) ?? -1)
+      if (!slot) continue
+      if (a.role === 'editor') slot.editorIds.push(u.id)
+      // ⚑ `subjectAdmin` WINS over an earlier row rather than "first row wins". `access/index.ts`
+      // documents that a same-subject-grade admin+editor pair is reachable (the demote path can
+      // leave one) and nothing at the DB level forbids it, so a `.find` made the answer depend on
+      // row order — and would have rendered "No administrator." for a grade that has one.
+      if (a.role === 'subjectAdmin') slot.subjectAdminId = u.id
     }
-  })
+  }
+
+  const groups: RolesAccessGroup[] = sgsRes.docs.map((sg) => ({
+    sgId: sg.id,
+    // `||`, not `??`: a present-but-empty displayName would otherwise render as a bare separator.
+    sgLabel: sg.displayName || `Subject grade ${sg.id}`,
+    ...byGroup.get(sg.id)!,
+  }))
+
+  // Rule 3's exclusion, unchanged and still server-side: a site admin is never a grant candidate,
+  // and `roles` never reaches the client, so this cannot be done there.
+  const grantable = allUsers.filter((u) => !u.roles?.includes('siteAdmin'))
+
+  /**
+   * ⚑ THE ROSTER IS THE WHOLE NON-SITE-ADMIN LIST, ONCE — and that is the same disclosure the old
+   * per-group `addable` arrays made, not a wider one. SPEC §8 already records that a grant picker
+   * inherently shows every grantable address to any administrator; what changes here is that each
+   * address crosses the wire once instead of once per subject-grade.
+   *
+   * Site admins are excluded because they are never grant candidates and their `roles` never reach
+   * the client — the one place their absence is load-bearing is the addable rule above.
+   */
+  const rosterIds = new Set<number>(grantable.map((u) => u.id))
+  // …plus anyone who holds a role here but is NOT grantable — a site admin who holds a
+  // `subjectAdmin` row, which D6a's forward-only rule means legacy data can contain. Without this
+  // their id would dangle against the roster and the panel would render a blank administrator.
+  for (const g of groups) if (g.subjectAdminId != null) rosterIds.add(g.subjectAdminId)
+
+  return {
+    roster: allUsers.filter((u) => rosterIds.has(u.id)).map(widgetUser),
+    grantableIds: grantable.map((u) => u.id),
+    groups,
+  }
 }

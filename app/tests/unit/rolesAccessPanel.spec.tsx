@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /**
- * Manage → Editing access: the widget that grants and revokes editing access.
+ * Manage → Roles & Access: the panel that grants and revokes editing access, and (for Site
+ * Administrators) appoints and vacates a Subject Administrator.
  *
  * These tests exist for ONE property, and it is an authorization-UX one rather than a styling one:
  * **every user shown in this widget is identified by name AND email address, in both places a
@@ -58,30 +59,51 @@ vi.mock('@payloadcms/ui', () => ({
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 
-const { EditorsWidget } = await import('@/components/AdminDashboard/EditorsWidget')
+const { RolesAccessPanel } = await import('@/components/Manage/RolesAccessPanel')
 const { toWidgetUser, personLabel } = await import('@/lib/widgetUser')
-type EditorsGroup = import('@/components/AdminDashboard/EditorsWidget').EditorsGroup
+type RolesAccess = import('@/lib/editorGroups').RolesAccess
 
 /** Two people who share a display name — the case the address exists to resolve. */
 const ada = { id: 1, name: 'A. Mwangi', email: 'ada.mwangi@school.test', updatedAt: 'T1' }
 const alan = { id: 2, name: 'A. Mwangi', email: 'alan.mwangi@school.test', updatedAt: 'T2' }
 
-// Typed overrides: a `Record<string, unknown>` bag would let a typo'd key (`editor:`) compile
-// silently, and forced two casts on the empty arrays.
-const group = (over: Partial<EditorsGroup> = {}): EditorsGroup => ({
-  sgId: 10,
-  sgLabel: 'Biology — Grade 10',
-  editors: [],
-  addable: [],
-  ...over,
-})
+/**
+ * ⚑ THE PROPS ARE ID LISTS NOW (D11a): one shared roster plus per-group ids, so the payload is
+ * users + subject-grades rather than their product. These helpers keep the tests reading in PEOPLE
+ * while exercising the id→roster resolution the panel actually does — the alternative, hand-writing
+ * id arrays in every case, would test the fixture rather than the component.
+ */
+const access = (over: {
+  editors?: { id: number; name: string; email: string; updatedAt: string }[]
+  addable?: { id: number; name: string; email: string; updatedAt: string }[]
+  subjectAdmin?: { id: number; name: string; email: string; updatedAt: string }
+}): RolesAccess => {
+  const people = [
+    ...(over.editors ?? []),
+    ...(over.addable ?? []),
+    ...(over.subjectAdmin ? [over.subjectAdmin] : []),
+  ]
+  return {
+    roster: people.map(toWidgetUser),
+    // Sent once for the whole payload; the panel derives each group's pool from it (D11a).
+    grantableIds: (over.addable ?? []).map((u) => u.id),
+    groups: [
+      {
+        sgId: 10,
+        sgLabel: 'Biology — Grade 10',
+        editorIds: (over.editors ?? []).map((u) => u.id),
+        subjectAdminId: over.subjectAdmin?.id ?? null,
+      },
+    ],
+  }
+}
 
 afterEach(cleanup)
 
-describe('Editing access identifies people by address, not just name', () => {
+describe('Roles & Access identifies people by address, not just name', () => {
   it('shows the address beside each current editor', () => {
     const { container } = render(
-      <EditorsWidget groups={[group({ editors: [toWidgetUser(ada), toWidgetUser(alan)] })]} />,
+      <RolesAccessPanel access={access({ editors: [ada, alan] })} canSetSubjectAdmin={false} />,
     )
     const shown = [...container.querySelectorAll('.lp-manage__who-email')].map((e) => e.textContent)
     expect(shown).toEqual(['ada.mwangi@school.test', 'alan.mwangi@school.test'])
@@ -90,7 +112,9 @@ describe('Editing access identifies people by address, not just name', () => {
   it('shows the address in the GRANT PICKER, where the choice is made', () => {
     // The regression this file was written for. With names alone these two options are literally
     // indistinguishable — identical text, and only the value differs.
-    render(<EditorsWidget groups={[group({ addable: [toWidgetUser(ada), toWidgetUser(alan)] })]} />)
+    render(
+      <RolesAccessPanel access={access({ addable: [ada, alan] })} canSetSubjectAdmin={false} />,
+    )
     const picker = screen.getByRole('combobox', {
       name: 'Grant editing access for Biology — Grade 10',
     })
@@ -114,7 +138,7 @@ describe('Editing access identifies people by address, not just name', () => {
     // where the review pointed). Asserted on the confirm STRING because that is the whole control.
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     try {
-      render(<EditorsWidget groups={[group({ editors: [toWidgetUser(ada)] })]} />)
+      render(<RolesAccessPanel access={access({ editors: [ada] })} canSetSubjectAdmin={false} />)
       screen.getByRole('button', { name: /^Remove editing access for/ }).click()
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(confirmSpy.mock.calls[0][0]).toContain('ada.mwangi@school.test')
@@ -129,7 +153,9 @@ describe('Editing access identifies people by address, not just name', () => {
     // controls and cannot tell whose access they are revoking. Same defect as the name-only confirm
     // dialog, one layer down (CodeRabbit, PR #184): putting addresses on screen did nothing for
     // people not reading the screen.
-    render(<EditorsWidget groups={[group({ editors: [toWidgetUser(ada), toWidgetUser(alan)] })]} />)
+    render(
+      <RolesAccessPanel access={access({ editors: [ada, alan] })} canSetSubjectAdmin={false} />,
+    )
     const names = screen
       .getAllByRole('button', { name: /^Remove editing access for/ })
       .map((b) => b.getAttribute('aria-label'))
@@ -146,7 +172,7 @@ describe('Editing access identifies people by address, not just name', () => {
   })
 
   it('names the Add button by its subject-grade', () => {
-    render(<EditorsWidget groups={[group({ addable: [toWidgetUser(ada)] })]} />)
+    render(<RolesAccessPanel access={access({ addable: [ada] })} canSetSubjectAdmin={false} />)
     const add = screen.getByRole('button', {
       name: 'Grant editing access in Biology — Grade 10',
     })
@@ -156,8 +182,9 @@ describe('Editing access identifies people by address, not just name', () => {
   it('falls back to the bare name when a user record has no address', () => {
     // Not every account necessarily has one; the option must not read "Name — undefined".
     render(
-      <EditorsWidget
-        groups={[group({ addable: [toWidgetUser({ id: 3, name: 'No Address', updatedAt: 'T' })] })]}
+      <RolesAccessPanel
+        access={access({ addable: [{ id: 3, name: 'No Address', email: '', updatedAt: 'T' }] })}
+        canSetSubjectAdmin={false}
       />,
     )
     const options = [...screen.getAllByRole('option')].map((o) => o.textContent)
@@ -167,8 +194,9 @@ describe('Editing access identifies people by address, not just name', () => {
 
   it('renders no address markup when the server sent none', () => {
     const { container } = render(
-      <EditorsWidget
-        groups={[group({ editors: [toWidgetUser({ id: 4, name: 'Nameless', updatedAt: 'T' })] })]}
+      <RolesAccessPanel
+        access={access({ editors: [{ id: 4, name: 'Nameless', email: '', updatedAt: 'T' }] })}
+        canSetSubjectAdmin={false}
       />,
     )
     expect(container.querySelector('.lp-manage__who-email')).toBeNull()
@@ -179,7 +207,7 @@ describe('Editing access identifies people by address, not just name', () => {
     // one sentence and one control. Asserted structurally so a later refactor cannot quietly restack
     // it — with a full curriculum most groups are empty, so this is the common shape.
     const { container } = render(
-      <EditorsWidget groups={[group({ addable: [toWidgetUser(ada)] })]} />,
+      <RolesAccessPanel access={access({ addable: [ada] })} canSetSubjectAdmin={false} />,
     )
     const addRow = container.querySelector('.lp-manage__editors-add')!
     expect(addRow.querySelector('.lp-manage__editors-none')?.textContent).toBe(
@@ -192,12 +220,84 @@ describe('Editing access identifies people by address, not just name', () => {
     // Pairs with the ≤640px restatement guarded in guideCompareVisual.spec.tsx: this asserts the
     // class is APPLIED, that one asserts the class still reaches the 44px touch target on a phone.
     const { container } = render(
-      <EditorsWidget groups={[group({ editors: [toWidgetUser(ada)] })]} />,
+      <RolesAccessPanel access={access({ editors: [ada] })} canSetSubjectAdmin={false} />,
     )
     const remove = screen.getByRole('button', { name: /^Remove editing access for/ })
     expect(remove.className).toContain('lp-btn')
     expect(remove.className).toContain('lp-btn--compact')
     expect(container.querySelector('.lp-manage__row--tight')).not.toBeNull()
+  })
+})
+
+/**
+ * ⚑ D6a's PRESENTATION HALF. The server rule is `enforceAssignmentScope` plus the route's own
+ * `assertSiteAdmin`, both pinned in `tests/http`. What these assert is the other requirement the
+ * decision makes explicitly: a Subject Administrator must SEE who administers their subject-grade —
+ * useful, scoped information they already hold — with no control inviting them to change it. A guard
+ * that refuses the write while the UI still offers the button produces an administrator who clicks,
+ * sees an error, and concludes the app is broken.
+ */
+describe('Subject Administrator: shown to everyone, changeable only by a Site Admin', () => {
+  it('shows the current administrator read-only when the viewer may not set it', () => {
+    render(<RolesAccessPanel access={access({ subjectAdmin: ada })} canSetSubjectAdmin={false} />)
+    expect(screen.getByText('Subject Administrator')).toBeTruthy()
+    expect(screen.getByText('ada.mwangi@school.test')).toBeTruthy()
+    // No picker and no remove control — the two things D6a names.
+    expect(screen.queryByRole('combobox', { name: /Appoint the Subject Administrator/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /as Subject Administrator/ })).toBeNull()
+  })
+
+  it('offers the picker and a remove control to a Site Admin', () => {
+    render(
+      <RolesAccessPanel
+        access={access({ subjectAdmin: ada, addable: [alan] })}
+        canSetSubjectAdmin
+      />,
+    )
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Appoint the Subject Administrator of Biology — Grade 10',
+      }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /^Remove .* as Subject Administrator of/ }),
+    ).toBeTruthy()
+  })
+
+  it('says so plainly when a subject-grade has no administrator', () => {
+    render(<RolesAccessPanel access={access({})} canSetSubjectAdmin />)
+    expect(screen.getByText('No administrator.')).toBeTruthy()
+  })
+
+  /**
+   * Appointing demotes the incumbent through `autoDemotePriorSubjectAdmins`. That is a consequence of
+   * the gentler-sounding action, so the confirmation names it — the same reasoning as the
+   * subject-grade delete cascade warning in PR 3.
+   */
+  it('names the demotion of the incumbent in the confirmation', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(
+        <RolesAccessPanel
+          access={access({ subjectAdmin: ada, addable: [alan] })}
+          canSetSubjectAdmin
+        />,
+      )
+      const picker = screen.getByRole('combobox', {
+        name: 'Appoint the Subject Administrator of Biology — Grade 10',
+      })
+      ;(picker as HTMLSelectElement).value = '2'
+      picker.dispatchEvent(new Event('change', { bubbles: true }))
+      screen.getByRole('button', { name: /^Appoint the Subject Administrator/ }).click()
+      // ⚑ ASSERT THE INCUMBENT'S ADDRESS, not just the sentence. The confirmation named the person
+      // being DEMOTED by `.name` alone while every other dialog in this file used `personLabel` — the
+      // exact invariant this spec exists for, lost in the newest string because the old assertion
+      // only checked the phrase.
+      expect(confirmSpy.mock.calls[0]?.[0]).toContain('demoted to editing access')
+      expect(confirmSpy.mock.calls[0]?.[0]).toContain('ada.mwangi@school.test')
+    } finally {
+      confirmSpy.mockRestore()
+    }
   })
 })
 

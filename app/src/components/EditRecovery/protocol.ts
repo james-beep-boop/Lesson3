@@ -13,7 +13,7 @@
  * structurally identical declarations type-check while agreeing — which is exactly why they must not
  * both exist. A server-side rename or added field would produce no compile error here; the client
  * would go on echoing a token the server no longer recognises, surfacing as a 409 on a save the user
- * was told would proceed. `EditorsWidget` records the same lesson from the same mistake.
+ * was told would proceed. `RolesAccessPanel` records the same lesson from the same mistake.
  *
  * ⚑ The `type` keyword is load-bearing and must stay. `isolatedModules` is on, so a type-only import
  * is erased entirely and the bundler never sees an edge to `kernel.ts` — but a VALUE import from that

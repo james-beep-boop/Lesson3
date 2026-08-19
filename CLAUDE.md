@@ -45,7 +45,12 @@ This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 
 **Three user types**, and editing access is a *capability* a Teacher holds — never a fourth type:
 
 - **Site Administrator** (global) — everything.
-- **Subject Administrator** (per subject-grade, ≤1) — structural edits, admin-only fields, mark official, manage scoped roles.
+- **Subject Administrator** (per subject-grade, ≤1) — structural edits, admin-only fields, mark
+  official, and grant/revoke **editing access** within that subject-grade. ⚑ **Not** the Subject
+  Administrator role itself: only a Site Administrator may appoint or vacate one (operator decision
+  2026-08-16, "D6a"; SPEC §8). That is enforced server-side in `enforceAssignmentScope` — covering the
+  generic `PATCH /api/users/:id`, not only the dedicated routes — and is forward-only: pre-existing
+  grants written under the old behaviour stay valid.
 - **Teacher** (default) — view/export. **May additionally hold editing access** for one or more
   subject-grades, which permits editing prose field values there.
 
@@ -59,7 +64,7 @@ prose, in a type label, or in the UI: such a user is a **Teacher with editing ac
 `Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` is likewise reserved** (SPEC §13): it
 already means an unofficial *saved version* — the Guide tells users "your drafts live in Manage → My
 saved versions" — so the unsaved-work feature is **edit recovery**, never "drafts". Non–Site-Admins never see others' emails —
-**with one carve-out (SPEC §8, amended 2026-08-02): Manage → Editing access shows addresses to Subject
+**with one carve-out (SPEC §8, amended 2026-08-02): Manage → Roles & Access shows addresses to Subject
 Administrators too**, so an administrator can tell two identical display names apart before granting or
 revoking editing access. `emailReadAccess` is unchanged (Site-Admin-or-self), so every other surface
 still withholds them; the carve-out is one trusted projection (`lib/editorGroups.ts`). ⚑ Read SPEC §8

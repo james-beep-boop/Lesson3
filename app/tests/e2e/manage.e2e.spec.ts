@@ -6,7 +6,7 @@
  * interactive flows:
  *
  *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
- *      versions" + "Editing access"; Site Admin: + "Subjects", "Subject grades" and "Lesson plans" (with
+ *      versions" + "Roles & Access"; Site Admin: + "Subjects", "Subject grades" and "Lesson plans" (with
  *      Upload / Delete / Repair as sub-headings beneath it).
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
@@ -236,7 +236,7 @@ test.describe('Manage page', () => {
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Editing access' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
     // The "Lesson plans" nav group is hidden (CSS display:none — still in the DOM, so assert
@@ -254,7 +254,7 @@ test.describe('Manage page', () => {
     // A bare count is safe despite a shared DB: a Subject Admin only sees candidates in their own
     // subject-grade, and this run's subject-grade is freshly MARK-seeded.
     await expect(page.locator('.lp-manage__row:has(.lp-manage__row-main)')).toHaveCount(1)
-    await expect(page.getByRole('heading', { name: 'Editing access' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
@@ -577,7 +577,7 @@ test.describe('Manage page', () => {
         'Users',
         'Subjects',
         'Subject grades',
-        'Editing access',
+        'Roles & Access',
         'Lesson plans',
       ]) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
@@ -599,7 +599,7 @@ test.describe('Manage page', () => {
       const depth = () => page.evaluate(() => window.history.length)
       const before = await depth()
 
-      await openPanel(page, 'Editing access')
+      await openPanel(page, 'Roles & Access')
       await expect(page).toHaveURL(/[?&]open=access/)
       await openPanel(page, 'Lesson plans')
       await expect(page).toHaveURL(new RegExp(`[?&]open=access${SEP}plans`))
@@ -610,7 +610,7 @@ test.describe('Manage page', () => {
       expect(await depth()).toBe(before)
 
       // …and closing removes it again rather than accumulating stale ids.
-      await page.getByRole('button', { name: 'Editing access', exact: true }).click()
+      await page.getByRole('button', { name: 'Roles & Access', exact: true }).click()
       await expect(page).toHaveURL(/[?&]open=plans/)
       await expect(page).not.toHaveURL(/access/)
       expect(await depth()).toBe(before)
@@ -619,12 +619,12 @@ test.describe('Manage page', () => {
     test('open state survives a genuine reload', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      await openPanel(page, 'Editing access')
+      await openPanel(page, 'Roles & Access')
       // A full page load is the case React state cannot survive and the reason the URL carries this
       // at all (D7).
       await page.reload()
       await expect(
-        page.getByRole('button', { name: 'Editing access', exact: true }),
+        page.getByRole('button', { name: 'Roles & Access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
     })
 
@@ -652,7 +652,7 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin?open=curriculum,nonsense,access&at=sg-999`)
       await expect(page.getByRole('heading', { name: 'Manage' })).toBeVisible()
       await expect(
-        page.getByRole('button', { name: 'Editing access', exact: true }),
+        page.getByRole('button', { name: 'Roles & Access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
       // The URL is rewritten to what the page is actually showing: the inaccessible id, the typo and
       // the consumed one-shot `at` are all gone, and the valid one survives.
@@ -663,7 +663,7 @@ test.describe('Manage page', () => {
     test('the disclosure is operable from the keyboard', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      const trigger = page.getByRole('button', { name: 'Editing access', exact: true })
+      const trigger = page.getByRole('button', { name: 'Roles & Access', exact: true })
       await trigger.focus()
       await page.keyboard.press('Enter')
       await expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -881,7 +881,7 @@ test.describe('Manage page', () => {
       await expect(page).toHaveURL(new RegExp(`[?&]open=users${SEP}access`))
       await expect(page).not.toHaveURL(/[?&]at=/)
       await expect(
-        page.getByRole('button', { name: 'Editing access', exact: true }),
+        page.getByRole('button', { name: 'Roles & Access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
       await expect(page.locator(`#sg-${fx.subjectGrade.id}`)).toBeFocused()
       expect(await page.evaluate(() => window.history.length)).toBe(before + 1)
@@ -893,8 +893,54 @@ test.describe('Manage page', () => {
         'true',
       )
       await expect(
-        page.getByRole('button', { name: 'Editing access', exact: true }),
+        page.getByRole('button', { name: 'Roles & Access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'false')
+    })
+  })
+
+  /**
+   * PR 4 / D6a — who may change a Subject Administrator, and what everyone else is shown.
+   *
+   * ⚑ THE SERVER TEST IS NOT THIS ONE. `tests/http/userAssignments.http.spec.ts` proves the boundary
+   * holds: a Subject Administrator's direct PATCH carrying a `subjectAdmin` row is refused. What THIS
+   * proves is the other half the decision asks for — that nobody is invited to cross it. A guard that
+   * refuses the write while the UI still offers the control produces an administrator who clicks,
+   * sees an error, and concludes the app is broken; that is the same "explain, don't just remove"
+   * principle D12 applies to phone editing.
+   */
+  test.describe('Roles & Access — the Subject Administrator control (D6a)', () => {
+    test('a Subject Administrator sees who administers their subject-grade, read-only', async ({
+      page,
+    }) => {
+      await loginAs(page, 'subjectAdmin')
+      await page.goto(`${BASE}/admin?open=access`)
+
+      // The FACT is shown — scoped information they already effectively hold.
+      const group = page.locator('.lp-manage__editors-group').first()
+      await expect(group.getByText('Subject Administrator')).toBeVisible()
+
+      // …and neither control that would change it exists. Asserted as absence rather than
+      // disabled-ness: a disabled control still invites the click D6a is trying to prevent.
+      await expect(
+        page.getByRole('combobox', { name: /Appoint the Subject Administrator/ }),
+      ).toHaveCount(0)
+      await expect(page.getByRole('button', { name: /as Subject Administrator of/ })).toHaveCount(0)
+
+      // Their editing-access controls are untouched — the guard is narrow, and this is where that
+      // is visible to a person rather than to a test client.
+      await expect(page.getByRole('combobox', { name: /Grant editing access for/ })).toHaveCount(1)
+    })
+
+    test('a Site Administrator gets the picker and the remove control', async ({ page }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=access`)
+
+      await expect(
+        page.getByRole('combobox', { name: /Appoint the Subject Administrator/ }).first(),
+      ).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: /as Subject Administrator of/ }).first(),
+      ).toBeVisible()
     })
   })
 

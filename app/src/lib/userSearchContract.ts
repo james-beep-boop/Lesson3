@@ -36,7 +36,7 @@ export const USER_SEARCH_TYPE_LABELS: Record<UserSearchType, UserTypeLabel> = {
  * cleaning up.
  */
 export const grantRoleLabel = (role: UserSearchGrant['role']): string =>
-  role === 'subjectAdmin' ? 'Subject administrator' : 'Editing access'
+  role === 'subjectAdmin' ? 'Subject Administrator' : 'Editing access'
 
 export interface UserSearchGrant {
   role: 'editor' | 'subjectAdmin'

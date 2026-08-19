@@ -46,7 +46,7 @@ function useAccordion(): OpenPanels {
  * not a panel. `'sg-12' === 'access'` is never true, so that effect was dead code that looked like a
  * working feature.
  *
- * The consumer is the per-subject-grade group in `EditorsWidget`, reached from a grant in the Users
+ * The consumer is the per-subject-grade group in `RolesAccessPanel`, reached from a grant in the Users
  * panel. This stays a hook rather than a private context read because the target has to be reachable
  * from a component that is not itself an `AccordionPanel`. Do not wire scroll/focus to a panel id.
  */

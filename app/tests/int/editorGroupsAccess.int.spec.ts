@@ -3,7 +3,7 @@
  *
  * SPEC §8 as amended: `emailReadAccess` on `users` stays Site-Admin-or-self, but **Manage → Editing
  * access** shows addresses to every administrator who can grant access with it, so they can tell two
- * identical display names apart before making an authorization decision. `buildEditorGroups`
+ * identical display names apart before making an authorization decision. `buildRolesAccess`
  * (`src/lib/editorGroups.ts`) is the whole boundary — role gate, trusted `overrideAccess: true` read,
  * and client projection in one unit.
  *
@@ -19,7 +19,7 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
-import { buildEditorGroups } from '../../src/lib/editorGroups.js'
+import { buildRolesAccess } from '../../src/lib/editorGroups.js'
 import { mayIdentifyGrantCandidates } from '../../src/access/index.js'
 
 let fx: RoleFixture
@@ -32,24 +32,44 @@ afterAll(async () => {
   await fx?.teardown()
 })
 
-const groupsFor = (role: 'siteAdmin' | 'subjectAdmin' | 'editor' | 'teacher') =>
-  buildEditorGroups({ payload: fx.payload, user: fx.users[role] })
+const accessFor = (role: 'siteAdmin' | 'subjectAdmin' | 'editor' | 'teacher') =>
+  buildRolesAccess({ payload: fx.payload, user: fx.users[role] })
 
-/** Every address that crossed into the client payload, from both halves of every group. */
-const emailsIn = (groups: Awaited<ReturnType<typeof groupsFor>>) =>
-  groups.flatMap((g) => [...g.editors, ...g.addable]).map((u) => u.email)
+/**
+ * Every address that crossed into the client payload.
+ *
+ * ⚑ READS THE ROSTER, NOT THE GROUPS (D11a). Addresses used to ride on per-group `editors`/`addable`
+ * arrays; they now cross once, on one shared roster, with the groups carrying ids. The property under
+ * test is unchanged — WHICH addresses reach the client — so this helper moved rather than the tests.
+ */
+const emailsIn = (access: Awaited<ReturnType<typeof accessFor>>) =>
+  access.roster.map((u) => u.email)
 
-describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
+/**
+ * The people offered as grant candidates, resolved back through the roster.
+ *
+ * `grantableIds` is sent ONCE for the whole payload (D11a) rather than per group — per-group
+ * eligibility is this minus whoever already holds a role there, and the client derives it. The
+ * disclosure question these tests ask is about the pool, so the pool is what they read.
+ */
+const grantableIn = (access: Awaited<ReturnType<typeof accessFor>>) => {
+  const byId = new Map(access.roster.map((u) => [u.id, u]))
+  return access.grantableIds.map((id) => byId.get(id)!)
+}
+
+describe('buildRolesAccess — the SPEC §8 email carve-out, by role', () => {
   it('gives a TEACHER nothing at all — no groups, so no query and no address', async () => {
-    const groups = await groupsFor('teacher')
-    expect(groups).toEqual([])
+    const access = await accessFor('teacher')
+    expect(access.groups).toEqual([])
+    expect(access.roster).toEqual([])
   })
 
   it('gives an EDITOR nothing either — an editor grant is not an administrative one', async () => {
     // The distinction the whole user-model language rests on: `editor` is a per-subject-grade
     // capability, not a governance role. An editor may edit prose; they may not see who else can.
-    const groups = await groupsFor('editor')
-    expect(groups).toEqual([])
+    const access = await accessFor('editor')
+    expect(access.groups).toEqual([])
+    expect(access.roster).toEqual([])
   })
 
   it('runs NO QUERY for a non-administrator — the gate, not a lucky empty result', async () => {
@@ -57,7 +77,7 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
     // administered subject-grades the scoped query returns nothing, so the result is `[]` either way.
     // The empty payload was never the property at risk — the roster read is `overrideAccess: true`,
     // so without the gate a Teacher's request would still pull every user (and, if the email predicate
-    // ever widened, every address) into server memory before discarding them. `buildEditorGroups`
+    // ever widened, every address) into server memory before discarding them. `buildRolesAccess`
     // claims "no query runs"; this is what makes that claim true rather than incidental.
     for (const role of ['teacher', 'editor'] as const) {
       const calls: string[] = []
@@ -68,14 +88,14 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
           return fx.payload.find(args as Parameters<typeof fx.payload.find>[0])
         }) as typeof fx.payload.find,
       } as typeof fx.payload
-      const groups = await buildEditorGroups({ payload: spy, user: fx.users[role] })
+      const groups = await buildRolesAccess({ payload: spy, user: fx.users[role] })
       expect(groups).toEqual([])
       expect(calls, `${role} must trigger no read at all`).toEqual([])
     }
   })
 
   it('keeps the email predicate and the role gate deliberately in step', () => {
-    // ⚑ `buildEditorGroups` has TWO independent conditions: the gate that decides whether groups are
+    // ⚑ `buildRolesAccess` has TWO independent conditions: the gate that decides whether groups are
     // built at all (`siteAdmin || adminSgIds.length`), and `mayIdentifyGrantCandidates`, which decides
     // whether the email column is selected. Today every role that clears the gate also clears the
     // predicate, so the `withEmail === false` branch is UNREACHABLE and therefore untested — and if the
@@ -96,21 +116,21 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
   })
 
   it('gives a SUBJECT ADMIN addresses — the carve-out — scoped to subject-grades they administer', async () => {
-    const groups = await groupsFor('subjectAdmin')
-    expect(groups.length).toBeGreaterThan(0)
+    const access = await accessFor('subjectAdmin')
+    expect(access.groups.length).toBeGreaterThan(0)
     // Rule 2: only their own subject-grades.
-    expect(groups.map((g) => g.sgId)).toEqual([fx.subjectGrade.id])
+    expect(access.groups.map((g) => g.sgId)).toEqual([fx.subjectGrade.id])
     // Rule 3: the carve-out is live for them, not only for Site Admins. This is the assertion that
     // would have caught the pre-amendment behaviour, and equally a silent reversal of it.
-    const emails = emailsIn(groups)
+    const emails = emailsIn(access)
     expect(emails.length).toBeGreaterThan(0)
     expect(emails.every((e) => typeof e === 'string' && e.includes('@'))).toBe(true)
   })
 
   it('gives a SITE ADMIN addresses too', async () => {
-    const groups = await groupsFor('siteAdmin')
-    expect(groups.length).toBeGreaterThan(0)
-    const emails = emailsIn(groups)
+    const access = await accessFor('siteAdmin')
+    expect(access.groups.length).toBeGreaterThan(0)
+    const emails = emailsIn(access)
     expect(emails.length).toBeGreaterThan(0)
     expect(emails.every((e) => typeof e === 'string' && e.includes('@'))).toBe(true)
   })
@@ -120,8 +140,8 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
     // it. Any teacher is grantable, so the candidate pool is the roster — inherent to a grant picker,
     // and a materially wider exposure than "their own subject-grades". Pinned so the SPEC sentence and
     // the code cannot drift apart again: if this is ever narrowed, this test is where it is stated.
-    const groups = await groupsFor('subjectAdmin')
-    const addable = groups.flatMap((g) => g.addable)
+    const access = await accessFor('subjectAdmin')
+    const addable = grantableIn(access)
     // The plain teacher has no assignment anywhere, so they are grantable here despite having no
     // connection to this subject-grade.
     expect(addable.map((u) => u.id)).toContain(fx.users.teacher.id)
@@ -132,9 +152,45 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
     // The reason the roster read is `overrideAccess: true`: `roles` is field-hidden from Subject
     // Admins, so a caller-scoped read could not identify site admins and this exclusion would fail
     // open for exactly the role that must not rely on it.
-    const groups = await groupsFor('subjectAdmin')
-    const addable = groups.flatMap((g) => g.addable)
-    expect(addable.map((u) => u.id)).not.toContain(fx.users.siteAdmin.id)
+    const access = await accessFor('subjectAdmin')
+    expect(grantableIn(access).map((u) => u.id)).not.toContain(fx.users.siteAdmin.id)
+    // …and not on the shared roster either: the roster is what the client resolves ids against, so
+    // an excluded candidate that still shipped in it would be an exclusion in name only.
+    expect(access.roster.map((u) => u.id)).not.toContain(fx.users.siteAdmin.id)
+  })
+
+  /**
+   * ⚑ D11a — the payload is users + subject-grades, not their product. Each group used to carry its
+   * own arrays of full user objects, so at 100 users and 40 subject-grades the serialized RSC payload
+   * ran to thousands of entries, each with an address under the carve-out. Asserted as a PROPERTY of
+   * the shape (every id resolves, nobody appears twice) rather than as a size, so it cannot be
+   * satisfied by a fixture that happens to be small.
+   */
+  it('sends each person ONCE, on a shared roster the group ids resolve against', async () => {
+    const access = await accessFor('siteAdmin')
+    const ids = access.roster.map((u) => u.id)
+    expect(new Set(ids).size, 'the roster must be deduplicated').toBe(ids.length)
+
+    const known = new Set(ids)
+    for (const g of access.groups) {
+      for (const id of g.editorIds) {
+        expect(known.has(id), `group ${g.sgId} references id ${id} with no roster entry`).toBe(true)
+      }
+      if (g.subjectAdminId != null) expect(known.has(g.subjectAdminId)).toBe(true)
+    }
+    // The shared pool resolves too — it is the other half of what the client dereferences.
+    for (const id of access.grantableIds) expect(known.has(id)).toBe(true)
+  })
+
+  /**
+   * The role D6a makes Site-Admin-only still has to be VISIBLE to a Subject Administrator — that is
+   * the presentation half of the decision. WHETHER they may change it is a prop supplied by the
+   * render site, not a field of this projection, so it is asserted in the panel's unit spec.
+   */
+  it('carries the current Subject Administrator to the administrator of that subject-grade', async () => {
+    const asSubjectAdmin = await accessFor('subjectAdmin')
+    const group = asSubjectAdmin.groups.find((g) => g.sgId === fx.subjectGrade.id)!
+    expect(group.subjectAdminId).toBe(fx.users.subjectAdmin.id)
   })
 
   it('leaves every OTHER surface withholding addresses — emailReadAccess is unchanged', async () => {
@@ -159,10 +215,9 @@ describe('buildEditorGroups — the SPEC §8 email carve-out, by role', () => {
     // The token the assignment endpoints compare to reject a stale page (409). It must be the real
     // stored timestamp — an earlier signature accepted `unknown` and could stringify `undefined`,
     // which never matches and so fails OPEN on a concurrency guard.
-    const groups = await groupsFor('siteAdmin')
-    const everyone = groups.flatMap((g) => [...g.editors, ...g.addable])
-    expect(everyone.length).toBeGreaterThan(0)
-    for (const u of everyone) {
+    const access = await accessFor('siteAdmin')
+    expect(access.roster.length).toBeGreaterThan(0)
+    for (const u of access.roster) {
       expect(u.updatedAt, `user ${u.id} must carry a real updatedAt`).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     }
   })

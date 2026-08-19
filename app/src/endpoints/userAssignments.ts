@@ -1,8 +1,10 @@
 /**
  * Narrow role-assignment endpoints (Codex 2026-07-01 round-2 #2), mounted on `users`:
  *
- *   - POST /:id/assign-editor    — grant  the teacher with editing access role for ONE subject-grade
- *   - POST /:id/unassign-editor  — remove the teacher with editing access role for ONE subject-grade
+ *   - POST /:id/assign-editor          — grant  editing access for ONE subject-grade
+ *   - POST /:id/unassign-editor        — remove editing access for ONE subject-grade
+ *   - POST /:id/assign-subject-admin   — appoint the Subject Administrator of ONE subject-grade
+ *   - POST /:id/unassign-subject-admin — vacate that role, leaving the subject-grade with none
  *
  * Body (JSON): { subjectGradeId: number, expectedUpdatedAt: string }.
  *
@@ -17,7 +19,19 @@
  *      writes back a client-supplied array, so even a sub-millisecond race can only reorder two
  *      single-row deltas, never restore a stale snapshot.
  *
- * AUTHORIZATION is unchanged and stays with the existing machinery: the update runs with
+ * ⚑ THE ROLE IS BAKED INTO THE ENDPOINT, NOT READ FROM THE BODY. The factory below is parameterised
+ * over the role at MODULE level, so `assign-editor` and `assign-subject-admin` are two distinct
+ * routes with two distinct authorization postures. A single role-carrying endpoint would have put
+ * "which role am I granting" into a request body on a route that Subject Administrators may
+ * legitimately call — one validation slip from exactly what D6a forbids. The duplication this avoids
+ * (locking, freshness, transaction handling) is shared; the part that must not be shared is not.
+ *
+ * ⚑ SUBJECT-ADMINISTRATOR ROUTES ARE SITE-ADMIN-ONLY (D6a, operator decision 2026-08-16), asserted
+ * here AND enforced independently in `enforceAssignmentScope` for every other write path. Two gates
+ * on purpose: this one gives a caller an honest 403 on the route they used, the hook is the one that
+ * still holds when someone bypasses the route entirely with a generic PATCH.
+ *
+ * AUTHORIZATION is otherwise unchanged and stays with the existing machinery: the update runs with
  * `overrideAccess: false` as the caller, so `usersCollectionUpdate` + `assignmentsUpdateField` gate
  * the write and `enforceAssignmentScope` rejects rows outside the caller's subject-grades;
  * `autoDemotePriorSubjectAdmins` still fires. The endpoints add freshness, not new power.
@@ -33,8 +47,15 @@ import {
 
 import { lockAndVerifyFresh } from '../lib/txDb'
 import { takeAdminCountLock } from '../hooks/userRoles'
-import { json, readJsonBody, requireExpectedUpdatedAt, MAX_CONTROL_BODY_BYTES } from './respond'
+import {
+  assertSiteAdmin,
+  json,
+  readJsonBody,
+  requireExpectedUpdatedAt,
+  MAX_CONTROL_BODY_BYTES,
+} from './respond'
 import { toId, type Assignment } from '../access'
+import { assignmentAction, type AssignmentRole } from '../lib/assignmentRoles'
 import type { User } from '../payload-types'
 
 /**
@@ -69,13 +90,83 @@ export async function readAssignmentBody(
   }
 }
 
-/** Shared handler: apply a one-row editing-access grant/removal for `subjectGradeId` on user `:id`. */
-function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
+/** The assignment roles these endpoints grant, and the route slug each one uses. */
+const ROLE_RULES = {
+  editor: {
+    siteAdminOnly: false,
+    already: 'This user already has editing access for that subject grade.',
+    missing: 'This user does not have editing access for that subject grade.',
+  },
+  subjectAdmin: {
+    // D6a, asserted before the body is even read.
+    siteAdminOnly: true,
+    already: 'This user is already the Subject Administrator of that subject grade.',
+    missing: 'This user is not the Subject Administrator of that subject grade.',
+  },
+} as const satisfies Record<
+  AssignmentRole,
+  { siteAdminOnly: boolean; already: string; missing: string }
+>
+type GrantableRole = AssignmentRole
+
+/**
+ * The one-row delta, as a pure function — the only place the two roles genuinely diverge.
+ *
+ * `assign` differs because an existing row for this subject-grade means different things:
+ *   - editing access is REFUSED when any other role is held here; silently demoting an administrator
+ *     by granting them the gentler-sounding capability is not a side effect worth having.
+ *   - an appointment REPLACES whatever was held, because promoting the subject-grade's existing
+ *     editor is the common case. The other half of ≤1 — demoting the PREVIOUS administrator — is
+ *     `autoDemotePriorSubjectAdmins`, deliberately not reimplemented here.
+ */
+export function nextRows(
+  mode: 'assign' | 'unassign',
+  role: GrantableRole,
+  rows: Assignment[],
+  subjectGradeId: number,
+): Assignment[] {
+  const isThisRole = (a: Assignment) => toId(a.subjectGrade) === subjectGradeId && a.role === role
+  const inThisSubjectGrade = (a: Assignment) => toId(a.subjectGrade) === subjectGradeId
+
+  if (mode === 'unassign') {
+    if (!rows.some(isThisRole)) throw new APIError(ROLE_RULES[role].missing, 409)
+    // ⚑ Vacating leaves the subject-grade with NO administrator, deliberately (operator decision):
+    // offboarding must not require appointing a replacement first.
+    return rows.filter((a) => !isThisRole(a))
+  }
+  if (rows.some(isThisRole)) throw new APIError(ROLE_RULES[role].already, 409)
+  if (role === 'editor') {
+    if (rows.some(inThisSubjectGrade)) {
+      throw new APIError('This user already has a role in that subject grade.', 409)
+    }
+    return [...rows, { subjectGrade: subjectGradeId, role } as Assignment]
+  }
+  return [
+    ...rows.filter((a) => !inThisSubjectGrade(a)),
+    { subjectGrade: subjectGradeId, role } as Assignment,
+  ]
+}
+
+/**
+ * Shared handler: apply a one-row grant/removal of `role` for `subjectGradeId` on user `:id`.
+ *
+ * ⚑ THE PER-ROLE DIFFERENCES LIVE IN `ROLE_RULES` AND `nextRows`, not scattered through the handler.
+ * An earlier version of this docblock claimed the roles "differ in exactly one place… `nextRows`
+ * below" while no such function existed and the divergence was spread across four branches. The
+ * shared body — auth, body parse, transaction, lock, freshness, update, commit — is what the factory
+ * is for; `nextRows` is a pure function of (mode, role, rows, subjectGradeId), so the part that
+ * actually differs is testable without a database.
+ */
+function assignmentEndpoint(mode: 'assign' | 'unassign', role: GrantableRole): Endpoint {
   return {
-    path: `/:id/${mode}-editor`,
+    path: `/:id/${assignmentAction(mode, role)}`,
     method: 'post',
     handler: async (req: PayloadRequest): Promise<Response> => {
       if (!req.user) throw new APIError('Unauthorized', 401)
+      // ⚑ D6a. Before the body is even read: appointing or vacating a Subject Administrator is
+      // Site-Admin-only, and a Subject Administrator calling this route gets a 403 rather than a
+      // silent no-op or a confusing failure deeper in the stack.
+      if (ROLE_RULES[role].siteAdminOnly) assertSiteAdmin(req)
       const targetId = Number(req.routeParams?.id)
       if (!Number.isFinite(targetId)) throw new APIError('Missing user id', 400)
       const { subjectGradeId, expectedUpdatedAt } = await readAssignmentBody(req)
@@ -114,21 +205,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
         )
 
         const rows: Assignment[] = (target.assignments ?? []) as Assignment[]
-        const isEditorRowForSg = (a: Assignment) =>
-          toId(a.subjectGrade) === subjectGradeId && a.role === 'editor'
-
-        let next: Assignment[]
-        if (mode === 'assign') {
-          if (rows.some((a) => toId(a.subjectGrade) === subjectGradeId)) {
-            throw new APIError('This user already has a role in that subject grade.', 409)
-          }
-          next = [...rows, { subjectGrade: subjectGradeId, role: 'editor' } as Assignment]
-        } else {
-          if (!rows.some(isEditorRowForSg)) {
-            throw new APIError('This user does not have editing access for that subject grade.', 409)
-          }
-          next = rows.filter((a) => !isEditorRowForSg(a))
-        }
+        const next = nextRows(mode, role, rows, subjectGradeId)
 
         // As the CALLER — all existing guards apply (collection/field access + scope hook + demote,
         // including the site-admin-target rule in `enforceAssignmentScope`).
@@ -151,5 +228,7 @@ function editorAssignmentEndpoint(mode: 'assign' | 'unassign'): Endpoint {
   }
 }
 
-export const assignEditorEndpoint = editorAssignmentEndpoint('assign')
-export const unassignEditorEndpoint = editorAssignmentEndpoint('unassign')
+export const assignEditorEndpoint = assignmentEndpoint('assign', 'editor')
+export const unassignEditorEndpoint = assignmentEndpoint('unassign', 'editor')
+export const assignSubjectAdminEndpoint = assignmentEndpoint('assign', 'subjectAdmin')
+export const unassignSubjectAdminEndpoint = assignmentEndpoint('unassign', 'subjectAdmin')
