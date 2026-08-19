@@ -25,7 +25,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-18) — the Manage redesign arc is CLOSED; three things are waiting
+# ⚑ HANDOFF (2026-08-19) — the Manage redesign arc is CLOSED and DEPLOYED; two things are open
 
 **This supersedes the 2026-08-17 handoff, which is deleted rather than kept:** it said "start PR 2b",
 and every PR it pointed at is merged. The public-discovery track — designed in the **2026-08-15**
@@ -50,18 +50,30 @@ audit:prod, contract probe).
 `docs/DESIGN-manage-accordion-2026-08-16.md` is marked COMPLETE and records the two places the built
 design deliberately departs from the plan. Decisions are in `docs/DECISIONS.md` (2026-08-18).
 
-## ⚑ Three things still sitting with us
+## ⚑ Where things stand: deployed, with two items still open
 
-**1. The deploy has not happened.** Run it on the Rock as usual (`scripts/deploy.sh`). PRs 3 and 4
-add **no migration**. The only schema change in flight is PR 2a's
-`20260817_141942_add_sign_in_disabled` — additive (`ADD COLUMN … boolean DEFAULT false`, so existing
-accounts backfill to enabled) — **if `26c0483` is not already out**. Check `git log` on the Rock
-first; `deploy.sh` snapshots before migrating regardless.
+**1. ~~The deploy~~ — DONE. Deployed 2026-08-19, `deploy: OK at 3969d65`.** An operator-run
+`scripts/deploy.sh` completed on the Rock; the whole Manage arc is live.
 
-**2. The D6a pre-ship check, which nobody has done.** D6a is **forward-only**: the guard changes what
-is permitted from now on and does not invalidate existing grants. A deployment made before it may
-already hold `subjectAdmin` rows written by a *Subject* Administrator, because the old code allowed
-exactly that. Worth looking for before you deploy:
+⚑ **No schema change happened in this deploy, and the evidence is in the output rather than in
+anyone's memory.** The migrate service ran at 01:47:06Z and again at 03:16:49Z (the second matching
+this run's `premigrate-3969d65` snapshot) and both logged *"Reading migration files"* → *"Done."*
+with **nothing between them** — Payload logs every migration it applies, so an empty pair means none
+were pending. `git pull` also reported *"Already up to date"*, i.e. the Rock was at `3969d65` before
+this run. PR 2a's `20260817_141942_add_sign_in_disabled` therefore went out in an **earlier** deploy,
+not this one.
+
+As with 2026-08-16: **the operator's deploy output is the record.** If you need to confirm what the
+Rock is actually running rather than what a handoff says it is, use the **tree-hash comparison**
+documented further down this file (`git rev-parse origin/main:app` against the same on the Rock) —
+that compares the deployed code itself, and is unaffected by which commits sit either side of it.
+
+**2. The D6a check — STILL OPEN, and no longer a pre-ship check.** It was written as "do this before
+deploying"; the deploy has happened and this was not done, so read it as "still worth doing". Nothing
+is broken by the ordering: D6a is **forward-only**, so any pre-existing rows were always going to
+survive the deploy — the guard changes what is permitted from now on and does not invalidate existing
+grants. The question it answers ("does this installation contain administrator grants that predate the
+rule?") is exactly as answerable now as it was before:
 
 ```sql
 SELECT * FROM users_assignments WHERE role = 'subjectAdmin';
@@ -71,7 +83,8 @@ SELECT * FROM users_assignments WHERE role = 'subjectAdmin';
 assignment, so the query cannot distinguish a legitimate Site-Admin grant from a self-appointment.
 Do not "clean up" rows on the strength of it — the decision is deliberate about leaving them alone.
 
-**3. An open gap in how this suite tests appearance — a decision, not a patch.** PR 4 shipped markup
+**3. An open gap in how this suite tests appearance — a decision, not a patch.** (Unaffected by the
+deploy; listed third because it is the least urgent, not because it is the least real.) PR 4 shipped markup
 referencing `.lp-manage__roles-admin`, a class with **no CSS rule at all**, and the E2E asserted the
 text was *visible* — which passes on entirely unstyled markup. Nothing in unit, int, http or e2e
 would have caught it; `/simplify` did, by reading. The repo *does* pin some visual invariants
@@ -88,8 +101,9 @@ passed.
 
 ## What to work on next
 
-No blocking decisions outstanding on any thread. Live options:
-- **Deploy + the two checks above** — smallest, and unblocks everything else.
+No blocking decisions outstanding on any thread. The deploy is done. Live options:
+- **The two open items above** (the D6a check; the layout-testing gap) — small, and both are the kind
+  that quietly become permanent because nothing fails if they are skipped.
 - **The public-discovery track** — phase 1 shipped and is deployed; phase 2 was never started. Design
   is in the 2026-08-15 handoff below.
 - **`docs/DESIGN-manage-accordion-2026-08-16.md` §8 "to verify during implementation"** — worth a
