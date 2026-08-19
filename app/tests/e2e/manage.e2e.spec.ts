@@ -375,12 +375,18 @@ test.describe('Manage page', () => {
     // so a margin there is spacing that belongs to the row but cannot be wrapped by it. The pair below
     // pins both halves: 24px between sibling ROWS, and nothing on the heading. Purely visual, so
     // nothing else in this file would notice if it regressed — which is exactly why it is asserted.
-    const nestedPanels = page.locator('.lp-admin-dash > .lp-accordion .lp-accordion')
+    const nestedPanels = page.locator('.lp-accordion .lp-accordion')
     await expect(nestedPanels.nth(1)).toHaveCSS('margin-top', '24px')
-    await expect(nestedPanels.nth(1).locator('.lp-accordion__heading').first()).toHaveCSS(
-      'margin-top',
-      '0px',
-    )
+    // ⚑ The heading half is asserted over EVERY nested heading, not one. The defect it guards was
+    // per-row (a stripe above rows 2 and 3 while row 1 was clean), and `margin: 0` on `&__heading` is
+    // now a universal rule — checking a single element would understate what the refactor established
+    // and would pass on a regression that spared row 2. Same shape as the all-panels border loop above.
+    const nestedHeadings = nestedPanels.locator('.lp-accordion__heading')
+    const headingCount = await nestedHeadings.count()
+    expect(headingCount).toBeGreaterThan(1)
+    for (let i = 0; i < headingCount; i++) {
+      await expect(nestedHeadings.nth(i)).toHaveCSS('margin-top', '0px')
+    }
 
     // The open panel's header carries the divider that separates it from the body it now owns, driven
     // off `aria-expanded` rather than a class — so this also pins that there is no second source of

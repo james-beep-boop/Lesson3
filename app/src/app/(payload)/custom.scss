@@ -199,13 +199,21 @@ body {
     // here — use `--theme-elevation-200` with a hover step to `300`, and `$style-radius-m`. Matching
     // them is why this page now reads as part of the admin instead of as a visitor to it.
     //
-    // `var(--style-radius-m)` is Payload's variable (declared on `:root` in its `app.scss`), so the
-    // curve TRACKS their design system instead of restating a number that would silently diverge on
-    // the next upgrade. The fallback is its current value, for the case where a future Payload stops
-    // publishing it — without one, an unknown custom property computes to 0 and the box goes square.
+    // ⚑ THE SEAM TO PAYLOAD'S DESIGN SYSTEM IS DECLARED ONCE, HERE. `--style-radius-m` is Payload's
+    // own variable (`:root`, its `app.scss`), so the curve TRACKS their system instead of restating a
+    // number that would silently diverge on the next upgrade. The fallback is its current value: an
+    // unknown custom property computes to 0 and the box would go square.
+    //
+    // It is aliased rather than spelled at each use because the header inside this box needs the same
+    // curve, and two `var(--style-radius-m, 4px)` call sites mean two fallbacks kept identical by eye —
+    // the drift `app-tokens.scss` exists to prevent. ⚑ It must NOT live in `app-tokens.scss` itself:
+    // that file is shared with the frontend, where no Payload variable exists and it would silently
+    // resolve to the fallback everywhere. Admin-scoped alias, admin-only dependency.
+    //
     // The button system's own radius is deliberately NOT used here: this is admin chrome, not a control.
+    --lp-panel-radius: var(--style-radius-m, 4px);
     border: 1px solid var(--theme-elevation-200);
-    border-radius: var(--style-radius-m, 4px);
+    border-radius: var(--lp-panel-radius);
 
     // Same as Payload's: the edge firms up under the pointer. Scoped to the container rather than the
     // header, which is what `Collapsible` does too — so an open panel darkens while you read it, and
@@ -214,64 +222,68 @@ body {
       border-color: var(--theme-elevation-300);
     }
 
-    // The box supplies its own internal spacing, so the heading's leading margin — which existed to
-    // hold flat sections apart — would add a second gap inside the border.
-    // Nested rather than two sibling rules: `&__heading` interpolation is unavailable inside this
-    // block (the parent selector is compound), so both spellings would be hand-written literals kept
-    // identical by eye. Same output selectors, same specificity.
-    > .lp-accordion__heading {
-      > .lp-accordion__trigger {
-        // ⚑ A PERSISTENT FILL ON THE HEADER, matching `Collapsible__toggle-wrap` in the version editor
-        // (`--theme-elevation-50`, hover `--theme-elevation-100`). Operator decision 2026-08-19, taken
-        // from a rendered comparison rather than a description: the band is what made the editor's rows
-        // read as a tidy list instead of a stack of headings.
-        //
-        // ⚑ TOP LEVEL ONLY, and that is the design decision inside the design decision. Filling BOTH
-        // levels is what the editor does, and it is wrong here: its rows are SIBLINGS the user can
-        // reorder, while these are a HIERARCHY (`plans.upload` is subordinate to `plans`). Banding both
-        // identically would flatten the 20/18 type step that exists to express that depth — spending
-        // the type scale to signal nesting and then contradicting it with colour. Nested triggers keep
-        // the transparent-with-hover treatment from the base rule above.
-        background: var(--theme-elevation-50);
+    // Reaches THROUGH the heading because the trigger is its only child — the heading carries the type
+    // scale, the trigger carries the geometry. Spelled as literals rather than `&__heading`, which Sass
+    // cannot interpolate here (the parent selector is compound).
+    //
+    // ⚑ This was two nested levels until 2026-08-19: the outer one existed solely to cancel the
+    // heading's leading margin, and the spacing refactor that moved that gap onto the row deleted its
+    // only declaration. An empty pass-through block plus a comment explaining a declaration that is no
+    // longer there is how a reader ends up diffing history to understand a rule.
+    > .lp-accordion__heading > .lp-accordion__trigger {
+      // ⚑ A PERSISTENT FILL ON THE HEADER, matching `Collapsible__toggle-wrap` in the version editor
+      // (`--theme-elevation-50`, hover `--theme-elevation-100`). Operator decision 2026-08-19, taken
+      // from a rendered comparison rather than a description: the band is what made the editor's rows
+      // read as a tidy list instead of a stack of headings.
+      //
+      // ⚑ TOP LEVEL ONLY, and that is the design decision inside the design decision. Filling BOTH
+      // levels is what the editor does, and it is wrong here: its rows are SIBLINGS the user can
+      // reorder, while these are a HIERARCHY (`plans.upload` is subordinate to `plans`). Banding both
+      // identically would flatten the 20/18 type step that exists to express that depth — spending
+      // the type scale to signal nesting and then contradicting it with colour. Nested triggers keep
+      // the transparent-with-hover treatment from the base rule above.
+      background: var(--theme-elevation-50);
 
-        &:hover {
-          background: var(--theme-elevation-100);
-        }
+      &:hover {
+        background: var(--theme-elevation-100);
+      }
 
-        // ⚑ THE FILL FORCES THE RADIUS TO MATCH THE BOX. While the header was transparent its inherited
-        // 6px button-system curve was invisible; filled, a 6px fill inside a 4px border shows as the
-        // colour bulging past the corner. Same variable as the container, exactly as Payload's
-        // toggle-wrap uses the same `$style-radius-m` as its collapsible.
-        border-radius: var(--style-radius-m, 4px);
+      // ⚑ THE FILL FORCES THE RADIUS TO MATCH THE BOX. While the header was transparent its inherited
+      // 6px button-system curve was invisible; filled, a 6px fill inside a 4px border shows as the
+      // colour bulging past the corner. Same variable as the container, exactly as Payload's
+      // toggle-wrap uses the same `$style-radius-m` as its collapsible. Via the alias declared on the
+      // box above, so the two curves cannot drift apart.
+      border-radius: var(--lp-panel-radius);
 
-        // ⚑ 8px BLOCK, 16px INLINE — matching the density of Payload's collapsible rows (`base(0.4)`
-        // / `base(0.8)` against a 20px baseline). Measured before: a 64px row, against ~40px in the
-        // version editor, and at four boxes that difference is what made this page read as a stack of
-        // large headings rather than as a list. Now ~47px.
-        //
-        // Padding, not height: the row is as tall as its own type plus this, so it stays above the
-        // ≤640px touch minimum (8 + 8 + ~31px line ≈ 47px) without a second geometry statement — and
-        // the shared touch rule still forces 44px on a phone regardless.
-        padding: var(--app-space-1) var(--app-space-3);
+      // ⚑ 8px BLOCK, 16px INLINE — matching the density of Payload's collapsible rows (`base(0.4)`
+      // / `base(0.8)` against a 20px baseline). Measured before: a 64px row, against ~40px in the
+      // version editor, and at four boxes that difference is what made this page read as a stack of
+      // large headings rather than as a list. Now ~47px.
+      //
+      // ⚑ `padding-inline` ONLY. The 8px BLOCK value stays owned by the base `&__trigger` rule below,
+      // which already sets `padding: var(--app-space-1) 0` for every disclosure row at either level.
+      // Restating it here would silently untether top-level row height from that rule: change the base
+      // and nested rows would move while these four did not — and the height arithmetic above is
+      // exactly what depends on them agreeing.
+      padding-inline: var(--app-space-3);
 
-        // ⚑ The focus ring turns INSIDE-OUT here, and only here. Every other control in the admin sets
-        // `outline-offset: var(--app-btn-focus-ring-offset)` — a ring 2px OUTSIDE the control, which
-        // reads correctly against a page background. This trigger is flush to its container's border,
-        // so an outward ring is drawn on top of that border and reads as a thickened box rather than
-        // as focus. Same TOKEN, negated, so it still tracks any change to the ring's geometry.
-        &:focus-visible {
-          outline-offset: calc(var(--app-btn-focus-ring-offset) * -1);
-        }
+      // ⚑ The focus ring turns INSIDE-OUT here, and only here. Every other control in the admin sets
+      // `outline-offset: var(--app-btn-focus-ring-offset)` — a ring 2px OUTSIDE the control, which
+      // reads correctly against a page background. This trigger is flush to its container's border,
+      // so an outward ring is drawn on top of that border and reads as a thickened box rather than
+      // as focus. Same TOKEN, negated, so it still tracks any change to the ring's geometry.
+      &:focus-visible {
+        outline-offset: calc(var(--app-btn-focus-ring-offset) * -1);
+      }
 
-        // Open: the header separates from the panel body it now owns, and its bottom corners square
-        // off so the hover fill stops following a curve the box no longer has there. State comes from
-        // `aria-expanded` — the attribute React already sets — so no `--open` class exists to disagree
-        // with it.
-        &[aria-expanded='true'] {
-          border-bottom: 1px solid var(--theme-elevation-100);
-          border-end-start-radius: 0;
-          border-end-end-radius: 0;
-        }
+      // Open: the header separates from the panel body it now owns, and its bottom corners square
+      // off so the hover fill stops following a curve the box no longer has there. State comes from
+      // `aria-expanded` — the attribute React already sets — so no `--open` class exists to disagree
+      // with it.
+      &[aria-expanded='true'] {
+        border-bottom: 1px solid var(--theme-elevation-100);
+        border-end-start-radius: 0;
+        border-end-end-radius: 0;
       }
     }
 
@@ -391,6 +403,14 @@ body {
   // Sibling nested panels are held apart by the ROW, not by its heading. `+` means "between", so the
   // first row needs no exemption and the last draws no trailing space — the same shape as the
   // top-level `.lp-admin-dash > & + &` rule above, one level in.
+  //
+  // ⚑ `&:not(:first-child)` WAS CONSIDERED AND NOT TAKEN (2026-08-19 review). It states the invariant
+  // more generally — "a row that is not the first thing in the body" rather than "a row preceded by
+  // another row" — and the two differ the day a group body opens with a `.lp-manage__desc` intro, as
+  // every LEAF panel already does: the first row would then take the desc's 12px instead of 24px.
+  // Kept `+` because the two compile identically today, because it mirrors the top-level rule, and
+  // because what the gap should be under an intro paragraph is a design decision, not a defect to
+  // pre-empt. ⚑ If a group body ever gains one, make that decision rather than adding a third rule.
   &__panel > & + & {
     margin-block-start: var(--app-space-4);
   }
