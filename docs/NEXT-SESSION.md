@@ -25,48 +25,101 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-17) — Manage PR 1 and PR 2a are merged; start PR 2b
+# ⚑ HANDOFF (2026-08-18) — the Manage redesign arc is CLOSED; three things are waiting
 
-**This supersedes the 2026-08-16 handoff below.** The public-discovery track described there is
-unchanged. The second arc is no longer merely planned: its UI shell and security foundation are now
-on `main`.
+**This supersedes the 2026-08-17 handoff, which is deleted rather than kept:** it said "start PR 2b",
+and every PR it pointed at is merged. The public-discovery track — designed in the **2026-08-15**
+block below, with the security/tooling pass on top of it in the 2026-08-16 block — is unchanged and
+is still the other live thread.
 
 ## What landed
 
-| PR | What | Migration |
-|---|---|---|
-| #239 | Manage accordion shell, URL state, candidate search, display-name form, Users terminology | no |
-| #240 | User-security foundation: disable/session revocation, last-admin guards, reset links and `ACCOUNT_DISABLED` wire contract | `sign_in_disabled` |
+`main` is at **`3969d65`**, green on the full gate (unit 782, int 203, http 178, e2e, lint,
+audit:prod, contract probe).
 
-The second squash merge is `26c0483`. Both PRs were rebased/merged in order and received a fresh full
-CI run after their shared `collections/Users.ts` overlap was resolved.
+| PR | What |
+|---|---|
+| #239 | Manage accordion shell, URL state (`?open=`), candidate search, display-name form |
+| #240 | User-security foundation: sign-in disable + session revocation, last-admin guards, admin reset links, the `ACCOUNT_DISABLED` wire contract |
+| #241 | The lazy Users panel + `GET /api/users/search` |
+| #242 | `workflow_dispatch` on the CI gate |
+| #243 | Fixed the accordion mount-scrub race in the avatar-menu E2E |
+| #244 | Subjects and Subject grades panels; `curriculum` retired from `PANEL_IDS` |
+| #245 | Roles & Access: D6a guard, Subject-Administrator routes, D11a projection reshape |
 
-## What is next
+`docs/DESIGN-manage-accordion-2026-08-16.md` is marked COMPLETE and records the two places the built
+design deliberately departs from the plan. Decisions are in `docs/DECISIONS.md` (2026-08-18).
 
-Start **PR 2b — the Users panel** from §6 of
-`docs/DESIGN-manage-accordion-2026-08-16.md`:
+## ⚑ Three things still sitting with us
 
-1. `GET /api/users/search`: Site-Admin-only, paginated, name/email query, explicit computed-type
-   filter, and no `overrideAccess: true` read.
-2. Lazy-load only the Users panel; keep every existing bounded Manage panel server-loaded (D11).
-3. Add the row disclosure and controls that call PR 2a's endpoints. Grants stay read-only here and
-   jump to Roles & Access.
-4. Redirect the native Users list route to Manage.
-5. Ship the §7 wire matrix and E2E coverage in the same PR, including the cross-panel jump/history/
-   focus case deferred from PR 1.
+**1. The deploy has not happened.** Run it on the Rock as usual (`scripts/deploy.sh`). PRs 3 and 4
+add **no migration**. The only schema change in flight is PR 2a's
+`20260817_141942_add_sign_in_disabled` — additive (`ADD COLUMN … boolean DEFAULT false`, so existing
+accounts backfill to enabled) — **if `26c0483` is not already out**. Check `git log` on the Rock
+first; `deploy.sh` snapshots before migrating regardless.
+
+**2. The D6a pre-ship check, which nobody has done.** D6a is **forward-only**: the guard changes what
+is permitted from now on and does not invalidate existing grants. A deployment made before it may
+already hold `subjectAdmin` rows written by a *Subject* Administrator, because the old code allowed
+exactly that. Worth looking for before you deploy:
+
+```sql
+SELECT * FROM users_assignments WHERE role = 'subjectAdmin';
+```
+
+⚑ This is **informational only, and cannot be more than that**: nothing records *who granted* an
+assignment, so the query cannot distinguish a legitimate Site-Admin grant from a self-appointment.
+Do not "clean up" rows on the strength of it — the decision is deliberate about leaving them alone.
+
+**3. An open gap in how this suite tests appearance — a decision, not a patch.** PR 4 shipped markup
+referencing `.lp-manage__roles-admin`, a class with **no CSS rule at all**, and the E2E asserted the
+text was *visible* — which passes on entirely unstyled markup. Nothing in unit, int, http or e2e
+would have caught it; `/simplify` did, by reading. The repo *does* pin some visual invariants
+(`buttonSystem.spec.ts` and `guideCompareVisual.spec.tsx` assert against the stylesheet SOURCE, and
+`manage.e2e.spec.ts` measures a few computed values), so the machinery exists — what is missing is
+anything that notices a referenced class with no rule. Options, cheapest first:
+  - a unit guard that extracts `className` literals from `components/` and asserts each resolves in
+    `custom.scss`/`styles.css` (AST over regex, per the house rule);
+  - extending the existing computed-style E2E assertions to the new panels;
+  - accepting the gap explicitly and writing that down.
+
+**Do not** treat "add another `toBeVisible()`" as the answer — that is the assertion that already
+passed.
+
+## What to work on next
+
+No blocking decisions outstanding on any thread. Live options:
+- **Deploy + the two checks above** — smallest, and unblocks everything else.
+- **The public-discovery track** — phase 1 shipped and is deployed; phase 2 was never started. Design
+  is in the 2026-08-15 handoff below.
+- **`docs/DESIGN-manage-accordion-2026-08-16.md` §8 "to verify during implementation"** — worth a
+  read to confirm nothing was left open by the arc.
 
 ## Three things not to re-derive
 
-1. **Local development still uses `scripts/dev-seed.sh` and `scripts/dev-server.sh`.** A bare
-   `npx next dev` cannot reach the Compose-only database. Docker must be running.
-2. **A production Next bundle can split one logical error class across module realms.** Constructor
-   identity is therefore not a wire contract: `instanceof APIError` passed in the unit harness and
-   failed in the production HTTP suite. `preserveAccountDisabledWire` reads the narrowly guarded
-   public `data.code` property in `afterError`, and `accountDisabledWiring.spec.ts` pins the hook's
-   registration. Do not replace either with a same-module `instanceof` test.
-3. **A green result must contain executed tests.** `test:int` reporting 200 skipped cases after
-   `ECONNREFUSED localhost:5432` is not a pass. Use AGENTS.md's disposable-stack recipe, restore
-   `app/test.env`, and confirm the real `24 files / 200 tests` summary.
+1. **Local development uses `scripts/dev-seed.sh` and `scripts/dev-server.sh`.** A bare `npx next dev`
+   cannot reach the Compose-only database, and the `devEngines` gate rejects npm on a non-Node-24
+   host. Docker must be running. Use `scripts/in-deps.sh` rather than hand-writing `docker run`.
+2. **`tests/http` and `tests/e2e` fixtures go to a DISPOSABLE stack, never the seeded dev database.**
+   `setupRoleFixture` opens with a namespace-wide `purgeMarked(MARK_BASE)` sweep and its user creates
+   spend the real signup rate-limit budget. Recipe: AGENTS.md's `lesson3-ci-probe`. Full reasoning:
+   DECISIONS 2026-08-18. **Do not** add `-e NODE_ENV=development` to a test container — it turns
+   drizzle schema push on in the TEST process and deadlocks against the app's job-queue transactions.
+3. **A green result must contain executed tests.** `test:int` reporting 200 *skipped* cases after
+   `ECONNREFUSED` is not a pass. Confirm the real counts.
+
+## ⚑ Two lessons from this arc worth carrying, not just filing
+
+- **A test whose subject can be mutated by an earlier test is not a guard.** PR 4's first D6a
+  coverage was green, cited in `SPEC.md` and `DECISIONS.md` as the proof, and **passed with the guard
+  deleted** — because an earlier test in the same file appointed a new administrator and the
+  auto-demote hook demoted the very account those assertions used as their caller. It now lives in
+  `tests/unit/enforceAssignmentScope.spec.ts`, called directly with hand-built rows, and is
+  mutation-verified. When a guard matters, prove it fails.
+- **`/simplify` on this codebase finds defects, not just tidiness.** Across PRs 3 and 4 it caught: two
+  search boxes that could not match their own displayed text, a button that enabled for input its
+  handler then silently rejected, a raw-SQL count with no test at all, an unstyled class, and the D6a
+  test above. Budget for it as review, not polish.
 
 ---
 

@@ -2,9 +2,24 @@
 
 **Date:** 2026-08-16 · **Revised seven times the same day** — external review, rebase onto
 `origin/main`, then five further external reviews (see §10)
-**Status:** In build. PR 1 (accordion shell, #239) and PR 2a (user-security foundation, #240) are
-merged; PR 2b (Users panel) is in progress. PRs 3 and 4 remain unstarted. No blocking decisions
-outstanding.
+**Status: COMPLETE (2026-08-18).** All five PRs are merged to `main`: PR 1 accordion shell (#239),
+PR 2a user-security foundation (#240), PR 2b Users panel (#241), PR 3 Subjects and Subject grades
+panels (#244), PR 4 Roles & Access (#245). `main` is green on the full gate at `3969d65`.
+
+⚑ **Two departures from this plan, both deliberate — read them before treating the tables below as
+the built design.**
+1. **PR 3 did not nest a panel per subject-grade** and PR 4 does not either. §6 says "nest one panel
+   per subject-grade", which is not buildable: `PANEL_IDS` is a CLOSED vocabulary and a URL contract
+   (D7a's scrub rule depends on it), while subject-grade ids are dynamic. D7 already names the right
+   pattern — a per-row **inline row disclosure**, "deliberately named as a distinct pattern so 'two
+   levels max' stays enforceable". The `access` panel id is unchanged.
+2. **`maySetSubjectAdmin` is a PROP, not a field of the projection.** §6's PR 4 row implies the
+   capability rides with the data; it briefly did, which put a presentation flag inside the return
+   type of the email-carve-out projection — the one function whose docblock exists to keep its role
+   gate, trusted query and projection inseparable. The render site holds `siteAdmin` and passes it.
+
+Everything else was built as specified. `docs/DECISIONS.md` (2026-08-18) records D6a and D11a,
+including why PR 4's first D6a test could not fail.
 ⚑ **Vocabulary (amended 2026-08-17):** three user types — Teacher, Subject-grade administrator, Site
 administrator. **"Editor" is not one.** A Teacher may hold **editing access** for particular
 subject-grades without changing type; the stored `role: 'editor'` value and names built on it stay as
