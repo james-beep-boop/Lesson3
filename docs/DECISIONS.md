@@ -11,6 +11,73 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-19 — an external audit's five findings: one real, one already shipped, three refused
+
+An outside model (nemotron) reviewed the codebase and reported five issues. Checked against the code:
+**one was real, one was already implemented, and three were wrong** — but the review was not worthless,
+and the pattern in WHICH ones were wrong is the durable lesson.
+
+| # | Finding | Outcome |
+|---|---|---|
+| 2 | Four security headers missing | **Already shipped** — 3 of the 4 |
+| 1 | Exact dependency versions block security updates | **Refused** |
+| 3 | Remove the dev-only `unsafe-eval` from the CSP | **Refused** |
+| 4 | Rate-limit the upload endpoint | **Accepted**, resized |
+| 5 | Size limits on the `extract` path | **Refused** |
+
+**Finding 2 — three of four already existed.** `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy` and `X-DNS-Prefetch-Control` have been set in `next.config.ts`'s `headers()` since the
+hardening pass. The reviewer read `middleware.ts` alone, where only the CSP lives — and it lives there
+precisely because it needs a per-request nonce, which the config file's own comment says. Only
+`Permissions-Policy` was genuinely absent; it is now set, denying geolocation/microphone/camera outright.
+⚑ **The more useful half was the test**: nothing in any suite asserted those headers, so the claim could
+only be settled by reading the config, and a typo in `headers()` would have shipped in exactly that same
+silence. They are now pinned in `tests/http` — with HSTS asserted ABSENT, since it is conditional on an
+https `SERVER_URL` the test stack does not set.
+
+**Finding 1 — refused, and its diff would have caused the damage it warned about.** The count was right
+(35 of 36 pinned exactly) and everything after it was wrong. `package-lock.json` is committed, so
+`npm ci` installs the lockfile tree regardless of `^`; carets do not deliver security patches, RE-RESOLVING
+does, and `audit:prod` already runs in the gate. What carets WOULD add is a silent minor bump on the next
+re-resolve — exactly what CLAUDE.md's "pin versions, upgrade deliberately" forbids, a rule this repo
+earned when a stale image served the wrong Node major for weeks. ⚑ And every version in the proposed
+patch was FABRICATED: `next: 14.0.0` against a real `16.2.12`, `react: 18.0.0` against `19.2.6`,
+`payload: 3.0.0` against `3.87.1`. Applying it as written would have downgraded Next by two majors.
+
+**Finding 3 — refused as unactionable, and its risk model is inverted.** `dev = NODE_ENV !== 'production'`,
+so `unsafe-eval` never ships. Nothing in our code calls `eval`; it is Next's HMR and React Refresh, so
+"fix whatever requires it" means patching the framework's dev server. And the danger it names — production
+inheriting dev settings — has a far worse consequence than a CSP string: with `NODE_ENV` wrong, Payload
+runs schema-push mode against the live database. That is the control that matters, and it is already
+guarded in `dev-server.sh` and the probe recipe.
+
+**Finding 5 — refused.** The trust boundary is the endpoint, already bounded at 50 files / 5 MB each with
+a declared-`Content-Length` check before the body is read. The unbounded callers are developer scripts run
+deliberately against local files; a limit there protects nobody.
+
+**Finding 4 — accepted, after the operator corrected ME.** I argued against metering on the grounds that
+a limit would break bulk import. Wrong: batches are a few dozen plans — one or two requests against
+`MAX_FILES 50` — with a bounded corpus. The objection doing most of the work in my analysis was an invented
+600-plan onboarding. Metered at 50 per 15 minutes: unreachable by real use, still stops a hot loop. Framed
+honestly as a RUNAWAY GUARD, not a security fix — the endpoint is Site-Administrator only, and anyone who
+can reach it can already delete every plan and grant themselves roles.
+
+### ⚑ The lesson, which is about reviewing review output
+
+**Its claims about files it had read were accurate; its claims about files it had not were fabricated, in
+the same confident register.** It correctly described `extract.ts` down to the acorn AST parsing and the
+no-execution guarantee — that file it plainly read. It invented `package.json`'s contents and a
+`isRateLimited(req, name, {windowMs, max})` API that does not exist in `lib/rateLimit.ts`.
+
+The tell is **specificity without a way to have known it**: exact version numbers, a function signature,
+a line number. Prose about design can be argued with; a fabricated version number is checkable in one
+command, and checking is the whole job. Two of the five findings would have caused real damage if applied
+on trust — a two-major framework downgrade, and a dev server broken for no production benefit.
+
+⚑ **So: treat an external review as a list of QUESTIONS, never a list of instructions** — the same posture
+this repo already takes toward its own comments ("verify, never assume"). Every finding here was resolved
+by reading the named file, and the two that survived did so on evidence rather than on plausibility.
+
 ## 2026-08-19 — Manage adopts Payload's collapsible look, and why the edit page cost a fraction of it
 
 **The operator's question was the useful part:** the version editor's collapsible lesson rows underwent

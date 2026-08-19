@@ -25,91 +25,74 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-19) — the Manage redesign arc is CLOSED and DEPLOYED; two things are open
+# ⚑ HANDOFF (2026-08-19, late) — the four-box Manage page is DEPLOYED; three threads open
 
-**This supersedes the 2026-08-17 handoff, which is deleted rather than kept:** it said "start PR 2b",
-and every PR it pointed at is merged. The public-discovery track — designed in the **2026-08-15**
-block below, with the security/tooling pass on top of it in the 2026-08-16 block — is unchanged and
-is still the other live thread.
+**This supersedes the earlier 2026-08-19 handoff, which is replaced rather than kept.** That one
+described the accordion arc as closed at `3969d65` with two open items — then a full day of work landed
+and deployed on top of it. The public-discovery track designed in the **2026-08-15** block below is
+untouched and is still the other live thread.
 
-## What landed
-
-`main` is at **`3969d65`**, green on the full gate (unit 782, int 203, http 178, e2e, lint,
-audit:prod, contract probe).
+## What landed (main at `faef375`)
 
 | PR | What |
 |---|---|
-| #239 | Manage accordion shell, URL state (`?open=`), candidate search, display-name form |
-| #240 | User-security foundation: sign-in disable + session revocation, last-admin guards, admin reset links, the `ACCOUNT_DISABLED` wire contract |
-| #241 | The lazy Users panel + `GET /api/users/search` |
-| #242 | `workflow_dispatch` on the CI gate |
-| #243 | Fixed the accordion mount-scrub race in the avatar-menu E2E |
-| #244 | Subjects and Subject grades panels; `curriculum` retired from `PANEL_IDS` |
-| #245 | Roles & Access: D6a guard, Subject-Administrator routes, D11a projection reshape |
+| #247 | Manage becomes FOUR BOXES (three commits: the IA + UI, the Back-button fix behind it, the dev-stack unwedge) |
+| #248 | Closed a verification caveat that had gone stale within hours |
+| #249 | Four findings from a `/simplify` pass on #247 — one of them a live bug |
+| #250 | Adopted Payload's collapsible look: denser rows (64px → 47px), banded headers |
+| #251 | The ROW owns the gap between nested panels, not its heading (measured pixel no-op) |
+| #252 | `Permissions-Policy`, and the baseline security headers pinned by a test |
+| #253 | Upload metered at 50 per 15 minutes |
 
-`docs/DESIGN-manage-accordion-2026-08-16.md` is marked COMPLETE and records the two places the built
-design deliberately departs from the plan. Decisions are in `docs/DECISIONS.md` (2026-08-18).
+**Deployed: `6fbcc3c`** (through #250), operator-confirmed on the real page — four boxes, trailing-edge
+chevrons, no user type beside the title. ⚑ **#251–#253 are NOT deployed**, and deliberately need no
+hurry: #251 is a measured no-op, #252 adds a header, #253 adds a ceiling no real batch reaches.
 
-## ⚑ Where things stand: deployed, with two items still open
+## Three threads open
 
-**1. ~~The deploy~~ — DONE. Deployed 2026-08-19, `deploy: OK at 3969d65`.** An operator-run
-`scripts/deploy.sh` completed on the Rock; the whole Manage arc is live.
-
-⚑ **No schema change happened in this deploy, and the evidence is in the output rather than in
-anyone's memory.** The migrate service ran at 01:47:06Z and again at 03:16:49Z (the second matching
-this run's `premigrate-3969d65` snapshot) and both logged *"Reading migration files"* → *"Done."*
-with **nothing between them** — Payload logs every migration it applies, so an empty pair means none
-were pending. `git pull` also reported *"Already up to date"*, i.e. the Rock was at `3969d65` before
-this run. PR 2a's `20260817_141942_add_sign_in_disabled` therefore went out in an **earlier** deploy,
-not this one.
-
-As with 2026-08-16: **the operator's deploy output is the record.** If you need to confirm what the
-Rock is actually running rather than what a handoff says it is, use the **tree-hash comparison**
-documented further down this file (`git rev-parse origin/main:app` against the same on the Rock) —
-that compares the deployed code itself, and is unaffected by which commits sit either side of it.
-
-**2. The D6a check — STILL OPEN, and no longer a pre-ship check.** It was written as "do this before
-deploying"; the deploy has happened and this was not done, so read it as "still worth doing". Nothing
-is broken by the ordering: D6a is **forward-only**, so any pre-existing rows were always going to
-survive the deploy — the guard changes what is permitted from now on and does not invalidate existing
-grants. The question it answers ("does this installation contain administrator grants that predate the
-rule?") is exactly as answerable now as it was before:
+**1. The D6a informational query — unchanged.** Still worth running, still ONLY informational:
 
 ```sql
 SELECT * FROM users_assignments WHERE role = 'subjectAdmin';
 ```
 
-⚑ This is **informational only, and cannot be more than that**: nothing records *who granted* an
-assignment, so the query cannot distinguish a legitimate Site-Admin grant from a self-appointment.
-Do not "clean up" rows on the strength of it — the decision is deliberate about leaving them alone.
+Nothing records *who granted* an assignment, so it cannot distinguish a legitimate Site-Admin grant from
+a self-appointment. Do not "clean up" rows on the strength of it.
 
-**3. An open gap in how this suite tests appearance — a decision, not a patch.** (Unaffected by the
-deploy; listed third because it is the least urgent, not because it is the least real.) PR 4 shipped markup
-referencing `.lp-manage__roles-admin`, a class with **no CSS rule at all**, and the E2E asserted the
-text was *visible* — which passes on entirely unstyled markup. Nothing in unit, int, http or e2e
-would have caught it; `/simplify` did, by reading. The repo *does* pin some visual invariants
-(`buttonSystem.spec.ts` and `guideCompareVisual.spec.tsx` assert against the stylesheet SOURCE, and
-`manage.e2e.spec.ts` measures a few computed values), so the machinery exists — what is missing is
-anything that notices a referenced class with no rule. Options, cheapest first:
-  - a unit guard that extracts `className` literals from `components/` and asserts each resolves in
-    `custom.scss`/`styles.css` (AST over regex, per the house rule);
-  - extending the existing computed-style E2E assertions to the new panels;
-  - accepting the gap explicitly and writing that down.
+**2. Public-discovery phase 2 — unchanged, never started.** Design in the 2026-08-15 block below.
 
-**Do not** treat "add another `toBeVisible()`" as the answer — that is the assertion that already
-passed.
+**3. The appearance-testing gap — PARTIALLY closed, and the remaining half is the important one.**
+That item offered three options. **Option 2 was delivered** across #247–#253: computed-value assertions
+now pin a 1px border on every top-level panel and 0px on nested ones, the open header's divider, the
+nested row gap (24px on the row, 0px on its heading), and all five baseline security headers.
+
+⚑ **Option 1 is still undone, and it is the only one that would have caught the original defect** — a
+unit guard that extracts `className` literals from `components/` and asserts each resolves in
+`custom.scss`/`styles.css` (AST over regex, per the house rule). Everything added since asserts things
+that ARE styled; nothing yet notices a class referenced with **no rule at all**, which is what shipped in
+PR 4. Do not read this item as closed.
 
 ## What to work on next
 
-No blocking decisions outstanding on any thread. The deploy is done. Live options:
-- **The two open items above** (the D6a check; the layout-testing gap) — small, and both are the kind
-  that quietly become permanent because nothing fails if they are skipped.
+No blocking decisions outstanding on any thread. Live options, and the first is the one that would have
+caught a real defect:
+- **The className-resolves-to-a-rule guard** (thread 3 above). The only remaining half of the
+  appearance-testing gap, and still the only thing that would notice a class referenced with NO rule —
+  the defect that shipped in PR 4. Everything added since asserts things that ARE styled.
 - **The public-discovery track** — phase 1 shipped and is deployed; phase 2 was never started. Design
   is in the 2026-08-15 handoff below.
-- **`docs/DESIGN-manage-accordion-2026-08-16.md` §8 "to verify during implementation"** — worth a
-  read to confirm nothing was left open by the arc.
+- **The D6a informational query** (thread 1 above) — one SQL statement, and read the ⚑ before acting on
+  its output.
+- **`docs/DESIGN-manage-accordion-2026-08-16.md` §8 "to verify during implementation"** — worth a read
+  to confirm nothing was left open by the arc.
 
-## Three things not to re-derive
+⚑ **Two mechanics worth knowing before queueing work**, both learned the hard way on 2026-08-19:
+`main` is protected with `strict: true`, so a PR must be UP TO DATE with main to merge — two serialised
+PRs touching one file therefore cost two gate runs each (~12 min), and batching related changes into one
+PR avoids that. And the conflict which forces the rebase need not be near your edit: a prettier reflow in
+the earlier PR changed the neighbouring hunk 1,600 lines away from the insertion point.
+
+## Four things not to re-derive
 
 1. **Local development uses `scripts/dev-seed.sh` and `scripts/dev-server.sh`.** A bare `npx next dev`
    cannot reach the Compose-only database, and the `devEngines` gate rejects npm on a non-Node-24
@@ -129,12 +112,20 @@ No blocking decisions outstanding on any thread. The deploy is done. Live option
    prints the exact `docker ps --filter network=…` line for this project, so read it there rather than
    copying a literal network name (`lesson3_default` appears in no compose file, and a
    `COMPOSE_PROJECT_NAME` override silently breaks it).
-2. **`tests/http` and `tests/e2e` fixtures go to a DISPOSABLE stack, never the seeded dev database.**
+2. **Treat an EXTERNAL REVIEW as a list of questions, never a list of instructions.** An outside model
+   audited the repo on 2026-08-19 (DECISIONS has the full account). Its claims about the file it had
+   actually read were accurate to the line; its claims about files it had not were **fabricated in the
+   same confident register** — invented dependency versions, and a helper signature that does not exist.
+   Two of its five findings would have done real damage applied on trust: a two-major framework
+   downgrade, and a dev server broken for no production benefit. Three were already-shipped or wrong.
+   The tell is **specificity without a way to have known it** — an exact version, a signature, a line
+   number. Each one is checkable in a single command, and checking IS the job.
+3. **`tests/http` and `tests/e2e` fixtures go to a DISPOSABLE stack, never the seeded dev database.**
    `setupRoleFixture` opens with a namespace-wide `purgeMarked(MARK_BASE)` sweep and its user creates
    spend the real signup rate-limit budget. Recipe: AGENTS.md's `lesson3-ci-probe`. Full reasoning:
    DECISIONS 2026-08-18. **Do not** add `-e NODE_ENV=development` to a test container — it turns
    drizzle schema push on in the TEST process and deadlocks against the app's job-queue transactions.
-3. **A green result must contain executed tests.** `test:int` reporting 200 *skipped* cases after
+4. **A green result must contain executed tests.** `test:int` reporting 200 *skipped* cases after
    `ECONNREFUSED` is not a pass. Confirm the real counts.
 
 ## ⚑ Two lessons from this arc worth carrying, not just filing
