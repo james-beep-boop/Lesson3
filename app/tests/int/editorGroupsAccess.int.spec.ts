@@ -88,8 +88,9 @@ describe('buildRolesAccess — the SPEC §8 email carve-out, by role', () => {
           return fx.payload.find(args as Parameters<typeof fx.payload.find>[0])
         }) as typeof fx.payload.find,
       } as typeof fx.payload
-      const groups = await buildRolesAccess({ payload: spy, user: fx.users[role] })
-      expect(groups).toEqual([])
+      const access = await buildRolesAccess({ payload: spy, user: fx.users[role] })
+      expect(access).toEqual({ roster: [], grantableIds: [], groups: [] })
+      // The assertion that carries the weight: not "the result was empty" but "nothing was read".
       expect(calls, `${role} must trigger no read at all`).toEqual([])
     }
   })
