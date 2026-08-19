@@ -44,9 +44,16 @@ untouched and is still the other live thread.
 | #252 | `Permissions-Policy`, and the baseline security headers pinned by a test |
 | #253 | Upload metered at 50 per 15 minutes |
 
-**Deployed: `6fbcc3c`** (through #250), operator-confirmed on the real page — four boxes, trailing-edge
-chevrons, no user type beside the title. ⚑ **#251–#253 are NOT deployed**, and deliberately need no
-hurry: #251 is a measured no-op, #252 adds a header, #253 adds a ceiling no real batch reaches.
+**Deploy state.** The four-box look was deployed through #250 and confirmed by the operator on the real
+page — four boxes, trailing-edge chevrons, no user type beside the title. Everything after that (#251
+onward) landed later the same day and was being deployed as this was written: a measured pixel no-op, a
+response header, an upload ceiling no real batch reaches, docs, and a cleanup pass also verified as a
+no-op. So nothing in the gap needed a visual check.
+
+⚑ **DO NOT READ A SHA HERE AS "what the Rock is running"** — this file says so twice further down, and
+this line previously broke its own rule by asserting one. A SHA is stale the next time anyone deploys,
+and it went stale within hours on 2026-08-19. Use the tree-hash comparison documented below; it answers
+the question directly instead of requiring this paragraph to be maintained.
 
 ## Three threads open
 
