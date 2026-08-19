@@ -286,8 +286,12 @@ abstraction ahead of demand still requires editing pages this PR promised not to
   ⚑ **AMENDED 2026-08-18, and scoped rather than reversed** (operator decision; DECISIONS
   2026-08-18). Manage's top-level disclosure panels now carry a 1px border at the button-system
   radius, because for a *control* the boundary is the affordance — a closed panel was an eight-
-  character hit target that read as a heading. Still no shadows, no fills and no decoration, and the
-  rows INSIDE those panels remain borderless with dividers doing the work (see `.lp-manage__row`).
+  character hit target that read as a heading. Still no shadows and no decoration, and the rows INSIDE
+  those panels remain borderless with dividers doing the work (see `.lp-manage__row`).
+  ⚑ **On fills, precisely:** a PERSISTENT fill on a panel or row stays prohibited — that is the
+  "decorated admin" this line exists to prevent. A TRANSIENT fill as interaction feedback on a control
+  is not: `.lp-accordion__trigger` takes `--theme-elevation-50` on hover, because an ink shift alone
+  was invisible on a 20px 600-weight heading and the thing it was meant to say never arrived.
   Read this line as governing content, not controls.
 
 ---
