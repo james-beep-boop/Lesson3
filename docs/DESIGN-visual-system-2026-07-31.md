@@ -281,18 +281,25 @@ abstraction ahead of demand still requires editing pages this PR promised not to
 - **No migration, no schema change, no endpoint change.** If this PR grows one, it is off-plan —
   stop and re-plan (and note that a new/changed endpoint would drag `tests/http` authz coverage in
   with it, per CLAUDE.md).
-- **No cards, shadows, or decoration.** The target is one quiet structured product, not a decorated
-  admin.
-  ⚑ **AMENDED 2026-08-18, and scoped rather than reversed** (operator decision; DECISIONS
-  2026-08-18). Manage's top-level disclosure panels now carry a 1px border at the button-system
-  radius, because for a *control* the boundary is the affordance — a closed panel was an eight-
-  character hit target that read as a heading. Still no shadows and no decoration, and the rows INSIDE
-  those panels remain borderless with dividers doing the work (see `.lp-manage__row`).
-  ⚑ **On fills, precisely:** a PERSISTENT fill on a panel or row stays prohibited — that is the
-  "decorated admin" this line exists to prevent. A TRANSIENT fill as interaction feedback on a control
-  is not: `.lp-accordion__trigger` takes `--theme-elevation-50` on hover, because an ink shift alone
-  was invisible on a 20px 600-weight heading and the thing it was meant to say never arrived.
-  Read this line as governing content, not controls.
+- **No cards, shadows, or decoration — on CONTENT.** The target is one quiet structured product, not a
+  decorated admin.
+
+  ⚑ **RESTATED ONCE (2026-08-19), because the original absolute wording needed three patches in two
+  days** — each correct in itself and each leaving the rule harder to apply than before (operator
+  decisions; DECISIONS 2026-08-18 and 2026-08-19). What actually holds, and what every patch was
+  groping toward, is a distinction between content and controls:
+
+  - **Content** — rows, lists, metadata, panel bodies — takes no border, no fill, no shadow. Dividers
+    and honest vertical space carry the structure (`.lp-manage__row` is the reference).
+  - **Controls** — a disclosure header, a button — MAY take a border and a fill, persistent or on
+    hover, because for a control the boundary *is* the affordance. Manage's top-level panels carry a
+    1px `--theme-elevation-200` edge and a `--theme-elevation-50` header band, with hover steps to
+    `300`/`100`, all four values taken from Payload's own `Collapsible` element so this page reads as
+    part of the admin rather than as a visitor to it.
+  - **Shadows and decoration stay prohibited outright**, on both.
+
+  A closed panel used to be an eight-character hit target that read as a page heading. That, not
+  taste, is what earned controls the exception.
 
 ---
 

@@ -194,9 +194,25 @@ body {
   // LOUDLY rather than quietly: introduce a wrapper between `.lp-admin-dash` and its panels and every
   // panel loses its border at once, which manage.e2e.spec.ts asserts.
   .lp-admin-dash > & {
-    border: 1px solid var(--theme-elevation-150);
-    // The button system's radius, not a second curve invented here.
-    border-radius: var(--app-btn-radius);
+    // ⚑ PAYLOAD'S OWN EDGE VALUES, not ours (2026-08-19). The version editor's collapsible rows —
+    // which are Payload's `Collapsible` element, reached through a config flag rather than written
+    // here — use `--theme-elevation-200` with a hover step to `300`, and `$style-radius-m`. Matching
+    // them is why this page now reads as part of the admin instead of as a visitor to it.
+    //
+    // `var(--style-radius-m)` is Payload's variable (declared on `:root` in its `app.scss`), so the
+    // curve TRACKS their design system instead of restating a number that would silently diverge on
+    // the next upgrade. The fallback is its current value, for the case where a future Payload stops
+    // publishing it — without one, an unknown custom property computes to 0 and the box goes square.
+    // The button system's own radius is deliberately NOT used here: this is admin chrome, not a control.
+    border: 1px solid var(--theme-elevation-200);
+    border-radius: var(--style-radius-m, 4px);
+
+    // Same as Payload's: the edge firms up under the pointer. Scoped to the container rather than the
+    // header, which is what `Collapsible` does too — so an open panel darkens while you read it, and
+    // that consistency is the point.
+    &:hover {
+      border-color: var(--theme-elevation-300);
+    }
 
     // The box supplies its own internal spacing, so the heading's leading margin — which existed to
     // hold flat sections apart — would add a second gap inside the border.
@@ -207,9 +223,38 @@ body {
       margin-block-start: 0;
 
       > .lp-accordion__trigger {
-        // Padding, not height: the row is as tall as its own type plus this, which keeps the ≤640px
-        // touch minimum satisfied without a second geometry statement (16 + 16 + ~31px line ≈ 63px).
-        padding: var(--app-space-3);
+        // ⚑ A PERSISTENT FILL ON THE HEADER, matching `Collapsible__toggle-wrap` in the version editor
+        // (`--theme-elevation-50`, hover `--theme-elevation-100`). Operator decision 2026-08-19, taken
+        // from a rendered comparison rather than a description: the band is what made the editor's rows
+        // read as a tidy list instead of a stack of headings.
+        //
+        // ⚑ TOP LEVEL ONLY, and that is the design decision inside the design decision. Filling BOTH
+        // levels is what the editor does, and it is wrong here: its rows are SIBLINGS the user can
+        // reorder, while these are a HIERARCHY (`plans.upload` is subordinate to `plans`). Banding both
+        // identically would flatten the 20/18 type step that exists to express that depth — spending
+        // the type scale to signal nesting and then contradicting it with colour. Nested triggers keep
+        // the transparent-with-hover treatment from the base rule above.
+        background: var(--theme-elevation-50);
+
+        &:hover {
+          background: var(--theme-elevation-100);
+        }
+
+        // ⚑ THE FILL FORCES THE RADIUS TO MATCH THE BOX. While the header was transparent its inherited
+        // 6px button-system curve was invisible; filled, a 6px fill inside a 4px border shows as the
+        // colour bulging past the corner. Same variable as the container, exactly as Payload's
+        // toggle-wrap uses the same `$style-radius-m` as its collapsible.
+        border-radius: var(--style-radius-m, 4px);
+
+        // ⚑ 8px BLOCK, 16px INLINE — matching the density of Payload's collapsible rows (`base(0.4)`
+        // / `base(0.8)` against a 20px baseline). Measured before: a 64px row, against ~40px in the
+        // version editor, and at four boxes that difference is what made this page read as a stack of
+        // large headings rather than as a list. Now ~47px.
+        //
+        // Padding, not height: the row is as tall as its own type plus this, so it stays above the
+        // ≤640px touch minimum (8 + 8 + ~31px line ≈ 47px) without a second geometry statement — and
+        // the shared touch rule still forces 44px on a phone regardless.
+        padding: var(--app-space-1) var(--app-space-3);
 
         // ⚑ The focus ring turns INSIDE-OUT here, and only here. Every other control in the admin sets
         // `outline-offset: var(--app-btn-focus-ring-offset)` — a ring 2px OUTSIDE the control, which

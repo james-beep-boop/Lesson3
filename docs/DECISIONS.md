@@ -11,6 +11,71 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-19 — Manage adopts Payload's collapsible look, and why the edit page cost a fraction of it
+
+**The operator's question was the useful part:** the version editor's collapsible lesson rows underwent
+a very similar transformation in one or two sessions and look more professional, while Manage's accordion
+took a week. Measured, the answer is that **the edit page is not a custom accordion at all.**
+
+`app/src/fields/lessonContent.ts` sets `initCollapsed: true` and names a 33-line `RowLabel`. That is the
+entire cost. Payload's own `Collapsible` element supplies the row chrome, the drag handles, Collapse
+All / Show All, the chevrons, collapse persistence (`isRowCollapsed`) and all of the styling —
+`custom.scss` styles Payload's collapsibles in **zero** places, so what looks polished there is the
+framework's design system, untouched.
+
+Manage is a CUSTOM admin view with no such component wired in: 1,119 lines across `Accordion.tsx` (154),
+`useOpenPanels.ts` (298), `panelState.ts` (242) and their specs (425). ⚑ **Most of that is not the
+disclosure.** It is open state in the URL, resolved server-side to avoid a hydration mismatch;
+Back/Forward semantics with one history entry per jump; role gating with silent scrubbing of unknown or
+inaccessible ids; lazy loading; children kept mounted so a half-typed form survives a stray click; and
+APG heading ranks derived from the id grammar. The editor's rows keep collapse state in Payload's form
+state and never touch the URL. Different job — and the expensive half was never the accordion.
+
+**Why the look differed, in numbers rather than impressions:**
+
+| | Payload `Collapsible` | Manage, before |
+|---|---|---|
+| border | `--theme-elevation-200`, hover `300` | `150`, no hover |
+| radius | `$style-radius-m` = 4px | `--app-btn-radius` = 6px |
+| header fill | persistent `--theme-elevation-50`, hover `100` | none; hover `50` |
+| header padding | 8px block / 16px inline | 16px all round |
+| row height | ≈40px | **64px** (measured) |
+| label type | `%body` — 13px, normal | 20px, weight 600 |
+
+It read heavier because it *was* heavier: 20px semibold labels in 64px rows against 13px normal in 40px
+bands. Adopted: Payload's border and hover step, its radius **via `var(--style-radius-m)` rather than a
+copied `4px`** so the curve tracks their design system on upgrade, 8px block padding (64px → **47px**),
+and the header fill. Not adopted: the 13px/normal label, which would break the documented 20/18 type
+step for a page whose boxes genuinely are page sections.
+
+⚑ **THE FILL IS TOP-LEVEL ONLY, and the reason is structural rather than aesthetic.** Filling both
+levels is what the editor does, and it is wrong here: its rows are SIBLINGS the user can reorder, while
+Manage's are a HIERARCHY (`plans.upload` is subordinate to `plans`). Banding both identically spends the
+type scale to signal depth and then contradicts it with colour.
+
+⚑ **The editor's other controls were deliberately NOT copied**, and this is the same category error as
+"two accordion structures seems wrong": the drag handle would promise a reorder that `PANEL_IDS` render
+order forbids, and the per-row kebab holds array actions (duplicate / remove / move) that a navigation
+panel does not have. The editor has that chrome because its rows are DATA THE USER OWNS. Manage's boxes
+are navigation. Borrowing the chrome borrows promises the page cannot keep.
+
+**A latent bug the fill comparison exposed, found by the operator reading a mockup.** Rendering the
+rejected both-levels variant showed a white stripe above the 2nd and 3rd nested rows. Cause:
+`.lp-accordion__heading`'s 24px top margin sits INSIDE any border that wraps the row — row 1 escapes only
+because of a `:first-child` rule added earlier the same day to fix ~40px of dead air at the top of an
+open box. **That is the same rule biting twice**, and the `:first-child` fix treated row 1 while leaving
+rows 2+ latent. The real fix is to move the gap from the heading's margin to the row itself; it is not
+needed for the shipped design (nested rows have no border) and is deliberately left undone rather than
+patched a third time. ⚑ If a nested panel ever gains a border, do that refactor first.
+
+**Two mechanisms is the right answer here, not duplication.** There is no shared CSS to de-duplicate —
+one is a framework component reached by config, the other a custom disclosure with URL state and role
+gating. Wrapping Payload's `Collapsible` was considered and refused for a checkable reason: it renders 8
+divs, 1 span and 1 button with **zero `aria` attributes and no `role`**, so adopting it would trade an
+APG disclosure (`<h2><button aria-expanded aria-controls>`) for a click-handler div — losing what screen
+readers announce and what every E2E assertion reads. `@payloadcms/ui` does export `./elements/*`, so the
+import would have been legitimate; the accessibility cost is what ruled it out.
+
 ## 2026-08-19 — Back after a cross-panel jump leaves the panels stale: a PRE-EXISTING bug, proved by bisect
 
 **The defect.** After the Users → Roles & Access jump (D7a), pressing Back restores the URL but NOT the
