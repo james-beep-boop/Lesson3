@@ -59,6 +59,84 @@ dev_ensure_postgres() {
   # `--wait` blocks until the healthcheck in docker-compose.yml passes. Without it `up -d` returns
   # when the container STARTS, and a cold Postgres races Payload's first connect.
   "${DEV_COMPOSE[@]}" up -d --wait postgres >/dev/null
+  # ⚑ PART OF "the database is ready", not a courtesy each caller remembers. It began as a line in
+  # `dev-server.sh` and `dev-seed.sh`, which is one call site per script and a third script away from
+  # standing up a wedged database in silence — the condition is a property of the DATABASE, so it
+  # belongs to the function that claims the database is usable. Cheap enough to be unconditional
+  # (measured 43–60ms against the `up -d --wait` immediately above it) and it never blocks.
+  dev_warn_stuck_transactions
+}
+
+# Warn when the database is already wedged, BEFORE handing the user a server that will hang on it.
+#
+# ⚑ WHY THIS EXISTS (2026-08-19, DECISIONS). A leftover app container had left two jobs-queue
+# transactions `idle in transaction`; Payload's dev-mode schema push queued an `ALTER TABLE` behind
+# them, and every request that initialises Payload then waited forever — accepted, zero bytes, 0% CPU.
+# The dev server reported itself "Ready in 256ms" and looked healthy. Nothing in the stack said the
+# word "lock", so the investigation went to the bind mount and to GC first, both wrong.
+#
+# The `idle_in_transaction_session_timeout` in `docker-compose.local.yml` now clears the CAUSE within
+# two minutes. This covers what a timeout cannot: the window before it fires, and a pile-up whose root
+# is something else entirely (a held `ALTER`, a stuck migrate service, a second app container mid-write).
+#
+# WARNS, never blocks. A transient blocked statement at startup is normal and a script that refused to
+# start over one would be worse than the bug. Diagnosis is the scarce thing here, not enforcement.
+dev_warn_stuck_transactions() {
+  local report status
+  # `-tAc` for a bare unaligned value: a NULL `string_agg` prints one newline, command substitution
+  # strips it, so `report` is genuinely empty and the plain `-n` test below means what it looks like.
+  #
+  # ⚑ BOUNDED, because a diagnostic about hangs must not be able to hang. Nothing here waits on a lock
+  # (`pg_stat_activity` and `pg_blocking_pids()` take none), so the server-side `lock_timeout` in
+  # `docker-compose.local.yml` would never fire; `PGCONNECT_TIMEOUT` bounds a postmaster that will not
+  # accept the connection and `statement_timeout` bounds the query itself.
+  #
+  # ⚑ NOT `timeout 10 …`, which was written first and would have been a self-inflicted wound: macOS
+  # ships no `timeout` (nor `gtimeout` without coreutils), so on the one platform these dev scripts run
+  # on it fails instantly — printing "could not check the database" on EVERY startup, in the exact voice
+  # of a real warning. The residual risk it was reaching for (an unresponsive Docker daemon hanging
+  # `compose exec`) is already covered one line earlier: `up -d --wait` would never have returned.
+  #
+  # ⚑ AND FAILURE IS REPORTED, not swallowed. `2>/dev/null || true` hid the loudest signal there is: a
+  # pile-up bad enough to exhaust `max_connections` makes psql fail FAST with "too many clients", which
+  # discarded looks identical to "found nothing" — silence in precisely the worst case. Still never
+  # blocks; it just says which of the two happened.
+  report="$("${DEV_COMPOSE[@]}" exec -T -e PGCONNECT_TIMEOUT=5 \
+    -e "PGOPTIONS=-c statement_timeout=5000" postgres \
+    psql -U lesson3 -d lesson3 -tAc "
+    SELECT string_agg(line, E'\n') FROM (
+      SELECT format('  pid %s (%s) %s for %s — %s',
+                    pid,
+                    coalesce(host(client_addr), 'local'),
+                    state,
+                    date_trunc('second', now() - state_change),
+                    left(regexp_replace(coalesce(query, ''), '\s+', ' ', 'g'), 60)) AS line
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND pid <> pg_backend_pid()
+        AND (
+          (state LIKE 'idle in transaction%' AND state_change < now() - interval '30 seconds')
+          OR cardinality(pg_blocking_pids(pid)) > 0
+        )
+      ORDER BY state_change
+    ) AS t;" 2>&1)"
+  status=$?
+
+  if [ "$status" -ne 0 ]; then
+    echo "⚠ Could not check the database for stuck sessions (exit $status). Not fatal — but if pages" >&2
+    echo "  then hang rather than render slowly, start here rather than with the dev server:" >&2
+    echo "  ${report:-（no output）}" >&2
+    return 0
+  fi
+
+  [ -n "$report" ] || return 0
+
+  echo "⚠ THE DATABASE HAS STUCK OR BLOCKED SESSIONS. Payload's dev schema push may hang behind them," >&2
+  echo "  and every page request with it — a hang, not a slow render (0% CPU, no bytes sent)." >&2
+  echo "$report" >&2
+  echo "  Usual cause: another app container still attached to this database. Check with" >&2
+  echo "    docker ps --filter network=\"$(dev_compose_network)\"" >&2
+  echo "  and stop the stray one; sessions older than 2 minutes also time out on their own." >&2
 }
 
 # ⚑ REBUILD ONLY WHEN THE DEPENDENCIES CHANGED, keyed on the hash stamped as an image label.

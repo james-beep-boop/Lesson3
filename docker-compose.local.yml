@@ -19,3 +19,36 @@ services:
   postgres:
     ports:
       - '127.0.0.1:55432:5432' # loopback only — not reachable from the network
+    # ⚑ THREE GUARDS AGAINST THE FAILURE OF 2026-08-19, which cost most of a session before it was
+    # understood. A leftover app container (`lesson3-pr2b-app`, 25 hours old) had leaked two
+    # jobs-queue transactions and left them `idle in transaction`. Payload's dev-mode schema push then
+    # queued an `ALTER TABLE payload_jobs` behind them, and because a pending ACCESS EXCLUSIVE lock
+    # also blocks everything queued after it, EVERY request that initialises Payload waited forever:
+    # connection accepted, zero bytes sent, 0% CPU, flat memory. It looked exactly like a slow dev
+    # server, which is why two wrong diagnoses (the bind mount, then GC) came first — see DECISIONS
+    # 2026-08-19.
+    #
+    # LOCAL ONLY, and that is the whole reason this belongs here rather than in `docker-compose.yml`:
+    # this file is opt-in via `-f` and the Rock's `scripts/deploy.sh` never loads it, so production
+    # keeps Postgres' permissive defaults. `DEV_COMPOSE` in `scripts/lib/dev-env.sh` passes both
+    # files, so every dev script gets these automatically.
+    #
+    #   - `idle_in_transaction_session_timeout` — the direct fix. A transaction nobody is advancing is
+    #     killed after two minutes instead of holding locks for a day. Generous on purpose: an
+    #     interactive `psql` session mid-investigation should survive a pause for thought.
+    #   - `lock_timeout` — turns the SYMPTOM from a hang into a loud failure. A statement that cannot
+    #     take its lock in 15s aborts with a message naming the relation, which is a bug report rather
+    #     than a mystery. ⚑ This does apply to the local `migrate` service: a migration that genuinely
+    #     waits longer than 15s will abort here and would not on the Rock. That is the intended
+    #     trade — locally, "something else is holding this table" is what you need to be told.
+    #   - `log_lock_waits` — logs any wait beyond `deadlock_timeout` (1s default), so the postgres log
+    #     names the blocker while it is still happening, without anyone knowing to query
+    #     `pg_blocking_pids`.
+    command:
+      - postgres
+      - -c
+      - idle_in_transaction_session_timeout=120000
+      - -c
+      - lock_timeout=15000
+      - -c
+      - log_lock_waits=on
