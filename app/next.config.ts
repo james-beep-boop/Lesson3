@@ -57,6 +57,15 @@ const nextConfig: NextConfig = {
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-DNS-Prefetch-Control', value: 'off' },
+      // ⚑ ADDED 2026-08-19 from an external audit — the one finding of four in this area that was not
+      // already covered by the four lines above it (the reviewer read `middleware.ts` alone and
+      // reported all four as missing; the CSP lives there only because it needs a per-request nonce).
+      //
+      // Denies the three powerful features outright, because this app uses none of them: there is no
+      // map, no recorder, no video call. An empty allowlist `()` is a denial for the document AND every
+      // iframe in it, so it also covers the Gotenberg-rendered preview surface. Named explicitly rather
+      // than relying on `*=()`-style wildcards, which are not portable across browsers.
+      { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
       ...(isHttpsServerUrl(process.env.SERVER_URL)
         ? [
             {

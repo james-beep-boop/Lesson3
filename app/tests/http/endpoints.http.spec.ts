@@ -70,8 +70,11 @@ const auth = (key?: RoleKey): Record<string, string> =>
 
 /** Raw drizzle handle on the same DB the app serves — to observe the `rate_limit_counters` table. */
 const drizzle = () =>
-  (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<{ rows: unknown[] }> } })
-    .drizzle
+  (
+    fx.payload.db as unknown as {
+      drizzle: { execute: (q: unknown) => Promise<{ rows: unknown[] }> }
+    }
+  ).drizzle
 
 /** The current count for a rate-limit `bucket_key`, or 0 when the row was never created. */
 async function rateCount(bucketKey: string): Promise<number> {
@@ -96,21 +99,31 @@ async function login(email: string, password: string): Promise<string> {
 }
 
 /** Poll an export status URL until the artifact is ready (or fail loudly). */
-async function pollExportReady(statusUrl: string, key: RoleKey, timeoutMs = 150_000): Promise<void> {
+async function pollExportReady(
+  statusUrl: string,
+  key: RoleKey,
+  timeoutMs = 150_000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs
   for (;;) {
     const res = await fetch(url(statusUrl), { headers: auth(key) })
     const body = (await res.json().catch(() => ({}))) as { state?: string; message?: string }
     if (body.state === 'ready') return
-    if (body.state === 'error') throw new Error(`export job errored (${res.status}): ${body.message}`)
-    if (Date.now() > deadline) throw new Error(`export not ready within ${timeoutMs}ms (last: ${body.state})`)
+    if (body.state === 'error')
+      throw new Error(`export job errored (${res.status}): ${body.message}`)
+    if (Date.now() > deadline)
+      throw new Error(`export not ready within ${timeoutMs}ms (last: ${body.state})`)
     await new Promise((r) => setTimeout(r, 1500))
   }
 }
 
 /** Full read-gated export handshake for one deliverable kind → returns the downloaded zip bytes. */
 /** POST prepare (+ poll if cold) until the (version, kind) export is ready to serve. */
-async function prepareExport(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<void> {
+async function prepareExport(
+  versionId: number | string,
+  key: RoleKey,
+  as: 'docx' | 'pdf',
+): Promise<void> {
   const prep = await fetch(url(`/api/lesson-bundle-versions/${versionId}/export?as=${as}`), {
     method: 'POST',
     headers: auth(key),
@@ -122,7 +135,11 @@ async function prepareExport(versionId: number | string, key: RoleKey, as: 'docx
   }
 }
 
-async function exportZip(versionId: number | string, key: RoleKey, as: 'docx' | 'pdf'): Promise<Buffer> {
+async function exportZip(
+  versionId: number | string,
+  key: RoleKey,
+  as: 'docx' | 'pdf',
+): Promise<Buffer> {
   const exportUrl = `/api/lesson-bundle-versions/${versionId}/export?as=${as}`
 
   // Cold GET (never prepared) is serve-only and must NOT enqueue → 409.
@@ -222,6 +239,34 @@ describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () =>
     const res = await fetch(url('/api/users/me'))
     expect(res.headers.get('content-security-policy')).toBeNull()
   })
+
+  /**
+   * The BASELINE headers, which come from `next.config.ts`'s `headers()` rather than from the
+   * middleware — the CSP is separate only because it needs a per-request nonce.
+   *
+   * ⚑ WRITTEN BECAUSE AN EXTERNAL REVIEW REPORTED ALL FOUR AS MISSING (2026-08-19). They were not;
+   * the reviewer read `middleware.ts` alone. But nothing in this suite asserted them either, so the
+   * claim could only be settled by reading the config — and a typo in `headers()` would have shipped
+   * in exactly the same silence. `Permissions-Policy` was the one thing genuinely absent, and is
+   * pinned here with the rest rather than trusted to the next reader's grep.
+   */
+  it('every document carries the baseline security headers from next.config', async () => {
+    const res = await fetch(url('/login'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(res.headers.get('x-frame-options')).toBe('DENY')
+    expect(res.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(res.headers.get('x-dns-prefetch-control')).toBe('off')
+    // Denies the three powerful features outright; this app uses none of them.
+    const pp = res.headers.get('permissions-policy') ?? ''
+    for (const feature of ['geolocation=()', 'microphone=()', 'camera=()']) {
+      expect(pp).toContain(feature)
+    }
+    // ⚑ HSTS is CONDITIONAL on an https `SERVER_URL` (`isHttpsServerUrl`), which the test stack does
+    // not set — asserting its presence here would fail on the very configuration CI runs. Its absence
+    // over plain HTTP is the intended behaviour, so that is what is pinned.
+    expect(res.headers.get('strict-transport-security')).toBeNull()
+  })
 })
 
 describe('Preview endpoint (SPEC §5)', () => {
@@ -252,8 +297,15 @@ describe('Preview endpoint (SPEC §5)', () => {
 
   it('Teacher POST unsaved-preview → 404 (EDIT-gated, not just read)', async () => {
     const form = new FormData()
-    form.set('data', JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }))
-    const res = await fetch(url(previewUrl()), { method: 'POST', headers: auth('teacher'), body: form })
+    form.set(
+      'data',
+      JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }),
+    )
+    const res = await fetch(url(previewUrl()), {
+      method: 'POST',
+      headers: auth('teacher'),
+      body: form,
+    })
     expect(res.status).toBe(404)
   })
 
@@ -263,7 +315,11 @@ describe('Preview endpoint (SPEC §5)', () => {
     )
     const form = new FormData()
     form.set('data', JSON.stringify({ lessons }))
-    const res = await fetch(url(previewUrl()), { method: 'POST', headers: auth('editor'), body: form })
+    const res = await fetch(url(previewUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: form,
+    })
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('unsaved edits')
@@ -275,7 +331,11 @@ describe('Preview endpoint (SPEC §5)', () => {
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const form = new FormData()
     form.set('data', JSON.stringify({ lessons }))
-    const res = await fetch(url(previewUrl()), { method: 'POST', headers: auth('editor'), body: form })
+    const res = await fetch(url(previewUrl()), {
+      method: 'POST',
+      headers: auth('editor'),
+      body: form,
+    })
     expect(res.status).toBe(422)
   })
 })
@@ -306,7 +366,10 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
 
   it('Teacher POST → 404 (EDIT-gated, not just read)', async () => {
     const form = new FormData()
-    form.set('data', JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }))
+    form.set(
+      'data',
+      JSON.stringify({ lessons: (fx.version as unknown as HttpVersion).lessons ?? [] }),
+    )
     const res = await fetch(url(pdfUrl()), { method: 'POST', headers: auth('teacher'), body: form })
     expect(res.status).toBe(404)
   })
@@ -395,7 +458,11 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
       { headers: auth('teacher') },
     )
     expect(res.status).toBe(404)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cold.id,
+      overrideAccess: true,
+    })
   })
 
   it("a DOCX job's id cannot report status for a PDF poll (kind-scoped binding)", async () => {
@@ -414,7 +481,11 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
       { headers: auth('teacher') },
     )
     expect(res.status).toBe(404)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cold.id,
+      overrideAccess: true,
+    })
   })
 
   it('a repeated cold prepare coalesces onto the same in-flight job (dedupe)', async () => {
@@ -432,7 +503,11 @@ describe('Export endpoint (SPEC §9) — read-gated, no Official/published gate'
     expect(a.state).toBe('preparing')
     expect(b.state).toBe('preparing')
     expect(String(b.jobId)).toBe(String(a.jobId))
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cold.id,
+      overrideAccess: true,
+    })
   })
 })
 
@@ -446,25 +521,37 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
   })
 
   it('400 on an unknown doc tag', async () => {
-    const res = await fetch(url(docUrl(fx.version.id, 'notADoc', 'docx')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(fx.version.id, 'notADoc', 'docx')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(400)
   })
 
   it('404 on a nonexistent version (read gate)', async () => {
-    const res = await fetch(url(docUrl(999999999, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(999999999, 'lessonSequence', 'docx')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(404)
   })
 
   it('409 cold — serve-only, never generates', async () => {
     const cold = await makeColdVersion('doc-cold', '8.2.0')
-    const res = await fetch(url(docUrl(cold.id, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(cold.id, 'lessonSequence', 'docx')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(409)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cold.id,
+      overrideAccess: true,
+    })
   })
 
   it('a Teacher gets a warm DOCX deliverable → attachment', async () => {
     await prepareExport(fx.version.id, 'teacher', 'docx')
-    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'docx')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe(
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -478,7 +565,9 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
 
   it('a Teacher gets a warm PDF deliverable → INLINE (opens in the browser)', async () => {
     await prepareExport(fx.version.id, 'teacher', 'pdf')
-    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'pdf')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(fx.version.id, 'lessonSequence', 'pdf')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('application/pdf')
     const disposition = res.headers.get('content-disposition') ?? ''
@@ -490,7 +579,9 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
 
   it('404 when the version has no such deliverable (fixture has no Final Explanation)', async () => {
     await prepareExport(fx.version.id, 'teacher', 'docx')
-    const res = await fetch(url(docUrl(fx.version.id, 'finalExplanation', 'docx')), { headers: auth('teacher') })
+    const res = await fetch(url(docUrl(fx.version.id, 'finalExplanation', 'docx')), {
+      headers: auth('teacher'),
+    })
     expect(res.status).toBe(404)
   })
 
@@ -509,7 +600,11 @@ describe('per-document export (teacher-first T1) — GET /:id/export/doc', () =>
       { method: 'POST', headers: auth('subjectAdmin') },
     )
     expect(restore.status).toBe(200)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cold.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cold.id,
+      overrideAccess: true,
+    })
   })
 })
 
@@ -541,14 +636,20 @@ describe('Version create/duplicate denied over HTTP (edit-view cleanup 2026-07-1
   })
 
   it('REST duplicate of a version → rejected (disableDuplicate), no new row', async () => {
-    const before = await fx.payload.count({ collection: 'lesson-bundle-versions', overrideAccess: true })
+    const before = await fx.payload.count({
+      collection: 'lesson-bundle-versions',
+      overrideAccess: true,
+    })
     const res = await fetch(url(`/api/lesson-bundle-versions/${fx.version.id}/duplicate`), {
       method: 'POST',
       headers: { ...auth('siteAdmin'), 'Content-Type': 'application/json' },
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(res.status).toBeLessThan(500)
-    const after = await fx.payload.count({ collection: 'lesson-bundle-versions', overrideAccess: true })
+    const after = await fx.payload.count({
+      collection: 'lesson-bundle-versions',
+      overrideAccess: true,
+    })
     expect(after.totalDocs).toBe(before.totalDocs)
   })
 })
@@ -645,7 +746,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
   }
 
   it('A teacher with editing access saves a new candidate — Official pointer unchanged, source unchanged', async () => {
-    const before = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
+    const before = await fx.payload.findByID({
+      collection: 'lesson-plans',
+      id: fx.plan.id,
+      depth: 0,
+    })
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
       i === 0 ? { ...l, overview: `${MARK}SAVED-AS-NEW` } : l,
     )
@@ -660,7 +765,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(out.sourceIsOfficial).toBe(true) // fx.version is the plan's Official
 
     // Official pointer did NOT move; the new candidate carries the prose edit + sourceVersion.
-    const after = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
+    const after = await fx.payload.findByID({
+      collection: 'lesson-plans',
+      id: fx.plan.id,
+      depth: 0,
+    })
     expect(String(after.officialVersion)).toBe(String(before.officialVersion))
     const created = (await fx.payload.findByID({
       collection: 'lesson-bundle-versions',
@@ -678,7 +787,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })) as unknown as HttpVersion
     expect(src.lessons![0].overview).not.toBe(`${MARK}SAVED-AS-NEW`)
 
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('A teacher with editing access saves when optional arrays are EMPTY (client posts the row COUNT, not [])', async () => {
@@ -692,8 +805,10 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     // The fixture's `finalExplanation` / `summaryTable` are `{}`, which store as empty arrays — so
     // `fx.version` IS the affected shape and needs no special setup.
     const stored = fx.version as unknown as HttpVersion
-    expect(stored.finalExplanation?.sections, 'fixture must have an empty array to be meaningful')
-      .toEqual([])
+    expect(
+      stored.finalExplanation?.sections,
+      'fixture must have an empty array to be meaningful',
+    ).toEqual([])
 
     const res = await fetch(url(saveUrl()), {
       method: 'POST',
@@ -720,7 +835,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     // …and the prose edit that motivated the save still landed.
     expect(created.lessons![0].overview).toContain(`${MARK}prose-edit`)
 
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('Teacher cannot save-as-new → 4xx', async () => {
@@ -758,7 +877,7 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(afterAdmin.totalDocs).toBe(before.totalDocs)
   })
 
-  it("a structural change made under editing access is rejected (prose-only field-split) → 4xx", async () => {
+  it('a structural change made under editing access is rejected (prose-only field-split) → 4xx', async () => {
     const lessons = [...((fx.version as unknown as HttpVersion).lessons ?? [])]
     lessons.push({ ...lessons[0], id: undefined, title: `${MARK}extra-row` }) // cardinality change
     const res = await fetch(url(saveUrl()), {
@@ -802,7 +921,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     const added = created.lessons?.at(-1)
     expect(added?.title).toBe(`${MARK}duplicated-lesson`)
     expect(stripIds(added?.resourceLinks)).toEqual(stripIds(sourceLesson.resourceLinks))
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('Subject Admin cannot invent resource links for a new lesson row', async () => {
@@ -855,7 +978,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     expect(created.meta!.grade).toBe(srcMeta.grade) // preserved
     expect(created.meta!.substrand_id).toBe(srcMeta.substrand_id) // preserved (re-ingest key)
     expect(created.meta!.titleDoc).toBe(`${MARK}ADMIN-TITLEDOC`) // legitimate META edit kept
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('Site Admin CAN change META identity (the corruption-repair path)', async () => {
@@ -877,7 +1004,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
     })) as unknown as HttpVersion
     expect(created.meta!.subject).toBe(`${MARK}Repaired`)
     expect(created.meta!.grade).toBe(7)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('stale base updatedAt → 409 (source changed since opened)', async () => {
@@ -922,12 +1053,19 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       } as never,
       overrideAccess: true,
     })) as { id: number }
-    const candDoc = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: cand.id, depth: 0 })
-    const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
-      method: 'POST',
-      headers: auth('editor'),
-      body: dataForm(withProseEdit(candDoc)),
+    const candDoc = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: cand.id,
+      depth: 0,
     })
+    const res = await fetch(
+      url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`),
+      {
+        method: 'POST',
+        headers: auth('editor'),
+        body: dataForm(withProseEdit(candDoc)),
+      },
+    )
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
     expect(out.sourceDeleted).toBe(true)
@@ -937,7 +1075,11 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       overrideAccess: true,
     })
     expect(gone.totalDocs).toBe(0)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('?deleteSource=true is skipped for a source the editor did NOT author (kept)', async () => {
@@ -955,12 +1097,19 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       } as never,
       overrideAccess: true,
     })) as { id: number }
-    const candDoc = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: cand.id, depth: 0 })
-    const res = await fetch(url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`), {
-      method: 'POST',
-      headers: auth('editor'),
-      body: dataForm(withProseEdit(candDoc)),
+    const candDoc = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: cand.id,
+      depth: 0,
     })
+    const res = await fetch(
+      url(`/api/lesson-bundle-versions/${cand.id}/save-as-new?deleteSource=true`),
+      {
+        method: 'POST',
+        headers: auth('editor'),
+        body: dataForm(withProseEdit(candDoc)),
+      },
+    )
     expect(res.status).toBe(200)
     const out = (await res.json()) as { id: number; sourceDeleted: boolean }
     expect(out.sourceDeleted).toBe(false)
@@ -978,8 +1127,16 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       overrideAccess: true,
     })) as { author?: unknown }
     expect(Number(created.author)).toBe(fx.users.editor.id)
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: cand.id, overrideAccess: true })
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: cand.id,
+      overrideAccess: true,
+    })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 
   it('?deleteSource=true is ignored for the Official source (kept)', async () => {
@@ -989,12 +1146,24 @@ describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {
       body: dataForm(withProseEdit({ ...(fx.version as unknown as HttpVersion) })),
     })
     expect(res.status).toBe(200)
-    const out = (await res.json()) as { id: number; sourceIsOfficial: boolean; sourceDeleted: boolean }
+    const out = (await res.json()) as {
+      id: number
+      sourceIsOfficial: boolean
+      sourceDeleted: boolean
+    }
     expect(out.sourceIsOfficial).toBe(true)
     expect(out.sourceDeleted).toBe(false)
-    const still = await fx.payload.findByID({ collection: 'lesson-bundle-versions', id: fx.version.id, depth: 0 })
+    const still = await fx.payload.findByID({
+      collection: 'lesson-bundle-versions',
+      id: fx.version.id,
+      depth: 0,
+    })
     expect(still).toBeTruthy()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: out.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: out.id,
+      overrideAccess: true,
+    })
   })
 })
 
@@ -1054,7 +1223,11 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
       data: { officialVersion: null } as never,
       overrideAccess: true,
     })
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: vB.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: vB.id,
+      overrideAccess: true,
+    })
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
@@ -1124,8 +1297,16 @@ describe('make-official (Stage 2b) — POST /:id/make-official', () => {
       data: { officialVersion: null } as never,
       overrideAccess: true,
     })
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: vB.id, overrideAccess: true })
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: vA.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: vB.id,
+      overrideAccess: true,
+    })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: vA.id,
+      overrideAccess: true,
+    })
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
@@ -1146,9 +1327,16 @@ describe('editor assignment endpoints — POST /users/:id/{assign,unassign}-edit
   // the FRESH user row.
   const freshUpdatedAt = async (id: number) =>
     String(
-      ((await fx.payload.findByID({ collection: 'users', id, depth: 0, overrideAccess: true })) as {
-        updatedAt: string
-      }).updatedAt,
+      (
+        (await fx.payload.findByID({
+          collection: 'users',
+          id,
+          depth: 0,
+          overrideAccess: true,
+        })) as {
+          updatedAt: string
+        }
+      ).updatedAt,
     )
 
   const call = (
@@ -1500,9 +1688,12 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
       const res = await fetch(url('/api/users/verify/throttle-probe-token'), { method: 'POST' })
       expect(res.status).toBe(429)
     } finally {
-      const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
-        .drizzle
-      await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ${'verifyEmailGlobal:all'};`)
+      const db = (
+        fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
+      ).drizzle
+      await db.execute(
+        sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ${'verifyEmailGlobal:all'};`,
+      )
     }
   })
 
@@ -1510,7 +1701,11 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
     const res = await fetch(url('/api/users'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth('teacher') },
-      body: JSON.stringify({ name: signupName('x'), email: signupEmail('x'), password: 'signup-pass-2' }),
+      body: JSON.stringify({
+        name: signupName('x'),
+        email: signupEmail('x'),
+        password: 'signup-pass-2',
+      }),
     })
     expect(res.status).toBe(403)
   })
@@ -1536,10 +1731,7 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
   // so both the assertion and the cleanup must scope by content, not just sender. Lazy (a
   // function, not a const): the describe body is collected BEFORE beforeAll populates `fx`.
   const requestMessagesWhere = (): Where => ({
-    and: [
-      { sender: { equals: fx.users.teacher.id } },
-      { body: { like: 'editing access' } },
-    ],
+    and: [{ sender: { equals: fx.users.teacher.id } }, { body: { like: 'editing access' } }],
   })
 
   afterAll(async () => {
@@ -1589,7 +1781,9 @@ describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/requ
     ])
     const subjectAdmins = holders.docs.filter((u) =>
       (u.assignments ?? []).some(
-        (a) => String((a as { subjectGrade?: unknown }).subjectGrade) === sgId && (a as { role?: string }).role === 'subjectAdmin',
+        (a) =>
+          String((a as { subjectGrade?: unknown }).subjectGrade) === sgId &&
+          (a as { role?: string }).role === 'subjectAdmin',
       ),
     )
     const expected = new Set([...siteAdmins.docs, ...subjectAdmins].map((u) => String(u.id)))
@@ -1636,12 +1830,17 @@ describe('mark-read endpoint (SPEC §10; Codex #4) — POST /api/messages/mark-r
       body: JSON.stringify({ ids }),
     })
   const readAtOf = async (id: number) =>
-    (await fx.payload.findByID({ collection: 'messages', id, depth: 0, overrideAccess: true })).readAt
+    (await fx.payload.findByID({ collection: 'messages', id, depth: 0, overrideAccess: true }))
+      .readAt
 
   const mkMsg = (recipient: RoleKey, tag: string) =>
     fx.payload.create({
       collection: 'messages',
-      data: { sender: fx.users.teacher.id, recipient: fx.users[recipient].id, body: `${MARK}${tag}` },
+      data: {
+        sender: fx.users.teacher.id,
+        recipient: fx.users[recipient].id,
+        body: `${MARK}${tag}`,
+      },
       overrideAccess: true,
     })
 
@@ -1861,10 +2060,12 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
   })
 
   it('403 for a teacher with editing access and a Subject Admin (only Site Admin may upload)', async () => {
-    expect((await post('editor', (f) => f.append('files', jsonFile('a.json', '90.3')))).status).toBe(403)
-    expect((await post('subjectAdmin', (f) => f.append('files', jsonFile('a.json', '90.4')))).status).toBe(
-      403,
-    )
+    expect(
+      (await post('editor', (f) => f.append('files', jsonFile('a.json', '90.3')))).status,
+    ).toBe(403)
+    expect(
+      (await post('subjectAdmin', (f) => f.append('files', jsonFile('a.json', '90.4')))).status,
+    ).toBe(403)
   })
 
   it('400 when no "files" field is present', async () => {
