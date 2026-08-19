@@ -114,6 +114,16 @@ No blocking decisions outstanding on any thread. The deploy is done. Live option
 1. **Local development uses `scripts/dev-seed.sh` and `scripts/dev-server.sh`.** A bare `npx next dev`
    cannot reach the Compose-only database, and the `devEngines` gate rejects npm on a non-Node-24
    host. Docker must be running. Use `scripts/in-deps.sh` rather than hand-writing `docker run`.
+   ⚑ **If pages HANG (not render slowly), it is a database lock, not the dev server** — this cost most
+   of a session on 2026-08-19 and produced two confident wrong diagnoses before the right one. The
+   scripts now warn about stuck/blocked sessions at startup and the local Postgres kills abandoned
+   transactions after two minutes, so it should announce itself. The one-flag test that distinguishes
+   the two cases: `curl -s -o /dev/null -w 'TTFB=%{time_starttransfer}\n' http://localhost:3000/admin`
+   — bytes late means slow, **no bytes at all means blocked**. Full account: DECISIONS 2026-08-19.
+   A leftover app container attached to the same database is the usual culprit — the startup warning
+   prints the exact `docker ps --filter network=…` line for this project, so read it there rather than
+   copying a literal network name (`lesson3_default` appears in no compose file, and a
+   `COMPOSE_PROJECT_NAME` override silently breaks it).
 2. **`tests/http` and `tests/e2e` fixtures go to a DISPOSABLE stack, never the seeded dev database.**
    `setupRoleFixture` opens with a namespace-wide `purgeMarked(MARK_BASE)` sweep and its user creates
    spend the real signup rate-limit budget. Recipe: AGENTS.md's `lesson3-ci-probe`. Full reasoning:

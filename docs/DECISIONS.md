@@ -84,6 +84,81 @@ knowing before anyone reads a green exit code as a clean run.
 ⚑ **Do not relax the Back assertion to get green.** It is the only thing pinning this defect, which any
 user reaches by pressing Back after "Open access controls".
 
+## 2026-08-19 — the "slow dev server" was a 22-hour database lock, and two wrong diagnoses came first
+
+**The symptom:** every page on the local stack hung. `scripts/dev-server.sh` reported *Ready in 256ms*,
+Turbopack logged `✓ Compiled in 14ms`, and then `/admin` took **9 minutes**, `/login` 47s, `/` 12.8min.
+Browser verification of a UI change was impossible, which is the one job the local stack exists for.
+
+**The cause, with the evidence that settles it.** A leftover container — `lesson3-pr2b-app`, a
+production-style `node server.js` from PR 2b work, **running for 25 hours** — had leaked two
+jobs-queue transactions against the shared local database:
+
+| pid | owner | state | for | statement |
+|---|---|---|---|---|
+| 26582 | pr2b-app | `idle in transaction` | 22h31m | `select … payload_jobs …` (holds the lock) |
+| 26769 | pr2b-app | `idle in transaction (aborted)` | 22h31m | `insert into payload_jobs_log …` |
+| 39309 | dev-server | active, `Lock: relation` | 1h04m | `ALTER TABLE payload_jobs ALTER COLUMN total_tried SET DEFAULT …` |
+| 26770 | pr2b-app | active, `Lock: relation` | 1h04m | `select count(*) from payload_jobs` |
+
+`pg_blocking_pids` names the chain outright: **39309 ← 26582**, and **26770 ← 39309**. Payload's
+**dev-mode schema push** wanted an ACCESS EXCLUSIVE lock on `payload_jobs`; it queued behind a
+transaction nobody was advancing, and because a *pending* exclusive lock also blocks everything queued
+after it, the stray container then wedged itself as well. Every request that initialises Payload waited
+on that push. Stopping the container released it instantly — pid 39309 completed its `ALTER` and moved
+on within two seconds, and `/admin` went from **9 minutes to 1.29s** (124ms warm).
+
+### ⚑ Two wrong diagnoses, kept on the record because the reasoning was the failure
+
+1. **"The bind mount is slow."** Plausible — macOS bind mounts are the usual suspect, and Next dev is
+   stat-heavy. **Measured inside the container: 13ms to walk `src`, 30ms to write and read 20MB.** Fine.
+2. **"V8 GC death spiral."** Better evidenced: the heap ceiling is 2240MB and the container sat at
+   2.1–2.45GiB, which is a real and common failure. **But sampling during an actual hang showed CPU at
+   0.01% and RSS moving 48KB in nine seconds.** Blocked, not busy.
+
+Both guesses were published as fact in a handoff before being measured, and the first one reached
+`DECISIONS.md`. **The lesson is not "measure first" — it is which measurement.** Every early number was
+about the *server* (compile times, CPU, memory, filesystem) and the answer was in the *database*. What
+finally decided it was the cheapest possible observation, available from minute one:
+`curl -w 'TTFB=%{time_starttransfer}'` returned **zero bytes ever sent** with the connection accepted.
+A server that is slow sends bytes late; a server that is blocked sends none. That single distinction
+separates "optimise something" from "find what holds the lock", and it costs one flag.
+
+**Corollary worth keeping:** the logged request durations were all *exactly* the client's timeout
+(`--max-time 120` → "2.0min", 180 → "3.0min", the pane's 2s health poll → "1998ms"). A duration that
+tracks the CLIENT rather than the work is itself a diagnosis — nothing on the server was timing out,
+because nothing on the server was finishing.
+
+### Prevention — local only, opt-in by construction
+
+Both changes live where the Rock can never load them (`docker-compose.local.yml` is passed with `-f`
+only by `DEV_COMPOSE` in `scripts/lib/dev-env.sh`; `scripts/deploy.sh` never does):
+
+- **`idle_in_transaction_session_timeout=120000`** — kills the cause. A transaction nobody advances no
+  longer holds locks for a day. Verified by planting one and watching Postgres terminate it.
+- **`lock_timeout=15000`** — converts the symptom from a hang into a loud, named failure. ⚑ This does
+  apply to the local `migrate` service, so a genuinely slow local migration now aborts where it would
+  not on the Rock. Intended: locally, "something else holds this table" is exactly what you need told.
+- **`log_lock_waits=on`** — Postgres names the blocker in its own log while it is still happening,
+  without anyone knowing that `pg_blocking_pids` exists.
+- **`dev_warn_stuck_transactions`** in `scripts/lib/dev-env.sh`, called by `dev-server.sh` and
+  `dev-seed.sh` — prints stuck/blocked sessions with pid, age, statement and the remedy before handing
+  over a server that would hang. **Warns, never blocks:** a transient blocked statement at startup is
+  normal, and a script that refused to start over one would be worse than the bug.
+
+⚑ **And a note on how that guard was verified, because the first test lied.** Sourcing it in the tool's
+shell produced no output and looked broken; the SQL ran perfectly by hand. The shell is **zsh**, the
+scripts are `#!/usr/bin/env bash`. `bash -c 'source …; dev_warn_stuck_transactions'` — how it actually
+runs — printed the full warning. A shell-script guard tested from the wrong shell is not tested.
+
+### Still open
+
+The leaked transactions came from an `insert into payload_jobs_log` that errored and was never rolled
+back — `idle in transaction (aborted)` is a transaction whose client walked away after a failure. The
+image running it is 25 hours old and predates current `main`, so this is **not** evidence about today's
+code, but the pattern (a jobs transaction abandoned after an error) would be a production risk if it
+still exists. Worth an audit of the jobs-queue error path; not attempted here.
+
 ## 2026-08-18 — Manage becomes four bordered boxes: the panel shell, and what the regrouping cost
 
 **Operator decisions, taken in one session, after a mockup rather than from prose.** Two changes to the
