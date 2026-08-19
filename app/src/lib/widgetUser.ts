@@ -2,7 +2,8 @@
  * The Editing-access widget's client payload for one user, and the helpers that build and label it.
  *
  * ⚑ `WidgetUser` is declared HERE, not in the component. It previously lived in
- * `components/AdminDashboard/EditorsWidget.tsx` and was imported back into this file — the only
+ * `components/AdminDashboard/EditorsWidget.tsx` (now `components/Manage/RolesAccessPanel.tsx`) and
+ * was imported back into this file — the only
  * import from `components/` anywhere in `src/lib/`, inverting the usual arrow (`lib/` is a leaf that
  * components depend on). The component re-exports it for its existing consumers.
  */

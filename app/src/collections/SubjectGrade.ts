@@ -77,7 +77,9 @@ const guardSubjectGradeDelete: CollectionBeforeDeleteHook = async ({ id, req }) 
       },
       overrideAccess: true,
       req,
-      context: { skipAutoDemote: true },
+      // `systemAssignmentWrite`: this cascade maintains an invariant, it is not the requesting user
+      // exercising authority — see `enforceAssignmentScope`.
+      context: { skipAutoDemote: true, systemAssignmentWrite: true },
     })
   }
 }

@@ -398,7 +398,7 @@ observable contract, and a failed or backed-off capture must say so rather than 
 | User type | Scope |
 |---|---|
 | Teacher | Global baseline — view/export; may additionally hold editing access for specific subject-grades |
-| Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, manage scoped roles |
+| Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, grant and revoke **editing access** within that subject-grade (see D6a below: **not** the Subject Administrator role itself) |
 | Site Administrator | Global — everything, incl. user/role/taxonomy management |
 
 - **Canonical user model (amended 2026-07-29; clarified 2026-08-17).** There are **three user types**:
@@ -412,10 +412,38 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - **Subject** = academic discipline only. **SubjectGrade** = subject + **integer** grade; the assignable unit roles attach to. Display as "Grade N". "Math Grade 4" and "Math Grade 5" are independent.
 - Per-subject-grade scoping is expressed inside Payload access functions.
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to a Teacher with editing access for that subject-grade, in one transaction.
+- ⚑ **Only a Site Administrator may appoint or vacate a Subject Administrator (operator decision,
+  2026-08-16; "D6a").** A Subject Administrator manages **editing access** within their
+  subject-grades and nothing above it — they may not appoint their successor. The earlier wording
+  "manage scoped roles" did not disambiguate this, and the shipped code did not either:
+  `enforceAssignmentScope` gated *which subject-grade* a touched row belonged to and never inspected
+  the row's `role`, so a Subject Administrator could write a `subjectAdmin` row inside a grade they
+  administered — and, through `autoDemotePriorSubjectAdmins`, demote themselves in the same write.
+  "At most one per subject-grade" combined with "the incumbent chooses their replacement" is an
+  unusual governance property for a role that also controls marking versions Official.
+  **This is a server rule, not a UI one.** The guard lives in `enforceAssignmentScope` and covers
+  every write path including the generic `PATCH /api/users/:id`; the Site-Admin-only routes
+  (`/:id/{assign,unassign}-subject-admin`) assert it a second time so a caller gets an honest 403 on
+  the route they used. Pinned in two places, deliberately: `tests/unit/enforceAssignmentScope.spec.ts`
+  drives the hook directly for every branch (grant, revoke, role change, the narrowness case, and the
+  system-cascade exemption), and `tests/http/userAssignments.http.spec.ts` proves the refusal over a
+  real request on both the route and the generic PATCH. ⚑ The branch cases are NOT in the wire spec,
+  and that is the point: they were, until an earlier test in the same file appointed a new
+  administrator and — through `autoDemotePriorSubjectAdmins` — demoted the very account those
+  assertions used as their caller, so the refusal came from collection access and the test passed
+  with the guard deleted.
+  **Forward-only.** An installation deployed before this guard may already hold `subjectAdmin` rows
+  written by a Subject Administrator. The rule changes what is permitted from now on; it does not
+  retroactively invalidate those grants and must not try to.
+  **A Subject Administrator still SEES who administers their subject-grade** — scoped information
+  they already effectively hold — rendered read-only, with no picker and no remove control. Removing
+  the control without showing the fact would leave them unable to answer a question they legitimately
+  need answered; leaving the control while refusing the write would teach them the app is broken.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
 - **Amended 2026-08-02 — one carve-out, for granting editing access.** A **Subject Administrator**
-  sees the email addresses of the users listed in **Manage → Editing access** for their *own*
+  sees the email addresses of the users listed in **Manage → Roles & Access** (named *Editing access*
+  until 2026-08-18) for their *own*
   subject-grades: both the current editing-access holders and the candidates in the grant picker.
   Operator decision.
   **Rationale:** granting editing access is an authorization decision, and a display name is not an

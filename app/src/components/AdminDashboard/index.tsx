@@ -13,9 +13,9 @@ import type { User } from '../../payload-types'
 import UploadBundles from '../UploadBundles'
 import { CandidateList, type CandidateRow } from './CandidateList'
 import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
-import { buildEditorGroups } from '../../lib/editorGroups'
+import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
-import { EditorsWidget } from './EditorsWidget'
+import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, type PanelId } from '../Manage/panelState'
 import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
@@ -70,7 +70,7 @@ export default async function AdminDashboard({
   const [
     { typeLabel: role, lines: roleLines },
     versionsRes,
-    editorGroups,
+    rolesAccess,
     plansRes,
     taxonomySubjectsRes,
     taxonomyGradesRes,
@@ -101,12 +101,12 @@ export default async function AdminDashboard({
           }),
         ),
     // ---- Editors widget: the whole role gate + trusted query + projection, as ONE unit ----
-    // `buildEditorGroups` (lib/editorGroups.ts) owns the gate, the `overrideAccess: true` read and
+    // `buildRolesAccess` (lib/editorGroups.ts) owns the gate, the `overrideAccess: true` read and
     // the client projection together, because the email carve-out is only sound while they cannot be
     // separated — inlined here it was an emergent property of several conditions consulting the same
     // general-purpose `isAdmin`. It returns [] for a non-administrator without querying, and it is
     // covered per-role by `tests/int/editorGroupsAccess.int.spec.ts`.
-    t.time('editorGroups', () => buildEditorGroups({ payload, user })),
+    t.time('rolesAccess', () => buildRolesAccess({ payload, user })),
     // ---- Site-Admin panels: one shared plans fetch for repair + delete ----
     siteAdmin
       ? t.time('plans', () =>
@@ -454,7 +454,7 @@ export default async function AdminDashboard({
       siteAdmin && 'users',
       siteAdmin && 'subjects',
       siteAdmin && 'subject-grades',
-      editorGroups.length > 0 && 'access',
+      rolesAccess.groups.length > 0 && 'access',
       siteAdmin && 'plans',
       siteAdmin && 'plans.upload',
       siteAdmin && 'plans.delete',
@@ -529,13 +529,13 @@ export default async function AdminDashboard({
           </AccordionPanel>
         )}
 
-        {editorGroups.length > 0 && (
-          <AccordionPanel id="access" title="Editing access">
+        {rolesAccess.groups.length > 0 && (
+          <AccordionPanel id="access" title="Roles & Access">
             <p className="lp-manage__desc">
-              Who may edit lesson plans, per subject grade. Granting access lets a teacher edit;
-              removing it returns them to view-only.
+              Who administers each subject grade and who may edit its lesson plans. Granting editing
+              access lets a teacher edit; removing it returns them to view-only.
             </p>
-            <EditorsWidget groups={editorGroups} />
+            <RolesAccessPanel access={rolesAccess} canSetSubjectAdmin={siteAdmin} />
           </AccordionPanel>
         )}
 

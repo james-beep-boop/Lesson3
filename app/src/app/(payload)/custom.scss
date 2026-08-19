@@ -443,6 +443,11 @@ body {
     margin: 0;
   }
 
+  // ⚑ The Roles & Access administrator row shares this LAYOUT (label, person, action, picker) and is
+  // listed here rather than restating it — same rule the taxonomy panels' form rows follow. It keeps
+  // its own class so the two rows stay individually addressable: they are different rows, and a
+  // shared class made `querySelector` pick the wrong one.
+  &__roles-admin,
   &__editors-add {
     display: flex;
     align-items: center;

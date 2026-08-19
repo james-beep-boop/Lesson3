@@ -27,7 +27,12 @@ import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { preserveAccountDisabledWire } from '../errors/AccountDisabled'
 import { emailLinkBase } from '../lib/emailLinkBase'
 import { isHttpsServerUrl } from '../lib/publicPosture'
-import { assignEditorEndpoint, unassignEditorEndpoint } from '../endpoints/userAssignments'
+import {
+  assignEditorEndpoint,
+  assignSubjectAdminEndpoint,
+  unassignEditorEndpoint,
+  unassignSubjectAdminEndpoint,
+} from '../endpoints/userAssignments'
 import {
   revealResetLinkEndpoint,
   setSignInDisabledEndpoint,
@@ -156,6 +161,11 @@ export const Users: CollectionConfig = {
     // widget's full-array PATCH (lost-update hazard on authorization data). See endpoints/userAssignments.
     assignEditorEndpoint,
     unassignEditorEndpoint,
+    // Site-Admin-only appointment / vacating of a subject-grade's administrator (D6a). Same freshness
+    // token and lock order as the editor routes; the role is baked into the route, never read from
+    // the body — see endpoints/userAssignments.
+    assignSubjectAdminEndpoint,
+    unassignSubjectAdminEndpoint,
     // Shadows Payload's native POST /forgot-password so the response cannot differ between a
     // registered and an unknown address (L3-R1). Delivery moves to the retrying job below.
     forgotPasswordQueuedEndpoint,
