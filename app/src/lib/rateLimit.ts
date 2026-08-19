@@ -102,6 +102,21 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_SIGNUP_GLOBAL_MAX', 100),
     windowMs: positiveIntEnv('RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS', 86_400_000),
   },
+  // Bundle upload (`POST /api/lesson-plans/upload`, Site-Administrator only). ⚑ NOT an abuse gate —
+  // anyone who can reach this endpoint can already delete every lesson plan and grant themselves
+  // roles, so a cap here closes no attack path. It is a RUNAWAY GUARD: this is the heaviest write in
+  // the product (up to 50 files × 5 MB per request, each accepted bundle costing an ingest, a version
+  // and later an artifact generation), and the realistic cause of it being hit in a loop is an import
+  // script, not an attacker.
+  //
+  // 50 per 15 minutes is therefore sized to be UNREACHABLE by real use rather than tight on abuse
+  // (operator decision 2026-08-19: batches are a few dozen plans, which is one or two requests, and the
+  // corpus is bounded). ⚑ Note the counter increments on ATTEMPTS, including requests that then fail
+  // validation — a run of malformed batches spends the budget too, which the headroom is there to absorb.
+  upload: {
+    max: positiveIntEnv('RATE_LIMIT_UPLOAD_MAX', 50),
+    windowMs: positiveIntEnv('RATE_LIMIT_UPLOAD_WINDOW_MS', 900_000),
+  },
   // "Request editing access" (teacher-first T3): ONE request per user per subject-grade per day —
   // the key is `${userId}:${subjectGradeId}` via enforceSharedRateLimit, so asking about Biology
   // G10 doesn't block asking about Chemistry G11. Bounds admin-inbox noise, not CPU.

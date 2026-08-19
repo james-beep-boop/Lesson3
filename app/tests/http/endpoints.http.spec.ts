@@ -2068,6 +2068,46 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     ).toBe(403)
   })
 
+  /**
+   * The 429 — the only new wire behaviour in the 2026-08-19 metering change, and the one this suite did
+   * not already cover (401 / 403 / 400 / 422 / happy path were all here).
+   *
+   * ⚑ ORDER IS THE POINT, not just the status. The budget is drained for the SITE ADMIN's key, then a
+   * TEACHER's request is checked first: it must still be 403, proving the limiter sits AFTER the
+   * authorization checks. Were it first, an unauthenticated or non-admin caller could spend a real
+   * administrator's budget — a denial of service handed to exactly the people the gate turns away.
+   *
+   * Drains through the same Postgres counter the app reads (shared DB), keyed as
+   * `upload:<siteAdminId>` because `enforceUserRateLimit` keys per user; the row is deleted afterwards
+   * so nothing leaks into the tests below, which upload for real.
+   */
+  it('429 once the upload budget is spent — and only after authorization', async () => {
+    const req = { payload: fx.payload } as never
+    const key = String(fx.users.siteAdmin.id)
+    const UPLOAD_MAX = Number(process.env.RATE_LIMIT_UPLOAD_MAX) || 50
+    try {
+      for (let i = 0; i < UPLOAD_MAX; i++) await consumeRateLimit(req, 'upload', key)
+
+      // A non-admin is still refused by the AUTHORIZATION gate, not by the spent budget.
+      const forbidden = await post('teacher', (f) => f.append('files', jsonFile('a.json', '90.6')))
+      expect(forbidden.status).toBe(403)
+
+      const throttled = await post('siteAdmin', (f) =>
+        f.append('files', jsonFile('a.json', '90.7')),
+      )
+      expect(throttled.status).toBe(429)
+      // A 429 a client cannot retry through is a dead end; the helper must say when to come back.
+      expect(throttled.headers.get('retry-after')).toBeTruthy()
+    } finally {
+      const db = (
+        fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
+      ).drizzle
+      await db.execute(
+        sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ${`upload:${key}`};`,
+      )
+    }
+  })
+
   it('400 when no "files" field is present', async () => {
     const res = await post('siteAdmin', (f) => f.append('other', 'x'))
     expect(res.status).toBe(400)
