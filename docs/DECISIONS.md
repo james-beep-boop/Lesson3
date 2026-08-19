@@ -59,14 +59,28 @@ order forbids, and the per-row kebab holds array actions (duplicate / remove / m
 panel does not have. The editor has that chrome because its rows are DATA THE USER OWNS. Manage's boxes
 are navigation. Borrowing the chrome borrows promises the page cannot keep.
 
-**A latent bug the fill comparison exposed, found by the operator reading a mockup.** Rendering the
-rejected both-levels variant showed a white stripe above the 2nd and 3rd nested rows. Cause:
-`.lp-accordion__heading`'s 24px top margin sits INSIDE any border that wraps the row — row 1 escapes only
-because of a `:first-child` rule added earlier the same day to fix ~40px of dead air at the top of an
-open box. **That is the same rule biting twice**, and the `:first-child` fix treated row 1 while leaving
-rows 2+ latent. The real fix is to move the gap from the heading's margin to the row itself; it is not
-needed for the shipped design (nested rows have no border) and is deliberately left undone rather than
-patched a third time. ⚑ If a nested panel ever gains a border, do that refactor first.
+**A latent bug the fill comparison exposed, found by the operator reading a mockup — and now FIXED.**
+Rendering the rejected both-levels variant showed a white stripe above the 2nd and 3rd nested rows.
+Cause: `.lp-accordion__heading`'s 24px top margin sits INSIDE any border that wraps the row — row 1
+escaped only because of a `:first-child` rule added earlier the same day to fix ~40px of dead air at the
+top of an open box. **That is one rule causing two visible defects in a day**, each patched by zeroing
+one more first child: a fix that treats a row at a time and leaves the rest latent.
+
+The gap now belongs to the ROW (`&__panel > & + &`) instead of to its heading, which **deletes both
+exemptions** — one rule replaces three, and a border can wrap a nested row without exposing anything.
+Two things worth keeping from how it was done:
+
+- **The acceptance criterion was that NOTHING MOVES.** Six measurements taken before the edit and
+  repeated after: header→first-row 16px, row-content→next-row 48px, between boxes 12px, panel inset
+  17px, row heights 44/48px. All identical — a correct spacing refactor is a pixel no-op, and had any
+  value shifted it would have meant the refactor was wrong rather than the old code.
+- **Why a margin on a heading is the wrong home for row spacing:** it ESCAPES the `<section>`, which has
+  no border or padding to stop it collapsing through. So the space was already behaving as the row's,
+  while living on the heading — invisible until something wrapped the row.
+
+⚑ Pinned by an E2E pair (24px on the sibling row, 0px on its heading), because this regresses silently:
+purely visual, and nothing else in the suite would notice. Two `:first-child` patches were the cost of
+not having that assertion the first time.
 
 **Two mechanisms is the right answer here, not duplication.** There is no shared CSS to de-duplicate —
 one is a framework component reached by config, the other a custom disclosure with URL state and role

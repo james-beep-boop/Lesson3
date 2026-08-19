@@ -220,8 +220,6 @@ body {
     // block (the parent selector is compound), so both spellings would be hand-written literals kept
     // identical by eye. Same output selectors, same specificity.
     > .lp-accordion__heading {
-      margin-block-start: 0;
-
       > .lp-accordion__trigger {
         // ⚑ A PERSISTENT FILL ON THE HEADER, matching `Collapsible__toggle-wrap` in the version editor
         // (`--theme-elevation-50`, hover `--theme-elevation-100`). Operator decision 2026-08-19, taken
@@ -286,8 +284,19 @@ body {
     margin-block-start: var(--app-space-2);
   }
 
+  // ⚑ NO MARGIN HERE, and that is the point (2026-08-19). This rule used to carry
+  // `margin: var(--app-space-4) 0 0`, and the 24px was then CANCELLED in two other places — on a boxed
+  // top-level heading, and on a panel's first child. One live case, two hand-maintained exemptions.
+  //
+  // It also put the gap in the wrong box: a heading's margin escapes its `<section>` (no border, no
+  // padding to stop it collapsing through), so the space belonged to the ROW while living on the
+  // HEADING. That cost two visible defects in one day — ~40px of dead air at the top of every open
+  // box, and, in a rejected mockup that bordered nested rows, an unfilled white stripe above rows 2
+  // and 3 while row 1 was fine. Both were "fixed" by zeroing one more first child, which treats a row
+  // at a time and leaves the rest latent. The gap now belongs to the row (see `&__panel > & + &`
+  // below), so there is nothing to exempt and a border can wrap a nested row without exposing it.
   &__heading {
-    margin: var(--app-space-4) 0 0;
+    margin: 0;
     font-size: var(--app-list-heading-size); // nested default (18px)
     font-weight: 600;
     color: var(--theme-elevation-1000);
@@ -379,8 +388,17 @@ body {
   // exceptional — the first child is a `<section>`, which has no margin of its own to suppress. The
   // 24px belongs to the `<h3>` one level further in, so the rule has to reach it: `> :first-child`
   // matched something that was never the offender and quietly left the gap in place.
-  &__panel > :first-child,
-  &__panel > &:first-child > &__heading {
+  // Sibling nested panels are held apart by the ROW, not by its heading. `+` means "between", so the
+  // first row needs no exemption and the last draws no trailing space — the same shape as the
+  // top-level `.lp-admin-dash > & + &` rule above, one level in.
+  &__panel > & + & {
+    margin-block-start: var(--app-space-4);
+  }
+
+  // Prose and widgets that open a panel bring their own top margin, which would add to the panel's
+  // padding. (The `&__panel > &:first-child > &__heading` half of this selector is GONE with the
+  // heading margin it existed to cancel.)
+  &__panel > :first-child {
     margin-block-start: 0;
   }
 
