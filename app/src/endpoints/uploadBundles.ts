@@ -17,6 +17,7 @@
 import { APIError, type Endpoint, type PayloadRequest } from 'payload'
 
 import { isSiteAdmin } from '../access'
+import { enforceUserRateLimit } from '../lib/rateLimit'
 import { ingestItems, type IngestItem } from '../ingest'
 import { IngestError } from '../ingest/errors'
 import { extractAresJson } from '../ingest/extract'
@@ -38,6 +39,20 @@ export const uploadBundlesEndpoint: Endpoint = {
     if (!isSiteAdmin(req.user as User)) {
       throw new APIError('Forbidden — Site administrator only', 403)
     }
+
+    // ⚑ AFTER the authorization checks, deliberately. Rate limiting first would let an unauthenticated
+    // or non-admin caller spend a real administrator's budget — a denial-of-service handed to exactly
+    // the people the two lines above exist to turn away. Authorize, then meter.
+    //
+    // Returns a ready-made 429 with `Retry-After` rather than throwing, which is this helper's contract
+    // (`enforceUserRateLimit`); the surrounding handler signals its own failures with `APIError`.
+    //
+    // ⚑ Fails CLOSED on a database error, and that is acceptable here rather than merely tolerated:
+    // `take()` does not catch, so a failed counter write surfaces as a 500 — but every subsequent step
+    // of this handler needs the same database, so a DB outage fails the upload either way. The only
+    // change is that it now fails before the body is buffered instead of after.
+    const limited = await enforceUserRateLimit(req, 'upload')
+    if (limited) return limited
 
     // Coarse pre-parse guard: reject an oversized body via Content-Length BEFORE `formData()` buffers
     // the whole multipart payload into memory. The header may be absent or wrong, so the per-file caps
