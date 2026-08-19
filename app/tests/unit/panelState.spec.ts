@@ -28,9 +28,11 @@ import {
 /** Everything a Site Admin's page can render, which is the widest `available` in the product. */
 const SITE_ADMIN = [
   'users',
-  'subjects',
-  'subject-grades',
-  'access',
+  'users.accounts',
+  'users.access',
+  'curriculum',
+  'curriculum.subjects',
+  'curriculum.subject-grades',
   'plans',
   'plans.upload',
   'plans.delete',
@@ -47,43 +49,64 @@ describe('parentOf', () => {
 
 describe('parseOpen', () => {
   it('keeps ids that are both known and available', () => {
-    expect(parseOpen('?open=access,plans', SITE_ADMIN)).toEqual(['access', 'plans'])
+    expect(parseOpen('?open=plans,versions', SITE_ADMIN)).toEqual(['plans', 'versions'])
   })
 
   it('drops ids that are not in the closed vocabulary', () => {
-    expect(parseOpen('?open=access,nonsense', SITE_ADMIN)).toEqual(['access'])
+    expect(parseOpen('?open=plans,nonsense', SITE_ADMIN)).toEqual(['plans'])
   })
 
   it('drops ids the CALLER cannot see, even though they are valid ids', () => {
-    // The Subject Admin case: `subjects` is a real panel, just not one this page rendered. It must
-    // vanish silently — an error or an empty panel would tell them something was withheld.
-    expect(parseOpen('?open=subjects,access', ['access', 'versions'])).toEqual(['access'])
+    // The Subject Admin case: `curriculum` is a real panel, just not one this page rendered. It must
+    // vanish silently — an error or an empty panel would tell them something was withheld. Their own
+    // panel arrives WITH its ancestor, since a child is only meaningfully open inside an open parent.
+    expect(
+      parseOpen('?open=curriculum,users.access', ['users', 'users.access', 'versions']),
+    ).toEqual(['users', 'users.access'])
   })
 
   /**
    * ⚑ A RETIRED id, which is a different case from an unknown one and from an inaccessible one — and
-   * the only one of the three that a REAL bookmark can hit. `curriculum` shipped as a panel id, so
-   * links carrying it exist; PR 3 dissolved it into `subjects` and `subject-grades`. The vocabulary
-   * is a URL contract, and this is what retiring an entry in it is supposed to feel like from the
-   * outside: a normal Manage page with nothing opened, not an error and not a resurrected panel.
+   * the only one of the three that a REAL bookmark can hit. The vocabulary is a URL contract, and this
+   * is what retiring an entry in it is supposed to feel like from the outside: a normal Manage page
+   * with nothing opened, not an error and not a resurrected panel.
    *
-   * Pinned because the tempting "fix" for a broken old link is to re-add the id, and doing that would
-   * quietly reintroduce a panel the product no longer has.
+   * ⚑ THE IDS HERE CHANGED ON 2026-08-18 and the previous ones are worth naming, because this case has
+   * now happened twice. Round one: `curriculum` shipped as a holding-pen panel and PR 3 dissolved it
+   * into `subjects` + `subject-grades`. Round two: the four-box regrouping retired those two in turn
+   * (they became `curriculum.subjects` / `curriculum.subject-grades`) along with top-level `access`.
+   * Pinned because the tempting "fix" for a broken old link is to re-add the id it names.
    */
   it('drops a RETIRED id, so an old bookmark degrades instead of erroring', () => {
-    expect(parseOpen('?open=curriculum', SITE_ADMIN)).toEqual([])
-    expect(parseOpen('?open=curriculum,access', SITE_ADMIN)).toEqual(['access'])
+    expect(parseOpen('?open=subjects', SITE_ADMIN)).toEqual([])
+    expect(parseOpen('?open=subject-grades', SITE_ADMIN)).toEqual([])
+    expect(parseOpen('?open=access,plans', SITE_ADMIN)).toEqual(['plans'])
+  })
+
+  /**
+   * ⚑ AND THE OTHER HALF OF THAT CHANGE, which is not a retirement: `curriculum` came BACK as the
+   * group whose children are what it originally dissolved into, and `users` was RE-POINTED from the
+   * accounts panel to the group containing it. So both of those ancient bookmarks resolve again — one
+   * to a superset of what it meant, one to a box containing what it meant.
+   *
+   * This is pinned rather than left to inference because the file it guards spent two months telling
+   * the next reader not to re-add `curriculum`. That prohibition was about resurrecting a panel the
+   * product no longer had; the product has one again.
+   */
+  it('re-uses `curriculum` and re-points `users`, deliberately', () => {
+    expect(parseOpen('?open=curriculum', SITE_ADMIN)).toEqual(['curriculum'])
+    expect(parseOpen('?open=users', SITE_ADMIN)).toEqual(['users'])
   })
 
   it('is order-stable, so a parsed value re-serialises to itself', () => {
     // Otherwise `?open=plans,access` and `?open=access,plans` would keep rewriting each other's URL.
-    expect(parseOpen('?open=plans,access', SITE_ADMIN)).toEqual(
-      parseOpen('?open=access,plans', SITE_ADMIN),
+    expect(parseOpen('?open=versions,plans', SITE_ADMIN)).toEqual(
+      parseOpen('?open=plans,versions', SITE_ADMIN),
     )
   })
 
   it('tolerates whitespace, empty entries and a missing parameter', () => {
-    expect(parseOpen('?open= access , ,plans ', SITE_ADMIN)).toEqual(['access', 'plans'])
+    expect(parseOpen('?open= versions , ,plans ', SITE_ADMIN)).toEqual(['plans', 'versions'])
     expect(parseOpen('', SITE_ADMIN)).toEqual([])
     expect(parseOpen('?other=1', SITE_ADMIN)).toEqual([])
   })
@@ -114,12 +137,12 @@ describe('resolveServerPanelState', () => {
   it('handles a repeated parameter, an absent record, and an absent `at`', () => {
     // Next gives `string[]` when a key repeats; dropping the extras silently would be the kind of
     // lossy flattening nobody notices until a URL stops working.
-    expect(resolveServerPanelState({ open: ['access', 'plans'] }, SITE_ADMIN).open).toEqual([
-      'access',
+    expect(resolveServerPanelState({ open: ['versions', 'plans'] }, SITE_ADMIN).open).toEqual([
       'plans',
+      'versions',
     ])
     expect(resolveServerPanelState(undefined, SITE_ADMIN)).toEqual({ open: [], at: null })
-    expect(resolveServerPanelState({ open: 'access' }, SITE_ADMIN).at).toBeNull()
+    expect(resolveServerPanelState({ open: 'plans' }, SITE_ADMIN).at).toBeNull()
   })
 
   it('ignores malformed dynamic jump targets before a focus consumer can receive them', () => {
@@ -141,35 +164,39 @@ describe('withAncestors / withoutDescendants', () => {
   })
 
   it('closing a parent closes its subtree', () => {
-    expect(withoutDescendants(['access', 'plans', 'plans.delete'], 'plans')).toEqual(['access'])
+    expect(withoutDescendants(['versions', 'plans', 'plans.delete'], 'plans')).toEqual(['versions'])
   })
 
   it('closing a parent leaves unrelated panels alone', () => {
-    expect(withoutDescendants(['subjects', 'plans', 'plans.upload'], 'plans')).toEqual(['subjects'])
+    expect(withoutDescendants(['curriculum', 'plans', 'plans.upload'], 'plans')).toEqual([
+      'curriculum',
+    ])
   })
 })
 
 describe('serialiseOpen', () => {
   it('writes the open list and drops the parameter entirely when nothing is open', () => {
-    expect(serialiseOpen('/admin', '', ['access', 'plans'])).toBe('/admin?open=access%2Cplans')
-    expect(serialiseOpen('/admin', '?open=access', [])).toBe('/admin')
+    expect(serialiseOpen('/admin', '', ['plans', 'versions'])).toBe('/admin?open=plans%2Cversions')
+    expect(serialiseOpen('/admin', '?open=plans', [])).toBe('/admin')
   })
 
   it('always drops `at`, which is a one-shot instruction', () => {
     // Leaving it would re-fire the jump (scroll + focus move) on every reload.
-    expect(serialiseOpen('/admin', '?open=access&at=sg-12', ['access'])).not.toContain('at=')
+    expect(serialiseOpen('/admin', '?open=users.access&at=sg-12', ['users.access'])).not.toContain(
+      'at=',
+    )
   })
 
   it('preserves unrelated query parameters', () => {
     // A URL is shared state; silently dropping something a colleague appended is a loss that is only
     // noticed once.
-    expect(serialiseOpen('/admin', '?ref=email&open=access', ['plans'])).toContain('ref=email')
+    expect(serialiseOpen('/admin', '?ref=email&open=plans', ['versions'])).toContain('ref=email')
   })
 })
 
 describe('initialOpen', () => {
   it('a valid deep link wins outright', () => {
-    expect(initialOpen('?open=access', SITE_ADMIN)).toEqual(['access'])
+    expect(initialOpen('?open=plans', SITE_ADMIN)).toEqual(['plans'])
   })
 
   it('a deep link to a nested panel brings its ancestor with it', () => {
@@ -187,9 +214,29 @@ describe('initialOpen', () => {
     expect(initialOpen('', SITE_ADMIN)).toEqual([])
   })
 
+  /**
+   * ⚑ THE ONE EXCEPTION to "nested panels are never auto-opened" (2026-08-18), and it exists because
+   * the four-box regrouping silently demoted the Subject Administrator. Roles & Access is their only
+   * panel; while it was top-level, rule 2 opened it and they landed on their work. As `users.access`
+   * their only top-level id is the GROUP, so rule 2 alone would open a box containing one collapsed
+   * row — an extra click to reveal the one thing they came for, inside a box named for accounts they
+   * cannot administer. The exception says exactly what rule 2 says: nobody clicks to reveal their
+   * only panel.
+   */
+  it('a lone top-level box with a lone available child opens both (the Subject Admin case)', () => {
+    expect(initialOpen('', ['users', 'users.access'])).toEqual(['users', 'users.access'])
+  })
+
+  it('…but two top-level boxes still start collapsed, even when each holds one child', () => {
+    // The same Subject Admin once they have candidate versions to review: two sections is the
+    // multi-section case, and the exception above must not leak into it.
+    expect(initialOpen('', ['users', 'users.access', 'versions'])).toEqual([])
+  })
+
   it('nested panels do not count toward "only one section"', () => {
     // A Site Admin whose only top-level panel is `plans` still has three children; the auto-expand
-    // rule is about SECTIONS, and counting children would open a subtree nobody asked for.
+    // rule is about SECTIONS, and counting children would open a subtree nobody asked for. This is
+    // also the boundary of the lone-child exception above: TWO children is not one.
     expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
   })
 

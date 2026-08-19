@@ -98,24 +98,24 @@ body {
   // Same token as the frontend's .app-main, so the two page origins now agree.
   padding-block-start: var(--app-page-top);
 
-  // Title + role on ONE baseline ("Manage · Site administrator") — collapsed from three stacked lines
-  // 2026-08-04. `align-items: baseline` is what makes a 30px heading and 16px role read as one line
-  // rather than two centred blocks; `flex-wrap` lets them stack again on a narrow phone instead of
-  // shrinking the title.
-  &__head {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--app-space-2);
-    margin-bottom: var(--app-space-2);
-  }
-
+  // ⚑ `&__head` and `&__role` USED TO LIVE HERE and are deleted (2026-08-18). `__head` was a flex row
+  // whose whole purpose was to put "Manage" and the user type on one baseline ("Manage · Site
+  // administrator", collapsed from three stacked lines on 2026-08-04) — including the `flex-wrap` that
+  // let them stack again on a phone, and `__role`'s `::before` bullet with its `/ ''` alternative text
+  // so a screen reader did not announce "Manage middle dot Site administrator".
+  //
+  // The user type is no longer printed on this page (operator decision: the avatar menu states it on
+  // every page, and a signed-in user knows their own account type), so `__head` had one child and every
+  // declaration in it was inert. Deleted rather than trimmed to `margin-bottom`: a flex container with
+  // one child is a container waiting for a second thing to be dropped into it by someone who assumes
+  // the row still exists. The title now carries its own bottom margin.
   &__title {
     // Same size/weight as the frontend page titles (.lp-title / .page-heading h1), via the shared
     // token — so "Manage" sits at the same level in the hierarchy as "Lesson Plans".
     font-size: var(--app-page-title-size);
     font-weight: 700;
-    margin: 0;
+    // Was 0, with the space supplied by `__head`'s margin-bottom; same token, one element fewer.
+    margin: 0 0 var(--app-space-2);
     color: var(--theme-elevation-1000);
   }
 
@@ -123,23 +123,6 @@ body {
   // so the block is not rendered at all — no empty-container margin to collapse.
   &__identity {
     margin-bottom: var(--app-space-2);
-  }
-
-  &__role {
-    font-size: var(--app-body-size);
-    margin: 0;
-    color: var(--theme-elevation-600);
-
-    // Decorative separator, in CSS so the h1's accessible name stays exactly "Manage" and so the role
-    // reads correctly on its own line once __head wraps. The `/ ''` is the alternative-text half of
-    // `content`: without it a screen reader announces the bullet ("Manage middle dot Site
-    // administrator"), since pseudo-element content IS in the accessibility tree and cannot be
-    // aria-hidden. Empty alt text drops it from the announcement while keeping it visible.
-    &::before {
-      content: '·' / '';
-      margin-inline-end: var(--app-space-2);
-      color: var(--theme-elevation-400);
-    }
   }
 
   &__scope {
@@ -155,9 +138,9 @@ body {
   //
   // The separator's own comment had predicted its death precisely ("If a wrapper is ever introduced
   // this fails loudly — all rules vanish"), and that is exactly what was MEASURED on the live page
-  // before the change was written: `0px, 1px, 1px` became `0px, 0px, 0px`. It now hangs off the panel
-  // wrapper (`.lp-admin-dash > .lp-accordion ~ .lp-accordion`), keeping the same "however the role-
-  // and data-dependent branches fall" property one level out.
+  // before the change was written: `0px, 1px, 1px` became `0px, 0px, 0px`. It moved to the panel
+  // wrapper then, and on 2026-08-18 it went away entirely — see `⚑ THE BOX REPLACED THE SEPARATOR` in
+  // `.lp-accordion` below, which is the current account. Do not grep for a `~` rule; there is none.
   //
   // Keeping the type rules "in case a plain section returns" was the first instinct and it was wrong:
   // two separator mechanisms in one file with only one live means the next reader has to grep to
@@ -192,20 +175,70 @@ body {
     display: none;
   }
 
-  // The separator between MAIN sections, moved here from `.lp-admin-dash__section ~ __section` when
-  // the accordion introduced the wrapper that selector's own comment predicted would kill it. Same
-  // property, one level out: "a top-level panel that follows another top-level panel", so the first
-  // rendered panel has no rule and the last draws no trailing one, however the role- and
-  // data-dependent branches fall.
+  // ⚑ THE BOX REPLACED THE SEPARATOR (operator decision 2026-08-18). Top-level panels used to be held
+  // apart by a hairline `border-top` on `.lp-admin-dash > & ~ &` — itself inherited from
+  // `.lp-admin-dash__section ~ __section`. Each top-level panel is now a bordered container, and the
+  // space between them is margin. The old rule is GONE rather than kept beside this one: a hairline
+  // between two bordered boxes renders as a third line, and this file already argues (see the ⚑ in
+  // `.lp-admin-dash`) that two separator mechanisms with one live means the next reader has to grep to
+  // learn which.
   //
-  // Scoped with the CHILD combinator so it means top-level panels only. Nested panels (Upload /
-  // Delete / Repair) are inside their parent's `__panel` and are deliberately NOT separated — the
-  // pre-accordion rule said the same thing about sub-headings. ⚑ Like its predecessor this fails
+  // The border is the affordance. A closed panel was a bare 20px heading with a 7px triangle, i.e. an
+  // 8-character hit target that read as a page heading rather than a control; the box says "all of
+  // this is clickable", which the full-width `__trigger` has been true of since D7.
+  //
+  // Scoped with the CHILD combinator, so "top-level" stays STRUCTURAL rather than a flag anyone has to
+  // remember to pass: nested panels (Upload / Delete / Repair) live inside their parent's `__panel` and
+  // are deliberately left unboxed — boxes inside boxes are the decoration this page does not want, and
+  // the pre-accordion rule said the same thing about sub-headings. ⚑ Like its predecessor it fails
   // LOUDLY rather than quietly: introduce a wrapper between `.lp-admin-dash` and its panels and every
-  // rule vanishes at once, which manage.e2e.spec.ts asserts.
-  .lp-admin-dash > & ~ & {
-    border-top: 1px solid var(--theme-elevation-150);
-    padding-block-start: var(--app-space-3);
+  // panel loses its border at once, which manage.e2e.spec.ts asserts.
+  .lp-admin-dash > & {
+    border: 1px solid var(--theme-elevation-150);
+    // The button system's radius, not a second curve invented here.
+    border-radius: var(--app-btn-radius);
+
+    // The box supplies its own internal spacing, so the heading's leading margin — which existed to
+    // hold flat sections apart — would add a second gap inside the border.
+    // Nested rather than two sibling rules: `&__heading` interpolation is unavailable inside this
+    // block (the parent selector is compound), so both spellings would be hand-written literals kept
+    // identical by eye. Same output selectors, same specificity.
+    > .lp-accordion__heading {
+      margin-block-start: 0;
+
+      > .lp-accordion__trigger {
+        // Padding, not height: the row is as tall as its own type plus this, which keeps the ≤640px
+        // touch minimum satisfied without a second geometry statement (16 + 16 + ~31px line ≈ 63px).
+        padding: var(--app-space-3);
+
+        // ⚑ The focus ring turns INSIDE-OUT here, and only here. Every other control in the admin sets
+        // `outline-offset: var(--app-btn-focus-ring-offset)` — a ring 2px OUTSIDE the control, which
+        // reads correctly against a page background. This trigger is flush to its container's border,
+        // so an outward ring is drawn on top of that border and reads as a thickened box rather than
+        // as focus. Same TOKEN, negated, so it still tracks any change to the ring's geometry.
+        &:focus-visible {
+          outline-offset: calc(var(--app-btn-focus-ring-offset) * -1);
+        }
+
+        // Open: the header separates from the panel body it now owns, and its bottom corners square
+        // off so the hover fill stops following a curve the box no longer has there. State comes from
+        // `aria-expanded` — the attribute React already sets — so no `--open` class exists to disagree
+        // with it.
+        &[aria-expanded='true'] {
+          border-bottom: 1px solid var(--theme-elevation-100);
+          border-end-start-radius: 0;
+          border-end-end-radius: 0;
+        }
+      }
+    }
+
+    > .lp-accordion__panel {
+      padding: var(--app-space-3);
+    }
+  }
+
+  .lp-admin-dash > & + & {
+    margin-block-start: var(--app-space-2);
   }
 
   &__heading {
@@ -235,8 +268,16 @@ body {
     font: inherit;
     text-align: left;
     cursor: pointer;
+    // So the hover fill below follows the same curve as the box the top-level trigger sits in. On a
+    // nested trigger (no box, no inline padding) it softens the fill's leading corners.
+    border-radius: var(--app-btn-radius);
 
+    // A FILL on hover, not only an ink shift. The ink shift alone was invisible on a 20px 600-weight
+    // heading — the thing it was meant to say ("this responds to the pointer") never arrived. Both
+    // levels take it: a nested disclosure is the same kind of control as a top-level one, and giving
+    // only one of them a hover state is the two-idioms problem in miniature.
     &:hover {
+      background: var(--theme-elevation-50);
       color: var(--theme-elevation-800);
     }
 
@@ -250,26 +291,51 @@ body {
     }
   }
 
-  // Disclosure marker — a CSS triangle, so it needs no icon font and no inline SVG. Rotates rather
-  // than swapping glyphs, so the two states are one element and cannot drift apart.
+  // Disclosure marker — two borders of an empty box, rotated: a chevron with no icon font and no
+  // inline SVG. Rotates rather than swapping glyphs, so the two states are one element and cannot
+  // drift apart.
+  //
+  // ⚑ It MOVED to the trailing edge (2026-08-18) and `order` is why the markup did not have to. The
+  // span is still authored first in `Accordion.tsx`, immediately after the comment explaining that it
+  // is decorative; `order: 1` puts it last visually while the DOM — and therefore the accessible name
+  // of the button — stays exactly the title. Reordering the JSX instead would have been a source change
+  // to achieve a purely visual result, and would have put a decorative span between the title and the
+  // end of the button for anything reading the DOM directly.
+  //
+  // The marker survived the box rather than being dropped for it: with several panels legitimately open
+  // at once (a disclosure LIST, per this file's header), the only visual answer to "which of these is
+  // open" would otherwise be the length of the box.
   &__marker {
+    order: 1;
+    margin-inline-start: auto;
     flex-shrink: 0;
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 7px solid var(--theme-elevation-500);
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--theme-elevation-500);
+    border-bottom: 2px solid var(--theme-elevation-500);
+    // Closed: pointing right (›). The rotation is on the closed state too, so the OPEN state is one
+    // value change rather than a transform appearing from nowhere.
+    transform: rotate(-45deg);
     transition: transform 120ms ease;
   }
 
+  // Open: pointing down (⌄).
   &__trigger[aria-expanded='true'] &__marker {
-    transform: rotate(90deg);
+    transform: rotate(45deg);
   }
 
   // A panel's contents start under the heading, not jammed against it. The first child's own top
   // margin is suppressed so the gap is this value and not this value plus whatever the panel opens
   // with (headings and paragraphs inside the panels carry their own).
-  &__panel > :first-child {
+  //
+  // ⚑ THE SECOND SELECTOR IS NOT REDUNDANT, and the box is what exposed it (measured in the harness
+  // 2026-08-18: ~40px of dead air at the top of an open box). When a panel's first child is another
+  // PANEL — "Users" opening onto "Accounts", the shape the 4-box grouping makes normal rather than
+  // exceptional — the first child is a `<section>`, which has no margin of its own to suppress. The
+  // 24px belongs to the `<h3>` one level further in, so the rule has to reach it: `> :first-child`
+  // matched something that was never the offender and quietly left the gap in place.
+  &__panel > :first-child,
+  &__panel > &:first-child > &__heading {
     margin-block-start: 0;
   }
 

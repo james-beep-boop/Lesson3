@@ -17,7 +17,7 @@ import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
-import { resolveServerPanelState, type PanelId } from '../Manage/panelState'
+import { resolveServerPanelState, withAncestors, type PanelId } from '../Manage/panelState'
 import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
 import { SubjectsPanel, type SubjectRow } from '../Manage/SubjectsPanel'
 import { UsersPanel } from '../Manage/UsersPanel'
@@ -27,10 +27,11 @@ import { UsersPanel } from '../Manage/UsersPanel'
  * old quiet dashboard. ONE scrollable page of stacked sections, strictly cumulative by role;
  * everything else in the product happens in the library (`/`) and on the lesson page.
  *
- * Order is Users → Curriculum & people → Editing access → Lesson plans (Upload / Delete / Repair) →
- * Candidate versions, the same for every role — a role simply sees fewer sections.
  * The per-section rationale lives at each section in the JSX rather than in a second inventory here,
- * which drifted the last time the order changed. Two claims worth keeping out of the JSX:
+ * which drifted the last time the order changed — and drifted again by 2026-08-18, when this header
+ * still described five flat sections (two under names that were never panel titles) after the page had
+ * become four boxes. The inventory is gone rather than corrected; the ⚑ above `AccordionProvider` is
+ * the one account of the shape. Two claims worth keeping out of the JSX:
  *
  *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
  *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Teachers with editing access see
@@ -68,7 +69,13 @@ export default async function AdminDashboard({
   const t = startRenderTimings('/admin')
   const deletable = deletableVersionsWhere(user)
   const [
-    { typeLabel: role, lines: roleLines },
+    // ⚑ `typeLabel` is deliberately NOT taken. The user type stopped being printed beside the page
+    // title on 2026-08-18 (operator decision): a signed-in user knows which kind of account they hold,
+    // and the avatar menu states it on every page anyway — this page said it a second time, in the
+    // one position on the page reserved for the page's own identity. `resolveAccessSummary` still
+    // returns it, unchanged, for the menu; only the `lines` half is rendered here. The truthfulness
+    // contract documented in `AppNav` is about that menu and is untouched.
+    { lines: roleLines },
     versionsRes,
     rolesAccess,
     plansRes,
@@ -446,22 +453,33 @@ export default async function AdminDashboard({
     ]
   })
 
-  // One entry per `AccordionPanel` below, in the same order and with the same condition, so the two
-  // can be diffed by eye. Typed `PanelId`, so a typo is a compile error rather than a panel that
+  // One entry per LEAF `AccordionPanel` below, in the same order and with the same condition, so the
+  // two can be diffed by eye. Typed `PanelId`, so a typo is a compile error rather than a panel that
   // silently refuses to open.
-  const availablePanels = (
-    [
-      siteAdmin && 'users',
-      siteAdmin && 'subjects',
-      siteAdmin && 'subject-grades',
-      rolesAccess.groups.length > 0 && 'access',
-      siteAdmin && 'plans',
-      siteAdmin && 'plans.upload',
-      siteAdmin && 'plans.delete',
-      siteAdmin && repairPlans.length > 0 && 'plans.repair',
-      showSaved && 'versions',
-    ] satisfies (PanelId | false)[]
-  ).filter((id): id is PanelId => id !== false)
+  //
+  // ⚑ THE GROUPS ARE DERIVED, NOT LISTED, and that is a correctness property rather than brevity.
+  // A group must be available exactly when at least one of its children is: broader and it renders as
+  // an empty box, narrower and `parseOpen` drops the visible children as orphans, so a deep link to a
+  // panel the caller CAN see silently opens nothing. Hand-writing the disjunction states that rule in
+  // a second place — `(siteAdmin || canSeeRolesAccess) && 'users'` was correct on the day it was
+  // typed, and `siteAdmin && 'curriculum'` was only correct by coincidence, waiting for the first
+  // child with a different gate. `withAncestors` IS this rule (it is what `parseOpen` uses to open a
+  // nested panel's parents) and it returns render order, so the list stays diffable against the JSX.
+  const canSeeRolesAccess = rolesAccess.groups.length > 0
+  const availablePanels = withAncestors(
+    (
+      [
+        siteAdmin && 'users.accounts',
+        canSeeRolesAccess && 'users.access',
+        siteAdmin && 'curriculum.subjects',
+        siteAdmin && 'curriculum.subject-grades',
+        siteAdmin && 'plans.upload',
+        siteAdmin && 'plans.delete',
+        siteAdmin && repairPlans.length > 0 && 'plans.repair',
+        showSaved && 'versions',
+      ] satisfies (PanelId | false)[]
+    ).filter((id) => id !== false),
+  )
 
   // Resolve the accordion's opening state HERE, on the server. Deriving it on the client instead
   // produced a genuine hydration mismatch — server "closed" against client "open" — which React
@@ -478,14 +496,13 @@ export default async function AdminDashboard({
 
   return (
     <Gutter className="lp-admin-dash lp-manage">
-      {/* Title + role on one line. The role stays a SIBLING of the h1 rather than moving inside it, so
-          the heading's accessible name is still exactly "Manage". Copy rationale:
+      {/* Just the title. The user-type line that used to sit beside it ("Manage · Site administrator")
+          is gone — see the ⚑ on the `typeLabel` destructure above — and with it the `__head` flex row
+          that existed only to put two elements on one baseline. The SCOPE lines below stay: those say
+          something no other surface does. Copy rationale:
           docs/DESIGN-user-model-language-2026-07-29.md; why a site admin has no scope line: the ⚑ in
           lib/accessScopes.ts. */}
-      <div className="lp-admin-dash__head">
-        <h1 className="lp-admin-dash__title">Manage</h1>
-        <p className="lp-admin-dash__role">{role}</p>
-      </div>
+      <h1 className="lp-admin-dash__title">Manage</h1>
       {roleLines.length > 0 && (
         <div className="lp-admin-dash__identity">
           {roleLines.map((line) => (
@@ -499,43 +516,59 @@ export default async function AdminDashboard({
       {/* SECTION ORDER: people and access work first, lesson-plan operations next, the janitorial
           version inventory last. One order for every role; a role simply sees fewer sections (a
           Subject Admin gets Editing access → Candidate versions, a teacher with editing access only their saved
-          versions). */}
+          versions).
+
+          ⚑ FOUR TOP-LEVEL BOXES, not six sections (operator decision 2026-08-18). Accounts + Roles &
+          Access are one concern and Subjects + Subject grades are another, so each pair became a
+          NESTED pair inside a group — the shape "Lesson plans" has had since D7, applied twice more.
+          `versions` deliberately stays top-level: every non-administrator sees that panel and nothing
+          else, so nesting it would put a teacher's whole page behind a box for operations they do not
+          have. The id changes this cost are documented in `panelState.ts`. */}
       <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
-        {siteAdmin && (
+        {(siteAdmin || canSeeRolesAccess) && (
           <AccordionPanel id="users" title="Users">
-            <p className="lp-manage__desc">
-              Search accounts, repair access and use disable sign-in for routine offboarding.
-            </p>
-            <UsersPanel />
+            {siteAdmin && (
+              <AccordionPanel id="users.accounts" title="Accounts">
+                <p className="lp-manage__desc">
+                  Search accounts, repair access and use disable sign-in for routine offboarding.
+                </p>
+                <UsersPanel />
+              </AccordionPanel>
+            )}
+
+            {/* ⚑ "Accounts", not "Users", and the rename is structural rather than cosmetic: this
+                panel is now INSIDE a box titled "Users", and a row repeating its parent's label reads
+                as a mistake. The word describes what the panel actually lists — every account,
+                including disabled ones. "Roles & Access" keeps its name, which is vocabulary SPEC §8
+                and CLAUDE.md both use. */}
+            {canSeeRolesAccess && (
+              <AccordionPanel id="users.access" title="Roles & Access">
+                <p className="lp-manage__desc">
+                  Who administers each subject grade and who may edit its lesson plans. Granting
+                  editing access lets a teacher edit; removing it returns them to view-only.
+                </p>
+                <RolesAccessPanel access={rolesAccess} canSetSubjectAdmin={siteAdmin} />
+              </AccordionPanel>
+            )}
           </AccordionPanel>
         )}
 
         {siteAdmin && (
-          <AccordionPanel id="subjects" title="Subjects">
-            <p className="lp-manage__desc">
-              Academic disciplines. Grade is not part of a subject — it lives on a subject grade.
-            </p>
-            <SubjectsPanel subjects={taxonomySubjects} />
-          </AccordionPanel>
-        )}
+          <AccordionPanel id="curriculum" title="Curriculum">
+            <AccordionPanel id="curriculum.subjects" title="Subjects">
+              <p className="lp-manage__desc">
+                Academic disciplines. Grade is not part of a subject — it lives on a subject grade.
+              </p>
+              <SubjectsPanel subjects={taxonomySubjects} />
+            </AccordionPanel>
 
-        {siteAdmin && (
-          <AccordionPanel id="subject-grades" title="Subject grades">
-            <p className="lp-manage__desc">
-              Subject + grade units that roles and lesson plans attach to. The displayed name is
-              derived from the two, so renaming a subject updates every grade beneath it.
-            </p>
-            <SubjectGradesPanel rows={taxonomyGrades} subjects={taxonomySubjects} />
-          </AccordionPanel>
-        )}
-
-        {rolesAccess.groups.length > 0 && (
-          <AccordionPanel id="access" title="Roles & Access">
-            <p className="lp-manage__desc">
-              Who administers each subject grade and who may edit its lesson plans. Granting editing
-              access lets a teacher edit; removing it returns them to view-only.
-            </p>
-            <RolesAccessPanel access={rolesAccess} canSetSubjectAdmin={siteAdmin} />
+            <AccordionPanel id="curriculum.subject-grades" title="Subject grades">
+              <p className="lp-manage__desc">
+                Subject + grade units that roles and lesson plans attach to. The displayed name is
+                derived from the two, so renaming a subject updates every grade beneath it.
+              </p>
+              <SubjectGradesPanel rows={taxonomyGrades} subjects={taxonomySubjects} />
+            </AccordionPanel>
           </AccordionPanel>
         )}
 

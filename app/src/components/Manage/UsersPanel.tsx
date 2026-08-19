@@ -330,7 +330,7 @@ function UserRow({
                   <button
                     type="button"
                     className="lp-users__jump"
-                    onClick={() => jumpTo('access', subjectGradeAnchor(grant.subjectGradeId))}
+                    onClick={() => jumpTo('users.access', subjectGradeAnchor(grant.subjectGradeId))}
                   >
                     Open access controls
                   </button>
@@ -351,7 +351,11 @@ function UserRow({
 }
 
 export function UsersPanel() {
-  const open = usePanelOpen('users')
+  // ⚑ The panel's OWN id, which stopped being `users` in the 2026-08-18 regrouping — `users` is now
+  // the group this panel sits inside. Keying the lazy gate on the parent would defeat the whole
+  // optimisation in the quietest possible way: opening the group would fetch, even though the panel
+  // is still collapsed and nothing it renders is on screen.
+  const open = usePanelOpen('users.accounts')
   const { config } = useConfig()
   const apiBase = apiBaseFrom(config)
   const [query, setQuery] = useState('')
