@@ -38,6 +38,7 @@ import {
   type RoleKey,
 } from '../helpers/fixtures.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
+import { clearRateLimitBuckets } from '../helpers/db.js'
 import { RESOURCE_PHASE_KEYS } from '../../src/ingest/resourceLinks.js'
 import { stripIds } from '../../src/lib/stripIds.js'
 
@@ -257,11 +258,10 @@ describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () =>
     expect(res.headers.get('x-frame-options')).toBe('DENY')
     expect(res.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
     expect(res.headers.get('x-dns-prefetch-control')).toBe('off')
-    // Denies the three powerful features outright; this app uses none of them.
-    const pp = res.headers.get('permissions-policy') ?? ''
-    for (const feature of ['geolocation=()', 'microphone=()', 'camera=()']) {
-      expect(pp).toContain(feature)
-    }
+    // Denies the three powerful features outright; this app uses none of them. Exact match, like the
+    // four assertions above: Next passes this value through from `next.config.ts` verbatim, so there is
+    // no reordering to tolerate, and `toContain` would pass on a value that had gained a feature.
+    expect(res.headers.get('permissions-policy')).toBe('geolocation=(), microphone=(), camera=()')
     // ⚑ HSTS is CONDITIONAL on an https `SERVER_URL` (`isHttpsServerUrl`), which the test stack does
     // not set — asserting its presence here would fail on the very configuration CI runs. Its absence
     // over plain HTTP is the intended behaviour, so that is what is pinned.
@@ -2099,12 +2099,15 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
       // A 429 a client cannot retry through is a dead end; the helper must say when to come back.
       expect(throttled.headers.get('retry-after')).toBeTruthy()
     } finally {
-      const db = (
-        fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
-      ).drizzle
-      await db.execute(
-        sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" = ${`upload:${key}`};`,
-      )
+      // ⚑ `clearRateLimitBuckets`, NOT a hand-written DELETE. `tests/helpers/db.ts` says in as many
+      // words that it is "the one definition new code should use", and the five pre-existing hand-rolls
+      // (including the `verifyEmailGlobal` one 400 lines above, which this block was copied from) are
+      // left as a landing place rather than rewritten in passing — so copying one forward is exactly
+      // the drift it exists to stop. The bucket-key FORMAT is owned by `src/lib/rateLimit.ts`; spelled
+      // as a literal here, a change to that scheme makes the DELETE match nothing SILENTLY, and the
+      // symptom is not this test but the three below it, which upload for real as the same site admin
+      // and would inherit a drained budget as unexplained 429s.
+      await clearRateLimitBuckets(fx.payload, `upload:${key}`)
     }
   })
 
