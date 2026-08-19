@@ -11,6 +11,79 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-19 — Back after a cross-panel jump leaves the panels stale: a PRE-EXISTING bug, proved by bisect
+
+**The defect.** After the Users → Roles & Access jump (D7a), pressing Back restores the URL but NOT the
+panels: the address bar returns to the pre-jump open set while Roles & Access stays `aria-expanded=true`.
+That is, verbatim, the failure `useOpenPanels.ts`'s own header says its popstate re-read exists to
+prevent — *"the back button after a jump would restore the URL while leaving the panels showing the
+pre-navigation state."*
+
+**It is NOT caused by the four-box regrouping, and that was established by experiment rather than by
+argument.** The E2E failed on the regrouped branch, which made the change the obvious suspect. Two runs
+on **pristine `main`** (26a98c2), same stack, same image, decide it:
+
+| | the test as written | pre-jump URL forced through canonicalisation |
+|---|---|---|
+| `main` | **passes** (7.4s) | **FAILS — identical assertion, identical symptom** |
+| regrouped branch | fails | — |
+
+The only difference in the failing case is the pre-jump URL: `?open=users` is already canonical, while
+`?open=users,plans.delete` canonicalises to `users,plans,plans.delete` (`parseOpen` adds the ancestor),
+which makes the hook's mirror effect `replaceState` on mount. **Add that one ingredient to `main` and
+`main` fails too.** What the regrouping changed is only that the ORDINARY path now contains it: the
+accounts panel is `users.accounts`, so every arrival at it needs an ancestor added.
+
+**Mechanism — PROVEN and FIXED, and the hypothesis above it was wrong.** The first guess (the mirror
+effect racing with stale `openNow` and rewriting the URL) was plausible and false. A diagnostic in the
+failing test measured the truth in one run: **`history.state === null` on the entry Back lands on.**
+
+  1. Next's app-router patches `window.history.replaceState` inside its OWN effect, and React flushes a
+     CHILD's passive effects before its parent's — so the mount-time canonicalising write in
+     `useOpenPanels` reaches the NATIVE `replaceState` and stamps that entry with `state: null`. The
+     patched path is provably not involved: it runs `copyNextJsInternalHistoryState`, which returns `{}`
+     at minimum, so a genuinely null state can only come from bypassing it.
+  2. `onPopState` in `next/dist/client/components/app-router.js` opens with `if (!event.state) return`.
+     A stateless entry makes Back a router-level **no-op**: the browser restores the URL, Next never
+     dispatches, `useSearchParams` never updates, and the panels keep the pre-Back state. The aria
+     snapshot showed `Users`, `Accounts` AND `Roles & Access` all expanded against a URL naming only the
+     first two.
+  3. The native call also skips `applyUrlFromHistoryPushReplace`, so Next's own `canonicalUrl` never
+     learns about the canonicalisation either.
+
+**The fix is one `queueMicrotask` around the write** — and getting there took three attempts, each caught
+by the FULL spec and never by the one test being fixed:
+
+| attempt | Back | "open state survives a genuine reload" |
+|---|---|---|
+| `setTimeout(…, 0)` | fixed | **broke it** — the URL trails by a macrotask and `reload()` wins the race |
+| defer only while `history.state === null` | **broke again** | fixed |
+| `queueMicrotask` | fixed | fixed |
+
+The middle attempt is the instructive one: `history.state === null` reads like the precondition stated
+exactly, and it is not — Next stamps the entry *before* this child effect runs but installs its patch
+*later*, so a non-null state does not imply a patched `replaceState`. A microtask is the only option that
+satisfies both constraints: it runs after React's entire passive-effect flush (patch installed) yet still
+inside the same task, before the browser can process any later event, including a reload command.
+
+⚑ **Two silent bugs were introduced while fixing one.** Both were invisible to `tsc`, ESLint and the unit
+suite, and both would have shipped had the single failing test been re-run instead of the whole spec.
+That is the standing argument for running the file, not the case.
+
+**Lesson about the bisect itself, which is the reusable part.** The instinct on seeing a test fail
+against new code is to fix the new code. The cheap discipline that beat it: keep the code fixed and vary
+ONE structural ingredient of the reproduction. `git stash` + two runs (~8 minutes) converted "probably my
+regression" into "pre-existing, with a named trigger" — and the second run is the one that mattered,
+because a passing baseline alone would only have shown that the old SHAPE does not trigger it.
+
+**Final state: 28 passed + 1 flaky, exit 0.** The flake is `Taxonomy panels › a duplicate subject grade`
+failing in the LOGIN helper (`page.waitForURL` for `/` timed out at 30s) and passing on retry — unrelated
+to the accordion or to history state, and consistent with load on a machine also running the build. Worth
+knowing before anyone reads a green exit code as a clean run.
+
+⚑ **Do not relax the Back assertion to get green.** It is the only thing pinning this defect, which any
+user reaches by pressing Back after "Open access controls".
+
 ## 2026-08-18 — Manage becomes four bordered boxes: the panel shell, and what the regrouping cost
 
 **Operator decisions, taken in one session, after a mockup rather than from prose.** Two changes to the

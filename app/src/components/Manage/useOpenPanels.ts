@@ -39,8 +39,18 @@ export interface OpenPanels {
   isOpen: (id: string) => boolean
   /** Toggle one panel. Writes the URL with `replaceState` — never a navigation. */
   toggle: (id: string) => void
-  /** Open a panel (and its ancestors) as a JUMP: one history entry, via the router. */
-  jumpTo: (id: string, at?: string) => void
+  /**
+   * Open a panel (and its ancestors) as a JUMP: one history entry, via the router.
+   *
+   * ⚑ `PanelId`, not `string`, since 2026-08-18 — the one place in this interface where the loose type
+   * was a real hazard rather than a stylistic choice. `isOpen`/`toggle` are driven by `AccordionPanel`,
+   * which already holds a `PanelId`; `jumpTo` is called with a LITERAL from another component tree
+   * (`UsersPanel` → Roles & Access). When that id was retired in the regrouping, `string` would have
+   * accepted the stale spelling and `parseOpen` would then have dropped it as unknown: the jump lands
+   * on a normal Manage page with nothing opened, no error, and a URL that still looks right. Typing it
+   * makes that a compile error, which is how the same class of drift is caught in `subjectGradeAnchor`.
+   */
+  jumpTo: (id: PanelId, at?: string) => void
   /** The `at` target this page was arrived at with, consumed once and then scrubbed. */
   jumpTarget: string | null
   /** A focus consumer acknowledges only the target it actually found and focused. */
@@ -175,9 +185,60 @@ export function useOpenPanels(
    * state by then, so removing it from the address bar cannot take it away.
    */
   useEffect(() => {
-    const target = serialiseOpen(window.location.pathname, window.location.search, openNow)
-    if (target !== `${window.location.pathname}${window.location.search}`) {
-      window.history.replaceState(null, '', target)
+    /**
+     * ⚑ DEFERRED BY ONE MICROTASK, and it is load-bearing — without it the BACK BUTTON silently stops
+     * working for the rest of the session. Proven in a browser (2026-08-19), not reasoned about:
+     *
+     *   1. Next's app-router patches `window.history.replaceState` inside its OWN effect, and React
+     *      flushes a CHILD's passive effects before its parent's. On the first commit this provider is
+     *      the child, so an undeferred write here reaches the NATIVE `replaceState` and stamps the
+     *      entry with `state: null`. That is not a guess: the patched implementation runs
+     *      `copyNextJsInternalHistoryState`, which returns `{}` at minimum, so a genuinely null state
+     *      is only reachable by bypassing it — and the failing page measured exactly
+     *      `history.state === null`.
+     *   2. `onPopState` in `next/dist/client/components/app-router.js` opens with
+     *      `if (!event.state) return`. A stateless entry therefore makes Back a router-level NO-OP:
+     *      the browser restores the URL, Next never dispatches, `useSearchParams` never updates, and
+     *      the panels keep showing the pre-Back state while the address bar disagrees.
+     *   3. It also loses the URL itself as far as the router is concerned, since the native call never
+     *      runs `applyUrlFromHistoryPushReplace` — so Next's `canonicalUrl` still holds the
+     *      pre-canonicalisation query.
+     *
+     * One microtask puts this after the whole effect flush: the patch is installed, Next has seeded
+     * `__NA` + its internals tree on the entry, and the patched call copies both onto our write.
+     *
+     * ⚑ A MICROTASK, and the two rejected alternatives are both recorded because each was tried and
+     * each FAILED A DIFFERENT TEST — the deferral mechanism is the whole subtlety here:
+     *
+     *   - `setTimeout(…, 0)` fixes Back but leaves the address bar one MACROTASK behind the panels, and
+     *     "open state survives a genuine reload" reloads immediately after the click. The write loses
+     *     the race, the URL never carries the panel, and a durability guarantee becomes a coin toss.
+     *     A human would rarely win that race; a reload issued by code wins it every time.
+     *   - Deferring only while `window.history.state === null` looked like the precondition stated
+     *     exactly, and it is NOT: Next stamps the entry before this child effect runs but installs its
+     *     `replaceState` patch later, so a non-null state does not mean the patch is in place. Measured
+     *     — this version put the Back failure straight back.
+     *
+     * A microtask is the one option that satisfies both. It runs after React's entire passive-effect
+     * flush (so the parent router's patch is installed) yet still inside the SAME task, before the
+     * browser can process any later event — including a reload command. `cancelled` covers the unmount
+     * case, since a microtask cannot be cleared like a timer.
+     *
+     * ⚑ THIS WAS A PRE-EXISTING BUG, not a consequence of the four-box regrouping — bisected on
+     * pristine `main`, where forcing the same canonicalisation into the pre-jump URL reproduces it
+     * exactly. The regrouping only made the ordinary path hit it, because `users.accounts` always
+     * arrives needing its ancestor added. See DECISIONS 2026-08-19.
+     */
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      const target = serialiseOpen(window.location.pathname, window.location.search, openNow)
+      if (target !== `${window.location.pathname}${window.location.search}`) {
+        window.history.replaceState(null, '', target)
+      }
+    })
+    return () => {
+      cancelled = true
     }
   }, [openNow, state.jumpTarget, pathname, locationSearch])
 
@@ -219,11 +280,11 @@ export function useOpenPanels(
    * claim is pinned at the rendered boundary rather than only in the serialisation unit tests.
    */
   const jumpTo = useCallback(
-    (id: string, at?: string) => {
+    (id: PanelId, at?: string) => {
       // Do NOT set local state here. The push is asynchronous; doing so lets the URL-mirror effect
       // run against the OLD location, replacing the history entry this jump is meant to preserve.
       // The reactive location snapshot above adopts the destination state when the push arrives.
-      const next = withAncestors([...openNow, id as PanelId])
+      const next = withAncestors([...openNow, id])
       const params = new URLSearchParams(window.location.search)
       params.set(OPEN_PARAM, next.join(','))
       if (at) params.set(AT_PARAM, at)
