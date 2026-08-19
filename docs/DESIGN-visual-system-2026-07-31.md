@@ -283,6 +283,12 @@ abstraction ahead of demand still requires editing pages this PR promised not to
   with it, per CLAUDE.md).
 - **No cards, shadows, or decoration.** The target is one quiet structured product, not a decorated
   admin.
+  ⚑ **AMENDED 2026-08-18, and scoped rather than reversed** (operator decision; DECISIONS
+  2026-08-18). Manage's top-level disclosure panels now carry a 1px border at the button-system
+  radius, because for a *control* the boundary is the affordance — a closed panel was an eight-
+  character hit target that read as a heading. Still no shadows, no fills and no decoration, and the
+  rows INSIDE those panels remain borderless with dividers doing the work (see `.lp-manage__row`).
+  Read this line as governing content, not controls.
 
 ---
 

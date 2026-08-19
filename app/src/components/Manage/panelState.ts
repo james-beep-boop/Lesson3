@@ -23,19 +23,40 @@
  * the same panel is titled "Candidate versions" for administrators and "My saved versions" for
  * Teachers with editing access, and an id must not encode one role's label.
  *
- * ⚑ `curriculum` IS GONE, and its removal is the scrub rule's first real exercise rather than a
- * hypothetical. It was a holding pen: PR 2b moved Users out of it, and PR 3 dissolved the remaining
- * two links into `subjects` and `subject-grades`. A bookmark or shared link carrying
- * `?open=curriculum` therefore names a panel that no longer exists — and lands on a normal Manage
- * page with nothing opened and the parameter scrubbed, because `parseOpen` drops ids outside this
- * list instead of erroring. Retiring a URL contract is a thing this vocabulary is supposed to
- * survive; do not re-add the id to make an old link work.
+ * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six sections to four boxes, and
+ * that RETIRED three ids and CHANGED the meaning of a fourth. Read this before concluding a link is
+ * broken:
+ *
+ *   - `subjects` → `curriculum.subjects`, `subject-grades` → `curriculum.subject-grades`,
+ *     `access` → `users.access`. The old spellings are retired: `parseOpen` drops ids outside this
+ *     list, so an old bookmark lands on a normal Manage page with nothing opened and the parameter
+ *     scrubbed. That is what retiring an entry in a URL contract is supposed to feel like from the
+ *     outside, and it is the SECOND time this vocabulary has done it (see `curriculum` below).
+ *   - `users` now names the GROUP, not the accounts panel — which is `users.accounts`. So an old
+ *     `?open=users` link still opens something, one level out from what it used to. That is the
+ *     benign direction for a changed meaning, and it is only benign because the group CONTAINS the
+ *     panel the link meant.
+ *
+ * ⚑ AND `curriculum` IS BACK, which the previous version of this comment told the next reader not to
+ * do. The prohibition was specific and still holds in its own terms: it forbade re-adding the id **to
+ * make an old link work**, i.e. resurrecting a panel the product no longer had. The product now has a
+ * Curriculum group again, and it contains exactly what the old holding pen dissolved into (Subjects
+ * and Subject grades), so an ancient `?open=curriculum` bookmark resolves to a superset of what it
+ * originally pointed at. The id is being reused because the panel came back, not to rescue the link.
+ * `tests/unit/panelState.spec.ts` pins the new meaning, where it used to pin the retirement.
+ *
+ * ⚑ `versions` stays TOP-LEVEL rather than joining `plans` (the naming rule is above, where it has
+ * always lived): every non-administrator sees that panel and nothing else (`showSaved` in
+ * `AdminDashboard`), so nesting it would put a teacher's entire page behind a "Lesson plans" box that
+ * offers them nothing else.
  */
 export const PANEL_IDS = [
   'users',
-  'subjects',
-  'subject-grades',
-  'access',
+  'users.accounts',
+  'users.access',
+  'curriculum',
+  'curriculum.subjects',
+  'curriculum.subject-grades',
   'plans',
   'plans.upload',
   'plans.delete',
@@ -171,16 +192,28 @@ export function serialiseOpen(pathname: string, search: string, open: readonly s
  *   3. Otherwise nothing is open. Multi-section roles start collapsed — that IS the redesign; the
  *      operator's brief was that the page grows long and unwieldy.
  *
- * ⚑ Nested panels are NEVER auto-opened, including `plans.upload`. Uniform-closed costs a Site Admin
- * one extra click to reach Upload; the alternative is a special case that has to be re-justified
- * every time a child is added.
+ * ⚑ Nested panels are NEVER auto-opened — with ONE exception, added 2026-08-18 when the top level was
+ * regrouped into boxes, and it is rule 2 restated one level down rather than a new idea: if a role's
+ * single top-level panel has exactly one child available to them, that child opens too.
+ *
+ * Without it the regrouping quietly demoted the Subject Administrator. Their only panel is Roles &
+ * Access; it used to be top-level, so rule 2 opened it and they landed on their work. Once it became
+ * `users.access` their only top-level id is the GROUP, so rule 2 opened a box containing a single
+ * collapsed row — one more click than before, to reveal the one thing they came for, inside a box
+ * labelled for accounts they cannot administer. The general rule and the exception say the same thing:
+ * nobody clicks to reveal their only panel.
+ *
+ * It stays deliberately narrow. `plans` with three children still opens closed (asserted below), so a
+ * Site Admin's subtrees are unchanged, and "exactly one" is checked against `available` — the role
+ * gate — not against `PANEL_IDS`, because the question is what THIS caller can see.
  */
 export function initialOpen(search: string, available: readonly string[]): PanelId[] {
   const fromUrl = parseOpen(search, available)
   if (fromUrl.length > 0) return fromUrl
   const topLevel = available.filter((id) => parentOf(id) === null)
-  if (topLevel.length === 1) return inRenderOrder(topLevel)
-  return []
+  if (topLevel.length !== 1) return []
+  const children = available.filter((id) => parentOf(id) === topLevel[0])
+  return inRenderOrder(children.length === 1 ? [topLevel[0], children[0]] : topLevel)
 }
 
 /**

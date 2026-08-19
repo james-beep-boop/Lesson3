@@ -6,8 +6,11 @@
  * interactive flows:
  *
  *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
- *      versions" + "Roles & Access"; Site Admin: + "Subjects", "Subject grades" and "Lesson plans" (with
- *      Upload / Delete / Repair as sub-headings beneath it).
+ *      versions" + the "Users" box holding "Roles & Access"; Site Admin: all four boxes — "Users"
+ *      (Accounts / Roles & Access), "Curriculum" (Subjects / Subject grades), "Lesson plans"
+ *      (Upload / Delete / Repair) and the candidate inventory. ⚑ The top level became FOUR BOXES on
+ *      2026-08-18; panels that used to be top-level are nested, so a test that wants one must open
+ *      its group first.
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
  *   3. Repair — a pointerless plan appears in the Site-Admin Repair section (clean name, links to
@@ -254,8 +257,16 @@ test.describe('Manage page', () => {
     // A bare count is safe despite a shared DB: a Subject Admin only sees candidates in their own
     // subject-grade, and this run's subject-grade is freshly MARK-seeded.
     await expect(page.locator('.lp-manage__row:has(.lp-manage__row-main)')).toHaveCount(1)
+    // ⚑ REGROUPED (2026-08-18): Roles & Access is a CHILD of the Users box now, so a Subject Admin's
+    // top level shows the GROUP. Two assertions replace the old single one, and the pair is the real
+    // authorization statement: the box renders because they can see something inside it, and the
+    // Accounts panel inside it — Site-Admin-only — is not rendered at all.
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toHaveCount(0)
+    // Two top-level boxes (Users, Candidate versions) means the single-section auto-expand does not
+    // apply, so their panel opens on a click rather than on arrival.
+    await openPanel(page, 'Users')
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
     // `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default, so a
@@ -272,12 +283,26 @@ test.describe('Manage page', () => {
     await page.goto(`${BASE}/admin/collections/lesson-bundle-versions`)
     await expect(page).toHaveURL(`${BASE}/admin`)
     await page.goto(`${BASE}/admin/collections/users`)
-    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=users$`))
+    // ⚑ All three destinations became NESTED ids in the 2026-08-18 regrouping. One parameter still
+    // suffices: `parseOpen` opens every ancestor of an id it accepts, so the group and the panel
+    // inside it both open. `tsc` caught the stale literals in `RedirectToManage` — `PanelId` is what
+    // makes a wrong destination a compile error instead of a page that opens nothing.
+    //
+    // ⚑ ASSERT THE CANONICAL URL, NOT THE REDIRECT'S OWN. `RedirectToManage` sends the browser to
+    // `?open=users.accounts`; the page then mirrors its real open set back, which includes the
+    // ancestor — so the address bar settles on `users,users.accounts`. An assertion anchored on the
+    // redirect's literal query was RACING that write and passed only when it polled first: it survived
+    // one run and failed the next with no code change between them. Match where the URL comes to rest.
+    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=users${SEP}users\\.accounts$`))
     // PR 3: the two taxonomy tables are replaced by panels the same way.
     await page.goto(`${BASE}/admin/collections/subjects`)
-    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=subjects$`))
+    await expect(page).toHaveURL(
+      new RegExp(`${BASE}/admin\\?open=curriculum${SEP}curriculum\\.subjects$`),
+    )
     await page.goto(`${BASE}/admin/collections/subject-grades`)
-    await expect(page).toHaveURL(new RegExp(`${BASE}/admin\\?open=subject-grades$`))
+    await expect(page).toHaveURL(
+      new RegExp(`${BASE}/admin\\?open=curriculum${SEP}curriculum\\.subject-grades$`),
+    )
   })
 
   test('Site Admin: Repair lists the pointerless plan; full panel set present', async ({
@@ -286,6 +311,10 @@ test.describe('Manage page', () => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
+    // …and its children are inside the closed box, so they are in the DOM but not on screen. Same
+    // property as "Lesson plans" below; asserted here too because the Users box is where the
+    // regrouping put a panel that used to be top-level.
+    await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toBeHidden()
     // The "Lesson plans" section is a top-level panel, so its HEADING is visible while collapsed;
     // its three nested panels live inside the hidden body and appear once it is opened.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
@@ -297,22 +326,41 @@ test.describe('Manage page', () => {
     await openPanel(page, 'Repair')
     await expect(page.locator('.lp-manage__list a', { hasText: POINTERLESS_TITLE })).toBeVisible()
 
-    // Section separators (2026-08-04; MOVED to the panel wrapper 2026-08-17). Pins the ONE thing
-    // review could not otherwise catch. It used to come from `__section ~ __section`, whose own
-    // comment predicted that a wrapper element would silently drop every rule — the accordion is that
-    // wrapper, and it did exactly that (measured: `0px, 1px, 1px` → `0px, 0px, 0px`), so the rule now
-    // hangs off `.lp-admin-dash > .lp-accordion ~ .lp-accordion`. Same property, one level out: no
-    // rule above the first panel, no trailing rule below the last. Purely visual, so nothing else here
-    // would fail if it broke.
+    // Panel boxes (2026-08-18) — the same invariant this block has always pinned, one property along.
+    // It began as section separators from `__section ~ __section` (2026-08-04), whose own comment
+    // predicted that a wrapper element would silently drop every rule; the accordion was that wrapper
+    // and did exactly that (measured: `0px, 1px, 1px` → `0px, 0px, 0px`), so it moved to
+    // `.lp-admin-dash > .lp-accordion ~ .lp-accordion` (2026-08-17). The hairline is now GONE: each
+    // top-level panel is a bordered box, and the space between boxes is margin.
+    //
+    // ⚑ SO THE POLARITY FLIPPED, and that is the point of re-reading this rather than patching it. The
+    // old assertion was "the FIRST panel has no top border" — the box makes that false by design, and
+    // an assertion that still passed after this change would have been pinning nothing. What is
+    // structural now: EVERY top-level panel is boxed (the rule hangs off the child combinator, so
+    // introducing a wrapper drops all of them at once), and nested panels are not.
     const panels = page.locator('.lp-admin-dash > .lp-accordion')
-    await expect(panels.first()).toHaveCSS('border-top-width', '0px')
-    await expect(panels.last()).not.toHaveCSS('border-top-width', '0px')
-    // …and nested panels are deliberately NOT separated, matching the pre-accordion rule that only
-    // main sections get a rule.
+    const count = await panels.count()
+    expect(count).toBeGreaterThan(1)
+    for (let i = 0; i < count; i++) {
+      await expect(panels.nth(i)).toHaveCSS('border-top-width', '1px')
+    }
+    // …and nested panels (Upload / Delete / Repair) stay unboxed, matching the pre-accordion rule that
+    // only main sections carried a line of their own. Boxes inside boxes are the decoration the visual
+    // system rules out.
     await expect(page.locator('.lp-accordion .lp-accordion').first()).toHaveCSS(
       'border-top-width',
       '0px',
     )
+    // The open panel's header carries the divider that separates it from the body it now owns, driven
+    // off `aria-expanded` rather than a class — so this also pins that there is no second source of
+    // open/closed truth to drift from the attribute.
+    await expect(
+      page
+        .locator(
+          '.lp-admin-dash > .lp-accordion > * > .lp-accordion__trigger[aria-expanded="true"]',
+        )
+        .first(),
+    ).toHaveCSS('border-bottom-width', '1px')
     // And a bordered list never closes with its own divider (that plus a section rule reads as a
     // table edge).
     //
@@ -573,13 +621,12 @@ test.describe('Manage page', () => {
       // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      for (const name of [
-        'Users',
-        'Subjects',
-        'Subject grades',
-        'Roles & Access',
-        'Lesson plans',
-      ]) {
+      // ⚑ THE FOUR TOP-LEVEL BOXES, not the old six section headings. Three of those names
+      // (`Subjects`, `Subject grades`, `Roles & Access`) are NESTED as of 2026-08-18, so they sit
+      // inside a closed `[hidden]` panel — out of the accessibility tree entirely, which is why this
+      // failed with "element(s) not found" rather than with the wrong attribute value. A hidden
+      // control is not a collapsed control, and asserting `aria-expanded=false` on one asserts nothing.
+      for (const name of ['Users', 'Curriculum', 'Lesson plans', 'Candidate versions']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -599,10 +646,13 @@ test.describe('Manage page', () => {
       const depth = () => page.evaluate(() => window.history.length)
       const before = await depth()
 
-      await openPanel(page, 'Roles & Access')
-      await expect(page).toHaveURL(/[?&]open=access/)
+      // Two TOP-LEVEL boxes, deliberately: this test is about `replaceState` and history depth, and
+      // driving it through a nested panel would make it depend on the parent being open first.
+      // (It used to use Roles & Access, which is nested as of 2026-08-18.)
+      await openPanel(page, 'Curriculum')
+      await expect(page).toHaveURL(/[?&]open=curriculum/)
       await openPanel(page, 'Lesson plans')
-      await expect(page).toHaveURL(new RegExp(`[?&]open=access${SEP}plans`))
+      await expect(page).toHaveURL(new RegExp(`[?&]open=curriculum${SEP}plans`))
 
       // ⚑ The point of `replaceState` (D7a): a reader who opened four panels must not have to press
       // Back four times to leave the page. `router.push` here would also re-run the dashboard server
@@ -610,22 +660,23 @@ test.describe('Manage page', () => {
       expect(await depth()).toBe(before)
 
       // …and closing removes it again rather than accumulating stale ids.
-      await page.getByRole('button', { name: 'Roles & Access', exact: true }).click()
+      await page.getByRole('button', { name: 'Curriculum', exact: true }).click()
       await expect(page).toHaveURL(/[?&]open=plans/)
-      await expect(page).not.toHaveURL(/access/)
+      await expect(page).not.toHaveURL(/curriculum/)
       expect(await depth()).toBe(before)
     })
 
     test('open state survives a genuine reload', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      await openPanel(page, 'Roles & Access')
+      await openPanel(page, 'Curriculum')
       // A full page load is the case React state cannot survive and the reason the URL carries this
       // at all (D7).
       await page.reload()
-      await expect(
-        page.getByRole('button', { name: 'Roles & Access', exact: true }),
-      ).toHaveAttribute('aria-expanded', 'true')
+      await expect(page.getByRole('button', { name: 'Curriculum', exact: true })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
     })
 
     test('a deep link opens the named panels, including a nested one', async ({ page }) => {
@@ -649,21 +700,27 @@ test.describe('Manage page', () => {
       // A Subject Admin following a link containing a Site-Admin panel id must land on a normal page
       // — not an error, and not an empty panel implying something was withheld (D7a).
       await loginAs(page, 'subjectAdmin')
-      await page.goto(`${BASE}/admin?open=curriculum,nonsense,access&at=sg-999`)
+      // ⚑ The three ids are chosen to be one of each kind, and they were re-picked on 2026-08-18
+      // because the regrouping changed which spelling is which: `curriculum` is now a real panel that
+      // this caller cannot see (it was a retired id before), `nonsense` is unknown, and the valid one
+      // is nested — so this also pins that a deep link opens a non-Site-Admin's ancestor for them.
+      await page.goto(`${BASE}/admin?open=curriculum,nonsense,users.access&at=sg-999`)
       await expect(page.getByRole('heading', { name: 'Manage' })).toBeVisible()
       await expect(
         page.getByRole('button', { name: 'Roles & Access', exact: true }),
       ).toHaveAttribute('aria-expanded', 'true')
       // The URL is rewritten to what the page is actually showing: the inaccessible id, the typo and
-      // the consumed one-shot `at` are all gone, and the valid one survives.
-      await expect(page).toHaveURL(/[?&]open=access(&|$)/)
+      // the consumed one-shot `at` are all gone, the valid one survives, and its ancestor is added.
+      await expect(page).toHaveURL(new RegExp(`[?&]open=users${SEP}users\\.access(&|$)`))
       await expect(page).not.toHaveURL(/curriculum|nonsense|at=/)
     })
 
     test('the disclosure is operable from the keyboard', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      const trigger = page.getByRole('button', { name: 'Roles & Access', exact: true })
+      // A top-level box, so the test drives the disclosure itself rather than first having to open a
+      // parent (Roles & Access became nested on 2026-08-18).
+      const trigger = page.getByRole('button', { name: 'Curriculum', exact: true })
       await trigger.focus()
       await page.keyboard.press('Enter')
       await expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -750,7 +807,15 @@ test.describe('Manage page', () => {
       await page.waitForTimeout(300)
       expect(searches).toHaveLength(0)
 
+      // ⚑ TWO LAYERS SINCE 2026-08-18, and the intermediate state is the assertion worth having:
+      // opening the GROUP must not fetch, because the panel itself is still collapsed. The lazy gate
+      // keys on `users.accounts`; keying it on the parent would restore the eager fetch this test
+      // exists to forbid, while every visible symptom stayed the same.
       await openPanel(page, 'Users')
+      await page.waitForTimeout(300)
+      expect(searches).toHaveLength(0)
+
+      await openPanel(page, 'Accounts')
       const row = await openUser(page, MANAGE_USER_EMAIL)
       expect(searches.length).toBeGreaterThan(0)
       await expect(row.locator('.lp-users__summary-meta')).toContainText('Teacher')
@@ -798,7 +863,9 @@ test.describe('Manage page', () => {
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=users`)
+      // `users.accounts`, not `users`: the latter now opens only the GROUP, leaving this panel — and
+      // the search box `openUser` types into — collapsed. The failure was `locator.fill` timing out.
+      await page.goto(`${BASE}/admin?open=users.accounts`)
 
       let row = await openUser(page, MANAGE_USER_EMAIL)
       await row.getByLabel('Display name').fill(MANAGE_USER_RENAMED)
@@ -873,12 +940,16 @@ test.describe('Manage page', () => {
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=users`)
+      await page.goto(`${BASE}/admin?open=users.accounts`)
       const row = await openUser(page, fx.users.editor.email)
       const before = await page.evaluate(() => window.history.length)
 
       await row.getByRole('button', { name: 'Open access controls', exact: true }).click()
-      await expect(page).toHaveURL(new RegExp(`[?&]open=users${SEP}access`))
+      // The jump ADDS `users.access` to what was already open (`users` + `users.accounts`), and the
+      // whole set is serialised in render order — not just the jump target.
+      await expect(page).toHaveURL(
+        new RegExp(`[?&]open=users${SEP}users\\.accounts${SEP}users\\.access`),
+      )
       await expect(page).not.toHaveURL(/[?&]at=/)
       await expect(
         page.getByRole('button', { name: 'Roles & Access', exact: true }),
@@ -887,7 +958,7 @@ test.describe('Manage page', () => {
       expect(await page.evaluate(() => window.history.length)).toBe(before + 1)
 
       await page.goBack()
-      await expect(page).toHaveURL(/[?&]open=users(&|$)/)
+      await expect(page).toHaveURL(new RegExp(`[?&]open=users${SEP}users\\.accounts(&|$)`))
       await expect(page.getByRole('button', { name: 'Users', exact: true })).toHaveAttribute(
         'aria-expanded',
         'true',
@@ -913,7 +984,7 @@ test.describe('Manage page', () => {
       page,
     }) => {
       await loginAs(page, 'subjectAdmin')
-      await page.goto(`${BASE}/admin?open=access`)
+      await page.goto(`${BASE}/admin?open=users.access`)
 
       // The FACT is shown — scoped information they already effectively hold.
       const group = page.locator('.lp-manage__editors-group').first()
@@ -933,7 +1004,7 @@ test.describe('Manage page', () => {
 
     test('a Site Administrator gets the picker and the remove control', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=access`)
+      await page.goto(`${BASE}/admin?open=users.access`)
 
       await expect(
         page.getByRole('combobox', { name: /Appoint the Subject Administrator/ }).first(),
@@ -956,7 +1027,7 @@ test.describe('Manage page', () => {
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=subject-grades`)
+      await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
 
       // ⚑ LOCATED BY THE DELETE CONTROL'S ACCESSIBLE NAME, not by row text. These rows identify
       // themselves through input VALUES and <option> text, and `hasText` matches neither the way it
@@ -998,7 +1069,7 @@ test.describe('Manage page', () => {
       page,
     }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=subject-grades`)
+      await page.goto(`${BASE}/admin?open=curriculum.subject-grades`)
 
       /**
        * The `beforeValidate` duplicate check exists ONLY to replace an opaque failure with a readable
@@ -1025,7 +1096,7 @@ test.describe('Manage page', () => {
 
     test('a subject that still has grades cannot be deleted, and says why', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
-      await page.goto(`${BASE}/admin?open=subjects`)
+      await page.goto(`${BASE}/admin?open=curriculum.subjects`)
 
       const remove = page.getByRole('button', { name: `Delete ${MARK}Biology`, exact: true })
       await expect(remove).toBeVisible()

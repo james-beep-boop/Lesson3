@@ -26,11 +26,19 @@ export default function RedirectToManage(): never {
   redirect('/admin')
 }
 
+/**
+ * ⚑ ALL THREE DESTINATIONS ARE NESTED IDS since the four-box regrouping (2026-08-18), and `PanelId`
+ * is what found them: two of these were still naming retired top-level ids after the vocabulary
+ * changed, and `tsc` failed on the literals. That is the failure this file's header describes,
+ * caught the way it says it should be. A nested destination needs nothing extra — `parseOpen` opens
+ * every ancestor of an id it accepts, so one parameter still opens the whole path to the panel.
+ */
+
 /** The native Users table is replaced by the lazy Manage panel, opened on arrival (PR 2b). */
-export const RedirectUsersToManage = toManagePanel('users')
+export const RedirectUsersToManage = toManagePanel('users.accounts')
 
 /** Subjects — academic disciplines (PR 3). */
-export const RedirectSubjectsToManage = toManagePanel('subjects')
+export const RedirectSubjectsToManage = toManagePanel('curriculum.subjects')
 
 /** Subject grades — the units roles and lesson plans attach to (PR 3). */
-export const RedirectSubjectGradesToManage = toManagePanel('subject-grades')
+export const RedirectSubjectGradesToManage = toManagePanel('curriculum.subject-grades')

@@ -11,6 +11,124 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-18 — Manage becomes four bordered boxes: the panel shell, and what the regrouping cost
+
+**Operator decisions, taken in one session, after a mockup rather than from prose.** Two changes to the
+Manage page's shell, plus the four consequences that only showed up once the first one was real.
+
+**1. The disclosure panels are BORDERED BOXES, and the user type left the page title.** A closed panel
+used to be a bare 20px heading with a 7px triangle — an eight-character hit target that read as a page
+heading rather than a control, on a page whose primary interaction is opening a panel. Each top-level
+panel now carries a 1px `--theme-elevation-150` border at the button system's 6px radius, 16px padding,
+and a hover fill; the marker survived but MOVED to the trailing edge via `order: 1`, so the DOM order —
+and the button's accessible name — is untouched. `· Site administrator` is gone from beside "Manage":
+the avatar menu states the type on every page, and a signed-in user knows their own account type. The
+scope lines ("Administrator: …") stay, because nothing else says those.
+
+⚑ **This amends `docs/DESIGN-visual-system-2026-07-31.md` §5, "No cards, shadows, or decoration."** The
+principle is not being discarded: no shadows, no fills, no decoration were added, and the ROWS inside
+the panels are still borderless with dividers doing the work (`.lp-manage__row`'s comment stands). What
+changed is that a *disclosure control* gets a visible boundary, because the boundary IS the affordance.
+Read that §5 line as scoped to content, not to controls.
+
+⚑ **The marker was NOT dropped**, which was the operator's first instinct. Several panels may be open at
+once by design (a disclosure LIST, not an accordion), so without a marker the only visual answer to
+"which of these are open" is the height of the box.
+
+**2. Six top-level sections became FOUR BOXES** — Users {Accounts, Roles & Access}, Curriculum
+{Subjects, Subject grades}, Lesson plans {Upload, Delete, Repair}, and the candidate/saved version
+inventory. Nesting was free: `plans` has had exactly this shape since D7, and all three groups stay
+inside D7's two-level cap.
+
+**⚑ `versions` STAYS TOP-LEVEL, and this is the one part of the operator's sketch that was argued down.**
+The sketch had three boxes, which means folding saved versions under "Lesson plans". But
+`showSaved = candidates.length > 0 || !isAdmin`: EVERY non-administrator sees that panel and nothing
+else. Nesting it puts a teacher's entire page behind a box named for operations they do not have, and
+falsifies the Guide's "*Manage → My saved versions*" in two files. Four boxes is the honest count.
+Making the nesting role-dependent was considered and refused: the id vocabulary is deliberately
+role-independent so a shared link means the same page for everyone.
+
+**3. The regrouping quietly demoted the Subject Administrator, and `initialOpen` now has ONE exception.**
+Their only panel is Roles & Access. While it was top-level, D7's "a role seeing exactly one section gets
+it expanded" landed them on their work; as `users.access` their only top-level id is the GROUP, so that
+rule opened a box containing a single collapsed row — one more click than before, to reveal the one thing
+they came for, inside a box named for accounts they cannot administer. So: **a lone top-level panel whose
+only AVAILABLE child is one panel opens both.** It is rule 2 restated one level down, not a new idea, and
+it is deliberately narrow — `plans` with three children still opens closed, which is asserted.
+
+⚑ The general prohibition ("nested panels are NEVER auto-opened") was written as a *decision*, so
+amending it needed a reason of the same kind rather than a convenience argument. The reason is that the
+prohibition and the exception say the same sentence: nobody clicks to reveal their only panel.
+
+**4. Renaming panel ids is cheap; the DANGEROUS part is the call sites, and typing found them.**
+`subjects`/`subject-grades`/`access` are retired (old bookmarks degrade to a normal page — the second
+time this vocabulary has done that), `curriculum` is REUSED as the group whose children are what it
+originally dissolved into, and `users` is re-pointed from the accounts panel to the group containing it.
+
+The interesting failure was not the URLs. `jumpTo` took `id: string`, so `UsersPanel`'s
+`jumpTo('access', …)` would have kept compiling, and `parseOpen` would then have dropped the stale id as
+unknown: the jump lands on a normal Manage page, no error, URL still plausible. Typing it `PanelId`
+made it a compile error — **and immediately caught two more call sites nobody had looked for**, in
+`RedirectToManage`, whose own header comment had predicted this exact failure two months earlier and
+relied on `PanelId` to prevent it. A third, `UsersPanel`'s lazy gate (`usePanelOpen('users')`), was
+found by reading: keyed on the parent it would have re-armed the eager fetch the lazy panel exists to
+avoid, with no visible symptom.
+
+**Lesson, and it is the general one:** a closed id vocabulary is only as safe as the narrowest type on
+the functions that consume it. One `string` parameter in an interface undid the guarantee the whole
+`PANEL_IDS` design exists to provide.
+
+### How this was verified, and what is still open
+
+⚑ **The local stack was UNUSABLE for this, and the workaround is worth keeping.** `scripts/dev-server.sh`
+came up fine, but every page render hung until the client gave up. ⚑ **Two diagnoses in this entry were
+WRONG before the real one was found, and both are recorded because each was a plausible guess that
+measurement killed: it is not the bind-mount filesystem** (measured inside the container: 13ms to walk
+`src`, 30ms to write and read 20MB — the mount is fine) **and it is not GC or compilation** (`✓ Compiled
+in 14ms`; during a hang, CPU sits at 0.01% and RSS moves 48KB in nine seconds). The cause is a DATABASE
+LOCK — see the entry below this one. Instead: compile the REAL stylesheet with the `sass` already in
+the dev deps — `npx sass "src/app/(payload)/custom.scss"` — inject it into the real Accordion/Manage
+markup, serve that over HTTP and drive it with the browser tools. It is the same "assert against the
+compiled stylesheet" move `guideCompareVisual.spec.tsx` and `buttonSystem.spec.ts` already make, one
+step further: real pixels and real computed values, without the app.
+
+It earned its keep immediately by finding a defect review had missed: **an open box began with ~40px of
+dead air**, because `&__panel > :first-child { margin-block-start: 0 }` suppresses the margin of the
+first CHILD — and when a panel's first child is another PANEL (the shape the regrouping makes normal),
+the offender is the `<h3>` one level further in. The rule matched something that was never the problem.
+Measured after the fix: 16px, 64px top rows, 44px nested rows, 1px/6px box, open-header divider present.
+
+**The E2E DID run, once the database lock was cleared** (`lesson3-ci-probe` stack, CI's own recipe and
+`lesson3-e2e` image): **6 failed, 20 passed**. Every failure was in the SPEC, not the app, and the shape
+is worth keeping because a careful read had already missed it twice:
+
+- **Eight `?open=` URL literals still named retired ids.** `?open=users` now opens the GROUP, leaving
+  the accounts panel shut, so `openUser`'s `fill` timed out; `?open=access`, `?open=subjects` and
+  `?open=subject-grades` opened nothing at all. Reading the tests I happened to touch was not a
+  substitute for `grep -n "open=" `, which lists them in one screen.
+- **A hardcoded list of section names asserted `aria-expanded=false` on three panels that are now
+  NESTED** — and failed with *"element(s) not found"*, not with a wrong attribute value. ⚑ A nested
+  panel's controls live inside a closed `[hidden]` div, which removes them from the accessibility tree,
+  so `getByRole` cannot see them at all. **A hidden control is not a collapsed control, and asserting
+  `aria-expanded=false` on one asserts nothing** — the same class of vacuous assertion as the
+  `toBeVisible()` on unstyled markup that the 2026-08-19 handoff flagged.
+
+⚑ **And one finding about the probe stack itself: "disposable" depends on `down -v`.**
+`docker compose -p lesson3-ci-probe up -d` happily REUSES a leftover `lesson3-ci-probe_lesson3_pgdata`
+volume — here a two-day-old one — which still carried spent daily signup counters, so `setupRoleFixture`
+died with *"Sign-ups are temporarily paused"* in specs that had nothing to do with rate limiting. That is
+AGENTS.md's documented hazard arriving through a door the recipe does not mention: not a long session
+exhausting the budget, but a stale volume starting the run already exhausted.
+
+Also verified against the PRODUCTION build rather than a harness: the served bundle carries
+`.lp-admin-dash>.lp-accordion{border:1px solid …}` and the reordered `__marker`, and the new panel ids
+appear in both client and SSR chunks. That check exists because `up --build` completing in seconds looks
+exactly like the stale-image trap this repo has been bitten by before.
+
+**Still not verified:** the spec fixes above have NOT been re-run (the probe stack was torn down first),
+and neither change has been seen on the real Payload page by eye — Payload's own cascade and its exact
+`--theme-elevation-*` values remain assumed. `tsc`, ESLint, Prettier and 785 unit tests pass.
+
 ## 2026-08-18 — a Subject Administrator may not appoint their own successor (D6a)
 
 **Operator decision (2026-08-16), implemented in PR 4.** Only a **Site Administrator** may appoint or
