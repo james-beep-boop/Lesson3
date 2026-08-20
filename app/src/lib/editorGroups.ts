@@ -24,8 +24,20 @@ export interface RolesAccessGroup {
   sgLabel: string
   /** Users with an `editor` grant here. */
   editorIds: number[]
-  /** The current Subject Administrator, or null when the subject-grade has none. */
-  subjectAdminId: number | null
+  /**
+   * Everyone holding a `subjectAdmin` grant here — a LIST, not a single id.
+   *
+   * ⚑ IT WAS `subjectAdminId: number | null` UNTIL 2026-08-19, and that shape hid data. The walk below
+   * assigns per assignment row, so with two holders the last one seen won and the other was invisible
+   * — no warning, no count, nothing to notice. `access/index.ts` documents that a same-subject-grade
+   * admin+editor pair is reachable, and D6a is FORWARD-ONLY, so `userRoles.ts` states outright that
+   * "legacy rows that violate ≤1 exist by design". This role also marks versions Official, so an
+   * undisclosed second administrator was an authorization blind spot rather than a cosmetic gap.
+   *
+   * ≤1 remains the POLICY, enforced by `autoDemotePriorSubjectAdmins`. The list is what the data can
+   * actually contain, which is a different question from what the policy allows.
+   */
+  subjectAdminIds: number[]
 }
 
 /**
@@ -147,18 +159,19 @@ export async function buildRolesAccess({
    * people). Walking assignments instead of users is the natural shape: an assignment row already
    * names the subject-grade it belongs to.
    */
-  const byGroup = new Map<number, { editorIds: number[]; subjectAdminId: number | null }>()
-  for (const sg of sgsRes.docs) byGroup.set(sg.id, { editorIds: [], subjectAdminId: null })
+  const byGroup = new Map<number, { editorIds: number[]; subjectAdminIds: number[] }>()
+  for (const sg of sgsRes.docs) byGroup.set(sg.id, { editorIds: [], subjectAdminIds: [] })
   for (const u of allUsers) {
     for (const a of u.assignments ?? []) {
       const slot = byGroup.get(toId(a.subjectGrade) ?? -1)
       if (!slot) continue
       if (a.role === 'editor') slot.editorIds.push(u.id)
-      // ⚑ `subjectAdmin` WINS over an earlier row rather than "first row wins". `access/index.ts`
-      // documents that a same-subject-grade admin+editor pair is reachable (the demote path can
-      // leave one) and nothing at the DB level forbids it, so a `.find` made the answer depend on
-      // row order — and would have rendered "No administrator." for a grade that has one.
-      if (a.role === 'subjectAdmin') slot.subjectAdminId = u.id
+      // ⚑ COLLECT, do not overwrite. This was `slot.subjectAdminId = u.id`, chosen over `.find` so
+      // that row order could not produce "No administrator." for a grade that has one — correct as
+      // far as it went, but it made a SECOND holder invisible instead. Nothing at the DB level
+      // forbids two (no unique index; the ≤1 rule lives in `autoDemotePriorSubjectAdmins`), so the
+      // projection now reports what is there and the panel renders a list.
+      if (a.role === 'subjectAdmin') slot.subjectAdminIds.push(u.id)
     }
   }
 
@@ -186,7 +199,7 @@ export async function buildRolesAccess({
   // …plus anyone who holds a role here but is NOT grantable — a site admin who holds a
   // `subjectAdmin` row, which D6a's forward-only rule means legacy data can contain. Without this
   // their id would dangle against the roster and the panel would render a blank administrator.
-  for (const g of groups) if (g.subjectAdminId != null) rosterIds.add(g.subjectAdminId)
+  for (const g of groups) for (const id of g.subjectAdminIds) rosterIds.add(id)
 
   return {
     roster: allUsers.filter((u) => rosterIds.has(u.id)).map(widgetUser),

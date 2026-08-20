@@ -579,6 +579,27 @@ body {
     color: var(--theme-elevation-1000);
   }
 
+  // The two block labels inside a subject-grade group — "Subject Administrator" and
+  // "Editing access (N)" — added 2026-08-19 after an operator misread the administrator's row as a
+  // column header for the editor rows beneath it. Naming both blocks is the fix; this rule is what
+  // makes a label look like one.
+  //
+  // ⚑ A SMALL EXTENSION TO THE TYPE SCALE, recorded rather than slipped in. `--app-secondary-size`
+  // (14px) is documented for "metadata, descriptions, help text" — normal weight — and the scale has
+  // NO heading step below the 16px `&__editors-head` above, which is the subject-grade line these sit
+  // under. So the label is the secondary SIZE at heading WEIGHT: distinct from both the 16px line
+  // above it and the 14px muted metadata beside it, without inventing a sixth size.
+  //
+  // Explicit `font-size` here, unlike `&__editors-none`: that one carries `.muted` too, so
+  // `.lp-manage .muted` (0-2-0) outranked its own rule. This element has no `.muted`, so the
+  // declaration lands.
+  &__roles-label {
+    font-size: var(--app-secondary-size);
+    font-weight: 600;
+    color: var(--theme-elevation-600);
+    margin: var(--app-space-3) 0 0;
+  }
+
   // A subject-grade with nobody in it costs one muted line SHARING the Add row, not a paragraph's
   // worth of stacked space. With a full curriculum most groups are empty, so this is the shape that
   // decides whether the section is scannable — 104px per empty group before.

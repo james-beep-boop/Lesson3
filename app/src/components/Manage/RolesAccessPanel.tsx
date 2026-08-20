@@ -142,13 +142,23 @@ export function RolesAccessPanel({
   const appointAdmin = (group: RolesAccessGroup) => {
     const u = byId.get(Number(adminPicks[group.sgId]))
     if (!u) return
-    const incumbent = group.subjectAdminId != null ? byId.get(group.subjectAdminId) : undefined
+    // ⚑ EVERY incumbent, not "the" incumbent. The cascade demotes ALL other holders of this
+    // subject-grade, and legacy rows can leave more than one (`userRoles.ts`: "legacy rows that
+    // violate ≤1 exist by design"). Naming only the first would have understated what the click does
+    // in exactly the case where the warning matters most.
+    const incumbents = group.subjectAdminIds
+      .filter((id) => id !== u.id)
+      .map((id) => byId.get(id))
+      .filter((p): p is WidgetUser => !!p)
     // ⚑ NAME THE DEMOTION. Appointing a successor demotes the incumbent to editing access through
     // `autoDemotePriorSubjectAdmins` — a consequence of the gentler-sounding action, and exactly the
     // kind of thing D6a's rejected alternative would have made someone do to themselves in one click.
-    const warning = incumbent
-      ? `Make ${personLabel(u)} the ${SUBJECT_ADMIN} of ${group.sgLabel}? ${personLabel(incumbent)} is demoted to editing access.`
-      : `Make ${personLabel(u)} the ${SUBJECT_ADMIN} of ${group.sgLabel}?`
+    const warning =
+      incumbents.length > 0
+        ? `Make ${personLabel(u)} the ${SUBJECT_ADMIN} of ${group.sgLabel}? ${incumbents
+            .map(personLabel)
+            .join(', ')} ${incumbents.length > 1 ? 'are' : 'is'} demoted to editing access.`
+        : `Make ${personLabel(u)} the ${SUBJECT_ADMIN} of ${group.sgLabel}?`
     if (!window.confirm(warning)) return
     void act(
       'assign-subject-admin',
@@ -192,29 +202,30 @@ export function RolesAccessPanel({
   const resolved = useMemo(() => {
     const grantable = access.grantableIds
     return access.groups.map((g) => {
-      const held = new Set<number>([
-        ...g.editorIds,
-        ...(g.subjectAdminId != null ? [g.subjectAdminId] : []),
-      ])
-      const editors = g.editorIds.map((id) => byId.get(id)).filter((u): u is WidgetUser => !!u)
-      const free = grantable.filter((id) => !held.has(id))
-      const toPeople = (ids: number[]) =>
+      const held = new Set<number>([...g.editorIds, ...g.subjectAdminIds])
+      // ⚑ ONE resolver, declared before its first use. `editors`, `admins` and both picker pools all
+      // need "ids → people, dropping any the roster does not carry", and three inline copies of that
+      // filter is how they drift.
+      const toPeopleSafe = (ids: number[]) =>
         ids.map((id) => byId.get(id)).filter((u): u is WidgetUser => !!u)
+      const editors = toPeopleSafe(g.editorIds)
+      const free = grantable.filter((id) => !held.has(id))
       return {
         group: g,
-        admin: g.subjectAdminId != null ? byId.get(g.subjectAdminId) : undefined,
+        // A LIST since 2026-08-19: the projection reports every holder, because a second one used to
+        // be silently dropped. ≤1 is still the policy, so this is normally one entry — but "normally"
+        // is not "always", and the old shape could not say so.
+        admins: toPeopleSafe(g.subjectAdminIds),
         editors,
-        addable: toPeople(free),
-        appointable: toPeople([...free, ...g.editorIds]),
+        addable: toPeopleSafe(free),
+        appointable: toPeopleSafe([...free, ...g.editorIds]),
         // Precomputed so a keystroke costs only `matchesTokenAnd`, not a join per group. Searches
         // `personLabel`, not just names: this is the one panel whose premise (SPEC §8) is that an
         // address is the only real identifier, so "find the person you were just shown" must work.
         searchText: [
           g.sgLabel,
           ...editors.map(personLabel),
-          ...(g.subjectAdminId != null && byId.get(g.subjectAdminId)
-            ? [personLabel(byId.get(g.subjectAdminId)!)]
-            : []),
+          ...toPeopleSafe(g.subjectAdminIds).map(personLabel),
         ].join(' '),
       }
     })
@@ -248,7 +259,7 @@ export function RolesAccessPanel({
 
       {shown.length === 0 && <p className="lp-manage__empty">Nothing matches this search.</p>}
 
-      {shown.map(({ group, admin, editors, addable, appointable }) => {
+      {shown.map(({ group, admins, editors, addable, appointable }) => {
         // One option list per pool, built here rather than inline in each <select>.
         const optionsFor = (people: WidgetUser[]) =>
           people.map((u) => (
@@ -278,54 +289,98 @@ export function RolesAccessPanel({
                 markup, so nothing caught it. Reusing `__editors-add` instead was worse in a different
                 way: two elements sharing one class made `querySelector` ambiguous and broke a sibling
                 test that meant the editor row. The rule now names both selectors — see custom.scss. */}
-            <div className="lp-manage__roles-admin">
-              <span className="muted">{SUBJECT_ADMIN}</span>
-              {admin ? (
-                <span className="lp-manage__who">
-                  {admin.name}
-                  {admin.email && <span className="lp-manage__who-email">{admin.email}</span>}
-                </span>
-              ) : (
-                <span className="muted">No administrator.</span>
-              )}
-              {canSetSubjectAdmin && admin && (
-                <Button
-                  className="lp-btn lp-btn--compact"
-                  buttonStyle="error"
-                  size="small"
-                  disabled={busy}
-                  aria-label={`Remove ${personLabel(admin)} as ${SUBJECT_ADMIN} of ${group.sgLabel}`}
-                  onClick={() => vacateAdmin(group, admin)}
-                >
-                  Remove
-                </Button>
-              )}
-              {canSetSubjectAdmin && appointable.length > 0 && (
-                <>
-                  <select
-                    className="lp-manage__select"
-                    aria-label={`Appoint the ${SUBJECT_ADMIN} of ${group.sgLabel}`}
-                    value={adminPicks[group.sgId] ?? ''}
-                    disabled={busy}
-                    onChange={(e) => setAdminPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
-                  >
-                    <option value="">{admin ? 'Replace with…' : 'Appoint…'}</option>
-                    {optionsFor(appointable)}
-                  </select>
-                  <Button
-                    className="lp-btn"
-                    buttonStyle="secondary"
-                    size="small"
-                    disabled={busy || !adminPicks[group.sgId]}
-                    aria-label={`Appoint the ${SUBJECT_ADMIN} of ${group.sgLabel}`}
-                    onClick={() => appointAdmin(group)}
-                  >
-                    {admin ? 'Replace' : 'Appoint'}
-                  </Button>
-                </>
-              )}
-            </div>
+            {/* ⚑ A LABELLED LIST, in the same shape as the editors below it (2026-08-19, operator
+                report). Before this the administrator was ONE `<div>` carrying a muted role label, a
+                name and an address, sitting directly above an unlabelled `<ul>` of editor rows — so it
+                read as a COLUMN HEADER for the list beneath, and the operator who wrote the
+                authorization model misread it as exactly that. Two lists, each named, each with its
+                own action row, cannot be misread that way.
 
+                The count appears only when there is more than one, because "Subject Administrator (1)"
+                reads as a system talking about itself. ≤1 is still the policy — this is the shape the
+                DATA can take, which `subjectAdminIds` now reports honestly. */}
+            <p className="lp-manage__roles-label">
+              {admins.length > 1 ? `${SUBJECT_ADMIN}s (${admins.length})` : SUBJECT_ADMIN}
+            </p>
+            <ul className="lp-manage__list">
+              {admins.length > 0 ? (
+                admins.map((a) => (
+                  <li key={a.id} className="lp-manage__row lp-manage__row--tight">
+                    <span className="lp-manage__who">
+                      {a.name}
+                      {a.email && <span className="lp-manage__who-email">{a.email}</span>}
+                    </span>
+                    {canSetSubjectAdmin && (
+                      <span className="lp-manage__row-actions">
+                        <Button
+                          className="lp-btn lp-btn--compact"
+                          buttonStyle="error"
+                          size="small"
+                          disabled={busy}
+                          aria-label={`Remove ${personLabel(a)} as ${SUBJECT_ADMIN} of ${group.sgLabel}`}
+                          onClick={() => vacateAdmin(group, a)}
+                        >
+                          Remove
+                        </Button>
+                      </span>
+                    )}
+                  </li>
+                ))
+              ) : (
+                <li className="lp-manage__row lp-manage__row--tight">
+                  <span className="muted">No administrator.</span>
+                </li>
+              )}
+            </ul>
+
+            {/* The picker keeps `__roles-admin`: that class is the shared action-row LAYOUT (see
+                custom.scss), and it stays distinct from `__editors-add` so the two rows remain
+                individually addressable — a shared class previously made `querySelector` pick the
+                wrong one.
+
+                ⚑ THE WRAPPER IS INSIDE THE CONDITION, not around it. `__roles-admin` is a flex row
+                carrying its own `margin-top`, so rendering it unconditionally left a Subject
+                Administrator — who gets no picker at all under D6a — with an empty 8px row between
+                the two lists. An empty styled container is invisible in review and visible on the
+                page, which is the wrong way round. */}
+            {canSetSubjectAdmin && appointable.length > 0 && (
+              <div className="lp-manage__roles-admin">
+                <select
+                  className="lp-manage__select"
+                  aria-label={`Appoint the ${SUBJECT_ADMIN} of ${group.sgLabel}`}
+                  value={adminPicks[group.sgId] ?? ''}
+                  disabled={busy}
+                  onChange={(e) => setAdminPicks((p) => ({ ...p, [group.sgId]: e.target.value }))}
+                >
+                  <option value="">{admins.length > 0 ? 'Replace with…' : 'Appoint…'}</option>
+                  {optionsFor(appointable)}
+                </select>
+                <Button
+                  className="lp-btn"
+                  buttonStyle="secondary"
+                  size="small"
+                  disabled={busy || !adminPicks[group.sgId]}
+                  aria-label={`Appoint the ${SUBJECT_ADMIN} of ${group.sgLabel}`}
+                  onClick={() => appointAdmin(group)}
+                >
+                  {admins.length > 0 ? 'Replace' : 'Appoint'}
+                </Button>
+              </div>
+            )}
+
+            {/* ⚑ LABELLED. This list used to appear with no heading at all, directly beneath the
+                administrator's row — which is what made that row read as the list's HEADER, and an
+                operator who wrote the authorization model misread it as exactly that (2026-08-19).
+                The count is the second half: it says "this is a list" before you parse the rows.
+
+                ⚑ The empty case is NOT handled here. "No one has editing access." already shares the
+                Add row below, which was a deliberate call (operator report 2026-08-02: with a full
+                curriculum most subject-grades have nobody, so the empty group is the shape that
+                decides whether this section is scannable). A second empty state here would stack
+                where that decision put them side by side. */}
+            <p className="lp-manage__roles-label">
+              {editors.length > 0 ? `Editing access (${editors.length})` : 'Editing access'}
+            </p>
             {editors.length > 0 && (
               <ul className="lp-manage__list">
                 {editors.map((u) => (

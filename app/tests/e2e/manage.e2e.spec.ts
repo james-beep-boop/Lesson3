@@ -1027,6 +1027,19 @@ test.describe('Manage page', () => {
       const group = page.locator('.lp-manage__editors-group').first()
       await expect(group.getByText('Subject Administrator')).toBeVisible()
 
+      // ⚑ THE LABEL MUST BE STYLED, not merely present. `lp-manage__roles-admin` once shipped with no
+      // CSS rule at all: the row rendered as an unstyled pile and the only assertion on it checked
+      // that its text was VISIBLE, which passes on unstyled markup. `lp-manage__roles-label` is new
+      // in the same file, so it gets the assertion that failure taught — a computed value only a real
+      // rule can produce. 600 is the weight; the browser reports it numerically.
+      const rolesLabel = group.locator('.lp-manage__roles-label').first()
+      await expect(rolesLabel).toHaveCSS('font-weight', '600')
+      await expect(rolesLabel).toHaveCSS('font-size', '14px')
+
+      // Both blocks are named — that pairing is what stops the administrator row reading as a header
+      // for the editor rows beneath it (2026-08-19).
+      await expect(group.locator('.lp-manage__roles-label')).toHaveCount(2)
+
       // …and neither control that would change it exists. Asserted as absence rather than
       // disabled-ness: a disabled control still invites the click D6a is trying to prevent.
       await expect(
