@@ -177,7 +177,9 @@ describe('buildRolesAccess — the SPEC §8 email carve-out, by role', () => {
       for (const id of g.editorIds) {
         expect(known.has(id), `group ${g.sgId} references id ${id} with no roster entry`).toBe(true)
       }
-      if (g.subjectAdminId != null) expect(known.has(g.subjectAdminId)).toBe(true)
+      for (const id of g.subjectAdminIds) {
+        expect(known.has(id), `group ${g.sgId} names admin ${id} with no roster entry`).toBe(true)
+      }
     }
     // The shared pool resolves too — it is the other half of what the client dereferences.
     for (const id of access.grantableIds) expect(known.has(id)).toBe(true)
@@ -188,10 +190,18 @@ describe('buildRolesAccess — the SPEC §8 email carve-out, by role', () => {
    * the presentation half of the decision. WHETHER they may change it is a prop supplied by the
    * render site, not a field of this projection, so it is asserted in the panel's unit spec.
    */
-  it('carries the current Subject Administrator to the administrator of that subject-grade', async () => {
+  it('carries EVERY Subject Administrator of that subject-grade, not just one', async () => {
     const asSubjectAdmin = await accessFor('subjectAdmin')
     const group = asSubjectAdmin.groups.find((g) => g.sgId === fx.subjectGrade.id)!
-    expect(group.subjectAdminId).toBe(fx.users.subjectAdmin.id)
+    // ⚑ `toContain` on a LIST, not equality with one id (2026-08-19). The projection carried
+    // `subjectAdminId: number | null` assigned per assignment row, so with two holders the last one
+    // seen won and the other was invisible — and `userRoles.ts` states that legacy rows violating ≤1
+    // exist by design, while this role also marks versions Official. An assertion that reads one id
+    // cannot tell "one administrator" from "one of several".
+    expect(group.subjectAdminIds).toContain(fx.users.subjectAdmin.id)
+    // The fixture grants exactly one, so the count is also part of the contract here: it is what
+    // would fail if the walk ever double-counted a holder with two rows for the same grade.
+    expect(group.subjectAdminIds).toHaveLength(1)
   })
 
   it('leaves every OTHER surface withholding addresses — emailReadAccess is unchanged', async () => {

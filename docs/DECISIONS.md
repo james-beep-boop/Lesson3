@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-19 — Roles & Access: the administrator becomes a LIST, and one was already invisible
+
+**Operator report:** "it took me a minute to figure out that panel." The cause was structural, and the
+fix uncovered a live defect underneath it.
+
+**The layout.** A subject-grade group rendered ONE `<div>` for the administrator — a muted role label,
+a name, an address — sitting directly above an UNLABELLED `<ul>` of editor rows. So the administrator
+line read as a **column header** for the list beneath it, and the person who misread it that way had
+written the authorization model himself. Both blocks are now labelled lists of the same shape
+(`Subject Administrator` / `Editing access (N)`), each with its own action row beneath it. A count
+appears only above one — "Subject Administrator (1)" reads as a system talking about itself.
+
+⚑ **Contributing cause, and it was mine.** Until that morning the page printed the user's TYPE beside
+the title ("Manage · Site administrator"); it was removed on the reasoning that the avatar menu says it
+everywhere. What then distinguished a Subject Administrator from a teacher with editing access on this
+page was one word in a 14px muted line — `Administrator:` versus `Editing access:` — and the operator
+conflated the two roles within hours, on his own product. Removing a redundant label is not free when a
+minority of users depend on it.
+
+⚑ **THE DEFECT UNDERNEATH: a second administrator was invisible.** `RolesAccessGroup` carried
+`subjectAdminId: number | null`, assigned inside a loop over assignment rows — `slot.subjectAdminId =
+u.id`. That was chosen over `.find` so row order could not produce "No administrator." for a grade that
+has one, which is correct as far as it goes, and it made the SECOND holder disappear instead. Nothing at
+the database level forbids two (there is **no unique index**; ≤1 lives in
+`autoDemotePriorSubjectAdmins`), and `userRoles.ts` states plainly that "legacy rows that violate ≤1
+exist by design" because D6a is forward-only. A subject-grade with two administrators therefore showed
+one, chosen by whichever user the roster loop reached last — and this role marks versions Official, so
+that was an authorization blind spot, not a cosmetic gap. The projection now reports
+`subjectAdminIds: number[]` and the panel renders every one.
+
+**≤1 remains the policy.** The list is what the DATA can hold, which is a different question from what
+the policy allows — and the appointment confirm now names EVERY incumbent the cascade will demote,
+where it previously named "the" incumbent.
+
+**Two things caught while implementing, both the same shape as the day's other lessons:**
+
+- The new `lp-manage__roles-label` class is pinned by a computed-style E2E assertion (600 weight, 14px)
+  because `lp-manage__roles-admin` once shipped **with no CSS rule at all** — the row rendered as an
+  unstyled pile and the only test on it asserted its text was *visible*, which passes on unstyled
+  markup. A new class in the same file gets the assertion that failure taught.
+- Moving the picker into its own wrapper first left `<div class="lp-manage__roles-admin">` rendering
+  EMPTY for a Subject Administrator, who gets no picker under D6a — an empty flex row with a
+  `margin-top`, invisible in review and visible on the page. The wrapper went inside the condition.
+
+⚑ **The empty state was deliberately NOT touched.** "No one has editing access." shares the Add row by
+an operator decision (2026-08-02: with a full curriculum most subject-grades are empty, so the empty
+group is what decides whether the section is scannable). A second empty state under the new label would
+have stacked what that decision put side by side.
+
+**Verified:** 12 int tests against a real database on the disposable probe stack (`app/test.env`
+restored and proved clean afterwards), the two D6a E2E tests including the new label assertions, the
+full Manage E2E at 28 passed, plus 786 unit tests, tsc, ESLint and Prettier.
+
 ## 2026-08-19 — an external audit's five findings: one real, one already shipped, three refused
 
 An outside model (nemotron) reviewed the codebase and reported five issues. Checked against the code:

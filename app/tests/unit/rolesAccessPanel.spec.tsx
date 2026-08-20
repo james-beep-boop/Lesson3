@@ -92,7 +92,7 @@ const access = (over: {
         sgId: 10,
         sgLabel: 'Biology — Grade 10',
         editorIds: (over.editors ?? []).map((u) => u.id),
-        subjectAdminId: over.subjectAdmin?.id ?? null,
+        subjectAdminIds: over.subjectAdmin ? [over.subjectAdmin.id] : [],
       },
     ],
   }
