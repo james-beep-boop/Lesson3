@@ -112,6 +112,10 @@ only thing that would notice a class referenced with **no rule at all**.
 
 - **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
   appearance-testing gap.
+- **Build the System panel** — design settled in `docs/DESIGN-system-panel-2026-08-21.md` (name, ids,
+  the two halves, per-flag provenance, Save with one re-auth, and the build order). PR 1 is the global +
+  computed facts half + panel scaffold; PR 2 is the two real flags with enforcement. The deployment
+  model it sits on is D and E of the amendments doc below.
 - **Splice in the D1 amendments if wanted.** Drafted 2026-08-21 and deliberately NOT applied to the
   operator's in-flight design doc: access control and **fail-closed** semantics for the proposed
   Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
@@ -175,13 +179,43 @@ USB with no app around them, so nothing carries the credit unless the document d
   `lesson3-gotenberg` **2.46 GB**, `lesson3-migrate` 1.81 GB, `lesson3-app` 338 MB; the Microsoft cab
   files are ~10–15 MB of that. A fresh install pulls gigabytes, which is exactly what pushes toward
   shipping pre-built images — which is where the licence problem appears.
-- **Proposed split — NOT built, NOT verified.** Ship the large image WITHOUT the fonts (Gotenberg's base
-  is Apache-2.0 plus Debian packages, freely redistributable — and it is the 2.4 GB part), and have the
-  school install fonts itself into a mounted volume with one command over a brief tether. The
-  encumbered part is tiny and self-downloaded; the enormous part is unencumbered and shippable on USB.
-  ⚑ **VERIFY FIRST** that LibreOffice inside Gotenberg picks up fonts from a mounted volume (font path
-  plus `fc-cache`) — plausible, unproven. Fallback: ship font-less and accept Liberation Sans, which is
-  the measured table-row-height gap `gotenberg/Dockerfile` documents at length.
+- **DECIDED 2026-08-21: ship the image FONT-LESS, fonts optional and never automatic.** Gotenberg's
+  base is Apache-2.0 plus Debian packages, so the 2.4 GB part is freely redistributable and can travel
+  on a USB stick. The Microsoft fonts become an **optional, documented, later** install whose size is
+  **stated before the download** — ⚑ and never fetched automatically, because 15 MB is nothing to us
+  and a real cost to a teacher buying data in single-digit megabytes.
+- ⚑ **What makes that cheap: the server's fonts affect ONLY the PDF, never the DOCX.** A DOCX merely
+  *references* Arial and renders correctly in Word on any machine that has it. So a font-less school box
+  produces a **perfect DOCX** and a PDF whose table row heights sit slightly off from Word's — and since
+  most teachers take PDFs from the *online* deployment, which IS built with the fonts, the gap only
+  reaches a school that self-hosts **and** generates PDFs locally. The optional install is therefore a
+  PDF-fidelity upgrade, not a correctness fix.
+- The baseline font needs no work: **Liberation Sans is already in Gotenberg's base** under the OFL —
+  it is what LibreOffice substitutes today. (Arimo, Apache-2.0, is the alternative if one is ever
+  wanted.)
+- ⚑ **VERIFY BEFORE BUILDING the optional installer:** that LibreOffice inside Gotenberg picks up fonts
+  from a mounted volume (font path plus `fc-cache`) — plausible, unproven. If it does not, the fallback
+  is simply to stay font-less, which is the measured table-row-height gap `gotenberg/Dockerfile`
+  documents at length.
+
+### ⚑ Data economics: document size is a FIRST-ORDER product metric
+
+Operator, 2026-08-21: **Kenyan teachers buy data in single-digit megabytes at a time; unlimited plans
+are uncommon.** The project's goal is getting lesson plans into their hands, so bytes-per-download is
+not an optimisation — it is the feature working or not. Three consequences, none of them measured yet:
+
+- ⚑ **DOCX is probably much smaller than PDF, and that should drive what the UI offers first.** A
+  generated plan is text and tables with hyperlinks and no embedded images, so the DOCX is
+  zip-compressed XML with **no embedded fonts**, while the PDF carries font subsets. If the gap is
+  large, the download UI currently presents the expensive format as an equal choice to somebody paying
+  by the megabyte — and SPEC §9 makes **PDF** the teacher-facing default and the only anonymous public
+  format. **MEASURE THIS** (a real generated plan, both kinds) before designing around it; it could not
+  be measured on 2026-08-21 because no generated artifacts were on the machine and the app container
+  was down.
+- **PDF font embedding is a tunable**, and whatever LibreOffice embeds is a direct data cost. Worth
+  testing export options against fidelity rather than assuming the default is right.
+- **The public library needs a page-weight budget**, set while it is still cheap to set. It is the
+  distribution channel, and phase 2 is designed but not started.
 
 ### Packaging work, when it happens
 

@@ -11,6 +11,98 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-21 — The System panel, the quiz stays in-app, and four things that are not code
+
+Design session, no implementation. Decisions and the reasoning that will not survive in the code.
+
+### The panel is called "System", and that is a vocabulary decision
+
+Operator proposed "System Administration"; D1 called it "Installation". Neither: **System**, with ids
+`system`, `system.deployment`, `system.features`. "Installation" is too narrow for the half holding the
+switches, and ⚑ **"System Administration" collides with the role names** — it would sit inches from Site
+Administrator and Subject Administrator, and this project has already paid for that class of collision
+twice ("Editor" as a user type, `draft`). "System" is also parallel with `Users` / `Curriculum` /
+`Lesson plans`, which are all plain nouns. Design: `docs/DESIGN-system-panel-2026-08-21.md`.
+
+### The quiz is a module in this app, not a separate container
+
+The question was real — functionally the quiz is quite separate from an editing and document-management
+app, and there is a sidecar precedent (Gotenberg). The test that decided it: **what forced Gotenberg
+into its own container?** LibreOffice cannot run in-process in Node. That is a forcing function. The
+quiz has none:
+
+- **Tier 1 is anonymous practice** (D3a), so the usual justification for splitting — auth — costs
+  nothing in-app. And tier 2's student principal is a *Payload collection*, so a separate service would
+  have to validate Payload's JWTs or duplicate auth entirely: the split gets expensive exactly where it
+  should be cheapest.
+- **Data gravity.** Quiz content derives from lesson bundles in Payload. Sharing the schema means two
+  writers and two migration histories; calling the app's API needs service-to-service auth *and* the
+  app to be up, which cancels the availability argument; copying means staleness plus a sync job.
+- **Cost per school box**: another image to memory-budget, health-check, version-match and ship on a
+  USB stick, plus a version-skew axis nobody can debug remotely.
+- And it would re-implement or diverge from RBAC, `lib/rateLimit.ts`, the audit patterns, the Manage
+  panel, `app-tokens.scss`, and the jobs queue.
+
+⚑ **What would have reversed it, and why it did not apply:** an internet-facing quiz beside a *private*
+authoring app would make the trust boundary a forcing function. The operator's answer settled it — the
+authoring app is *also* public by design, because the whole point is popularising the lesson plans
+nationally. Same audience, same exposure, same data.
+
+**The middle path is recorded rather than taken:** same image, two roles — run the container twice in
+the online deployment with the proxy forwarding only `/quiz/*` to the second instance. Process
+isolation with no second artifact, no version skew, nothing to ship on media. Available later; it is a
+topology decision, not a code one.
+
+### "Free to edit" needed no work at all
+
+Raised as a possible data-model gap: national "free to edit" has no home in a model where editing is
+gated per subject-grade and there is no fork or derivative concept. **Closed by the operator:** editing
+access means unrestricted in-app editing; everyone else downloads DOCX/PDF and edits in Word. That is
+what already ships. ⚑ Recorded because the question will recur, and the answer is *no fork feature* —
+not "not yet".
+
+### Four things that are not code, and were not written down anywhere
+
+1. ⚑ **The app must never be able to start containers.** A toggle that "installs" a feature implies
+   Docker access; mounting the socket is root on the host. Toggles record intent, operators act.
+2. ⚑ **One image, not build variants** — and `migrate:create` diffs live config against the snapshot,
+   so **codegen must always run with every feature ON** or it emits a migration that DROPS tables.
+3. ⚑ **Gotenberg runs locally and must never sit behind an "internet" flag.** It is a compose service
+   built from `./gotenberg`, reached at `http://gotenberg:3000`. It is the service people reliably
+   assume is a cloud API. Its real limits now live in SPEC §9, including that **no automated PDF
+   fidelity gate has existed since 2026-07-20** — and PDF is what most teachers open.
+4. ⚑ **`app/package.json`'s `"license": "MIT"` is scaffold residue, not a decision.** The commit that
+   introduced the file also carries `"name": "app"` and "A blank template to get started with Payload
+   3.0", and the licence line has never been edited in 35 commits to that file. MIT is now the
+   *chosen* code licence (operator 2026-08-21, matching Payload's own), but it was never chosen before
+   — and there is still no LICENSE file at the root of a public repo.
+
+### The constraint that reframed most of the packaging discussion
+
+⚑ **Kenyan teachers buy data in single-digit megabytes.** Unlimited plans are uncommon. That turns
+document size from an implementation detail into a first-order product metric, and it resolves the
+Microsoft-font question in a direction the licence alone did not: the fonts are ~10–15 MB of a
+**2.46 GB** Gotenberg image, so bandwidth, not licensing, is what makes downloads impossible and pushes
+toward shipping images on media.
+
+The resolution (decided 2026-08-21): **ship the image font-less** — Gotenberg's base is Apache-2.0 plus
+Debian packages, so the 2.4 GB part is freely redistributable — with the Microsoft fonts as an
+**optional, documented, never-automatic** later install whose size is stated before the download.
+
+⚑ **And the fact that makes this cheap: the server's fonts affect only the PDF, never the DOCX.** A DOCX
+merely references Arial and renders correctly in Word on any machine that has it. So a font-less school
+box produces a perfect DOCX and a PDF whose table row heights sit slightly off — and since most
+teachers take PDFs from the *online* deployment, which is built with the fonts, the gap only reaches a
+school that self-hosts **and** generates PDFs locally.
+
+**Unmeasured, and worth measuring:** the actual DOCX and PDF byte sizes of a real generated plan. The
+hypothesis is that DOCX is materially smaller (zip-compressed XML, no embedded fonts) than PDF (font
+subsets embedded), which would mean the download UI currently offers the expensive format as an equal
+choice to someone paying by the megabyte. Could not be measured this session — no generated artifacts
+on the machine and the app container was down.
+
+---
+
 ## 2026-08-20 — D6a becomes asymmetric: hand over, never take away — and four tests that passed for the wrong reason
 
 **Decision (operator, 2026-08-19).** A Subject Administrator **may** appoint a successor in a
