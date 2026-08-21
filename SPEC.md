@@ -581,7 +581,27 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 ## 11. Operations
 
 - **Error tracking / observability** (e.g. Sentry) — required before real users.
-- **Automated, off-site, encrypted backups** (Postgres dumps); snapshot before migrations.
+- **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Encryption and
+  retention are constant; the destination varies by deployment (amended 2026-08-20).**
+  - **Internet-connected installations: off-site**, to a remote object store — today `age` +
+    `rclone` to Google Drive, GFS retention (`scripts/backup-db.sh`, `docs/OPS.md`).
+  - **Offline installations (ARES schools, no internet): a rotated removable drive.** `rclone`'s local
+    backend means `BACKUP_RCLONE_REMOTE` may be a mounted path, so encryption, GFS retention and
+    pruning are unchanged — only the destination differs. Backups here are **occasional rather than
+    nightly**, because they depend on a person.
+  - ⚑ **"Off-site" is a property of the drive's LOCATION, not of the backup.** A thumb drive left in
+    the server is not a backup against fire or theft — the guarantee comes from **rotation**, which is
+    a human process the school must own. Say so plainly rather than implying the file is safe because
+    it was written.
+  - ⚑ **A missing drive must FAIL, never silently succeed.** Writing to an unmounted `/media/...` path
+    creates a directory on the root filesystem instead: backups appear to work, go nowhere, and fill
+    the boot disk. The destination must be verified as a real mount (sentinel file or mountpoint
+    check) before any dump is written.
+  - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
+    answer — surfaced in the Manage → Installation panel as last-success time and destination.
+  - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
+    school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
+    This also keeps a stolen school box from yielding readable backups.
 - **CI/CD** so build/deploy is not bound to one machine.
 - **Rate limiting** on expensive endpoints (generation, auth). Generation: per-user export/preview buckets + per-user/per-recipient/site-global email caps. Auth (added 2026-07-04): `login` per target identifier + global, and `forgot-password` per requested address + global (unauthenticated outbound mail — same egress class as email-a-doc), enforced in a Users `beforeOperation` hook (`app/src/hooks/authRateLimit.ts`); budgets keyed on the *requested* identifier so the limiter is not an account-existence oracle.
 - **Retention (decided 2026-07-04; prune cron is tracked Phase-3 work — see `docs/DECISIONS.md`):** completed export job rows 14 days; email + message-ping job rows 180 days (they are the data-egress audit trail); failed job rows 90 days; `rate_limit_counters` rows 7 days. Nightly `scripts/prune-db.sh` alongside the backup crons.
