@@ -7,6 +7,7 @@ import { isSiteAdmin, subjectGradeIdsByRole } from '../../access'
 import { deletableVersionsWhere } from '../../access/versioning'
 import { resolveAccessSummary } from '../../lib/accessScopes'
 import { assignmentCountsBySubjectGrade, NO_ASSIGNMENTS } from '../../lib/assignmentCounts'
+import { collectSystemFacts } from '../../lib/systemFacts'
 import { relId, distinctIds } from '../../lib/relId'
 import { lessonDisplayName } from '../../lib/substrand'
 import type { User } from '../../payload-types'
@@ -16,6 +17,7 @@ import { DeletePlansPanel, type PlanRow } from './DeletePlansPanel'
 import { buildRolesAccess } from '../../lib/editorGroups'
 import { startRenderTimings } from '../../lib/renderTimings'
 import { RolesAccessPanel } from '../Manage/RolesAccessPanel'
+import { SystemFactsPanel } from '../Manage/SystemFactsPanel'
 import { AccordionPanel, AccordionProvider } from '../Manage/Accordion'
 import { resolveServerPanelState, withAncestors, type PanelId } from '../Manage/panelState'
 import { SubjectGradesPanel, type SubjectGradeRow } from '../Manage/SubjectGradesPanel'
@@ -82,6 +84,7 @@ export default async function AdminDashboard({
     taxonomySubjectsRes,
     taxonomyGradesRes,
     assignmentCounts,
+    systemFacts,
   ] = await Promise.all([
     t.time('accessSummary', () => resolveAccessSummary(req.payload, user)),
     // ---- Saved versions (deletable candidates) ----
@@ -167,6 +170,11 @@ export default async function AdminDashboard({
     // `editorGroups`-style projection. It feeds the delete confirmation's cascade warning; see the
     // ⚑ in lib/assignmentCounts.ts for why that warning exists at all.
     siteAdmin ? t.time('assignmentCounts', () => assignmentCountsBySubjectGrade(payload)) : null,
+    // ---- Manage → System (Site-Admin only) ----
+    // Computed, never stored, and skipped entirely for everyone else — it probes the PDF sidecar over
+    // the network and stats the artifact cache, which nobody but a Site Admin can see the result of.
+    // `collectSystemFacts` never throws; a failed probe reports `unknown`.
+    siteAdmin ? t.time('systemFacts', () => collectSystemFacts()) : null,
   ])
   const versionDocs = versionsRes?.docs ?? []
   // Hoisted beside the other unwraps because `sgById` below reads it for a Site Admin — see wave 2.
@@ -477,6 +485,7 @@ export default async function AdminDashboard({
         siteAdmin && 'plans.delete',
         siteAdmin && repairPlans.length > 0 && 'plans.repair',
         showSaved && 'versions',
+        siteAdmin && 'system.deployment',
       ] satisfies (PanelId | false)[]
     ).filter((id) => id !== false),
   )
@@ -634,6 +643,27 @@ export default async function AdminDashboard({
           <AccordionPanel id="versions" title={savedTitle}>
             <p className="lp-manage__desc">{savedDesc}</p>
             <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
+          </AccordionPanel>
+        )}
+
+        {/* ⚑ LAST, because render order must match `PANEL_IDS` — `inRenderOrder` canonicalises
+            `?open=` against that list, so a box out of order here would serialise its state in a
+            position that does not match the page.
+
+            PR 1 ships the DEPLOYMENT half only. The `system.features` toggles land with their
+            enforcement in the next PR: `globals/SystemSettings.ts` already stores the flags and
+            stamps their provenance, but nothing READS them yet, so a switch here would do nothing —
+            the never-render-a-toggle-for-something-absent rule
+            (`docs/DESIGN-d1-deployment-amendments-2026-08-21.md` §D). */}
+        {siteAdmin && systemFacts && (
+          <AccordionPanel id="system" title="System">
+            <AccordionPanel id="system.deployment" title="Deployment">
+              <p className="lp-manage__desc">
+                What this installation is. Every value here is decided at startup by the environment
+                variable named beside it — changing one needs a restart, not a setting.
+              </p>
+              <SystemFactsPanel facts={systemFacts} />
+            </AccordionPanel>
           </AccordionPanel>
         )}
       </AccordionProvider>

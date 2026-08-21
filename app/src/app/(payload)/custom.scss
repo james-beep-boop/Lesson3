@@ -515,6 +515,44 @@ body {
     overflow-wrap: anywhere;
   }
 
+  // Manage → System → Deployment. The facts half reuses `__row`/`__who` for layout, so only the two
+  // new elements need rules — the env-var line borrows `__who-email` above, which is already the
+  // "secondary identifier under a name" treatment and is exactly what an env var is here.
+  //
+  // ⚑ THESE RULES ARE NOT OPTIONAL, and that is a recorded lesson rather than a preference:
+  // `lp-manage__roles-admin` once shipped with NO rule at all, so its row rendered as an unstyled pile
+  // while the only test on it asserted the text was VISIBLE — which passes on unstyled markup. A
+  // computed-value assertion in `tests/e2e/manage.e2e.spec.ts` is what closes that gap for these two.
+  &__fact-detail {
+    display: block;
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    margin-block-start: 2px;
+  }
+
+  &__fact-value {
+    flex-shrink: 0;
+    font-size: var(--app-secondary-size);
+    font-weight: 600;
+    // `off` is a legitimate state for an offline school, not a fault, so it stays ordinary muted text.
+    // `unknown` means we asked and could not tell — and for the PDF engine that means every export and
+    // preview is failing right now, so it earns the error colour rather than a gentler one.
+    color: var(--theme-elevation-600);
+
+    &[data-status='ok'] {
+      color: var(--theme-success-500);
+    }
+
+    &[data-status='unknown'] {
+      // ⚑ `--theme-error-500`, NOT `--theme-warning-500`: verified against the installed
+      // `@payloadcms/ui` CSS, which defines elevation/error/success at this step and NO warning
+      // family. An undefined custom property does not fail loudly — it inherits, so `unknown` would
+      // have rendered identically to `off` and the one status worth noticing would have been the one
+      // that looked like nothing.
+      color: var(--theme-error-500);
+    }
+  }
+
   &__row-main {
     display: flex;
     flex-direction: column;

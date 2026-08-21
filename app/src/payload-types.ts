@@ -102,9 +102,11 @@ export interface Config {
   };
   fallbackLocale: null;
   globals: {
+    'system-settings': SystemSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
+    'system-settings': SystemSettingsSelect<false> | SystemSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -1019,6 +1021,40 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "system-settings".
+ */
+export interface SystemSetting {
+  id: number;
+  /**
+   * Runtime capabilities. Each one sits INSIDE a deploy-time env ceiling — a flag can never grant what the environment forbids.
+   */
+  features?: {
+    /**
+     * Serve the public Explore routes. Requires PUBLIC_LIBRARY_ENABLED=1 and SERVER_URL at boot — off by env means these routes 404 whatever this says.
+     */
+    publicLibraryLive?: boolean | null;
+    /**
+     * Send password resets, message pings and emailed documents. Requires SMTP_HOST at boot.
+     */
+    outboundEmail?: boolean | null;
+  };
+  /**
+   * System-written. The last change to each flag.
+   */
+  flagChanges?:
+    | {
+        flag: string;
+        enabled?: boolean | null;
+        changedBy?: (number | null) | User;
+        changedAt?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -1034,6 +1070,30 @@ export interface PayloadJobsStat {
     | null;
   updatedAt?: string | null;
   createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "system-settings_select".
+ */
+export interface SystemSettingsSelect<T extends boolean = true> {
+  features?:
+    | T
+    | {
+        publicLibraryLive?: T;
+        outboundEmail?: T;
+      };
+  flagChanges?:
+    | T
+    | {
+        flag?: T;
+        enabled?: T;
+        changedBy?: T;
+        changedAt?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

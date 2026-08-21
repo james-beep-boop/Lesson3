@@ -14,6 +14,7 @@ import { LessonPlans } from './collections/LessonPlans'
 import { LessonBundleVersions } from './collections/LessonBundleVersions'
 import { Favorites } from './collections/Favorites'
 import { EditRecovery } from './collections/EditRecovery'
+import { SystemSettings } from './globals/SystemSettings'
 import { Messages } from './collections/Messages'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
@@ -131,6 +132,10 @@ export default buildConfig({
     Messages,
     EditRecovery,
   ],
+  // The project's FIRST global (Manage → System, 2026-08-21): this installation's runtime capability
+  // flags, Site-Admin-only, sitting inside the deploy-time env ceilings rather than replacing them.
+  // See `globals/SystemSettings.ts` and `docs/DESIGN-system-panel-2026-08-21.md`.
+  globals: [SystemSettings],
   // Jobs Queue (SPEC §9/§11; readiness #1) — heavy export generation runs async + throttled.
   // Defining a task creates the `payload-jobs` collection (a schema migration). The in-process
   // `autoRun` cron picks up enqueued jobs on the long-running app container (NOT for serverless,
