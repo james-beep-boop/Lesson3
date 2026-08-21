@@ -408,13 +408,18 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({
    * `tests/unit/enforceAssignmentScope.spec.ts`, which calls this function directly; the cases that
    * need a database — including the demote cascade a permitted handover triggers — live in
    * `tests/int/subjectAdminHandover.int.spec.ts`, which writes through the Local API as the real actor
-   * so this hook runs. `tests/http/userAssignments.http.spec.ts` still asserts the PRE-amendment
-   * symmetric rule and owes the wire-level cases, so do not read a passing http suite as proof of the
-   * asymmetry.
+   * so this hook runs. `tests/http/userAssignments.http.spec.ts` covers the amended rule at the wire:
+   * the permitted route handover and its demotion cascade, the refused appointment of a target with no
+   * editing access there, the refused self-removal through the generic `PATCH`, and a transition in
+   * which the byte-identical `PATCH` is refused and then permitted once only the target's eligibility
+   * has changed — which is what attributes a 403 now that two independent rules can produce one.
    *
-   * An earlier draft of this paragraph asserted those wire cases already existed, naming three of
-   * them. They did not. A false claim about where a security rule is proven is worse than no claim,
-   * because it stops the next reader looking.
+   * ⚑ THIS PARAGRAPH HAS BEEN WRONG TWICE, IN OPPOSITE DIRECTIONS, and that is the reason it carries
+   * this note. First it claimed wire cases that did not exist, naming three of them. Then it was
+   * corrected to say the http spec "owes the wire-level cases" — and the cases landed later in the very
+   * same PR, leaving the correction stale on the day it was written (caught in review, PR #258). A
+   * false claim about where a security rule is proven is worse than no claim, because it stops the next
+   * reader looking; a pinning claim is part of the change that alters what is pinned, not a follow-up.
    */
   if (removedRows.some((r) => r.role === 'subjectAdmin')) {
     throw new Forbidden(req.t)

@@ -82,9 +82,12 @@ WHERE ua.role = 'subjectAdmin'
 ORDER BY ua.granted_at NULLS FIRST;
 ```
 
-⚑ **`granted_by_id IS NULL` means the row predates provenance — it is NOT evidence of anything.** The
-backfill was deliberately not done, because inventing a grantor is worse than admitting ignorance. Still
-informational: do not "clean up" rows on the strength of it.
+⚑ **`granted_by_id IS NULL` means provenance is UNAVAILABLE, and it is NOT evidence of anything.** Two
+different causes produce it and the column cannot tell them apart: the row predates provenance (no
+backfill was done — inventing a grantor is worse than admitting ignorance), **or** the grantor's account
+was deleted, since the foreign key is `ON DELETE set null`. `granted_at` distinguishes them in practice —
+present with a null grantor means the grant WAS recorded and the grantor is gone — but neither column
+makes the query more than informational: do not "clean up" rows on its output.
 
 **2. Public-discovery phase 2 — unchanged, never started.** Design in the 2026-08-15 block below. The
 operator's `docs/DESIGN-next-direction-2026-08-19.md` (uncommitted) proposes the next direction.
