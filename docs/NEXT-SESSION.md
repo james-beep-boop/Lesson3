@@ -25,21 +25,33 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-20) — D6a is now ASYMMETRIC, and the whole slice is UNCOMMITTED
+# ⚑ HANDOFF (2026-08-20/21) — D6a is now ASYMMETRIC; MERGED and DEPLOYED
 
 **This supersedes the 2026-08-19 handoff below, which is kept for provenance** — its three threads are
 still live and one of them changed shape, see below.
 
-## ⚑ READ THIS FIRST: nothing in this block is committed
+## Status: landed
 
-`main` is at `0542b00` (PR #257 — Roles & Access shows every administrator, in a labelled list). The
-D6a amendment described here is **complete and verified in the working tree and has not been committed,
-pushed, or deployed.** The operator's own uncommitted edits to `SPEC.md` §11 (backup destinations) and
-`docs/DESIGN-next-direction-2026-08-19.md` sit in the same tree — ⚑ **do not `git add -A`.** SPEC.md now
-carries BOTH their §11 edits and this slice's §8 amendment.
+**PR #258** (the amendment, the migration, the UI, the tests, the docs) and **PR #259** (three stale or
+overclaimed statements it left behind) both merged, and the operator deployed and verified on the real
+page: a Subject Administrator sees their subject-grade's administrator, a "Hand over to…" picker, no
+remove control, and their editing-access list intact.
 
-**It contains a MIGRATION** (`20260820_223208_add_assignment_provenance`), so deploying it follows the
-schema-change workflow below, not a plain pull. UP and DOWN were both exercised against a real database.
+⚑ **This block previously opened "nothing in this block is committed", with `main` at `0542b00` and the
+work described as sitting in the working tree.** All of that is now false, and it was left false for a
+few hours after the merge — the same stale-claim defect this session spent its length hunting, in the
+one document whose whole job is to say what is true now. If you are editing a handoff, the sentence
+about state is part of the change that alters the state.
+
+**It contained a MIGRATION** (`20260820_223208_add_assignment_provenance`) — applied on the Rock by
+`scripts/deploy.sh`, which IS the schema-change workflow: `git pull` → pre-migration encrypted snapshot
+→ build `app` **and** `migrate` → `up -d`, refusing to migrate at all if backups are unconfigured. There
+is no separate procedure to remember. UP and DOWN were both exercised against a real database first.
+
+⚑ **The operator's own uncommitted edits to `SPEC.md` §11 (backup destinations) and
+`docs/DESIGN-next-direction-2026-08-19.md` were in the tree throughout and are still uncommitted — do
+not `git add -A`.** #258 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff),
+leaving §11 untouched; verify with `git diff -- SPEC.md` before staging anything in that file.
 
 ## What this slice does
 
@@ -64,9 +76,10 @@ running dev app (a Subject Administrator is offered only the subject-grade's exi
 Administrator keeps Appoint/Replace and Remove). Every new guard was **mutation-tested** — see the
 DECISIONS entry, which is mostly about why that is now the standard.
 
-⚑ **The e2e changes have NEVER RUN.** Playwright's chromium is glibc-linked and the deps image is
-Alpine, so `test:e2e` cannot execute locally at all — it fails at browser launch, including on
-pre-existing tests. Those assertions are Rock-only and unproven; treat the first Rock run as the test.
+⚑ **The e2e changes could not run LOCALLY** — Playwright's chromium is glibc-linked and the deps image
+is Alpine, so `test:e2e` fails at browser launch here, including on pre-existing tests. Their first real
+execution was the CI gate on #258, which passed, and again on #259. So they are proven, but by CI only:
+do not expect to reproduce an e2e failure on this machine.
 
 ## Three threads open
 
@@ -97,10 +110,17 @@ only thing that would notice a class referenced with **no rule at all**.
 
 ## What to work on next
 
-- **Commit and PR this slice.** It is complete, verified where it can be verified locally, and the docs
-  are written. Nothing is half-applied.
 - **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
   appearance-testing gap.
+- **Splice in the D1 amendments if wanted.** Drafted 2026-08-21 and deliberately NOT applied to the
+  operator's in-flight design doc: access control and **fail-closed** semantics for the proposed
+  Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
+  the obvious implementation — reading it in Next middleware — is blocked because `src/middleware.ts` is
+  edge-runtime and cannot reach Postgres, and a named refusal of `mode: 'offline' | 'online'`, which
+  contradicts three decisions D1 already makes. Full draft:
+  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` — a proposal, not a decision, and the file to
+  delete rather than leave stale if D1 moves against it. ⚑ D1 already states the env-ceiling/runtime-flag
+  split correctly; it does not need restating.
 - ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
   I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
   of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
