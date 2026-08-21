@@ -179,9 +179,11 @@ USB with no app around them, so nothing carries the credit unless the document d
   `lesson3-gotenberg` **2.46 GB**, `lesson3-migrate` 1.81 GB, `lesson3-app` 338 MB; the Microsoft cab
   files are ~10–15 MB of that. A fresh install pulls gigabytes, which is exactly what pushes toward
   shipping pre-built images — which is where the licence problem appears.
-- **DECIDED 2026-08-21: ship the image FONT-LESS, fonts optional and never automatic.** Gotenberg's
-  base is Apache-2.0 plus Debian packages, so the 2.4 GB part is freely redistributable and can travel
-  on a USB stick. The Microsoft fonts become an **optional, documented, later** install whose size is
+- **DECIDED 2026-08-21: ship the image FONT-LESS, fonts optional and never automatic.** Gotenberg is
+  **MIT** (verified at `github.com/gotenberg/gotenberg`, 2026-08-21 — an earlier draft of this section
+  said Apache-2.0 from memory, which was wrong), and the rest of the image is LibreOffice, Chromium and
+  Debian packages: open-source and redistributable. **The Microsoft fonts are the only component that
+  is not**, which is precisely why removing them makes the 2.4 GB part travel on a USB stick. The Microsoft fonts become an **optional, documented, later** install whose size is
   **stated before the download** — ⚑ and never fetched automatically, because 15 MB is nothing to us
   and a real cost to a teacher buying data in single-digit megabytes.
 - ⚑ **What makes that cheap: the server's fonts affect ONLY the PDF, never the DOCX.** A DOCX merely

@@ -85,8 +85,10 @@ Microsoft-font question in a direction the licence alone did not: the fonts are 
 **2.46 GB** Gotenberg image, so bandwidth, not licensing, is what makes downloads impossible and pushes
 toward shipping images on media.
 
-The resolution (decided 2026-08-21): **ship the image font-less** — Gotenberg's base is Apache-2.0 plus
-Debian packages, so the 2.4 GB part is freely redistributable — with the Microsoft fonts as an
+The resolution (decided 2026-08-21): **ship the image font-less** — Gotenberg is **MIT** (verified at
+`github.com/gotenberg/gotenberg`; this entry first said Apache-2.0 from memory, corrected same day) and
+the rest of the image is LibreOffice, Chromium and Debian packages, so the 2.4 GB part is freely
+redistributable and the fonts are the ONLY encumbered component — with the Microsoft fonts as an
 **optional, documented, never-automatic** later install whose size is stated before the download.
 
 ⚑ **And the fact that makes this cheap: the server's fonts affect only the PDF, never the DOCX.** A DOCX
