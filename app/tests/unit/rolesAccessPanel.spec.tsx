@@ -73,16 +73,25 @@ const alan = { id: 2, name: 'A. Mwangi', email: 'alan.mwangi@school.test', updat
  * while exercising the id→roster resolution the panel actually does — the alternative, hand-writing
  * id arrays in every case, would test the fixture rather than the component.
  */
+type Person = { id: number; name: string; email: string; updatedAt: string }
+
 const access = (over: {
-  editors?: { id: number; name: string; email: string; updatedAt: string }[]
-  addable?: { id: number; name: string; email: string; updatedAt: string }[]
-  subjectAdmin?: { id: number; name: string; email: string; updatedAt: string }
+  editors?: Person[]
+  addable?: Person[]
+  /**
+   * ⚑ ONE OR SEVERAL. ≤1 administrator is POLICY (`autoDemotePriorSubjectAdmins`), not a database
+   * constraint, so `subjectAdminIds` is a list and the panel renders one — and until 2026-08-20 every
+   * case here passed a single administrator, so the plural rendering and the plural demotion warning
+   * were untested (CodeRabbit, post-merge review of PR #257).
+   */
+  subjectAdmin?: Person | Person[]
 }): RolesAccess => {
-  const people = [
-    ...(over.editors ?? []),
-    ...(over.addable ?? []),
-    ...(over.subjectAdmin ? [over.subjectAdmin] : []),
-  ]
+  const admins = over.subjectAdmin
+    ? Array.isArray(over.subjectAdmin)
+      ? over.subjectAdmin
+      : [over.subjectAdmin]
+    : []
+  const people = [...(over.editors ?? []), ...(over.addable ?? []), ...admins]
   return {
     roster: people.map(toWidgetUser),
     // Sent once for the whole payload; the panel derives each group's pool from it (D11a).
@@ -92,7 +101,7 @@ const access = (over: {
         sgId: 10,
         sgLabel: 'Biology — Grade 10',
         editorIds: (over.editors ?? []).map((u) => u.id),
-        subjectAdminIds: over.subjectAdmin ? [over.subjectAdmin.id] : [],
+        subjectAdminIds: admins.map((u) => u.id),
       },
     ],
   }
@@ -103,7 +112,7 @@ afterEach(cleanup)
 describe('Roles & Access identifies people by address, not just name', () => {
   it('shows the address beside each current editor', () => {
     const { container } = render(
-      <RolesAccessPanel access={access({ editors: [ada, alan] })} canSetSubjectAdmin={false} />,
+      <RolesAccessPanel access={access({ editors: [ada, alan] })} subjectAdminControl="handover" />,
     )
     const shown = [...container.querySelectorAll('.lp-manage__who-email')].map((e) => e.textContent)
     expect(shown).toEqual(['ada.mwangi@school.test', 'alan.mwangi@school.test'])
@@ -113,7 +122,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     // The regression this file was written for. With names alone these two options are literally
     // indistinguishable — identical text, and only the value differs.
     render(
-      <RolesAccessPanel access={access({ addable: [ada, alan] })} canSetSubjectAdmin={false} />,
+      <RolesAccessPanel access={access({ addable: [ada, alan] })} subjectAdminControl="handover" />,
     )
     const picker = screen.getByRole('combobox', {
       name: 'Grant editing access for Biology — Grade 10',
@@ -138,7 +147,9 @@ describe('Roles & Access identifies people by address, not just name', () => {
     // where the review pointed). Asserted on the confirm STRING because that is the whole control.
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     try {
-      render(<RolesAccessPanel access={access({ editors: [ada] })} canSetSubjectAdmin={false} />)
+      render(
+        <RolesAccessPanel access={access({ editors: [ada] })} subjectAdminControl="handover" />,
+      )
       screen.getByRole('button', { name: /^Remove editing access for/ }).click()
       expect(confirmSpy).toHaveBeenCalledTimes(1)
       expect(confirmSpy.mock.calls[0][0]).toContain('ada.mwangi@school.test')
@@ -154,7 +165,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     // dialog, one layer down (CodeRabbit, PR #184): putting addresses on screen did nothing for
     // people not reading the screen.
     render(
-      <RolesAccessPanel access={access({ editors: [ada, alan] })} canSetSubjectAdmin={false} />,
+      <RolesAccessPanel access={access({ editors: [ada, alan] })} subjectAdminControl="handover" />,
     )
     const names = screen
       .getAllByRole('button', { name: /^Remove editing access for/ })
@@ -172,7 +183,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
   })
 
   it('names the Add button by its subject-grade', () => {
-    render(<RolesAccessPanel access={access({ addable: [ada] })} canSetSubjectAdmin={false} />)
+    render(<RolesAccessPanel access={access({ addable: [ada] })} subjectAdminControl="handover" />)
     const add = screen.getByRole('button', {
       name: 'Grant editing access in Biology — Grade 10',
     })
@@ -184,7 +195,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     render(
       <RolesAccessPanel
         access={access({ addable: [{ id: 3, name: 'No Address', email: '', updatedAt: 'T' }] })}
-        canSetSubjectAdmin={false}
+        subjectAdminControl="handover"
       />,
     )
     const options = [...screen.getAllByRole('option')].map((o) => o.textContent)
@@ -196,7 +207,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     const { container } = render(
       <RolesAccessPanel
         access={access({ editors: [{ id: 4, name: 'Nameless', email: '', updatedAt: 'T' }] })}
-        canSetSubjectAdmin={false}
+        subjectAdminControl="handover"
       />,
     )
     expect(container.querySelector('.lp-manage__who-email')).toBeNull()
@@ -207,7 +218,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     // one sentence and one control. Asserted structurally so a later refactor cannot quietly restack
     // it — with a full curriculum most groups are empty, so this is the common shape.
     const { container } = render(
-      <RolesAccessPanel access={access({ addable: [ada] })} canSetSubjectAdmin={false} />,
+      <RolesAccessPanel access={access({ addable: [ada] })} subjectAdminControl="handover" />,
     )
     const addRow = container.querySelector('.lp-manage__editors-add')!
     expect(addRow.querySelector('.lp-manage__editors-none')?.textContent).toBe(
@@ -220,7 +231,7 @@ describe('Roles & Access identifies people by address, not just name', () => {
     // Pairs with the ≤640px restatement guarded in guideCompareVisual.spec.tsx: this asserts the
     // class is APPLIED, that one asserts the class still reaches the 44px touch target on a phone.
     const { container } = render(
-      <RolesAccessPanel access={access({ editors: [ada] })} canSetSubjectAdmin={false} />,
+      <RolesAccessPanel access={access({ editors: [ada] })} subjectAdminControl="handover" />,
     )
     const remove = screen.getByRole('button', { name: /^Remove editing access for/ })
     expect(remove.className).toContain('lp-btn')
@@ -229,29 +240,132 @@ describe('Roles & Access identifies people by address, not just name', () => {
   })
 })
 
+/** A third person, grantable but holding NO role in this subject-grade — the handover exclusion. */
+const carol = { id: 3, name: 'C. Okoro', email: 'carol.okoro@school.test', updatedAt: 'T3' }
+
 /**
- * ⚑ D6a's PRESENTATION HALF. The server rule is `enforceAssignmentScope` plus the route's own
- * `assertSiteAdmin`, both pinned in `tests/http`. What these assert is the other requirement the
- * decision makes explicitly: a Subject Administrator must SEE who administers their subject-grade —
- * useful, scoped information they already hold — with no control inviting them to change it. A guard
- * that refuses the write while the UI still offers the button produces an administrator who clicks,
- * sees an error, and concludes the app is broken.
+ * ⚑ D6a's PRESENTATION HALF, AS AMENDED 2026-08-19. The server rule is `enforceAssignmentScope` plus
+ * the route's own `assertSiteAdmin` for the removal half; it is pinned in
+ * `tests/unit/enforceAssignmentScope.spec.ts` and `tests/int/subjectAdminHandover.int.spec.ts`. What
+ * these assert is the other requirement the decision makes explicitly, and it now cuts BOTH ways:
+ *
+ *   - a Subject Administrator must SEE who administers their subject-grade — scoped information they
+ *     already hold — and gets exactly ONE control over it, a handover to an existing editor;
+ *   - no control may invite a write the server refuses. A guard that refuses while the UI still offers
+ *     the button produces an administrator who clicks, sees an error, and concludes the app is broken.
+ *
+ * ⚑ THE SECOND HALF IS WHY THE PICKER'S POOL IS TESTED, not just its presence. The server permits a
+ * handover only to somebody who ALREADY holds editing access here, so a picker listing every grantable
+ * teacher would offer a majority of options that 403 — the same defect as offering no control at all,
+ * arrived at from the other direction.
  */
-describe('Subject Administrator: shown to everyone, changeable only by a Site Admin', () => {
-  it('shows the current administrator read-only when the viewer may not set it', () => {
-    render(<RolesAccessPanel access={access({ subjectAdmin: ada })} canSetSubjectAdmin={false} />)
+describe('Subject Administrator: shown to everyone, handed over by its holder, removed by a Site Admin', () => {
+  it('shows the current administrator with no control that would REMOVE them', () => {
+    render(
+      <RolesAccessPanel access={access({ subjectAdmin: ada })} subjectAdminControl="handover" />,
+    )
     expect(screen.getByText('Subject Administrator')).toBeTruthy()
     expect(screen.getByText('ada.mwangi@school.test')).toBeTruthy()
-    // No picker and no remove control — the two things D6a names.
+    // Vacating stays Site-Admin-only, so neither the Site Admin's appoint/replace picker nor any
+    // remove control appears. Asserted as ABSENCE, not disabled-ness: a disabled control still invites
+    // the click.
     expect(screen.queryByRole('combobox', { name: /Appoint the Subject Administrator/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /as Subject Administrator/ })).toBeNull()
+  })
+
+  it('offers a handover ONLY to the subject-grade\u2019s existing editors', () => {
+    // ⚑ THE OPERATOR'S NARROWING, on the surface where the mistake is actually made. `carol` is
+    // grantable — she is in `grantableIds` and the Site Admin's own picker would list her — but she
+    // holds no role here, so `enforceAssignmentScope` would refuse her appointment. `alan` has editing
+    // access here, so he is the one legitimate successor.
+    render(
+      <RolesAccessPanel
+        access={access({ subjectAdmin: ada, editors: [alan], addable: [carol] })}
+        subjectAdminControl="handover"
+      />,
+    )
+    const picker = screen.getByRole('combobox', {
+      name: 'Hand over administration of Biology — Grade 10',
+    })
+    const selectable = [...within(picker).getAllByRole('option')].map((o) => o.textContent).slice(1)
+    expect(selectable).toEqual([personLabel(toWidgetUser(alan))])
+    // Stated as its own assertion because it is the property, not a consequence of the list above:
+    // a grantable teacher with no editing access here must not be offered.
+    expect(selectable.join(' ')).not.toContain('carol.okoro@school.test')
+    // ⚑ AND THE SITE ADMIN'S PICKER *DOES* OFFER HER, from the same `access` object. Without this the
+    // test would also pass if the pool had come out empty for some unrelated reason — the exclusion has
+    // to be shown to be specific to the handover.
+    cleanup()
+    render(
+      <RolesAccessPanel
+        access={access({ subjectAdmin: ada, editors: [alan], addable: [carol] })}
+        subjectAdminControl="full"
+      />,
+    )
+    const full = screen.getByRole('combobox', {
+      name: 'Appoint the Subject Administrator of Biology — Grade 10',
+    })
+    expect([...within(full).getAllByRole('option')].map((o) => o.textContent).join(' ')).toContain(
+      'carol.okoro@school.test',
+    )
+  })
+
+  it('names the self-demotion AND the irreversibility in the handover confirmation', () => {
+    // ⚑ THE PART THE ACTOR CANNOT DISCOVER ANY OTHER WAY. Appointing a successor demotes every current
+    // administrator through `autoDemotePriorSubjectAdmins` — including the person clicking — and only a
+    // Site Administrator can appoint them back. A dialog reading "Make X the Subject Administrator?"
+    // would be true and would omit both halves of what the click costs them.
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(
+        <RolesAccessPanel
+          access={access({ subjectAdmin: ada, editors: [alan] })}
+          subjectAdminControl="handover"
+        />,
+      )
+      const picker = screen.getByRole('combobox', {
+        name: 'Hand over administration of Biology — Grade 10',
+      })
+      ;(picker as HTMLSelectElement).value = '2'
+      picker.dispatchEvent(new Event('change', { bubbles: true }))
+      screen.getByRole('button', { name: /^Hand over administration of/ }).click()
+      const message = confirmSpy.mock.calls[0]?.[0] ?? ''
+      expect(message).toContain('You are demoted to editing access')
+      expect(message).toContain('Only a Site Administrator can give it back')
+      // `personLabel`, as in every other dialog in this file: the successor is identified by address,
+      // because two people can share a display name and this is an authorization decision.
+      expect(message).toContain('alan.mwangi@school.test')
+      // And the write did NOT happen — cancelling means cancelling.
+      expect(confirmSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      confirmSpy.mockRestore()
+    }
+  })
+
+  it('explains how to hand over when the subject-grade has no editors yet', () => {
+    // The empty case is the one an omission would hide: no eligible successor means no picker, and a
+    // panel showing two lists and no control is the "app is broken" reading arrived at by silence
+    // instead of by a refused click. `carol` is grantable and deliberately not offered.
+    render(
+      <RolesAccessPanel
+        access={access({ subjectAdmin: ada, addable: [carol] })}
+        subjectAdminControl="handover"
+      />,
+    )
+    expect(
+      screen.queryByRole('combobox', { name: /Hand over administration of/ }),
+      'nobody here holds editing access, so there is no eligible successor',
+    ).toBeNull()
+    expect(
+      screen.getByText('To hand over administration, first grant someone editing access here.'),
+    ).toBeTruthy()
   })
 
   it('offers the picker and a remove control to a Site Admin', () => {
     render(
       <RolesAccessPanel
         access={access({ subjectAdmin: ada, addable: [alan] })}
-        canSetSubjectAdmin
+        subjectAdminControl="full"
       />,
     )
     expect(
@@ -264,8 +378,81 @@ describe('Subject Administrator: shown to everyone, changeable only by a Site Ad
     ).toBeTruthy()
   })
 
+  /**
+   * ⚑ THE PLURAL SHAPE, which the data can hold and the policy does not: no unique index enforces ≤1,
+   * so legacy rows leave two holders and the projection now reports both rather than dropping one
+   * silently. Three things only appear in that state — the count in the label, two rows, and a
+   * demotion warning naming EVERY incumbent — and none of them had a test.
+   */
+  it('renders every administrator, counts them, and names them ALL in the demotion warning', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(
+        <RolesAccessPanel
+          access={access({ subjectAdmin: [ada, alan], addable: [carol] })}
+          subjectAdminControl="full"
+        />,
+      )
+      // The count appears only in the plural case — "Subject Administrator (1)" reads as a system
+      // talking about itself, so the singular label carries no number.
+      expect(screen.getByText('Subject Administrators (2)')).toBeTruthy()
+      expect(
+        screen.getAllByRole('button', { name: /^Remove .* as Subject Administrator of/ }),
+      ).toHaveLength(2)
+
+      const picker = screen.getByRole('combobox', {
+        name: 'Appoint the Subject Administrator of Biology — Grade 10',
+      })
+      ;(picker as HTMLSelectElement).value = String(carol.id)
+      picker.dispatchEvent(new Event('change', { bubbles: true }))
+      screen.getByRole('button', { name: /^Appoint the Subject Administrator/ }).click()
+
+      // ⚑ EVERY incumbent, not the first. The cascade demotes ALL other holders, so naming one would
+      // understate the click in exactly the case where the warning matters most — and `are`, not `is`.
+      const message = confirmSpy.mock.calls[0]?.[0] ?? ''
+      expect(message).toContain('ada.mwangi@school.test')
+      expect(message).toContain('alan.mwangi@school.test')
+      expect(message).toContain('are demoted to editing access')
+    } finally {
+      confirmSpy.mockRestore()
+    }
+  })
+
+  /**
+   * The removal dialog's consequence is CONDITIONAL on who is left, which it was not until
+   * 2026-08-20: it always promised "no administrator until you appoint one", which is false when a
+   * second holder remains — and it is the half of the sentence the person is deciding on.
+   */
+  it('promises no-administrator only when the removal actually empties the list', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      render(
+        <RolesAccessPanel
+          access={access({ subjectAdmin: [ada, alan] })}
+          subjectAdminControl="full"
+        />,
+      )
+      screen.getAllByRole('button', { name: /^Remove .* as Subject Administrator of/ })[0]!.click()
+      const twoLeft = confirmSpy.mock.calls[0]?.[0] ?? ''
+      expect(twoLeft).not.toContain('no administrator')
+      // Says who is actually left, by address — the other A. Mwangi.
+      expect(twoLeft).toContain('alan.mwangi@school.test')
+      expect(twoLeft).toContain('remains its Subject Administrator')
+
+      cleanup()
+      confirmSpy.mockClear()
+      render(<RolesAccessPanel access={access({ subjectAdmin: ada })} subjectAdminControl="full" />)
+      screen.getByRole('button', { name: /^Remove .* as Subject Administrator of/ }).click()
+      // The sole-holder case keeps the original warning — this is the pairing that proves the
+      // conditional is a conditional and not a rename.
+      expect(confirmSpy.mock.calls[0]?.[0] ?? '').toContain('It will have no administrator')
+    } finally {
+      confirmSpy.mockRestore()
+    }
+  })
+
   it('says so plainly when a subject-grade has no administrator', () => {
-    render(<RolesAccessPanel access={access({})} canSetSubjectAdmin />)
+    render(<RolesAccessPanel access={access({})} subjectAdminControl="full" />)
     expect(screen.getByText('No administrator.')).toBeTruthy()
   })
 
@@ -280,7 +467,7 @@ describe('Subject Administrator: shown to everyone, changeable only by a Site Ad
       render(
         <RolesAccessPanel
           access={access({ subjectAdmin: ada, addable: [alan] })}
-          canSetSubjectAdmin
+          subjectAdminControl="full"
         />,
       )
       const picker = screen.getByRole('combobox', {

@@ -382,6 +382,8 @@ export interface User {
     | {
         subjectGrade: number | SubjectGrade;
         role: 'subjectAdmin' | 'editor';
+        grantedBy?: (number | null) | User;
+        grantedAt?: string | null;
         id?: string | null;
       }[]
     | null;
@@ -879,6 +881,8 @@ export interface UsersSelect<T extends boolean = true> {
     | {
         subjectGrade?: T;
         role?: T;
+        grantedBy?: T;
+        grantedAt?: T;
         id?: T;
       };
   updatedAt?: T;

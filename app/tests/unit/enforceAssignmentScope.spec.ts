@@ -40,27 +40,65 @@ const call = (args: {
 const scopedAdmin = { id: 7, assignments: [{ subjectGrade: 1, role: 'subjectAdmin' }] }
 const siteAdmin = { id: 1, roles: ['siteAdmin'] }
 
-describe('enforceAssignmentScope — D6a: only a Site Admin may grant or revoke subjectAdmin', () => {
-  it('refuses a Subject Administrator ADDING a subjectAdmin row in their own scope', () => {
-    expect(() =>
-      call({ actor: scopedAdmin, before: [], after: [{ subjectGrade: 1, role: 'subjectAdmin' }] }),
-    ).toThrow()
-  })
-
-  it('refuses a Subject Administrator REMOVING a subjectAdmin row in their own scope', () => {
-    // Demotion is the same decision as promotion. It is a separate case because it reaches the guard
-    // through the `before`-side of the diff, not the `after`-side.
-    expect(() =>
-      call({ actor: scopedAdmin, before: [{ subjectGrade: 1, role: 'subjectAdmin' }], after: [] }),
-    ).toThrow()
-  })
-
-  it('refuses a Subject Administrator CHANGING a row between the two roles', () => {
+describe('enforceAssignmentScope — D6a amended: hand administration over, never take it away', () => {
+  /**
+   * ⚑ THE RULE CHANGED ON 2026-08-19 AND THIS BLOCK CHANGED WITH IT. It previously asserted that a
+   * Subject Administrator could neither add nor remove a `subjectAdmin` row. Addition is now permitted
+   * as a HANDOVER, because ≤1 per subject-grade means appointing a successor fires
+   * `autoDemotePriorSubjectAdmins` and costs the actor their own role in the same write — append-only
+   * in form, self-demoting in effect.
+   *
+   * ⚑ The case that used to read "refuses CHANGING a row between the two roles" is now the PRIMARY
+   * PERMITTED case, and it failed loudly when the guard was split — which is what a unit pin is for.
+   */
+  it('PERMITS handing over to someone who already holds editing access here', () => {
     expect(() =>
       call({
         actor: scopedAdmin,
         before: [{ subjectGrade: 1, role: 'editor' }],
         after: [{ subjectGrade: 1, role: 'subjectAdmin' }],
+      }),
+    ).not.toThrow()
+  })
+
+  it('refuses appointing someone with NO editing access in that subject-grade', () => {
+    // The operator's blast-radius narrowing: you may only hand the role to someone already trusted
+    // with this subject-grade's content. Server-side, because the picker is not a boundary.
+    expect(() =>
+      call({ actor: scopedAdmin, before: [], after: [{ subjectGrade: 1, role: 'subjectAdmin' }] }),
+    ).toThrow()
+  })
+
+  it('refuses granting editing access and administration in ONE write', () => {
+    // Eligibility is read from `before`, not `after`, so a single PATCH cannot bootstrap both. Two
+    // deliberate steps is the point — this is the mis-click the narrowing exists to prevent.
+    expect(() =>
+      call({
+        actor: scopedAdmin,
+        before: [],
+        after: [
+          { subjectGrade: 1, role: 'editor' },
+          { subjectGrade: 1, role: 'subjectAdmin' },
+        ],
+      }),
+    ).toThrow()
+  })
+
+  it('refuses a Subject Administrator REMOVING a subjectAdmin row in their own scope', () => {
+    // Unchanged by the amendment, and the half that keeps it safe: nobody may eject an administrator,
+    // and nobody may resign by deleting their own row. It reaches the guard through the `before`-side
+    // of the diff, which is exactly why added and removed rows are now named separately.
+    expect(() =>
+      call({ actor: scopedAdmin, before: [{ subjectGrade: 1, role: 'subjectAdmin' }], after: [] }),
+    ).toThrow()
+  })
+
+  it('refuses a handover OUTSIDE the actor’s scope, even to an existing editor there', () => {
+    expect(() =>
+      call({
+        actor: scopedAdmin,
+        before: [{ subjectGrade: 2, role: 'editor' }],
+        after: [{ subjectGrade: 2, role: 'subjectAdmin' }],
       }),
     ).toThrow()
   })

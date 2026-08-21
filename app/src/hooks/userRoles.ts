@@ -298,7 +298,12 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
  * unauthenticated REST update is already denied at collection access, so it never reaches
  * here) — hence `!actor` is treated as a trusted system operation.
  */
-export const guardPasswordChange: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) => {
+export const guardPasswordChange: CollectionBeforeChangeHook = ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
   if (operation !== 'update' || !data?.password) return data
   const actor = (req.user as User) ?? null
   if (!actor || isSiteAdmin(actor) || actor.id === originalDoc?.id) return data
@@ -349,45 +354,83 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({
   const beforeSigs = new Set(before.map(rowSignature))
   const afterSigs = new Set(after.map(rowSignature))
 
-  // Collect the touched ROWS, not just their subject-grades — the D6a guard below has to see the
-  // row's `role`, which the previous version discarded here.
-  const touchedRows: Assignment[] = [
-    ...after.filter((a) => !beforeSigs.has(rowSignature(a))),
-    ...before.filter((b) => !afterSigs.has(rowSignature(b))),
-  ]
+  // Collect the touched ROWS, not just their subject-grades — the D6a guards below have to see each
+  // row's `role`, which the version before 2026-08-19 discarded here.
+  //
+  // ⚑ ADDED AND REMOVED ARE NAMED SEPARATELY (2026-08-19). They were computed separately all along and
+  // then concatenated into a `touchedRows`, because the rule was the same in both directions. It no
+  // longer is: an addition may be permitted where the matching removal is not, so the two sets have to
+  // stay distinguishable. The concatenation is gone with it — the only thing that still wants both
+  // directions at once is the scope check, which is direction-agnostic and wants subject-grades, not
+  // rows, so a third named row-set only left a reader comparing three bindings to find the live one.
+  const addedRows: Assignment[] = after.filter((a) => !beforeSigs.has(rowSignature(a)))
+  const removedRows: Assignment[] = before.filter((b) => !afterSigs.has(rowSignature(b)))
   const touchedSubjectGradeIds = new Set<number | undefined>(
-    touchedRows.map((r) => toId(r.subjectGrade)),
+    [...addedRows, ...removedRows].map((r) => toId(r.subjectGrade)),
   )
 
-  if (touchedSubjectGradeIds.size > 0 && (originalDoc as User | undefined)?.roles?.includes('siteAdmin')) {
+  if (
+    touchedSubjectGradeIds.size > 0 &&
+    (originalDoc as User | undefined)?.roles?.includes('siteAdmin')
+  ) {
     throw new Forbidden(req.t)
   }
 
   /**
-   * ⚑ D6a — ONLY A SITE ADMINISTRATOR MAY GRANT OR REVOKE THE SUBJECT ADMINISTRATOR ROLE.
-   * (Operator decision 2026-08-16; SPEC §8.)
+   * ⚑ D6a, AMENDED 2026-08-19: A SUBJECT ADMINISTRATOR MAY HAND ADMINISTRATION OVER, BUT NOT TAKE IT
+   * AWAY. (Operator decisions 2026-08-16 and 2026-08-19; SPEC §8.)
    *
-   * ⚑ THIS IS A BEHAVIOUR CHANGE TO SHIPPED CODE, and hiding the picker is explicitly NOT the fix.
-   * Until now this hook gated only WHICH subject-grade a touched row belonged to and never inspected
-   * the row's `role`, so a Subject Administrator could write a `subjectAdmin` row inside a grade they
-   * administer — appointing their own successor and, through `autoDemotePriorSubjectAdmins`, demoting
-   * themselves to editing access in the same click. "≤1 per subject-grade" plus "the incumbent picks
-   * their replacement" is an unusual governance property for a role that also controls marking
-   * versions Official.
+   * The original rule was symmetric — neither grant nor revoke — because in this data model those are
+   * the same act: ≤1 holder per subject-grade means appointing a successor fires
+   * `autoDemotePriorSubjectAdmins` and demotes the incumbent, so "grant" performed a removal. The
+   * amendment keeps that mechanic and splits the permission around it:
    *
-   * ⚑ BOTH DIRECTIONS, and that falls out of `rowSignature` including the role: a promotion appears
-   * as an added `subjectAdmin` row, a demotion as a removed one, and a role CHANGE as both. Checking
-   * `touchedRows` therefore catches grant, revoke and swap without three separate rules.
+   *   - **Removing** a `subjectAdmin` row stays Site-Admin-only. Nobody may eject an administrator,
+   *     and nobody may resign by deleting their own row.
+   *   - **Adding** one is permitted inside a subject-grade the actor administers — which, given the
+   *     demote cascade, is a HANDOVER: the actor loses the role in the same transaction. The action is
+   *     append-only in form and self-demoting in effect, so it cannot be used to accumulate power.
    *
-   * ⚑ FORWARD-ONLY. A deployed installation may already hold `subjectAdmin` rows written by a Subject
-   * Administrator, because the old code permitted it. This changes what is permitted from now on; it
-   * does not retroactively invalidate those grants and must not try to.
+   * ⚑ THE TARGET MUST ALREADY HOLD EDITING ACCESS HERE, enforced below and not merely in the picker.
+   * The operator's decision was to narrow the blast radius of a mis-click to people already trusted
+   * with this subject-grade's content — and the panel's own history says why that belongs on the
+   * server: "hiding the picker is explicitly NOT the fix", because the generic `PATCH /api/users/:id`
+   * reaches this hook too. A UI-only narrowing would have been decorative.
    *
-   * The wire-level proof that this is a server rule and not a UI one lives in `tests/http` — a
-   * Subject Admin's direct `PATCH /api/users/:id` carrying a `subjectAdmin` row is refused, while
-   * their editing-access grants still succeed.
+   * ⚑ WHAT THIS DOES NOT CHANGE: a Site Administrator remains the only route back. A handover cannot
+   * be undone by the person who made it — which is why `grantedBy`/`grantedAt` now exist, so the
+   * question "who did this, and when" has an answer in the data rather than in someone's memory.
+   *
+   * ⚑ FORWARD-ONLY, still. A deployed installation may hold `subjectAdmin` rows written under either
+   * previous rule. This changes what is permitted from now on and does not revisit them.
+   *
+   * ⚑ WHERE THE AMENDED RULE IS ACTUALLY PINNED (2026-08-20). The branches live in
+   * `tests/unit/enforceAssignmentScope.spec.ts`, which calls this function directly; the cases that
+   * need a database — including the demote cascade a permitted handover triggers — live in
+   * `tests/int/subjectAdminHandover.int.spec.ts`, which writes through the Local API as the real actor
+   * so this hook runs. `tests/http/userAssignments.http.spec.ts` still asserts the PRE-amendment
+   * symmetric rule and owes the wire-level cases, so do not read a passing http suite as proof of the
+   * asymmetry.
+   *
+   * An earlier draft of this paragraph asserted those wire cases already existed, naming three of
+   * them. They did not. A false claim about where a security rule is proven is worse than no claim,
+   * because it stops the next reader looking.
    */
-  if (touchedRows.some((r) => r.role === 'subjectAdmin')) {
+  if (removedRows.some((r) => r.role === 'subjectAdmin')) {
+    throw new Forbidden(req.t)
+  }
+
+  // `before`, not `after`: the target's rows as they stood BEFORE this write. Reading `after` would
+  // let one PATCH grant editing access and administration together, which is the mis-click this
+  // narrowing exists to prevent — two deliberate steps instead.
+  //
+  // ⚑ NOT A UNIVERSAL PRECONDITION ON `subjectAdmin` ROWS, though it is written as one: it is only ever
+  // reached for a subject-grade the actor administers, because the scope loop below refuses everything
+  // else. Eligibility of the TARGET here; authority of the ACTOR there.
+  const lacksEditingAccessHere = (row: Assignment) =>
+    !before.some((b) => b.role === 'editor' && toId(b.subjectGrade) === toId(row.subjectGrade))
+
+  if (addedRows.some((r) => r.role === 'subjectAdmin' && lacksEditingAccessHere(r))) {
     throw new Forbidden(req.t)
   }
 
@@ -396,6 +439,64 @@ export const enforceAssignmentScope: CollectionBeforeChangeHook = ({
       throw new Forbidden(req.t)
     }
   }
+  return data
+}
+
+/**
+ * Stamp `grantedBy` / `grantedAt` onto assignment rows that are NEW in this write (operator decision
+ * 2026-08-19).
+ *
+ * ⚑ A HOOK, NOT THE TWO ENDPOINTS. `assign-editor` and `assign-subject-admin` are not the only ways a
+ * row can appear — the generic `PATCH /api/users/:id` writes them too, which is exactly why the D6a
+ * guard lives in a hook rather than on the routes. Provenance stamped at the routes would be absent
+ * precisely on the path someone curious would reach for, and absent provenance is indistinguishable
+ * from a legacy row.
+ *
+ * ⚑ NEW rows only, by `rowSignature`. An unchanged row keeps the provenance it already has; restamping
+ * on every save would make `grantedAt` mean "the last time anything on this user was saved", which is
+ * not a fact worth auditing. A role CHANGE is a removal plus an addition under that signature, so a
+ * promotion or demotion is correctly recorded as a new grant.
+ *
+ * ⚑ IT ALSO STAMPS THE DEMOTE CASCADE, deliberately. `autoDemotePriorSubjectAdmins` re-enters here
+ * carrying the original actor (`overrideAccess` bypasses access control, not hooks), so the
+ * editing-access row it leaves behind records who caused the demotion — "this access came from being
+ * replaced as administrator by X", which is the most useful answer available. Skipping system writes
+ * would leave the one row a handover creates as the only unexplained one.
+ */
+export const stampAssignmentProvenance: CollectionBeforeChangeHook = ({
+  data,
+  originalDoc,
+  req,
+}) => {
+  if (!data || !Array.isArray(data.assignments)) return data
+  const actorId = (req.user as User | undefined)?.id
+  if (actorId == null) return data
+
+  const before = new Map<string, Assignment>(
+    ((originalDoc?.assignments ?? []) as Assignment[]).map((a) => [rowSignature(a), a]),
+  )
+  const now = new Date().toISOString()
+
+  data.assignments = (data.assignments as Assignment[]).map((row) => {
+    const existing = before.get(rowSignature(row))
+    // Carry stored provenance forward on an unchanged row: the client cannot send these fields (field
+    // access is `() => false`), so an unrelated save of the same user would otherwise blank them.
+    if (existing) {
+      return {
+        ...row,
+        // `maxDepth: 0` on the field means `originalDoc` carries a bare id here, never a populated
+        // user — but normalise anyway rather than depend on a number in another file. Writing an object
+        // back into a relationship column fails deep in the adapter, and it would fail on the save
+        // AFTER whoever relaxed that depth, nowhere near the change that caused it.
+        grantedBy:
+          typeof existing.grantedBy === 'object' && existing.grantedBy !== null
+            ? existing.grantedBy.id
+            : (existing.grantedBy ?? null),
+        grantedAt: existing.grantedAt ?? null,
+      }
+    }
+    return { ...row, grantedBy: actorId, grantedAt: now }
+  })
   return data
 }
 

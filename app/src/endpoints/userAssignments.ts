@@ -26,10 +26,15 @@
  * legitimately call — one validation slip from exactly what D6a forbids. The duplication this avoids
  * (locking, freshness, transaction handling) is shared; the part that must not be shared is not.
  *
- * ⚑ SUBJECT-ADMINISTRATOR ROUTES ARE SITE-ADMIN-ONLY (D6a, operator decision 2026-08-16), asserted
- * here AND enforced independently in `enforceAssignmentScope` for every other write path. Two gates
- * on purpose: this one gives a caller an honest 403 on the route they used, the hook is the one that
- * still holds when someone bypasses the route entirely with a generic PATCH.
+ * ⚑ SUBJECT-ADMINISTRATOR ROUTES ARE ASYMMETRIC (D6a, operator decision 2026-08-16, AMENDED
+ * 2026-08-19 — this paragraph said "SITE-ADMIN-ONLY" until then, and the amendment left it stating the
+ * opposite of the code below it). `unassign-subject-admin` is Site-Admin-only and refuses before the
+ * body is read. `assign-subject-admin` is a HANDOVER, which a Subject Administrator of that
+ * subject-grade may perform, so this file asks only whether the caller administers it; the full rule —
+ * the target must already hold editing access there — belongs to `enforceAssignmentScope`, which every
+ * write path passes through, including the generic PATCH that bypasses these routes entirely. Two
+ * gates on purpose: the route gives an honest 403 on the route the caller used, the hook is the
+ * authority.
  *
  * AUTHORIZATION is otherwise unchanged and stays with the existing machinery: the update runs with
  * `overrideAccess: false` as the caller, so `usersCollectionUpdate` + `assignmentsUpdateField` gate
@@ -54,7 +59,7 @@ import {
   requireExpectedUpdatedAt,
   MAX_CONTROL_BODY_BYTES,
 } from './respond'
-import { toId, type Assignment } from '../access'
+import { isSubjectAdminFor, toId, type Assignment } from '../access'
 import { assignmentAction, type AssignmentRole } from '../lib/assignmentRoles'
 import type { User } from '../payload-types'
 
@@ -93,19 +98,25 @@ export async function readAssignmentBody(
 /** The assignment roles these endpoints grant, and the route slug each one uses. */
 const ROLE_RULES = {
   editor: {
-    siteAdminOnly: false,
+    unassignSiteAdminOnly: false,
     already: 'This user already has editing access for that subject grade.',
     missing: 'This user does not have editing access for that subject grade.',
   },
   subjectAdmin: {
-    // D6a, asserted before the body is even read.
-    siteAdminOnly: true,
+    // ⚑ D6a AMENDED 2026-08-19: the flag is NAMED for the half it gates, because this is now
+    // asymmetric and `siteAdminOnly` — what it used to be called — read as the whole posture while
+    // gating half of it. Vacating an administrator stays Site-Admin-only and is knowable before the
+    // body is read. APPOINTING is a handover, permitted to a Subject Administrator of that
+    // subject-grade, and it deliberately does NOT live in this table: eligibility depends on
+    // `subjectGradeId`, which is not known where the table is read, so it is checked once the body has
+    // been parsed (below) and enforced fully by `enforceAssignmentScope`.
+    unassignSiteAdminOnly: true,
     already: 'This user is already the Subject Administrator of that subject grade.',
     missing: 'This user is not the Subject Administrator of that subject grade.',
   },
 } as const satisfies Record<
   AssignmentRole,
-  { siteAdminOnly: boolean; already: string; missing: string }
+  { unassignSiteAdminOnly: boolean; already: string; missing: string }
 >
 type GrantableRole = AssignmentRole
 
@@ -163,13 +174,36 @@ function assignmentEndpoint(mode: 'assign' | 'unassign', role: GrantableRole): E
     method: 'post',
     handler: async (req: PayloadRequest): Promise<Response> => {
       if (!req.user) throw new APIError('Unauthorized', 401)
-      // ⚑ D6a. Before the body is even read: appointing or vacating a Subject Administrator is
-      // Site-Admin-only, and a Subject Administrator calling this route gets a 403 rather than a
-      // silent no-op or a confusing failure deeper in the stack.
-      if (ROLE_RULES[role].siteAdminOnly) assertSiteAdmin(req)
+      // ⚑ D6a, AMENDED 2026-08-19. VACATING an administrator remains Site-Admin-only and is refused
+      // before the body is even read — a Subject Administrator calling it gets a 403 on the route they
+      // used rather than a confusing failure deeper in the stack.
+      //
+      // APPOINTING is now a handover a Subject Administrator may perform, so it cannot be settled here:
+      // eligibility depends on the subject-grade in the body. It is gated just below, and the full rule
+      // (the target must already hold editing access there) belongs to `enforceAssignmentScope`, which
+      // every write path passes through. Two gates, as before — this one coarse and honest, the hook
+      // precise.
+      if (ROLE_RULES[role].unassignSiteAdminOnly && mode === 'unassign') assertSiteAdmin(req)
       const targetId = Number(req.routeParams?.id)
       if (!Number.isFinite(targetId)) throw new APIError('Missing user id', 400)
       const { subjectGradeId, expectedUpdatedAt } = await readAssignmentBody(req)
+
+      // The appointment half of the amended rule, now that `subjectGradeId` is known: a Site
+      // Administrator, or an administrator OF THIS subject-grade handing it over. Deliberately coarser
+      // than the hook — it does not re-derive "the target already has editing access here", because two
+      // copies of one authorization rule is how they drift. The hook is the authority; this exists so a
+      // caller with no business here is turned away with a 403 on the route they called, rather than
+      // reaching the lock and freshness check and being told 409 that their consent token is stale.
+      //
+      // ⚑ ONE PREDICATE, NOT TWO. `isSubjectAdminFor` is itself "a Site Administrator, OR holds a
+      // `subjectAdmin` row here" (`src/access/index.ts`), so the outer `!isSiteAdmin(...)` this had
+      // until 2026-08-20 restated half of the helper's own rule and could not change the outcome —
+      // exactly the drift the sentence above warns about, committed three lines below it.
+      if (role === 'subjectAdmin' && mode === 'assign') {
+        if (!isSubjectAdminFor(req.user as User, subjectGradeId)) {
+          throw new APIError('Forbidden', 403)
+        }
+      }
 
       const shouldCommit = await initTransaction(req)
       try {

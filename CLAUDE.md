@@ -46,11 +46,17 @@ This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 
 
 - **Site Administrator** (global) — everything.
 - **Subject Administrator** (per subject-grade, ≤1) — structural edits, admin-only fields, mark
-  official, and grant/revoke **editing access** within that subject-grade. ⚑ **Not** the Subject
-  Administrator role itself: only a Site Administrator may appoint or vacate one (operator decision
-  2026-08-16, "D6a"; SPEC §8). That is enforced server-side in `enforceAssignmentScope` — covering the
-  generic `PATCH /api/users/:id`, not only the dedicated routes — and is forward-only: pre-existing
-  grants written under the old behaviour stay valid.
+  official, and grant/revoke **editing access** within that subject-grade. ⚑ **D6a IS ASYMMETRIC**
+  (operator decisions 2026-08-16 and **amended 2026-08-19**; SPEC §8 is canonical): they **may hand
+  administration over** to somebody who *already* holds editing access in that subject-grade — which,
+  given ≤1 and the auto-demote cascade, demotes the actor in the same transaction — and they **may not
+  remove** an administrator, their own row included. Vacating is Site-Admin-only, and a Site
+  Administrator is the only route back. Enforced server-side in `enforceAssignmentScope`, covering the
+  generic `PATCH /api/users/:id` and not only the dedicated routes; forward-only, so grants written
+  under either previous behaviour stay valid. ⚑ **Do not "restore" the symmetric rule** on the strength
+  of an older comment — the reasoning for the split is in SPEC §8 and DECISIONS 2026-08-20.
+  Assignment rows carry system-written `grantedBy`/`grantedAt` so an irreversible handover has an
+  answer in the data; a null means *unknown*, never *nobody*.
 - **Teacher** (default) — view/export. **May additionally hold editing access** for one or more
   subject-grades, which permits editing prose field values there.
 

@@ -547,7 +547,24 @@ export default async function AdminDashboard({
                   Who administers each subject grade and who may edit its lesson plans. Granting
                   editing access lets a teacher edit; removing it returns them to view-only.
                 </p>
-                <RolesAccessPanel access={rolesAccess} canSetSubjectAdmin={siteAdmin} />
+                {/* ⚑ `'handover'` FOR EVERY NON-SITE-ADMIN WHO REACHES THIS LINE, and that is sound
+                    only because of an invariant in another file: `buildRolesAccess` returns NOTHING to
+                    a caller who administers no subject-grade (rule 1) and otherwise only the
+                    subject-grades they administer (rule 2). So a non-Site-Admin rendering this panel
+                    administers every group in it, and "may hand this one over" needs no per-group
+                    check. `canSeeRolesAccess` is the same condition one level up.
+
+                    That is a load-bearing dependency on a projection this component does not own, so
+                    it is pinned rather than trusted: `tests/int/editorGroupsAccess.int.spec.ts` asserts
+                    both rules against a real database. If either ever widened — a panel shown to a
+                    teacher with editing access, say — this line would start offering handover controls
+                    for subject-grades the viewer merely edits, and the server would refuse every one
+                    of them (`enforceAssignmentScope`'s scope loop), so the failure is a broken-looking
+                    UI rather than an authorization hole. */}
+                <RolesAccessPanel
+                  access={rolesAccess}
+                  subjectAdminControl={siteAdmin ? 'full' : 'handover'}
+                />
               </AccordionPanel>
             )}
           </AccordionPanel>

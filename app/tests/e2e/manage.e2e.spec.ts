@@ -1010,14 +1010,19 @@ test.describe('Manage page', () => {
    * PR 4 / D6a — who may change a Subject Administrator, and what everyone else is shown.
    *
    * ⚑ THE SERVER TEST IS NOT THIS ONE. `tests/http/userAssignments.http.spec.ts` proves the boundary
-   * holds: a Subject Administrator's direct PATCH carrying a `subjectAdmin` row is refused. What THIS
-   * proves is the other half the decision asks for — that nobody is invited to cross it. A guard that
-   * refuses the write while the UI still offers the control produces an administrator who clicks,
-   * sees an error, and concludes the app is broken; that is the same "explain, don't just remove"
-   * principle D12 applies to phone editing.
+   * holds at the wire. What THIS proves is the other half the decision asks for — that the UI invites
+   * exactly what the server permits, no more and no less. A guard that refuses the write while the UI
+   * still offers the control produces an administrator who clicks, sees an error, and concludes the app
+   * is broken; the same principle in reverse says a rule the server now permits must have a control,
+   * or nobody can use it. That is "explain, don't just remove", as D12 applies it to phone editing.
+   *
+   * ⚑ AMENDED 2026-08-19, and the amendment moved the line rather than erasing it: appointing is now a
+   * HANDOVER a Subject Administrator may perform (to an existing editor of that subject-grade), while
+   * REMOVING an administrator stays Site-Admin-only. So this describe asserts one control present and
+   * one absent for the same viewer, which is the whole shape of the decision.
    */
   test.describe('Roles & Access — the Subject Administrator control (D6a)', () => {
-    test('a Subject Administrator sees who administers their subject-grade, read-only', async ({
+    test('a Subject Administrator may hand administration over, but not remove it', async ({
       page,
     }) => {
       await loginAs(page, 'subjectAdmin')
@@ -1040,12 +1045,35 @@ test.describe('Manage page', () => {
       // for the editor rows beneath it (2026-08-19).
       await expect(group.locator('.lp-manage__roles-label')).toHaveCount(2)
 
-      // …and neither control that would change it exists. Asserted as absence rather than
+      // ⚑ THE CONTROL THAT REMOVES AN ADMINISTRATOR DOES NOT EXIST for them — neither the Site
+      // Admin's appoint/replace picker nor any remove button. Asserted as absence rather than
       // disabled-ness: a disabled control still invites the click D6a is trying to prevent.
       await expect(
         page.getByRole('combobox', { name: /Appoint the Subject Administrator/ }),
       ).toHaveCount(0)
       await expect(page.getByRole('button', { name: /as Subject Administrator of/ })).toHaveCount(0)
+
+      // ⚑ AND THE ONE THAT HANDS IT OVER DOES (amended D6a). The fixture puts an editing-access
+      // holder on this subject-grade, so there is an eligible successor and the picker renders; a
+      // subject-grade with no editors gets the explanatory line instead, which
+      // `tests/unit/rolesAccessPanel.spec.tsx` covers without a browser.
+      const handover = group.getByRole('combobox', { name: /Hand over administration of/ })
+      await expect(handover).toBeVisible()
+      await expect(group.getByRole('button', { name: /Hand over administration of/ })).toBeVisible()
+
+      // ⚑ THE POOL, not just the presence — the server permits a handover only to somebody who already
+      // holds editing access here, so a picker offering the whole roster would 403 on most choices.
+      //
+      // ⚑ BY IDENTITY, NOT BY COUNT. The first draft of this asserted `toHaveCount(2)`, which is the
+      // mistake recorded 30 lines below in the subject-grade delete test: "the first draft asserted
+      // '1 person loses editing access' and CI returned '2 people lose…' — the FEATURE was right and
+      // the assertion was counting fixtures." How many accounts the fixture happens to seed with a
+      // grant is not the property. Who is ELIGIBLE is: the fixture's editor holds editing access here
+      // and must be offered; its teacher holds nothing anywhere and must not be, even though the Site
+      // Admin's own picker lists them.
+      const offered = (await handover.locator('option').allTextContents()).join(' ')
+      expect(offered).toContain(fx.users.editor.email)
+      expect(offered).not.toContain(fx.users.teacher.email)
 
       // Their editing-access controls are untouched — the guard is narrow, and this is where that
       // is visible to a person rather than to a test client.
