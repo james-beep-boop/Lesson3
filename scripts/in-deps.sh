@@ -100,6 +100,11 @@ cmd=("$@")
 # ⚑ Checked, not assumed, because a MISSING bind source is the failure this wrapper exists to prevent
 # — Docker creates it as an empty DIRECTORY rather than erroring, and `envTemplateParity` would then
 # report a malformed template instead of an absent one.
+if [ ! -f USER_GUIDE.md ]; then
+  echo "error: no USER_GUIDE.md at the repo root ($PWD)." >&2
+  echo "       tests/unit/guideParity.spec.ts compares it against the in-app /guide page." >&2
+  exit 1
+fi
 if [ ! -f .env.example ]; then
   echo "error: no .env.example at the repo root ($PWD)." >&2
   echo "  It is tracked, so this means the checkout is incomplete or the root was resolved wrong." >&2
@@ -122,12 +127,16 @@ fi
 # list was inline in the CI step making the claim; consolidating here made it MORE consequential
 # (one edit now falsifies it at five call sites), so the reasoning lives with the code.
 #
-# If a spec ever needs a second file from the root, add another single-file `:ro` mount. Do not
-# widen this to a directory.
+# The SECOND single-file mount (added 2026-08-21) is `USER_GUIDE.md`, for
+# `tests/unit/guideParity.spec.ts` — the in-app `/guide` page and that file must state the same rules,
+# and the obligation had been documented-only through two drifts. Still one file each, never a
+# directory: a directory mount would put `.git`, and the GITHUB_TOKEN a checkout persists in it, inside
+# a container running third-party dev dependencies. If a spec needs a third, add a third `:ro` line.
 dev_deps_mounts
 exec docker run --rm \
   "${DEV_DEPS_MOUNTS[@]}" \
   -v "$PWD/.env.example:/repo/.env.example:ro" \
+  -v "$PWD/USER_GUIDE.md:/repo/USER_GUIDE.md:ro" \
   -e LESSON3_REPO_ROOT=/repo \
   ${docker_args[@]+"${docker_args[@]}"} \
   lesson3-deps "${cmd[@]}"

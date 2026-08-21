@@ -53,7 +53,7 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Your account:</strong> create one from the sign-in page&apos;s <em>Sign up</em>{' '}
+            <strong>Your account:</strong> create one from the sign-in page’s <em>Sign up</em>{' '}
             link, then follow the verification link we email you before signing in — verified
             accounts can read and download everything. <em>Forgot password?</em> on the same page
             emails you a reset link. For security your session ends after a while and signs you out
@@ -71,7 +71,7 @@ export default async function UserGuidePage() {
           <li>
             <strong>Favorites:</strong> click the star on a library row — or the{' '}
             <em>☆ Favorite</em> button on a lesson page — to keep that lesson in a My favorites
-            list at the top of the home page. Your star always shows the lesson&apos;s current
+            list at the top of the home page. Your star always shows the lesson’s current
             Official version, even when a newer one is promoted later. (If you have editing access the
             star works differently: it pins the exact version you starred.) Favorites are personal — only you
             see yours.
@@ -91,7 +91,7 @@ export default async function UserGuidePage() {
           <li>
             <strong>Email:</strong> choose <em>Share → Email to an address…</em> on a lesson page to
             send the generated documents (as a .zip of Word files) to any email address — your own,
-            or a colleague&apos;s. Sends are limited per day.
+            or a colleague’s. Sends are limited per day.
           </li>
           <li>
             <strong>Want to edit?</strong> use <em>Request editing access</em> on any lesson page —
@@ -100,7 +100,7 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
-            right) to send a note to any user of the repository — a lesson page&apos;s{' '}
+            right) to send a note to any user of the repository — a lesson page’s{' '}
             <em>Share → Message a colleague</em> item attaches that lesson to your note. Each message you receive has a{' '}
             <em>Reply</em> button that opens a box to write straight back. Unread messages show as a
             small count on your avatar, and you get a short email telling you a message is waiting
@@ -143,7 +143,7 @@ export default async function UserGuidePage() {
           <li>
             <strong>Browse version history:</strong> a <em>N versions</em> chip (on library rows and
             the lesson page) opens a panel listing every retained version — newest first, Official
-            pinned on top, with each version&apos;s author, date, and favorite star. When there is
+            pinned on top, with each version’s author, date, and favorite star. When there is
             more than one version, a <em>Compare</em> button shows two versions side by side with
             removals in red and additions in green.
           </li>
@@ -177,8 +177,18 @@ export default async function UserGuidePage() {
             is something to tidy.
           </li>
           <li>
-            <strong>Grant editing access:</strong> <em>Manage → Editing access</em> gives a teacher
-            editing access (or removes it) per subject-grade.
+            <strong>Roles &amp; Access:</strong> <em>Manage → Users → Roles &amp; Access</em> gives a
+            teacher editing access, or removes it, per subject-grade. It also shows who administers each
+            of your subject-grades, and the addresses of the people listed there — granting access is a
+            permission decision, and two teachers can share a display name.
+          </li>
+          <li>
+            <strong>Hand administration over:</strong> in the same panel you can make one of your
+            subject-grade’s existing editors its Subject-grade administrator. You are demoted to
+            editing access in the same step, and only a Site administrator can give it back — so the
+            panel asks you to confirm before it happens. Whoever you hand it to must already have
+            editing access there, which keeps the choice to people already trusted with that
+            subject-grade’s content.
           </li>
         </ul>
       </section>
@@ -197,7 +207,10 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Manage people:</strong> create users, grant Site administrator access, and grant
-            editing access or Subject-grade administrator access by subject-grade.
+            editing access or Subject-grade administrator access by subject-grade. Site administrators
+            are also the only ones who can <strong>remove</strong> a Subject-grade administrator: an
+            administrator may hand the role on, but nobody can take it away from them, and nobody can
+            resign it.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson

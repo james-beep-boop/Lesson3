@@ -77,8 +77,15 @@ subject-grades. They also manage the structure and official content controls for
   optionally deleting the version it replaces.
 - **Tidy candidates:** *Manage → Candidate versions* lists every saved, non-Official version in their
   subject-grades, with delete.
-- **Grant editing access:** *Manage → Editing access* gives a teacher editing access (or removes it)
-  per subject-grade.
+- **Roles & Access:** *Manage → Users → Roles & Access* gives a teacher editing access, or removes it,
+  per subject-grade. It also shows who administers each of your subject-grades, and the addresses of
+  the people listed there — granting access is a permission decision, and two teachers can share a
+  display name.
+- **Hand administration over:** in the same panel you can make one of your subject-grade's existing
+  editors its Subject-grade administrator. You are demoted to editing access in the same step, and
+  only a Site administrator can give it back — so the panel asks you to confirm before it happens.
+  Whoever you hand it to must already have editing access there, which keeps the choice to people
+  already trusted with that subject-grade's content.
 
 ## Site administrators
 
@@ -89,7 +96,9 @@ lesson-plan upload/import, and all lesson plans.
   Official version), repair plans that have no Official version, delete lesson plans (with all their
   versions), and reach the People and Curriculum lists.
 - **Manage people:** create users, grant Site administrator access, and grant editing access or
-  Subject-grade administrator access by subject-grade.
+  Subject-grade administrator access by subject-grade. Site administrators are also the only ones who
+  can **remove** a Subject-grade administrator: an administrator may hand the role on, but nobody can
+  take it away from them, and nobody can resign it.
 - **Manage curriculum:** maintain Subjects and Subject Grades before lesson plans are uploaded.
 - **Review everything:** inspect, edit, export, mark Official, or delete lesson plans across all
   subjects and grades.
@@ -114,7 +123,9 @@ These rules are also available from *Editing help* at the top of the editor.
   permission boundary.
 - Teachers with editing access and Subject-grade administrators act only within the subject-grades
   assigned to them; Site administrators can see and manage everything.
-- Email addresses are visible only to the account owner and Site administrators.
+- Email addresses are visible to the account owner and to Site administrators, with **one exception:**
+  in *Manage → Users → Roles & Access* a Subject-grade administrator also sees the addresses of the
+  people listed for their own subject-grades. No other screen shows them.
 
 ---
 
