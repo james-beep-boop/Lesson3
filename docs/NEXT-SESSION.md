@@ -129,6 +129,76 @@ only thing that would notice a class referenced with **no rule at all**.
   aggregate — so it cannot be fixed by swapping a gate for `user?.collection === 'users'`. It needs its
   own boundary. `AdminDashboard` is behind `adminPanelAccess`, not a direct gate.
 
+## Packaging and licensing — recorded 2026-08-21, mostly DEFERRED
+
+**The eventual goal (operator, not soon):** a Docker-deployable package downloadable from the public
+GitHub repo that an individual can install on a local ARES server. The first real test case is an
+**Intel box** — which is amd64, the architecture CI builds on every PR (`runs-on: ubuntu-latest`). The
+arm64 Rock is the unusual target here, not his machine.
+
+### Licensing: THREE separable assets, and they do not want the same licence
+
+1. **The Lesson3 code — UNDECIDED.** ⚑ `app/package.json` says `"license": "MIT"`, and that is
+   **scaffold residue, not a decision.** The commit that introduced the file (`f7bbd4d`, "First pass",
+   2026-06-07) also carries `"name": "app"` and `"description": "A blank template to get started with
+   Payload 3.0"` — it is `create-payload-app`'s template, and the licence line has never been edited
+   across 35 commits to that file. Do not read it as an existing commitment. Candidates: MIT (matches
+   the declaration) or Apache-2.0 (explicit patent grant; better if others are expected to build on it).
+2. ⚑ **THERE IS NO LICENSE FILE AT THE REPO ROOT, AND THE REPO IS PUBLIC.** Default copyright applies:
+   strictly, nobody may use, modify or run it, and there are no terms for contributors. One file, and
+   the cheapest high-value item on this whole list.
+3. **The vendored ARES generator** — `app/src/generator/vendor/lib/`, three files copied byte-verbatim
+   from `markknit/cbe-generation-system`. Publishing them in a public repo redistributes them. The
+   operator expects this to be straightforward and will request a licence compatible with whatever the
+   code licence becomes; record the answer in `vendor/PROVENANCE.md` beside the SHA-256 table.
+4. **The lesson-plan CONTENT** (ARES and SeaVuria) — to be asked; **CC BY 4.0 is the candidate.**
+   ⚑ CC licences are right for content and WRONG for software — Creative Commons themselves recommend
+   against CC for code (no patent grant, no source/binary distinction). So this is **two asks in one
+   conversation**, not one: a content licence from ARES/SeaVuria, and a software licence for the
+   generator. CC BY-SA if derivatives should stay open; steer away from NC, which blocks legitimate
+   users (a fee-charging private school) and is notoriously ambiguous.
+
+⚑ **DEFERRED, but the operator's view is that it will be needed: attribution INSIDE the documents** —
+on every document and possibly every page, at least for the online deployment. Note before agreeing CC
+BY terms: attribution is the *condition* of that licence, and these deliverables travel by email and
+USB with no app around them, so nothing carries the credit unless the document does. ⚑ It is a
+**generator change**, not a UI one — SPEC §4: make it upstream in ARES, re-vendor, bump
+`GENERATOR_RENDER_VERSION`, rerun the DOCX/PDF fidelity and pagination gates.
+
+### Microsoft core fonts: the constraint is REDISTRIBUTION, not connectivity
+
+- **Permitted:** any machine running `ttf-mscorefonts-installer` and downloading its own copy under the
+  EULA — including a school box on a brief phone tether. Legally, minimal connectivity IS enough.
+- **Not permitted:** handing over a pre-built image that already contains the fonts (a GHCR publish, or
+  a `docker save` tarball on a USB stick).
+- ⚑ **But the fonts are not the binding constraint — BANDWIDTH is.** Measured 2026-08-21:
+  `lesson3-gotenberg` **2.46 GB**, `lesson3-migrate` 1.81 GB, `lesson3-app` 338 MB; the Microsoft cab
+  files are ~10–15 MB of that. A fresh install pulls gigabytes, which is exactly what pushes toward
+  shipping pre-built images — which is where the licence problem appears.
+- **Proposed split — NOT built, NOT verified.** Ship the large image WITHOUT the fonts (Gotenberg's base
+  is Apache-2.0 plus Debian packages, freely redistributable — and it is the 2.4 GB part), and have the
+  school install fonts itself into a mounted volume with one command over a brief tether. The
+  encumbered part is tiny and self-downloaded; the enormous part is unencumbered and shippable on USB.
+  ⚑ **VERIFY FIRST** that LibreOffice inside Gotenberg picks up fonts from a mounted volume (font path
+  plus `fc-cache`) — plausible, unproven. Fallback: ship font-less and accept Liberation Sans, which is
+  the measured table-row-height gap `gotenberg/Dockerfile` documents at length.
+
+### Packaging work, when it happens
+
+- **`INSTALL.md` for a stranger.** `README.md` is architecture-facing and `docs/ROCK5B-SETUP.md` is a
+  runbook for one specific box. A third door: prerequisites, clone, configure, up, first admin, verify.
+- **A bootstrap script** generating `PAYLOAD_SECRET` and `POSTGRES_PASSWORD`, writing `.env` from
+  `.env.example`, then handing off to `scripts/deploy.sh`. Today that is hand-editing, which is where a
+  stranger gets a broken install with no idea why.
+- **First admin AND FIRST CONTENT.** ⚑ An install with no lesson plans is an empty shell, and
+  `scripts/dev-seed.sh` refuses anything but localhost by design. The guide must cover how ARES
+  `.js`/`.json` bundles reach an offline box — otherwise the install succeeds and the teacher sees
+  nothing, which is the biggest gap on this list measured against the project's own goal.
+- **A tagged release**, so "download it from my GitHub" hands over a known-good tree rather than `main`
+  mid-refactor.
+- ⚑ **A secret scan over the full history** before advertising the repo. It is already public, so
+  anything ever committed is already out; better to know than to assume.
+
 ## Two local-environment facts worth not rediscovering
 
 - **Repeated local `test:http` runs exhaust the site-global auth budget** and surface as a 429 thrown
