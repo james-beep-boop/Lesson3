@@ -117,8 +117,10 @@ only thing that would notice a class referenced with **no rule at all**.
   Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
   the obvious implementation — reading it in Next middleware — is blocked because `src/middleware.ts` is
   edge-runtime and cannot reach Postgres, and a named refusal of `mode: 'offline' | 'online'`, which
-  contradicts three decisions D1 already makes. ⚑ D1 already states the env-ceiling/runtime-flag split
-  correctly; it does not need restating.
+  contradicts three decisions D1 already makes. Full draft:
+  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` — a proposal, not a decision, and the file to
+  delete rather than leave stale if D1 moves against it. ⚑ D1 already states the env-ceiling/runtime-flag
+  split correctly; it does not need restating.
 - ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
   I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
   of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
