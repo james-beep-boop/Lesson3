@@ -25,6 +25,99 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-20) — D6a is now ASYMMETRIC, and the whole slice is UNCOMMITTED
+
+**This supersedes the 2026-08-19 handoff below, which is kept for provenance** — its three threads are
+still live and one of them changed shape, see below.
+
+## ⚑ READ THIS FIRST: nothing in this block is committed
+
+`main` is at `0542b00` (PR #257 — Roles & Access shows every administrator, in a labelled list). The
+D6a amendment described here is **complete and verified in the working tree and has not been committed,
+pushed, or deployed.** The operator's own uncommitted edits to `SPEC.md` §11 (backup destinations) and
+`docs/DESIGN-next-direction-2026-08-19.md` sit in the same tree — ⚑ **do not `git add -A`.** SPEC.md now
+carries BOTH their §11 edits and this slice's §8 amendment.
+
+**It contains a MIGRATION** (`20260820_223208_add_assignment_provenance`), so deploying it follows the
+schema-change workflow below, not a plain pull. UP and DOWN were both exercised against a real database.
+
+## What this slice does
+
+**D6a is split around the mechanic it was built on (operator decision 2026-08-19).** A Subject
+Administrator **may hand administration over** to somebody who already holds editing access in that
+subject-grade — which, given ≤1 and the auto-demote cascade, demotes the actor in the same transaction —
+and **may not remove** an administrator, their own row included. Vacating stays Site-Admin-only.
+Canonical: `SPEC.md` §8. Reasoning and the session's lessons: `docs/DECISIONS.md` 2026-08-20.
+
+Every `assignments` row now carries system-written `grantedBy`/`grantedAt`, because a handover is
+irreversible to the person who made it. **A null means *unknown*, never *nobody*.**
+
+| Area | Files |
+|---|---|
+| Rule | `hooks/userRoles.ts` (`enforceAssignmentScope` split into added/removed; `stampAssignmentProvenance`), `endpoints/userAssignments.ts` |
+| Schema | `collections/Users.ts` (+`grantedBy`/`grantedAt`, `maxDepth: 0`), the migration + snapshot, `payload-types.ts` |
+| UI | `components/Manage/RolesAccessPanel.tsx` (`subjectAdminControl: 'full' \| 'handover'`), `components/AdminDashboard/index.tsx` |
+| Tests | `tests/unit/{enforceAssignmentScope,rolesAccessPanel}`, `tests/int/{assignmentProvenance,subjectAdminHandover,editorGroupsAccess}`, `tests/http/userAssignments`, `tests/e2e/manage` |
+
+**Verified:** tsc · lint · prettier · 793 unit · 18 int · 14 http on that spec · both roles checked in the
+running dev app (a Subject Administrator is offered only the subject-grade's existing editors; a Site
+Administrator keeps Appoint/Replace and Remove). Every new guard was **mutation-tested** — see the
+DECISIONS entry, which is mostly about why that is now the standard.
+
+⚑ **The e2e changes have NEVER RUN.** Playwright's chromium is glibc-linked and the deps image is
+Alpine, so `test:e2e` cannot execute locally at all — it fails at browser launch, including on
+pre-existing tests. Those assertions are Rock-only and unproven; treat the first Rock run as the test.
+
+## Three threads open
+
+**1. The D6a informational query — the reason it was only informational is now FIXED FORWARD.** The old
+note said "nothing records *who granted* an assignment, so it cannot distinguish a legitimate Site-Admin
+grant from a self-appointment". Rows written from now on do record it:
+
+```sql
+SELECT ua._parent_id AS user_id, ua.subject_grade_id, ua.role,
+       ua.granted_by_id, ua.granted_at
+FROM users_assignments ua
+WHERE ua.role = 'subjectAdmin'
+ORDER BY ua.granted_at NULLS FIRST;
+```
+
+⚑ **`granted_by_id IS NULL` means the row predates provenance — it is NOT evidence of anything.** The
+backfill was deliberately not done, because inventing a grantor is worse than admitting ignorance. Still
+informational: do not "clean up" rows on the strength of it.
+
+**2. Public-discovery phase 2 — unchanged, never started.** Design in the 2026-08-15 block below. The
+operator's `docs/DESIGN-next-direction-2026-08-19.md` (uncommitted) proposes the next direction.
+
+**3. The appearance-testing gap — option 1 still undone.** Unchanged from the block below, and still the
+only thing that would notice a class referenced with **no rule at all**.
+
+## What to work on next
+
+- **Commit and PR this slice.** It is complete, verified where it can be verified locally, and the docs
+  are written. Nothing is half-applied.
+- **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
+  appearance-testing gap.
+- ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
+  I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
+  of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
+  `access/index.ts`, `Favorites`, `Messages`); the other two entries are **dependent paths**, and
+  `versionCountsByPlan(payload)` **takes no user parameter at all** and runs an unscoped raw-SQL
+  aggregate — so it cannot be fixed by swapping a gate for `user?.collection === 'users'`. It needs its
+  own boundary. `AdminDashboard` is behind `adminPanelAccess`, not a direct gate.
+
+## Two local-environment facts worth not rediscovering
+
+- **Repeated local `test:http` runs exhaust the site-global auth budget** and surface as a 429 thrown
+  inside `setupRoleFixture`, which looks like a fixture bug. The documented reset applies to the **dev**
+  database too, not just the test one:
+  `DELETE FROM rate_limit_counters WHERE bucket_key LIKE '%Global:all';`
+- **`endpoints.http.spec.ts` has five failures against a local dev server that are not defects:** four
+  need the Gotenberg sidecar (not running in the local stack), and the strict-nonce CSP test cannot pass
+  under `next dev`, which serves `'unsafe-eval' ws: wss:` — read the header rather than assuming.
+
+---
+
 # ⚑ HANDOFF (2026-08-19, late) — the four-box Manage page is DEPLOYED; three threads open
 
 **This supersedes the earlier 2026-08-19 handoff, which is replaced rather than kept.** That one

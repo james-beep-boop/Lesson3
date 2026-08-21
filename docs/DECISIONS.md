@@ -11,6 +11,102 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-20 — D6a becomes asymmetric: hand over, never take away — and four tests that passed for the wrong reason
+
+**Decision (operator, 2026-08-19).** A Subject Administrator **may** appoint a successor in a
+subject-grade they administer, provided that person **already holds editing access there**; they **may
+not** remove an administrator, their own row included. Vacating stays Site-Admin-only. SPEC §8 carries
+the rule and the reasoning; this entry records why it was safe to relax and what the work taught.
+
+**Why the relaxation does not undo the original concern.** D6a (2026-08-16) forbade both directions
+because in this data model they are one act: ≤1 holder per subject-grade means appointing a successor
+fires `autoDemotePriorSubjectAdmins`, so "grant" performed a removal. The amendment keeps that mechanic
+and splits the permission around it. Adding is append-only in form and **self-demoting in effect** — the
+actor loses the role in the same transaction — so it cannot accumulate power, which is exactly what the
+prohibition existed to prevent. Removing stays closed, so nobody can be displaced by a peer. The
+operator's phrasing: a teacher should be able to hand off to a colleague without getting a Site
+Administrator involved.
+
+**The eligibility precondition is the blast-radius control**, and it is read from the target's rows as
+they stood **before** the write, so one `PATCH` cannot grant editing access and administration together.
+Two deliberate steps, on the server — "hiding the picker is explicitly NOT the fix", since the generic
+`PATCH /api/users/:id` reaches the same hook.
+
+**Provenance.** Every `assignments` row now carries system-written `grantedBy`/`grantedAt`, because a
+handover is irreversible to the person making it and the D6a audit query "cannot distinguish a
+legitimate Site-Admin grant from a self-appointment". On every row, not just `subjectAdmin` ones. Null
+means *unknown*, never *nobody*. ⚑ Scoped to the life of the row: revoke the assignment and the record
+goes with it. An append-only grant log would answer it afterwards and was deliberately not built —
+recorded so the limit is a known trade rather than a discovery.
+
+**`maxDepth: 0` on `grantedBy` is load-bearing, not tidiness.** It is a self-referential relationship on
+a field inside `req.user`, which the JWT strategy loads on **every** authenticated request at
+`collection.auth.depth` — which Payload never defaults, so `afterRead` falls back to
+`config.defaultDepth`, 2. Uncapped, each request fetches the grantor and then the grantor's grantor.
+Verified in the installed 3.87.1 source, then **measured**: removing the cap turns the new int
+assertion red. ⚑ The general rule: **a self-referential relationship on an auth collection is a
+per-request cost by default.** `src/access/index.ts` still claimed auth depth defaults to 0 — it does
+not.
+
+---
+
+### The lesson: every defect in this session's own work was a SILENT PASS
+
+Four separate instances, one shape. None would have failed a build.
+
+1. **A comment claiming tests that did not exist.** The `enforceAssignmentScope` docblock — written the
+   same day — stated that the wire-level proof "lives in `tests/http`" and named three specific cases.
+   The http spec was untouched and still asserted the *pre-amendment* symmetric rule. Three independent
+   reviewers found it. ⚑ **A false claim about where a security rule is proven is worse than no claim,
+   because the next reader stops looking.** Same defect in two more places: the endpoint module header
+   still announced "SUBJECT-ADMINISTRATOR ROUTES ARE SITE-ADMIN-ONLY", and the panel's docblock still
+   said the routes assert Site Admin themselves.
+
+2. **A wire test that passed for the wrong reason.** `403 for a Subject Administrator, even within their
+   own subject-grade` — described as "THE DECISION ITSELF… the one case D6a removes" — still passed after
+   the amendment *permitted* that case, because its target happened to hold no editing access. ⚑ **When
+   one rule becomes two, a 403 stops identifying which one fired.** The fix is a *transition*: the
+   generic-PATCH test now refuses the appointment, grants editing access, and replays the
+   byte-identical request to a 200. Nothing about the caller changed between them, so the 403 is
+   attributed.
+
+3. **A test whose name described the plural contract and whose body exercised the singular one.**
+   `carries EVERY Subject Administrator … not just one` asserted `toContain(oneId)` and
+   `toHaveLength(1)` against a one-administrator fixture — so reverting the projection to keep only the
+   last holder it saw would have passed. Found by CodeRabbit's post-merge review of PR #257. Rewritten
+   to force a genuine second holder with `context.skipAutoDemote` (the only way two rows exist, since
+   ≤1 is policy with no unique index), and the regression now fails it.
+
+4. **A restated authorization predicate, three lines under the comment warning about it.**
+   `isSubjectAdminFor` *is* "site admin OR holds `subjectAdmin` here", so an outer `!isSiteAdmin(...)`
+   could never change the outcome — written into the block whose own comment says "two copies of one
+   authorization rule is how they drift".
+
+**And one nearly repeated on the way out:** the first draft of the new e2e assertion was
+`toHaveCount(2)` on the handover picker's options — a fixture census, which is the mistake recorded
+thirty lines below it in the same file ("CI returned '2 people lose…' — the FEATURE was right and the
+assertion was counting fixtures"). Rewritten to assert by identity: the fixture's editor is offered,
+its teacher is not.
+
+⚑ **The practice this session settles on: a new guard is not done until it has been seen to FAIL.**
+Every guard added here was mutation-tested — delete the removal guard, the eligibility guard, the
+unassign route gate, the `maxDepth` cap, the conditional vacate message, or revert the assign route to
+Site-Admin-only, and exactly the test claiming to pin it turns red. That is cheap, and it is the only
+thing that distinguishes a test from a comment.
+
+**Also fixed, same class:** three int/http specs hand-rolled `payload.create` instead of
+`createUserVerified`, omitting `disableVerificationEmail` — and the runs had been printing "Email
+attempted without being configured" at me, which I read as noise. The helper exists because a relay
+bounce on a fixture address fails the create itself.
+
+**Environment notes.** Playwright cannot run locally: its chromium is glibc-linked and the deps image
+is Alpine, so the e2e assertions here are Rock-only (as AGENTS.md says). Repeated local http runs
+exhaust the site-global auth budget and surface as a 429 inside `setupRoleFixture` — the documented
+`DELETE FROM rate_limit_counters WHERE bucket_key LIKE '%Global:all'` applies to the dev DB too, not
+just the test DB.
+
+---
+
 ## 2026-08-19 — Roles & Access: the administrator becomes a LIST, and one was already invisible
 
 **Operator report:** "it took me a minute to figure out that panel." The cause was structural, and the

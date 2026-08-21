@@ -9,10 +9,13 @@
  * page (409) and applies a one-row delta to the FRESH user row, so a concurrent administrator's role
  * change can never be silently overwritten.
  *
- * ⚑ AUTHORIZATION IS ENTIRELY SERVER-SIDE and this panel adds none of it. `maySetSubjectAdmin` below
- * decides what is DRAWN, never what is permitted: the routes assert Site Admin themselves, and
- * `enforceAssignmentScope` refuses a non-Site-Admin touching a `subjectAdmin` row on every other
- * write path including the generic PATCH (D6a). Both are pinned in `tests/http`.
+ * ⚑ AUTHORIZATION IS ENTIRELY SERVER-SIDE and this panel adds none of it. `subjectAdminControl`
+ * decides what is DRAWN, never what is permitted. D6a as AMENDED 2026-08-19 is asymmetric:
+ * `unassign-subject-admin` asserts Site Admin on the route, `assign-subject-admin` permits an
+ * administrator of that subject-grade to hand it over, and `enforceAssignmentScope` enforces the whole
+ * rule — including "the successor must already hold editing access here" — on every write path
+ * including the generic PATCH that bypasses these routes. The hook is the authority; this file only
+ * declines to invite a click the server would refuse.
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -29,14 +32,21 @@ import { useJumpTarget } from './Accordion'
 import { subjectGradeAnchor } from './panelState'
 
 /**
- * ⚑ `canSetSubjectAdmin` IS A PROP, not a field of `access`. It first rode inside `RolesAccess`, the
- * return type of `lib/editorGroups.ts` — the projection whose whole docblock is that its role gate,
- * trusted query and client projection must not be separable, and whose privacy predicate is
- * deliberately named rather than reusing a general `isAdmin` so that widening it for a PRESENTATIONAL
- * reason cannot silently widen an email disclosure. Putting a presentational capability in that
- * return type creates exactly the reverse coupling: the first person who wants "Subject Admins may
- * vacate but not appoint" edits a boolean inside the carve-out function. The render site already has
- * `siteAdmin` in scope and gates every other Site-Admin panel with it.
+ * ⚑ `subjectAdminControl` IS A PROP, not a field of `access`, and THE HYPOTHETICAL CAME TRUE. The
+ * capability first rode inside `RolesAccess`, the return type of `lib/editorGroups.ts` — the projection
+ * whose whole docblock is that its role gate, trusted query and client projection must not be
+ * separable, and whose privacy predicate is deliberately named rather than reusing a general `isAdmin`
+ * so that widening it for a PRESENTATIONAL reason cannot silently widen an email disclosure. The
+ * warning written here said the first person wanting "Subject Admins may vacate but not appoint" would
+ * end up editing a boolean inside the carve-out function. Four days later the operator asked for the
+ * mirror image — appoint but not vacate — and because this is a prop, that change is this file plus
+ * one render site, and touches nothing that decides who sees an address.
+ *
+ * ⚑ THREE STATES WOULD BE TWO BOOLEANS, so it is a union. `canSetSubjectAdmin` became one of
+ * `'full'` (a Site Administrator: appoint anyone, vacate anyone) or `'handover'` (an administrator of
+ * this subject-grade: hand it to one of its existing editors, and vacate nobody). A pair of booleans
+ * would have had a fourth combination meaning nothing, and the render site would have had to keep them
+ * consistent — which is where a "may vacate" flag left true by accident would live.
  */
 /**
  * ⚑ ONE SPELLING, from `grantRoleLabel`. The panel hand-wrote "Subject Administrator" in a label, four
@@ -49,11 +59,12 @@ const SUBJECT_ADMIN = grantRoleLabel('subjectAdmin')
 
 export function RolesAccessPanel({
   access,
-  canSetSubjectAdmin,
+  subjectAdminControl,
 }: {
   access: RolesAccess
-  canSetSubjectAdmin: boolean
+  subjectAdminControl: 'full' | 'handover'
 }) {
+  const mayVacate = subjectAdminControl === 'full'
   const router = useRouter()
   const { config } = useConfig()
   const [busy, setBusy] = useState(false)
@@ -160,8 +171,10 @@ export function RolesAccessPanel({
             .join(', ')} ${incumbents.length > 1 ? 'are' : 'is'} demoted to editing access.`
         : `Make ${personLabel(u)} the ${SUBJECT_ADMIN} of ${group.sgLabel}?`
     if (!window.confirm(warning)) return
+    // `assignmentAction`, matching `vacateAdmin` below — this call was the file's one hand-written
+    // route slug, beside a sibling using the helper for the same endpoint pair.
     void act(
-      'assign-subject-admin',
+      assignmentAction('assign', 'subjectAdmin'),
       u,
       group,
       `${personLabel(u)} now administers ${group.sgLabel}.`,
@@ -169,10 +182,68 @@ export function RolesAccessPanel({
     setAdminPicks((p) => ({ ...p, [group.sgId]: '' }))
   }
 
-  const vacateAdmin = (group: RolesAccessGroup, u: WidgetUser) => {
+  /**
+   * The HANDOVER — the same endpoint as `appointAdmin`, a different dialog, and the reason D6a was
+   * amended (operator decision 2026-08-19).
+   *
+   * ⚑ WHAT DIFFERS IS WHAT THE CLICK COSTS THE PERSON CLICKING. A Site Administrator appointing
+   * somebody spends nothing and can undo it. An administrator handing over is demoted to editing
+   * access in the same transaction by `autoDemotePriorSubjectAdmins`, loses this panel on the next
+   * request, and CANNOT undo it — only a Site Administrator can appoint them back. "Make X the Subject
+   * Administrator?" would be a true sentence that omits the only part they cannot reverse, which is why
+   * this is a separate dialog rather than the same one behind a different flag.
+   */
+  const handOverAdmin = (group: RolesAccessGroup, admins: WidgetUser[]) => {
+    const u = byId.get(Number(adminPicks[group.sgId]))
+    if (!u) return
+    // "you included", without naming WHICH incumbent is the viewer: this panel has no viewer id, and
+    // in handover mode it does not need one — `buildRolesAccess` rules 1–2 hand a non-Site-Admin only
+    // the subject-grades they administer, so the viewer is necessarily one of the holders named here.
+    // That invariant is pinned in `tests/int/editorGroupsAccess.int.spec.ts`, not assumed. The plural
+    // branch is legacy data: ≤1 is policy (`autoDemotePriorSubjectAdmins`), not a DB constraint.
+    const consequence =
+      admins.length > 1
+        ? `All ${admins.length} current administrators — you included — are demoted to editing access.`
+        : 'You are demoted to editing access in the same step.'
     if (
       !window.confirm(
-        `Remove ${personLabel(u)} as ${SUBJECT_ADMIN} of ${group.sgLabel}? It will have no administrator until you appoint one — only Site Administrators can mark its versions Official in the meantime.`,
+        `Hand administration of ${group.sgLabel} to ${personLabel(u)}? ${consequence} Only a Site Administrator can give it back.`,
+      )
+    ) {
+      return
+    }
+    void act(
+      assignmentAction('assign', 'subjectAdmin'),
+      u,
+      group,
+      // Says what happened to the ACTOR too, because the panel is about to vanish from their page:
+      // `router.refresh()` re-renders Manage without Roles & Access, and a toast reading only
+      // "X now administers Y" would leave them wondering what else the click removed.
+      `${personLabel(u)} now administers ${group.sgLabel}. You have editing access there.`,
+    )
+    setAdminPicks((p) => ({ ...p, [group.sgId]: '' }))
+  }
+
+  /**
+   * ⚑ THE CONSEQUENCE DEPENDS ON WHO IS LEFT, and it stopped being constant the moment this block
+   * became a LIST (2026-08-19). The sentence was unconditional: "It will have no administrator until
+   * you appoint one." Remove one of two holders and that is simply false — and it is the half of the
+   * dialog the person is actually deciding on. ≤1 is POLICY, enforced by
+   * `autoDemotePriorSubjectAdmins`, not a database constraint, so legacy rows can leave two; this
+   * panel renders them rather than hiding one, which is what made the warning reachable and wrong.
+   * (CodeRabbit, post-merge review of PR #257.)
+   */
+  const vacateAdmin = (group: RolesAccessGroup, u: WidgetUser, admins: WidgetUser[]) => {
+    const others = admins.filter((a) => a.id !== u.id)
+    const consequence =
+      others.length === 0
+        ? 'It will have no administrator until you appoint one — only Site Administrators can mark its versions Official in the meantime.'
+        : `${others.map(personLabel).join(', ')} ${
+            others.length > 1 ? 'remain' : 'remains'
+          } its ${SUBJECT_ADMIN}${others.length > 1 ? 's' : ''}.`
+    if (
+      !window.confirm(
+        `Remove ${personLabel(u)} as ${SUBJECT_ADMIN} of ${group.sgLabel}? ${consequence}`,
       )
     ) {
       return
@@ -210,6 +281,11 @@ export function RolesAccessPanel({
         ids.map((id) => byId.get(id)).filter((u): u is WidgetUser => !!u)
       const editors = toPeopleSafe(g.editorIds)
       const free = grantable.filter((id) => !held.has(id))
+      // ⚑ MINUS ANYONE WHO ALREADY ADMINISTERS HERE. A person can hold an `editor` AND a `subjectAdmin`
+      // row for one subject-grade — `access/index.ts` documents that pair as reachable and D6a is
+      // forward-only — so an unfiltered editor list can offer an option the endpoint answers with a
+      // 409 "already the Subject Administrator". `free` is already clean (it excludes every holder).
+      const promotableEditors = editors.filter((u) => !g.subjectAdminIds.includes(u.id))
       return {
         group: g,
         // A LIST since 2026-08-19: the projection reports every holder, because a second one used to
@@ -218,7 +294,19 @@ export function RolesAccessPanel({
         admins: toPeopleSafe(g.subjectAdminIds),
         editors,
         addable: toPeopleSafe(free),
-        appointable: toPeopleSafe([...free, ...g.editorIds]),
+        appointable: [...toPeopleSafe(free), ...promotableEditors],
+        /**
+         * ⚑ THE HANDOVER POOL IS THE GROUP'S EXISTING EDITORS, AND ONLY THOSE — the same set
+         * `enforceAssignmentScope` will accept, because the amended rule requires the successor to
+         * already hold editing access here (operator decision 2026-08-19: narrow the blast radius of a
+         * mis-click to people already trusted with this subject-grade's content).
+         *
+         * ⚑ THIS IS NOT THE SECURITY BOUNDARY and must not be read as one. The hook refuses the write
+         * whatever this list contains, and the hook is what a generic PATCH meets. Narrowing the picker
+         * is here so the two agree — an administrator offered a name the server will refuse learns
+         * only that the app is broken.
+         */
+        handoverable: promotableEditors,
         // Precomputed so a keystroke costs only `matchesTokenAnd`, not a join per group. Searches
         // `personLabel`, not just names: this is the one panel whose premise (SPEC §8) is that an
         // address is the only real identifier, so "find the person you were just shown" must work.
@@ -259,7 +347,7 @@ export function RolesAccessPanel({
 
       {shown.length === 0 && <p className="lp-manage__empty">Nothing matches this search.</p>}
 
-      {shown.map(({ group, admins, editors, addable, appointable }) => {
+      {shown.map(({ group, admins, editors, addable, appointable, handoverable }) => {
         // One option list per pool, built here rather than inline in each <select>.
         const optionsFor = (people: WidgetUser[]) =>
           people.map((u) => (
@@ -277,11 +365,15 @@ export function RolesAccessPanel({
               {group.sgLabel}
             </h3>
 
-            {/* ⚑ THE SUBJECT ADMINISTRATOR, AND WHAT A SUBJECT ADMIN SEES OF IT (D6a round 3). They
-                get the fact — who administers this subject-grade, which is scoped information they
-                already effectively hold — rendered READ-ONLY, with no picker and no remove control.
-                A guard that refuses the write while the UI still offers the button produces an
-                administrator who clicks, sees an error, and concludes the app is broken. */}
+            {/* ⚑ THE SUBJECT ADMINISTRATOR, AND WHAT A SUBJECT ADMIN SEES OF IT (D6a round 3,
+                AMENDED 2026-08-19). They get the fact — who administers this subject-grade, which is
+                scoped information they already effectively hold — and, since the amendment, ONE
+                control over it: hand it to an existing editor. Still no remove control, because
+                vacating stays Site-Admin-only, and a guard that refuses the write while the UI offers
+                the button produces an administrator who clicks, sees an error, and concludes the app
+                is broken. That principle is why the handover picker was ADDED here at the same time as
+                the server rule, rather than left to a later pass: the server would have started
+                permitting something no screen offered. */}
             {/* ⚑ ITS OWN CLASS, LISTED ON THE SHARED RULE — not a private copy and not a borrowed
                 name. The first version referenced `lp-manage__roles-admin` and never wrote a rule for
                 it, so this row rendered as an unstyled pile above the identically-shaped editor row
@@ -310,7 +402,7 @@ export function RolesAccessPanel({
                       {a.name}
                       {a.email && <span className="lp-manage__who-email">{a.email}</span>}
                     </span>
-                    {canSetSubjectAdmin && (
+                    {mayVacate && (
                       <span className="lp-manage__row-actions">
                         <Button
                           className="lp-btn lp-btn--compact"
@@ -318,7 +410,7 @@ export function RolesAccessPanel({
                           size="small"
                           disabled={busy}
                           aria-label={`Remove ${personLabel(a)} as ${SUBJECT_ADMIN} of ${group.sgLabel}`}
-                          onClick={() => vacateAdmin(group, a)}
+                          onClick={() => vacateAdmin(group, a, admins)}
                         >
                           Remove
                         </Button>
@@ -343,7 +435,7 @@ export function RolesAccessPanel({
                 Administrator — who gets no picker at all under D6a — with an empty 8px row between
                 the two lists. An empty styled container is invisible in review and visible on the
                 page, which is the wrong way round. */}
-            {canSetSubjectAdmin && appointable.length > 0 && (
+            {subjectAdminControl === 'full' && appointable.length > 0 && (
               <div className="lp-manage__roles-admin">
                 <select
                   className="lp-manage__select"
@@ -365,6 +457,48 @@ export function RolesAccessPanel({
                 >
                   {admins.length > 0 ? 'Replace' : 'Appoint'}
                 </Button>
+              </div>
+            )}
+
+            {/* ⚑ THE HANDOVER CONTROL, and the EMPTY CASE IS NOT OPTIONAL. An administrator whose
+                subject-grade has no editors yet would otherwise see the two lists, no control, and no
+                reason — the exact "concludes the app is broken" failure the block above exists to
+                avoid, produced by omission instead of by a refused click. The sentence is actionable
+                because the same panel is where they grant editing access, and it states the server's
+                rule rather than describing a missing widget: two deliberate steps, which is the whole
+                point of the narrowing (`enforceAssignmentScope`). */}
+            {subjectAdminControl === 'handover' && (
+              <div className="lp-manage__roles-admin">
+                {handoverable.length > 0 ? (
+                  <>
+                    <select
+                      className="lp-manage__select"
+                      aria-label={`Hand over administration of ${group.sgLabel}`}
+                      value={adminPicks[group.sgId] ?? ''}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setAdminPicks((p) => ({ ...p, [group.sgId]: e.target.value }))
+                      }
+                    >
+                      <option value="">Hand over to…</option>
+                      {optionsFor(handoverable)}
+                    </select>
+                    <Button
+                      className="lp-btn"
+                      buttonStyle="secondary"
+                      size="small"
+                      disabled={busy || !adminPicks[group.sgId]}
+                      aria-label={`Hand over administration of ${group.sgLabel}`}
+                      onClick={() => handOverAdmin(group, admins)}
+                    >
+                      Hand over
+                    </Button>
+                  </>
+                ) : (
+                  <span className="muted">
+                    To hand over administration, first grant someone editing access here.
+                  </span>
+                )}
               </div>
             )}
 

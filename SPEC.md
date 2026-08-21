@@ -398,7 +398,7 @@ observable contract, and a failed or backed-off capture must say so rather than 
 | User type | Scope |
 |---|---|
 | Teacher | Global baseline — view/export; may additionally hold editing access for specific subject-grades |
-| Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, grant and revoke **editing access** within that subject-grade (see D6a below: **not** the Subject Administrator role itself) |
+| Subject Administrator | Per subject-grade (at most one) — structural + admin-only fields, mark official, grant and revoke **editing access** within that subject-grade, and **hand administration over** to one of that subject-grade's existing editors (see D6a below: they may not *remove* an administrator, their own row included) |
 | Site Administrator | Global — everything, incl. user/role/taxonomy management |
 
 - **Canonical user model (amended 2026-07-29; clarified 2026-08-17).** There are **three user types**:
@@ -412,8 +412,11 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - **Subject** = academic discipline only. **SubjectGrade** = subject + **integer** grade; the assignable unit roles attach to. Display as "Grade N". "Math Grade 4" and "Math Grade 5" are independent.
 - Per-subject-grade scoping is expressed inside Payload access functions.
 - Promoting a Subject Admin where one exists **auto-demotes** the prior holder to a Teacher with editing access for that subject-grade, in one transaction.
-- ⚑ **Only a Site Administrator may appoint or vacate a Subject Administrator (operator decision,
-  2026-08-16; "D6a").** A Subject Administrator manages **editing access** within their
+- ⚑ **D6a — appointing and vacating a Subject Administrator. ASYMMETRIC as of 2026-08-19; read the
+  amendment below before the original rule, which it changes.**
+
+  **The original rule (operator decision, 2026-08-16): only a Site Administrator may appoint or
+  vacate a Subject Administrator.** A Subject Administrator manages **editing access** within their
   subject-grades and nothing above it — they may not appoint their successor. The earlier wording
   "manage scoped roles" did not disambiguate this, and the shipped code did not either:
   `enforceAssignmentScope` gated *which subject-grade* a touched row belonged to and never inspected
@@ -422,9 +425,11 @@ observable contract, and a failed or backed-off capture must say so rather than 
   "At most one per subject-grade" combined with "the incumbent chooses their replacement" is an
   unusual governance property for a role that also controls marking versions Official.
   **This is a server rule, not a UI one.** The guard lives in `enforceAssignmentScope` and covers
-  every write path including the generic `PATCH /api/users/:id`; the Site-Admin-only routes
-  (`/:id/{assign,unassign}-subject-admin`) assert it a second time so a caller gets an honest 403 on
-  the route they used. Pinned in two places, deliberately: `tests/unit/enforceAssignmentScope.spec.ts`
+  every write path including the generic `PATCH /api/users/:id`; the routes
+  (`/:id/{assign,unassign}-subject-admin`, both Site-Admin-only **until the amendment** — see below)
+  assert it a second time so a caller gets an honest 403 on
+  the route they used. Pinned in two places, deliberately — **three since the amendment, listed under
+  it; do not read this sentence as the current inventory**: `tests/unit/enforceAssignmentScope.spec.ts`
   drives the hook directly for every branch (grant, revoke, role change, the narrowness case, and the
   system-cascade exemption), and `tests/http/userAssignments.http.spec.ts` proves the refusal over a
   real request on both the route and the generic PATCH. ⚑ The branch cases are NOT in the wire spec,
@@ -436,9 +441,59 @@ observable contract, and a failed or backed-off capture must say so rather than 
   written by a Subject Administrator. The rule changes what is permitted from now on; it does not
   retroactively invalidate those grants and must not try to.
   **A Subject Administrator still SEES who administers their subject-grade** — scoped information
-  they already effectively hold — rendered read-only, with no picker and no remove control. Removing
-  the control without showing the fact would leave them unable to answer a question they legitimately
-  need answered; leaving the control while refusing the write would teach them the app is broken.
+  they already effectively hold. Removing the control without showing the fact would leave them
+  unable to answer a question they legitimately need answered; leaving the control while refusing the
+  write would teach them the app is broken.
+
+  ⚑ **AMENDED 2026-08-19 (operator decision): A SUBJECT ADMINISTRATOR MAY HAND ADMINISTRATION OVER,
+  BUT MAY NOT TAKE IT AWAY.** The rule above is split around the mechanic it was built on:
+
+  - **Adding** a `subjectAdmin` row is permitted inside a subject-grade the actor administers. Given
+    ≤1 and the auto-demote cascade, that IS a handover: the actor loses the role in the same
+    transaction. The action is append-only in form and self-demoting in effect, so it cannot be used
+    to accumulate power — which is what made the original prohibition safe to relax.
+  - **Removing** one stays Site-Admin-only, whoever the row belongs to. Nobody may eject an
+    administrator, and nobody may resign by deleting their own row.
+  - ⚑ **The successor must ALREADY hold editing access in that subject-grade.** This is the
+    operator's blast-radius narrowing: a mis-click can only reach somebody already trusted with this
+    subject-grade's content, and it makes a handover two deliberate steps (grant editing access, then
+    promote) rather than one. Read from the target's rows as they stood **before** the write, so a
+    single `PATCH` cannot grant both at once.
+
+  **Why the relaxation, when the original reasoning still stands.** The concern was governance: "at
+  most one per subject-grade" plus "the incumbent chooses their replacement" is unusual for a role
+  that controls marking versions Official. What changed is the direction of the asymmetry, not the
+  concern. An administrator leaving a school can now hand their subject-grade to a colleague without
+  a Site Administrator in the loop, while nobody can be *stripped* of the role except by a Site
+  Administrator — so the failure mode the original rule prevented (an administrator being displaced
+  by someone at their own level) is still prevented. A Site Administrator remains the only route
+  back: a handover cannot be undone by the person who made it.
+
+  ⚑ **Provenance, added with the amendment (operator decision 2026-08-19).** Every `assignments` row
+  now carries system-written `grantedBy` / `grantedAt`. The audit query recorded for D6a "cannot
+  distinguish a legitimate Site-Admin grant from a self-appointment", because the data did not carry
+  the answer; a handover is irreversible to the person making it, so "who did this, and when" needs
+  an answer in the data rather than in someone's memory. On **every** row, not just `subjectAdmin`
+  ones — editing-access grants are the more frequent audit question and the migration costs the same.
+  Nullable with no backfill: a row that predates this knows nothing about its own origin, and a null
+  means *unknown*, never *nobody*. ⚑ It is scoped to the **life of the row** — revoke an assignment
+  and the record of who granted it goes with it, so the question is answerable only while the
+  assignment stands. Answering it afterwards would need an append-only grant log, deliberately not
+  built.
+
+  **Where the amended rule is pinned** (the sentence above about the branch cases still applies):
+  `tests/unit/enforceAssignmentScope.spec.ts` for every branch, `tests/int/subjectAdminHandover.int.spec.ts`
+  for the cases needing a database including the demote cascade, and
+  `tests/http/userAssignments.http.spec.ts` at the wire in **both** directions — the permitted route
+  handover, the refusal to delete one's own row, and a three-step sequence in which the identical
+  generic `PATCH` is refused, then permitted once the target gains editing access, which is what
+  identifies *which* rule a 403 came from now that there are two.
+
+  **In the UI:** a Subject Administrator gets the fact, one control over it (hand over to an existing
+  editor, with a confirmation naming the self-demotion and that only a Site Administrator can give it
+  back), and **no remove control**. Where the subject-grade has no editors yet, the panel says how to
+  proceed rather than showing nothing — silence produces the same "the app is broken" reading as a
+  refused click.
 - `class` is a reserved keyword — the entity is always **SubjectGrade**.
 - **Email privacy:** non–Site-Admins never see other users' email addresses; attribution shows username.
 - **Amended 2026-08-02 — one carve-out, for granting editing access.** A **Subject Administrator**

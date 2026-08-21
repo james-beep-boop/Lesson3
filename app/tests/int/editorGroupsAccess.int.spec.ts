@@ -18,7 +18,7 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { MARK, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 import { buildRolesAccess } from '../../src/lib/editorGroups.js'
 import { mayIdentifyGrantCandidates } from '../../src/access/index.js'
 
@@ -190,18 +190,59 @@ describe('buildRolesAccess — the SPEC §8 email carve-out, by role', () => {
    * the presentation half of the decision. WHETHER they may change it is a prop supplied by the
    * render site, not a field of this projection, so it is asserted in the panel's unit spec.
    */
+  /**
+   * ⚑ REWRITTEN 2026-08-20 BECAUSE IT COULD NOT FAIL. This test was named "carries EVERY Subject
+   * Administrator … not just one" and asserted `toContain(oneId)` plus `toHaveLength(1)` against a
+   * fixture holding exactly one administrator — so the projection could revert to
+   * `subjectAdminId: number | null`, keeping only the last holder it saw, and this would still pass.
+   * It described the plural contract and exercised the singular one (CodeRabbit, post-merge review of
+   * PR #257).
+   *
+   * ⚑ THE SECOND HOLDER HAS TO BE FORCED, and that is the point rather than a workaround. ≤1 is
+   * POLICY, enforced by `autoDemotePriorSubjectAdmins`, not a database constraint — there is no unique
+   * index — so the only way two rows exist is a write that did not run that hook: legacy data from
+   * before it, or a system write that skipped it. `context.skipAutoDemote` reproduces exactly that
+   * state, which is the state the list shape exists to describe. `userRoles.ts` says it outright:
+   * "legacy rows that violate ≤1 exist by design."
+   */
   it('carries EVERY Subject Administrator of that subject-grade, not just one', async () => {
-    const asSubjectAdmin = await accessFor('subjectAdmin')
-    const group = asSubjectAdmin.groups.find((g) => g.sgId === fx.subjectGrade.id)!
-    // ⚑ `toContain` on a LIST, not equality with one id (2026-08-19). The projection carried
-    // `subjectAdminId: number | null` assigned per assignment row, so with two holders the last one
-    // seen won and the other was invisible — and `userRoles.ts` states that legacy rows violating ≤1
-    // exist by design, while this role also marks versions Official. An assertion that reads one id
-    // cannot tell "one administrator" from "one of several".
-    expect(group.subjectAdminIds).toContain(fx.users.subjectAdmin.id)
-    // The fixture grants exactly one, so the count is also part of the contract here: it is what
-    // would fail if the walk ever double-counted a holder with two rows for the same grade.
-    expect(group.subjectAdminIds).toHaveLength(1)
+    // Not through `createUserVerified`: this create needs `context.skipAutoDemote`, which the helper
+    // does not forward, so `disableVerificationEmail` is set here by hand for the same reason the
+    // helper sets it.
+    const second = await fx.payload.create({
+      collection: 'users',
+      data: {
+        name: `${MARK}secondAdmin`,
+        email: `${MARK.toLowerCase()}second-admin@example.com`,
+        password: fx.password,
+        _verified: true,
+        assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'subjectAdmin' }],
+      },
+      disableVerificationEmail: true,
+      overrideAccess: true,
+      context: { skipAutoDemote: true },
+    })
+
+    try {
+      const asSubjectAdmin = await accessFor('subjectAdmin')
+      const group = asSubjectAdmin.groups.find((g) => g.sgId === fx.subjectGrade.id)!
+
+      // BOTH holders, and as a SET so row order cannot decide the outcome — order is precisely what
+      // the old `subjectAdminId = u.id` assignment was sensitive to.
+      expect(new Set(group.subjectAdminIds)).toEqual(new Set([fx.users.subjectAdmin.id, second.id]))
+      expect(group.subjectAdminIds).toHaveLength(2)
+
+      // ⚑ AND BOTH RESOLVE THROUGH THE ROSTER. The ids are useless to the panel on their own — an id
+      // the roster does not carry renders as a blank administrator row, which is how the second
+      // holder would go missing again one layer further out.
+      for (const id of group.subjectAdminIds) {
+        expect(asSubjectAdmin.roster.map((u) => u.id)).toContain(id)
+      }
+    } finally {
+      // Local to this test: every other case in this file asserts against the fixture's single
+      // administrator, and a stray second one would change what they are describing.
+      await fx.payload.delete({ collection: 'users', id: second.id, overrideAccess: true })
+    }
   })
 
   it('leaves every OTHER surface withholding addresses — emailReadAccess is unchanged', async () => {

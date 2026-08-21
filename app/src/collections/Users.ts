@@ -17,6 +17,7 @@ import {
 import {
   autoDemotePriorSubjectAdmins,
   enforceAssignmentScope,
+  stampAssignmentProvenance,
   grantSiteAdminToFirstUser,
   guardLastSiteAdmin,
   guardLastSiteAdminOnDelete,
@@ -137,6 +138,9 @@ export const Users: CollectionConfig = {
       grantSiteAdminToFirstUser,
       guardPasswordChange,
       enforceAssignmentScope,
+      // After the guard: no point stamping provenance onto a write that is about to be refused.
+      // Before `guardLastSiteAdmin`, which its own comment says must stay last.
+      stampAssignmentProvenance,
       guardLastSiteAdmin,
     ],
     afterChange: [autoDemotePriorSubjectAdmins],
@@ -322,6 +326,66 @@ export const Users: CollectionConfig = {
             { label: 'Subject-grade administrator', value: 'subjectAdmin' },
             { label: 'Editing access', value: 'editor' },
           ],
+        },
+        /**
+         * ⚑ PROVENANCE (2026-08-19, operator decision). Who granted this row, and when.
+         *
+         * It exists because of what is about to become possible: a Subject Administrator handing
+         * administration of their own subject-grade to a colleague, without a Site Administrator in
+         * the loop. That transfer is IRREVERSIBLE to the person making it — only a Site Administrator
+         * can undo it — and until now nothing recorded who did it. `docs/DECISIONS.md`'s D6a audit
+         * query says so explicitly: it "cannot distinguish a legitimate Site-Admin grant from a
+         * self-appointment", because the data does not carry the answer.
+         *
+         * ⚑ ON EVERY ROW, not just `subjectAdmin` ones. Editing-access grants are the far more
+         * frequent thing an audit actually asks about ("who gave this teacher edit rights on Biology
+         * G10?"), the migration costs the same either way, and a field that exists for one role
+         * invites a second migration the first time someone asks about the other.
+         *
+         * ⚑ SYSTEM-WRITTEN ONLY. `update`/`create` are `() => false` so no client can forge them; the
+         * value is stamped by `stampAssignmentProvenance` in `hooks/userRoles.ts`, which runs after
+         * field access has already stripped anything a caller tried to send. Same division as
+         * `signInDisabled`: the schema cannot express "only this path may write it", so the field
+         * access says no to everyone and the hook is the one writer.
+         *
+         * Nullable with no backfill: every row that predates this knows nothing about its own origin,
+         * and inventing a grantor would be worse than admitting that. The UI must therefore read a
+         * null as "unknown", never as "nobody".
+         *
+         * ⚑ SCOPED TO THE LIFE OF THE ROW, which is the honest limit of this design. Provenance is a
+         * projection of current state, not a history: revoke an assignment and the record of who
+         * granted it is deleted with it, so "did somebody appoint themselves?" is answerable only
+         * while the appointment still stands. That is the same class of limitation as the migration's
+         * `ON DELETE set null` note (delete the grantor's account and the surviving row degrades to
+         * "unknown"), one layer up. Answering it after the fact needs an append-only grant log, where
+         * a revocation is an event rather than a deletion — deliberately not built now, because a
+         * collection, migration, access rules and read surface are a large multiple of what was asked
+         * for, and the row-level fields answer the D6a audit query as it is actually posed.
+         */
+        {
+          name: 'grantedBy',
+          type: 'relationship',
+          // ⚑ `maxDepth: 0` IS LOAD-BEARING, not tidiness. This is a self-referential relationship on
+          // a field inside `req.user`, which the JWT strategy loads on EVERY authenticated request at
+          // `collection.auth.depth` — and Payload never defaults that, so `afterRead` falls back to
+          // `config.defaultDepth`, which is 2 (verified in the installed 3.87.1 source, not recalled).
+          // At depth 2 each request would populate the grantor's document, and then that grantor's own
+          // `grantedBy` in turn: one to two extra batched `users` SELECTs per request, forever, for a
+          // value nothing reads populated (`lib/editorGroups.ts` queries at `depth: 0`). Capping it
+          // here makes `shouldPopulate` falsy in `relationshipPopulationPromise`, so no query is
+          // issued and the value stays an id — which is also what `stampAssignmentProvenance`'s
+          // carry-forward relies on. It does not change the generated types (`configToJSONSchema`
+          // ignores `maxDepth`), so nothing needs regenerating.
+          maxDepth: 0,
+          relationTo: 'users',
+          admin: { readOnly: true },
+          access: { create: () => false, update: () => false },
+        },
+        {
+          name: 'grantedAt',
+          type: 'date',
+          admin: { readOnly: true },
+          access: { create: () => false, update: () => false },
         },
       ],
     },
