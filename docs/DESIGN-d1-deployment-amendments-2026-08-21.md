@@ -81,6 +81,71 @@ compromised or confused Site-Admin account on a school box can put that school o
 is precisely what "off-by-env means the routes still 404" was written to prevent. The preset mechanism
 already delivers the ergonomics an enum was reaching for, without being a boundary.
 
+## D. Capabilities have FOUR states, not two — and a toggle may only ever express one of them
+
+Extended 2026-08-21 after the operator observed that some of this belongs at *deployment* time: most
+ARES schools will stay offline for years, and there is no reason to ship functions they will never use.
+That is right, and it makes the model four-state:
+
+| State | Means | Where it belongs | How it changes |
+|---|---|---|---|
+| **Not built** | no code exists anywhere | Features, disabled, with the true reason | a future PR |
+| **Absent** | built, but the bits are not on this box | **Deployment facts**, with an instruction | operator action at the console |
+| **Present, off** | on disk, gated | Features, toggle off | Site Admin flips it |
+| **Present, on** | running | Features, toggle on | — |
+
+⚑ **NEVER RENDER A TOGGLE FOR SOMETHING ABSENT.** A switch that does nothing when flipped is the same
+failure as the master switch section C refuses — a label asserting something the code does not mean.
+Absent capabilities are facts, not controls.
+
+⚑ **And "not built" must not be dressed as "coming soon."** `studentAccess` today is not built anywhere
+*and* would need its own env ceiling; the honest label says a student would currently be a valid
+`req.user` for six authorization gates (D3), so the switch cannot exist yet.
+
+## E. ONE image, not build variants — and the codegen rule that makes it safe
+
+The online deployment is the superset; school deployments are subsets. Both are served from one
+codebase, so:
+
+- **One artifact.** Two build variants double the test matrix, and the failure mode is "works in the
+  cloud build, broken in the school build" — discovered in a school with no internet to report it. The
+  gate tests one artifact today; keep it that way.
+- **Compose profiles for sidecars.** None are in use yet, so the mechanism is clean and available:
+  `docker compose --profile <x> up -d` adds a process without touching the app image.
+- **Conditional Payload registration is available if routes/collections must be absent too** —
+  `collections` is a flat array, so it is a one-line spread.
+  - ⚑ **BUT CODEGEN MUST ALWAYS RUN WITH EVERY FEATURE ON.** `migrate:create` diffs the live config
+    against the committed snapshot, so generating a migration on a box with a feature switched off
+    emits one that **DROPS** its tables. Same hazard for `generate:types`. One canonical configuration,
+    always.
+  - Migration *files* apply unconditionally regardless of what is registered, so an unregistered
+    collection's table simply exists and is unreachable. That is a feature: enabling later is an env
+    flip and a restart, with no schema change on a box nobody can reach remotely.
+
+## F. ⚑ The app must NEVER be able to start containers
+
+A toggle that "installs" a feature implies the app can act on Docker. Mounting `/var/run/docker.sock`
+into the app container is effectively root on the host: a web-app RCE becomes host compromise, on a
+machine sitting in a school with nobody to notice. Nothing in `app/src` touches Docker today.
+
+The permitted shape: **the toggle records intent; an operator (or a privileged reconciler outside the
+app) acts on it.** And on an air-gapped box "install" cannot mean "download" anyway — the bits must
+already be present or arrive on media, which collapses most of the apparent flexibility.
+
+## G. Two gaps this section still has
+
+⚑ **The online tier is unsized.** Every number in D1 is per-school — ~50 concurrent, 8–16 GB — and the
+online deployment is now the primary product (the operator's goal is national reach, with schools
+self-hosting as the secondary case). Three things were sized for a school and are not obviously right
+for the country: the jobs queue runs `autoRun` **in-process on one long-running container**; Gotenberg
+is capped at 2 CPUs with a 120 s timeout; and the rate-limit budgets. See SPEC §9 for the measured
+limits.
+
+⚑ **Student access needs its own env ceiling** (`STUDENT_ACCESS_ENABLED`, decided 2026-08-21), mirroring
+`PUBLIC_LIBRARY_ENABLED`. D1 already says the preset must never be a security boundary and must not
+enable student roster login; a ceiling is what makes that true rather than intended — no UI flip on a
+school box can put that school into student mode.
+
 ---
 
 ## Additions to the test matrix
