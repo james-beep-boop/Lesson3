@@ -192,7 +192,13 @@ case "$LABEL" in
   weekly)      STREAM="weekly";     KEEP_COUNT="$WEEKLY_KEEP" ;;
   monthly)     STREAM="monthly";    KEEP_COUNT="$MONTHLY_KEEP" ;;
   premigrate*) STREAM="premigrate"; KEEP_DAYS="$PREMIGRATE_RETENTION_DAYS" ;;
-  *)           die "unknown --label '$LABEL' (use weekly | monthly | premigrate)" ;;
+  # ⚑ THE MESSAGE NAMES ALL FOUR FORMS, INCLUDING THE TWO IT USED TO OMIT. It read
+  # "(use weekly | monthly | premigrate)", which is incomplete in both directions: it never said that
+  # NO label means a daily, and it never said `premigrate` accepts a SUFFIX — which is how `deploy.sh`
+  # itself stamps the SHA (`--label premigrate-$SHA`). Someone reading the old message could not tell
+  # that `premigrate-two-recipient-check` was legal, and the operator lost a run to exactly that
+  # (2026-08-22). An error that lists the valid inputs incorrectly is worse than one that lists none.
+  *)           die "unknown --label '$LABEL'. Valid: no --label at all (daily), weekly, monthly, or premigrate with an optional suffix (e.g. premigrate-\$SHA)" ;;
 esac
 
 # Validate the retention value actually selected for this run — BEFORE the dump/upload/prune. if/then
