@@ -1,9 +1,13 @@
 import { readdir, stat } from 'fs/promises'
 import { join } from 'path'
 
-import { artifactCacheDir } from '../generator/artifactCache'
+import {
+  artifactCacheDir,
+  artifactCacheMaxBytes,
+  isArtifactCacheEntry,
+} from '../generator/artifactCache'
+import { gotenbergUrl } from '../generator/docxToPdf'
 import { errorTrackingEnabled } from './errorTracking'
-import { positiveIntEnv } from './env'
 import { isPublicLibraryEnabled } from './publicLibrary'
 
 /**
@@ -40,11 +44,17 @@ export interface SystemFact {
   detail?: string
 }
 
-/** Bounded so a hung sidecar cannot hold the Manage page open. */
-const PROBE_TIMEOUT_MS = 2_000
-
-const gotenbergUrl = (): string =>
-  (process.env.GOTENBERG_URL || 'http://gotenberg:3000').replace(/\/+$/, '')
+/**
+ * Bounded so a hung sidecar cannot hold the Manage page open.
+ *
+ * ⚑ 1s, chosen from measurement rather than instinct. A healthy sidecar answers `/health` in 2–4ms, a
+ * stopped container refuses in ~34ms and an unresolvable host fails in ~6ms — so every ordinary
+ * failure is far inside this. The case the cap exists for is the wedged-but-listening sidecar, which
+ * burns the whole budget and becomes the tail latency of a page whose whole Manage render is otherwise
+ * ~170ms. 1s keeps ~300x headroom over healthy and halves that worst case. The number appears in the
+ * user-visible detail below, so it moves with this constant.
+ */
+const PROBE_TIMEOUT_MS = 1_000
 
 /**
  * Is the PDF sidecar answering?
@@ -57,27 +67,32 @@ const gotenbergUrl = (): string =>
  * component people reliably assume needs internet, which is why the detail line says so.
  */
 async function probePdfEngine(): Promise<SystemFact> {
-  const base = gotenbergUrl()
-  const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
+  // `gotenbergUrl` comes from `docxToPdf` — the module that owns the engine — so the probe and the
+  // exporter can never disagree about which host they mean.
+  const url = gotenbergUrl()
+  const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'pdfEngine',
     label: 'PDF engine',
+    envVar: 'GOTENBERG_URL',
+  }
+  const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
+    ...base,
     value,
     status,
-    envVar: 'GOTENBERG_URL',
     detail,
   })
   try {
-    const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
+    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
     return res.ok
-      ? fact('ok', 'Reachable', `${base} — a local sidecar; PDF conversion needs no internet.`)
-      : fact('unknown', `Answered ${res.status}`, base)
+      ? fact('ok', 'Reachable', `${url} — a local sidecar; PDF conversion needs no internet.`)
+      : fact('unknown', `Answered ${res.status}`, url)
   } catch {
     // Unreachable OR timed out — indistinguishable from here, and the operator's next step is the
     // same either way, so do not pretend to tell them apart.
     return fact(
       'unknown',
       'Not reachable',
-      `${base} did not answer within ${PROBE_TIMEOUT_MS}ms. Every PDF export and preview fails while this is true.`,
+      `${url} did not answer within ${PROBE_TIMEOUT_MS}ms. Every PDF export and preview fails while this is true.`,
     )
   }
 }
@@ -91,7 +106,11 @@ async function probePdfEngine(): Promise<SystemFact> {
  * that tells an operator whether that is about to happen.
  */
 async function probeArtifactCache(): Promise<SystemFact> {
-  const max = positiveIntEnv('ARTIFACT_CACHE_MAX_BYTES', 536_870_912)
+  // ⚑ BOTH FIGURES COME FROM THE CACHE MODULE, not from a second env read. It owns the ceiling
+  // eviction enforces and what counts toward it; re-deriving either here let the panel report a
+  // ceiling the evictor does not use, and `positiveIntEnv` would also have thrown from OUTSIDE the
+  // try below, breaking this module's never-throws contract.
+  const max = artifactCacheMaxBytes()
   const dir = artifactCacheDir()
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'artifactCache',
@@ -99,17 +118,28 @@ async function probeArtifactCache(): Promise<SystemFact> {
     envVar: 'ARTIFACT_CACHE_MAX_BYTES',
   }
   try {
-    const names = await readdir(dir)
-    let used = 0
-    for (const name of names) {
-      // One failed stat (a file swept between readdir and stat) must not lose the whole figure.
-      try {
-        used += (await stat(join(dir, name))).size
-      } catch {
-        /* raced with a cache eviction; skip it */
-      }
-    }
-    const pct = max > 0 ? Math.round((used / max) * 100) : 0
+    // `.bin` only, matching `evictIfNeeded`'s own definition of "used" — an in-flight `.tmp` write
+    // counts toward neither the cap nor this figure.
+    const names = (await readdir(dir)).filter(isArtifactCacheEntry)
+    // ⚑ IN PARALLEL, like `evictIfNeeded` — which totals the same file set in the same directory and
+    // has always done it this way. Measured: an await-in-loop is 4.5–5.4x slower (601ms vs 112ms at
+    // 20k entries), and the entry count is much higher than "a DOCX and a PDF per official version"
+    // because `htmlSectionsCache` and `htmlDiffCache` share this directory and diff entries are per
+    // version-PAIR. At a full 512MB cache that is ~105ms against a ~170ms budget for the whole Manage
+    // render — and it degrades as the cache fills, i.e. exactly when this row matters.
+    const sizes = await Promise.all(
+      names.map(async (name) => {
+        // One failed stat (a file swept between readdir and stat) must not lose the whole figure.
+        try {
+          return (await stat(join(dir, name))).size
+        } catch {
+          return 0 // raced with a cache eviction
+        }
+      }),
+    )
+    const used = sizes.reduce((sum, n) => sum + n, 0)
+    // No `max > 0` guard: `positiveIntEnv` throws below 1, so the cache's ceiling is never zero.
+    const pct = Math.round((used / max) * 100)
     return {
       ...base,
       value: `${mib(used)} of ${mib(max)} (${pct}%), ${names.length} file${names.length === 1 ? '' : 's'}`,
@@ -134,6 +164,8 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
 
   const serverUrl = process.env.SERVER_URL?.trim()
   const publicLibrary = isPublicLibraryEnabled()
+  const smtpHost = process.env.SMTP_HOST
+  const errorTracking = errorTrackingEnabled()
 
   return [
     {
@@ -159,18 +191,18 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
     {
       key: 'email',
       label: 'Outbound email',
-      value: process.env.SMTP_HOST ? 'Configured' : 'Not configured',
-      status: process.env.SMTP_HOST ? 'ok' : 'off',
+      value: smtpHost ? 'Configured' : 'Not configured',
+      status: smtpHost ? 'ok' : 'off',
       envVar: 'SMTP_HOST',
-      detail: process.env.SMTP_HOST
+      detail: smtpHost
         ? undefined
         : 'Password resets, message pings and emailed documents cannot leave this installation.',
     },
     {
       key: 'errorTracking',
       label: 'Error tracking',
-      value: errorTrackingEnabled() ? 'Configured' : 'Not configured',
-      status: errorTrackingEnabled() ? 'ok' : 'off',
+      value: errorTracking ? 'Configured' : 'Not configured',
+      status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',
       // ⚑ Not runtime-switchable, and this is exactly why the facts half exists: it is wired in
       // `instrumentation.ts` at boot, so a toggle for it would be a lie.

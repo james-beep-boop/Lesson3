@@ -1094,6 +1094,65 @@ test.describe('Manage page', () => {
   })
 
   /**
+   * Manage → System (2026-08-21). The panel is Site-Admin-only and reports boot-time facts.
+   *
+   * ⚑ THIS EXISTS FOR THE COMPUTED VALUES, not the text. `lp-manage__roles-admin` once shipped with no
+   * CSS rule at all and the only assertion on it checked that its text was VISIBLE — which passes on
+   * unstyled markup, so nothing caught it. The `data-status` colouring carries real meaning here (an
+   * `unknown` row is the operator's cue that something is down), and it is exactly the kind of rule
+   * that fails silently: `--theme-warning-500` does not exist in Payload's tokens, and an undefined
+   * custom property INHERITS rather than erroring, so a wrong token would have made `unknown` look
+   * identical to `off`.
+   */
+  test.describe('Manage → System', () => {
+    test('a Site Administrator sees the deployment facts, with the status colours applied', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=system.deployment`)
+
+      const values = page.locator('.lp-manage__fact-value')
+      await expect(values.first()).toBeVisible()
+      // Every fact names the env var that decides it — the whole point of a read-only half.
+      await expect(page.locator('.lp-manage__who-email').first()).toBeVisible()
+
+      // ⚑ A COMPUTED COLOUR, and one that must DIFFER from the muted default. Asserting a specific
+      // rgb() would pin Payload's palette; asserting difference pins the thing that actually breaks —
+      // a rule that does not apply, or a token that does not resolve.
+      const muted = await page
+        .locator('.lp-manage__fact-value[data-status="off"]')
+        .first()
+        .evaluate((el) => getComputedStyle(el).color)
+        .catch(() => null)
+      const flagged = await page
+        .locator('.lp-manage__fact-value[data-status="unknown"]')
+        .first()
+        .evaluate((el) => getComputedStyle(el).color)
+        .catch(() => null)
+      // On a stack with no SERVER_URL/SMTP/Sentry and no Gotenberg both are present; if a future
+      // fixture configures everything, neither is, and there is nothing to compare — skip rather than
+      // assert something vacuous.
+      if (muted && flagged) expect(flagged).not.toBe(muted)
+
+      // The detail line claims a full row rather than relying on wrapping (see custom.scss).
+      const detail = page.locator('.lp-manage__fact-detail').first()
+      await expect(detail).toHaveCSS('flex-basis', '100%')
+    })
+
+    test('a Subject Administrator has no System box, and the deep link is scrubbed', async ({
+      page,
+    }) => {
+      await loginAs(page, 'subjectAdmin')
+      await page.goto(`${BASE}/admin?open=system.deployment`)
+
+      await expect(page.locator('.lp-manage__fact-value')).toHaveCount(0)
+      // D7a: a role-inaccessible id is dropped silently AND scrubbed from the URL, landing them on
+      // their own panel rather than an error or an empty box.
+      await expect(page).toHaveURL(/open=users(%2C|,)users\.access/)
+    })
+  })
+
+  /**
    * PR 3 — the taxonomy panels. The SERVER side of both guards is already covered by
    * `tests/int/taxonomyDelete.int.spec.ts`; what is untested until here is whether their messages
    * ever reach a human. That is the entire premise of these panels: the design doc specifies

@@ -25,8 +25,15 @@ export class PdfConversionError extends Error {
   }
 }
 
-/** Base URL of the Gotenberg sidecar; internal compose host in production. */
-const gotenbergUrl = (): string =>
+/**
+ * Base URL of the Gotenberg sidecar; internal compose host in production.
+ *
+ * ⚑ EXPORTED so the health probe in `lib/systemFacts.ts` asks the same host the exporter uses. This
+ * module's header claims to be "the only place that knows the engine", and a second copy of the
+ * default would let the exporter move while the panel kept reporting on the old URL — a probe
+ * confidently describing a host nothing else talks to is worse than no probe.
+ */
+export const gotenbergUrl = (): string =>
   (process.env.GOTENBERG_URL || 'http://gotenberg:3000').replace(/\/+$/, '')
 
 /**

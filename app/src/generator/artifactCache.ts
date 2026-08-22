@@ -209,3 +209,27 @@ async function evictIfNeeded(): Promise<void> {
 export function artifactCacheDir(): string {
   return CACHE_DIR
 }
+
+/**
+ * The ceiling eviction actually enforces, for anything that REPORTS on the cache.
+ *
+ * ⚑ Exported so a reader cannot re-derive it. `lib/systemFacts.ts` briefly re-read
+ * `ARTIFACT_CACHE_MAX_BYTES` with the default spelled `536_870_912` against this module's
+ * `512 * 1024 * 1024` — two spellings of one number, so a grep for either missed the other, and the
+ * panel could report a ceiling the evictor does not use. `MAX_BYTES` is also resolved once at module
+ * load, so a per-request env read could disagree with it at runtime as well as at edit time.
+ */
+export function artifactCacheMaxBytes(): number {
+  return MAX_BYTES
+}
+
+/**
+ * What counts toward that ceiling: `.bin` entries only, exactly as `evictIfNeeded` counts them.
+ *
+ * ⚑ THE FILTER IS THE POINT. A reporter that totals every directory entry includes in-flight `.tmp`
+ * writes and any stray file, so the percentage it shows an operator is not the percentage that
+ * triggers eviction — on the row whose whole purpose is warning them the cache is about to thrash.
+ */
+export function isArtifactCacheEntry(name: string): boolean {
+  return name.endsWith('.bin')
+}

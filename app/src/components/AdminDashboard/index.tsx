@@ -485,7 +485,9 @@ export default async function AdminDashboard({
         siteAdmin && 'plans.delete',
         siteAdmin && repairPlans.length > 0 && 'plans.repair',
         showSaved && 'versions',
-        siteAdmin && 'system.deployment',
+        // `systemFacts &&`, the same clause the JSX uses — the ⚑ above asks for one spelling so the
+        // list can be diffed against the render by eye. It is non-null exactly when `siteAdmin` is.
+        !!systemFacts && 'system.deployment',
       ] satisfies (PanelId | false)[]
     ).filter((id) => id !== false),
   )
