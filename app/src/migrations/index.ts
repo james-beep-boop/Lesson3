@@ -24,6 +24,7 @@ import * as migration_20260814_235248_add_public_publication from './20260814_23
 import * as migration_20260817_141942_add_sign_in_disabled from './20260817_141942_add_sign_in_disabled'
 import * as migration_20260820_223208_add_assignment_provenance from './20260820_223208_add_assignment_provenance'
 import * as migration_20260821_234341_add_system_settings from './20260821_234341_add_system_settings'
+import * as migration_20260822_011614_drop_outbound_email_flag from './20260822_011614_drop_outbound_email_flag'
 
 export const migrations = [
   {
@@ -155,5 +156,10 @@ export const migrations = [
     up: migration_20260821_234341_add_system_settings.up,
     down: migration_20260821_234341_add_system_settings.down,
     name: '20260821_234341_add_system_settings',
+  },
+  {
+    up: migration_20260822_011614_drop_outbound_email_flag.up,
+    down: migration_20260822_011614_drop_outbound_email_flag.down,
+    name: '20260822_011614_drop_outbound_email_flag',
   },
 ]

@@ -2,10 +2,17 @@
  * `system-settings` — the project's first Payload global: who may read and write it, and whether its
  * provenance survives a real write.
  *
- * ⚑ THE AUTHORIZATION HALF IS THE POINT. A global is reachable through its own REST/GraphQL routes, so
- * "the panel is only rendered for a Site Admin" is not the boundary — the same lesson D6a learned about
- * the Roles & Access picker, where the design doc was blunt that "hiding the picker is explicitly NOT
- * the fix". Every role that must be refused is asserted here, per role, rather than inferred from one.
+ * ⚑ THE AUTHORIZATION HALF IS THE POINT, AND IT INVERTED ON 2026-08-22. A global is reachable through
+ * its own REST/GraphQL routes, so "the panel is only rendered for a Site Admin" is not the boundary —
+ * the same lesson D6a learned about the Roles & Access picker. But `update: siteAdminOnly` was not the
+ * boundary either: it let a Site Administrator PATCH the global and skip the re-authentication, the
+ * freshness token, the acknowledgement and the provenance path that the Save endpoint exists to carry.
+ *
+ * So `update` is now `() => false` and **nobody** writes through the ordinary door. What used to be
+ * this file's happy path — "lets a Site Administrator write it" — is now a REFUSAL, and the writes
+ * below take the shape the Save endpoint will: `overrideAccess: true` with a real `user`, which skips
+ * access control (verified: `!overrideAccess ? await executeAccess(...) : true`) while still running
+ * hooks, so provenance still records the actor.
  *
  * ⚑ AND THE PROVENANCE HALF IS ASSERTED THE WAY #258's WAS, because that is where the measuring
  * happened: field access says no to everyone and the hook is the only writer, so a client's forged
@@ -33,8 +40,28 @@ const changesByFlag = async (): Promise<Record<string, FlagChange>> => {
   return Object.fromEntries(rows)
 }
 
-/** Write as a real actor, i.e. through access control rather than around it. */
+/**
+ * Write the way the Save endpoint will: trusted internal access, with the real actor attached.
+ *
+ * ⚑ `overrideAccess: true` is the POINT, not a shortcut around the test's own subject. `update` is
+ * `() => false`, so this is the only path that can write at all — and it is exactly what the endpoint
+ * does after it has authorized, rate-limited and re-authenticated the caller itself. The `user` still
+ * matters: hooks are not access-gated, so `stampFlagChanges` reads it and provenance records a person
+ * rather than "unknown".
+ */
 const setFlags = (
+  features: Record<string, boolean>,
+  actor: RoleFixture['users'][keyof RoleFixture['users']],
+) =>
+  fx.payload.updateGlobal({
+    slug: 'system-settings',
+    data: { features } as never,
+    overrideAccess: true,
+    user: actor,
+  })
+
+/** The ordinary door: access-respecting, which is what must now be shut for everyone. */
+const setFlagsThroughAccess = (
   features: Record<string, boolean>,
   actor: RoleFixture['users'][keyof RoleFixture['users']],
 ) =>
@@ -52,15 +79,26 @@ afterAll(async () => {
   // Leave the global as the migration's defaults found it, so spec order cannot matter.
   await fx.payload.updateGlobal({
     slug: 'system-settings',
-    data: { features: { publicLibraryLive: true, outboundEmail: true } } as never,
+    data: { features: { publicLibraryLive: true } } as never,
     overrideAccess: true,
   })
   await fx?.teardown()
 })
 
 describe('system-settings: who may touch it', () => {
-  it('lets a Site Administrator write it', async () => {
-    await setFlags({ publicLibraryLive: false, outboundEmail: true }, fx.users.siteAdmin)
+  /**
+   * ⚑ THE INVERTED CASE, and the one that would have caught the original hole. A Site Administrator is
+   * the caller everyone assumes may write settings — and that assumption is exactly what made the
+   * re-authentication optional. The wire-level twin lives in `tests/http/systemSettings.http.spec.ts`.
+   */
+  it('refuses even a Site Administrator through the ordinary door', async () => {
+    await expect(
+      setFlagsThroughAccess({ publicLibraryLive: false }, fx.users.siteAdmin),
+    ).rejects.toThrow()
+  })
+
+  it('permits the trusted internal path the Save endpoint will use', async () => {
+    await setFlags({ publicLibraryLive: false }, fx.users.siteAdmin)
     const doc = await readSettings()
     expect((doc.features as { publicLibraryLive?: boolean }).publicLibraryLive).toBe(false)
   })
@@ -72,7 +110,9 @@ describe('system-settings: who may touch it', () => {
    */
   for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
     it(`refuses a ${role} writing it`, async () => {
-      await expect(setFlags({ publicLibraryLive: true }, fx.users[role])).rejects.toThrow()
+      await expect(
+        setFlagsThroughAccess({ publicLibraryLive: true }, fx.users[role]),
+      ).rejects.toThrow()
     })
 
     it(`refuses a ${role} reading it`, async () => {
@@ -89,27 +129,28 @@ describe('system-settings: who may touch it', () => {
 })
 
 describe('system-settings: per-flag provenance', () => {
-  it('stamps who changed a flag, and only the flag that changed', async () => {
-    await setFlags({ publicLibraryLive: true, outboundEmail: true }, fx.users.siteAdmin)
-    // Change exactly one flag as a DIFFERENT actor, so "which row moved" is unambiguous.
-    const before = await changesByFlag()
-    await setFlags({ publicLibraryLive: true, outboundEmail: false }, fx.users.siteAdmin)
+  /**
+   * ⚑ WHAT ONE FLAG CAN AND CANNOT PROVE. Removing `outboundEmail` took away the second flag these
+   * cases used to demonstrate ISOLATION — "changing one flag does not restamp the other" is not
+   * expressible with a single flag, and writing an assertion that looks like it covers that would be
+   * worse than admitting the gap. So: the actor and the change are pinned here, and the isolation
+   * property becomes testable again the moment a second flag exists. It is the reason provenance is
+   * per-flag rather than one pair for the whole global, so it is worth re-adding then.
+   */
+  it('stamps who changed a flag, and what it changed to', async () => {
+    await setFlags({ publicLibraryLive: true }, fx.users.siteAdmin)
+    await setFlags({ publicLibraryLive: false }, fx.users.siteAdmin)
     const after = await changesByFlag()
 
-    expect(after.outboundEmail?.enabled).toBe(false)
-    expect(after.outboundEmail?.changedBy).toBe(fx.users.siteAdmin.id)
-    expect(after.outboundEmail?.changedAt).toBeTruthy()
-    // ⚑ The unchanged flag's row is untouched — a single pair for the whole global could not express
-    // this, which is why provenance is per-flag (operator decision 2026-08-21).
-    if (before.publicLibraryLive) {
-      expect(after.publicLibraryLive?.changedAt).toBe(before.publicLibraryLive.changedAt)
-    }
+    expect(after.publicLibraryLive?.enabled).toBe(false)
+    expect(after.publicLibraryLive?.changedBy).toBe(fx.users.siteAdmin.id)
+    expect(after.publicLibraryLive?.changedAt).toBeTruthy()
   })
 
   it('keeps one row per flag rather than growing a history', async () => {
-    await setFlags({ publicLibraryLive: false, outboundEmail: true }, fx.users.siteAdmin)
-    await setFlags({ publicLibraryLive: true, outboundEmail: true }, fx.users.siteAdmin)
-    await setFlags({ publicLibraryLive: false, outboundEmail: true }, fx.users.siteAdmin)
+    await setFlags({ publicLibraryLive: false }, fx.users.siteAdmin)
+    await setFlags({ publicLibraryLive: true }, fx.users.siteAdmin)
+    await setFlags({ publicLibraryLive: false }, fx.users.siteAdmin)
     const doc = await readSettings()
     const rows = (doc.flagChanges ?? []) as FlagChange[]
     const forFlag = rows.filter((r) => r.flag === 'publicLibraryLive')
@@ -119,21 +160,26 @@ describe('system-settings: per-flag provenance', () => {
   })
 
   /**
-   * ⚑ THE PATH THE HOOK DOES NOT COVER, and the reason field access is load-bearing here rather than
-   * belt-and-braces. `stampFlagChanges` returns early when NO flag changed — so on a write that only
-   * carries `flagChanges`, the hook rewrites nothing and field access is the ONLY thing standing
-   * between a forged row and the database. (#258's equivalent was different: that hook reassigned every
-   * row unconditionally, so either guard alone sufficed. Here they cover different paths.)
+   * ⚑ THE CASE THAT FOUND A REAL HOLE, and it is worth reading before touching the hook.
+   *
+   * Field access on `changedBy`/`changedAt` is `() => false`, which stops a client writing them through
+   * the ordinary door. But `overrideAccess: true` bypasses FIELD access as well as collection access —
+   * and that is the path the Save endpoint uses. So when this case was first written against the
+   * trusted path, the forged timestamp LANDED: the hook returned early because no flag had moved, and
+   * nothing else was left to stop it.
+   *
+   * The fix was to make the hook own `flagChanges` on every write rather than only when a flag moves.
+   * This case now pins that ownership on the one path that will carry real traffic.
    */
-  it('ignores forged provenance even when no flag changed, where only field access can stop it', async () => {
-    await setFlags({ publicLibraryLive: true, outboundEmail: true }, fx.users.siteAdmin)
+  it('ignores forged provenance on the TRUSTED path, where field access does not apply', async () => {
+    await setFlags({ publicLibraryLive: true }, fx.users.siteAdmin)
     const before = await changesByFlag()
     const forgedAt = '1999-12-31T00:00:00.000Z'
     await fx.payload.updateGlobal({
       slug: 'system-settings',
       // Same feature values as above — nothing for the hook to do.
       data: {
-        features: { publicLibraryLive: true, outboundEmail: true },
+        features: { publicLibraryLive: true },
         // Both keys forged: a self-serving grantor AND an invented timestamp.
         flagChanges: [
           {
@@ -144,7 +190,10 @@ describe('system-settings: per-flag provenance', () => {
           },
         ],
       } as never,
-      overrideAccess: false,
+      // ⚑ The trusted path, because the ordinary one is now shut — and that makes this case sharper
+      // rather than weaker: it proves FIELD access still strips a forged row even when collection-level
+      // access has been bypassed, which is exactly the endpoint's situation.
+      overrideAccess: true,
       user: fx.users.siteAdmin,
     })
     const after = await changesByFlag()
