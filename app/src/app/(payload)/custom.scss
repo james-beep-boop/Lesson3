@@ -561,7 +561,7 @@ body {
     font-size: var(--app-secondary-size);
     font-weight: 600;
     // `off` is a legitimate state for an offline school, not a fault, so it stays ordinary muted text.
-    // `unknown` means we asked and could not tell — and for the PDF engine that means every export and
+    // `unknown` means we asked and could not tell — and for PDF output that means every export and
     // preview is failing right now, so it earns the error colour rather than a gentler one.
     color: var(--theme-elevation-600);
 

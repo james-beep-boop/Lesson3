@@ -659,12 +659,16 @@ export default async function AdminDashboard({
             (`docs/DESIGN-d1-deployment-amendments-2026-08-21.md` §D). */}
         {siteAdmin && systemFacts && (
           <AccordionPanel id="system" title="System">
-            <AccordionPanel id="system.deployment" title="Deployment">
+            {/* ⚑ THE PANEL ID STAYS `system.deployment` — it is a URL contract (`?open=…`) and a
+                closed vocabulary in `PANEL_IDS`. Only the visible title changed to "Installation
+                status", which is what an administrator would call this. */}
+            <AccordionPanel id="system.deployment" title="Installation status">
               <p className="lp-manage__desc">
-                What this installation is, and whether it is working. Nothing here can be changed on
-                this screen: most of it is fixed when the server starts, by the setting named beside
-                each row — so changing one needs a restart, not a click. The last three rows are
-                different: they report what actually happened, or what is working right now.
+                This page shows how this installation of ARES Lesson Plans is set up, and whether the
+                services it depends on are working. It is for information only — changes are made on
+                the server, and most of these take effect only when it restarts. The last three rows
+                are different: they report what actually happened, or what is working right now. The
+                smaller technical names are included for whoever maintains the server.
               </p>
               <SystemFactsPanel facts={systemFacts} />
             </AccordionPanel>

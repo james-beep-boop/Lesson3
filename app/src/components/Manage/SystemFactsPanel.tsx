@@ -39,7 +39,13 @@ export function SystemFactsPanel({ facts }: { facts: SystemFact[] }) {
             {fact.description && (
               <span className="lp-manage__fact-description">{fact.description}</span>
             )}
-            {fact.envVar && <span className="lp-manage__fact-env">{fact.envVar}</span>}
+            {/* ⚑ LABELLED "Server setting", because a bare `SMTP_HOST` under a sentence reads as
+                noise to the administrator and as a mystery to everyone else. It stays on screen
+                because it is the only thing that tells whoever DOES edit the configuration where to
+                go — the intro now introduces it rather than leaving it unexplained. */}
+            {fact.envVar && (
+              <span className="lp-manage__fact-env">Server setting: {fact.envVar}</span>
+            )}
             {fact.detail && <span className="lp-manage__fact-detail">{fact.detail}</span>}
           </span>
           {/* `data-status` rather than three class names: the three states are one axis, and the

@@ -1129,7 +1129,7 @@ test.describe('Manage page', () => {
        */
       const backupValue = await page.evaluate(() => {
         const row = [...document.querySelectorAll('li.lp-manage__row')].find((li) =>
-          li.textContent?.includes('Last successful backup'),
+          li.textContent?.includes('Most recent successful backup'),
         )
         const value = row?.querySelector('.lp-manage__fact-value')
         return value
@@ -1138,7 +1138,10 @@ test.describe('Manage page', () => {
       })
       expect(backupValue, 'the backup row did not render at all').not.toBeNull()
       if (backupValue!.status === 'unknown') {
-        expect(backupValue).toEqual({ status: 'unknown', value: 'Unknown' })
+        expect(backupValue).toEqual({
+          status: 'unknown',
+          value: 'No successful backup recorded',
+        })
       } else {
         expect(backupValue).toEqual({
           status: 'ok',

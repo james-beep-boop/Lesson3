@@ -187,10 +187,17 @@ async function readBackupStatus(): Promise<BackupStatusV1 | null> {
 async function readBackupFact(): Promise<SystemFact> {
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'backup',
-    label: 'Last successful backup',
+    label: 'Most recent successful backup',
     envVar: 'BACKUP_RCLONE_REMOTE',
+    /**
+     * ⚑ "SAFELY" IS GONE, and its removal is the whole point of this row's honesty. A successful
+     * upload is not a restorable backup: the record says the encrypted file left the machine, not that
+     * it decrypts or that Postgres will accept it. Only the restore drill in `docs/OPS.md` shows that,
+     * and "safely" quietly promised it (review, 2026-08-21).
+     */
     description:
-      'When this database was last safely copied off this machine, and where it went.',
+      'The most recent time an encrypted copy of the database was successfully sent to the ' +
+      'configured backup location.',
   }
   const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
     ...base,
@@ -203,7 +210,7 @@ async function readBackupFact(): Promise<SystemFact> {
   if (!status) {
     return fact(
       'unknown',
-      'Unknown',
+      'No successful backup recorded',
       'No backup has reported success on this machine yet — check that the nightly backup is set up.',
     )
   }
@@ -213,7 +220,8 @@ async function readBackupFact(): Promise<SystemFact> {
     // ⚑ THE FILENAME IS GONE from this line (operator review, 2026-08-21): it is opaque on screen and
     // `scripts/restore-db.sh --list` is where you go when you actually need it. What an administrator
     // wants here is which kind of backup, where it went, and that it is not empty.
-    `${backupStreamLabel(status.stream)} backup, ${mib(status.encryptedBytes)}, sent to ${status.destination}.`,
+    `${backupStreamLabel(status.stream)} backup, ${mb(status.encryptedBytes)}, sent to ` +
+      `${destinationLabel(status.destination)} (${status.destination}).`,
   )
 }
 
@@ -235,11 +243,16 @@ async function probePdfEngine(): Promise<SystemFact> {
     key: 'pdfEngine',
     // Renamed from "PDF engine" (operator, 2026-08-21). "Engine" names a component; "capability"
     // says what an administrator loses when the row is not green.
-    label: 'PDF output capability',
+    label: 'PDF previews and downloads',
     envVar: 'GOTENBERG_URL',
+    /**
+     * ⚑ NO "while it is not answering" CLAUSE. The description is state-independent, so a consequence
+     * written into it was shown to an administrator whose row said "Working" (review, 2026-08-21). The
+     * consequence now rides on `detail`, which only the failing states set.
+     */
     description:
-      'Turns lesson plans into PDF files. Checked just now — it runs on this machine and needs no ' +
-      'internet, and while it is not answering, PDF downloads stop working.',
+      'Creates PDF copies of lesson plans. This service runs on the ARES Lesson Plans server and ' +
+      'does not require internet access.',
   }
   const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
     ...base,
@@ -253,11 +266,21 @@ async function probePdfEngine(): Promise<SystemFact> {
     // "http://gotenberg:3000 — a local sidecar; PDF conversion needs no internet", which the operator
     // rightly called meaningless to anyone running a school. The address is what `GOTENBERG_URL`
     // beside the row already says; the fact that it is local is in the description.
-    return res.ok ? fact('ok', 'Working') : fact('unknown', 'Not working properly')
+    return res.ok
+      ? fact('ok', 'Working')
+      : fact(
+          'unknown',
+          'Problem detected',
+          'PDF previews and downloads will not work until this is fixed.',
+        )
   } catch {
     // Unreachable OR timed out — indistinguishable from here, and the operator's next step is the
     // same either way, so do not pretend to tell them apart.
-    return fact('unknown', 'Not answering')
+    return fact(
+      'unknown',
+      'Unavailable',
+      'PDF previews and downloads will not work until this is fixed.',
+    )
   }
 }
 
@@ -279,11 +302,11 @@ async function probeArtifactCache(): Promise<SystemFact> {
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'artifactCache',
     // Renamed from "Artifact cache" (operator, 2026-08-21) — "artifact" is build jargon.
-    label: 'Document cache',
+    label: 'Temporary document storage',
     envVar: 'ARTIFACT_CACHE_MAX_BYTES',
     description:
-      'Disk space used by saved copies of already-generated documents, so repeat downloads are ' +
-      'instant. Nothing here is a backup — it is safe to lose.',
+      'Keeps temporary copies of generated Word and PDF files so repeat downloads are faster. These ' +
+      'copies can be recreated and are not backups.',
   }
   try {
     // `.bin` only, matching `evictIfNeeded`'s own definition of "used" — an in-flight `.tmp` write
@@ -306,22 +329,44 @@ async function probeArtifactCache(): Promise<SystemFact> {
       }),
     )
     const used = sizes.reduce((sum, n) => sum + n, 0)
-    // No `max > 0` guard: `positiveIntEnv` throws below 1, so the cache's ceiling is never zero.
-    const pct = Math.round((used / max) * 100)
     return {
       ...base,
-      value: `${mib(used)} of ${mib(max)} (${pct}%), ${names.length} file${names.length === 1 ? '' : 's'}`,
+      value: `${mb(used)} used of ${mb(max)}`,
       status: 'ok',
       // ⚑ NO BARE DIRECTORY PATH. This was `detail: dir` — `/var/cache/lesson3` with no label, which
       // is the same unreadable class as the PDF row's container URL (operator, 2026-08-21). The
       // description says what this is; whoever needs the path has `ARTIFACT_CACHE_DIR`.
     }
   } catch {
-    return { ...base, value: 'Not readable', status: 'unknown' }
+    return { ...base, value: 'Cannot be checked', status: 'unknown' }
   }
 }
 
-const mib = (bytes: number): string => `${(bytes / 1_048_576).toFixed(1)} MiB`
+/**
+ * ⚑ "MB", NOT "MiB", AND THE DIVISOR STAYS 1024-BASED. Strictly that makes these mebibytes labelled
+ * as megabytes — a deliberate trade (operator review, 2026-08-21): the cap is 536,870,912 bytes, which
+ * every operating system on earth displays as "512 MB", and a row reading "512 MiB" invites the
+ * question "is that the same as the 512 I configured?". Familiarity beats IEC pedantry on a screen
+ * read by someone running a school.
+ *
+ * One decimal below 10 MB so a small backup does not round to "0 MB", none above it so a cache figure
+ * is not spuriously precise.
+ */
+const mb = (bytes: number): string => {
+  const value = bytes / 1_048_576
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} MB`
+}
+
+/**
+ * ⚑ WE CANNOT SAY "GOOGLE DRIVE", AND SAYING IT WOULD BE A GUESS. `BACKUP_RCLONE_REMOTE` is either an
+ * absolute path (which `backup-db.sh` requires to be a separate, sentinel-marked mount — so a genuine
+ * removable drive) or an `rclone` remote in `nickname:path` form. That nickname is chosen by whoever
+ * configured rclone: `drive:` is conventional for Google Drive because rclone's own documentation uses
+ * it, but the same remote could be Dropbox or S3. So the two cases we can tell apart honestly are
+ * removable-vs-cloud, and the raw value travels alongside for anyone who needs it.
+ */
+const destinationLabel = (destination: string): string =>
+  destination.startsWith('/') ? 'a removable backup drive' : 'a cloud backup location'
 
 /**
  * Every fact, in the order the panel shows them: identity first, then the capabilities an operator
@@ -348,16 +393,23 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       // Renamed from "Base URL" (operator, 2026-08-21): an administrator does not necessarily know
       // what a "base URL" is, and this row is the one most likely to be wrong on a fresh install.
       label: 'Web address',
+      /**
+       * ⚑ NOT "Public web address" (reviewed 2026-08-21). A school server on its own network is a
+       * legitimate installation — that is why unset reads `off` rather than `unknown` — and calling
+       * the row "public" contradicts the very case the next line exists to reassure.
+       *
+       * ⚑ AND "must match" IS CONDITIONAL. Unqualified it read as though unset were a fault.
+       */
       description:
-        'The web address this site runs at, and that people use to reach this app. Also used for ' +
-        'security checks, so it must match the address people actually visit.',
-      value: serverUrl || 'Not set',
+        'The main internet address people use to open ARES Lesson Plans. On an internet-facing ' +
+        'installation it must match the address people actually visit.',
+      value: serverUrl || 'Not set — suitable for a local installation',
       status: serverUrl ? 'ok' : 'off',
       envVar: 'SERVER_URL',
     },
     {
       key: 'publicLibrary',
-      label: 'Public library capability',
+      label: 'Public lesson library',
       /**
        * ⚑ THE SECOND SENTENCE IS NOT "a separate switch decides whether it currently does", which is
        * what the chosen wording said. That switch is not built yet, so it would send an administrator
@@ -365,25 +417,35 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
        * after the switch lands.
        */
       description:
-        'Whether this installation is allowed to publish lessons publicly at all. Permission alone ' +
-        'does not make anything public.',
-      value: publicLibrary ? 'Permitted by environment' : 'Not permitted',
+        'Whether this installation can make selected lessons available without signing in. This ' +
+        'setting does not publish any lesson by itself.',
+      value: publicLibrary ? 'Available' : 'Not available',
       status: publicLibrary ? 'ok' : 'off',
       envVar: 'PUBLIC_LIBRARY_ENABLED',
     },
     {
       key: 'email',
-      label: 'Outbound email capability',
+      label: 'Email service',
+      /**
+       * ⚑ "NOBODY CAN RECOVER A FORGOTTEN PASSWORD" WAS FALSE, and false in exactly the deployment
+       * this panel serves. `endpoints/userAdminActions.ts` has `reveal-reset-link` (D5), which mints a
+       * reset link and returns it once — its docblock says outright that it exists "to make that
+       * existing authority usable in a deployment with no reliable email". An offline school reading
+       * the old sentence would have concluded it was locked out of its own accounts.
+       */
       description:
-        'Whether this installation can send email at all — password resets, account confirmations ' +
-        'and emailed documents. Without it, nobody can recover a forgotten password.',
-      value: smtpHost ? 'Configured' : 'Not configured',
+        'Sends account-confirmation and password-reset emails, notifications, and lesson documents.',
+      value: smtpHost ? 'Ready' : 'Not set up',
       status: smtpHost ? 'ok' : 'off',
       envVar: 'SMTP_HOST',
+      detail: smtpHost
+        ? undefined
+        : 'Automatic emails cannot be sent. A Site Administrator can still create a password-reset ' +
+          'link and hand it to the person directly.',
     },
     {
       key: 'errorTracking',
-      label: 'Error tracking',
+      label: 'Automatic problem reports',
       /**
        * ⚑ THIS ANSWERS "REPORTED WHERE?", which the operator asked and the old wording dodged. The
        * destination is whatever `SENTRY_DSN` names; the chosen backend is a SELF-HOSTED GlitchTip
@@ -393,10 +455,9 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
        * "we send crash reports somewhere" is exactly the sentence that worries a school.
        */
       description:
-        'Sends an automatic report to the fault-collecting server named in this setting whenever ' +
-        'something breaks, so problems can be found without waiting for someone to report them. ' +
-        'Reports carry only where the fault happened — never form contents, passwords or documents.',
-      value: errorTracking ? 'Configured' : 'Not configured',
+        'Sends technical information about unexpected errors to the monitoring service so problems ' +
+        'can be found sooner. Request headers and form contents are not attached.',
+      value: errorTracking ? 'On' : 'Off',
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',
     },
