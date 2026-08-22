@@ -91,9 +91,16 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the SPEC §8 email carve-out — the claim that was outright false until 2026-08-21',
     claim: 'the addresses of the people listed',
   },
+  {
+    what: 'a teacher on an email-less installation is NOT locked out — reveal-reset-link (D5) exists, and the guide said only "emails you a reset link" until 2026-08-22',
+    claim: 'they can create a reset link and give it to you directly',
+  },
+  {
+    what: 'the Site-Admin capability that rescues the case above, previously undocumented for users',
+    claim: 'Reset a password by hand',
+  },
 ]
 
-/** Wording that must appear in NEITHER file, because a half-finished rename is the likely failure. */
 const RETIRED = ['Manage → Editing access']
 
 describe('the in-app guide and USER_GUIDE.md state the same rules', () => {
