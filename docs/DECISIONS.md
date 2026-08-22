@@ -35,8 +35,10 @@ toggle-that-installs — is a consequence of that one sentence rather than four 
 
 The design requires password re-authentication, a freshness token, provenance and acknowledgements. But
 part 1 shipped `access: { read: siteAdminOnly, update: siteAdminOnly }` — so a Site Administrator can
-`PATCH /api/globals/system-settings` and skip all four. **Re-authentication a normal REST call skips is
-UI theatre.**
+`POST /api/globals/system-settings` and skip all four. **Re-authentication a normal REST call skips is
+UI theatre.** ⚑ The verb is POST, not PATCH — measured: POST → 403, PATCH → 404, PUT → 404. Payload
+routes a global update as POST, so a PATCH-based test probes a nonexistent route and passes for the
+wrong reason.
 
 ⚑ **AND `admin: { hidden: true }` — which I added in #266 and described as closing the inert-toggle
 contradiction — does NOT close this.** Verified in the installed source: `globals/operations/update.js`

@@ -48,10 +48,11 @@ about state is part of the change that alters the state.
 → build `app` **and** `migrate` → `up -d`, refusing to migrate at all if backups are unconfigured. There
 is no separate procedure to remember. UP and DOWN were both exercised against a real database first.
 
-⚑ **The operator's own uncommitted edits to `SPEC.md` §11 (backup destinations) and
-`docs/DESIGN-next-direction-2026-08-19.md` were in the tree throughout and are still uncommitted — do
-not `git add -A`.** #258 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff),
-leaving §11 untouched; verify with `git diff -- SPEC.md` before staging anything in that file.
+⚑ **Both of the operator's in-flight documents are now COMMITTED** — `SPEC.md` §11 (backup
+destinations) and `docs/DESIGN-next-direction-2026-08-19.md` landed in #261, so the tree is clean and
+"do not `git add -A`" no longer applies to them. It applied while #258 was open, which is why that PR
+staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff) and left §11 untouched —
+worth remembering as the technique the next time one file carries two people's work.
 
 ## What this slice does
 
@@ -116,7 +117,9 @@ only thing that would notice a class referenced with **no rule at all**.
   the architecture was accepted, but **four contracts needed tightening first** and are now written into
   `docs/DESIGN-system-panel-2026-08-21.md` and D1:
   1. ⚑ **The Save endpoint must be the SOLE WRITER.** As shipped, `access.update: siteAdminOnly` lets a
-     Site Administrator PATCH the global directly and skip the re-auth, the freshness token, the
+     Site Administrator `POST` the global directly (⚑ POST, not PATCH — that is the verb Payload routes
+     for a global update; PATCH 404s, so a PATCH-based test proves nothing) and skip the re-auth, the
+     freshness token, the
      acknowledgement and the provenance path — so the ceremony is optional. `admin: { hidden: true }`
      from #266 does NOT close this: `globals/operations/update.js` never consults `admin.hidden`.
   2. **The documents disagreed** — three incompatible authorities on the panel's name, ids, flags and
@@ -137,15 +140,7 @@ only thing that would notice a class referenced with **no rule at all**.
   it as current.
 - **Sequence:** D1 places the Official-pointer lock before this panel; the panel went first, which is
   fine — ⚑ **but the lock remains a hard prerequisite for the public read slice**, not something the
-  panel's progress relaxes. Drafted 2026-08-21 and deliberately NOT applied to the
-  operator's in-flight design doc: access control and **fail-closed** semantics for the proposed
-  Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
-  the obvious implementation — reading it in Next middleware — is blocked because `src/middleware.ts` is
-  edge-runtime and cannot reach Postgres, and a named refusal of `mode: 'offline' | 'online'`, which
-  contradicts three decisions D1 already makes. ⚑ **DONE — all of this was folded into D1 on
-  2026-08-22** (A–D and F verbatim, E amended to "one application artifact", G kept as open gaps), and
-  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` is now a superseded stub. D1 is the only
-  authority; do not restate the env-ceiling/runtime-flag split anywhere else.
+  panel's progress relaxes.
 - ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
   I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
   of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
@@ -161,7 +156,12 @@ GitHub repo that an individual can install on a local ARES server. The first rea
 **Intel box** — which is amd64, the architecture CI builds on every PR (`runs-on: ubuntu-latest`). The
 arm64 Rock is the unusual target here, not his machine.
 
-### Licensing: THREE separable assets, and they do not want the same licence
+### Licensing: three separable ASSETS across four items, and they do not want the same licence
+
+The assets are the **code**, the **vendored ARES generator** and the **lesson-plan content**. Item 2
+below is not a fourth asset — it is the missing LICENSE file that the code's decision needs in order to
+mean anything. (Corrected 2026-08-22: this heading said "three separable assets" over four numbered
+items, which read as a miscount.)
 
 1. **The Lesson3 code — MIT (operator decision 2026-08-21).** Chosen to match Payload's own licence, so
    there is no friction and it is compatible with whatever the vendored generator comes back with.
@@ -170,8 +170,11 @@ arm64 Rock is the unusual target here, not his machine.
    decision: it is **scaffold residue.** The commit that introduced the file (`f7bbd4d`, "First pass",
    2026-06-07) also carries `"name": "app"` and `"description": "A blank template to get started with
    Payload 3.0"` — it is `create-payload-app`'s template, and the licence line has never been edited
-   across 35 commits to that file. Do not read it as an existing commitment. Candidates: MIT (matches
-   the declaration) or Apache-2.0 (explicit patent grant; better if others are expected to build on it).
+   across 35 commits to that file — so the declaration happens to match the decision by coincidence,
+   not because anyone chose it there. ⚑ **Apache-2.0 was the alternative considered and NOT taken**
+   (its explicit patent grant is the reason it was on the list); MIT won on matching Payload. Recorded
+   as history so the choice is not reopened by finding the shortlist and mistaking it for an open
+   question. Still to do: an actual LICENSE file, per item 2.
 2. ⚑ **THERE IS NO LICENSE FILE AT THE REPO ROOT, AND THE REPO IS PUBLIC.** Default copyright applies:
    strictly, nobody may use, modify or run it, and there are no terms for contributors. One file, and
    the cheapest high-value item on this whole list.

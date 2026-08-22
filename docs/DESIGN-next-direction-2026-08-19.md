@@ -2,7 +2,12 @@
 
 **Status:** product direction agreed 2026-08-19; **materially amended 2026-08-20** after the operator
 described the three real deployment contexts and after a closer reading of the Data Protection Act
-2019. No code written. `SPEC.md` remains authoritative for the resulting architecture; this document
+2019; **consolidated 2026-08-22** into the single authority for the deployment model, after an operator
+review tightened four contracts. ⚑ **"No code written" is no longer true** — D1's System panel shipped
+its first slice (#265, corrected in #266, writer boundary in #268), so read the "where the shipped code
+diverges" checklist in `docs/DESIGN-system-panel-2026-08-21.md` before treating this document as a
+description of the code. Everything else here is still design. `SPEC.md` remains authoritative for the
+resulting architecture; this document
 separates what was decided from what the build still owes. Several items below AMEND `SPEC.md` and
 must be folded into it before the corresponding slice is built — they are not licence to drift.
 
@@ -23,11 +28,13 @@ reason the sequencing below is not simply "hardest last".
 
 ⚑ **The tier split is the single biggest change from the 2026-08-19 draft**, and it cuts the cost of
 reaching a usable, publicly-launchable quiz product by roughly two thirds — tier 1 carries no identity
-model and no compliance surface at all.
+model, and a **much smaller** compliance surface than accounts would (⚑ not "none": see the anonymity
+caveat under D3 — online identifiers count toward identifiability in Kenyan law, so logging, telemetry
+and rate-limit keys are in scope and need review before launch).
 
 ---
 
-## D1 — Deployment: an env ceiling, capability flags, and three presets (decided; expanded 2026-08-20)
+## D1 — Deployment: an env ceiling and capability flags (decided; expanded 2026-08-20, presets DEFERRED 2026-08-22)
 
 ### The three deployment contexts (operator input, 2026-08-20)
 
@@ -114,9 +121,13 @@ parsing and `?open=` handling come for free, and they are a URL contract once sh
    none of them may be is written by an operator on this screen.
 2. **Features — real toggles, and only where there is something to toggle.** ⚑ Two flags are real
    today: public library live/off, and a narrower email flag whose exact meaning is an OPEN DECISION
-   (see the System design doc). **Student access and AI/translation are NOT flags** — they are not built
-   anywhere, which is a different state from "present but off" (see D), so they appear as facts with a
-   reason and get no column and no switch.
+   (see the System design doc). **Student access and AI/translation get no column and no working
+   switch** — they are not built anywhere, which is the "not built" state in D, distinct from "present
+   but off". ⚑ They render as **disabled rows in this Features half, carrying the true reason**, which
+   is D's treatment for that state — not as Deployment facts. (Corrected 2026-08-22: this said "they
+   appear as facts", contradicting the four-state table two sections down. The table is right: a
+   Deployment fact is for a capability that is BUILT but absent from this box, which an operator can
+   act on; "not built anywhere" is a roadmap statement and belongs where the switch would be.)
 
 ⚑ **PRESETS ARE DEFERRED** (operator decision 2026-08-22). The three school types remain the right
 shape *once there are enough flags for a preset to mean anything*; with two usable switches a preset
@@ -126,9 +137,17 @@ applies then.
 
 ### The contracts this rests on (folded in from the 2026-08-21 amendments, accepted 2026-08-22)
 
-**A — the flags are a security surface.** Writes are Site-Administrator-only asserted server-side; ⚑
-omitting the panel is not a boundary, because a Payload global is reachable through its own
-REST/GraphQL routes. Reads for the public path go through a server-only module. **Fail closed:** the
+**A — the flags are a security surface.** ⚑ **NO ORDINARY WRITE IS PERMITTED AT ALL, Site
+Administrators included** (corrected 2026-08-22; this said "Site-Administrator-only", which is what
+part 1 shipped and what the operator's review rejected). A settings write must carry password
+re-authentication, a freshness token, an acknowledgement and provenance, and a plain REST call carries
+none of them — so `access.update` is `() => false` and the custom Save endpoint is the sole writer,
+using trusted internal access after doing its own authorization.
+⚑ **The route is `POST /api/globals/system-settings`, not PATCH.** Measured: POST → 403, PATCH → 404,
+PUT → 404. Payload routes a global update as POST, so a PATCH-based test probes a route that does not
+exist and passes for the wrong reason. Reads stay Site-Admin-only, and omitting the panel is not a
+boundary because a global is reachable through its own REST/GraphQL routes. Reads for the public path
+go through a server-only module. **Fail closed:** the
 route asks "is discovery live right now?", and absence, a read error, a never-created global, or a
 cached `true` past its TTL all mean **no** — a read-through cache that serves its last value on error
 converts a database blip into an indefinite public exposure no operator action ended. On a read error,
@@ -186,8 +205,9 @@ rate-limit budgets were sized for a school. ⚑ **Student access needs its own e
 
 **Test matrix is the real cost:** env × flags, and the existing 404 boundary must not weaken in any
 combination — plus the failure and authorization axes, which is where a fail-closed design is actually
-decided: global absent; read throws; a cached `true` past its TTL with the DB down; `update` attempted
-by a Teacher and by a Subject Administrator (refused at the wire, not merely absent from the UI);
+decided: global absent; read throws; a cached `true` past its TTL with the DB down; ⚑ **a SITE ADMINISTRATOR's direct `POST /api/globals/system-settings`
+refused at the wire** — the case that matters, because every other role failing only proves ordinary
+access control works; the same POST attempted by a Teacher and by a Subject Administrator;
 unauthenticated read of the global's REST endpoint; and the flag flipped off taking effect within the
 stated TTL.
 
@@ -199,9 +219,16 @@ stated TTL.
    links are not an enhancement for offline schools, they are the replacement.** It also suggests an
    offline deployment should render ARES links as plain text with a note rather than as dead
    hyperlinks — the same render-time seam, and another argument for the overlay.
-2. ⚑ **Backups have no story offline.** SPEC §11 requires "automated, off-site, encrypted backups",
-   which is impossible with no internet. An ARES school needs a different mechanism (USB rotation, or
-   an encrypted dump carried out on a teacher's phone). Currently an unacknowledged gap.
+2. **Backups offline — SOLVED IN SPEC §11, with one piece outstanding** (updated 2026-08-22; this
+   said "no story offline… an unacknowledged gap", which was true when written and is no longer). §11
+   now defines it: encryption and retention are constant and only the DESTINATION varies — offline
+   schools back up to a **rotated removable drive** via rclone's local backend, so `age` encryption,
+   GFS retention and pruning are unchanged; "off-site" is a property of the drive's location, so the
+   guarantee comes from rotation, which is a human process the school owns; a missing drive must FAIL
+   rather than silently create a directory on the root filesystem; and schools hold only the `age`
+   PUBLIC key. ⚑ **What remains unresolved is the authoritative last-success RECORD** — SPEC §11 needs
+   it surfaced in Manage → System, and §11 marks that requirement outstanding because it is recorded
+   state with no source yet, not something a probe can compute.
 3. **Unreliable power + Postgres.** Postgres is crash-safe by default (`fsync`, `full_page_writes`),
    but consumer SSDs that lie about flush can still corrupt on hard cuts. **A small UPS is the
    highest-value item on the bill of materials.** Also needed: unattended clean restart, and a decision
@@ -423,7 +450,9 @@ decommissioning and misunderstanding. Do not over-engineer it.
 ### Compliance work that does not need a lawyer (2026-08-20)
 
 There is no counsel engaged. The two-tier design is what makes that tolerable: the online deployment
-holds no personal data, so the Act does not engage there, and for on-prem rosters the **school** carries
+holds nothing per person by design — though whether that amounts to no personal data in law depends on
+the identifiers the implementation actually keeps (see the caveat under D3) — and for on-prem rosters
+the **school** carries
 the controller's duties.
 
 Doable in-house: a data-processing agreement template for schools; a parental-consent form template the
@@ -477,12 +506,12 @@ Postgres regression test, before building the public contract on top of it.
 | Phase | Work | Why here |
 |---|---|---|
 | 0 | Official-pointer lock | Known prereq, small, unblocks the public track |
-| 1 | Deployment panel (D1) — env facts, capability flags, three presets | Cheap, and it defines what each deployment IS before anything branches on it |
+| 1 | System panel (D1) — env facts and capability flags (⚑ presets DEFERRED 2026-08-22) | Cheap, and it defines what each deployment IS before anything branches on it |
 | 2 | Public read slice (D4) | The "attract interest" goal, already designed — cheapest path to visible value |
 | 3 | LAN resource links (D2) + attribution footer | One generator change, one gate run |
 | 4a | `Boolean(user)` allowlist hardening | Own PR, own tests. **Must precede any student login** |
 | 4b | Question model — source-agnostic, concept tag + rationale from day one | Unblocks authoring in parallel |
-| 4c | **Tier 1: anonymous practice** — no accounts, in-session adaptivity | Zero identity work, zero compliance surface. Also the growth surface |
+| 4c | **Tier 1: anonymous practice** — no accounts, in-session adaptivity | Zero identity work; much smaller compliance surface (not zero — pre-launch review of identifiers/logging required). Also the growth surface |
 | 4d | Teacher-proctored classroom view | Rides 4c's engine; still no student accounts |
 | 4e | **Tier 2: roster accounts**, on-prem only, posture-gated + boot refusal | Needs 4a. The only phase that processes children's data |
 | 4f | Cross-session mastery model + adaptivity | Needs 4b's concept tags and 4e's attempt history |
@@ -492,7 +521,8 @@ questions resolve. That is convenient rather than accidental — it was a reason
 
 ⚑ **4c now precedes the roster work rather than following it.** The anonymous tier was originally
 framed as a warm-up; the two-tier decision makes it a shipping product in its own right — the public
-growth surface — and it can launch with no identity model and no consent mechanism.
+growth surface — and it can launch with no identity model and no per-user consent flow, subject to the
+pre-launch review of identifiers, logging, telemetry and rate limiting that the caveat above requires.
 Public discovery still precedes it because the library is already designed and question authoring is
 the slowest input in the whole plan.
 

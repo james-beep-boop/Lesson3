@@ -50,13 +50,15 @@ Base URL, public-library capability, email configured, error tracking, PDF engin
 cache size and usage, last pre-warm. Reported, not controlled, **with the env var named** so an
 operator knows where to change it.
 
-⚑ **Computed per request from env plus probes — never persisted.** A stored fact is a cache, and a
-cache of a fact goes stale and then lies on the one screen whose entire purpose is telling an operator
-what is true. This is also the half that answers "is the PDF engine up?", which SPEC §9 now records as
-a single point of failure.
+Also the half that answers "is the PDF engine up?", which SPEC §9 records as a single point of failure.
+(The read-only-not-computed rule is stated once above; this paragraph used to restate "computed per
+request, never persisted" and contradicted it.)
 
-⚑ **This half is also where ABSENT capabilities appear** (see the four states in the amendments doc). A
-capability whose bits are not on this box is a *fact with an instruction*, not a control.
+⚑ **This half is where ABSENT capabilities appear** — a capability that is BUILT but whose bits are not
+on this box, which is a *fact with an instruction* rather than a control (state 2 of the four in D1).
+⚑ **"Not built anywhere" is different and does NOT belong here**: that renders as a disabled row in the
+Features half carrying the true reason, because it is a roadmap statement, not something an operator
+can act on.
 
 ### `system.features` — real toggles, plus one Save
 
@@ -128,9 +130,14 @@ A Payload global (`system-settings`) — the project's first, and it carries a m
 ### ⚑ THE SAVE ENDPOINT MUST BE THE SOLE WRITER (operator blocker, 2026-08-22)
 
 Part 1 shipped `access: { read: siteAdminOnly, update: siteAdminOnly }`, and that makes every ceremony
-below **optional**: a Site Administrator can `PATCH /api/globals/system-settings` and bypass the
-password re-authentication, the freshness token, the public-exposure acknowledgement, and the intended
-provenance path. Re-authentication that a normal REST call skips is UI theatre.
+below **optional**: a Site Administrator can `POST /api/globals/system-settings` — the verb Payload
+actually routes for a global update — and bypass the password re-authentication, the freshness token,
+the public-exposure acknowledgement, and the intended provenance path. Re-authentication that a normal
+REST call skips is UI theatre.
+
+⚑ **THE VERB IS POST.** Measured against the running app: POST → 403, PATCH → 404, PUT → 404. A
+PATCH-based test probes a route that does not exist, and passes for the wrong reason the moment its
+expectation admits 404 — so the wire test below must use POST.
 
 ⚑ **`admin: { hidden: true }` DOES NOT FIX THIS**, which was the tempting reading after that landed:
 verified against the installed source, `globals/operations/update.js` never consults `admin.hidden` and
@@ -148,8 +155,8 @@ The endpoint, in order: authorize the caller → rate-limit → re-authenticate 
 **flag allowlist** (never a passthrough of the request body) → validate the required
 **acknowledgements** → atomic write → stamp provenance.
 
-⚑ **The wire test is the point**: a Site Administrator's direct global update must FAIL while the same
-Site Administrator's Save succeeds. Without that pair, nothing distinguishes this design from part 1's.
+⚑ **The wire test is the point**: a Site Administrator's direct `POST /api/globals/system-settings` must
+FAIL while the same Site Administrator's Save succeeds. Without that pair, nothing distinguishes this design from part 1's.
 
 **Reads.** The global's own `read` access is Site-Admin-only. The *enforcement* readers are server-only
 modules using `overrideAccess: true` — the `lib/publicLibrary.ts` / `lib/editorGroups.ts` pattern —
@@ -233,7 +240,7 @@ here is a known gap, not a discovery waiting to happen.
 
 | Contract | Shipped in part 1 | Action |
 |---|---|---|
-| Save endpoint is the **sole writer** | ✗ `access.update: siteAdminOnly` — a Site Admin can PATCH the global directly | close before part 2 ships the endpoint; `hidden: true` did NOT close it |
+| Save endpoint is the **sole writer** | ✗ `access.update: siteAdminOnly` — a Site Admin can `POST` the global directly | close before part 2 ships the endpoint; `hidden: true` did NOT close it |
 | Backup last success + destination in the facts | ✗ omitted | either build it (needs a record source) or the §11 requirement stays outstanding — it is now marked outstanding in SPEC |
 | Each probe independently bounded, three-valued | ~ partly: two probes run concurrently and each resolves independently, but they share one `PROBE_TIMEOUT_MS` | give each its own bound when a third probe lands |
 | A toggle renders only when its ceiling is present | n/a — part 1 renders no toggles at all | part 2 |
