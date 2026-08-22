@@ -1033,10 +1033,6 @@ export interface SystemSetting {
      * Serve the public Explore routes. Requires PUBLIC_LIBRARY_ENABLED=1 and SERVER_URL at boot — off by env means these routes 404 whatever this says.
      */
     publicLibraryLive?: boolean | null;
-    /**
-     * Send password resets, message pings and emailed documents. Requires SMTP_HOST at boot.
-     */
-    outboundEmail?: boolean | null;
   };
   /**
    * System-written. The last change to each flag.
@@ -1080,7 +1076,6 @@ export interface SystemSettingsSelect<T extends boolean = true> {
     | T
     | {
         publicLibraryLive?: T;
-        outboundEmail?: T;
       };
   flagChanges?:
     | T

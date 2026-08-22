@@ -35,8 +35,20 @@ import type { User } from '../payload-types'
  * facts-with-a-reason in the panel, needing no storage. Add a column when there is something to gate.
  */
 
-/** The flags, as one list, so the field set and the provenance diff cannot disagree. */
-export const SYSTEM_FLAGS = ['publicLibraryLive', 'outboundEmail'] as const
+/**
+ * The flags, as one list, so the field set and the provenance diff cannot disagree.
+ *
+ * ⚑ `outboundEmail` WAS REMOVED, not renamed (operator decision 2026-08-22, while nothing read it). It
+ * failed its own standard — a label asserting what the code does not do. Enqueue-gating leaves
+ * already-queued mail to send, so it never was an egress control; and it bundled account verification
+ * and password reset, which are how an account stays REACHABLE, with message pings and emailed
+ * documents, which are conveniences. Turning it off with open registration live could mint accounts
+ * that can never verify and make a reset request look successful while deliberately producing nothing.
+ * A narrower notification-only flag may return once that design exists — renaming this one would have
+ * preserved a decision nobody had earned. `docs/DESIGN-system-panel-2026-08-21.md` holds the open
+ * question.
+ */
+export const SYSTEM_FLAGS = ['publicLibraryLive'] as const
 export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
 
 /**
@@ -55,22 +67,53 @@ const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) =>
   // `!data` alone, matching `stampAssignmentProvenance`'s guard — Payload passes an object here, so
   // the `typeof` half this had was unreachable.
   if (!data) return data
-  const actorId = (req.user as User | undefined)?.id
-  // A userless write (seeds, system paths) leaves provenance alone rather than inventing a grantor.
-  if (actorId == null) return data
 
+  type Row = { flag: string; enabled: boolean; changedBy?: unknown; changedAt?: string }
+  const stored = (originalDoc?.flagChanges ?? []) as Row[]
   const before = (originalDoc?.features ?? {}) as Partial<Record<SystemFlag, boolean>>
   const after = (data.features ?? {}) as Partial<Record<SystemFlag, boolean>>
   const changed = SYSTEM_FLAGS.filter(
     (flag) => flag in after && Boolean(after[flag]) !== Boolean(before[flag]),
   )
-  if (changed.length === 0) return data
+  const kept = stored.filter((row) => !changed.includes(row.flag as SystemFlag))
+  const actorId = (req.user as User | undefined)?.id
+
+  /**
+   * ⚑ ALWAYS REASSIGN `flagChanges`, even when nothing changed — this hook OWNS the field, and an
+   * incoming value must never survive.
+   *
+   * ⚑ THIS IS THE ONLY THING PROTECTING PROVENANCE ON THE TRUSTED PATH, and discovering that is what
+   * this rewrite is for. The field access below is `create/update: () => false`, which stops a client
+   * writing these keys through the ordinary door — but `overrideAccess: true` bypasses FIELD access as
+   * well as collection access, and the Save endpoint writes on exactly that path. So the earlier
+   * version, which returned early whenever no flag had moved, let a forged `flagChanges` array through
+   * untouched on the one path that will carry real traffic. An int case now pins it.
+   *
+   * Rebuilding from `originalDoc` rather than trusting `data` also means the endpoint does not have to
+   * remember to strip the key: it can pass a whole body and provenance is still ours. That is
+   * defence-in-depth for the design's separate requirement that the endpoint validate an explicit flag
+   * allowlist rather than passing a body through — belt AND braces, because this one is cheap.
+   */
+  if (actorId == null) {
+    /**
+     * ⚑ A CHANGED FLAG LOSES ITS ROW, rather than keeping the old one. This said `= stored`, which
+     * preserved the previous row for a flag the very same write had just changed — so provenance
+     * asserted the OLD value and named a person who did not make the change. False audit data is worse
+     * than none, and this is the record an operator would consult precisely when they distrust the
+     * state (operator review, 2026-08-22).
+     *
+     * `kept` already excludes every changed flag, so an absent row means UNKNOWN — the same meaning a
+     * null `changedBy` carries everywhere else in this project. Unchanged flags keep their history,
+     * because nothing about them became doubtful.
+     *
+     * Reachable on seeds and system paths (`overrideAccess: true` with no `user`), which is exactly
+     * where nobody is available to attribute a change to.
+     */
+    data.flagChanges = kept
+    return data
+  }
 
   const now = new Date().toISOString()
-  type Row = { flag: string; enabled: boolean; changedBy?: unknown; changedAt?: string }
-  const kept = ((originalDoc?.flagChanges ?? []) as Row[]).filter(
-    (row) => !changed.includes(row.flag as SystemFlag),
-  )
   data.flagChanges = [
     ...kept,
     ...changed.map((flag) => ({
@@ -86,12 +129,30 @@ const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) =>
 export const SystemSettings: GlobalConfig = {
   slug: 'system-settings',
   label: 'System settings',
-  // Site-Admin-only both ways. ⚑ Omitting the panel from the UI is NOT the boundary — a global is
-  // reachable through its own REST/GraphQL routes, the same lesson D6a learned about the picker. The
-  // enforcement readers in the next PR are server-only modules using `overrideAccess: true`, because
-  // the public-library route must resolve its flag with no user at all; that bypass is documented at
-  // the reader, not here.
-  access: { read: siteAdminOnly, update: siteAdminOnly },
+  /**
+   * ⚑ NOBODY UPDATES THIS THROUGH THE ORDINARY DOOR — not even a Site Administrator.
+   *
+   * `update: siteAdminOnly` (what part 1 shipped) made every ceremony the panel specifies OPTIONAL: a
+   * Site Administrator could `POST /api/globals/system-settings` — the verb Payload actually routes for
+   * a global update; PATCH and PUT 404 — and skip the password
+   * re-authentication, the `expectedUpdatedAt` freshness token, the public-exposure acknowledgement and
+   * the provenance path. Re-authentication that a plain REST call walks past is UI theatre, so the
+   * custom Save endpoint has to be the SOLE writer (operator blocker, 2026-08-22).
+   *
+   * ⚑ `admin: { hidden: true }` DID NOT DO THIS, and I said it did. Verified in the installed 3.87.1
+   * source: `globals/operations/update.js` never consults `admin.hidden` — it gates on `executeAccess`
+   * alone. Hiding the global removed the admin FORM and left the API wide open, which is a narrowed
+   * surface reported as a closed door.
+   *
+   * ⚑ AND THE TRUSTED PATH SURVIVES, which is why `() => false` is the right shape rather than a
+   * clever predicate. That same line reads `!overrideAccess ? await executeAccess(...) : true`, so
+   * `payload.updateGlobal({ overrideAccess: true, user })` bypasses this check entirely — and hooks are
+   * NOT access-gated, so `stampFlagChanges` still runs and still stamps the real actor. The future Save
+   * endpoint authorizes, rate-limits, re-authenticates and validates FIRST, then writes on that path.
+   * Read stays Site-Admin-only for the panel; the enforcement readers are server-only modules that use
+   * `overrideAccess: true` because the public route must resolve its flag with no user at all.
+   */
+  access: { read: siteAdminOnly, update: () => false },
   /**
    * ⚑ `hidden: true`, AND IT STAYS HIDDEN. Without it, Payload's built-in globals UI renders both
    * checkboxes and a Save button at `/admin/globals/system-settings`, reachable from the admin nav —
@@ -131,16 +192,6 @@ export const SystemSettings: GlobalConfig = {
           admin: {
             description:
               'Serve the public Explore routes. Requires PUBLIC_LIBRARY_ENABLED=1 and SERVER_URL at boot — off by env means these routes 404 whatever this says.',
-          },
-        },
-        {
-          name: 'outboundEmail',
-          type: 'checkbox',
-          defaultValue: true,
-          label: 'Outbound email',
-          admin: {
-            description:
-              'Send password resets, message pings and emailed documents. Requires SMTP_HOST at boot.',
           },
         },
       ],
