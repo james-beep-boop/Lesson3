@@ -88,6 +88,38 @@ only. The ~210 occurrences in dated records here, in `DECISIONS.md`, in `CHANGEL
 gut the very document whose subject is retiring the label. `CLAUDE.md` now states that rule in both
 directions, so neither a future sweep nor a future "fix" should disturb them.
 
+## ⚑ AND THEN #271/#272 — DEPLOYED AND VERIFIED AT `e54730c` (2026-08-21, 13:55 UTC)
+
+A second deployment the same evening, carrying the backup work. ⚑ **Verified on the Rock, not inferred
+from a successful script run** — which matters here specifically, because the whole point of #271 is a
+row that claims something about the host:
+
+- **App tree hashes equal**: `git rev-parse origin/main:app` and `ssh Rock5b 'git -C /srv/lesson3 rev-parse
+  HEAD:app'` both `f815319…`. Prefer this over comparing commits (see the 2026-07 note below).
+- **Both System migrations are recorded** in `payload_migrations`, newest first, in the create-then-correct
+  order they were written.
+- **The premigration snapshot wrote a well-formed status record**: `version 1`,
+  `completedAt 2026-08-22T13:55:29Z`, `stream premigrate`, `destination drive:lesson3-backups`,
+  7,108,463 bytes, filename carrying the deployed SHA. So the parser's contract holds against a file the
+  *script* produced, not only against test fixtures.
+- ⚑ **The sole-writer property holds in production.** `docker compose exec app touch
+  /var/run/lesson3-ops/probe` → `Read-only file system`. The parity spec asserts the `:ro` in
+  `docker-compose.yml`; this confirms the kernel actually enforces it on the running container.
+
+⚑ **What this does NOT establish**, and the System row is deliberately labelled so nobody reads it
+otherwise: a *Premigration* success is not a working nightly schedule (that shows *Daily*), and no record
+of any kind proves the dump restores. The restore drill in `docs/OPS.md` is still owed.
+
+⚑ **One thing to look at, found while verifying.** `/srv/lesson3/out/` is a pre-existing host directory
+with unrelated contents — three `Biology_Chemicals_of_Life_*.docx` from June, `backup.log`, `prune.log`,
+`ares-data/`, `ares-demo/` — and `docker-compose.yml` mounts **all of it** at `/var/run/lesson3-ops:ro`.
+Nothing there is secret and the mount is read-only, so this is not an exposure; but the app now has read
+access to more than the one file it wants, and the design comment reads as though the directory exists
+for this purpose. A dedicated subdirectory (`out/ops/`) would narrow it to exactly the contract —
+a compose line, a script line, and the two path assertions in
+`tests/unit/backupStatusPathParity.spec.ts`, with no migration. Not urgent; worth doing before a second
+recorded-state file lands.
+
 ## What this slice does
 
 **D6a is split around the mechanic it was built on (operator decision 2026-08-19).** A Subject

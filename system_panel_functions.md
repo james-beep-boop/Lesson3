@@ -13,8 +13,8 @@ feature, so every item below is tagged:
 - **OPEN** — genuinely undecided.
 - **DEFERRED** — decided *not* to do it yet, on purpose.
 
-⚑ And one thing that applies to everything marked BUILT: it is on the `main` branch but **not yet
-running on the school server**. Two database changes are waiting. See "Not deployed yet" at the end.
+⚑ Everything marked BUILT is now **deployed and verified on the school server** (21 August 2026,
+commit `e54730c`). Section 9 records exactly what was checked.
 
 ---
 
@@ -291,22 +291,36 @@ one**: it is consulted exactly when someone has stopped trusting the system.
 
 ---
 
-## 9. Not deployed yet ⚑
+## 9. Deployed — and verified end to end
 
-Everything marked BUILT is merged, but **the school server is still running an older version**. There
-are two pending database changes (one adding the settings storage, one removing a setting that was
-decided against before anything used it). They should go together, and the deployment script handles the
-whole procedure — including taking an encrypted snapshot first and refusing to proceed if backups are
-not configured.
+**Deployed on 21 August 2026 at 06:55 (13:55 UTC), at commit `e54730c`.** Everything marked BUILT above
+is now running on the school server. Checked rather than assumed, on the server itself:
 
-To check the current gap:
+- **The running code matches the repository exactly.** The content hash of the app directory is
+  identical on the server and on `main` (`f815319…`), which is a stronger check than comparing commit
+  numbers — those can differ harmlessly while the code is the same.
+- **Both database changes were applied**, in order: the one that adds the settings storage, then the one
+  that removes the email setting decided against.
+- **The backup record was written by the deployment's own snapshot**, and it is exactly the shape the app
+  expects: completed 13:55:29 UTC, kind *premigrate*, destination `drive:lesson3-backups`, 6.8 MB
+  encrypted, and the file name even carries the deployed commit.
+- **The app can read that record and cannot write it.** Trying to create a file in that directory from
+  inside the application returns "Read-only file system". That is the property the whole design rests
+  on — the row is evidence produced by the backup, not something the app can assert about itself — and
+  it is now confirmed on the real server, not only in a test.
+
+⚑ **So the "Last successful backup" row will read a real time, labelled *Premigration*.** As section 2
+says, that is a genuine backup and still **not** evidence of a working nightly schedule, and not
+evidence that the backup can be restored. Those need the *Daily* label and an actual test restore
+respectively.
+
+To re-check any of this later:
 
 ```bash
-git log --oneline 30d3c45..main
+git rev-parse origin/main:app && ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD:app'
 ```
 
-Once deployed, the deployment's own pre-change snapshot will immediately fill in the "Last successful
-backup" row — labelled *Premigration*, which as above is not the same as a working schedule.
+Equal means the deployed app code is byte-identical to `main`.
 
 ---
 
