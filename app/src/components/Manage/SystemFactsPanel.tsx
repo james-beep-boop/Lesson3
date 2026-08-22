@@ -32,7 +32,20 @@ export function SystemFactsPanel({ facts }: { facts: SystemFact[] }) {
                 `__who-email` ("the secondary identifier under a NAME") did not describe this; and
                 sharing the class made a page-wide test locator resolve to the Roles & Access panel's
                 email span — hidden inside a collapsed box — instead of this one. */}
-            {fact.envVar && <span className="lp-manage__fact-env">{fact.envVar}</span>}
+            {/* ⚑ PLAIN ENGLISH FIRST, then the machinery. The reading order is label → what it does
+                → which setting controls it → the state-specific note, because an administrator who
+                does not recognise the label needs the sentence before the variable name is of any
+                use to them. */}
+            {fact.description && (
+              <span className="lp-manage__fact-description">{fact.description}</span>
+            )}
+            {/* ⚑ LABELLED "Server setting", because a bare `SMTP_HOST` under a sentence reads as
+                noise to the administrator and as a mystery to everyone else. It stays on screen
+                because it is the only thing that tells whoever DOES edit the configuration where to
+                go — the intro now introduces it rather than leaving it unexplained. */}
+            {fact.envVar && (
+              <span className="lp-manage__fact-env">Server setting: {fact.envVar}</span>
+            )}
             {fact.detail && <span className="lp-manage__fact-detail">{fact.detail}</span>}
           </span>
           {/* `data-status` rather than three class names: the three states are one axis, and the

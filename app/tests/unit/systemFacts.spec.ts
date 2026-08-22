@@ -4,7 +4,7 @@
  * ⚑ THE PROPERTY UNDER TEST IS "NEVER THROWS", and it needs a test because the failure mode is the
  * worst kind: this panel probes a network sidecar and stats a directory, and an unhandled rejection in
  * either would take down the whole Manage page — for a Site Admin, and most likely at exactly the
- * moment they opened it BECAUSE something was already broken. "PDF engine: not reachable" is useful;
+ * moment they opened it BECAUSE something was already broken. "PDF previews: unavailable" is useful;
  * a 500 on Manage teaches them nothing and hides the other facts.
  *
  * The second property is that every fact NAMES ITS ENV VAR. That is not cosmetic: the environment
@@ -110,19 +110,38 @@ describe('collectSystemFacts', () => {
     expect(facts).toHaveLength(7)
   })
 
-  it('reports the PDF engine reachable when the sidecar answers', async () => {
+  it('reports PDF output working when the sidecar answers', async () => {
     stubFetch(() => Promise.resolve(new Response('ok', { status: 200 })))
     const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
     expect(pdf.status).toBe('ok')
-    // ⚑ Says it is LOCAL, because "PDF engine" is the component people assume needs internet.
-    expect(pdf.detail).toContain('no internet')
+    // ⚑ STILL SAYS IT IS LOCAL — this is the component people assume needs internet, and an offline
+    // school seeing it "not working" needs to know the fix is not a connection. The claim moved from
+    // the technical note (which also printed the container URL) to the plain-English description when
+    // those notes were replaced, so the assertion follows it rather than being deleted.
+    expect(pdf.description).toContain('does not require internet access')
   })
 
+  /**
+   * ⚑ THE PROPERTY IS THE DISTINCTION, NOT THE STATUS CODE. This asserted `value` contained "503",
+   * which stopped being true when the row's wording was made plain — the code is meaningless to the
+   * administrator reading this screen. But the distinction it was standing in for is real and worth
+   * keeping: an engine that is *running and answering wrongly* has a different cause from one that is
+   * *not there*, and collapsing both to "not working" would send someone to restart a service that is
+   * already up. So compare the two branches directly, which also cannot rot when the copy changes.
+   */
   it('distinguishes "answered badly" from "did not answer"', async () => {
     stubFetch(() => Promise.resolve(new Response('nope', { status: 503 })))
-    const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
-    expect(pdf.status).toBe('unknown')
-    expect(pdf.value).toContain('503')
+    const badly = byKey(await collectSystemFacts(), 'pdfEngine')
+
+    stubFetch(() => Promise.reject(new Error('connection refused')))
+    const silent = byKey(await collectSystemFacts(), 'pdfEngine')
+
+    expect(badly.status).toBe('unknown')
+    expect(silent.status).toBe('unknown')
+    expect(
+      badly.value,
+      'answering badly and not answering must not read identically — the fixes differ',
+    ).not.toBe(silent.value)
   })
 
   it('reads unset capabilities as OFF, which is a legitimate state and not a fault', async () => {
@@ -150,9 +169,16 @@ describe('collectSystemFacts', () => {
       value: '2026-08-22 03:25:34 UTC',
       envVar: 'BACKUP_RCLONE_REMOTE',
     })
+    // ⚑ THE ONE ROW THAT KEEPS A DETAIL LINE, because "and where it went" is the point of it. Exact
+    // string, not a `toContain`: the destination and the kind are the two things an administrator
+    // reads, and a premigration success quietly reported as a daily one is the misreading the whole
+    // row exists to prevent. The filename was dropped on purpose — opaque on screen, and
+    // `scripts/restore-db.sh --list` is where you go when you need it.
+    // ⚑ THE DESTINATION IS DESCRIBED *AND* QUOTED. "a cloud backup location" is all we can honestly
+    // infer from an rclone nickname — `drive:` is conventional for Google Drive but the remote could be
+    // anything — so the raw value rides along for whoever needs to act on it.
     expect(backup.detail).toBe(
-      'Premigration · drive:lesson3-backups · ' +
-        'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age · 1.5 MiB encrypted',
+      'Premigration backup, 2 MB, sent to a cloud backup location (drive:lesson3-backups).',
     )
   })
 
@@ -199,8 +225,22 @@ describe('collectSystemFacts', () => {
     expect(backupFileMock.close).toHaveBeenCalledOnce()
   })
 
-  it('names account verification among the capabilities lost when SMTP is absent', async () => {
-    expect(byKey(await collectSystemFacts(), 'email').detail).toContain('Account verification')
+  /**
+   * ⚑ THIS CASE NOW PINS A CORRECTION, not just a phrase. It used to assert the row said nobody could
+   * recover a forgotten password when email was absent — which is FALSE: `reveal-reset-link` (D5) lets
+   * a Site Administrator mint a reset link and hand it over, and its docblock says it exists precisely
+   * for deployments with no reliable email. An offline school reading the old wording would have
+   * concluded it was locked out of its own accounts. So the property is now: when email is absent, the
+   * row names the workaround rather than declaring a dead end.
+   */
+  it('offers the hand-delivered reset link when SMTP is absent, rather than a dead end', async () => {
+    const email = byKey(await collectSystemFacts(), 'email')
+    expect(email.status).toBe('off')
+    expect(email.detail).toContain('password-reset')
+    expect(
+      `${email.description} ${email.detail}`,
+      'the row must not claim password recovery is impossible — a Site Administrator can hand over a link',
+    ).not.toMatch(/nobody can/i)
   })
 
   it('flips those to OK when the environment provides them', async () => {
@@ -213,6 +253,27 @@ describe('collectSystemFacts', () => {
       expect(byKey(facts, key).status, key).toBe('ok')
     }
     expect(byKey(facts, 'serverUrl').value).toBe('https://lessons.example.org')
+  })
+
+  /**
+   * ⚑ EVERY ROW EXPLAINS ITSELF IN PLAIN ENGLISH. The labels name components and settings, so an
+   * administrator who does not already know what a "document cache" is learns nothing from being told
+   * its size. The operator's review of the shipped panel was blunt about this: one sentence was
+   * comprehensible and the rest were not. This pins the fix so a new row cannot arrive without one —
+   * the same reason the env-var case below exists.
+   */
+  it('explains every fact in plain English, not just its state', async () => {
+    const facts = await collectSystemFacts()
+    const missing = facts.filter((f) => !f.description?.trim()).map((f) => f.key)
+    expect(
+      missing,
+      'a row whose label is the only explanation is a row only its author can read',
+    ).toEqual([])
+    // Long enough to be a sentence rather than a restated label.
+    for (const f of facts) {
+      expect(f.description!.length, `${f.key}'s description is too short to explain anything`)
+        .toBeGreaterThan(40)
+    }
   })
 
   it('names the environment variable for every fact', async () => {

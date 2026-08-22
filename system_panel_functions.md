@@ -27,33 +27,45 @@ administrator actually asks when something looks wrong: *what is this installati
 It is designed in two halves, which differ in kind. **The first is built and merged; the second is
 designed and not started.**
 
-### The top half: things you can look at but not change
+### The top half — "Installation status": things you can look at but not change
 
-Seven rows, each showing a green/grey/amber state:
+Seven rows, each with one plain sentence saying what it is for, and a colour: **green** for working,
+**grey** for deliberately not set up — a legitimate state for an offline school, not a fault — and
+**red** for "we asked and could not tell", which is the one worth looking at.
 
 | Row | What it tells you |
 |---|---|
-| Base URL | the web address this installation thinks it has |
-| Public library capability | whether this installation is *allowed* to publish lessons publicly |
-| Outbound email | whether email is set up at all |
-| Error tracking | whether crash reporting is switched on |
-| Last successful backup | when a backup last actually finished, and where it went |
-| PDF engine | whether the thing that makes PDFs is answering right now |
-| Artifact cache | how much disk the cache of generated documents is using |
+| Web address | the address people use to reach the app — and which its security checks are based on |
+| Public lesson library | whether this installation is *allowed* to show lessons without signing in |
+| Email service | whether the app can send email at all |
+| Automatic problem reports | whether faults are reported automatically so they can be found sooner |
+| Most recent successful backup | when an encrypted copy of the database was last sent away, and where |
+| PDF previews and downloads | whether the thing that makes PDFs is working right now |
+| Temporary document storage | how much disk the store of already-generated documents is using |
 
-Each row names the setting that controls it, so an administrator knows *where* to go and change it —
-rather than seeing "Outbound email: off" and having no idea why.
+Each row also names the server setting behind it, so whoever maintains the server knows where to go.
 
-Three deliberate choices here worth knowing:
+⚑ **These names are deliberate, and they replaced developer's English.** The panel first shipped saying
+"Base URL", "PDF engine", "Artifact cache" and "Deployment", with technical notes underneath like
+`http://gotenberg:3000 — a local sidecar`. Accurate, and meaningless to anyone running a school. Four
+statements were also simply wrong and were corrected at the same time — most importantly one claiming
+that without email nobody could recover a forgotten password, which would have told an offline school it
+was locked out of its own accounts when in fact a Site Administrator can create a reset link and hand it
+over.
 
-- **No switches in this half.** Not even greyed-out ones. These are things fixed when the server
+Four deliberate choices here worth knowing:
+
+- **No switches in this half.** Not even greyed-out ones. Most of these are fixed when the server
   starts, so a switch would appear to work and then silently do nothing until a restart. A switch that
   lies is worse than no switch.
-- **Nothing here can break the page.** If the PDF engine is unreachable, that row says "not reachable"
-  and the other six still show. A single broken thing must never take down the page you opened
-  *because* something was broken.
+- **Nothing here can break the page.** If the PDF service is unreachable, that row says so and the
+  other six still show. A single broken thing must never take down the page you opened *because*
+  something was broken.
 - **Everything has a time limit.** Each check gives up after one second, including the backup check —
   which reads a file the server writes. A stuck disk can no longer hang the page.
+- **No row promises more than it knows.** The backup row says a copy was successfully *sent*, not that
+  it has been proved restorable; the problem-reports row says what is *not* attached to a report rather
+  than making a vaguer reassurance.
 
 ### The bottom half: switches — DECIDED, NOT BUILT
 
@@ -104,7 +116,7 @@ backups appear to work, go nowhere, and slowly fill the boot disk. The script no
 that lives on the drive itself, checks the drive is a genuinely separate device, and re-checks that the
 same drive is still there after the copy. Any of those failing stops the backup instead of faking it.
 
-**Successful backups now leave a record**, which is what the "Last successful backup" row reads. It is
+**Successful backups now leave a record**, which is what the "Most recent successful backup" row reads. It is
 written by the backup script itself, only after the copy has actually succeeded, and the app can only
 read it — never write it. That is deliberate: it means the row is evidence, not the app's opinion of
 itself. A failed backup cannot advance the record, and a missing record shows "Unknown" rather than
@@ -266,7 +278,8 @@ arrives under an attribution licence, attribution is the condition of using it �
 files travel by email and USB with no app around them, so nothing carries the credit unless the document
 itself does. That is a change to the document generator, not to any screen.
 
-One factual correction worth recording: the PDF engine's licence was checked and is MIT. An earlier
+One factual correction worth recording: the licence of the PDF service (Gotenberg) was checked and is
+MIT. An earlier
 draft had stated a different licence from memory, and was wrong.
 
 ---
@@ -309,7 +322,7 @@ is now running on the school server. Checked rather than assumed, on the server 
   on — the row is evidence produced by the backup, not something the app can assert about itself — and
   it is now confirmed on the real server, not only in a test.
 
-⚑ **So the "Last successful backup" row will read a real time, labelled *Premigration*.** As section 2
+⚑ **So the "Most recent successful backup" row will read a real time, labelled *Premigration*.** As section 2
 says, that is a genuine backup and still **not** evidence of a working nightly schedule, and not
 evidence that the backup can be restored. Those need the *Daily* label and an actual test restore
 respectively.

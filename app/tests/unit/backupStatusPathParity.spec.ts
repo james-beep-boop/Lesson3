@@ -5,7 +5,7 @@
  * ⚑ WHY THIS IS A TEST AND NOT A COMMENT. `scripts/backup-db.sh` writes the record to a HOST path,
  * `docker-compose.yml` bind-mounts that host directory to a CONTAINER path, and `lib/systemFacts.ts`
  * reads a hardcoded container path. Rename any one of the three and nothing fails: no type error, no
- * broken import, no red test. The System row just reports "Last successful backup: Unknown" forever,
+ * broken import, no red test. The System row just reports "No successful backup recorded" forever,
  * on a box whose backups are running perfectly — the failure mode is a *silent pass*, which is the
  * expensive kind, because the panel exists precisely so an operator can stop guessing.
  *
