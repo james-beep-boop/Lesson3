@@ -1,0 +1,37 @@
+# Notice — what the MIT licence in LICENSE does and does not cover
+
+`LICENSE` (MIT) covers the code written for this project.
+
+## ⚑ Three files are NOT covered, because they are not ours to license
+
+    app/src/generator/vendor/lib/build_docs.js
+    app/src/generator/vendor/lib/docx_kit.js
+    app/src/generator/vendor/lib/sections.js
+
+These are copied **byte-verbatim** from the ARES CBE generation system
+(`markknit/cbe-generation-system`, pinned commit `742c8a9`, vendored 2026-07-19 — see
+`app/src/generator/vendor/PROVENANCE.md` for the SHA-256 table). Publishing them in a public
+repository redistributes them, and the right to do that has to be granted by their owner. Until that
+grant exists in writing, the MIT declaration above should not be read as applying to them.
+
+This is recorded as an open item rather than assumed: a licence file that quietly claims to cover
+someone else's code is worse than one that names the gap.
+
+## Lesson-plan content is a separate question
+
+The lesson plans themselves (ARES and SeaVuria) are **content**, not software, and a software licence
+is the wrong instrument for them — Creative Commons themselves advise against CC licences for code,
+and the reverse holds too. A content licence (CC BY 4.0 is the candidate) is a separate conversation
+with ARES and SeaVuria.
+
+⚑ If content does arrive under an attribution licence, note that attribution is the *condition* of
+using it, and these deliverables travel by email and USB with no application around them — so nothing
+carries the credit unless the generated document itself does. That is a generator change, not a
+user-interface one (SPEC §4).
+
+## Dependencies
+
+Third-party npm packages and container images keep their own licences; they are not redistributed by
+this repository. Two worth knowing, both verified rather than recalled: Payload CMS is MIT (the reason
+MIT was chosen for this project, so there is no friction between them), and Gotenberg — the PDF
+service — is MIT.

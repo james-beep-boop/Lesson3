@@ -34,3 +34,12 @@ deployed on **"the Rock"** (a Rock 5B running Docker) as a **non-production veri
 — production hardening (queue/rate-limit, dependency remediation, security headers, backups, CI/CD)
 is still outstanding. The current corpus is 13 published bundles (Biology + Mathematics, Grade 10).
 See `docs/NEXT-SESSION.md` for the live state and next steps.
+
+## Licence
+
+**MIT** — see [`LICENSE`](LICENSE). Chosen to match Payload CMS, which this project is built on, so
+there is no friction between the two.
+
+⚑ **Read [`NOTICE`](NOTICE) alongside it.** Three vendored generator files are copied byte-verbatim
+from the ARES CBE generation system and are not ours to license; the lesson-plan content is a separate
+question, and content wants a different kind of licence from code.

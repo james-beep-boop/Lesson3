@@ -233,8 +233,8 @@ arm64 Rock is the unusual target here, not his machine.
 ### Licensing: three separable ASSETS across four items, and they do not want the same licence
 
 The assets are the **code**, the **vendored ARES generator** and the **lesson-plan content**. Item 2
-below is not a fourth asset — it is the missing LICENSE file that the code's decision needs in order to
-mean anything. (Corrected 2026-08-21: this heading said "three separable assets" over four numbered
+below is not a fourth asset — it is the LICENSE file that the code's decision needed in order to mean
+anything, now written. (Corrected 2026-08-21: this heading said "three separable assets" over four numbered
 items, which read as a miscount.)
 
 1. **The Lesson3 code — MIT (operator decision 2026-08-21).** Chosen to match Payload's own licence, so
@@ -248,10 +248,13 @@ items, which read as a miscount.)
    not because anyone chose it there. ⚑ **Apache-2.0 was the alternative considered and NOT taken**
    (its explicit patent grant is the reason it was on the list); MIT won on matching Payload. Recorded
    as history so the choice is not reopened by finding the shortlist and mistaking it for an open
-   question. Still to do: an actual LICENSE file, per item 2.
-2. ⚑ **THERE IS NO LICENSE FILE AT THE REPO ROOT, AND THE REPO IS PUBLIC.** Default copyright applies:
-   strictly, nobody may use, modify or run it, and there are no terms for contributors. One file, and
-   the cheapest high-value item on this whole list.
+   question. The LICENSE file that made this decision real landed 2026-08-21, per item 2.
+2. ✓ **DONE — `LICENSE` (MIT) is at the repo root, with a `NOTICE` beside it** (2026-08-21). The gap was
+   real: default copyright applied, so strictly nobody could use, modify or run it and contributors had
+   no terms. ⚑ `NOTICE` exists because MIT could not honestly cover everything — see item 3 — and the
+   copyright holder is recorded as **ARES Education**; change that line if the rights holder should be a
+   different entity. Note also that `app/package.json`'s `"license": "MIT"` is still scaffold residue
+   that happens to agree: `LICENSE` is now the authority.
 3. **The vendored ARES generator** — `app/src/generator/vendor/lib/`, three files copied byte-verbatim
    from `markknit/cbe-generation-system`. Publishing them in a public repo redistributes them. The
    operator expects this to be straightforward and will request a licence compatible with whatever the
