@@ -2,7 +2,7 @@
 
 **Status:** product direction agreed 2026-08-19; **materially amended 2026-08-20** after the operator
 described the three real deployment contexts and after a closer reading of the Data Protection Act
-2019; **consolidated 2026-08-22** into the single authority for the deployment model, after an operator
+2019; **consolidated 2026-08-21** into the single authority for the deployment model, after an operator
 review tightened four contracts. ⚑ **"No code written" is no longer true** — D1's System panel shipped
 its first slice (#265, corrected in #266, writer boundary in #268), so read the "where the shipped code
 diverges" checklist in `docs/DESIGN-system-panel-2026-08-21.md` before treating this document as a
@@ -34,7 +34,7 @@ and rate-limit keys are in scope and need review before launch).
 
 ---
 
-## D1 — Deployment: an env ceiling and capability flags (decided; expanded 2026-08-20, presets DEFERRED 2026-08-22)
+## D1 — Deployment: an env ceiling and capability flags (decided; expanded 2026-08-20, presets DEFERRED 2026-08-21)
 
 ### The three deployment contexts (operator input, 2026-08-20)
 
@@ -51,7 +51,7 @@ Teachers' phones carry very limited, personally-charged data — adequate for Wh
 for document downloads. **Plan for schools with more tablets and higher-capacity servers**; the
 architecture does not change, only the sizing.
 
-### The model: capabilities are the truth, school types are presets
+### The model: capabilities are the truth; school types may later become presets
 
 `PUBLIC_LIBRARY_ENABLED=1` (`lib/publicLibrary.ts`) already IS a deploy-time switch: off means no
 Explore action and a server-side 404 from every public route. The new work sits on top of it.
@@ -59,18 +59,18 @@ Explore action and a server-side 404 from every public route. The new work sits 
 - **`PUBLIC_LIBRARY_ENABLED` (env, boot) stays the capability ceiling** — "this deployment MAY be
   public". Unchanged semantics, unchanged boot refusal when set without `SERVER_URL`.
 - **Runtime capability flags** (a Payload global) are the truth about what this installation offers.
-- **The three school types are PRESETS over those flags**, not a mode enum. Selecting one seeds the
-  flags; the flags stay individually visible and overridable; the label reads **Custom** once an
-  operator deviates.
+- **If presets are introduced, the three school types become presets over those flags**, not a mode
+  enum. Selecting one would seed the flags; the flags would stay individually visible and overridable;
+  the label would read **Custom** once an operator deviates. Presets are deferred below.
 
-⚑ **Why presets rather than a three-way enum.** The operator has already said some schools want some
+⚑ **Why any future presets must beat a three-way enum.** The operator has already said some schools want some
 features and not others, and "SeaVuria: limited internet" is not a third mode — it is
 mostly-offline-with-some-egress, where *which* egress (email, updates, AI, backups) are separate
 answers. An enum accumulates exceptions until it means nothing. A bare grid of a dozen checkboxes is
 the opposite failure: it invites incoherent combinations. A preset that seeds visible, overridable
 flags is the shape that survives both.
 
-⚑ **The preset must never be a security boundary.** Selecting "Online school" on a box with no
+⚑ **Any future preset must never be a security boundary.** Selecting "Online school" on a box with no
 `SERVER_URL` must not enable public discovery, and must not enable student roster login (see D3). The
 profile is a convenience over runtime flags, strictly inside the env ceiling.
 
@@ -80,7 +80,7 @@ process-level and read at boot — `SERVER_URL` drives the CSRF allowlist and Se
 controls network egress while actually controlling UI surfaces is exactly the reserved-word failure
 SPEC §13 warns about: a label asserting something the code does not mean.
 
-### ⚑ THE FIVE LAYERS (operator, 2026-08-22 — this is the model everything below serves)
+### ⚑ THE FIVE LAYERS (operator, 2026-08-21 — this is the model everything below serves)
 
 Every capability question in this project is one of five, and confusing two of them is how a label ends
 up asserting something the code does not mean:
@@ -115,34 +115,38 @@ parsing and `?open=` handling come for free, and they are a URL contract once sh
    email configured, error tracking, PDF engine reachable, artifact-cache usage, backup last success and
    destination. ⚑ A toggle that silently does nothing until restart is worse than no toggle; this is the
    half that cannot be runtime-switched, and it must look like it — so each row names the env var that
-   decides it. ⚑ **"Read-only" is the rule, NOT "computed"** (corrected 2026-08-22): some rows are
+   decides it. ⚑ **"Read-only" is the rule, NOT "computed"** (corrected 2026-08-21): some rows are
    computed live from env plus a probe, and others — backup last success above all — are *recorded
    operational state* that cannot be reconstructed from the current environment. Both belong here; what
    none of them may be is written by an operator on this screen.
-2. **Features — real toggles, and only where there is something to toggle.** ⚑ Two flags are real
-   today: public library live/off, and a narrower email flag whose exact meaning is an OPEN DECISION
-   (see the System design doc). **Student access and AI/translation get no column and no working
+2. **Features — real toggles, and only where there is something to toggle.** ⚑ **One flag is real
+   today:** public library live/off. A narrower email flag remains an OPEN DECISION (see the System
+   design doc) and #268 **dropped** its speculative column rather than ship a name that presumed the
+   rejected reading — so the second toggle arrives with its design, not before it. **Student access and AI/translation get no column and no working
    switch** — they are not built anywhere, which is the "not built" state in D, distinct from "present
    but off". ⚑ They render as **disabled rows in this Features half, carrying the true reason**, which
-   is D's treatment for that state — not as Deployment facts. (Corrected 2026-08-22: this said "they
+   is D's treatment for that state — not as Deployment facts. (Corrected 2026-08-21: this said "they
    appear as facts", contradicting the four-state table two sections down. The table is right: a
    Deployment fact is for a capability that is BUILT but absent from this box, which an operator can
    act on; "not built anywhere" is a roadmap statement and belongs where the switch would be.)
 
-⚑ **PRESETS ARE DEFERRED** (operator decision 2026-08-22). The three school types remain the right
+⚑ **PRESETS ARE DEFERRED** (operator decision 2026-08-21). The three school types remain the right
 shape *once there are enough flags for a preset to mean anything*; with two usable switches a preset
 adds vocabulary without adding value, and "Custom" would be the label almost every installation carried.
 Revisit when the flag set grows — the reasoning for presets-over-enum above is unchanged and still
 applies then.
 
-### The contracts this rests on (folded in from the 2026-08-21 amendments, accepted 2026-08-22)
+### The contracts this rests on (folded in from the 2026-08-21 amendments, accepted 2026-08-21)
 
 **A — the flags are a security surface.** ⚑ **NO ORDINARY WRITE IS PERMITTED AT ALL, Site
-Administrators included** (corrected 2026-08-22; this said "Site-Administrator-only", which is what
+Administrators included** (corrected 2026-08-21; this said "Site-Administrator-only", which is what
 part 1 shipped and what the operator's review rejected). A settings write must carry password
 re-authentication, a freshness token, an acknowledgement and provenance, and a plain REST call carries
 none of them — so `access.update` is `() => false` and the custom Save endpoint is the sole writer,
-using trusted internal access after doing its own authorization.
+using trusted internal access after doing its own authorization. ✓ **Implemented in #268**, with the
+wire test's load-bearing case being a **Site Administrator** refused; and ⚑ note that on that trusted
+internal path `overrideAccess: true` bypasses FIELD access too, so provenance is protected by the
+`beforeChange` hook alone — field rules do nothing there.
 ⚑ **The route is `POST /api/globals/system-settings`, not PATCH.** Measured: POST → 403, PATCH → 404,
 PUT → 404. Payload routes a global update as POST, so a PATCH-based test probes a route that does not
 exist and passes for the wrong reason. Reads stay Site-Admin-only, and omitting the panel is not a
@@ -151,7 +155,7 @@ go through a server-only module. **Fail closed:** the
 route asks "is discovery live right now?", and absence, a read error, a never-created global, or a
 cached `true` past its TTL all mean **no** — a read-through cache that serves its last value on error
 converts a database blip into an indefinite public exposure no operator action ended. On a read error,
-return off *without* caching it. ⚑ **And emit a structured operational error** (added 2026-08-22):
+return off *without* caching it. ⚑ **And emit a structured operational error** (added 2026-08-21):
 otherwise a database or configuration failure is indistinguishable from a deliberate off. The TTL is
 the exposure window and must be **a stated number** in the admin copy; ⚑ a TTL is not a take-down —
 the hard kill stays the env ceiling, the only control that still works when the database is the thing
@@ -179,10 +183,10 @@ internet.
 
 ⚑ **Never render a toggle for something absent** — a switch that does nothing when flipped is the same
 failure as the master switch C refuses. ⚑ **And a toggle only renders when its ceiling is present**
-(added 2026-08-22): no `publicLibraryLive` switch without `PUBLIC_LIBRARY_ENABLED`, no email switch
+(added 2026-08-21): no `publicLibraryLive` switch without `PUBLIC_LIBRARY_ENABLED`, no email switch
 without SMTP. Those rows appear as facts instead.
 
-**E — ONE APPLICATION ARTIFACT, not build variants** (narrowed from "one image" 2026-08-22, because the
+**E — ONE APPLICATION ARTIFACT, not build variants** (narrowed from "one image" 2026-08-21, because the
 deployment separately carries `app`, `migrate` and `gotenberg` images, and school boxes run font-less
 while the online tier does not). The online deployment is the superset; school deployments are subsets
 of the same application build. Two build variants double the test matrix and fail as "works in the
@@ -219,7 +223,7 @@ stated TTL.
    links are not an enhancement for offline schools, they are the replacement.** It also suggests an
    offline deployment should render ARES links as plain text with a note rather than as dead
    hyperlinks — the same render-time seam, and another argument for the overlay.
-2. **Backups offline — SOLVED IN SPEC §11, with one piece outstanding** (updated 2026-08-22; this
+2. **Backups offline — SOLVED IN SPEC §11, with one piece outstanding** (updated 2026-08-21; this
    said "no story offline… an unacknowledged gap", which was true when written and is no longer). §11
    now defines it: encryption and retention are constant and only the DESTINATION varies — offline
    schools back up to a **rotated removable drive** via rclone's local backend, so `age` encryption,
@@ -345,7 +349,7 @@ with the dependent paths. Verified against the code rather than recounted from t
 
 ### Identity: a two-tier model (decided 2026-08-20 — SUPERSEDES the open-self-registration decision)
 
-⚑ **THE ANONYMITY CLAIM IS A DESIGN INTENT, NOT A LEGAL CONCLUSION** (operator correction 2026-08-22).
+⚑ **THE ANONYMITY CLAIM IS A DESIGN INTENT, NOT A LEGAL CONCLUSION** (operator correction 2026-08-21).
 Earlier drafts of this section said the Act "never engages", that aggregates are "genuinely anonymous",
 and that tier 1 carries "no legal exposure". Those absolutes are removed. Kenyan law includes **online
 identifiers** in what makes a person identifiable, so IP logs, session identifiers, rate-limit keys,
@@ -467,8 +471,10 @@ phases 0–3**, which touch no student data at all:
    KES 5m turnover *and* fewer than 10 employees, but mandatory categories override the threshold;
    education is likely among them — **verify**.)
 2. Is education within the s.50 localisation schedule? If it is, the online deployment **must** be
-   hosted on servers in Kenya — not a documentation exercise but a hard constraint. ⚑ Largely defused
-   by tier 1 holding no personal data, but decisive for any future roster-on-cloud configuration.
+   hosted on servers in Kenya — not a documentation exercise but a hard constraint. ⚑ Tier 1 is
+   designed to reduce this issue, but "holding no personal data" is not established until the required
+   implementation review has covered identifiers, logging, telemetry, rate-limit keys and aggregation;
+   it remains decisive for any future roster-on-cloud configuration.
 3. Does the controller/processor split hold as described above?
 
 ### Question authoring — OPEN
@@ -506,7 +512,7 @@ Postgres regression test, before building the public contract on top of it.
 | Phase | Work | Why here |
 |---|---|---|
 | 0 | Official-pointer lock | Known prereq, small, unblocks the public track |
-| 1 | System panel (D1) — env facts and capability flags (⚑ presets DEFERRED 2026-08-22) | Cheap, and it defines what each deployment IS before anything branches on it |
+| 1 | System panel (D1) — env facts and capability flags (⚑ presets DEFERRED 2026-08-21) | Cheap, and it defines what each deployment IS before anything branches on it |
 | 2 | Public read slice (D4) | The "attract interest" goal, already designed — cheapest path to visible value |
 | 3 | LAN resource links (D2) + attribution footer | One generator change, one gate run |
 | 4a | `Boolean(user)` allowlist hardening | Own PR, own tests. **Must precede any student login** |
@@ -521,8 +527,10 @@ questions resolve. That is convenient rather than accidental — it was a reason
 
 ⚑ **4c now precedes the roster work rather than following it.** The anonymous tier was originally
 framed as a warm-up; the two-tier decision makes it a shipping product in its own right — the public
-growth surface — and it can launch with no identity model and no per-user consent flow, subject to the
-pre-launch review of identifiers, logging, telemetry and rate limiting that the caveat above requires.
+growth surface — and it needs no identity model. It may launch without a per-user consent flow only if
+the pre-launch review of identifiers, logging, telemetry and rate limiting concludes that the
+implementation processes no children's personal data; otherwise the consent and age-verification
+requirements described above apply.
 Public discovery still precedes it because the library is already designed and question authoring is
 the slowest input in the whole plan.
 

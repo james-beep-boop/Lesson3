@@ -608,7 +608,7 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
     answer — surfaced in the **Manage → System** panel as last-success time and destination. (Renamed
     from "Installation" 2026-08-21; the panel's design is `docs/DESIGN-system-panel-2026-08-21.md`.)
-    ⚑ **NOT YET BUILT, and deliberately so rather than forgotten** (2026-08-22): the panel's first slice
+    ⚑ **NOT YET BUILT, and deliberately so rather than forgotten** (2026-08-21): the panel's first slice
     shipped the other deployment facts and omitted this one. It is the row that proves the rule the rest
     of that half follows — the facts are **read-only**, not necessarily *computed*: a last-success time
     is recorded operational state and cannot be reconstructed from the current environment or a live

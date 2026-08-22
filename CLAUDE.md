@@ -77,12 +77,12 @@ and breaks a stored enum, a URL and a migration. What must never appear is an **
 |---|---|
 | UI text, a type label, `userTypeLabel` | **Never.** Say "Teacher with editing access". |
 | New prose in SPEC, design docs, READMEs, the Guide | **Never**, except to state this prohibition. |
-| **Test names and failure messages** | **Never** — these are prose someone reads under pressure. A loop printing a fixture key produced "refuses a editor writing it" (2026-08-22). |
+| **Test names and failure messages** | **Never** — these are prose someone reads under pressure. A loop printing a fixture key produced "refuses a editor writing it" (2026-08-21). |
 | Code identifiers, stored values, routes | **Keep.** See above. |
 | Stating the rule (here, SPEC §8, a design doc's ⚑) | **Allowed** — naming the banned thing is how the ban is legible. |
 | **Dated records: `docs/DECISIONS.md`, `docs/CHANGELOG.md`, superseded handoffs, `docs/archive/`, and the pre-rename design docs** | **Leave them.** ⚑ Do NOT "excise" history: those entries describe what the label WAS, and rewriting them makes the 2026-07-29 rename decision incomprehensible and the record false. `docs/NEXT-SESSION.md`'s preamble already carries the standing caveat that older blocks say "Editor" because that is what it was called at the time. |
 
-⚑ **The user-facing surface is clean and must stay that way** (verified 2026-08-22: `USER_GUIDE.md`,
+⚑ **The user-facing surface is clean and must stay that way** (verified 2026-08-21: `USER_GUIDE.md`,
 `/guide`, `README.md` and `AGENTS.md` contain the word zero times, and no `Editor` string literal reaches
 a screen). Treat a new occurrence in any of those as a defect, not a style preference.
 

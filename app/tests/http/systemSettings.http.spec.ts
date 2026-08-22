@@ -54,11 +54,14 @@ const GLOBAL_URL = () => url('/api/globals/system-settings')
  * `users` endpoints use, and what the earlier draft of this file assumed).
  */
 async function request(method: 'GET' | 'POST', as?: RoleKey): Promise<{ status: number }> {
+  const authToken = as ? token[as] : undefined
+  if (as && !authToken) throw new Error(`no token for ${as} — fixture login did not complete`)
+
   const res = await fetch(GLOBAL_URL(), {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(as && token[as] ? { Authorization: `JWT ${token[as]}` } : {}),
+      ...(authToken ? { Authorization: `JWT ${authToken}` } : {}),
     },
     ...(method === 'GET'
       ? {}

@@ -1,4 +1,4 @@
-# SUPERSEDED — folded into D1 on 2026-08-22
+# SUPERSEDED — folded into D1 on 2026-08-21
 
 ⚑ **Do not read this file as current. It has no content left.** Everything it proposed now lives in
 `docs/DESIGN-next-direction-2026-08-19.md` **§D1**, which is the single authority for the deployment
@@ -8,7 +8,7 @@ model, the System panel and the capability flags.
 
 It existed for four days as a *proposal* against a document that was then uncommitted work in progress,
 and the System panel design was built on it. Two problems followed, both flagged in the operator's
-design review of 2026-08-22:
+design review of 2026-08-21:
 
 - It was **titled "Three additions"** while its body had grown to sections **A–G**, several of which the
   System design depended on. A proposal document had quietly become a decision document.
