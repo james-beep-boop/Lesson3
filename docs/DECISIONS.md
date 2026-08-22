@@ -57,11 +57,27 @@ verb. None of them would fail if the thing they described were removed entirely.
 **Rule, now standing practice: mutate the guard and watch the test go red before calling it done.** A
 test that has never failed has never been tested.
 
+⚑ **One more of the same class, caught by the operator in review of this very PR.** The http spec built
+its header as `...(as && token[as] ? { Authorization: … } : {})` — so a fixture login that produced no
+token would send the request **unauthenticated**, and every `403` expectation would still pass, for the
+wrong reason: an anonymous denial standing in for the authenticated-but-refused case the file exists to
+prove. Now it throws on a missing token. **Rule: a test helper must never silently degrade the
+identity it is testing with** — the fallback that makes a request "work anyway" is the fallback that
+makes the assertion meaningless.
+
 ### 4. Dates: I stamped a day's decisions from UTC
 
-35 prose stamps read `2026-08-22` for decisions made on the evening of **2026-08-21** PDT — a day the
+37 prose stamps read `2026-08-22` for decisions made on the evening of **2026-08-21** PDT — a day the
 operator had not had yet, contradicting the `-2026-08-21` filenames the same documents carry and putting
-the newest DECISIONS entry out of order. Swept to the 21st. **Rule: prose dates come from the operator's
+the newest DECISIONS entry out of order. Swept to the 21st.
+
+⚑ **Two of the 37 escaped the sweep, and the reason is a process gap worth naming.** I swept a
+hand-listed set of files on a branch cut *before* #269 merged, verified "zero remaining" against that
+tree, and then rebased onto #269 — which brought in two fresh stamps in `CLAUDE.md`, the file my own
+#269 had written. The verification was true when run and false by the time it shipped; the operator
+caught them. **Rule: a repo-wide sweep must be re-run after any rebase that pulls in new commits**, and
+prefer `grep -rl` over a hand-listed file set, precisely so a file added by someone else's merge cannot
+sit outside the list. **Rule: prose dates come from the operator's
 local day; generated identifiers (migration names, stamped from UTC) stay as generated** — the migration
 `20260822_011614_drop_outbound_email_flag` keeps its name, because that name is the row in
 `payload_migrations`, and its header now explains the discrepancy rather than leaving a reader to guess.
