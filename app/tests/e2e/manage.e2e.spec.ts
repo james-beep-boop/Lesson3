@@ -1114,7 +1114,9 @@ test.describe('Manage page', () => {
       const values = page.locator('.lp-manage__fact-value')
       await expect(values.first()).toBeVisible()
       // Every fact names the env var that decides it — the whole point of a read-only half.
-      await expect(page.locator('.lp-manage__who-email').first()).toBeVisible()
+      // ⚑ `__fact-env`, not `__who-email`: this asserted the latter until the gate caught it resolving
+      // to the Roles & Access panel's hidden email span in a collapsed box.
+      await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
 
       // ⚑ A COMPUTED COLOUR, and one that must DIFFER from the muted default. Asserting a specific
       // rgb() would pin Payload's palette; asserting difference pins the thing that actually breaks —
