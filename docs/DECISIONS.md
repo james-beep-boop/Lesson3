@@ -60,6 +60,43 @@ The unknown-case detail now names what actually produces a record.
 
 ---
 
+## 2026-08-21 — The restore drill could not be run, and finding out why was the useful part
+
+Attempted the drill (the last outstanding backup obligation). It stopped at the step that needs the
+private `age` identity, and the reason is a **design working correctly plus a document that contradicts
+it**.
+
+**The identity is deliberately not on the Rock.** SPEC §11: schools hold only the public key, ARES
+retains the identity; OPS §2 says to generate it on the Mac and "Do NOT put it on the Rock". Verified —
+no identity file exists there. Good.
+
+⚑ **But OPS's drill block assumed otherwise.** It read `AGE_IDENTITY=~/lesson3-backup.key` followed by
+`docker compose exec -T postgres …`, sitting in a file whose commands otherwise run on the Rock — so the
+one procedure that proves backups are recoverable was written as unrunnable where the backups live, and
+contradicted its own key-custody section eight headings earlier. Whoever reached for it would have been
+reading it *during an incident*. Now corrected with the two honest options: run it where the identity
+lives (`restore-db.sh` restores into whatever Compose stack you run it from, so a Mac's dev stack is
+already the disposable target), or bring the key over temporarily and shred it after.
+
+**What could be established without the key, and it is worth more than it sounds:**
+
+- the nightly schedule genuinely runs — seven consecutive dailies, 2026-08-16 → 08-22 at 02:00 local;
+- the newest daily downloads **byte-exact** against the remote listing (7,108,455 bytes);
+- it is a real age v1 file with an X25519 recipient stanza.
+
+That eliminates a silent cron, a truncated upload and transit corruption.
+
+⚑ **And it explains a panel reading that would otherwise look wrong.** The System row says
+*Premigration*, not *Daily*, on a box where dailies are working — because the record keeps the latest
+success and today's deploy ran after the 02:00 daily. Exactly the ambiguity the stream label was added
+for, met in the wild within hours of shipping it.
+
+**Still unproven, and only the drill can prove it:** that the ciphertext decrypts with the held
+identity, that `pg_restore` accepts the dump, and that the lesson-plan and version counts come back.
+Everything else we have is evidence about *transport*, not recovery.
+
+---
+
 ## 2026-08-21 — No general email switch; backup success is host-recorded evidence
 
 The operator closed the two remaining System-foundation questions after successfully deploying
