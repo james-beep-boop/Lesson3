@@ -56,7 +56,9 @@ export default async function UserGuidePage() {
             <strong>Your account:</strong> create one from the sign-in page’s <em>Sign up</em>{' '}
             link, then follow the verification link we email you before signing in — verified
             accounts can read and download everything. <em>Forgot password?</em> on the same page
-            emails you a reset link. For security your session ends after a while and signs you out
+            emails you a reset link. If your school’s installation cannot send email — some run
+            with no internet — ask a Site administrator instead: they can create a reset link and
+            give it to you directly. For security your session ends after a while and signs you out
             automatically — just sign in again to continue.
           </li>
           <li>
@@ -211,6 +213,17 @@ export default async function UserGuidePage() {
             are also the only ones who can <strong>remove</strong> a Subject-grade administrator: an
             administrator may hand the role on, but nobody can take it away from them, and nobody can
             resign it.
+          </li>
+          <li>
+            <strong>Reset a password by hand:</strong> where email is not set up, you can create a
+            one-time reset link for an account and hand it over. You never see or choose the
+            password — the person sets their own through the normal reset page.
+          </li>
+          <li>
+            <strong>See what this installation is:</strong> Manage → System reports the address,
+            whether email and public sharing are available, whether PDF output is working, and when a
+            backup last succeeded. Everything there is read-only: those are decided on the server, so
+            changing one is a server job, not a click.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson

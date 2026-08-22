@@ -19,6 +19,8 @@ Manage or see version/editing controls.
 
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
+  If your school's installation cannot send email — some run with no internet — ask a Site
+  administrator instead: they can create a reset link and give it to you directly.
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
 - **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
@@ -99,6 +101,12 @@ lesson-plan upload/import, and all lesson plans.
   Subject-grade administrator access by subject-grade. Site administrators are also the only ones who
   can **remove** a Subject-grade administrator: an administrator may hand the role on, but nobody can
   take it away from them, and nobody can resign it.
+- **Reset a password by hand:** where email is not set up, you can create a one-time reset link for an
+  account and hand it over. You never see or choose the password — the person sets their own through the
+  normal reset page.
+- **See what this installation is:** Manage → System reports the address, whether email and public
+  sharing are available, whether PDF output is working, and when a backup last succeeded. Everything
+  there is read-only: those are decided on the server, so changing one is a server job, not a click.
 - **Manage curriculum:** maintain Subjects and Subject Grades before lesson plans are uploaded.
 - **Review everything:** inspect, edit, export, mark Official, or delete lesson plans across all
   subjects and grades.
