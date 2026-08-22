@@ -1111,34 +1111,45 @@ test.describe('Manage page', () => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin?open=system.deployment`)
 
-      const values = page.locator('.lp-manage__fact-value')
-      await expect(values.first()).toBeVisible()
+      await expect(page.locator('.lp-manage__fact-value').first()).toBeVisible()
       // Every fact names the env var that decides it — the whole point of a read-only half.
-      // ⚑ `__fact-env`, not `__who-email`: this asserted the latter until the gate caught it resolving
-      // to the Roles & Access panel's hidden email span in a collapsed box.
+      // ⚑ `__fact-env`, not `__who-email`: that shared class made this resolve to the Roles & Access
+      // panel's hidden email span in a collapsed box.
       await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
 
-      // ⚑ A COMPUTED COLOUR, and one that must DIFFER from the muted default. Asserting a specific
-      // rgb() would pin Payload's palette; asserting difference pins the thing that actually breaks —
-      // a rule that does not apply, or a token that does not resolve.
-      const muted = await page
-        .locator('.lp-manage__fact-value[data-status="off"]')
-        .first()
-        .evaluate((el) => getComputedStyle(el).color)
-        .catch(() => null)
-      const flagged = await page
-        .locator('.lp-manage__fact-value[data-status="unknown"]')
-        .first()
-        .evaluate((el) => getComputedStyle(el).color)
-        .catch(() => null)
-      // On a stack with no SERVER_URL/SMTP/Sentry and no Gotenberg both are present; if a future
-      // fixture configures everything, neither is, and there is nothing to compare — skip rather than
-      // assert something vacuous.
-      if (muted && flagged) expect(flagged).not.toBe(muted)
+      /**
+       * ⚑ ONE `page.evaluate`, NO PER-ELEMENT LOCATORS. The first version of this test read colours
+       * through `locator(...).evaluate().catch(() => null)` so it could "skip rather than assert
+       * something vacuous" — but a locator for an element that does not exist waits out its FULL
+       * timeout before the catch ever runs, which killed the test and made the next assertion report
+       * "Target page has been closed". Reading the whole set in one pass cannot wait for anything.
+       */
+      const rows = await page.evaluate(() =>
+        [...document.querySelectorAll('.lp-manage__fact-value')].map((el) => ({
+          status: (el as HTMLElement).dataset.status ?? '',
+          color: getComputedStyle(el).color,
+        })),
+      )
+      expect(rows.length, 'the panel rendered no facts at all').toBeGreaterThan(0)
+      for (const row of rows) expect(['ok', 'off', 'unknown']).toContain(row.status)
+
+      /**
+       * ⚑ THE PROPERTY IS "DISTINCT STATUSES RENDER DISTINCTLY", not a specific rgb() — pinning the
+       * palette would break on a Payload theme change, and asserting a fixture's particular mix of
+       * statuses is the census mistake this file records elsewhere. What must never happen is two
+       * statuses looking identical: `--theme-warning-500` does not exist in Payload's tokens, and an
+       * undefined custom property INHERITS rather than erroring, so a wrong token makes `unknown`
+       * indistinguishable from `off` — the one row worth noticing looking like nothing.
+       */
+      const colourByStatus = new Map(rows.map((r) => [r.status, r.color]))
+      expect(new Set(colourByStatus.values()).size).toBe(colourByStatus.size)
 
       // The detail line claims a full row rather than relying on wrapping (see custom.scss).
-      const detail = page.locator('.lp-manage__fact-detail').first()
-      await expect(detail).toHaveCSS('flex-basis', '100%')
+      const flexBasis = await page.evaluate(() => {
+        const d = document.querySelector('.lp-manage__fact-detail')
+        return d ? getComputedStyle(d).flexBasis : null
+      })
+      expect(flexBasis).toBe('100%')
     })
 
     test('a Subject Administrator has no System box, and the deep link is scrubbed', async ({
@@ -1148,9 +1159,15 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin?open=system.deployment`)
 
       await expect(page.locator('.lp-manage__fact-value')).toHaveCount(0)
-      // D7a: a role-inaccessible id is dropped silently AND scrubbed from the URL, landing them on
-      // their own panel rather than an error or an empty box.
-      await expect(page).toHaveURL(/open=users(%2C|,)users\.access/)
+      /**
+       * ⚑ ASSERT THE ID IS GONE, not where the scrub lands. The first version expected
+       * `open=users,users.access`, which only holds when the caller has exactly ONE top-level panel so
+       * the lone-child rule opens it — in CI this role also has candidate versions, so `versions` is
+       * available, there are two top-level panels, and D7a correctly scrubs to no `open` at all. The
+       * property is that a role-inaccessible id never survives in the URL; which panel they land on is
+       * a fixture detail.
+       */
+      await expect(page).not.toHaveURL(/system/)
     })
   })
 
