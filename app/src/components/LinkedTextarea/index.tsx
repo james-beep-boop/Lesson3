@@ -3,18 +3,20 @@
 /**
  * Payload textarea wrapper for the link proof of concept.
  *
- * The underlying field remains Payload's native textarea and stores an ordinary string. The small
- * control remembers the textarea cursor, then inserts `(https://…)` from either a typed internet
- * address or a server-issued PDF-library URL. There is no rich text, selection tracking or hidden
- * link metadata, so versioning, field-level access and edit recovery keep their existing contracts.
+ * The underlying field remains Payload's native textarea and stores an ordinary string. Placing the
+ * cursor here enables the editor toolbar's single Insert link action; this field then inserts
+ * `(https://…)` from either a typed internet address or a server-issued PDF-library URL. There is no
+ * rich text or hidden link metadata, so versioning, field-level access and edit recovery keep their
+ * existing contracts.
  */
 import type { TextareaFieldClientProps } from 'payload'
 
 import { Button, TextareaField, useConfig, useField } from '@payloadcms/ui'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 import Modal from '../Modal'
+import { activateLinkTarget, clearActiveLinkTarget } from './activeTarget'
 import { insertParenthesizedUrl, validExternalUrl } from './insertLink'
 
 type PdfResource = {
@@ -36,6 +38,7 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
   const { config } = useConfig()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef(0)
+  const targetId = useRef(Symbol(path))
   const [open, setOpen] = useState(false)
   const [webUrl, setWebUrl] = useState('')
   const [files, setFiles] = useState<PdfResource[]>([])
@@ -44,10 +47,6 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
 
   const textarea = (): HTMLTextAreaElement | null =>
     wrapperRef.current?.querySelector('textarea') ?? null
-
-  const rememberCursor = () => {
-    cursorRef.current = textarea()?.selectionStart ?? String(value ?? '').length
-  }
 
   const showDialog = async () => {
     setOpen(true)
@@ -93,27 +92,31 @@ export default function LinkedTextarea(props: TextareaFieldClientProps) {
     insert(url)
   }
 
+  const rememberAsTarget = (eventTarget: EventTarget | null) => {
+    const input = textarea()
+    if (!input || eventTarget !== input || readOnly || disabled || input.readOnly || input.disabled)
+      return
+    cursorRef.current = input.selectionStart ?? String(value ?? '').length
+    activateLinkTarget({ id: targetId.current, openDialog: () => void showDialog() })
+  }
+
+  // A field must not leave the toolbar pointing at an unmounted or newly read-only component.
+  useEffect(() => {
+    const id = targetId.current
+    if (readOnly || disabled) clearActiveLinkTarget(id)
+    return () => clearActiveLinkTarget(id)
+  }, [disabled, readOnly])
+
   return (
-    <div ref={wrapperRef} className="prose-link-field">
+    <div
+      ref={wrapperRef}
+      className="prose-link-field"
+      onFocusCapture={(event) => rememberAsTarget(event.target)}
+      onKeyUpCapture={(event) => rememberAsTarget(event.target)}
+      onMouseUpCapture={(event) => rememberAsTarget(event.target)}
+      onSelectCapture={(event) => rememberAsTarget(event.target)}
+    >
       <TextareaField {...props} />
-      {!readOnly && !disabled && (
-        <span
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') rememberCursor()
-          }}
-        >
-          <Button
-            className="lp-btn prose-link-field__trigger"
-            buttonStyle="secondary"
-            size="small"
-            onMouseDown={rememberCursor}
-            onClick={showDialog}
-            type="button"
-          >
-            Insert link
-          </Button>
-        </span>
-      )}
 
       {open && (
         <Modal title="Insert link" className="prose-link-dialog" onClose={() => setOpen(false)}>

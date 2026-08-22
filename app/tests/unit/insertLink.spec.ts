@@ -1,10 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  activateLinkTarget,
+  clearActiveLinkTarget,
+  hasActiveLinkTarget,
+  openActiveLinkTarget,
+  subscribeToActiveLinkTarget,
+} from '../../src/components/LinkedTextarea/activeTarget'
 import {
   insertParenthesizedUrl,
   validExternalUrl,
 } from '../../src/components/LinkedTextarea/insertLink'
 import { lessonContentFields } from '../../src/fields/lessonContent'
+
+afterEach(() => clearActiveLinkTarget())
 
 describe('proof-of-concept link insertion', () => {
   it('inserts a parenthesized URL at the cursor and returns the new cursor', () => {
@@ -38,5 +47,39 @@ describe('linkable prose field wiring', () => {
     const title = named(childFields(lessons), 'title')
     expect(overview.admin?.components?.Field).toBe('@/components/LinkedTextarea#default')
     expect(title.admin?.components?.Field).toBeUndefined()
+  })
+})
+
+describe('single toolbar link target', () => {
+  it('stays unavailable until a field registers, then opens the latest registered field', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+
+    expect(hasActiveLinkTarget()).toBe(false)
+    openActiveLinkTarget()
+    expect(first).not.toHaveBeenCalled()
+
+    activateLinkTarget({ id: Symbol('first'), openDialog: first })
+    expect(hasActiveLinkTarget()).toBe(true)
+    activateLinkTarget({ id: Symbol('second'), openDialog: second })
+    openActiveLinkTarget()
+
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledOnce()
+  })
+
+  it('clears only the field that currently owns the cursor and notifies the toolbar', () => {
+    const current = Symbol('current')
+    const notifications = vi.fn()
+    const unsubscribe = subscribeToActiveLinkTarget(notifications)
+
+    activateLinkTarget({ id: current, openDialog: vi.fn() })
+    clearActiveLinkTarget(Symbol('stale'))
+    expect(hasActiveLinkTarget()).toBe(true)
+
+    clearActiveLinkTarget(current)
+    expect(hasActiveLinkTarget()).toBe(false)
+    expect(notifications).toHaveBeenCalledTimes(2)
+    unsubscribe()
   })
 })

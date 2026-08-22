@@ -75,11 +75,7 @@ export async function ensureExportReady(exportUrl: string, opts: DownloadOpts = 
 
   // Phase 1: prepare via POST — the only state-changing call (CSRF-guarded by SameSite=Lax).
   onState('preparing')
-  const prep = await fetchExport(
-    exportUrl,
-    { method: 'POST', credentials: 'same-origin' },
-    onState,
-  )
+  const prep = await fetchExport(exportUrl, { method: 'POST', credentials: 'same-origin' }, onState)
 
   if (prep.status === 429) {
     const msg = await messageFrom(prep, 'Too many requests — please wait and try again.')
@@ -161,7 +157,9 @@ const POPUP_BLOCKED_MESSAGE =
  */
 function deliverToTab(tab: Window | null, url: string): void {
   if (tab) {
-    tab.location.href = url
+    // Replace the temporary about:blank document instead of adding the PDF after it in history.
+    // Otherwise Back in the PDF tab reveals a blank page rather than having no prior tab history.
+    tab.location.replace(url)
     return
   }
   if (!window.open(url, '_blank')) throw new Error(POPUP_BLOCKED_MESSAGE)
@@ -189,7 +187,6 @@ export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string)
     throw e
   }
 }
-
 
 /**
  * Open a GENERATED (not cached) PDF in a new tab — the unsaved working-copy twin of
@@ -220,7 +217,8 @@ export async function openGeneratedPdfInNewTab(url: string, body: FormData): Pro
   }
   try {
     const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin' })
-    if (!res.ok) throw new Error(await messageFrom(res, `Could not prepare the PDF (${res.status}).`))
+    if (!res.ok)
+      throw new Error(await messageFrom(res, `Could not prepare the PDF (${res.status}).`))
     const blobUrl = URL.createObjectURL(await res.blob())
     try {
       deliverToTab(tab, blobUrl)

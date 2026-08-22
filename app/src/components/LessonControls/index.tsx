@@ -6,7 +6,7 @@
  * disabled lifecycle button ever shows:
  *
  *   view mode:  Viewing: <title> [Official] │ [Edit] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
- *   edit mode:  Editing: <title> [Official] │ [Save · Cancel] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
+ *   edit mode:  Editing: <title> [Official] │ [Save · Cancel] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *
  * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
@@ -21,7 +21,7 @@
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -54,6 +54,12 @@ import { useEditRecovery } from '../EditRecovery/useEditRecovery'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
 import type { RecoveryToken } from '../EditRecovery/protocol'
 import Modal from '../Modal'
+import {
+  clearActiveLinkTarget,
+  hasActiveLinkTarget,
+  openActiveLinkTarget,
+  subscribeToActiveLinkTarget,
+} from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
@@ -172,6 +178,11 @@ export default function LessonControls() {
   // Deriving rather than gating the initial state matters because `savedDocumentData` — and so
   // `canEdit` — can resolve after first render; a one-shot initialiser would latch the wrong answer.
   const editing = editIntent && canEdit
+  const linkTargetReady = useSyncExternalStore(
+    subscribeToActiveLinkTarget,
+    hasActiveLinkTarget,
+    () => false,
+  )
 
   // The live form values, read at call time. Declared here because edit recovery (below) is the
   // first consumer; the save path uses the same function so both send an identical snapshot.
@@ -312,6 +323,9 @@ export default function LessonControls() {
       setTooNarrow(true)
       return
     }
+    // Each edit session starts without a target: the toolbar action remains disabled until the
+    // teacher deliberately places the cursor in a linkable prose field.
+    clearActiveLinkTarget()
     setEditIntent(true)
     setMsg(null)
   }
@@ -319,6 +333,7 @@ export default function LessonControls() {
   const onDiscard = () => {
     // Revert the form to the saved document (drop unsaved edits) and re-lock to view mode.
     void reset(savedDocumentData ?? {})
+    clearActiveLinkTarget()
     setEditIntent(false)
     setMsg(null)
   }
@@ -577,6 +592,17 @@ export default function LessonControls() {
               />
             </>
           )}
+          {editing && (
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              onClick={openActiveLinkTarget}
+              disabled={!linkTargetReady}
+              tooltip={!linkTargetReady ? 'Place the cursor in a prose field first' : undefined}
+            >
+              Insert link
+            </Button>
+          )}
           <Button
             buttonStyle="secondary"
             size="small"
@@ -693,8 +719,8 @@ export default function LessonControls() {
               Start a line with <code>- </code> to make a bullet.
             </li>
             <li>
-              Use <em>Insert link</em> beneath a prose field to add an internet address or a PDF
-              from the Rock at the cursor.
+              Place the cursor in a prose field, then use <em>Insert link</em> in the toolbar to add
+              an internet address or a PDF from the Rock.
             </li>
             <li>Bold, italics, and underlining are not supported.</li>
             <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>

@@ -174,9 +174,10 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
 
 #### Proof of concept — links inside prose (2026-08-22)
 
-Link insertion stays inside the plain-string grammar; it is **not rich text**. Linkable body-prose
-textareas have an **Insert link** action that writes the complete address in parentheses at the
-cursor, for example `(https://www.youtube.com/watch?v=…)`. During generation, only parenthesized
+Link insertion stays inside the plain-string grammar; it is **not rich text**. The editing toolbar's
+single **Insert link** action is disabled until the cursor is placed in a linkable body-prose
+textarea, then writes the complete address in parentheses at that cursor, for example
+`(https://www.youtube.com/watch?v=…)`. During generation, only parenthesized
 `http`/`https` addresses become explicit DOCX hyperlinks; the parentheses remain visible. Titles are
 excluded because the ARES generator interpolates them into document headings rather than ordinary
 prose cells. Preview links to web/PDF destinations open separately so they never replace an editor
