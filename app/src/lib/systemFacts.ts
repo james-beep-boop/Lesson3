@@ -139,6 +139,52 @@ const backupStreamLabel = (stream: BackupStream): string =>
   ({ daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', premigrate: 'Premigration' })[stream]
 
 /**
+ * Where backups GO, as opposed to whether one has happened — and they are genuinely different questions.
+ *
+ * ⚑ THIS ROW EXISTS BECAUSE THE DESTINATION USED TO APPEAR ONLY AFTER A SUCCESS (operator, 2026-08-22).
+ * Until then the panel said "No successful backup recorded" and nothing about where a backup *would*
+ * land, which is precisely what an offline school needs while setting a USB drive up. That is a setup
+ * question; "did one happen?" is an operations question.
+ *
+ * ⚑ AND IT IS REPORTED, NOT CHOSEN. A dropdown offering cloud/removable would be a switch that lies:
+ * selecting a drive cannot work until somebody has physically mounted it at that path and put the
+ * sentinel file on it, and the app can neither do that nor write `.env`. It would look live and produce
+ * refusing backups — the exact failure D1 forbids.
+ *
+ * ⚑ THERE IS NO "SAME DISK" OPTION, DELIBERATELY. `backup-db.sh` refuses a destination backed by the
+ * root filesystem ("not a separate volume"), because backing up to the disk you are protecting against
+ * is not a backup. So the honest choice is two-way, not three.
+ */
+function backupDestinationFact(): SystemFact {
+  const destination = process.env.BACKUP_RCLONE_REMOTE?.trim()
+  const base: Omit<SystemFact, 'value' | 'status'> = {
+    key: 'backupDestination',
+    label: 'Backup destination',
+    envVar: 'BACKUP_RCLONE_REMOTE',
+    description:
+      'Where encrypted copies of the database are sent — a cloud location, or a removable drive for ' +
+      'an installation with no internet. It has to be a separate drive: sending backups to the ' +
+      "server's own disk is refused, because that is not a backup.",
+  }
+  if (!destination) {
+    return {
+      ...base,
+      value: 'Not set',
+      // `off` rather than `unknown`: we asked and we know. The detail carries the consequence, since
+      // "not configured" is a legitimate state for most rows here and emphatically is not for this one.
+      status: 'off',
+      detail: 'No backups can run until this is set. Nothing is being copied off this machine.',
+    }
+  }
+  return {
+    ...base,
+    value: destinationLabel(destination) === 'a removable backup drive' ? 'A removable drive' : 'A cloud location',
+    status: 'ok',
+    detail: destination,
+  }
+}
+
+/**
  * ⚑ THE FILESYSTEM GETS A DEADLINE, exactly like the network probe. This reads a bind mount of a host
  * directory, and `collectSystemFacts` joins every fact with one `Promise.all` — so a wedged mount with
  * no bound would not degrade this row, it would hang the whole Manage page for the Site Administrator
@@ -461,6 +507,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',
     },
+    backupDestinationFact(),
     backup,
     pdfEngine,
     artifactCache,

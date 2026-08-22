@@ -108,6 +108,11 @@ windows it applied); counts before/after via
   holds unrelated host artifacts and is deliberately NOT mounted (narrowed 2026-08-21 after the deploy
   verification found the wider mount). If an installation still has an old `out/backup-status.json`, it
   is orphaned and can be deleted; the next backup or deploy writes the new location.
+- **Manage → System also shows the destination as its own row**, computed from `BACKUP_RCLONE_REMOTE`
+  and present whether or not a backup has ever succeeded — so a USB installation can confirm where
+  backups *would* go while setting up. It reads "A removable drive" or "A cloud location" with the raw
+  value beneath. ⚑ Reported, never chosen: a dropdown could not prepare a drive or write `.env`, so it
+  would look live and produce refusing backups.
 - ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
   `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
   successful backup, labelled **Premigration**. That is why the row names the stream: a healthy
