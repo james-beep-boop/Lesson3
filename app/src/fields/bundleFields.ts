@@ -14,11 +14,20 @@ import { canEditProse } from '../access/bundle'
  * `applyEditorFieldSplit` (hooks/fieldSplit.ts) — a field is editing-access-editable only if it is listed in that
  * hook's prose constants, regardless of which factory created it.
  */
-export const prose = (name: string, label: string): TextareaField => ({
+const linkComponent = {
+  components: { Field: '@/components/LinkedTextarea#default' },
+}
+
+export const prose = (
+  name: string,
+  label: string,
+  options: { linkable?: boolean } = {},
+): TextareaField => ({
   name,
   type: 'textarea',
   label,
   access: { update: canEditProse },
+  ...(options.linkable === false ? {} : { admin: linkComponent }),
 })
 
 /**
@@ -33,15 +42,12 @@ export const proseAdmin = (name: string, label: string): TextareaField => ({
   name,
   type: 'textarea',
   label,
+  admin: linkComponent,
 })
 
 /** Structural / admin-only text (SPEC §5). Enforced by `applyEditorFieldSplit` (hooks/fieldSplit.ts), not
  *  field access — see the note on `proseAdmin`. */
-export const structureText = (
-  name: string,
-  label: string,
-  description?: string,
-): TextField => ({
+export const structureText = (name: string, label: string, description?: string): TextField => ({
   name,
   type: 'text',
   label,

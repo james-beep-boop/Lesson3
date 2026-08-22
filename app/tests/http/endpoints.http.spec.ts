@@ -200,6 +200,29 @@ describe('GraphQL disabled (backlog #7 regression)', () => {
   })
 })
 
+describe('read-only PDF resource library', () => {
+  it('requires authentication to list files', async () => {
+    const res = await fetch(url('/api/resource-library'))
+    expect(res.status).toBe(401)
+  })
+
+  it.each(ROLES)('allows an authenticated %s to list the configured library', async (key) => {
+    const res = await fetch(url('/api/resource-library'), { headers: auth(key) })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { configured?: boolean; files?: unknown[] }
+    expect(typeof body.configured).toBe('boolean')
+    expect(Array.isArray(body.files)).toBe(true)
+  })
+
+  it('returns 404 for an unknown file token without exposing a filesystem path', async () => {
+    const res = await fetch(url('/api/resource-library/file/bm90ZXMudHh0'), {
+      headers: auth('teacher'),
+    })
+    expect(res.status).toBe(404)
+    expect(await res.text()).not.toContain('PDF_LIBRARY_DIR')
+  })
+})
+
 describe('Document CSP (Phase 5 A3 — per-request nonce via middleware)', () => {
   it('GET /login → strict nonce CSP; the nonce reaches the rendered scripts; fresh per request', async () => {
     const res = await fetch(url('/login'))
@@ -310,8 +333,9 @@ describe('Preview endpoint (SPEC §5)', () => {
   })
 
   it('A teacher with editing access POST unsaved-preview with a prose overlay → 200 (shows the edit)', async () => {
+    const link = 'https://example.org/lesson3-preview-link-proof'
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
-      i === 0 ? { ...l, overview: `${MARK}PREVIEW-OVERLAY` } : l,
+      i === 0 ? { ...l, overview: `${MARK}PREVIEW-OVERLAY (${link})` } : l,
     )
     const form = new FormData()
     form.set('data', JSON.stringify({ lessons }))
@@ -324,6 +348,9 @@ describe('Preview endpoint (SPEC §5)', () => {
     const html = await res.text()
     expect(html).toContain('unsaved edits')
     expect(html).toContain(`${MARK}PREVIEW-OVERLAY`)
+    expect(html).toContain(
+      `<a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a>`,
+    )
   })
 
   it('A teacher with editing access POST unsaved-preview with a STRUCTURAL change → 422', async () => {
@@ -390,8 +417,9 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
   })
 
   it('A teacher with editing access POST with a prose overlay → 200 inline PDF (Gotenberg)', async () => {
+    const link = 'https://example.org/lesson3-pdf-link-proof'
     const lessons = ((fx.version as unknown as HttpVersion).lessons ?? []).map((l, i) =>
-      i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY` } : l,
+      i === 0 ? { ...l, overview: `${MARK}PDF-OVERLAY (${link})` } : l,
     )
     const res = await postOverlay(lessons)
     expect(res.status).toBe(200)
@@ -401,6 +429,8 @@ describe('Preview-as-PDF endpoint (SPEC §5/§9) — same gate as unsaved previe
     expect(bytes.length).toBeGreaterThan(0)
     // A real PDF starts with the %PDF- magic bytes — proves Gotenberg produced a document.
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+    // LibreOffice must preserve the explicit DOCX relationship as a real PDF URI annotation.
+    expect(new TextDecoder('latin1').decode(bytes)).toContain(link)
   })
 
   it('the UNSAVED edit actually reaches the PDF (more text in → a larger PDF)', async () => {

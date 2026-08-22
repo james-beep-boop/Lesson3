@@ -25,6 +25,10 @@ import { isSiteAdmin } from './access'
 import { isPublicLibraryEnabled, publicLibraryBootRefusal } from './lib/publicLibrary'
 import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
+import {
+  resourceLibraryFileEndpoint,
+  resourceLibraryListEndpoint,
+} from './endpoints/resourceLibrary'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -66,6 +70,10 @@ const email = process.env.SMTP_HOST
 
 export default buildConfig({
   email,
+  // Read-only proof-of-concept library: authenticated users may list/serve PDFs from the one
+  // PDF_LIBRARY_DIR mount. The endpoint itself owns the filesystem boundary; no collection or
+  // database row is created, and the app has no upload/delete surface.
+  endpoints: [resourceLibraryListEndpoint, resourceLibraryFileEndpoint],
   // Absolute base URL. Setting it makes Payload add it to the CSRF allowlist, which then
   // requires cookie-auth requests to carry a matching Origin OR a `Sec-Fetch-Site` header
   // — browsers that send neither on same-origin GETs (e.g. older Safari) get bounced back

@@ -7,6 +7,8 @@
  */
 import { createRequire } from 'node:module'
 
+import { withParenthesizedProseLinks } from './proseLinks'
+
 const require = createRequire(import.meta.url)
 const { buildSoW, buildFinalExplanation, buildSummaryTable } =
   require('./vendor/lib/build_docs.js') as {
@@ -14,10 +16,9 @@ const { buildSoW, buildFinalExplanation, buildSummaryTable } =
     buildFinalExplanation: (META: unknown, FE: unknown) => Promise<unknown>
     buildSummaryTable: (META: unknown, ST: unknown) => Promise<unknown>
   }
-const { withStoredResourceLinks } =
-  require('./vendor/aresResources.js') as {
-    withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
-  }
+const { withStoredResourceLinks } = require('./vendor/aresResources.js') as {
+  withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
+}
 const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Promise<Buffer> } }
 
 /** The ARES sub-strand data object the generator consumes. */
@@ -52,18 +53,20 @@ export interface GeneratedDocx {
  * and `generateDeliverableDocx` both compose.
  */
 export async function generateLessonSequenceDocx(data: AresDataObject): Promise<Buffer> {
-  const { META, UNIT, LESSONS } = data
+  const { META, UNIT, LESSONS } = withParenthesizedProseLinks(data)
   const document = await withStoredResourceLinks(LESSONS, () => buildSoW(META, UNIT, LESSONS))
   return Packer.toBuffer(document)
 }
 
 export async function generateFinalExplanationDocx(data: AresDataObject): Promise<Buffer | null> {
-  const { META, FINAL_EXPLANATION } = data
-  return FINAL_EXPLANATION ? Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION)) : null
+  const { META, FINAL_EXPLANATION } = withParenthesizedProseLinks(data)
+  return FINAL_EXPLANATION
+    ? Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION))
+    : null
 }
 
 export async function generateSummaryTableDocx(data: AresDataObject): Promise<Buffer | null> {
-  const { META, SUMMARY_TABLE } = data
+  const { META, SUMMARY_TABLE } = withParenthesizedProseLinks(data)
   return SUMMARY_TABLE ? Packer.toBuffer(await buildSummaryTable(META, SUMMARY_TABLE)) : null
 }
 
@@ -80,7 +83,10 @@ export async function generateBundleDocx(data: AresDataObject): Promise<Generate
  * makes it COMPILE-TIME exhaustive: adding a deliverable to `GeneratedDocx` fails to type-check until a
  * builder is registered here — no runtime `default`/`throw` scaffolding needed.
  */
-const DELIVERABLE_BUILDERS: Record<keyof GeneratedDocx, (data: AresDataObject) => Promise<Buffer | null>> = {
+const DELIVERABLE_BUILDERS: Record<
+  keyof GeneratedDocx,
+  (data: AresDataObject) => Promise<Buffer | null>
+> = {
   lessonSequence: generateLessonSequenceDocx,
   finalExplanation: generateFinalExplanationDocx,
   summaryTable: generateSummaryTableDocx,

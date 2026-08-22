@@ -172,6 +172,28 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
   - **Preview runs on the working copy** (its whole purpose); export is available for every saved valid version. Official status is a default/trust marker, not an export permission boundary.
 - **Validation on save:** required fields present, framework cardinality intact, phase ∈ vocabulary — reject anything that would produce a broken document.
 
+#### Proof of concept — links inside prose (2026-08-22)
+
+Link insertion stays inside the plain-string grammar; it is **not rich text**. Linkable body-prose
+textareas have an **Insert link** action that writes the complete address in parentheses at the
+cursor, for example `(https://www.youtube.com/watch?v=…)`. During generation, only parenthesized
+`http`/`https` addresses become explicit DOCX hyperlinks; the parentheses remain visible. Titles are
+excluded because the ARES generator interpolates them into document headings rather than ordinary
+prose cells. Preview links to web/PDF destinations open separately so they never replace an editor
+tab holding unsaved work.
+
+The same dialog may choose a PDF from one **flat, read-only, operator-managed directory** on the
+Rock. This is intentionally not a media library: PDFs are copied to the host outside Lesson3; the app
+cannot upload, rename, replace, or delete them. Two authenticated root endpoints list and serve only
+regular, non-hidden `.pdf` files up to 25 MiB; serving repeats the filename/path checks, refuses
+symlinks, verifies the `%PDF-` signature, and applies `nosniff`. Every authenticated role may read the
+library. The inserted target is an absolute URL at the browser's current public origin, so it works
+remotely through the standard HTTPS app address; it is not a `file://` or host-filesystem path.
+
+This proof of concept does not cover subdirectories, search, video, Word resource files, public
+access, per-file permissions, link checking, or resource backup/versioning. Existing mandatory ARES
+`resourceLinks` remain system-owned and unchanged; author-entered prose URLs are a separate feature.
+
 ### Editing surface — a wider-screen affordance; 640px or narrower is view-only (decided 2026-07-28)
 
 Lesson-content editing is offered only at **viewport width > 640px** (i.e. blocked **at 640px or narrower**). The primary editing surface is inexpensive Kenyan laptops (**1280×800 is common and must stay editable even when the window is not maximised**); tablets are secondary; **phones are explicitly not an editing device** — the framework table and a ~3350px lesson body do not fit, and keeping phone editing would mean owning unbuilt mobile-reflow work indefinitely. At 640px or narrower the lesson page's **Edit** button, the version editor's **Edit / Save / Cancel**, and the `?edit=1` deep-link intent are all unavailable, replaced by a short *notice* that names the remedy (rotate / widen / larger screen) so the absence is explained, not read as a bug or a lost role.

@@ -99,8 +99,15 @@ const collapsedRow = (field: string, noun: string) => ({
 // server rule uses (`canEditStructure` → `isSubjectAdminFor`); `@/access` is type-only at runtime
 // (already bundled via `access/bundle`), so it is safe in this client-bundled `condition`. Server
 // access is unchanged — presentation only; the field-split hook remains the write-time authority.
-const structureCondition = (data: unknown, _siblingData: unknown, { user }: { user: unknown }): boolean =>
-  isSubjectAdminFor(user as User, toId((data as { subjectGrade?: unknown } | undefined)?.subjectGrade as never))
+const structureCondition = (
+  data: unknown,
+  _siblingData: unknown,
+  { user }: { user: unknown },
+): boolean =>
+  isSubjectAdminFor(
+    user as User,
+    toId((data as { subjectGrade?: unknown } | undefined)?.subjectGrade as never),
+  )
 
 // Hide an admin-only field from anyone who can't edit it (a teacher with editing access): via `structureCondition`, show
 // it only to structure editors (Subject Admins for this doc's subject-grade + Site Admins). Used for
@@ -219,7 +226,9 @@ export const lessonContentFields: Field[] = [
         admin: { hidden: true, readOnly: true },
         access: { create: systemOnly, update: systemOnly },
       },
-      prose('title', 'Title'),
+      // Titles are interpolated into generated document headings rather than rendered as ordinary
+      // cell prose, so the narrow link proof of concept deliberately does not offer insertion here.
+      prose('title', 'Title', { linkable: false }),
       adminOnly(structureText('duration', 'Duration')),
       adminOnly(structureText('substrand', 'Sub-strand')),
       adminOnly(structureText('aresKeywords', 'ARES keywords')),
@@ -357,7 +366,7 @@ export const lessonContentFields: Field[] = [
             admin: { hidden: true, readOnly: true },
             access: { create: systemOnly, update: systemOnly },
           },
-          prose('title', 'Title'),
+          prose('title', 'Title', { linkable: false }),
           prose('observed', 'Observed'),
           prose('learned', 'Learned'),
           prose('explained', 'Explained'),

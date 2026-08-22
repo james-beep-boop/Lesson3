@@ -692,6 +692,10 @@ export default function LessonControls() {
             <li>
               Start a line with <code>- </code> to make a bullet.
             </li>
+            <li>
+              Use <em>Insert link</em> beneath a prose field to add an internet address or a PDF
+              from the Rock at the cursor.
+            </li>
             <li>Bold, italics, and underlining are not supported.</li>
             <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>
             {canEditStructure && <li>To add a lesson, duplicate an existing lesson.</li>}

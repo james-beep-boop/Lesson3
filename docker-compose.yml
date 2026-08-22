@@ -69,6 +69,10 @@ services:
       # is tracked so the checkout creates it with the deploy user's ownership before Compose can
       # create it as root.
       - ./out/ops:/var/run/lesson3-ops:ro
+      # Proof-of-concept lesson-resource library. PDFs are placed on the Rock under
+      # out/resource-library and the app receives only a read-only view. The tracked .gitkeep makes
+      # Compose's source directory exist with deploy-user ownership before the first boot.
+      - ./out/resource-library:/var/lib/lesson3-resources:ro
     depends_on:
       postgres:
         condition: service_healthy

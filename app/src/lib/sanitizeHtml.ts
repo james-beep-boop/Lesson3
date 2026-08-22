@@ -21,15 +21,37 @@ const DOMPurify = createDOMPurify(window)
 
 const PREVIEW_SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
-    'p', 'br', 'span',
-    'strong', 'b', 'em', 'i', 'u', 's', 'sup', 'sub',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'ul', 'ol', 'li',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'p',
+    'br',
+    'span',
+    'strong',
+    'b',
+    'em',
+    'i',
+    'u',
+    's',
+    'sup',
+    'sub',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'ul',
+    'ol',
+    'li',
+    'table',
+    'thead',
+    'tbody',
+    'tfoot',
+    'tr',
+    'th',
+    'td',
     'a',
   ],
   // Only structural/link attributes — no style/class/id, no event handlers (on*).
-  ALLOWED_ATTR: ['href', 'colspan', 'rowspan'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'colspan', 'rowspan'],
   ALLOW_DATA_ATTR: false,
   // Link schemes: rely on DOMPurify's DEFAULT URI validation, which already strips javascript:/data:
   // while keeping http(s)/mailto/relative/anchors. A custom ALLOWED_URI_REGEXP here over-applies to
@@ -38,5 +60,17 @@ const PREVIEW_SANITIZE_CONFIG = {
 
 /** Sanitize Mammoth-generated preview HTML down to the safe content subset. Returns a string. */
 export function sanitizePreviewHtml(html: string): string {
-  return DOMPurify.sanitize(html, PREVIEW_SANITIZE_CONFIG)
+  const sanitized = DOMPurify.sanitize(html, PREVIEW_SANITIZE_CONFIG)
+  const container = window.document.createElement('div')
+  container.innerHTML = sanitized
+  for (const link of container.querySelectorAll('a[href]')) {
+    const href = link.getAttribute('href') ?? ''
+    if (/^https?:\/\//i.test(href)) {
+      // Resource links must not replace the lesson/editor tab. Fragment navigation and mail links
+      // keep their native behaviour; only web/PDF destinations open separately.
+      link.setAttribute('target', '_blank')
+      link.setAttribute('rel', 'noopener noreferrer')
+    }
+  }
+  return container.innerHTML
 }

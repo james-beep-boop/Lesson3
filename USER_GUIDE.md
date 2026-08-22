@@ -117,6 +117,9 @@ These rules are also available from *Editing help* at the top of the editor.
 
 - Start a new line to make a new paragraph.
 - Start a line with `- ` to make a bullet.
+- Use *Insert link* beneath a prose field to insert an internet address or choose a PDF already on
+  the Rock. The address appears in parentheses and becomes clickable in the on-screen view and
+  generated Word/PDF documents. Web and PDF links open separately so your editor stays open.
 - Bold, italics, and underlining are not supported.
 - Edit the field that matches the document section you want to change. The exported DOCX and PDF are
   generated from those fields.
