@@ -606,7 +606,15 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     the boot disk. The destination must be verified as a real mount (sentinel file or mountpoint
     check) before any dump is written.
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
-    answer — surfaced in the Manage → Installation panel as last-success time and destination.
+    answer — surfaced in the **Manage → System** panel as last-success time and destination. (Renamed
+    from "Installation" 2026-08-21; the panel's design is `docs/DESIGN-system-panel-2026-08-21.md`.)
+    ⚑ **NOT YET BUILT, and deliberately so rather than forgotten** (2026-08-22): the panel's first slice
+    shipped the other deployment facts and omitted this one. It is the row that proves the rule the rest
+    of that half follows — the facts are **read-only**, not necessarily *computed*: a last-success time
+    is recorded operational state and cannot be reconstructed from the current environment or a live
+    probe, so it needs an authoritative record to read (what `scripts/backup-db.sh` leaves behind) and
+    that source has to be settled before the row can exist. Until then this §11 requirement is
+    outstanding, not satisfied.
   - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
     school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
     This also keeps a stolen school box from yielding readable backups.

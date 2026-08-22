@@ -2,8 +2,13 @@
 
 Manage gets a fifth top-level box, **System**, for Site Administrators: what this installation *is*,
 and which of its capabilities are switched on. Operator brief 2026-08-21; it implements
-`docs/DESIGN-next-direction-2026-08-19.md` §D1's Installation panel, so read that section and
-`docs/DESIGN-d1-deployment-amendments-2026-08-21.md` first — this document is the panel, not the model.
+`docs/DESIGN-next-direction-2026-08-19.md` §D1, which is the **single authority** for the deployment
+model — the five layers, the env ceilings, the four capability states — so read that section first; this
+document is the panel, not the model. (D1 called the panel "Installation" and its amendments lived in a
+separate file until the 2026-08-22 consolidation; that file is now a superseded stub.)
+
+⚑ **READ THE "WHERE THE SHIPPED CODE DIVERGES" SECTION BELOW BEFORE TOUCHING PART 2.** Part 1 merged
+before these contracts were tightened, so this document describes the target, not the current code.
 
 ## The name is "System", and the ids are a URL contract
 
@@ -26,28 +31,75 @@ at implementation time.
 
 ## Two halves, because the two kinds of setting differ in kind
 
-### `system.deployment` — facts, COMPUTED, never stored
+### `system.deployment` — facts, READ-ONLY, never operator-authored
+
+⚑ **"READ-ONLY" IS THE RULE; "computed" was too strong** (operator correction, 2026-08-22). Most rows are
+computed live from env plus a probe and are never persisted — a stored fact is a cache of a fact, and it
+goes stale and then lies on the one screen whose purpose is saying what is true. But **backup last
+success cannot be computed at all**: it is recorded operational state, required in this panel by
+SPEC §11, and it has to be read from an authoritative record of what `scripts/backup-db.sh` did. Both
+kinds belong here. What none of them may be is written by an operator on this screen.
+
+⚑ **EVERY PROBE GETS ITS OWN SHORT TIMEOUT AND ITS OWN RESULT.** A dead PDF engine must not delay or
+blank the rest of the panel: the probes run concurrently, each bounded independently, each resolving to
+available / unavailable / unknown on its own. The panel degrades a row at a time, never as a whole.
+
+
 
 Base URL, public-library capability, email configured, error tracking, PDF engine reachable, artifact
 cache size and usage, last pre-warm. Reported, not controlled, **with the env var named** so an
 operator knows where to change it.
 
-⚑ **Computed per request from env plus probes — never persisted.** A stored fact is a cache, and a
-cache of a fact goes stale and then lies on the one screen whose entire purpose is telling an operator
-what is true. This is also the half that answers "is the PDF engine up?", which SPEC §9 now records as
-a single point of failure.
+Also the half that answers "is the PDF engine up?", which SPEC §9 records as a single point of failure.
+(The read-only-not-computed rule is stated once above; this paragraph used to restate "computed per
+request, never persisted" and contradicted it.)
 
-⚑ **This half is also where ABSENT capabilities appear** (see the four states in the amendments doc). A
-capability whose bits are not on this box is a *fact with an instruction*, not a control.
+⚑ **This half is where ABSENT capabilities appear** — a capability that is BUILT but whose bits are not
+on this box, which is a *fact with an instruction* rather than a control (state 2 of the four in D1).
+⚑ **"Not built anywhere" is different and does NOT belong here**: that renders as a disabled row in the
+Features half carrying the true reason, because it is a roadmap statement, not something an operator
+can act on.
 
 ### `system.features` — real toggles, plus one Save
 
-| Flag | Real today? | Enforced where |
-|---|---|---|
-| `publicLibraryLive` | **yes** | inside `lib/publicLibrary.ts`'s existing gate, under the `PUBLIC_LIBRARY_ENABLED` env ceiling |
-| `outboundEmail` | **yes** | at the enqueue boundary of `passwordResetEmail`, `messagePing`, `emailVersionArtifact`, and user verification |
-| `studentAccess` | no — **not built anywhere** | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
-| `studentQuiz` | no — **not built anywhere** | — |
+| Flag | Real today? | Renders as a toggle only when | Enforced where |
+|---|---|---|---|
+| `publicLibraryLive` | **yes** | `PUBLIC_LIBRARY_ENABLED` is set | inside `lib/publicLibrary.ts`'s existing gate |
+| an email flag — ⚑ **meaning UNDECIDED, see below** | **yes** | `SMTP_HOST` is set | see below |
+| `studentAccess` | no — **not built anywhere** | never, until built | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
+| `studentQuiz` | no — **not built anywhere** | never, until built | — |
+
+⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-22; the earlier table read as
+though both always rendered). With no `PUBLIC_LIBRARY_ENABLED` there is no public-library switch — the
+row is a *fact* saying the environment forbids it, which is D's absent state, not its present-but-off
+state. Same for email with no `SMTP_HOST`.
+
+### ⚑ OPEN DECISION — what the email flag actually means
+
+Part 1's plan called it `outboundEmail` and enforced it "at the enqueue boundary". The operator's review
+of 2026-08-22 rejected that as shipped-able, on two grounds, both correct:
+
+1. **Enqueue-gating does not stop email.** Already-queued jobs still send, so the flag's label promises
+   an egress control it does not deliver. Either enforce at the actual **send** boundary with defined
+   handling for queued jobs (drain? drop? hold?), or name it "no new email jobs" and accept that
+   previously queued mail leaves.
+2. **It bundles consequences that are not alike.** Account verification and password reset are how an
+   account stays *reachable*; message pings and emailed documents are conveniences. Turning one flag off
+   while open registration and email verification are live could mint accounts that can never verify,
+   and make a password-reset request look successful while deliberately producing nothing.
+
+The two candidate readings:
+
+- **Hard egress off** — enforced at the send boundary, queued-job policy defined, and the UI states
+  plainly that account recovery stops working.
+- **Notifications only** — auth-critical mail is never gated from this panel, and the flag covers
+  message pings and emailed artifacts. Narrower, honest, and it cannot lock anybody out.
+
+**Recommendation: notifications only**, because a Site Administrator switching a setting should not be
+able to make accounts unrecoverable, and the hard-egress case is already served by removing `SMTP_HOST`
+— which is the ceiling, restart-scoped, and therefore honest about being a deployment change. ⚑ Either
+way the "needs no warning" line in the original draft was wrong: this flag needs the clearest
+consequence text on the panel.
 
 ⚑ **Only two flags can be real, and that is the honest first cut.** Error tracking and backups are
 boot-wired or run outside the app, so they are *facts*, not switches; ARES resource links would be a
@@ -75,10 +127,43 @@ A Payload global (`system-settings`) — the project's first, and it carries a m
 - ⚑ `maxDepth: 0` on the `changedBy` relationship, for the reason #258 measured: a relationship into
   `users` populates on every read at `config.defaultDepth`.
 
-**Reads.** The global's own `read` access is Site-Admin-only. The *enforcement* readers are
-server-only modules using `overrideAccess: true` — the `lib/publicLibrary.ts` / `lib/editorGroups.ts`
-pattern — because the public library route must resolve `publicLibraryLive` with no user at all. That
-deliberate bypass is documented at the reader, not left for someone to discover.
+### ⚑ THE SAVE ENDPOINT MUST BE THE SOLE WRITER (operator blocker, 2026-08-22)
+
+Part 1 shipped `access: { read: siteAdminOnly, update: siteAdminOnly }`, and that makes every ceremony
+below **optional**: a Site Administrator can `POST /api/globals/system-settings` — the verb Payload
+actually routes for a global update — and bypass the password re-authentication, the freshness token,
+the public-exposure acknowledgement, and the intended provenance path. Re-authentication that a normal
+REST call skips is UI theatre.
+
+⚑ **THE VERB IS POST.** Measured against the running app: POST → 403, PATCH → 404, PUT → 404. A
+PATCH-based test probes a route that does not exist, and passes for the wrong reason the moment its
+expectation admits 404 — so the wire test below must use POST.
+
+⚑ **`admin: { hidden: true }` DOES NOT FIX THIS**, which was the tempting reading after that landed:
+verified against the installed source, `globals/operations/update.js` never consults `admin.hidden` and
+gates purely on `executeAccess`. Hiding the global removed the admin *form*, not the API.
+
+The contract:
+
+| Surface | Rule |
+|---|---|
+| global `read` | Site Administrator only |
+| global `update` | **denied to everyone through ordinary REST/GraphQL, Site Administrators included** |
+| the write | a custom endpoint only, using trusted internal access (`overrideAccess: true`) after it has done its own authorization |
+
+The endpoint, in order: authorize the caller → rate-limit → re-authenticate → validate an explicit
+**flag allowlist** (never a passthrough of the request body) → validate the required
+**acknowledgements** → atomic write → stamp provenance.
+
+⚑ **The wire test is the point**: a Site Administrator's direct `POST /api/globals/system-settings` must
+FAIL while the same Site Administrator's Save succeeds. Without that pair, nothing distinguishes this design from part 1's.
+
+**Reads.** The global's own `read` access is Site-Admin-only. The *enforcement* readers are server-only
+modules using `overrideAccess: true` — the `lib/publicLibrary.ts` / `lib/editorGroups.ts` pattern —
+because the public library route must resolve `publicLibraryLive` with no user at all. That deliberate
+bypass is documented at the reader, not left for someone to discover. ⚑ A failed read **fails closed AND
+emits a structured operational error**, so a database or configuration fault is distinguishable from a
+deliberate off rather than looking identical to it.
 
 **Fail closed**, per the amendments doc: absence, read error, or a stale cached `true` past its TTL all
 mean *off*. A read-through cache that serves its last known value on error turns a database blip into
@@ -99,6 +184,16 @@ changes, stamps provenance, commits.
   this inherits the same obligation. The password must never reach a log.
 - `expectedUpdatedAt` → **409**, matching the assignment endpoints ("reload before changing roles"), so
   two Site Administrators with the panel open cannot silently overwrite each other.
+- ⚑ **BUT A FRESHNESS TOKEN IS NOT ATOMICITY** (operator, 2026-08-22). Compare-then-write has a window;
+  two genuinely simultaneous writers can both read the same `updatedAt` and both proceed. The check must
+  be a **conditional update or a row lock** — the precedent is `takeAdminCountLock` in
+  `endpoints/userAssignments.ts`, which exists for exactly this and is documented there as load-bearing.
+  And the test has to be a real concurrent pair, not a sequential stale-token case: a sequential test
+  proves the comparison, never the race.
+- ⚑ **THE ACKNOWLEDGEMENT IS SERVER-ENFORCED, or the "blocking" warning is decorative.** A dialog only
+  stops a browser. The Save endpoint must reject a transition that requires acknowledgement unless the
+  request carries a **versioned** acknowledgement value — versioned so that changing the warning's
+  wording invalidates a client replaying the old one.
 
 ## Warnings: blocking, dismissible, and in code
 
@@ -110,7 +205,9 @@ consequence is not obvious from the label:
 - **`studentAccess`** when it exists: the privacy and anonymisation consequences.
 
 Copy lives **in code**, not in the global — it is behaviour-tied product copy, not operator data.
-`outboundEmail` needs no warning.
+⚑ **The email flag needs the CLEAREST warning of the three, not none** — the original draft said it
+needed no warning, which was wrong in exactly the direction that matters: whichever reading wins above,
+an operator has to be told what stops working. Under "hard egress off" that includes account recovery.
 
 ⚑ **Destructive actions are NOT toggles** (operator agreement 2026-08-21). "Permanently delete all
 existing student data" as a side effect of flipping a switch is the most dangerous affordance the brief
@@ -134,6 +231,28 @@ it from a toggle row.
 ⚑ **Every guard is mutation-tested before it is called done** — delete it and watch precisely the test
 that claims to pin it turn red. DECISIONS 2026-08-20 is mostly about why that is now the standard, and
 four of this project's silent-pass defects would have been caught by it.
+
+## ⚑ WHERE THE SHIPPED CODE NOW DIVERGES FROM THIS DOCUMENT
+
+Part 1 merged as #265 (+ corrections in #266) **before** the contracts above were tightened, so this is
+a checklist for reviewing existing code against the corrected design — not a description of it. Anything
+here is a known gap, not a discovery waiting to happen.
+
+| Contract | Shipped in part 1 | Action |
+|---|---|---|
+| Save endpoint is the **sole writer** | ✗ `access.update: siteAdminOnly` — a Site Admin can `POST` the global directly | close before part 2 ships the endpoint; `hidden: true` did NOT close it |
+| Backup last success + destination in the facts | ✗ omitted | either build it (needs a record source) or the §11 requirement stays outstanding — it is now marked outstanding in SPEC |
+| Each probe independently bounded, three-valued | ~ partly: two probes run concurrently and each resolves independently, but they share one `PROBE_TIMEOUT_MS` | give each its own bound when a third probe lands |
+| A toggle renders only when its ceiling is present | n/a — part 1 renders no toggles at all | part 2 |
+| Fail-closed reads emit a structured operational error | n/a — no readers yet | part 2 |
+| Atomic check-and-write, not just a freshness token | n/a — no writer yet | part 2 |
+| Server-enforced versioned acknowledgement | n/a — no writer yet | part 2 |
+| Email flag semantics | n/a — flag exists in the schema, unread | **blocked on the open decision above**; the stored column is currently named `outboundEmail`, which presumes the rejected reading |
+
+⚑ **The last row has a schema consequence.** `features_outbound_email` already exists in the database
+from #265's migration. If the decision lands on "notifications only" the column should be renamed, which
+is a second migration — cheaper now, while nothing reads it and no installation depends on it, than
+after part 2 ships.
 
 ## Build order
 

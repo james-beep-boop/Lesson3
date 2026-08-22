@@ -48,10 +48,11 @@ about state is part of the change that alters the state.
 → build `app` **and** `migrate` → `up -d`, refusing to migrate at all if backups are unconfigured. There
 is no separate procedure to remember. UP and DOWN were both exercised against a real database first.
 
-⚑ **The operator's own uncommitted edits to `SPEC.md` §11 (backup destinations) and
-`docs/DESIGN-next-direction-2026-08-19.md` were in the tree throughout and are still uncommitted — do
-not `git add -A`.** #258 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff),
-leaving §11 untouched; verify with `git diff -- SPEC.md` before staging anything in that file.
+⚑ **Both of the operator's in-flight documents are now COMMITTED** — `SPEC.md` §11 (backup
+destinations) and `docs/DESIGN-next-direction-2026-08-19.md` landed in #261, so the tree is clean and
+"do not `git add -A`" no longer applies to them. It applied while #258 was open, which is why that PR
+staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff) and left §11 untouched —
+worth remembering as the technique the next time one file carries two people's work.
 
 ## What this slice does
 
@@ -112,19 +113,34 @@ only thing that would notice a class referenced with **no rule at all**.
 
 - **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
   appearance-testing gap.
-- **Build the System panel** — design settled in `docs/DESIGN-system-panel-2026-08-21.md` (name, ids,
-  the two halves, per-flag provenance, Save with one re-auth, and the build order). PR 1 is the global +
-  computed facts half + panel scaffold; PR 2 is the two real flags with enforcement. The deployment
-  model it sits on is D and E of the amendments doc below.
-- **Splice in the D1 amendments if wanted.** Drafted 2026-08-21 and deliberately NOT applied to the
-  operator's in-flight design doc: access control and **fail-closed** semantics for the proposed
-  Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
-  the obvious implementation — reading it in Next middleware — is blocked because `src/middleware.ts` is
-  edge-runtime and cannot reach Postgres, and a named refusal of `mode: 'offline' | 'online'`, which
-  contradicts three decisions D1 already makes. Full draft:
-  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` — a proposal, not a decision, and the file to
-  delete rather than leave stale if D1 moves against it. ⚑ D1 already states the env-ceiling/runtime-flag
-  split correctly; it does not need restating.
+- ⚑ **DO NOT WRITE PART 2 YET (operator, 2026-08-22).** Part 1 shipped (#265, corrections in #266) and
+  the architecture was accepted, but **four contracts needed tightening first** and are now written into
+  `docs/DESIGN-system-panel-2026-08-21.md` and D1:
+  1. ⚑ **The Save endpoint must be the SOLE WRITER.** As shipped, `access.update: siteAdminOnly` lets a
+     Site Administrator `POST` the global directly (⚑ POST, not PATCH — that is the verb Payload routes
+     for a global update; PATCH 404s, so a PATCH-based test proves nothing) and skip the re-auth, the
+     freshness token, the
+     acknowledgement and the provenance path — so the ceremony is optional. `admin: { hidden: true }`
+     from #266 does NOT close this: `globals/operations/update.js` never consults `admin.hidden`.
+  2. **The documents disagreed** — three incompatible authorities on the panel's name, ids, flags and
+     presets. Consolidated 2026-08-22: D1 is the single authority, the amendments file is a superseded
+     stub, and SPEC §11 names System.
+  3. ⚑ **The email flag's meaning is an OPEN DECISION** and blocks part 2. Enqueue-gating does not stop
+     queued mail, and one flag over verification + reset + pings + artifacts can mint accounts that can
+     never verify. Two readings and a recommendation are in the design doc; the stored column is
+     currently `features_outbound_email`, which presumes the rejected one.
+  4. **Backup last success/destination** is a SPEC §11 requirement this panel owes and part 1 omitted;
+     it is recorded state, not computable, so it needs a record source. Now marked outstanding in §11.
+  Also tightened: atomic check-and-write rather than a bare freshness token, server-enforced versioned
+  acknowledgements, no toggle without its ceiling, structured errors on fail-closed reads, and
+  independent per-probe timeouts.
+- ⚑ **The D1 amendments are FOLDED IN, not optional.** A–D and F accepted verbatim, E amended to "one
+  **application artifact**" (the deployment carries `app`, `migrate` and `gotenberg` images), G kept as
+  open gaps. `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` is now a superseded stub — do not read
+  it as current.
+- **Sequence:** D1 places the Official-pointer lock before this panel; the panel went first, which is
+  fine — ⚑ **but the lock remains a hard prerequisite for the public read slice**, not something the
+  panel's progress relaxes.
 - ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
   I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
   of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
@@ -140,14 +156,25 @@ GitHub repo that an individual can install on a local ARES server. The first rea
 **Intel box** — which is amd64, the architecture CI builds on every PR (`runs-on: ubuntu-latest`). The
 arm64 Rock is the unusual target here, not his machine.
 
-### Licensing: THREE separable assets, and they do not want the same licence
+### Licensing: three separable ASSETS across four items, and they do not want the same licence
 
-1. **The Lesson3 code — UNDECIDED.** ⚑ `app/package.json` says `"license": "MIT"`, and that is
-   **scaffold residue, not a decision.** The commit that introduced the file (`f7bbd4d`, "First pass",
+The assets are the **code**, the **vendored ARES generator** and the **lesson-plan content**. Item 2
+below is not a fourth asset — it is the missing LICENSE file that the code's decision needs in order to
+mean anything. (Corrected 2026-08-22: this heading said "three separable assets" over four numbered
+items, which read as a miscount.)
+
+1. **The Lesson3 code — MIT (operator decision 2026-08-21).** Chosen to match Payload's own licence, so
+   there is no friction and it is compatible with whatever the vendored generator comes back with.
+   ⚑ This entry said "UNDECIDED" until 2026-08-22 while `docs/DECISIONS.md` said MIT was chosen — one
+   decision, two files, two answers. ⚑ And the `app/package.json` line is still not the source of that
+   decision: it is **scaffold residue.** The commit that introduced the file (`f7bbd4d`, "First pass",
    2026-06-07) also carries `"name": "app"` and `"description": "A blank template to get started with
    Payload 3.0"` — it is `create-payload-app`'s template, and the licence line has never been edited
-   across 35 commits to that file. Do not read it as an existing commitment. Candidates: MIT (matches
-   the declaration) or Apache-2.0 (explicit patent grant; better if others are expected to build on it).
+   across 35 commits to that file — so the declaration happens to match the decision by coincidence,
+   not because anyone chose it there. ⚑ **Apache-2.0 was the alternative considered and NOT taken**
+   (its explicit patent grant is the reason it was on the list); MIT won on matching Payload. Recorded
+   as history so the choice is not reopened by finding the shortlist and mistaking it for an open
+   question. Still to do: an actual LICENSE file, per item 2.
 2. ⚑ **THERE IS NO LICENSE FILE AT THE REPO ROOT, AND THE REPO IS PUBLIC.** Default copyright applies:
    strictly, nobody may use, modify or run it, and there are no terms for contributors. One file, and
    the cheapest high-value item on this whole list.
