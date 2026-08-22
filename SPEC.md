@@ -603,18 +603,18 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     it was written.
   - ⚑ **A missing drive must FAIL, never silently succeed.** Writing to an unmounted `/media/...` path
     creates a directory on the root filesystem instead: backups appear to work, go nowhere, and fill
-    the boot disk. The destination must be verified as a real mount (sentinel file or mountpoint
-    check) before any dump is written.
+    the boot disk. The destination must be verified as a non-root, separately backed mount **and**
+    carry a regular, non-symlink sentinel before any dump is written; its mount identity must remain
+    stable through upload.
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
     answer — surfaced in the **Manage → System** panel as last-success time and destination. (Renamed
     from "Installation" 2026-08-21; the panel's design is `docs/DESIGN-system-panel-2026-08-21.md`.)
-    ⚑ **NOT YET BUILT, and deliberately so rather than forgotten** (2026-08-21): the panel's first slice
-    shipped the other deployment facts and omitted this one. It is the row that proves the rule the rest
-    of that half follows — the facts are **read-only**, not necessarily *computed*: a last-success time
-    is recorded operational state and cannot be reconstructed from the current environment or a live
-    probe, so it needs an authoritative record to read (what `scripts/backup-db.sh` leaves behind) and
-    that source has to be settled before the row can exist. Until then this §11 requirement is
-    outstanding, not satisfied.
+    **Built 2026-08-21:** `scripts/backup-db.sh` atomically replaces `out/backup-status.json` only after
+    `rclone copyto` succeeds; the app receives `out/` read-only and reports the UTC time, stream/type,
+    actual destination, filename and encrypted size. A failed upload cannot advance the record, and a
+    missing/malformed record is `Unknown`, never evidence that no remote backup exists. This is the row
+    that proves the rule the rest of that half follows — facts are **read-only**, not necessarily
+    *computed*; recorded operational state is allowed, but never operator-authored on this screen.
   - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
     school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
     This also keeps a stolen school box from yielding readable backups.

@@ -11,6 +11,46 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-21 — No general email switch; backup success is host-recorded evidence
+
+The operator closed the two remaining System-foundation questions after successfully deploying
+application SHA `83b9ab0` and its two System migrations.
+
+### 1. No general runtime email switch
+
+`features_outbound_email` stays deleted. `SMTP_HOST` is the deployment-level ceiling for all email,
+and authentication-critical verification/reset delivery is never switchable from Manage. The proposed
+"notifications only" replacement still bundled unlike capabilities: message pings are automatic,
+content-free notices to a registered user; emailed artifacts are an explicit document-egress action to
+an arbitrary recipient. If either later earns runtime control, it gets its own accurately named flag
+and enforcement contract. System part 2 therefore remains `publicLibraryLive` only.
+
+### 2. Backup status comes from the process that completed the upload
+
+The authoritative source is a small versioned file atomically replaced by `scripts/backup-db.sh` only
+after `rclone copyto` succeeds. The app receives the host `out/` directory read-only and reports UTC
+completion, stream/type, actual destination, filename and encrypted size. A failed upload cannot
+advance the record; missing or malformed state is `Unknown`, not proof that no backup exists.
+
+This is deliberately not a database row. A row written after the dump would not be present in the dump
+that supposedly proves it, would roll backward on restore, and would make status recording depend on a
+writable database after the remote upload had already succeeded.
+
+### 3. Google Drive and removable USB are both first-class destinations
+
+Configured `remote:path` values keep the existing Google Drive path. A plain local destination must be
+absolute, resolve onto a separately backed mounted filesystem rather than `/`, and contain a regular,
+non-symlink `.lesson3-backup-volume` before any dump starts. The script never creates that sentinel,
+holds the destination directory open, and verifies the mount identity around upload. Thus an absent,
+substituted or ordinarily unmounted USB drive fails instead of filling the server while claiming to
+back up. Each
+rotated drive is prepared with the sentinel once.
+
+⚑ A premigration success must not masquerade as evidence that the nightly schedule works. The record
+therefore carries `daily` / `weekly` / `monthly` / `premigrate`, and the System row shows the type.
+
+---
+
 ## 2026-08-21 — Closing the settings hole: `overrideAccess` bypasses FIELD access, and my fix invented false audit data
 
 #268 made the Save endpoint the sole writer of `system-settings` (`access.update: () => false`). Three

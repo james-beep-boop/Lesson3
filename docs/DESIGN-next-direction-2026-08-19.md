@@ -120,9 +120,9 @@ parsing and `?open=` handling come for free, and they are a URL contract once sh
    operational state* that cannot be reconstructed from the current environment. Both belong here; what
    none of them may be is written by an operator on this screen.
 2. **Features — real toggles, and only where there is something to toggle.** ⚑ **One flag is real
-   today:** public library live/off. A narrower email flag remains an OPEN DECISION (see the System
-   design doc) and #268 **dropped** its speculative column rather than ship a name that presumed the
-   rejected reading — so the second toggle arrives with its design, not before it. **Student access and AI/translation get no column and no working
+   today:** public library live/off. The general email flag is DECIDED ABSENT: #268 dropped its
+   speculative column, `SMTP_HOST` remains the deployment ceiling, auth-critical mail is not
+   operator-switchable, and any future optional-email control must be capability-specific. **Student access and AI/translation get no column and no working
    switch** — they are not built anywhere, which is the "not built" state in D, distinct from "present
    but off". ⚑ They render as **disabled rows in this Features half, carrying the true reason**, which
    is D's treatment for that state — not as Deployment facts. (Corrected 2026-08-21: this said "they
@@ -230,9 +230,9 @@ stated TTL.
    GFS retention and pruning are unchanged; "off-site" is a property of the drive's location, so the
    guarantee comes from rotation, which is a human process the school owns; a missing drive must FAIL
    rather than silently create a directory on the root filesystem; and schools hold only the `age`
-   PUBLIC key. ⚑ **What remains unresolved is the authoritative last-success RECORD** — SPEC §11 needs
-   it surfaced in Manage → System, and §11 marks that requirement outstanding because it is recorded
-   state with no source yet, not something a probe can compute.
+   PUBLIC key. ⚑ **Resolved and built 2026-08-21:** `backup-db.sh` atomically writes the authoritative
+   last-success record after upload; the app reads it through a read-only mount and surfaces it in
+   Manage → System. It is recorded state, not something a probe can compute.
 3. **Unreliable power + Postgres.** Postgres is crash-safe by default (`fsync`, `full_page_writes`),
    but consumer SSDs that lie about flush can still corrupt on hard cuts. **A small UPS is the
    highest-value item on the bill of materials.** Also needed: unattended clean restart, and a decision
@@ -547,11 +547,12 @@ the slowest input in the whole plan.
 - Exact SPEC §1 amendment wording for the LMS non-goal.
 
 **Operations**
-- ~~The offline backup mechanism~~ — **resolved 2026-08-20; SPEC §11 amended.** Rotated removable
-  drive, same `age` encryption and GFS retention (`rclone`'s local backend takes a mounted path, so
-  the script barely changes). Still to build: the mount verification that makes a missing drive FAIL
-  rather than silently write to the root filesystem, the last-success readout in the Installation
-  panel (there is no healthcheck ping offline), and the `docs/OPS.md` runbook section.
+- ~~The offline backup mechanism~~ — **resolved 2026-08-21; built in the backup-status follow-up.**
+  Rotated removable drive, same `age` encryption and GFS retention (`rclone`'s local backend takes a
+  mounted path). The script requires a separately backed mount plus a regular non-symlink sentinel,
+  holds the destination directory open, and rechecks its mount identity around upload so a missing
+  drive FAILS rather than silently writing to the root filesystem. The System panel reads the local
+  last-success record (there is no healthcheck ping offline), and `docs/OPS.md` carries the runbook.
 - UPS is in place at schools with unreliable power (operator, 2026-08-20), so hard-cut corruption is
   a residual risk rather than an expected event. Unattended clean restart still wants verifying.
 - In-flight job behaviour across hard power loss.

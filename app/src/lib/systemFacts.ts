@@ -1,4 +1,4 @@
-import { readdir, stat } from 'fs/promises'
+import { open, readdir, stat } from 'fs/promises'
 import { join } from 'path'
 
 import {
@@ -13,8 +13,9 @@ import { isPublicLibraryEnabled } from './publicLibrary'
 /**
  * The read-only half of Manage → System: what this installation IS, as opposed to what is switched on.
  *
- * ⚑ COMPUTED PER REQUEST, NEVER PERSISTED. A stored fact is a cache of a fact — it goes stale and then
- * lies, on the one screen whose entire purpose is telling an operator what is currently true. Design:
+ * ⚑ REPORTED PER REQUEST, NEVER OPERATOR-AUTHORED HERE. Most rows are computed from the environment or
+ * a live probe. Backup success is different: it is recorded operational state written atomically by
+ * the host backup script, because no current-environment probe can reconstruct a past upload. Design:
  * `docs/DESIGN-system-panel-2026-08-21.md`.
  *
  * ⚑ AND EVERY FACT NAMES ITS ENV VAR, because these are the settings that CANNOT be runtime-switched
@@ -55,6 +56,94 @@ export interface SystemFact {
  * user-visible detail below, so it moves with this constant.
  */
 const PROBE_TIMEOUT_MS = 1_000
+const BACKUP_STATUS_FILE = '/var/run/lesson3-ops/backup-status.json'
+const MAX_BACKUP_STATUS_BYTES = 4_096
+
+const BACKUP_STREAMS = ['daily', 'weekly', 'monthly', 'premigrate'] as const
+type BackupStream = (typeof BACKUP_STREAMS)[number]
+
+interface BackupStatusV1 {
+  version: 1
+  completedAt: string
+  stream: BackupStream
+  destination: string
+  filename: string
+  encryptedBytes: number
+}
+
+const isNonEmptyBounded = (value: unknown, max: number): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= max
+
+function parseBackupStatus(raw: string): BackupStatusV1 | null {
+  if (Buffer.byteLength(raw, 'utf8') > MAX_BACKUP_STATUS_BYTES) return null
+  try {
+    const value = JSON.parse(raw) as Partial<BackupStatusV1>
+    if (!isNonEmptyBounded(value.completedAt, 64)) return null
+    const completedAt = value.completedAt
+    const parsedCompletedAt = new Date(completedAt)
+    if (
+      value.version !== 1 ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(completedAt) ||
+      !Number.isFinite(parsedCompletedAt.getTime()) ||
+      parsedCompletedAt.toISOString() !== completedAt.replace('Z', '.000Z') ||
+      !BACKUP_STREAMS.includes(value.stream as BackupStream) ||
+      !isNonEmptyBounded(value.destination, 1_024) ||
+      !isNonEmptyBounded(value.filename, 512) ||
+      !Number.isSafeInteger(value.encryptedBytes) ||
+      (value.encryptedBytes ?? 0) <= 0
+    ) {
+      return null
+    }
+    return value as BackupStatusV1
+  } catch {
+    return null
+  }
+}
+
+const backupStreamLabel = (stream: BackupStream): string =>
+  ({ daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', premigrate: 'Premigration' })[stream]
+
+/**
+ * The host backup script is the sole writer; the app receives its directory read-only. Absence and a
+ * malformed record are both `unknown`, never `off`: neither proves that no backup exists remotely.
+ */
+async function readBackupFact(): Promise<SystemFact> {
+  const base: Omit<SystemFact, 'value' | 'status'> = {
+    key: 'backup',
+    label: 'Last successful backup',
+    envVar: 'BACKUP_RCLONE_REMOTE',
+  }
+  try {
+    const file = await open(BACKUP_STATUS_FILE, 'r')
+    let status: BackupStatusV1 | null
+    try {
+      const metadata = await file.stat()
+      if (!metadata.isFile() || metadata.size > MAX_BACKUP_STATUS_BYTES) {
+        status = null
+      } else {
+        status = parseBackupStatus(await file.readFile('utf8'))
+      }
+    } finally {
+      await file.close()
+    }
+    if (!status) throw new Error('invalid backup status')
+    return {
+      ...base,
+      value: status.completedAt.replace('T', ' ').replace('Z', ' UTC'),
+      status: 'ok',
+      detail:
+        `${backupStreamLabel(status.stream)} · ${status.destination} · ${status.filename} · ` +
+        `${mib(status.encryptedBytes)} encrypted`,
+    }
+  } catch {
+    return {
+      ...base,
+      value: 'Unknown',
+      status: 'unknown',
+      detail: `No readable success record at ${BACKUP_STATUS_FILE}.`,
+    }
+  }
+}
 
 /**
  * Is the PDF sidecar answering?
@@ -157,10 +246,15 @@ const mib = (bytes: number): string => `${(bytes / 1_048_576).toFixed(1)} MiB`
  * Every fact, in the order the panel shows them: identity first, then the capabilities an operator
  * asks about when something is not working.
  *
- * The two probes run concurrently — they are independent, and the network one is the slow one.
+ * The two probes and the recorded backup read run concurrently — they are independent, and the
+ * network one is normally the slow one.
  */
 export async function collectSystemFacts(): Promise<SystemFact[]> {
-  const [pdfEngine, artifactCache] = await Promise.all([probePdfEngine(), probeArtifactCache()])
+  const [pdfEngine, artifactCache, backup] = await Promise.all([
+    probePdfEngine(),
+    probeArtifactCache(),
+    readBackupFact(),
+  ])
 
   const serverUrl = process.env.SERVER_URL?.trim()
   const publicLibrary = isPublicLibraryEnabled()
@@ -196,7 +290,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       envVar: 'SMTP_HOST',
       detail: smtpHost
         ? undefined
-        : 'Password resets, message pings and emailed documents cannot leave this installation.',
+        : 'Account verification, password resets, message pings and emailed documents cannot leave this installation.',
     },
     {
       key: 'errorTracking',
@@ -208,6 +302,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       // `instrumentation.ts` at boot, so a toggle for it would be a lie.
       detail: 'Wired at startup — changing it needs a restart, not a setting.',
     },
+    backup,
     pdfEngine,
     artifactCache,
   ]
