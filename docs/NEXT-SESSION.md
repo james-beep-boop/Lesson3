@@ -59,9 +59,14 @@ worth remembering as the technique the next time one file carries two people's w
 
 ## ⚑ LATER THE SAME DAY (2026-08-21 evening) — six more PRs, and `main` is AHEAD OF THE DEPLOY
 
-Everything below #259 landed after the operator's deploy, so ⚑ **`main` is 10 commits ahead of the last
-confirmed deployed SHA (`30d3c45`) and carries TWO UNAPPLIED MIGRATIONS.** Do not describe the app as
+Everything below #259 landed after the operator's deploy, so ⚑ **`main` is AHEAD of the last confirmed
+deployed SHA (`30d3c45`) and carries TWO UNAPPLIED MIGRATIONS.** Do not describe the app as
 deployed-current until `scripts/deploy.sh` has run.
+
+⚑ No commit count is given on purpose — it would be wrong by the next merge, which is the derived-fact
+staleness this file's own preamble warns about. Measure it: `git log --oneline 30d3c45..main | wc -l`,
+and `git diff --name-only --diff-filter=A 30d3c45..main -- app/src/migrations/` for the pending
+migrations.
 
 - `20260821_234341_add_system_settings` — creates `system_settings` + `system_settings_flag_changes`.
 - `20260822_011614_drop_outbound_email_flag` — drops `features_outbound_email` and its provenance rows.
