@@ -14,8 +14,10 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 ## 2026-08-22 — Link proof of concept stays plain text; PDFs cross one read-only boundary
 
 The requested demonstration deliberately avoids rich text, highlighted ranges, a Payload media
-collection, and general filesystem browsing. A linkable body-prose textarea inserts a complete URL in
-parentheses at the cursor. A Lesson3-owned pre-generation transform recognizes only parenthesized
+collection, and general filesystem browsing. One **Insert link** action in the editing toolbar,
+immediately before **Quick preview**, stays disabled until the cursor is placed in a linkable
+body-prose textarea; it then inserts a complete URL in parentheses at that cursor. A Lesson3-owned
+pre-generation transform recognizes only parenthesized
 `http`/`https` addresses and supplies explicit DOCX hyperlinks through the pristine generator's
 existing `Paragraph[]` cell seam. Unlinked strings stay on the byte-existing generator path, and the
 three pinned vendor files remain untouched. Titles are excluded because the generator interpolates
@@ -32,9 +34,14 @@ The production Compose service and `dev-server.sh` mount the same tracked-host-d
 development script supplies its container path explicitly, so browser verification does not depend
 on a developer remembering to add the new variable to an older, gitignored `.env`.
 
-Cursor position is captured on the trigger's mouse-down (or keyboard activation), before the modal
-takes focus. It is not re-read in the later click handler, when the textarea no longer owns focus;
-the pure insertion regression test pins the mid-sentence case independently of browser focus timing.
+The active field and cursor position are captured as focus or selection moves within a supported
+textarea, before the toolbar button and modal take focus. Each edit session starts without an active
+target, so the one action cannot silently insert into a field the teacher did not choose. The pure
+insertion regression test pins the mid-sentence case independently of browser focus timing.
+
+PDF previews still use a synchronously opened placeholder tab so popup blockers permit the eventual
+navigation after generation. The final PDF now replaces that placeholder's history entry rather than
+following it; otherwise the browser's Back action exposes the initial blank document.
 
 This is consciously a proof of concept: no upload/delete/rename, folders, search, Word/video resource
 files, per-file access, public access, expired-session return flow, or file backup/versioning. The

@@ -67,7 +67,10 @@ describe('export client handshake', () => {
   it('moves a ZIP download to a visible error when the final GET loses the network', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValueOnce(json({ state: 'ready' })).mockRejectedValueOnce(new TypeError()),
+      vi
+        .fn()
+        .mockResolvedValueOnce(json({ state: 'ready' }))
+        .mockRejectedValueOnce(new TypeError()),
     )
     const updates: Array<[ExportState, string | undefined]> = []
 
@@ -91,12 +94,12 @@ describe('export client handshake', () => {
  */
 describe('open-in-new-tab twins: a blocked popup must surface an error, never resolve silently', () => {
   type FakeTab = {
-    location: { href: string }
+    location: { replace: ReturnType<typeof vi.fn> }
     document: { title: string; body: { textContent: string } }
     close: ReturnType<typeof vi.fn>
   }
   const makeTab = (): FakeTab => ({
-    location: { href: '' },
+    location: { replace: vi.fn() },
     document: { title: '', body: { textContent: '' } },
     close: vi.fn(),
   })
@@ -111,8 +114,7 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
     return { open, revoke }
   }
 
-  const ready = () =>
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ state: 'ready' })))
+  const ready = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ state: 'ready' })))
   const readyBlob = () =>
     vi.stubGlobal(
       'fetch',
@@ -120,12 +122,12 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
     )
 
   describe('openPreparedPdfInNewTab (teacher per-document + editor "Formatted PDF")', () => {
-    it('navigates the placeholder tab when the popup opened', async () => {
+    it('replaces the placeholder tab so Back cannot reveal its blank page', async () => {
       const tab = makeTab()
       stubBrowser([tab])
       ready()
       await openPreparedPdfInNewTab('/export', '/doc.pdf')
-      expect(tab.location.href).toBe('/doc.pdf')
+      expect(tab.location.replace).toHaveBeenCalledWith('/doc.pdf')
     })
 
     it('opens a fresh tab when the placeholder was blocked but the retry is allowed', async () => {
@@ -139,17 +141,19 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
     it('throws an actionable error when BOTH opens are blocked (never resolves silently)', async () => {
       stubBrowser([null, null])
       ready()
-      await expect(openPreparedPdfInNewTab('/export', '/doc.pdf')).rejects.toThrow(/blocked the preview/i)
+      await expect(openPreparedPdfInNewTab('/export', '/doc.pdf')).rejects.toThrow(
+        /blocked the preview/i,
+      )
     })
   })
 
   describe('openGeneratedPdfInNewTab (unsaved working-copy twin)', () => {
-    it('navigates the placeholder tab to the blob when the popup opened', async () => {
+    it('replaces the placeholder tab with the blob so Back cannot reveal its blank page', async () => {
       const tab = makeTab()
       stubBrowser([tab])
       readyBlob()
       await openGeneratedPdfInNewTab('/generate', new FormData())
-      expect(tab.location.href).toBe('blob:pdf')
+      expect(tab.location.replace).toHaveBeenCalledWith('blob:pdf')
     })
 
     it('opens a fresh tab with the blob when the placeholder was blocked but the retry is allowed', async () => {

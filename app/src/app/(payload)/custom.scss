@@ -2163,18 +2163,14 @@ a.btn.lp-btn {
   }
 }
 
-// Proof-of-concept link insertion stays subordinate to the prose itself: a small action immediately
-// below the textarea, and one compact dialog for either a web address or a PDF already on the Rock.
+// The proof-of-concept link dialog remains owned by the active prose field, while its single trigger
+// lives in LessonControls. Preserve the native field rhythm around the wrapper.
 .prose-link-field {
   margin-block-end: var(--base);
 
-  // The native textarea field normally owns this spacing. It is now inside our wrapper, so remove
-  // its bottom margin and let the wrapper include the Insert link action in the same field rhythm.
+  // The native textarea field normally owns this spacing. It is now inside our wrapper, so let the
+  // wrapper own the same margin rather than doubling it.
   > .field-type {
-    margin-block-end: var(--app-space-1);
-  }
-
-  &__trigger.btn {
     margin-block-end: 0;
   }
 }
