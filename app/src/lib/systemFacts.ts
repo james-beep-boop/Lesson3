@@ -312,10 +312,12 @@ async function probeArtifactCache(): Promise<SystemFact> {
       ...base,
       value: `${mib(used)} of ${mib(max)} (${pct}%), ${names.length} file${names.length === 1 ? '' : 's'}`,
       status: 'ok',
-      detail: dir,
+      // ⚑ NO BARE DIRECTORY PATH. This was `detail: dir` — `/var/cache/lesson3` with no label, which
+      // is the same unreadable class as the PDF row's container URL (operator, 2026-08-21). The
+      // description says what this is; whoever needs the path has `ARTIFACT_CACHE_DIR`.
     }
   } catch {
-    return { ...base, value: 'Not readable', status: 'unknown', detail: dir }
+    return { ...base, value: 'Not readable', status: 'unknown' }
   }
 }
 
