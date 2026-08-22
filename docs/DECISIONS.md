@@ -25,6 +25,27 @@ content-free notices to a registered user; emailed artifacts are an explicit doc
 an arbitrary recipient. If either later earns runtime control, it gets its own accurately named flag
 and enforcement contract. System part 2 therefore remains `publicLibraryLive` only.
 
+### 1b. ⚑ "BACKUP" NAMES FOUR DIFFERENT PROTECTIONS — do not conflate them
+
+The word had started covering unlike things, which is how a "backup feature" gets built twice. The
+operator's breakdown, kept because it settles the scope of every future backup conversation:
+
+| Mechanism | Protects against | Status |
+|---|---|---|
+| Immutable lesson-plan versions | bad edits, publishing the wrong version | built |
+| Edit recovery | losing unsaved work to a logout or interruption | built |
+| Artifact cache | regenerating a DOCX/PDF needlessly | **disposable — not a backup** |
+| Encrypted Postgres backup | server or database loss | built (Drive), USB added here |
+
+⚑ **The Postgres dump already contains everything**, because every lesson plan, retained version, user,
+assignment, message and edit-recovery row lives in Postgres. So this work is an EXTENSION of
+`backup-db.sh` / `restore-db.sh` / `deploy.sh`'s premigration snapshot — a second destination and a
+success record — **not** a second backup system, and explicitly **not** a per-plan serialization format.
+
+⚑ **Edit recovery and the artifact cache must never be repurposed as disaster backups.** Both sit on the
+same server the dump exists to survive, and the cache is deliberately evictable — its whole contract is
+that losing it is free.
+
 ### 2. Backup status comes from the process that completed the upload
 
 The authoritative source is a small versioned file atomically replaced by `scripts/backup-db.sh` only

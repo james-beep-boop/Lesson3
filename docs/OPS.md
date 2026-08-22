@@ -105,6 +105,14 @@ windows it applied); counts before/after via
 - Successful uploads atomically replace `out/backup-status.json`; failed uploads leave the previous
   success untouched. Manage → System reads that directory through a read-only container mount and
   shows the UTC completion time, stream/type and actual destination.
+- ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
+  `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
+  successful backup, labelled **Premigration**. That is why the row names the stream: a healthy
+  installation shows **Daily**. A `Premigration` row on its own means "the last thing that backed this
+  database up was a deploy", which is a real backup but not a schedule.
+- ⚑ **And no row of any kind proves the backup is RESTORABLE.** The record says an upload succeeded, not
+  that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
+  and nothing on this screen can substitute for having run it.
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 

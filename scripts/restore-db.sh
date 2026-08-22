@@ -2,7 +2,7 @@
 #
 # Restore a Lesson3 Postgres backup produced by backup-db.sh (SPEC §11 / readiness #9).
 #
-#   rclone copy from Drive  ->  age -d -i <identity>  ->  pg_restore into a target DB
+#   rclone copy from the configured destination  ->  age -d -i <identity>  ->  pg_restore into a DB
 #
 # This is also the RESTORE DRILL: run it periodically against a throwaway DB to prove the backups are
 # actually recoverable (an untested backup is not a backup). See docs/OPS.md.
