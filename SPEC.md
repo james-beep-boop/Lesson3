@@ -615,6 +615,25 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     missing/malformed record is `Unknown`, never evidence that no remote backup exists. This is the row
     that proves the rule the rest of that half follows — facts are **read-only**, not necessarily
     *computed*; recorded operational state is allowed, but never operator-authored on this screen.
+  - ⚑ **OPEN QUESTION (2026-08-22): key custody makes an OFFLINE school unable to restore its own
+    backups.** The rule below is deliberate and works for an internet-connected deployment: the
+    ciphertext can travel to wherever the identity is held, which is exactly how the 2026-08-22 drill
+    passed. An **offline** school has no equivalent move. Their server dies; they hold a rotated USB
+    drive of correct encrypted dumps; the only thing that can read them is at ARES, and there is no
+    network to carry either the key to them or the drive to ARES. Recovery becomes a physical shipping
+    problem, during an outage, for a school that has just lost its lesson plans. Three candidate
+    answers, none obviously right and none chosen:
+      1. **Per-school identity, sealed offline** — printed or on a USB in the head teacher's safe. The
+         school can recover alone; the risk custody was protecting against (a stolen server yielding
+         readable backups) partly returns, though a safe is not the server.
+      2. **Two recipients** — encrypt to ARES *and* the school, so either can decrypt. `age` supports
+         multiple recipients natively, so this is a one-line change to `backup-db.sh`, and it keeps
+         ARES's copy working while giving the school independence.
+      3. **Accept it and say so** — offline recovery requires ARES involvement, written into the
+         deployment plan and the school's expectations rather than discovered during a crisis.
+    ⚑ Decide before the first offline school depends on this. It is a data-loss question, not a
+    convenience one, and (2) looks cheapest — but it is a real reduction in the guarantee below, so it
+    is the operator's call rather than an implementation detail.
   - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
     school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
     This also keeps a stolen school box from yielding readable backups.

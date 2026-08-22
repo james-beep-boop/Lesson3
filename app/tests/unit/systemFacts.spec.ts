@@ -47,6 +47,11 @@ const ENV_KEYS = [
   'SMTP_HOST',
   'SENTRY_DSN',
   'GOTENBERG_URL',
+  // ⚑ MUST BE IN THIS LIST, not just used by the destination cases below. `beforeEach` clears every key
+  // here and `afterEach` restores it, so a key that is absent from the list both leaks into later tests
+  // and picks up whatever the developer's real environment happens to hold — which would make the
+  // "nothing is being backed up" case pass or fail depending on the machine.
+  'BACKUP_RCLONE_REMOTE',
 ] as const
 
 let saved: Record<string, string | undefined>
@@ -107,7 +112,41 @@ describe('collectSystemFacts', () => {
     expect(byKey(facts, 'pdfEngine').status).toBe('unknown')
     expect(byKey(facts, 'artifactCache').status).toBe('unknown')
     expect(byKey(facts, 'backup').status).toBe('unknown')
-    expect(facts).toHaveLength(7)
+    // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
+    // pinning it rather than only checking the rows this case names.
+    expect(facts).toHaveLength(8)
+  })
+
+  /**
+   * ⚑ WHERE BACKUPS GO IS A DIFFERENT QUESTION FROM WHETHER ONE HAPPENED, and the destination row exists
+   * because the panel used to answer only the second — leaving an offline school setting up a USB drive
+   * with no way to confirm where a backup would land until one succeeded.
+   */
+  describe('backup destination', () => {
+    it('names a removable drive from an absolute path, and keeps the raw value in the detail', async () => {
+      process.env.BACKUP_RCLONE_REMOTE = '/media/lesson3-backup/lesson3-backups'
+      const fact = byKey(await collectSystemFacts(), 'backupDestination')
+      expect(fact.status).toBe('ok')
+      expect(fact.value).toBe('A removable drive')
+      expect(fact.detail).toBe('/media/lesson3-backup/lesson3-backups')
+    })
+
+    it('names a cloud location from an rclone remote', async () => {
+      process.env.BACKUP_RCLONE_REMOTE = 'drive:lesson3-backups'
+      const fact = byKey(await collectSystemFacts(), 'backupDestination')
+      expect(fact.status).toBe('ok')
+      expect(fact.value).toBe('A cloud location')
+      // ⚑ NOT "Google Drive": `drive:` is a nickname whoever configured rclone chose, conventional for
+      // Drive but not a guarantee. The raw value rides along instead of being interpreted.
+      expect(fact.detail).toBe('drive:lesson3-backups')
+    })
+
+    it('says plainly that nothing is being backed up when it is unset', async () => {
+      delete process.env.BACKUP_RCLONE_REMOTE
+      const fact = byKey(await collectSystemFacts(), 'backupDestination')
+      expect(fact.status).toBe('off')
+      expect(fact.detail).toContain('No backups can run')
+    })
   })
 
   it('reports PDF output working when the sidecar answers', async () => {

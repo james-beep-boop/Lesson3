@@ -11,6 +11,87 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-22 — The restore drill PASSED, and every overclaim I made about it was corrected
+
+The last outstanding backup obligation is discharged. The arc is worth keeping because the useful part
+was not the pass — it was two documentation faults and one silent-pass bug found on the way, and then a
+review that trimmed five claims I had inflated.
+
+### What was wrong before it could run at all
+
+**The drill was documented as unrunnable where the backups live.** `OPS.md` read
+`AGE_IDENTITY=~/lesson3-backup.key` followed by `docker compose exec -T postgres …`, in a file whose
+commands otherwise run on the Rock — while §2 of the same file says the identity must never go on the
+Rock. The one procedure proving backups are recoverable, written so it could not be pasted where the
+backups are, contradicting its own custody section eight headings earlier, and read for the first time
+during an incident.
+
+⚑ **The fix was to reverse the direction: bring the CIPHERTEXT to the key, not the key to the
+ciphertext.** The backup is encrypted, so it is the safe thing to move; the identity is not. That makes
+the drill a local operation on whatever machine holds the key. The documented alternative of copying the
+identity to the server has been **removed** — unnecessary now, and `shred` cannot promise erasure on an
+SSD.
+
+⚑ **The first working run did this by temporarily redefining `BACKUP_RCLONE_REMOTE` to a local
+directory.** It worked, and it was far too clever to be a procedure. `restore-db.sh` now has
+`--local-file`, so the safe workflow is a named, obvious option rather than a trick.
+
+### The silent pass in the verification itself
+
+`restore-db.sh` ended its sanity counts with `|| true`. **A failed verification still exited 0**, under a
+line that had already printed "OK" — so the check guarding the only claim anyone cares about could not
+fail. Removed; it now prints `RESTORE DRILL PASSED` only after verification succeeds and `die`s
+otherwise. Mutation-tested: a bogus required table produces `FAIL` and exit 1.
+
+⚑ **AND THE REPLACEMENT WAS ALSO WRONG, found by `/simplify` an hour later.** I replaced two hardcoded
+tables with *twelve* hardcoded tables — which silently skipped `favorites`, `messages` and
+`edit_recovery`, registered collections holding 1, 30 and 5 rows on the Rock. So the drill printed PASSED
+having never looked at three collections, and this entry originally claimed "the corpus comes back". A
+longer hand-maintained list is still a hand-maintained list: it rots the moment a collection is added,
+and it rots toward **under**-verification, which is the failure mode that looks like success.
+
+The list is now **derived from the database** — `pg_tables`, then one `UNION ALL` counting everything —
+so a new collection is covered the day it exists. 29 tables, 25 non-empty. The gate is a short
+hand-picked set that must be present and non-empty; zero rows elsewhere is legitimate and reported
+rather than failed. It is also two round trips instead of one `docker compose exec` per table.
+
+### Five claims I made that the review corrected — all mine, all the same shape
+
+1. **"The key was never read" — false.** `age-keygen -y` and `age -d` both read it; that is their job.
+   The accurate claim is narrower and still worth making: **the identity never left the machine that
+   held it, and its contents were never displayed, logged or copied.**
+2. **"Byte-exact" was wrong.** Matching a download's size against `rclone lsl` proves equal *length*.
+   The real integrity evidence arrived later and is much stronger: `age` is authenticated encryption, so
+   **successful decryption** is what rules out corruption.
+3. **Counts are representative, not complete.** 85/85/7 plus one title spot-check does not prove every
+   record survived — the database also holds assignments, subjects, messages, favourites and nested
+   version tables. Twelve tables now match live exactly, which is a much better representative check
+   and still **not** a row-by-row comparison.
+4. **"Seven consecutive 02:00 backups" does not prove `cron` made them.** It is evidence consistent with
+   the nightly schedule; another scheduler or manual runs would look identical.
+5. And the copy-the-key-to-the-Rock option should not have been offered at all once the safe path worked.
+
+⚑ **The pattern is the one this whole session keeps producing: the work was right and the CLAIM about
+the work was inflated.** A passing drill is a strong result. Writing it up as "fully proven" would have
+turned a real guarantee into an unreliable one, which is worse than having no drill, because the next
+person would stop checking.
+
+### The result, stated at the strength the evidence supports
+
+On 2026-08-22 an encrypted daily backup was copied to the machine holding the private identity,
+successfully authenticated and decrypted, restored into a disposable Postgres database, and verified
+by counting every table in the restored database — 29 tables, 25 of them non-empty — with the headline
+figures matching live: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4
+editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 30 messages, 5
+edit-recovery rows. A representative lesson title was also
+checked. The identity stayed on that machine and was neither displayed nor copied. This establishes that
+the backup is **decryptable and structurally restorable**; broader row-level corpus checks are future
+work.
+
+⚑ Also confirmed, and the single check most worth repeating: **the held identity matches the backups**
+(`age-keygen -y` equals the Rock's `BACKUP_AGE_RECIPIENT`). A mismatched key makes every backup
+permanently unreadable and looks perfectly fine until the day it is needed.
+
 ## 2026-08-21 — `/simplify` on the backup row: one real hang, one drift guard, and a "redundant" check that is not
 
 A quality pass over #271. Four review angles; three findings acted on, three declined with reasons.

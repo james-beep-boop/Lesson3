@@ -108,6 +108,11 @@ windows it applied); counts before/after via
   holds unrelated host artifacts and is deliberately NOT mounted (narrowed 2026-08-21 after the deploy
   verification found the wider mount). If an installation still has an old `out/backup-status.json`, it
   is orphaned and can be deleted; the next backup or deploy writes the new location.
+- **Manage → System also shows the destination as its own row**, computed from `BACKUP_RCLONE_REMOTE`
+  and present whether or not a backup has ever succeeded — so a USB installation can confirm where
+  backups *would* go while setting up. It reads "A removable drive" or "A cloud location" with the raw
+  value beneath. ⚑ Reported, never chosen: a dropdown could not prepare a drive or write `.env`, so it
+  would look live and produce refusing backups.
 - ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
   `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
   successful backup, labelled **Premigration**. That is why the row names the stream: a healthy
@@ -119,14 +124,71 @@ windows it applied); counts before/after via
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 
-Restores into a **disposable** DB by default (refuses live `lesson3` without `--force-prod`):
+⚑ **BRING THE CIPHERTEXT TO THE KEY, NOT THE KEY TO THE CIPHERTEXT.** The private `age` identity is held
+off-box (SPEC §11: schools hold the public key; ARES retains the identity), and the backup is encrypted,
+so the encrypted file is the safe thing to move. Run the drill on the machine that holds the identity,
+with the file copied there:
+
 ```bash
+# 1. get one encrypted backup to the machine holding the identity (7 MB)
+rclone cat drive:lesson3-backups/daily/lesson3-<TS>.dump.age > /tmp/drill.dump.age
+#    …or, from a machine with no rclone remote configured, over ssh from the server:
+#    ssh Rock5b 'PATH=$HOME/bin:$PATH rclone cat drive:lesson3-backups/daily/lesson3-<TS>.dump.age' > /tmp/drill.dump.age
+
+# 2. run the drill against it. Needs a local Compose stack with `postgres` up.
 AGE_IDENTITY=~/lesson3-backup.key \
-  scripts/restore-db.sh --from daily/lesson3-<TS>.dump.age --into lesson3_restore_check
-# prints lesson_plans / versions counts; then drop it:
+  scripts/restore-db.sh --local-file /tmp/drill.dump.age --into lesson3_restore_check
+
+# 3. drop the disposable database, and delete the copy
 docker compose exec -T postgres psql -U lesson3 -d postgres -c 'DROP DATABASE lesson3_restore_check;'
+rm -f /tmp/drill.dump.age
 ```
-Real disaster recovery into live: same command with `--into lesson3 --force-prod` (app down first).
+
+`--local-file` skips `rclone` and `BACKUP_RCLONE_REMOTE` entirely; `restore-db.sh` reaches Postgres via
+`docker compose exec`, so it restores into whatever stack you run it from — on a workstation that is the
+dev stack, which is already the disposable target a drill wants. The decrypted dump only ever exists in a
+`mktemp -d` directory removed by the script's `EXIT` trap.
+
+⚑ **The script prints `RESTORE DRILL PASSED` only if verification succeeded**, and exits non-zero
+otherwise. It counts **every table in the restored database** — 29 of them at the time of writing — and
+gates on a short hand-picked list that must be present and non-empty (`lesson_plans`,
+`lesson_bundle_versions`, `users`, `subjects`, `subject_grades`); zero rows elsewhere is legitimate, so
+those are reported rather than failed.
+
+⚑ **The list is derived from the database, not maintained by hand, and the hand-maintained version was
+already wrong.** It named twelve tables and silently skipped `favorites`, `messages` and `edit_recovery`
+— registered collections with real rows — so the drill printed PASSED without ever looking at them. A
+list that has to be edited in lockstep with `payload.config.ts` rots toward under-verification, which is
+the failure that looks like success. It also used to print two counts followed by `|| true`, so a failed
+verification still exited 0.
+
+⚑ **Do NOT copy the identity onto the server for a drill.** It is unnecessary now that `--local-file`
+exists, it puts the one irreplaceable secret on the box custody is designed to keep it off, and `shred`
+cannot reliably promise erasure on the SSD it would land on.
+
+Real disaster recovery into live: `--into lesson3 --force-prod`, app down first. That is also the only
+situation where bringing the identity to the server is justified — a genuine restore, not a rehearsal.
+
+### ⚑ Last drill: 2026-08-22 — PASSED, and what that does and does not establish
+
+| Established | How |
+|---|---|
+| The held identity matches the backups | `age-keygen -y` on the identity equals the Rock's `BACKUP_AGE_RECIPIENT`. ⚑ The single check most worth repeating: a mismatched key makes every backup permanently unreadable and looks fine until the day it matters |
+| The ciphertext is intact and authentic | `age` decryption **succeeded**. This is authenticated encryption, so it is far stronger evidence than comparing a downloaded file's length against `rclone lsl` — equal length proves only equal length |
+| `pg_restore` accepts the dump | restored into a disposable database with no errors |
+| The corpus comes back | every table in the restored database was counted — 29 tables, 25 of them non-empty — and the headline figures matched live: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 30 messages, 5 edit-recovery rows |
+| Nightly backups are being produced | seven consecutive `daily/` files, 2026-08-16 → 08-22, at 02:00 local |
+
+**What it does not establish, stated so nobody rounds it up:**
+
+- **Not a row-by-row comparison.** Matching counts across twelve tables is a strong representative check,
+  not proof that every field of every record survived. Broader corpus comparison is future work.
+- **Not proof that `cron` produced those files.** Seven files at 02:00 is evidence consistent with the
+  nightly schedule; it does not exclude another scheduler or manual runs.
+- **Nothing about USB destinations.** This drill used a Drive backup. A rotated-USB installation should
+  run its own drill from the drive.
+- **Nothing about the offline-recovery gap** — see SPEC §11: a school with no internet cannot decrypt its
+  own backups, because the identity is not theirs to hold.
 
 ### Installing age + rclone to ~/bin (arm64, no sudo)
 
