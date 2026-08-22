@@ -45,6 +45,15 @@
  * originally pointed at. The id is being reused because the panel came back, not to rescue the link.
  * `tests/unit/panelState.spec.ts` pins the new meaning, where it used to pin the retirement.
  *
+ * ⚑ `system` IS NAMED "System", not "System Administration" (operator decision 2026-08-21, after
+ * proposing the longer form). Two reasons, and the second is the one that decided it: the other boxes
+ * are `Users`, `Curriculum`, `Lesson plans` — plain nouns, so "System" is parallel and the longer form
+ * would be the only category-of-activity label; and "System Administration" would sit inches from
+ * **Site Administrator** and **Subject Administrator** on a page whose role vocabulary has already cost
+ * this project rework twice ("Editor" as a user type, `draft`). D1 called the panel "Installation",
+ * which is too narrow for the half that holds switches — turning outbound email off is not an
+ * installation fact. Design: `docs/DESIGN-system-panel-2026-08-21.md`.
+ *
  * ⚑ `versions` stays TOP-LEVEL rather than joining `plans` (the naming rule is above, where it has
  * always lived): every non-administrator sees that panel and nothing else (`showSaved` in
  * `AdminDashboard`), so nesting it would put a teacher's entire page behind a "Lesson plans" box that
@@ -62,6 +71,8 @@ export const PANEL_IDS = [
   'plans.delete',
   'plans.repair',
   'versions',
+  'system',
+  'system.deployment',
 ] as const
 
 export type PanelId = (typeof PANEL_IDS)[number]

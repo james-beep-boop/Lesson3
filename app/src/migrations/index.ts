@@ -23,6 +23,7 @@ import * as migration_20260812_180000_dedupe_pending_export_jobs from './2026081
 import * as migration_20260814_235248_add_public_publication from './20260814_235248_add_public_publication'
 import * as migration_20260817_141942_add_sign_in_disabled from './20260817_141942_add_sign_in_disabled'
 import * as migration_20260820_223208_add_assignment_provenance from './20260820_223208_add_assignment_provenance'
+import * as migration_20260821_234341_add_system_settings from './20260821_234341_add_system_settings'
 
 export const migrations = [
   {
@@ -149,5 +150,10 @@ export const migrations = [
     up: migration_20260820_223208_add_assignment_provenance.up,
     down: migration_20260820_223208_add_assignment_provenance.down,
     name: '20260820_223208_add_assignment_provenance',
+  },
+  {
+    up: migration_20260821_234341_add_system_settings.up,
+    down: migration_20260821_234341_add_system_settings.down,
+    name: '20260821_234341_add_system_settings',
   },
 ]
