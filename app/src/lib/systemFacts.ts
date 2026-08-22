@@ -55,6 +55,18 @@ export interface SystemFact {
    * docblock: naming a variable that cannot change the row is a dead end unless `detail` says so.
    */
   envVar?: string
+  /**
+   * ⚑ PLAIN ENGLISH, ALWAYS SHOWN, AND IT EXISTS BECAUSE THE ROWS WERE UNREADABLE. The labels and
+   * values here name components and settings; an administrator who does not already know what a
+   * "PDF engine" or an "artifact cache" IS learns nothing from being told its state (operator review
+   * of the shipped panel, 2026-08-21). This line says what the thing does, in the words someone
+   * running a school would use.
+   *
+   * It is deliberately NOT state-dependent — that is `detail`'s job. This sentence reads the same
+   * whether the row is `ok`, `off` or `unknown`, so an administrator can learn what a row means on a
+   * healthy installation and still recognise it on a broken one.
+   */
+  description?: string
   detail?: string
 }
 
@@ -171,6 +183,8 @@ async function readBackupFact(): Promise<SystemFact> {
     key: 'backup',
     label: 'Last successful backup',
     envVar: 'BACKUP_RCLONE_REMOTE',
+    description:
+      'When this database was last safely copied off this machine, and where it went.',
   }
   const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
     ...base,
@@ -212,8 +226,13 @@ async function probePdfEngine(): Promise<SystemFact> {
   const url = gotenbergUrl()
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'pdfEngine',
-    label: 'PDF engine',
+    // Renamed from "PDF engine" (operator, 2026-08-21). "Engine" names a component; "capability"
+    // says what an administrator loses when the row is not green.
+    label: 'PDF output capability',
     envVar: 'GOTENBERG_URL',
+    description:
+      'Turns lesson plans into PDF files. Checked just now — it runs on this machine and needs no ' +
+      'internet, and while it is not answering, PDF downloads stop working.',
   }
   const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
     ...base,
@@ -254,8 +273,12 @@ async function probeArtifactCache(): Promise<SystemFact> {
   const dir = artifactCacheDir()
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'artifactCache',
-    label: 'Artifact cache',
+    // Renamed from "Artifact cache" (operator, 2026-08-21) — "artifact" is build jargon.
+    label: 'Document cache',
     envVar: 'ARTIFACT_CACHE_MAX_BYTES',
+    description:
+      'Disk space used by saved copies of already-generated documents, so repeat downloads are ' +
+      'instant. Nothing here is a backup — it is safe to lose.',
   }
   try {
     // `.bin` only, matching `evictIfNeeded`'s own definition of "used" — an in-flight `.tmp` write
@@ -315,7 +338,12 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
   return [
     {
       key: 'serverUrl',
-      label: 'Base URL',
+      // Renamed from "Base URL" (operator, 2026-08-21): an administrator does not necessarily know
+      // what a "base URL" is, and this row is the one most likely to be wrong on a fresh install.
+      label: 'Web address',
+      description:
+        'The web address this site runs at, and that people use to reach this app. Also used for ' +
+        'security checks, so it must match the address people actually visit.',
       value: serverUrl || 'Not set',
       status: serverUrl ? 'ok' : 'off',
       envVar: 'SERVER_URL',
@@ -326,6 +354,15 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
     {
       key: 'publicLibrary',
       label: 'Public library capability',
+      /**
+       * ⚑ THE SECOND SENTENCE IS NOT "a separate switch decides whether it currently does", which is
+       * what the chosen wording said. That switch is not built yet, so it would send an administrator
+       * hunting for a control that is not on the screen. This phrasing is true today AND stays true
+       * after the switch lands.
+       */
+      description:
+        'Whether this installation is allowed to publish lessons publicly at all. Permission alone ' +
+        'does not make anything public.',
       value: publicLibrary ? 'Permitted by environment' : 'Not permitted',
       status: publicLibrary ? 'ok' : 'off',
       envVar: 'PUBLIC_LIBRARY_ENABLED',
@@ -335,7 +372,10 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
     },
     {
       key: 'email',
-      label: 'Outbound email',
+      label: 'Outbound email capability',
+      description:
+        'Whether this installation can send email at all — password resets, account confirmations ' +
+        'and emailed documents. Without it, nobody can recover a forgotten password.',
       value: smtpHost ? 'Configured' : 'Not configured',
       status: smtpHost ? 'ok' : 'off',
       envVar: 'SMTP_HOST',
@@ -346,6 +386,18 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
     {
       key: 'errorTracking',
       label: 'Error tracking',
+      /**
+       * ⚑ THIS ANSWERS "REPORTED WHERE?", which the operator asked and the old wording dodged. The
+       * destination is whatever `SENTRY_DSN` names; the chosen backend is a SELF-HOSTED GlitchTip
+       * (decision 2026-07-05) speaking the Sentry protocol — so by default nothing goes to a third
+       * party. And `lib/errorTracking.ts` sends route/job context only, never headers or bodies, so
+       * no cookies, passwords or form contents travel with a report. Both facts belong on the screen:
+       * "we send crash reports somewhere" is exactly the sentence that worries a school.
+       */
+      description:
+        'Sends an automatic report to the fault-collecting server named in this setting whenever ' +
+        'something breaks, so problems can be found without waiting for someone to report them. ' +
+        'Reports carry only where the fault happened — never form contents, passwords or documents.',
       value: errorTracking ? 'Configured' : 'Not configured',
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',

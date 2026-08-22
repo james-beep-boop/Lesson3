@@ -215,6 +215,27 @@ describe('collectSystemFacts', () => {
     expect(byKey(facts, 'serverUrl').value).toBe('https://lessons.example.org')
   })
 
+  /**
+   * ⚑ EVERY ROW EXPLAINS ITSELF IN PLAIN ENGLISH. The labels name components and settings, so an
+   * administrator who does not already know what a "document cache" is learns nothing from being told
+   * its size. The operator's review of the shipped panel was blunt about this: one sentence was
+   * comprehensible and the rest were not. This pins the fix so a new row cannot arrive without one —
+   * the same reason the env-var case below exists.
+   */
+  it('explains every fact in plain English, not just its state', async () => {
+    const facts = await collectSystemFacts()
+    const missing = facts.filter((f) => !f.description?.trim()).map((f) => f.key)
+    expect(
+      missing,
+      'a row whose label is the only explanation is a row only its author can read',
+    ).toEqual([])
+    // Long enough to be a sentence rather than a restated label.
+    for (const f of facts) {
+      expect(f.description!.length, `${f.key}'s description is too short to explain anything`)
+        .toBeGreaterThan(40)
+    }
+  })
+
   it('names the environment variable for every fact', async () => {
     const missing = (await collectSystemFacts()).filter((f) => !f.envVar).map((f) => f.key)
     expect(

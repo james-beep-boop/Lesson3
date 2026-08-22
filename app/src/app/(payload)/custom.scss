@@ -532,6 +532,18 @@ body {
     overflow-wrap: anywhere;
   }
 
+  &__fact-description {
+    // ⚑ `flex-basis: 100%` for the same reason as `&__fact-detail` below — the parent is a baseline
+    // flex row, so `display: block` on a child is blockified and does nothing. Claim the row.
+    flex-basis: 100%;
+    // Deliberately the ordinary body colour, not the muted `--theme-elevation-600` the detail line
+    // uses: this sentence is the one an administrator most needs to read, so it must not look like
+    // fine print sitting above actual fine print.
+    color: var(--theme-elevation-800);
+    font-size: var(--app-secondary-size);
+    margin-block-start: 2px;
+  }
+
   &__fact-detail {
     // ⚑ `flex-basis: 100%`, NOT `display: block`. The parent `&__who` is a baseline flex row (it puts a
     // name BESIDE an address), so a `display` on a flex item is blockified and does nothing — the
