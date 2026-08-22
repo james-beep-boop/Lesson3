@@ -615,8 +615,8 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     missing/malformed record is `Unknown`, never evidence that no remote backup exists. This is the row
     that proves the rule the rest of that half follows — facts are **read-only**, not necessarily
     *computed*; recorded operational state is allowed, but never operator-authored on this screen.
-  - ⚑ **OPEN QUESTION (2026-08-22): key custody makes an OFFLINE school unable to restore its own
-    backups.** The rule below is deliberate and works for an internet-connected deployment: the
+  - ⚑ **DECIDED 2026-08-22 — TWO RECIPIENTS. Key custody had made an OFFLINE school unable to restore
+    its own backups.** The rule below is deliberate and works for an internet-connected deployment: the
     ciphertext can travel to wherever the identity is held, which is exactly how the 2026-08-22 drill
     passed. An **offline** school has no equivalent move. Their server dies; they hold a rotated USB
     drive of correct encrypted dumps; the only thing that can read them is at ARES, and there is no
@@ -631,9 +631,17 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
          ARES's copy working while giving the school independence.
       3. **Accept it and say so** — offline recovery requires ARES involvement, written into the
          deployment plan and the school's expectations rather than discovered during a crisis.
-    ⚑ Decide before the first offline school depends on this. It is a data-loss question, not a
-    convenience one, and (2) looks cheapest — but it is a real reduction in the guarantee below, so it
-    is the operator's call rather than an implementation detail.
+    ⚑ **The operator chose (2), two recipients, on 2026-08-22 and it is BUILT.** `BACKUP_AGE_RECIPIENT`
+    (ARES) plus an optional `BACKUP_AGE_RECIPIENT_SCHOOL`; `backup-db.sh` passes both to `age` and
+    either identity decrypts independently, so no key is ever shared. Manage → System reports which
+    state an installation is in ("Backup recovery"). Two properties worth keeping in mind:
+      - **Forward-only.** `age` cannot retro-encrypt what is already uploaded, so backups written before
+        the school's key was configured remain readable only by ARES. The panel row says so explicitly.
+      - **A duplicate is refused.** The same key in both variables would look two-recipient and grant
+        nobody new the ability to decrypt; the script dies rather than shipping that illusion.
+    ⚑ This DOES reduce the guarantee below — a school now holds an identity that can read its own
+    backups, so a stolen school box plus a stolen safe is a different risk than before. That was the
+    accepted trade: an offline school unable to recover its own data is the worse failure.
   - **Key custody: schools hold only the `age` PUBLIC key; ARES retains the private identity.** A
     school has nowhere durable to keep a private key, and losing it makes every backup unrecoverable.
     This also keeps a stolen school box from yielding readable backups.

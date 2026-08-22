@@ -52,6 +52,7 @@ const ENV_KEYS = [
   // and picks up whatever the developer's real environment happens to hold — which would make the
   // "nothing is being backed up" case pass or fail depending on the machine.
   'BACKUP_RCLONE_REMOTE',
+  'BACKUP_AGE_RECIPIENT_SCHOOL',
 ] as const
 
 let saved: Record<string, string | undefined>
@@ -114,7 +115,28 @@ describe('collectSystemFacts', () => {
     expect(byKey(facts, 'backup').status).toBe('unknown')
     // ⚑ A COUNT, deliberately: it is what noticed the eighth row arriving, which is the point of
     // pinning it rather than only checking the rows this case names.
-    expect(facts).toHaveLength(8)
+    expect(facts).toHaveLength(9)
+  })
+
+  /**
+   * ⚑ THE ROW MUST NOT SAY THE WHOLE HISTORY BECAME RECOVERABLE. `age` cannot retro-encrypt uploaded
+   * dumps, so configuring the school's key changes only backups written afterwards — and a row implying
+   * otherwise would be discovered during a recovery, which is the worst possible time.
+   */
+  describe('backup recovery', () => {
+    it('reports independent recovery once the school holds its own key', async () => {
+      process.env.BACKUP_AGE_RECIPIENT_SCHOOL = 'age1schoolkey'
+      const fact = byKey(await collectSystemFacts(), 'backupRecovery')
+      expect(fact.status).toBe('ok')
+      expect(fact.detail).toContain('BEFORE this key was configured')
+    })
+
+    it('says recovery needs ARES when no school key is set', async () => {
+      delete process.env.BACKUP_AGE_RECIPIENT_SCHOOL
+      const fact = byKey(await collectSystemFacts(), 'backupRecovery')
+      expect(fact.status).toBe('off')
+      expect(fact.value).toBe('Recovery needs ARES')
+    })
   })
 
   /**
