@@ -60,12 +60,31 @@ This is **Lesson3**, a clean-slate rewrite. The prior implementation (a Laravel 
 - **Teacher** (default) — view/export. **May additionally hold editing access** for one or more
   subject-grades, which permits editing prose field values there.
 
-⚑ **"Editor" is not a user type and must not be reintroduced as one.** The stored assignment value
-`'editor'`, `isEditorFor`, `assign-editor`, `lib/editorGroups.ts` and similar names are implementation
-identifiers for that capability — keep them. What must never appear is an **Editor** account type in
-prose, in a type label, or in the UI: such a user is a **Teacher with editing access**, and
-`userTypeLabel` returns only the three types above. SPEC §8 is canonical; the reasoning is
+⚑ **THERE IS NO EDITOR USER TYPE. There are three types, and that is the whole list.** A teacher who
+can edit is a **Teacher with editing access** — editing access is a per-subject-grade *capability*, not
+an account class. `userTypeLabel` returns only `Site administrator`, `Subject-grade administrator`,
+`Teacher`; there is no fourth branch to add. SPEC §8 is canonical; the reasoning is
 `docs/DESIGN-user-model-language-2026-07-29.md` and DECISIONS 2026-08-17.
+
+⚑ **KEEP THE IMPLEMENTATION IDENTIFIERS.** The stored assignment value `'editor'`, `isEditorFor`,
+`assignEditorEndpoint`, `assign-editor`/`unassign-editor`, `lib/editorGroups.ts`, `editorPicks`,
+`applyEditorFieldSplit` and similar are internal names for that capability — renaming them buys nothing
+and breaks a stored enum, a URL and a migration. What must never appear is an **Editor** *account type*.
+
+⚑ **WHERE THE WORD MAY AND MAY NOT APPEAR.** Get this wrong in either direction and it costs work:
+
+| Context | Rule |
+|---|---|
+| UI text, a type label, `userTypeLabel` | **Never.** Say "Teacher with editing access". |
+| New prose in SPEC, design docs, READMEs, the Guide | **Never**, except to state this prohibition. |
+| **Test names and failure messages** | **Never** — these are prose someone reads under pressure. A loop printing a fixture key produced "refuses a editor writing it" (2026-08-22). |
+| Code identifiers, stored values, routes | **Keep.** See above. |
+| Stating the rule (here, SPEC §8, a design doc's ⚑) | **Allowed** — naming the banned thing is how the ban is legible. |
+| **Dated records: `docs/DECISIONS.md`, `docs/CHANGELOG.md`, superseded handoffs, `docs/archive/`, and the pre-rename design docs** | **Leave them.** ⚑ Do NOT "excise" history: those entries describe what the label WAS, and rewriting them makes the 2026-07-29 rename decision incomprehensible and the record false. `docs/NEXT-SESSION.md`'s preamble already carries the standing caveat that older blocks say "Editor" because that is what it was called at the time. |
+
+⚑ **The user-facing surface is clean and must stay that way** (verified 2026-08-22: `USER_GUIDE.md`,
+`/guide`, `README.md` and `AGENTS.md` contain the word zero times, and no `Editor` string literal reaches
+a screen). Treat a new occurrence in any of those as a defect, not a style preference.
 
 `Subject` = academic discipline only. `SubjectGrade` = subject + **integer** grade; the unit roles attach to (display "Grade N"). Per-subject-grade scoping lives in Payload access functions. Promoting a Subject Admin auto-demotes the prior one — to a Teacher with editing access for that subject-grade — in one transaction. `class` is reserved — the entity is always `SubjectGrade`. **`draft` is likewise reserved** (SPEC §13): it
 already means an unofficial *saved version* — the Guide tells users "your drafts live in Manage → My

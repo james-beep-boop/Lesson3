@@ -199,7 +199,7 @@ unrecognised one is dropped, never created. Ids are never written back as field 
 can change one — structure is not editable through this path at all. Tests assert both halves: an
 unknown key is dropped, and no id appears as a restored value.
 
-**One source of truth:** the same constants define "what an Editor may write" at the save boundary and
+**One source of truth:** the same constants define "what a Teacher with editing access may write" at the save boundary and
 "what a capture may hold". On restore a capture supplies prose only; `applyEditorFieldSplit` remains
 the write-time authority.
 

@@ -81,7 +81,7 @@ Four panels on it are already bespoke and consistent:
 
 | Panel | Component | Notes |
 |---|---|---|
-| Editing access | `AdminDashboard/EditorsWidget.tsx` | Grant/remove Editor per subject-grade |
+| Editing access | `AdminDashboard/EditorsWidget.tsx` | Grant/remove editing access per subject-grade |
 | Upload lesson plans | `UploadBundles` | |
 | Delete lesson plans | `AdminDashboard/DeletePlansPanel.tsx` | Has search; subject-grade → strand → plan tree with group checkboxes |
 | Candidate versions | `AdminDashboard/CandidateList.tsx` | |
@@ -1192,7 +1192,7 @@ themselves unreviewed until the next round.
 |---|---|---|
 | 1 | D13a step 4 was wrong — `resetPassword` runs `beforeLogin` hooks inline, so a disabled-account gate rejects the *reset* and rolls back the password change | **Accepted.** Verified at [resetPassword.js:113](../app/node_modules/payload/dist/auth/operations/resetPassword.js:113). Step 4 rewritten: requesting stays uniform, consuming is refused while disabled, no reset link offered for a disabled account. Test now consumes a token, not just the request |
 | 2 | An ordinarily-PATCHable `signInDisabled` allows partial disablement — flag set, session still live — because `sessions` is `update: () => false` and only the endpoint clears it | **Accepted.** Verified at [sessions.js](../app/node_modules/payload/dist/auth/baseFields/sessions.js). Field is system-set on update; endpoint is sole writer and sets flag + `sessions: []` atomically; guards still fire on the trusted path |
-| 3 | The email carve-out does not "strengthen" after D6a — only Site Admins grant `subjectAdmin`, and they already see all emails | **Accepted.** D6 corrected; the SPEC amendment is rename-only. For Subject Admins the carve-out still rests on Editor grants alone |
+| 3 | The email carve-out does not "strengthen" after D6a — only Site Admins grant `subjectAdmin`, and they already see all emails | **Accepted.** D6 corrected; the SPEC amendment is rename-only. For Subject Admins the carve-out still rests on editing-access grants alone |
 | 4 | PR 1 is no longer "no behaviour change" | **Accepted.** Retitled; the surviving, checkable claim is "no authorization behaviour changes here" |
 | 5 | The rate-limit carve-out needs a named mechanism | **Accepted.** Server-only `req.context` flag, set only after Site-Admin authorization *and* admin-cap consumption; plus a test that the public endpoint stays throttled |
 | 6 | PR 2 is too large | **Accepted.** Split into 2a (security foundation, server only) and 2b (panel UI) |
