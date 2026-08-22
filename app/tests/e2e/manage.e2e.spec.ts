@@ -1128,10 +1128,14 @@ test.describe('Manage page', () => {
         status: (el as HTMLElement).dataset.status,
         value: el.textContent,
       }))
-      expect([
-        { status: 'unknown', value: 'Unknown' },
-        { status: 'ok', value: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$/) },
-      ]).toContainEqual(backupValue)
+      if (backupValue.status === 'unknown') {
+        expect(backupValue).toEqual({ status: 'unknown', value: 'Unknown' })
+      } else {
+        expect(backupValue).toEqual({
+          status: 'ok',
+          value: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$/),
+        })
+      }
 
       /**
        * ⚑ ONE `page.evaluate`, NO PER-ELEMENT LOCATORS. The first version of this test read colours

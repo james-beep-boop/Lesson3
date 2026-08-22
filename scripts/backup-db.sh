@@ -19,7 +19,7 @@
 #       premigrate/  pre-deploy snapshots  (pruned after BACKUP_PREMIGRATE_RETENTION_DAYS, default 90)
 #     daily/weekly/monthly prune by COUNT (keep newest N — exact, and robust to a missed run);
 #     premigrate prunes by AGE (irregular per-deploy cadence). Cron schedules the three — see docs/OPS.md.
-#   - A local path MUST resolve onto a separately backed mounted filesystem and already contain a
+#   - A local path MUST resolve onto a mount backed by a different device from `/` and contain a
 #     regular, non-symlink `.lesson3-backup-volume`. The script keeps the destination directory open
 #     and checks the mount identity around upload, so an absent or changed USB drive cannot fill the
 #     boot disk.
@@ -71,12 +71,12 @@ positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integ
 # escape below, before pg_dump starts; an operator typo must not upload a backup and then fail while
 # recording its success.
 reject_unsupported_json_controls() {
-  local value="$1" i control
+  local value="$1" field="$2" i control
   for ((i = 1; i <= 31; i++)); do
     case "$i" in 9|10|13) continue ;; esac
-    printf -v control "\\$(printf '%03o' "$i")"
+    printf -v control '%b' "\\$(printf '%03o' "$i")"
     [[ "$value" != *"$control"* ]] \
-      || die "BACKUP_RCLONE_REMOTE contains an unsupported control character"
+      || die "$field contains an unsupported control character"
   done
 }
 
@@ -120,8 +120,8 @@ verify_local_mount_unchanged() {
 }
 
 json_escape() {
-  local value="$1"
-  reject_unsupported_json_controls "$value"
+  local value="$1" field="$2"
+  reject_unsupported_json_controls "$value" "$field"
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
   value="${value//$'\n'/\\n}"
@@ -138,10 +138,10 @@ write_backup_status() {
   mkdir -p "$status_dir"
   STATUS_TMP="$(mktemp "$status_dir/.backup-status.XXXXXX")"
   printf '{\n  "version": 1,\n  "completedAt": "%s",\n  "stream": "%s",\n  "destination": "%s",\n  "filename": "%s",\n  "encryptedBytes": %s\n}\n' \
-    "$(json_escape "$completed_at")" \
-    "$(json_escape "$STREAM")" \
-    "$(json_escape "$BACKUP_RCLONE_REMOTE")" \
-    "$(json_escape "$NAME")" \
+    "$(json_escape "$completed_at" "completion timestamp")" \
+    "$(json_escape "$STREAM" "backup stream")" \
+    "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")" \
+    "$(json_escape "$NAME" "backup filename")" \
     "$SIZE" >"$STATUS_TMP"
   chmod 0644 "$STATUS_TMP"
   mv -f "$STATUS_TMP" "$BACKUP_STATUS_FILE"
@@ -152,7 +152,9 @@ write_backup_status() {
 need docker; need age; need rclone
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
 [[ -n "${BACKUP_RCLONE_REMOTE:-}" ]] || die "BACKUP_RCLONE_REMOTE is not set"
-reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE"
+reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE"
+reject_unsupported_json_controls "$DB_NAME" "BACKUP_DB_NAME"
+reject_unsupported_json_controls "$LABEL" "--label"
 validate_destination
 
 # Map the label to a stream + its prune policy. daily/weekly/monthly keep the newest KEEP_COUNT dumps

@@ -33,9 +33,11 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
 3. **Choose and prepare the destination.**
 
    **Google Drive (headless OAuth):** on your **Mac** (has a browser):
+
    ```bash
    rclone authorize "drive"               # opens a browser; prints a token JSON blob
    ```
+
    On the **Rock**, `rclone config` → new remote named `drive`, type `drive`, and when asked
    "Use auto config?" answer **n**, then paste the token from the Mac. Make a base folder, e.g.
    `lesson3-backups`, in that Drive. The remote+path becomes
@@ -43,12 +45,14 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
 
    **Rotated USB drive (offline installation):** mount each drive at the same absolute path, create the
    backup directory on the mounted volume, and put the sentinel inside it once per drive:
+
    ```bash
    mkdir -p /media/lesson3-backup/lesson3-backups
    touch /media/lesson3-backup/lesson3-backups/.lesson3-backup-volume
    ```
+
    Then use `BACKUP_RCLONE_REMOTE=/media/lesson3-backup/lesson3-backups`. A plain local path must be
-   absolute, resolve onto a separately backed mounted filesystem rather than `/`, and contain that
+   absolute, resolve onto a mount backed by a different device from `/`, and contain that
    regular, non-symlink sentinel **before** `pg_dump`; otherwise the script aborts. It keeps the
    destination directory open and checks the mount identity around upload, so an absent or changed
    drive cannot silently redirect a dump onto the boot disk. (`findmnt`, supplied by `util-linux`, is
@@ -56,7 +60,8 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    Put the drive somewhere physically separate after the run and rotate it with another prepared drive.
 
 4. **`.env` on the Rock** — add:
-   ```
+
+   ```dotenv
    BACKUP_AGE_RECIPIENT=age1xxxxxxxx...
    # Choose ONE:
    BACKUP_RCLONE_REMOTE=drive:lesson3-backups
@@ -64,6 +69,7 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    # optional overrides: BACKUP_DAILY_KEEP, BACKUP_WEEKLY_KEEP, BACKUP_MONTHLY_KEEP, BACKUP_PREMIGRATE_RETENTION_DAYS
    # optional (monitoring): HEALTHCHECK_BACKUP_URL=https://hc-ping.com/<uuid>
    ```
+
    These are read by the scripts only; they are NOT app config (the app ignores them).
 
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire

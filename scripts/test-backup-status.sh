@@ -61,8 +61,8 @@ EOF
 run_case() {
   env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
     BACKUP_AGE_RECIPIENT="age1testrecipient" BACKUP_RCLONE_REMOTE="$1" \
-    FAIL_COPY="${2:-0}" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
-    bash "$BACKUP" --label premigrate-test >"$SANDBOX/output" 2>&1
+    FAIL_COPY="${2:-0}" BACKUP_DB_NAME="${3:-}" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    bash "$BACKUP" --label "${4:-premigrate-test}" >"$SANDBOX/output" 2>&1
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
@@ -129,6 +129,20 @@ prepare_case
 run_case $'drive:lesson3-\bbackups'
 check "unsupported JSON control fails" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "unsupported control fails before pg_dump" "docker must not run" \
+  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+
+prepare_case
+run_case "drive:lesson3-backups" 0 $'lesson3-\bunsafe'
+check "DB-name JSON control fails" "expected named validation error" \
+  "$([[ $EXIT -ne 0 && "$OUTPUT" == *"BACKUP_DB_NAME"* ]] && echo 0 || echo 1)"
+check "DB-name control fails before pg_dump" "docker must not run" \
+  "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
+
+prepare_case
+run_case "drive:lesson3-backups" 0 "" $'premigrate-\bunsafe'
+check "label JSON control fails" "expected named validation error" \
+  "$([[ $EXIT -ne 0 && "$OUTPUT" == *"--label"* ]] && echo 0 || echo 1)"
+check "label control fails before pg_dump" "docker must not run" \
   "$([[ "$CALLS" != *"docker "* ]] && echo 0 || echo 1)"
 
 prepare_case

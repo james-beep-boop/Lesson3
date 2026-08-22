@@ -39,7 +39,7 @@ writable database after the remote upload had already succeeded.
 ### 3. Google Drive and removable USB are both first-class destinations
 
 Configured `remote:path` values keep the existing Google Drive path. A plain local destination must be
-absolute, resolve onto a separately backed mounted filesystem rather than `/`, and contain a regular,
+absolute, resolve onto a mount backed by a different device from `/`, and contain a regular,
 non-symlink `.lesson3-backup-volume` before any dump starts. The script never creates that sentinel,
 holds the destination directory open, and verifies the mount identity around upload. Thus an absent,
 substituted or ordinarily unmounted USB drive fails instead of filling the server while claiming to

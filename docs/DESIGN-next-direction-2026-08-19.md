@@ -122,13 +122,15 @@ parsing and `?open=` handling come for free, and they are a URL contract once sh
 2. **Features — real toggles, and only where there is something to toggle.** ⚑ **One flag is real
    today:** public library live/off. The general email flag is DECIDED ABSENT: #268 dropped its
    speculative column, `SMTP_HOST` remains the deployment ceiling, auth-critical mail is not
-   operator-switchable, and any future optional-email control must be capability-specific. **Student access and AI/translation get no column and no working
-   switch** — they are not built anywhere, which is the "not built" state in D, distinct from "present
-   but off". ⚑ They render as **disabled rows in this Features half, carrying the true reason**, which
+   operator-switchable, and any future optional-email control must be capability-specific. **Student
+   access and student quiz get no column and no working switch** — they are not built anywhere, which
+   is the "not built" state in D, distinct from "present but off". ⚑ They render as **disabled rows in
+   this Features half, carrying the true reason**, which
    is D's treatment for that state — not as Deployment facts. (Corrected 2026-08-21: this said "they
    appear as facts", contradicting the four-state table two sections down. The table is right: a
    Deployment fact is for a capability that is BUILT but absent from this box, which an operator can
    act on; "not built anywhere" is a roadmap statement and belongs where the switch would be.)
+   AI/translation remain App-roadmap capabilities, not System deployment controls or proposed flags.
 
 ⚑ **PRESETS ARE DEFERRED** (operator decision 2026-08-21). The three school types remain the right
 shape *once there are enough flags for a preset to mean anything*; with two usable switches a preset
@@ -549,7 +551,8 @@ the slowest input in the whole plan.
 **Operations**
 - ~~The offline backup mechanism~~ — **resolved 2026-08-21; built in the backup-status follow-up.**
   Rotated removable drive, same `age` encryption and GFS retention (`rclone`'s local backend takes a
-  mounted path). The script requires a separately backed mount plus a regular non-symlink sentinel,
+  mounted path). The script requires a mount backed by a different device from `/` plus a regular
+  non-symlink sentinel,
   holds the destination directory open, and rechecks its mount identity around upload so a missing
   drive FAILS rather than silently writing to the root filesystem. The System panel reads the local
   last-success record (there is no healthcheck ping offline), and `docs/OPS.md` carries the runbook.

@@ -603,7 +603,7 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
     it was written.
   - ⚑ **A missing drive must FAIL, never silently succeed.** Writing to an unmounted `/media/...` path
     creates a directory on the root filesystem instead: backups appear to work, go nowhere, and fill
-    the boot disk. The destination must be verified as a non-root, separately backed mount **and**
+    the boot disk. The destination mount must be backed by a different device from `/` **and**
     carry a regular, non-symlink sentinel before any dump is written; its mount identity must remain
     stable through upload.
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local

@@ -171,8 +171,8 @@ only thing that would notice a class referenced with **no rule at all**.
   4. ✓ **BUILT in the backup-status follow-up — backup last success/destination now has an
      authoritative source.** `backup-db.sh` atomically records a completed upload, the app reads it
      through a read-only mount, and the System row distinguishes daily/weekly/monthly/premigration.
-     Google Drive and rotated USB destinations share the record; USB requires a separately backed
-     mounted filesystem, a regular non-symlink sentinel, and a stable mount identity through upload.
+     Google Drive and rotated USB destinations share the record; USB requires a mount backed by a
+     different device from `/`, a regular non-symlink sentinel, and a stable identity through upload.
   Also tightened: atomic check-and-write rather than a bare freshness token, server-enforced versioned
   acknowledgements, no toggle without its ceiling, structured errors on fail-closed reads, and
   independent per-probe timeouts.
