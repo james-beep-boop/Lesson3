@@ -18,6 +18,12 @@
  * the sole writer, which is what makes the row evidence rather than an assertion the app makes about
  * itself. A read-write mount would keep every assertion here passing while quietly removing that.
  *
+ * ⚑ THE HOST SIDE IS A NESTED DIRECTORY (`out/ops`), so these patterns allow a slash in it. That is
+ * not incidental: mounting the whole of `out/` gave the app read access to unrelated host artifacts,
+ * and narrowing it is the reason the directory is nested at all. A pattern that only matched a
+ * single-segment directory would quietly stop matching and this file would throw rather than pass —
+ * which is the right failure, but worth understanding before someone "fixes" the regex.
+ *
  * The three files are read as text on purpose. Importing the constant would widen a module's API for a
  * test's benefit, and neither the compose file nor a bash script can be imported at all.
  */
@@ -85,13 +91,13 @@ describe('the backup status file: one path, three files, no drift', () => {
   )
   const mount = extract(
     composeSrc,
-    /-\s+\.\/([\w.-]+):(\/[\w./-]+):ro/,
+    /-\s+\.\/([\w./-]+):(\/[\w./-]+):ro/,
     'a read-only ./<dir>:<container-dir>:ro operations mount',
     'docker-compose.yml',
   )
   const mountTarget = extract(
     composeSrc,
-    /-\s+\.\/[\w.-]+:(\/[\w./-]+):ro/,
+    /-\s+\.\/[\w./-]+:(\/[\w./-]+):ro/,
     'the container side of the operations mount',
     'docker-compose.yml',
   )

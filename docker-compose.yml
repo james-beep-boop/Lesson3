@@ -60,8 +60,15 @@ services:
     volumes:
       - lesson3_artifact_cache:/var/cache/lesson3
       # Host-side backup-db.sh is the sole writer. The app can report the latest successful
-      # destination but cannot forge or advance it; `out/` also survives container replacement.
-      - ./out:/var/run/lesson3-ops:ro
+      # destination but cannot forge or advance it, and the directory survives container replacement.
+      #
+      # ⚑ `out/ops`, NOT `out`. `out/` is a pre-existing host directory holding unrelated things —
+      # generated .docx files, backup.log, prune.log, ares-data/ — and mounting all of it gave the app
+      # read access to far more than the one status file this contract is about (found while verifying
+      # the 2026-08-21 deploy). Narrowed to a directory that exists FOR this purpose. `out/ops/.gitkeep`
+      # is tracked so the checkout creates it with the deploy user's ownership before Compose can
+      # create it as root.
+      - ./out/ops:/var/run/lesson3-ops:ro
     depends_on:
       postgres:
         condition: service_healthy

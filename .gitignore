@@ -9,7 +9,9 @@ node_modules/
 dist/
 build/
 out/*
-!out/.gitkeep
+!out/ops/
+out/ops/*
+!out/ops/.gitkeep
 *.tsbuildinfo
 
 # Payload

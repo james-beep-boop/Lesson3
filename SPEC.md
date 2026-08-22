@@ -609,7 +609,7 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
   - ⚑ **Backup monitoring cannot be a healthcheck ping offline.** "Did the backup run?" needs a local
     answer — surfaced in the **Manage → System** panel as last-success time and destination. (Renamed
     from "Installation" 2026-08-21; the panel's design is `docs/DESIGN-system-panel-2026-08-21.md`.)
-    **Built 2026-08-21:** `scripts/backup-db.sh` atomically replaces `out/backup-status.json` only after
+    **Built 2026-08-21:** `scripts/backup-db.sh` atomically replaces `out/ops/backup-status.json` only after
     `rclone copyto` succeeds; the app receives `out/` read-only and reports the UTC time, stream/type,
     actual destination, filename and encrypted size. A failed upload cannot advance the record, and a
     missing/malformed record is `Unknown`, never evidence that no remote backup exists. This is the row

@@ -1,0 +1,5 @@
+# Keep this directory present so the app's read-only operations mount has a real target, created by
+# the checkout (deploy-user owned) rather than by Compose (root owned).
+#
+# ⚑ This is `out/ops`, not `out`. Only the backup status record belongs here — one small JSON file the
+# host backup script owns. `out/` itself holds unrelated host artifacts and must NOT be mounted.
