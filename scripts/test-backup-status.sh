@@ -297,6 +297,31 @@ check "one recipient still works" "expected exit 0" "$([[ $EXIT -eq 0 ]] && echo
 check "one recipient passes exactly one -r" "only the ARES key" \
   "$([[ "$(grep -o -- "-r " <<<"$(grep '^age ' <<<"$CALLS")" | wc -l | tr -d ' ')" == "1" ]] && echo 0 || echo 1)"
 
+# ── The --label error message (it cost the operator a run on 2026-08-22) ──────────────────────────
+#
+# ⚑ ASSERTING THE MESSAGE'S CONTENT, not just the refusal. The old text said
+# "(use weekly | monthly | premigrate)" and omitted both that NO label means daily and that premigrate
+# takes a suffix — so it named the valid inputs incorrectly, which is worse than naming none. These
+# cases pin each of the four forms it now advertises, and the last one proves the suffix form the
+# message promises is genuinely accepted rather than just documented.
+prepare_case
+USB="$SANDBOX/usb"; mkdir -p "$USB"; : >"$USB/.lesson3-backup-volume"
+run_case "$USB" 0 "" "manual-bad"
+check "bad label refused" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+for form in daily weekly monthly premigrate; do
+  check "bad-label message names '$form'" "message must list every valid form" \
+    "$(grep -qi "$form" <<<"$OUTPUT" && echo 0 || echo 1)"
+done
+check "bad label uploads nothing" "rclone must not run" \
+  "$(grep -q "^rclone copyto" <<<"$CALLS" && echo 1 || echo 0)"
+
+prepare_case
+USB="$SANDBOX/usb"; mkdir -p "$USB"; : >"$USB/.lesson3-backup-volume"
+run_case "$USB" 0 "" "premigrate-two-recipient-check"
+check "premigrate accepts a suffix" "expected exit 0" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check "suffixed premigrate records the premigrate stream" "stream must be premigrate" \
+  "$(grep -q '"stream": "premigrate"' "$STATUS" && echo 0 || echo 1)"
+
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]
