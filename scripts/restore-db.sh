@@ -73,12 +73,16 @@ fi
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 ENC="$TMP/backup.dump.age"; PLAIN="$TMP/backup.dump"
 
-SOURCE_LABEL="${FROM}"
+SOURCE_LABEL="${LOCAL_FILE:-$FROM}"
 if [[ -n "$LOCAL_FILE" ]]; then
   [[ -f "$LOCAL_FILE" ]] || die "--local-file does not exist: $LOCAL_FILE"
-  SOURCE_LABEL="$LOCAL_FILE"
   echo "restore-db: using local file ${LOCAL_FILE}"
-  cp "$LOCAL_FILE" "$ENC"
+  # ⚑ POINT AT IT, DO NOT COPY IT. This used to `cp` the whole encrypted dump into $TMP for no reason:
+  # nothing writes to $ENC, `age -d` only reads it, and the EXIT trap removes $TMP — never the caller's
+  # file — so the copy bought a second multi-megabyte write and a way to run $TMP out of space.
+  # ⚑ The DECRYPTED dump still lands in $TMP and is still removed by the trap; that is the part that
+  # must not be left lying around.
+  ENC="$LOCAL_FILE"
 else
   echo "restore-db: fetching ${FROM}"
   rclone copyto "${BACKUP_RCLONE_REMOTE%/}/${FROM}" "$ENC" --no-traverse
@@ -108,42 +112,54 @@ echo "restore-db: restored ${SOURCE_LABEL} into '$INTO'"
 # back". Roles, subject scoping, editing-access grants and the nested version content are the rest of
 # what a school would lose, so they are counted too. This is still a representative check, not proof of
 # every row — say so rather than implying otherwise.
-REQUIRED_TABLES=(lesson_plans lesson_bundle_versions users subjects subject_grades)
-NESTED_TABLES=(
-  users_assignments
-  lesson_bundle_versions_lessons
-  lesson_bundle_versions_lessons_framework
-  lesson_bundle_versions_lessons_resource_links
-  lesson_bundle_versions_final_explanation_sections
-  lesson_bundle_versions_final_explanation_rubric
-  lesson_bundle_versions_summary_table_lessons
-)
+# ⚑ THE TABLE LIST IS DERIVED, NOT HAND-MAINTAINED — and the hand-maintained version was ALREADY WRONG
+# when this was written (2026-08-22). It named twelve tables and silently skipped `favorites`,
+# `messages` and `edit_recovery`, which are registered collections holding real rows (1, 30 and 5 on the
+# Rock). So the drill printed PASSED while never looking at three collections, and the write-up claimed
+# "the corpus comes back". A list that must be edited in lockstep with `payload.config.ts` rots toward
+# under-verification, and under-verification is the failure that looks like success.
+#
+# Asking the database instead means a new collection is covered the day it exists, with no script edit.
+#
+# ⚑ AND IT IS TWO ROUND TRIPS, NOT ONE PER TABLE. The previous shape spawned a `docker compose exec`
+# per table; this asks for the table list once, then every count in a single query.
+REQUIRED_NONEMPTY=(lesson_plans lesson_bundle_versions users subjects subject_grades)
 
-count_rows() {
-  docker compose exec -T postgres psql -U "$DB_USER" -d "$INTO" -tA -v ON_ERROR_STOP=1 \
-    -c "SELECT count(*) FROM \"$1\";" 2>/dev/null | tr -d '[:space:]'
-}
+psql_q() { docker compose exec -T postgres psql -U "$DB_USER" -d "$INTO" -tA -v ON_ERROR_STOP=1 -c "$1"; }
 
 echo "restore-db: verification —"
+TABLES="$(psql_q "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;")" \
+  || die "RESTORE DRILL FAILED — could not list tables in '$INTO'; the restore is not usable."
+[[ -n "$TABLES" ]] || die "RESTORE DRILL FAILED — '$INTO' has no public tables at all."
+
+# One UNION ALL over every table, so the whole corpus is counted in a single query.
+COUNT_SQL=""
+while IFS= read -r t; do
+  [[ -n "$t" ]] || continue
+  [[ -n "$COUNT_SQL" ]] && COUNT_SQL+=" UNION ALL "
+  COUNT_SQL+="SELECT '$t' AS t, count(*) AS n FROM \"$t\""
+done <<< "$TABLES"
+
+COUNTS="$(psql_q "SELECT t||' '||n FROM ($COUNT_SQL) x ORDER BY t;")" \
+  || die "RESTORE DRILL FAILED — counting rows in '$INTO' failed; the restore is not usable."
+
 FAILED=0
-for t in "${REQUIRED_TABLES[@]}"; do
-  n="$(count_rows "$t")" || n=""
+NONEMPTY=0
+while IFS=' ' read -r t n; do
+  [[ -n "$t" ]] || continue
+  [[ "$n" -gt 0 ]] && NONEMPTY=$((NONEMPTY + 1))
+  printf '  %-52s %s\n' "$t" "$n"
+done <<< "$COUNTS"
+
+# The gate is a short hand-picked list that must be PRESENT and NON-EMPTY — a real backup never has
+# zero lesson plans. Everything else is reported, because zero is legitimate elsewhere (a fresh
+# installation has no messages) and gating on it would fail a healthy restore.
+for t in "${REQUIRED_NONEMPTY[@]}"; do
+  n="$(printf '%s\n' "$COUNTS" | awk -v k="$t" '$1==k {print $2}')"
   if [[ -z "$n" ]]; then
-    echo "  FAIL  $t — query failed (table missing, or the restore is not usable)"; FAILED=1
+    echo "  FAIL  $t — table absent from the restored database"; FAILED=1
   elif [[ "$n" -eq 0 ]]; then
-    # An empty core table in a real backup means the dump restored but the content did not.
     echo "  FAIL  $t = 0 — a real backup is never empty here"; FAILED=1
-  else
-    printf '  ok    %-34s %s\n' "$t" "$n"
-  fi
-done
-for t in "${NESTED_TABLES[@]}"; do
-  n="$(count_rows "$t")" || n=""
-  if [[ -z "$n" ]]; then
-    echo "  FAIL  $t — query failed"; FAILED=1
-  else
-    # Zero is legitimate here (a bundle need not have resource links), so these are reported, not gated.
-    printf '  ok    %-34s %s\n' "$t" "$n"
   fi
 done
 
@@ -152,5 +168,5 @@ if [[ "$FAILED" -ne 0 ]]; then
 fi
 
 echo "restore-db: RESTORE DRILL PASSED — ${SOURCE_LABEL} decrypted, restored into '$INTO', and every"
-echo "restore-db: verification query succeeded. This is a representative check of headline and nested"
-echo "restore-db: tables, not a row-by-row comparison against live."
+echo "restore-db: table in the restored database counted (${NONEMPTY} of them non-empty). This is a"
+echo "restore-db: whole-schema row-count check, not a row-by-row comparison against live."

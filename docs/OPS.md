@@ -149,11 +149,18 @@ rm -f /tmp/drill.dump.age
 dev stack, which is already the disposable target a drill wants. The decrypted dump only ever exists in a
 `mktemp -d` directory removed by the script's `EXIT` trap.
 
-⚑ **The script prints `RESTORE DRILL PASSED` only if every verification query succeeded**, and exits
-non-zero otherwise. It reports twelve tables — the headline three plus subject scoping, editing-access
-grants, and the nested version content (lessons, framework rows, resource links, explanation sections,
-rubric, summary table). It used to print two counts followed by `|| true`, so a failed verification still
-exited 0.
+⚑ **The script prints `RESTORE DRILL PASSED` only if verification succeeded**, and exits non-zero
+otherwise. It counts **every table in the restored database** — 29 of them at the time of writing — and
+gates on a short hand-picked list that must be present and non-empty (`lesson_plans`,
+`lesson_bundle_versions`, `users`, `subjects`, `subject_grades`); zero rows elsewhere is legitimate, so
+those are reported rather than failed.
+
+⚑ **The list is derived from the database, not maintained by hand, and the hand-maintained version was
+already wrong.** It named twelve tables and silently skipped `favorites`, `messages` and `edit_recovery`
+— registered collections with real rows — so the drill printed PASSED without ever looking at them. A
+list that has to be edited in lockstep with `payload.config.ts` rots toward under-verification, which is
+the failure that looks like success. It also used to print two counts followed by `|| true`, so a failed
+verification still exited 0.
 
 ⚑ **Do NOT copy the identity onto the server for a drill.** It is unnecessary now that `--local-file`
 exists, it puts the one irreplaceable secret on the box custody is designed to keep it off, and `shred`
@@ -169,7 +176,7 @@ situation where bringing the identity to the server is justified — a genuine r
 | The held identity matches the backups | `age-keygen -y` on the identity equals the Rock's `BACKUP_AGE_RECIPIENT`. ⚑ The single check most worth repeating: a mismatched key makes every backup permanently unreadable and looks fine until the day it matters |
 | The ciphertext is intact and authentic | `age` decryption **succeeded**. This is authenticated encryption, so it is far stronger evidence than comparing a downloaded file's length against `rclone lsl` — equal length proves only equal length |
 | `pg_restore` accepts the dump | restored into a disposable database with no errors |
-| The corpus comes back | all twelve verified tables matched live exactly: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 422 explanation sections, 414 rubric rows, 728 summary-table rows |
+| The corpus comes back | every table in the restored database was counted — 29 tables, 25 of them non-empty — and the headline figures matched live: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 30 messages, 5 edit-recovery rows |
 | Nightly backups are being produced | seven consecutive `daily/` files, 2026-08-16 → 08-22, at 02:00 local |
 
 **What it does not establish, stated so nobody rounds it up:**

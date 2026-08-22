@@ -40,10 +40,20 @@ directory.** It worked, and it was far too clever to be a procedure. `restore-db
 
 `restore-db.sh` ended its sanity counts with `|| true`. **A failed verification still exited 0**, under a
 line that had already printed "OK" — so the check guarding the only claim anyone cares about could not
-fail. Removed, and the report expanded from two tables to twelve: the headline three plus subject
-scoping, editing-access grants, and the nested version content. It now prints `RESTORE DRILL PASSED`
-only after every query succeeds, and `die`s otherwise. Mutation-tested: a bogus required table produces
-`FAIL` and exit 1.
+fail. Removed; it now prints `RESTORE DRILL PASSED` only after verification succeeds and `die`s
+otherwise. Mutation-tested: a bogus required table produces `FAIL` and exit 1.
+
+⚑ **AND THE REPLACEMENT WAS ALSO WRONG, found by `/simplify` an hour later.** I replaced two hardcoded
+tables with *twelve* hardcoded tables — which silently skipped `favorites`, `messages` and
+`edit_recovery`, registered collections holding 1, 30 and 5 rows on the Rock. So the drill printed PASSED
+having never looked at three collections, and this entry originally claimed "the corpus comes back". A
+longer hand-maintained list is still a hand-maintained list: it rots the moment a collection is added,
+and it rots toward **under**-verification, which is the failure mode that looks like success.
+
+The list is now **derived from the database** — `pg_tables`, then one `UNION ALL` counting everything —
+so a new collection is covered the day it exists. 29 tables, 25 non-empty. The gate is a short
+hand-picked set that must be present and non-empty; zero rows elsewhere is legitimate and reported
+rather than failed. It is also two round trips instead of one `docker compose exec` per table.
 
 ### Five claims I made that the review corrected — all mine, all the same shape
 
@@ -70,9 +80,10 @@ person would stop checking.
 
 On 2026-08-22 an encrypted daily backup was copied to the machine holding the private identity,
 successfully authenticated and decrypted, restored into a disposable Postgres database, and verified
-against twelve tables that all matched live exactly — 85 lesson plans, 85 versions, 7 users, 7 subjects,
-7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 422
-explanation sections, 414 rubric rows, 728 summary-table rows. A representative lesson title was also
+by counting every table in the restored database — 29 tables, 25 of them non-empty — with the headline
+figures matching live: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4
+editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 30 messages, 5
+edit-recovery rows. A representative lesson title was also
 checked. The identity stayed on that machine and was neither displayed nor copied. This establishes that
 the backup is **decryptable and structurally restorable**; broader row-level corpus checks are future
 work.

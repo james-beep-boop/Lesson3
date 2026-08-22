@@ -178,7 +178,11 @@ function backupDestinationFact(): SystemFact {
   }
   return {
     ...base,
-    value: destinationLabel(destination) === 'a removable backup drive' ? 'A removable drive' : 'A cloud location',
+    // ⚑ THE PREDICATE, NOT A STRING COMPARISON AGAINST `destinationLabel`'s PROSE. This read
+    // `destinationLabel(destination) === 'a removable backup drive'`, which coupled a branch to display
+    // copy: reword that sentence — exactly the kind of edit this file keeps getting — and every
+    // removable drive would silently report as a cloud location, with no type error to catch it.
+    value: isRemovableDestination(destination) ? 'A removable drive' : 'A cloud location',
     status: 'ok',
     detail: destination,
   }
@@ -411,8 +415,10 @@ const mb = (bytes: number): string => {
  * it, but the same remote could be Dropbox or S3. So the two cases we can tell apart honestly are
  * removable-vs-cloud, and the raw value travels alongside for anyone who needs it.
  */
+const isRemovableDestination = (destination: string): boolean => destination.startsWith('/')
+
 const destinationLabel = (destination: string): string =>
-  destination.startsWith('/') ? 'a removable backup drive' : 'a cloud backup location'
+  isRemovableDestination(destination) ? 'a removable backup drive' : 'a cloud backup location'
 
 /**
  * Every fact, in the order the panel shows them: identity first, then the capabilities an operator
