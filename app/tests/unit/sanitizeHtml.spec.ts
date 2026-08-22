@@ -32,7 +32,10 @@ describe('sanitizePreviewHtml', () => {
   })
 
   it('keeps safe http(s)/mailto/anchor links', () => {
-    expect(sanitizePreviewHtml('<a href="https://ares.org">x</a>')).toContain('href="https://ares.org"')
+    const external = sanitizePreviewHtml('<a href="https://ares.org">x</a>')
+    expect(external).toContain('href="https://ares.org"')
+    expect(external).toContain('target="_blank"')
+    expect(external).toContain('rel="noopener noreferrer"')
     expect(sanitizePreviewHtml('<a href="mailto:a@b.org">x</a>')).toContain('href="mailto:a@b.org"')
     expect(sanitizePreviewHtml('<a href="#sec">x</a>')).toContain('href="#sec"')
   })

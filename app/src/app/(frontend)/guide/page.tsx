@@ -16,8 +16,9 @@ export default async function UserGuidePage() {
           actions={<PageBackLink href="/" label="Back to lesson plans" />}
         />
         <p>
-          The repository stores ARES lesson plans as structured lesson data. You browse, edit, preview,
-          and export that data in the app; the system generates the Word and PDF documents for you.
+          The repository stores ARES lesson plans as structured lesson data. You browse, edit,
+          preview, and export that data in the app; the system generates the Word and PDF documents
+          for you.
         </p>
         <p>
           The main areas are <strong>Lessons</strong> (the library — the one list of every lesson
@@ -53,30 +54,29 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Your account:</strong> create one from the sign-in page’s <em>Sign up</em>{' '}
-            link, then follow the verification link we email you before signing in — verified
-            accounts can read and download everything. <em>Forgot password?</em> on the same page
-            emails you a reset link. If your school’s installation cannot send email — some run
-            with no internet — ask a Site administrator instead: they can create a reset link and
-            give it to you directly. For security your session ends after a while and signs you out
-            automatically — just sign in again to continue.
+            <strong>Your account:</strong> create one from the sign-in page’s <em>Sign up</em> link,
+            then follow the verification link we email you before signing in — verified accounts can
+            read and download everything. <em>Forgot password?</em> on the same page emails you a
+            reset link. If your school’s installation cannot send email — some run with no internet
+            — ask a Site administrator instead: they can create a reset link and give it to you
+            directly. For security your session ends after a while and signs you out automatically —
+            just sign in again to continue.
           </li>
           <li>
-            <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade, strand,
-            and sub-strand in curriculum order.
+            <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade,
+            strand, and sub-strand in curriculum order.
           </li>
           <li>
-            <strong>Search &amp; filter:</strong> use the search box to find a subject, grade, strand,
-            or sub-strand, and the subject / grade buttons under it to narrow the whole list. They
-            combine — e.g. filter to Biology Grade 10, then search within it.
+            <strong>Search &amp; filter:</strong> use the search box to find a subject, grade,
+            strand, or sub-strand, and the subject / grade buttons under it to narrow the whole
+            list. They combine — e.g. filter to Biology Grade 10, then search within it.
           </li>
           <li>
-            <strong>Favorites:</strong> click the star on a library row — or the{' '}
-            <em>☆ Favorite</em> button on a lesson page — to keep that lesson in a My favorites
-            list at the top of the home page. Your star always shows the lesson’s current
-            Official version, even when a newer one is promoted later. (If you have editing access the
-            star works differently: it pins the exact version you starred.) Favorites are personal — only you
-            see yours.
+            <strong>Favorites:</strong> click the star on a library row — or the <em>☆ Favorite</em>{' '}
+            button on a lesson page — to keep that lesson in a My favorites list at the top of the
+            home page. Your star always shows the lesson’s current Official version, even when a
+            newer one is promoted later. (If you have editing access the star works differently: it
+            pins the exact version you starred.) Favorites are personal — only you see yours.
           </li>
           <li>
             <strong>Read on screen:</strong> open a sub-strand to view the Lesson Sequence, Final
@@ -103,10 +103,11 @@ export default async function UserGuidePage() {
           <li>
             <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
             right) to send a note to any user of the repository — a lesson page’s{' '}
-            <em>Share → Message a colleague</em> item attaches that lesson to your note. Each message you receive has a{' '}
-            <em>Reply</em> button that opens a box to write straight back. Unread messages show as a
-            small count on your avatar, and you get a short email telling you a message is waiting
-            (never its content). Opening Messages marks everything shown as read.
+            <em>Share → Message a colleague</em> item attaches that lesson to your note. Each
+            message you receive has a <em>Reply</em> button that opens a box to write straight back.
+            Unread messages show as a small count on your avatar, and you get a short email telling
+            you a message is waiting (never its content). Opening Messages marks everything shown as
+            read.
           </li>
         </ul>
       </section>
@@ -116,9 +117,9 @@ export default async function UserGuidePage() {
       <section id="editors" className="guide-section">
         <h2>Editing</h2>
         <p>
-          A teacher with editing access can do everything any teacher can, plus edit the prose fields
-          for the subject-grades they have been granted — lesson titles, specific learning outcomes,
-          overviews, learner experiences, teacher moves, sensemaking strategies, formative
+          A teacher with editing access can do everything any teacher can, plus edit the prose
+          fields for the subject-grades they have been granted — lesson titles, specific learning
+          outcomes, overviews, learner experiences, teacher moves, sensemaking strategies, formative
           assessments, teacher reflections, summary-table text, and Final Explanation prompts. They
           never edit a Word file directly.
         </p>
@@ -138,15 +139,15 @@ export default async function UserGuidePage() {
             Subject-grade or Site administrator marks a saved version Official when it is ready.
           </li>
           <li>
-            <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists the
-            versions you have saved — click one to continue editing, or delete the ones you no longer
-            need.
+            <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists
+            the versions you have saved — click one to continue editing, or delete the ones you no
+            longer need.
           </li>
           <li>
             <strong>Browse version history:</strong> a <em>N versions</em> chip (on library rows and
             the lesson page) opens a panel listing every retained version — newest first, Official
-            pinned on top, with each version’s author, date, and favorite star. When there is
-            more than one version, a <em>Compare</em> button shows two versions side by side with
+            pinned on top, with each version’s author, date, and favorite star. When there is more
+            than one version, a <em>Compare</em> button shows two versions side by side with
             removals in red and additions in green.
           </li>
         </ul>
@@ -155,34 +156,34 @@ export default async function UserGuidePage() {
       <section id="subject-admins" className="guide-section">
         <h2>Subject-grade administrators</h2>
         <p>
-          A Subject-grade administrator can do everything a teacher with editing access can, for their
-          assigned subject-grades. They also manage the structure and official content controls for
-          those subject-grades.
+          A Subject-grade administrator can do everything a teacher with editing access can, for
+          their assigned subject-grades. They also manage the structure and official content
+          controls for those subject-grades.
         </p>
         <ul className="guide-list">
           <li>
-            <strong>Manage structure:</strong> add, remove, and reorder lessons and instructional phases.
-            To add a lesson, duplicate an existing lesson row, then edit the copy.
+            <strong>Manage structure:</strong> add, remove, and reorder lessons and instructional
+            phases. To add a lesson, duplicate an existing lesson row, then edit the copy.
           </li>
           <li>
             <strong>Edit controlled fields:</strong> update Document settings, the Sub-strand
-            overview, lesson duration, ARES keywords, phase choices, assessment exemplars, and rubric
-            rows.
+            overview, lesson duration, ARES keywords, phase choices, assessment exemplars, and
+            rubric rows.
           </li>
           <li>
-            <strong>Make Official:</strong> on a lesson page, promote a saved version to the Official
-            one Teachers see — optionally deleting the version it replaces.
+            <strong>Make Official:</strong> on a lesson page, promote a saved version to the
+            Official one Teachers see — optionally deleting the version it replaces.
           </li>
           <li>
-            <strong>Tidy candidates:</strong> <em>Manage → Candidate versions</em> lists every saved,
-            non-Official version in their subject-grades, with delete. The section appears once there
-            is something to tidy.
+            <strong>Tidy candidates:</strong> <em>Manage → Candidate versions</em> lists every
+            saved, non-Official version in their subject-grades, with delete. The section appears
+            once there is something to tidy.
           </li>
           <li>
-            <strong>Roles &amp; Access:</strong> <em>Manage → Users → Roles &amp; Access</em> gives a
-            teacher editing access, or removes it, per subject-grade. It also shows who administers each
-            of your subject-grades, and the addresses of the people listed there — granting access is a
-            permission decision, and two teachers can share a display name.
+            <strong>Roles &amp; Access:</strong> <em>Manage → Users → Roles &amp; Access</em> gives
+            a teacher editing access, or removes it, per subject-grade. It also shows who
+            administers each of your subject-grades, and the addresses of the people listed there —
+            granting access is a permission decision, and two teachers can share a display name.
           </li>
           <li>
             <strong>Hand administration over:</strong> in the same panel you can make one of your
@@ -209,10 +210,10 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>Manage people:</strong> create users, grant Site administrator access, and grant
-            editing access or Subject-grade administrator access by subject-grade. Site administrators
-            are also the only ones who can <strong>remove</strong> a Subject-grade administrator: an
-            administrator may hand the role on, but nobody can take it away from them, and nobody can
-            resign it.
+            editing access or Subject-grade administrator access by subject-grade. Site
+            administrators are also the only ones who can <strong>remove</strong> a Subject-grade
+            administrator: an administrator may hand the role on, but nobody can take it away from
+            them, and nobody can resign it.
           </li>
           <li>
             <strong>Reset a password by hand:</strong> where email is not set up, you can create a
@@ -221,17 +222,17 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>See what this installation is:</strong> Manage → System reports the address,
-            whether email and public sharing are available, whether PDF output is working, and when a
-            backup last succeeded. Everything there is read-only: those are decided on the server, so
-            changing one is a server job, not a click.
+            whether email and public sharing are available, whether PDF output is working, and when
+            a backup last succeeded. Everything there is read-only: those are decided on the server,
+            so changing one is a server job, not a click.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson
             plans are uploaded.
           </li>
           <li>
-            <strong>Review everything:</strong> inspect, edit, export, mark Official, or delete lesson
-            plans across all subjects and grades.
+            <strong>Review everything:</strong> inspect, edit, export, mark Official, or delete
+            lesson plans across all subjects and grades.
           </li>
         </ul>
       </section>
@@ -246,10 +247,16 @@ export default async function UserGuidePage() {
           <li>
             Start a line with <code>- </code> to make a bullet.
           </li>
+          <li>
+            Use <em>Insert link</em> beneath a prose field to insert an internet address or choose a
+            PDF already on the Rock. The address appears in parentheses and becomes clickable in the
+            on-screen view and generated Word/PDF documents. Web and PDF links open separately so
+            your editor stays open.
+          </li>
           <li>Bold, italics, and underlining are not supported.</li>
           <li>
-            Edit the field that matches the document section you want to change. The exported DOCX and
-            PDF are generated from those fields.
+            Edit the field that matches the document section you want to change. The exported DOCX
+            and PDF are generated from those fields.
           </li>
         </ul>
       </section>

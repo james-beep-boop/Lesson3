@@ -23,6 +23,7 @@ set -euo pipefail
 # Sourcing the prelude cds to the repo root — see its header.
 # shellcheck source=scripts/lib/dev-env.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/dev-env.sh"
+DEV_REPO_ROOT="$(pwd -P)"
 
 dev_require_env_file
 echo "› ensuring local Postgres is up and healthy (publishes 127.0.0.1:55432)"
@@ -45,7 +46,7 @@ echo "  (sign in with the seeded local users — see AGENTS.md → Local stack)"
 # `LOG_LEVEL`; the rate-limit knobs), and keeps this invocation inside the reach of the env-template
 # parity guard instead of beside it.
 #
-# The three `-e` lines below are genuine overrides and beat `--env-file` regardless of flag order
+# The four `-e` lines below are genuine overrides and beat `--env-file` regardless of flag order
 # (verified). `NODE_ENV` matters most: the root `.env` says `production`, under which Payload runs
 # migrate-mode with schema push off — the same trap AGENTS.md flags for the test-probe recipe.
 #
@@ -58,10 +59,12 @@ exec docker run --rm --init --name lesson3-dev-server \
   --network "$(dev_compose_network)" \
   -p 3000:3000 \
   "${DEV_DEPS_MOUNTS[@]}" \
+  -v "${DEV_REPO_ROOT}/out/resource-library:/var/lib/lesson3-resources:ro" \
   --env-file .env \
   -e NODE_ENV=development \
   -e ADMIN_URL=http://localhost:3000 \
   -e ARTIFACT_CACHE_DIR=/tmp/artifact-cache \
+  -e PDF_LIBRARY_DIR=/var/lib/lesson3-resources \
   --env PUBLIC_LIBRARY_ENABLED \
   --env SERVER_URL \
   lesson3-deps npx next dev -H 0.0.0.0

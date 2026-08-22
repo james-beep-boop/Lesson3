@@ -12,6 +12,9 @@ out/*
 !out/ops/
 out/ops/*
 !out/ops/.gitkeep
+!out/resource-library/
+out/resource-library/*
+!out/resource-library/.gitkeep
 *.tsbuildinfo
 
 # Payload

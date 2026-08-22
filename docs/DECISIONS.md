@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-22 — Link proof of concept stays plain text; PDFs cross one read-only boundary
+
+The requested demonstration deliberately avoids rich text, highlighted ranges, a Payload media
+collection, and general filesystem browsing. A linkable body-prose textarea inserts a complete URL in
+parentheses at the cursor. A Lesson3-owned pre-generation transform recognizes only parenthesized
+`http`/`https` addresses and supplies explicit DOCX hyperlinks through the pristine generator's
+existing `Paragraph[]` cell seam. Unlinked strings stay on the byte-existing generator path, and the
+three pinned vendor files remain untouched. Titles are excluded because the generator interpolates
+them into headings rather than cell prose.
+
+The second source is one flat PDF directory, mounted read-only into the app. Authenticated endpoints
+list and serve only regular, non-hidden, signature-checked PDFs of at most 25 MiB; opaque filename
+tokens plus basename, extension, no-symlink and `O_NOFOLLOW` checks prevent this from becoming a path
+browser. The browser turns the server-issued relative route into an absolute URL at its current public
+origin before insertion, which is what makes a Rock-hosted file usable from a remote device. Internet
+addresses are HTTPS-only in the insertion UI and are never fetched by the server.
+
+The production Compose service and `dev-server.sh` mount the same tracked-host-directory shape. The
+development script supplies its container path explicitly, so browser verification does not depend
+on a developer remembering to add the new variable to an older, gitignored `.env`.
+
+Cursor position is captured on the trigger's mouse-down (or keyboard activation), before the modal
+takes focus. It is not re-read in the later click handler, when the textarea no longer owns focus;
+the pure insertion regression test pins the mid-sentence case independently of browser focus timing.
+
+This is consciously a proof of concept: no upload/delete/rename, folders, search, Word/video resource
+files, per-file access, public access, expired-session return flow, or file backup/versioning. The
+existing ARES `resourceLinks` contract stays system-owned and completely separate.
+
 ## 2026-08-22 — The restore drill PASSED, and every overclaim I made about it was corrected
 
 The last outstanding backup obligation is discharged. The arc is worth keeping because the useful part

@@ -7,6 +7,39 @@ the Rock unless noted.
 
 ---
 
+## Proof-of-concept PDF link library
+
+Lesson prose can link to internet addresses and to PDFs in one flat directory on the Rock. This is a
+read-only demonstration, not file management: Lesson3 never writes, renames, replaces or deletes the
+files. The Compose app receives only this mount:
+
+```text
+/srv/lesson3/out/resource-library  ->  /var/lib/lesson3-resources (read-only)
+```
+
+One-time setup after pulling the feature:
+
+1. Keep `PDF_LIBRARY_DIR=/var/lib/lesson3-resources` in the Rock's `.env` (the canonical
+   `.env.example` carries it).
+2. Copy a few PDFs into `/srv/lesson3/out/resource-library/` on the Rock. Use a flat directory,
+   ordinary `.pdf` filenames, and files no larger than 25 MiB. Hidden files, subdirectories,
+   symlinks, other extensions, and content without a PDF signature are not offered.
+3. Run the normal `scripts/deploy.sh`; no database migration is involved. The app container must be
+   recreated to receive the new read-only mount and environment value.
+4. Sign in through the standard public HTTPS app address, open a lesson version for editing, and use
+   *Insert link*. Selecting a Rock PDF inserts an absolute URL using that browser origin.
+
+All authenticated roles may open these PDFs. An exported Word/PDF link therefore works remotely when
+the reader is already signed in to the same public app; sign-in-and-return for a reader whose session
+has expired is outside this proof of concept. Do not rename or overwrite a demonstration PDF after a
+lesson links to it: the URL is stable only while the filename and bytes stay stable.
+
+⚠ The database backup does **not** include `out/resource-library`. For this proof of concept, retain
+the source PDFs elsewhere and be prepared to copy them back. A production resource library needs an
+explicit backup/versioning policy before these files become records of value.
+
+---
+
 ## Backups (encrypted, to Google Drive or a rotated removable drive)
 
 `pg_dump` (in the postgres container) → `age` encrypt (on the host) → `rclone` to the configured
