@@ -95,9 +95,21 @@ const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) =>
    * allowlist rather than passing a body through — belt AND braces, because this one is cheap.
    */
   if (actorId == null) {
-    // A userless write (seeds, system paths) records nothing new but still may not be told what the
-    // history is — keep exactly what was stored.
-    data.flagChanges = stored
+    /**
+     * ⚑ A CHANGED FLAG LOSES ITS ROW, rather than keeping the old one. This said `= stored`, which
+     * preserved the previous row for a flag the very same write had just changed — so provenance
+     * asserted the OLD value and named a person who did not make the change. False audit data is worse
+     * than none, and this is the record an operator would consult precisely when they distrust the
+     * state (operator review, 2026-08-22).
+     *
+     * `kept` already excludes every changed flag, so an absent row means UNKNOWN — the same meaning a
+     * null `changedBy` carries everywhere else in this project. Unchanged flags keep their history,
+     * because nothing about them became doubtful.
+     *
+     * Reachable on seeds and system paths (`overrideAccess: true` with no `user`), which is exactly
+     * where nobody is available to attribute a change to.
+     */
+    data.flagChanges = kept
     return data
   }
 
@@ -121,7 +133,8 @@ export const SystemSettings: GlobalConfig = {
    * ⚑ NOBODY UPDATES THIS THROUGH THE ORDINARY DOOR — not even a Site Administrator.
    *
    * `update: siteAdminOnly` (what part 1 shipped) made every ceremony the panel specifies OPTIONAL: a
-   * Site Administrator could `PATCH /api/globals/system-settings` and skip the password
+   * Site Administrator could `POST /api/globals/system-settings` — the verb Payload actually routes for
+   * a global update; PATCH and PUT 404 — and skip the password
    * re-authentication, the `expectedUpdatedAt` freshness token, the public-exposure acknowledgement and
    * the provenance path. Re-authentication that a plain REST call walks past is UI theatre, so the
    * custom Save endpoint has to be the SOLE writer (operator blocker, 2026-08-22).

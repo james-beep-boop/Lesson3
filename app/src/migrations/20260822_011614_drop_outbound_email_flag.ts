@@ -17,14 +17,18 @@ import { type MigrateDownArgs, type MigrateUpArgs, sql } from '@payloadcms/db-po
  * notification-only flag may return once that design exists; keeping the column would have preserved a
  * decision nobody had earned. See `docs/DESIGN-system-panel-2026-08-21.md`.
  *
- * ⚑ NO `flagChanges` CLEANUP. The provenance rows are keyed by flag NAME, so a stale
- * `flag = 'outboundEmail'` row would be harmless data about a flag that no longer exists — and there
- * are none anywhere to clean. `SYSTEM_FLAGS` no longer lists it, so the hook cannot write another.
+ * ⚑ AND ITS PROVENANCE ROWS GO WITH IT. An earlier draft kept them, reasoning they were harmless data
+ * about a flag that no longer exists. That is the wrong instinct for an audit table: a row saying who
+ * turned on a flag the system does not have is not harmless, it is junk that a future reader has to
+ * work out how to disbelieve. Deliberately retaining provenance for a removed flag also contradicts
+ * what the column means — a record of a decision about something real (operator review, 2026-08-22).
+ * There are none to delete in practice, which is exactly why doing it now is free.
  */
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "system_settings" DROP COLUMN "features_outbound_email";`)
+   DELETE FROM "system_settings_flag_changes" WHERE "flag" = 'outboundEmail';
+  ALTER TABLE "system_settings" DROP COLUMN "features_outbound_email";`)
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {

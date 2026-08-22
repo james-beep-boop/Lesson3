@@ -5,7 +5,8 @@
  * ⚑ THE AUTHORIZATION HALF IS THE POINT, AND IT INVERTED ON 2026-08-22. A global is reachable through
  * its own REST/GraphQL routes, so "the panel is only rendered for a Site Admin" is not the boundary —
  * the same lesson D6a learned about the Roles & Access picker. But `update: siteAdminOnly` was not the
- * boundary either: it let a Site Administrator PATCH the global and skip the re-authentication, the
+ * boundary either: it let a Site Administrator `POST` the global (the verb Payload routes for a global
+ * update) and skip the re-authentication, the
  * freshness token, the acknowledgement and the provenance path that the Save endpoint exists to carry.
  *
  * So `update` is now `() => false` and **nobody** writes through the ordinary door. What used to be
@@ -23,6 +24,17 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
 
 let fx: RoleFixture
+/**
+ * ⚑ FIXTURE KEY IS NOT A USER TYPE. `editor` is the key `setupRoleFixture` uses; the user it names is a
+ * **Teacher with editing access**. CLAUDE.md and SPEC §8 are explicit that "Editor" is not one of the
+ * three types and must not appear as one in prose — and a test name IS prose: it is what a person reads
+ * in a failure report. (It also read "a editor".)
+ */
+const LABEL: Record<'subjectAdmin' | 'editor' | 'teacher', string> = {
+  subjectAdmin: 'Subject Administrator',
+  editor: 'Teacher with editing access',
+  teacher: 'Teacher',
+}
 
 type FlagChange = {
   flag: string
@@ -109,13 +121,13 @@ describe('system-settings: who may touch it', () => {
    * the caller who might be assumed to pass. `siteAdminOnly` is the whole gate; this proves it.
    */
   for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
-    it(`refuses a ${role} writing it`, async () => {
+    it(`refuses a ${LABEL[role]} writing it`, async () => {
       await expect(
         setFlagsThroughAccess({ publicLibraryLive: true }, fx.users[role]),
       ).rejects.toThrow()
     })
 
-    it(`refuses a ${role} reading it`, async () => {
+    it(`refuses a ${LABEL[role]} reading it`, async () => {
       await expect(
         fx.payload.findGlobal({
           slug: 'system-settings',
@@ -145,6 +157,46 @@ describe('system-settings: per-flag provenance', () => {
     expect(after.publicLibraryLive?.enabled).toBe(false)
     expect(after.publicLibraryLive?.changedBy).toBe(fx.users.siteAdmin.id)
     expect(after.publicLibraryLive?.changedAt).toBeTruthy()
+  })
+
+  /**
+   * ⚑ A USERLESS WRITE MUST NOT LEAVE A LIE. Seeds and system paths write with `overrideAccess: true`
+   * and no `user`, so there is nobody to attribute a change to. The hook first handled that by keeping
+   * the stored rows untouched — which meant a userless write that CHANGED a flag left provenance
+   * asserting the old value and naming a person who did not make the change (operator review,
+   * 2026-08-22). False audit data on the record an operator consults precisely when they distrust the
+   * state.
+   *
+   * The contract: a changed flag loses its row, so absent means UNKNOWN — the same meaning a null
+   * `changedBy` carries everywhere else. An UNCHANGED flag keeps its history, because nothing about it
+   * became doubtful.
+   */
+  it('drops provenance for a flag a USERLESS write changed, rather than keeping a stale actor', async () => {
+    // A known, attributed starting point.
+    await setFlags({ publicLibraryLive: true }, fx.users.siteAdmin)
+    const before = await changesByFlag()
+    expect(before.publicLibraryLive?.changedBy, 'precondition: the row names someone').toBe(
+      fx.users.siteAdmin.id,
+    )
+
+    // Now the same flag changes with no actor at all.
+    await fx.payload.updateGlobal({
+      slug: 'system-settings',
+      data: { features: { publicLibraryLive: false } } as never,
+      overrideAccess: true,
+      // no `user`
+    })
+
+    const after = await readSettings()
+    expect(
+      (after.features as { publicLibraryLive?: boolean }).publicLibraryLive,
+      'the flag itself still changed',
+    ).toBe(false)
+    const rows = (after.flagChanges ?? []) as FlagChange[]
+    expect(
+      rows.find((r) => r.flag === 'publicLibraryLive'),
+      'a row here would assert the OLD value and name someone who did not do it',
+    ).toBeUndefined()
   })
 
   it('keeps one row per flag rather than growing a history', async () => {
@@ -190,9 +242,10 @@ describe('system-settings: per-flag provenance', () => {
           },
         ],
       } as never,
-      // ⚑ The trusted path, because the ordinary one is now shut — and that makes this case sharper
-      // rather than weaker: it proves FIELD access still strips a forged row even when collection-level
-      // access has been bypassed, which is exactly the endpoint's situation.
+      // ⚑ The trusted path, because the ordinary one is now shut. An earlier version of this comment
+      // credited FIELD access with stripping the forged row — it does not: `overrideAccess: true`
+      // bypasses field access as well as collection access, which is the whole discovery. The HOOK is
+      // what strips it, by owning `flagChanges` on every write.
       overrideAccess: true,
       user: fx.users.siteAdmin,
     })

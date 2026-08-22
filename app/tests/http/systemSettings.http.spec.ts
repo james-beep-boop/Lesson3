@@ -30,6 +30,18 @@ import { login, url } from '../helpers/httpWire.js'
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
 let fx: RoleFixture
+/**
+ * ⚑ FIXTURE KEY IS NOT A USER TYPE. `editor` is the key `setupRoleFixture` uses; the user it names is a
+ * **Teacher with editing access**. CLAUDE.md and SPEC §8 are explicit that "Editor" is not one of the
+ * three types and must not appear as one in prose — and a test name IS prose: it is what a person reads
+ * in a failure report. (It also read "a editor".)
+ */
+const LABEL: Record<'subjectAdmin' | 'editor' | 'teacher', string> = {
+  subjectAdmin: 'Subject Administrator',
+  editor: 'Teacher with editing access',
+  teacher: 'Teacher',
+}
+
 const token: Record<string, string> = {}
 
 const GLOBAL_URL = () => url('/api/globals/system-settings')
@@ -99,7 +111,7 @@ describe('system-settings — the ordinary write door is shut', () => {
   })
 
   for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
-    it(`refuses a ${role} writing the global`, async () => {
+    it(`refuses a ${LABEL[role]} writing the global`, async () => {
       expect((await request('POST', role)).status).toBe(403)
     })
   }
@@ -118,7 +130,7 @@ describe('system-settings — reads stay Site-Admin-only', () => {
   })
 
   for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
-    it(`refuses a ${role} reading it`, async () => {
+    it(`refuses a ${LABEL[role]} reading it`, async () => {
       expect((await request('GET', role)).status).toBe(403)
     })
   }
