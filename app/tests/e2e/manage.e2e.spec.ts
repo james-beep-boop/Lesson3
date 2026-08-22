@@ -1173,12 +1173,20 @@ test.describe('Manage page', () => {
       const colourByStatus = new Map(rows.map((r) => [r.status, r.color]))
       expect(new Set(colourByStatus.values()).size).toBe(colourByStatus.size)
 
-      // The detail line claims a full row rather than relying on wrapping (see custom.scss).
+      /**
+       * The explanation line claims a full row rather than relying on wrapping (see custom.scss).
+       *
+       * ⚑ ASSERTED ON `__fact-description`, NOT `__fact-detail`. The technical notes were replaced by
+       * plain-English descriptions, so `__fact-detail` now appears on ONE row and only in some states —
+       * a selector that finds nothing would make `flexBasis` null and this assertion fail for a reason
+       * that has nothing to do with layout. Every row has a description, so this cannot silently
+       * measure the wrong thing or nothing at all.
+       */
       const flexBasis = await page.evaluate(() => {
-        const d = document.querySelector('.lp-manage__fact-detail')
+        const d = document.querySelector('.lp-manage__fact-description')
         return d ? getComputedStyle(d).flexBasis : null
       })
-      expect(flexBasis).toBe('100%')
+      expect(flexBasis, 'no fact description rendered at all').toBe('100%')
     })
 
     test('a Subject Administrator has no System box, and the deep link is scrubbed', async ({

@@ -65,6 +65,12 @@ export interface SystemFact {
    * It is deliberately NOT state-dependent — that is `detail`'s job. This sentence reads the same
    * whether the row is `ok`, `off` or `unknown`, so an administrator can learn what a row means on a
    * healthy installation and still recognise it on a broken one.
+   *
+   * ⚑ AND IT REPLACED THE TECHNICAL NOTES RATHER THAN JOINING THEM (operator, 2026-08-21). Those notes
+   * said things like "http://gotenberg:3000 — a local sidecar; PDF conversion needs no internet" and
+   * "relaxed CSRF and non-Secure cookies" — accurate, and meaningless to the person reading this
+   * screen. `detail` now survives on exactly one row, the backup, where the *specifics* are the point:
+   * which kind of backup, how big, and where it went.
    */
   description?: string
   detail?: string
@@ -198,15 +204,16 @@ async function readBackupFact(): Promise<SystemFact> {
     return fact(
       'unknown',
       'Unknown',
-      `No readable success record at ${BACKUP_STATUS_FILE}. A backup writes one on success — check the ` +
-        `backup cron and \`scripts/backup-db.sh\`; this variable only says where backups go.`,
+      'No backup has reported success on this machine yet — check that the nightly backup is set up.',
     )
   }
   return fact(
     'ok',
     status.completedAt.replace('T', ' ').replace('Z', ' UTC'),
-    `${backupStreamLabel(status.stream)} · ${status.destination} · ${status.filename} · ` +
-      `${mib(status.encryptedBytes)} encrypted`,
+    // ⚑ THE FILENAME IS GONE from this line (operator review, 2026-08-21): it is opaque on screen and
+    // `scripts/restore-db.sh --list` is where you go when you actually need it. What an administrator
+    // wants here is which kind of backup, where it went, and that it is not empty.
+    `${backupStreamLabel(status.stream)} backup, ${mib(status.encryptedBytes)}, sent to ${status.destination}.`,
   )
 }
 
@@ -242,17 +249,15 @@ async function probePdfEngine(): Promise<SystemFact> {
   })
   try {
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
-    return res.ok
-      ? fact('ok', 'Reachable', `${url} — a local sidecar; PDF conversion needs no internet.`)
-      : fact('unknown', `Answered ${res.status}`, url)
+    // ⚑ NO URL, NO "SIDECAR", NO MILLISECONDS. This row's note used to read
+    // "http://gotenberg:3000 — a local sidecar; PDF conversion needs no internet", which the operator
+    // rightly called meaningless to anyone running a school. The address is what `GOTENBERG_URL`
+    // beside the row already says; the fact that it is local is in the description.
+    return res.ok ? fact('ok', 'Working') : fact('unknown', 'Not working properly')
   } catch {
     // Unreachable OR timed out — indistinguishable from here, and the operator's next step is the
     // same either way, so do not pretend to tell them apart.
-    return fact(
-      'unknown',
-      'Not reachable',
-      `${url} did not answer within ${PROBE_TIMEOUT_MS}ms. Every PDF export and preview fails while this is true.`,
-    )
+    return fact('unknown', 'Not answering')
   }
 }
 
@@ -347,9 +352,6 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: serverUrl || 'Not set',
       status: serverUrl ? 'ok' : 'off',
       envVar: 'SERVER_URL',
-      detail: serverUrl
-        ? 'Also drives the CSRF allowlist and Secure cookies. Both are decided at boot.'
-        : 'Internal/offline posture: relaxed CSRF and non-Secure cookies, which suits plain-HTTP LAN use.',
     },
     {
       key: 'publicLibrary',
@@ -366,9 +368,6 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: publicLibrary ? 'Permitted by environment' : 'Not permitted',
       status: publicLibrary ? 'ok' : 'off',
       envVar: 'PUBLIC_LIBRARY_ENABLED',
-      detail: publicLibrary
-        ? 'This deployment MAY serve public routes. Whether it currently does is a runtime flag inside this ceiling.'
-        : 'Every public route returns 404 at the server, and no runtime flag can override it.',
     },
     {
       key: 'email',
@@ -379,9 +378,6 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: smtpHost ? 'Configured' : 'Not configured',
       status: smtpHost ? 'ok' : 'off',
       envVar: 'SMTP_HOST',
-      detail: smtpHost
-        ? undefined
-        : 'Account verification, password resets, message pings and emailed documents cannot leave this installation.',
     },
     {
       key: 'errorTracking',
@@ -401,9 +397,6 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       value: errorTracking ? 'Configured' : 'Not configured',
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',
-      // ⚑ Not runtime-switchable, and this is exactly why the facts half exists: it is wired in
-      // `instrumentation.ts` at boot, so a toggle for it would be a lie.
-      detail: 'Wired at startup — changing it needs a restart, not a setting.',
     },
     backup,
     pdfEngine,

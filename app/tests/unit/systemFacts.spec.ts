@@ -114,15 +114,34 @@ describe('collectSystemFacts', () => {
     stubFetch(() => Promise.resolve(new Response('ok', { status: 200 })))
     const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
     expect(pdf.status).toBe('ok')
-    // ⚑ Says it is LOCAL, because "PDF engine" is the component people assume needs internet.
-    expect(pdf.detail).toContain('no internet')
+    // ⚑ STILL SAYS IT IS LOCAL — this is the component people assume needs internet, and an offline
+    // school seeing it "not working" needs to know the fix is not a connection. The claim moved from
+    // the technical note (which also printed the container URL) to the plain-English description when
+    // those notes were replaced, so the assertion follows it rather than being deleted.
+    expect(pdf.description).toContain('needs no internet')
   })
 
+  /**
+   * ⚑ THE PROPERTY IS THE DISTINCTION, NOT THE STATUS CODE. This asserted `value` contained "503",
+   * which stopped being true when the row's wording was made plain — the code is meaningless to the
+   * administrator reading this screen. But the distinction it was standing in for is real and worth
+   * keeping: an engine that is *running and answering wrongly* has a different cause from one that is
+   * *not there*, and collapsing both to "not working" would send someone to restart a service that is
+   * already up. So compare the two branches directly, which also cannot rot when the copy changes.
+   */
   it('distinguishes "answered badly" from "did not answer"', async () => {
     stubFetch(() => Promise.resolve(new Response('nope', { status: 503 })))
-    const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
-    expect(pdf.status).toBe('unknown')
-    expect(pdf.value).toContain('503')
+    const badly = byKey(await collectSystemFacts(), 'pdfEngine')
+
+    stubFetch(() => Promise.reject(new Error('connection refused')))
+    const silent = byKey(await collectSystemFacts(), 'pdfEngine')
+
+    expect(badly.status).toBe('unknown')
+    expect(silent.status).toBe('unknown')
+    expect(
+      badly.value,
+      'answering badly and not answering must not read identically — the fixes differ',
+    ).not.toBe(silent.value)
   })
 
   it('reads unset capabilities as OFF, which is a legitimate state and not a fault', async () => {
@@ -150,10 +169,12 @@ describe('collectSystemFacts', () => {
       value: '2026-08-22 03:25:34 UTC',
       envVar: 'BACKUP_RCLONE_REMOTE',
     })
-    expect(backup.detail).toBe(
-      'Premigration · drive:lesson3-backups · ' +
-        'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age · 1.5 MiB encrypted',
-    )
+    // ⚑ THE ONE ROW THAT KEEPS A DETAIL LINE, because "and where it went" is the point of it. Exact
+    // string, not a `toContain`: the destination and the kind are the two things an administrator
+    // reads, and a premigration success quietly reported as a daily one is the misreading the whole
+    // row exists to prevent. The filename was dropped on purpose — opaque on screen, and
+    // `scripts/restore-db.sh --list` is where you go when you need it.
+    expect(backup.detail).toBe('Premigration backup, 1.5 MiB, sent to drive:lesson3-backups.')
   })
 
   /**
@@ -199,8 +220,13 @@ describe('collectSystemFacts', () => {
     expect(backupFileMock.close).toHaveBeenCalledOnce()
   })
 
-  it('names account verification among the capabilities lost when SMTP is absent', async () => {
-    expect(byKey(await collectSystemFacts(), 'email').detail).toContain('Account verification')
+  it('names password resets among the capabilities lost when SMTP is absent', async () => {
+    // Same property as before, moved: what matters is that the row does not just say "not
+    // configured" — it says which thing an administrator loses, and the one that locks people out is
+    // password recovery. (Was asserted on `detail`, which technical-note removal retired.)
+    expect(byKey(await collectSystemFacts(), 'email').description).toContain(
+      'recover a forgotten password',
+    )
   })
 
   it('flips those to OK when the environment provides them', async () => {

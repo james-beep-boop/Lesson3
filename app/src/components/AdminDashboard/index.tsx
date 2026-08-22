@@ -661,9 +661,10 @@ export default async function AdminDashboard({
           <AccordionPanel id="system" title="System">
             <AccordionPanel id="system.deployment" title="Deployment">
               <p className="lp-manage__desc">
-                What this installation is. Every value here is decided at startup by the environment
-                variable named beside it — changing one needs a restart, not a setting, because these
-                are determined at boot-up.
+                What this installation is, and whether it is working. Nothing here can be changed on
+                this screen: most of it is fixed when the server starts, by the setting named beside
+                each row — so changing one needs a restart, not a click. The last three rows are
+                different: they report what actually happened, or what is working right now.
               </p>
               <SystemFactsPanel facts={systemFacts} />
             </AccordionPanel>
