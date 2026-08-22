@@ -25,6 +25,82 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-22) — backups are now PROVEN recoverable, and the panel says what it means
+
+**This supersedes the blocks below**, which stay for provenance. `main` carries #271–#278.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Deployed | ⚑ the Rock trails `main`. Measure: `git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..main` |
+| Pending migrations | none — a plain `scripts/deploy.sh` |
+| Restore drill | **PASSED 2026-08-22** — see `docs/OPS.md` "Last drill" |
+
+## The one thing that changed the risk picture
+
+⚑ **The restore drill has now actually been run, and it passed.** An encrypted daily was decrypted with
+the held identity, restored into a disposable database, and every table counted. Before this, nothing in
+the project had ever demonstrated a backup was recoverable — the System panel reported *transport* (an
+upload completed) and that was being read as *recovery*.
+
+⚑ **Two `age` recipients (SPEC §11, decided and built 2026-08-22).** An offline school could previously
+back up perfectly and never restore, because only ARES held a key. `BACKUP_AGE_RECIPIENT_SCHOOL` is now
+an optional second recipient; either identity decrypts independently. **Forward-only** — `age` cannot
+retro-encrypt uploaded dumps — and a duplicate key is refused, since it would grant no independent
+recovery. This DOES weaken the original custody guarantee; SPEC §11 records the trade.
+
+⚑ **NOT YET SET on the Rock.** Until the school's public key is in `.env`, Manage → System reads
+"Recovery needs ARES", which is the truth and not a bug. Setup: `docs/OPS.md` §2.
+
+## What the System panel now says, and why it was rewritten
+
+Part 1 shipped with one comprehensible sentence and seven rows of developer's English. It is now
+"Installation status", nine rows, each with a plain sentence, values in ordinary words, and the setting
+name labelled "Server setting: …". Four claims in it were also **false** and were corrected — most
+importantly one saying that without email nobody could recover a forgotten password, which would have
+told an offline school it was locked out of its own accounts when `reveal-reset-link` (D5) exists
+precisely for that case.
+
+Two rows are new: **Backup destination** (where backups go — present whether or not one has succeeded,
+because that is the setup question) and **Backup recovery** (whether this installation can reopen its
+own backups). ⚑ Both are REPORTED, never chosen: a dropdown could not prepare a drive or write `.env`,
+so it would look live and produce refusing backups.
+
+## ⚑ The pattern worth carrying forward, because it recurred all session
+
+Nearly every defect was a **silent pass** — not broken code, but a check that could not fail or a claim
+wider than its evidence:
+
+- `restore-db.sh` ended its verification with `|| true`, so a failed check still exited 0.
+- Its replacement hardcoded twelve tables and silently skipped `favorites`, `messages` and
+  `edit_recovery` — real collections with rows. The list is now DERIVED from `pg_tables`.
+- "byte-exact download" only proved equal length; authenticated decryption is the real evidence.
+- "the key was never read" — `age-keygen -y` and `age -d` read it. Accurate: it never left the machine.
+- A settings hole "closed" by `admin: { hidden: true }`, which hides a form and not an API.
+- 35 prose dates stamped from UTC, dating decisions to a day the operator had not had.
+
+**Standing practice: mutate the guard and watch it go red before calling it done.** Every guard added
+today was mutation-tested, and two of them caught defects in the very commits that introduced them.
+
+## What to work on next
+
+1. **Deploy** (operator will) — no migrations. Then the two new rows appear.
+2. **Set the school's second recipient** if this box should be self-recoverable — `docs/OPS.md` §2.
+   ⚑ `backup-db.sh` re-reads `.env` every run, so backups pick it up immediately; the APP reads env at
+   container START, so the panel row needs the container recreated before it changes.
+3. **System panel part 2** — unblocked, all four contracts closed. A ONE-flag PR (`publicLibraryLive`):
+   fail-closed reader, enforcement at the public route, Save with re-auth, atomic check-and-write,
+   versioned acknowledgement, the two disabled placeholders, blocking warning on going public.
+4. **The className-resolves-to-a-rule guard** — last half of the appearance-testing gap.
+5. **Official-pointer lock** — still a hard prerequisite for the public read slice.
+6. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
+   conversations; `NOTICE` names the gap. Attribution-inside-documents is a GENERATOR change (SPEC §4).
+
+⚑ **Still true and worth not rediscovering:** a *Premigration* backup row is not evidence of a nightly
+schedule (that reads *Daily*), and no row of any kind proves a dump restores — only the drill does.
+
 # ⚑ HANDOFF (2026-08-20/21) — System foundation deployed; backup-status follow-up complete
 
 ⚑ **The operator successfully deployed application SHA `83b9ab0` on 2026-08-21.** That run applied the
