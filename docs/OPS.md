@@ -119,48 +119,64 @@ windows it applied); counts before/after via
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 
-⚑ **WHERE THIS RUNS IS THE FIRST QUESTION, AND THE REST OF THIS FILE'S "run on the Rock" DEFAULT DOES
-NOT APPLY.** The drill needs the **private `age` identity**, and §2 above is emphatic that the identity
-never goes on the Rock (SPEC §11 key custody: schools hold only the public key, ARES retains the
-identity). Verified 2026-08-21: there is no identity file on the Rock, which is correct, and it means
-this command cannot simply be pasted into a shell there. Two honest ways to run it:
-
-- **On the machine that holds the identity (preferred).** `restore-db.sh` reaches Postgres through
-  `docker compose exec -T postgres`, so it restores into whatever Compose stack is running *where you
-  run it* — on your Mac that is the local dev stack, which is exactly the disposable target a drill
-  wants. Needs `age` and `rclone` present, and an `.env` carrying `BACKUP_RCLONE_REMOTE` plus an rclone
-  remote configured for the same destination.
-- **On the Rock, with the identity brought over temporarily.** Faster, and it exercises the real box —
-  but it puts the private key on the server for the duration, which is the one thing custody is designed
-  to prevent. If you do this, remove it immediately afterwards (`shred -u`), and never leave it in
-  place "until next time".
+⚑ **BRING THE CIPHERTEXT TO THE KEY, NOT THE KEY TO THE CIPHERTEXT.** The private `age` identity is held
+off-box (SPEC §11: schools hold the public key; ARES retains the identity), and the backup is encrypted,
+so the encrypted file is the safe thing to move. Run the drill on the machine that holds the identity,
+with the file copied there:
 
 ```bash
+# 1. get one encrypted backup to the machine holding the identity (7 MB)
+rclone cat drive:lesson3-backups/daily/lesson3-<TS>.dump.age > /tmp/drill.dump.age
+#    …or, from a machine with no rclone remote configured, over ssh from the server:
+#    ssh Rock5b 'PATH=$HOME/bin:$PATH rclone cat drive:lesson3-backups/daily/lesson3-<TS>.dump.age' > /tmp/drill.dump.age
+
+# 2. run the drill against it. Needs a local Compose stack with `postgres` up.
 AGE_IDENTITY=~/lesson3-backup.key \
-  scripts/restore-db.sh --from daily/lesson3-<TS>.dump.age --into lesson3_restore_check
-# prints lesson_plans / versions counts — THOSE COUNTS ARE THE PROOF; then drop it:
+  scripts/restore-db.sh --local-file /tmp/drill.dump.age --into lesson3_restore_check
+
+# 3. drop the disposable database, and delete the copy
 docker compose exec -T postgres psql -U lesson3 -d postgres -c 'DROP DATABASE lesson3_restore_check;'
+rm -f /tmp/drill.dump.age
 ```
 
-Real disaster recovery into live: same command with `--into lesson3 --force-prod` (app down first).
+`--local-file` skips `rclone` and `BACKUP_RCLONE_REMOTE` entirely; `restore-db.sh` reaches Postgres via
+`docker compose exec`, so it restores into whatever stack you run it from — on a workstation that is the
+dev stack, which is already the disposable target a drill wants. The decrypted dump only ever exists in a
+`mktemp -d` directory removed by the script's `EXIT` trap.
 
-⚑ **WHAT A GREEN "Most recent successful backup" ROW DOES AND DOES NOT PROVE**, since the two get
-conflated. Checked on the Rock 2026-08-21 without the identity — because these parts need no key:
+⚑ **The script prints `RESTORE DRILL PASSED` only if every verification query succeeded**, and exits
+non-zero otherwise. It reports twelve tables — the headline three plus subject scoping, editing-access
+grants, and the nested version content (lessons, framework rows, resource links, explanation sections,
+rubric, summary table). It used to print two counts followed by `|| true`, so a failed verification still
+exited 0.
+
+⚑ **Do NOT copy the identity onto the server for a drill.** It is unnecessary now that `--local-file`
+exists, it puts the one irreplaceable secret on the box custody is designed to keep it off, and `shred`
+cannot reliably promise erasure on the SSD it would land on.
+
+Real disaster recovery into live: `--into lesson3 --force-prod`, app down first. That is also the only
+situation where bringing the identity to the server is justified — a genuine restore, not a rehearsal.
+
+### ⚑ Last drill: 2026-08-22 — PASSED, and what that does and does not establish
 
 | Established | How |
 |---|---|
-| The nightly schedule runs | seven consecutive `daily/` backups, 2026-08-16 → 08-22, 02:00 local |
-| The upload completes intact | newest daily downloads byte-exact against the listing (7,108,455 bytes) |
-| It is a real age file | header `age-encryption.org/v1`, X25519 recipient stanza present |
+| The held identity matches the backups | `age-keygen -y` on the identity equals the Rock's `BACKUP_AGE_RECIPIENT`. ⚑ The single check most worth repeating: a mismatched key makes every backup permanently unreadable and looks fine until the day it matters |
+| The ciphertext is intact and authentic | `age` decryption **succeeded**. This is authenticated encryption, so it is far stronger evidence than comparing a downloaded file's length against `rclone lsl` — equal length proves only equal length |
+| `pg_restore` accepts the dump | restored into a disposable database with no errors |
+| The corpus comes back | all twelve verified tables matched live exactly: 85 lesson plans, 85 versions, 7 users, 7 subjects, 7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 422 explanation sections, 414 rubric rows, 728 summary-table rows |
+| Nightly backups are being produced | seven consecutive `daily/` files, 2026-08-16 → 08-22, at 02:00 local |
 
-| **Still unproven — needs the identity** | Why it matters |
-|---|---|
-| The ciphertext decrypts with your key | a backup encrypted to a recipient you cannot match is worthless, and nothing above detects it |
-| `pg_restore` accepts the dump | a dump can be complete, decryptable and still refused |
-| The data is *there* | only the printed lesson-plan and version counts say the school's work came back |
+**What it does not establish, stated so nobody rounds it up:**
 
-⚑ So the panel row, and even the checks above, are evidence about *transport*. The drill is the only
-thing that speaks to *recovery* — which is why it exists as a separate, deliberate, periodic act.
+- **Not a row-by-row comparison.** Matching counts across twelve tables is a strong representative check,
+  not proof that every field of every record survived. Broader corpus comparison is future work.
+- **Not proof that `cron` produced those files.** Seven files at 02:00 is evidence consistent with the
+  nightly schedule; it does not exclude another scheduler or manual runs.
+- **Nothing about USB destinations.** This drill used a Drive backup. A rotated-USB installation should
+  run its own drill from the drive.
+- **Nothing about the offline-recovery gap** — see SPEC §11: a school with no internet cannot decrypt its
+  own backups, because the identity is not theirs to hold.
 
 ### Installing age + rclone to ~/bin (arm64, no sudo)
 

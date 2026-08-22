@@ -11,6 +11,76 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-22 — The restore drill PASSED, and every overclaim I made about it was corrected
+
+The last outstanding backup obligation is discharged. The arc is worth keeping because the useful part
+was not the pass — it was two documentation faults and one silent-pass bug found on the way, and then a
+review that trimmed five claims I had inflated.
+
+### What was wrong before it could run at all
+
+**The drill was documented as unrunnable where the backups live.** `OPS.md` read
+`AGE_IDENTITY=~/lesson3-backup.key` followed by `docker compose exec -T postgres …`, in a file whose
+commands otherwise run on the Rock — while §2 of the same file says the identity must never go on the
+Rock. The one procedure proving backups are recoverable, written so it could not be pasted where the
+backups are, contradicting its own custody section eight headings earlier, and read for the first time
+during an incident.
+
+⚑ **The fix was to reverse the direction: bring the CIPHERTEXT to the key, not the key to the
+ciphertext.** The backup is encrypted, so it is the safe thing to move; the identity is not. That makes
+the drill a local operation on whatever machine holds the key. The documented alternative of copying the
+identity to the server has been **removed** — unnecessary now, and `shred` cannot promise erasure on an
+SSD.
+
+⚑ **The first working run did this by temporarily redefining `BACKUP_RCLONE_REMOTE` to a local
+directory.** It worked, and it was far too clever to be a procedure. `restore-db.sh` now has
+`--local-file`, so the safe workflow is a named, obvious option rather than a trick.
+
+### The silent pass in the verification itself
+
+`restore-db.sh` ended its sanity counts with `|| true`. **A failed verification still exited 0**, under a
+line that had already printed "OK" — so the check guarding the only claim anyone cares about could not
+fail. Removed, and the report expanded from two tables to twelve: the headline three plus subject
+scoping, editing-access grants, and the nested version content. It now prints `RESTORE DRILL PASSED`
+only after every query succeeds, and `die`s otherwise. Mutation-tested: a bogus required table produces
+`FAIL` and exit 1.
+
+### Five claims I made that the review corrected — all mine, all the same shape
+
+1. **"The key was never read" — false.** `age-keygen -y` and `age -d` both read it; that is their job.
+   The accurate claim is narrower and still worth making: **the identity never left the machine that
+   held it, and its contents were never displayed, logged or copied.**
+2. **"Byte-exact" was wrong.** Matching a download's size against `rclone lsl` proves equal *length*.
+   The real integrity evidence arrived later and is much stronger: `age` is authenticated encryption, so
+   **successful decryption** is what rules out corruption.
+3. **Counts are representative, not complete.** 85/85/7 plus one title spot-check does not prove every
+   record survived — the database also holds assignments, subjects, messages, favourites and nested
+   version tables. Twelve tables now match live exactly, which is a much better representative check
+   and still **not** a row-by-row comparison.
+4. **"Seven consecutive 02:00 backups" does not prove `cron` made them.** It is evidence consistent with
+   the nightly schedule; another scheduler or manual runs would look identical.
+5. And the copy-the-key-to-the-Rock option should not have been offered at all once the safe path worked.
+
+⚑ **The pattern is the one this whole session keeps producing: the work was right and the CLAIM about
+the work was inflated.** A passing drill is a strong result. Writing it up as "fully proven" would have
+turned a real guarantee into an unreliable one, which is worse than having no drill, because the next
+person would stop checking.
+
+### The result, stated at the strength the evidence supports
+
+On 2026-08-22 an encrypted daily backup was copied to the machine holding the private identity,
+successfully authenticated and decrypted, restored into a disposable Postgres database, and verified
+against twelve tables that all matched live exactly — 85 lesson plans, 85 versions, 7 users, 7 subjects,
+7 subject-grades, 4 editing-access grants, 728 lessons, 3,640 framework rows, 3,640 resource links, 422
+explanation sections, 414 rubric rows, 728 summary-table rows. A representative lesson title was also
+checked. The identity stayed on that machine and was neither displayed nor copied. This establishes that
+the backup is **decryptable and structurally restorable**; broader row-level corpus checks are future
+work.
+
+⚑ Also confirmed, and the single check most worth repeating: **the held identity matches the backups**
+(`age-keygen -y` equals the Rock's `BACKUP_AGE_RECIPIENT`). A mismatched key makes every backup
+permanently unreadable and looks perfectly fine until the day it is needed.
+
 ## 2026-08-21 — `/simplify` on the backup row: one real hang, one drift guard, and a "redundant" check that is not
 
 A quality pass over #271. Four review angles; three findings acted on, three declined with reasons.
@@ -57,43 +127,6 @@ explaining why this file forbids them; and `SystemFact.envVar`'s doc stopped ove
 "the variable that decides it", which is false for the backup row, and the exception had been softened
 two levels downstream in the panel JSDoc and a test message while the definition kept the strong claim.
 The unknown-case detail now names what actually produces a record.
-
----
-
-## 2026-08-21 — The restore drill could not be run, and finding out why was the useful part
-
-Attempted the drill (the last outstanding backup obligation). It stopped at the step that needs the
-private `age` identity, and the reason is a **design working correctly plus a document that contradicts
-it**.
-
-**The identity is deliberately not on the Rock.** SPEC §11: schools hold only the public key, ARES
-retains the identity; OPS §2 says to generate it on the Mac and "Do NOT put it on the Rock". Verified —
-no identity file exists there. Good.
-
-⚑ **But OPS's drill block assumed otherwise.** It read `AGE_IDENTITY=~/lesson3-backup.key` followed by
-`docker compose exec -T postgres …`, sitting in a file whose commands otherwise run on the Rock — so the
-one procedure that proves backups are recoverable was written as unrunnable where the backups live, and
-contradicted its own key-custody section eight headings earlier. Whoever reached for it would have been
-reading it *during an incident*. Now corrected with the two honest options: run it where the identity
-lives (`restore-db.sh` restores into whatever Compose stack you run it from, so a Mac's dev stack is
-already the disposable target), or bring the key over temporarily and shred it after.
-
-**What could be established without the key, and it is worth more than it sounds:**
-
-- the nightly schedule genuinely runs — seven consecutive dailies, 2026-08-16 → 08-22 at 02:00 local;
-- the newest daily downloads **byte-exact** against the remote listing (7,108,455 bytes);
-- it is a real age v1 file with an X25519 recipient stanza.
-
-That eliminates a silent cron, a truncated upload and transit corruption.
-
-⚑ **And it explains a panel reading that would otherwise look wrong.** The System row says
-*Premigration*, not *Daily*, on a box where dailies are working — because the record keeps the latest
-success and today's deploy ran after the 02:00 daily. Exactly the ambiguity the stream label was added
-for, met in the wild within hours of shipping it.
-
-**Still unproven, and only the drill can prove it:** that the ciphertext decrypts with the held
-identity, that `pg_restore` accepts the dump, and that the lesson-plan and version counts come back.
-Everything else we have is evidence about *transport*, not recovery.
 
 ---
 
