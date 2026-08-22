@@ -15,6 +15,19 @@ commit label alone, are the acceptance proof for this pin.
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
+## ⚑ Licence — OPEN, and it blocks nothing except an honest claim
+
+This repository is public and now carries an MIT `LICENSE`, which covers the code written for this
+project. **It does not cover these three files**, because they are copied byte-verbatim from
+`markknit/cbe-generation-system` and the right to redistribute them belongs to their owner. `NOTICE` at
+the repository root says so explicitly.
+
+What is needed: a licence for these files from ARES, compatible with MIT. The operator expects this to
+be straightforward; record the answer here, beside the SHA-256 table, when it arrives.
+
+⚑ Until then, do not "tidy" `NOTICE` by removing the exception. A licence file that quietly claims to
+cover someone else's code is worse than one that names the gap.
+
 ## Pristine files
 
 | Lesson3 path | Upstream path | SHA-256 |
