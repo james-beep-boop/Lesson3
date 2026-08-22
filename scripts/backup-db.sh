@@ -23,7 +23,7 @@
 #     regular, non-symlink `.lesson3-backup-volume`. The script keeps the destination directory open
 #     and checks the mount identity around upload, so an absent or changed USB drive cannot fill the
 #     boot disk.
-#   - After upload, atomically writes `out/backup-status.json`. The app mounts `out/` read-only and
+#   - After upload, atomically writes `out/ops/backup-status.json`. The app mounts `out/ops` read-only
 #     reports that durable success evidence in Manage → System; failed uploads never advance it.
 #   - On success, optionally pings HEALTHCHECK_BACKUP_URL (the monitoring dead-man's-switch).
 #
@@ -56,7 +56,7 @@ DAILY_KEEP="$(env_get BACKUP_DAILY_KEEP)";     DAILY_KEEP="${DAILY_KEEP:-7}"
 WEEKLY_KEEP="$(env_get BACKUP_WEEKLY_KEEP)";   WEEKLY_KEEP="${WEEKLY_KEEP:-4}"
 MONTHLY_KEEP="$(env_get BACKUP_MONTHLY_KEEP)"; MONTHLY_KEEP="${MONTHLY_KEEP:-12}"
 PREMIGRATE_RETENTION_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; PREMIGRATE_RETENTION_DAYS="${PREMIGRATE_RETENTION_DAYS:-90}"
-BACKUP_STATUS_FILE="$REPO_DIR/out/backup-status.json"
+BACKUP_STATUS_FILE="$REPO_DIR/out/ops/backup-status.json"
 
 LABEL=""
 [[ "${1:-}" == "--label" && -n "${2:-}" ]] && LABEL="$2"

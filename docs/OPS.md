@@ -102,9 +102,12 @@ windows it applied); counts before/after via
 
 - Manual backup: `scripts/backup-db.sh` (writes to `daily/`).
 - List backups: `scripts/restore-db.sh --list` (or `--list daily` / `--list premigrate`).
-- Successful uploads atomically replace `out/backup-status.json`; failed uploads leave the previous
+- Successful uploads atomically replace `out/ops/backup-status.json`; failed uploads leave the previous
   success untouched. Manage → System reads that directory through a read-only container mount and
-  shows the UTC completion time, stream/type and actual destination.
+  shows the UTC completion time, stream/type and actual destination. ⚑ `out/ops`, not `out` — `out/`
+  holds unrelated host artifacts and is deliberately NOT mounted (narrowed 2026-08-21 after the deploy
+  verification found the wider mount). If an installation still has an old `out/backup-status.json`, it
+  is orphaned and can be deleted; the next backup or deploy writes the new location.
 - ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
   `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
   successful backup, labelled **Premigration**. That is why the row names the stream: a healthy

@@ -66,7 +66,7 @@ run_case() {
   EXIT=$?
   CALLS="$(cat "$SANDBOX/calls")"
   OUTPUT="$(cat "$SANDBOX/output")"
-  STATUS="$SANDBOX/repo/out/backup-status.json"
+  STATUS="$SANDBOX/repo/out/ops/backup-status.json"
 }
 
 check() {
@@ -101,7 +101,7 @@ check "record reports a positive encrypted size" "expected positive integer byte
 check "record follows upload" "expected uploaded log before recorded log" \
   "$(awk '/backup-db: uploaded/{u=NR} /backup-db: recorded success/{r=NR} END{exit !(u && r && u < r)}' "$SANDBOX/output" && echo 0 || echo 1)"
 check "atomic temp is gone" "expected no partial status file" \
-  "$(compgen -G "$SANDBOX/repo/out/.backup-status.*" >/dev/null && echo 1 || echo 0)"
+  "$(compgen -G "$SANDBOX/repo/out/ops/.backup-status.*" >/dev/null && echo 1 || echo 0)"
 
 # 2. A missing/unmounted removable drive must abort before pg_dump, not write onto the root disk.
 prepare_case
@@ -247,9 +247,9 @@ check "post-upload change leaves no status" "status must not advance" \
 
 # 6. An upload failure must preserve the previous known-good record exactly.
 prepare_case
-mkdir -p "$SANDBOX/repo/out"
-printf '%s\n' '{"version":1,"sentinel":"previous-good"}' >"$SANDBOX/repo/out/backup-status.json"
-OLD="$(cat "$SANDBOX/repo/out/backup-status.json")"
+mkdir -p "$SANDBOX/repo/out/ops"
+printf '%s\n' '{"version":1,"sentinel":"previous-good"}' >"$SANDBOX/repo/out/ops/backup-status.json"
+OLD="$(cat "$SANDBOX/repo/out/ops/backup-status.json")"
 run_case "drive:lesson3-backups" 1
 check "failed upload exits non-zero" "expected rclone failure" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "failed upload preserves previous success" "status must remain byte-identical" \
