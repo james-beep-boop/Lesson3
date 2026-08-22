@@ -43,12 +43,10 @@ kinds belong here. What none of them may be is written by an operator on this sc
 ⚑ **EVERY PROBE GETS ITS OWN SHORT TIMEOUT AND ITS OWN RESULT.** A dead PDF engine must not delay or
 blank the rest of the panel: the probes run concurrently, each bounded independently, each resolving to
 available / unavailable / unknown on its own. The panel degrades a row at a time, never as a whole.
-
-
-
 Base URL, public-library capability, email configured, error tracking, PDF engine reachable, artifact
-cache size and usage, last pre-warm. Reported, not controlled, **with the env var named** so an
-operator knows where to change it.
+cache size and usage, last pre-warm, backup last success and backup destination. Reported, not
+controlled, **with the env var named** where one exists so an operator knows where to change it; the
+backup rows instead read the authoritative operational record required by SPEC §11.
 
 Also the half that answers "is the PDF engine up?", which SPEC §9 records as a single point of failure.
 (The read-only-not-computed rule is stated once above; this paragraph used to restate "computed per
@@ -65,14 +63,14 @@ can act on.
 | Flag | Real today? | Renders as a toggle only when | Enforced where |
 |---|---|---|---|
 | `publicLibraryLive` | **yes** | `PUBLIC_LIBRARY_ENABLED` is set | inside `lib/publicLibrary.ts`'s existing gate |
-| an email flag — ⚑ **meaning UNDECIDED, see below** | **yes** | `SMTP_HOST` is set | see below |
+| an email flag — ⚑ **meaning UNDECIDED, see below** | **no — removed in #268** | never, until a narrower flag is designed and built | not yet defined |
 | `studentAccess` | no — **not built anywhere** | never, until built | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
 | `studentQuiz` | no — **not built anywhere** | never, until built | — |
 
 ⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-21; the earlier table read as
 though both always rendered). With no `PUBLIC_LIBRARY_ENABLED` there is no public-library switch — the
 row is a *fact* saying the environment forbids it, which is D's absent state, not its present-but-off
-state. Same for email with no `SMTP_HOST`.
+state. If a narrower email flag is built later, the same rule applies when `SMTP_HOST` is absent.
 
 ### ⚑ OPEN DECISION — what the email flag actually means
 
@@ -172,7 +170,7 @@ bypass is documented at the reader, not left for someone to discover. ⚑ A fail
 emits a structured operational error**, so a database or configuration fault is distinguishable from a
 deliberate off rather than looking identical to it.
 
-**Fail closed**, per the amendments doc: absence, read error, or a stale cached `true` past its TTL all
+**Fail closed**, per D1: absence, read error, or a stale cached `true` past its TTL all
 mean *off*. A read-through cache that serves its last known value on error turns a database blip into
 an indefinite public exposure that no operator action ended.
 
@@ -227,8 +225,9 @@ it from a toggle row.
 
 - **unit** — the `system.*` id vocabulary in `panelState.spec.ts`; the pending-state reducer (toggles
   are pending until Save); warning copy present for the flags that require it.
-- **int** — global access by role (Site Admin writes; Subject Admin and Teacher cannot); provenance
-  stamped and not restamped on an unrelated save; the fail-closed reader for each enforcement point.
+- **int** — ordinary global updates denied for every role, Site Administrator included; the trusted
+  internal path writes and stamps the real actor; a userless write that changes a flag drops its stale
+  provenance row; the fail-closed reader for each enforcement point.
 - **http** — the standing rule: 401/403 on the global's **own REST endpoints** as well as the Save
   endpoint, 409 on a stale `expectedUpdatedAt`, 429 on the re-auth bucket, and wrong-password → 401
   with **nothing written**.

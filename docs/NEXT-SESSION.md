@@ -57,9 +57,9 @@ destinations) and `docs/DESIGN-next-direction-2026-08-19.md` landed in #261, so 
 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff) and left §11 untouched —
 worth remembering as the technique the next time one file carries two people's work.
 
-## ⚑ LATER THE SAME DAY (2026-08-21 evening) — six more PRs, and `main` is AHEAD OF THE DEPLOY
+## ⚑ LATER THE SAME DAY (2026-08-21 evening) — later PRs, and `main` is AHEAD OF THE DEPLOY
 
-Everything below #259 landed after the operator's deploy, so ⚑ **`main` is AHEAD of the last confirmed
+The work after #259 landed after the operator's deploy, so ⚑ **`main` is AHEAD of the last confirmed
 deployed SHA (`30d3c45`) and carries TWO UNAPPLIED MIGRATIONS.** Do not describe the app as
 deployed-current until `scripts/deploy.sh` has run.
 
@@ -82,6 +82,7 @@ migrations.
 | #267 | docs: the deployment design consolidated — D1 is now the single authority, four contracts tightened |
 | #268 | **fix(security):** the Save endpoint is the sole writer of `system-settings` |
 | #269 | docs: there is no Editor user type — live documents cleaned, dated records deliberately left alone |
+| #270 | docs/code comments: record what #268 closed, reconcile the live System design and correct UTC-derived prose dates |
 
 ⚑ **On #269 and this file:** the operator's instruction was to excise "Editor" from *current* documents
 only. The ~210 occurrences in dated records here, in `DECISIONS.md`, in `CHANGELOG.md` and in

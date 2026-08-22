@@ -51,7 +51,7 @@ Teachers' phones carry very limited, personally-charged data — adequate for Wh
 for document downloads. **Plan for schools with more tablets and higher-capacity servers**; the
 architecture does not change, only the sizing.
 
-### The model: capabilities are the truth, school types are presets
+### The model: capabilities are the truth; school types may later become presets
 
 `PUBLIC_LIBRARY_ENABLED=1` (`lib/publicLibrary.ts`) already IS a deploy-time switch: off means no
 Explore action and a server-side 404 from every public route. The new work sits on top of it.
@@ -59,18 +59,18 @@ Explore action and a server-side 404 from every public route. The new work sits 
 - **`PUBLIC_LIBRARY_ENABLED` (env, boot) stays the capability ceiling** — "this deployment MAY be
   public". Unchanged semantics, unchanged boot refusal when set without `SERVER_URL`.
 - **Runtime capability flags** (a Payload global) are the truth about what this installation offers.
-- **The three school types are PRESETS over those flags**, not a mode enum. Selecting one seeds the
-  flags; the flags stay individually visible and overridable; the label reads **Custom** once an
-  operator deviates.
+- **If presets are introduced, the three school types become presets over those flags**, not a mode
+  enum. Selecting one would seed the flags; the flags would stay individually visible and overridable;
+  the label would read **Custom** once an operator deviates. Presets are deferred below.
 
-⚑ **Why presets rather than a three-way enum.** The operator has already said some schools want some
+⚑ **Why any future presets must beat a three-way enum.** The operator has already said some schools want some
 features and not others, and "SeaVuria: limited internet" is not a third mode — it is
 mostly-offline-with-some-egress, where *which* egress (email, updates, AI, backups) are separate
 answers. An enum accumulates exceptions until it means nothing. A bare grid of a dozen checkboxes is
 the opposite failure: it invites incoherent combinations. A preset that seeds visible, overridable
 flags is the shape that survives both.
 
-⚑ **The preset must never be a security boundary.** Selecting "Online school" on a box with no
+⚑ **Any future preset must never be a security boundary.** Selecting "Online school" on a box with no
 `SERVER_URL` must not enable public discovery, and must not enable student roster login (see D3). The
 profile is a convenience over runtime flags, strictly inside the env ceiling.
 
@@ -471,8 +471,10 @@ phases 0–3**, which touch no student data at all:
    KES 5m turnover *and* fewer than 10 employees, but mandatory categories override the threshold;
    education is likely among them — **verify**.)
 2. Is education within the s.50 localisation schedule? If it is, the online deployment **must** be
-   hosted on servers in Kenya — not a documentation exercise but a hard constraint. ⚑ Largely defused
-   by tier 1 holding no personal data, but decisive for any future roster-on-cloud configuration.
+   hosted on servers in Kenya — not a documentation exercise but a hard constraint. ⚑ Tier 1 is
+   designed to reduce this issue, but "holding no personal data" is not established until the required
+   implementation review has covered identifiers, logging, telemetry, rate-limit keys and aggregation;
+   it remains decisive for any future roster-on-cloud configuration.
 3. Does the controller/processor split hold as described above?
 
 ### Question authoring — OPEN
@@ -525,8 +527,10 @@ questions resolve. That is convenient rather than accidental — it was a reason
 
 ⚑ **4c now precedes the roster work rather than following it.** The anonymous tier was originally
 framed as a warm-up; the two-tier decision makes it a shipping product in its own right — the public
-growth surface — and it can launch with no identity model and no per-user consent flow, subject to the
-pre-launch review of identifiers, logging, telemetry and rate limiting that the caveat above requires.
+growth surface — and it needs no identity model. It may launch without a per-user consent flow only if
+the pre-launch review of identifiers, logging, telemetry and rate limiting concludes that the
+implementation processes no children's personal data; otherwise the consent and age-verification
+requirements described above apply.
 Public discovery still precedes it because the library is already designed and question authoring is
 the slowest input in the whole plan.
 
