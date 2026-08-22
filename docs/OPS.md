@@ -7,10 +7,11 @@ the Rock unless noted.
 
 ---
 
-## Backups (encrypted, off-site to Google Drive)
+## Backups (encrypted, to Google Drive or a rotated removable drive)
 
-`pg_dump` (in the postgres container) → `age` encrypt (on the host) → `rclone` to Google Drive.
-Four streams under the remote, grandfather-father-son retention: `daily/` (keep newest
+`pg_dump` (in the postgres container) → `age` encrypt (on the host) → `rclone` to the configured
+destination. Internet-connected installations use Google Drive; offline schools may use rotated USB
+drives. Four streams under either destination, grandfather-father-son retention: `daily/` (keep newest
 `BACKUP_DAILY_KEEP`, default 7), `weekly/` (`BACKUP_WEEKLY_KEEP`, default 4), and `monthly/`
 (`BACKUP_MONTHLY_KEEP`, default 12) — these prune by **count** (newest N; exact and robust to a missed
 run) — plus `premigrate/` (pre-deploy snapshots, pruned by **age**, `BACKUP_PREMIGRATE_RETENTION_DAYS`,
@@ -29,21 +30,46 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
      plus one more copy. **If you lose it, every backup is unrecoverable.** Do NOT put it on the Rock.
    - Take the printed `age1...` PUBLIC key → it goes in the Rock's `.env` as `BACKUP_AGE_RECIPIENT`.
 
-3. **rclone → Google Drive (headless OAuth):** on your **Mac** (has a browser):
+3. **Choose and prepare the destination.**
+
+   **Google Drive (headless OAuth):** on your **Mac** (has a browser):
+
    ```bash
    rclone authorize "drive"               # opens a browser; prints a token JSON blob
    ```
+
    On the **Rock**, `rclone config` → new remote named `drive`, type `drive`, and when asked
    "Use auto config?" answer **n**, then paste the token from the Mac. Make a base folder, e.g.
-   `lesson3-backups`, in that Drive. The remote+path becomes `BACKUP_RCLONE_REMOTE=drive:lesson3-backups`.
+   `lesson3-backups`, in that Drive. The remote+path becomes
+   `BACKUP_RCLONE_REMOTE=drive:lesson3-backups`.
+
+   **Rotated USB drive (offline installation):** mount each drive at the same absolute path, create the
+   backup directory on the mounted volume, and put the sentinel inside it once per drive:
+
+   ```bash
+   mkdir -p /media/lesson3-backup/lesson3-backups
+   touch /media/lesson3-backup/lesson3-backups/.lesson3-backup-volume
+   ```
+
+   Then use `BACKUP_RCLONE_REMOTE=/media/lesson3-backup/lesson3-backups`. A plain local path must be
+   absolute, resolve onto a mount backed by a different device from `/`, and contain that
+   regular, non-symlink sentinel **before** `pg_dump`; otherwise the script aborts. It keeps the
+   destination directory open and checks the mount identity around upload, so an absent or changed
+   drive cannot silently redirect a dump onto the boot disk. (`findmnt`, supplied by `util-linux`, is
+   required for local destinations.)
+   Put the drive somewhere physically separate after the run and rotate it with another prepared drive.
 
 4. **`.env` on the Rock** — add:
-   ```
+
+   ```dotenv
    BACKUP_AGE_RECIPIENT=age1xxxxxxxx...
+   # Choose ONE:
    BACKUP_RCLONE_REMOTE=drive:lesson3-backups
+   # BACKUP_RCLONE_REMOTE=/media/lesson3-backup/lesson3-backups
    # optional overrides: BACKUP_DAILY_KEEP, BACKUP_WEEKLY_KEEP, BACKUP_MONTHLY_KEEP, BACKUP_PREMIGRATE_RETENTION_DAYS
    # optional (monitoring): HEALTHCHECK_BACKUP_URL=https://hc-ping.com/<uuid>
    ```
+
    These are read by the scripts only; they are NOT app config (the app ignores them).
 
 5. **Cron — nightly + weekly + monthly** (`crontab -e`; the box is `America/Los_Angeles`, so these fire
@@ -76,6 +102,17 @@ windows it applied); counts before/after via
 
 - Manual backup: `scripts/backup-db.sh` (writes to `daily/`).
 - List backups: `scripts/restore-db.sh --list` (or `--list daily` / `--list premigrate`).
+- Successful uploads atomically replace `out/backup-status.json`; failed uploads leave the previous
+  success untouched. Manage → System reads that directory through a read-only container mount and
+  shows the UTC completion time, stream/type and actual destination.
+- ⚑ **A green row is not proof of a recurring schedule — read the stream/type.** `deploy.sh` takes a
+  `premigrate` snapshot on every deploy, so a box with no cron at all will still show a recent
+  successful backup, labelled **Premigration**. That is why the row names the stream: a healthy
+  installation shows **Daily**. A `Premigration` row on its own means "the last thing that backed this
+  database up was a deploy", which is a real backup but not a schedule.
+- ⚑ **And no row of any kind proves the backup is RESTORABLE.** The record says an upload succeeded, not
+  that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
+  and nothing on this screen can substitute for having run it.
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 

@@ -100,6 +100,9 @@ jobs:
       - name: deploy.sh sidecar branches (stubbed)
         run: ./scripts/test-deploy-sidecar.sh
 
+      - name: backup destination + status branches (stubbed)
+        run: ./scripts/test-backup-status.sh
+
       - name: test:unit
         # `envTemplateParity.spec.ts` compares the ROOT `.env.example` (what a Compose operator copies)
         # against the app's own template, so it needs a file from outside `app/`. That mount is now

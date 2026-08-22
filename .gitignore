@@ -8,7 +8,8 @@ node_modules/
 .next/
 dist/
 build/
-out/
+out/*
+!out/.gitkeep
 *.tsbuildinfo
 
 # Payload

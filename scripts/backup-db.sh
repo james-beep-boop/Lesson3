@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Off-site, encrypted Postgres backup for Lesson3 (SPEC §11 / readiness #9).
+# Encrypted Postgres backup for Lesson3 (SPEC §11 / readiness #9).
 #
-#   pg_dump (in the postgres container)  ->  age -r <recipient>  ->  rclone copy to Google Drive
+#   pg_dump (in the postgres container)  ->  age -r <recipient>  ->  rclone copy to remote/local storage
 #
 # DESIGN
 #   - pg_dump runs INSIDE the postgres container (`docker compose exec postgres`), because Postgres is
@@ -11,13 +11,20 @@
 #   - Encrypted on the Rock with `age` to a RECIPIENT public key. The matching private identity is held
 #     by the operator OFF the box, so a Rock compromise cannot decrypt past backups. The dump is opaque
 #     to Google before it ever leaves the host.
-#   - Uploaded with `rclone` to a Google Drive remote, one stream per label (grandfather-father-son):
+#   - Uploaded with `rclone` to either a configured remote (today Google Drive) or an absolute path on
+#     a removable drive, one stream per label (grandfather-father-son):
 #       daily/       nightly backups       (keep newest BACKUP_DAILY_KEEP,   default 7)
 #       weekly/      weekly  backups       (keep newest BACKUP_WEEKLY_KEEP,  default 4)
 #       monthly/     monthly backups       (keep newest BACKUP_MONTHLY_KEEP, default 12)
 #       premigrate/  pre-deploy snapshots  (pruned after BACKUP_PREMIGRATE_RETENTION_DAYS, default 90)
 #     daily/weekly/monthly prune by COUNT (keep newest N — exact, and robust to a missed run);
 #     premigrate prunes by AGE (irregular per-deploy cadence). Cron schedules the three — see docs/OPS.md.
+#   - A local path MUST resolve onto a mount backed by a different device from `/` and contain a
+#     regular, non-symlink `.lesson3-backup-volume`. The script keeps the destination directory open
+#     and checks the mount identity around upload, so an absent or changed USB drive cannot fill the
+#     boot disk.
+#   - After upload, atomically writes `out/backup-status.json`. The app mounts `out/` read-only and
+#     reports that durable success evidence in Manage → System; failed uploads never advance it.
 #   - On success, optionally pings HEALTHCHECK_BACKUP_URL (the monitoring dead-man's-switch).
 #
 # USAGE
@@ -28,7 +35,7 @@
 #
 # CONFIG (from the repo .env, or the environment; see docs/OPS.md):
 #   BACKUP_AGE_RECIPIENT             age1...  (required) public recipient key
-#   BACKUP_RCLONE_REMOTE             e.g. drive:lesson3-backups  (required) rclone remote + base path
+#   BACKUP_RCLONE_REMOTE             e.g. drive:lesson3-backups OR /media/lesson3-backups (required)
 #   BACKUP_DAILY_KEEP                default 7    (newest N kept in daily/)
 #   BACKUP_WEEKLY_KEEP               default 4    (newest N kept in weekly/)
 #   BACKUP_MONTHLY_KEEP              default 12   (newest N kept in monthly/)
@@ -49,6 +56,7 @@ DAILY_KEEP="$(env_get BACKUP_DAILY_KEEP)";     DAILY_KEEP="${DAILY_KEEP:-7}"
 WEEKLY_KEEP="$(env_get BACKUP_WEEKLY_KEEP)";   WEEKLY_KEEP="${WEEKLY_KEEP:-4}"
 MONTHLY_KEEP="$(env_get BACKUP_MONTHLY_KEEP)"; MONTHLY_KEEP="${MONTHLY_KEEP:-12}"
 PREMIGRATE_RETENTION_DAYS="$(env_get BACKUP_PREMIGRATE_RETENTION_DAYS)"; PREMIGRATE_RETENTION_DAYS="${PREMIGRATE_RETENTION_DAYS:-90}"
+BACKUP_STATUS_FILE="$REPO_DIR/out/backup-status.json"
 
 LABEL=""
 [[ "${1:-}" == "--label" && -n "${2:-}" ]] && LABEL="$2"
@@ -59,9 +67,95 @@ need() { command -v "$1" >/dev/null 2>&1 || die "'$1' not found on PATH ($PATH) 
 # WHOLE stream" (count-prune: REMOVE = total - 0) or crash `$(( ))` AFTER the dump is already uploaded.
 positive_int() { [[ "$2" =~ ^[1-9][0-9]*$ ]] || die "$1 must be a positive integer (got '$2')"; }
 
+# Bash strings cannot contain NUL. Reject every other JSON control character that we do not explicitly
+# escape below, before pg_dump starts; an operator typo must not upload a backup and then fail while
+# recording its success.
+reject_unsupported_json_controls() {
+  local value="$1" field="$2" i control
+  for ((i = 1; i <= 31; i++)); do
+    case "$i" in 9|10|13) continue ;; esac
+    printf -v control '%b' "\\$(printf '%03o' "$i")"
+    [[ "$value" != *"$control"* ]] \
+      || die "$field contains an unsupported control character"
+  done
+}
+
+# rclone treats `remote:path` as a configured backend and a plain path as the local backend. Local
+# destinations are intentionally stricter: relative paths are ambiguous under cron. A separately
+# backed mount, its stable identity and a sentinel on that volume together prove writes are not falling
+# through to the server's root disk. FD 9 keeps an ordinary unmount from succeeding while the script
+# is running.
+LOCAL_MOUNT_INFO=""
+validate_destination() {
+  [[ "$BACKUP_RCLONE_REMOTE" != /* && "$BACKUP_RCLONE_REMOTE" == *:* ]] && return 0
+  [[ "$BACKUP_RCLONE_REMOTE" == /* ]] \
+    || die "local BACKUP_RCLONE_REMOTE must be an absolute path (got '$BACKUP_RCLONE_REMOTE')"
+  local sentinel="${BACKUP_RCLONE_REMOTE%/}/.lesson3-backup-volume"
+  [[ -f "$sentinel" && ! -L "$sentinel" ]] \
+    || die "local backup destination is not identified — expected a regular, non-symlink sentinel at $sentinel"
+  need findmnt
+  local mount_target root_device destination_device
+  mount_target="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET)" \
+    || die "cannot resolve the filesystem mounted at $BACKUP_RCLONE_REMOTE"
+  [[ -n "$mount_target" && "$mount_target" != "/" ]] \
+    || die "local backup destination is on the root filesystem, not a mounted removable volume"
+  LOCAL_MOUNT_INFO="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" \
+    || die "cannot identify the filesystem mounted at $BACKUP_RCLONE_REMOTE"
+  [[ -n "$LOCAL_MOUNT_INFO" ]] || die "empty mount identity for $BACKUP_RCLONE_REMOTE"
+  destination_device="${LOCAL_MOUNT_INFO##* }"
+  root_device="$(findmnt -T / -n -o MAJ:MIN)" || die "cannot identify the root filesystem"
+  [[ -n "$root_device" && "$destination_device" != "$root_device" ]] \
+    || die "local backup destination is backed by the root filesystem, not a separate volume"
+  exec 9<"$BACKUP_RCLONE_REMOTE" \
+    || die "cannot hold the local backup destination open during backup"
+}
+
+verify_local_mount_unchanged() {
+  [[ -z "$LOCAL_MOUNT_INFO" ]] && return 0
+  local current
+  current="$(findmnt -T "$BACKUP_RCLONE_REMOTE" -n -o TARGET,SOURCE,FSTYPE,MAJ:MIN)" \
+    || die "local backup destination disappeared before upload completed"
+  [[ "$current" == "$LOCAL_MOUNT_INFO" ]] \
+    || die "local backup destination's mounted filesystem changed during backup"
+}
+
+json_escape() {
+  local value="$1" field="$2"
+  reject_unsupported_json_controls "$value" "$field"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+
+# The upload is the success boundary. This record is replaced atomically afterwards, so a reader sees
+# either the previous complete success or the new one — never a half-written JSON document.
+write_backup_status() {
+  local completed_at="$1" status_dir
+  status_dir="$(dirname "$BACKUP_STATUS_FILE")"
+  mkdir -p "$status_dir"
+  STATUS_TMP="$(mktemp "$status_dir/.backup-status.XXXXXX")"
+  printf '{\n  "version": 1,\n  "completedAt": "%s",\n  "stream": "%s",\n  "destination": "%s",\n  "filename": "%s",\n  "encryptedBytes": %s\n}\n' \
+    "$(json_escape "$completed_at" "completion timestamp")" \
+    "$(json_escape "$STREAM" "backup stream")" \
+    "$(json_escape "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE")" \
+    "$(json_escape "$NAME" "backup filename")" \
+    "$SIZE" >"$STATUS_TMP"
+  chmod 0644 "$STATUS_TMP"
+  mv -f "$STATUS_TMP" "$BACKUP_STATUS_FILE"
+  STATUS_TMP=""
+  echo "backup-db: recorded success in $BACKUP_STATUS_FILE"
+}
+
 need docker; need age; need rclone
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
 [[ -n "${BACKUP_RCLONE_REMOTE:-}" ]] || die "BACKUP_RCLONE_REMOTE is not set"
+reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE"
+reject_unsupported_json_controls "$DB_NAME" "BACKUP_DB_NAME"
+reject_unsupported_json_controls "$LABEL" "--label"
+validate_destination
 
 # Map the label to a stream + its prune policy. daily/weekly/monthly keep the newest KEEP_COUNT dumps
 # (count-based); premigrate keeps by age (KEEP_DAYS). Unknown labels are rejected (a typo guard so a
@@ -83,7 +177,8 @@ if [[ -n "$KEEP_DAYS"  ]]; then positive_int "retention-days for '$STREAM'" "$KE
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 NAME="${DB_NAME}-${TS}${LABEL:+-$LABEL}.dump.age"
 DEST="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/${NAME}"
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+TMP="$(mktemp -d)"; STATUS_TMP=""
+trap 'rm -rf "$TMP"; [[ -z "$STATUS_TMP" ]] || rm -f "$STATUS_TMP"' EXIT
 LOCAL="$TMP/$NAME"
 
 echo "backup-db: dumping '$DB_NAME' -> encrypt -> $DEST"
@@ -93,12 +188,15 @@ echo "backup-db: dumping '$DB_NAME' -> encrypt -> $DEST"
 docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" \
   | age -r "$BACKUP_AGE_RECIPIENT" -o "$LOCAL"
 
-SIZE="$(wc -c < "$LOCAL")"
+SIZE="$(wc -c < "$LOCAL" | tr -d '[:space:]')"
 [[ "$SIZE" -gt 0 ]] || die "encrypted dump is empty — aborting (nothing uploaded)"
 echo "backup-db: encrypted size ${SIZE} bytes"
 
+verify_local_mount_unchanged
 rclone copyto "$LOCAL" "$DEST" --no-traverse
+verify_local_mount_unchanged
 echo "backup-db: uploaded $DEST"
+write_backup_status "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Prune this stream. Best-effort — a prune failure must never fail the backup itself (already uploaded).
 STREAM_DIR="${BACKUP_RCLONE_REMOTE%/}/${STREAM}/"

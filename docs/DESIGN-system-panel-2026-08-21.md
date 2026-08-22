@@ -63,22 +63,21 @@ can act on.
 | Flag | Real today? | Renders as a toggle only when | Enforced where |
 |---|---|---|---|
 | `publicLibraryLive` | **yes** | `PUBLIC_LIBRARY_ENABLED` is set | inside `lib/publicLibrary.ts`'s existing gate |
-| an email flag — ⚑ **meaning UNDECIDED, see below** | **no — removed in #268** | never, until a narrower flag is designed and built | not yet defined |
+| general email switch — ⚑ **decided absent, see below** | **no — removed in #268** | never | `SMTP_HOST` remains the deployment ceiling; any future optional control is capability-specific |
 | `studentAccess` | no — **not built anywhere** | never, until built | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
 | `studentQuiz` | no — **not built anywhere** | never, until built | — |
 
 ⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-21; the earlier table read as
 though both always rendered). With no `PUBLIC_LIBRARY_ENABLED` there is no public-library switch — the
 row is a *fact* saying the environment forbids it, which is D's absent state, not its present-but-off
-state. If a narrower email flag is built later, the same rule applies when `SMTP_HOST` is absent.
+state. The same rule applies to any future capability-specific email control when `SMTP_HOST` is absent.
 
-### ⚑ OPEN DECISION — what the email flag actually means
+### ⚑ DECIDED — no general runtime email switch
 
-⚑ **The schema half of this is settled: #268 DROPPED the column.** The decision below is still open, but
-it is now open with nothing half-built underneath it — no stored flag, no provenance rows, no name that
-presumes an answer. Whichever reading wins arrives as a new column. That is the whole reason for taking
-it out early: an unbuilt decision is cheap, and a decision with a migration and an audit table already
-betting on one reading is not.
+⚑ **#268 dropped the column, and the operator closed the design question on 2026-08-21: it stays
+dropped.** There is no stored general email flag and no replacement column. `SMTP_HOST` is the honest,
+restart-scoped deployment ceiling for all email. Authentication-critical delivery is never switchable
+from Manage; any future runtime control must name and govern one optional capability.
 
 Part 1's plan called it `outboundEmail` and enforced it "at the enqueue boundary". The operator's review
 of 2026-08-21 rejected that as shipped-able, on two grounds, both correct:
@@ -92,21 +91,22 @@ of 2026-08-21 rejected that as shipped-able, on two grounds, both correct:
    while open registration and email verification are live could mint accounts that can never verify,
    and make a password-reset request look successful while deliberately producing nothing.
 
-The two candidate readings:
+The two candidate readings considered were:
 
 - **Hard egress off** — enforced at the send boundary, queued-job policy defined, and the UI states
   plainly that account recovery stops working.
 - **Notifications only** — auth-critical mail is never gated from this panel, and the flag covers
   message pings and emailed artifacts. Narrower, honest, and it cannot lock anybody out.
 
-**Recommendation: notifications only**, because a Site Administrator switching a setting should not be
-able to make accounts unrecoverable, and the hard-egress case is already served by removing `SMTP_HOST`
-— which is the ceiling, restart-scoped, and therefore honest about being a deployment change. ⚑ Either
-way the "needs no warning" line in the original draft was wrong: this flag needs the clearest
-consequence text on the panel.
+**Decision: neither becomes a combined flag.** "Notifications only" still grouped two unlike paths:
+message pings are automatic, content-free notices to a registered user; emailed artifacts are an
+explicit document-egress action to an arbitrary recipient. If either later needs operator control, it
+gets its own policy and accurately named flag (`messageEmailNotificationsEnabled` is the shape, not a
+reserved identifier). Verification and password-reset mail remain outside runtime settings. Hard egress
+off is already served by removing `SMTP_HOST`.
 
-⚑ **At most two flags could ever be real, and after #268 exactly one is.** Error tracking and backups
-are boot-wired or run outside the app, so they are *facts*, not switches; ARES resource links would be a
+⚑ **After #268 exactly one flag is real.** Error tracking and backups are boot-wired or run outside the
+app, so they are *facts*, not switches; ARES resource links would be a
 generator change (SPEC §4). A panel of four working toggles would require inventing two — and the
 second of the two plausible ones turned out to need a design before it needed a column.
 
@@ -210,9 +210,9 @@ consequence is not obvious from the label:
 - **`studentAccess`** when it exists: the privacy and anonymisation consequences.
 
 Copy lives **in code**, not in the global — it is behaviour-tied product copy, not operator data.
-⚑ **The email flag needs the CLEAREST warning of the three, not none** — the original draft said it
-needed no warning, which was wrong in exactly the direction that matters: whichever reading wins above,
-an operator has to be told what stops working. Under "hard egress off" that includes account recovery.
+⚑ Any future capability-specific email flag needs consequence copy matching that capability. There is
+no general email warning because there is no general email switch; the Deployment row says plainly what
+is lost when `SMTP_HOST` is absent, including account verification and recovery.
 
 ⚑ **Destructive actions are NOT toggles** (operator agreement 2026-08-21). "Permanently delete all
 existing student data" as a side effect of flipping a switch is the most dangerous affordance the brief
@@ -247,20 +247,20 @@ here is a known gap, not a discovery waiting to happen.
 | Contract | Shipped in part 1 | Action |
 |---|---|---|
 | Save endpoint is the **sole writer** | ✓ **CLOSED in #268** — `access.update: () => false`, so nobody writes through the ordinary door | done. Two things worth carrying forward: `hidden: true` did NOT close it (it hides the admin form; `globals/operations/update.js` gates on `executeAccess` alone), and the guard that actually protects provenance on the trusted path is the `beforeChange` hook, because `overrideAccess: true` bypasses FIELD access too |
-| Backup last success + destination in the facts | ✗ omitted | either build it (needs a record source) or the §11 requirement stays outstanding — it is now marked outstanding in SPEC |
+| Backup last success + destination in the facts | ✓ built in the backup-status follow-up | host script atomically records only a completed upload; app reads the mounted directory read-only |
 | Each probe independently bounded, three-valued | ~ partly: two probes run concurrently and each resolves independently, but they share one `PROBE_TIMEOUT_MS` | give each its own bound when a third probe lands |
 | A toggle renders only when its ceiling is present | n/a — part 1 renders no toggles at all | part 2 |
 | Fail-closed reads emit a structured operational error | n/a — no readers yet | part 2 |
 | Atomic check-and-write, not just a freshness token | n/a — no writer yet | part 2 |
 | Server-enforced versioned acknowledgement | n/a — no writer yet | part 2 |
-| Email flag semantics | ✓ **the flag was REMOVED in #268**, not renamed — `SYSTEM_FLAGS` is `['publicLibraryLive']` and the column is dropped | no longer a gap in the code. The *design* question (a narrower notifications-only flag) stays open, and now stays open with nothing half-built underneath it |
+| Email flag semantics | ✓ **the flag was REMOVED in #268**, not renamed — `SYSTEM_FLAGS` is `['publicLibraryLive']` and the column is dropped | ✓ decided absent: SMTP is the global ceiling; future optional controls, if earned, are capability-specific |
 
 ⚑ **The last row's schema consequence was taken, in the cheap direction.** `features_outbound_email`
 existed from #265's migration; rather than rename a column that presumed the rejected reading, #268
 dropped it (`20260822_011614_drop_outbound_email_flag` — a UTC-stamped name for a 2026-08-21 decision)
 along with its provenance rows, while nothing read it and no installation depended on it. A
-notifications-only flag, if the design ever earns one, arrives as a new column with a name that means
-what it says.
+future capability-specific flag, if the product earns one, arrives as a new column with a name that
+means exactly what it controls.
 
 ## Build order
 

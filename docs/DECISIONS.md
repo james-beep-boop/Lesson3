@@ -11,6 +11,116 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-21 — `/simplify` on the backup row: one real hang, one drift guard, and a "redundant" check that is not
+
+A quality pass over #271. Four review angles; three findings acted on, three declined with reasons.
+
+**The filesystem had no deadline.** Every other fact is an env read or a probe bounded by
+`PROBE_TIMEOUT_MS`; the new one reads a bind mount of a host directory, and `collectSystemFacts` joins
+them all with one `Promise.all`. So an unbounded read would not have degraded one row — it would have
+held the whole Manage page open, for the Site Administrator who most likely opened it BECAUSE something
+was already broken. Now raced against the same budget, with failure and timeout both collapsing to
+`unknown` (the argument `probePdfEngine` already makes about unreachable-vs-timed-out). Collapsing also
+means the losing promise's rejection is handled instead of becoming an unhandled rejection, and its
+`finally` still closes the handle. ⚑ **Pinned by mutation:** deleting the wrapper makes the new case hang
+until vitest kills it rather than failing an assertion — verified, not assumed.
+
+**The status path was one contract in three files joined only by a matching string.** The script writes
+a host path, compose bind-mounts it, the app reads a hardcoded container path. Rename any one and
+nothing fails: no type error, no red test — the row just reads `Unknown` forever on a box whose backups
+are running perfectly. That is precisely the `ARTIFACT_CACHE_DIR` class (absent from the root template →
+unwritable cache → every export `EACCES` while the client polled a 202), whose lesson was to make the
+sync mechanical. `backupStatusPathParity.spec.ts` now pins all three, plus the `:ro` — the app must
+never be able to write the evidence it reports. ⚑ **Five mutations, five reds**, including a read-write
+mount, which would otherwise have kept every other assertion passing while removing the sole-writer
+property. Cost: two more single-file `:ro` mounts in `scripts/in-deps.sh`, never the workspace.
+
+**⚑ DECLINED: "two of the three timestamp checks are redundant."** They are redundant in *outcome* only,
+and each catches a different class — measured, not argued:
+`2026-08-21T10:00:00.500Z` is rejected only by the REGEX (a shape the writer never emits);
+`2026-02-30T10:00:00Z` parses fine and is NOT NaN — JavaScript rolls it to March 2, and only the
+round-trip comparison refuses "a backup completed on Feb 30"; `2026-13-45T99:99:99Z` passes the regex,
+IS NaN, and makes `toISOString()` **throw RangeError**. Deleting the NaN guard would leave that throw to
+be swallowed by `decodeCachedJson`'s `catch` — correct by accident, and a trap for whoever edits either
+side. The three jobs are now named in the code so the next reader does not re-derive this.
+
+**Also declined:** extracting a shared bash test harness from `test-deploy-sidecar.sh` (real duplication,
+but it refactors a stable out-of-diff file in passing); collapsing the two `findmnt` calls in
+`validate_destination` (saves one fork, risks a leading-field parse when a mount path contains a space —
+a bad trade in the code whose entire job is refusing to write to the wrong place); hoisting per-case stub
+writes in the shell test (sub-millisecond, CI-only).
+
+**Taken up:** the reader now uses the shared `decodeCachedJson` rather than a second copy of
+try/JSON.parse/catch, so a future hardening of that decoder reaches it; the e2e backup assertion folded
+into one `page.evaluate`, since it was a per-element locator sitting directly above the comment
+explaining why this file forbids them; and `SystemFact.envVar`'s doc stopped over-promising — it said
+"the variable that decides it", which is false for the backup row, and the exception had been softened
+two levels downstream in the panel JSDoc and a test message while the definition kept the strong claim.
+The unknown-case detail now names what actually produces a record.
+
+---
+
+## 2026-08-21 — No general email switch; backup success is host-recorded evidence
+
+The operator closed the two remaining System-foundation questions after successfully deploying
+application SHA `83b9ab0` and its two System migrations.
+
+### 1. No general runtime email switch
+
+`features_outbound_email` stays deleted. `SMTP_HOST` is the deployment-level ceiling for all email,
+and authentication-critical verification/reset delivery is never switchable from Manage. The proposed
+"notifications only" replacement still bundled unlike capabilities: message pings are automatic,
+content-free notices to a registered user; emailed artifacts are an explicit document-egress action to
+an arbitrary recipient. If either later earns runtime control, it gets its own accurately named flag
+and enforcement contract. System part 2 therefore remains `publicLibraryLive` only.
+
+### 1b. ⚑ "BACKUP" NAMES FOUR DIFFERENT PROTECTIONS — do not conflate them
+
+The word had started covering unlike things, which is how a "backup feature" gets built twice. The
+operator's breakdown, kept because it settles the scope of every future backup conversation:
+
+| Mechanism | Protects against | Status |
+|---|---|---|
+| Immutable lesson-plan versions | bad edits, publishing the wrong version | built |
+| Edit recovery | losing unsaved work to a logout or interruption | built |
+| Artifact cache | regenerating a DOCX/PDF needlessly | **disposable — not a backup** |
+| Encrypted Postgres backup | server or database loss | built (Drive), USB added here |
+
+⚑ **The Postgres dump already contains everything**, because every lesson plan, retained version, user,
+assignment, message and edit-recovery row lives in Postgres. So this work is an EXTENSION of
+`backup-db.sh` / `restore-db.sh` / `deploy.sh`'s premigration snapshot — a second destination and a
+success record — **not** a second backup system, and explicitly **not** a per-plan serialization format.
+
+⚑ **Edit recovery and the artifact cache must never be repurposed as disaster backups.** Both sit on the
+same server the dump exists to survive, and the cache is deliberately evictable — its whole contract is
+that losing it is free.
+
+### 2. Backup status comes from the process that completed the upload
+
+The authoritative source is a small versioned file atomically replaced by `scripts/backup-db.sh` only
+after `rclone copyto` succeeds. The app receives the host `out/` directory read-only and reports UTC
+completion, stream/type, actual destination, filename and encrypted size. A failed upload cannot
+advance the record; missing or malformed state is `Unknown`, not proof that no backup exists.
+
+This is deliberately not a database row. A row written after the dump would not be present in the dump
+that supposedly proves it, would roll backward on restore, and would make status recording depend on a
+writable database after the remote upload had already succeeded.
+
+### 3. Google Drive and removable USB are both first-class destinations
+
+Configured `remote:path` values keep the existing Google Drive path. A plain local destination must be
+absolute, resolve onto a mount backed by a different device from `/`, and contain a regular,
+non-symlink `.lesson3-backup-volume` before any dump starts. The script never creates that sentinel,
+holds the destination directory open, and verifies the mount identity around upload. Thus an absent,
+substituted or ordinarily unmounted USB drive fails instead of filling the server while claiming to
+back up. Each
+rotated drive is prepared with the sentinel once.
+
+⚑ A premigration success must not masquerade as evidence that the nightly schedule works. The record
+therefore carries `daily` / `weekly` / `monthly` / `premigrate`, and the System row shows the type.
+
+---
+
 ## 2026-08-21 — Closing the settings hole: `overrideAccess` bypasses FIELD access, and my fix invented false audit data
 
 #268 made the Save endpoint the sole writer of `system-settings` (`access.update: () => false`). Three

@@ -5,13 +5,25 @@
  * worst kind: this panel probes a network sidecar and stats a directory, and an unhandled rejection in
  * either would take down the whole Manage page — for a Site Admin, and most likely at exactly the
  * moment they opened it BECAUSE something was already broken. "PDF engine: not reachable" is useful;
- * a 500 on Manage teaches them nothing and hides the other five facts.
+ * a 500 on Manage teaches them nothing and hides the other facts.
  *
- * The second property is that every fact NAMES ITS ENV VAR. That is not cosmetic: these settings are
- * decided at boot, so the panel's whole job is to say where to change them (D1: "A toggle that
- * silently does nothing until restart is worse than no toggle… it must look like it").
+ * The second property is that every fact NAMES ITS ENV VAR. That is not cosmetic: the environment
+ * controls each capability or destination, so the panel's job is to say where to change it (D1: "A
+ * toggle that silently does nothing until restart is worse than no toggle… it must look like it").
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const backupFileMock = vi.hoisted(() => ({
+  close: vi.fn(),
+  open: vi.fn(),
+  readFile: vi.fn(),
+  stat: vi.fn(),
+}))
+
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises')
+  return { ...actual, open: backupFileMock.open }
+})
 
 /**
  * ⚑ THE CACHE MODULE IS MOCKED, because an env var CANNOT steer it. `artifactCache.ts` resolves
@@ -47,10 +59,28 @@ let saved: Record<string, string | undefined>
  * unhandled errors beside six passing tests. A factory is only called if `fetch` is.
  */
 const stubFetch = (make: () => Promise<Response>) => vi.stubGlobal('fetch', vi.fn(make))
+/**
+ * ⚑ `readFile` RESOLVES A BUFFER, because the reader now hands the bytes to the shared
+ * `decodeCachedJson` — the same decoder the artifact caches use — rather than parsing a string itself.
+ * A string here would still satisfy `JSON.parse` and quietly skip the post-read length bound, so the
+ * mock has to match the real call's shape and not merely its content.
+ */
+const stubBackupRecord = (raw: string, size = Buffer.byteLength(raw, 'utf8')) => {
+  backupFileMock.stat.mockResolvedValue({ isFile: () => true, size })
+  backupFileMock.readFile.mockResolvedValue(Buffer.from(raw, 'utf8'))
+  backupFileMock.close.mockResolvedValue(undefined)
+  backupFileMock.open.mockResolvedValue({
+    close: backupFileMock.close,
+    readFile: backupFileMock.readFile,
+    stat: backupFileMock.stat,
+  })
+}
 
 beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]))
   for (const k of ENV_KEYS) delete process.env[k]
+  for (const mock of Object.values(backupFileMock)) mock.mockReset()
+  backupFileMock.open.mockRejectedValue(new Error('no backup record'))
   // Default every case to an unreachable sidecar; the two cases that are ABOUT the response re-stub.
   // Five identical stub blocks used to open five cases that had nothing to do with fetch.
   stubFetch(() => Promise.reject(new Error('offline')))
@@ -76,7 +106,8 @@ describe('collectSystemFacts', () => {
     // Both failure paths taken at once, and the panel still has every row.
     expect(byKey(facts, 'pdfEngine').status).toBe('unknown')
     expect(byKey(facts, 'artifactCache').status).toBe('unknown')
-    expect(facts).toHaveLength(6)
+    expect(byKey(facts, 'backup').status).toBe('unknown')
+    expect(facts).toHaveLength(7)
   })
 
   it('reports the PDF engine reachable when the sidecar answers', async () => {
@@ -102,6 +133,76 @@ describe('collectSystemFacts', () => {
     }
   })
 
+  it('reports the host-written backup success with its stream, destination and size', async () => {
+    stubBackupRecord(
+      JSON.stringify({
+        version: 1,
+        completedAt: '2026-08-22T03:25:34Z',
+        stream: 'premigrate',
+        destination: 'drive:lesson3-backups',
+        filename: 'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age',
+        encryptedBytes: 1_572_864,
+      }),
+    )
+    const backup = byKey(await collectSystemFacts(), 'backup')
+    expect(backup).toMatchObject({
+      status: 'ok',
+      value: '2026-08-22 03:25:34 UTC',
+      envVar: 'BACKUP_RCLONE_REMOTE',
+    })
+    expect(backup.detail).toBe(
+      'Premigration · drive:lesson3-backups · ' +
+        'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age · 1.5 MiB encrypted',
+    )
+  })
+
+  /**
+   * ⚑ THE HANG IS THE FAILURE MODE THIS ROW ADDS. Every other fact is an env read or a bounded probe;
+   * this one reads a bind mount of a host directory, and `collectSystemFacts` joins them all with one
+   * `Promise.all` — so an unbounded read would not degrade one row, it would hold the whole Manage page
+   * open. Verified by mutation: deleting the `withDeadline` wrapper makes this case hang until vitest
+   * kills it, rather than failing an assertion.
+   */
+  it('degrades to unknown instead of hanging when the status file never resolves', async () => {
+    backupFileMock.open.mockReturnValue(new Promise(() => {}))
+    const started = Date.now()
+    const backup = byKey(await collectSystemFacts(), 'backup')
+    expect(backup.status).toBe('unknown')
+    expect(
+      Date.now() - started,
+      'the read must give up on its own deadline, not wait for the caller',
+    ).toBeLessThan(5_000)
+  })
+
+  it('does not mistake a malformed or oversized status file for backup evidence', async () => {
+    stubBackupRecord(JSON.stringify({ version: 1, completedAt: 'yesterday' }))
+    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
+
+    // JavaScript normalizes this to March 2; it is not evidence that a backup completed on Feb 30.
+    stubBackupRecord(
+      JSON.stringify({
+        version: 1,
+        completedAt: '2026-02-30T03:25:34Z',
+        stream: 'daily',
+        destination: 'drive:lesson3-backups',
+        filename: 'lesson3-20260230T032534Z.dump.age',
+        encryptedBytes: 12,
+      }),
+    )
+    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
+
+    backupFileMock.readFile.mockClear()
+    backupFileMock.close.mockClear()
+    stubBackupRecord('must not be read', 4_097)
+    expect(byKey(await collectSystemFacts(), 'backup').status).toBe('unknown')
+    expect(backupFileMock.readFile).not.toHaveBeenCalled()
+    expect(backupFileMock.close).toHaveBeenCalledOnce()
+  })
+
+  it('names account verification among the capabilities lost when SMTP is absent', async () => {
+    expect(byKey(await collectSystemFacts(), 'email').detail).toContain('Account verification')
+  })
+
   it('flips those to OK when the environment provides them', async () => {
     process.env.SERVER_URL = 'https://lessons.example.org'
     process.env.PUBLIC_LIBRARY_ENABLED = '1'
@@ -118,7 +219,7 @@ describe('collectSystemFacts', () => {
     const missing = (await collectSystemFacts()).filter((f) => !f.envVar).map((f) => f.key)
     expect(
       missing,
-      'a boot-time fact without its env var is a dead end for whoever must fix it',
+      'a fact without its controlling env var is a dead end for whoever must fix it',
     ).toEqual([])
   })
 })

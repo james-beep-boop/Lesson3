@@ -25,10 +25,11 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-20/21) — D6a is now ASYMMETRIC; MERGED and DEPLOYED
+# ⚑ HANDOFF (2026-08-20/21) — System foundation deployed; backup-status follow-up complete
 
-⚑ **"Deployed" here means D6a specifically.** Six PRs landed after that deploy — see **LATER THE SAME
-DAY** below — so the tree as a whole is *not* deployed-current.
+⚑ **The operator successfully deployed application SHA `83b9ab0` on 2026-08-21.** That run applied the
+two System migrations together. Any later commit must be compared with that SHA rather than inheriting
+the word "deployed" from this paragraph.
 
 **This supersedes the 2026-08-19 handoff below, which is kept for provenance** — its three threads are
 still live and one of them changed shape, see below.
@@ -57,22 +58,19 @@ destinations) and `docs/DESIGN-next-direction-2026-08-19.md` landed in #261, so 
 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff) and left §11 untouched —
 worth remembering as the technique the next time one file carries two people's work.
 
-## ⚑ LATER THE SAME DAY (2026-08-21 evening) — later PRs, and `main` is AHEAD OF THE DEPLOY
+## ⚑ LATER THE SAME DAY (2026-08-21 evening) — #262–#270 deployed together
 
-The work after #259 landed after the operator's deploy, so ⚑ **`main` is AHEAD of the last confirmed
-deployed SHA (`30d3c45`) and carries TWO UNAPPLIED MIGRATIONS.** Do not describe the app as
-deployed-current until `scripts/deploy.sh` has run.
+The work after #259 was deployed successfully from `83b9ab0` after #270 merged. The deployment used
+`scripts/deploy.sh`, so its premigration snapshot preceded the schema run and both System migrations
+were applied as the create-then-correct pair they were designed to be:
 
-⚑ No commit count is given on purpose — it would be wrong by the next merge, which is the derived-fact
-staleness this file's own preamble warns about. Measure it: `git log --oneline 30d3c45..main | wc -l`,
-and `git diff --name-only --diff-filter=A 30d3c45..main -- app/src/migrations/` for the pending
-migrations.
+⚑ This is an application-deployment claim about `83b9ab0`, not an assertion that every future `main`
+equals the Rock. Measure later work with `git log --oneline 83b9ab0..main`; inspect migrations added
+after it with `git diff --name-only --diff-filter=A 83b9ab0..main -- app/src/migrations/`.
 
 - `20260821_234341_add_system_settings` — creates `system_settings` + `system_settings_flag_changes`.
 - `20260822_011614_drop_outbound_email_flag` — drops `features_outbound_email` and its provenance rows.
-  ⚑ Both are additive-then-corrective and were exercised UP and DOWN against a real database, but the
-  pair has never run on the Rock. The UTC-stamped `20260822` name is a 2026-08-21 decision — see its
-  header.
+  The UTC-stamped `20260822` name is a 2026-08-21 decision — see its header.
 
 | PR | What |
 |---|---|
@@ -165,15 +163,16 @@ only thing that would notice a class referenced with **no rule at all**.
   2. **The documents disagreed** — three incompatible authorities on the panel's name, ids, flags and
      presets. Consolidated 2026-08-21: D1 is the single authority, the amendments file is a superseded
      stub, and SPEC §11 names System.
-  3. ⚑ **The email flag's meaning is STILL AN OPEN DECISION — but nothing is half-built under it.**
-     #268 **dropped** `features_outbound_email` (and its provenance rows) rather than renaming it, while
-     nothing read it and no installation had it deployed, so `SYSTEM_FLAGS` is `['publicLibraryLive']`
-     and part 2 is a one-flag PR. The design question is unchanged: enqueue-gating does not stop queued
-     mail, and one flag spanning verification + reset + pings + artifacts can mint accounts that can
-     never verify. Two readings and a recommendation (**notifications only**) are in the design doc.
-     Whichever wins arrives as a NEW column named for the answer.
-  4. **Backup last success/destination** is a SPEC §11 requirement this panel owes and part 1 omitted;
-     it is recorded state, not computable, so it needs a record source. Now marked outstanding in §11.
+  3. ✓ **DECIDED 2026-08-21 — no general runtime email switch.** #268 dropped
+     `features_outbound_email`; it stays dropped. `SMTP_HOST` is the deployment ceiling,
+     authentication-critical mail is never switchable from Manage, and any future optional-email
+     control must be capability-specific. Message pings and emailed artifacts are not one capability.
+     Part 2 remains a one-flag PR: `publicLibraryLive` only.
+  4. ✓ **BUILT in the backup-status follow-up — backup last success/destination now has an
+     authoritative source.** `backup-db.sh` atomically records a completed upload, the app reads it
+     through a read-only mount, and the System row distinguishes daily/weekly/monthly/premigration.
+     Google Drive and rotated USB destinations share the record; USB requires a mount backed by a
+     different device from `/`, a regular non-symlink sentinel, and a stable identity through upload.
   Also tightened: atomic check-and-write rather than a bare freshness token, server-enforced versioned
   acknowledgements, no toggle without its ceiling, structured errors on fail-closed reads, and
   independent per-probe timeouts.

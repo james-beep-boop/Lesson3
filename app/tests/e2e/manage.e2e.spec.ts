@@ -1094,9 +1094,9 @@ test.describe('Manage page', () => {
   })
 
   /**
-   * Manage → System (2026-08-21). The panel is Site-Admin-only and reports boot-time facts.
+   * Manage → System (2026-08-21). The panel is Site-Admin-only and reports deployment facts.
    *
-   * ⚑ THIS EXISTS FOR THE COMPUTED VALUES, not the text. `lp-manage__roles-admin` once shipped with no
+   * ⚑ THIS EXISTS FOR THE REPORTED VALUES, not the text. `lp-manage__roles-admin` once shipped with no
    * CSS rule at all and the only assertion on it checked that its text was VISIBLE — which passes on
    * unstyled markup, so nothing caught it. The `data-status` colouring carries real meaning here (an
    * `unknown` row is the operator's cue that something is down), and it is exactly the kind of rule
@@ -1112,10 +1112,39 @@ test.describe('Manage page', () => {
       await page.goto(`${BASE}/admin?open=system.deployment`)
 
       await expect(page.locator('.lp-manage__fact-value').first()).toBeVisible()
-      // Every fact names the env var that decides it — the whole point of a read-only half.
+      // Every fact names the env var that controls its capability or destination — the whole point
+      // of a read-only half.
       // ⚑ `__fact-env`, not `__who-email`: that shared class made this resolve to the Roles & Access
       // panel's hidden email span in a collapsed box.
       await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
+
+      /**
+       * The backup row crosses the host/app boundary. A clean CI host reports Unknown; a developer
+       * whose host script has run reports that success. Either way the row and state must be honest.
+       *
+       * ⚑ READ IN ONE `page.evaluate`, for the reason spelled out immediately below — this used a
+       * per-element `locator(...).evaluate()`, which is the mechanism that comment exists to forbid.
+       * It was safe here only because a `toHaveCount(1)` ran first; the panel is server-rendered, so
+       * there is nothing to wait for and no reason to keep a second way of reading the same DOM.
+       */
+      const backupValue = await page.evaluate(() => {
+        const row = [...document.querySelectorAll('li.lp-manage__row')].find((li) =>
+          li.textContent?.includes('Last successful backup'),
+        )
+        const value = row?.querySelector('.lp-manage__fact-value')
+        return value
+          ? { status: (value as HTMLElement).dataset.status, value: value.textContent }
+          : null
+      })
+      expect(backupValue, 'the backup row did not render at all').not.toBeNull()
+      if (backupValue!.status === 'unknown') {
+        expect(backupValue).toEqual({ status: 'unknown', value: 'Unknown' })
+      } else {
+        expect(backupValue).toEqual({
+          status: 'ok',
+          value: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$/),
+        })
+      }
 
       /**
        * ⚑ ONE `page.evaluate`, NO PER-ELEMENT LOCATORS. The first version of this test read colours

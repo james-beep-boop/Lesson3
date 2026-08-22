@@ -110,6 +110,14 @@ if [ ! -f .env.example ]; then
   echo "  It is tracked, so this means the checkout is incomplete or the root was resolved wrong." >&2
   exit 1
 fi
+for f in docker-compose.yml scripts/backup-db.sh; do
+  if [ ! -f "$f" ]; then
+    echo "error: no $f at the repo root ($PWD)." >&2
+    echo "       tests/unit/backupStatusPathParity.spec.ts reads it to prove the app looks for the" >&2
+    echo "       backup status file exactly where the script writes it and compose mounts it." >&2
+    exit 1
+  fi
+done
 
 dev_ensure_deps_image
 
@@ -127,16 +135,24 @@ fi
 # list was inline in the CI step making the claim; consolidating here made it MORE consequential
 # (one edit now falsifies it at five call sites), so the reasoning lives with the code.
 #
-# The SECOND single-file mount (added 2026-08-21) is `USER_GUIDE.md`, for
-# `tests/unit/guideParity.spec.ts` — the in-app `/guide` page and that file must state the same rules,
-# and the obligation had been documented-only through two drifts. Still one file each, never a
-# directory: a directory mount would put `.git`, and the GITHUB_TOKEN a checkout persists in it, inside
-# a container running third-party dev dependencies. If a spec needs a third, add a third `:ro` line.
+# THREE MORE SINGLE-FILE MOUNTS have since been added, each for one parity spec, and each still ONE
+# FILE — never a directory. A directory mount would put `.git`, and the GITHUB_TOKEN a checkout
+# persists in it, inside a container running third-party dev dependencies:
+#   - `USER_GUIDE.md` (2026-08-21) — `guideParity.spec.ts`; the in-app `/guide` page and that file must
+#     state the same rules, and the obligation had been documented-only through two drifts.
+#   - `docker-compose.yml` + `scripts/backup-db.sh` (2026-08-21) — `backupStatusPathParity.spec.ts`.
+#     The app reads the backup record at a hardcoded container path, the script writes it at a host
+#     path, and compose is the only thing joining them; rename any one and the System row reports
+#     "Unknown" forever, silently. That is the `ARTIFACT_CACHE_DIR` failure class the env-template
+#     guard already exists for.
+# If a spec needs another, add another `:ro` line — one file, never the workspace.
 dev_deps_mounts
 exec docker run --rm \
   "${DEV_DEPS_MOUNTS[@]}" \
   -v "$PWD/.env.example:/repo/.env.example:ro" \
   -v "$PWD/USER_GUIDE.md:/repo/USER_GUIDE.md:ro" \
+  -v "$PWD/docker-compose.yml:/repo/docker-compose.yml:ro" \
+  -v "$PWD/scripts/backup-db.sh:/repo/scripts/backup-db.sh:ro" \
   -e LESSON3_REPO_ROOT=/repo \
   ${docker_args[@]+"${docker_args[@]}"} \
   lesson3-deps "${cmd[@]}"

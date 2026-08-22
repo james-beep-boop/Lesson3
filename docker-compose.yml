@@ -59,6 +59,9 @@ services:
     # every deploy. Must match ARTIFACT_CACHE_DIR in .env. Inspect via `docker volume`.
     volumes:
       - lesson3_artifact_cache:/var/cache/lesson3
+      # Host-side backup-db.sh is the sole writer. The app can report the latest successful
+      # destination but cannot forge or advance it; `out/` also survives container replacement.
+      - ./out:/var/run/lesson3-ops:ro
     depends_on:
       postgres:
         condition: service_healthy
