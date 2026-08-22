@@ -38,7 +38,7 @@ import type { User } from '../payload-types'
 /**
  * The flags, as one list, so the field set and the provenance diff cannot disagree.
  *
- * ⚑ `outboundEmail` WAS REMOVED, not renamed (operator decision 2026-08-22, while nothing read it). It
+ * ⚑ `outboundEmail` WAS REMOVED, not renamed (operator decision 2026-08-21, while nothing read it). It
  * failed its own standard — a label asserting what the code does not do. Enqueue-gating leaves
  * already-queued mail to send, so it never was an egress control; and it bundled account verification
  * and password reset, which are how an account stays REACHABLE, with message pings and emailed
@@ -100,7 +100,7 @@ const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) =>
      * preserved the previous row for a flag the very same write had just changed — so provenance
      * asserted the OLD value and named a person who did not make the change. False audit data is worse
      * than none, and this is the record an operator would consult precisely when they distrust the
-     * state (operator review, 2026-08-22).
+     * state (operator review, 2026-08-21).
      *
      * `kept` already excludes every changed flag, so an absent row means UNKNOWN — the same meaning a
      * null `changedBy` carries everywhere else in this project. Unchanged flags keep their history,
@@ -137,7 +137,7 @@ export const SystemSettings: GlobalConfig = {
    * a global update; PATCH and PUT 404 — and skip the password
    * re-authentication, the `expectedUpdatedAt` freshness token, the public-exposure acknowledgement and
    * the provenance path. Re-authentication that a plain REST call walks past is UI theatre, so the
-   * custom Save endpoint has to be the SOLE writer (operator blocker, 2026-08-22).
+   * custom Save endpoint has to be the SOLE writer (operator blocker, 2026-08-21).
    *
    * ⚑ `admin: { hidden: true }` DID NOT DO THIS, and I said it did. Verified in the installed 3.87.1
    * source: `globals/operations/update.js` never consults `admin.hidden` — it gates on `executeAccess`

@@ -27,6 +27,9 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 # ⚑ HANDOFF (2026-08-20/21) — D6a is now ASYMMETRIC; MERGED and DEPLOYED
 
+⚑ **"Deployed" here means D6a specifically.** Six PRs landed after that deploy — see **LATER THE SAME
+DAY** below — so the tree as a whole is *not* deployed-current.
+
 **This supersedes the 2026-08-19 handoff below, which is kept for provenance** — its three threads are
 still live and one of them changed shape, see below.
 
@@ -53,6 +56,33 @@ destinations) and `docs/DESIGN-next-direction-2026-08-19.md` landed in #261, so 
 "do not `git add -A`" no longer applies to them. It applied while #258 was open, which is why that PR
 staged only its own `SPEC.md` §8 hunks (`git apply --cached` on a split diff) and left §11 untouched —
 worth remembering as the technique the next time one file carries two people's work.
+
+## ⚑ LATER THE SAME DAY (2026-08-21 evening) — six more PRs, and `main` is AHEAD OF THE DEPLOY
+
+Everything below #259 landed after the operator's deploy, so ⚑ **`main` is 10 commits ahead of the last
+confirmed deployed SHA (`30d3c45`) and carries TWO UNAPPLIED MIGRATIONS.** Do not describe the app as
+deployed-current until `scripts/deploy.sh` has run.
+
+- `20260821_234341_add_system_settings` — creates `system_settings` + `system_settings_flag_changes`.
+- `20260822_011614_drop_outbound_email_flag` — drops `features_outbound_email` and its provenance rows.
+  ⚑ Both are additive-then-corrective and were exercised UP and DOWN against a real database, but the
+  pair has never run on the Rock. The UTC-stamped `20260822` name is a 2026-08-21 decision — see its
+  header.
+
+| PR | What |
+|---|---|
+| #262, #263, #264 | docs: packaging/licensing (mostly deferred), the System panel design, the Guide refresh for D6a |
+| #265 | **feat:** System panel part 1 — the first Payload *global*, the computed deployment facts, the panel scaffold |
+| #266 | `/simplify` on part 1, plus one contradiction it had shipped |
+| #267 | docs: the deployment design consolidated — D1 is now the single authority, four contracts tightened |
+| #268 | **fix(security):** the Save endpoint is the sole writer of `system-settings` |
+| #269 | docs: there is no Editor user type — live documents cleaned, dated records deliberately left alone |
+
+⚑ **On #269 and this file:** the operator's instruction was to excise "Editor" from *current* documents
+only. The ~210 occurrences in dated records here, in `DECISIONS.md`, in `CHANGELOG.md` and in
+`DESIGN-user-model-language-2026-07-29.md` **stay** — rewriting them would falsify a dated log and would
+gut the very document whose subject is retiring the label. `CLAUDE.md` now states that rule in both
+directions, so neither a future sweep nor a future "fix" should disturb them.
 
 ## What this slice does
 
@@ -104,7 +134,8 @@ present with a null grantor means the grant WAS recorded and the grantor is gone
 makes the query more than informational: do not "clean up" rows on its output.
 
 **2. Public-discovery phase 2 — unchanged, never started.** Design in the 2026-08-15 block below. The
-operator's `docs/DESIGN-next-direction-2026-08-19.md` (uncommitted) proposes the next direction.
+operator's `docs/DESIGN-next-direction-2026-08-19.md` (committed, and since #267 the single authority
+for the deployment model) proposes the next direction.
 
 **3. The appearance-testing gap — option 1 still undone.** Unchanged from the block below, and still the
 only thing that would notice a class referenced with **no rule at all**.
@@ -113,22 +144,28 @@ only thing that would notice a class referenced with **no rule at all**.
 
 - **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
   appearance-testing gap.
-- ⚑ **DO NOT WRITE PART 2 YET (operator, 2026-08-22).** Part 1 shipped (#265, corrections in #266) and
+- ⚑ **DO NOT WRITE PART 2 YET (operator, 2026-08-21).** Part 1 shipped (#265, corrections in #266) and
   the architecture was accepted, but **four contracts needed tightening first** and are now written into
   `docs/DESIGN-system-panel-2026-08-21.md` and D1:
-  1. ⚑ **The Save endpoint must be the SOLE WRITER.** As shipped, `access.update: siteAdminOnly` lets a
-     Site Administrator `POST` the global directly (⚑ POST, not PATCH — that is the verb Payload routes
-     for a global update; PATCH 404s, so a PATCH-based test proves nothing) and skip the re-auth, the
-     freshness token, the
-     acknowledgement and the provenance path — so the ceremony is optional. `admin: { hidden: true }`
-     from #266 does NOT close this: `globals/operations/update.js` never consults `admin.hidden`.
+  1. ✓ **CLOSED in #268 — the Save endpoint is the sole writer.** `access.update: () => false`, pinned
+     at the wire by `tests/http/systemSettings.http.spec.ts`, whose load-bearing case is the **Site
+     Administrator** being refused — everyone else failing only proves ordinary access control works.
+     Three things to carry forward rather than rediscover: the verb is ⚑ **POST, not PATCH** (measured:
+     POST → 403, PATCH → 404, PUT → 404, so a PATCH-based test probes an unrouted verb and proves
+     nothing); `admin: { hidden: true }` from #266 did **not** close it, because
+     `globals/operations/update.js` gates on `executeAccess` alone; and provenance on the trusted path is
+     protected by the `beforeChange` hook **only**, since `overrideAccess: true` bypasses FIELD access
+     too. See the 2026-08-21 DECISIONS entry.
   2. **The documents disagreed** — three incompatible authorities on the panel's name, ids, flags and
-     presets. Consolidated 2026-08-22: D1 is the single authority, the amendments file is a superseded
+     presets. Consolidated 2026-08-21: D1 is the single authority, the amendments file is a superseded
      stub, and SPEC §11 names System.
-  3. ⚑ **The email flag's meaning is an OPEN DECISION** and blocks part 2. Enqueue-gating does not stop
-     queued mail, and one flag over verification + reset + pings + artifacts can mint accounts that can
-     never verify. Two readings and a recommendation are in the design doc; the stored column is
-     currently `features_outbound_email`, which presumes the rejected one.
+  3. ⚑ **The email flag's meaning is STILL AN OPEN DECISION — but nothing is half-built under it.**
+     #268 **dropped** `features_outbound_email` (and its provenance rows) rather than renaming it, while
+     nothing read it and no installation had it deployed, so `SYSTEM_FLAGS` is `['publicLibraryLive']`
+     and part 2 is a one-flag PR. The design question is unchanged: enqueue-gating does not stop queued
+     mail, and one flag spanning verification + reset + pings + artifacts can mint accounts that can
+     never verify. Two readings and a recommendation (**notifications only**) are in the design doc.
+     Whichever wins arrives as a NEW column named for the answer.
   4. **Backup last success/destination** is a SPEC §11 requirement this panel owes and part 1 omitted;
      it is recorded state, not computable, so it needs a record source. Now marked outstanding in §11.
   Also tightened: atomic check-and-write rather than a bare freshness token, server-enforced versioned
@@ -160,12 +197,12 @@ arm64 Rock is the unusual target here, not his machine.
 
 The assets are the **code**, the **vendored ARES generator** and the **lesson-plan content**. Item 2
 below is not a fourth asset — it is the missing LICENSE file that the code's decision needs in order to
-mean anything. (Corrected 2026-08-22: this heading said "three separable assets" over four numbered
+mean anything. (Corrected 2026-08-21: this heading said "three separable assets" over four numbered
 items, which read as a miscount.)
 
 1. **The Lesson3 code — MIT (operator decision 2026-08-21).** Chosen to match Payload's own licence, so
    there is no friction and it is compatible with whatever the vendored generator comes back with.
-   ⚑ This entry said "UNDECIDED" until 2026-08-22 while `docs/DECISIONS.md` said MIT was chosen — one
+   ⚑ This entry said "UNDECIDED" until 2026-08-21 while `docs/DECISIONS.md` said MIT was chosen — one
    decision, two files, two answers. ⚑ And the `app/package.json` line is still not the source of that
    decision: it is **scaffold residue.** The commit that introduced the file (`f7bbd4d`, "First pass",
    2026-06-07) also carries `"name": "app"` and `"description": "A blank template to get started with

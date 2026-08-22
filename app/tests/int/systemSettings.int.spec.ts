@@ -2,7 +2,7 @@
  * `system-settings` — the project's first Payload global: who may read and write it, and whether its
  * provenance survives a real write.
  *
- * ⚑ THE AUTHORIZATION HALF IS THE POINT, AND IT INVERTED ON 2026-08-22. A global is reachable through
+ * ⚑ THE AUTHORIZATION HALF IS THE POINT, AND IT INVERTED ON 2026-08-21. A global is reachable through
  * its own REST/GraphQL routes, so "the panel is only rendered for a Site Admin" is not the boundary —
  * the same lesson D6a learned about the Roles & Access picker. But `update: siteAdminOnly` was not the
  * boundary either: it let a Site Administrator `POST` the global (the verb Payload routes for a global
@@ -164,7 +164,7 @@ describe('system-settings: per-flag provenance', () => {
    * and no `user`, so there is nobody to attribute a change to. The hook first handled that by keeping
    * the stored rows untouched — which meant a userless write that CHANGED a flag left provenance
    * asserting the old value and naming a person who did not make the change (operator review,
-   * 2026-08-22). False audit data on the record an operator consults precisely when they distrust the
+   * 2026-08-21). False audit data on the record an operator consults precisely when they distrust the
    * state.
    *
    * The contract: a changed flag loses its row, so absent means UNKNOWN — the same meaning a null

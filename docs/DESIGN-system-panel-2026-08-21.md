@@ -5,7 +5,7 @@ and which of its capabilities are switched on. Operator brief 2026-08-21; it imp
 `docs/DESIGN-next-direction-2026-08-19.md` §D1, which is the **single authority** for the deployment
 model — the five layers, the env ceilings, the four capability states — so read that section first; this
 document is the panel, not the model. (D1 called the panel "Installation" and its amendments lived in a
-separate file until the 2026-08-22 consolidation; that file is now a superseded stub.)
+separate file until the 2026-08-21 consolidation; that file is now a superseded stub.)
 
 ⚑ **READ THE "WHERE THE SHIPPED CODE DIVERGES" SECTION BELOW BEFORE TOUCHING PART 2.** Part 1 merged
 before these contracts were tightened, so this document describes the target, not the current code.
@@ -33,7 +33,7 @@ at implementation time.
 
 ### `system.deployment` — facts, READ-ONLY, never operator-authored
 
-⚑ **"READ-ONLY" IS THE RULE; "computed" was too strong** (operator correction, 2026-08-22). Most rows are
+⚑ **"READ-ONLY" IS THE RULE; "computed" was too strong** (operator correction, 2026-08-21). Most rows are
 computed live from env plus a probe and are never persisted — a stored fact is a cache of a fact, and it
 goes stale and then lies on the one screen whose purpose is saying what is true. But **backup last
 success cannot be computed at all**: it is recorded operational state, required in this panel by
@@ -69,15 +69,21 @@ can act on.
 | `studentAccess` | no — **not built anywhere** | never, until built | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
 | `studentQuiz` | no — **not built anywhere** | never, until built | — |
 
-⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-22; the earlier table read as
+⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-21; the earlier table read as
 though both always rendered). With no `PUBLIC_LIBRARY_ENABLED` there is no public-library switch — the
 row is a *fact* saying the environment forbids it, which is D's absent state, not its present-but-off
 state. Same for email with no `SMTP_HOST`.
 
 ### ⚑ OPEN DECISION — what the email flag actually means
 
+⚑ **The schema half of this is settled: #268 DROPPED the column.** The decision below is still open, but
+it is now open with nothing half-built underneath it — no stored flag, no provenance rows, no name that
+presumes an answer. Whichever reading wins arrives as a new column. That is the whole reason for taking
+it out early: an unbuilt decision is cheap, and a decision with a migration and an audit table already
+betting on one reading is not.
+
 Part 1's plan called it `outboundEmail` and enforced it "at the enqueue boundary". The operator's review
-of 2026-08-22 rejected that as shipped-able, on two grounds, both correct:
+of 2026-08-21 rejected that as shipped-able, on two grounds, both correct:
 
 1. **Enqueue-gating does not stop email.** Already-queued jobs still send, so the flag's label promises
    an egress control it does not deliver. Either enforce at the actual **send** boundary with defined
@@ -101,9 +107,10 @@ able to make accounts unrecoverable, and the hard-egress case is already served 
 way the "needs no warning" line in the original draft was wrong: this flag needs the clearest
 consequence text on the panel.
 
-⚑ **Only two flags can be real, and that is the honest first cut.** Error tracking and backups are
-boot-wired or run outside the app, so they are *facts*, not switches; ARES resource links would be a
-generator change (SPEC §4). A panel of four working toggles would require inventing two.
+⚑ **At most two flags could ever be real, and after #268 exactly one is.** Error tracking and backups
+are boot-wired or run outside the app, so they are *facts*, not switches; ARES resource links would be a
+generator change (SPEC §4). A panel of four working toggles would require inventing two — and the
+second of the two plausible ones turned out to need a design before it needed a column.
 
 ⚑ **The two placeholders render DISABLED WITH THE TRUE REASON, not "coming soon."** For student access
 that reason is specific and worth showing: a student would currently be a valid `req.user` for six
@@ -127,7 +134,7 @@ A Payload global (`system-settings`) — the project's first, and it carries a m
 - ⚑ `maxDepth: 0` on the `changedBy` relationship, for the reason #258 measured: a relationship into
   `users` populates on every read at `config.defaultDepth`.
 
-### ⚑ THE SAVE ENDPOINT MUST BE THE SOLE WRITER (operator blocker, 2026-08-22)
+### ⚑ THE SAVE ENDPOINT MUST BE THE SOLE WRITER (operator blocker, 2026-08-21)
 
 Part 1 shipped `access: { read: siteAdminOnly, update: siteAdminOnly }`, and that makes every ceremony
 below **optional**: a Site Administrator can `POST /api/globals/system-settings` — the verb Payload
@@ -184,7 +191,7 @@ changes, stamps provenance, commits.
   this inherits the same obligation. The password must never reach a log.
 - `expectedUpdatedAt` → **409**, matching the assignment endpoints ("reload before changing roles"), so
   two Site Administrators with the panel open cannot silently overwrite each other.
-- ⚑ **BUT A FRESHNESS TOKEN IS NOT ATOMICITY** (operator, 2026-08-22). Compare-then-write has a window;
+- ⚑ **BUT A FRESHNESS TOKEN IS NOT ATOMICITY** (operator, 2026-08-21). Compare-then-write has a window;
   two genuinely simultaneous writers can both read the same `updatedAt` and both proceed. The check must
   be a **conditional update or a row lock** — the precedent is `takeAdminCountLock` in
   `endpoints/userAssignments.ts`, which exists for exactly this and is documented there as load-bearing.
@@ -240,19 +247,21 @@ here is a known gap, not a discovery waiting to happen.
 
 | Contract | Shipped in part 1 | Action |
 |---|---|---|
-| Save endpoint is the **sole writer** | ✗ `access.update: siteAdminOnly` — a Site Admin can `POST` the global directly | close before part 2 ships the endpoint; `hidden: true` did NOT close it |
+| Save endpoint is the **sole writer** | ✓ **CLOSED in #268** — `access.update: () => false`, so nobody writes through the ordinary door | done. Two things worth carrying forward: `hidden: true` did NOT close it (it hides the admin form; `globals/operations/update.js` gates on `executeAccess` alone), and the guard that actually protects provenance on the trusted path is the `beforeChange` hook, because `overrideAccess: true` bypasses FIELD access too |
 | Backup last success + destination in the facts | ✗ omitted | either build it (needs a record source) or the §11 requirement stays outstanding — it is now marked outstanding in SPEC |
 | Each probe independently bounded, three-valued | ~ partly: two probes run concurrently and each resolves independently, but they share one `PROBE_TIMEOUT_MS` | give each its own bound when a third probe lands |
 | A toggle renders only when its ceiling is present | n/a — part 1 renders no toggles at all | part 2 |
 | Fail-closed reads emit a structured operational error | n/a — no readers yet | part 2 |
 | Atomic check-and-write, not just a freshness token | n/a — no writer yet | part 2 |
 | Server-enforced versioned acknowledgement | n/a — no writer yet | part 2 |
-| Email flag semantics | n/a — flag exists in the schema, unread | **blocked on the open decision above**; the stored column is currently named `outboundEmail`, which presumes the rejected reading |
+| Email flag semantics | ✓ **the flag was REMOVED in #268**, not renamed — `SYSTEM_FLAGS` is `['publicLibraryLive']` and the column is dropped | no longer a gap in the code. The *design* question (a narrower notifications-only flag) stays open, and now stays open with nothing half-built underneath it |
 
-⚑ **The last row has a schema consequence.** `features_outbound_email` already exists in the database
-from #265's migration. If the decision lands on "notifications only" the column should be renamed, which
-is a second migration — cheaper now, while nothing reads it and no installation depends on it, than
-after part 2 ships.
+⚑ **The last row's schema consequence was taken, in the cheap direction.** `features_outbound_email`
+existed from #265's migration; rather than rename a column that presumed the rejected reading, #268
+dropped it (`20260822_011614_drop_outbound_email_flag` — a UTC-stamped name for a 2026-08-21 decision)
+along with its provenance rows, while nothing read it and no installation depended on it. A
+notifications-only flag, if the design ever earns one, arrives as a new column with a name that means
+what it says.
 
 ## Build order
 
@@ -261,9 +270,9 @@ the computed `system.deployment` half, and the panel scaffold registered in `PAN
 `availablePanels`. No toggles. Provable end to end on its own, and it delivers the "is the PDF engine
 up?" answer immediately.
 
-**PR 2 — the flags.** `publicLibraryLive` and `outboundEmail`, their fail-closed readers, enforcement
-at both boundaries, Save with re-auth and the freshness token, the two disabled placeholders, and the
-blocking warning on going public.
+**PR 2 — the flag.** `publicLibraryLive` (singular now — see the table above), its fail-closed reader,
+enforcement at both boundaries, Save with re-auth, the atomic check-and-write, the versioned
+acknowledgement, the two disabled placeholders, and the blocking warning on going public.
 
 Deliberately not in either: presets, the school-type profiles, and any flag whose enforcement point
 does not exist yet.
