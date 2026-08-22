@@ -178,7 +178,7 @@ describe('collectSystemFacts', () => {
     // infer from an rclone nickname — `drive:` is conventional for Google Drive but the remote could be
     // anything — so the raw value rides along for whoever needs to act on it.
     expect(backup.detail).toBe(
-      'Premigration backup, 1.5 MB, sent to a cloud backup location (drive:lesson3-backups).',
+      'Premigration backup, 2 MB, sent to a cloud backup location (drive:lesson3-backups).',
     )
   })
 

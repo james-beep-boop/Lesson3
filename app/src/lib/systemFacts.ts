@@ -343,18 +343,18 @@ async function probeArtifactCache(): Promise<SystemFact> {
 }
 
 /**
- * ⚑ "MB", NOT "MiB", AND THE DIVISOR STAYS 1024-BASED. Strictly that makes these mebibytes labelled
- * as megabytes — a deliberate trade (operator review, 2026-08-21): the cap is 536,870,912 bytes, which
- * every operating system on earth displays as "512 MB", and a row reading "512 MiB" invites the
- * question "is that the same as the 512 I configured?". Familiarity beats IEC pedantry on a screen
- * read by someone running a school.
+ * ⚑ WHOLE MEGABYTES, AND "MB" WITH A 1024-BASED DIVISOR. Nobody reading this screen cares about exact
+ * sizes (operator, 2026-08-21), so there is no decimal place and no unit negotiation: the cap is
+ * 536,870,912 bytes, which every operating system displays as "512 MB", and a row reading "512 MiB"
+ * invites "is that the 512 I configured?". Strictly these are mebibytes wearing the familiar label,
+ * which is the right trade for a figure whose only job is "roughly how full is it".
  *
- * One decimal below 10 MB so a small backup does not round to "0 MB", none above it so a cache figure
- * is not spuriously precise.
+ * The one guard is the floor: rounding alone would print "0 MB" for a small backup, which reads as a
+ * fault rather than as a small number.
  */
 const mb = (bytes: number): string => {
-  const value = bytes / 1_048_576
-  return `${value < 10 ? value.toFixed(1) : Math.round(value)} MB`
+  const value = Math.round(bytes / 1_048_576)
+  return value < 1 ? 'under 1 MB' : `${value} MB`
 }
 
 /**
