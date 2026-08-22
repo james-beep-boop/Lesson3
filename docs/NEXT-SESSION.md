@@ -112,19 +112,40 @@ only thing that would notice a class referenced with **no rule at all**.
 
 - **The className-resolves-to-a-rule guard** (thread 3) — still the only remaining half of the
   appearance-testing gap.
-- **Build the System panel** — design settled in `docs/DESIGN-system-panel-2026-08-21.md` (name, ids,
-  the two halves, per-flag provenance, Save with one re-auth, and the build order). PR 1 is the global +
-  computed facts half + panel scaffold; PR 2 is the two real flags with enforcement. The deployment
-  model it sits on is D and E of the amendments doc below.
-- **Splice in the D1 amendments if wanted.** Drafted 2026-08-21 and deliberately NOT applied to the
+- ⚑ **DO NOT WRITE PART 2 YET (operator, 2026-08-22).** Part 1 shipped (#265, corrections in #266) and
+  the architecture was accepted, but **four contracts needed tightening first** and are now written into
+  `docs/DESIGN-system-panel-2026-08-21.md` and D1:
+  1. ⚑ **The Save endpoint must be the SOLE WRITER.** As shipped, `access.update: siteAdminOnly` lets a
+     Site Administrator PATCH the global directly and skip the re-auth, the freshness token, the
+     acknowledgement and the provenance path — so the ceremony is optional. `admin: { hidden: true }`
+     from #266 does NOT close this: `globals/operations/update.js` never consults `admin.hidden`.
+  2. **The documents disagreed** — three incompatible authorities on the panel's name, ids, flags and
+     presets. Consolidated 2026-08-22: D1 is the single authority, the amendments file is a superseded
+     stub, and SPEC §11 names System.
+  3. ⚑ **The email flag's meaning is an OPEN DECISION** and blocks part 2. Enqueue-gating does not stop
+     queued mail, and one flag over verification + reset + pings + artifacts can mint accounts that can
+     never verify. Two readings and a recommendation are in the design doc; the stored column is
+     currently `features_outbound_email`, which presumes the rejected one.
+  4. **Backup last success/destination** is a SPEC §11 requirement this panel owes and part 1 omitted;
+     it is recorded state, not computable, so it needs a record source. Now marked outstanding in §11.
+  Also tightened: atomic check-and-write rather than a bare freshness token, server-enforced versioned
+  acknowledgements, no toggle without its ceiling, structured errors on fail-closed reads, and
+  independent per-probe timeouts.
+- ⚑ **The D1 amendments are FOLDED IN, not optional.** A–D and F accepted verbatim, E amended to "one
+  **application artifact**" (the deployment carries `app`, `migrate` and `gotenberg` images), G kept as
+  open gaps. `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` is now a superseded stub — do not read
+  it as current.
+- **Sequence:** D1 places the Official-pointer lock before this panel; the panel went first, which is
+  fine — ⚑ **but the lock remains a hard prerequisite for the public read slice**, not something the
+  panel's progress relaxes. Drafted 2026-08-21 and deliberately NOT applied to the
   operator's in-flight design doc: access control and **fail-closed** semantics for the proposed
   Site-Admin global (absence, read error, and a stale `true` past its TTL all mean 404), the fact that
   the obvious implementation — reading it in Next middleware — is blocked because `src/middleware.ts` is
   edge-runtime and cannot reach Postgres, and a named refusal of `mode: 'offline' | 'online'`, which
-  contradicts three decisions D1 already makes. Full draft:
-  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` — a proposal, not a decision, and the file to
-  delete rather than leave stale if D1 moves against it. ⚑ D1 already states the env-ceiling/runtime-flag
-  split correctly; it does not need restating.
+  contradicts three decisions D1 already makes. ⚑ **DONE — all of this was folded into D1 on
+  2026-08-22** (A–D and F verbatim, E amended to "one application artifact", G kept as open gaps), and
+  `docs/DESIGN-d1-deployment-amendments-2026-08-21.md` is now a superseded stub. D1 is the only
+  authority; do not restate the env-ceiling/runtime-flag split anywhere else.
 - ⚑ **If the student-principal PR in the operator's design doc gets picked up, its inventory is off, and
   I verified this against the code rather than counting from the doc.** The doc says "**8 such sites**"
   of `Boolean(user)`. There are **six** direct gates (two in `access/versioning.ts`, two in
@@ -142,8 +163,11 @@ arm64 Rock is the unusual target here, not his machine.
 
 ### Licensing: THREE separable assets, and they do not want the same licence
 
-1. **The Lesson3 code — UNDECIDED.** ⚑ `app/package.json` says `"license": "MIT"`, and that is
-   **scaffold residue, not a decision.** The commit that introduced the file (`f7bbd4d`, "First pass",
+1. **The Lesson3 code — MIT (operator decision 2026-08-21).** Chosen to match Payload's own licence, so
+   there is no friction and it is compatible with whatever the vendored generator comes back with.
+   ⚑ This entry said "UNDECIDED" until 2026-08-22 while `docs/DECISIONS.md` said MIT was chosen — one
+   decision, two files, two answers. ⚑ And the `app/package.json` line is still not the source of that
+   decision: it is **scaffold residue.** The commit that introduced the file (`f7bbd4d`, "First pass",
    2026-06-07) also carries `"name": "app"` and `"description": "A blank template to get started with
    Payload 3.0"` — it is `create-payload-app`'s template, and the licence line has never been edited
    across 35 commits to that file. Do not read it as an existing commitment. Candidates: MIT (matches

@@ -11,6 +11,110 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-22 — Operator design review: four contracts, and the documents were arguing with each other
+
+The System panel's architecture was **accepted** — env ceilings above DB flags above server enforcement,
+facts separated from settings, no master offline switch, no Docker control, one application artifact, the
+quiz in-app, presets deferred. What was not accepted was treating it as settled enough to keep coding.
+
+### The model, in the operator's words, now stated in D1
+
+| Layer | Example | Authority |
+|---|---|---|
+| Capability present | SMTP configured, Gotenberg installed | Packaging / console |
+| Hard ceiling | `PUBLIC_LIBRARY_ENABLED` | Environment + restart |
+| Operator intent | `publicLibraryLive` | System settings |
+| Observed condition | PDF engine reachable, backup last success | Probe / operational record |
+| Enforcement | Public route, email-send boundary | Server code |
+
+⚑ **And the framing that follows from it: the System panel is an observation-and-control surface, never
+a deployment orchestrator.** Every earlier refusal — no `mode` enum, no Docker socket, no
+toggle-that-installs — is a consequence of that one sentence rather than four separate rules.
+
+### 1. ⚑ The specified Save flow was bypassable, and my "fix" did not fix it
+
+The design requires password re-authentication, a freshness token, provenance and acknowledgements. But
+part 1 shipped `access: { read: siteAdminOnly, update: siteAdminOnly }` — so a Site Administrator can
+`PATCH /api/globals/system-settings` and skip all four. **Re-authentication a normal REST call skips is
+UI theatre.**
+
+⚑ **AND `admin: { hidden: true }` — which I added in #266 and described as closing the inert-toggle
+contradiction — does NOT close this.** Verified in the installed source: `globals/operations/update.js`
+never consults `admin.hidden`, gating only on `executeAccess`. Hiding the global removed the admin
+*form* and left the API wide open. I narrowed a surface and reported it as if I had shut a door. The
+lesson is the same one this file keeps recording, one level up: **check what a fix actually covers before
+describing what it protects.**
+
+The contract now written down: global `update` denied through ordinary REST/GraphQL *including for Site
+Administrators*; a custom endpoint as the only writer, using trusted internal access after doing its own
+authorization, an explicit flag allowlist rather than a body passthrough, and a **wire test asserting a
+Site Administrator's direct global update fails while their Save succeeds**.
+
+### 2. Three incompatible authorities, all of them mine
+
+D1 said Installation / `installation.*` / three presets / student + AI flags. The System design said
+System / `system.*` / two flags / no presets. The amendments file called itself an unapplied proposal of
+"three additions" while carrying sections A–G that the System design depended on. NEXT-SESSION called the
+design settled and the amendments optional. SPEC §11 still said "Installation".
+
+⚑ **The failure mode is specific: a proposal document silently became a decision document** because I
+kept appending to it instead of folding it in. Consolidated — D1 is the single authority, the amendments
+file is a superseded stub with a table of what happened to each section, SPEC §11 renamed, and the
+licence contradiction (DECISIONS said MIT chosen, NEXT-SESSION said undecided) resolved to MIT.
+
+### 3. `outboundEmail` was not a safe boolean, and the reasoning is worth keeping
+
+Two independent problems. **Enqueue-gating does not stop email** — already-queued jobs still send, so the
+label promises egress control it does not deliver. And **it bundles unlike consequences**: verification
+and password reset are how an account stays reachable, while pings and emailed artifacts are
+conveniences. Turning it off with open registration live could mint accounts that can never verify, and
+make a reset request look successful while deliberately producing nothing.
+
+Left as an **open decision** with two readings (hard egress off, enforced at the send boundary with a
+defined queued-job policy; or notifications only, never gating auth mail) and a recommendation for the
+second — because a settings change should not be able to make accounts unrecoverable, and hard egress is
+already served honestly by removing `SMTP_HOST`, which is restart-scoped. ⚑ The design's "needs no
+warning" line was wrong in the direction that matters: this is the flag needing the clearest consequence
+text. ⚑ And it has a schema consequence — `features_outbound_email` already exists from #265's migration
+and presumes the rejected reading, so renaming is cheaper now than after part 2.
+
+### 4. "Computed, never stored" was too strong
+
+The right rule is **read-only, and never operator-authored on this screen**. Backup last-success is
+required in this panel by SPEC §11 and is *recorded operational state* — not reconstructible from
+env plus a probe. Part 1 omitted it, so §11 now says the requirement is outstanding rather than met, and
+the facts half is documented as carrying both computed and recorded rows.
+
+### Also tightened
+
+- **A freshness token is not atomicity.** Compare-then-write has a window; two simultaneous writers can
+  both read the same `updatedAt`. Needs a conditional update or a row lock (`takeAdminCountLock` is the
+  precedent) and a genuinely concurrent test — a sequential stale-token case proves the comparison, never
+  the race.
+- **Acknowledgements must be server-enforced and versioned**, or a direct HTTP client walks past the
+  "blocking" dialog, and rewording the warning silently accepts a replayed old one.
+- **No toggle without its ceiling** — with no `PUBLIC_LIBRARY_ENABLED` the row is a fact, not a switch.
+- **Fail-closed reads emit a structured operational error**, so a DB fault is distinguishable from a
+  deliberate off.
+- **Each probe independently bounded and three-valued** — a dead PDF engine must not blank the panel.
+- **"One image" → "one application artifact"**, since the deployment carries `app`, `migrate` and
+  `gotenberg`, and school boxes run font-less while the online tier does not.
+- **Sequence:** the panel may precede the Official-pointer lock, but that lock stays a hard prerequisite
+  for the public read slice.
+
+### And the legal language in the quiz design was too absolute
+
+"The Act never engages", "genuinely anonymous", "no legal exposure" — all removed. Kenyan law counts
+**online identifiers** toward identifiability, so IP logs, session ids, rate-limit keys, analytics and
+granular event records can matter with no accounts at all; and §33 of the Data Protection Act 2019
+requires parental consent and age-verification mechanisms where children's data is processed. The claim
+is now that tier 1 is *designed* to avoid per-person persistence, and that whether it is anonymous in law
+depends on the logging, telemetry, rate-limiting and aggregation implementation and needs review before
+public launch. ⚑ Note the tension that makes this real work rather than a wording change: the abuse
+controls tier 1 needs are exactly what would create per-person identifiers.
+
+---
+
 ## 2026-08-21 — The System panel, the quiz stays in-app, and four things that are not code
 
 Design session, no implementation. Decisions and the reasoning that will not survive in the code.
