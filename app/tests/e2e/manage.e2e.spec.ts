@@ -1094,6 +1094,84 @@ test.describe('Manage page', () => {
   })
 
   /**
+   * Manage → System (2026-08-21). The panel is Site-Admin-only and reports boot-time facts.
+   *
+   * ⚑ THIS EXISTS FOR THE COMPUTED VALUES, not the text. `lp-manage__roles-admin` once shipped with no
+   * CSS rule at all and the only assertion on it checked that its text was VISIBLE — which passes on
+   * unstyled markup, so nothing caught it. The `data-status` colouring carries real meaning here (an
+   * `unknown` row is the operator's cue that something is down), and it is exactly the kind of rule
+   * that fails silently: `--theme-warning-500` does not exist in Payload's tokens, and an undefined
+   * custom property INHERITS rather than erroring, so a wrong token would have made `unknown` look
+   * identical to `off`.
+   */
+  test.describe('Manage → System', () => {
+    test('a Site Administrator sees the deployment facts, with the status colours applied', async ({
+      page,
+    }) => {
+      await loginAs(page, 'siteAdmin')
+      await page.goto(`${BASE}/admin?open=system.deployment`)
+
+      await expect(page.locator('.lp-manage__fact-value').first()).toBeVisible()
+      // Every fact names the env var that decides it — the whole point of a read-only half.
+      // ⚑ `__fact-env`, not `__who-email`: that shared class made this resolve to the Roles & Access
+      // panel's hidden email span in a collapsed box.
+      await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
+
+      /**
+       * ⚑ ONE `page.evaluate`, NO PER-ELEMENT LOCATORS. The first version of this test read colours
+       * through `locator(...).evaluate().catch(() => null)` so it could "skip rather than assert
+       * something vacuous" — but a locator for an element that does not exist waits out its FULL
+       * timeout before the catch ever runs, which killed the test and made the next assertion report
+       * "Target page has been closed". Reading the whole set in one pass cannot wait for anything.
+       */
+      const rows = await page.evaluate(() =>
+        [...document.querySelectorAll('.lp-manage__fact-value')].map((el) => ({
+          status: (el as HTMLElement).dataset.status ?? '',
+          color: getComputedStyle(el).color,
+        })),
+      )
+      expect(rows.length, 'the panel rendered no facts at all').toBeGreaterThan(0)
+      for (const row of rows) expect(['ok', 'off', 'unknown']).toContain(row.status)
+
+      /**
+       * ⚑ THE PROPERTY IS "DISTINCT STATUSES RENDER DISTINCTLY", not a specific rgb() — pinning the
+       * palette would break on a Payload theme change, and asserting a fixture's particular mix of
+       * statuses is the census mistake this file records elsewhere. What must never happen is two
+       * statuses looking identical: `--theme-warning-500` does not exist in Payload's tokens, and an
+       * undefined custom property INHERITS rather than erroring, so a wrong token makes `unknown`
+       * indistinguishable from `off` — the one row worth noticing looking like nothing.
+       */
+      const colourByStatus = new Map(rows.map((r) => [r.status, r.color]))
+      expect(new Set(colourByStatus.values()).size).toBe(colourByStatus.size)
+
+      // The detail line claims a full row rather than relying on wrapping (see custom.scss).
+      const flexBasis = await page.evaluate(() => {
+        const d = document.querySelector('.lp-manage__fact-detail')
+        return d ? getComputedStyle(d).flexBasis : null
+      })
+      expect(flexBasis).toBe('100%')
+    })
+
+    test('a Subject Administrator has no System box, and the deep link is scrubbed', async ({
+      page,
+    }) => {
+      await loginAs(page, 'subjectAdmin')
+      await page.goto(`${BASE}/admin?open=system.deployment`)
+
+      await expect(page.locator('.lp-manage__fact-value')).toHaveCount(0)
+      /**
+       * ⚑ ASSERT THE ID IS GONE, not where the scrub lands. The first version expected
+       * `open=users,users.access`, which only holds when the caller has exactly ONE top-level panel so
+       * the lone-child rule opens it — in CI this role also has candidate versions, so `versions` is
+       * available, there are two top-level panels, and D7a correctly scrubs to no `open` at all. The
+       * property is that a role-inaccessible id never survives in the URL; which panel they land on is
+       * a fixture detail.
+       */
+      await expect(page).not.toHaveURL(/system/)
+    })
+  })
+
+  /**
    * PR 3 — the taxonomy panels. The SERVER side of both guards is already covered by
    * `tests/int/taxonomyDelete.int.spec.ts`; what is untested until here is whether their messages
    * ever reach a human. That is the entire premise of these panels: the design doc specifies

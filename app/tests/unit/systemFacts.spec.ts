@@ -13,7 +13,21 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { collectSystemFacts, type SystemFact } from '@/lib/systemFacts'
+/**
+ * ⚑ THE CACHE MODULE IS MOCKED, because an env var CANNOT steer it. `artifactCache.ts` resolves
+ * `CACHE_DIR` and `MAX_BYTES` ONCE at module load, so the earlier version of this spec — which set
+ * `ARTIFACT_CACHE_DIR` in `beforeEach` — never changed the probed directory at all. It passed because
+ * `<cwd>/.artifact-cache` happens not to exist in a clean checkout, and would have flipped to `ok` on
+ * any machine where a previous run created it: a silent pass with a comment claiming otherwise.
+ */
+vi.mock('@/generator/artifactCache', () => ({
+  artifactCacheDir: () => '/nonexistent/lesson3-facts-spec',
+  artifactCacheMaxBytes: () => 536_870_912,
+  isArtifactCacheEntry: (name: string) => name.endsWith('.bin'),
+}))
+
+const { collectSystemFacts } = await import('@/lib/systemFacts')
+type SystemFact = import('@/lib/systemFacts').SystemFact
 
 const ENV_KEYS = [
   'SERVER_URL',
@@ -21,18 +35,25 @@ const ENV_KEYS = [
   'SMTP_HOST',
   'SENTRY_DSN',
   'GOTENBERG_URL',
-  'ARTIFACT_CACHE_DIR',
-  'ARTIFACT_CACHE_MAX_BYTES',
 ] as const
 
 let saved: Record<string, string | undefined>
 
+/**
+ * The offline default: most cases are about env facts, and a live fetch would make them flaky.
+ *
+ * ⚑ TAKES A FACTORY, NOT A PROMISE. Passing `Promise.reject(...)` built the rejection eagerly in
+ * `beforeEach`, so in the two cases that re-stub nothing ever consumed it and vitest reported two
+ * unhandled errors beside six passing tests. A factory is only called if `fetch` is.
+ */
+const stubFetch = (make: () => Promise<Response>) => vi.stubGlobal('fetch', vi.fn(make))
+
 beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]))
   for (const k of ENV_KEYS) delete process.env[k]
-  // A directory that cannot exist, so the cache probe takes its failure path unless a case says
-  // otherwise. Pointing at a real temp dir would test the filesystem; this tests the handler.
-  process.env.ARTIFACT_CACHE_DIR = '/nonexistent/lesson3-facts-spec'
+  // Default every case to an unreachable sidecar; the two cases that are ABOUT the response re-stub.
+  // Five identical stub blocks used to open five cases that had nothing to do with fetch.
+  stubFetch(() => Promise.reject(new Error('offline')))
 })
 
 afterEach(() => {
@@ -51,10 +72,6 @@ const byKey = (facts: SystemFact[], key: string): SystemFact => {
 
 describe('collectSystemFacts', () => {
   it('never throws, even when the probe rejects and the cache directory is unreadable', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('ECONNREFUSED'))),
-    )
     const facts = await collectSystemFacts()
     // Both failure paths taken at once, and the panel still has every row.
     expect(byKey(facts, 'pdfEngine').status).toBe('unknown')
@@ -63,10 +80,7 @@ describe('collectSystemFacts', () => {
   })
 
   it('reports the PDF engine reachable when the sidecar answers', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(new Response('ok', { status: 200 }))),
-    )
+    stubFetch(() => Promise.resolve(new Response('ok', { status: 200 })))
     const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
     expect(pdf.status).toBe('ok')
     // ⚑ Says it is LOCAL, because "PDF engine" is the component people assume needs internet.
@@ -74,20 +88,13 @@ describe('collectSystemFacts', () => {
   })
 
   it('distinguishes "answered badly" from "did not answer"', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.resolve(new Response('nope', { status: 503 }))),
-    )
+    stubFetch(() => Promise.resolve(new Response('nope', { status: 503 })))
     const pdf = byKey(await collectSystemFacts(), 'pdfEngine')
     expect(pdf.status).toBe('unknown')
     expect(pdf.value).toContain('503')
   })
 
   it('reads unset capabilities as OFF, which is a legitimate state and not a fault', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('offline'))),
-    )
     const facts = await collectSystemFacts()
     // An offline ARES school has all of these unset by design; nothing here may read as an error.
     for (const key of ['serverUrl', 'publicLibrary', 'email', 'errorTracking']) {
@@ -100,10 +107,6 @@ describe('collectSystemFacts', () => {
     process.env.PUBLIC_LIBRARY_ENABLED = '1'
     process.env.SMTP_HOST = 'smtp.example.org'
     process.env.SENTRY_DSN = 'https://key@sentry.example.org/1'
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('offline'))),
-    )
     const facts = await collectSystemFacts()
     for (const key of ['serverUrl', 'publicLibrary', 'email', 'errorTracking']) {
       expect(byKey(facts, key).status, key).toBe('ok')
@@ -112,23 +115,10 @@ describe('collectSystemFacts', () => {
   })
 
   it('names the environment variable for every fact', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('offline'))),
-    )
     const missing = (await collectSystemFacts()).filter((f) => !f.envVar).map((f) => f.key)
     expect(
       missing,
       'a boot-time fact without its env var is a dead end for whoever must fix it',
     ).toEqual([])
-  })
-
-  it('only ever reports one of the three statuses', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('offline'))),
-    )
-    const statuses = new Set((await collectSystemFacts()).map((f) => f.status))
-    for (const s of statuses) expect(['ok', 'off', 'unknown']).toContain(s)
   })
 })

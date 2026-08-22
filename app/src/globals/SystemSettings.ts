@@ -51,8 +51,10 @@ export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
  * cannot send these — field access says no to everyone — and the hook below is the only writer. A null
  * means **unknown**, never **nobody**.
  */
-export const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) => {
-  if (!data || typeof data !== 'object') return data
+const stampFlagChanges: GlobalBeforeChangeHook = ({ data, originalDoc, req }) => {
+  // `!data` alone, matching `stampAssignmentProvenance`'s guard — Payload passes an object here, so
+  // the `typeof` half this had was unreachable.
+  if (!data) return data
   const actorId = (req.user as User | undefined)?.id
   // A userless write (seeds, system paths) leaves provenance alone rather than inventing a grantor.
   if (actorId == null) return data
@@ -90,7 +92,21 @@ export const SystemSettings: GlobalConfig = {
   // the public-library route must resolve its flag with no user at all; that bypass is documented at
   // the reader, not here.
   access: { read: siteAdminOnly, update: siteAdminOnly },
-  admin: { group: 'System' },
+  /**
+   * ⚑ `hidden: true`, AND IT STAYS HIDDEN. Without it, Payload's built-in globals UI renders both
+   * checkboxes and a Save button at `/admin/globals/system-settings`, reachable from the admin nav —
+   * so part 1 would have shipped exactly the thing it claims not to: a live-looking switch that
+   * changes nothing, because no reader consults these flags yet (amendments §D, "NEVER RENDER A
+   * TOGGLE FOR SOMETHING ABSENT"). `hidden` excludes it from the nav AND the routes (verified in the
+   * installed 3.87.1 `GlobalAdminOptions`).
+   *
+   * ⚑ AND DO NOT REMOVE IT IN PART 2, which is the tempting reading. The Manage → System panel is the
+   * intended surface precisely because its Save carries a re-authentication and an `expectedUpdatedAt`
+   * freshness token; the built-in form carries neither, so exposing it would leave a second writer
+   * that bypasses both and make the re-auth decorative. Access control still gates the global to Site
+   * Administrators either way — this is about not offering a route around the ceremony.
+   */
+  admin: { group: 'System', hidden: true },
   versions: false,
   hooks: { beforeChange: [stampFlagChanges] },
   fields: [

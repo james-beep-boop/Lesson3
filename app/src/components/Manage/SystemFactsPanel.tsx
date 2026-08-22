@@ -26,8 +26,14 @@ export function SystemFactsPanel({ facts }: { facts: SystemFact[] }) {
           <span className="lp-manage__who">
             {fact.label}
             {/* The env var travels with the value, because "email: not configured" without
-                "SMTP_HOST" is a dead end for whoever has to fix it. */}
-            {fact.envVar && <span className="lp-manage__who-email">{fact.envVar}</span>}
+                "SMTP_HOST" is a dead end for whoever has to fix it.
+
+                ⚑ ITS OWN CLASS, not the borrowed `__who-email`. Two reasons, and the second cost a red
+                gate: an env var is not a person's address, so the stylesheet's own description of
+                `__who-email` ("the secondary identifier under a NAME") did not describe this; and
+                sharing the class made a page-wide test locator resolve to the Roles & Access panel's
+                email span — hidden inside a collapsed box — instead of this one. */}
+            {fact.envVar && <span className="lp-manage__fact-env">{fact.envVar}</span>}
             {fact.detail && <span className="lp-manage__fact-detail">{fact.detail}</span>}
           </span>
           {/* `data-status` rather than three class names: the three states are one axis, and the

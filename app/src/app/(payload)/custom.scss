@@ -521,10 +521,24 @@ body {
   //
   // ⚑ THESE RULES ARE NOT OPTIONAL, and that is a recorded lesson rather than a preference:
   // `lp-manage__roles-admin` once shipped with NO rule at all, so its row rendered as an unstyled pile
-  // while the only test on it asserted the text was VISIBLE — which passes on unstyled markup. A
-  // computed-value assertion in `tests/e2e/manage.e2e.spec.ts` is what closes that gap for these two.
+  // while the only test on it asserted the text was VISIBLE — which passes on unstyled markup. The
+  // computed-value assertion in `tests/e2e/manage.e2e.spec.ts` ("Manage → System") is what closes that
+  // gap for these two.
+  // The env var beside a fact's label. Same treatment as `__who-email`, deliberately NOT that class:
+  // see the ⚑ in SystemFactsPanel.tsx — sharing it made a test locator match another panel's rows.
+  &__fact-env {
+    color: var(--theme-elevation-600);
+    font-size: var(--app-secondary-size);
+    overflow-wrap: anywhere;
+  }
+
   &__fact-detail {
-    display: block;
+    // ⚑ `flex-basis: 100%`, NOT `display: block`. The parent `&__who` is a baseline flex row (it puts a
+    // name BESIDE an address), so a `display` on a flex item is blockified and does nothing — the
+    // detail line then landed under the label only by WRAPPING, i.e. it depended on the string being
+    // long enough. A short detail sat inline on a wide viewport. Claiming a full row is what actually
+    // asks for one.
+    flex-basis: 100%;
     color: var(--theme-elevation-600);
     font-size: var(--app-secondary-size);
     margin-block-start: 2px;

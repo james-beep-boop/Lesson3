@@ -134,27 +134,11 @@ describe('system-settings: per-flag provenance', () => {
       // Same feature values as above — nothing for the hook to do.
       data: {
         features: { publicLibraryLive: true, outboundEmail: true },
-        flagChanges: [{ flag: 'publicLibraryLive', enabled: false, changedAt: forgedAt }],
-      } as never,
-      overrideAccess: false,
-      user: fx.users.siteAdmin,
-    })
-    const after = await changesByFlag()
-    expect(after.publicLibraryLive?.changedAt).not.toBe(forgedAt)
-    expect(after.publicLibraryLive?.changedAt).toBe(before.publicLibraryLive?.changedAt)
-    expect(after.publicLibraryLive?.enabled).toBe(before.publicLibraryLive?.enabled)
-  })
-
-  it('ignores provenance a client tries to forge', async () => {
-    const forgedAt = '2000-01-01T00:00:00.000Z'
-    await fx.payload.updateGlobal({
-      slug: 'system-settings',
-      data: {
-        features: { publicLibraryLive: true, outboundEmail: true },
+        // Both keys forged: a self-serving grantor AND an invented timestamp.
         flagChanges: [
           {
             flag: 'publicLibraryLive',
-            enabled: true,
+            enabled: false,
             changedBy: fx.users.teacher.id,
             changedAt: forgedAt,
           },
@@ -163,8 +147,11 @@ describe('system-settings: per-flag provenance', () => {
       overrideAccess: false,
       user: fx.users.siteAdmin,
     })
-    const rows = ((await readSettings()).flagChanges ?? []) as FlagChange[]
-    expect(rows.some((r) => r.changedAt === forgedAt)).toBe(false)
-    expect(rows.some((r) => r.changedBy === fx.users.teacher.id)).toBe(false)
+    const after = await changesByFlag()
+    expect(after.publicLibraryLive?.changedAt).not.toBe(forgedAt)
+    expect(after.publicLibraryLive?.changedAt).toBe(before.publicLibraryLive?.changedAt)
+    expect(after.publicLibraryLive?.enabled).toBe(before.publicLibraryLive?.enabled)
+    expect(after.publicLibraryLive?.changedBy).toBe(before.publicLibraryLive?.changedBy)
+    expect(after.publicLibraryLive?.changedBy).not.toBe(fx.users.teacher.id)
   })
 })
