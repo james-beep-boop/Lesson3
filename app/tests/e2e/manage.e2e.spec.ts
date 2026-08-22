@@ -1118,17 +1118,26 @@ test.describe('Manage page', () => {
       // panel's hidden email span in a collapsed box.
       await expect(page.locator('.lp-manage__fact-env').first()).toBeVisible()
 
-      // The backup row crosses the host/app boundary. A clean CI host reports Unknown; a developer
-      // whose host script has run reports that success. Either way the row and state must be honest.
-      const backupRow = page
-        .locator('li.lp-manage__row')
-        .filter({ hasText: 'Last successful backup' })
-      await expect(backupRow).toHaveCount(1)
-      const backupValue = await backupRow.locator('.lp-manage__fact-value').evaluate((el) => ({
-        status: (el as HTMLElement).dataset.status,
-        value: el.textContent,
-      }))
-      if (backupValue.status === 'unknown') {
+      /**
+       * The backup row crosses the host/app boundary. A clean CI host reports Unknown; a developer
+       * whose host script has run reports that success. Either way the row and state must be honest.
+       *
+       * ⚑ READ IN ONE `page.evaluate`, for the reason spelled out immediately below — this used a
+       * per-element `locator(...).evaluate()`, which is the mechanism that comment exists to forbid.
+       * It was safe here only because a `toHaveCount(1)` ran first; the panel is server-rendered, so
+       * there is nothing to wait for and no reason to keep a second way of reading the same DOM.
+       */
+      const backupValue = await page.evaluate(() => {
+        const row = [...document.querySelectorAll('li.lp-manage__row')].find((li) =>
+          li.textContent?.includes('Last successful backup'),
+        )
+        const value = row?.querySelector('.lp-manage__fact-value')
+        return value
+          ? { status: (value as HTMLElement).dataset.status, value: value.textContent }
+          : null
+      })
+      expect(backupValue, 'the backup row did not render at all').not.toBeNull()
+      if (backupValue!.status === 'unknown') {
         expect(backupValue).toEqual({ status: 'unknown', value: 'Unknown' })
       } else {
         expect(backupValue).toEqual({

@@ -59,9 +59,15 @@ let saved: Record<string, string | undefined>
  * unhandled errors beside six passing tests. A factory is only called if `fetch` is.
  */
 const stubFetch = (make: () => Promise<Response>) => vi.stubGlobal('fetch', vi.fn(make))
+/**
+ * ⚑ `readFile` RESOLVES A BUFFER, because the reader now hands the bytes to the shared
+ * `decodeCachedJson` — the same decoder the artifact caches use — rather than parsing a string itself.
+ * A string here would still satisfy `JSON.parse` and quietly skip the post-read length bound, so the
+ * mock has to match the real call's shape and not merely its content.
+ */
 const stubBackupRecord = (raw: string, size = Buffer.byteLength(raw, 'utf8')) => {
   backupFileMock.stat.mockResolvedValue({ isFile: () => true, size })
-  backupFileMock.readFile.mockResolvedValue(raw)
+  backupFileMock.readFile.mockResolvedValue(Buffer.from(raw, 'utf8'))
   backupFileMock.close.mockResolvedValue(undefined)
   backupFileMock.open.mockResolvedValue({
     close: backupFileMock.close,
@@ -148,6 +154,24 @@ describe('collectSystemFacts', () => {
       'Premigration · drive:lesson3-backups · ' +
         'lesson3-20260822T032534Z-premigrate-83b9ab0.dump.age · 1.5 MiB encrypted',
     )
+  })
+
+  /**
+   * ⚑ THE HANG IS THE FAILURE MODE THIS ROW ADDS. Every other fact is an env read or a bounded probe;
+   * this one reads a bind mount of a host directory, and `collectSystemFacts` joins them all with one
+   * `Promise.all` — so an unbounded read would not degrade one row, it would hold the whole Manage page
+   * open. Verified by mutation: deleting the `withDeadline` wrapper makes this case hang until vitest
+   * kills it, rather than failing an assertion.
+   */
+  it('degrades to unknown instead of hanging when the status file never resolves', async () => {
+    backupFileMock.open.mockReturnValue(new Promise(() => {}))
+    const started = Date.now()
+    const backup = byKey(await collectSystemFacts(), 'backup')
+    expect(backup.status).toBe('unknown')
+    expect(
+      Date.now() - started,
+      'the read must give up on its own deadline, not wait for the caller',
+    ).toBeLessThan(5_000)
   })
 
   it('does not mistake a malformed or oversized status file for backup evidence', async () => {

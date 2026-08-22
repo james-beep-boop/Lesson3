@@ -6,6 +6,7 @@ import {
   artifactCacheMaxBytes,
   isArtifactCacheEntry,
 } from '../generator/artifactCache'
+import { decodeCachedJson } from '../generator/cacheCodecs'
 import { gotenbergUrl } from '../generator/docxToPdf'
 import { errorTrackingEnabled } from './errorTracking'
 import { isPublicLibraryEnabled } from './publicLibrary'
@@ -25,6 +26,14 @@ import { isPublicLibraryEnabled } from './publicLibrary'
  * the PDF engine are wired at startup. Naming the variable is what turns "email: off" from a mystery
  * into an instruction.
  *
+ * ⚑ WITH ONE HONEST EXCEPTION: the backup row. `BACKUP_RCLONE_REMOTE` names where backups GO, but it
+ * does not decide whether that row reads `ok` or `unknown` — cron, `rclone`, the mount and the script
+ * do. So for that row the variable is *where the destination is configured*, not the lever that fixes
+ * the row, and the detail line has to carry the actual next step. Stated here because `envVar`'s own
+ * doc used to promise "the variable that decides it" for every row, and the exception had been
+ * softened two levels downstream (in the panel's JSDoc and a test message) while the definition still
+ * made the stronger claim.
+ *
  * Nothing in here throws. A probe that fails reports `unknown` — an operator reading "PDF engine:
  * unknown" learns something true, where a 500 on the Manage page teaches them nothing.
  */
@@ -40,7 +49,11 @@ export interface SystemFact {
   label: string
   value: string
   status: FactStatus
-  /** The environment variable that decides it, named so the operator knows where to go. */
+  /**
+   * The environment variable that decides it, named so the operator knows where to go — or, for a
+   * recorded-state row, where its destination is configured. See the exception in the module
+   * docblock: naming a variable that cannot change the row is a dead end unless `detail` says so.
+   */
   envVar?: string
   detail?: string
 }
@@ -74,38 +87,84 @@ interface BackupStatusV1 {
 const isNonEmptyBounded = (value: unknown, max: number): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= max
 
-function parseBackupStatus(raw: string): BackupStatusV1 | null {
-  if (Buffer.byteLength(raw, 'utf8') > MAX_BACKUP_STATUS_BYTES) return null
-  try {
-    const value = JSON.parse(raw) as Partial<BackupStatusV1>
-    if (!isNonEmptyBounded(value.completedAt, 64)) return null
-    const completedAt = value.completedAt
-    const parsedCompletedAt = new Date(completedAt)
-    if (
-      value.version !== 1 ||
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(completedAt) ||
-      !Number.isFinite(parsedCompletedAt.getTime()) ||
-      parsedCompletedAt.toISOString() !== completedAt.replace('Z', '.000Z') ||
-      !BACKUP_STREAMS.includes(value.stream as BackupStream) ||
-      !isNonEmptyBounded(value.destination, 1_024) ||
-      !isNonEmptyBounded(value.filename, 512) ||
-      !Number.isSafeInteger(value.encryptedBytes) ||
-      (value.encryptedBytes ?? 0) <= 0
-    ) {
-      return null
-    }
-    return value as BackupStatusV1
-  } catch {
-    return null
-  }
+/**
+ * ⚑ THREE TIMESTAMP CHECKS, THREE DIFFERENT CLASSES — do not "simplify" this to one. Measured:
+ *   - `2026-08-21T10:00:00.500Z` / `…+00:00` — the REGEX is the only thing that rejects a shape the
+ *     writer never emits (`date -u +%Y-%m-%dT%H:%M:%SZ`), and shape drift is how a contract rots.
+ *   - `2026-02-30T10:00:00Z` — parses fine and is NOT NaN; JavaScript rolls it to March 2. Only the
+ *     round-trip comparison notices, and "a backup completed on Feb 30" is exactly the kind of false
+ *     record this whole file exists to refuse.
+ *   - `2026-13-45T99:99:99Z` — passes the regex, IS NaN, and makes `toISOString()` throw `RangeError`.
+ *     The NaN guard is what keeps that a `false` here instead of an exception thrown from inside a type
+ *     predicate for `decodeCachedJson`'s `catch` to swallow. Correct either way, but a guard whose
+ *     safety depends on a foreign try/catch is a trap for whoever edits either side.
+ */
+const isBackupStatusV1 = (value: unknown): value is BackupStatusV1 => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const record = value as Partial<BackupStatusV1>
+  if (record.version !== 1) return false
+  if (!isNonEmptyBounded(record.completedAt, 64)) return false
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(record.completedAt)) return false
+  const completedAt = new Date(record.completedAt)
+  if (Number.isNaN(completedAt.getTime())) return false
+  if (completedAt.toISOString() !== record.completedAt.replace('Z', '.000Z')) return false
+  return (
+    BACKUP_STREAMS.includes(record.stream as BackupStream) &&
+    isNonEmptyBounded(record.destination, 1_024) &&
+    isNonEmptyBounded(record.filename, 512) &&
+    Number.isSafeInteger(record.encryptedBytes) &&
+    (record.encryptedBytes ?? 0) > 0
+  )
 }
 
 const backupStreamLabel = (stream: BackupStream): string =>
   ({ daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', premigrate: 'Premigration' })[stream]
 
 /**
+ * ⚑ THE FILESYSTEM GETS A DEADLINE, exactly like the network probe. This reads a bind mount of a host
+ * directory, and `collectSystemFacts` joins every fact with one `Promise.all` — so a wedged mount with
+ * no bound would not degrade this row, it would hang the whole Manage page for the Site Administrator
+ * who most likely opened it BECAUSE something was already broken. Same budget as `probePdfEngine`.
+ *
+ * Failure and timeout both collapse to `null` on purpose: the operator's next step is identical, which
+ * is the argument `probePdfEngine` already makes about unreachable-vs-timed-out. Collapsing here also
+ * means the losing promise's rejection is handled rather than becoming an unhandled rejection, and its
+ * own `finally` still closes the handle.
+ */
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms)
+  })
+  return Promise.race([work.catch(() => null), deadline]).finally(() => clearTimeout(timer))
+}
+
+/**
+ * ⚑ BOUNDED BEFORE IT IS READ, AND THEN AGAIN AFTER. `stat` short-circuits an oversized file so it is
+ * never slurped; the second check exists because a reported size is not a promise — a pipe or a
+ * synthetic file can stat as 0 and still stream. Two enforcement points, one limit, distinct reasons.
+ */
+async function readBackupStatus(): Promise<BackupStatusV1 | null> {
+  const file = await open(BACKUP_STATUS_FILE, 'r')
+  try {
+    const metadata = await file.stat()
+    if (!metadata.isFile() || metadata.size > MAX_BACKUP_STATUS_BYTES) return null
+    const bytes = await file.readFile()
+    if (bytes.byteLength > MAX_BACKUP_STATUS_BYTES) return null
+    // The shared decoder owns "untrusted JSON + a runtime contract, else null" for the artifact caches
+    // too, so a future hardening of it reaches this reader instead of stopping at a second copy.
+    return decodeCachedJson(bytes, isBackupStatusV1)
+  } finally {
+    await file.close()
+  }
+}
+
+/**
  * The host backup script is the sole writer; the app receives its directory read-only. Absence and a
  * malformed record are both `unknown`, never `off`: neither proves that no backup exists remotely.
+ *
+ * ⚑ AND `unknown` IS THE ORDINARY CASE ON A HEALTHY BOX THAT HAS NEVER RUN THE SCRIPT, so the detail
+ * names the two things that actually produce a record — rather than the env var, which cannot.
  */
 async function readBackupFact(): Promise<SystemFact> {
   const base: Omit<SystemFact, 'value' | 'status'> = {
@@ -113,36 +172,28 @@ async function readBackupFact(): Promise<SystemFact> {
     label: 'Last successful backup',
     envVar: 'BACKUP_RCLONE_REMOTE',
   }
-  try {
-    const file = await open(BACKUP_STATUS_FILE, 'r')
-    let status: BackupStatusV1 | null
-    try {
-      const metadata = await file.stat()
-      if (!metadata.isFile() || metadata.size > MAX_BACKUP_STATUS_BYTES) {
-        status = null
-      } else {
-        status = parseBackupStatus(await file.readFile('utf8'))
-      }
-    } finally {
-      await file.close()
-    }
-    if (!status) throw new Error('invalid backup status')
-    return {
-      ...base,
-      value: status.completedAt.replace('T', ' ').replace('Z', ' UTC'),
-      status: 'ok',
-      detail:
-        `${backupStreamLabel(status.stream)} · ${status.destination} · ${status.filename} · ` +
-        `${mib(status.encryptedBytes)} encrypted`,
-    }
-  } catch {
-    return {
-      ...base,
-      value: 'Unknown',
-      status: 'unknown',
-      detail: `No readable success record at ${BACKUP_STATUS_FILE}.`,
-    }
+  const fact = (status: FactStatus, value: string, detail?: string): SystemFact => ({
+    ...base,
+    value,
+    status,
+    detail,
+  })
+
+  const status = await withDeadline(readBackupStatus(), PROBE_TIMEOUT_MS)
+  if (!status) {
+    return fact(
+      'unknown',
+      'Unknown',
+      `No readable success record at ${BACKUP_STATUS_FILE}. A backup writes one on success — check the ` +
+        `backup cron and \`scripts/backup-db.sh\`; this variable only says where backups go.`,
+    )
   }
+  return fact(
+    'ok',
+    status.completedAt.replace('T', ' ').replace('Z', ' UTC'),
+    `${backupStreamLabel(status.stream)} · ${status.destination} · ${status.filename} · ` +
+      `${mib(status.encryptedBytes)} encrypted`,
+  )
 }
 
 /**

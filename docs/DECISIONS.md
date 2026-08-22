@@ -11,6 +11,55 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-21 — `/simplify` on the backup row: one real hang, one drift guard, and a "redundant" check that is not
+
+A quality pass over #271. Four review angles; three findings acted on, three declined with reasons.
+
+**The filesystem had no deadline.** Every other fact is an env read or a probe bounded by
+`PROBE_TIMEOUT_MS`; the new one reads a bind mount of a host directory, and `collectSystemFacts` joins
+them all with one `Promise.all`. So an unbounded read would not have degraded one row — it would have
+held the whole Manage page open, for the Site Administrator who most likely opened it BECAUSE something
+was already broken. Now raced against the same budget, with failure and timeout both collapsing to
+`unknown` (the argument `probePdfEngine` already makes about unreachable-vs-timed-out). Collapsing also
+means the losing promise's rejection is handled instead of becoming an unhandled rejection, and its
+`finally` still closes the handle. ⚑ **Pinned by mutation:** deleting the wrapper makes the new case hang
+until vitest kills it rather than failing an assertion — verified, not assumed.
+
+**The status path was one contract in three files joined only by a matching string.** The script writes
+a host path, compose bind-mounts it, the app reads a hardcoded container path. Rename any one and
+nothing fails: no type error, no red test — the row just reads `Unknown` forever on a box whose backups
+are running perfectly. That is precisely the `ARTIFACT_CACHE_DIR` class (absent from the root template →
+unwritable cache → every export `EACCES` while the client polled a 202), whose lesson was to make the
+sync mechanical. `backupStatusPathParity.spec.ts` now pins all three, plus the `:ro` — the app must
+never be able to write the evidence it reports. ⚑ **Five mutations, five reds**, including a read-write
+mount, which would otherwise have kept every other assertion passing while removing the sole-writer
+property. Cost: two more single-file `:ro` mounts in `scripts/in-deps.sh`, never the workspace.
+
+**⚑ DECLINED: "two of the three timestamp checks are redundant."** They are redundant in *outcome* only,
+and each catches a different class — measured, not argued:
+`2026-08-21T10:00:00.500Z` is rejected only by the REGEX (a shape the writer never emits);
+`2026-02-30T10:00:00Z` parses fine and is NOT NaN — JavaScript rolls it to March 2, and only the
+round-trip comparison refuses "a backup completed on Feb 30"; `2026-13-45T99:99:99Z` passes the regex,
+IS NaN, and makes `toISOString()` **throw RangeError**. Deleting the NaN guard would leave that throw to
+be swallowed by `decodeCachedJson`'s `catch` — correct by accident, and a trap for whoever edits either
+side. The three jobs are now named in the code so the next reader does not re-derive this.
+
+**Also declined:** extracting a shared bash test harness from `test-deploy-sidecar.sh` (real duplication,
+but it refactors a stable out-of-diff file in passing); collapsing the two `findmnt` calls in
+`validate_destination` (saves one fork, risks a leading-field parse when a mount path contains a space —
+a bad trade in the code whose entire job is refusing to write to the wrong place); hoisting per-case stub
+writes in the shell test (sub-millisecond, CI-only).
+
+**Taken up:** the reader now uses the shared `decodeCachedJson` rather than a second copy of
+try/JSON.parse/catch, so a future hardening of that decoder reaches it; the e2e backup assertion folded
+into one `page.evaluate`, since it was a per-element locator sitting directly above the comment
+explaining why this file forbids them; and `SystemFact.envVar`'s doc stopped over-promising — it said
+"the variable that decides it", which is false for the backup row, and the exception had been softened
+two levels downstream in the panel JSDoc and a test message while the definition kept the strong claim.
+The unknown-case detail now names what actually produces a record.
+
+---
+
 ## 2026-08-21 — No general email switch; backup success is host-recorded evidence
 
 The operator closed the two remaining System-foundation questions after successfully deploying
