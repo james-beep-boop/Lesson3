@@ -189,6 +189,50 @@ function backupDestinationFact(): SystemFact {
 }
 
 /**
+ * Can this installation restore its own backups, or does recovery need ARES?
+ *
+ * ⚑ THE MOST CONSEQUENTIAL FACT ON THE PANEL FOR AN OFFLINE SCHOOL, and until now it was invisible.
+ * Backups are encrypted to a public key whose private identity ARES holds; a school with no internet
+ * could therefore back up perfectly and still be unable to restore — server dies, USB drive full of
+ * correct encrypted dumps, and the only thing that can read them is somewhere else. `age` encrypts to
+ * any number of recipients and either identity decrypts independently, so adding the school's own key
+ * closes that with no key sharing (operator decision 2026-08-22, SPEC §11).
+ *
+ * ⚑ AND THE ROW MUST NOT OVERSTATE IT. Configuring the second key changes only backups written FROM
+ * THEN ON — `age` cannot retro-encrypt what is already uploaded. A school that adds its key today still
+ * has yesterday's dumps readable only by ARES, so the detail says so rather than implying the whole
+ * history became self-recoverable.
+ */
+function backupRecoveryFact(): SystemFact {
+  const schoolKey = process.env.BACKUP_AGE_RECIPIENT_SCHOOL?.trim()
+  const base: Omit<SystemFact, 'value' | 'status'> = {
+    key: 'backupRecovery',
+    label: 'Backup recovery',
+    envVar: 'BACKUP_AGE_RECIPIENT_SCHOOL',
+    description:
+      'Whether this installation holds its own key to reopen its backups, or whether recovering them ' +
+      'requires ARES. Backups are always encrypted; this is about who can decrypt them.',
+  }
+  return schoolKey
+    ? {
+        ...base,
+        value: 'This installation can recover on its own',
+        status: 'ok',
+        detail:
+          'Backups are encrypted to this school\'s key as well as ARES\'s, so either can restore them. ' +
+          'Backups written BEFORE this key was configured can still only be opened by ARES.',
+      }
+    : {
+        ...base,
+        value: 'Recovery needs ARES',
+        status: 'off',
+        detail:
+          'Backups can be made but not reopened here — only ARES holds a key. For an installation ' +
+          'without reliable internet, that turns recovery into a shipping problem during an outage.',
+      }
+}
+
+/**
  * ⚑ THE FILESYSTEM GETS A DEADLINE, exactly like the network probe. This reads a bind mount of a host
  * directory, and `collectSystemFacts` joins every fact with one `Promise.all` — so a wedged mount with
  * no bound would not degrade this row, it would hang the whole Manage page for the Site Administrator
@@ -514,6 +558,7 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       envVar: 'SENTRY_DSN',
     },
     backupDestinationFact(),
+    backupRecoveryFact(),
     backup,
     pdfEngine,
     artifactCache,

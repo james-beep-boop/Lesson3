@@ -30,6 +30,15 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
      plus one more copy. **If you lose it, every backup is unrecoverable.** Do NOT put it on the Rock.
    - Take the printed `age1...` PUBLIC key → it goes in the Rock's `.env` as `BACKUP_AGE_RECIPIENT`.
 
+   ⚑ **SECOND RECIPIENT — do this for any installation that may be offline** (decided 2026-08-22,
+   SPEC §11). Generate a second keypair that the SCHOOL keeps, and put its public key in the Rock's
+   `.env` as `BACKUP_AGE_RECIPIENT_SCHOOL`. `backup-db.sh` then encrypts to both, and **either identity
+   can decrypt independently** — no key is shared, and a school with no internet can restore without
+   ARES. The school's private identity goes somewhere durable and off-box (a safe; not the server).
+   ⚑ Forward-only: dumps written before you set it stay readable only by ARES. ⚑ The two keys must
+   differ — the script refuses a duplicate, since it would grant no independent recovery.
+   Manage → System's "Backup recovery" row reports which state an installation is in.
+
 3. **Choose and prepare the destination.**
 
    **Google Drive (headless OAuth):** on your **Mac** (has a browser):

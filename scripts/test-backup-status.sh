@@ -69,6 +69,19 @@ run_case() {
   STATUS="$SANDBOX/repo/out/ops/backup-status.json"
 }
 
+# Same as run_case, but with the school's second recipient set — so the two-recipient cases can assert
+# what reaches `age` without changing the signature every other case uses.
+run_case_with_school() {
+  env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" \
+    BACKUP_AGE_RECIPIENT="age1testrecipient" BACKUP_AGE_RECIPIENT_SCHOOL="$2" \
+    BACKUP_RCLONE_REMOTE="$1" PATH="$SANDBOX/home/bin:/usr/bin:/bin" \
+    bash "$BACKUP" --label "premigrate-test" >"$SANDBOX/output" 2>&1
+  EXIT=$?
+  CALLS="$(cat "$SANDBOX/calls")"
+  OUTPUT="$(cat "$SANDBOX/output")"
+  STATUS="$SANDBOX/repo/out/ops/backup-status.json"
+}
+
 check() {
   if [[ "$3" == "0" ]]; then
     printf '  ok   %s\n' "$1"; pass=$((pass+1))
@@ -254,6 +267,35 @@ run_case "drive:lesson3-backups" 1
 check "failed upload exits non-zero" "expected rclone failure" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
 check "failed upload preserves previous success" "status must remain byte-identical" \
   "$([[ -f "$STATUS" && "$(cat "$STATUS")" == "$OLD" ]] && echo 0 || echo 1)"
+
+# ── Two recipients (SPEC §11: an offline school must be able to recover without ARES) ──────────────
+#
+# ⚑ THE POINT IS WHAT REACHES `age`. The stub logs its argv, so these assert the actual recipient flags
+# rather than that the script merely exited 0 — a second recipient silently dropped would leave every
+# backup unrecoverable by the school while looking perfectly healthy, which is exactly the class of
+# failure that only shows up during a recovery.
+prepare_case
+USB="$SANDBOX/usb"; mkdir -p "$USB"; : >"$USB/.lesson3-backup-volume"
+run_case_with_school "$USB" "age1schoolkey"
+check "two recipients: succeeds" "expected exit 0" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check "two recipients: ARES key passed to age" "-r age1testrecipient must appear" \
+  "$(grep -q -- "-r age1testrecipient" <<<"$CALLS" && echo 0 || echo 1)"
+check "two recipients: school key passed to age" "-r age1schoolkey must appear" \
+  "$(grep -q -- "-r age1schoolkey" <<<"$CALLS" && echo 0 || echo 1)"
+
+prepare_case
+USB="$SANDBOX/usb"; mkdir -p "$USB"; : >"$USB/.lesson3-backup-volume"
+run_case_with_school "$USB" "age1testrecipient"
+check "duplicate recipient refused" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check "duplicate recipient uploads nothing" "rclone must not run" \
+  "$(grep -q "^rclone copyto" <<<"$CALLS" && echo 1 || echo 0)"
+
+prepare_case
+USB="$SANDBOX/usb"; mkdir -p "$USB"; : >"$USB/.lesson3-backup-volume"
+run_case_with_school "$USB" ""
+check "one recipient still works" "expected exit 0" "$([[ $EXIT -eq 0 ]] && echo 0 || echo 1)"
+check "one recipient passes exactly one -r" "only the ARES key" \
+  "$([[ "$(grep -o -- "-r " <<<"$(grep '^age ' <<<"$CALLS")" | wc -l | tr -d ' ')" == "1" ]] && echo 0 || echo 1)"
 
 echo
 printf 'backup status: %d passed, %d failed\n' "$pass" "$fail"

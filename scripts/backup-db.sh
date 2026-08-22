@@ -2,7 +2,7 @@
 #
 # Encrypted Postgres backup for Lesson3 (SPEC §11 / readiness #9).
 #
-#   pg_dump (in the postgres container)  ->  age -r <recipient>  ->  rclone copy to remote/local storage
+#   pg_dump (in the postgres container)  ->  age -r <recipient…>  ->  rclone copy to remote/local storage
 #
 # DESIGN
 #   - pg_dump runs INSIDE the postgres container (`docker compose exec postgres`), because Postgres is
@@ -34,7 +34,8 @@
 #   scripts/backup-db.sh --label premigrate    # pre-deploy snap  -> premigrate/ (used by deploy.sh)
 #
 # CONFIG (from the repo .env, or the environment; see docs/OPS.md):
-#   BACKUP_AGE_RECIPIENT             age1...  (required) public recipient key
+#   BACKUP_AGE_RECIPIENT             age1...  (required) ARES's public recipient key
+#   BACKUP_AGE_RECIPIENT_SCHOOL      age1...  (optional) the SCHOOL's own public recipient key
 #   BACKUP_RCLONE_REMOTE             e.g. drive:lesson3-backups OR /media/lesson3-backups (required)
 #   BACKUP_DAILY_KEEP                default 7    (newest N kept in daily/)
 #   BACKUP_WEEKLY_KEEP               default 4    (newest N kept in weekly/)
@@ -48,6 +49,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 BACKUP_AGE_RECIPIENT="$(env_get BACKUP_AGE_RECIPIENT)"
+BACKUP_AGE_RECIPIENT_SCHOOL="$(env_get BACKUP_AGE_RECIPIENT_SCHOOL)"
 BACKUP_RCLONE_REMOTE="$(env_get BACKUP_RCLONE_REMOTE)"
 HEALTHCHECK_BACKUP_URL="$(env_get HEALTHCHECK_BACKUP_URL)"
 DB_NAME="$(env_get BACKUP_DB_NAME)";    DB_NAME="${DB_NAME:-lesson3}"
@@ -151,6 +153,30 @@ write_backup_status() {
 
 need docker; need age; need rclone
 [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]] || die "BACKUP_AGE_RECIPIENT is not set"
+
+# ⚑ TWO RECIPIENTS, SO AN OFFLINE SCHOOL CAN RECOVER WITHOUT ARES (operator decision 2026-08-22,
+# SPEC §11). `age` encrypts to any number of recipients and EITHER identity decrypts independently, so
+# adding the school's key costs one flag and no key sharing: ARES keeps its identity, the school keeps
+# its own, and neither needs the other's.
+#
+# The gap this closes: with a single ARES recipient, a school with no internet could back up perfectly
+# and still not restore — their server dies, they hold a USB drive of correct encrypted dumps, and the
+# only thing that can read them is elsewhere. Recovery became a physical shipping problem during an
+# outage. Verified on 2026-08-22 that the restore path itself works by bringing the ciphertext to the
+# key; an offline school has no equivalent move, which is what made this worth changing.
+#
+# ⚑ FORWARD-ONLY, and deliberately so: existing backups stay decryptable by the ARES identity exactly as
+# before. Only dumps written after this runs carry the second recipient, so there is no migration and no
+# re-encryption of history.
+AGE_RECIPIENT_ARGS=(-r "$BACKUP_AGE_RECIPIENT")
+if [[ -n "${BACKUP_AGE_RECIPIENT_SCHOOL:-}" ]]; then
+  # ⚑ REFUSE A DUPLICATE. Pasting the same key into both variables produces a backup that looks
+  # two-recipient and grants nobody new the ability to decrypt — the independence is the entire point,
+  # and a silent no-op here would be discovered during a recovery.
+  [[ "$BACKUP_AGE_RECIPIENT_SCHOOL" != "$BACKUP_AGE_RECIPIENT" ]] \
+    || die "BACKUP_AGE_RECIPIENT_SCHOOL is the same key as BACKUP_AGE_RECIPIENT — that grants no independent recovery"
+  AGE_RECIPIENT_ARGS+=(-r "$BACKUP_AGE_RECIPIENT_SCHOOL")
+fi
 [[ -n "${BACKUP_RCLONE_REMOTE:-}" ]] || die "BACKUP_RCLONE_REMOTE is not set"
 reject_unsupported_json_controls "$BACKUP_RCLONE_REMOTE" "BACKUP_RCLONE_REMOTE"
 reject_unsupported_json_controls "$DB_NAME" "BACKUP_DB_NAME"
@@ -186,7 +212,7 @@ echo "backup-db: dumping '$DB_NAME' -> encrypt -> $DEST"
 # pg_dump in the container (custom format), encrypt on the host. `set -o pipefail` makes a pg_dump
 # failure fail the whole pipe rather than uploading a truncated/empty file.
 docker compose exec -T postgres pg_dump -U "$DB_USER" -Fc "$DB_NAME" \
-  | age -r "$BACKUP_AGE_RECIPIENT" -o "$LOCAL"
+  | age "${AGE_RECIPIENT_ARGS[@]}" -o "$LOCAL"
 
 SIZE="$(wc -c < "$LOCAL" | tr -d '[:space:]')"
 [[ "$SIZE" -gt 0 ]] || die "encrypted dump is empty — aborting (nothing uploaded)"
