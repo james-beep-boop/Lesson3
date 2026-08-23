@@ -69,7 +69,9 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
   side, removals in red and additions in green. Comparison is area by area — each lesson's outcomes,
   overview, implementation framework, teacher reflection and summary prompts separately — so the page
   opens with a count of the changed areas, a list you can click to jump to any of them, and only the
-  changed areas shown. Turn off *Changes only* to read both versions in full.
+  changed areas shown. Turn off *Changes only* to read both versions in full. An area marked
+  *Spacing or document structure changed* differs only in how the text is broken up — the wording is
+  the same, which is why nothing in it is coloured.
 
 ## Subject-grade administrators
 

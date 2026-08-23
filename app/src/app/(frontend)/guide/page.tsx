@@ -155,7 +155,9 @@ export default async function UserGuidePage() {
             overview, implementation framework, teacher reflection and summary prompts are each
             compared on their own. The page opens with a count of the changed areas and a list you
             can click to jump straight to any of them, and shows only the areas that changed. Turn
-            off <em>Changes only</em> to read the two versions in full.
+            off <em>Changes only</em> to read the two versions in full. An area marked{' '}
+            <em>Spacing or document structure changed</em> differs only in how the text is broken up
+            — the wording is the same, which is why nothing in it is coloured.
           </li>
         </ul>
       </section>
