@@ -1746,6 +1746,17 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // version", not "something went well"), and accent would make a read-only marker compete with the
 // actual actions beside it. `--theme-elevation-1000` is the admin's equivalent of the frontend
 // `--ink`, so the same status now looks the same on both surfaces.
+// The version number, beside the Official/Not Official status. Same size as that status so they read
+// as one metadata run, but tabular figures and the mono stack so `v1.10.0` and `v1.9.0` line up
+// rather than kerning differently. Quiet by design — it is an identifier, not a warning; what makes
+// it useful is being ALWAYS present, not being loud.
+.lesson-controls__semver {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--theme-elevation-800);
+}
+
 .lesson-controls__official {
   font-size: 0.85rem;
   font-weight: 600;
