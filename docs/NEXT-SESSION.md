@@ -25,6 +25,121 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-23) — compare finds the change; and every guard added was mutation-tested
+
+**This supersedes the blocks below**, which stay for provenance. `main` carries #271–#284.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Deployed | ⚑ the Rock trails `main`. Measure: `git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..main` |
+| Pending migrations | none — a plain `scripts/deploy.sh`. #284 touches no collection, field or `payload.config` |
+| First-view cost after deploy | `COMPARE_DIFF_FORMAT_VERSION` → 3, so the first compare view per version PAIR recomputes. DOCX/PDF/HTML-preview artifacts are untouched — `GENERATOR_RENDER_VERSION` did not move |
+
+⚑ **Four commits before #284 had no handoff block of their own** (#280–#283, below), because the
+2026-08-22 block stopped at #278. They are summarised here so this file is not six commits stale.
+
+## What changed
+
+**#284 — compare diffs LOGICAL AREAS, not whole documents.** The red/green was already there; what was
+missing was findability. It ran `HtmlDiff` over each rendered document and showed two long panes, so on
+a forty-page bundle a two-word edit in Lesson 4 was unfindable and the page could not say how much had
+changed. It now splits both versions into the generator's own areas (a lesson's Section A–E tables, the
+sub-strand overview, the differentiation table, and the corresponding areas of the other two
+documents), pairs them by key, and renders each pair as one row — defaulting to a **Changes only** view
+with a changed-area count and a clickable index. Full reasoning, the four review corrections and the
+accepted limitations: `docs/DECISIONS.md` 2026-08-23.
+
+⚑ **Three things in there that a future change must not undo**, each with a test:
+- **Split BEFORE diffing.** `HtmlDiff` rewrites the markup it annotates, so no header pattern matches
+  its output. Pipeline: cached render → groups → pair → diff.
+- **`changed` comes from comparing SOURCE HTML, never from counting annotations.** A paragraph split
+  and a whitespace-only edit emit no annotations at all, so counting reports an edited version as
+  identical.
+- **Panes are paired, never filtered independently.** Annotations are asymmetric — a deletion is
+  marked only in the old pane — so independent filtering slides unrelated content side by side.
+
+**#283, #282 — editor link insertion** (proof of concept, then consolidating the link action and PDF
+tab history). See `docs/DECISIONS.md` 2026-08-22.
+
+**#281 — the Guide told teachers a falsehood** about `Forgot password?` on an installation with no
+email. Both the Guide and the System panel now point at the Site-administrator reset link.
+
+**#280 — the `--label` error listed the valid inputs incorrectly**, which cost the operator a run. An
+error that lists valid inputs wrongly is worse than one that lists none, because it is believed.
+
+## ⚑ The pattern worth carrying forward — it is the SAME one as 2026-08-22
+
+The previous handoff's lesson was **silent passes**: not broken code, but a check that could not fail
+or a claim wider than its evidence. Every defect found in #284's review was another instance, which is
+why it is worth repeating rather than assuming it was learned:
+
+- **TOTALITY was simply false.** The splitter walked `body.children` — elements only — so bare text
+  under `<body>` was dropped without trace. The test counted `children` too, so code and test shared
+  one blind spot and the invariant read as proven.
+- `mergeGroupKeys` compared `merged.length` to `expected.size` then tested membership. One duplicated
+  key plus one lost key keeps the length equal and passes membership — the exact failure the assertion
+  existed to catch.
+- A test named "stacks at ≤640px" never checked a media query; a base-width rule would have satisfied
+  it while stacking the panes on desktop.
+- A cache fixture claimed in prose to be "a valid current-format entry" with nothing enforcing it, in a
+  test that compared the function's output against the very literal it fed in.
+- `structureOnly` was first derived by counting annotations — see above.
+
+**Standing practice, restated: mutate the guard and watch it go red before calling it done.** The
+totality guard was mutation-tested (reintroducing `body.children` makes it fail); the others are
+type- or content-enforced rather than order-inferred.
+
+## What to work on next
+
+1. **Deploy** (operator will) — no migrations. Expect the one-time compare recompute above.
+2. **Set the school's second recipient** if this box should be self-recoverable — `docs/OPS.md` §2.
+   ⚑ `backup-db.sh` re-reads `.env` every run, so backups pick it up immediately; the APP reads env at
+   container START, so the panel row needs the container recreated before it changes.
+3. **System panel part 2** — unblocked, all four contracts closed. A ONE-flag PR (`publicLibraryLive`):
+   fail-closed reader, enforcement at the public route, Save with re-auth, atomic check-and-write,
+   versioned acknowledgement, the two disabled placeholders, blocking warning on going public.
+4. **The className-resolves-to-a-rule guard** — last half of the appearance-testing gap.
+5. **Official-pointer lock** — still a hard prerequisite for the public read slice.
+6. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
+   conversations; `NOTICE` names the gap. Attribution-inside-documents is a GENERATOR change (SPEC §4).
+
+### Compare follow-ups, deliberately NOT done
+
+- **Phase 2 Next/Previous** over the changed areas was designed and left unbuilt. With the filter
+  collapsing 28 areas to 5 it may not be worth it — decide by using the page, not from the plan.
+- ⚑ **Row-level trimming inside a changed area was considered and DECLINED** (operator decision
+  2026-08-23). Do not "improve" it back in without reading `docs/DECISIONS.md` 2026-08-23: the row is
+  the unit of meaning, and per-row hiding reintroduces the alignment failure the paired rows exist to
+  prevent. A collapsible "… N unchanged rows …" run is the only version worth revisiting.
+- **Ordinal keys cascade.** Inserting or removing a lesson IN THE MIDDLE renumbers everything after it,
+  so the tail of the document reads as changed (same for an inserted Final Explanation section). Both
+  are pinned by tests that assert the wrong-looking behaviour on purpose. The fix is a stable
+  per-lesson identity in the stored data, not cleverer text matching.
+
+### ⚑ BACK BURNER, not ours to fix: the vendored generator hardcodes GRADE 10
+
+`app/src/generator/vendor/lib/build_docs.js` lines **95, 169 and 177** interpolate the literal
+`GRADE 10` into the Final Explanation title and the Summary Table title and header, ignoring
+`META.grade` — which is a REQUIRED integer in the ARES contract
+(`app/src/ingest/ares-contract.schema.json`) and whose own field description says "Shown in the
+generated document". Nothing in the generator reads it.
+
+So a Grade 11 or 12 plan renders a correct Lesson Sequence (its title is ARES-supplied `META.titleDoc`)
+and a correct "Grade Level" row (`UNIT.gradeLevel`), while **two of the three documents say GRADE 10** —
+one of them the student-facing Final Explanation.
+
+⚑ **The fix is upstream in `cbe-generation-system`, NOT here.** The three libraries are vendored
+byte-verbatim with checksums in `app/src/generator/vendor/PROVENANCE.md`; a local patch breaks them and
+is reverted by the next `scripts/vendor-generator.sh` re-sync. Sequence: fix upstream → re-vendor at
+the new sha → bump `GENERATOR_RENDER_VERSION` → re-approve the golden files → re-run the fidelity
+regression. Raised with the operator 2026-08-23; outside this repo's control and parked until upstream
+moves. **Worth checking before any Grade 11/12 corpus is generated.**
+
+---
+
 # ⚑ HANDOFF (2026-08-22) — backups are now PROVEN recoverable, and the panel says what it means
 
 **This supersedes the blocks below**, which stay for provenance. `main` carries #271–#278.
