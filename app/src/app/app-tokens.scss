@@ -115,4 +115,17 @@
   --app-btn-quiet-line: #e2e2e2;
   --app-btn-disabled-ink: #666; /* on --app-btn-bg this is ~5.4:1 — AA, and unmistakably inert */
   --app-ui-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* ── Diff annotations ───────────────────────────────────────────────────────────────────────────
+     The second colour exception, and on the same grounds as the button palette above: these are
+     SEMANTIC, not decorative. "Green means this text is an addition" is a claim a reader carries from
+     one surface to the other — version compare on the frontend, the edit-recovery restore offer in
+     the admin — and two hardcoded pairs would let the same claim render two ways.
+     Applied to Payload's HtmlDiff `data-match-type` output, whose contract is pinned by
+     `tests/unit/htmlDiffContract.spec.ts`; both sheets style exactly those two attribute values.
+     Pale chip + dark ink, so each annotation is legible against whatever it sits on rather than
+     depending on the surrounding page colour. */
+  --app-diff-delete-bg: #fde8e8;
+  --app-diff-delete-ink: #9b1c1c; /* on its own chip ~7.4:1 */
+  --app-diff-create-bg: #def7e4;
+  --app-diff-create-ink: #046c4e; /* on its own chip ~5.3:1 */
 }

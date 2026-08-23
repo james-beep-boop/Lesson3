@@ -102,7 +102,7 @@ describe('listing only what DIFFERS from the saved version', () => {
       { 'lesson:L1': { overview: 'original', teacherReflection: 'untouched' } },
     )
     expect(groups).toHaveLength(1)
-    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'edited' }])
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: 'original', now: 'edited' }])
   })
 
   it('lists NOTHING when the capture matches the saved version entirely', () => {
@@ -118,7 +118,9 @@ describe('listing only what DIFFERS from the saved version', () => {
   it('treats a row the saved version does not have as entirely new', () => {
     // A lesson added during the session: nothing to compare against, so all of it differs.
     const groups = groupsOf(capture({ 'lesson:L9': { overview: 'brand new' } }), [], {})
-    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'brand new' }])
+    // ⚑ `was: ''` is what makes the panel render the whole value as an addition rather than as a
+    // change from nothing-in-particular. `unifiedDiff('' , v)` annotates all of `v`.
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: '', now: 'brand new' }])
   })
 
   it('does not read a stored null and a captured empty string as a change', () => {
@@ -129,7 +131,17 @@ describe('listing only what DIFFERS from the saved version', () => {
       anchors,
       { 'lesson:L1': { overview: 'was', teacherReflection: null } },
     )
-    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'real edit' }])
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: 'was', now: 'real edit' }])
+  })
+
+  it('normalises a stored null on the WAS side, so the diff has a string to work with', () => {
+    // ⚑ `was` feeds straight into `unifiedDiff`, which takes two strings. A `null` reaching it would
+    // diff the text "null" against the prose — the field would render as though the teacher had
+    // replaced the word null, which is nonsense a reader cannot un-see.
+    const groups = groupsOf(capture({ 'lesson:L1': { overview: 'filled in at last' } }), anchors, {
+      'lesson:L1': { overview: null },
+    })
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: '', now: 'filled in at last' }])
   })
 
   it('lists everything when no saved projection is given', () => {

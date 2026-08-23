@@ -164,6 +164,29 @@ test.describe('case 4 — the same user is OFFERED their work, never given it ba
       typed,
     )
 
+    // ⚑ Shown as a CHANGE, not as a paragraph to scan (operator suggestion 2026-08-23): the same
+    // HtmlDiff engine and the same red/green vocabulary as the compare page, one field at a time.
+    // Asserted at the annotation rather than on text alone, because `toContainText(typed)` above
+    // passes either way — `fill` replaces the value wholesale, so the typed string stays contiguous
+    // in the unified output and that assertion cannot tell a diff from a plain dump.
+    //
+    // ⚑ Each locator resolves to exactly ONE span, which is a property of the FIXTURE, not of the
+    // engine: `typeProse` uses `fill`, so the saved prose is replaced wholesale, and the two strings
+    // share no word tokens (the capture is prefixed with a UUID) — so the diff is one removal
+    // followed by one addition. Probed 2026-08-23. Give the fixture prose wording that overlaps
+    // `MARK`-prefixed text and the diff will interleave into several spans, and these two lines fail
+    // on strict mode rather than on the feature. Relax them to `.first()` if that day comes.
+    await expect(
+      firstGroup.locator('dd [data-match-type="create"]'),
+      'the unsaved wording must be marked as an addition',
+    ).toContainText(typed)
+    await expect(
+      firstGroup.locator('dd [data-match-type="delete"]'),
+      'and what the saved version says must be marked as a removal',
+    ).toContainText(saved)
+    // The colour key replaces the pane titles compare relies on for the same orientation.
+    await expect(prompt(page).locator('.lp-restore__key')).toBeVisible()
+
     // ⚑ The CAPTURE time, not the source version's mtime. Read off `dateTime` because the visible
     // text is a locale string; the assertion is that it lands in this test's own run, which the
     // source's mtime (minted by `makeVersion` before any of this) would also satisfy — hence the

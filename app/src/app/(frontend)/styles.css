@@ -1526,17 +1526,19 @@ button.user-menu__item {
   font-style: italic;
 }
 /* Diff annotations (Payload's HtmlDiff output contract, pinned by htmlDiffContract.spec.ts):
-   deletions red in the left pane, additions green in the right. */
+   deletions red in the left pane, additions green in the right.
+   Colours come from app-tokens.scss, which the admin's restore offer reads too — the same annotation
+   means the same thing on both surfaces, so it may not be stated twice. */
 .compare-diff [data-match-type='delete'] {
-  background: #fde8e8;
-  color: #9b1c1c;
+  background: var(--app-diff-delete-bg);
+  color: var(--app-diff-delete-ink);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   border-radius: 3px;
 }
 .compare-diff [data-match-type='create'] {
-  background: #def7e4;
-  color: #046c4e;
+  background: var(--app-diff-create-bg);
+  color: var(--app-diff-create-ink);
   border-radius: 3px;
 }
 

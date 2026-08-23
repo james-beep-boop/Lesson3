@@ -14,7 +14,17 @@ import { PROSE_LABELS } from '../../hooks/fieldSplit'
 import { orphanHeading, parseKey, type CaptureMap } from '../../lib/editRecovery/projection'
 import type { OfferedCapture } from './protocol'
 
-type Group = { id: string; heading: string; lines: { field: string; value: string }[] }
+/**
+ * One changed field, BOTH SIDES.
+ *
+ * ⚑ `was` is carried rather than the diff itself, and that is what keeps this module free of
+ * `@payloadcms/ui` — see the header. It is also what lets the panel render the same line two ways: a
+ * word-level diff when the capture can be put back, plain captured text when it is read-only and the
+ * point is to copy it out. `was` is `''` for a field the saved version does not have.
+ */
+type Line = { field: string; was: string; now: string }
+
+type Group = { id: string; heading: string; lines: Line[] }
 
 /**
  * The label the EDITOR puts above this field.
@@ -90,7 +100,11 @@ export const groupsOf = (
       .filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '')
       // `?? ''` so a stored `null` and a captured `''` are not read as a change. Both mean empty.
       .filter(([field, value]) => !saved || (savedValues?.[field] ?? '') !== value)
-      .map(([field, value]) => ({ field: fieldLabel(field), value }))
+      .map(([field, value]) => ({
+        field: fieldLabel(field),
+        was: savedValues?.[field] ?? '',
+        now: value,
+      }))
     if (lines.length === 0) return
 
     // The row a key belongs to — the singleton scopes have none, so they stand alone under their own
