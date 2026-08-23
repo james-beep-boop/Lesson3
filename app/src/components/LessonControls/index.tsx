@@ -733,30 +733,59 @@ export default function LessonControls() {
       )}
       {helpOpen && (
         <Modal title="Editing help" onClose={() => setHelpOpen(false)} className="lesson-edit-help">
-          <ul className="lesson-edit-help__list">
-            <li>Saving creates a new version. The original does not change.</li>
-            <li>Press Enter to start a new paragraph.</li>
-            <li>
-              Start a line with <code>- </code> to make a bullet.
-            </li>
-            <li>
-              Place the cursor in a prose field, then use <em>Insert link</em> in the toolbar to add
-              an internet address or a PDF from the Rock.
-            </li>
-            <li>Bold, italics, and underlining are not supported.</li>
-            <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>
-            {canEditStructure && <li>To add a lesson, duplicate an existing lesson.</li>}
+          <p className="modal__body">How editing and saving behave.</p>
+          {/* ⚑ ROWS, NOT BULLETS (operator decision 2026-08-23). Eight bullets of mixed importance
+              read as one undifferentiated wall: the rule you need and the aside you do not look
+              alike. Each is now a claim you can scan plus the detail underneath, which is also what
+              gives the quiet rules something to separate — a rule between plain bullets is a line
+              between sentences.
+              A description list because that is what this is: term, then description. `<div>`
+              wrappers around `dt`/`dd` are valid inside `<dl>` and are what let each pair be one
+              bordered row. */}
+          <dl className="help-rows">
+            <div className="help-rows__row">
+              <dt>Saving creates a new version</dt>
+              <dd>The original does not change.</dd>
+            </div>
+            <div className="help-rows__row">
+              <dt>Press Enter for a new paragraph</dt>
+              <dd>
+                Start a line with <code>- </code> to make a bullet.
+              </dd>
+            </div>
+            <div className="help-rows__row">
+              <dt>Formatting is plain text</dt>
+              <dd>Bold, italics, and underlining are not supported.</dd>
+            </div>
+            <div className="help-rows__row">
+              <dt>Insert link adds an address or a PDF</dt>
+              <dd>
+                Place the cursor in a prose field, then use <em>Insert link</em> in the toolbar to
+                add an internet address or a PDF from the Rock.
+              </dd>
+            </div>
+            <div className="help-rows__row">
+              <dt>Check your work before saving</dt>
+              <dd>Quick preview checks your content. Formatted PDF shows the final layout.</dd>
+            </div>
+            {canEditStructure && (
+              <div className="help-rows__row">
+                <dt>Add a lesson by duplicating one</dt>
+                <dd>Duplicate an existing lesson, then edit the copy.</dd>
+              </div>
+            )}
             {/* Moved out of the recovery indicator, which now shows only LIVE status: this is a
                 static rule about the feature, so it belongs with the other rules. Still admins
                 only — a teacher with editing access cannot make the edits it excludes, and design
                 §3 says an administrator who assumed otherwise is the one person the feature would
                 actively mislead. */}
             {canEditStructure && (
-              <li>
-                Only prose is backed up while you type — structural changes and answer keys are not.
-              </li>
+              <div className="help-rows__row">
+                <dt>Only prose is backed up while you type</dt>
+                <dd>Structural changes and answer keys are not.</dd>
+              </div>
             )}
-          </ul>
+          </dl>
           {/* ⚑ SECONDARY, not primary. Nothing in this dialog is a primary action — it is an
               acknowledgement, and a filled button claimed an emphasis it has not earned. Manage uses
               outline for both of its row controls, so outline is the house style for a dialog's own
