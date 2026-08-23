@@ -25,6 +25,141 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-23, later) — the editor stopped offering what it would not honour, and the dialogs learned to look like the app
+
+**This supersedes the blocks below**, which stay for provenance. `main` carries #271–#293.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Deployed | the Rock was on `fc144c4` (#285) and trailed by eight; deployed to `main` at the end of this session — see **Deploy** below. ⚑ Re-measure rather than trusting this line: `git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..main` |
+| Pending migrations | **none** — a plain `scripts/deploy.sh`. Checked, not assumed: no file under `app/src/migrations/` changed across #286–#293, and #291's one field-type change (`prose('title')` → `structureText('title')` in the Summary Table row) is schema-neutral because Payload's drizzle adapter maps BOTH `text` and `textarea` to `varchar` (`@payloadcms/drizzle/dist/schema/traverseFields.js`, read from the installed source) |
+| First-view cost after deploy | **none.** No cache or format version moved — `COMPARE_DIFF_FORMAT_VERSION` is still 3 and `GENERATOR_RENDER_VERSION` did not change, so no DOCX, PDF, HTML-preview or compare artifact is invalidated |
+
+## What changed, and why it is one story
+
+Eight PRs, and they are not a grab bag: the through-line is **the editor promising things it could not
+deliver.** It offered edits the system would silently drop, it offered a dialog full of prose that was
+not the answer to any question the user had, and it offered buttons that did not look like buttons.
+
+**#286 — Prettier across the repo, and a CI gate so it cannot drift.** 106 files reformatted. The gate
+is the point: formatting had drifted for months because nothing checked it, and `USER_GUIDE.md` had
+been failing a whole-file format check unnoticed. `npm run format:check` now runs in the gate.
+
+**#287 — the control bar says WHICH version you are on.** There was a Delete button and no indication
+of what it would delete. The bar now names the version and its Official status, in the header and in
+both confirmation dialogs — deliberately NOT on the Delete button itself, where a long label reads as
+a warning rather than a label.
+
+**#288 — the recovery notice got its own line.** It had been rendering as a one-word-per-line vertical
+column between Cancel and Insert link. ⚑ The lesson worth keeping: the first fix was CSS
+(`flex-basis: 100%`) and it did **nothing**, because the parent button group is `flex-wrap: nowrap` —
+measured in the browser at 60px/5 lines *after* the "fix". The real fix moved the element out of the
+button group. A CSS change that should work and doesn't means the containing block is not what you think.
+
+**#289 — the Modal is portalled, and has the Manage panel's chrome.** ⚑ `position: fixed; inset: 0`
+means "the viewport" only while no ancestor establishes a containing block, and Payload's
+document-controls wrapper sets `transform: translateZ(0)` inside `@media (max-width: 1024px)`. An
+identity transform, but enough: every dialog opened from the control bar was laid out inside a ~235px
+strip — page behind undimmed, panel centred in the strip, backdrop-click working only inside it.
+Measured 657×235 in a 1227px viewport. Above 1024px nothing reproduced, which is why it survived.
+`createPortal` to `document.body` is the structural fix, and `tests/unit/modalChrome.spec.tsx` asserts
+it structurally so no future `transform`/`filter`/`contain` can re-break it.
+
+**#290 — Editing help reads as rows, not a wall of bullets.**
+
+**#291 — the editor stopped offering edits the system does not honour.** A teacher could change a
+biology lesson plan's subject to chemistry, or its grade, in a form that would then be rejected — or
+worse, accepted into an inconsistent state. Slice A closed the invariant hole and hid three fields
+that are stored faithfully but editable by nobody (`META.outputDir`, `LESSONS[].substrand`,
+`LESSONS[].aresKeywords`). SPEC §5 gained a tier for exactly that category.
+
+⚑ **Two things here a future change must not undo:**
+- **`storedNotEdited()` is PRESENTATIONAL ONLY — no field-level `access`.** Payload field access NULLS
+  optional admin-only subfields inside open arrays, and `docs/DECISIONS.md:10545` names
+  `lessons[].substrand`/`aresKeywords` as the exact prior victims. The write-time authority is the
+  `applyEditorFieldSplit` whitelist, not the field config. The first draft of this got it wrong and an
+  altitude review caught it.
+- **The invariant guard keys on `'officialVersion' in data`, not `??`.** An explicit `null` is a system
+  clear; `??` read it as "not mentioned", fell back to the stored pointer, and validated the very
+  version it was about to unpoint — and `purgeMarked` clears up to 200 plans per batch on every spec
+  teardown. Pinned by `tests/unit/officialPointerPartialUpdate.spec.ts`.
+
+**#292 — the restore prompt shows only what changed, and Show details lands somewhere.** The
+unsaved-changes dialog was listing the *entire document*, because a capture is a full snapshot
+(`projectCapture` walks the document and never diffs), so "everything captured" and "everything in the
+plan" were the same list. Operator decision: never show the whole document; **blank would be better.**
+It now lists only fields that differ, and says so plainly when nothing does. `Show details` appeared
+dead because its content was ~10,000px away; it now scrolls to it.
+
+**#293 — the restore offer shows what changed, word by word.** Operator suggestion: *"you should be
+able to use the output of the diff function in the compare feature of the app to show just what unsaved
+changes are."* Adopted, with the boundary at the **engine**: `HtmlDiff` on two short strings per field,
+NOT `diffVersionGroupsCached`, which diffs rendered documents keyed on two saved version ids and would
+mean running the generator at the moment a teacher opens the editor.
+
+⚑ **Four decisions in #293 that a later reader could undo as oversights** (full reasoning:
+`docs/DECISIONS.md` 2026-08-23, second entry):
+- **A READ-ONLY capture still shows PLAIN text.** That path exists so stale prose can be *copied out*,
+  and unified diff output interleaves the removed words into the new — a paste would come back as
+  `…the mitochondriachloroplast under…`. Pinned by `tests/unit/restorePromptRender.spec.tsx`, the only
+  thing that can see which rendering the panel chose; choosing wrong looks perfectly plausible.
+- **Escaping is a security control, not hygiene.** Raw textarea prose reaches a
+  `dangerouslySetInnerHTML` here, where every other compare call site feeds it DOMPurify output.
+  `escapeHtml` is now one copy in `lib/escapeHtml.ts`.
+- **The diff colours are SHARED tokens** (`--app-diff-*`) — the second exception to `app-tokens.scss`'s
+  "scale is shared; colour is not" rule, because "green means addition" is a claim a reader carries
+  from the frontend compare page to the admin panel.
+- **Unified needs padding side-by-side does not.** Compare's annotations live in separate panes and
+  never touch; unified butts a removal against its replacement and rendered as one word.
+
+## The repeated lesson of this session
+
+Three of these eight were found **only by looking at the rendered page** — the vertical text, the
+trapped modal, and `Discard the changes` rendering as bare text (transparent background, transparent
+border, black ink, because the panel's buttons never passed `className="lp-btn"`, where the admin's
+destructive outline and hover fill live). None was visible to `tsc`, ESLint or 942 unit tests. Two were
+reported by the operator from a screenshot after review had passed.
+
+⚑ And two verification failures worth not repeating:
+1. **A conclusion that was right on evidence that was invalid.** #291 was "verified" inside a collapsed
+   sidebar and against a stale Payload config held by a long-running dev server. Restart the dev server
+   before believing a config-dependent measurement.
+2. **Renaming three button labels without following them through the e2e suite.** #292's gate failed
+   with five timeouts on `getByRole('button', { name: 'Restore these changes' })`. A user-facing string
+   is an API. `grep` for it before you change it.
+
+## Where to pick up
+
+**The next project is stated and scoped: slice B of #291** — eliminate the remaining editor fields that
+should not be editable. The operator's framing: *"no one will ever need to change a lesson plan from
+one subject or grade to another. There are many other fields that appear editable that should not be."*
+Slice A hid three provenance fields and closed the invariant; slice B is the identity surface itself.
+
+**Two open decisions slice B must make** (both deliberately deferred, not overlooked):
+1. **Where the exceptional identity-repair route lives.** A mis-ingested plan has to be fixable by
+   *someone*. Site-Admin-only Manage action, or a separate repair view?
+2. **Whether `Official Version` / `Visibility` / `Public Slug` leave the field list.** They are real
+   operations, but they are not *content*, and they currently sit among the prose.
+
+**Also queued, smaller:**
+- **`LessonControls`' view-mode `Delete` passes no `lp-btn`** and so probably renders as bare text the
+  way `Discard the changes` did. Noted in #293 and left as out of scope — check it when that dialog is
+  next touched.
+- **13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend.
+- **Edit recovery is undocumented in the Guide.** `USER_GUIDE.md` never mentions unsaved-work capture,
+  the "backed up" indicator, or the restore offer — a teacher meets the dialog with no prior
+  explanation, and it is now the one place in the app showing red/green diff colours outside compare.
+  Noted 2026-08-23, not fixed: `tests/unit/guideParity.spec.ts` requires `USER_GUIDE.md` and the
+  in-app `/guide` page to state the same rules, so this is a two-surface change, not a paragraph.
+- **Slice C (derivations)** changes generated output, so it needs a corpus check before it starts.
+- **`GRADE 10` is hardcoded** in vendored `build_docs.js` lines 95/169/177. Back burner: an upstream
+  ARES fix, not ours to patch — the vendored generator is byte-verbatim by law.
+
+---
+
 # ⚑ HANDOFF (2026-08-23) — compare finds the change; and every guard added was mutation-tested
 
 **This supersedes the blocks below**, which stay for provenance. `main` carries #271–#284.
