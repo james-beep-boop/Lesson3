@@ -73,12 +73,18 @@ const mobileRules = adminRules.filter((r) => r.media && /max-width:\s*640px/.tes
 
 const root = postcss.parse(css)
 
-/** Every rule INCLUDING at-rule children — the shape "can any rule reach this?" questions want. */
-const allRules: { selectors: string[]; body: string }[] = []
+/**
+ * Every rule INCLUDING at-rule children — the shape "can any rule reach this?" questions want.
+ * `media` carries the enclosing at-rule params (as `adminRules` above already does), so a guard can
+ * assert WHICH breakpoint a rule lives under instead of inferring it from source order.
+ */
+const allRules: { selectors: string[]; body: string; media: string | null }[] = []
 root.walkRules((r) => {
+  const parent = r.parent as { type?: string; params?: string } | undefined
   allRules.push({
     selectors: r.selectors.map((s) => s.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
+    media: parent?.type === 'atrule' ? (parent.params ?? null) : null,
   })
 })
 
@@ -164,6 +170,90 @@ describe('Guide + Compare visual system', () => {
       touch!.i,
       'the ≤640px picker rule must come after the base rule — equal specificity, order decides',
     ).toBeGreaterThan(base!.i)
+  })
+
+  // ---- Per-area compare (2026-08-23) --------------------------------------------------------
+  it('scopes the "Changes only" filter so it can never hide content outside the compare body', () => {
+    // `[data-changed]` is a plain attribute, and `display: none` on it unscoped would be a page-wide
+    // content eraser the moment any other view adopted the attribute. Every hiding rule must carry
+    // the `.compare-body--changes-only` ancestor.
+    const hiders = allRules.filter(
+      (r) => r.selectors.some((s) => s.includes('[data-changed')) && /display:\s*none/.test(r.body),
+    )
+    expect(hiders.length, 'expected the changes-only hiding rule').toBeGreaterThan(0)
+    for (const r of hiders) {
+      for (const s of r.selectors) {
+        expect(
+          s,
+          'a [data-changed] display:none rule must be scoped to the compare body',
+        ).toContain('.compare-body--changes-only')
+      }
+    }
+  })
+
+  it('gives the jumped-to area a VISIBLE indicator, for mouse and keyboard alike', () => {
+    // The regression: this rule once said `outline: none`, which removed the only signal that an
+    // index link (or Phase 2's Next/Previous) had moved you — landing on one of 28 rows unmarked.
+    // `:target` covers the index links including for mouse users; `:focus-visible` covers keyboard
+    // and programmatic focus on the `tabindex="-1"` row.
+    const indicators = allRules.filter((r) =>
+      r.selectors.some((s) => /^\.compare-group:(target|focus-visible)$/.test(s)),
+    )
+    const covered = indicators.flatMap((r) => r.selectors)
+    expect(covered, 'expected a :target indicator on an area row').toContain(
+      '.compare-group:target',
+    )
+    expect(covered, 'expected a :focus-visible indicator on an area row').toContain(
+      '.compare-group:focus-visible',
+    )
+    for (const r of indicators) {
+      expect(r.body, 'the indicator must actually draw something').toMatch(/outline:\s*\d/)
+    }
+    // And nothing may suppress it again.
+    const suppressors = allRules.filter(
+      (r) =>
+        r.selectors.some((s) => s.startsWith('.compare-group')) && /outline:\s*none/.test(r.body),
+    )
+    expect(
+      suppressors.flatMap((r) => r.selectors),
+      'no .compare-group rule may set outline: none — that was the defect',
+    ).toEqual([])
+  })
+
+  it('styles the "not present in this version" pane so a one-sided area is not a blank half-row', () => {
+    // A whole lesson added or removed leaves one pane empty. The label needs to read as a statement.
+    expect(allSelectors).toContain('.compare-pane__absent')
+  })
+
+  it('gives an area row scroll clearance, so an index link does not land under the header', () => {
+    // The change index links to `#cmp-…` anchors. Without `scroll-margin-top` the browser puts the
+    // target flush against the viewport top, behind the sticky chrome — the same reason
+    // `.doc-section` already carries one.
+    expect(bodyOf('.compare-group')).toMatch(/scroll-margin-top:/)
+  })
+
+  it('stacks each area PAIR at ≤640px, rather than one whole version above the other', () => {
+    // The ordering guarantee of the per-area layout on a phone: because both panes live inside one
+    // `.compare-group`, collapsing the grid puts a change directly above its counterpart. The old
+    // two-pane page put the entire "from" document above the entire "to" document.
+    const grids = allRules
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => r.selectors.includes('.compare-grid'))
+    const wide = grids.find(({ r }) => /grid-template-columns:\s*1fr 1fr/.test(r.body))
+    const narrow = grids.find(({ r }) => /grid-template-columns:\s*1fr(?!\s+1fr)/.test(r.body))
+    expect(wide, 'base two-column .compare-grid rule missing').toBeDefined()
+    expect(narrow, 'expected a single-column .compare-grid rule for narrow screens').toBeDefined()
+    // The BREAKPOINT, not just the ordering: identifying the stacking rule by "a `1fr` body later in
+    // the file" would also be satisfied by a single-column rule added at base width, which would
+    // stack the panes on DESKTOP — the opposite of this test's name.
+    expect(wide!.r.media, 'the two-column rule is the base, so it is in no media query').toBeNull()
+    expect(narrow!.r.media ?? '', 'the stacking rule must live under the ≤640px query').toMatch(
+      /max-width:\s*640px/,
+    )
+    expect(
+      narrow!.i,
+      'the stacking rule must come after the two-column rule — equal specificity, order decides',
+    ).toBeGreaterThan(wide!.i)
   })
 
   it('pins the TOC link count that --guide-toc-rows was measured against', () => {
@@ -295,9 +385,7 @@ describe('admin button-system scope coverage', () => {
     // sets 26px at (0-3-0); the shared touch rule is (0-2-0) and a MEDIA QUERY ADDS NO SPECIFICITY,
     // so without a restatement at ≥(0-3-0) the compact Remove stays 26px on a phone while the
     // stylesheet claims 44px. Measured after the fix: 26px at 1280, 44px at 390.
-    const compact = mobileRules.find((r) =>
-      r.selectors.includes('.btn.lp-btn.lp-btn--compact'),
-    )
+    const compact = mobileRules.find((r) => r.selectors.includes('.btn.lp-btn.lp-btn--compact'))
     expect(
       compact,
       '.btn.lp-btn.lp-btn--compact must restate the touch target inside the ≤640px block',

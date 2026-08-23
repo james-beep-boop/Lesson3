@@ -13,10 +13,11 @@
  * paragraphs, inline emphasis, headings, lists, links, and tables — nothing that can script.
  */
 import createDOMPurify from 'dompurify'
-import { JSDOM } from 'jsdom'
 
-// One jsdom window for the process — DOMPurify needs a DOM to parse into; it is small and reused.
-const { window } = new JSDOM('')
+// One jsdom window for the process — DOMPurify needs a DOM to parse into. Now shared from
+// `domWindow.ts` rather than created here, so the compare splitter does not stand up a second one.
+import { window } from './domWindow'
+
 const DOMPurify = createDOMPurify(window)
 
 const PREVIEW_SANITIZE_CONFIG = {

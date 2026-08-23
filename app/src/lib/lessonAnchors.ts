@@ -22,9 +22,20 @@ export interface LessonAnchor {
   title: string
 }
 
+/**
+ * The one slug transform behind every in-page anchor id. Shared because the compare page emits BOTH
+ * schemes into the same document — `docSectionId` for its document sections and
+ * `compareGroups.groupAnchorId` for its area rows — so two copies of this regex chain could drift
+ * apart on a character-class change and start colliding.
+ */
+export const slugId = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
 /** Stable section-container id for a rendered document section label ("Lesson Sequence" → `doc-lesson-sequence`). */
-export const docSectionId = (label: string): string =>
-  `doc-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+export const docSectionId = (label: string): string => `doc-${slugId(label)}`
 
 /** The only entities the pipeline produces in titles: prose is plain text that mammoth escapes. */
 const decodeEntities = (s: string): string =>
@@ -56,8 +67,15 @@ export function annotateLessonAnchors(html: string): { html: string; anchors: Le
   return { html: annotated, anchors }
 }
 
-/** The one section label whose HTML carries lesson headers (docxToSections' LessonSequence). */
+/**
+ * The three rendered-document labels `docxToSections` emits, in document order. Named here — beside
+ * the anchor helpers that consume them — so `previewBundle.ts` produces them and `compareGroups.ts`
+ * branches on them through ONE definition: a rename that only reached one side would silently push
+ * every area of two documents onto the splitter's generic fallback labels.
+ */
 export const LESSON_SEQUENCE_LABEL = 'Lesson Sequence'
+export const FINAL_EXPLANATION_LABEL = 'Final Explanation'
+export const SUMMARY_TABLE_LABEL = 'Summary Table'
 
 export interface AnnotatedSection {
   label: string
@@ -69,9 +87,7 @@ export interface AnnotatedSection {
  * Annotate a rendered version's sections for the jump nav: only the Lesson Sequence can carry
  * lesson headers, so only it is scanned — the other documents pass through with no anchors.
  */
-export function annotateSections(
-  sections: { label: string; html: string }[],
-): AnnotatedSection[] {
+export function annotateSections(sections: { label: string; html: string }[]): AnnotatedSection[] {
   return sections.map((s) =>
     s.label === LESSON_SEQUENCE_LABEL
       ? { label: s.label, ...annotateLessonAnchors(s.html) }

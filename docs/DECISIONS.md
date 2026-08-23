@@ -11,6 +11,119 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-23 — Compare diffs LOGICAL AREAS, not documents; four review corrections recorded
+
+Compare already coloured removals red and additions green, but on a forty-page bundle a two-word
+edit was unfindable, and the page could not say how much had changed. It now splits both versions
+into the generator's own logical areas — a lesson's Section A–E tables, the sub-strand overview, the
+differentiation table, and the corresponding areas of the Final Explanation and Summary Table —
+pairs them by key, and renders each pair as one row, defaulting to a **Changes only** view with a
+changed-area count and a clickable index (`Lesson 3 · Implementation framework`). SPEC §6 asks for a
+concise "what changed" summary layered on top of the diff; the count and index are one implementation
+of that direction, not a specific requirement it already spelled out.
+
+Filter state is client-side, default on, with no `localStorage` and no URL parameter: filtered is
+the useful view, sharing an unfiltered one has no demonstrated value, and a remembered preference on
+a shared school computer would surprise the next teacher. `?view=all` remains addable later — it
+would then have to be preserved by `ComparePickers`' links.
+
+**Four corrections worth keeping, because each was a plausible design that is wrong:**
+
+1. **A "hide every top-level element without its own annotation" CSS selector was proposed and is
+   wrong twice over.** A lesson is not one table — the generator emits five (`build_docs.js`
+   sectionA–E) — and the lesson number and title live only in Section A's `fullHeader`. The
+   selector would have kept a changed Teacher Reflection table while hiding the only thing
+   identifying which of eight lessons it belonged to. ⚑ **Do not reintroduce element-level
+   filtering.** Group first, then filter the group.
+2. **Never filter or align the two panes independently.** HtmlDiff's annotations are asymmetric
+   (probed against Payload 3.87.1): an insertion is marked only in the new pane, a deletion only in
+   the old. Filtering each side alone slides unrelated content together and reads as a replacement
+   that never happened. Pairing by key and rendering one row makes alignment structural.
+3. **⚑ `changed` MUST come from comparing the source HTML (`from !== to`), never from counting
+   annotations.** A paragraph split/merge and a whitespace-only edit produce NO annotations in
+   either pane, so annotation-counting reports a genuinely edited version as identical. Counting
+   also inflates: two word replacements emit four attributes. Hence "changed areas", not
+   "differences", and a `structureOnly` flag that labels the no-highlight case on screen rather
+   than leaving two apparently identical panes looking like a bug.
+4. **Split BEFORE diffing, never after.** HtmlDiff rewrites the markup it annotates — a changed
+   lesson title becomes `<strong data-seq=…>LESSON 3 … <span data-match-type="create">` — so no
+   header pattern matches its output. Pipeline: cached render → groups → pair → diff. This is also
+   cheaper than before: most areas are byte-identical and skip the engine entirely, and the rest are
+   small, where the old code ran one quadratic diff over the whole Lesson Sequence.
+
+⚑ **THE AREA IS THE SMALLEST UNIT WE FILTER. Row-level trimming was considered and DECLINED**
+(operator decision 2026-08-23), so a changed area renders in full even though most of its rows are
+usually identical — the visible cost is real and was accepted with eyes open. Two reasons, and both
+still hold if it is proposed again: (1) the ROW is the unit of meaning — "Teacher greets the class
+politely" is only interpretable beside its Phase and Learner Experience columns, so hiding the
+neighbours leaves a highlighted word with no context; (2) it reintroduces the exact alignment failure
+the paired rows exist to prevent, because a row present in one version and not the other makes the
+two tables hide different rows and drift apart. A collapsible "… N unchanged rows …" run would keep
+both context and alignment and is the only version worth revisiting — not plain `tr` hiding. The
+default filter (see below) already cuts a real comparison from ~14,700px to ~3,500px, which is where
+the win actually came from.
+
+**The compare page opens FILTERED** — `CompareFilter`'s `useState(true)`, pinned by
+`compareFilterDefault.spec.tsx` because it is a one-word default carrying a product requirement that
+nothing else would notice if it flipped.
+
+**Two invariants, both tested.** TOTALITY — every top-level node lands in exactly one group, so a
+classification miss costs a label and never a table; unrecognized structures therefore fall back
+rather than throw. UNIQUENESS — keys are unique per document and a duplicate *throws*, because keys
+become Map keys during pairing and a collision would silently drop content. Final Explanation
+sections are classified structurally (instructions = 1 cell across, section = 2, rubric = 4) and
+keyed ordinally, so an authored section titled "RUBRIC" is still a section; the accepted cost is
+that inserting a section makes every later one read as changed.
+
+`COMPARE_DIFF_FORMAT_VERSION` is new and independent of `HTML_RENDER_CACHE_VERSION`: the grouping
+can change while the rendered HTML it consumes does not. The decoder is strict on the fields each
+format adds, because an older artifact passes every string check and would arrive with
+`changed === undefined` — i.e. a fully-rewritten bundle reported as unchanged.
+
+`CompareGroup` is a **union**, settled at format 3 after a quality pass: an unchanged area carries
+one `html` (both panes are identical, so storing it twice was roughly half the cached entry, which
+runs to hundreds of KB — not the "few KB" an earlier comment claimed), and a changed area carries the
+diffed pair plus `presence: 'both' | 'from-only' | 'to-only'`. Modelling it flat had made
+`newHtml === ''` mean either "identical to oldHtml" or "absent from this version", which the page
+then had to guess between — the same class of ambiguity as counting annotations to decide `changed`.
+
+⚑ **The Summary Table is classified on header TEXT, not cell counts.** It briefly copied the Final
+Explanation's structural test, but the rule is *who owns the header*: every Summary Table header is a
+generator constant, so text is stable and says what the area is, whereas Final Explanation section
+titles are teacher-authored and cannot be matched at all. Copying the structural test there would
+have let a fourth summary column silently relabel a teacher-visible area, for no benefit.
+
+`jsdom` moved from `devDependencies` to `dependencies` in the same change. Production already
+imported it through `lib/sanitizeHtml.ts` and the standalone build only worked because Next traces it
+from a fully-installed builder; `npm audit --omit=dev` was therefore excluding a package production
+executes. This change adds a second production consumer (`lib/compareGroups.ts`), which made
+correcting the classification in scope rather than adjacent.
+
+**Five UX/accessibility corrections from the implementation review, each with a regression test:**
+
+- **"N changed areas · M lessons affected", never "in M lessons".** The Final Explanation's rubric
+  belongs to no lesson, so "2 changed areas in 1 lesson" claimed both changes sat inside that lesson.
+  `changeSummary()` is a pure function precisely so the wording is testable.
+- **The jumped-to area must be VISIBLE.** `.compare-group` briefly carried `outline: none`, removing
+  the only signal an index link had moved you. Now `:target` (which also covers mouse users, who are
+  the ones clicking the index) plus `:focus-visible` for keyboard and Phase 2's programmatic focus.
+  Deliberately not plain `:focus`: Chrome focuses a `tabindex="-1"` element on any click inside it.
+- **"Spacing or document structure changed", not "Paragraph structure changed"** — `structureOnly`
+  also covers whitespace-only edits, as its own test shows.
+- **A one-sided area says "Not present in this version"** rather than rendering a blank half-row,
+  which read as a rendering fault instead of an addition or deletion.
+- **Anchor ids include the document** (`cmp-lesson-sequence-lesson-3-c`). The splitter only promises
+  uniqueness *within* a document; cross-document uniqueness was an accident of the `fe:`/`st:`
+  prefixes, and a duplicate id would send two index links to the same row.
+
+**Process note.** The plan was reviewed three times and the first two versions were confidently
+wrong about the generator's structure. Both errors were findable by *probing the real
+generator → mammoth output* rather than reasoning about it; the third version was written after
+doing that, and the resulting classifier passed first time. ⚑ When the task depends on the shape of
+generated markup, probe it before designing against it.
+
+---
+
 ## 2026-08-22 — Link proof of concept stays plain text; PDFs cross one read-only boundary
 
 The requested demonstration deliberately avoids rich text, highlighted ranges, a Payload media

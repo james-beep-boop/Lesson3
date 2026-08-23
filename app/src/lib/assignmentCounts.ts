@@ -10,15 +10,10 @@ const SUBJECT_ADMIN_ROLE = 'subjectAdmin'
 
 import { poolDb, rowsOf } from './txDb'
 
-/**
- * "1 version" / "3 versions". Regular plurals only — a caller conjugating a VERB wants
- * `deleteConsequences` below.
- *
- * ⚑ Moved out of `UsersPanel.tsx`, where it was module-private, so the third caller in
- * `components/Manage/` could reach it instead of inlining the ternary again.
- */
-export const plural = (count: number, one: string): string =>
-  `${count} ${count === 1 ? one : `${one}s`}`
+// Re-exported from its own dependency-free module so existing importers here are unchanged. It
+// lives in `lib/plural.ts` because this file imports the DB layer, and the newest caller
+// (`lib/compareGroups.ts`) is covered by the DB-free `test:unit` suite.
+export { plural } from './plural'
 
 /** How many people hold each kind of grant on one subject-grade. */
 export interface AssignmentCounts {
