@@ -82,9 +82,20 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
     )
   }
 
-  if (!data?.officialVersion) return data
+  // ⚑ FALL BACK TO THE STORED POINTER — the checks below are about the plan's CURRENT Official
+  // version, not only about a pointer this particular request happens to mention.
+  //
+  // This used to read `if (!data?.officialVersion) return data`, which was inconsistent with its own
+  // neighbour: the subject-grade comparison three statements down already writes
+  // `data.subjectGrade ?? originalDoc?.subjectGrade` because it knows an update can be PARTIAL. The
+  // early return did not. So a PATCH carrying ONLY `subjectGrade` — which the lesson-plan repair form
+  // can send — returned here untouched, and the plan moved to a different subject-grade while its
+  // Official version still belonged to the old one. Exactly the state the last check in this function
+  // exists to prevent, reachable by omitting a field rather than by setting one.
+  const officialVersionRef = data?.officialVersion ?? originalDoc?.officialVersion
+  if (!officialVersionRef) return data
 
-  const officialVersionId = idFrom(data.officialVersion)
+  const officialVersionId = idFrom(officialVersionRef)
   if (!officialVersionId) {
     throw validationError('Official version must reference a saved lesson-plan version.', req)
   }
@@ -118,7 +129,7 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
     throw validationError('Official version must belong to this lesson plan.', req)
   }
 
-  const planSubjectGradeId = idFrom(data.subjectGrade ?? originalDoc?.subjectGrade)
+  const planSubjectGradeId = idFrom(data?.subjectGrade ?? originalDoc?.subjectGrade)
   const versionSubjectGradeId = idFrom(version.subjectGrade)
   if (planSubjectGradeId && versionSubjectGradeId !== planSubjectGradeId) {
     throw validationError('Official version must match this lesson plan subject-grade.', req)

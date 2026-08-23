@@ -129,7 +129,12 @@ export const FRAMEWORK_PROSE = [
 export const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
 export const FINAL_EXPLANATION_PROSE = ['instructions']
 export const SECTION_PROSE = ['prompt']
-export const SUMMARY_LESSON_PROSE = ['title', 'observed', 'learned', 'explained']
+// ⚑ NO `title` — SPEC §205 grants a teacher with editing access `SUMMARY_TABLE.lessons[].{observed,
+// learned, explained}` and nothing else. It was listed here (and rendered by `prose()`), so the
+// implementation was WIDER than the permission it implements: a teacher could rewrite a Summary Table
+// row's title. It is now administrator-only, and the drift spec ties this list to the field
+// definitions so the two halves cannot part company again.
+export const SUMMARY_LESSON_PROSE = ['observed', 'learned', 'explained']
 
 /**
  * The teacher-facing label for each prose field — the SAME words the editor puts above the textarea.
