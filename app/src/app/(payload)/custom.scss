@@ -2352,6 +2352,13 @@ a.btn.lp-btn {
     color: var(--theme-elevation-1000);
   }
 
+  // The colour key above the list. Quiet — it explains the list, it is not part of it.
+  &__key {
+    margin: 0 0 var(--app-space-1);
+    font-size: var(--app-secondary-size);
+    color: var(--theme-elevation-600);
+  }
+
   &__list {
     margin: 0;
 
@@ -2367,6 +2374,35 @@ a.btn.lp-btn {
       // — preserved here so what the user reads matches what would be restored.
       white-space: pre-wrap;
     }
+  }
+
+  // Diff annotations, the same two attribute values the frontend's compare panes style and the same
+  // shared tokens — see `app-tokens.scss`. This is the admin half of "an addition looks like ONE
+  // thing"; the engine's output contract is pinned by `tests/unit/htmlDiffContract.spec.ts`.
+  //
+  // ⚑ Scoped to `.lp-restore`, not global: HtmlDiff annotations are the only `data-match-type` in the
+  // admin today, but the attribute belongs to the engine rather than to this panel.
+  //
+  // ⚑ THE PADDING IS NOT COSMETIC HERE, and it is why these are not simply the frontend's rules. In
+  // compare the two annotations live in SEPARATE PANES and never touch. Unified output puts them
+  // immediately adjacent — a removal butts straight against the insertion that replaced it — so
+  // without it the chips read as one word: `lesson.biology` for a removed "lesson." followed by an
+  // added "biology". Measured in the browser 2026-08-23.
+  [data-match-type] {
+    padding: 0 3px;
+    border-radius: 3px;
+  }
+
+  [data-match-type='delete'] {
+    background: var(--app-diff-delete-bg);
+    color: var(--app-diff-delete-ink);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  [data-match-type='create'] {
+    background: var(--app-diff-create-bg);
+    color: var(--app-diff-create-ink);
   }
 
   .modal__actions {

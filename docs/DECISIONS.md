@@ -11,6 +11,60 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-23 — The restore offer reuses the compare ENGINE, not the compare pipeline
+
+The unsaved-changes panel already listed only the fields that differ from the saved version, but each
+one still rendered as its whole new value, so a teacher had to scan a paragraph to find the edit in
+it. Operator suggestion: "you should be able to use the output of the diff function in the compare
+feature of the app to show just what unsaved changes are." Adopted — with the boundary drawn at the
+engine.
+
+**What was reused and what was refused.** `HtmlDiff`
+(`@payloadcms/ui/elements/HTMLDiff/diff`) now runs on two short strings per changed field: the saved
+prose and the captured prose. What was NOT reused is `diffVersionGroupsCached`, which diffs RENDERED
+DOCUMENTS and is keyed on two SAVED version ids — reaching it from a capture would mean overlaying
+the capture onto the bundle and running the generator (up to three `Packer.toBuffer` builds plus
+mammoth plus DOMPurify, seconds of CPU by that cache's own header) at the exact moment a teacher
+opens the editor, and a capture is not a version, so none of the immutability that cache depends on
+holds. The engine is public API and cost nothing; the pipeline would have been the expensive way to
+answer a cheaper question.
+
+`getUnifiedContent()`, not `getSideBySideContents()`: compare has two panes to align, this panel is
+34rem wide and has one.
+
+**Four things worth keeping, because each is a decision a later reader could undo as an oversight:**
+
+1. **A READ-ONLY capture still shows PLAIN text.** That path exists so stale or schema-mismatched
+   prose can be read and COPIED OUT, and unified output interleaves the removed words into the new —
+   a copy would come back corrupted (`…the mitochondriachloroplast under…`). So the diff is
+   deliberately not universal. Pinned by `tests/unit/restorePromptRender.spec.tsx`, which is the only
+   thing that can see which of the two renderings the panel chose; choosing wrong is otherwise
+   silent, because a read-only panel showing a diff still looks plausible.
+2. **Escaping is a security control here, not hygiene.** Everywhere else the compare machinery runs,
+   its input has already been through DOMPurify; here it is raw prose from a textarea reaching a
+   `dangerouslySetInnerHTML`. `escapeHtml` was extracted to `lib/escapeHtml.ts` and is now the single
+   copy (`compareGroups.ts` had the other) — a security primitive with two near-identical copies is
+   one edit away from two behaviours. `tests/unit/restoreDiff.spec.ts` fails on four cases if the
+   escaping is removed; verified by mutation.
+3. **The colour is a SHARED token now** (`--app-diff-*` in `app-tokens.scss`), which is the second
+   exception to that file's "scale is shared; colour is not" rule and on the same grounds as the
+   button palette: "green means addition" is a claim a reader carries from the frontend compare page
+   to the admin restore panel, so it may not be stated twice.
+4. **The unified form needs padding the side-by-side form does not.** In compare the two annotations
+   live in separate panes and never touch; unified butts a removal straight against its replacement,
+   which rendered as one word. Same reason the colour key puts both chips mid-sentence — a chip
+   ending the sentence pushes the full stop off it ("struck through .").
+
+**And one defect found by looking rather than reasoning.** `Discard the changes` was rendering as
+bare text — transparent background, transparent border, black ink — because the panel's buttons never
+passed `className="lp-btn"`, and the admin's destructive outline, hover fill and focus ring all live
+in the `.btn.lp-btn` block. Payload's own `btn--style-error` sets none of them. Every other dialog in
+the app (`LinkedTextarea`, `DeletePlansPanel`) already passed it, so this panel was the outlier. This
+is the second half of the 2026-08-23 report that the buttons were "not properly formatted buttons
+like the rest of the app" — the labels were fixed then; the formatting was still wrong, and only a
+screenshot showed it. ⚑ `LessonControls`' own `Delete` (view mode) passes no `lp-btn` either and was
+left alone as out of scope — worth checking when that dialog is next touched.
+
 ## 2026-08-23 — Compare diffs LOGICAL AREAS, not documents; four review corrections recorded
 
 Compare already coloured removals red and additions green, but on a forty-page bundle a two-word

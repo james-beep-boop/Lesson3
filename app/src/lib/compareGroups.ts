@@ -44,6 +44,7 @@
  * re-probes it so a generator or mammoth bump fails a test instead of quietly degrading labels.
  */
 import { window } from './domWindow'
+import { escapeHtml } from './escapeHtml'
 import {
   FINAL_EXPLANATION_LABEL,
   LESSON_SEQUENCE_LABEL,
@@ -85,10 +86,6 @@ const headerTextOf = (el: Element): string => (el.querySelector('td,th')?.textCo
 const ELEMENT_NODE = 1
 const TEXT_NODE = 3
 
-/** Re-escape a bare text node's content — the way it arrived, the input being sanitized HTML. */
-const escapeText = (text: string): string =>
-  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
 /**
  * Serialize one top-level node back to HTML.
  *
@@ -99,7 +96,7 @@ const escapeText = (text: string): string =>
  * totality is to survive generator drift nobody has seen yet.
  */
 const serializeNode = (node: ChildNode): string =>
-  node.nodeType === ELEMENT_NODE ? (node as Element).outerHTML : escapeText(node.textContent ?? '')
+  node.nodeType === ELEMENT_NODE ? (node as Element).outerHTML : escapeHtml(node.textContent ?? '')
 
 /**
  * Widest row in a table, counting CELLS (not colspans). Used ONLY by the Final Explanation, where
