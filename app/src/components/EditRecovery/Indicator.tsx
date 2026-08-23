@@ -11,6 +11,13 @@
  * Purely presentational: it takes a status and renders it. All protocol decisions live in
  * `protocol.ts` and all transport in `useEditRecovery`, so this file can never accidentally become a
  * second place where "did the backup work" is decided.
+ *
+ * ⚑ LIVE STATUS ONLY. It used to carry a second line for admins — "Prose only — structural changes
+ * and answer keys are not backed up" — which is a STATIC RULE, identical every render and about the
+ * feature rather than about this session. Stacked in the control bar's flex row it doubled the
+ * block's height and, at intermediate widths, squeezed the whole thing to one word per line. The
+ * rule now lives in *Editing help* beside the other behaviour rules; what stays here is the only
+ * text that changes, and therefore the only text that has to be on screen.
  */
 import React, { useEffect, useState } from 'react'
 
@@ -35,14 +42,7 @@ const ago = (ms: number): string => {
   return `${Math.round(m / 60)}h ago`
 }
 
-export function EditRecoveryIndicator({
-  status,
-  /** True for admins, whose structural and answer-key edits are NOT covered (design §3, v1 is prose-only). */
-  structuralEditsUncovered,
-}: {
-  status: RecoveryStatus
-  structuralEditsUncovered: boolean
-}) {
+export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
   /**
    * ⚑ `now` is STATE fed by the interval, not `Date.now()` read during render — rendering must be
    * pure, and the lint enforces it. It starts at 0, so before the first tick `now - status.at` is
@@ -109,11 +109,6 @@ export function EditRecoveryIndicator({
       aria-live="polite"
     >
       <span className="lp-recovery__text">{text}</span>
-      {structuralEditsUncovered && (
-        <span className="lp-recovery__scope">
-          Prose only — structural changes and answer keys are not backed up
-        </span>
-      )}
     </div>
   )
 }

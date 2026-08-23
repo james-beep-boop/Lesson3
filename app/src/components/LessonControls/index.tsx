@@ -602,14 +602,6 @@ export default function LessonControls() {
               <Button buttonStyle="secondary" size="small" onClick={onDiscard} disabled={saving}>
                 Cancel
               </Button>
-              {/* ⚑ Rendered beside Save, where someone deciding whether their work is safe is
-                  already looking. Admins additionally see that structural and answer-key edits are
-                  not covered — v1 captures prose only (design §3), and an administrator who assumed
-                  otherwise would be the one person the feature actively misleads. */}
-              <EditRecoveryIndicator
-                status={recovery.status}
-                structuralEditsUncovered={canEditStructure}
-              />
             </>
           )}
           {editing && (
@@ -682,6 +674,15 @@ export default function LessonControls() {
             </Button>
           )}
         </div>
+        {/* ⚑ A SIBLING OF THE BUTTON GROUP, NOT A MEMBER OF IT. It used to sit inside
+            `--output`, beside Save — "where someone deciding whether their work is safe is already
+            looking", which was the right instinct and the wrong container: that group is
+            `flex-wrap: nowrap`, so this had no width of its own to defend and no `min-width`, and at
+            intermediate widths it collapsed to ONE WORD PER LINE between Cancel and Insert link
+            (reported 2026-08-23). `.lesson-controls` DOES wrap, and already hosts the bar's other
+            status text below the buttons, so here it is a line under the row — still on screen the
+            whole time the caller is editing, which is the part that matters. */}
+        {editing && canEdit && <EditRecoveryIndicator status={recovery.status} />}
         {pdfBusy && (
           <span role="status" className="lesson-controls__status">
             This opens in a new tab. Close that tab to return to your edits.
@@ -745,6 +746,16 @@ export default function LessonControls() {
             <li>Bold, italics, and underlining are not supported.</li>
             <li>Quick preview checks your content. Formatted PDF shows the final layout.</li>
             {canEditStructure && <li>To add a lesson, duplicate an existing lesson.</li>}
+            {/* Moved out of the recovery indicator, which now shows only LIVE status: this is a
+                static rule about the feature, so it belongs with the other rules. Still admins
+                only — a teacher with editing access cannot make the edits it excludes, and design
+                §3 says an administrator who assumed otherwise is the one person the feature would
+                actively mislead. */}
+            {canEditStructure && (
+              <li>
+                Only prose is backed up while you type — structural changes and answer keys are not.
+              </li>
+            )}
           </ul>
           <div className="modal__actions">
             <Button buttonStyle="primary" size="small" onClick={() => setHelpOpen(false)}>
