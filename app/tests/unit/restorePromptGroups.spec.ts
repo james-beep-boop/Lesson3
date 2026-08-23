@@ -85,3 +85,59 @@ describe('grouping the offered prose', () => {
     expect(groupsOf(capture(null), [])).toEqual([])
   })
 })
+
+describe('listing only what DIFFERS from the saved version', () => {
+  /**
+   * ⚑ THE DEFECT THIS PINS. A capture is a FULL snapshot — `projectCapture` walks the document and
+   * never diffs — so an unfiltered list rendered the entire lesson plan, burying the handful of
+   * fields the teacher actually changed among dozens they did not. Operator decision 2026-08-23:
+   * never show the whole document; nothing at all is better.
+   */
+  const anchors = [{ key: 'lesson:L1', heading: 'Lesson 1' }]
+
+  it('omits fields whose captured text matches what is stored', () => {
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: 'edited', teacherReflection: 'untouched' } }),
+      anchors,
+      { 'lesson:L1': { overview: 'original', teacherReflection: 'untouched' } },
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'edited' }])
+  })
+
+  it('lists NOTHING when the capture matches the saved version entirely', () => {
+    // The blank panel is the intended outcome — the alternative was the whole plan.
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: 'same', teacherReflection: 'same' } }),
+      anchors,
+      { 'lesson:L1': { overview: 'same', teacherReflection: 'same' } },
+    )
+    expect(groups).toEqual([])
+  })
+
+  it('treats a row the saved version does not have as entirely new', () => {
+    // A lesson added during the session: nothing to compare against, so all of it differs.
+    const groups = groupsOf(capture({ 'lesson:L9': { overview: 'brand new' } }), [], {})
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'brand new' }])
+  })
+
+  it('does not read a stored null and a captured empty string as a change', () => {
+    // Both mean "empty". Without the `?? ''` normalisation this reported a change on every field the
+    // teacher had never filled in — which is most of them on a fresh plan.
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: 'real edit', teacherReflection: '' } }),
+      anchors,
+      { 'lesson:L1': { overview: 'was', teacherReflection: null } },
+    )
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', value: 'real edit' }])
+  })
+
+  it('lists everything when no saved projection is given', () => {
+    // The parameter is optional, so an omitted `saved` must not silently blank the panel.
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: 'a', teacherReflection: 'b' } }),
+      anchors,
+    )
+    expect(groups[0]!.lines).toHaveLength(2)
+  })
+})
