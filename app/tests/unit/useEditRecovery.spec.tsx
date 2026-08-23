@@ -783,7 +783,7 @@ describe('the entry state machine', () => {
     expect(h.ref.current!.entry.phase).toBe('clear')
     expect(
       calls.some((c) => c.method === 'DELETE'),
-      'Not now must not destroy it',
+      'Decide later must not destroy it',
     ).toBe(false)
   })
 

@@ -21,7 +21,7 @@
  * Injected via `admin.components.edit.beforeDocumentControls`; the native Save button and the Edit/API
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -48,7 +48,7 @@ import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
 import { EditRecoveryRestorePrompt } from '../EditRecovery/RestorePrompt'
-import { applyCapture } from '../../lib/editRecovery/projection'
+import { applyCapture, projectCapture } from '../../lib/editRecovery/projection'
 import { useEditRecoveryFlushRegistry } from '../EditRecovery/flushRegistry'
 import { useEditRecovery } from '../EditRecovery/useEditRecovery'
 // The wire contract, not a re-description of it — see the note on `RecoveryToken` in `protocol.ts`.
@@ -288,6 +288,11 @@ export default function LessonControls() {
   }, [id, savedDocumentData])
 
   // No id → unsaved/new document; nothing to act on yet.
+  // ⚑ ABOVE the early return: hooks must run in the same order every render, and `if (!id) return
+  // null` sits just below. Projected once per saved document rather than per render — the restore
+  // prompt stays open while the user reads it, and this walks every lesson.
+  const savedProse = useMemo(() => projectCapture(savedDocumentData), [savedDocumentData])
+
   if (!id) return null
 
   // "← Back to lesson" (IA redesign PR ④): the editor is entered from a lesson page (or Manage) and
@@ -341,6 +346,19 @@ export default function LessonControls() {
     clearActiveLinkTarget()
     setEditIntent(true)
     setMsg(null)
+  }
+
+  const onToggleDetails = () => {
+    const next = !detailsShown
+    setDetailsShown(next)
+    if (!next) return
+    // After paint, so the sidebar has been revealed and has a position to scroll to. `nearest` keeps
+    // a wide window (where it is already beside the fields) completely still.
+    requestAnimationFrame(() => {
+      document
+        .querySelector('.document-fields__sidebar-wrap')
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
   }
 
   const onDiscard = () => {
@@ -658,7 +676,13 @@ export default function LessonControls() {
           </div>
           {/* Toggle for the details sidebar; the changing label carries the state (no aria-pressed
               on top — label-swap and pressed-state together read as contradictory to AT). */}
-          <Button buttonStyle="secondary" size="small" onClick={() => setDetailsShown((v) => !v)}>
+          {/* ⚑ SCROLL TO IT. The toggle always worked — it flips the body class that reveals Payload's
+              sidebar — but the sidebar only sits BESIDE the fields on a wide window. Narrower, it
+              takes the full width and stacks below the entire form, so pressing "Show details" moved
+              something a long scroll away and read as a dead button (reported 2026-08-23). Bringing it
+              into view is the fix; hiding the button below some width would just remove the three
+              provenance fields from the people most likely to be on a small screen. */}
+          <Button buttonStyle="secondary" size="small" onClick={onToggleDetails}>
             {detailsShown ? 'Hide details' : 'Show details'}
           </Button>
           {canEdit && (
@@ -707,6 +731,10 @@ export default function LessonControls() {
           // row UUIDs in JSONB order and cannot). Read rather than recomputed: deriving it here meant
           // rebuilding the whole document on every render for as long as the prompt was open.
           anchors={recovery.entry.anchors}
+          // The SAVED prose, so the panel lists only what differs. Projected from
+          // `savedDocumentData` — the stored document, deliberately not the live form, whose values
+          // are what the capture would be restored OVER.
+          saved={savedProse}
           readOnly={recovery.entry.readOnly}
           busy={restoring}
           onRestore={onRestore}

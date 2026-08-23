@@ -11,7 +11,7 @@
  * Same split, and the same reason, as `protocol.ts` holding the capture decisions.
  */
 import { PROSE_LABELS } from '../../hooks/fieldSplit'
-import { orphanHeading, parseKey } from '../../lib/editRecovery/projection'
+import { orphanHeading, parseKey, type CaptureMap } from '../../lib/editRecovery/projection'
 import type { OfferedCapture } from './protocol'
 
 type Group = { id: string; heading: string; lines: { field: string; value: string }[] }
@@ -55,12 +55,24 @@ const fieldLabel = (field: string): string => {
  * ⚑ Only non-empty strings are LISTED, but a restore still applies everything in the map, cleared
  * fields included. Rendering a heading over an empty value would read as "this was lost".
  *
+ * ⚑ ONLY WHAT DIFFERS FROM THE SAVED VERSION (operator decision 2026-08-23). A capture is a FULL
+ * snapshot of every whitelisted prose leaf — `projectCapture` walks the document and does not diff —
+ * so listing it rendered the entire lesson plan and buried the handful of fields the teacher actually
+ * changed. "Never show the whole document; blank would be better." Pass `saved` and each field is
+ * listed only when the captured text differs from what is stored.
+ *
+ * The capture itself stays a full snapshot on purpose: a restore overlays values, and a stale capture
+ * has to remain readable. Scoping the DISPLAY costs nothing, because an unchanged field's text is by
+ * definition already in the form behind the panel.
+ *
  * Exported for `tests/unit/restorePromptGroups.spec.ts`: the grouping rules are the substance of this
  * component, and driving them through a render would test JSX rather than the rules.
  */
 export const groupsOf = (
   capture: OfferedCapture,
   anchors: { key: string; heading: string }[],
+  /** `projectCapture(savedDocumentData)` — omit to list everything captured (the old behaviour). */
+  saved?: CaptureMap,
 ): Group[] => {
   const content = capture.content ?? {}
   const groups: Group[] = []
@@ -71,8 +83,13 @@ export const groupsOf = (
     const values = content[key]
     if (!values) return
     seen.add(key)
+    // A key the saved version does not have at all (a row added in this session) is entirely new, so
+    // every field in it differs.
+    const savedValues = saved?.[key]
     const lines = Object.entries(values)
       .filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '')
+      // `?? ''` so a stored `null` and a captured `''` are not read as a change. Both mean empty.
+      .filter(([field, value]) => !saved || (savedValues?.[field] ?? '') !== value)
       .map(([field, value]) => ({ field: fieldLabel(field), value }))
     if (lines.length === 0) return
 
