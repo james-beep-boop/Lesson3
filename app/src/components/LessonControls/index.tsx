@@ -300,6 +300,19 @@ export default function LessonControls() {
   const title =
     typeof savedDocumentData?.title === 'string' ? displayTitle(savedDocumentData.title) : null
 
+  /**
+   * WHICH version this is — `1.2.0`, or null while the doc is still loading.
+   *
+   * ⚑ THE TITLE DOES NOT IDENTIFY A VERSION. Every version of a plan carries the SAME title, so the
+   * bar could say `Viewing: Biology Grade 10: Cell Structure · Not Official` for any of a dozen
+   * versions, and the Delete confirmation named that same title — looking as though it told you what
+   * you were about to destroy while distinguishing nothing. `semver` is the only thing that does, and
+   * it is already in `savedDocumentData` beside the title, so this costs no extra read.
+   */
+  const semver = typeof savedDocumentData?.semver === 'string' ? savedDocumentData.semver : null
+  /** For prose: "version 1.2.0", or "this version" when the semver is not known yet. */
+  const versionPhrase = semver ? `version ${semver}` : 'this version'
+
   // Whether the CALLER may delete THIS version — the per-doc form of the server's deletion scope
   // (`canDeleteVersionDoc` == `deletableVersionsWhere`, single source), gated on it being a candidate
   // (non-Official). The server re-checks (delete access + `enforceOfficialNotDeletable`), so this only
@@ -344,8 +357,7 @@ export default function LessonControls() {
     // (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the server re-gates
     // in save-as-new). Asking before the request lets save-as-new create + delete atomically.
     const deleteSource =
-      canDelete &&
-      window.confirm('Save your edits as a new version and delete the one you are editing?')
+      canDelete && window.confirm(`Save your edits as a new version and delete ${versionPhrase}?`)
     setSaving(true)
     setMsg(null)
     try {
@@ -408,7 +420,11 @@ export default function LessonControls() {
   const onDelete = async () => {
     if (saving) return
     if (
-      !window.confirm(`Delete this version${title ? ` (“${title}”)` : ''}? This cannot be undone.`)
+      !window.confirm(
+        // Version FIRST, title second: the title is shared by every version of the plan, so leading
+        // with it was the least informative thing the dialog could say.
+        `Delete ${versionPhrase}${title ? ` of “${title}”` : ''}? This cannot be undone.`,
+      )
     ) {
       return
     }
@@ -531,6 +547,10 @@ export default function LessonControls() {
           {/* Version status stays explicit next to the lifecycle (Codex #4): editing here Saves a
               NEW version, Not Official until an admin promotes it — a working copy shouldn't read
               as authoritative. Hidden until the plan's pointer is known (leaves `null`). */}
+          {/* The version number, in BOTH modes. Deliberately not only next to Delete: the question
+              "which version am I looking at / editing / about to save over?" is live the whole time
+              the bar is on screen, and Delete is just where getting it wrong is unrecoverable. */}
+          {semver && <span className="lesson-controls__semver">v{semver}</span>}
           {sourceIsOfficial != null && (
             <span
               className={`lesson-controls__official lesson-controls__official--${
