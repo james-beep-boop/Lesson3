@@ -36,15 +36,45 @@
 .modal {
   width: 100%;
   max-width: 26rem;
-  padding: 1.25rem;
+  /* No padding: `.modal__title` is a full-bleed header bar and `.modal__content` carries the inset.
+     `overflow: hidden` is what keeps the bar's corners inside the panel's radius. */
+  overflow: hidden;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 0.6rem;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
 }
+/* ⚑ THE MANAGE PANEL'S CHROME, REUSED — not new dialog styling (operator decision 2026-08-23).
+   `Manage`'s accordion already answers "what does a titled container look like here": a soft grey
+   header bar, a hairline under it, a left-aligned heading at the 20px step, and quiet rules inside.
+   Dialogs were the one titled surface that had none of it, which is the whole reason they read as
+   plain. Borrowing it is also why this needs no new tokens.
+   ⚑ LEFT-ALIGNED, deliberately. Centring was considered and dropped: every other heading in the app
+   is left-aligned, so a centred dialog title would make the dialog the one thing that does not
+   match — and the long recovery title would centre badly. */
 .modal__title {
-  margin: 0 0 0.75rem;
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--app-panel-title-size, 20px);
+  font-weight: 600;
+}
+.modal__content {
+  padding: 1.25rem;
+}
+/* ⚑ OPT-OUT, and the reason the bar is not universal. Two dialogs are hostile to it: a destructive
+   confirmation (`.lp-confirm`) would read as a panel rather than a warning, and the two-sentence
+   too-narrow notice carries more chrome than content. They keep the old plain heading. */
+.modal--plain .modal__title {
+  padding: 1.25rem 1.25rem 0;
+  background: none;
+  border-bottom: 0;
   font-size: 1.15rem;
+  font-weight: 600;
+}
+.modal--plain .modal__content {
+  padding: 0.75rem 1.25rem 1.25rem;
 }
 .modal__body {
   margin: 0 0 0.9rem;

@@ -100,10 +100,15 @@ export default function EditActions({
         Edit
       </button>
       {tooNarrow && (
-        <Modal title={EDITING_WIDER_SCREEN_TITLE} onClose={() => setTooNarrow(false)}>
+        <Modal
+          title={EDITING_WIDER_SCREEN_TITLE}
+          className="modal--plain"
+          onClose={() => setTooNarrow(false)}
+        >
           <p className="modal__body">{EDITING_WIDER_SCREEN_BODY}</p>
           <div className="modal__actions">
-            <button type="button" className="btn btn--primary" onClick={() => setTooNarrow(false)}>
+            {/* Acknowledgement, not a primary action — see the note beside the admin twin. */}
+            <button type="button" className="btn" onClick={() => setTooNarrow(false)}>
               Got it
             </button>
           </div>
