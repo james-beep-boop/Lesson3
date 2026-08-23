@@ -19,7 +19,7 @@ import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
  * generation adapter maps them back to the generator's exact keys. Inner keys already match the ARES
  * data verbatim.
  *
- * Field-level access (SPEC §5): teachers with editing access edit prose; Subject Admins edit META / aresKeywords / phase /
+ * Field-level access (SPEC §5): teachers with editing access edit prose; Subject Admins edit META / phase /
  * duration / structure / answer keys; lesson-level ARES resources and lesson numbers are system-only.
  *
  * IMPORTANT — the authority for the teacher with editing access/admin split is the field-split hook (`applyEditorFieldSplit`,
@@ -125,6 +125,32 @@ const adminOnly = (field: Field): Field => {
   return { ...field, admin: { ...admin, condition: structureCondition } } as Field
 }
 
+/**
+ * Stored faithfully, never offered for editing.
+ *
+ * ⚑ HIDDEN, NOT DELETED, AND NOT DERIVED. Each field this wraps is real ARES contract data that the
+ * generator receives verbatim — removing it would change generator input, and deriving a replacement
+ * would mean emitting a document upstream would not. What is wrong with them is only that they were
+ * FORM CONTROLS: editing them cannot change anything observable, so the control was an offer the
+ * system does not honour.
+ *
+ * ⚑ PRESENTATION ONLY — NO FIELD-LEVEL `access`, and that is not an oversight. Payload field access
+ * **nulls optional admin-only subfields inside open arrays** when a non-admin submits the array
+ * (DECISIONS 2026-07-04). The recorded victims of that were `lessons[].duration/substrand/
+ * aresKeywords` — two of which this helper wraps — and the recorded resolution was to REMOVE field
+ * access from exactly those fields and enforce them in a hook instead. Adding `access` back here
+ * would be inert today (every version write goes through `overrideAccess`, and in-place update is
+ * refused by `enforceVersionImmutable`) and a latent wipe the day any other write path appears.
+ *
+ * Write-time authority is therefore `applyEditorFieldSplit`'s whitelist, which is secure by default:
+ * a key absent from every `*_PROSE` list is restored from the source version, so none of these can be
+ * changed by a teacher with editing access whether or not the form shows them.
+ */
+const storedNotEdited = (field: Field): Field => {
+  const admin = (field as { admin?: Record<string, unknown> }).admin ?? {}
+  return { ...field, admin: { ...admin, hidden: true, readOnly: true } } as Field
+}
+
 export const lessonContentFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   adminOnly({
@@ -164,7 +190,10 @@ export const lessonContentFields: Field[] = [
         admin: { description: 'Used to match future uploads to this lesson plan.' },
       },
       { name: 'substrand_name', type: 'text' },
-      { name: 'outputDir', type: 'text' },
+      // The contract's own description: "Authoring/output hint; not consumed downstream." The only
+      // vendored reader is `build_docs.js`'s `run()` file-writing path, which Lesson3 does not use —
+      // it calls the builders and `Packer.toBuffer` directly (docs/EXTERNAL-DEPENDENCIES.md).
+      storedNotEdited({ name: 'outputDir', type: 'text' }),
       { name: 'filePrefix', type: 'text' },
       // `title` is derived from this at ingest, so a titleDoc list column just duplicates Title.
       // Keep it on the edit form, but bar it from the list columns (incl. saved user prefs).
@@ -230,8 +259,14 @@ export const lessonContentFields: Field[] = [
       // cell prose, so the narrow link proof of concept deliberately does not offer insertion here.
       prose('title', 'Title', { linkable: false }),
       adminOnly(structureText('duration', 'Duration')),
-      adminOnly(structureText('substrand', 'Sub-strand')),
-      adminOnly(structureText('aresKeywords', 'ARES keywords')),
+      // ⚑ ARGUMENTS TO A LOOKUP THIS APP DOES NOT PERFORM. The pristine `sections.js` passes both to
+      // `getAllPhaseResources({ substrand, topic, subject })`, but Lesson3's bridge
+      // (`generator/vendor/aresResources.js`) is POSITIONAL: it pops each lesson's already-resolved
+      // `resourceLinks` from a queue in `LESSONS` order and ignores the arguments entirely. So
+      // editing either one changed nothing a teacher could ever see — though a re-pin that restored
+      // the lookup would make them matter again, which is why they stay stored.
+      storedNotEdited(structureText('substrand', 'Sub-strand')),
+      storedNotEdited(structureText('aresKeywords', 'ARES keywords')),
       {
         name: 'slo',
         type: 'group',
@@ -366,7 +401,9 @@ export const lessonContentFields: Field[] = [
             admin: { hidden: true, readOnly: true },
             access: { create: systemOnly, update: systemOnly },
           },
-          prose('title', 'Title', { linkable: false }),
+          // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `hooks/fieldSplit.ts` for
+          // why, and SPEC §5 for the permission it implements.
+          adminOnly(structureText('title', 'Title')),
           prose('observed', 'Observed'),
           prose('learned', 'Learned'),
           prose('explained', 'Explained'),

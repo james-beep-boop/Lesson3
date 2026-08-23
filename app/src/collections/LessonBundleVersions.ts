@@ -127,15 +127,29 @@ export const LessonBundleVersions: CollectionConfig = {
   ],
   fields: [
     {
+      // ⚑ IDENTITY, NOT CONTENT — and it was a control that could not do what it offered. Save
+      // sets both this and `subjectGrade` FROM THE SOURCE version and discards whatever the form
+      // submitted (`SERVER_REL_KEYS` in `endpoints/versionEdit.ts`: "never from the submission…
+      // they carry no edit signal"). So a Subject Administrator was shown a dropdown over every
+      // plan whose only possible effect was none. A control that silently ignores you is worse
+      // than no control.
+      //
+      // `systemOnly` + hidden rather than deleted: the relationship IS the categorisation truth
+      // (SPEC §5 — fixed at ingest), the column is indexed and required, and the save-as-new path
+      // writes it under `overrideAccess`, which field access does not gate. Moving a version to
+      // another plan or subject-grade is not an editing operation and has no route here by design.
+      //
+      // ⚑ Field `access` is safe HERE, unlike on the array subfields `storedNotEdited` wraps: the
+      // array-nulling limitation that rule guards against (DECISIONS 2026-07-04) applies to optional
+      // subfields inside open arrays, and these are required top-level relationships.
       name: 'lessonPlan',
       type: 'relationship',
       relationTo: 'lesson-plans' as CollectionSlug,
       required: true,
       index: true,
-      access: { update: canEditStructure },
-      admin: {
-        position: 'sidebar',
-      },
+      access: { create: systemOnly, update: systemOnly },
+      // No `position: 'sidebar'`: it named a slot a hidden field no longer occupies.
+      admin: { hidden: true },
     },
     {
       // Provenance, not content: save-as-new stamps the actual source itself (a submitted value is
@@ -212,12 +226,15 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { update: canEditStructure },
     },
     {
+      // Identity, same as `lessonPlan` above — see the ⚑ there for why this is system-only and
+      // hidden rather than an editable relationship.
       name: 'subjectGrade',
       type: 'relationship',
       relationTo: 'subject-grades',
       required: true,
       index: true,
-      access: { update: canEditStructure },
+      access: { create: systemOnly, update: systemOnly },
+      admin: { hidden: true },
     },
     ...lessonContentFields,
   ],

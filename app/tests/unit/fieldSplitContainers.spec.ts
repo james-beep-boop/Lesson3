@@ -146,7 +146,10 @@ describe('group containers still accept legitimate prose edits', () => {
     expect(st.drivingQuestion, 'admin-only header preserved').toBe('admin question')
 
     const rows = st.lessons as Record<string, unknown>[]
-    expect(rows[0].title).toBe('editor row')
+    // The row TITLE is administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in
+    // `hooks/fieldSplit.ts`. It used to overlay here; the submitted value is now discarded and the
+    // source title preserved, the same way the two headers above are.
+    expect(rows[0].title, 'admin-only row title preserved').toBe('row')
     expect(rows[0].observed).toBe('editor obs')
   })
 
