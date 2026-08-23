@@ -15,12 +15,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 import { loginAs } from '../helpers/e2e'
-import {
-  MARK,
-  minimalBundleContent,
-  setupRoleFixture,
-  type RoleFixture,
-} from '../helpers/fixtures'
+import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures'
 import { subjectGradeLabel } from '../../src/lib/substrand'
 
 /** The fixture's sub-strand name — `minimalBundleContent()` sets `meta.substrand_name`. */
@@ -63,7 +58,9 @@ test.describe('Catalogue (/)', () => {
     await expect(row.locator('.substrand-versions')).toHaveCount(0)
   })
 
-  test('canEdit: a teacher with editing access gets the edit affordance on their subject-grade', async ({ page }) => {
+  test('canEdit: a teacher with editing access gets the edit affordance on their subject-grade', async ({
+    page,
+  }) => {
     await loginAs(page, fx, 'editor')
     await expect(rowFor(page)).toHaveCount(1)
     await expect(rowFor(page).locator('.substrand-versions')).toHaveCount(1)

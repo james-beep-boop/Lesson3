@@ -25,11 +25,7 @@ const escapeHtml = (s: string): string =>
   )
 
 /** Wrap the rendered sections in a minimal, self-contained, script-free HTML page. */
-function previewPage(
-  title: string,
-  sections: PreviewSection[],
-  unsaved: boolean,
-): string {
+function previewPage(title: string, sections: PreviewSection[], unsaved: boolean): string {
   // In-page navigation (critique 2026-07-12): anchor injection + the nav item list come from the
   // shared cross-surface model (lib/lessonAnchors), rendered here as a sticky, CSS-only nav —
   // this page is script-free by CSP, and anchors need no script.
@@ -94,7 +90,8 @@ function previewPage(
  */
 export const PREVIEW_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+  'Content-Security-Policy':
+    "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
 } as const
 
@@ -114,7 +111,10 @@ export function assertPreviewable(bundle: LessonBundleVersion, unsaved: boolean)
   const problems = validateGeneratable(bundle)
   if (problems.length > 0) {
     const fix = unsaved ? 'fill in' : 'fill in and save'
-    throw new APIError(`This lesson plan can’t be previewed yet — ${fix}: ${problems.join(' ')}`, 422)
+    throw new APIError(
+      `This lesson plan can’t be previewed yet — ${fix}: ${problems.join(' ')}`,
+      422,
+    )
   }
 }
 

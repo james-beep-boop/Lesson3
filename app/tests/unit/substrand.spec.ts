@@ -108,7 +108,11 @@ describe('orderLessons', () => {
 })
 
 describe('matchesQuery', () => {
-  const r = row({ substrandId: '1.4', substrandName: 'Chemicals of life', strandName: 'Cell biology' })
+  const r = row({
+    substrandId: '1.4',
+    substrandName: 'Chemicals of life',
+    strandName: 'Cell biology',
+  })
   it('matches across number, name, strand, subject, and grade', () => {
     expect(matchesQuery(r, 'chemicals')).toBe(true)
     expect(matchesQuery(r, '1.4')).toBe(true)

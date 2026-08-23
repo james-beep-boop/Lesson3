@@ -76,10 +76,7 @@ export const messagePingTask: TaskConfig<{
           'You have a message waiting in ARES Lesson Plans.\n\n' +
           `Sign in to read it: ${base}/messages`,
       })
-      req.payload.logger.info(
-        { messageId, recipientUserId, senderUserId },
-        'messagePing sent',
-      )
+      req.payload.logger.info({ messageId, recipientUserId, senderUserId }, 'messagePing sent')
       return { output: {} }
     } catch (err) {
       req.payload.logger.error(

@@ -18,12 +18,24 @@ import { withRowIds } from './lib/payloadRowIds'
 
 const JSON_PATH =
   process.env.ARES_FIDELITY_JSON ??
-  path.join(os.homedir(), 'Desktop', 'ares-json', 'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json')
+  path.join(
+    os.homedir(),
+    'Desktop',
+    'ares-json',
+    'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json',
+  )
 const ORACLE_DIR =
   process.env.ARES_FIDELITY_ORACLE_DIR ??
   path.join(
-    os.homedir(), 'Documents', 'GitHub', 'cbe-generation-system', 'data', 'outputs', 'v2',
-    'Physics', 'SS4.1_Greenhouse_Effect_and_Climate_Change',
+    os.homedir(),
+    'Documents',
+    'GitHub',
+    'cbe-generation-system',
+    'data',
+    'outputs',
+    'v2',
+    'Physics',
+    'SS4.1_Greenhouse_Effect_and_Climate_Change',
   )
 
 const APPROVED = {
@@ -54,9 +66,10 @@ async function main() {
 
   const data = bundleToAresData(stored)
   const rawLessons = raw.LESSONS as Array<Record<string, unknown>>
-  const roundTrip = rawLessons.every((lesson, index) =>
-    JSON.stringify(lesson.resourceLinks) ===
-    JSON.stringify((data.LESSONS[index] as Record<string, unknown>).resourceLinks),
+  const roundTrip = rawLessons.every(
+    (lesson, index) =>
+      JSON.stringify(lesson.resourceLinks) ===
+      JSON.stringify((data.LESSONS[index] as Record<string, unknown>).resourceLinks),
   )
   const cleanShape = !/"id":/.test(JSON.stringify(data))
 
@@ -69,9 +82,19 @@ async function main() {
   const results = [
     roundTrip,
     cleanShape,
-    await compareDoc('LessonSequence (resources included)', out.lessonSequence, lessonOracle, false),
+    await compareDoc(
+      'LessonSequence (resources included)',
+      out.lessonSequence,
+      lessonOracle,
+      false,
+    ),
     await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data.LESSONS),
-    await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
+    await compareDoc(
+      'FinalExplanation',
+      out.finalExplanation,
+      approved(APPROVED.finalExplanation),
+      false,
+    ),
     await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
   ]
 

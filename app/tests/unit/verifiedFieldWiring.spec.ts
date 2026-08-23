@@ -32,9 +32,11 @@ describe('email-verification wiring (auth.verify + the _verified override)', () 
   })
 
   it('the verification email links the FRONTEND /verify-email page, not /admin', async () => {
-    const verify = (Users.auth as {
-      verify: { generateEmailHTML: (args: unknown) => string | Promise<string> }
-    }).verify
+    const verify = (
+      Users.auth as {
+        verify: { generateEmailHTML: (args: unknown) => string | Promise<string> }
+      }
+    ).verify
     const html = await verify.generateEmailHTML({ token: 'TOKEN123' })
     expect(html).toContain('/verify-email?token=TOKEN123')
     expect(html).not.toContain('/admin')

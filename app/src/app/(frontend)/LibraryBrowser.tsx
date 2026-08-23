@@ -96,7 +96,8 @@ export default function LibraryBrowser({
     [rows],
   )
   const grades = useMemo(
-    () => [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort((a, b) => a - b),
+    () =>
+      [...new Set(rows.flatMap((r) => (r.grade != null ? [r.grade] : [])))].sort((a, b) => a - b),
     [rows],
   )
 
@@ -219,7 +220,13 @@ function FilterBar({
 }
 
 /** The caller's favorited lessons, pinned above the catalogue (§10). Hidden while empty. */
-function FavoritesSection({ rows, favByVersion }: { rows: LessonRow[]; favByVersion: FavByVersion }) {
+function FavoritesSection({
+  rows,
+  favByVersion,
+}: {
+  rows: LessonRow[]
+  favByVersion: FavByVersion
+}) {
   if (rows.length === 0) return null
   return (
     <div className="sg-section fav-section">
@@ -304,7 +311,9 @@ function SubstrandRow({
           {row.substrandId && <span className="substrand-num">{row.substrandId}</span>}
           <span className="substrand-name">
             {row.substrandName}
-            {row.pinnedSemver && <span className="pinned-tag"> · v{row.pinnedSemver} (pinned)</span>}
+            {row.pinnedSemver && (
+              <span className="pinned-tag"> · v{row.pinnedSemver} (pinned)</span>
+            )}
             {showContext && context && <span className="substrand-context">{context}</span>}
           </span>
         </Link>

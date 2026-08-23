@@ -38,7 +38,12 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import {
+  MARK,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+} from '../helpers/fixtures.js'
 import { drizzleOf, rowsOf } from '../helpers/db.js'
 import { stillPendingAfterWindow, whileRowLocked } from '../helpers/rowLocks.js'
 import type { LessonBundleVersion } from '../../src/payload-types.js'
@@ -65,7 +70,9 @@ async function makeCandidateVersion(semver: string): Promise<LessonBundleVersion
 /** The plan's current pointer, read raw so no hook or access rule can colour the answer. */
 async function officialVersionId(): Promise<number | null> {
   const rows = rowsOf<{ official_version_id: number | null }>(
-    await db().execute(sql`SELECT official_version_id FROM "lesson_plans" WHERE id = ${fx.plan.id}`),
+    await db().execute(
+      sql`SELECT official_version_id FROM "lesson_plans" WHERE id = ${fx.plan.id}`,
+    ),
   )
   const raw = rows[0]?.official_version_id
   return raw == null ? null : Number(raw)
@@ -107,7 +114,9 @@ describe('Official-pointer lock', () => {
 
     // Once the holder releases, the delete completes normally — the lock delays, never deadlocks.
     await deleting
-    expect(await officialVersionId(), 'the Official pointer is untouched').toBe(Number(fx.version.id))
+    expect(await officialVersionId(), 'the Official pointer is untouched').toBe(
+      Number(fx.version.id),
+    )
   }, 60_000)
 
   /**

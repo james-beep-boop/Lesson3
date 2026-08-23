@@ -39,9 +39,7 @@ describe('VersionsChip refresh-on-open (finding 1)', () => {
   })
 
   it('re-fetches versions AND favorites on every open, not just the first', async () => {
-    render(
-      <VersionsChip planId={1} officialVersionId={1} versionCount={2} panelLabel="Cells" />,
-    )
+    render(<VersionsChip planId={1} officialVersionId={1} versionCount={2} panelLabel="Cells" />)
     const chip = screen.getByRole('button', { name: /2 versions/ })
 
     fireEvent.click(chip)

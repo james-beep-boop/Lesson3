@@ -106,7 +106,9 @@ export default function FavoriteToggle({
         <span className="fav-toggle__star" aria-hidden="true">
           {isFavorite ? '★' : '☆'}
         </span>
-        {withLabel && <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>}
+        {withLabel && (
+          <span className="fav-toggle__label">{isFavorite ? 'Favorited' : 'Favorite'}</span>
+        )}
       </button>
       {error && (
         <span role="alert" className="inline-error fav-toggle__error">

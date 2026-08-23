@@ -28,7 +28,13 @@
  * Official (immutable) version's unsaved edits is harmless; saving them is separately rejected by
  * `enforceVersionImmutable`. The normal flow previews a forked, Not-Official working copy.
  */
-import { APIError, Forbidden, type CollectionBeforeChangeHook, type Endpoint, type PayloadRequest } from 'payload'
+import {
+  APIError,
+  Forbidden,
+  type CollectionBeforeChangeHook,
+  type Endpoint,
+  type PayloadRequest,
+} from 'payload'
 
 import { assertPreviewable, parsePreviewCandidate, renderPreviewResponse } from './previewShared'
 import { parseDeliverableTag } from './parseFormat'
@@ -63,7 +69,10 @@ async function loadReadable(req: PayloadRequest, id: string): Promise<LessonBund
  *      audit 2026-07-04) and run the real version save hook (`enforceVersionFieldSplit`): admin →
  *      unchanged; editing access → prose-only overlay; a structural change a teacher with editing access can't make → 422.
  */
-async function resolveUnsavedEffective(req: PayloadRequest, id: string): Promise<LessonBundleVersion> {
+async function resolveUnsavedEffective(
+  req: PayloadRequest,
+  id: string,
+): Promise<LessonBundleVersion> {
   const stored = await loadReadable(req, id)
 
   if (!isEditorFor(req.user as User, toId(stored.subjectGrade))) {

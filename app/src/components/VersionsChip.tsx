@@ -83,7 +83,9 @@ export default function VersionsChip({
           { credentials: 'same-origin' },
         )
         if (fRes.ok) {
-          const fBody = (await fRes.json()) as { docs?: { id: number; version: number | { id: number } }[] }
+          const fBody = (await fRes.json()) as {
+            docs?: { id: number; version: number | { id: number } }[]
+          }
           for (const f of fBody.docs ?? []) {
             const vid = typeof f.version === 'object' ? f.version.id : f.version
             fMap.set(Number(vid), f.id)
@@ -139,7 +141,12 @@ export default function VersionsChip({
           onClose={() => setOpen(false)}
           className="modal--versions"
         >
-          <button type="button" className="vp-close" aria-label="Close" onClick={() => setOpen(false)}>
+          <button
+            type="button"
+            className="vp-close"
+            aria-label="Close"
+            onClick={() => setOpen(false)}
+          >
             ×
           </button>
           {state === 'loading' && <p className="muted vp-note">Loading versions…</p>}
@@ -155,7 +162,11 @@ export default function VersionsChip({
                 const isCurrent = currentVersionId != null && v.id === currentVersionId
                 return (
                   <li key={v.id} className={`vp-line${isCurrent ? ' is-current' : ''}`}>
-                    <button type="button" className="vp-line-open" onClick={() => openVersion(v.id)}>
+                    <button
+                      type="button"
+                      className="vp-line-open"
+                      onClick={() => openVersion(v.id)}
+                    >
                       <span className="vp-semver">
                         {v.semver ?? `v${v.id}`}
                         {isOfficial && <span className="official-tag"> · Official</span>}

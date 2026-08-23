@@ -33,7 +33,7 @@ describe('parseRecipientEmail', () => {
     expect(parseRecipientEmail('a@b.c')).toBeNull() // 1-char TLD
   })
 
-  it('rejects malformed domains a looser pattern would admit (mirrors Payload\'s own email regex)', () => {
+  it("rejects malformed domains a looser pattern would admit (mirrors Payload's own email regex)", () => {
     expect(parseRecipientEmail('a@ex..ample.com')).toBeNull() // consecutive dots
     expect(parseRecipientEmail('a@-example.com')).toBeNull() // leading domain-label hyphen
     expect(parseRecipientEmail('a@example-.com')).toBeNull() // trailing domain-label hyphen

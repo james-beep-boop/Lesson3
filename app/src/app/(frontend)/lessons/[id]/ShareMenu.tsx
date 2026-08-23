@@ -84,7 +84,11 @@ export default function ShareMenu({
   }
 
   const busyText =
-    exportState === 'preparing' ? 'Preparing…' : exportState === 'downloading' ? 'Downloading…' : null
+    exportState === 'preparing'
+      ? 'Preparing…'
+      : exportState === 'downloading'
+        ? 'Downloading…'
+        : null
 
   return (
     <span className="share-wrap" ref={wrapRef}>

@@ -27,5 +27,9 @@ export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').re
  * already worked.
  */
 export async function loginAs(page: Page, fx: RoleFixture, key: RoleKey): Promise<void> {
-  await login({ page, serverURL: E2E_BASE, user: { email: fx.users[key].email, password: fx.password } })
+  await login({
+    page,
+    serverURL: E2E_BASE,
+    user: { email: fx.users[key].email, password: fx.password },
+  })
 }

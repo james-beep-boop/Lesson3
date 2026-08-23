@@ -23,7 +23,10 @@ import { parsePreviewCandidate } from '../../src/endpoints/previewParse.js'
  *  Optionally stub a Content-Length header to exercise the pre-parse guard. */
 const reqWith = (fd: FormData | null, contentLength?: number) =>
   ({
-    headers: { get: (k: string) => (k === 'content-length' && contentLength != null ? String(contentLength) : null) },
+    headers: {
+      get: (k: string) =>
+        k === 'content-length' && contentLength != null ? String(contentLength) : null,
+    },
     formData: async () => {
       if (fd === null) throw new Error('not a form post')
       return fd

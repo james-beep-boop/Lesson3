@@ -31,14 +31,18 @@ describe('SECTION_SELECTOR', () => {
 
   it('does not match a nested array row that merely contains the prefix', () => {
     document.body.innerHTML = `<div id="summaryTable-lessons-row-0"></div>`
-    expect(document.getElementById('summaryTable-lessons-row-0')?.matches(SECTION_SELECTOR)).toBe(false)
+    expect(document.getElementById('summaryTable-lessons-row-0')?.matches(SECTION_SELECTOR)).toBe(
+      false,
+    )
   })
 })
 
 describe('sectionKeyForFocus', () => {
   it('resolves a focused field to its enclosing lesson row', () => {
     expect(
-      sectionKeyForFocus(build(`<div id="lessons-row-2"><div><textarea id="probe"></textarea></div></div>`)),
+      sectionKeyForFocus(
+        build(`<div id="lessons-row-2"><div><textarea id="probe"></textarea></div></div>`),
+      ),
     ).toBe('lessons-row-2')
   })
 
@@ -66,13 +70,19 @@ describe('sectionKeyForFocus', () => {
 
   it('resolves a field in the Final Explanation group', () => {
     expect(
-      sectionKeyForFocus(build(`<div id="field-finalExplanation"><textarea id="probe"></textarea></div>`)),
+      sectionKeyForFocus(
+        build(`<div id="field-finalExplanation"><textarea id="probe"></textarea></div>`),
+      ),
     ).toBe('field-finalExplanation')
   })
 
   it('returns null for focus outside every section (e.g. a toolbar button)', () => {
     // This is what hands control back to scroll position when the user clicks Preview.
-    expect(sectionKeyForFocus(build(`<div class="doc-controls"><button id="probe">Preview</button></div>`))).toBeNull()
+    expect(
+      sectionKeyForFocus(
+        build(`<div class="doc-controls"><button id="probe">Preview</button></div>`),
+      ),
+    ).toBeNull()
   })
 
   it('returns null for null/undefined', () => {

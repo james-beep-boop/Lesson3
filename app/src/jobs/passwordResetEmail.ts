@@ -61,7 +61,11 @@ export const passwordResetEmailTask: TaskConfig<{
       depth: 0,
       overrideAccess: true,
       showHiddenFields: true,
-    })) as { email?: string; resetPasswordToken?: string | null; resetPasswordExpiration?: string | null }
+    })) as {
+      email?: string
+      resetPasswordToken?: string | null
+      resetPasswordExpiration?: string | null
+    }
 
     // No live token means the reset was already used, superseded, or expired between enqueue and
     // run. Nothing to send, and NOT a failure — returning normally avoids a pointless retry storm.

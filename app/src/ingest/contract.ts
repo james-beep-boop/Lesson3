@@ -100,7 +100,9 @@ function walk(value: unknown, node: Schema, path: string, out: string[]): void {
   if (value === null) return // a permitted null (e.g. an intentionally-omitted section)
 
   if (node.enum && !node.enum.includes(value as never)) {
-    out.push(`${path}: value ${JSON.stringify(value)} not in allowed [${node.enum.map(String).join(', ')}]`)
+    out.push(
+      `${path}: value ${JSON.stringify(value)} not in allowed [${node.enum.map(String).join(', ')}]`,
+    )
   }
   if (node.pattern && typeof value === 'string' && !new RegExp(node.pattern).test(value)) {
     out.push(`${path}: ${JSON.stringify(value)} does not match pattern /${node.pattern}/`)

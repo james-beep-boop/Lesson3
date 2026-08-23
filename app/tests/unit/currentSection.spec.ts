@@ -43,7 +43,9 @@ describe('pickCurrentSection', () => {
   })
 
   it('counts a header resting exactly on the line as crossed', () => {
-    expect(pickCurrentSection([{ key: 'lessons-row-4', top: TOOLBAR }], TOOLBAR)).toBe('lessons-row-4')
+    expect(pickCurrentSection([{ key: 'lessons-row-4', top: TOOLBAR }], TOOLBAR)).toBe(
+      'lessons-row-4',
+    )
     // ...and one clearly below it as not crossed (beyond the sub-pixel tolerance).
     expect(pickCurrentSection([{ key: 'lessons-row-4', top: TOOLBAR + 5 }], TOOLBAR)).toBeNull()
   })
@@ -120,4 +122,3 @@ describe('crossingLine', () => {
     expect(crossingLine(99, Number.NaN)).toBe(99)
   })
 })
-

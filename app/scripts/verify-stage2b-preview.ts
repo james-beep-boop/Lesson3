@@ -34,7 +34,12 @@ const reqFor = (user: User) => ({ user, t: ((k: string) => k) as never }) as nev
 const run = async () => {
   const payload = await getPayload({ config })
   const userByEmail = async (email: string): Promise<User> => {
-    const { docs } = await payload.find({ collection: 'users', where: { email: { equals: email } }, limit: 1, overrideAccess: true })
+    const { docs } = await payload.find({
+      collection: 'users',
+      where: { email: { equals: email } },
+      limit: 1,
+      overrideAccess: true,
+    })
     const u = docs[0] as User | undefined
     if (!u) throw new Error(`Seeded user ${email} not found`)
     return u
@@ -54,7 +59,9 @@ const run = async () => {
     | LessonBundleVersion
     | undefined
   if (!version) throw new Error('No lesson-bundle-version found.')
-  console.log(`Version ${version.id} "${version.title}" — subjectGrade ${relId(version.subjectGrade)}`)
+  console.log(
+    `Version ${version.id} "${version.title}" — subjectGrade ${relId(version.subjectGrade)}`,
+  )
 
   const results: boolean[] = []
   const check = (label: string, ok: boolean): void => {
@@ -64,7 +71,10 @@ const run = async () => {
 
   // 1. SAVED render — what GET /preview returns.
   const sections = await renderBundlePreview(version)
-  check('saved version renders a non-empty content preview', sections.length > 0 && sections.every((s) => s.html.length > 0))
+  check(
+    'saved version renders a non-empty content preview',
+    sections.length > 0 && sections.every((s) => s.html.length > 0),
+  )
 
   // 2. UNSAVED render as an Editor — prose applied, structure/admin reverted (field-split whitelist).
   const editorIsScoped = isEditorFor(editor, toId(version.subjectGrade))
@@ -84,17 +94,32 @@ const run = async () => {
       operation: 'update',
       originalDoc: version as unknown as Record<string, unknown>,
       req: reqFor(editor),
-    } as never) as unknown as { title?: string; lessons?: Array<{ overview?: string; duration?: string }> }
+    } as never) as unknown as {
+      title?: string
+      lessons?: Array<{ overview?: string; duration?: string }>
+    }
 
-    check('editor prose edit (lesson.overview) is applied', effective.lessons?.[0]?.overview === 'EDITOR PROSE EDIT')
+    check(
+      'editor prose edit (lesson.overview) is applied',
+      effective.lessons?.[0]?.overview === 'EDITOR PROSE EDIT',
+    )
     check('editor admin-field edit (title) is reverted', effective.title === version.title)
-    check('editor admin-field edit (lesson.duration) is reverted', effective.lessons?.[0]?.duration === firstLesson.duration)
+    check(
+      'editor admin-field edit (lesson.duration) is reverted',
+      effective.lessons?.[0]?.duration === firstLesson.duration,
+    )
 
     // Cardinality change by an Editor → Forbidden (endpoint maps to 422).
     let rejected = false
     try {
       enforceVersionFieldSplit({
-        data: { ...candidate, lessons: (version.lessons ?? []).slice(0, Math.max(0, (version.lessons ?? []).length - 1)) },
+        data: {
+          ...candidate,
+          lessons: (version.lessons ?? []).slice(
+            0,
+            Math.max(0, (version.lessons ?? []).length - 1),
+          ),
+        },
         operation: 'update',
         originalDoc: version as unknown as Record<string, unknown>,
         req: reqFor(editor),
@@ -108,7 +133,10 @@ const run = async () => {
   }
 
   // 3. A Teacher has no edit authority — the POST gate would 404 them.
-  check('teacher has NO edit authority for the version', !isEditorFor(teacher, toId(version.subjectGrade)))
+  check(
+    'teacher has NO edit authority for the version',
+    !isEditorFor(teacher, toId(version.subjectGrade)),
+  )
 
   const passed = results.filter(Boolean).length
   console.log(`\n${passed}/${results.length} checks passed`)

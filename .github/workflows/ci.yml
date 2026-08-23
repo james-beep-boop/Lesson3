@@ -121,6 +121,21 @@ jobs:
       - name: lint
         run: scripts/in-deps.sh npm run lint
 
+      - name: format:check
+        # ⚑ THE STEP WHOSE ABSENCE LET 106 FILES DRIFT. AGENTS.md has named "ESLint 9 + Prettier 3"
+        # as the convention since the start, but the command it gives is `npm run lint`, which is
+        # ESLint ONLY — so nothing ever checked Prettier and the repo quietly accumulated 106
+        # non-conforming files (almost all of it `printWidth: 100` wrapping). Formatting them was a
+        # one-off; without this step it would simply happen again, which is why the cleanup and the
+        # gate landed together.
+        #
+        # The globs live in `format:check` in package.json, NOT here, so `npm run format` locally and
+        # this gate can never disagree about what is in scope. Payload's generated output is excluded
+        # via `app/.prettierignore` — regenerate it, do not reformat it.
+        #
+        # `--network none`: formatting reads files and nothing else.
+        run: scripts/in-deps.sh --network none -- npm run format:check
+
       - name: audit:prod
         # No `--network none` here, unlike test:unit: `npm audit` queries the registry.
         run: scripts/in-deps.sh npm run audit:prod

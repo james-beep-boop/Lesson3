@@ -33,11 +33,7 @@ import type { LessonBundleVersion, LessonPlan } from '../payload-types'
  * which are published-but-unpointed. It exists for logs and tests, where distinguishing "the feature
  * is off" from "that plan is private" is the difference between a useful failure and a mystery.
  */
-export type PublicPlanMiss =
-  | 'feature-disabled'
-  | 'not-found'
-  | 'not-public'
-  | 'no-official-version'
+export type PublicPlanMiss = 'feature-disabled' | 'not-found' | 'not-public' | 'no-official-version'
 
 export type PublicPlanResult =
   | { ok: true; plan: LessonPlan; version: LessonBundleVersion }

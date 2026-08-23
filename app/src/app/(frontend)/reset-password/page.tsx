@@ -21,7 +21,8 @@ export default async function ResetPasswordPage({
         <ResetPasswordForm token={token} />
       ) : (
         <p className="login-note">
-          This page needs the link from your reset email. <Link href="/forgot-password">Request one</Link>.
+          This page needs the link from your reset email.{' '}
+          <Link href="/forgot-password">Request one</Link>.
         </p>
       )}
     </section>

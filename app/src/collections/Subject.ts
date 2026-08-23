@@ -1,4 +1,8 @@
-import type { CollectionAfterChangeHook, CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeDeleteHook,
+  CollectionConfig,
+} from 'payload'
 import { APIError } from 'payload'
 
 import { authenticated, canManageCurriculum, siteAdminOnly } from '../access'

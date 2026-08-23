@@ -76,9 +76,9 @@ describe('genuine not-visible answers are still a 400', () => {
 
   it('a version without its plan is a 400 before any lookup happens', async () => {
     const findByID = vi.fn(() => Promise.resolve({}))
-    await expect(
-      validateContextLink(hookArgs(findByID, { version: 5 })),
-    ).rejects.toMatchObject({ status: 400 })
+    await expect(validateContextLink(hookArgs(findByID, { version: 5 }))).rejects.toMatchObject({
+      status: 400,
+    })
     expect(findByID, 'the missing plan is decidable without a read').not.toHaveBeenCalled()
   })
 })
@@ -91,13 +91,14 @@ describe('the happy path and the paths that skip the check entirely', () => {
     ).resolves.toBe(data)
   })
 
-  it.each([
-    ['no version link at all', { lessonPlan: 9 }],
-  ])('%s skips the lookup', async (_label, data) => {
-    const findByID = vi.fn(() => Promise.resolve({}))
-    await expect(validateContextLink(hookArgs(findByID, data))).resolves.toBe(data)
-    expect(findByID).not.toHaveBeenCalled()
-  })
+  it.each([['no version link at all', { lessonPlan: 9 }]])(
+    '%s skips the lookup',
+    async (_label, data) => {
+      const findByID = vi.fn(() => Promise.resolve({}))
+      await expect(validateContextLink(hookArgs(findByID, data))).resolves.toBe(data)
+      expect(findByID).not.toHaveBeenCalled()
+    },
+  )
 
   /** System paths (fixtures, tests, seeds) run without `req.user` and are trusted by design. */
   it('a system path with no user is trusted', async () => {

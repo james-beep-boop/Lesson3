@@ -101,7 +101,10 @@ export default async function LessonView({
   try {
     sections = await renderVersionSectionsCached(payload, selectedId)
   } catch (e) {
-    payload.logger.error({ err: e, versionId: selectedId, userId: user?.id }, 'lesson render failed')
+    payload.logger.error(
+      { err: e, versionId: selectedId, userId: user?.id },
+      'lesson render failed',
+    )
     viewError = 'Could not render this lesson.'
   }
 

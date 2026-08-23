@@ -14,10 +14,7 @@ describe('assertExportKind (job-boundary guard)', () => {
     expect(() => assertExportKind('pdf')).not.toThrow()
   })
 
-  it.each(['PDF', 'Docx', 'zip', 'anything', '', null, undefined, 7])(
-    'rejects %j',
-    (bad) => {
-      expect(() => assertExportKind(bad)).toThrow(/Invalid export kind/)
-    },
-  )
+  it.each(['PDF', 'Docx', 'zip', 'anything', '', null, undefined, 7])('rejects %j', (bad) => {
+    expect(() => assertExportKind(bad)).toThrow(/Invalid export kind/)
+  })
 })

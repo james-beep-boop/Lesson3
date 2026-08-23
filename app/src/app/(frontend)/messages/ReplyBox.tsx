@@ -34,7 +34,12 @@ export default function ReplyBox({
     setBusy(true)
     setError(null)
     try {
-      await sendMessage({ recipient: recipientId, body: body.trim(), lessonPlan: planId, version: versionId })
+      await sendMessage({
+        recipient: recipientId,
+        body: body.trim(),
+        lessonPlan: planId,
+        version: versionId,
+      })
       setBody('')
       setOpen(false)
       router.refresh()

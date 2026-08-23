@@ -64,10 +64,7 @@ function extract(source: string, pattern: RegExp, what: string, path: string): s
 }
 
 describe('the backup status file: one path, three files, no drift', () => {
-  const factsSrc = read(
-    join(APP_DIR, 'src', 'lib', 'systemFacts.ts'),
-    'It is the app-side reader.',
-  )
+  const factsSrc = read(join(APP_DIR, 'src', 'lib', 'systemFacts.ts'), 'It is the app-side reader.')
   const scriptSrc = read(
     join(REPO_DIR, 'scripts', 'backup-db.sh'),
     'It is the host-side sole writer.',
@@ -103,10 +100,9 @@ describe('the backup status file: one path, three files, no drift', () => {
   )
 
   it('mounts the host directory the script writes into', () => {
-    expect(
-      mount,
-      'compose mounts a host directory the backup script does not write to',
-    ).toBe(dirname(scriptRelPath))
+    expect(mount, 'compose mounts a host directory the backup script does not write to').toBe(
+      dirname(scriptRelPath),
+    )
   })
 
   it('mounts it at the container directory the app reads from', () => {

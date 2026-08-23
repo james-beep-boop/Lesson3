@@ -413,13 +413,22 @@ export const applyEditorFieldSplit = ({
   //
   // Parametrised because the two bodies were identical but for four values, and the change that
   // created this comment had to be made twice — which is the shape of the bug it fixes.
-  const rebuildGroup = (key: string, prose: string[], rowsKey: string, rowProse: string[]): void => {
+  const rebuildGroup = (
+    key: string,
+    prose: string[],
+    rowsKey: string,
+    rowProse: string[],
+  ): void => {
     if (orig[key] == null && d[key] == null) return
     const base = (orig[key] ?? {}) as Doc
     const sub = asSubmittedGroup(d[key])
     const out = overlayProse(base, sub, prose)
     if (sub && Array.isArray(sub[rowsKey])) {
-      out[rowsKey] = overlayRows(base[rowsKey] as Doc[] | undefined, sub[rowsKey] as Doc[], rowProse)
+      out[rowsKey] = overlayRows(
+        base[rowsKey] as Doc[] | undefined,
+        sub[rowsKey] as Doc[],
+        rowProse,
+      )
     }
     d[key] = out
   }

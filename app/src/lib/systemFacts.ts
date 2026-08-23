@@ -219,7 +219,7 @@ function backupRecoveryFact(): SystemFact {
         value: 'This installation can recover on its own',
         status: 'ok',
         detail:
-          'Backups are encrypted to this school\'s key as well as ARES\'s, so either can restore them. ' +
+          "Backups are encrypted to this school's key as well as ARES's, so either can restore them. " +
           'Backups written BEFORE this key was configured can still only be opened by ARES.',
       }
     : {

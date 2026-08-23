@@ -12,7 +12,14 @@
  * Throttle: ONE request per user per subject-grade per day (`editRequest` bucket, keyed
  * `${userId}:${sgId}`) — checked BEFORE any work, same probing-spends-budget posture as email.
  */
-import { APIError, commitTransaction, initTransaction, killTransaction, type Endpoint, type PayloadRequest } from 'payload'
+import {
+  APIError,
+  commitTransaction,
+  initTransaction,
+  killTransaction,
+  type Endpoint,
+  type PayloadRequest,
+} from 'payload'
 
 import { json } from './respond'
 import { toId, isEditorFor } from '../access'
@@ -28,7 +35,11 @@ import type { SubjectGrade, User } from '../payload-types'
  * query mirrors the demote scan's shape (userRoles.ts), filtered in-memory for the admin role
  * because two dot-path conditions can't be pinned to the SAME array element.
  */
-async function resolveRecipients(req: PayloadRequest, sgId: number, requesterId: number | string): Promise<User[]> {
+async function resolveRecipients(
+  req: PayloadRequest,
+  sgId: number,
+  requesterId: number | string,
+): Promise<User[]> {
   const [siteAdmins, holders] = await Promise.all([
     req.payload.find({
       collection: 'users',
@@ -48,7 +59,9 @@ async function resolveRecipients(req: PayloadRequest, sgId: number, requesterId:
     }),
   ])
   const subjectAdmins = holders.docs.filter((u) =>
-    (u.assignments ?? []).some((a) => toId(a.subjectGrade as never) === sgId && a.role === 'subjectAdmin'),
+    (u.assignments ?? []).some(
+      (a) => toId(a.subjectGrade as never) === sgId && a.role === 'subjectAdmin',
+    ),
   )
   const byId = new Map<number | string, User>()
   for (const u of [...siteAdmins.docs, ...subjectAdmins]) {

@@ -15,7 +15,13 @@ import { getPayload, type Payload } from 'payload'
 import config from '../../src/payload.config.js'
 import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
 import { rawToBundle } from '../../src/ingest/toBundle.js'
-import { MARK, MARK_BASE, enqueuedKindsFor, minimalResourceLinks, purgeMarked } from '../helpers/fixtures.js'
+import {
+  MARK,
+  MARK_BASE,
+  enqueuedKindsFor,
+  minimalResourceLinks,
+  purgeMarked,
+} from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 
 let payload: Payload
@@ -65,7 +71,10 @@ function rawBundle(substrandId: string, titleDoc: string): Record<string, unknow
   }
 }
 
-const item = (name: string, raw: Record<string, unknown>): IngestItem => ({ name, extract: () => raw })
+const item = (name: string, raw: Record<string, unknown>): IngestItem => ({
+  name,
+  extract: () => raw,
+})
 
 beforeAll(async () => {
   payload = await getPayload({ config })
@@ -100,7 +109,12 @@ async function versionsOf(planId: number): Promise<string[]> {
 }
 
 async function officialOf(planId: number): Promise<number | null> {
-  const plan = await payload.findByID({ collection: 'lesson-plans', id: planId, depth: 0, overrideAccess: true })
+  const plan = await payload.findByID({
+    collection: 'lesson-plans',
+    id: planId,
+    depth: 0,
+    overrideAccess: true,
+  })
   return relId((plan as { officialVersion?: unknown }).officialVersion)
 }
 

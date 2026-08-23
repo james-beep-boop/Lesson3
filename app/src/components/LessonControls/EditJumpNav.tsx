@@ -177,8 +177,12 @@ export default function EditJumpNav() {
     // lookup of its own; all of them carry the same margin (custom.scss sets it on one selector list).
     const measureThreshold = (probe: HTMLElement | null): number => {
       const bar = navRef.current?.closest('.doc-controls')
-      const barBottom = bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
-      return crossingLine(barBottom, probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN)
+      const barBottom =
+        bar instanceof HTMLElement ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      return crossingLine(
+        barBottom,
+        probe ? Number.parseFloat(getComputedStyle(probe).scrollMarginTop) : NaN,
+      )
     }
 
     // Read-only pass (~15 rect reads, no interleaved writes, so no layout thrash) — cheap enough to
@@ -285,7 +289,11 @@ export default function EditJumpNav() {
       {/* "Top" deliberately does NOT take `sectionProps`: `field-title` isn't a tracked section, but
           `jumpTo` still writes it to `positionKey`, so marking it would light this link up until the
           tracking effect recomputed. Nothing should be current when you're above the first lesson. */}
-      <button type="button" className="lesson-controls__nav-link" onClick={() => jumpTo('field-title')}>
+      <button
+        type="button"
+        className="lesson-controls__nav-link"
+        onClick={() => jumpTo('field-title')}
+      >
         Top
       </button>
       <span className="lesson-controls__nav-label">Lessons</span>
@@ -304,10 +312,18 @@ export default function EditJumpNav() {
           </button>
         )
       })}
-      <button type="button" className="lesson-controls__nav-link" {...sectionProps(FINAL_EXPLANATION_ID)}>
+      <button
+        type="button"
+        className="lesson-controls__nav-link"
+        {...sectionProps(FINAL_EXPLANATION_ID)}
+      >
         Final explanation
       </button>
-      <button type="button" className="lesson-controls__nav-link" {...sectionProps(SUMMARY_TABLE_ID)}>
+      <button
+        type="button"
+        className="lesson-controls__nav-link"
+        {...sectionProps(SUMMARY_TABLE_ID)}
+      >
         Summary table
       </button>
     </nav>

@@ -89,7 +89,9 @@ async function main(): Promise<void> {
     data: Record<string, unknown>,
   ) => {
     const { docs } = await payload.find({ collection, where, limit: 1, overrideAccess: true })
-    return docs[0] ?? (await payload.create({ collection, data: data as never, overrideAccess: true }))
+    return (
+      docs[0] ?? (await payload.create({ collection, data: data as never, overrideAccess: true }))
+    )
   }
 
   const subject = await findOrCreate('subjects', { name: { equals: SUBJECT } }, { name: SUBJECT })

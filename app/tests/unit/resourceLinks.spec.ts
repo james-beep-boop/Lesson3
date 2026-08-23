@@ -14,10 +14,11 @@ import {
 import { preserveLessonResourceLinks } from '../../src/hooks/fieldSplit'
 
 const require = createRequire(import.meta.url)
-const { getAllPhaseResources, withStoredResourceLinks } = require('../../src/generator/vendor/aresResources.js') as {
-  getAllPhaseResources: () => unknown
-  withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
-}
+const { getAllPhaseResources, withStoredResourceLinks } =
+  require('../../src/generator/vendor/aresResources.js') as {
+    getAllPhaseResources: () => unknown
+    withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
+  }
 
 const record = (suffix: string) => ({
   title: `Title ${suffix}`,

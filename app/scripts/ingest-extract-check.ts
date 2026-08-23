@@ -30,7 +30,8 @@ import { deliverableWarnings, validateGeneratable } from '../src/ingest/validate
 const require = createRequire(import.meta.url)
 // Stakeholder-approved fixture set. Defaults to the local convention; override with
 // ARES_DEMO_PATH on CI / the Rock / another machine where the fixtures live elsewhere.
-const DEMO = process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
+const DEMO =
+  process.env.ARES_DEMO_PATH ?? path.join(os.homedir(), 'Desktop', 'ares-docx-fidelity-demo')
 const BIO = path.join(DEMO, 'bio_1_4_data.js')
 
 let passed = 0
@@ -118,7 +119,8 @@ module.exports = { META, UNIT, LESSONS, FINAL_EXPLANATION, SUMMARY_TABLE };
 `
   try {
     extractAresData(source) // should succeed (valid module) and NOT execute the assignment
-    if (g[key] === undefined) ok('safety: benign top-level statement is never executed (canary unset)')
+    if (g[key] === undefined)
+      ok('safety: benign top-level statement is never executed (canary unset)')
     else bad('safety: non-execution canary', `canary was set to ${String(g[key])} — code executed!`)
   } catch (e) {
     bad('safety: non-execution canary', `unexpected throw: ${(e as Error).message}`)
@@ -137,7 +139,10 @@ expectReject('reject: IIFE / arrow call in data', moduleWith(`evil: (() => 1)()`
 // proving the fold can't smuggle in an identifier/call.
 expectReject('reject: binary `+` with a non-literal operand', moduleWith(`evil: 1 + someVar`))
 expectReject('reject: non-`+` binary operator', moduleWith(`evil: 6 * 7`))
-expectReject('reject: __proto__ key (prototype pollution)', moduleWith(`__proto__: { polluted: true }`))
+expectReject(
+  'reject: __proto__ key (prototype pollution)',
+  moduleWith(`__proto__: { polluted: true }`),
+)
 expectReject(
   'reject: __proto__ key in module.exports (export layer)',
   `'use strict';
@@ -160,8 +165,8 @@ expectReject(
 // 2c. FOLD — constant string concatenation (the ARES multi-line-string pattern) folds.
 {
   const r = extractAresData(moduleWith(`note: 'a\\n' + 'b' + 'c'`)) as { META: { note?: unknown } }
-  if (r.META.note === 'a\nbc') ok("fold: constant string concatenation (+) folds to one string")
-  else bad("fold: constant string concatenation (+) folds", `got ${JSON.stringify(r.META.note)}`)
+  if (r.META.note === 'a\nbc') ok('fold: constant string concatenation (+) folds to one string')
+  else bad('fold: constant string concatenation (+) folds', `got ${JSON.stringify(r.META.note)}`)
 }
 
 // 2d. JSON PATH — `.json` exports ingest equivalently to `.js`, with matching guards.
@@ -216,10 +221,15 @@ expectReject(
   }
 
   const resourceRecord = {
-    title: 'ARES resource', source: 'ARES', content_type: 'html',
-    direct_url: 'http://ares.local/content', search_url: 'http://ares.local/search',
-    search_terms: 'terms', exact_search_url: 'https://ares.example/exact',
-    has_transcript: false, tier: 0,
+    title: 'ARES resource',
+    source: 'ARES',
+    content_type: 'html',
+    direct_url: 'http://ares.local/content',
+    search_url: 'http://ares.local/search',
+    search_terms: 'terms',
+    exact_search_url: 'https://ares.example/exact',
+    has_transcript: false,
+    tier: 0,
   }
   const current = structuredClone(legacy) as { lessons: Array<Record<string, unknown>> }
   for (const lesson of current.lessons) {
@@ -237,8 +247,13 @@ expectReject(
     )
   }
   const problems = validateGeneratable(current)
-  if (problems.length === 0) ok('completeness: required resourceLinks shape is generatable (0 problems)')
-  else bad('completeness: required resourceLinks shape is generatable', `unexpected problems: ${problems.join('; ')}`)
+  if (problems.length === 0)
+    ok('completeness: required resourceLinks shape is generatable (0 problems)')
+  else
+    bad(
+      'completeness: required resourceLinks shape is generatable',
+      `unexpected problems: ${problems.join('; ')}`,
+    )
 
   // A lesson missing `slo` / a phase outside the vocab must be flagged.
   const broken = validateGeneratable({
@@ -248,21 +263,39 @@ expectReject(
   const flagsSlo = broken.some((p) => /missing SLO/i.test(p))
   const flagsPhase = broken.some((p) => /invalid phase/i.test(p))
   if (flagsSlo && flagsPhase) ok('completeness: missing slo + bad phase are flagged')
-  else bad('completeness: missing slo + bad phase are flagged', `got: ${broken.join('; ') || '(none)'}`)
+  else
+    bad(
+      'completeness: missing slo + bad phase are flagged',
+      `got: ${broken.join('; ') || '(none)'}`,
+    )
 
   // Deliverable warnings (WARN-ONLY): bio_1_4 carries FE + ST (no warnings); an empty
   // bundle warns for both missing documents.
   const bioWarnings = deliverableWarnings(
     rawToBundle(extractAresData(require('node:fs').readFileSync(BIO, 'utf8'))),
   )
-  if (bioWarnings.length === 0) ok('deliverables: bio_1_4 produces all three documents (no warnings)')
-  else bad('deliverables: bio_1_4 produces all three documents', `unexpected: ${bioWarnings.join('; ')}`)
+  if (bioWarnings.length === 0)
+    ok('deliverables: bio_1_4 produces all three documents (no warnings)')
+  else
+    bad(
+      'deliverables: bio_1_4 produces all three documents',
+      `unexpected: ${bioWarnings.join('; ')}`,
+    )
 
-  const emptyWarnings = deliverableWarnings({ meta: {}, lessons: [], finalExplanation: {}, summaryTable: {} })
+  const emptyWarnings = deliverableWarnings({
+    meta: {},
+    lessons: [],
+    finalExplanation: {},
+    summaryTable: {},
+  })
   const warnsFE = emptyWarnings.some((w) => /FINAL_EXPLANATION/.test(w))
   const warnsST = emptyWarnings.some((w) => /SUMMARY_TABLE/.test(w))
   if (warnsFE && warnsST) ok('deliverables: empty FE/ST produce warn-only warnings')
-  else bad('deliverables: empty FE/ST produce warn-only warnings', `got: ${emptyWarnings.join('; ') || '(none)'}`)
+  else
+    bad(
+      'deliverables: empty FE/ST produce warn-only warnings',
+      `got: ${emptyWarnings.join('; ') || '(none)'}`,
+    )
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

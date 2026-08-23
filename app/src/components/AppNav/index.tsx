@@ -35,7 +35,10 @@ export async function AppNav({ user }: { user: User }) {
   // uglier and no more useful, so we show the type alone.
   const [unread, summary] = await Promise.all([
     countUnread(payload, user),
-    resolveAccessSummary(payload, user).catch(() => ({ typeLabel: userTypeLabel(user), lines: [] })),
+    resolveAccessSummary(payload, user).catch(() => ({
+      typeLabel: userTypeLabel(user),
+      lines: [],
+    })),
   ])
   return (
     <nav className="app-nav" aria-label="Primary">
@@ -67,7 +70,10 @@ export async function AppNav({ user }: { user: User }) {
 /** The session user's unread-message count. A trusted server-side projection (overrideAccess with
  *  an explicit recipient filter — the recipient IS the session user, so nothing foreign leaks).
  *  Best-effort: navigation must never break on a counting hiccup, so failures render as 0. */
-async function countUnread(payload: Awaited<ReturnType<typeof getPayload>>, user: User): Promise<number> {
+async function countUnread(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  user: User,
+): Promise<number> {
   try {
     const { totalDocs } = await payload.count({
       collection: 'messages',

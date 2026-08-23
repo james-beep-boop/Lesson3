@@ -56,8 +56,17 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   // the int-fixture teardown that nulls the pointer before deleting versions) legitimately clear it
   // via overrideAccess and are exempt — same trusted-system carve-out as the field-split/immutability
   // hooks. (Create with no pointer yet is fine: ingest sets it in a follow-up update.)
-  if (operation === 'update' && req.user && data && 'officialVersion' in data && !idFrom(data.officialVersion)) {
-    throw validationError('A lesson plan must keep one Official version; the pointer cannot be cleared.', req)
+  if (
+    operation === 'update' &&
+    req.user &&
+    data &&
+    'officialVersion' in data &&
+    !idFrom(data.officialVersion)
+  ) {
+    throw validationError(
+      'A lesson plan must keep one Official version; the pointer cannot be cleared.',
+      req,
+    )
   }
 
   // Invariant: a NEW plan cannot be created already pointing at an Official version. The pointer is
@@ -122,7 +131,8 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
 const SLUG_FORMAT_MESSAGE =
   'A public link may use lowercase letters, numbers and hyphens only, and cannot be all digits.'
 
-const slugError = (message: string, req: PayloadRequest) => validationError(message, req, 'publicSlug')
+const slugError = (message: string, req: PayloadRequest) =>
+  validationError(message, req, 'publicSlug')
 
 /**
  * Publication rules for a lesson plan (SPEC §2; `docs/DESIGN-public-library.md`).
@@ -299,7 +309,8 @@ async function firstFreeSlug(
  * being deleted. Mirrors the `purgeMarked` teardown order (versions before plans).
  */
 export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async ({ id, req }) => {
-  const ids = (req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined) ?? new Set<string>()
+  const ids =
+    (req.context[DELETING_LESSON_PLAN_IDS] as Set<string> | undefined) ?? new Set<string>()
   ids.add(String(id))
   req.context[DELETING_LESSON_PLAN_IDS] = ids
 
@@ -321,11 +332,16 @@ export const cascadeDeleteLessonPlanVersions: CollectionBeforeDeleteHook = async
  * in the caller's transaction either, so a failed enqueue cannot roll back the pointer move it
  * follows (see `prewarmVersionArtifacts` for the full mechanism).
  */
-export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
+export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({
+  doc,
+  previousDoc,
+  req,
+}) => {
   if (!req.user) return doc
   const newId = idFrom((doc as { officialVersion?: unknown }).officialVersion)
   if (newId == null) return doc
-  if (newId === idFrom((previousDoc as { officialVersion?: unknown } | undefined)?.officialVersion)) return doc
+  if (newId === idFrom((previousDoc as { officialVersion?: unknown } | undefined)?.officialVersion))
+    return doc
   await prewarmVersionArtifacts(req, newId)
   return doc
 }
@@ -343,7 +359,11 @@ export const prewarmOfficialArtifacts: CollectionAfterChangeHook = async ({ doc,
  * pointer moves too. Per-row best-effort — a favorites hiccup must never fail a promotion; a
  * skipped row at worst falls to the delete-previous cascade (the pre-T4 behavior).
  */
-export const retargetFollowerFavorites: CollectionAfterChangeHook = async ({ doc, previousDoc, req }) => {
+export const retargetFollowerFavorites: CollectionAfterChangeHook = async ({
+  doc,
+  previousDoc,
+  req,
+}) => {
   const newId = idFrom((doc as { officialVersion?: unknown }).officialVersion)
   const prevId = idFrom((previousDoc as { officialVersion?: unknown } | undefined)?.officialVersion)
   if (newId == null || prevId == null || newId === prevId) return doc
@@ -420,4 +440,3 @@ export const retargetFollowerFavorites: CollectionAfterChangeHook = async ({ doc
   }
   return doc
 }
-

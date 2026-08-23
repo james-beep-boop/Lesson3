@@ -103,7 +103,10 @@ export const generateVersionArtifactTask: TaskConfig<{
  * by the export status-binding check, the prepare dedupe, and pre-warm — homed here beside the task
  * symbols it interrogates.
  */
-export function jobMatchesVersion(job: PayloadJob | null | undefined, versionId: number | string): boolean {
+export function jobMatchesVersion(
+  job: PayloadJob | null | undefined,
+  versionId: number | string,
+): boolean {
   const input = job?.input as { versionId?: number | string } | undefined
   return (
     job?.taskSlug === GENERATE_VERSION_ARTIFACT_SLUG &&
@@ -159,9 +162,7 @@ export function isPendingExportJobConflict(error: unknown): boolean {
   while (current && typeof current === 'object' && !seen.has(current)) {
     seen.add(current)
     const record = current as { code?: unknown; constraint?: unknown; cause?: unknown }
-    if (
-      record.code === '23505' && record.constraint === PENDING_EXPORT_JOB_UNIQUE_INDEX
-    ) {
+    if (record.code === '23505' && record.constraint === PENDING_EXPORT_JOB_UNIQUE_INDEX) {
       return true
     }
     current = record.cause

@@ -81,9 +81,12 @@ describe('isValidPublicSlug', () => {
    * other identifier a visitor sees in this system is a numeric id; a public URL ending in `/42`
    * both reads like one and invites walking to `/43`. Nothing else in this file would catch it.
    */
-  it.each(['42', '007', '1234567'])('rejects the all-numeric %o so a slug cannot read as an id', (slug) => {
-    expect(isValidPublicSlug(slug)).toBe(false)
-  })
+  it.each(['42', '007', '1234567'])(
+    'rejects the all-numeric %o so a slug cannot read as an id',
+    (slug) => {
+      expect(isValidPublicSlug(slug)).toBe(false)
+    },
+  )
 
   it('rejects a slug past the maximum length', () => {
     expect(isValidPublicSlug('a'.repeat(MAX_PUBLIC_SLUG_LENGTH + 1))).toBe(false)

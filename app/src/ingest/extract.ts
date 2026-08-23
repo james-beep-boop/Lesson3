@@ -94,13 +94,16 @@ function literalToJson(node: AnyNode): unknown {
       // no object/array operands → no surprising coercions). See docs/DECISIONS.md.
       const op = node.operator as string
       if (op !== '+') {
-        return fail(`Unsupported binary operator '${op}'; only '+' (constant concat) is allowed`, node)
+        return fail(
+          `Unsupported binary operator '${op}'; only '+' (constant concat) is allowed`,
+          node,
+        )
       }
       const left = literalToJson(node.left as AnyNode)
       const right = literalToJson(node.right as AnyNode)
       const isPrimitive = (v: unknown) => typeof v === 'string' || typeof v === 'number'
       if (!isPrimitive(left) || !isPrimitive(right)) {
-        return fail("`+` operands must be string or number literals", node)
+        return fail('`+` operands must be string or number literals', node)
       }
       return (left as string | number) + (right as never)
     }

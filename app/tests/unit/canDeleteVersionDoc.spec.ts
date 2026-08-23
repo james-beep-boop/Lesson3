@@ -23,7 +23,9 @@ const version = { subjectGrade: SG, author: ME }
 
 describe('canDeleteVersionDoc', () => {
   it('Site Admin can delete any version', () => {
-    expect(canDeleteVersionDoc(user({ roles: ['siteAdmin'] }), { subjectGrade: SG, author: 999 })).toBe(true)
+    expect(
+      canDeleteVersionDoc(user({ roles: ['siteAdmin'] }), { subjectGrade: SG, author: 999 }),
+    ).toBe(true)
   })
 
   it('Subject Admin of the sg can delete any version there (author irrelevant)', () => {

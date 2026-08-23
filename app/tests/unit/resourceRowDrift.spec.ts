@@ -21,7 +21,7 @@ import {
 } from '../../src/ingest/resourceLinks'
 
 /** Named-field children of a group/array field. */
-const childrenOf = (f: Field): Field[] => ((f as { fields?: Field[] }).fields ?? [])
+const childrenOf = (f: Field): Field[] => (f as { fields?: Field[] }).fields ?? []
 
 /** Find a named field within a list. */
 const byName = (fields: Field[], name: string): Field =>
@@ -51,7 +51,9 @@ describe('stored resourceLinks rows ↔ lessonContent field schema stay in sync'
 
   it('the phase select offers exactly the phase keys', () => {
     const phase = byName(rowFields, 'phase') as Field & { options: unknown[] }
-    const values = phase.options.map((o) => (typeof o === 'string' ? o : (o as { value: string }).value))
+    const values = phase.options.map((o) =>
+      typeof o === 'string' ? o : (o as { value: string }).value,
+    )
     expect(values).toEqual([...RESOURCE_PHASE_KEYS])
   })
 

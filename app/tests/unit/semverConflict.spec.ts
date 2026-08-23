@@ -11,24 +11,34 @@ import { isSemverConflict } from '../../src/lib/semver.js'
 
 describe('isSemverConflict', () => {
   it('matches by the constraint name on the error', () => {
-    expect(isSemverConflict({ constraint: 'lessonPlan_semver_idx', message: 'whatever' })).toBe(true)
+    expect(isSemverConflict({ constraint: 'lessonPlan_semver_idx', message: 'whatever' })).toBe(
+      true,
+    )
   })
 
   it('matches by the constraint name on a wrapped cause (drizzle wraps the pg error)', () => {
     expect(
-      isSemverConflict({ message: 'insert failed', cause: { constraint: 'lessonPlan_semver_idx' } }),
+      isSemverConflict({
+        message: 'insert failed',
+        cause: { constraint: 'lessonPlan_semver_idx' },
+      }),
     ).toBe(true)
   })
 
   it('matches by the index name in the message (constraint field absent)', () => {
     expect(
-      isSemverConflict(new Error('duplicate key value violates unique constraint "lessonPlan_semver_idx"')),
+      isSemverConflict(
+        new Error('duplicate key value violates unique constraint "lessonPlan_semver_idx"'),
+      ),
     ).toBe(true)
   })
 
   it('matches the index name in a wrapped cause message', () => {
     expect(
-      isSemverConflict({ message: 'insert failed', cause: { message: 'violates "lessonPlan_semver_idx"' } }),
+      isSemverConflict({
+        message: 'insert failed',
+        cause: { message: 'violates "lessonPlan_semver_idx"' },
+      }),
     ).toBe(true)
   })
 
@@ -42,7 +52,9 @@ describe('isSemverConflict', () => {
       }),
     ).toBe(false)
     // Generic duplicate-key text with no index name → not ours.
-    expect(isSemverConflict(new Error('duplicate key value violates unique constraint'))).toBe(false)
+    expect(isSemverConflict(new Error('duplicate key value violates unique constraint'))).toBe(
+      false,
+    )
   })
 
   it('does NOT match unrelated errors (so they still surface, not retried)', () => {
