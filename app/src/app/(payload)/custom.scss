@@ -2100,20 +2100,50 @@ a.btn.lp-btn {
 .modal {
   width: 100%;
   max-width: 26rem;
-  padding: 1.25rem;
+  // No padding: `__title` is a full-bleed header bar and `__content` carries the inset. `overflow`
+  // is what keeps the bar's corners inside the panel's radius.
+  overflow: hidden;
   color: var(--theme-elevation-1000);
   background: var(--theme-elevation-0);
   border: 1px solid var(--theme-elevation-200);
-  border-radius: 6px;
+  border-radius: var(--style-radius-m, 4px);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
 
   // The element vocabulary `Modal`'s callers ALREADY use on the frontend (`.modal__title/__body/
   // __field/__actions` — see EmailModal / EditActions and styles.css). Restated here in Payload tokens
   // rather than re-invented under per-caller names: two admin Modals had otherwise grown their own
   // spellings of "muted paragraph", "labelled field" and "button row".
+  // ⚑ THE ACCORDION'S CHROME, REUSED — and for the same reason the accordion borrowed Payload's
+  // `Collapsible`: so a dialog reads as part of this admin rather than a visitor to it. Same
+  // `--theme-elevation-50` fill, same hairline, same left-aligned heading at the 20px step, same
+  // `--style-radius-m` on the panel. No new tokens, no new idiom.
+  //
+  // ⚑ LEFT-ALIGNED, deliberately: every other heading in the app is, and the recovery prompt's long
+  // title would centre badly.
   .modal__title {
-    margin: 0 0 0.75rem;
+    margin: 0;
+    padding: 0.7rem 1.25rem;
+    background: var(--theme-elevation-50);
+    border-bottom: 1px solid var(--theme-elevation-200);
+    font-size: 20px;
+  }
+
+  .modal__content {
+    padding: 1.25rem;
+  }
+
+  // ⚑ OPT-OUT — the bar is the default, not a universal. A destructive confirmation (`.lp-confirm`)
+  // would read as a panel rather than a warning, and the two-sentence too-narrow notice carries more
+  // chrome than content. Both keep the plain heading they had.
+  &.modal--plain .modal__title {
+    padding: 1.25rem 1.25rem 0;
+    background: none;
+    border-bottom: 0;
     font-size: 1.15rem;
+  }
+
+  &.modal--plain .modal__content {
+    padding: 0.75rem 1.25rem 1.25rem;
   }
 
   .modal__body {

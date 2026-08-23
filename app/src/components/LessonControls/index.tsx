@@ -721,11 +721,11 @@ export default function LessonControls() {
         <Modal
           title={EDITING_WIDER_SCREEN_TITLE}
           onClose={() => setTooNarrow(false)}
-          className="lesson-edit-help"
+          className="lesson-edit-help modal--plain"
         >
           <p>{EDITING_WIDER_SCREEN_BODY}</p>
           <div className="modal__actions">
-            <Button buttonStyle="primary" size="small" onClick={() => setTooNarrow(false)}>
+            <Button buttonStyle="secondary" size="small" onClick={() => setTooNarrow(false)}>
               Got it
             </Button>
           </div>
@@ -757,8 +757,12 @@ export default function LessonControls() {
               </li>
             )}
           </ul>
+          {/* ⚑ SECONDARY, not primary. Nothing in this dialog is a primary action — it is an
+              acknowledgement, and a filled button claimed an emphasis it has not earned. Manage uses
+              outline for both of its row controls, so outline is the house style for a dialog's own
+              dismissal. Same for "Got it" below. */}
           <div className="modal__actions">
-            <Button buttonStyle="primary" size="small" onClick={() => setHelpOpen(false)}>
+            <Button buttonStyle="secondary" size="small" onClick={() => setHelpOpen(false)}>
               Close
             </Button>
           </div>

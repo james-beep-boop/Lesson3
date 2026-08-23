@@ -385,7 +385,7 @@ function ConfirmDelete({
   const needsTyped = scope.count > 1
   const ready = !needsTyped || typed.trim().toUpperCase() === CONFIRM_WORD
   return (
-    <Modal title="Delete lesson plans" onClose={onCancel} className="lp-confirm">
+    <Modal title="Delete lesson plans" onClose={onCancel} className="lp-confirm modal--plain">
       <p>{deleteScopeSentence(scope)}</p>
       {hidden > 0 && (
         <p className="modal__body">

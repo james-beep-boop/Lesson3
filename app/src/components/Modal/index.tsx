@@ -10,14 +10,10 @@
  * of escaping to the controls behind it (GPT review 2026-07-17). Body scroll is locked while open.
  * Keep the contents (fields, buttons) in the caller.
  */
-import React, { useEffect, useId, useRef } from 'react'
+import React, { useEffect, useId, useRef, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 
-export default function Modal({
-  title,
-  onClose,
-  className,
-  children,
-}: {
+interface ModalProps {
   title: string
   /** Called on Escape or backdrop click. The caller decides whether to actually close (e.g. ignore
    *  while a request is in flight). */
@@ -32,7 +28,50 @@ export default function Modal({
    *  restate the backdrop. */
   className?: string
   children: React.ReactNode
-}) {
+}
+
+/**
+ * ⚑ PORTALLED TO `document.body`, NOT RENDERED IN PLACE (2026-08-23).
+ *
+ * `.modal-backdrop` is `position: fixed; inset: 0`, which means "the viewport" ONLY while no
+ * ancestor establishes a containing block. Payload's own document-controls wrapper sets
+ * `transform: translateZ(0)` inside `@media (max-width: 1024px)`, and an identity transform is
+ * enough: every dialog opened from the version editor's control bar was then laid out inside that
+ * ~235px-tall strip. Measured at a 1227px-tall viewport — the page behind was not dimmed, the panel
+ * was centred in the strip rather than the window (so it overlapped the site header), and
+ * backdrop-click-to-close only worked inside the strip. Editing help, Insert link, the too-narrow
+ * notice and the recovery restore prompt were all affected; above 1024px none of them were, which is
+ * why it survived so long.
+ *
+ * Portalling is the STRUCTURAL fix rather than hunting the transform: `document.body` has no
+ * transformed ancestor by construction, so no future `transform`, `filter`, `contain` or
+ * `will-change` anywhere in the tree can re-break it.
+ *
+ * The panel is a separate component so its focus/Escape/scroll-lock effects mount only once the
+ * portal target exists. Gating those effects inside one component would run them on the first
+ * (target-less) render, when `panelRef` is still null — focus would never enter the dialog and the
+ * key handler would attach against nothing.
+ */
+/** Never subscribes — the store is constant. It exists only to give the server and the client
+ *  different snapshots, which is what makes "have we hydrated?" a render-safe question. */
+const NEVER_CHANGES = () => () => {}
+
+export default function Modal(props: ModalProps) {
+  // `document` does not exist while rendering on the server, so the portal has to wait for the
+  // client. `useSyncExternalStore` with a constant store is the render-safe way to ask: `false` on
+  // the server, `true` after hydration, with no `setState` in an effect (which the lint forbids) and
+  // no reading of `document` during render (which would be a hydration mismatch the day a caller
+  // renders a Modal on first paint).
+  const hydrated = useSyncExternalStore(
+    NEVER_CHANGES,
+    () => true,
+    () => false,
+  )
+  if (!hydrated) return null
+  return createPortal(<ModalPanel {...props} />, document.body)
+}
+
+function ModalPanel({ title, onClose, className, children }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -113,7 +152,9 @@ export default function Modal({
         <h2 id={titleId} className="modal__title">
           {title}
         </h2>
-        {children}
+        {/* The caller's content, padded. Separate from the panel so `.modal__title` can be a
+            full-bleed header bar (the Manage panel's chrome) rather than a heading with margin. */}
+        <div className="modal__content">{children}</div>
       </div>
     </div>
   )
