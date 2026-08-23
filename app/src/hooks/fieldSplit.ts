@@ -129,11 +129,19 @@ export const FRAMEWORK_PROSE = [
 export const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained']
 export const FINAL_EXPLANATION_PROSE = ['instructions']
 export const SECTION_PROSE = ['prompt']
-// ⚑ NO `title` — SPEC §205 grants a teacher with editing access `SUMMARY_TABLE.lessons[].{observed,
-// learned, explained}` and nothing else. It was listed here (and rendered by `prose()`), so the
-// implementation was WIDER than the permission it implements: a teacher could rewrite a Summary Table
-// row's title. It is now administrator-only, and the drift spec ties this list to the field
-// definitions so the two halves cannot part company again.
+// ⚑ NO `title`, AND THIS IS THE CANONICAL NOTE — the field definition and the two specs that changed
+// with it point here rather than restating it.
+//
+// SPEC §5 grants a teacher with editing access `SUMMARY_TABLE.lessons[].{observed, learned,
+// explained}` and nothing else. `title` was listed here AND rendered by `prose()`, so the
+// implementation was wider than the permission it implements: a teacher could rewrite a Summary Table
+// row's title. Now administrator-only on both halves.
+//
+// The two halves are a deliberate copy, not an oversight: these constants are consumed on the CLIENT
+// path (`lib/editRecovery/projection.ts` → `components/EditRecovery/restoreGroups.ts`), so deriving
+// them from `lessonContentFields` would pull the server access layer and `payload-types` into the
+// browser bundle. `tests/unit/proseWhitelistDrift.spec.ts` walks the field definitions and asserts
+// this list matches, which is what keeps the copy honest — it needed no edit when both halves moved.
 export const SUMMARY_LESSON_PROSE = ['observed', 'learned', 'explained']
 
 /**

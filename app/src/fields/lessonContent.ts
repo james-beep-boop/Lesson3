@@ -19,7 +19,7 @@ import { isSafeHttpUrl, RESOURCE_PHASE_KEYS } from '../ingest/resourceLinks'
  * generation adapter maps them back to the generator's exact keys. Inner keys already match the ARES
  * data verbatim.
  *
- * Field-level access (SPEC §5): teachers with editing access edit prose; Subject Admins edit META / aresKeywords / phase /
+ * Field-level access (SPEC §5): teachers with editing access edit prose; Subject Admins edit META / phase /
  * duration / structure / answer keys; lesson-level ARES resources and lesson numbers are system-only.
  *
  * IMPORTANT — the authority for the teacher with editing access/admin split is the field-split hook (`applyEditorFieldSplit`,
@@ -134,15 +134,21 @@ const adminOnly = (field: Field): Field => {
  * FORM CONTROLS: editing them cannot change anything observable, so the control was an offer the
  * system does not honour.
  *
- * Read-only as well as hidden, so the honesty holds through the API and not just the admin form.
+ * ⚑ PRESENTATION ONLY — NO FIELD-LEVEL `access`, and that is not an oversight. Payload field access
+ * **nulls optional admin-only subfields inside open arrays** when a non-admin submits the array
+ * (DECISIONS 2026-07-04). The recorded victims of that were `lessons[].duration/substrand/
+ * aresKeywords` — two of which this helper wraps — and the recorded resolution was to REMOVE field
+ * access from exactly those fields and enforce them in a hook instead. Adding `access` back here
+ * would be inert today (every version write goes through `overrideAccess`, and in-place update is
+ * refused by `enforceVersionImmutable`) and a latent wipe the day any other write path appears.
+ *
+ * Write-time authority is therefore `applyEditorFieldSplit`'s whitelist, which is secure by default:
+ * a key absent from every `*_PROSE` list is restored from the source version, so none of these can be
+ * changed by a teacher with editing access whether or not the form shows them.
  */
 const storedNotEdited = (field: Field): Field => {
   const admin = (field as { admin?: Record<string, unknown> }).admin ?? {}
-  return {
-    ...field,
-    access: { create: systemOnly, update: systemOnly },
-    admin: { ...admin, hidden: true, readOnly: true },
-  } as Field
+  return { ...field, admin: { ...admin, hidden: true, readOnly: true } } as Field
 }
 
 export const lessonContentFields: Field[] = [
@@ -257,8 +263,8 @@ export const lessonContentFields: Field[] = [
       // `getAllPhaseResources({ substrand, topic, subject })`, but Lesson3's bridge
       // (`generator/vendor/aresResources.js`) is POSITIONAL: it pops each lesson's already-resolved
       // `resourceLinks` from a queue in `LESSONS` order and ignores the arguments entirely. So
-      // editing either one changed nothing a teacher could ever see. Kept in storage because they
-      // are contract data and would matter again if a re-pin restored the lookup.
+      // editing either one changed nothing a teacher could ever see — though a re-pin that restored
+      // the lookup would make them matter again, which is why they stay stored.
       storedNotEdited(structureText('substrand', 'Sub-strand')),
       storedNotEdited(structureText('aresKeywords', 'ARES keywords')),
       {
@@ -395,11 +401,8 @@ export const lessonContentFields: Field[] = [
             admin: { hidden: true, readOnly: true },
             access: { create: systemOnly, update: systemOnly },
           },
-          // ⚑ ADMINISTRATOR-ONLY, matching SPEC §205, which grants a teacher with editing access
-          // `SUMMARY_TABLE.lessons[].{observed, learned, explained}` — and not the title. `prose()`
-          // here made it teacher-writable, so the implementation was WIDER than the permission it
-          // implements. Mirroring these from the lesson titles would be the tidier end state, but
-          // that changes generator input and is a separate, corpus-backed decision.
+          // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `hooks/fieldSplit.ts` for
+          // why, and SPEC §5 for the permission it implements.
           adminOnly(structureText('title', 'Title')),
           prose('observed', 'Observed'),
           prose('learned', 'Learned'),

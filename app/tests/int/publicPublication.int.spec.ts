@@ -23,6 +23,7 @@ import {
   setupRoleFixture,
   type RoleFixture,
 } from '../helpers/fixtures.js'
+import { fieldErrors } from '../helpers/payloadErrors.js'
 import { resolvePublicPlanBySlug } from '../../src/lib/publicPlan.js'
 import type { LessonBundleVersion, LessonPlan } from '../../src/payload-types.js'
 
@@ -81,30 +82,6 @@ async function makePlanWithOfficial(
 
 const publish = (id: number, data: Record<string, unknown>) =>
   fx.payload.update({ collection: 'lesson-plans', id, data: data as never, overrideAccess: true })
-
-/**
- * The FIELD-LEVEL messages of a rejected write.
- *
- * ⚑ `rejects.toThrow(/…/)` is the wrong tool for a Payload `ValidationError`: its top-level
- * `message` is the generic "The following field is invalid: publicSlug", and the message the hook
- * actually wrote — the one an administrator reads and the only thing that distinguishes "you may not
- * rename this" from "that slug is malformed" — lives in `data.errors[].message`. Matching the
- * wrapper would pass for ANY validation failure on that field, including one from a future rule,
- * so this reaches for the real text and the path alongside it.
- */
-async function fieldErrors(op: Promise<unknown>): Promise<{ message: string; path: string }[]> {
-  try {
-    await op
-  } catch (error) {
-    const data = (error as { data?: { errors?: { message?: string; path?: string }[] } }).data
-    const errors = data?.errors ?? []
-    if (errors.length === 0) {
-      throw new Error(`expected field-level errors, got: ${String((error as Error).message)}`)
-    }
-    return errors.map((e) => ({ message: String(e.message ?? ''), path: String(e.path ?? '') }))
-  }
-  throw new Error('expected the write to be rejected, but it succeeded')
-}
 
 beforeAll(async () => {
   fx = await setupRoleFixture()

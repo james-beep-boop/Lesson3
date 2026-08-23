@@ -82,17 +82,32 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
     )
   }
 
-  // ⚑ FALL BACK TO THE STORED POINTER — the checks below are about the plan's CURRENT Official
-  // version, not only about a pointer this particular request happens to mention.
+  // ⚑ THE REMAINING CHECKS COMPARE THE PLAN AGAINST ITS *STORED* OFFICIAL VERSION, so they must run
+  // whenever this request can move either side of that comparison — not only when it mentions the
+  // pointer.
   //
   // This used to read `if (!data?.officialVersion) return data`, which was inconsistent with its own
-  // neighbour: the subject-grade comparison three statements down already writes
-  // `data.subjectGrade ?? originalDoc?.subjectGrade` because it knows an update can be PARTIAL. The
-  // early return did not. So a PATCH carrying ONLY `subjectGrade` — which the lesson-plan repair form
-  // can send — returned here untouched, and the plan moved to a different subject-grade while its
-  // Official version still belonged to the old one. Exactly the state the last check in this function
-  // exists to prevent, reachable by omitting a field rather than by setting one.
-  const officialVersionRef = data?.officialVersion ?? originalDoc?.officialVersion
+  // neighbour: the subject-grade comparison below already consults `originalDoc` because it knows an
+  // update can be PARTIAL. The early return did not. So a request carrying ONLY `subjectGrade`
+  // returned here untouched, and the plan could move to a different subject-grade while its Official
+  // version still belonged to the old one — exactly the state the last check in this function exists
+  // to prevent, reachable by omitting a field rather than by setting one.
+  //
+  // ⚑ `'x' in data`, NOT `??`. The distinction is load-bearing twice over:
+  //   - An explicit `officialVersion: null` is a system CLEAR (authenticated clears are rejected
+  //     above; teardown and re-ingest do it via overrideAccess). `??` would read that null as "not
+  //     mentioned" and fall back to the stored pointer, so every clear fetched and validated the very
+  //     version it was about to unpoint. `purgeMarked` clears up to 200 plans per `Promise.all`, so
+  //     that was hundreds of pointless reads per test run.
+  //   - A request touching NEITHER key cannot change any input to either comparison, so its answer is
+  //     whatever the previous validated write established. Skipping it is closed inductively: both
+  //     sides are gated — the plan side here, the version side by `enforceVersionPlanConsistency`
+  //     plus (since 2026-08-23) `lessonPlan`/`subjectGrade` being system-only on versions. That saves
+  //     a read on every title / visibility / publicSlug edit, which are interactive admin paths.
+  if (!data || !('officialVersion' in data || 'subjectGrade' in data)) return data
+
+  const officialVersionRef =
+    'officialVersion' in data ? data.officialVersion : originalDoc?.officialVersion
   if (!officialVersionRef) return data
 
   const officialVersionId = idFrom(officialVersionRef)
@@ -115,10 +130,13 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   // `hooks/bundleVersion.ts`, which carries the full race, and
   // `tests/int/officialPointerLock.int.spec.ts` for the mutation run that settled it.
 
+  // `select`: the two relationship ids are all this needs, and the row is otherwise a whole lesson
+  // bundle — every prose field plus its array sub-tables. `depth: 0` keeps the ids unpopulated.
   const version = (await req.payload.findByID({
     collection: LESSON_BUNDLE_VERSIONS,
     id: officialVersionId,
     depth: 0,
+    select: { lessonPlan: true, subjectGrade: true },
     overrideAccess: true,
     req,
   })) as { lessonPlan?: unknown; subjectGrade?: unknown }

@@ -135,19 +135,21 @@ export const LessonBundleVersions: CollectionConfig = {
       // than no control.
       //
       // `systemOnly` + hidden rather than deleted: the relationship IS the categorisation truth
-      // (SPEC §8 — fixed at ingest), the column is indexed and required, and the save-as-new path
+      // (SPEC §5 — fixed at ingest), the column is indexed and required, and the save-as-new path
       // writes it under `overrideAccess`, which field access does not gate. Moving a version to
       // another plan or subject-grade is not an editing operation and has no route here by design.
+      //
+      // ⚑ Field `access` is safe HERE, unlike on the array subfields `storedNotEdited` wraps: the
+      // array-nulling limitation that rule guards against (DECISIONS 2026-07-04) applies to optional
+      // subfields inside open arrays, and these are required top-level relationships.
       name: 'lessonPlan',
       type: 'relationship',
       relationTo: 'lesson-plans' as CollectionSlug,
       required: true,
       index: true,
       access: { create: systemOnly, update: systemOnly },
-      admin: {
-        position: 'sidebar',
-        hidden: true,
-      },
+      // No `position: 'sidebar'`: it named a slot a hidden field no longer occupies.
+      admin: { hidden: true },
     },
     {
       // Provenance, not content: save-as-new stamps the actual source itself (a submitted value is

@@ -150,9 +150,8 @@ describe('edit-recovery projection', () => {
     expect(m['framework:21']).toEqual({ learnerExperience: 'LE', teacherMoves: 'TM' })
     expect(m[FINAL_EXPLANATION_KEY]).toEqual({ instructions: 'Do the thing.' })
     expect(m['section:31']).toEqual({ prompt: 'Explain X' })
-    // No `title`: the Summary Table row title is administrator-only (SPEC §205), so it is not
-    // teacher prose and edit recovery must not capture it — capturing a field the teacher cannot
-    // change would offer to restore work they were never able to do.
+    // No `title`: administrator-only (see the ⚑ in `hooks/fieldSplit.ts`), so it is not teacher
+    // prose — and capturing it would offer to restore work the teacher could never have done.
     expect(m['summaryLesson:51']).toEqual({ observed: 'o', learned: 'l', explained: 'e' })
   })
 

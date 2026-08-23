@@ -8,7 +8,7 @@ import { isEditorFor, isSubjectAdminFor, toId } from './index'
  * Field-level access for the lesson-plan content fields (SPEC §5), shared by the
  * `lesson-bundle-versions` collection (and `lesson-plans` for its structural fields).
  *
- * Teachers with editing access edit prose values; Subject Admins additionally edit META / aresKeywords / phase /
+ * Teachers with editing access edit prose values; Subject Admins additionally edit META / phase /
  * duration / structure / answer keys; the resource column and lesson numbers are system-only.
  * The authoritative editing-access/admin split for array rows lives in the field-split hook
  * (`hooks/fieldSplit.ts`); these field-access fns cover the create/UI path.
