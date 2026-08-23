@@ -2455,13 +2455,22 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
 // the same baseline as the controls it stands next to.
 .lp-recovery {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  // Matches --app-btn-min-height so the bar's row height does not shift when the indicator appears
-  // — a control bar that jumps as you type is its own small usability bug.
-  min-height: var(--app-btn-min-height);
-  padding: 0 var(--app-btn-padding-inline);
+  align-items: center;
+  // ⚑ ITS OWN ROW, AT EVERY WIDTH. This used to be an ordinary flex item sitting between Cancel and
+  // Insert link, taking a full row only under `max-width: 640px`. Between those two regimes it had
+  // no width of its own to defend and no `min-width`, so it collapsed to ONE WORD PER LINE — a
+  // column of vertical text wedged between two buttons (reported 2026-08-23). Claiming the row
+  // outright is what the ≤640px rule already did; the only bug was that it waited for a breakpoint
+  // to do it. Nothing else in the bar wants to sit beside a status message anyway.
+  // `flex-basis: 100%` claims the row. It only works because this is now a child of the WRAPPING
+  // `.lesson-controls` rather than of the `nowrap` button group — inside that group the same
+  // declaration was silently shrunk away, which is what produced the one-word-per-line column.
+  flex-basis: 100%;
+  // No `min-height`: that existed to stop the row height changing as the indicator's text changed
+  // while it shared a row with the buttons. On a row of its own it is always exactly one line, so a
+  // floor would only pad it out.
+  margin-top: 2px;
+  padding-inline: 0;
   font-size: var(--app-btn-font-size);
   line-height: 1.3;
 
@@ -2488,12 +2497,10 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
 }
 
 @media (max-width: 640px) {
-  // ⚑ NOT hidden. The reasoning for hiding it was that editing is unavailable below this width
-  // (DESIGN-button-system §4) — but that guard is applied ON MOUNT, so a session unlocked at a wider
-  // width SURVIVES a resize, and the one moment a teacher most needs to know whether their work is
-  // safe is the moment the layout collapses around them. It takes the full row instead.
-  .lp-recovery {
-    flex-basis: 100%;
-    padding-inline: 0;
-  }
+  // ⚑ NOT hidden, and no override needed any more. The reasoning for hiding it was that editing is
+  // unavailable below this width (DESIGN-button-system §4) — but that guard is applied ON MOUNT, so
+  // a session unlocked at a wider width SURVIVES a resize, and the one moment a teacher most needs
+  // to know whether their work is safe is the moment the layout collapses around them. The full-row
+  // treatment that used to live here is now the base rule, so this breakpoint has nothing to say
+  // about it. Do not re-add a `display: none` here.
 }
