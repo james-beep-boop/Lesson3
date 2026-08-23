@@ -73,12 +73,18 @@ const mobileRules = adminRules.filter((r) => r.media && /max-width:\s*640px/.tes
 
 const root = postcss.parse(css)
 
-/** Every rule INCLUDING at-rule children — the shape "can any rule reach this?" questions want. */
-const allRules: { selectors: string[]; body: string }[] = []
+/**
+ * Every rule INCLUDING at-rule children — the shape "can any rule reach this?" questions want.
+ * `media` carries the enclosing at-rule params (as `adminRules` above already does), so a guard can
+ * assert WHICH breakpoint a rule lives under instead of inferring it from source order.
+ */
+const allRules: { selectors: string[]; body: string; media: string | null }[] = []
 root.walkRules((r) => {
+  const parent = r.parent as { type?: string; params?: string } | undefined
   allRules.push({
     selectors: r.selectors.map((s) => s.trim()),
     body: r.nodes.map((d) => d.toString()).join(';'),
+    media: parent?.type === 'atrule' ? (parent.params ?? null) : null,
   })
 })
 
@@ -237,6 +243,13 @@ describe('Guide + Compare visual system', () => {
     const narrow = grids.find(({ r }) => /grid-template-columns:\s*1fr(?!\s+1fr)/.test(r.body))
     expect(wide, 'base two-column .compare-grid rule missing').toBeDefined()
     expect(narrow, 'expected a single-column .compare-grid rule for narrow screens').toBeDefined()
+    // The BREAKPOINT, not just the ordering: identifying the stacking rule by "a `1fr` body later in
+    // the file" would also be satisfied by a single-column rule added at base width, which would
+    // stack the panes on DESKTOP — the opposite of this test's name.
+    expect(wide!.r.media, 'the two-column rule is the base, so it is in no media query').toBeNull()
+    expect(narrow!.r.media ?? '', 'the stacking rule must live under the ≤640px query').toMatch(
+      /max-width:\s*640px/,
+    )
     expect(
       narrow!.i,
       'the stacking rule must come after the two-column rule — equal specificity, order decides',

@@ -38,6 +38,7 @@ vi.mock('../../src/generator/htmlSectionsCache', async () => {
 import {
   COMPARE_DIFF_FORMAT_VERSION,
   diffVersionGroupsCached,
+  type CompareGroup,
 } from '../../src/generator/htmlDiffCache'
 import { resetArtifactCacheWarnings } from '../../src/generator/artifactCache'
 
@@ -46,8 +47,14 @@ const payload = { logger: { warn } } as never
 
 const SECTIONS_FROM = [{ label: 'Lesson Sequence', html: '<p>old</p>' }]
 const SECTIONS_TO = [{ label: 'Lesson Sequence', html: '<p>new</p>' }]
-/** A valid CURRENT-format entry (see `CompareGroup`) — a HIT must be returned verbatim. */
-const CACHED_GROUP = {
+/**
+ * A valid CURRENT-format entry — a HIT must be returned verbatim.
+ *
+ * ⚑ TYPED, so the claim is enforced rather than asserted in prose: the HIT test compares the
+ * function's output against the very literal it fed in, so an untyped fixture would keep passing
+ * after `CompareGroup` gained or renamed a field, while every real cache entry had drifted.
+ */
+const CACHED_GROUP: CompareGroup = {
   key: 'heading',
   doc: 'Lesson Sequence',
   label: 'Document heading',

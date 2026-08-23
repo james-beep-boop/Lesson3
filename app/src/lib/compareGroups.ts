@@ -348,10 +348,19 @@ export function mergeGroupKeys(fromKeys: readonly string[], toKeys: readonly str
   // Anything still pending was removed from the tail, so it belongs at the end.
   const merged = [...toKeys.flatMap((k) => [...(removedBefore.get(k) ?? []), k]), ...pending]
 
+  // ⚑ DISTINCT count, not just length. `merged.length === expected.size` plus a membership test
+  // passes when one key is duplicated AND another lost — which is precisely the failure this
+  // assertion exists to catch, so length alone made it decorative.
   const expected = new Set([...fromKeys, ...toKeys])
-  if (merged.length !== expected.size || merged.some((k) => !expected.has(k))) {
+  const distinct = new Set(merged)
+  if (
+    merged.length !== expected.size ||
+    distinct.size !== expected.size ||
+    merged.some((k) => !expected.has(k))
+  ) {
     throw new Error(
-      `compareGroups: key merge lost or duplicated a group (${merged.length} of ${expected.size})`,
+      `compareGroups: key merge lost or duplicated a group ` +
+        `(${merged.length} keys, ${distinct.size} distinct, expected ${expected.size})`,
     )
   }
   return merged
