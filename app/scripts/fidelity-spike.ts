@@ -14,7 +14,12 @@ import { compareDoc, compareLessonSequencePackage } from './lib/docxDiff'
 
 const JSON_PATH =
   process.env.ARES_FIDELITY_JSON ??
-  path.join(os.homedir(), 'Desktop', 'ares-json', 'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json')
+  path.join(
+    os.homedir(),
+    'Desktop',
+    'ares-json',
+    'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json',
+  )
 const ORACLE_DIR =
   process.env.ARES_FIDELITY_ORACLE_DIR ??
   path.join(
@@ -45,15 +50,27 @@ async function main() {
   const out = await generateBundleDocx(data)
   const lessonOracle = approved(APPROVED.lessonSequence)
   const results = [
-    await compareDoc('LessonSequence (resources included)', out.lessonSequence, lessonOracle, false),
+    await compareDoc(
+      'LessonSequence (resources included)',
+      out.lessonSequence,
+      lessonOracle,
+      false,
+    ),
     await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data.LESSONS),
-    await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
+    await compareDoc(
+      'FinalExplanation',
+      out.finalExplanation,
+      approved(APPROVED.finalExplanation),
+      false,
+    ),
     await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
   ]
 
   const passed = results.filter(Boolean).length
   console.log(`\n${'='.repeat(50)}`)
-  console.log(`GATE: ${passed}/${results.length} content/package checks match current upstream output`)
+  console.log(
+    `GATE: ${passed}/${results.length} content/package checks match current upstream output`,
+  )
   if (passed !== results.length) process.exit(1)
   console.log('✓ CURRENT ARES FIDELITY GATE PASSED')
 }

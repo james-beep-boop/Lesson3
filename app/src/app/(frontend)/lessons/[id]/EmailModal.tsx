@@ -84,7 +84,12 @@ export default function EmailModal({
           </span>
         )}
         <div className="modal__actions">
-          <button type="submit" className="btn btn--primary" disabled={sending || !to.trim()} aria-busy={sending}>
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={sending || !to.trim()}
+            aria-busy={sending}
+          >
             {sending ? 'Sending…' : 'Send'}
           </button>
           <button type="button" className="btn" onClick={close} disabled={sending}>

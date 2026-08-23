@@ -107,12 +107,18 @@ check('a fully conforming bundle reports zero drift', contractDrift(conforming()
 
 // Intentional-empty sections (null) are allowed (the agreed "omitted by design" signal).
 const nulled = { ...conforming(), FINAL_EXPLANATION: null, SUMMARY_TABLE: null }
-check('null FINAL_EXPLANATION / SUMMARY_TABLE conform (intentional-empty)', contractDrift(nulled).length === 0)
+check(
+  'null FINAL_EXPLANATION / SUMMARY_TABLE conform (intentional-empty)',
+  contractDrift(nulled).length === 0,
+)
 
 const nullRecommendations = conforming()
 nullRecommendations.LESSONS[0]!.resourceLinks.predict.video = null as never
 nullRecommendations.LESSONS[0]!.resourceLinks.predict.reading = null as never
-check('explicit null video/reading recommendations conform', contractDrift(nullRecommendations).length === 0)
+check(
+  'explicit null video/reading recommendations conform',
+  contractDrift(nullRecommendations).length === 0,
+)
 
 const oldShape = conforming()
 delete (oldShape.LESSONS[0]! as Record<string, unknown>).resourceLinks
@@ -129,10 +135,14 @@ check(
 )
 
 const extraResourceField = conforming()
-;(extraResourceField.LESSONS[0]!.resourceLinks.predict.video as Record<string, unknown>).surprise = true
+;(extraResourceField.LESSONS[0]!.resourceLinks.predict.video as Record<string, unknown>).surprise =
+  true
 check(
   'unexpected nested resource field is rejected',
-  has(contractDrift(extraResourceField), 'LESSONS[0].resourceLinks.predict.video.surprise: unexpected key'),
+  has(
+    contractDrift(extraResourceField),
+    'LESSONS[0].resourceLinks.predict.video.surprise: unexpected key',
+  ),
 )
 
 // Alias key + the resulting missing canonical field.
@@ -141,19 +151,34 @@ delete (aliased.UNIT as Record<string, unknown>).totalDuration
 ;(aliased.UNIT as Record<string, unknown>).duration = '8 lessons'
 {
   const d = contractDrift(aliased)
-  check('UNIT.duration flagged as alias of totalDuration', has(d, 'UNIT.duration: unexpected key (non-canonical alias of "totalDuration")'))
-  check('missing canonical UNIT.totalDuration reported', has(d, 'UNIT.totalDuration: required field missing'))
+  check(
+    'UNIT.duration flagged as alias of totalDuration',
+    has(d, 'UNIT.duration: unexpected key (non-canonical alias of "totalDuration")'),
+  )
+  check(
+    'missing canonical UNIT.totalDuration reported',
+    has(d, 'UNIT.totalDuration: required field missing'),
+  )
 }
 
 // Legacy 'storyline' is now the alias; 'storylineThread' is canonical (ARES SCHEMA.md 2026-06-18).
 const legacyStoryline = conforming()
 ;(legacyStoryline.UNIT as Record<string, unknown>).storyline = 'L1: …'
-check('UNIT.storyline flagged as alias of storylineThread', has(contractDrift(legacyStoryline), 'UNIT.storyline: unexpected key (non-canonical alias of "storylineThread")'))
+check(
+  'UNIT.storyline flagged as alias of storylineThread',
+  has(
+    contractDrift(legacyStoryline),
+    'UNIT.storyline: unexpected key (non-canonical alias of "storylineThread")',
+  ),
+)
 
 // Corrupted safetyNotes typo.
 const typo = conforming()
 ;(typo.LESSONS[0]!.slo as Record<string, unknown>).safety3otes = 'none'
-check('slo.safety3otes flagged as a corrupted safetyNotes', has(contractDrift(typo), 'safety3otes: unexpected key (likely a corrupted "safetyNotes")'))
+check(
+  'slo.safety3otes flagged as a corrupted safetyNotes',
+  has(contractDrift(typo), 'safety3otes: unexpected key (likely a corrupted "safetyNotes")'),
+)
 
 // Bad phase enum value.
 const badPhase = conforming()
@@ -163,16 +188,25 @@ check('unknown framework phase rejected by enum', has(contractDrift(badPhase), '
 // Wrong type for META.grade.
 const badType = conforming()
 ;(badType.META as Record<string, unknown>).grade = '10'
-check('META.grade as string flagged (expected integer)', has(contractDrift(badType), 'META.grade: expected integer, got string'))
+check(
+  'META.grade as string flagged (expected integer)',
+  has(contractDrift(badType), 'META.grade: expected integer, got string'),
+)
 
 // Missing top-level schemaVersion.
 const noVersion = conforming() as Record<string, unknown>
 delete noVersion.schemaVersion
-check('missing schemaVersion reported', has(contractDrift(noVersion), 'schemaVersion: required field missing'))
+check(
+  'missing schemaVersion reported',
+  has(contractDrift(noVersion), 'schemaVersion: required field missing'),
+)
 
 const wrongVersion = conforming()
 wrongVersion.schemaVersion = '1.1.0'
-check('non-baseline schemaVersion is rejected', has(contractDrift(wrongVersion), 'not in allowed [1.0.0]'))
+check(
+  'non-baseline schemaVersion is rejected',
+  has(contractDrift(wrongVersion), 'not in allowed [1.0.0]'),
+)
 
 // Empty UNIT object (bio_1_4 case) → missing-required, NOT silently accepted.
 const emptyUnit = { ...conforming(), UNIT: {} }
@@ -182,7 +216,10 @@ check('empty UNIT object reports missing required fields', contractDrift(emptyUn
 // class the ingest hard gate now rejects (ingestItems pre-flight throws on any non-empty drift).
 const stringNumber = conforming()
 ;(stringNumber.LESSONS[0]! as Record<string, unknown>).number = '1'
-check('LESSONS[].number as string flagged (expected integer)', has(contractDrift(stringNumber), 'LESSONS[0].number: expected integer, got string'))
+check(
+  'LESSONS[].number as string flagged (expected integer)',
+  has(contractDrift(stringNumber), 'LESSONS[0].number: expected integer, got string'),
+)
 
 console.log(`\n${'='.repeat(50)}`)
 console.log(`CONTRACT GATE: ${passed} passed, ${failed} failed`)

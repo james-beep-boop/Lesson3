@@ -52,7 +52,9 @@ async function makePlan(label: string): Promise<LessonPlan> {
  * only by the cases that actually resolve a version. The publication-rule and access cases take
  * `makePlan` above.
  */
-async function makePlanWithOfficial(label: string): Promise<{ plan: LessonPlan; version: LessonBundleVersion }> {
+async function makePlanWithOfficial(
+  label: string,
+): Promise<{ plan: LessonPlan; version: LessonBundleVersion }> {
   const plan = await makePlan(label)
 
   const version = (await fx.payload.create({
@@ -316,7 +318,10 @@ describe('resolvePublicPlanBySlug', () => {
     await publish(plan.id, { visibility: 'private' })
 
     const result = await resolvePublicPlanBySlug(fx.payload, slug)
-    expect(result, 'unpublishing must actually withdraw it').toEqual({ ok: false, reason: 'not-public' })
+    expect(result, 'unpublishing must actually withdraw it').toEqual({
+      ok: false,
+      reason: 'not-public',
+    })
   })
 
   /** GATE 2 — an unknown slug is a miss, not an error and not a hint. */

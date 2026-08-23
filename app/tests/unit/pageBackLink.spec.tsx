@@ -6,9 +6,7 @@ import PageBackLink from '../../src/components/PageBackLink'
 
 describe('PageBackLink', () => {
   it('renders the shared prominent Back control', () => {
-    const html = renderToStaticMarkup(
-      <PageBackLink href="/lessons/12" label="Back to lesson" />,
-    )
+    const html = renderToStaticMarkup(<PageBackLink href="/lessons/12" label="Back to lesson" />)
 
     expect(html).toContain('class="btn"')
     expect(html).toContain('href="/lessons/12"')

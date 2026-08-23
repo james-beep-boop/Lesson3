@@ -25,7 +25,9 @@ export async function sendMessage(input: {
     }),
   })
   if (!res.ok) {
-    const payload = (await res.json().catch(() => null)) as { errors?: { message?: string }[] } | null
+    const payload = (await res.json().catch(() => null)) as {
+      errors?: { message?: string }[]
+    } | null
     throw new Error(payload?.errors?.[0]?.message ?? 'Could not send the message.')
   }
 }

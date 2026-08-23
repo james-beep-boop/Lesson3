@@ -32,7 +32,10 @@ export function generateFromVersionSnapshot(version: LessonBundleVersion): Promi
  * on the trusted system path, then generate. See the module header for the `overrideAccess` contract —
  * the caller must have already enforced the request's read access.
  */
-export async function generateForVersion(payload: Payload, id: number | string): Promise<GeneratedDocx> {
+export async function generateForVersion(
+  payload: Payload,
+  id: number | string,
+): Promise<GeneratedDocx> {
   const version = (await payload.findByID({
     collection: 'lesson-bundle-versions',
     id,

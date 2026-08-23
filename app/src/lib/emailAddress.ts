@@ -39,5 +39,8 @@ export function parseRecipientEmail(raw: unknown): string | null {
  */
 export function sanitizeEmailHeaderText(raw: unknown): string {
   if (typeof raw !== 'string') return ''
-  return raw.replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim()
+  return raw
+    .replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .trim()
 }

@@ -89,7 +89,11 @@ export function UserMenu({
         onClick={() => setOpen((o) => !o)}
       >
         {initials(displayName)}
-        {unread > 0 && <span className="user-menu__avatar-badge" aria-hidden="true">{unread}</span>}
+        {unread > 0 && (
+          <span className="user-menu__avatar-badge" aria-hidden="true">
+            {unread}
+          </span>
+        )}
       </button>
       {/* Disclosure pattern, NOT ARIA menu roles (D6): role="menu"/aria-haspopup promise arrow-key
           navigation this never implemented — for two items, plain tab order through a toggled

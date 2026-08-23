@@ -85,7 +85,8 @@ function validateResourceRecord(value: unknown, path: string, problems: string[]
     if (typeof value[key] !== 'string') problems.push(`${path}.${key}: required string missing.`)
   }
   for (const key of ['direct_url', 'search_url', 'exact_search_url'] as const) {
-    if (!isSafeHttpUrl(value[key])) problems.push(`${path}.${key}: must be an http:// or https:// URL.`)
+    if (!isSafeHttpUrl(value[key]))
+      problems.push(`${path}.${key}: must be an http:// or https:// URL.`)
   }
   if (typeof value.has_transcript !== 'boolean') {
     problems.push(`${path}.has_transcript: required boolean missing.`)

@@ -25,8 +25,7 @@ import path from 'node:path'
 
 import { positiveIntEnv } from '../lib/env'
 
-const CACHE_DIR =
-  process.env.ARTIFACT_CACHE_DIR || path.join(process.cwd(), '.artifact-cache')
+const CACHE_DIR = process.env.ARTIFACT_CACHE_DIR || path.join(process.cwd(), '.artifact-cache')
 
 // Fail fast on a malformed override rather than the old `Number(env) || default`, which would
 // silently ignore a typo and keep the 512 MB default (audit 2026-07-05, Codex #7).
@@ -60,11 +59,7 @@ async function removeStaleTempFiles(): Promise<void> {
  * `render:<generatorVersion>:version:<id>` for an immutable snapshot. Keeping the cache key
  * generator-agnostic keeps storage mechanics separate from renderer identity.
  */
-export function artifactKey(parts: {
-  scope: string
-  kind: 'docx' | 'pdf'
-  doc: string
-}): string {
+export function artifactKey(parts: { scope: string; kind: 'docx' | 'pdf'; doc: string }): string {
   return [parts.scope, parts.kind, parts.doc].join('::')
 }
 

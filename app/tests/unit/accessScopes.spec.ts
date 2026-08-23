@@ -13,7 +13,10 @@ import type { User } from '../../src/payload-types'
 
 type Row = { sg: number; role: 'subjectAdmin' | 'editor' }
 const user = (roles: string[], assignments: Row[]): User =>
-  ({ roles, assignments: assignments.map((a) => ({ subjectGrade: a.sg, role: a.role })) }) as unknown as User
+  ({
+    roles,
+    assignments: assignments.map((a) => ({ subjectGrade: a.sg, role: a.role })),
+  }) as unknown as User
 
 // A stub Payload whose `find` returns the subject-grades it's asked for by id — so the resolver's
 // label lookup can be exercised without a database. `find` is a spy so tests can assert it is (not)
@@ -42,8 +45,14 @@ describe('scopeLines — formatting (pure)', () => {
 
   it('renders admin first, then editing, joining multiple scopes with a comma', () => {
     expect(
-      scopeLines({ adminScopes: ['Biology · Grade 10', 'Physics · Grade 9'], editingScopes: ['Chemistry · Grade 11'] }),
-    ).toEqual(['Administrator: Biology · Grade 10, Physics · Grade 9', 'Editing access: Chemistry · Grade 11'])
+      scopeLines({
+        adminScopes: ['Biology · Grade 10', 'Physics · Grade 9'],
+        editingScopes: ['Chemistry · Grade 11'],
+      }),
+    ).toEqual([
+      'Administrator: Biology · Grade 10, Physics · Grade 9',
+      'Editing access: Chemistry · Grade 11',
+    ])
   })
 
   it('omits the line for an empty side', () => {
@@ -56,7 +65,10 @@ describe('scopeLines — formatting (pure)', () => {
 describe('resolveAccessScopes — id resolution + disjointness', () => {
   it('makes no query and returns empty for a user with no assignments', async () => {
     const { payload, find } = stubPayload(CATALOGUE)
-    expect(await resolveAccessScopes(payload, user([], []))).toEqual({ adminScopes: [], editingScopes: [] })
+    expect(await resolveAccessScopes(payload, user([], []))).toEqual({
+      adminScopes: [],
+      editingScopes: [],
+    })
     expect(find).not.toHaveBeenCalled()
   })
 
@@ -70,7 +82,9 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
 
   it('resolves a subject-admin grant to an admin scope, no editing scope', async () => {
     const { payload } = stubPayload(CATALOGUE)
-    expect(await resolveAccessScopes(payload, user([], [{ sg: 10, role: 'subjectAdmin' }]))).toEqual({
+    expect(
+      await resolveAccessScopes(payload, user([], [{ sg: 10, role: 'subjectAdmin' }])),
+    ).toEqual({
       adminScopes: ['Biology · Grade 10'],
       editingScopes: [],
     })
@@ -78,7 +92,13 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
 
   it('keeps admin and editing scopes for different subject-grades separate', async () => {
     const { payload } = stubPayload(CATALOGUE)
-    const u = user([], [{ sg: 10, role: 'subjectAdmin' }, { sg: 11, role: 'editor' }])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 11, role: 'editor' },
+      ],
+    )
     expect(await resolveAccessScopes(payload, u)).toEqual({
       adminScopes: ['Biology · Grade 10'],
       editingScopes: ['Chemistry · Grade 11'],
@@ -89,7 +109,13 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
     const { payload } = stubPayload(CATALOGUE)
     // Reachable via the demote path (hooks/userRoles.ts): a subjectAdmin row rewritten to editor can
     // coexist with an existing editor row for the same subject-grade.
-    const u = user([], [{ sg: 10, role: 'subjectAdmin' }, { sg: 10, role: 'editor' }])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 10, role: 'editor' },
+      ],
+    )
     expect(await resolveAccessScopes(payload, u)).toEqual({
       adminScopes: ['Biology · Grade 10'],
       editingScopes: [],
@@ -98,7 +124,13 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
 
   it('silently drops a grant whose subject-grade no longer exists', async () => {
     const { payload } = stubPayload(CATALOGUE)
-    const u = user([], [{ sg: 10, role: 'editor' }, { sg: 99, role: 'editor' }])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'editor' },
+        { sg: 99, role: 'editor' },
+      ],
+    )
     expect(await resolveAccessScopes(payload, u)).toEqual({
       adminScopes: [],
       editingScopes: ['Biology · Grade 10'],
@@ -109,7 +141,13 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
     const { payload } = stubPayload(CATALOGUE)
     // Two identical rows for the same subject-grade — `subjectGradeIdsByRole` returns distinct ids,
     // so the label is not repeated (no per-list re-dedupe needed in the resolver).
-    const u = user([], [{ sg: 10, role: 'subjectAdmin' }, { sg: 10, role: 'subjectAdmin' }])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 10, role: 'subjectAdmin' },
+      ],
+    )
     expect(await resolveAccessScopes(payload, u)).toEqual({
       adminScopes: ['Biology · Grade 10'],
       editingScopes: [],
@@ -121,7 +159,9 @@ describe('resolveAccessScopes — id resolution + disjointness', () => {
       throw new Error('db down')
     })
     const payload = { find } as unknown as Payload
-    await expect(resolveAccessScopes(payload, user([], [{ sg: 10, role: 'editor' }]))).rejects.toThrow('db down')
+    await expect(
+      resolveAccessScopes(payload, user([], [{ sg: 10, role: 'editor' }])),
+    ).rejects.toThrow('db down')
   })
 })
 
@@ -138,7 +178,10 @@ describe('resolveAccessSummary — type + lines, one source of truth for both su
 
   it('shows a plain teacher just the type, no query', async () => {
     const { payload, find } = stubPayload(CATALOGUE)
-    expect(await resolveAccessSummary(payload, user([], []))).toEqual({ typeLabel: 'Teacher', lines: [] })
+    expect(await resolveAccessSummary(payload, user([], []))).toEqual({
+      typeLabel: 'Teacher',
+      lines: [],
+    })
     expect(find).not.toHaveBeenCalled()
   })
 
@@ -152,7 +195,13 @@ describe('resolveAccessSummary — type + lines, one source of truth for both su
 
   it('shows a mixed subject-admin/editor user both lines, admin first', async () => {
     const { payload } = stubPayload(CATALOGUE)
-    const u = user([], [{ sg: 10, role: 'subjectAdmin' }, { sg: 11, role: 'editor' }])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 11, role: 'editor' },
+      ],
+    )
     expect(await resolveAccessSummary(payload, u)).toEqual({
       typeLabel: 'Subject-grade administrator',
       lines: ['Administrator: Biology · Grade 10', 'Editing access: Chemistry · Grade 11'],

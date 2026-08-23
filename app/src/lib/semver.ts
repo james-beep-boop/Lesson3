@@ -4,7 +4,10 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-export const bumpSemver = (current: string | null | undefined, bump: 'major' | 'minor' | 'patch' = 'patch'): string => {
+export const bumpSemver = (
+  current: string | null | undefined,
+  bump: 'major' | 'minor' | 'patch' = 'patch',
+): string => {
   const [major = 1, minor = 0, patch = 0] = (current ?? '1.0.0').split('.').map(Number)
   switch (bump) {
     case 'major':

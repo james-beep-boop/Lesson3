@@ -136,9 +136,7 @@ describe('button system', () => {
   it('keeps every emphasis/size modifier doubled, to outrank the Share-menu flattening', () => {
     // `.share-menu button` is 0-1-1. A single-class modifier (0-1-0) loses; `.btn.btn--x` (0-2-0) wins.
     for (const mod of ['primary', 'danger', 'quiet', 'compact']) {
-      const single = rules.filter((r) =>
-        r.selectors.some((s) => s.startsWith(`.btn--${mod}`)),
-      )
+      const single = rules.filter((r) => r.selectors.some((s) => s.startsWith(`.btn--${mod}`)))
       expect(single, `.btn--${mod} must be written as .btn.btn--${mod}`).toEqual([])
       expect(() => posOf(`.btn.btn--${mod}`)).not.toThrow()
     }
@@ -256,7 +254,10 @@ describe('button system', () => {
       '.modal__cancel',
     ]
     for (const gone of [...foldedByTheSystem, ...folded5a]) {
-      expect(allSelectors.filter((s) => s.includes(gone)), `${gone} should be gone`).toEqual([])
+      expect(
+        allSelectors.filter((s) => s.includes(gone)),
+        `${gone} should be gone`,
+      ).toEqual([])
     }
   })
 
@@ -313,7 +314,9 @@ describe('button system', () => {
     // The selected fill must NOT key off `[aria-pressed]`: the labelled Favorite sets that too, and
     // filling it is exactly the decision §2a rejected. Assert no rule reaches it that way.
     const fillers = allRules.filter(
-      (r) => /background:\s*var\(--accent\)/.test(r.body) && !r.selectors.some((x) => x.includes(':hover')),
+      (r) =>
+        /background:\s*var\(--accent\)/.test(r.body) &&
+        !r.selectors.some((x) => x.includes(':hover')),
     )
     expectUnreachable(
       labelledFavorite(' aria-pressed="true"'),
@@ -371,9 +374,7 @@ describe('button system', () => {
   it('resolves every --app-btn-* reference against a real token', () => {
     // A renamed or deleted token leaves a dangling `var()` that renders as nothing — invisible
     // locally, obvious in production.
-    const referenced = new Set(
-      [...css.matchAll(/var\((--app-btn-[a-z-]+)\)/g)].map((m) => m[1]),
-    )
+    const referenced = new Set([...css.matchAll(/var\((--app-btn-[a-z-]+)\)/g)].map((m) => m[1]))
     expect(referenced.size).toBeGreaterThan(5)
     for (const name of referenced) {
       expect(tokens, `${name} is referenced but not defined`).toContain(`${name}:`)

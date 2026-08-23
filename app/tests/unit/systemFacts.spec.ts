@@ -332,8 +332,10 @@ describe('collectSystemFacts', () => {
     ).toEqual([])
     // Long enough to be a sentence rather than a restated label.
     for (const f of facts) {
-      expect(f.description!.length, `${f.key}'s description is too short to explain anything`)
-        .toBeGreaterThan(40)
+      expect(
+        f.description!.length,
+        `${f.key}'s description is too short to explain anything`,
+      ).toBeGreaterThan(40)
     }
   })
 

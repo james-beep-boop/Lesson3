@@ -21,12 +21,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { findReadablePlan, findReadableVersion } from '../../src/lib/readBundle.js'
 
 /** A payload stub whose `findByID` rejects with the given value. */
-const rejectingPayload = (err: unknown) =>
-  ({ findByID: vi.fn().mockRejectedValue(err) }) as never
+const rejectingPayload = (err: unknown) => ({ findByID: vi.fn().mockRejectedValue(err) }) as never
 
 /** A payload stub that resolves a document. */
-const resolvingPayload = (doc: unknown) =>
-  ({ findByID: vi.fn().mockResolvedValue(doc) }) as never
+const resolvingPayload = (doc: unknown) => ({ findByID: vi.fn().mockResolvedValue(doc) }) as never
 
 const args = { id: 7, user: null }
 

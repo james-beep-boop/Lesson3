@@ -225,7 +225,13 @@ export default async function BrowsePage({
     // plan's own catalogue row owns the versions chip, so `canEdit` is irrelevant here (LibraryBrowser
     // gates the chip on `!pinnedSemver`).
     return row
-      ? [{ ...row, pinnedSemver: v.semver ?? undefined, href: `/lessons/${row.id}?version=${v.id}` }]
+      ? [
+          {
+            ...row,
+            pinnedSemver: v.semver ?? undefined,
+            href: `/lessons/${row.id}?version=${v.id}`,
+          },
+        ]
       : []
   })
 

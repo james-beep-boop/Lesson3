@@ -67,12 +67,9 @@ const runSplit = (data: Record<string, unknown>) =>
   }) as Record<string, unknown>
 
 describe('group containers cannot be deleted by a teacher with editing access', () => {
-  it.each([null, 0, 'nope', 42, []])(
-    'REFUSES a malformed finalExplanation (%o)',
-    (bad) => {
-      expect(() => runSplit({ finalExplanation: bad })).toThrow(Forbidden)
-    },
-  )
+  it.each([null, 0, 'nope', 42, []])('REFUSES a malformed finalExplanation (%o)', (bad) => {
+    expect(() => runSplit({ finalExplanation: bad })).toThrow(Forbidden)
+  })
 
   it.each([null, 0, 'nope', 42, []])('REFUSES a malformed summaryTable (%o)', (bad) => {
     expect(() => runSplit({ summaryTable: bad })).toThrow(Forbidden)
@@ -120,10 +117,14 @@ describe('group containers still accept legitimate prose edits', () => {
       },
     })
     const fe = out.finalExplanation as Record<string, unknown>
-    expect(fe.instructions, 'prose is the one submitted under editing access').toBe('editor instructions')
+    expect(fe.instructions, 'prose is the one submitted under editing access').toBe(
+      'editor instructions',
+    )
 
     const sections = fe.sections as Record<string, unknown>[]
-    expect(sections[0].prompt, 'section prose is the one submitted under editing access').toBe('editor prompt')
+    expect(sections[0].prompt, 'section prose is the one submitted under editing access').toBe(
+      'editor prompt',
+    )
     expect(sections[0].adminOnly, 'admin subfields survive untouched').toBe('keep me')
 
     const rubric = fe.rubric as Record<string, unknown>[]

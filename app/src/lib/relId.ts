@@ -6,7 +6,8 @@
  */
 export const relId = (value: unknown): number | null => {
   if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value) return Number((value as { id: unknown }).id)
+  if (value && typeof value === 'object' && 'id' in value)
+    return Number((value as { id: unknown }).id)
   return null
 }
 

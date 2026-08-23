@@ -44,7 +44,10 @@ export default function Composer({
       setNote({ kind: 'sent', text: 'Message sent.' })
       router.refresh()
     } catch (err) {
-      setNote({ kind: 'error', text: err instanceof Error ? err.message : 'Could not send the message.' })
+      setNote({
+        kind: 'error',
+        text: err instanceof Error ? err.message : 'Could not send the message.',
+      })
     }
     setBusy(false)
   }
@@ -115,19 +118,22 @@ export default function Composer({
             />
           </label>
           <div className="msg-compose__actions">
-            <button type="submit" className="btn btn--primary" disabled={busy || !recipient || !body.trim()} aria-busy={busy}>
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={busy || !recipient || !body.trim()}
+              aria-busy={busy}
+            >
               {busy ? 'Sending…' : 'Send'}
             </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => setOpen(false)}
-            >
+            <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>
               Close
             </button>
             {note && (
-              <span className={note.kind === 'error' ? 'inline-error' : 'msg-compose__sent'} role="status">
+              <span
+                className={note.kind === 'error' ? 'inline-error' : 'msg-compose__sent'}
+                role="status"
+              >
                 {note.text}
               </span>
             )}

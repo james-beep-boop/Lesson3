@@ -42,8 +42,12 @@ const run = async () => {
     limit: 200,
     select: { officialVersion: true },
   })
-  const officialIds = plans.map((p) => relId(p.officialVersion)).filter((id): id is number => id != null)
-  console.log(`Browse: ${plans.length} plans visible; ${officialIds.length} with an Official version.`)
+  const officialIds = plans
+    .map((p) => relId(p.officialVersion))
+    .filter((id): id is number => id != null)
+  console.log(
+    `Browse: ${plans.length} plans visible; ${officialIds.length} with an Official version.`,
+  )
 
   const { docs: versions } = officialIds.length
     ? await payload.find({
@@ -53,7 +57,14 @@ const run = async () => {
         user,
         depth: 2,
         limit: 200,
-        select: { title: true, subjectGrade: true, lessonPlan: true, meta: { substrand_id: true }, unit: { strand: true }, lessons: { id: true } },
+        select: {
+          title: true,
+          subjectGrade: true,
+          lessonPlan: true,
+          meta: { substrand_id: true },
+          unit: { strand: true },
+          lessons: { id: true },
+        },
       })
     : { docs: [] }
 
@@ -64,7 +75,9 @@ const run = async () => {
     if (hasMeta) rowsOk++
     else console.warn(`  ⚠ version ${v.id} "${v.title}" missing substrand_id/lessons/plan link`)
   }
-  console.log(`Browse rows: ${rowsOk}/${versions.length} have substrand_id + ≥1 lesson + a plan link.`)
+  console.log(
+    `Browse rows: ${rowsOk}/${versions.length} have substrand_id + ≥1 lesson + a plan link.`,
+  )
 
   // --- Detail: for each plan, resolve Official version and generate (as the page does) ---
   let detailOk = 0
@@ -84,7 +97,9 @@ const run = async () => {
     if (out.lessonSequence?.length) detailOk++
     else console.warn(`  ⚠ plan ${plan.id} generated an empty LessonSequence`)
   }
-  console.log(`Detail: ${detailOk}/${plans.length} plans resolve Official + generate a LessonSequence.`)
+  console.log(
+    `Detail: ${detailOk}/${plans.length} plans resolve Official + generate a LessonSequence.`,
+  )
 
   console.log(`\n${'='.repeat(50)}`)
   const ok = rowsOk === versions.length && detailOk === plans.length && plans.length > 0
@@ -92,7 +107,9 @@ const run = async () => {
     console.error('✗ STAGE-2 READ VERIFY FAILED')
     process.exit(1)
   }
-  console.log('✓ STAGE-2 READ VERIFY PASSED (teacher browse + detail + generate over the version model)')
+  console.log(
+    '✓ STAGE-2 READ VERIFY PASSED (teacher browse + detail + generate over the version model)',
+  )
 }
 
 await run().catch((e) => {

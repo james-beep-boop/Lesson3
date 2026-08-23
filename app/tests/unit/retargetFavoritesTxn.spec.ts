@@ -27,7 +27,12 @@ function makeCase(updateImpl: () => Promise<unknown>) {
     .mockResolvedValueOnce({ docs: [] })
   const warn = vi.fn()
   const req = {
-    payload: { find, update: vi.fn(updateImpl), delete: vi.fn().mockResolvedValue({}), logger: { warn, error: vi.fn() } },
+    payload: {
+      find,
+      update: vi.fn(updateImpl),
+      delete: vi.fn().mockResolvedValue({}),
+      logger: { warn, error: vi.fn() },
+    },
     context: {},
   }
   const call = () =>
@@ -47,7 +52,9 @@ describe('retargetFollowerFavorites transaction-error contract', () => {
   })
 
   it('re-throws a transaction-poisoning error (e.g. a unique violation) instead of swallowing it', async () => {
-    const { call } = makeCase(() => Promise.reject(new Error('duplicate key value violates unique constraint')))
+    const { call } = makeCase(() =>
+      Promise.reject(new Error('duplicate key value violates unique constraint')),
+    )
     await expect(call()).rejects.toThrow(/unique constraint/)
   })
 })

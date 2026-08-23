@@ -76,10 +76,13 @@ describe('submitted array field that is not an array', () => {
     // `data.lessons ?? []` does not catch 0 — it is not nullish — so iteration threw "0 is not
     // iterable" once the sequence check passed, which it does when both sides are empty.
     expect(() =>
-      run({ subjectGrade: SG_ID, lessons: 0, finalExplanation: { sections: 0 } }, {
-        ...originalEmpty(),
-        lessons: [],
-      }),
+      run(
+        { subjectGrade: SG_ID, lessons: 0, finalExplanation: { sections: 0 } },
+        {
+          ...originalEmpty(),
+          lessons: [],
+        },
+      ),
     ).not.toThrow()
   })
 
@@ -93,8 +96,9 @@ describe('submitted array field that is not an array', () => {
     // The narrow rule earning its keep: with a blanket "non-array means no rows" coercion, every one
     // of these compared equal to the stored [] and sailed through. `0` is the only legal sentinel.
     for (const malformed of [2, -1, 1.5, 'bad', {}, true, [1, 2].length + 1]) {
-      expect(() =>
-        run({ subjectGrade: SG_ID, finalExplanation: { sections: malformed } }, originalEmpty()),
+      expect(
+        () =>
+          run({ subjectGrade: SG_ID, finalExplanation: { sections: malformed } }, originalEmpty()),
         `sections: ${JSON.stringify(malformed)} must be rejected, not read as []`,
       ).toThrow(Forbidden)
     }

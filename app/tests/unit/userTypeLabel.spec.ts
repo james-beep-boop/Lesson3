@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  adminScopeIds,
-  editingAccessScopeIds,
-  userTypeLabel,
-} from '../../src/access'
+import { adminScopeIds, editingAccessScopeIds, userTypeLabel } from '../../src/access'
 import type { User } from '../../src/payload-types'
 
 /**
@@ -15,7 +11,10 @@ import type { User } from '../../src/payload-types'
  */
 
 // Minimal User shapes — only the fields the helpers read (roles, assignments).
-const user = (roles: string[], assignments: { sg: number; role: 'subjectAdmin' | 'editor' }[]): User =>
+const user = (
+  roles: string[],
+  assignments: { sg: number; role: 'subjectAdmin' | 'editor' }[],
+): User =>
   ({
     roles,
     assignments: assignments.map((a) => ({ subjectGrade: a.sg, role: a.role })),
@@ -41,10 +40,13 @@ describe('userTypeLabel — three displayed types, sentence case', () => {
   })
 
   it('a mixed subjectAdmin-here / editor-there user is a Subject-grade administrator (admin wins the type)', () => {
-    const u = user([], [
-      { sg: 10, role: 'subjectAdmin' },
-      { sg: 11, role: 'editor' },
-    ])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 11, role: 'editor' },
+      ],
+    )
     expect(userTypeLabel(u)).toBe('Subject-grade administrator')
   })
 
@@ -68,10 +70,13 @@ describe('scope-id helpers — role partitions (disjointness enforced by resolve
   })
 
   it('mixed: admin and editing scopes are separate and disjoint', () => {
-    const u = user([], [
-      { sg: 10, role: 'subjectAdmin' },
-      { sg: 11, role: 'editor' },
-    ])
+    const u = user(
+      [],
+      [
+        { sg: 10, role: 'subjectAdmin' },
+        { sg: 11, role: 'editor' },
+      ],
+    )
     expect(adminScopeIds(u)).toEqual([10])
     expect(editingAccessScopeIds(u)).toEqual([11])
     // No id appears in both lists.

@@ -15,12 +15,22 @@ const CASES: Array<{ name: string; fe: unknown; st: unknown }> = [
   { name: 'both null', fe: null, st: null },
   { name: 'FE with prose', fe: { sections: [{ heading: 'A', body: 'text' }] }, st: {} },
   { name: 'ST with rows', fe: {}, st: { lessons: [{ number: 1, focus: 'x' }] } },
-  { name: 'whitespace-only strings are empty', fe: { sections: [{ heading: '  ', body: '' }] }, st: {} },
+  {
+    name: 'whitespace-only strings are empty',
+    fe: { sections: [{ heading: '  ', body: '' }] },
+    st: {},
+  },
   { name: 'both present', fe: { intro: 'i' }, st: { lessons: [{ focus: 'y' }] } },
 ]
 
 const asBundle = (fe: unknown, st: unknown): LessonBundleVersion =>
-  ({ finalExplanation: fe, summaryTable: st, meta: {}, unit: {}, lessons: [] }) as unknown as LessonBundleVersion
+  ({
+    finalExplanation: fe,
+    summaryTable: st,
+    meta: {},
+    unit: {},
+    lessons: [],
+  }) as unknown as LessonBundleVersion
 
 describe('versionDeliverables mirrors bundleToAresData (T2 strip contract)', () => {
   it.each(CASES)('$name', ({ fe, st }) => {

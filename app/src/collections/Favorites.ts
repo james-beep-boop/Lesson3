@@ -1,4 +1,9 @@
-import type { Access, CollectionBeforeDeleteHook, CollectionBeforeValidateHook, CollectionConfig } from 'payload'
+import type {
+  Access,
+  CollectionBeforeDeleteHook,
+  CollectionBeforeValidateHook,
+  CollectionConfig,
+} from 'payload'
 
 import { isSiteAdmin } from '../access'
 import type { User } from '../payload-types'

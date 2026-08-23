@@ -4,7 +4,9 @@ import { displayTitle } from '@/lib/displayTitle'
 
 describe('displayTitle (D5 display-level casing)', () => {
   it('title-cases an all-caps stored title', () => {
-    expect(displayTitle('BIOLOGY GRADE 10: PLANT TRANSPORT')).toBe('Biology Grade 10: Plant Transport')
+    expect(displayTitle('BIOLOGY GRADE 10: PLANT TRANSPORT')).toBe(
+      'Biology Grade 10: Plant Transport',
+    )
   })
 
   it('keeps digits/punctuation and re-capitalizes after them', () => {

@@ -38,11 +38,7 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
     // The fs readiness checks and exact pending-job reads are independent — overlap them.
     const [ready, pending] = await Promise.all([
       Promise.all(KINDS.map((kind) => isExportReady({ scope: versionScope(versionId), kind }))),
-      Promise.all(
-        KINDS.map((kind) =>
-          findPendingExportJob(req.payload, { versionId, kind }),
-        ),
-      ),
+      Promise.all(KINDS.map((kind) => findPendingExportJob(req.payload, { versionId, kind }))),
     ])
     // ORPHAN CASE (the primary write rolls back after we enqueue) is tolerable here: a missing
     // pre-warm just means the teacher takes the normal cold 202/poll path. The artifact job
@@ -53,7 +49,10 @@ export async function prewarmVersionArtifacts(req: IngestReq, versionId: number)
     // Concurrent, not sequential: before L3-03 these inserts shared the caller's transaction
     // connection and HAD to serialise. `enqueueDetached` gives each its own, so the round trips
     // overlap — two per version, and this runs once per file across a 42-file ingest.
-    const wanted = KINDS.map((kind) => ({ kind, input: { versionId, kind } as GenerateVersionArtifactInput }))
+    const wanted = KINDS.map((kind) => ({
+      kind,
+      input: { versionId, kind } as GenerateVersionArtifactInput,
+    }))
       .filter(({ kind }) => !ready[KINDS.indexOf(kind)])
       .filter(({ kind }) => !pending[KINDS.indexOf(kind)])
     await Promise.all(

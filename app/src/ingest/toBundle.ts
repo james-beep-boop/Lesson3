@@ -30,7 +30,10 @@ export function rawToBundle(raw: AresRawBundle): IngestBundleData {
   const meta = (raw.META ?? {}) as Record<string, unknown>
   // Human label for lists (SPEC: title mirrors META.titleDoc). Fall back to substrand name.
   const title =
-    asString(meta.titleDoc) || asString(meta.substrand_name) || asString(meta.subject) || 'Untitled bundle'
+    asString(meta.titleDoc) ||
+    asString(meta.substrand_name) ||
+    asString(meta.subject) ||
+    'Untitled bundle'
 
   const lessons = Array.isArray(raw.LESSONS)
     ? raw.LESSONS.map((lesson) =>

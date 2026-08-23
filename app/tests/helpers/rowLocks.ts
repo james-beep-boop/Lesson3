@@ -26,7 +26,9 @@ export const BLOCKED_WINDOW_MS = 1_500
 
 /** Drizzle's transaction API, which takes a DEDICATED connection — the point of using it here. */
 type TxRunner = {
-  transaction: <T>(fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<T>) => Promise<T>
+  transaction: <T>(
+    fn: (tx: { execute: (q: unknown) => Promise<unknown> }) => Promise<T>,
+  ) => Promise<T>
 }
 
 /** Table names these helpers may lock. Closed for the same reason `LockableTable` is in `txDb.ts`. */

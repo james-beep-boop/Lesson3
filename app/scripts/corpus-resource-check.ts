@@ -17,7 +17,8 @@ import { extractAresJson } from '../src/ingest/extract'
 import { rawToBundle } from '../src/ingest/toBundle'
 import { withRowIds } from './lib/payloadRowIds'
 
-const corpusDir = process.env.ARES_JSON_CORPUS_DIR ?? path.join(os.homedir(), 'Desktop', 'ares-json')
+const corpusDir =
+  process.env.ARES_JSON_CORPUS_DIR ?? path.join(os.homedir(), 'Desktop', 'ares-json')
 const expectedFiles = Number(process.env.ARES_JSON_EXPECTED_FILES ?? 42)
 const expectedLessons = Number(process.env.ARES_JSON_EXPECTED_LESSONS ?? 384)
 

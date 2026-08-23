@@ -117,7 +117,11 @@ async function findExistingPlan(
     req,
   })
   const planIds = [
-    ...new Set(docs.map((d) => relId((d as { lessonPlan?: unknown }).lessonPlan)).filter((id): id is number => id != null)),
+    ...new Set(
+      docs
+        .map((d) => relId((d as { lessonPlan?: unknown }).lessonPlan))
+        .filter((id): id is number => id != null),
+    ),
   ]
   if (planIds.length > 1) {
     throw new IngestError(
@@ -275,7 +279,12 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
       const substrandId = substrandIdOf(raw)
       // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
       // create a new plan. >1 match (legacy duplicates) throws inside findExistingPlan.
-      const existingPlanId = await findExistingPlan(payload, subjectGrade, substrandId, preflightReq)
+      const existingPlanId = await findExistingPlan(
+        payload,
+        subjectGrade,
+        substrandId,
+        preflightReq,
+      )
       prepared.push({
         name,
         data,
@@ -321,7 +330,11 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
     // re-resolve each file's plan inside the transaction: the preflight lookup above ran outside
     // it, so a concurrent upload committing between preflight and here could otherwise duplicate a
     // "new" sub-strand's plan (audit 2026-07-06 #2). Post-lock, the re-check is race-free.
-    await lockSubjectGrades(payload, req.transactionID, prepared.map((p) => p.subjectGrade))
+    await lockSubjectGrades(
+      payload,
+      req.transactionID,
+      prepared.map((p) => p.subjectGrade),
+    )
     const results: IngestResult[] = []
     for (const { name, data, subjectGrade, substrandId, warnings, ...p } of prepared) {
       const existingPlanId =

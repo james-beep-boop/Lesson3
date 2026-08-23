@@ -39,10 +39,13 @@ describe('annotateLessonAnchors', () => {
   })
 
   it('passes non-matching HTML through unchanged', () => {
-    const html = '<table><tbody><tr><td><p><strong>B. LESSON OVERVIEW</strong></p></td></tr></tbody></table>'
+    const html =
+      '<table><tbody><tr><td><p><strong>B. LESSON OVERVIEW</strong></p></td></tr></tbody></table>'
     expect(annotateLessonAnchors(html)).toEqual({ html, anchors: [] })
     // The generator's other LESSON-word headers must not match either.
-    expect(annotateLessonAnchors('<p><strong>LESSON undefined (x): y</strong></p>').anchors).toEqual([])
+    expect(
+      annotateLessonAnchors('<p><strong>LESSON undefined (x): y</strong></p>').anchors,
+    ).toEqual([])
   })
 
   it('docSectionId slugs the section labels stably', () => {

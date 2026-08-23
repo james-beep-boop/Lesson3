@@ -32,7 +32,8 @@ afterAll(async () => {
   // that masks the real setup failure in the output.
   if (!payload) return
   // Remove only this run's counter rows (keys are `${bucket}:${userId}`).
-  const db = (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }).drizzle
+  const db = (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
+    .drizzle
   await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%:${RUN}-%`};`)
 })
 
@@ -67,10 +68,20 @@ describe('enforceSharedRateLimit (non-user keys — email abuse controls, Codex 
     // key's, not the caller's (that cross-sender pooling is the whole point of the recipient cap).
     for (let i = 0; i < RECIPIENT_MAX; i++) {
       expect(
-        await enforceSharedRateLimit(reqFor(i % 2 === 0 ? userA : userB), 'emailRecipient', key, 'capped'),
+        await enforceSharedRateLimit(
+          reqFor(i % 2 === 0 ? userA : userB),
+          'emailRecipient',
+          key,
+          'capped',
+        ),
       ).toBeNull()
     }
-    const blocked = await enforceSharedRateLimit(reqFor(userA), 'emailRecipient', key, 'recipient capped')
+    const blocked = await enforceSharedRateLimit(
+      reqFor(userA),
+      'emailRecipient',
+      key,
+      'recipient capped',
+    )
     expect(blocked).not.toBeNull()
     expect(blocked!.status).toBe(429)
     expect(Number(blocked!.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1)
@@ -81,7 +92,12 @@ describe('enforceSharedRateLimit (non-user keys — email abuse controls, Codex 
 
   it('distinct shared keys keep independent budgets', async () => {
     expect(
-      await enforceSharedRateLimit(reqFor(userA), 'emailRecipient', `${RUN}-other-recipient`, 'capped'),
+      await enforceSharedRateLimit(
+        reqFor(userA),
+        'emailRecipient',
+        `${RUN}-other-recipient`,
+        'capped',
+      ),
     ).toBeNull()
   })
 })

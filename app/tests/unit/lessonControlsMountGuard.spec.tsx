@@ -58,7 +58,10 @@ function setViewportWidth(width: number) {
 beforeEach(() => {
   mocks.setDisabled.mockClear()
   // The pristine-official probe fires on mount (id + lessonPlan are set); keep it from throwing.
-  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false }) as unknown as Promise<Response>))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve({ ok: false }) as unknown as Promise<Response>),
+  )
   // The nested EditJumpNav observes the body on mount; jsdom ships no ResizeObserver.
   vi.stubGlobal(
     'ResizeObserver',

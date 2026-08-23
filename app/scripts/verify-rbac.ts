@@ -41,7 +41,10 @@ const run = async () => {
     )
     const sg = track(
       'subject-grades',
-      await payload.create({ collection: 'subject-grades', data: { subject: subject.id, grade: 99 } }),
+      await payload.create({
+        collection: 'subject-grades',
+        data: { subject: subject.id, grade: 99 },
+      }),
     )
 
     // displayName auto-generated

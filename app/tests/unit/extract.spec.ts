@@ -187,11 +187,11 @@ describe('extractAresJson — structural guards on the JSON sibling', () => {
     expect(() =>
       extractAresJson(`{ "META": { "a": { "__proto__": { "x": 1 } } }, ${groups} }`),
     ).toThrow(/__proto__/)
+    expect(() => extractAresJson(`{ "META": {}, "__proto__": {}, ${groups} }`)).toThrow(/__proto__/)
     expect(() =>
-      extractAresJson(`{ "META": {}, "__proto__": {}, ${groups} }`),
-    ).toThrow(/__proto__/)
-    expect(() =>
-      extractAresJson(`{ "META": {}, "LESSONS": [{ "__proto__": 1 }], "UNIT": {}, "FINAL_EXPLANATION": {}, "SUMMARY_TABLE": {} }`),
+      extractAresJson(
+        `{ "META": {}, "LESSONS": [{ "__proto__": 1 }], "UNIT": {}, "FINAL_EXPLANATION": {}, "SUMMARY_TABLE": {} }`,
+      ),
     ).toThrow(/__proto__/)
   })
 })

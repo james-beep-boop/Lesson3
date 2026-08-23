@@ -96,9 +96,13 @@ export const deliverableStem = (tag: DeliverableTag, prefix: string): string =>
 
 /** Build the ordered deliverable list (tag + filename stem) from a filePrefix. */
 function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
-  const docs: DocMeta[] = [{ tag: 'lessonSequence', name: deliverableStem('lessonSequence', prefix) }]
-  if (docx.finalExplanation) docs.push({ tag: 'finalExplanation', name: deliverableStem('finalExplanation', prefix) })
-  if (docx.summaryTable) docs.push({ tag: 'summaryTable', name: deliverableStem('summaryTable', prefix) })
+  const docs: DocMeta[] = [
+    { tag: 'lessonSequence', name: deliverableStem('lessonSequence', prefix) },
+  ]
+  if (docx.finalExplanation)
+    docs.push({ tag: 'finalExplanation', name: deliverableStem('finalExplanation', prefix) })
+  if (docx.summaryTable)
+    docs.push({ tag: 'summaryTable', name: deliverableStem('summaryTable', prefix) })
   return docs
 }
 
@@ -138,7 +142,10 @@ export async function produceArtifacts(
   for (const e of entries) await putArtifact(keyFor(spec, e.tag), e.bytes)
 
   // Manifest LAST — its presence means every deliverable above is already cached.
-  await putArtifact(keyFor(spec, MANIFEST_DOC), Buffer.from(JSON.stringify({ docs } satisfies Manifest)))
+  await putArtifact(
+    keyFor(spec, MANIFEST_DOC),
+    Buffer.from(JSON.stringify({ docs } satisfies Manifest)),
+  )
   return docs
 }
 
@@ -184,7 +191,8 @@ async function readManifest(spec: ArtifactSpec): Promise<Manifest | null> {
       return false
     }
     const docs = value.docs
-    if (!Array.isArray(docs) || docs.length < 1 || docs.length > DELIVERABLE_TAGS.length) return false
+    if (!Array.isArray(docs) || docs.length < 1 || docs.length > DELIVERABLE_TAGS.length)
+      return false
     const tags = new Set<DeliverableTag>()
     for (const doc of docs) {
       if (!isStringRecord(doc, ['tag', 'name'])) return false

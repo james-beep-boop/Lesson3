@@ -173,7 +173,8 @@ export function lessonDisplayName(
 
 /** "Strand N: Name", degrading to "Strand N", then the bare name, then "Other". */
 function strandLabel(strandNumber: number | null, name: string): string {
-  if (strandNumber != null) return name ? `Strand ${strandNumber}: ${name}` : `Strand ${strandNumber}`
+  if (strandNumber != null)
+    return name ? `Strand ${strandNumber}: ${name}` : `Strand ${strandNumber}`
   return name || 'Other'
 }
 
@@ -204,7 +205,12 @@ export function groupLessons<T extends CurriculumRow>(rows: readonly T[]): Subje
     const strandIndex = strandsBySubjectGrade.get(sgKey)!
     let st = strandIndex.get(stKey)
     if (!st) {
-      st = { key: stKey, label: strandLabel(n, cleanStrandName(r.strandName)), strandNumber: n, rows: [] }
+      st = {
+        key: stKey,
+        label: strandLabel(n, cleanStrandName(r.strandName)),
+        strandNumber: n,
+        rows: [],
+      }
       sg.strands.push(st)
       strandIndex.set(stKey, st)
     }
@@ -217,9 +223,11 @@ export function groupLessons<T extends CurriculumRow>(rows: readonly T[]): Subje
   )
   for (const sg of ordered) {
     sg.strands.sort(
-      (a, b) => compareStrandNumber(a.strandNumber, b.strandNumber) || a.label.localeCompare(b.label),
+      (a, b) =>
+        compareStrandNumber(a.strandNumber, b.strandNumber) || a.label.localeCompare(b.label),
     )
-    for (const st of sg.strands) st.rows.sort((a, b) => compareSubstrandId(a.substrandId, b.substrandId))
+    for (const st of sg.strands)
+      st.rows.sort((a, b) => compareSubstrandId(a.substrandId, b.substrandId))
   }
   return ordered
 }

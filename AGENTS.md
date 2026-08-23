@@ -185,7 +185,12 @@ runs the same dev-server script. Both scripts start Postgres themselves, so ther
   all rules server-side, not only in the UI. The export/preview endpoints are the authz boundary.
 - **Tests:** colocate (`app/tests/int`, `app/tests/e2e`) and run before declaring work done. Note the
   DB-dependent gap: int/e2e/build only run on the Rock.
-- **Formatting/linting:** ESLint 9 + Prettier 3 (`npm run lint`; tsc clean).
+- **Formatting/linting:** ESLint 9 (`npm run lint`) + Prettier 3 (`npm run format:check`, or
+  `npm run format` to fix); tsc clean. ⚑ **Two commands, not one.** `npm run lint` is ESLint
+  ONLY — this line used to name Prettier while giving only the ESLint command, and 106 files
+  drifted before anyone checked. CI now runs both; the globs live in the package.json scripts so
+  local and CI cannot disagree, and Payload's generated output is excluded via
+  `app/.prettierignore` (regenerate it, never reformat it).
 - **Deployment runbook:** `docs/ROCK5B-SETUP.md` (first stand-up) + the schema-change workflow in
   `docs/NEXT-SESSION.md`. origin/main is the single source of truth — push first, then pull on the Rock.
 - **Never commit or push without an explicit request.**

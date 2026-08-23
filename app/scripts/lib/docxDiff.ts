@@ -122,11 +122,14 @@ export async function compareDoc(
 
 type LessonWithResources = {
   framework?: Array<{ phase?: string }>
-  resourceLinks?: Record<string, {
-    video?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
-    reading?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
-    fallback_search_url?: string
-  }>
+  resourceLinks?: Record<
+    string,
+    {
+      video?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
+      reading?: { direct_url?: string; exact_search_url?: string; search_url?: string } | null
+      fallback_search_url?: string
+    }
+  >
 }
 
 const PHASE_KEY: Record<string, string> = {
@@ -153,11 +156,15 @@ function implementationTables(xml: string): string[] {
 
 function tableWidths(table: string): number[] {
   const grid = /<w:tblGrid>([\s\S]*?)<\/w:tblGrid>/.exec(table)?.[1] ?? ''
-  return [...grid.matchAll(/<w:gridCol[^>]*w:w="(\d+)"[^>]*\/?\s*>/g)].map((match) => Number(match[1]))
+  return [...grid.matchAll(/<w:gridCol[^>]*w:w="(\d+)"[^>]*\/?\s*>/g)].map((match) =>
+    Number(match[1]),
+  )
 }
 
 function tableFills(table: string): string[] {
-  return [...table.matchAll(/<w:shd[^>]*w:fill="([A-Fa-f0-9]+)"[^>]*\/?\s*>/g)].map((match) => match[1]!.toUpperCase())
+  return [...table.matchAll(/<w:shd[^>]*w:fill="([A-Fa-f0-9]+)"[^>]*\/?\s*>/g)].map((match) =>
+    match[1]!.toUpperCase(),
+  )
 }
 
 function hyperlinkTargets(relsXml: string): string[] {
@@ -176,7 +183,9 @@ function expectedHyperlinks(lessons: LessonWithResources[]): string[] {
       if (!phase) continue
       for (const resource of [phase.video, phase.reading]) {
         if (resource) {
-          targets.push(resource.direct_url || resource.exact_search_url || phase.fallback_search_url || '')
+          targets.push(
+            resource.direct_url || resource.exact_search_url || phase.fallback_search_url || '',
+          )
           targets.push(resource.search_url || '')
         } else {
           targets.push(phase.fallback_search_url || '')
@@ -204,13 +213,16 @@ export async function compareLessonSequencePackage(
   const expectedWidths = [1520, 3040, 3040, 3040, 3040]
   const widthsMatch =
     genTables.length === lessons.length &&
-    genTables.every((table) => JSON.stringify(tableWidths(table)) === JSON.stringify(expectedWidths)) &&
+    genTables.every(
+      (table) => JSON.stringify(tableWidths(table)) === JSON.stringify(expectedWidths),
+    ) &&
     JSON.stringify(genTables.map(tableWidths)) === JSON.stringify(oracleTables.map(tableWidths))
   const fillsMatch =
     genTables.length === oracleTables.length &&
     JSON.stringify(genTables.map(tableFills)) === JSON.stringify(oracleTables.map(tableFills))
 
-  const pageBreaks = (xml: string) => (xml.match(/<w:br[^>]*w:type="page"[^>]*\/?\s*>/g) ?? []).length
+  const pageBreaks = (xml: string) =>
+    (xml.match(/<w:br[^>]*w:type="page"[^>]*\/?\s*>/g) ?? []).length
   const breaksMatch = pageBreaks(gen.document) === pageBreaks(oracle.document)
   const generatedTargets = hyperlinkTargets(gen.relationships)
   const oracleTargets = hyperlinkTargets(oracle.relationships)
@@ -231,26 +243,43 @@ export async function compareLessonSequencePackage(
   const safeLinks = generatedTargets.every((target) => /^https?:\/\//.test(target))
 
   console.log('\n── LessonSequence package structure ────────────')
-  console.log(`  ${widthsMatch ? '✓' : '✗'} ${genTables.length} Section-C tables use exact 1520/3040×4 widths`)
+  console.log(
+    `  ${widthsMatch ? '✓' : '✗'} ${genTables.length} Section-C tables use exact 1520/3040×4 widths`,
+  )
   console.log(`  ${fillsMatch ? '✓' : '✗'} Section-C fills/striping match upstream`)
-  console.log(`  ${breaksMatch ? '✓' : '✗'} page-break count matches upstream (${pageBreaks(gen.document)})`)
+  console.log(
+    `  ${breaksMatch ? '✓' : '✗'} page-break count matches upstream (${pageBreaks(gen.document)})`,
+  )
   console.log(
     `  ${linksMatch || hostOnlyLinksMatch ? '✓' : '✗'} hyperlink targets match upstream` +
       `${hostOnlyLinksMatch && !linksMatch ? ' except bounded ares.edu→ares.local host migration' : ''}` +
       ` (${generatedTargets.length})`,
   )
   if (!linksMatch && !hostOnlyLinksMatch) {
-    const index = Math.max(generatedTargets.length, oracleTargets.length) > 0
-      ? Array.from({ length: Math.max(generatedTargets.length, oracleTargets.length) })
-          .findIndex((_, i) => generatedTargets[i] !== oracleTargets[i])
-      : -1
-    console.log(`      generated=${generatedTargets.length} upstream=${oracleTargets.length}; first diff #${index}`)
+    const index =
+      Math.max(generatedTargets.length, oracleTargets.length) > 0
+        ? Array.from({ length: Math.max(generatedTargets.length, oracleTargets.length) }).findIndex(
+            (_, i) => generatedTargets[i] !== oracleTargets[i],
+          )
+        : -1
+    console.log(
+      `      generated=${generatedTargets.length} upstream=${oracleTargets.length}; first diff #${index}`,
+    )
     if (index >= 0) {
       console.log(`      generated: ${JSON.stringify(generatedTargets[index])}`)
       console.log(`      upstream : ${JSON.stringify(oracleTargets[index])}`)
     }
   }
-  console.log(`  ${inputLinksMatch ? '✓' : '✗'} hyperlink targets match the supplied resourceLinks data`)
+  console.log(
+    `  ${inputLinksMatch ? '✓' : '✗'} hyperlink targets match the supplied resourceLinks data`,
+  )
   console.log(`  ${safeLinks ? '✓' : '✗'} every emitted hyperlink is http(s)`)
-  return widthsMatch && fillsMatch && breaksMatch && (linksMatch || hostOnlyLinksMatch) && inputLinksMatch && safeLinks
+  return (
+    widthsMatch &&
+    fillsMatch &&
+    breaksMatch &&
+    (linksMatch || hostOnlyLinksMatch) &&
+    inputLinksMatch &&
+    safeLinks
+  )
 }

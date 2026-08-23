@@ -51,9 +51,13 @@ describe('forgot-password never leaks whether an account exists', () => {
   // 500s the real one (send threw). Distinct addresses AND distinct statuses — the exact pairing
   // that leaked. The user-visible result must be identical.
   it('SMTP outage: unknown address (200) and registered address (500) render IDENTICALLY', async () => {
-    const unknown = await submitAndRender('no-such-user@example.invalid', async () => jsonResponse(200))
+    const unknown = await submitAndRender('no-such-user@example.invalid', async () =>
+      jsonResponse(200),
+    )
     cleanup()
-    const registered = await submitAndRender('real-teacher@lesson3.local', async () => jsonResponse(500))
+    const registered = await submitAndRender('real-teacher@lesson3.local', async () =>
+      jsonResponse(500),
+    )
 
     expect(registered.role).toBe(unknown.role)
     expect(registered.html).toBe(unknown.html)
@@ -61,13 +65,17 @@ describe('forgot-password never leaks whether an account exists', () => {
   })
 
   it.each([200, 400, 404, 500, 502])('status %i renders the same success note', async (status) => {
-    const { role, html } = await submitAndRender('someone@example.test', async () => jsonResponse(status))
+    const { role, html } = await submitAndRender('someone@example.test', async () =>
+      jsonResponse(status),
+    )
     expect(role).toBe('status')
     expect(html).toMatch(/reset link is on its way/i)
   })
 
   it('429 is the one server status that may differ — it describes the requester, not the account', async () => {
-    const { role, html } = await submitAndRender('someone@example.test', async () => jsonResponse(429))
+    const { role, html } = await submitAndRender('someone@example.test', async () =>
+      jsonResponse(429),
+    )
     expect(role).toBe('alert')
     expect(html).toMatch(/too many/i)
   })

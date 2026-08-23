@@ -24,7 +24,13 @@ import type { Payload } from 'payload'
 import { getPayload } from 'payload'
 import config from '../../src/payload.config.js'
 
-import type { LessonBundleVersion, LessonPlan, Subject, SubjectGrade, User } from '../../src/payload-types.js'
+import type {
+  LessonBundleVersion,
+  LessonPlan,
+  Subject,
+  SubjectGrade,
+  User,
+} from '../../src/payload-types.js'
 import { jobMatchesVersion } from '../../src/jobs/generateVersionArtifact.js'
 import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks.js'
 
@@ -319,7 +325,10 @@ export async function purgeMarked(payload: Payload, mark: string): Promise<void>
  * both the make-official (http) and first-ingest (int) pre-warm tests share. Job rows persist
  * after completion (prune is a separate cron), so this is stable however fast autoRun drains.
  */
-export async function enqueuedKindsFor(payload: Payload, versionId: number | string): Promise<Set<string>> {
+export async function enqueuedKindsFor(
+  payload: Payload,
+  versionId: number | string,
+): Promise<Set<string>> {
   const { docs } = await payload.find({
     collection: 'payload-jobs',
     where: { taskSlug: { equals: 'generateVersionArtifact' } },
@@ -328,6 +337,8 @@ export async function enqueuedKindsFor(payload: Payload, versionId: number | str
     overrideAccess: true,
   })
   return new Set(
-    docs.filter((j) => jobMatchesVersion(j, versionId)).map((j) => String((j.input as { kind?: string }).kind)),
+    docs
+      .filter((j) => jobMatchesVersion(j, versionId))
+      .map((j) => String((j.input as { kind?: string }).kind)),
   )
 }

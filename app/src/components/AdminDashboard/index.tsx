@@ -664,11 +664,12 @@ export default async function AdminDashboard({
                 status", which is what an administrator would call this. */}
             <AccordionPanel id="system.deployment" title="Installation status">
               <p className="lp-manage__desc">
-                This page shows how this installation of ARES Lesson Plans is set up, and whether the
-                services it depends on are working. It is for information only — changes are made on
-                the server, and most of these take effect only when it restarts. The last three rows
-                are different: they report what actually happened, or what is working right now. The
-                smaller technical names are included for whoever maintains the server.
+                This page shows how this installation of ARES Lesson Plans is set up, and whether
+                the services it depends on are working. It is for information only — changes are
+                made on the server, and most of these take effect only when it restarts. The last
+                three rows are different: they report what actually happened, or what is working
+                right now. The smaller technical names are included for whoever maintains the
+                server.
               </p>
               <SystemFactsPanel facts={systemFacts} />
             </AccordionPanel>

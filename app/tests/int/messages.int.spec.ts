@@ -20,7 +20,13 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { PayloadRequest } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
-import { MARK, createUserVerified, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import {
+  MARK,
+  createUserVerified,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+} from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 import { consumeRateLimit } from '../../src/lib/rateLimit.js'
 
@@ -33,8 +39,9 @@ beforeAll(async () => {
 afterAll(async () => {
   if (!fx) return
   // Fixture users' rate counters would otherwise orphan (keys are `message:<userId>` etc.).
-  const db = (fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
-    .drizzle
+  const db = (
+    fx.payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }
+  ).drizzle
   for (const u of Object.values(fx.users)) {
     await db.execute(
       sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" IN (${`message:${u.id}`}, ${`messagePingRecipient:${u.id}`});`,
@@ -64,7 +71,9 @@ async function pingJobsFor(messageId: number) {
     depth: 0,
     overrideAccess: true,
   })
-  return docs.filter((j) => (j.input as { messageId?: number } | undefined)?.messageId === messageId)
+  return docs.filter(
+    (j) => (j.input as { messageId?: number } | undefined)?.messageId === messageId,
+  )
 }
 
 const send = (from: RoleFixture['users'][keyof RoleFixture['users']], to: number, body: string) =>
@@ -231,7 +240,12 @@ describe('context link integrity (§10): a linked version must belong to the lin
     const send = (extra: Record<string, unknown>) =>
       fx.payload.create({
         collection: 'messages',
-        data: { sender: fx.users.teacher.id, recipient: fx.users.editor.id, body: `${MARK}link-check`, ...extra },
+        data: {
+          sender: fx.users.teacher.id,
+          recipient: fx.users.editor.id,
+          body: `${MARK}link-check`,
+          ...extra,
+        },
         overrideAccess: false,
         user: fx.users.teacher,
       })
@@ -247,7 +261,11 @@ describe('context link integrity (§10): a linked version must belong to the lin
     // A version with no plan is ambiguous → rejected.
     await expect(send({ version: fx.version.id })).rejects.toThrow(/include its lesson plan/)
 
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: version2.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: version2.id,
+      overrideAccess: true,
+    })
     await fx.payload.delete({ collection: 'lesson-plans', id: plan2.id, overrideAccess: true })
   })
 })

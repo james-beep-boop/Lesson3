@@ -17,15 +17,31 @@ const LESSON_PLANS = 'lesson-plans' as CollectionSlug
 // Top-level keys a teacher with editing access may influence on a version: the content containers only. Identity/version
 // metadata (title, subjectGrade, lessonPlan, sourceVersion, semver, meta, unit) is preserved. Unlike
 // a bundle, a version has no `semver` bump on edit, no `bumpType`/`lockVersion`, and no `_status`.
-export const VERSION_EDITOR_KEYS = new Set(['lessons', 'finalExplanation', 'summaryTable', 'updatedAt'])
+export const VERSION_EDITOR_KEYS = new Set([
+  'lessons',
+  'finalExplanation',
+  'summaryTable',
+  'updatedAt',
+])
 
 /**
  * Editor/Admin field-split for versions (SPEC §5) — shared whitelist via `applyEditorFieldSplit`.
  * A teacher with editing access editing a (Not-Official) working version may change prose only; structure, META, answer
  * keys, and identity/version metadata are preserved from the original. Admins are unrestricted.
  */
-export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({ data, operation, originalDoc, req }) =>
-  applyEditorFieldSplit({ data, originalDoc, operation, req, editorTopLevelKeys: VERSION_EDITOR_KEYS })
+export const enforceVersionFieldSplit: CollectionBeforeChangeHook = ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) =>
+  applyEditorFieldSplit({
+    data,
+    originalDoc,
+    operation,
+    req,
+    editorTopLevelKeys: VERSION_EDITOR_KEYS,
+  })
 
 // The immutability guarantee (`enforceVersionImmutable`) moved to `access/versionImmutability.ts`,
 // deliberately colocated with its paired form-render-only update grant — read that module's header
@@ -155,7 +171,9 @@ export const enforceVersionPlanConsistency: CollectionBeforeValidateHook = async
     throw new ValidationError(
       {
         collection: 'lesson-bundle-versions',
-        errors: [{ message: 'Version subject-grade must match its lesson plan.', path: 'subjectGrade' }],
+        errors: [
+          { message: 'Version subject-grade must match its lesson plan.', path: 'subjectGrade' },
+        ],
       },
       req.t,
     )

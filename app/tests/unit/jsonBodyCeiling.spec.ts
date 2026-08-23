@@ -47,17 +47,31 @@ describe('readJsonBody — the ceiling', () => {
   })
 
   it('allows a body exactly AT the cap', async () => {
-    await expect(readJsonBody(jsonReq(async () => ({ a: 1 }), 1024), 1024)).resolves.toEqual({ a: 1 })
+    await expect(
+      readJsonBody(
+        jsonReq(async () => ({ a: 1 }), 1024),
+        1024,
+      ),
+    ).resolves.toEqual({ a: 1 })
   })
 
   it('parses when the header is absent — declaring a length is not a requirement', async () => {
-    await expect(readJsonBody(jsonReq(async () => ({ a: 1 })), 1024)).resolves.toEqual({ a: 1 })
+    await expect(
+      readJsonBody(
+        jsonReq(async () => ({ a: 1 })),
+        1024,
+      ),
+    ).resolves.toEqual({ a: 1 })
   })
 
   it('carries the caller’s message on the 413', async () => {
-    await expect(readJsonBody(jsonReq(async () => ({}), 99), 1, 'Upload too large')).rejects.toThrow(
-      'Upload too large',
-    )
+    await expect(
+      readJsonBody(
+        jsonReq(async () => ({}), 99),
+        1,
+        'Upload too large',
+      ),
+    ).rejects.toThrow('Upload too large')
   })
 })
 
@@ -91,7 +105,12 @@ describe('readJsonBody — an unreadable body is null, never a throw', () => {
   })
 
   it('is null for a body of literal null, so `body?.field` stays safe', async () => {
-    await expect(readJsonBody(jsonReq(async () => null), 1024)).resolves.toBeNull()
+    await expect(
+      readJsonBody(
+        jsonReq(async () => null),
+        1024,
+      ),
+    ).resolves.toBeNull()
   })
 })
 
@@ -148,9 +167,9 @@ describe('the extracted readers keep their 400s', () => {
   })
 
   it('readEmailRecipient returns the parsed address', async () => {
-    await expect(readEmailRecipient(jsonReq(async () => ({ to: 'teacher@school.test' })))).resolves.toBe(
-      'teacher@school.test',
-    )
+    await expect(
+      readEmailRecipient(jsonReq(async () => ({ to: 'teacher@school.test' }))),
+    ).resolves.toBe('teacher@school.test')
   })
 
   it('readAssignmentBody rejects a missing subjectGradeId, then a missing consent token', async () => {
@@ -244,13 +263,14 @@ describe('no endpoint reads a body outside the guarded readers', () => {
     const found: string[] = []
     const walk = (node: ts.Node): void => {
       if (ts.isCallExpression(node)) {
-        const callee = ts.isNonNullExpression(node.expression) ? node.expression.expression : node.expression
+        const callee = ts.isNonNullExpression(node.expression)
+          ? node.expression.expression
+          : node.expression
         if (
           (ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) &&
           nameOfAccess(callee) === 'json' &&
           !(
-            ts.isIdentifier(callee.expression) &&
-            RESPONSE_BUILDERS.includes(callee.expression.text)
+            ts.isIdentifier(callee.expression) && RESPONSE_BUILDERS.includes(callee.expression.text)
           )
         ) {
           found.push(callee.getText())
@@ -277,15 +297,12 @@ describe('no endpoint reads a body outside the guarded readers', () => {
     expect(FILES).toEqual(expect.arrayContaining(ALLOWED))
   })
 
-  it.each(FILES.filter((f) => !ALLOWED.includes(f)))(
-    '%s does not call json() directly',
-    (file) => {
-      expect(
-        rawBodyReadsIn(parse(file)),
-        `${file} reads a raw body — use readJsonBody(req, max) so the ceiling is not optional`,
-      ).toEqual([])
-    },
-  )
+  it.each(FILES.filter((f) => !ALLOWED.includes(f)))('%s does not call json() directly', (file) => {
+    expect(
+      rawBodyReadsIn(parse(file)),
+      `${file} reads a raw body — use readJsonBody(req, max) so the ceiling is not optional`,
+    ).toEqual([])
+  })
 
   it.each(ALLOWED.filter((f) => f !== 'respond.ts'))(
     '%s is allowed its own read only because it guards it',

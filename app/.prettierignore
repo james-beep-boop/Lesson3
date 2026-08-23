@@ -1,0 +1,16 @@
+# Payload's GENERATED output. Formatting it is churn that the next codegen run undoes — and
+# `payload-types.ts` alone was over half the 1,789-line diff of the first repo-wide format pass.
+# Each of these files says so in its own header ("GENERATED AUTOMATICALLY BY PAYLOAD", "DO NOT
+# MODIFY"), so the rule is "generated output is not ours to format", not a per-file exemption.
+#
+# ⚑ Regenerate, do not reformat: `npm run generate:types` / `npm run generate:importmap`.
+src/payload-types.ts
+src/app/(payload)/layout.tsx
+src/app/(payload)/admin/importMap.js
+src/app/(payload)/admin/[[...segments]]/page.tsx
+src/app/(payload)/admin/[[...segments]]/not-found.tsx
+src/app/(payload)/api/[...slug]/route.ts
+
+# Build output and dependencies.
+.next/
+node_modules/

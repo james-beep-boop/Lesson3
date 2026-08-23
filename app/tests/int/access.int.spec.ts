@@ -17,7 +17,12 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { MARK, minimalBundleContent, setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import {
+  MARK,
+  minimalBundleContent,
+  setupRoleFixture,
+  type RoleFixture,
+} from '../helpers/fixtures.js'
 import { relId } from '../../src/lib/relId.js'
 import { nextSemverForPlan } from '../../src/lib/semver.js'
 
@@ -76,7 +81,11 @@ describe('version immutability (Stage 2 model: no in-place updates)', () => {
         user: fx.users.subjectAdmin,
       }),
     ).rejects.toThrow()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 
   it('still allows trusted system (overrideAccess) updates — ingest/migrations rely on this', async () => {
@@ -89,7 +98,11 @@ describe('version immutability (Stage 2 model: no in-place updates)', () => {
         overrideAccess: true,
       }),
     ).resolves.toBeTruthy()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 })
 
@@ -116,7 +129,11 @@ describe('version deletion scope (authorship — IA redesign 2026-07-01)', () =>
         user: fx.users.editor,
       }),
     ).rejects.toThrow()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 
   it("A teacher with editing access CANNOT delete another user's candidate", async () => {
@@ -129,7 +146,11 @@ describe('version deletion scope (authorship — IA redesign 2026-07-01)', () =>
         user: fx.users.editor,
       }),
     ).rejects.toThrow()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 
   it('Subject Admin CAN delete any candidate in scope, authorless included', async () => {
@@ -177,7 +198,11 @@ describe('Teacher cannot write versions', () => {
         user: fx.users.teacher,
       }),
     ).rejects.toThrow()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 })
 
@@ -259,7 +284,11 @@ describe('Server-side invariants (Bucket A)', () => {
 
     // Version `v` lives UNDER `p` (NOT NULL lesson_plan_id) → delete the child version before its
     // plan, or the plan-delete's relationship-null violates the constraint.
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: v.id,
+      overrideAccess: true,
+    })
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 
@@ -328,7 +357,11 @@ describe('Server-side invariants (Bucket A)', () => {
         user: fx.users.siteAdmin,
       }),
     ).rejects.toThrow()
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: wc.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: wc.id,
+      overrideAccess: true,
+    })
   })
 
   // NOTE (2026-07-18): the former "sourceVersion/semver forged on an authenticated CREATE are stripped"
@@ -372,7 +405,11 @@ describe('Server-side invariants (Bucket A)', () => {
     })) as { id: number }
     const next = await nextSemverForPlan(fx.payload, fx.plan.id)
     expect(next).toBe('1.0.2')
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v101.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: v101.id,
+      overrideAccess: true,
+    })
   })
 
   it('#4 the unique (lessonPlan, semver) index rejects a duplicate semver on the same plan', async () => {
@@ -390,7 +427,11 @@ describe('Server-side invariants (Bucket A)', () => {
       })
     const first = (await mk('5.5.5')) as { id: number }
     await expect(mk('5.5.5')).rejects.toThrow() // same (plan, semver) → unique-index violation
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: first.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: first.id,
+      overrideAccess: true,
+    })
   })
 
   it('deleting a lesson plan cascades its versions (incl. the Official one) — no 23502', async () => {
@@ -487,7 +528,11 @@ describe('Server-side invariants (Bucket A)', () => {
       data: { officialVersion: null } as never,
       overrideAccess: true,
     })
-    await fx.payload.delete({ collection: 'lesson-bundle-versions', id: v.id, overrideAccess: true })
+    await fx.payload.delete({
+      collection: 'lesson-bundle-versions',
+      id: v.id,
+      overrideAccess: true,
+    })
     await fx.payload.delete({ collection: 'lesson-plans', id: p.id, overrideAccess: true })
   })
 })
@@ -501,7 +546,11 @@ describe('People rules (SPEC §8)', () => {
       data: { assignments: [{ subjectGrade: fx.subjectGrade.id, role: 'subjectAdmin' }] },
       overrideAccess: true,
     })
-    const prior = await fx.payload.findByID({ collection: 'users', id: fx.users.subjectAdmin.id, depth: 0 })
+    const prior = await fx.payload.findByID({
+      collection: 'users',
+      id: fx.users.subjectAdmin.id,
+      depth: 0,
+    })
     const priorRole = (prior.assignments ?? []).find(
       (a) => relId(a.subjectGrade) === fx.subjectGrade.id,
     )?.role

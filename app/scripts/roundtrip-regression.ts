@@ -26,12 +26,24 @@ const SUBJECT = 'Physics'
 const GRADE = 10
 const JSON_PATH =
   process.env.ARES_FIDELITY_JSON ??
-  path.join(os.homedir(), 'Desktop', 'ares-json', 'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json')
+  path.join(
+    os.homedir(),
+    'Desktop',
+    'ares-json',
+    'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json',
+  )
 const ORACLE_DIR =
   process.env.ARES_FIDELITY_ORACLE_DIR ??
   path.join(
-    os.homedir(), 'Documents', 'GitHub', 'cbe-generation-system', 'data', 'outputs', 'v2',
-    'Physics', 'SS4.1_Greenhouse_Effect_and_Climate_Change',
+    os.homedir(),
+    'Documents',
+    'GitHub',
+    'cbe-generation-system',
+    'data',
+    'outputs',
+    'v2',
+    'Physics',
+    'SS4.1_Greenhouse_Effect_and_Climate_Change',
   )
 const APPROVED = {
   lessonSequence: 'Physics_Greenhouse_Effect_and_Climate_Change_CBE_LessonSequence.docx',
@@ -56,11 +68,13 @@ const run = async () => {
       depth: 0,
       overrideAccess: true,
     })
-    const subject = subjectResult.docs[0] ?? await payload.create({
-      collection: 'subjects',
-      data: { name: SUBJECT },
-      overrideAccess: true,
-    })
+    const subject =
+      subjectResult.docs[0] ??
+      (await payload.create({
+        collection: 'subjects',
+        data: { name: SUBJECT },
+        overrideAccess: true,
+      }))
     if (!subjectResult.docs[0]) created.push({ collection: 'subjects', id: subject.id })
 
     const subjectGradeResult = await payload.find({
@@ -70,12 +84,15 @@ const run = async () => {
       depth: 0,
       overrideAccess: true,
     })
-    const subjectGrade = subjectGradeResult.docs[0] ?? await payload.create({
-      collection: 'subject-grades',
-      data: { subject: subject.id, grade: GRADE },
-      overrideAccess: true,
-    })
-    if (!subjectGradeResult.docs[0]) created.push({ collection: 'subject-grades', id: subjectGrade.id })
+    const subjectGrade =
+      subjectGradeResult.docs[0] ??
+      (await payload.create({
+        collection: 'subject-grades',
+        data: { subject: subject.id, grade: GRADE },
+        overrideAccess: true,
+      }))
+    if (!subjectGradeResult.docs[0])
+      created.push({ collection: 'subject-grades', id: subjectGrade.id })
 
     const raw = structuredClone(extractAresJson(readFileSync(JSON_PATH, 'utf8')))
     const meta = raw.META as Record<string, unknown>
@@ -103,22 +120,37 @@ const run = async () => {
     const out = await generateForVersion(payload, officialVersionId)
     const lessonOracle = approved(APPROVED.lessonSequence)
     const results = [
-      await compareDoc('LessonSequence (resources included)', out.lessonSequence, lessonOracle, false),
+      await compareDoc(
+        'LessonSequence (resources included)',
+        out.lessonSequence,
+        lessonOracle,
+        false,
+      ),
       await compareLessonSequencePackage(
         out.lessonSequence,
         lessonOracle,
         raw.LESSONS as unknown[],
       ),
-      await compareDoc('FinalExplanation', out.finalExplanation, approved(APPROVED.finalExplanation), false),
+      await compareDoc(
+        'FinalExplanation',
+        out.finalExplanation,
+        approved(APPROVED.finalExplanation),
+        false,
+      ),
       await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
     ]
     passed = results.filter(Boolean).length
   } finally {
     for (const record of created) {
       if (record.collection === 'lesson-plans') {
-        await payload.update({
-          collection: 'lesson-plans', id: record.id, data: { officialVersion: null }, overrideAccess: true,
-        }).catch(() => {})
+        await payload
+          .update({
+            collection: 'lesson-plans',
+            id: record.id,
+            data: { officialVersion: null },
+            overrideAccess: true,
+          })
+          .catch(() => {})
       }
     }
     for (const { collection, id } of created.reverse()) {
@@ -126,7 +158,9 @@ const run = async () => {
         await payload.delete({ collection, id, overrideAccess: true })
       } catch (error) {
         cleanupFailed = true
-        console.warn(`Cleanup failed for ${collection} ${id}: ${error instanceof Error ? error.message : error}`)
+        console.warn(
+          `Cleanup failed for ${collection} ${id}: ${error instanceof Error ? error.message : error}`,
+        )
       }
     }
   }

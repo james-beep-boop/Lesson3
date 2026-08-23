@@ -37,7 +37,9 @@ const run = async () => {
   let warningCount = 0
   for (const r of results) {
     const label = r.action === 'revised' ? 'revised → Not Official' : 'new → Official'
-    console.log(`  ${r.file} → plan ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · ${label}`)
+    console.log(
+      `  ${r.file} → plan ${r.id} · "${r.title}" · SG ${r.subjectGrade} · ${r.semver} · ${label}`,
+    )
     for (const w of r.warnings) {
       warningCount++
       console.warn(`     ⚠ ${w}`)

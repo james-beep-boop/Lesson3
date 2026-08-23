@@ -12,7 +12,11 @@ const sentryMock = vi.hoisted(() => ({
 }))
 vi.mock('@sentry/node', () => sentryMock)
 
-import { errorTrackingEnabled, initErrorTracking, captureException } from '../../src/lib/errorTracking'
+import {
+  errorTrackingEnabled,
+  initErrorTracking,
+  captureException,
+} from '../../src/lib/errorTracking'
 import * as instrumentation from '../../src/instrumentation'
 
 const ORIGINAL_DSN = process.env.SENTRY_DSN

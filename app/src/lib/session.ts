@@ -16,13 +16,11 @@ import type { User } from '@/payload-types'
 
 // `cache` dedupes within a single request render: the layout and the page both resolve the
 // session, but `payload.auth` (cookie verify + user lookup) then runs only once per request.
-export const getSession = cache(
-  async (): Promise<{ payload: Payload; user: User | null }> => {
-    const payload = await getPayload({ config })
-    const { user } = await payload.auth({ headers: await nextHeaders() })
-    return { payload, user: user as User | null }
-  },
-)
+export const getSession = cache(async (): Promise<{ payload: Payload; user: User | null }> => {
+  const payload = await getPayload({ config })
+  const { user } = await payload.auth({ headers: await nextHeaders() })
+  return { payload, user: user as User | null }
+})
 
 /** Like getSession, but redirects to /login when there's no authenticated user. */
 export async function requireUser(): Promise<{ payload: Payload; user: User }> {
