@@ -174,7 +174,7 @@ test.describe('case 4 — the same user is OFFERED their work, never given it ba
     // same class of harm as losing the work, pointing the other way.
     await expect(page.locator(OVERVIEW)).toHaveValue(saved)
 
-    await page.getByRole('button', { name: 'Restore these changes' }).click()
+    await page.getByRole('button', { name: 'Put the changes back' }).click()
     await expect(prompt(page)).toHaveCount(0)
 
     // Applied exactly, and the form is DIRTY: restored work is unsaved work, and a clean form would
@@ -237,8 +237,8 @@ test.describe('the offer is a real barrier, not just a panel on top', () => {
 
     // And the panel itself is still interactive — a barrier that covered its own dialog would pass
     // the assertion above for entirely the wrong reason.
-    await expect(page.getByRole('button', { name: 'Not now' })).toBeVisible()
-    await page.getByRole('button', { name: 'Not now' }).click()
+    await expect(page.getByRole('button', { name: 'Decide later' })).toBeVisible()
+    await page.getByRole('button', { name: 'Decide later' }).click()
     await expect(prompt(page)).toHaveCount(0)
   })
 })
@@ -287,7 +287,7 @@ test.describe('case 8 — an explicit discard retires the capture', () => {
     await expect(prompt(page)).toBeVisible()
 
     const before = await recoveryRow(fx.payload, versionId, editorId)
-    await page.getByRole('button', { name: 'Discard them' }).click()
+    await page.getByRole('button', { name: 'Discard the changes' }).click()
     await expect(prompt(page)).toHaveCount(0)
 
     // DELETE first clears and retires the row; the following POST /start then reactivates it. Polling
@@ -382,8 +382,8 @@ test.describe('cases 9 and 10 — a capture that cannot be trusted is READ-ONLY'
 
       // ⚑ ABSENT, not disabled. A disabled Restore button sends the user hunting for the condition
       // that would enable it, and there is none they can reach.
-      await expect(page.getByRole('button', { name: 'Restore these changes' })).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Discard them' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Put the changes back' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Discard the changes' })).toBeVisible()
 
       // Continuing leaves the form on the SAVED content — nothing untrusted reaches it.
       await page.getByRole('button', { name: 'Continue editing' }).click()
