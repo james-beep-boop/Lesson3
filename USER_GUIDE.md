@@ -65,6 +65,11 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
   version Official when it is ready.
 - **Your drafts live in Manage:** *Manage → My saved versions* lists the versions you have saved —
   click one to continue editing, or delete the ones you no longer need.
+- **Compare two versions:** the *N versions* panel's *Compare* button puts two versions side by
+  side, removals in red and additions in green. Comparison is area by area — each lesson's outcomes,
+  overview, implementation framework, teacher reflection and summary prompts separately — so the page
+  opens with a count of the changed areas, a list you can click to jump to any of them, and only the
+  changed areas shown. Turn off *Changes only* to read both versions in full.
 
 ## Subject-grade administrators
 

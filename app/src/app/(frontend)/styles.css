@@ -1416,6 +1416,85 @@ button.user-menu__item {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+/* ---- Compare: change summary, index, and the "Changes only" filter (2026-08-23) ---- */
+.compare-summary {
+  margin: var(--app-space-3) 0 var(--app-space-1);
+  font-weight: 600;
+}
+/* The change index — the answer to "what actually moved in these forty pages". Plain links to each
+   changed area's anchor; the list is short by construction (only changed areas appear). */
+.compare-index ol {
+  margin: 0 0 var(--app-space-2);
+  padding-left: 1.25rem;
+  columns: 2;
+  column-gap: var(--app-space-4);
+}
+.compare-index li {
+  margin-bottom: 0.15rem;
+  break-inside: avoid;
+}
+.compare-toolbar {
+  margin: 0 0 var(--app-space-2);
+}
+/* THE FILTER. Hiding is by `data-changed`, written server-side per area AND per document, so an
+   entirely untouched document collapses with its areas instead of leaving an empty heading.
+   ⚑ Both sides of a pair live in the same `[data-changed]` element, which is the point: the panes
+   cannot be filtered independently (HtmlDiff marks a deletion in the old pane only, so independent
+   filtering slides unrelated content side by side). */
+.compare-body--changes-only [data-changed='false'] {
+  display: none;
+}
+/* One area's caption: the anchor target for the index, and the only label on screen when the filter
+   has hidden everything around it. Quiet, like the pane titles it sits above. */
+.compare-group {
+  margin-bottom: var(--app-space-4);
+  scroll-margin-top: 4rem;
+}
+/* ⚑ THE JUMPED-TO AREA MUST BE VISIBLE. This rule previously said `outline: none`, which removed the
+   only indicator an index link or (Phase 2) a Next/Previous press gives — land on one of 28 rows
+   with no marker and the jump may as well not have happened.
+   `:target` does the work for the index links: it needs no JS, and unlike `:focus-visible` it shows
+   for MOUSE users too, who are exactly the ones clicking the index. `:focus-visible` is kept
+   alongside it for keyboard navigation, since the row is `tabindex="-1"` and can also be focused
+   programmatically. Deliberately NOT plain `:focus` — Chrome focuses a `tabindex="-1"` element on
+   any click inside it, which would flash a ring while someone was merely reading. */
+.compare-group:target,
+.compare-group:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+.compare-group__title {
+  margin: 0 0 var(--app-space-1);
+  font-size: var(--app-secondary-size);
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Changed, but HtmlDiff had nothing to annotate (a paragraph boundary moved). Without this the row
+   would show two apparently identical panes and read as a bug. */
+.compare-group__note {
+  /* inline-BLOCK and nowrap together: as plain inline text the bordered badge broke across two
+     lines at 375px, splitting its own border mid-phrase. It now moves to the next line whole. */
+  display: inline-block;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: var(--app-secondary-size);
+  font-weight: 400;
+  color: var(--muted);
+}
+/* An area that exists in only one of the two versions — a whole lesson added or removed. Reads as a
+   deliberate statement rather than as a half-rendered row. */
+.compare-pane__absent {
+  margin: 0;
+  padding: var(--app-space-3);
+  border: 1px dashed var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  font-style: italic;
+}
 /* Diff annotations (Payload's HtmlDiff output contract, pinned by htmlDiffContract.spec.ts):
    deletions red in the left pane, additions green in the right. */
 .compare-diff [data-match-type='delete'] {
@@ -1716,9 +1795,16 @@ button.user-menu__item {
     --guide-toc-rows: 2;
   }
 
-  /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers. */
+  /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers.
+     Each pair still stacks INSIDE its own `.compare-group`, so a change and its counterpart stay
+     adjacent rather than a phone-length scroll apart (the old two-pane layout put the whole "from"
+     document above the whole "to" document). */
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+  /* The change index is a single column at phone width — two would be a few words wide. */
+  .compare-index ol {
+    columns: 1;
   }
   /* The pickers reach the touch target, like every other control at this width. Restated at the
      SAME specificity as the base rule (0-1-0) because a media query adds none — the exact way

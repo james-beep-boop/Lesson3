@@ -18,6 +18,11 @@ import mammoth from 'mammoth'
 
 import { bundleToAresData } from './adapter'
 import { generateBundleDocx, type GeneratedDocx } from './index'
+import {
+  FINAL_EXPLANATION_LABEL,
+  LESSON_SEQUENCE_LABEL,
+  SUMMARY_TABLE_LABEL,
+} from '../lib/lessonAnchors'
 import { sanitizePreviewHtml } from '../lib/sanitizeHtml'
 import type { LessonBundleVersion } from '../payload-types'
 
@@ -35,9 +40,9 @@ export interface PreviewSection {
  */
 export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSection[]> {
   const docs: { label: string; buffer: Buffer | null }[] = [
-    { label: 'Lesson Sequence', buffer: docx.lessonSequence },
-    { label: 'Final Explanation', buffer: docx.finalExplanation },
-    { label: 'Summary Table', buffer: docx.summaryTable },
+    { label: LESSON_SEQUENCE_LABEL, buffer: docx.lessonSequence },
+    { label: FINAL_EXPLANATION_LABEL, buffer: docx.finalExplanation },
+    { label: SUMMARY_TABLE_LABEL, buffer: docx.summaryTable },
   ]
   return Promise.all(
     docs
@@ -55,8 +60,6 @@ export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSectio
  * snapshot is too incomplete for the generator (an editor previewing a partial draft) —
  * callers should surface that as a "not ready to preview yet" message, not a 500.
  */
-export async function renderBundlePreview(
-  bundle: LessonBundleVersion,
-): Promise<PreviewSection[]> {
+export async function renderBundlePreview(bundle: LessonBundleVersion): Promise<PreviewSection[]> {
   return docxToSections(await generateBundleDocx(bundleToAresData(bundle)))
 }
