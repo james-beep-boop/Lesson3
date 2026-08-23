@@ -2187,20 +2187,39 @@ a.btn.lp-btn {
   // Wider than the 26rem base: this panel is a list of editing instructions, not a confirmation.
   max-width: 30rem;
 
-  &__list {
-    margin: 0;
-    padding-left: 1.3rem;
+  // ⚑ ROWS, NOT A BULLET LIST. The `__list` rules this replaces styled eight `<li>`s of mixed
+  // importance — the rule you need and the aside you do not, rendered identically. Each pair is now
+  // a bordered row: the term scannable, the detail muted beneath it.
+  //
+  // The rules are the Manage panel's, same as the header bar above: `--theme-elevation-200`
+  // hairlines, and the row rhythm rather than list-item margins. A top border on EVERY row (not
+  // `+ .row`) is deliberate — the first one separates the rows from the one-line description above
+  // them, which is where the mockup put it.
+  .help-rows {
+    margin: 0.9rem 0 0;
   }
 
-  &__list li + li {
-    margin-top: 0.45rem;
+  .help-rows__row {
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--theme-elevation-200);
   }
 
-  // The button row itself is the shared `.modal__actions` (see the base block); this adds only the
-  // right-alignment and the leading space a list of instructions needs above its Close button.
+  .help-rows__row dt {
+    font-weight: 500;
+  }
+
+  // `dd` carries a UA margin-inline-start of 40px; the row owns its own inset.
+  .help-rows__row dd {
+    margin: 0.1rem 0 0;
+    color: var(--theme-elevation-600);
+  }
+
+  // The button row itself is the shared `.modal__actions` (see the base block). It takes the same
+  // hairline as a row, so Close reads as the last item rather than floating after the list.
   .modal__actions {
     justify-content: flex-end;
-    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--theme-elevation-200);
   }
 }
 
