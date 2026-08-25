@@ -104,6 +104,64 @@ describe('and it still shows an ORPHAN key, which the restore drops', () => {
   })
 })
 
+describe('when the saved projection has NO entry for the key', () => {
+  /**
+   * ⚑ WHY AN ABSENT SAVED KEY IS SAFELY READ AS EMPTY — recorded because a review read it as a bug,
+   * and the argument that it is not depends on three facts that are not visible from the comparison
+   * line alone. The concern: `savedValues?.[field] ?? ''` turns a missing saved field into `''`, so a
+   * captured `''` compares equal and is dropped — could that hide a clearing?
+   *
+   * It cannot, and these cases are the proof rather than the assertion:
+   *
+   *   1. `projectCapture`'s `put` keeps the map SPARSE — a row with no prose at all gets no entry. So
+   *      an absent key means "this row had nothing stored", and writing `''` over nothing changes
+   *      nothing a reader would see.
+   *   2. `applyCapture` NEVER INTRODUCES A KEY (`overlay`'s contract, and `report.droppedKeys`), so an
+   *      absent key that means "this row is not in the document" is not restored at all.
+   *   3. A row that DOES hold prose always has an entry, so the dangerous shape — stored text about to
+   *      be cleared — always has a `was` to compare against. That is case (c) below, and it is listed.
+   *
+   * ⚑ So do NOT "fix" this by treating a missing key as automatically different: it would list a row
+   * of empty fields for every untouched lesson, which is the whole-document noise #292 removed.
+   */
+  it('(a) a row with nothing stored: predicts nothing, and nothing meaningful moves', () => {
+    const base = { id: 1, lessons: [{ id: 'L1' }] }
+    const capture: CaptureMap = { 'lesson:L1': { overview: '' } }
+    expect(projectCapture(base), 'precondition: the sparse map omits the key').not.toHaveProperty(
+      'lesson:L1',
+    )
+
+    expect(captureDiff(projectCapture(base), capture)).toEqual({})
+    const { doc: after } = applyCapture(base, capture)
+    const lesson = (after.lessons as Record<string, unknown>[])[0]!
+    expect(lesson.overview ?? '', 'undefined and "" are both empty — nothing a reader sees').toBe(
+      '',
+    )
+  })
+
+  it('(b) a row not in the document at all: the restore drops it', () => {
+    const base = { id: 1, lessons: [{ id: 'OTHER', overview: 'untouched' }] }
+    const capture: CaptureMap = { 'lesson:L1': { overview: '' } }
+
+    expect(captureDiff(projectCapture(base), capture)).toEqual({})
+    const { report } = applyCapture(base, capture)
+    expect(report.applied, 'nothing is written').toBe(0)
+    expect(report.droppedKeys).toContain('lesson:L1')
+  })
+
+  it('(c) but a row that DOES hold prose is always compared, and its clearing is listed', () => {
+    // The shape the concern was really about. It has a saved entry, so it never takes the path above.
+    const base = { id: 1, lessons: [{ id: 'L1', overview: 'a real paragraph' }] }
+    const capture: CaptureMap = { 'lesson:L1': { overview: '' } }
+
+    expect(captureDiff(projectCapture(base), capture)['lesson:L1']).toEqual({
+      overview: { was: 'a real paragraph', now: '' },
+    })
+    const { doc: after } = applyCapture(base, capture)
+    expect((after.lessons as Record<string, unknown>[])[0]!.overview).toBe('')
+  })
+})
+
 describe('where the preview deliberately reports MORE than the restore writes', () => {
   it('predicts a non-whitelisted field that applyCapture will not touch', () => {
     // ⚑ `applyCapture` restricts each scope to its prose whitelist; `captureDiff` does not. Verified
