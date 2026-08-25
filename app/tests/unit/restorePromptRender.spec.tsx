@@ -62,10 +62,10 @@ const capture: OfferedCapture = {
   schemaMismatch: false,
 }
 
-const show = (readOnly: boolean) =>
+const show = (readOnly: boolean, now: string = TYPED) =>
   render(
     <EditRecoveryRestorePrompt
-      capture={readOnly ? { ...capture, stale: true } : capture}
+      capture={{ ...capture, content: { 'lesson:L1': { overview: now } }, stale: readOnly }}
       anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
       saved={{ 'lesson:L1': { overview: SAVED } }}
       readOnly={readOnly}
@@ -112,19 +112,7 @@ describe('a field the restore would CLEAR', () => {
    * writes a captured `''` through, so this is real deletion — and until it was found in review the
    * panel hid it entirely and could report "nothing differs" while the restore wiped a paragraph.
    */
-  const cleared = (readOnly: boolean) =>
-    render(
-      <EditRecoveryRestorePrompt
-        capture={{ ...capture, content: { 'lesson:L1': { overview: '' } }, stale: readOnly }}
-        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
-        saved={{ 'lesson:L1': { overview: SAVED } }}
-        readOnly={readOnly}
-        busy={false}
-        onRestore={() => {}}
-        onKeep={() => {}}
-        onDiscard={() => {}}
-      />,
-    )
+  const cleared = (readOnly: boolean) => show(readOnly, '')
 
   it('shows the whole saved text struck through, and nothing added', () => {
     cleared(false)

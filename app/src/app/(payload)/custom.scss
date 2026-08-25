@@ -1609,7 +1609,24 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // Payload's own `.btn`s (array row actions and the like), and those must not be restyled. Manage
 // is a custom admin view — its subtree is only our four components — so that constraint never
 // applied there, which is why the opt-in class is safe.
+// ⚑ AND `.lp-modal .btn` — the third entry, added 2026-08-23, and the one that needs no remembering.
+// The shared `Modal` emits `lp-modal` itself, so every button in every dialog is in the system BY
+// CONSTRUCTION. It exists because #289 portalled the panel to `document.body`, which moved dialog
+// buttons out of the container scope above; nothing errored, no test failed, and two dialogs shipped
+// with bare-text buttons in two weeks. The opt-in class's premise — "a forgotten `.lp-btn` is visible
+// in the diff of the component being written" — is a hope about reviewer attention, and it was
+// falsified twice; a component that emits its own ancestry cannot be forgotten.
+//
+// ⚑ Specificity 0-2-0, IDENTICAL to `.btn.lp-btn`, which is what makes it safe to add here: every
+// `&.btn--style-*` restatement below compiles against this whole list and lands at 0-3-0, so it still
+// outranks the parent and the #169 trap stays closed.
+//
+// The container-scope justification does NOT apply to dialogs. `.collection-edit--…` must stay a
+// scope because that view hosts Payload's own `.btn`s (array row actions) which must not be
+// restyled; a `Modal`'s subtree is only ever our own components, which is the same argument that
+// licensed the opt-in class on Manage, applied to a tighter subtree.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+.lp-modal .btn,
 .btn.lp-btn {
   --color: var(--app-accent);
   --bg-color: var(--app-btn-bg);
@@ -1932,6 +1949,9 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 // new scopes by luck (Continue editing is the only admin `<a class="btn">`). Under the opt-in class
 // it is the same `.lp-btn` as everywhere else and cannot fall out of step again.
 .collection-edit--lesson-bundle-versions .lesson-controls-wrap a.btn,
+// `.lp-modal a.btn` is 0-2-1, so it still outranks the 0-2-0 scope above — the same relationship
+// `a.btn.lp-btn` (0-3-1) has to `.btn.lp-btn`.
+.lp-modal a.btn,
 a.btn.lp-btn {
   border: 1px solid var(--app-accent);
   color: var(--app-accent);
@@ -2011,6 +2031,7 @@ a.btn.lp-btn {
 // intent instead. Placement is a stylesheet decision; a guard should observe it, not dictate it.)
 @media (max-width: 640px) {
   .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn,
+  .lp-modal .btn,
   .btn.lp-btn,
   .lp-manage__select,
   .lp-admin-list__search,
@@ -2024,6 +2045,7 @@ a.btn.lp-btn {
   // MEDIA QUERY ADDS NO SPECIFICITY — so without this block the compact Remove would stay 26px on a
   // phone while the stylesheet claimed a 44px target. Compact is a DESKTOP density; on a phone the
   // row has room and the target wins.
+  .lp-modal .btn.lp-btn--compact,
   .btn.lp-btn.lp-btn--compact {
     min-height: var(--app-btn-touch-min-height);
     // WIDTH too — #180's finding, which the first draft of this rule dropped while claiming parity

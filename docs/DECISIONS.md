@@ -33,6 +33,21 @@ only on the no-`saved` path, which is still "list everything". A cleared field r
 text struck through, and as an explicit "Emptied" on the read-only path, where there is no text to
 strike and a bare empty `<dd>` would read as the panel having lost something.
 
+⚑ **AMENDED the same day, after a cleanup review: the first fix for BOTH findings was at the wrong
+altitude, in the same way — each wrote a rule down a SECOND time instead of removing the need for it.**
+
+For the preview, the repair restated the apply semantics by hand in the display module. That left the
+drift fully intact and immediately produced a fresh, opposite-direction disagreement: the copy
+normalised any non-string to `''` where `overlay` guards with `isProseValue`, so a malformed leaf
+would have shown as "Emptied" in the panel while the restore left the field untouched. One commit
+after the last proof that the rule cannot be kept in step by hand. `projection.ts` now exports
+`captureDiff` beside `overlay`, both calling one `willApply` predicate, and
+`tests/unit/captureDiffAgreement.spec.ts` runs the REAL `applyCapture` over a document and asserts the
+preview predicted exactly the leaves that moved — the only place that can see both sides. `groupsOf`
+now owns no apply semantics at all; its `saved` parameter is required, which deleted a second,
+contradictory answer to "does an empty value count" that was alive only for callers that never
+existed.
+
 **2. The portal (#289) silently un-styled the dialog buttons.** The admin button system is
 `.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn, .btn.lp-btn` — a container scope
 for the version editor's bar, plus an opt-in class for everything else. While dialogs rendered in
@@ -44,9 +59,27 @@ transparent background, a transparent border and black ink — a label, not a bu
 queued adding `lp-btn` to `LessonControls`' view-mode `Delete`. That button is still inside the
 control bar, so the container scope already styles it and the change would have been redundant — the
 portal moved the DIALOGS, not the bar. The real casualties were the too-narrow notice's `Got it` and
-Editing help's `Close`. Both fixed; `tests/unit/modalButtonScope.spec.ts` now requires the class on
-every `<Button>` inside a `<Modal>` on the admin surface, so the next dialog cannot repeat it.
-Frontend dialogs are exempt and the test says so: `styles.css` styles a bare `.btn` globally.
+Editing help's `Close`. ⚑ **And the second fix was also the wrong altitude — superseded the same day.** Adding
+`className="lp-btn"` to each button, policed by a source-scanning regex test, enforced the REMEDY
+rather than the invariant: the scanner could not see a raw `<button>`, a `<Link className="btn">`, or
+a button inside a helper component, and it admitted no legitimate exception even though the stylesheet
+documents one. It was also fragile in a way that only mutation revealed — it ended an opening tag at
+the first `>`, which is the `>` in `=>`, so it passed only because `className` happened to be written
+before `onClick`; reverse the attribute order and a correctly-classed button reports as an offender.
+
+The mechanism now is structural: the shared `Modal` emits `lp-modal` itself, and the admin stylesheet
+scopes the button system on it (`.lp-modal .btn`, specificity 0-2-0 — deliberately identical to
+`.btn.lp-btn`, so every nested `&.btn--style-*` restatement still outranks it at 0-3-0 and the #169
+trap stays closed). Every dialog button is in the system by construction; the per-button opt-in was
+reverted and the regex test deleted. `modalChrome.spec.tsx` pins both halves — the class the component
+renders, and the scope the stylesheet keys on — because either half alone is silent.
+
+⚑ The container-scope justification does NOT extend to dialogs: `.collection-edit--…` must stay a
+scope because that view hosts Payload's own `.btn`s, but a `Modal`'s subtree is only ever our
+components. And `.lp-btn` stays the general opt-in for controls with no shared ancestor (Manage rows,
+`CandidateList`'s `<Link>`) — this adds one scope for the one construct that can guarantee its own
+ancestry, it does not reopen the per-control scope list that failed three times. Frontend dialogs need
+none of it: `styles.css` styles a bare `.btn` globally.
 
 **3. Recorded because the review was right about the process too.** The `CodeRabbit` status on these
 PRs was **not a substantive review** — it reported "review skipped: manual review required for this

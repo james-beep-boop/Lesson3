@@ -34,7 +34,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 | | |
 |---|---|
 | Open PRs | none |
-| Deployed | **`7193160` — the Rock is level with `main`.** It was on `fc144c4` (#285) and trailed by NINE commits (eight product PRs #286–#293, plus this handoff #294). ⚑ Re-measure rather than trusting this line, which dates itself: `git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..main` |
+| Deployed | **`7193160` — the Rock is level with `main`.** It was on `fc144c4` (#285) and trailed by NINE commits (eight product PRs #286–#293, plus this handoff #294). ⚑ Re-measure rather than trusting this line, which dates itself: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — ⚑ against `origin/main` after a fetch, not the local ref, which can be stale enough to report no lag when there is some |
 | Pending migrations | **none** — a plain `scripts/deploy.sh`. Checked, not assumed: no file under `app/src/migrations/` changed across #286–#293, and #291's one field-type change (`prose('title')` → `structureText('title')` in the Summary Table row) is schema-neutral because Payload's drizzle adapter maps BOTH `text` and `textarea` to `varchar` (`@payloadcms/drizzle/dist/schema/traverseFields.js`, read from the installed source) |
 | First-view cost after deploy | **none.** No cache or format version moved — `COMPARE_DIFF_FORMAT_VERSION` is still 3 and `GENERATOR_RENDER_VERSION` did not change, so no DOCX, PDF, HTML-preview or compare artifact is invalidated |
 
@@ -167,19 +167,18 @@ Slice A hid three provenance fields and closed the invariant; slice B is the ide
    operations, but they are not *content*, and they currently sit among the prose.
 
 **Also queued, smaller:**
-- ~~`LessonControls`' view-mode `Delete` passes no `lp-btn`~~ — **this was wrong, and is now fixed
-  and pinned.** The admin button system is `.collection-edit--lesson-bundle-versions
+- ~~`LessonControls`' view-mode `Delete` passes no `lp-btn`~~ — **the diagnosis was wrong; `Delete`
+  needed no change at all.** The real defect was the **portalled dialogs**, which #289 moved out of that ancestry — and the fix is
+  structural rather than per-button: the shared `Modal` emits `lp-modal` and the admin stylesheet
+  scopes the button system on it, so every dialog button is in the system by construction.
+  `modalChrome.spec.tsx` pins both halves. The admin button system is `.collection-edit--lesson-bundle-versions
   .lesson-controls-wrap .btn, .btn.lp-btn`: a CONTAINER scope plus an opt-in class. `Delete` is still
-  inside the control bar, so the container scope styles it and `lp-btn` there would be redundant. The
-  real casualties were the **portalled dialogs**, which #289 moved out of that ancestry — the
-  too-narrow notice's `Got it` and Editing help's `Close`. Both now carry the class, and
-  `tests/unit/modalButtonScope.spec.ts` requires it of every `<Button>` inside a `<Modal>` on the
-  admin surface, so the next dialog cannot repeat it. (Frontend dialogs are exempt: `styles.css`
-  styles a bare `.btn` globally, so nothing can escape.)
+  inside the control bar, so the container scope styles it and `lp-btn` there would be redundant. (Frontend
+  dialogs are exempt: `styles.css` styles a bare `.btn` globally, so nothing can escape.)
 - **13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend.
-- ⚑ **`docs/CHANGELOG.md` has drifted badly.** Its newest entry is **2026-08-15** (#222), so roughly
-  seventy merged PRs are missing from the delivered-product history — #286–#294 have now been added,
-  but #223–#285 have not. Deliberately not backfilled here: an entry reconstructed from `git log`
+- ⚑ **`docs/CHANGELOG.md` has drifted badly.** Before 2026-08-23 its newest entry was **2026-08-15**
+  (#222) — roughly seventy merged PRs missing from the delivered-product history. #286–#294 have now
+  been added, so the gap that REMAINS is **#223–#285**. Deliberately not backfilled here: an entry reconstructed from `git log`
   months later is worse than an honest gap, and the real fix is to add an entry when a batch ships.
   Flagged 2026-08-23.
 - **Edit recovery is undocumented in the Guide.** `USER_GUIDE.md` never mentions unsaved-work capture,

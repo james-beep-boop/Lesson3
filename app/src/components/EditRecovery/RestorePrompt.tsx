@@ -157,14 +157,18 @@ export function EditRecoveryRestorePrompt({
                     {/* Safe to inject: `unifiedDiff` escapes the prose before the engine sees it, so
                         the only markup here is the engine's own annotation spans. The reasoning, and
                         the probe behind it, are on `restoreDiff`. */}
-                    {html === null ? (
-                      // ⚑ An EMPTIED field needs words on this path. The diff path renders the old
-                      // text struck through, which says "this goes away" on its own; plain text has
-                      // nothing to render, and a bare empty `<dd>` under a field name reads as the
-                      // panel having lost something rather than as the change it is.
-                      <dd>{now === '' ? <em className="lp-restore__emptied">Emptied</em> : now}</dd>
-                    ) : (
+                    {html !== null ? (
                       <dd dangerouslySetInnerHTML={{ __html: html }} />
+                    ) : now === '' ? (
+                      // ⚑ An EMPTIED field needs words on this path. The diff branch above renders
+                      // the old text struck through, which says "this goes away" on its own; plain
+                      // text has nothing to render, and a bare empty `<dd>` under a field name reads
+                      // as the panel having lost something rather than as the change it is.
+                      <dd>
+                        <em className="lp-restore__emptied">Emptied</em>
+                      </dd>
+                    ) : (
+                      <dd>{now}</dd>
                     )}
                   </React.Fragment>
                 ))}

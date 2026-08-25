@@ -148,3 +148,70 @@ describe.each(Object.entries(sheets))('%s stylesheet', (_surface, css) => {
     expect(plain.some((r) => /border-bottom:\s*0/.test(r.body))).toBe(true)
   })
 })
+
+/**
+ * The dialog-button mechanism, asserted at BOTH ends.
+ *
+ * ⚑ THE DEFECT THIS PINS. #289 portalled the panel to `document.body`, which moved dialog buttons out
+ * of `.collection-edit--lesson-bundle-versions .lesson-controls-wrap` — the container scope that had
+ * been styling them for free. Nothing errored and nothing failed; the buttons silently fell back to
+ * Payload's treatment, and `Discard the changes` rendered transparent-on-transparent with black ink.
+ * Two dialogs shipped that way in two weeks, both past review.
+ *
+ * The first fix added `className="lp-btn"` to each button and a regex test policing future call
+ * sites. Wrong altitude twice over: it enforced the REMEDY rather than the invariant, and the scanner
+ * could not see a raw `<button>`, a `<Link className="btn">`, or a button inside a helper component.
+ * `Modal` now emits `lp-modal` itself, so nothing is left to remember — and the two halves of that
+ * mechanism are what these cases pin, because either half alone is silent.
+ *
+ * ⚑ ADMIN ONLY, deliberately. `(frontend)/styles.css` styles a bare `.btn` globally, so no ancestry
+ * can be escaped there and no scope is needed — which is why this is not part of the per-surface
+ * `describe.each` above.
+ */
+describe('every dialog button is in the button system by construction', () => {
+  it('has the component emit the scope class', () => {
+    render(
+      <Modal title="Editing help" onClose={() => {}}>
+        <p>rules</p>
+      </Modal>,
+    )
+    expect(
+      document.querySelector('.modal')?.classList.contains('lp-modal'),
+      'Modal must emit lp-modal itself — that is the half no call site can forget',
+    ).toBe(true)
+  })
+
+  it('keeps the caller’s own class alongside it', () => {
+    // `lp-restore`, `lesson-edit-help` and `lp-confirm` all style themselves through this channel,
+    // so the scope class must be additive rather than a replacement.
+    render(
+      <Modal title="x" onClose={() => {}} className="lp-restore">
+        <p>rules</p>
+      </Modal>,
+    )
+    const cls = document.querySelector('.modal')?.className ?? ''
+    expect(cls).toContain('lp-modal')
+    expect(cls).toContain('lp-restore')
+  })
+
+  it('has the admin stylesheet key the button system on it', () => {
+    // ⚑ Asserted against the rule that CARRIES the button system, found by the `.btn.lp-btn` opt-in
+    // that identifies it — not against "some rule mentioning .lp-modal". The looser form passed while
+    // the scope was missing from this rule, because the ≤640px touch-target list also names
+    // `.lp-modal .btn` and satisfied it on its own. Caught by mutation.
+    // Two rules carry the opt-in today — the base button system and the ≤640px touch-target list —
+    // and the invariant is the same for both: WHEREVER `.btn.lp-btn` is listed, the dialog scope must
+    // be listed beside it, or dialogs get that treatment only when an author remembers the class.
+    // (Asserting on one rule was both fragile and weak: `toBe(1)` failed on the second site, and
+    // "some rule mentions .lp-modal" passed while the base rule had lost it. Both caught by mutation.)
+    const optIn = rulesOf(sheets.admin).filter((r) => r.selectors.includes('.btn.lp-btn'))
+    expect(optIn.length, 'expected to find the .btn.lp-btn rules at all').toBeGreaterThan(0)
+    const unscoped = optIn
+      .filter((r) => !r.selectors.some((sel) => /^\.lp-modal\b.*\.btn$/.test(sel)))
+      .map((r) => r.selectors.join(', '))
+    expect(
+      unscoped,
+      'every rule carrying the .lp-btn opt-in must also carry the .lp-modal dialog scope',
+    ).toEqual([])
+  })
+})

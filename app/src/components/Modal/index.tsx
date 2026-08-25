@@ -141,7 +141,24 @@ function ModalPanel({ title, onClose, className, children }: ModalProps) {
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
         ref={panelRef}
-        className={className ? `modal ${className}` : 'modal'}
+        // ⚑ `lp-modal` is EMITTED BY THE COMPONENT, and that is the whole mechanism: the admin
+        // stylesheet scopes the app's button system on it (`.lp-modal .btn`), so every button in
+        // every dialog is styled BY CONSTRUCTION rather than by each call site remembering
+        // `className="lp-btn"`.
+        //
+        // It exists because #289 portalled this panel to `document.body`, which moved dialog buttons
+        // out of `.collection-edit--lesson-bundle-versions .lesson-controls-wrap` — the container
+        // scope that had been styling them for free. Nothing errored and no test failed; buttons just
+        // silently fell back to Payload's treatment, and `Discard the changes` rendered as
+        // transparent-on-transparent with black ink. Twice in two weeks a dialog shipped without the
+        // opt-in class and review did not catch it, which is what moved this from "remember the
+        // class" to "the component guarantees the ancestry".
+        //
+        // House-prefixed rather than reusing the bare `.modal` below, so the scope cannot collide
+        // with a `.modal` on any Payload-owned dialog. Specificity is 0-2-0 — deliberately identical
+        // to `.btn.lp-btn`, so the `&.btn--style-*` restatements nested in that block still outrank
+        // it at 0-3-0 and the #169 trap stays closed. `custom.scss` carries the contract.
+        className={className ? `modal lp-modal ${className}` : 'modal lp-modal'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
