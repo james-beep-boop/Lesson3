@@ -65,6 +65,19 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
   version Official when it is ready.
 - **Your drafts live in Manage:** *Manage → My saved versions* lists the versions you have saved —
   click one to continue editing, or delete the ones you no longer need.
+- **Unsaved work is backed up for you:** while you edit, a notice under the buttons shows when your
+  unsaved changes were last backed up. The backup is yours alone — nobody else can see it, not even
+  someone signing in on the same computer — and it is never applied automatically.
+- **Coming back to unsaved work:** if you leave the editor without saving, the next time you open
+  that version you are offered those changes back. The panel lists only what differs from the saved
+  version, and shows each change word by word: your unsaved wording in green, what the saved version
+  says struck through in red. A change that cannot be shown that way is named instead — *Emptied*
+  where the field would be cleared, *Paragraph breaks changed* where only the line breaks moved,
+  *Spacing only* where nothing visible differs. Then choose to put the changes back, decide later,
+  or discard them; discarding cannot be undone.
+- **If someone else saved in the meantime:** your changes cannot be put back automatically, because
+  the lesson plan moved underneath them. They are still shown in full so you can read them and copy
+  across whatever you still want.
 - **Compare two versions:** the *N versions* panel's *Compare* button puts two versions side by
   side, removals in red and additions in green. Comparison is area by area — each lesson's outcomes,
   overview, implementation framework, teacher reflection and summary prompts separately — so the page

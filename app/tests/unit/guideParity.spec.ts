@@ -99,6 +99,29 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the Site-Admin capability that rescues the case above, previously undocumented for users',
     claim: 'Reset a password by hand',
   },
+  // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
+  // prior explanation, and it is the one place outside version-compare showing red/green diff
+  // colours. These four are the facts they could act on and be wrong about.
+  {
+    what: 'recovery is OFFERED, never silently applied (SPEC §5) — the guarantee that makes the whole feature safe to have',
+    claim: 'never applied automatically',
+  },
+  {
+    what: 'the capture is per-user, so a shared computer does not leak one teacher’s prose to the next',
+    claim: 'nobody else can see it',
+  },
+  {
+    what: 'the panel lists only DIFFERENCES, not the whole document (operator decision 2026-08-23)',
+    claim: 'only what differs from the saved version',
+  },
+  {
+    what: 'a stale capture is read-only — it can be copied out but not restored, which is why the prose is still shown in full',
+    claim: 'cannot be put back automatically',
+  },
+  {
+    what: 'discarding is irreversible, and the dialog offers it as a plain button',
+    claim: 'discarding cannot be undone',
+  },
 ]
 
 const RETIRED = ['Manage → Editing access']

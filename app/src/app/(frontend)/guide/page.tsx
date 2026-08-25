@@ -151,6 +151,27 @@ export default async function UserGuidePage() {
             removals in red and additions in green.
           </li>
           <li>
+            <strong>Unsaved work is backed up for you:</strong> while you edit, a notice under the
+            buttons shows when your unsaved changes were last backed up. The backup is yours alone —
+            nobody else can see it, not even someone signing in on the same computer — and it is
+            never applied automatically.
+          </li>
+          <li>
+            <strong>Coming back to unsaved work:</strong> if you leave the editor without saving,
+            the next time you open that version you are offered those changes back. The panel lists
+            only what differs from the saved version, and shows each change word by word: your
+            unsaved wording in green, what the saved version says struck through in red. A change
+            that cannot be shown that way is named instead — <em>Emptied</em> where the field would
+            be cleared, <em>Paragraph breaks changed</em> where only the line breaks moved,{' '}
+            <em>Spacing only</em> where nothing visible differs. Then choose to put the changes
+            back, decide later, or discard them; discarding cannot be undone.
+          </li>
+          <li>
+            <strong>If someone else saved in the meantime:</strong> your changes cannot be put back
+            automatically, because the lesson plan moved underneath them. They are still shown in
+            full so you can read them and copy across whatever you still want.
+          </li>
+          <li>
             <strong>Find what changed:</strong> Compare works area by area — a lesson’s outcomes,
             overview, implementation framework, teacher reflection and summary prompts are each
             compared on their own. The page opens with a count of the changed areas and a list you
