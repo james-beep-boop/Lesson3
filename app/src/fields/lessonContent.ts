@@ -99,7 +99,7 @@ const collapsedRow = (field: string, noun: string) => ({
 // server rule uses (`canEditStructure` → `isSubjectAdminFor`); `@/access` is type-only at runtime
 // (already bundled via `access/bundle`), so it is safe in this client-bundled `condition`. Server
 // access is unchanged — presentation only; the field-split hook remains the write-time authority.
-const structureCondition = (
+export const structureCondition = (
   data: unknown,
   _siblingData: unknown,
   { user }: { user: unknown },
@@ -151,7 +151,18 @@ const storedNotEdited = (field: Field): Field => {
   return { ...field, admin: { ...admin, hidden: true, readOnly: true } } as Field
 }
 
-export const lessonContentFields: Field[] = [
+/**
+ * META + UNIT: the administrator-only identity and overview groups, shown in one collapsed panel.
+ *
+ * ⚑ BOTH MEMBERS KEEP THEIR OWN `adminOnly` GATE even though the panel that contains them carries the
+ * same `structureCondition`, and that doubling is deliberate rather than an oversight. The panel's
+ * condition is a LAYOUT convenience — do not draw an empty shell for a teacher. The field conditions
+ * are the invariant, and they have to travel with the fields: this is a standalone export, it is also
+ * re-spliced into `lessonContentFields`, and `collapsible` is presentational, so a future re-layout
+ * that lifts these groups out of the panel would otherwise drop the role gate silently. The predicate
+ * is referentially identical, so the second evaluation costs one call and decides nothing.
+ */
+export const lessonPlanDetailFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   adminOnly({
     name: 'meta',
@@ -235,7 +246,9 @@ export const lessonContentFields: Field[] = [
       proseAdmin('storylineThread', 'Storyline thread'),
     ],
   }),
+]
 
+export const lessonEditableContentFields: Field[] = [
   // ---- LESSONS[] ----
   {
     name: 'lessons',
@@ -411,4 +424,19 @@ export const lessonContentFields: Field[] = [
       },
     ],
   },
+]
+
+/**
+ * The whole stored shape in ONE array — the flat list the drift specs walk.
+ *
+ * ⚑ Says what it is, because the first version of this comment said "retained for adapters and schema
+ * drift tests" and no adapter uses it: every consumer is a unit spec (`resourceRowDrift`,
+ * `proseWhitelistDrift`, `metaIdentitySplit`, `insertLink`, `subjectSelectOptions`,
+ * `editorPlainLanguage`). Keeping it is still right — six specs would otherwise each re-compose the
+ * two halves — but a reader should know no collection installs this array. The collection composes
+ * the halves separately, and `tests/unit/planDetailsPanel.spec.ts` is what pins that wiring.
+ */
+export const lessonContentFields: Field[] = [
+  ...lessonPlanDetailFields,
+  ...lessonEditableContentFields,
 ]

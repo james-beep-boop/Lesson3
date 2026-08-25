@@ -208,8 +208,8 @@ export interface LessonBundleVersion {
   sourceVersion?: (number | null) | LessonBundleVersion;
   author?: (number | null) | User;
   semver: string;
-  title: string;
   subjectGrade: number | SubjectGrade;
+  title: string;
   meta?: {
     /**
      * Shown in the generated document.
@@ -698,8 +698,8 @@ export interface LessonBundleVersionsSelect<T extends boolean = true> {
   sourceVersion?: T;
   author?: T;
   semver?: T;
-  title?: T;
   subjectGrade?: T;
+  title?: T;
   meta?:
     | T
     | {
