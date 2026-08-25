@@ -176,16 +176,19 @@ Slice A hid three provenance fields and closed the invariant; slice B is the ide
   inside the control bar, so the container scope styles it and `lp-btn` there would be redundant. (Frontend
   dialogs are exempt: `styles.css` styles a bare `.btn` globally, so nothing can escape.)
 - **13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend.
-- ⚑ **`docs/CHANGELOG.md` has drifted badly.** Before 2026-08-23 its newest entry was **2026-08-15**
-  (#222) — roughly seventy merged PRs missing from the delivered-product history. #286–#294 have now
-  been added, so the gap that REMAINS is **#223–#285**. Deliberately not backfilled here: an entry reconstructed from `git log`
+- ✅ **`docs/CHANGELOG.md` is caught up** (2026-08-25). It had drifted from 2026-08-15, leaving ~70
+  merged PRs out of the delivered-product history; **#223–#295 are now all recorded**. The six
+  backfilled entries are marked as backfilled and were reconstructed from the contemporaneous handoff
+  blocks in this file rather than from `git log`, so they are shorter than an entry written at ship
+  time — the handoffs and `DECISIONS.md` remain authoritative for 2026-08-15 → 08-23. ⚑ The way to
+  keep this true is to add an entry when a batch SHIPS, not to backfill again. Deliberately not backfilled here: an entry reconstructed from `git log`
   months later is worse than an honest gap, and the real fix is to add an entry when a batch ships.
   Flagged 2026-08-23.
-- **Edit recovery is undocumented in the Guide.** `USER_GUIDE.md` never mentions unsaved-work capture,
-  the "backed up" indicator, or the restore offer — a teacher meets the dialog with no prior
-  explanation, and it is now the one place in the app showing red/green diff colours outside compare.
-  Noted 2026-08-23, not fixed: `tests/unit/guideParity.spec.ts` requires `USER_GUIDE.md` and the
-  in-app `/guide` page to state the same rules, so this is a two-surface change, not a paragraph.
+- ✅ **Edit recovery is documented in the Guide** (2026-08-25). `USER_GUIDE.md` and `/guide` both now
+  cover the automatic backup, that it is per-user and never applied automatically, that the panel
+  lists only what differs, the three named labels (*Emptied* / *Paragraph breaks changed* /
+  *Spacing only*), and the stale-capture read-only case. Five new claims in
+  `tests/unit/guideParity.spec.ts` hold the two surfaces together.
 - **Slice C (derivations)** changes generated output, so it needs a corpus check before it starts.
 - **`GRADE 10` is hardcoded** in vendored `build_docs.js` lines 95/169/177. Back burner: an upstream
   ARES fix, not ours to patch — the vendored generator is byte-verbatim by law.

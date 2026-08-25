@@ -8,6 +8,28 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-25 — the restore preview shows every change it would make (MERGED #295; DEPLOYED)
+
+The unsaved-changes panel could hide the one change that destroys work. A recovered capture writes a
+captured empty value **through**, clearing the field — but the panel dropped empty values before
+comparing, so it could say "Nothing in these changes differs from the saved version" and then delete a
+paragraph. Cleared fields are now listed, and each listed change is shown word by word using the same
+red/green vocabulary as version compare.
+
+A change the diff engine cannot draw is now **named** rather than rendered as a blank row, and the
+three statements are distinguished because they mean different things: *Emptied* where the field would
+be cleared, *Paragraph breaks changed* where only the line breaks moved (real — `\n` is a paragraph in
+the editor's grammar, and the generated document changes), and *Spacing only* where nothing visible
+differs. Dialog buttons also joined the app's button system by construction: the shared `Modal` emits
+its own scope class, replacing a per-button opt-in that had been silently forgotten twice.
+
+⚑ **The lesson, recorded because it repeated three times in one feature.** Each defect was a convenient
+signal mistaken for the thing it resembled — truthiness for "will this be applied", annotation-presence
+for "did anything meaningful change", and the captured value alone for "what is this change". All three
+read correctly right up until they didn't. **When a tool's output is used as evidence for a claim,
+check that the tool is measuring the claim.** Five review rounds; the last three defects were found by
+human review after the tests were already green. Reasoning: `docs/DECISIONS.md` 2026-08-23.
+
 ## 2026-08-23 — the editor stopped offering what it would not honour (MERGED #286–#294; DEPLOYED)
 
 Eight product PRs and a handoff, deployed to the Rock at `7193160`. The through-line is the editor
@@ -30,6 +52,104 @@ promising things it could not deliver.
 
 No migrations. No generator or compare format-version change, so no export or comparison artifact was
 invalidated.
+
+> ⚑ **The six entries below were BACKFILLED on 2026-08-25**, covering #223–#285. This file had gone
+> unmaintained from 2026-08-15, and the gap was flagged rather than quietly filled until an operator
+> asked for it. They are reconstructed from the **contemporaneous handoff blocks** in
+> `docs/NEXT-SESSION.md` — written at the time, not from `git log` archaeology — so they are shorter
+> and less specific than an entry written at ship time. Where a detail was not in the record it was
+> left out rather than guessed. Treat `docs/DECISIONS.md` and the handoffs as authoritative for this
+> window; the lesson is in the entry for 2026-08-25.
+
+## 2026-08-23 — compare finds the change (MERGED #284; DEPLOYED)
+
+Version compare already coloured removals red and additions green, but on a forty-page bundle a
+two-word edit was unfindable and the page could not say how much had changed. It now splits both
+versions into the generator's own logical areas — a lesson's Section A–E tables, the sub-strand
+overview, the differentiation table, and the corresponding areas of the Final Explanation and Summary
+Table — pairs them by key, and renders each pair as one row. It opens on a **Changes only** view with a
+count of the changed areas and a clickable index.
+
+Three properties a later change must not undo, each pinned by a test: the split happens **before**
+diffing (HtmlDiff rewrites the markup it annotates, so no header pattern matches its output);
+`changed` comes from comparing **source HTML**, never from counting annotations (a paragraph split
+emits none); and the diff cache is versioned independently of the render cache. Reasoning:
+`docs/DECISIONS.md` 2026-08-23.
+
+## 2026-08-22 — backups are proven recoverable, not just configured (MERGED #271–#283; DEPLOYED)
+
+The backup story moved from "a script exists" to "a restore has been done and the app can say so".
+Manage → System reports **verified** backup status read from a status file the backup script writes,
+with compose as the only thing joining the two paths — a rename in either would have reported
+"Unknown" forever, so a parity test now pins the app's read path to the script's write path.
+
+`scripts/backup-db.sh` gained a **second age recipient**, so a school running offline can recover
+without ARES holding the only key. The restore drill was run end to end and passed — and the drill's
+own verification was found unable to fail, which was fixed first, because a green check that cannot go
+red is worse than no check.
+
+Also in this window: the project's code was licensed **MIT**, with a `NOTICE` for the parts MIT cannot
+cover (the vendored ARES generator, and Gotenberg's own terms); link insertion arrived in the editor;
+and the Guide was corrected to say that a teacher on an installation with no email is not locked out —
+a Site administrator can create a reset link and hand it over directly.
+
+## 2026-08-21 — the System panel, and two things that were not true (MERGED #260–#270; DEPLOYED)
+
+Manage gained a **System** panel: the global facts about a deployment — version, database, backup
+status, feature switches — in one place a Site administrator can read without shell access.
+
+Two corrections matter more than the feature. **The Save endpoint became the sole writer of
+system-settings** (#268): other paths could reach that document, which made a settings write an
+unaudited side channel. And the vocabulary was fixed once, properly (#269): **there is no Editor user
+type.** There are three user types — Teacher, Subject-grade administrator, Site administrator — and a
+teacher who can edit holds *editing access*, a per-subject-grade capability, not a fourth account
+class. The user-facing surface was cleaned and is now guarded; the stored identifiers (`'editor'`,
+`isEditorFor`, the `assign-editor` route) deliberately keep their names, because renaming a stored enum
+and a URL buys nothing.
+
+## 2026-08-20 — a Subject Administrator may hand over, not take away (MERGED #258, #259; DEPLOYED)
+
+**D6a is asymmetric, and deliberately so.** A Subject-grade administrator may hand administration to
+somebody who *already* holds editing access in that subject-grade — which, given the one-per-subject
+-grade limit and the auto-demote cascade, demotes the actor in the same transaction — and may **not**
+remove an administrator, their own row included. Vacating is Site-Admin-only, and a Site administrator
+is the only route back.
+
+Enforced server-side in `enforceAssignmentScope`, covering the generic `PATCH /api/users/:id` and not
+only the dedicated routes. Forward-only: grants written under the previous symmetric behaviour stay
+valid. Assignment rows now carry system-written `grantedBy`/`grantedAt`, so an irreversible handover
+has an answer in the data — a null means *unknown*, never *nobody*. ⚑ Do not "restore" the symmetric
+rule on the strength of an older comment: SPEC §8 is canonical and `docs/DECISIONS.md` 2026-08-20 has
+the reasoning.
+
+## 2026-08-17 — the Manage redesign, in five parts (MERGED #239–#246; DEPLOYED)
+
+Manage became an accordion of focused panels instead of one long page: the shell (#239), a lazily
+loaded **Users** panel (#241), **Subjects** and **Subject grades** (#244), and **Roles & Access**
+(#245), which is where editing access is granted and revoked.
+
+Alongside it, three account controls a Site administrator previously had no UI for (#240): **disable
+sign-in** for an account without deleting it, a **last-administrator guard** so the final Site
+administrator cannot lock everyone out, and **admin-generated reset links** for installations with no
+outbound email. Roles & Access also shows email addresses to Subject administrators — a deliberate,
+narrow carve-out from the usual rule (SPEC §8, amended 2026-08-02), because an administrator has to
+tell two identical display names apart before granting access.
+
+## 2026-08-15 — a field-split hole, three request ceilings, and the deps wrapper (MERGED #223–#238; DEPLOYED)
+
+**The security fix is the reason this entry exists.** Field-level permissions kept a teacher with
+editing access out of admin-only *fields*, but not out of whole content *groups*: a crafted write could
+delete an entire group past the field split (#227). Closed, with wire-level tests.
+
+Also: request bodies gained ceilings that are read from one place and pinned against drift (#226,
+#229), so a large payload is refused rather than parsed. Infrastructure faults stopped being laundered
+into domain answers (#232) — a failing database read had been surfacing as "not found", which is the
+same class of lie as a green check that cannot fail.
+
+And the tooling: `scripts/in-deps.sh` became the one place that knows how to run a command in the
+pinned dependency container (#230, #233), replacing a `docker run` incantation hand-copied into CI,
+three docs and two scripts — each copy carrying traps, including the cwd trap AGENTS.md calls "the
+trap that destroyed a working day".
 
 ## 2026-08-15 — public discovery, phase 1 (MERGED #216/#217/#219/#220; DEPLOYED)
 
