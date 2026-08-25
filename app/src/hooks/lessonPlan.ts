@@ -41,8 +41,40 @@ const idFrom = (value: unknown): number | undefined => {
 const validationError = (
   message: string,
   req: PayloadRequest,
-  path: 'officialVersion' | 'publicSlug' = 'officialVersion',
+  path: 'officialVersion' | 'publicSlug' | 'subjectGrade' = 'officialVersion',
 ) => new ValidationError({ collection: 'lesson-plans', errors: [{ message, path }] }, req.t)
+
+/**
+ * A plan's subject-grade is ingest identity, not editable curriculum content. Moving it after create
+ * would change catalogue placement and every subject-grade-scoped permission while its immutable
+ * versions still carry the original relationship. Even a plan with no Official pointer must not be
+ * movable: that state is a repair concern, not an editing route.
+ *
+ * This hook is intentionally unconditional on `req.user` and `overrideAccess`. Field access controls
+ * who may reach an update; this invariant controls what any update may do. A deliberate data repair
+ * therefore needs an explicit migration rather than an ordinary Payload update masquerading as an
+ * edit. Create is untouched so ingest can set the relationship once.
+ */
+export const enforcePlanSubjectGradeImmutable: CollectionBeforeValidateHook = ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  if (operation !== 'update' || !data || !('subjectGrade' in data)) return data
+
+  const storedId = idFrom(originalDoc?.subjectGrade)
+  const submittedId = idFrom(data.subjectGrade)
+  if (storedId !== undefined && submittedId !== storedId) {
+    throw validationError(
+      'A lesson plan’s subject and grade are fixed when it is uploaded. To correct them, delete the lesson plan and upload it again.',
+      req,
+      'subjectGrade',
+    )
+  }
+
+  return data
+}
 
 export const validateOfficialVersionPointer: CollectionBeforeValidateHook = async ({
   data,

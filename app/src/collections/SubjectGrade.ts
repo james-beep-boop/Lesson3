@@ -28,7 +28,7 @@ const guardSubjectGradeDelete: CollectionBeforeDeleteHook = async ({ id, req }) 
   })
   if (plans.totalDocs > 0) {
     throw new APIError(
-      `${plans.totalDocs} lesson plan(s) still use this subject grade — delete them (Manage → Delete lesson plans) or move them to another subject grade first.`,
+      `${plans.totalDocs} lesson plan(s) still use this subject grade — delete them first (Manage → Delete lesson plans).`,
       409,
     )
   }

@@ -11,6 +11,7 @@ import { canEditStructure } from '../access/bundle'
 import { siteAdminField } from '../access'
 import {
   cascadeDeleteLessonPlanVersions,
+  enforcePlanSubjectGradeImmutable,
   prewarmOfficialArtifacts,
   retargetFollowerFavorites,
   validateOfficialVersionPointer,
@@ -41,7 +42,11 @@ export const LessonPlans: CollectionConfig = {
     delete: lessonPlanDelete,
   },
   hooks: {
-    beforeValidate: [validateOfficialVersionPointer, validatePublication],
+    beforeValidate: [
+      enforcePlanSubjectGradeImmutable,
+      validateOfficialVersionPointer,
+      validatePublication,
+    ],
     // Any authenticated Official-pointer move pre-warms that version's export artifacts (T1);
     // any pointer move re-points follower (non-editor) favorites to the new Official (T4).
     afterChange: [prewarmOfficialArtifacts, retargetFollowerFavorites],
@@ -68,6 +73,10 @@ export const LessonPlans: CollectionConfig = {
       type: 'relationship',
       relationTo: 'subject-grades',
       required: true,
+      // Ingest identity, not repair-form context: the plan title is enough to identify the row and
+      // the hook above rejects every attempted move. Hiding the control avoids presenting a greyed
+      // field that no user can act on.
+      admin: { hidden: true },
       access: { update: canEditStructure },
     },
     {

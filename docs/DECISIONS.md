@@ -11,6 +11,64 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-25 — Plan taxonomy is immutable, and administrator details no longer precede the lessons
+
+The version editor had two different audiences hidden inside one complaint. Teachers with editing
+access already did not see META or UNIT; `structureCondition` hid both groups. Their only pre-lesson
+field was a disabled document title. Subject-grade and Site Administrators did see the long block,
+because those fields are legitimate structural edits for them. The resulting layout now follows the
+same role-tailored principle without changing generator input:
+
+- Teachers see the editable lesson content first. The redundant title control is absent; the editor
+  control bar still names the saved plan from `savedDocumentData.title`.
+- Administrators get one unnamed, data-neutral Payload collapsible, **Plan and sub-strand details**,
+  containing the document title, META, and UNIT. It starts collapsed, so Lessons is the normal entry
+  point but the legitimate structural controls remain available on demand.
+- The stored field list is split only as configuration exports and recomposed as
+  `lessonContentFields`; no field is deleted, renamed, derived, or given a new value. Generator input
+  and render-versioning are therefore unchanged.
+
+Separately, `LessonPlans.subjectGrade` is now immutable after create. It is categorisation and RBAC
+identity, not lesson content: moving it changes who can reach the plan while every immutable version
+continues to carry the ingest relationship. The earlier Official-pointer consistency hook only
+rejected mismatched moves when an Official version existed; a pointerless repair row remained
+movable. A new before-validate hook rejects every changed value on update, including Site-Admin and
+`overrideAccess` Local API writes, while allowing create, omission, and same-value no-ops. The native
+repair form hides the relationship rather than displaying a control nobody can use. A wrong value is
+corrected by delete and re-upload; exceptional in-place repair requires an explicit migration.
+
+⚑ **Review additions (2026-08-25), because two of the claims above were unproven as written.**
+
+1. **The `overrideAccess` Local API refusal had no test.** The unit spec calls the hook directly, which
+   proves the rule but not that it is WIRED to the collection; the HTTP spec proves the REST door. The
+   strongest sentence — that a trusted Local API write is refused too — is the one an operator would
+   lean on when deciding whether a script may "just fix" a mis-categorised plan, so it is now pinned by
+   `tests/int/planIdentityImmutable.int.spec.ts`.
+2. ⚑ **That test's first draft passed with the hook UNWIRED**, because a bare `rejects.toThrow()` was
+   satisfied by `validateOfficialVersionPointer` refusing the same move for its own reason. Caught by
+   mutation, not by reading. It now asserts the message and path, and adds the case the older guard
+   cannot reach at all — **a plan with NO Official pointer**, which is the entire reason this hook
+   exists. Same lesson as the 2026-08-23 entry above: a passing test is not evidence until you know
+   which code made it pass.
+3. **The required `title` inside a condition-hidden container is safe at the FRAMEWORK level**, which
+   is worth recording because it looks like the obvious way to break a save. Payload's
+   `addFieldStatePromise` exempts presentational containers (`row`, `collapsible`, unnamed `group`)
+   from the hidden short-circuit precisely so it can "recurse to preserve child values without
+   rendering" — read from the installed source, not inferred. So a teacher's form carries `title`,
+   META and UNIT values it never draws, independently of the field-split hook that would also restore
+   them.
+4. **The full integration suite was reported as skipped and now passes** — 28 files, 225 tests, run
+   against the local compose Postgres. ⚑ Repeated runs exhaust the global sign-up rate limit and then
+   fail unrelated specs with "Sign-ups are temporarily paused"; `DELETE FROM rate_limit_counters` in
+   the TEST database clears it. That cascade cost time twice now (see #292's e2e), so it is written
+   down.
+
+⚑ **The hook, not field access or `admin.hidden`, is the invariant.** Presentation can prevent an
+accidental click and field access can decide who reaches the write path; neither protects trusted
+Local API calls. Conversely, leaving update field access in place is deliberate: a direct Site-Admin
+REST PATCH reaches the hook and gets the specific field-scoped explanation instead of having its
+input silently stripped.
+
 ## 2026-08-23 — Two review findings after #293 shipped: a hidden deletion, and a container scope the portal broke
 
 Both found by external review of the merged batch, both real, and both are the same shape: **a

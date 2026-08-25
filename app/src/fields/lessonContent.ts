@@ -99,7 +99,7 @@ const collapsedRow = (field: string, noun: string) => ({
 // server rule uses (`canEditStructure` → `isSubjectAdminFor`); `@/access` is type-only at runtime
 // (already bundled via `access/bundle`), so it is safe in this client-bundled `condition`. Server
 // access is unchanged — presentation only; the field-split hook remains the write-time authority.
-const structureCondition = (
+export const structureCondition = (
   data: unknown,
   _siblingData: unknown,
   { user }: { user: unknown },
@@ -151,7 +151,7 @@ const storedNotEdited = (field: Field): Field => {
   return { ...field, admin: { ...admin, hidden: true, readOnly: true } } as Field
 }
 
-export const lessonContentFields: Field[] = [
+export const lessonPlanDetailFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   adminOnly({
     name: 'meta',
@@ -235,7 +235,9 @@ export const lessonContentFields: Field[] = [
       proseAdmin('storylineThread', 'Storyline thread'),
     ],
   }),
+]
 
+export const lessonEditableContentFields: Field[] = [
   // ---- LESSONS[] ----
   {
     name: 'lessons',
@@ -411,4 +413,10 @@ export const lessonContentFields: Field[] = [
       },
     ],
   },
+]
+
+/** The complete stored generator-input shape, retained for adapters and schema drift tests. */
+export const lessonContentFields: Field[] = [
+  ...lessonPlanDetailFields,
+  ...lessonEditableContentFields,
 ]

@@ -171,6 +171,10 @@ Because `generateOne()` is deterministic on the stored strings, **regeneration i
   - **Two fidelity tiers:** (1) a fast in-browser **content preview** = real DOCX → HTML via `mammoth` (faithful content + table structure; styling/colours are intentionally dropped — adequate because teachers edit prose and the generator owns visuals); (2) an **exact** check = the real DOCX download and/or DOCX→PDF (§9). Trigger via a preview button / custom edit-view component, not continuous live-preview (don't regenerate per keystroke).
   - **Preview runs on the working copy** (its whole purpose); export is available for every saved valid version. Official status is a default/trust marker, not an export permission boundary.
 - **Validation on save:** required fields present, framework cardinality intact, phase ∈ vocabulary — reject anything that would produce a broken document.
+- **Plan identity is immutable after ingest:** the `LessonPlans.subjectGrade` relationship is set
+  once when the plan is uploaded and cannot be changed through the admin form, REST API, or Local API
+  update — including by a Site Administrator. Correct a wrongly categorised plan by deleting it and
+  uploading it again; an exceptional in-place data repair requires an explicit migration.
 
 #### Proof of concept — links inside prose (2026-08-22)
 

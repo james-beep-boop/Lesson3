@@ -754,6 +754,36 @@ describe('Bucket-A server invariants over HTTP', () => {
     const plan = await fx.payload.findByID({ collection: 'lesson-plans', id: fx.plan.id, depth: 0 })
     expect(plan.officialVersion).toBeTruthy()
   })
+
+  it('Site Administrator cannot move a lesson plan to another subject-grade', async () => {
+    const otherSubjectGrade = await fx.payload.create({
+      collection: 'subject-grades',
+      data: { subject: fx.subject.id, grade: 98 },
+      overrideAccess: true,
+    })
+
+    try {
+      const res = await fetch(url(`/api/lesson-plans/${fx.plan.id}`), {
+        method: 'PATCH',
+        headers: { ...auth('siteAdmin'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subjectGrade: otherSubjectGrade.id }),
+      })
+      expect(res.status).toBe(400)
+
+      const plan = await fx.payload.findByID({
+        collection: 'lesson-plans',
+        id: fx.plan.id,
+        depth: 0,
+      })
+      expect(String(plan.subjectGrade)).toBe(String(fx.subjectGrade.id))
+    } finally {
+      await fx.payload.delete({
+        collection: 'subject-grades',
+        id: otherSubjectGrade.id,
+        overrideAccess: true,
+      })
+    }
+  })
 })
 
 describe('save-as-new (Stage 2 versioning) — POST /:id/save-as-new', () => {

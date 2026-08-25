@@ -32,7 +32,11 @@ import { emailVersionEndpoint } from '../endpoints/emailVersion'
 import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
-import { lessonContentFields } from '../fields/lessonContent'
+import {
+  lessonEditableContentFields,
+  lessonPlanDetailFields,
+  structureCondition,
+} from '../fields/lessonContent'
 
 export const LessonBundleVersions: CollectionConfig = {
   slug: 'lesson-bundle-versions',
@@ -219,13 +223,6 @@ export const LessonBundleVersions: CollectionConfig = {
       },
     },
     {
-      name: 'title',
-      type: 'text',
-      label: 'Document title',
-      required: true,
-      access: { update: canEditStructure },
-    },
-    {
       // Identity, same as `lessonPlan` above — see the ⚑ there for why this is system-only and
       // hidden rather than an editable relationship.
       name: 'subjectGrade',
@@ -236,6 +233,24 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { create: systemOnly, update: systemOnly },
       admin: { hidden: true },
     },
-    ...lessonContentFields,
+    {
+      type: 'collapsible',
+      label: 'Plan and sub-strand details',
+      admin: {
+        condition: structureCondition,
+        initCollapsed: true,
+      },
+      fields: [
+        {
+          name: 'title',
+          type: 'text',
+          label: 'Document title',
+          required: true,
+          access: { update: canEditStructure },
+        },
+        ...lessonPlanDetailFields,
+      ],
+    },
+    ...lessonEditableContentFields,
   ],
 }
