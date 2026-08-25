@@ -25,6 +25,56 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-25) — GitHub-container local deployment is implemented and locally proven
+
+**This supersedes the deployment portion of the blocks below. It is not published yet.** PR #301
+passed the protected-main review and CI gate. No version tag, container package, or GitHub Release
+has been published yet.
+
+## What is ready
+
+- A tag-triggered GitHub Actions workflow builds AMD64/ARM64 app and migration images, publishes
+  exact tags to GHCR with SBOM/provenance, pins their resulting manifest digests in the deployment
+  bundle, and attaches that checksummed bundle to a GitHub Release. It rejects a tag not reachable
+  from `main`.
+- The bundle starts exact app/migration images, PostgreSQL 16.15, and Gotenberg 8.36.0's smaller
+  LibreOffice-only image. Installation creates independent 256-bit secrets and refuses an existing
+  `.env`; update requires the configured encrypted pre-migration backup by default.
+- The application dependency set now includes GraphQL 16.14.2 and TypeScript 5.9.3. TypeScript's
+  stricter response-body types exposed two Node-Buffer assumptions in DOCX download and PDF preview;
+  both endpoints now make a bounded `Uint8Array` copy at the Fetch response boundary.
+- Root and deployment READMEs provide the copyable `curl` download, checksum, install, verification,
+  backup, update, and recovery path. `docs/DEPENDENCY-REVIEW-2026-08-25.md` records what changed and
+  what was deliberately deferred.
+
+## Evidence from the exact release topology
+
+- The v0.0.0 synthetic bundle built, verified its checksum, generated a mode-0600 `.env`, resolved a
+  four-image Compose configuration with no `build` or `latest`, and refused a second installation.
+- The exact local app/migration images built; a clean disposable Postgres volume migrated fully;
+  `/login` returned 200; all four container roles reached the expected state.
+- Against those released-shape containers with PostgreSQL reporting server version 16.15: HTTP
+  200/200 and integration 224/224 passed, including DOCX and Gotenberg PDF export. After refreshing
+  onto current `origin/main` (`0e96e4c`), unit 999/999, typecheck, lint, format, production build, and
+  the rebuilt production runner image also passed. All 47 Playwright cases passed against the
+  production container; one login navigation
+  timed out on its first CI attempt, passed on retry, and then passed in a separate no-retry run. The
+  fontless Gotenberg converted the tracked remediation DOCX to a five-page PDF.
+- `npm audit --omit=dev` has no high or critical result. Five moderate findings remain in Payload's
+  `drizzle-kit`/development-server `esbuild` chain, with no compatible npm fix.
+- A final secret-pattern scan passed. CodeRabbit's PR review found four actionable issues; the branch
+  aligned `eslint-config-next`, kept the old installed version on image-pull failure, asserted digest
+  pinning for every service image, and marked release URLs unavailable until the tag workflow finishes.
+  The amended required GitHub gate passed all packaging, unit, lint, audit, contract, integration,
+  HTTP, and real-Chromium E2E checks.
+
+## Before this becomes a supported GitHub download
+
+Tag the accepted PR #301 commit on `main`. Verify both GHCR packages are publicly pullable and repeat the clean
+installation from GitHub Release assets on one representative AMD64 or ARM64 server. Only then change
+“not published” above. Next.js 16.3's `middleware`-to-`proxy` deprecation and the deliberately held
+dependency majors (including GraphQL 17 and TypeScript 7) remain separate maintenance work.
+
 # ⚑ HANDOFF (2026-08-25) — the editor stopped hiding what it would change, and stopped showing what it would not
 
 **This supersedes the blocks below**, which stay for provenance. `main` carries #271–#297.

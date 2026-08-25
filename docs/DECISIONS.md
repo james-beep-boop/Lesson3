@@ -11,6 +11,57 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-25 — Local servers install exact, checksummed GitHub releases instead of building source
+
+The supported online local-server path is a small GitHub Release bundle plus prebuilt GHCR images for
+AMD64 and ARM64. A release tag on protected `main` produces separate application and one-shot
+migration images, then embeds that tag and each published manifest digest in the checksummed Compose
+bundle. Servers therefore
+need Docker Compose, `curl`, and `openssl`, but not Git, Node, npm, the source tree, or build RAM.
+There is no remote script pipe: the operator downloads the bundle and checksum together, verifies
+them, extracts, and runs the local installer.
+
+The bundle pins PostgreSQL 16.15 and Gotenberg 8.36.0 by multi-architecture digest. It uses
+Gotenberg's LibreOffice-only image without the optional Microsoft-font download: DOCX output remains
+the generator's output, while local PDFs can substitute Arial-compatible metrics. That explicit
+fidelity/size/licensing tradeoff belongs to the offline-capable local tier; the internet deployment's
+custom full image continues to carry Arial.
+
+The same gate moves GraphQL from 16.14.1 to the Payload-compatible 16.14.2 patch and TypeScript from
+5.7.3 to 5.9.3. TypeScript 5.9 correctly rejected Node `Buffer` views as Fetch `BodyInit` because
+their type permits a `SharedArrayBuffer` backing store. The DOCX download and PDF-preview boundaries
+now make one bounded `Uint8Array` copy instead of hiding the mismatch with a cast. This is an
+output-neutral compatibility cost: the production HTTP suite proves both returned formats, while
+GraphQL 17 and TypeScript 7 stay separate major upgrades.
+
+Installation generates independent 256-bit secrets, never prints them, and refuses to replace an
+existing `.env`. Updates run the existing encrypted backup before migrations and refuse to proceed
+without configured backup settings unless the operator deliberately marks the installation
+disposable. Deployment files are recoverable, but an application rollback after migrations is not
+declared safe without restoring the paired pre-migration database.
+
+The first USB/offline bundle should reuse these exact images and Compose files, exporting all image
+manifests for the target architecture plus the verified release artifact. It must not invent a second
+deployment topology.
+
+⚑ **PR-gate correction:** the first two CI runs exposed two development-Mac assumptions in the bundle
+test. Its assertions used `rg`, which is not part of the declared Ubuntu-runner toolchain, and its
+permission check tried BSD `stat -f` before GNU `stat -c`. GNU `stat` accepts `-f` with different
+semantics and exits successfully, so the intended fallback never ran. The test now uses baseline
+`grep` and probes the platform-specific `stat` forms in the safe order. A shipped or CI shell script
+may use only tools it explicitly installs or lists as requirements, and a fallback is sound only when
+the first command actually rejects the other platform's spelling.
+
+The PR review added three release-boundary guards: every resolved service image must be digest-pinned,
+the installed `VERSION` is not advanced until all new images download successfully, and download URLs
+are explicitly unavailable until the first tag finishes publishing its release assets. It also aligned
+`eslint-config-next` with the installed Next.js patch. Release state must describe what is retrievable
+and retryable now, not what a later workflow is expected to make true.
+
+The aligned rules found two navigation cases. The Edit action now uses the Next router. Logout keeps
+its full-document navigation, with a narrow lint exception, because clearing authenticated client
+state is the intended behaviour rather than an incidental implementation detail.
+
 ## 2026-08-25 — Plan taxonomy is immutable, and administrator details no longer precede the lessons
 
 The version editor had two different audiences hidden inside one complaint. Teachers with editing

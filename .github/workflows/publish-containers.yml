@@ -1,0 +1,116 @@
+name: Publish release containers
+
+# A release tag is the publication boundary. The normal CI workflow must pass on the pull request
+# before the change reaches main; this workflow also refuses to publish a tag not contained in main.
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release tag and ancestry
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || {
+            echo "::error::release tag must look like v0.77 or v1.2.3"; exit 1;
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "::error::release commit is not contained in origin/main"; exit 1;
+          }
+
+  images:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: lesson3-app
+            target: runner
+          - package: lesson3-migrate
+            target: builder
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish ${{ matrix.package }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./app
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha,scope=${{ matrix.package }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.package }}
+          provenance: mode=max
+          sbom: true
+
+  release:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build checksummed deployment bundle
+        run: |
+          app_image="ghcr.io/${{ github.repository_owner }}/lesson3-app:$GITHUB_REF_NAME"
+          migrate_image="ghcr.io/${{ github.repository_owner }}/lesson3-migrate:$GITHUB_REF_NAME"
+          app_digest="$(docker buildx imagetools inspect "$app_image" | awk '$1 == "Digest:" {print $2; exit}')"
+          migrate_digest="$(docker buildx imagetools inspect "$migrate_image" | awk '$1 == "Digest:" {print $2; exit}')"
+          scripts/build-local-deploy-bundle.sh \
+            "$GITHUB_REF_NAME" dist "$app_digest" "$migrate_digest"
+      - name: Create GitHub Release and upload deployment bundle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
+              --title "Lesson3 $GITHUB_REF_NAME"
+          fi
+          gh release upload "$GITHUB_REF_NAME" \
+            dist/lesson3-online-deploy.tar.gz \
+            dist/lesson3-online-deploy.tar.gz.sha256 \
+            --clobber

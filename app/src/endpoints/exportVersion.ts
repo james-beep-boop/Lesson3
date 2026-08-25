@@ -88,9 +88,10 @@ export const exportVersionDocEndpoint: Endpoint = {
       throw new APIError('This lesson plan has no such document.', 404)
     }
 
-    // A zero-copy view over the cached Buffer (the copying Uint8Array(buffer) constructor would
-    // memcpy the whole deliverable on every download of this teacher-facing hot path).
-    const body = new Uint8Array(doc.bytes.buffer, doc.bytes.byteOffset, doc.bytes.byteLength)
+    // Fetch's BodyInit requires an ArrayBuffer-backed view. Node Buffers are typed against the
+    // broader ArrayBufferLike (which can include SharedArrayBuffer), so make one bounded copy at
+    // the response boundary rather than weakening the type with a cast.
+    const body = new Uint8Array(doc.bytes)
     return new Response(body, {
       status: 200,
       headers: {

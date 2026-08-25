@@ -8,6 +8,33 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — checksummed GitHub deployment bundles and maintenance updates
+
+Lesson3 now has a local-server release path that does not build source on the destination. A version
+tag on protected `main` builds AMD64 and ARM64 application and migration images in GitHub Actions,
+publishes them to GHCR with provenance and SBOM attestations, and attaches a small checksummed
+deployment bundle to the GitHub Release. The bundle pins the application images by tag and manifest
+digest, generates independent installation secrets, migrates before starting the app, and requires an
+encrypted pre-migration backup for normal updates. The README and deployment guide provide the
+copyable `curl`, checksum, installation, verification, backup, update, and recovery procedure. PR
+#301 passed the protected-main review and CI gate. No release has been published yet; the first tag
+and a clean installation from the resulting GitHub assets remain.
+
+The release refreshes PostgreSQL from the moving `16-alpine` tag to PostgreSQL 16.15 pinned by
+multi-architecture digest and updates the local Gotenberg sidecar to a smaller, pinned 8.36.0
+LibreOffice-only image. Application maintenance includes Payload 3.88.0, Next.js 16.3.2, React
+19.2.8, GraphQL 16.14.2, TypeScript 5.9.3, the matching `eslint-config-next` 16.3.2, and compatible
+patch-level helpers. TypeScript 5.9's
+stricter Fetch types exposed two Node `Buffer` response assumptions; DOCX download and PDF preview
+now make one bounded byte copy at the response boundary, with no generator or document-format change.
+
+The full local gate passed: unit 999/999, PostgreSQL integration 224/224, production HTTP 200/200,
+all 47 Chromium cases, contract 16/16, deployment-sidecar 8/8, backup/status 53/53, typecheck, lint,
+formatting, production and release-image builds, empty-database migrations on PostgreSQL 16.15,
+release-bundle validation, and the production audit threshold. The HTTP suite exercised real DOCX
+and Gotenberg PDF bytes. Five known moderate findings remain in Payload's Drizzle/esbuild tooling
+chain; there are no high or critical production-audit findings.
+
 ## 2026-08-25 — plan taxonomy is immutable, and the editor opens on the lessons (MERGED #297)
 
 **A lesson plan's subject and grade are now fixed when it is uploaded** — for everyone, Site
