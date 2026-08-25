@@ -49,6 +49,27 @@ now owns no apply semantics at all; its `saved` parameter is required, which del
 contradictory answer to "does an empty value count" that was alive only for callers that never
 existed.
 
+⚑ **AND A THIRD ROUND, on the same finding: "the diff engine annotated nothing" is NOT "nothing
+meaningful changed".** Once cleared fields were listed, whitespace-only changes were too — and
+`HtmlDiff` renders those as an empty row, because it tokenizes by word. The first label for that was
+"Whitespace only", which measurement then showed to be confidently wrong. In this editor's grammar
+`\n` IS a paragraph (CLAUDE.md), so splitting or merging paragraphs really does change the generated
+document, and those are exactly the edits the engine hides. Probed 2026-08-23:
+
+| change | engine annotates it? | meaningful? |
+|---|---|---|
+| split a paragraph / merge two / add a blank line | **no** | **yes** |
+| trailing or leading spaces | no | no |
+| double space between two words | **yes** | no |
+
+The engine's annotation is therefore a poor proxy in BOTH directions. The panel now compares the line
+shape itself (`lineShape` in `restoreDiff.ts` — one entry per paragraph, inner whitespace collapsed)
+and says which it is: "Paragraph breaks changed — the words are the same" or "Spacing only — no
+visible change". ⚑ The general rule worth keeping: **when a tool's output is used as evidence for a
+claim, check that the tool is actually measuring the claim.** Three labels in this feature were wrong
+because a convenient signal was assumed to mean something it did not — first truthiness for "will this
+be applied", then annotation-presence for "did anything meaningful change".
+
 **2. The portal (#289) silently un-styled the dialog buttons.** The admin button system is
 `.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn, .btn.lp-btn` — a container scope
 for the version editor's bar, plus an opt-in class for everything else. While dialogs rendered in

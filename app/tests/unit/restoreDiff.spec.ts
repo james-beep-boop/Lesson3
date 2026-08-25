@@ -78,17 +78,39 @@ describe('what the panel actually shows', () => {
  * The condition is "the engine annotated nothing", not "the HTML is empty": `'a' → 'a  '` yields the
  * non-empty string `a` with no annotation and is just as invisible.
  */
-describe('a change the diff engine cannot show', () => {
+describe('a change the diff engine cannot draw is NAMED, not left blank', () => {
+  /**
+   * ⚑ THE MEASUREMENT THAT SET THESE APART, and it inverted the first label. `HtmlDiff` tokenizes by
+   * word, so "did it annotate anything" is a poor proxy for "did anything meaningful change" — in
+   * BOTH directions. In this editor's grammar `\n` is a paragraph, so a split or a merge really does
+   * change the generated document, and those are precisely the edits the engine hides. Calling them
+   * all "whitespace only" would have told a teacher nothing had changed when they had merged two
+   * paragraphs — confidently wrong, and worse than the blank row it replaced.
+   */
   it.each([
-    ['spaces added to an empty field', '', '   '],
-    ['a blank line added to an empty field', '', '\n'],
-    ['trailing spaces added to real text', 'a', 'a  '],
-    ['a trailing newline added to real text', 'x', 'x\n'],
-  ])('says "whitespace only" for %s', (_name, was, now) => {
+    ['splitting one paragraph into two', 'First idea. Second idea.', 'First idea.\nSecond idea.'],
+    ['merging two paragraphs into one', 'First idea.\nSecond idea.', 'First idea. Second idea.'],
+    ['adding a blank line between paragraphs', 'One.\nTwo.', 'One.\n\nTwo.'],
+  ])('reports %s as a PARAGRAPH change', (_name, was, now) => {
     expect(unifiedDiff(was, now), 'precondition: the engine marks nothing here').not.toContain(
       'data-match-type',
     )
-    expect(renderOf(was, now, false)).toEqual({ kind: 'whitespace' })
+    expect(renderOf(was, now, false)).toEqual({ kind: 'paragraphs' })
+  })
+
+  it.each([
+    ['trailing spaces', 'Some prose.', 'Some prose.  '],
+    ['leading spaces', 'Some prose.', '  Some prose.'],
+    ['spaces added to an empty field', '', '   '],
+  ])('reports %s as invisible SPACING', (_name, was, now) => {
+    expect(renderOf(was, now, false)).toEqual({ kind: 'spacing' })
+  })
+
+  it('does not mistake a re-spaced line for a paragraph change', () => {
+    // ⚑ The case that separates the two rules. `lineShape` collapses inner whitespace, so `a  b` and
+    // `a b` are the SAME line spaced differently — not a paragraph move. (The engine happens to
+    // annotate this one, so it takes the diff branch in practice; the classifier must still be right.)
+    expect(renderOf('a b', 'a  b', false).kind).not.toBe('paragraphs')
   })
 
   it('still shows a real word change as a diff', () => {
@@ -97,10 +119,9 @@ describe('a change the diff engine cannot show', () => {
     expect(r.kind === 'diff' && r.html).toContain('data-match-type="create"')
   })
 
-  it('calls a cleared field emptied, not whitespace', () => {
-    // Whitespace-to-empty annotates nothing either, but "Emptied" is the more useful of the two.
+  it('calls a cleared field emptied, not spacing', () => {
     expect(renderOf('   ', '', false)).toEqual({ kind: 'emptied' })
-    // And the ordinary clearing, which DOES annotate, still reports as a diff so the lost text shows.
+    // The ordinary clearing DOES annotate, so it stays a diff and the lost text shows struck through.
     expect(renderOf('a real paragraph', '', false).kind).toBe('diff')
   })
 })
@@ -118,6 +139,6 @@ describe('the read-only path never diffs, because its prose is for copying', () 
   })
 
   it('names whitespace-only content, which would otherwise render blank', () => {
-    expect(renderOf('saved', '   ', true)).toEqual({ kind: 'whitespace' })
+    expect(renderOf('saved', '   ', true)).toEqual({ kind: 'spacing' })
   })
 })

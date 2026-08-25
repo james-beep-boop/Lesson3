@@ -121,6 +121,25 @@ describe('a field the restore would CLEAR', () => {
     expect(dd.querySelector('[data-match-type="create"]'), 'nothing is being added').toBeNull()
   })
 
+  it('names a PARAGRAPH change the diff engine cannot draw', () => {
+    // ⚑ `\n` is a paragraph in this editor's grammar, so a merge really does change the generated
+    // document — and it is exactly what HtmlDiff hides, because it tokenizes by word. A blank row
+    // here (the first bug) or "whitespace only" (the first label) would both be wrong.
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{ ...capture, content: { 'lesson:L1': { overview: 'One idea. Two ideas.' } } }}
+        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+        saved={{ 'lesson:L1': { overview: 'One idea.\nTwo ideas.' } }}
+        readOnly={false}
+        busy={false}
+        onRestore={() => {}}
+        onKeep={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+    expect(value().textContent).toMatch(/Paragraph breaks changed/)
+  })
+
   it('says "Emptied" on the read-only path, where there is no text to strike', () => {
     // A bare empty <dd> under a field name reads as the panel having lost something.
     cleared(true)

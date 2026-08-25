@@ -59,6 +59,20 @@ export const unifiedDiff = (was: string, now: string): string =>
  * compare page already makes and names `structureOnly` (`generator/htmlDiffCache.ts`), for the same
  * reason: a spacing or paragraph-boundary edit that the engine cannot mark up.
  *
+ * ⚑ AND "THE ENGINE ANNOTATED NOTHING" IS NOT THE SAME AS "NOTHING MEANINGFUL CHANGED" — a
+ * distinction that cost a wrong label before it was measured. In this editor's grammar `\n` IS a
+ * paragraph (CLAUDE.md), so splitting or merging paragraphs really does change the generated
+ * document — and those are exactly the edits `HtmlDiff` hides, because it tokenizes by word.
+ * Probed 2026-08-23:
+ *
+ *   hidden by the engine, but MEANINGFUL:  split a paragraph · merge two · add a blank line
+ *   hidden by the engine, and meaningless: trailing spaces · leading spaces
+ *   SHOWN by the engine, but meaningless:  a double space between two words
+ *
+ * So the engine's annotation is a poor proxy in both directions, and calling all of it "whitespace
+ * only" would tell a teacher nothing had really changed when they had merged two paragraphs. The
+ * shape comparison below is the honest test: same words, different lines ⇒ the paragraphs moved.
+ *
  * The read-only branch takes the same treatment for the same reason — prose that is only whitespace
  * renders as nothing whether or not it went through a diff.
  */
@@ -67,22 +81,41 @@ export type FieldRender =
   | { kind: 'diff'; html: string }
   /** The restore clears this field outright. */
   | { kind: 'emptied' }
-  /** Real, but invisible: only spacing or blank lines separate the two sides. */
-  | { kind: 'whitespace' }
+  /** The words are identical but the PARAGRAPH BREAKS moved — a real change to the document. */
+  | { kind: 'paragraphs' }
+  /** Real, but genuinely invisible: trailing, leading or repeated spaces within a line. */
+  | { kind: 'spacing' }
   /** Read-only: the captured prose verbatim, so it can be copied. */
   | { kind: 'plain'; text: string }
+
+/**
+ * The LINE SHAPE of a prose value: one entry per paragraph, inner runs of whitespace collapsed.
+ *
+ * Comparing two of these separates the two invisible cases cleanly, which is the whole point:
+ * `'One.\nTwo.'` and `'One.\n\nTwo.'` differ (a blank line was added between paragraphs), while
+ * `'a b'` and `'a  b'` do not (the same line, spaced differently). Trailing and leading spaces fall
+ * out of the per-line `trim`.
+ */
+const lineShape = (text: string): string[] =>
+  text.split('\n').map((line) => line.trim().replace(/\s+/g, ' '))
+
+const sameShape = (a: string, b: string): boolean => {
+  const [x, y] = [lineShape(a), lineShape(b)]
+  return x.length === y.length && x.every((line, i) => line === y[i])
+}
 
 export const renderOf = (was: string, now: string, readOnly: boolean): FieldRender => {
   // ⚑ Read-only shows PLAIN text, never a diff: that path exists so stale prose can be COPIED out,
   // and unified output interleaves the removed words into the new.
   if (readOnly) {
     if (now === '') return { kind: 'emptied' }
-    if (now.trim() === '') return { kind: 'whitespace' }
+    if (now.trim() === '') return { kind: 'spacing' }
     return { kind: 'plain', text: now }
   }
   const html = unifiedDiff(was, now)
   if (html.includes('data-match-type')) return { kind: 'diff', html }
   // The values differ — `captureDiff` only yields changed leaves — but the engine marked nothing, so
-  // the difference is whitespace it does not tokenize. Say so rather than render a blank row.
-  return now === '' ? { kind: 'emptied' } : { kind: 'whitespace' }
+  // the difference is whitespace it does not tokenize. Name WHICH kind rather than render a blank row.
+  if (now === '') return { kind: 'emptied' }
+  return sameShape(was, now) ? { kind: 'spacing' } : { kind: 'paragraphs' }
 }

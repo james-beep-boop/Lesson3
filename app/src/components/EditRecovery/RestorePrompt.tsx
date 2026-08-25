@@ -161,8 +161,16 @@ export function EditRecoveryRestorePrompt({
                       <dd>{render.text}</dd>
                     ) : (
                       <dd>
+                        {/* ⚑ Three different statements, because they mean different things to a
+                            teacher: the field is cleared, its paragraphs moved (a real change to the
+                            generated document, which the diff engine cannot draw), or only invisible
+                            spacing differs. `restoreDiff` has the measurements. */}
                         <em className="lp-restore__note">
-                          {render.kind === 'emptied' ? 'Emptied' : 'Whitespace only'}
+                          {render.kind === 'emptied'
+                            ? 'Emptied'
+                            : render.kind === 'paragraphs'
+                              ? 'Paragraph breaks changed — the words are the same'
+                              : 'Spacing only — no visible change'}
                         </em>
                       </dd>
                     )}
