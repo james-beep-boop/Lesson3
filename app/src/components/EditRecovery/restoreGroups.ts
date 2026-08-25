@@ -11,7 +11,12 @@
  * Same split, and the same reason, as `protocol.ts` holding the capture decisions.
  */
 import { PROSE_LABELS } from '../../hooks/fieldSplit'
-import { orphanHeading, parseKey, type CaptureMap } from '../../lib/editRecovery/projection'
+import {
+  captureDiff,
+  orphanHeading,
+  parseKey,
+  type CaptureMap,
+} from '../../lib/editRecovery/projection'
 import type { OfferedCapture } from './protocol'
 
 /**
@@ -62,18 +67,15 @@ const fieldLabel = (field: string): string => {
  * then merged into one section, interleaving two lessons' prose under one title and colliding on the
  * `key={field}` of every field they had in common.
  *
- * ⚑ Only non-empty strings are LISTED, but a restore still applies everything in the map, cleared
- * fields included. Rendering a heading over an empty value would read as "this was lost".
+ * ⚑ WHAT COUNTS AS A CHANGE IS NOT DECIDED HERE. `captureDiff` in `projection.ts` owns it, beside the
+ * `overlay` it has to agree with — because when this module answered that question itself the two
+ * drifted, and the disagreement was about the most destructive thing a restore can do: a captured
+ * `''` reads as "nothing to show" to a truthiness test and "clear the field" to the overlay, so the
+ * panel could report "Nothing in these changes differs from the saved version" and then delete a
+ * paragraph. Rewriting the rule here a second time is what NOT to do; call it instead.
  *
- * ⚑ ONLY WHAT DIFFERS FROM THE SAVED VERSION (operator decision 2026-08-23). A capture is a FULL
- * snapshot of every whitelisted prose leaf — `projectCapture` walks the document and does not diff —
- * so listing it rendered the entire lesson plan and buried the handful of fields the teacher actually
- * changed. "Never show the whole document; blank would be better." Pass `saved` and each field is
- * listed only when the captured text differs from what is stored.
- *
- * The capture itself stays a full snapshot on purpose: a restore overlays values, and a stale capture
- * has to remain readable. Scoping the DISPLAY costs nothing, because an unchanged field's text is by
- * definition already in the form behind the panel.
+ * What is left is what this module is actually for: which prose belongs to which lesson, in what
+ * order, under what name.
  *
  * Exported for `tests/unit/restorePromptGroups.spec.ts`: the grouping rules are the substance of this
  * component, and driving them through a render would test JSX rather than the rules.
@@ -81,31 +83,23 @@ const fieldLabel = (field: string): string => {
 export const groupsOf = (
   capture: OfferedCapture,
   anchors: { key: string; heading: string }[],
-  /** `projectCapture(savedDocumentData)` — omit to list everything captured (the old behaviour). */
-  saved?: CaptureMap,
+  /** `projectCapture(savedDocumentData)` — the SAVED prose, which every caller has. */
+  saved: CaptureMap,
 ): Group[] => {
-  const content = capture.content ?? {}
+  const changes = captureDiff(saved, capture.content ?? {})
   const groups: Group[] = []
   const byId = new Map<string, Group>()
   const seen = new Set<string>()
 
   const take = (key: string, heading: string) => {
-    const values = content[key]
+    const values = changes[key]
     if (!values) return
     seen.add(key)
-    // A key the saved version does not have at all (a row added in this session) is entirely new, so
-    // every field in it differs.
-    const savedValues = saved?.[key]
-    const lines = Object.entries(values)
-      .filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '')
-      // `?? ''` so a stored `null` and a captured `''` are not read as a change. Both mean empty.
-      .filter(([field, value]) => !saved || (savedValues?.[field] ?? '') !== value)
-      .map(([field, value]) => ({
-        field: fieldLabel(field),
-        was: savedValues?.[field] ?? '',
-        now: value,
-      }))
-    if (lines.length === 0) return
+    const lines = Object.entries(values).map(([field, { was, now }]) => ({
+      field: fieldLabel(field),
+      was,
+      now,
+    }))
 
     // The row a key belongs to — the singleton scopes have none, so they stand alone under their own
     // name. This is what keeps two different deleted lessons in two different sections.
@@ -122,7 +116,7 @@ export const groupsOf = (
   }
 
   for (const { key, heading } of anchors) take(key, heading)
-  for (const key of Object.keys(content)) {
+  for (const key of Object.keys(changes)) {
     if (seen.has(key)) continue
     const { scope } = parseKey(key)
     take(key, orphanHeading(scope))

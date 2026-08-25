@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { unifiedDiff } from '../../src/components/EditRecovery/restoreDiff'
+import { renderOf, unifiedDiff } from '../../src/components/EditRecovery/restoreDiff'
 
 describe('the injection is safe because the prose is escaped first', () => {
   it('neutralises a script tag a teacher typed', () => {
@@ -66,5 +66,101 @@ describe('what the panel actually shows', () => {
     // `restoreGroups` filters these out before the panel ever asks, so this is a property of the
     // function rather than a state the UI reaches — it must not invent a change.
     expect(unifiedDiff('identical', 'identical')).not.toContain('data-match-type')
+  })
+})
+
+/**
+ * ⚑ THE DEFECT THESE PIN. `captureDiff` correctly reports `'' → '   '` as a change — the restore
+ * really does write three spaces — but `HtmlDiff` tokenizes by word and annotates none of it. The
+ * panel therefore listed the field (which is what the clearing fix was for) and then rendered an
+ * EMPTY `<dd>` under it, which is the same "shows nothing" failure one layer further down.
+ *
+ * The condition is "the engine annotated nothing", not "the HTML is empty": `'a' → 'a  '` yields the
+ * non-empty string `a` with no annotation and is just as invisible.
+ */
+describe('a change the diff engine cannot draw is NAMED, not left blank', () => {
+  /**
+   * ⚑ THE MEASUREMENT THAT SET THESE APART, and it inverted the first label. `HtmlDiff` tokenizes by
+   * word, so "did it annotate anything" is a poor proxy for "did anything meaningful change" — in
+   * BOTH directions. In this editor's grammar `\n` is a paragraph, so a split or a merge really does
+   * change the generated document, and those are precisely the edits the engine hides. Calling them
+   * all "whitespace only" would have told a teacher nothing had changed when they had merged two
+   * paragraphs — confidently wrong, and worse than the blank row it replaced.
+   */
+  it.each([
+    ['splitting one paragraph into two', 'First idea. Second idea.', 'First idea.\nSecond idea.'],
+    ['merging two paragraphs into one', 'First idea.\nSecond idea.', 'First idea. Second idea.'],
+    ['adding a blank line between paragraphs', 'One.\nTwo.', 'One.\n\nTwo.'],
+  ])('reports %s as a PARAGRAPH change', (_name, was, now) => {
+    expect(unifiedDiff(was, now), 'precondition: the engine marks nothing here').not.toContain(
+      'data-match-type',
+    )
+    expect(renderOf(was, now, false)).toEqual({ kind: 'paragraphs' })
+  })
+
+  it.each([
+    ['trailing spaces', 'Some prose.', 'Some prose.  '],
+    ['leading spaces', 'Some prose.', '  Some prose.'],
+    ['spaces added to an empty field', '', '   '],
+  ])('reports %s as invisible SPACING', (_name, was, now) => {
+    expect(renderOf(was, now, false)).toEqual({ kind: 'spacing' })
+  })
+
+  it('does not mistake a re-spaced line for a paragraph change', () => {
+    // ⚑ The case that separates the two rules. `lineShape` collapses inner whitespace, so `a  b` and
+    // `a b` are the SAME line spaced differently — not a paragraph move. (The engine happens to
+    // annotate this one, so it takes the diff branch in practice; the classifier must still be right.)
+    expect(renderOf('a b', 'a  b', false).kind).not.toBe('paragraphs')
+  })
+
+  it('still shows a real word change as a diff', () => {
+    const r = renderOf('the mitochondria', 'the chloroplast', false)
+    expect(r.kind).toBe('diff')
+    expect(r.kind === 'diff' && r.html).toContain('data-match-type="create"')
+  })
+
+  it('prefers the DIFF for a real clearing, so the lost text shows struck through', () => {
+    // "Emptied" is a last resort: wherever the engine can draw the loss, drawing it says more.
+    expect(renderOf('a real paragraph', '', false).kind).toBe('diff')
+  })
+
+  it('calls whitespace-to-empty SPACING, because nothing visible is lost', () => {
+    // ⚑ Changed from "Emptied" once the classifier looked at both sides. The field showed nothing
+    // before and shows nothing after; "Emptied" implies content was lost, which would be a lie.
+    expect(renderOf('   ', '', false)).toEqual({ kind: 'spacing' })
+  })
+})
+
+describe('the read-only path never diffs, because its prose is for copying', () => {
+  it('returns the captured text verbatim', () => {
+    expect(renderOf('saved', 'captured text', true)).toEqual({
+      kind: 'plain',
+      text: 'captured text',
+    })
+  })
+
+  it('names an emptied field rather than rendering nothing', () => {
+    expect(renderOf('saved', '', true)).toEqual({ kind: 'emptied' })
+  })
+
+  /**
+   * ⚑ THE DEFECT THESE PIN. The read-only branch used to decide from `now` ALONE — an early return on
+   * `now.trim() === ''` — so it could not tell "this field was always blank" from "a saved paragraph
+   * is about to be replaced by a space". It reported "Spacing only — no visible change" for the
+   * second, which is the opposite of what happens. Both sides are consulted now, on both paths.
+   */
+  it('says EMPTIED when visible saved text is replaced by whitespace', () => {
+    expect(renderOf('Saved paragraph', ' ', true)).toEqual({ kind: 'emptied' })
+    expect(renderOf('saved', '   ', true)).toEqual({ kind: 'emptied' })
+  })
+
+  it('says PARAGRAPHS when both sides are blank but the line shape moved', () => {
+    // `\n` is a paragraph in this editor's grammar, so this is a real change to the document even
+    // though neither side has a visible word in it.
+    expect(renderOf('', '\n', true)).toEqual({ kind: 'paragraphs' })
+  })
+
+  it('says SPACING only when nothing visible changes on either side', () => {
+    expect(renderOf('', '   ', true)).toEqual({ kind: 'spacing' })
   })
 })

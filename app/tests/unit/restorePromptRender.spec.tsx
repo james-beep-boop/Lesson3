@@ -62,10 +62,10 @@ const capture: OfferedCapture = {
   schemaMismatch: false,
 }
 
-const show = (readOnly: boolean) =>
+const show = (readOnly: boolean, now: string = TYPED) =>
   render(
     <EditRecoveryRestorePrompt
-      capture={readOnly ? { ...capture, stale: true } : capture}
+      capture={{ ...capture, content: { 'lesson:L1': { overview: now } }, stale: readOnly }}
       anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
       saved={{ 'lesson:L1': { overview: SAVED } }}
       readOnly={readOnly}
@@ -106,6 +106,47 @@ describe('a restorable capture shows the change, word level', () => {
   })
 })
 
+describe('a field the restore would CLEAR', () => {
+  /**
+   * ⚑ The change a teacher most needs to see before pressing Put the changes back. `applyCapture`
+   * writes a captured `''` through, so this is real deletion — and until it was found in review the
+   * panel hid it entirely and could report "nothing differs" while the restore wiped a paragraph.
+   */
+  const cleared = (readOnly: boolean) => show(readOnly, '')
+
+  it('shows the whole saved text struck through, and nothing added', () => {
+    cleared(false)
+    const dd = value()
+    expect(dd.querySelector('[data-match-type="delete"]')?.textContent).toBe(SAVED)
+    expect(dd.querySelector('[data-match-type="create"]'), 'nothing is being added').toBeNull()
+  })
+
+  it('names a PARAGRAPH change the diff engine cannot draw', () => {
+    // ⚑ `\n` is a paragraph in this editor's grammar, so a merge really does change the generated
+    // document — and it is exactly what HtmlDiff hides, because it tokenizes by word. A blank row
+    // here (the first bug) or "whitespace only" (the first label) would both be wrong.
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{ ...capture, content: { 'lesson:L1': { overview: 'One idea. Two ideas.' } } }}
+        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+        saved={{ 'lesson:L1': { overview: 'One idea.\nTwo ideas.' } }}
+        readOnly={false}
+        busy={false}
+        onRestore={() => {}}
+        onKeep={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+    expect(value().textContent).toMatch(/Paragraph breaks changed/)
+  })
+
+  it('says "Emptied" on the read-only path, where there is no text to strike', () => {
+    // A bare empty <dd> under a field name reads as the panel having lost something.
+    cleared(true)
+    expect(value().textContent).toBe('Emptied')
+  })
+})
+
 describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
   it('renders the captured prose verbatim, with no annotations anywhere', () => {
     show(true)
@@ -122,6 +163,26 @@ describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
   it('and does not offer the colour key it has no colours for', () => {
     show(true)
     expect(document.querySelector('.lp-restore__key')).toBeNull()
+  })
+
+  it('says EMPTIED, not "no visible change", when a saved paragraph is replaced by a space', () => {
+    // ⚑ The read-only branch used to decide from the captured value alone, so this rendered
+    // "Spacing only — no visible change" while the saved paragraph disappeared. Pinned at the
+    // rendered text, because that sentence is the whole of what a teacher gets on this path.
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{ ...capture, content: { 'lesson:L1': { overview: ' ' } }, stale: true }}
+        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+        saved={{ 'lesson:L1': { overview: 'A saved paragraph the teacher would lose' } }}
+        readOnly
+        busy={false}
+        onRestore={() => {}}
+        onKeep={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+    expect(value().textContent).toBe('Emptied')
+    expect(document.body.textContent).not.toMatch(/no visible change/)
   })
 
   it('still says why the work cannot be put back', () => {

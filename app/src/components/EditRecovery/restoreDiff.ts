@@ -44,3 +44,95 @@ import { escapeHtml } from '../../lib/escapeHtml'
  */
 export const unifiedDiff = (was: string, now: string): string =>
   new HtmlDiff(escapeHtml(was), escapeHtml(now)).getUnifiedContent()
+
+/**
+ * How one changed field should be PRESENTED — because "show the diff" is not always possible.
+ *
+ * ⚑ A DIFF CAN BE INVISIBLE, and that was a real defect: `captureDiff` correctly reports `'' → '   '`
+ * as a change (the restore really does write three spaces), but `HtmlDiff` tokenizes by word and
+ * returns `""` for it — and for `'' → '\n'`, and for `'a' → 'a  '`, where it returns just `a` with no
+ * annotation at all. Injecting that produced an EMPTY `<dd>`: the panel listed the field, which is
+ * what the clearing fix was for, and then showed nothing under it. Probed 2026-08-23.
+ *
+ * ⚑ The condition is "HtmlDiff found nothing to annotate", NOT "the string is empty" — `'a' → 'a  '`
+ * yields non-empty HTML with no annotation, and is just as invisible. This is the same test the
+ * compare page already makes and names `structureOnly` (`generator/htmlDiffCache.ts`), for the same
+ * reason: a spacing or paragraph-boundary edit that the engine cannot mark up.
+ *
+ * ⚑ AND "THE ENGINE ANNOTATED NOTHING" IS NOT THE SAME AS "NOTHING MEANINGFUL CHANGED" — a
+ * distinction that cost a wrong label before it was measured. In this editor's grammar `\n` IS a
+ * paragraph (CLAUDE.md), so splitting or merging paragraphs really does change the generated
+ * document — and those are exactly the edits `HtmlDiff` hides, because it tokenizes by word.
+ * Probed 2026-08-23:
+ *
+ *   hidden by the engine, but MEANINGFUL:  split a paragraph · merge two · add a blank line
+ *   hidden by the engine, and meaningless: trailing spaces · leading spaces
+ *   SHOWN by the engine, but meaningless:  a double space between two words
+ *
+ * So the engine's annotation is a poor proxy in both directions, and calling all of it "whitespace
+ * only" would tell a teacher nothing had really changed when they had merged two paragraphs. The
+ * shape comparison below is the honest test: same words, different lines ⇒ the paragraphs moved.
+ *
+ * The read-only branch takes the same treatment for the same reason — prose that is only whitespace
+ * renders as nothing whether or not it went through a diff.
+ */
+export type FieldRender =
+  /** Word-level diff, safe to inject — see the injection note above. */
+  | { kind: 'diff'; html: string }
+  /** The restore clears this field outright. */
+  | { kind: 'emptied' }
+  /** The words are identical but the PARAGRAPH BREAKS moved — a real change to the document. */
+  | { kind: 'paragraphs' }
+  /** Real, but genuinely invisible: trailing, leading or repeated spaces within a line. */
+  | { kind: 'spacing' }
+  /** Read-only: the captured prose verbatim, so it can be copied. */
+  | { kind: 'plain'; text: string }
+
+/**
+ * The LINE SHAPE of a prose value: one entry per paragraph, inner runs of whitespace collapsed.
+ *
+ * Comparing two of these separates the two invisible cases cleanly, which is the whole point:
+ * `'One.\nTwo.'` and `'One.\n\nTwo.'` differ (a blank line was added between paragraphs), while
+ * `'a b'` and `'a  b'` do not (the same line, spaced differently). Trailing and leading spaces fall
+ * out of the per-line `trim`.
+ */
+const lineShape = (text: string): string[] =>
+  text.split('\n').map((line) => line.trim().replace(/\s+/g, ' '))
+
+const sameShape = (a: string, b: string): boolean => {
+  const [x, y] = [lineShape(a), lineShape(b)]
+  return x.length === y.length && x.every((line, i) => line === y[i])
+}
+
+/**
+ * The change cannot be DRAWN — so say which kind it is. Decided from BOTH sides, always.
+ *
+ * ⚑ `now` ALONE IS NOT ENOUGH, and reading only `now` was a real defect: the read-only branch took an
+ * early return on `now.trim() === ''` and reported "Spacing only — no visible change" for
+ * `'Saved paragraph' → ' '`, where a paragraph is about to be replaced by a space. It cannot tell
+ * "this field was always blank" from "this field is about to be emptied" without looking at `was`.
+ *
+ * Three statements, in the order that matters to a reader:
+ *   visible text about to vanish        → Emptied      (the LOSS is the story, not the spacing)
+ *   both sides blank, different lines   → Paragraphs   (`\n` is a paragraph in this grammar)
+ *   both sides blank, same lines        → Spacing      (genuinely nothing to see)
+ */
+const undrawable = (was: string, now: string): FieldRender => {
+  if (now.trim() === '' && was.trim() !== '') return { kind: 'emptied' }
+  return sameShape(was, now) ? { kind: 'spacing' } : { kind: 'paragraphs' }
+}
+
+export const renderOf = (was: string, now: string, readOnly: boolean): FieldRender => {
+  // ⚑ Read-only shows PLAIN text, never a diff: that path exists so stale prose can be COPIED out,
+  // and unified output interleaves the removed words into the new. But when there is no visible text
+  // to copy, it needs the same three-way answer the writable path gets — which is the half that was
+  // missing.
+  if (readOnly) {
+    return now.trim() === '' ? undrawable(was, now) : { kind: 'plain', text: now }
+  }
+
+  const html = unifiedDiff(was, now)
+  // Prefer the DIFF wherever the engine can draw one: a cleared paragraph shows its lost text struck
+  // through, which says more than the word "Emptied" ever could.
+  return html.includes('data-match-type') ? { kind: 'diff', html } : undrawable(was, now)
+}

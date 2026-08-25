@@ -283,6 +283,77 @@ export type ApplyReport = {
   applied: number
 }
 
+/**
+ * Will a restore WRITE this leaf through?
+ *
+ * ⚑ ONE DEFINITION, because two of them cost a data-loss-shaped defect. `overlay` answers this
+ * question when applying; the restore PREVIEW has to answer the identical question to decide what to
+ * show. It used to answer it separately, by truthiness — so a captured `''` was "nothing to show"
+ * to the preview and "clear the field" to the overlay, and the panel could report "nothing differs"
+ * while Put the changes back deleted a paragraph.
+ *
+ * The first repair wrote the rule down a second time in the display module, which left the drift
+ * intact and immediately produced a fresh, opposite-direction disagreement: the copy normalised any
+ * non-string to `''` where this guards with `isProseValue`, so a malformed leaf would have shown as
+ * "Emptied" in the panel while the overlay left the field untouched. Hence: one predicate, called by
+ * both. Agreement is pinned by `tests/unit/captureDiffAgreement.spec.ts`.
+ *
+ * `in` rather than a truthiness or undefined check, so a stored `null` is applied as the cleared
+ * value it represents instead of being read as "not present".
+ */
+const willApply = (leaves: Record<string, ProseValue> | undefined, k: string): boolean =>
+  !!leaves && k in leaves && isProseValue(leaves[k])
+
+/** One leaf a restore would change. `was` is what is stored now; `now` is what the capture writes. */
+export type CaptureChange = { was: string; now: string }
+/** Changed leaves only, keyed as a `CaptureMap` is: `<scope>:<rowId>` → field → change. */
+export type CaptureDiff = Record<string, Record<string, CaptureChange>>
+
+/**
+ * The leaves a restore would actually CHANGE: written through by `willApply`, and different from
+ * `saved` once `null` and `''` are both read as empty.
+ *
+ * ⚑ MAP-TO-MAP, deliberately — it does NOT consult the live document, so an ORPHAN key (a row the
+ * plan no longer has, which `applyCapture` reports in `droppedKeys` and never writes) still appears.
+ * The read-only copy-out path depends on that: a stale capture is shown so its prose can be read and
+ * copied, and pruning here would silently delete it from the panel. The asymmetry with `applyCapture`
+ * is intended, and is why this takes two `CaptureMap`s rather than `(base: Doc, capture: CaptureMap)`.
+ *
+ * ⚑ THIS IS A SUPERSET OF WHAT `applyCapture` WRITES, and the asymmetry is one-directional on
+ * purpose. `applyCapture` additionally restricts each scope to its prose whitelist (`LESSON_PROSE`
+ * and friends), while this reports every differing leaf in the capture — so a capture holding a
+ * non-whitelisted key (`resourceLinks`, say) is predicted here and never written there.
+ *
+ * That direction is the safe one, and it is the direction the read-only path needs. MISSING a change
+ * is what caused the 2026-08-23 defect: a field silently cleared with no warning. Over-reporting only
+ * shows a row that turns out not to move. And filtering by the whitelist would hide exactly the prose
+ * a schema-mismatched capture exists to let a teacher copy out — retired fields are the likeliest
+ * thing in one. `projectCapture` uses the same whitelists, so a capture minted by this app cannot
+ * contain such a key in the first place; the guarantee worth holding is "never misses", not "exactly".
+ * Pinned in both directions by `tests/unit/captureDiffAgreement.spec.ts`.
+ *
+ * ⚑ "Differs" is literal: `'   '` against `''` is a change, because the restore really would write
+ * three spaces. It is invisible to a reader and rare, and the alternative — normalising whitespace
+ * before comparing — would hide a real edit that only adds or removes a paragraph break, which the
+ * editor's grammar makes meaningful (`\n` is a paragraph, CLAUDE.md).
+ */
+export const captureDiff = (saved: CaptureMap, capture: CaptureMap): CaptureDiff => {
+  const out: CaptureDiff = {}
+  for (const [key, leaves] of Object.entries(capture ?? {})) {
+    if (!leaves) continue
+    const savedLeaves = saved?.[key]
+    const changed: Record<string, CaptureChange> = {}
+    for (const field of Object.keys(leaves)) {
+      if (!willApply(leaves, field)) continue
+      const now = leaves[field] ?? ''
+      const was = savedLeaves?.[field] ?? ''
+      if (was !== now) changed[field] = { was, now }
+    }
+    if (Object.keys(changed).length > 0) out[key] = changed
+  }
+  return out
+}
+
 /** Overlay `leaves` onto a copy of `base`, restricted to `keys`. Never introduces a key. */
 const overlay = (
   base: Doc,
@@ -293,9 +364,7 @@ const overlay = (
   const out: Doc = { ...base }
   if (!leaves) return out
   for (const k of keys) {
-    // `in` rather than a truthiness or undefined check, so a stored `null` is applied as the cleared
-    // value it represents instead of being read as "not present".
-    if (k in leaves && isProseValue(leaves[k])) {
+    if (willApply(leaves, k)) {
       out[k] = leaves[k]
       report.applied += 1
     }

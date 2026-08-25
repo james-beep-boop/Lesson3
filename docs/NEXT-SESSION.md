@@ -34,7 +34,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 | | |
 |---|---|
 | Open PRs | none |
-| Deployed | the Rock was on `fc144c4` (#285) and trailed by eight; deployed to `main` at the end of this session — see **Deploy** below. ⚑ Re-measure rather than trusting this line: `git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..main` |
+| Deployed | **`7193160` — the Rock is level with `main`.** It was on `fc144c4` (#285) and trailed by NINE commits (eight product PRs #286–#293, plus this handoff #294). ⚑ Re-measure rather than trusting this line, which dates itself: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — ⚑ against `origin/main` after a fetch, not the local ref, which can be stale enough to report no lag when there is some |
 | Pending migrations | **none** — a plain `scripts/deploy.sh`. Checked, not assumed: no file under `app/src/migrations/` changed across #286–#293, and #291's one field-type change (`prose('title')` → `structureText('title')` in the Summary Table row) is schema-neutral because Payload's drizzle adapter maps BOTH `text` and `textarea` to `varchar` (`@payloadcms/drizzle/dist/schema/traverseFields.js`, read from the installed source) |
 | First-view cost after deploy | **none.** No cache or format version moved — `COMPARE_DIFF_FORMAT_VERSION` is still 3 and `GENERATOR_RENDER_VERSION` did not change, so no DOCX, PDF, HTML-preview or compare artifact is invalidated |
 
@@ -131,6 +131,28 @@ reported by the operator from a screenshot after review had passed.
    with five timeouts on `getByRole('button', { name: 'Restore these changes' })`. A user-facing string
    is an API. `grep` for it before you change it.
 
+## Deploy
+
+**Deployed 2026-08-23 to `7193160`** (Claude-run over `ssh Rock5b`, `scripts/deploy.sh`). Recorded
+here because the Status row above points at it, and because the run is the only record of what the
+box actually did — this file's own rule is not to read a SHA here as "what the Rock is running".
+
+- Pre-migration snapshot taken and uploaded before anything migrated:
+  `premigrate/lesson3-20260823T205905Z-premigrate-7193160.dump.age`, 7,194,259 bytes encrypted,
+  recorded in `backup-status.json`. Backups were configured, so the deploy did NOT need
+  `ALLOW_UNBACKED_DEPLOY`.
+- `gotenberg` build **skipped** — tree hash `d7c32515…` still matches the label on the running image,
+  the steady state `docs/OPS.md` describes.
+- `migrate` ran and applied **nothing** ("Reading migration files… Done."), as predicted.
+- Post-deploy: `/login` and `/admin` both 200; all three services up; the new diff CSS
+  (`--app-diff-create-bg`, `def7e4`) present in two served chunks under `.next/static/chunks/`, which
+  is what makes "the code is live" a measurement rather than an inference.
+- `scripts/verify-edit-recovery-cascade.ts` passed read-only on the box: table, compound unique index,
+  and both cascade queries against real rows.
+
+⚑ **The Rock publishes on host port 3001, not 3000.** Port 3000 is another tenant, and probing it
+returns 404 for every path — which looks exactly like an outage and is not one.
+
 ## Where to pick up
 
 **The next project is stated and scoped: slice B of #291** — eliminate the remaining editor fields that
@@ -145,10 +167,20 @@ Slice A hid three provenance fields and closed the invariant; slice B is the ide
    operations, but they are not *content*, and they currently sit among the prose.
 
 **Also queued, smaller:**
-- **`LessonControls`' view-mode `Delete` passes no `lp-btn`** and so probably renders as bare text the
-  way `Discard the changes` did. Noted in #293 and left as out of scope — check it when that dialog is
-  next touched.
+- ~~`LessonControls`' view-mode `Delete` passes no `lp-btn`~~ — **the diagnosis was wrong; `Delete`
+  needed no change at all.** The real defect was the **portalled dialogs**, which #289 moved out of that ancestry — and the fix is
+  structural rather than per-button: the shared `Modal` emits `lp-modal` and the admin stylesheet
+  scopes the button system on it, so every dialog button is in the system by construction.
+  `modalChrome.spec.tsx` pins both halves. The admin button system is `.collection-edit--lesson-bundle-versions
+  .lesson-controls-wrap .btn, .btn.lp-btn`: a CONTAINER scope plus an opt-in class. `Delete` is still
+  inside the control bar, so the container scope styles it and `lp-btn` there would be redundant. (Frontend
+  dialogs are exempt: `styles.css` styles a bare `.btn` globally, so nothing can escape.)
 - **13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend.
+- ⚑ **`docs/CHANGELOG.md` has drifted badly.** Before 2026-08-23 its newest entry was **2026-08-15**
+  (#222) — roughly seventy merged PRs missing from the delivered-product history. #286–#294 have now
+  been added, so the gap that REMAINS is **#223–#285**. Deliberately not backfilled here: an entry reconstructed from `git log`
+  months later is worse than an honest gap, and the real fix is to add an entry when a batch ships.
+  Flagged 2026-08-23.
 - **Edit recovery is undocumented in the Guide.** `USER_GUIDE.md` never mentions unsaved-work capture,
   the "backed up" indicator, or the restore offer — a teacher meets the dialog with no prior
   explanation, and it is now the one place in the app showing red/green diff colours outside compare.

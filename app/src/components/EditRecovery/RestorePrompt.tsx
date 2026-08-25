@@ -30,7 +30,7 @@ import React, { useMemo } from 'react'
 import Modal from '../Modal'
 import type { CaptureMap } from '../../lib/editRecovery/projection'
 import type { OfferedCapture } from './protocol'
-import { unifiedDiff } from './restoreDiff'
+import { renderOf } from './restoreDiff'
 import { groupsOf } from './restoreGroups'
 
 /** Matches how every other user-facing timestamp in the app reads (`VersionTimestamps`, Manage). */
@@ -85,11 +85,9 @@ export function EditRecoveryRestorePrompt({
     () =>
       groupsOf(capture, anchors, saved).map((group) => ({
         ...group,
-        // ⚑ Read-only captures keep PLAIN text. See `restoreDiff`: unified output interleaves the old
-        // words into the new, and read-only exists so this prose can be copied out.
         lines: group.lines.map((line) => ({
-          ...line,
-          html: readOnly ? null : unifiedDiff(line.was, line.now),
+          field: line.field,
+          render: renderOf(line.was, line.now, readOnly),
         })),
       })),
     [capture, anchors, saved, readOnly],
@@ -151,16 +149,30 @@ export function EditRecoveryRestorePrompt({
             <section key={group.id} className="lp-restore__group">
               <h3 className="lp-restore__heading">{group.heading}</h3>
               <dl className="lp-restore__list">
-                {group.lines.map(({ field, now, html }) => (
+                {group.lines.map(({ field, render }) => (
                   <React.Fragment key={field}>
                     <dt>{field}</dt>
                     {/* Safe to inject: `unifiedDiff` escapes the prose before the engine sees it, so
-                        the only markup here is the engine's own annotation spans. The reasoning, and
-                        the probe behind it, are on `restoreDiff`. */}
-                    {html === null ? (
-                      <dd>{now}</dd>
+                        the only markup is the engine's own annotation spans. `restoreDiff` carries
+                        the reasoning, the probe behind it, and why the other three kinds exist. */}
+                    {render.kind === 'diff' ? (
+                      <dd dangerouslySetInnerHTML={{ __html: render.html }} />
+                    ) : render.kind === 'plain' ? (
+                      <dd>{render.text}</dd>
                     ) : (
-                      <dd dangerouslySetInnerHTML={{ __html: html }} />
+                      <dd>
+                        {/* ⚑ Three different statements, because they mean different things to a
+                            teacher: the field is cleared, its paragraphs moved (a real change to the
+                            generated document, which the diff engine cannot draw), or only invisible
+                            spacing differs. `restoreDiff` has the measurements. */}
+                        <em className="lp-restore__note">
+                          {render.kind === 'emptied'
+                            ? 'Emptied'
+                            : render.kind === 'paragraphs'
+                              ? 'Paragraph breaks changed — the words are the same'
+                              : 'Spacing only — no visible change'}
+                        </em>
+                      </dd>
                     )}
                   </React.Fragment>
                 ))}
@@ -170,42 +182,24 @@ export function EditRecoveryRestorePrompt({
         )}
       </div>
 
-      {/* ⚑ `lp-btn` is what puts these IN the app's button system, and its absence is why "Discard the
-          changes" rendered as bare text: the admin's `.btn.lp-btn` block (custom.scss) is where the
-          destructive outline, the focus ring and the hover fill live, and Payload's own
-          `btn--style-error` sets none of them. Every other dialog in the app already passes it —
-          `LinkedTextarea`, `DeletePlansPanel` — so this panel was the outlier, not the pattern.
-          Measured before the fix: transparent background, transparent border, black ink. */}
+      {/* ⚑ These carry no `lp-btn`, and that is the point. The class used to be what put a dialog
+          button in the app's button system, and forgetting it is why `Discard the changes` once
+          rendered as bare text — transparent background, transparent border, black ink. The shared
+          `Modal` now emits `lp-modal` and the admin stylesheet scopes the button system on it, so
+          every button in every dialog is styled by construction and there is nothing to remember.
+          `Modal/index.tsx` and the selector list in `custom.scss` carry the contract. */}
       <div className="modal__actions">
         {/* No Restore control at all when read-only — a disabled button invites the user to hunt for
             the condition that would enable it, and there is none they can reach. */}
         {!readOnly && (
-          <Button
-            className="lp-btn"
-            buttonStyle="primary"
-            size="small"
-            onClick={onRestore}
-            disabled={busy}
-          >
+          <Button buttonStyle="primary" size="small" onClick={onRestore} disabled={busy}>
             {busy ? 'Putting them back…' : 'Put the changes back'}
           </Button>
         )}
-        <Button
-          className="lp-btn"
-          buttonStyle="secondary"
-          size="small"
-          onClick={onKeep}
-          disabled={busy}
-        >
+        <Button buttonStyle="secondary" size="small" onClick={onKeep} disabled={busy}>
           {readOnly ? 'Continue editing' : 'Decide later'}
         </Button>
-        <Button
-          className="lp-btn"
-          buttonStyle="error"
-          size="small"
-          onClick={onDiscard}
-          disabled={busy}
-        >
+        <Button buttonStyle="error" size="small" onClick={onDiscard} disabled={busy}>
           Discard the changes
         </Button>
       </div>

@@ -30,6 +30,7 @@ describe('grouping the offered prose', () => {
         { key: 'lesson:L1', heading: 'Lesson 1' },
         { key: 'slo:L1', heading: 'Lesson 1' },
       ],
+      {},
     )
 
     expect(groups).toHaveLength(1)
@@ -39,18 +40,35 @@ describe('grouping the offered prose', () => {
   })
 
   it('uses the authored field labels, not a de-camelised guess', () => {
-    const groups = groupsOf(capture({ 'slo:L1': { keyInquiry: 'why do cells differ?' } }), [
-      { key: 'slo:L1', heading: 'Lesson 1' },
-    ])
+    const groups = groupsOf(
+      capture({ 'slo:L1': { keyInquiry: 'why do cells differ?' } }),
+      [{ key: 'slo:L1', heading: 'Lesson 1' }],
+      {},
+    )
     expect(groups[0].lines[0].field).toBe('Key inquiry question')
   })
 
-  it('lists only fields that have something to read', () => {
+  it('omits a field whose captured value matches what is stored, whitespace included', () => {
     const groups = groupsOf(
       capture({ 'lesson:L1': { overview: '   ', title: 'kept', teacherReflection: null } }),
       [{ key: 'lesson:L1', heading: 'Lesson 1' }],
+      { 'lesson:L1': { overview: '   ', title: null, teacherReflection: null } },
     )
     expect(groups[0].lines.map((l) => l.field)).toEqual(['Title'])
+  })
+
+  it('but DOES list a whitespace-only value that differs, because the restore writes it', () => {
+    // ⚑ This case used to be filtered out as "nothing to read", and that filter is what hid a
+    // CLEARED field too — the two are the same test. `captureDiff` compares literally instead: three
+    // spaces really would be written over an empty field. Invisible to a reader and rare, and the
+    // alternative (normalising whitespace before comparing) would hide an edit that only adds or
+    // removes a paragraph break, which the editor's grammar makes meaningful.
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: '   ' } }),
+      [{ key: 'lesson:L1', heading: 'Lesson 1' }],
+      { 'lesson:L1': { overview: null } },
+    )
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: '', now: '   ' }])
   })
 
   /**
@@ -66,6 +84,7 @@ describe('grouping the offered prose', () => {
         'lesson:gone-b': { overview: 'from the second deleted lesson' },
       }),
       [], // the live plan has neither row any more
+      {},
     )
 
     expect(groups, 'two deleted lessons are two things, not one').toHaveLength(2)
@@ -75,14 +94,14 @@ describe('grouping the offered prose', () => {
   })
 
   it('names an orphaned row as gone rather than inventing a number for it', () => {
-    const groups = groupsOf(capture({ 'lesson:gone': { overview: 'orphaned' } }), [])
+    const groups = groupsOf(capture({ 'lesson:gone': { overview: 'orphaned' } }), [], {})
     expect(groups[0].heading).toBe('A lesson that is no longer in this plan')
     expect(groups[0].heading).not.toMatch(/\d/)
   })
 
   it('is empty when nothing readable survives', () => {
-    expect(groupsOf(capture({}), [])).toEqual([])
-    expect(groupsOf(capture(null), [])).toEqual([])
+    expect(groupsOf(capture({}), [], {})).toEqual([])
+    expect(groupsOf(capture(null), [], {})).toEqual([])
   })
 })
 
@@ -144,12 +163,47 @@ describe('listing only what DIFFERS from the saved version', () => {
     expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: '', now: 'filled in at last' }])
   })
 
-  it('lists everything when no saved projection is given', () => {
-    // The parameter is optional, so an omitted `saved` must not silently blank the panel.
+  /**
+   * ⚑ A CLEARED field is the most consequential change a restore can make, and was the one the panel
+   * would not show. The full story — why the filter that hid it was correct when written, and why
+   * #292 falsified its premise — is on `captureDiff` in `projection.ts`, which now owns the rule;
+   * `captureDiffAgreement.spec.ts` pins it against the real `applyCapture`. These cases pin what the
+   * PANEL does with the answer.
+   */
+  it('LISTS a field the restore would CLEAR, rather than hiding it', () => {
+    const groups = groupsOf(capture({ 'lesson:L1': { overview: '' } }), anchors, {
+      'lesson:L1': { overview: 'a paragraph the teacher would lose' },
+    })
+    expect(groups[0]!.lines).toEqual([
+      { field: 'Overview', was: 'a paragraph the teacher would lose', now: '' },
+    ])
+  })
+
+  it('treats a captured NULL as the same clearing, because the overlay does', () => {
+    // `ProseValue` is `string | null` and `overlay` applies either — so both must be listed.
+    const groups = groupsOf(capture({ 'lesson:L1': { overview: null } }), anchors, {
+      'lesson:L1': { overview: 'also about to be lost' },
+    })
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: 'also about to be lost', now: '' }])
+  })
+
+  it('still says nothing when an empty capture matches an empty saved value', () => {
+    // Empty→empty is not a change, and most fields on a fresh plan are empty. Without this the
+    // panel would list the whole plan again, which is the defect #292 existed to fix.
     const groups = groupsOf(
-      capture({ 'lesson:L1': { overview: 'a', teacherReflection: 'b' } }),
+      capture({ 'lesson:L1': { overview: '', teacherReflection: null } }),
       anchors,
+      { 'lesson:L1': { overview: null, teacherReflection: '' } },
     )
-    expect(groups[0]!.lines).toHaveLength(2)
+    expect(groups).toEqual([])
+  })
+
+  it('is a REQUIRED argument now, so "forgot to pass saved" cannot happen', () => {
+    // ⚑ This replaces a test that pinned the old optional-parameter behaviour ("an omitted `saved`
+    // must not silently blank the panel"). The parameter is required, so the type system makes that
+    // mistake impossible and the runtime guard is gone. Kept as a one-line reminder of WHY the
+    // optional form was removed: it was a second, contradictory answer to "does an empty value
+    // count", alive only for callers that never existed.
+    expect(groupsOf.length, 'groupsOf takes capture, anchors and saved').toBe(3)
   })
 })
