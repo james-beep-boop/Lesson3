@@ -25,6 +25,89 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-25) — the editor stopped hiding what it would change, and stopped showing what it would not
+
+**This supersedes the blocks below**, which stay for provenance. `main` carries #271–#297.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Deployed | **`2ad46ba` (#296) is on the Rock. #297 is MERGED BUT NOT DEPLOYED** — the operator is deploying it. ⚑ Re-measure rather than trusting this line, which dates itself: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — against `origin/main` after a fetch, not the local ref, which can be stale enough to report no lag when there is some |
+| Pending migrations | **none** — a plain `scripts/deploy.sh`. Checked, not assumed: nothing under `app/src/migrations/` changed, and #297's field reorganisation uses a Payload `collapsible`, which carries no `name` and therefore no data key — the regenerated `payload-types.ts` shows a key REORDER and nothing else |
+| First-view cost after deploy | **none.** No cache or format version moved — `COMPARE_DIFF_FORMAT_VERSION` is still 3 and `GENERATOR_RENDER_VERSION` did not change |
+
+## What changed
+
+**#295 — the restore preview shows every change it would make.** The unsaved-changes panel could hide
+the one change that destroys work: a captured empty value is written *through* and clears the field,
+but the panel dropped empty values before comparing, so it could say "Nothing in these changes differs
+from the saved version" and then delete a paragraph. Cleared fields are listed now, each change shows
+word by word, and a change the diff engine cannot draw is NAMED — *Emptied*, *Paragraph breaks
+changed*, *Spacing only* — rather than rendering as a blank row.
+
+**#296 — edit recovery reached the Guide**, which had never mentioned it, and `docs/CHANGELOG.md` was
+caught up from 2026-08-15 (~70 missing PRs; #223–#295 now recorded).
+
+**#297 — plan taxonomy is immutable, and the editor opens on the lessons.** Subject-grade is fixed at
+upload for everyone including Site Admins and `overrideAccess` scripts; administrator-only identity
+moved into one collapsed *Plan and sub-strand details* panel.
+
+## ⚑ The lesson this batch kept teaching
+
+**A convenient signal got mistaken for the thing it resembled, five times, at five different depths:**
+truthiness for "will this be applied"; annotation-presence for "did anything meaningful change"; the
+captured value alone for "what is this change"; `rejects.toThrow()` for "*this* rule refused it"; and
+an expectation derived from the module under test for "the panel contains what it should". Every one
+read correctly until it didn't, and every one was caught by **mutation testing or human review, never
+by the tests as written**.
+
+⚑ So: when a tool's output is used as evidence for a claim, check the tool is measuring that claim —
+and after writing a guard, break the thing it guards and watch it go red. Four of this batch's own
+assertions were found weak that way, including one that passed while the rule it tested was unwired.
+
+⚑ **And `CodeRabbit`'s green check does not mean review.** On this repository it reports "review
+skipped: manual review required" and passes anyway. It reviewed one commit of #295 and none of
+#296/#297. Do not cite it as coverage.
+
+## Where to pick up
+
+**Slice B is DONE (#297), and both of its deferred decisions are answered** — recorded here because
+the previous handoff posed them as open questions:
+
+1. *Where the identity-repair route lives* → **nowhere, deliberately.** Operator decision 2026-08-25:
+   taxonomy is determined at ingest, and a wrong value is corrected by delete-and-re-upload. No repair
+   UI exists or should. An exceptional in-place fix is an explicit migration.
+2. *Whether Official Version / Visibility / Public Slug leave the field list* → **moot as posed.** They
+   live on `lesson-plans`, not on the version being edited, so they were never in the editor's field
+   list. That question was mis-scoped.
+
+**Open, in rough order of value:**
+
+- **The 13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend. Mechanical, and
+  the `Modal` is now well-tested (portal, chrome, and dialog-button scope all pinned).
+- **Slice C (derivations)** — it changes generated output, so it needs a corpus check before it starts.
+- **`GRADE 10` is hardcoded** in vendored `build_docs.js` lines 95/169/177. Upstream ARES fix; the
+  vendored generator is byte-verbatim by law, so this is not ours to patch.
+- **The fidelity oracle differs by one hyperlink** (141 current vs 140 upstream), unrelated to any
+  recent change and unexplained. Worth ten minutes before it becomes folklore.
+
+## ⚑ Running the integration suite locally (it is not wired for it)
+
+`app/test.env` points `DATABASE_URI` at `localhost:5432`, which is unreachable from inside the deps
+container, so `npm run test:int` reports **221 tests skipped and looks like a pass**. To actually run
+it: point the URI at `postgres:5432/lesson3_test` with the password from the root `.env`, then
+`scripts/in-deps.sh --network lesson3_default --env-file .env -- npm run test:int`. **Restore
+`test.env` afterwards** — it is tracked, and a real password must not be committed.
+
+⚑ **Repeated runs exhaust the global sign-up rate limit** and then fail five or six *unrelated* specs
+with "Sign-ups are temporarily paused", which looks nothing like the cause. `DELETE FROM
+rate_limit_counters;` in the **test** database clears it. This has cost time twice (see also #292's
+e2e retry cascade).
+
+---
+
 # ⚑ HANDOFF (2026-08-23, later) — the editor stopped offering what it would not honour, and the dialogs learned to look like the app
 
 **This supersedes the blocks below**, which stay for provenance. `main` carries #271–#293.
