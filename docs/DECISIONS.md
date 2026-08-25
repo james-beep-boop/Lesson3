@@ -52,6 +52,16 @@ semantics and exits successfully, so the intended fallback never ran. The test n
 may use only tools it explicitly installs or lists as requirements, and a fallback is sound only when
 the first command actually rejects the other platform's spelling.
 
+The PR review added three release-boundary guards: every resolved service image must be digest-pinned,
+the installed `VERSION` is not advanced until all new images download successfully, and download URLs
+are explicitly unavailable until the first tag finishes publishing its release assets. It also aligned
+`eslint-config-next` with the installed Next.js patch. Release state must describe what is retrievable
+and retryable now, not what a later workflow is expected to make true.
+
+The aligned rules found two navigation cases. The Edit action now uses the Next router. Logout keeps
+its full-document navigation, with a narrow lint exception, because clearing authenticated client
+state is the intended behaviour rather than an incidental implementation detail.
+
 ## 2026-08-25 — Plan taxonomy is immutable, and administrator details no longer precede the lessons
 
 The version editor had two different audiences hidden inside one complaint. Teachers with editing

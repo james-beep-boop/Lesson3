@@ -18,7 +18,9 @@ ARES lesson plans are **structured data** (a nested sub-strand bundle), and the 
 
 Versioned releases provide prebuilt x86-64 and ARM64 containers through GitHub Container Registry.
 The server needs Docker Compose, `curl`, and `openssl`; it does not need Git, Node.js, npm, or a local
-image build. Download the checksummed deployment bundle from the latest GitHub release:
+image build. The following URLs become available after the first accepted `main` commit is tagged and
+the release workflow finishes. Then download the checksummed deployment bundle from the latest GitHub
+release:
 
 ```bash
 mkdir lesson3-download && cd lesson3-download

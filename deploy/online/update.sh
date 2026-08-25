@@ -73,7 +73,7 @@ recovery_dir="$TARGET/releases/$old_version"
 mkdir -p "$recovery_dir"
 cp -p "$TARGET/compose.yaml" "$TARGET/VERSION" "$TARGET/.env.example" "$recovery_dir/"
 
-cp -p "$SOURCE/compose.yaml" "$SOURCE/VERSION" "$SOURCE/.env.example" \
+cp -p "$SOURCE/compose.yaml" "$SOURCE/.env.example" \
   "$SOURCE/DEPLOYMENT.md" "$TARGET/"
 mkdir -p "$TARGET/scripts"
 cp -p "$SOURCE/scripts/"* "$TARGET/scripts/"
@@ -81,6 +81,7 @@ cp -p "$SOURCE/scripts/"* "$TARGET/scripts/"
 cd "$TARGET"
 echo "update: downloading $new_version images"
 docker compose pull
+cp -p "$SOURCE/VERSION" "$TARGET/VERSION"
 echo "update: applying migrations and starting $new_version"
 if ! docker compose up -d --no-build; then
   echo "update: startup failed. Previous deployment files are in $recovery_dir." >&2

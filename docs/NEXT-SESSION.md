@@ -27,9 +27,9 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 # ⚑ HANDOFF (2026-08-25) — GitHub-container local deployment is implemented and locally proven
 
-**This supersedes the deployment portion of the blocks below. It is not published yet.** The work is
-on remote branch `feat/local-server-deployment`. It has not been merged, tagged, published as a
-container package, or attached to a GitHub Release.
+**This supersedes the deployment portion of the blocks below. It is not published yet.** PR #301
+passed the protected-main review and CI gate. No version tag, container package, or GitHub Release
+has been published yet.
 
 ## What is ready
 
@@ -62,13 +62,15 @@ container package, or attached to a GitHub Release.
   fontless Gotenberg converted the tracked remediation DOCX to a five-page PDF.
 - `npm audit --omit=dev` has no high or critical result. Five moderate findings remain in Payload's
   `drizzle-kit`/development-server `esbuild` chain, with no compatible npm fix.
-- A final secret-pattern scan passed. The requested local CodeRabbit review was unavailable because
-  the account's three included reviews were exhausted; do not report external review as passed.
+- A final secret-pattern scan passed. CodeRabbit's PR review found four actionable issues; the branch
+  aligned `eslint-config-next`, kept the old installed version on image-pull failure, asserted digest
+  pinning for every service image, and marked release URLs unavailable until the tag workflow finishes.
+  The amended required GitHub gate passed all packaging, unit, lint, audit, contract, integration,
+  HTTP, and real-Chromium E2E checks.
 
 ## Before this becomes a supported GitHub download
 
-Open a pull request from `feat/local-server-deployment`, use the protected-main CI/review gate, and
-then tag the accepted commit on `main`. Verify both GHCR packages are publicly pullable and repeat the clean
+Tag the accepted PR #301 commit on `main`. Verify both GHCR packages are publicly pullable and repeat the clean
 installation from GitHub Release assets on one representative AMD64 or ARM64 server. Only then change
 “not published” above. Next.js 16.3's `middleware`-to-`proxy` deprecation and the deliberately held
 dependency majors (including GraphQL 17 and TypeScript 7) remain separate maintenance work.

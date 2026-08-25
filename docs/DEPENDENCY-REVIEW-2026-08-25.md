@@ -13,6 +13,7 @@ versions and promotes changes only after its output and application gates pass.
 | Node.js | 24.19.0 | 24.19.0 | Keep. It remains the current Node 24 LTS line and the repository's exact runtime authority. |
 | Payload packages | 3.87.1 | 3.88.0 | Update the whole Payload family together. The release includes fixes for multipart parsing and copied sibling-row data. |
 | Next.js | 16.2.12 | 16.3.2 | Update after a successful production build and application suites. npm began reporting 16.3.3 during this review, before corresponding upstream release notes were available; hold that additional patch for a normal tested maintenance change. |
+| `eslint-config-next` | 16.2.6 | 16.3.2 | Align the lint rules with the selected Next.js patch. The updated rules found two internal-navigation warnings: Edit now uses the Next router, while logout retains a documented full-document reload so authenticated client state cannot survive. |
 | React / React DOM | 19.2.6 | 19.2.8 | Apply the current compatible patch pair. |
 | DOMPurify | 3.4.13 | 3.4.14 | Apply the current patch. |
 | Mammoth | 1.12.0 | 1.12.1 | Apply the current patch. |
@@ -39,7 +40,6 @@ Authoritative references: [Node release status](https://nodejs.org/en/about/prev
 | GraphQL | 16.14.2 | 17.0.2 | GraphQL 17 is outside Payload 3.88.0's declared `^16.8.1` peer range; coordinate the major with Payload support. |
 | `dotenv` / `cross-env` | 16.4.7 / 7.0.3 | 17.4.2 / 10.1.0 | Major tooling changes with no deployment benefit. |
 | Prettier | 3.8.3 | 3.9.6 | Trial formatting changed unrelated source files, so it was reverted rather than mixing mechanical churn into the release work. |
-| `eslint-config-next` | 16.2.6 | 16.3.3 | Trial upgrade introduced two new warnings that require navigation-behaviour decisions; handle them as a focused change. |
 
 Next.js 16.3 also reports that the `middleware` file convention is deprecated in favour of `proxy`.
 The production build still succeeds, but that migration should be planned before a future Next major

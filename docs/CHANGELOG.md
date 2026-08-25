@@ -16,14 +16,15 @@ publishes them to GHCR with provenance and SBOM attestations, and attaches a sma
 deployment bundle to the GitHub Release. The bundle pins the application images by tag and manifest
 digest, generates independent installation secrets, migrates before starting the app, and requires an
 encrypted pre-migration backup for normal updates. The README and deployment guide provide the
-copyable `curl`, checksum, installation, verification, backup, update, and recovery procedure. No
-release has been published yet; the first tag still requires the protected-main PR/CI gate and a
-clean installation from the resulting GitHub assets.
+copyable `curl`, checksum, installation, verification, backup, update, and recovery procedure. PR
+#301 passed the protected-main review and CI gate. No release has been published yet; the first tag
+and a clean installation from the resulting GitHub assets remain.
 
 The release refreshes PostgreSQL from the moving `16-alpine` tag to PostgreSQL 16.15 pinned by
 multi-architecture digest and updates the local Gotenberg sidecar to a smaller, pinned 8.36.0
 LibreOffice-only image. Application maintenance includes Payload 3.88.0, Next.js 16.3.2, React
-19.2.8, GraphQL 16.14.2, TypeScript 5.9.3, and compatible patch-level helpers. TypeScript 5.9's
+19.2.8, GraphQL 16.14.2, TypeScript 5.9.3, the matching `eslint-config-next` 16.3.2, and compatible
+patch-level helpers. TypeScript 5.9's
 stricter Fetch types exposed two Node `Buffer` response assumptions; DOCX download and PDF preview
 now make one bounded byte copy at the response boundary, with no generator or document-format change.
 

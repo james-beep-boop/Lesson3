@@ -54,6 +54,10 @@ bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
   images="$(docker compose config --images)"
   [[ "$(printf '%s\n' "$images" | wc -l | tr -d '[:space:]')" == "4" ]] \
     || fail "release compose does not resolve exactly four images"
+  while IFS= read -r image; do
+    [[ "$image" =~ @sha256:[0-9a-f]{64}$ ]] \
+      || fail "release image is not digest-pinned: $image"
+  done <<<"$images"
   if ./install.sh --prepare-only >/dev/null 2>&1; then
     fail "installer overwrote an existing .env"
   fi
@@ -82,5 +86,27 @@ if "$BUNDLE/update.sh" "$downgrade_target" >"$TMP/downgrade.out" 2>&1; then
 fi
 grep -Eq 'refusing downgrade' "$TMP/downgrade.out" \
   || fail "updater did not explain the refused downgrade"
+
+pull_failure_target="$TMP/pull-failure-target"
+cp -R "$BUNDLE" "$pull_failure_target"
+stub_bin="$TMP/stub-bin"
+mkdir -p "$stub_bin"
+cat >"$stub_bin/docker" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-} ${2:-}" == "compose version" ]]; then
+  exit 0
+fi
+if [[ "${1:-} ${2:-}" == "compose pull" ]]; then
+  exit 1
+fi
+exit 2
+EOF
+chmod +x "$stub_bin/docker"
+if PATH="$stub_bin:$PATH" ALLOW_UNBACKED_UPDATE=1 \
+  "$NEW_BUNDLE/update.sh" "$pull_failure_target" >"$TMP/pull-failure.out" 2>&1; then
+  fail "updater succeeded after an image pull failure"
+fi
+[[ "$(cat "$pull_failure_target/VERSION")" == "v0.0.0" ]] \
+  || fail "updater changed VERSION before images downloaded successfully"
 
 echo "test-local-deploy-bundle: PASS"

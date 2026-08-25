@@ -53,7 +53,7 @@ export default function EditActions({
     }
     const m = /^#lesson-(\d+)$/.exec(window.location.hash)
     const lessonParam = m ? `&lesson=${m[1]}` : ''
-    window.location.href = `/admin/collections/lesson-bundle-versions/${versionId}?edit=1${lessonParam}`
+    router.push(`/admin/collections/lesson-bundle-versions/${versionId}?edit=1${lessonParam}`)
   }
 
   const onMakeOfficial = async () => {

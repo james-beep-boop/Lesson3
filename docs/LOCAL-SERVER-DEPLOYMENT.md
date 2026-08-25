@@ -24,7 +24,8 @@ HTTPS, a reverse proxy, and the complete “Going public” checklist in `docs/O
 ## Download and install
 
 GitHub attaches two files to every Lesson3 release: the deployment bundle and its SHA-256 checksum.
-One `curl` command downloads both; verify the checksum before extracting or running anything.
+These URLs become available after the first accepted `main` commit is tagged and the release workflow
+finishes. One `curl` command downloads both; verify the checksum before extracting or running anything.
 
 ```bash
 mkdir lesson3-download && cd lesson3-download

@@ -73,6 +73,8 @@ export function UserMenu({
     } catch {
       // Ignore network errors — navigate away regardless so a failed request can't strand the user.
     } finally {
+      // Logout deliberately reloads the document so no authenticated client state survives.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign('/login')
     }
   }
