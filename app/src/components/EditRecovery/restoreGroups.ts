@@ -62,8 +62,16 @@ const fieldLabel = (field: string): string => {
  * then merged into one section, interleaving two lessons' prose under one title and colliding on the
  * `key={field}` of every field they had in common.
  *
- * ⚑ Only non-empty strings are LISTED, but a restore still applies everything in the map, cleared
- * fields included. Rendering a heading over an empty value would read as "this was lost".
+ * ⚑ A CLEARED field is listed like any other change — and this is the correction to what this comment
+ * used to say. It read: "only non-empty strings are LISTED, but a restore still applies everything in
+ * the map, cleared fields included; rendering a heading over an empty value would read as 'this was
+ * lost'." That was sound while the panel listed the WHOLE capture, where an empty field was noise.
+ * #292 changed the contract to "only what differs", and a deletion differs — so the same filter that
+ * used to remove noise started hiding the single most consequential thing a restore can do. The panel
+ * could say "Nothing in these changes differs from the saved version" and then wipe a paragraph.
+ * Found in review after #293 shipped; pinned by three cases in `restorePromptGroups.spec.ts`.
+ *
+ * The non-empty filter survives only on the no-`saved` path, which is still "list everything".
  *
  * ⚑ ONLY WHAT DIFFERS FROM THE SAVED VERSION (operator decision 2026-08-23). A capture is a FULL
  * snapshot of every whitelisted prose leaf — `projectCapture` walks the document and does not diff —
@@ -97,13 +105,24 @@ export const groupsOf = (
     // every field in it differs.
     const savedValues = saved?.[key]
     const lines = Object.entries(values)
-      .filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '')
-      // `?? ''` so a stored `null` and a captured `''` are not read as a change. Both mean empty.
-      .filter(([field, value]) => !saved || (savedValues?.[field] ?? '') !== value)
-      .map(([field, value]) => ({
+      // ⚑ A PRESENT key is a value the restore will apply, whatever it holds. `applyCapture`'s
+      // `overlay` keys on `k in leaves`, so a captured `''` or `null` is written through and CLEARS
+      // the field — it is not skipped. Both normalise to `''` here so the comparison below sees a
+      // clearing as the change it is. (An ABSENT key is correctly not listed: the overlay skips it.)
+      .map(([field, value]) => ({ field, now: typeof value === 'string' ? value : '' }))
+      .filter(({ field, now }) =>
+        saved
+          ? // `?? ''` on the saved side too, so a stored `null` and a captured `''` are not read as
+            // a change — both mean empty, and most fields on a fresh plan are empty.
+            (savedValues?.[field] ?? '') !== now
+          : // No saved projection: the legacy "list the whole capture" path, where an empty value is
+            // genuinely just noise. This is all that is left of the original non-empty filter.
+            now.trim() !== '',
+      )
+      .map(({ field, now }) => ({
         field: fieldLabel(field),
         was: savedValues?.[field] ?? '',
-        now: value,
+        now,
       }))
     if (lines.length === 0) return
 

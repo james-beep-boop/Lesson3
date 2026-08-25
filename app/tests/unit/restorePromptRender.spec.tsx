@@ -106,6 +106,40 @@ describe('a restorable capture shows the change, word level', () => {
   })
 })
 
+describe('a field the restore would CLEAR', () => {
+  /**
+   * ⚑ The change a teacher most needs to see before pressing Put the changes back. `applyCapture`
+   * writes a captured `''` through, so this is real deletion — and until it was found in review the
+   * panel hid it entirely and could report "nothing differs" while the restore wiped a paragraph.
+   */
+  const cleared = (readOnly: boolean) =>
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{ ...capture, content: { 'lesson:L1': { overview: '' } }, stale: readOnly }}
+        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+        saved={{ 'lesson:L1': { overview: SAVED } }}
+        readOnly={readOnly}
+        busy={false}
+        onRestore={() => {}}
+        onKeep={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+
+  it('shows the whole saved text struck through, and nothing added', () => {
+    cleared(false)
+    const dd = value()
+    expect(dd.querySelector('[data-match-type="delete"]')?.textContent).toBe(SAVED)
+    expect(dd.querySelector('[data-match-type="create"]'), 'nothing is being added').toBeNull()
+  })
+
+  it('says "Emptied" on the read-only path, where there is no text to strike', () => {
+    // A bare empty <dd> under a field name reads as the panel having lost something.
+    cleared(true)
+    expect(value().textContent).toBe('Emptied')
+  })
+})
+
 describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
   it('renders the captured prose verbatim, with no annotations anywhere', () => {
     show(true)

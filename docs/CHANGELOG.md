@@ -8,6 +8,29 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-23 — the editor stopped offering what it would not honour (MERGED #286–#294; DEPLOYED)
+
+Eight product PRs and a handoff, deployed to the Rock at `7193160`. The through-line is the editor
+promising things it could not deliver.
+
+- **The editor no longer offers edits the system drops (#291).** A teacher could change a biology
+  lesson plan's subject to chemistry, or its grade, in a form that would then reject the write.
+  Closed the invariant hole (it was reachable by simply omitting `officialVersion` from the payload)
+  and hid three fields that are stored faithfully but editable by nobody. SPEC §5 gained a tier for
+  that category.
+- **The unsaved-changes dialog shows the change, not the document (#292, #293).** It had been listing
+  the entire lesson plan, because a capture is a full snapshot; it now lists only fields that differ
+  and shows each one as a word-level red/green diff, reusing the version-compare engine.
+- **Dialogs look like the app (#289, #290, #287, #288).** The shared `Modal` is portalled to
+  `document.body` — a `transform` on Payload's document-controls wrapper had been trapping
+  `position: fixed`, laying every control-bar dialog out inside a ~235px strip below 1024px. The
+  control bar also now names the version you are editing, and the recovery notice stopped rendering
+  as a one-word-per-line vertical column.
+- **Prettier across the repo, with a CI gate (#286)** so formatting cannot drift again.
+
+No migrations. No generator or compare format-version change, so no export or comparison artifact was
+invalidated.
+
 ## 2026-08-15 — public discovery, phase 1 (MERGED #216/#217/#219/#220; DEPLOYED)
 
 The boundary and the data model for an optional public lesson library. **Nothing is public yet:**

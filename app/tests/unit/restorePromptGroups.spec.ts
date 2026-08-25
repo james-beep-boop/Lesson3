@@ -144,6 +144,48 @@ describe('listing only what DIFFERS from the saved version', () => {
     expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: '', now: 'filled in at last' }])
   })
 
+  /**
+   * ⚑ THE HOLE THIS CLOSES (found in review 2026-08-23, after #293 shipped). A CLEARED field is the
+   * most consequential change a restore can make and was the one the panel would not show.
+   *
+   * `applyCapture`'s `overlay` keys on `k in leaves`, so a captured `''` or `null` IS applied — it
+   * wipes the saved text. The display filter dropped empty captured values before comparing, so the
+   * panel could say "Nothing in these changes differs from the saved version" and then Put the
+   * changes back would delete a paragraph.
+   *
+   * The old ⚑ ("rendering a heading over an empty value would read as 'this was lost'") was written
+   * when the panel listed the WHOLE capture, where an empty field really was just noise. #292 changed
+   * the panel's contract to "only what differs", and a deletion differs. The rationale outlived its
+   * premise; it survives only on the no-`saved` path below.
+   */
+  it('LISTS a field the restore would CLEAR, rather than hiding it', () => {
+    const groups = groupsOf(capture({ 'lesson:L1': { overview: '' } }), anchors, {
+      'lesson:L1': { overview: 'a paragraph the teacher would lose' },
+    })
+    expect(groups[0]!.lines).toEqual([
+      { field: 'Overview', was: 'a paragraph the teacher would lose', now: '' },
+    ])
+  })
+
+  it('treats a captured NULL as the same clearing, because the overlay does', () => {
+    // `ProseValue` is `string | null` and `overlay` applies either — so both must be listed.
+    const groups = groupsOf(capture({ 'lesson:L1': { overview: null } }), anchors, {
+      'lesson:L1': { overview: 'also about to be lost' },
+    })
+    expect(groups[0]!.lines).toEqual([{ field: 'Overview', was: 'also about to be lost', now: '' }])
+  })
+
+  it('still says nothing when an empty capture matches an empty saved value', () => {
+    // Empty→empty is not a change, and most fields on a fresh plan are empty. Without this the
+    // panel would list the whole plan again, which is the defect #292 existed to fix.
+    const groups = groupsOf(
+      capture({ 'lesson:L1': { overview: '', teacherReflection: null } }),
+      anchors,
+      { 'lesson:L1': { overview: null, teacherReflection: '' } },
+    )
+    expect(groups).toEqual([])
+  })
+
   it('lists everything when no saved projection is given', () => {
     // The parameter is optional, so an omitted `saved` must not silently blank the panel.
     const groups = groupsOf(

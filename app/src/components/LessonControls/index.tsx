@@ -753,7 +753,12 @@ export default function LessonControls() {
         >
           <p>{EDITING_WIDER_SCREEN_BODY}</p>
           <div className="modal__actions">
-            <Button buttonStyle="secondary" size="small" onClick={() => setTooNarrow(false)}>
+            <Button
+              className="lp-btn"
+              buttonStyle="secondary"
+              size="small"
+              onClick={() => setTooNarrow(false)}
+            >
               Got it
             </Button>
           </div>
@@ -819,7 +824,12 @@ export default function LessonControls() {
               outline for both of its row controls, so outline is the house style for a dialog's own
               dismissal. Same for "Got it" below. */}
           <div className="modal__actions">
-            <Button buttonStyle="secondary" size="small" onClick={() => setHelpOpen(false)}>
+            <Button
+              className="lp-btn"
+              buttonStyle="secondary"
+              size="small"
+              onClick={() => setHelpOpen(false)}
+            >
               Close
             </Button>
           </div>

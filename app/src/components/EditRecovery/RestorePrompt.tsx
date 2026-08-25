@@ -158,7 +158,11 @@ export function EditRecoveryRestorePrompt({
                         the only markup here is the engine's own annotation spans. The reasoning, and
                         the probe behind it, are on `restoreDiff`. */}
                     {html === null ? (
-                      <dd>{now}</dd>
+                      // ⚑ An EMPTIED field needs words on this path. The diff path renders the old
+                      // text struck through, which says "this goes away" on its own; plain text has
+                      // nothing to render, and a bare empty `<dd>` under a field name reads as the
+                      // panel having lost something rather than as the change it is.
+                      <dd>{now === '' ? <em className="lp-restore__emptied">Emptied</em> : now}</dd>
                     ) : (
                       <dd dangerouslySetInnerHTML={{ __html: html }} />
                     )}

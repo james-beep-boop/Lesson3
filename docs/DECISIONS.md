@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-23 — Two review findings after #293 shipped: a hidden deletion, and a container scope the portal broke
+
+Both found by external review of the merged batch, both real, and both are the same shape: **a
+rationale that outlived the premise it was written under.**
+
+**1. The restore preview hid the one change that destroys work.** `applyCapture`'s `overlay` keys on
+`k in leaves`, so a captured `''` or `null` is written through and CLEARS the field. The display
+filter dropped empty captured values *before* comparing against the saved version, so a field the
+restore would wipe was not listed — and with #292's "only what differs" contract the panel could say
+**"Nothing in these changes differs from the saved version"** and then delete a paragraph on Put the
+changes back.
+
+The filter was not a mistake when written. Its ⚑ said "rendering a heading over an empty value would
+read as 'this was lost'", and that was true while the panel listed the WHOLE capture, where an empty
+field was noise. #292 changed what the list means; nobody re-read the filter against the new meaning.
+⚑ **The general rule: when a component's contract changes, re-read its filters — a filter encodes an
+assumption about what the output is FOR.** Now: a present key is a value the restore will apply, so
+both `''` and `null` normalise to `''` and are compared like any other; the non-empty filter survives
+only on the no-`saved` path, which is still "list everything". A cleared field renders as the saved
+text struck through, and as an explicit "Emptied" on the read-only path, where there is no text to
+strike and a bare empty `<dd>` would read as the panel having lost something.
+
+**2. The portal (#289) silently un-styled the dialog buttons.** The admin button system is
+`.collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn, .btn.lp-btn` — a container scope
+for the version editor's bar, plus an opt-in class for everything else. While dialogs rendered in
+place their buttons sat inside `.lesson-controls-wrap` and were styled for free; `createPortal` to
+`document.body` ended that with no error and no failing test. `Discard the changes` rendered with a
+transparent background, a transparent border and black ink — a label, not a button.
+
+⚑ **And the first diagnosis of this was WRONG in a way worth recording.** The 2026-08-23 handoff
+queued adding `lp-btn` to `LessonControls`' view-mode `Delete`. That button is still inside the
+control bar, so the container scope already styles it and the change would have been redundant — the
+portal moved the DIALOGS, not the bar. The real casualties were the too-narrow notice's `Got it` and
+Editing help's `Close`. Both fixed; `tests/unit/modalButtonScope.spec.ts` now requires the class on
+every `<Button>` inside a `<Modal>` on the admin surface, so the next dialog cannot repeat it.
+Frontend dialogs are exempt and the test says so: `styles.css` styles a bare `.btn` globally.
+
+**3. Recorded because the review was right about the process too.** The `CodeRabbit` status on these
+PRs was **not a substantive review** — it reported "review skipped: manual review required for this
+OSS repository" on every one, and the PRs carry zero submitted reviews. ⚑ A green CodeRabbit check on
+this repository means the bot declined, NOT that it approved. Do not cite it as review coverage; the
+gate is the tests, and a human or an independently-run reviewer is the review.
+
 ## 2026-08-23 — The restore offer reuses the compare ENGINE, not the compare pipeline
 
 The unsaved-changes panel already listed only the fields that differ from the saved version, but each

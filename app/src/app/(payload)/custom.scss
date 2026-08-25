@@ -2352,6 +2352,12 @@ a.btn.lp-btn {
     color: var(--theme-elevation-1000);
   }
 
+  // "Emptied", where a read-only capture has no text to show. Muted, so it reads as a note about the
+  // field rather than as the field's content.
+  &__emptied {
+    color: var(--theme-elevation-600);
+  }
+
   // The colour key above the list. Quiet — it explains the list, it is not part of it.
   &__key {
     margin: 0 0 var(--app-space-1);
