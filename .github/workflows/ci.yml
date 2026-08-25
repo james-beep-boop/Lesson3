@@ -103,6 +103,9 @@ jobs:
       - name: backup destination + status branches (stubbed)
         run: ./scripts/test-backup-status.sh
 
+      - name: local-server release bundle (no image pulls)
+        run: ./scripts/test-local-deploy-bundle.sh
+
       - name: test:unit
         # `envTemplateParity.spec.ts` compares the ROOT `.env.example` (what a Compose operator copies)
         # against the app's own template, so it needs a file from outside `app/`. That mount is now

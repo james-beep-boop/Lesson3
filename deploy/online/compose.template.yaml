@@ -1,0 +1,78 @@
+# Generated release bundles replace the placeholders with a release tag and immutable manifest digests.
+# Do not deploy this template directly; use the checksummed GitHub Release bundle.
+name: lesson3
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  migrate:
+    image: ghcr.io/james-beep-boop/lesson3-migrate:__LESSON3_IMAGE_TAG__@__LESSON3_MIGRATE_DIGEST__
+    command: ["npx", "payload", "migrate"]
+    env_file: .env
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 1000m
+    cpus: 2.0
+
+  app:
+    image: ghcr.io/james-beep-boop/lesson3-app:__LESSON3_IMAGE_TAG__@__LESSON3_APP_DIGEST__
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "3001:3000"
+    env_file: .env
+    volumes:
+      - lesson3_artifact_cache:/var/cache/lesson3
+      - ./out/ops:/var/run/lesson3-ops:ro
+      - ./out/resource-library:/var/lib/lesson3-resources:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      gotenberg:
+        condition: service_started
+    mem_limit: 1500m
+    cpus: 2.0
+
+  # Local-school image: LibreOffice only, without the optional Microsoft fonts. This is materially
+  # smaller than the internet tier's custom full image. DOCX fidelity is unchanged; locally-generated
+  # PDFs use LibreOffice's Arial-compatible substitute and can have slightly different row heights.
+  gotenberg:
+    image: gotenberg/gotenberg:8.36.0-libreoffice@sha256:88f9cc4a8b9468443220a0b945174c794880c1b6d3d583efba6e2319e509ac92
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - gotenberg
+      - --api-timeout=120s
+    mem_limit: 1024m
+    cpus: 2.0
+
+  postgres:
+    image: postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: lesson3
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: lesson3
+    volumes:
+      - lesson3_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lesson3 -d lesson3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  lesson3_pgdata:
+  lesson3_artifact_cache:

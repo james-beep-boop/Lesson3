@@ -18,9 +18,9 @@
 # deliberate re-pin moment, not a bug. To re-pin:
 #   docker buildx imagetools inspect gotenberg/gotenberg:8   → new index digest ("Digest:" line)
 #   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
-# Resolved 2026-07-05: digest = Gotenberg 8.34.0 (Debian trixie); installer 3.8.1. The font
+# Resolved 2026-08-25: digest = Gotenberg 8.36.0 (Debian trixie); installer 3.8.1. The font
 # binaries themselves are Microsoft's frozen cab files — the installer verifies their checksums.
-FROM gotenberg/gotenberg:8@sha256:67097317623a503ba2a6a7e9ae8db6929a1f7e1bbd88077bacf2d325fbdab923
+FROM gotenberg/gotenberg:8.36.0@sha256:87c16b9f364279d321bc9772d31fa58aa6abe036423c270698bd636c3a8e9466
 
 USER root
 RUN set -eux; \

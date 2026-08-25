@@ -220,9 +220,10 @@ export const previewVersionPdfEndpoint: Endpoint = {
       throw new APIError('The PDF preview service is busy — please try again in a moment.', 503)
     }
 
-    // A zero-copy view over the Buffer (it owns a dedicated ArrayBuffer from docxToPdf's
-    // arrayBuffer(), offset 0), matching the export endpoint's serve pattern.
-    return new Response(new Uint8Array(pdf.buffer, pdf.byteOffset, pdf.byteLength), {
+    // Fetch's BodyInit requires an ArrayBuffer-backed view. Node Buffers are typed against the
+    // broader ArrayBufferLike (which can include SharedArrayBuffer), so make one bounded copy at
+    // the response boundary rather than weakening the type with a cast.
+    return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {
         'Content-Type': mimeFor('pdf'),
