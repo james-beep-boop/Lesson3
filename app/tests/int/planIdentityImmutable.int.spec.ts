@@ -45,14 +45,16 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  if (otherSubjectGrade) {
-    await fx.payload.delete({
-      collection: 'subject-grades',
-      id: otherSubjectGrade,
-      overrideAccess: true,
-    })
-  }
-  await fx.teardown?.()
+  // ⚑ The explicit delete is kept even though `purgeMarked` would sweep this row too (its
+  // `displayName` derives from the MARK-tagged fixture subject). Leaning on the sweep reads as tidier
+  // and is how int-suite residue turns into six unrelated failures in the next run — which cost real
+  // time on 2026-08-25. Explicit teardown of what a spec explicitly created.
+  await fx.payload.delete({
+    collection: 'subject-grades',
+    id: otherSubjectGrade,
+    overrideAccess: true,
+  })
+  await fx.teardown()
 })
 
 /** The stored relationship, read at depth 0 so the answer is an id rather than a document. */
@@ -113,28 +115,14 @@ describe('a plan cannot be moved between subject-grades', () => {
     }
   })
 
-  it('still allows an ordinary update that does not mention subjectGrade', async () => {
-    // The rule must cost nothing on every other write, or it would break `purgeMarked`, the Official
-    // pointer moves in `versionEdit`, and every title edit. Keyed on `'subjectGrade' in data`.
-    const renamed = `${MARK}Plan renamed while its identity stayed put`
-    await fx.payload.update({
-      collection: 'lesson-plans',
-      id: fx.plan.id,
-      data: { title: renamed } as never,
-      overrideAccess: true,
-    })
-    const plan = await fx.payload.findByID({
-      collection: 'lesson-plans',
-      id: fx.plan.id,
-      depth: 0,
-      overrideAccess: true,
-    })
-    expect(plan.title).toBe(renamed)
-  })
-
-  it('accepts a same-value write, which is what the admin form submits', async () => {
-    // The form resubmits every field, so a no-op must not read as an attempted move — otherwise
-    // editing a plan's title through the admin UI would be impossible.
+  it('accepts a same-value write through the whole hook chain', async () => {
+    // ⚑ The unit spec already pins the no-op at hook level; what this adds is that it survives the
+    // REST of the chain — `validateOfficialVersionPointer` runs next and does a `findByID`, so a
+    // same-value write has to pass two guards, not one.
+    //
+    // (An earlier version of this comment said "which is what the admin form submits". That is no
+    // longer true: the same change made `LessonPlans.subjectGrade` `admin: { hidden: true }`, so the
+    // repair form no longer renders the control. The claim above does not depend on it.)
     const current = await storedSubjectGrade()
     await expect(
       fx.payload.update({

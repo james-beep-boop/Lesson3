@@ -151,6 +151,17 @@ const storedNotEdited = (field: Field): Field => {
   return { ...field, admin: { ...admin, hidden: true, readOnly: true } } as Field
 }
 
+/**
+ * META + UNIT: the administrator-only identity and overview groups, shown in one collapsed panel.
+ *
+ * ⚑ BOTH MEMBERS KEEP THEIR OWN `adminOnly` GATE even though the panel that contains them carries the
+ * same `structureCondition`, and that doubling is deliberate rather than an oversight. The panel's
+ * condition is a LAYOUT convenience — do not draw an empty shell for a teacher. The field conditions
+ * are the invariant, and they have to travel with the fields: this is a standalone export, it is also
+ * re-spliced into `lessonContentFields`, and `collapsible` is presentational, so a future re-layout
+ * that lifts these groups out of the panel would otherwise drop the role gate silently. The predicate
+ * is referentially identical, so the second evaluation costs one call and decides nothing.
+ */
 export const lessonPlanDetailFields: Field[] = [
   // ---- META (all structural / admin-only) ----
   adminOnly({
@@ -415,7 +426,16 @@ export const lessonEditableContentFields: Field[] = [
   },
 ]
 
-/** The complete stored generator-input shape, retained for adapters and schema drift tests. */
+/**
+ * The whole stored shape in ONE array — the flat list the drift specs walk.
+ *
+ * ⚑ Says what it is, because the first version of this comment said "retained for adapters and schema
+ * drift tests" and no adapter uses it: every consumer is a unit spec (`resourceRowDrift`,
+ * `proseWhitelistDrift`, `metaIdentitySplit`, `insertLink`, `subjectSelectOptions`,
+ * `editorPlainLanguage`). Keeping it is still right — six specs would otherwise each re-compose the
+ * two halves — but a reader should know no collection installs this array. The collection composes
+ * the halves separately, and `tests/unit/planDetailsPanel.spec.ts` is what pins that wiring.
+ */
 export const lessonContentFields: Field[] = [
   ...lessonPlanDetailFields,
   ...lessonEditableContentFields,

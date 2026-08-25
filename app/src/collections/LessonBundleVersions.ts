@@ -233,6 +233,26 @@ export const LessonBundleVersions: CollectionConfig = {
       access: { create: systemOnly, update: systemOnly },
       admin: { hidden: true },
     },
+    /**
+     * The administrator-only identity panel, so LESSONS is the first thing anyone scrolls to.
+     *
+     * ⚑ `collapsible`, not `group`: it omits `name`, so it introduces NO data key — `title`, `meta`
+     * and `unit` stay exactly where they were in the stored shape and no migration is needed. The
+     * regenerated `payload-types.ts` shows a key REORDER and nothing else, which is the evidence.
+     *
+     * ⚑ The condition here is a LAYOUT convenience — it stops a teacher being shown an empty shell.
+     * It is NOT the authority: `meta` and `unit` carry the same gate themselves (see
+     * `lessonPlanDetailFields`), deliberately, so the role rule survives any future re-layout. Do not
+     * "de-duplicate" one of the two levels.
+     *
+     * ⚑ AND `title` IS NESTED HERE ON PURPOSE, which looks like a required field waiting to break a
+     * save and is not. Payload's `addFieldStatePromise` exempts presentational containers (`row`,
+     * `collapsible`, unnamed `group`) from its hidden short-circuit precisely so it can "recurse to
+     * preserve child values without rendering" — read from the installed source 2026-08-25. So a
+     * teacher's form carries the title it never draws. Hoisting `title` back out to the identity
+     * fields with a bare `condition` of its own would look like a tidy-up and would move that
+     * guarantee onto `applyEditorFieldSplit` alone.
+     */
     {
       type: 'collapsible',
       label: 'Plan and sub-strand details',

@@ -77,6 +77,13 @@ export const LessonPlans: CollectionConfig = {
       // the hook above rejects every attempted move. Hiding the control avoids presenting a greyed
       // field that no user can act on.
       admin: { hidden: true },
+      // ⚑ THIS GRANT DOES NOT MEAN RE-CATEGORISATION IS A SUBJECT-ADMIN CAPABILITY. It is not one:
+      // `enforcePlanSubjectGradeImmutable` (registered above) rejects every changed value from
+      // everyone, `overrideAccess` included. The grant is kept deliberately so that a caller who
+      // DOES submit a move reaches the hook and gets the field-scoped explanation, instead of having
+      // the key stripped by field access and receiving a 200 for a write that changed nothing.
+      // Tightening this to `systemOnly` would read as tidier and would trade a clear refusal for a
+      // silent no-op — see `docs/DECISIONS.md` 2026-08-25.
       access: { update: canEditStructure },
     },
     {
@@ -97,7 +104,7 @@ export const LessonPlans: CollectionConfig = {
      * to expose a version that is not the plan's current Official one. Two orthogonal fields, two
      * separate decisions, made by different people at different times.
      *
-     * Site-Admin-only, a narrower gate than the `canEditStructure` guarding title/subjectGrade: a
+     * Site-Admin-only, a narrower gate than the `canEditStructure` guarding `title`: a
      * Subject Administrator curates content, but putting a lesson plan in front of the open internet
      * is a decision about the deployment, not about the subject.
      */

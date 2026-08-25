@@ -50,6 +50,14 @@ const validationError = (
  * versions still carry the original relationship. Even a plan with no Official pointer must not be
  * movable: that state is a repair concern, not an editing route.
  *
+ * ⚑ IT ALSO SUBSUMES THE `subjectGrade`-ONLY CASE that `validateOfficialVersionPointer` below guards
+ * with a long ⚑ of its own. Running first in the same `beforeValidate` array, this rejects any changed
+ * value outright, so by the time that hook sees a request carrying `subjectGrade` the value provably
+ * equals the stored one. Its `|| 'subjectGrade' in data` disjunct is therefore unreachable-in-practice
+ * rather than dead: it is the backstop if this hook is ever removed. Cross-referenced in both
+ * directions on purpose — two overlapping guards with no mention of each other is how the next reader
+ * deletes the wrong one.
+ *
  * This hook is intentionally unconditional on `req.user` and `overrideAccess`. Field access controls
  * who may reach an update; this invariant controls what any update may do. A deliberate data repair
  * therefore needs an explicit migration rather than an ordinary Payload update masquerading as an
@@ -124,6 +132,12 @@ export const validateOfficialVersionPointer: CollectionBeforeValidateHook = asyn
   // returned here untouched, and the plan could move to a different subject-grade while its Official
   // version still belonged to the old one — exactly the state the last check in this function exists
   // to prevent, reachable by omitting a field rather than by setting one.
+  //
+  // ⚑ THAT SCENARIO IS NO LONGER REACHABLE, and this disjunct is now defence in depth rather than the
+  // thing catching it. `enforcePlanSubjectGradeImmutable` runs first in the same `beforeValidate`
+  // array and rejects ANY changed subject-grade outright, so a request arriving here with the key
+  // present provably carries the stored value. Keep the disjunct — it is what still holds if that hook
+  // is ever removed — but do not spend time re-deriving why it fires: read the ⚑ on that hook first.
   //
   // ⚑ `'x' in data`, NOT `??`. The distinction is load-bearing twice over:
   //   - An explicit `officialVersion: null` is a system CLEAR (authenticated clears are rejected

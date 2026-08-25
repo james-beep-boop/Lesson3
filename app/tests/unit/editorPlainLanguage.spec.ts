@@ -6,14 +6,7 @@ import { Subject } from '../../src/collections/Subject'
 import { SubjectGrade } from '../../src/collections/SubjectGrade'
 import { Users } from '../../src/collections/Users'
 import { lessonContentFields } from '../../src/fields/lessonContent'
-
-type LooseField = {
-  name?: string
-  type?: string
-  label?: unknown
-  admin?: Record<string, unknown>
-  fields?: LooseField[]
-}
+import { planDetailsPanel, type LooseField } from '../helpers/fieldTree'
 
 const byName = (fields: LooseField[], name: string): LooseField => {
   const field = fields.find((candidate) => candidate.name === name)
@@ -49,11 +42,10 @@ describe('the version editor uses teacher-facing language', () => {
 
   it('uses task labels for version identity; the Save explanation lives only in Editing help', () => {
     // The former collection description duplicated the Editing help modal — removed, not reworded.
-    const details = collectionFields.find((field) => field.type === 'collapsible')
-    if (!details) throw new Error('Missing plan-details collapsible')
+    const detailFields = planDetailsPanel(collectionFields).fields ?? []
     expect(LessonBundleVersions.admin?.description).toBeUndefined()
-    expect(byName(details.fields ?? [], 'title').label).toBe('Document title')
-    expect(byName(details.fields ?? [], 'title').admin?.description).toBeUndefined()
+    expect(byName(detailFields, 'title').label).toBe('Document title')
+    expect(byName(detailFields, 'title').admin?.description).toBeUndefined()
     expect(byName(collectionFields, 'sourceVersion').label).toBe('Based on version')
     expect(byName(collectionFields, 'author').label).toBe('Saved by')
   })
