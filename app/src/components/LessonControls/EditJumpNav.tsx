@@ -126,6 +126,36 @@ export default function EditJumpNav() {
   )
 
   /**
+   * Back to the top of the form — NOT a field jump, and that distinction is the fix.
+   *
+   * ⚑ THE REGRESSION THIS REPAIRS (reported 2026-08-25). This was `jumpTo('field-title')`, which
+   * worked only while `title` was a top-level field. #297 moved it into the collapsed "Plan and
+   * sub-strand details" panel, and both roles then lost it: for a teacher the panel's `condition` is
+   * false so `#field-title` is never rendered at all, and for an administrator it sits inside a
+   * collapsed container. `scrollToField` returns silently on a missing element — no error, no console
+   * warning, the button simply stopped doing anything.
+   *
+   * ⚑ So "Top" must not depend on any FIELD existing. It means the top of the page, and now says so.
+   * A chip that points at a field is allowed to break when that field moves; this one is not.
+   *
+   * It also cancels an in-flight jump, which the old spelling got for free from `scrollToField`:
+   * that re-pinning loop runs for up to 12 seconds, and without the cancel it would drag the page
+   * back to whichever chip was clicked before this one.
+   *
+   * `behavior: 'instant'` for the same reason the field jumps are instant — a 90 000px smooth
+   * animation is disorienting. Explicit rather than relying on the admin route group not inheriting
+   * the frontend's `scroll-behavior: smooth`.
+   */
+  const jumpToTop = useCallback(() => {
+    if (scrollTimer.current != null) window.clearTimeout(scrollTimer.current)
+    scrollTimer.current = null
+    setFocusKey(null)
+    // Nothing is "current" above the first lesson, so clear rather than write an untracked key.
+    setPositionKey(null)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [])
+
+  /**
    * Jump AND highlight at once. Clearing `focusKey` matters: if you were typing in lesson 1 and then
    * click chip 5, the stale focus would otherwise keep lesson 1 lit. The tracking effect re-derives
    * the highlight as the scroll settles, so this is an optimistic head start, not a separate source
@@ -286,14 +316,10 @@ export default function EditJumpNav() {
 
   return (
     <nav className="lesson-controls__nav" aria-label="Jump to section" ref={navRef}>
-      {/* "Top" deliberately does NOT take `sectionProps`: `field-title` isn't a tracked section, but
-          `jumpTo` still writes it to `positionKey`, so marking it would light this link up until the
-          tracking effect recomputed. Nothing should be current when you're above the first lesson. */}
-      <button
-        type="button"
-        className="lesson-controls__nav-link"
-        onClick={() => jumpTo('field-title')}
-      >
+      {/* "Top" deliberately does NOT take `sectionProps`: nothing should be current when you are above
+          the first lesson, and `jumpToTop` clears `positionKey` to say so. See its ⚑ for why this is
+          a page scroll rather than a jump to `field-title`. */}
+      <button type="button" className="lesson-controls__nav-link" onClick={jumpToTop}>
         Top
       </button>
       <span className="lesson-controls__nav-label">Lessons</span>
