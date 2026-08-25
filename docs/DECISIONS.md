@@ -43,8 +43,13 @@ normalised any non-string to `''` where `overlay` guards with `isProseValue`, so
 would have shown as "Emptied" in the panel while the restore left the field untouched. One commit
 after the last proof that the rule cannot be kept in step by hand. `projection.ts` now exports
 `captureDiff` beside `overlay`, both calling one `willApply` predicate, and
-`tests/unit/captureDiffAgreement.spec.ts` runs the REAL `applyCapture` over a document and asserts the
-preview predicted exactly the leaves that moved — the only place that can see both sides. `groupsOf`
+`tests/unit/captureDiffAgreement.spec.ts` runs the REAL `applyCapture` over a document and checks the
+preview against the leaves that actually moved — the only place that can see both sides. ⚑ The claim
+it makes is **"never misses"**, not "exactly": `applyCapture` also restricts each scope to its prose
+whitelist while `captureDiff` reports every differing leaf, so the preview is a deliberate SUPERSET.
+That direction is the safe one — missing a change is what caused this defect, over-reporting shows a
+row that turns out not to move — and it is what keeps a schema-mismatched capture's retired fields
+readable on the copy-out path. `groupsOf`
 now owns no apply semantics at all; its `saved` parameter is required, which deleted a second,
 contradictory answer to "does an empty value count" that was alive only for callers that never
 existed.

@@ -104,18 +104,35 @@ const sameShape = (a: string, b: string): boolean => {
   return x.length === y.length && x.every((line, i) => line === y[i])
 }
 
+/**
+ * The change cannot be DRAWN — so say which kind it is. Decided from BOTH sides, always.
+ *
+ * ⚑ `now` ALONE IS NOT ENOUGH, and reading only `now` was a real defect: the read-only branch took an
+ * early return on `now.trim() === ''` and reported "Spacing only — no visible change" for
+ * `'Saved paragraph' → ' '`, where a paragraph is about to be replaced by a space. It cannot tell
+ * "this field was always blank" from "this field is about to be emptied" without looking at `was`.
+ *
+ * Three statements, in the order that matters to a reader:
+ *   visible text about to vanish        → Emptied      (the LOSS is the story, not the spacing)
+ *   both sides blank, different lines   → Paragraphs   (`\n` is a paragraph in this grammar)
+ *   both sides blank, same lines        → Spacing      (genuinely nothing to see)
+ */
+const undrawable = (was: string, now: string): FieldRender => {
+  if (now.trim() === '' && was.trim() !== '') return { kind: 'emptied' }
+  return sameShape(was, now) ? { kind: 'spacing' } : { kind: 'paragraphs' }
+}
+
 export const renderOf = (was: string, now: string, readOnly: boolean): FieldRender => {
   // ⚑ Read-only shows PLAIN text, never a diff: that path exists so stale prose can be COPIED out,
-  // and unified output interleaves the removed words into the new.
+  // and unified output interleaves the removed words into the new. But when there is no visible text
+  // to copy, it needs the same three-way answer the writable path gets — which is the half that was
+  // missing.
   if (readOnly) {
-    if (now === '') return { kind: 'emptied' }
-    if (now.trim() === '') return { kind: 'spacing' }
-    return { kind: 'plain', text: now }
+    return now.trim() === '' ? undrawable(was, now) : { kind: 'plain', text: now }
   }
+
   const html = unifiedDiff(was, now)
-  if (html.includes('data-match-type')) return { kind: 'diff', html }
-  // The values differ — `captureDiff` only yields changed leaves — but the engine marked nothing, so
-  // the difference is whitespace it does not tokenize. Name WHICH kind rather than render a blank row.
-  if (now === '') return { kind: 'emptied' }
-  return sameShape(was, now) ? { kind: 'spacing' } : { kind: 'paragraphs' }
+  // Prefer the DIFF wherever the engine can draw one: a cleared paragraph shows its lost text struck
+  // through, which says more than the word "Emptied" ever could.
+  return html.includes('data-match-type') ? { kind: 'diff', html } : undrawable(was, now)
 }

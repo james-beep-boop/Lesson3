@@ -119,10 +119,15 @@ describe('a change the diff engine cannot draw is NAMED, not left blank', () => 
     expect(r.kind === 'diff' && r.html).toContain('data-match-type="create"')
   })
 
-  it('calls a cleared field emptied, not spacing', () => {
-    expect(renderOf('   ', '', false)).toEqual({ kind: 'emptied' })
-    // The ordinary clearing DOES annotate, so it stays a diff and the lost text shows struck through.
+  it('prefers the DIFF for a real clearing, so the lost text shows struck through', () => {
+    // "Emptied" is a last resort: wherever the engine can draw the loss, drawing it says more.
     expect(renderOf('a real paragraph', '', false).kind).toBe('diff')
+  })
+
+  it('calls whitespace-to-empty SPACING, because nothing visible is lost', () => {
+    // ⚑ Changed from "Emptied" once the classifier looked at both sides. The field showed nothing
+    // before and shows nothing after; "Emptied" implies content was lost, which would be a lie.
+    expect(renderOf('   ', '', false)).toEqual({ kind: 'spacing' })
   })
 })
 
@@ -138,7 +143,24 @@ describe('the read-only path never diffs, because its prose is for copying', () 
     expect(renderOf('saved', '', true)).toEqual({ kind: 'emptied' })
   })
 
-  it('names whitespace-only content, which would otherwise render blank', () => {
-    expect(renderOf('saved', '   ', true)).toEqual({ kind: 'spacing' })
+  /**
+   * ⚑ THE DEFECT THESE PIN. The read-only branch used to decide from `now` ALONE — an early return on
+   * `now.trim() === ''` — so it could not tell "this field was always blank" from "a saved paragraph
+   * is about to be replaced by a space". It reported "Spacing only — no visible change" for the
+   * second, which is the opposite of what happens. Both sides are consulted now, on both paths.
+   */
+  it('says EMPTIED when visible saved text is replaced by whitespace', () => {
+    expect(renderOf('Saved paragraph', ' ', true)).toEqual({ kind: 'emptied' })
+    expect(renderOf('saved', '   ', true)).toEqual({ kind: 'emptied' })
+  })
+
+  it('says PARAGRAPHS when both sides are blank but the line shape moved', () => {
+    // `\n` is a paragraph in this editor's grammar, so this is a real change to the document even
+    // though neither side has a visible word in it.
+    expect(renderOf('', '\n', true)).toEqual({ kind: 'paragraphs' })
+  })
+
+  it('says SPACING only when nothing visible changes on either side', () => {
+    expect(renderOf('', '   ', true)).toEqual({ kind: 'spacing' })
   })
 })

@@ -165,6 +165,26 @@ describe('a READ-ONLY capture shows plain text, so it can be copied', () => {
     expect(document.querySelector('.lp-restore__key')).toBeNull()
   })
 
+  it('says EMPTIED, not "no visible change", when a saved paragraph is replaced by a space', () => {
+    // ⚑ The read-only branch used to decide from the captured value alone, so this rendered
+    // "Spacing only — no visible change" while the saved paragraph disappeared. Pinned at the
+    // rendered text, because that sentence is the whole of what a teacher gets on this path.
+    render(
+      <EditRecoveryRestorePrompt
+        capture={{ ...capture, content: { 'lesson:L1': { overview: ' ' } }, stale: true }}
+        anchors={[{ key: 'lesson:L1', heading: 'Lesson 1' }]}
+        saved={{ 'lesson:L1': { overview: 'A saved paragraph the teacher would lose' } }}
+        readOnly
+        busy={false}
+        onRestore={() => {}}
+        onKeep={() => {}}
+        onDiscard={() => {}}
+      />,
+    )
+    expect(value().textContent).toBe('Emptied')
+    expect(document.body.textContent).not.toMatch(/no visible change/)
+  })
+
   it('still says why the work cannot be put back', () => {
     show(true)
     expect(screen.getByText(/cannot be put back automatically/)).toBeTruthy()
