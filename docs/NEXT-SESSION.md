@@ -34,7 +34,7 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 | | |
 |---|---|
 | Open PRs | none |
-| Deployed | **`2ad46ba` (#296) is on the Rock. #297 is MERGED BUT NOT DEPLOYED** — the operator is deploying it. ⚑ Re-measure rather than trusting this line, which dates itself: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — against `origin/main` after a fetch, not the local ref, which can be stale enough to report no lag when there is some |
+| Deployed | **`a0ac4bc` — the Rock is level with `main`** (operator-deployed 2026-08-25; #297 and #298 went out together). Verified after: `/login` and `/admin` 200, all three services up, the *Plan and sub-strand details* panel and the immutability message both present in the served build, and `verify-edit-recovery-cascade.ts` passing read-only on the box. ⚑ Re-measure rather than trusting this line, which dates itself: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — against `origin/main` after a fetch, not the local ref, which can be stale enough to report no lag when there is some |
 | Pending migrations | **none** — a plain `scripts/deploy.sh`. Checked, not assumed: nothing under `app/src/migrations/` changed, and #297's field reorganisation uses a Payload `collapsible`, which carries no `name` and therefore no data key — the regenerated `payload-types.ts` shows a key REORDER and nothing else |
 | First-view cost after deploy | **none.** No cache or format version moved — `COMPARE_DIFF_FORMAT_VERSION` is still 3 and `GENERATOR_RENDER_VERSION` did not change |
 
