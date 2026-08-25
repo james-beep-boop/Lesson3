@@ -40,7 +40,7 @@ bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
   cd "$BUNDLE"
   test_admin_url='http://lesson3-box:3001/base?first=one&second=two'
   LESSON3_URL="$test_admin_url" ./install.sh --prepare-only
-  [[ "$(stat -f '%Lp' .env 2>/dev/null || stat -c '%a' .env)" == "600" ]] \
+  [[ "$(stat -c '%a' .env 2>/dev/null || stat -f '%Lp' .env)" == "600" ]] \
     || fail ".env permissions are not 600"
   secret="$(grep '^PAYLOAD_SECRET=' .env | cut -d= -f2-)"
   password="$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"

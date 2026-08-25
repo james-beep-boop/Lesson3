@@ -44,11 +44,13 @@ The first USB/offline bundle should reuse these exact images and Compose files, 
 manifests for the target architecture plus the verified release artifact. It must not invent a second
 deployment topology.
 
-⚑ **PR-gate correction:** the bundle test first used `rg` for its assertions. That passed on the
-development Mac and failed immediately on GitHub's Ubuntu runner, where ripgrep is not part of the
-declared toolchain. The test now uses baseline `grep`; the application repository may prefer `rg` for
-interactive searching, but a shipped or CI shell script may use only tools it explicitly installs or
-lists as requirements. A locally installed convenience is not evidence of CI portability.
+⚑ **PR-gate correction:** the first two CI runs exposed two development-Mac assumptions in the bundle
+test. Its assertions used `rg`, which is not part of the declared Ubuntu-runner toolchain, and its
+permission check tried BSD `stat -f` before GNU `stat -c`. GNU `stat` accepts `-f` with different
+semantics and exits successfully, so the intended fallback never ran. The test now uses baseline
+`grep` and probes the platform-specific `stat` forms in the safe order. A shipped or CI shell script
+may use only tools it explicitly installs or lists as requirements, and a fallback is sound only when
+the first command actually rejects the other platform's spelling.
 
 ## 2026-08-25 — Plan taxonomy is immutable, and administrator details no longer precede the lessons
 
