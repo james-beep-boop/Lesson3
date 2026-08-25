@@ -26,13 +26,14 @@ migrate_digest="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 
 BUNDLE="$TMP/assets/lesson3-deploy"
 [[ "$(cat "$BUNDLE/VERSION")" == "v0.0.0" ]] || fail "VERSION was not packaged"
-! rg -q '__LESSON3_(IMAGE_TAG|APP_DIGEST|MIGRATE_DIGEST)__|:latest' "$BUNDLE/compose.yaml" \
+! grep -Eq '__LESSON3_(IMAGE_TAG|APP_DIGEST|MIGRATE_DIGEST)__|:latest' "$BUNDLE/compose.yaml" \
   || fail "release compose contains a mutable or unresolved image tag"
-rg -q "lesson3-app:v0\\.0\\.0@$app_digest" "$BUNDLE/compose.yaml" \
+grep -Eq "lesson3-app:v0\\.0\\.0@$app_digest" "$BUNDLE/compose.yaml" \
   || fail "app tag or digest missing"
-rg -q "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
+grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
   || fail "migrate tag or digest missing"
-! rg -q '^[[:space:]]+build:' "$BUNDLE/compose.yaml" || fail "release compose builds on the server"
+! grep -Eq '^[[:space:]]+build:' "$BUNDLE/compose.yaml" \
+  || fail "release compose builds on the server"
 
 bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
 (
@@ -45,9 +46,9 @@ bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
   password="$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
   [[ "$secret" =~ ^[0-9a-f]{64}$ ]] || fail "PAYLOAD_SECRET was not generated"
   [[ "$password" =~ ^[0-9a-f]{64}$ ]] || fail "POSTGRES_PASSWORD was not generated"
-  rg -q "^DATABASE_URI=postgres://lesson3:${password}@postgres:5432/lesson3$" .env \
+  grep -Eq "^DATABASE_URI=postgres://lesson3:${password}@postgres:5432/lesson3$" .env \
     || fail "DATABASE_URI password does not match POSTGRES_PASSWORD"
-  rg -Fq "ADMIN_URL=$test_admin_url" .env \
+  grep -Fq "ADMIN_URL=$test_admin_url" .env \
     || fail "ADMIN_URL metacharacters were not preserved literally"
   docker compose config --quiet
   images="$(docker compose config --images)"
@@ -70,7 +71,7 @@ rm "$missing_target/.env.bak"
 if "$NEW_BUNDLE/update.sh" "$missing_target" >"$TMP/missing.out" 2>&1; then
   fail "updater accepted an environment missing a new-template key"
 fi
-rg -q 'existing \.env is missing keys' "$TMP/missing.out" \
+grep -Eq 'existing \.env is missing keys' "$TMP/missing.out" \
   || fail "updater did not explain the missing environment key"
 
 downgrade_target="$TMP/downgrade-target"
@@ -79,7 +80,7 @@ printf '%s\n' v0.0.1 >"$downgrade_target/VERSION"
 if "$BUNDLE/update.sh" "$downgrade_target" >"$TMP/downgrade.out" 2>&1; then
   fail "updater accepted a version downgrade"
 fi
-rg -q 'refusing downgrade' "$TMP/downgrade.out" \
+grep -Eq 'refusing downgrade' "$TMP/downgrade.out" \
   || fail "updater did not explain the refused downgrade"
 
 echo "test-local-deploy-bundle: PASS"

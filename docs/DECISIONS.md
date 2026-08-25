@@ -44,6 +44,12 @@ The first USB/offline bundle should reuse these exact images and Compose files, 
 manifests for the target architecture plus the verified release artifact. It must not invent a second
 deployment topology.
 
+⚑ **PR-gate correction:** the bundle test first used `rg` for its assertions. That passed on the
+development Mac and failed immediately on GitHub's Ubuntu runner, where ripgrep is not part of the
+declared toolchain. The test now uses baseline `grep`; the application repository may prefer `rg` for
+interactive searching, but a shipped or CI shell script may use only tools it explicitly installs or
+lists as requirements. A locally installed convenience is not evidence of CI portability.
+
 ## 2026-08-25 — Plan taxonomy is immutable, and administrator details no longer precede the lessons
 
 The version editor had two different audiences hidden inside one complaint. Teachers with editing
