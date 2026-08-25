@@ -8,6 +8,40 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## 2026-08-25 — plan taxonomy is immutable, and the editor opens on the lessons (MERGED #297)
+
+**A lesson plan's subject and grade are now fixed when it is uploaded** — for everyone, Site
+Administrators and trusted Local API scripts included. Moving a plan changes who can reach it while
+every immutable version still carries the ingest relationship, so it is categorisation and RBAC
+identity rather than editable content. The remedy for a wrong value is to delete the plan and upload
+it again; an exceptional in-place repair needs an explicit migration. That remedy is safe by
+construction, not convention: ingest matches an existing plan on subject-grade AND substrand id
+together, so a re-upload under a different grade creates a NEW plan and never tries to move one.
+
+An earlier guard (#291) refused a move only when it would desync the Official-version pointer, so a
+plan with no pointer stayed movable. The unusable relationship control is now hidden rather than shown
+greyed, and the SubjectGrade delete guard stopped suggesting "move them to another subject grade" — an
+affordance that no longer exists.
+
+**The version editor also opens on the lesson content.** Administrator-only identity — the document
+title, META and the sub-strand overview — moved into one collapsed panel, *Plan and sub-strand
+details*. Teachers never saw META or the overview (a role condition already hid both); what they had
+was a disabled title field, now gone. The panel is a Payload `collapsible`, which carries no name and
+therefore no data key: the regenerated types show a key reorder and nothing else, so no migration and
+no render-version bump. No generator field was deleted, renamed, derived or revalued.
+
+## 2026-08-25 — edit recovery is in the Guide, and the changelog is caught up (MERGED #296; DEPLOYED)
+
+`USER_GUIDE.md` and the in-app `/guide` now document edit recovery, which had no user-facing
+explanation at all: the automatic backup and its notice, that the capture is per-user and never applied
+automatically, that the panel lists only what differs from the saved version, the word-by-word
+colours, the three named labels, and the stale-capture case where work can be read and copied but not
+put back. Five new parity claims hold the two surfaces together.
+
+This file had also drifted from 2026-08-15, leaving roughly seventy merged PRs out of the
+delivered-product history. #223–#295 are now all recorded; the six backfilled entries are marked as
+such and were reconstructed from the contemporaneous handoff blocks rather than from `git log`.
+
 ## 2026-08-25 — the restore preview shows every change it would make (MERGED #295; DEPLOYED)
 
 The unsaved-changes panel could hide the one change that destroys work. A recovered capture writes a
