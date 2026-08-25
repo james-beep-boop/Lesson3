@@ -319,6 +319,19 @@ export type CaptureDiff = Record<string, Record<string, CaptureChange>>
  * copied, and pruning here would silently delete it from the panel. The asymmetry with `applyCapture`
  * is intended, and is why this takes two `CaptureMap`s rather than `(base: Doc, capture: CaptureMap)`.
  *
+ * ⚑ THIS IS A SUPERSET OF WHAT `applyCapture` WRITES, and the asymmetry is one-directional on
+ * purpose. `applyCapture` additionally restricts each scope to its prose whitelist (`LESSON_PROSE`
+ * and friends), while this reports every differing leaf in the capture — so a capture holding a
+ * non-whitelisted key (`resourceLinks`, say) is predicted here and never written there.
+ *
+ * That direction is the safe one, and it is the direction the read-only path needs. MISSING a change
+ * is what caused the 2026-08-23 defect: a field silently cleared with no warning. Over-reporting only
+ * shows a row that turns out not to move. And filtering by the whitelist would hide exactly the prose
+ * a schema-mismatched capture exists to let a teacher copy out — retired fields are the likeliest
+ * thing in one. `projectCapture` uses the same whitelists, so a capture minted by this app cannot
+ * contain such a key in the first place; the guarantee worth holding is "never misses", not "exactly".
+ * Pinned in both directions by `tests/unit/captureDiffAgreement.spec.ts`.
+ *
  * ⚑ "Differs" is literal: `'   '` against `''` is a change, because the restore really would write
  * three spaces. It is invisible to a reader and rare, and the alternative — normalising whitespace
  * before comparing — would hide a real edit that only adds or removes a paragraph break, which the

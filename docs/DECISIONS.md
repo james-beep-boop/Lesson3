@@ -28,8 +28,9 @@ read as 'this was lost'", and that was true while the panel listed the WHOLE cap
 field was noise. #292 changed what the list means; nobody re-read the filter against the new meaning.
 ⚑ **The general rule: when a component's contract changes, re-read its filters — a filter encodes an
 assumption about what the output is FOR.** Now: a present key is a value the restore will apply, so
-both `''` and `null` normalise to `''` and are compared like any other; the non-empty filter survives
-only on the no-`saved` path, which is still "list everything". A cleared field renders as the saved
+both `''` and `null` normalise to `''` and are compared like any other. (The no-`saved` path that
+briefly kept the old non-empty filter alive was deleted in the same batch — see the amendment below;
+`saved` is a required argument.) A cleared field renders as the saved
 text struck through, and as an explicit "Emptied" on the read-only path, where there is no text to
 strike and a bare empty `<dd>` would read as the panel having lost something.
 

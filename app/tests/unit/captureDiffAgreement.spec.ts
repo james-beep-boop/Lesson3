@@ -14,9 +14,15 @@
  * as "Emptied" while the apply left the field alone. Both now call one `willApply`.
  *
  * ⚑ So this file does NOT test `captureDiff` against a hand-written expectation. It runs the real
- * `applyCapture` over a real document and asserts the preview predicted exactly the fields that
- * actually moved. A future edit to either side that breaks the correspondence fails HERE, which is
- * the only place that can see both.
+ * `applyCapture` over a real document and checks the preview against what actually moved. A future
+ * edit to either side that breaks the correspondence fails HERE, the only place that can see both.
+ *
+ * ⚑ THE CLAIM IS "NEVER MISSES", NOT "EXACTLY" — narrowed 2026-08-23 after review, because the
+ * broader claim was false. `applyCapture` also restricts each scope to its prose whitelist while
+ * `captureDiff` reports every differing leaf, so the preview is a SUPERSET. That direction is
+ * deliberate (`projection.ts` carries the reasoning): missing a change is what caused the defect this
+ * file exists for; over-reporting shows a row that turns out not to move, and is what keeps a
+ * schema-mismatched capture's retired fields readable. Both directions are pinned below.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -56,12 +62,16 @@ describe.each([
   ['null against empty — the other direction', '', null],
   ['whitespace over an empty field', '', '   '],
 ])('%s', (_name, saved, captured) => {
-  it('the preview predicts exactly the leaves the restore moves', () => {
+  it('the preview never misses a leaf the restore moves', () => {
     const base = doc(saved, 'untouched')
     const capture: CaptureMap = {
       'lesson:L1': { overview: captured as string | null, teacherReflection: 'untouched' },
     }
-    expect(predicted(base, capture)).toEqual(actuallyChanged(base, capture).sort())
+    const moved = actuallyChanged(base, capture).sort()
+    // Superset: everything that actually moves must have been predicted. For whitelisted prose —
+    // which is all a real capture holds — the two are equal, and this asserts that too.
+    expect(predicted(base, capture)).toEqual(expect.arrayContaining(moved))
+    expect(predicted(base, capture)).toEqual(moved)
   })
 })
 
@@ -91,5 +101,29 @@ describe('and it still shows an ORPHAN key, which the restore drops', () => {
     })
     const { report } = applyCapture(base, capture)
     expect(report.droppedKeys, 'while the restore itself drops it').toContain('lesson:GONE')
+  })
+})
+
+describe('where the preview deliberately reports MORE than the restore writes', () => {
+  it('predicts a non-whitelisted field that applyCapture will not touch', () => {
+    // ⚑ `applyCapture` restricts each scope to its prose whitelist; `captureDiff` does not. Verified
+    // 2026-08-23: the preview predicts `resourceLinks`, the overlay applies nothing and leaves the
+    // system-owned value intact. Unreachable through a capture this app mints — `projectCapture` uses
+    // the same whitelists — but pinned so the asymmetry is a decision on the record rather than a
+    // surprise, and so narrowing `captureDiff` to the whitelist has to be a deliberate act that
+    // fails here first. ⚑ Do NOT "fix" this by filtering: retired fields are the likeliest content of
+    // a schema-mismatched capture, and that path exists so they can be read and copied out.
+    const base = doc('saved text', 'untouched') as ReturnType<typeof doc> & {
+      lessons: Record<string, unknown>[]
+    }
+    base.lessons[0]!.resourceLinks = 'system-owned'
+    const capture: CaptureMap = { 'lesson:L1': { resourceLinks: 'preview-only' } }
+
+    expect(captureDiff(projectCapture(base), capture)['lesson:L1']).toEqual({
+      resourceLinks: { was: '', now: 'preview-only' },
+    })
+    const { doc: after, report } = applyCapture(base, capture)
+    expect(report.applied, 'the overlay writes nothing').toBe(0)
+    expect((after.lessons as Record<string, unknown>[])[0]!.resourceLinks).toBe('system-owned')
   })
 })

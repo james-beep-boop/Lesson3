@@ -199,19 +199,28 @@ describe('every dialog button is in the button system by construction', () => {
     // that identifies it — not against "some rule mentioning .lp-modal". The looser form passed while
     // the scope was missing from this rule, because the ≤640px touch-target list also names
     // `.lp-modal .btn` and satisfied it on its own. Caught by mutation.
-    // Two rules carry the opt-in today — the base button system and the ≤640px touch-target list —
-    // and the invariant is the same for both: WHEREVER `.btn.lp-btn` is listed, the dialog scope must
-    // be listed beside it, or dialogs get that treatment only when an author remembers the class.
-    // (Asserting on one rule was both fragile and weak: `toBe(1)` failed on the second site, and
-    // "some rule mentions .lp-modal" passed while the base rule had lost it. Both caught by mutation.)
-    const optIn = rulesOf(sheets.admin).filter((r) => r.selectors.includes('.btn.lp-btn'))
-    expect(optIn.length, 'expected to find the .btn.lp-btn rules at all').toBeGreaterThan(0)
+    // The invariant: WHEREVER the `.lp-btn` opt-in is listed, the dialog scope must be listed beside
+    // it — otherwise dialogs get that rule only when an author remembers the class.
+    //
+    // ⚑ Matched as a CLASS TOKEN, not by exact selector string, because there are four opt-in
+    // families and an exact match saw only two: `.btn.lp-btn` and the ≤640px list, but not
+    // `a.btn.lp-btn` (the anchor paint block) or `.btn.lp-btn.lp-btn--compact`. Deleting either of
+    // those modal selectors left this test green. The negative lookahead is what keeps
+    // `.lp-btn--compact` from counting as `.lp-btn`.
+    //
+    // (Two earlier forms were worse: `toBe(1)` failed on the second site, and "some rule mentions
+    // .lp-modal" passed while the base rule had lost it. Every version has been mutation-tested.)
+    const OPT_IN = /\.lp-btn(?![\w-])/
+    const optIn = rulesOf(sheets.admin).filter((r) => r.selectors.some((s) => OPT_IN.test(s)))
+    expect(optIn.length, 'expected to find the .lp-btn opt-in rules at all').toBeGreaterThanOrEqual(
+      4,
+    )
     const unscoped = optIn
-      .filter((r) => !r.selectors.some((sel) => /^\.lp-modal\b.*\.btn$/.test(sel)))
+      .filter((r) => !r.selectors.some((sel) => /^\.lp-modal\b/.test(sel)))
       .map((r) => r.selectors.join(', '))
     expect(
       unscoped,
-      'every rule carrying the .lp-btn opt-in must also carry the .lp-modal dialog scope',
+      'every rule carrying the .lp-btn opt-in must also carry a .lp-modal dialog scope',
     ).toEqual([])
   })
 })

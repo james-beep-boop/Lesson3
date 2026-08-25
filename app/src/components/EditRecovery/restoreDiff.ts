@@ -44,3 +44,45 @@ import { escapeHtml } from '../../lib/escapeHtml'
  */
 export const unifiedDiff = (was: string, now: string): string =>
   new HtmlDiff(escapeHtml(was), escapeHtml(now)).getUnifiedContent()
+
+/**
+ * How one changed field should be PRESENTED — because "show the diff" is not always possible.
+ *
+ * ⚑ A DIFF CAN BE INVISIBLE, and that was a real defect: `captureDiff` correctly reports `'' → '   '`
+ * as a change (the restore really does write three spaces), but `HtmlDiff` tokenizes by word and
+ * returns `""` for it — and for `'' → '\n'`, and for `'a' → 'a  '`, where it returns just `a` with no
+ * annotation at all. Injecting that produced an EMPTY `<dd>`: the panel listed the field, which is
+ * what the clearing fix was for, and then showed nothing under it. Probed 2026-08-23.
+ *
+ * ⚑ The condition is "HtmlDiff found nothing to annotate", NOT "the string is empty" — `'a' → 'a  '`
+ * yields non-empty HTML with no annotation, and is just as invisible. This is the same test the
+ * compare page already makes and names `structureOnly` (`generator/htmlDiffCache.ts`), for the same
+ * reason: a spacing or paragraph-boundary edit that the engine cannot mark up.
+ *
+ * The read-only branch takes the same treatment for the same reason — prose that is only whitespace
+ * renders as nothing whether or not it went through a diff.
+ */
+export type FieldRender =
+  /** Word-level diff, safe to inject — see the injection note above. */
+  | { kind: 'diff'; html: string }
+  /** The restore clears this field outright. */
+  | { kind: 'emptied' }
+  /** Real, but invisible: only spacing or blank lines separate the two sides. */
+  | { kind: 'whitespace' }
+  /** Read-only: the captured prose verbatim, so it can be copied. */
+  | { kind: 'plain'; text: string }
+
+export const renderOf = (was: string, now: string, readOnly: boolean): FieldRender => {
+  // ⚑ Read-only shows PLAIN text, never a diff: that path exists so stale prose can be COPIED out,
+  // and unified output interleaves the removed words into the new.
+  if (readOnly) {
+    if (now === '') return { kind: 'emptied' }
+    if (now.trim() === '') return { kind: 'whitespace' }
+    return { kind: 'plain', text: now }
+  }
+  const html = unifiedDiff(was, now)
+  if (html.includes('data-match-type')) return { kind: 'diff', html }
+  // The values differ — `captureDiff` only yields changed leaves — but the engine marked nothing, so
+  // the difference is whitespace it does not tokenize. Say so rather than render a blank row.
+  return now === '' ? { kind: 'emptied' } : { kind: 'whitespace' }
+}

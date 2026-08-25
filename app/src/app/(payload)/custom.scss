@@ -2374,9 +2374,10 @@ a.btn.lp-btn {
     color: var(--theme-elevation-1000);
   }
 
-  // "Emptied", where a read-only capture has no text to show. Muted, so it reads as a note about the
-  // field rather than as the field's content.
-  &__emptied {
+  // "Emptied" / "Whitespace only" — where there is no visible text to show, because the field is
+  // cleared or the only difference is spacing the diff engine cannot mark up. Muted, so it reads as a
+  // note ABOUT the field rather than as the field's content.
+  &__note {
     color: var(--theme-elevation-600);
   }
 
