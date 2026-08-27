@@ -524,17 +524,20 @@ export default async function AdminDashboard({
         </div>
       )}
 
-      {/* SECTION ORDER: people and access work first, lesson-plan operations next, the janitorial
-          version inventory last. One order for every role; a role simply sees fewer sections (a
-          Subject Admin gets Editing access → Candidate versions, a teacher with editing access only their saved
-          versions).
+      {/* SECTION ORDER: people and access work first, lesson-plan operations next. One order for every
+          role; a role simply sees fewer sections (a Subject Admin gets Roles & Access plus their
+          candidate versions, a teacher with editing access only their saved versions).
 
-          ⚑ FOUR TOP-LEVEL BOXES, not six sections (operator decision 2026-08-18). Accounts + Roles &
-          Access are one concern and Subjects + Subject grades are another, so each pair became a
-          NESTED pair inside a group — the shape "Lesson plans" has had since D7, applied twice more.
-          `versions` deliberately stays top-level: every non-administrator sees that panel and nothing
-          else, so nesting it would put a teacher's whole page behind a box for operations they do not
-          have. The id changes this cost are documented in `panelState.ts`. */}
+          ⚑ THREE TOP-LEVEL BOXES as of 2026-08-27, four from 2026-08-18, six flat sections before that.
+          Accounts + Roles & Access are one concern and Subjects + Subject grades are another, so each
+          pair became a NESTED pair inside a group — the shape "Lesson plans" has had since D7.
+
+          ⚑ AND `versions` IS NO LONGER ONE OF THE BOXES. This comment argued it must stay top-level,
+          because nesting it would put a teacher's whole page behind a box for operations they do not
+          have. The operator reversed that after using the page: the inventory belongs with lesson-plan
+          management, and `initialOpen`'s lone-child rule means a teacher still lands on their versions
+          without an extra click. `docs/DECISIONS.md` 2026-08-27 supersedes the 2026-08-18 entry, and
+          the retired-id list in `panelState.ts` records what that cost a shared link. */}
       <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
         {(siteAdmin || canSeeRolesAccess) && (
           <AccordionPanel id="users" title="Users">
@@ -612,7 +615,15 @@ export default async function AdminDashboard({
             `initialOpen`'s lone-child rule opens a single top-level panel AND its single available
             child. Same click count as when it was top-level. Each ADMIN child is therefore gated
             individually below; the box being open to a teacher must not open the operations in it. */}
-        {(siteAdmin || showSaved) && (
+        {/* ⚑ DERIVED FROM `availablePanels`, NOT RESTATED. `withAncestors` already puts `plans` in that
+            list exactly when one of its children is present, and the note above the list says why
+            hand-writing the disjunction is a trap: "`siteAdmin && 'curriculum'` was only correct by
+            coincidence, waiting for the first child with a different gate". THIS CHANGE IS THAT MOMENT
+            — `plans` went from four uniformly Site-Admin children to a mixed set, and the first draft
+            of this gate did restate the algebra by hand as `(siteAdmin || showSaved)`. Deriving it
+            means the box and the open-state vocabulary cannot disagree, so a future child with yet
+            another gate needs one edit rather than two that silently must match. */}
+        {availablePanels.includes('plans') && (
           <AccordionPanel id="plans" title="Lesson plans">
             {siteAdmin && (
               <AccordionPanel id="plans.upload" title="Upload lesson plans">

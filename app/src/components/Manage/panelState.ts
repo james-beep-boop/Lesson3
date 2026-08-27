@@ -56,10 +56,13 @@
  * which is too narrow for the half that holds switches — turning outbound email off is not an
  * installation fact. Design: `docs/DESIGN-system-panel-2026-08-21.md`.
  *
- * ⚑ `versions` stays TOP-LEVEL rather than joining `plans` (the naming rule is above, where it has
- * always lived): every non-administrator sees that panel and nothing else (`showSaved` in
- * `AdminDashboard`), so nesting it would put a teacher's entire page behind a "Lesson plans" box that
- * offers them nothing else.
+ * ⚑ `versions` JOINED `plans` ON 2026-08-27 and is now `plans.versions`. This paragraph used to argue
+ * the opposite — that it must stay top-level, because every non-administrator sees that panel and
+ * nothing else (`showSaved` in `AdminDashboard`), so nesting it would put a teacher's entire page
+ * behind a "Lesson plans" box offering them nothing else. That objection is answered rather than
+ * dismissed: `initialOpen` opens a lone top-level panel AND its lone available child, so a teacher
+ * still lands on their saved versions without a click. The operator reversed the decision after using
+ * the page; see `docs/DECISIONS.md` 2026-08-27, which supersedes the 2026-08-18 entry.
  */
 export const PANEL_IDS = [
   'users',

@@ -25,20 +25,19 @@ import {
   withoutDescendants,
 } from '../../src/components/Manage/panelState'
 
-/** Everything a Site Admin's page can render, which is the widest `available` in the product. */
-const SITE_ADMIN = [
-  'users',
-  'users.accounts',
-  'users.access',
-  'curriculum',
-  'curriculum.subjects',
-  'curriculum.subject-grades',
-  'plans',
-  'plans.upload',
-  'plans.versions',
-  'plans.delete',
-  'plans.repair',
-]
+/**
+ * Everything a Site Admin's page can render, which is the widest `available` in the product.
+ *
+ * ⚑ DERIVED FROM `PANEL_IDS`, NOT RETYPED. This was a hand-written list, and hand-written lists of a
+ * closed vocabulary drift: it had already lost `system` / `system.deployment` — Site-Admin-only panels
+ * that ARE in `PANEL_IDS` — so the doc comment above claimed "everything" while the fixture omitted
+ * two. It also had to be edited by hand for the 2026-08-27 `versions` → `plans.versions` rename, which
+ * is exactly the kind of edit a grep for the old id can miss (that rename took three gate runs, one of
+ * them lost to the id surviving inside a regex).
+ *
+ * Deriving it means a new panel joins this fixture the day it joins the vocabulary.
+ */
+const SITE_ADMIN: readonly string[] = PANEL_IDS
 
 describe('parentOf', () => {
   it('reads the one level of nesting the grammar allows', () => {
@@ -233,6 +232,18 @@ describe('initialOpen', () => {
    */
   it('a teacher with editing access still lands on their saved versions, not a closed box', () => {
     expect(initialOpen('', ['plans', 'plans.versions'])).toEqual(['plans', 'plans.versions'])
+  })
+
+  /**
+   * ⚑ THE `: topLevel` BRANCH, restored after this PR's edits quietly removed its only cover. That case
+   * used to be driven by `['versions']` — a top-level id with NO children — which stopped existing when
+   * `versions` became `plans.versions`. Repointing it to `['plans', 'plans.upload']` moved it onto the
+   * ONE-child branch, which two other cases already cover, so the "several children" path lost its
+   * test without anything going red. Coverage loss is the quietest kind of regression: nothing fails,
+   * the suite still passes, and the branch is simply no longer watched.
+   */
+  it('one top-level box with SEVERAL children opens the box only, not a child', () => {
+    expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
   })
 
   it('a role with several sections starts fully collapsed', () => {
