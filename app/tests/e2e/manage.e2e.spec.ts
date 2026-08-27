@@ -1349,9 +1349,14 @@ test.describe('Manage page', () => {
 
     // ⚑ WAIT FOR THE ACCORDION'S MOUNT SCRUB BEFORE TOUCHING THE MENU, and note that this role is the
     // only one that has a scrub to wait for. `initialOpen` auto-opens the sole top-level panel when a
-    // role has exactly one, and a Teacher with editing access sees only "My saved versions" — so a
-    // bare `/admin` rewrites the address bar to `?open=versions` shortly after load, while a Site
-    // Admin (several panels) gets `[]` and no rewrite at all.
+    // role has exactly one — and ALSO its single available child — and a Teacher with editing access
+    // sees only their saved versions, so a bare `/admin` rewrites the address bar to
+    // `?open=plans,plans.versions` shortly after load, while a Site Admin (several panels) gets `[]`
+    // and no rewrite at all.
+    //
+    // ⚑ IT WAS `?open=versions` UNTIL THE 2026-08-27 RENESTING, and this pattern is why that change
+    // took three passes to land: the id appears here as a REGEX, so grepping for the string `versions`
+    // in quotes missed it and the gate caught it instead.
     //
     // Playwright counts that `history.replaceState` as a navigation. Clicking the avatar menu inside
     // the window where it lands tore the dropdown's client state down mid-interaction, and the
@@ -1359,8 +1364,8 @@ test.describe('Manage page', () => {
     // (`01417e4`) — green on that PR's own run minutes earlier, which is how a timing race presents.
     //
     // This asserts the product's intended behaviour rather than sleeping through it: the URL SHOULD
-    // become `?open=versions` for this role, so waiting for it is both the fix and a check.
-    await expect(page).toHaveURL(/[?&]open=versions/)
+    // become `?open=plans,plans.versions` for this role, so waiting for it is both the fix and a check.
+    await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.versions/)
 
     const newName = `${MARK}renamed`
 

@@ -202,7 +202,9 @@ describe('serialiseOpen', () => {
   it('preserves unrelated query parameters', () => {
     // A URL is shared state; silently dropping something a colleague appended is a loss that is only
     // noticed once.
-    expect(serialiseOpen('/admin', '?ref=email&open=plans', ['versions'])).toContain('ref=email')
+    expect(serialiseOpen('/admin', '?ref=email&open=plans', ['plans.versions'])).toContain(
+      'ref=email',
+    )
   })
 })
 
