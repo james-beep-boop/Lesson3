@@ -139,9 +139,9 @@ export default async function UserGuidePage() {
             Subject-grade or Site administrator marks a saved version Official when it is ready.
           </li>
           <li>
-            <strong>Your drafts live in Manage:</strong> <em>Manage → My saved versions</em> lists
-            the versions you have saved — click one to continue editing, or delete the ones you no
-            longer need.
+            <strong>Your drafts live in Manage:</strong>{' '}
+            <em>Manage → Lesson plans → My saved versions</em> lists the versions you have saved —
+            click one to continue editing, or delete the ones you no longer need.
           </li>
           <li>
             <strong>Browse version history:</strong> a <em>N versions</em> chip (on library rows and
@@ -205,9 +205,9 @@ export default async function UserGuidePage() {
             Official one Teachers see — optionally deleting the version it replaces.
           </li>
           <li>
-            <strong>Tidy candidates:</strong> <em>Manage → Candidate versions</em> lists every
-            saved, non-Official version in their subject-grades, with delete. The section appears
-            once there is something to tidy.
+            <strong>Tidy candidates:</strong> <em>Manage → Lesson plans → Candidate versions</em>{' '}
+            lists every saved, non-Official version in their subject-grades, with delete. The
+            section appears once there is something to tidy.
           </li>
           <li>
             <strong>Roles &amp; Access:</strong> <em>Manage → Users → Roles &amp; Access</em> gives

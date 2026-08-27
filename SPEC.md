@@ -719,7 +719,7 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
      never by weakening expiry.
 - **Reserved words — a name that already means something else is a bug, not a preference.** `class`
   is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
-  version* — the Guide tells users "your drafts live in Manage → My saved versions" — so
+  version* — the Guide tells users "your drafts live in Manage → Lesson plans → My saved versions" — so
   the unsaved-work feature is **edit recovery**, never "drafts" (§5). Before naming a new concept,
   grep the frontend and the Guide for the word: a label that asserts something the code does not mean
   spends other people's attention, exactly like a stale docstring.

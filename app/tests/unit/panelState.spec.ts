@@ -25,20 +25,19 @@ import {
   withoutDescendants,
 } from '../../src/components/Manage/panelState'
 
-/** Everything a Site Admin's page can render, which is the widest `available` in the product. */
-const SITE_ADMIN = [
-  'users',
-  'users.accounts',
-  'users.access',
-  'curriculum',
-  'curriculum.subjects',
-  'curriculum.subject-grades',
-  'plans',
-  'plans.upload',
-  'plans.delete',
-  'plans.repair',
-  'versions',
-]
+/**
+ * Everything a Site Admin's page can render, which is the widest `available` in the product.
+ *
+ * ⚑ DERIVED FROM `PANEL_IDS`, NOT RETYPED. This was a hand-written list, and hand-written lists of a
+ * closed vocabulary drift: it had already lost `system` / `system.deployment` — Site-Admin-only panels
+ * that ARE in `PANEL_IDS` — so the doc comment above claimed "everything" while the fixture omitted
+ * two. It also had to be edited by hand for the 2026-08-27 `versions` → `plans.versions` rename, which
+ * is exactly the kind of edit a grep for the old id can miss (that rename took three gate runs, one of
+ * them lost to the id surviving inside a regex).
+ *
+ * Deriving it means a new panel joins this fixture the day it joins the vocabulary.
+ */
+const SITE_ADMIN: readonly string[] = PANEL_IDS
 
 describe('parentOf', () => {
   it('reads the one level of nesting the grammar allows', () => {
@@ -49,7 +48,7 @@ describe('parentOf', () => {
 
 describe('parseOpen', () => {
   it('keeps ids that are both known and available', () => {
-    expect(parseOpen('?open=plans,versions', SITE_ADMIN)).toEqual(['plans', 'versions'])
+    expect(parseOpen('?open=plans,plans.versions', SITE_ADMIN)).toEqual(['plans', 'plans.versions'])
   })
 
   it('drops ids that are not in the closed vocabulary', () => {
@@ -61,7 +60,7 @@ describe('parseOpen', () => {
     // vanish silently — an error or an empty panel would tell them something was withheld. Their own
     // panel arrives WITH its ancestor, since a child is only meaningfully open inside an open parent.
     expect(
-      parseOpen('?open=curriculum,users.access', ['users', 'users.access', 'versions']),
+      parseOpen('?open=curriculum,users.access', ['users', 'users.access', 'plans.versions']),
     ).toEqual(['users', 'users.access'])
   })
 
@@ -100,13 +99,16 @@ describe('parseOpen', () => {
 
   it('is order-stable, so a parsed value re-serialises to itself', () => {
     // Otherwise `?open=plans,access` and `?open=access,plans` would keep rewriting each other's URL.
-    expect(parseOpen('?open=versions,plans', SITE_ADMIN)).toEqual(
-      parseOpen('?open=plans,versions', SITE_ADMIN),
+    expect(parseOpen('?open=plans.versions,plans', SITE_ADMIN)).toEqual(
+      parseOpen('?open=plans,plans.versions', SITE_ADMIN),
     )
   })
 
   it('tolerates whitespace, empty entries and a missing parameter', () => {
-    expect(parseOpen('?open= versions , ,plans ', SITE_ADMIN)).toEqual(['plans', 'versions'])
+    expect(parseOpen('?open= plans.versions , ,plans ', SITE_ADMIN)).toEqual([
+      'plans',
+      'plans.versions',
+    ])
     expect(parseOpen('', SITE_ADMIN)).toEqual([])
     expect(parseOpen('?other=1', SITE_ADMIN)).toEqual([])
   })
@@ -122,7 +124,7 @@ describe('parseOpen', () => {
     // Belt-and-braces: a role that renders a child always renders its parent today, so this holds by
     // coincidence as well as by rule — and a rule that holds only by coincidence is the kind that
     // stops holding quietly.
-    expect(parseOpen('?open=plans.delete', ['plans.delete', 'versions'])).toEqual([])
+    expect(parseOpen('?open=plans.delete', ['plans.delete', 'plans.versions'])).toEqual([])
   })
 })
 
@@ -137,10 +139,9 @@ describe('resolveServerPanelState', () => {
   it('handles a repeated parameter, an absent record, and an absent `at`', () => {
     // Next gives `string[]` when a key repeats; dropping the extras silently would be the kind of
     // lossy flattening nobody notices until a URL stops working.
-    expect(resolveServerPanelState({ open: ['versions', 'plans'] }, SITE_ADMIN).open).toEqual([
-      'plans',
-      'versions',
-    ])
+    expect(resolveServerPanelState({ open: ['plans.versions', 'plans'] }, SITE_ADMIN).open).toEqual(
+      ['plans', 'plans.versions'],
+    )
     expect(resolveServerPanelState(undefined, SITE_ADMIN)).toEqual({ open: [], at: null })
     expect(resolveServerPanelState({ open: 'plans' }, SITE_ADMIN).at).toBeNull()
   })
@@ -153,7 +154,10 @@ describe('resolveServerPanelState', () => {
   })
 
   it('applies the single-section auto-expand when the query says nothing', () => {
-    expect(resolveServerPanelState({}, ['versions']).open).toEqual(['versions'])
+    expect(resolveServerPanelState({}, ['plans', 'plans.versions']).open).toEqual([
+      'plans',
+      'plans.versions',
+    ])
   })
 })
 
@@ -164,7 +168,11 @@ describe('withAncestors / withoutDescendants', () => {
   })
 
   it('closing a parent closes its subtree', () => {
-    expect(withoutDescendants(['versions', 'plans', 'plans.delete'], 'plans')).toEqual(['versions'])
+    // ⚑ `plans.versions` is a DESCENDANT, so closing "Lesson plans" also closes a teacher's saved
+    // versions — the substantive consequence of nesting it rather than placing it beside the box.
+    expect(
+      withoutDescendants(['curriculum', 'plans', 'plans.delete', 'plans.versions'], 'plans'),
+    ).toEqual(['curriculum'])
   })
 
   it('closing a parent leaves unrelated panels alone', () => {
@@ -176,7 +184,9 @@ describe('withAncestors / withoutDescendants', () => {
 
 describe('serialiseOpen', () => {
   it('writes the open list and drops the parameter entirely when nothing is open', () => {
-    expect(serialiseOpen('/admin', '', ['plans', 'versions'])).toBe('/admin?open=plans%2Cversions')
+    expect(serialiseOpen('/admin', '', ['plans', 'plans.versions'])).toBe(
+      '/admin?open=plans%2Cplans.versions',
+    )
     expect(serialiseOpen('/admin', '?open=plans', [])).toBe('/admin')
   })
 
@@ -190,7 +200,9 @@ describe('serialiseOpen', () => {
   it('preserves unrelated query parameters', () => {
     // A URL is shared state; silently dropping something a colleague appended is a loss that is only
     // noticed once.
-    expect(serialiseOpen('/admin', '?ref=email&open=plans', ['versions'])).toContain('ref=email')
+    expect(serialiseOpen('/admin', '?ref=email&open=plans', ['plans.versions'])).toContain(
+      'ref=email',
+    )
   })
 })
 
@@ -204,8 +216,25 @@ describe('initialOpen', () => {
   })
 
   it('a role with exactly ONE top-level section gets it expanded', () => {
-    // A teacher with editing access: "My saved versions" is the whole page, so nobody clicks to reveal their only panel.
-    expect(initialOpen('', ['versions'])).toEqual(['versions'])
+    // A Site Admin whose only available child is upload (no plans, no candidates): the box opens, and
+    // the lone-child rule below opens the child too.
+    expect(initialOpen('', ['plans', 'plans.upload'])).toEqual(['plans', 'plans.upload'])
+  })
+
+  /**
+   * ⚑ THE TEACHER CASE, and the reason nesting their panel is acceptable. Their only top-level id is
+   * the GROUP, so without the lone-child exception they would click once more to reveal the one thing
+   * they came for, inside a box named for operations they cannot perform — the same demotion the
+   * exception was written to prevent for the Subject Administrator. This pins that it covers them too.
+   */
+  it('a teacher with editing access still lands on their saved versions, not a closed box', () => {
+    expect(initialOpen('', ['plans', 'plans.versions'])).toEqual(['plans', 'plans.versions'])
+  })
+
+  /** ⚑ THE `: topLevel` BRANCH — one box with SEVERAL children opens the box alone. Easy to lose:
+   *  repointing a fixture onto the one-child path leaves this untested and nothing goes red. */
+  it('one top-level box with SEVERAL children opens the box only, not a child', () => {
+    expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
   })
 
   it('a role with several sections starts fully collapsed', () => {
@@ -230,7 +259,7 @@ describe('initialOpen', () => {
   it('…but two top-level boxes still start collapsed, even when each holds one child', () => {
     // The same Subject Admin once they have candidate versions to review: two sections is the
     // multi-section case, and the exception above must not leak into it.
-    expect(initialOpen('', ['users', 'users.access', 'versions'])).toEqual([])
+    expect(initialOpen('', ['users', 'users.access', 'plans', 'plans.versions'])).toEqual([])
   })
 
   it('nested panels do not count toward "only one section"', () => {

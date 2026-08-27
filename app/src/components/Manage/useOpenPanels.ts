@@ -137,8 +137,8 @@ export function useOpenPanels(
    * ⚑ Availability is not fixed for the session — it is data-dependent. Deleting the last candidate
    * version calls `router.refresh()`, the server re-renders with `showSaved` false, and the
    * `versions` panel stops existing. Without this re-gate, `open` would keep an id for a panel that
-   * is no longer on the page and the URL write below would keep advertising `?open=versions` — state
-   * the page is not in, which is exactly what the scrub rule exists to prevent. The mount-time gate
+   * is no longer on the page and the URL write below would keep advertising `?open=plans.versions` —
+   * state the page is not in, which is exactly what the scrub rule exists to prevent. The mount-time gate
    * cannot cover it: the panel was legitimately available at mount.
    *
    * ⚑ DERIVED during render, not synced in an effect. The effect version (`setOpen` filtered by

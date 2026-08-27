@@ -5,12 +5,15 @@
  * coverage. This spec drives the REAL rendered page and asserts what each role sees and the two
  * interactive flows:
  *
- *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
- *      versions" + the "Users" box holding "Roles & Access"; Site Admin: all four boxes — "Users"
- *      (Accounts / Roles & Access), "Curriculum" (Subjects / Subject grades), "Lesson plans"
- *      (Upload / Delete / Repair) and the candidate inventory. ⚑ The top level became FOUR BOXES on
- *      2026-08-18; panels that used to be top-level are nested, so a test that wants one must open
- *      its group first.
+ *   1. Role scoping — editing-access user: a "Lesson plans" box holding ONLY "My saved versions";
+ *      Subject Admin: the same box holding "Candidate versions", plus "Users" holding "Roles &
+ *      Access"; Site Admin: "Users" (Accounts / Roles & Access), "Curriculum" (Subjects / Subject
+ *      grades), "Lesson plans" (Upload / Candidate versions / Delete / Repair) and "System".
+ *      ⚑ DO NOT ASSERT A BOX COUNT — availability is DATA-dependent (candidate versions come and go
+ *      with `showSaved`, Repair with unpointed plans), and every count written here has gone stale.
+ *      ⚑ Panels that were once top-level are nested now, so a test that wants one must open its group
+ *      first: a closed panel is `[hidden]`, absent from the accessibility tree rather than merely
+ *      collapsed.
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
  *   3. Repair — a pointerless plan appears in the Site-Admin Repair section (clean name, links to
@@ -234,9 +237,15 @@ test.describe('Manage page', () => {
     await fx?.teardown()
   })
 
-  test('a Teacher with editing access sees ONLY "My saved versions"', async ({ page }) => {
+  test('a Teacher with editing access sees only their saved versions, inside Lesson plans', async ({
+    page,
+  }) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
+    // ⚑ A "Lesson plans" box renders around their panel (`plans.versions`), and `initialOpen`'s
+    // lone-child rule opens both — so the heading is VISIBLE on arrival rather than behind a click.
+    // That property is what makes nesting acceptable for this role; assert it, do not assume it.
+    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
@@ -250,6 +259,10 @@ test.describe('Manage page', () => {
   test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ page }) => {
     await loginAs(page, 'subjectAdmin')
     await page.goto(`${BASE}/admin`)
+    // ⚑ THE PARENT MUST BE OPENED FIRST. With two top-level boxes (Users, Lesson plans) nothing
+    // auto-expands, and `plans.versions` sits inside a closed `[hidden]` panel — out of the
+    // accessibility tree, so `getByRole` cannot see it until the parent opens.
+    await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
@@ -263,15 +276,17 @@ test.describe('Manage page', () => {
     // Accounts panel inside it — Site-Admin-only — is not rendered at all.
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toHaveCount(0)
-    // Two top-level boxes (Users, Candidate versions) means the single-section auto-expand does not
+    // Two top-level boxes (Users, Lesson plans) means the single-section auto-expand does not
     // apply, so their panel opens on a click rather than on arrival.
     await openPanel(page, 'Users')
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
-    // `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default, so a
-    // bare 'Lesson plans' would also match "Upload lesson plans" and stop testing the new h2 itself.
-    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toHaveCount(0)
+    // ⚑ THE PAIR IS THE AUTHORIZATION STATEMENT: the box renders because they can see something in it
+    // (their candidates), and the two Site-Admin operations above are absent. `exact` because
+    // Playwright's role-name match is a case-insensitive SUBSTRING by default, so a bare
+    // 'Lesson plans' would also match "Upload lesson plans".
+    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Subject grades', exact: true })).toHaveCount(0)
   })
@@ -432,6 +447,8 @@ test.describe('Manage page', () => {
   test('an Official version is never listed as a candidate', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    // A Site Admin starts fully collapsed, so open the box before its children are in the tree.
+    await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // This run's rows only — the fixture subject-grade's displayName carries the MARK.
     const meta = page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK })
@@ -658,12 +675,19 @@ test.describe('Manage page', () => {
       // rather than left as an emergent default.
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
-      // ⚑ THE FOUR TOP-LEVEL BOXES, not the old six section headings. Three of those names
+      // ⚑ THE TOP-LEVEL BOXES, not the old six section headings. Three of those names
       // (`Subjects`, `Subject grades`, `Roles & Access`) are NESTED as of 2026-08-18, so they sit
       // inside a closed `[hidden]` panel — out of the accessibility tree entirely, which is why this
       // failed with "element(s) not found" rather than with the wrong attribute value. A hidden
       // control is not a collapsed control, and asserting `aria-expanded=false` on one asserts nothing.
-      for (const name of ['Users', 'Curriculum', 'Lesson plans', 'Candidate versions']) {
+      // ⚑ "Candidate versions" IS NOT IN THIS LIST because it is nested now — a button inside a closed
+      // panel, absent from the accessibility tree, and asserting `aria-expanded=false` on a hidden
+      // control asserts nothing (the same trap the note above records for Subjects / Subject grades /
+      // Roles & Access).
+      //
+      // ⚑ `System` IS in it, and had been missing since before this list was last edited — so the
+      // census skipped a Site-Admin box entirely and nothing noticed.
+      for (const name of ['Users', 'Curriculum', 'Lesson plans', 'System']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -802,6 +826,7 @@ test.describe('Manage page', () => {
     test('Candidate versions has a search that filters the rows (D3)', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
+      await openPanel(page, 'Lesson plans')
       await openPanel(page, 'Candidate versions')
       const search = page.getByLabel('Search saved versions')
       await expect(search).toBeVisible()
@@ -816,10 +841,16 @@ test.describe('Manage page', () => {
       // A query that matches nothing says so, rather than falling back to the instructional empty
       // state — which would read as "you have never saved anything".
       await expect(page.locator('.lp-manage__empty')).toContainText('No saved versions match')
-      const panel = page.locator('section.lp-accordion').filter({
-        has: page.getByRole('button', { name: 'Candidate versions', exact: true }),
-      })
-      await expect(panel.locator('.lp-manage__list')).toHaveCount(0)
+      /**
+       * ⚑ SCOPED BY `aria-controls`, NOT BY A `section` FILTER. `locator('section.lp-accordion')
+       * .filter({ has: <this panel's button> })` also matches the ANCESTOR section once a panel is
+       * nested, so the count silently picks up sibling panels' lists. A panel's own region is
+       * `aria-controls` on its trigger, which cannot match an ancestor.
+       */
+      const trigger = page.getByRole('button', { name: 'Candidate versions', exact: true })
+      const regionId = await trigger.getAttribute('aria-controls')
+      expect(regionId, 'the Candidate versions trigger must control a region').toBeTruthy()
+      await expect(page.locator(`[id="${regionId}"] .lp-manage__list`)).toHaveCount(0)
     })
   })
 
@@ -1317,9 +1348,13 @@ test.describe('Manage page', () => {
 
     // ⚑ WAIT FOR THE ACCORDION'S MOUNT SCRUB BEFORE TOUCHING THE MENU, and note that this role is the
     // only one that has a scrub to wait for. `initialOpen` auto-opens the sole top-level panel when a
-    // role has exactly one, and a Teacher with editing access sees only "My saved versions" — so a
-    // bare `/admin` rewrites the address bar to `?open=versions` shortly after load, while a Site
-    // Admin (several panels) gets `[]` and no rewrite at all.
+    // role has exactly one — and ALSO its single available child — and a Teacher with editing access
+    // sees only their saved versions, so a bare `/admin` rewrites the address bar to
+    // `?open=plans,plans.versions` shortly after load, while a Site Admin (several panels) gets `[]`
+    // and no rewrite at all.
+    //
+    // ⚑ THE ID APPEARS HERE AS A REGEX, so a grep for the quoted form will not find it. Retiring a
+    // panel id means sweeping for the bare word, not `'the quoted one'`.
     //
     // Playwright counts that `history.replaceState` as a navigation. Clicking the avatar menu inside
     // the window where it lands tore the dropdown's client state down mid-interaction, and the
@@ -1327,8 +1362,8 @@ test.describe('Manage page', () => {
     // (`01417e4`) — green on that PR's own run minutes earlier, which is how a timing race presents.
     //
     // This asserts the product's intended behaviour rather than sleeping through it: the URL SHOULD
-    // become `?open=versions` for this role, so waiting for it is both the fix and a check.
-    await expect(page).toHaveURL(/[?&]open=versions/)
+    // become `?open=plans,plans.versions` for this role, so waiting for it is both the fix and a check.
+    await expect(page).toHaveURL(/[?&]open=plans%2Cplans\.versions/)
 
     const newName = `${MARK}renamed`
 

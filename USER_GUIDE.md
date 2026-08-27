@@ -63,7 +63,7 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
 - **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
   version you opened is never changed in place. A Subject-grade or Site administrator marks a saved
   version Official when it is ready.
-- **Your drafts live in Manage:** *Manage → My saved versions* lists the versions you have saved —
+- **Your drafts live in Manage:** *Manage → Lesson plans → My saved versions* lists the versions you have saved —
   click one to continue editing, or delete the ones you no longer need.
 - **Unsaved work is backed up for you:** while you edit, a notice under the buttons shows when your
   unsaved changes were last backed up. The backup is yours alone — nobody else can see it, not even
@@ -97,7 +97,7 @@ subject-grades. They also manage the structure and official content controls for
   ARES keywords, phase choices, assessment exemplars, and rubric rows.
 - **Make Official:** on a lesson page, promote a saved version to the Official one Teachers see —
   optionally deleting the version it replaces.
-- **Tidy candidates:** *Manage → Candidate versions* lists every saved, non-Official version in their
+- **Tidy candidates:** *Manage → Lesson plans → Candidate versions* lists every saved, non-Official version in their
   subject-grades, with delete.
 - **Roles & Access:** *Manage → Users → Roles & Access* gives a teacher editing access, or removes it,
   per subject-grade. It also shows who administers each of your subject-grades, and the addresses of
