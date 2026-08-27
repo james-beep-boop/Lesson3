@@ -164,6 +164,16 @@ windows it applied); counts before/after via
   that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
   and nothing on this screen can substitute for having run it.
 
+### ⚑ CI: the rate limiter's state persists across runs
+
+A gate failure in `tests/int/authRateLimit.int.spec.ts` — or an e2e failing with "Sign-ups are
+temporarily paused" — may be environmental rather than yours. Confirmed 2026-08-27: that int case failed
+on a docs-only PR and passed on a re-run of the identical commit.
+
+**Re-run the failed job before reading a failure as yours.** A pass on the same SHA is the answer. The
+local remedy for the same symptom is below (clear the `Global:all` `rate_limit_counters` rows); CI has no
+equivalent yet, which is why a red gate here currently needs interpreting rather than acting on.
+
 ### Restore drill (do this periodically — an untested backup is not a backup)
 
 ⚑ **BRING THE CIPHERTEXT TO THE KEY, NOT THE KEY TO THE CIPHERTEXT.** The private `age` identity is held
