@@ -170,7 +170,7 @@ describe('withAncestors / withoutDescendants', () => {
 
   it('closing a parent closes its subtree', () => {
     // ⚑ `plans.versions` is a descendant NOW, where the retired top-level `versions` was not — which is
-    // the substantive consequence of the 2026-08-22 renesting: closing "Lesson plans" also closes a
+    // the substantive consequence of the 2026-08-27 renesting: closing "Lesson plans" also closes a
     // teacher's saved versions, because it is inside the box rather than beside it.
     expect(
       withoutDescendants(['curriculum', 'plans', 'plans.delete', 'plans.versions'], 'plans'),
@@ -222,7 +222,7 @@ describe('initialOpen', () => {
   })
 
   /**
-   * ⚑ THE TEACHER CASE AFTER THE 2026-08-22 RENESTING, and the reason that reversal was acceptable.
+   * ⚑ THE TEACHER CASE AFTER THE 2026-08-27 RENESTING, and the reason that reversal was acceptable.
    * "My saved versions" used to be a top-level panel, so rule 2 opened it and the teacher landed on
    * their work. It is now `plans.versions`, so their only top-level id is the GROUP — and without the
    * lone-child exception they would click once more to reveal the one thing they came for, inside a box

@@ -32,7 +32,7 @@ import { UsersPanel } from '../Manage/UsersPanel'
  * The per-section rationale lives at each section in the JSX rather than in a second inventory here,
  * which drifted the last time the order changed — and drifted again by 2026-08-18, when this header
  * still described five flat sections (two under names that were never panel titles) after the page had
- * become four boxes — and three as of 2026-08-22. The inventory is gone rather than corrected; the ⚑
+ * become four boxes — and three as of 2026-08-27. The inventory is gone rather than corrected; the ⚑
  * above `AccordionProvider` is the one account of the shape. Two claims worth keeping out of the JSX:
  *
  *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from

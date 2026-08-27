@@ -9,7 +9,7 @@
  *      Subject Admin: the same box holding "Candidate versions" plus the "Users" box holding
  *      "Roles & Access"; Site Admin: all three boxes — "Users" (Accounts / Roles & Access),
  *      "Curriculum" (Subjects / Subject grades) and "Lesson plans" (Upload / Candidate versions /
- *      Delete / Repair). ⚑ THE TOP LEVEL BECAME FOUR BOXES ON 2026-08-18 AND THREE ON 2026-08-22,
+ *      Delete / Repair). ⚑ THE TOP LEVEL BECAME FOUR BOXES ON 2026-08-18 AND THREE ON 2026-08-27,
  *      when the candidate/saved inventory was folded into Lesson plans. Panels that used to be
  *      top-level are nested, so a test that wants one must open its group first — a closed panel is
  *      `[hidden]` and therefore absent from the accessibility tree, not merely collapsed.
@@ -241,7 +241,7 @@ test.describe('Manage page', () => {
   }) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
-    // ⚑ RENESTED 2026-08-22: their panel is `plans.versions` now, so a "Lesson plans" box renders
+    // ⚑ RENESTED 2026-08-27: their panel is `plans.versions` now, so a "Lesson plans" box renders
     // around it — and `initialOpen`'s lone-child rule opens both, so the heading is still VISIBLE on
     // arrival rather than behind a click. That is the property that made the renesting acceptable.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
@@ -258,7 +258,7 @@ test.describe('Manage page', () => {
   test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ page }) => {
     await loginAs(page, 'subjectAdmin')
     await page.goto(`${BASE}/admin`)
-    // ⚑ ONE MORE CLICK THAN BEFORE, and it is the accepted cost of the 2026-08-22 renesting: with two
+    // ⚑ ONE MORE CLICK THAN BEFORE, and it is the accepted cost of the 2026-08-27 renesting: with two
     // top-level boxes (Users, Lesson plans) nothing auto-expands, and `plans.versions` sits inside a
     // closed `[hidden]` panel — out of the accessibility tree, so `getByRole` cannot see it until the
     // parent opens.
@@ -445,7 +445,7 @@ test.describe('Manage page', () => {
   test('an Official version is never listed as a candidate', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
-    // Renested 2026-08-22 — a Site Admin starts fully collapsed, so open the box first.
+    // Renested 2026-08-27 — a Site Admin starts fully collapsed, so open the box first.
     await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // This run's rows only — the fixture subject-grade's displayName carries the MARK.
@@ -678,7 +678,7 @@ test.describe('Manage page', () => {
       // inside a closed `[hidden]` panel — out of the accessibility tree entirely, which is why this
       // failed with "element(s) not found" rather than with the wrong attribute value. A hidden
       // control is not a collapsed control, and asserting `aria-expanded=false` on one asserts nothing.
-      // ⚑ THREE BOXES SINCE 2026-08-22, not four: `versions` was folded into Lesson plans, so
+      // ⚑ THREE BOXES SINCE 2026-08-27, not four: `versions` was folded into Lesson plans, so
       // "Candidate versions" is a nested button inside a closed panel and is not in the tree at all
       // here. Asserting `aria-expanded=false` on a hidden control asserts nothing — the same trap the
       // note above records for Subjects / Subject grades / Roles & Access.

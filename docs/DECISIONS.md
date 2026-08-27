@@ -426,7 +426,7 @@ This is consciously a proof of concept: no upload/delete/rename, folders, search
 files, per-file access, public access, expired-session return flow, or file backup/versioning. The
 existing ARES `resourceLinks` contract stays system-owned and completely separate.
 
-## 2026-08-22 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision to keep it top-level
+## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision to keep it top-level
 
 ⚑ **This reverses part of the 2026-08-18 entry below, which stays intact as history.** That entry says
 "`versions` STAYS TOP-LEVEL, and this is the one part of the operator's sketch that was argued down".

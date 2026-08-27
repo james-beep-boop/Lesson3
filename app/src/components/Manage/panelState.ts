@@ -24,12 +24,12 @@
  * Teachers with editing access, and an id must not encode one role's label.
  *
  * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six sections to four boxes, and
- * again on 2026-08-22 from four to THREE, when `versions` was folded in as `plans.versions`. Between
+ * again on 2026-08-27 from four to THREE, when `versions` was folded in as `plans.versions`. Between
  * them those changes RETIRED four ids and CHANGED the meaning of a fourth. Read this before concluding
  * a link is broken:
  *
  *   - `subjects` → `curriculum.subjects`, `subject-grades` → `curriculum.subject-grades`,
- *     `access` → `users.access`, and (2026-08-22) `versions` → `plans.versions`. The old spellings are
+ *     `access` → `users.access`, and (2026-08-27) `versions` → `plans.versions`. The old spellings are
  *     retired: `parseOpen` drops ids outside this list, so an old bookmark lands on a normal Manage
  *     page with nothing opened and the parameter scrubbed. That is what retiring an entry in a URL
  *     contract is supposed to feel like from the outside, and it is now the THIRD time this vocabulary
@@ -70,7 +70,7 @@ export const PANEL_IDS = [
   'curriculum.subject-grades',
   'plans',
   'plans.upload',
-  // ⚑ WAS TOP-LEVEL `versions` UNTIL 2026-08-22, and the reversal is deliberate: the 2026-08-18 entry
+  // ⚑ WAS TOP-LEVEL `versions` UNTIL 2026-08-27, and the reversal is deliberate: the 2026-08-18 entry
   // in DECISIONS argued it should stay top-level, and the operator has since used the page and judged
   // saved/candidate versions to be part of lesson-plan management. The dated entry stays as history;
   // a new one records the supersession. Do NOT "restore" the old shape from that older entry.
