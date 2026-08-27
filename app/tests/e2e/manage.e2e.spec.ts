@@ -282,9 +282,12 @@ test.describe('Manage page', () => {
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Delete lesson plans' })).toHaveCount(0)
-    // `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default, so a
-    // bare 'Lesson plans' would also match "Upload lesson plans" and stop testing the new h2 itself.
-    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toHaveCount(0)
+    // ⚑ THE BOX IS NOW PRESENT FOR THEM, and this assertion used to be `toHaveCount(0)` — correct until
+    // the 2026-08-27 renesting put their candidates inside it. The authorization statement is the pair:
+    // the box renders because they can see something in it, and the two Site-Admin operations above are
+    // absent. `exact` because Playwright's role-name match is a case-insensitive SUBSTRING by default,
+    // so a bare 'Lesson plans' would also match "Upload lesson plans".
+    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Subjects', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Subject grades', exact: true })).toHaveCount(0)
   })
@@ -836,10 +839,19 @@ test.describe('Manage page', () => {
       // A query that matches nothing says so, rather than falling back to the instructional empty
       // state — which would read as "you have never saved anything".
       await expect(page.locator('.lp-manage__empty')).toContainText('No saved versions match')
-      const panel = page.locator('section.lp-accordion').filter({
-        has: page.getByRole('button', { name: 'Candidate versions', exact: true }),
-      })
-      await expect(panel.locator('.lp-manage__list')).toHaveCount(0)
+      /**
+       * ⚑ SCOPED BY `aria-controls`, NOT BY A `section` FILTER. This used to be
+       * `locator('section.lp-accordion').filter({ has: <the Candidate versions button> })`, which was
+       * unambiguous while the panel was top-level and stopped being so on 2026-08-27: nested inside
+       * Lesson plans, the ANCESTOR section also "has" that button, so the filter matched both and the
+       * `.lp-manage__list` count picked up the sibling panels' lists — 3 and 4 instead of 0.
+       *
+       * A panel's own region is `aria-controls` on its trigger, which cannot match an ancestor.
+       */
+      const trigger = page.getByRole('button', { name: 'Candidate versions', exact: true })
+      const regionId = await trigger.getAttribute('aria-controls')
+      expect(regionId, 'the Candidate versions trigger must control a region').toBeTruthy()
+      await expect(page.locator(`[id="${regionId}"] .lp-manage__list`)).toHaveCount(0)
     })
   })
 
