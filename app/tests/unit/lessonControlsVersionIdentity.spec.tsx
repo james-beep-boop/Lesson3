@@ -136,6 +136,29 @@ describe('the control bar says which version you are on', () => {
   })
 })
 
+describe('comparison before candidate deletion', () => {
+  it('opens the exact Official-to-candidate comparison in a new tab', async () => {
+    render(<LessonControls />)
+
+    const compare = await screen.findByRole('link', {
+      name: 'Compare to Official, opens in a new tab',
+    })
+    expect(compare.getAttribute('href')).toBe('/lessons/2/compare?from=99&to=1')
+    expect(compare.getAttribute('target')).toBe('_blank')
+    expect(compare.getAttribute('rel')).toBe('noopener noreferrer')
+  })
+
+  it('keeps Delete but omits comparison when a pointerless plan has no Official baseline', async () => {
+    stubPointerProbe(null)
+    render(<LessonControls />)
+
+    await screen.findByRole('button', { name: 'Delete' })
+    expect(
+      screen.queryByRole('link', { name: 'Compare to Official, opens in a new tab' }),
+    ).toBeNull()
+  })
+})
+
 describe('the destructive confirmations name the version', () => {
   const clickAndReadConfirm = (name: string): string => {
     fireEvent.click(screen.getByRole('button', { name }))

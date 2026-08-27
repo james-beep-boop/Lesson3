@@ -4,8 +4,9 @@
  * Manage — the saved/candidate versions list. Each row is a draft the CALLER may delete (the server
  * component builds rows with the caller's access, mirroring `lessonBundleVersionDelete`): the label
  * opens the version in the editor with edit intent (`?edit=1` — click resumes editing, decided
- * 2026-07-01), ✕ deletes it after a confirm (`DELETE /api/lesson-bundle-versions/:id` — the server
- * access + Official guard remain the authority) and refreshes the server view.
+ * 2026-07-01), Compare to Official opens the existing saved-version comparison in a new tab, and
+ * Delete removes it after a confirm (`DELETE /api/lesson-bundle-versions/:id` — the server access +
+ * Official guard remain the authority) before refreshing the server view.
  */
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -14,9 +15,12 @@ import { Button, toast, useConfig } from '@payloadcms/ui'
 
 import { apiBaseFrom } from '../../lib/apiBase'
 import { matchesTokenAnd, tokenise } from '../../lib/substrand'
+import CompareToOfficialLink from '../CompareToOfficialLink'
 
 export interface CandidateRow {
   id: number
+  lessonPlanId: number
+  officialVersionId: number | null
   label: string
   semver: string
   sgLabel: string
@@ -125,6 +129,14 @@ export function CandidateList({
                 {/* The title is still the obvious link, but the action is also NAMED: "click the row to
                 resume editing" was never stated anywhere on the page. */}
                 <div className="lp-manage__row-actions">
+                  {row.officialVersionId != null && (
+                    <CompareToOfficialLink
+                      className="btn lp-btn"
+                      planId={row.lessonPlanId}
+                      officialVersionId={row.officialVersionId}
+                      candidateVersionId={row.id}
+                    />
+                  )}
                   <Link className="btn lp-btn" href={href}>
                     Continue editing
                   </Link>

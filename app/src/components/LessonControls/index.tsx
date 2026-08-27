@@ -61,6 +61,7 @@ import {
   subscribeToActiveLinkTarget,
 } from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
+import CompareToOfficialLink from '../CompareToOfficialLink'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
  *  Shared by the Save (save-as-new) and Delete flows so their `!res.ok` branches stay in step. */
@@ -152,9 +153,13 @@ export default function LessonControls() {
     }
   }, [pdfMenuOpen])
 
-  // Whether THIS version is the plan's Official one — determined up front (one cheap read of the
-  // plan's pointer) so Save can offer to delete the source only when it's a deletable candidate.
-  const [sourceIsOfficial, setSourceIsOfficial] = useState<boolean | null>(null)
+  // The plan's Official pointer, retained rather than reduced to a boolean: besides deciding whether
+  // THIS version is a candidate, it selects the exact baseline for Compare to Official. `null` inside
+  // the object means the plan is pointerless; an absent/mismatched object means still unknown.
+  const [officialPointer, setOfficialPointer] = useState<{
+    planId: number
+    versionId: number | null
+  } | null>(null)
 
   // Whether the CALLER may edit THIS version at all — the client mirror of the server's own gate,
   // via the SAME helper the access layer uses (`isEditorFor`, scoped per subject-grade), so the bar
@@ -268,24 +273,31 @@ export default function LessonControls() {
     if (Boolean(id) && editing) startRecovery()
   }, [id, editing, startRecovery])
 
+  const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
+  const officialVersionId =
+    planId != null && officialPointer?.planId === planId ? officialPointer.versionId : undefined
+  const sourceIsOfficial =
+    officialVersionId === undefined ? null : String(officialVersionId) === String(id)
+
   useEffect(() => {
-    const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
-    if (!id || planId == null) return // leave `null` (unknown) → Save won't offer to delete the source
+    if (!id || planId == null) return // leave the pointer unknown → no delete-source or compare offer
     let cancelled = false
     fetch(`/api/lesson-plans/${planId}?depth=0`, { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
-        // Only set a definite value when the plan was actually fetched; on failure leave `null`
-        // (unknown) so Save does NOT offer to delete the source on a transient API error.
-        if (!cancelled && p) setSourceIsOfficial(String(toId(p.officialVersion)) === String(id))
+        // Only set a definite value when the plan was actually fetched; on failure leave it unknown
+        // so Save does NOT offer to delete the source on a transient API error.
+        if (!cancelled && p) {
+          setOfficialPointer({ planId, versionId: toId(p.officialVersion) ?? null })
+        }
       })
       .catch(() => {
-        /* leave `null` (unknown) — Save won't offer delete-source */
+        /* leave unknown — Save won't offer delete-source and Compare won't name a guessed baseline */
       })
     return () => {
       cancelled = true
     }
-  }, [id, savedDocumentData])
+  }, [id, planId])
 
   // No id → unsaved/new document; nothing to act on yet.
   // ⚑ ABOVE the early return: hooks must run in the same order every render, and `if (!id) return
@@ -299,7 +311,6 @@ export default function LessonControls() {
   // exits back to it, viewing THIS version — the loop that replaces the hidden breadcrumb trail.
   // Cross-root-layout navigation (admin → frontend) via a full page load — a Payload secondary
   // Button rendered as an anchor (el="anchor"), so it sits with the other toolbar buttons.
-  const planId = toId((savedDocumentData?.lessonPlan ?? null) as never)
   // Chrome casing only (D5): the shouty stored title softens in the bar; the stored value is
   // untouched (it is generator input).
   const title =
@@ -692,6 +703,13 @@ export default function LessonControls() {
           )}
           {/* Explicit destructive action (view mode only), replacing the native document-controls
               kebab. Shown only for a version the caller may delete; the server re-gates. */}
+          {!editing && canDelete && planId != null && officialVersionId != null && (
+            <CompareToOfficialLink
+              planId={planId}
+              officialVersionId={officialVersionId}
+              candidateVersionId={Number(id)}
+            />
+          )}
           {!editing && canDelete && (
             <Button buttonStyle="error" size="small" onClick={onDelete} disabled={saving}>
               Delete
