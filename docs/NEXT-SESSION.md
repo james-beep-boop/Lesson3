@@ -25,6 +25,67 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-27) — saved versions moved under Lesson plans; two CI facts worth knowing first
+
+**Supersedes the blocks below for state; they stay for provenance.** `main` is `fb8c685`.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Branches | `main` only, local and remote; no worktrees |
+| Deployed | Rock at `861ab1e`; `main` is **2 commits ahead**, NO pending migrations |
+| To deploy | plain `scripts/deploy.sh` — the visible change is Candidate versions moving inside Lesson plans |
+
+## What shipped
+
+**#302 — saved/candidate versions are now `plans.versions`, inside Lesson plans.** One
+role-independent id; the parent renders whenever the caller can see any child, so administrator
+children are gated individually. Title still varies by role ("Candidate versions" / "My saved
+versions"), location does not. ⚑ This SUPERSEDES the 2026-08-18 decision that kept it top-level —
+`docs/DECISIONS.md` 2026-08-27 records why, and the older entry stays as history. Administrators accept
+one extra click (a closed panel is `[hidden]`, so the child is out of the accessibility tree until the
+box opens); teachers pay nothing because `initialOpen` opens a lone box AND its lone child.
+
+**#303 — de-duplicated `DECISIONS.md`.** #302 had left an entry duplicated and a superseded 49-line
+draft in place.
+
+## ⚑ READ THIS BEFORE TRUSTING A RED GATE
+
+Two failures today were environmental. `authRateLimit.int.spec.ts` failed on a **docs-only** PR and
+passed on re-run of the identical commit; an e2e failed with "Sign-ups are temporarily paused". Across
+five runs of substantially the same code the gate produced four different failure sets, two genuine and
+two noise. **Re-run before reading a failure as yours — and if it passes on the same SHA, that is the
+answer.** Details and the reason this matters: `docs/DECISIONS.md` 2026-08-27.
+
+## ⚑ AND BEFORE DELETING ANY BRANCH
+
+After a squash merge, `git merge-base --is-ancestor` says a fully merged branch is unmerged, and
+`git log main..branch` lists commits that are already in `main`. Compare **trees**
+(`git rev-parse <branch>^{tree}` vs the merge commit's) — equal trees mean the work is in `main`
+whatever the graph says. `feat/local-server-deployment` (#301) was reaped this way after checking.
+
+## What to work on next
+
+1. **Deploy** the two commits above.
+2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
+   clean limiter. Until then every red gate needs a re-run to interpret.
+3. **System panel part 2** — still unblocked, still a ONE-flag PR (`publicLibraryLive`): fail-closed
+   reader, enforcement at the public route, Save with re-auth, atomic check-and-write, versioned
+   acknowledgement, the two disabled placeholders, blocking warning on going public.
+4. **The className-resolves-to-a-rule guard** — last half of the appearance-testing gap.
+5. **Official-pointer lock** — hard prerequisite for the public read slice.
+6. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
+   conversations; `NOTICE` names the gap. Attribution-inside-documents is a GENERATOR change (SPEC §4).
+7. ⚑ **The school's `age` identity lives in the operator's password manager, not with a school.** Two
+   recipients closed the offline-recovery gap mechanically; it closes operationally only when the
+   identity travels with the server. Decide before a real school deployment.
+
+⚑ **Also still true:** a *Premigration* backup row is not evidence of a nightly schedule (that reads
+*Daily*), and no row of any kind proves a dump restores — only the drill does. It PASSED 2026-08-22,
+and the school key was proven to decrypt independently after the 2026-08-22 deploy.
+
 # ⚑ HANDOFF (2026-08-25) — GitHub-container local deployment is implemented and locally proven
 
 **This supersedes the deployment portion of the blocks below. It is not published yet.** PR #301

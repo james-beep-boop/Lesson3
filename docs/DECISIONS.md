@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-27 — Two CI facts that make a red gate ambiguous, and a squash-merge trap
+
+Both found while finishing the Lesson-plans renesting. Neither is about that change.
+
+### ⚑ The rate limiter's state persists across CI runs, so a red gate may mean nothing
+
+Two failures today were environmental, not caused by the diffs that triggered them:
+
+- `tests/int/authRateLimit.int.spec.ts` — "allows up to the budget, then rejects with 429" resolved
+  instead of rejecting, on a **docs-only** PR (#303, one file: `DECISIONS.md`). Re-running the job on
+  the IDENTICAL commit passed. That is the proof it was environmental rather than an assertion.
+- `"Sign-ups are temporarily paused — please try again tomorrow"` in the Manage e2e, on a change that
+  touched no auth path.
+
+Across five runs of substantially the same code, the gate produced **four different failure sets** —
+two genuine (a `format:check` miss, e2e assertions the renesting invalidated) and two environmental.
+
+⚑ **The cost is not the wasted runs, it is that a red gate is no longer a signal.** If failures can be
+noise, a real failure gets re-run instead of read, and the habit of trusting green becomes the habit of
+dismissing red. That is the same defect class as a check that cannot fail — a result you cannot act on
+in either direction. `docs/OPS.md` already records the local remedy (clear the `Global:all`
+`rate_limit_counters` rows); CI needs the equivalent between runs, or the specs need to stop assuming a
+clean limiter.
+
+### ⚑ After a SQUASH merge, ancestry says a merged branch is unmerged
+
+`feat/local-server-deployment` shipped as #301 (`861ab1e`). Because the merge was a squash, its commits
+are not ancestors of `main`, so `git merge-base --is-ancestor` reports it unmerged and `git branch -d`
+refuses. `git log main..branch` listed four commits that were fully merged.
+
+**The reliable check is CONTENT, not ancestry:** compare the branch's tree against the merge commit's
+(`git rev-parse <branch>^{tree}` vs `git rev-parse <merge>^{tree}`), or diff them. Equal trees mean the
+work is in `main` whatever the graph says. Verified that way before deleting the worktree and
+force-deleting the branch.
+
+⚑ This matters beyond tidying: reading "4 commits not in main" as unmerged work is how a squash-merged
+branch survives forever, and reading it as *safe to delete* without checking is how work gets lost. The
+graph cannot answer the question; the trees can.
+
 ## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision
 
 ⚑ **Supersedes the 2026-08-18 entry below, which stays as history.** That entry says "`versions` STAYS
