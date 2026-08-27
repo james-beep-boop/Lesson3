@@ -32,8 +32,9 @@ import { UsersPanel } from '../Manage/UsersPanel'
  * The per-section rationale lives at each section in the JSX rather than in a second inventory here,
  * which drifted the last time the order changed — and drifted again by 2026-08-18, when this header
  * still described five flat sections (two under names that were never panel titles) after the page had
- * become four boxes — and three as of 2026-08-27. The inventory is gone rather than corrected; the ⚑
- * above `AccordionProvider` is the one account of the shape. Two claims worth keeping out of the JSX:
+ * become groups of nested panels. The inventory is gone rather than corrected; the ⚑ above
+ * `AccordionProvider` is the one account of the shape, and it deliberately gives no box COUNT —
+ * availability is data-dependent, so every count written here has gone stale. Two claims worth keeping out of the JSX:
  *
  *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
  *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Teachers with editing access see
@@ -528,16 +529,16 @@ export default async function AdminDashboard({
           role; a role simply sees fewer sections (a Subject Admin gets Roles & Access plus their
           candidate versions, a teacher with editing access only their saved versions).
 
-          ⚑ THREE TOP-LEVEL BOXES as of 2026-08-27, four from 2026-08-18, six flat sections before that.
-          Accounts + Roles & Access are one concern and Subjects + Subject grades are another, so each
-          pair became a NESTED pair inside a group — the shape "Lesson plans" has had since D7.
+          ⚑ GROUPS, NOT FLAT SECTIONS: Accounts + Roles & Access are one concern, Subjects + Subject
+          grades another, and Lesson plans holds the operations on a plan — including its saved and
+          candidate versions, which live at `plans.versions` (they were top-level until the operator
+          moved them; `docs/DECISIONS.md` 2026-08-27 supersedes the 2026-08-18 entry, and
+          `panelState.ts` records the retired id).
 
-          ⚑ AND `versions` IS NO LONGER ONE OF THE BOXES. This comment argued it must stay top-level,
-          because nesting it would put a teacher's whole page behind a box for operations they do not
-          have. The operator reversed that after using the page: the inventory belongs with lesson-plan
-          management, and `initialOpen`'s lone-child rule means a teacher still lands on their versions
-          without an extra click. `docs/DECISIONS.md` 2026-08-27 supersedes the 2026-08-18 entry, and
-          the retired-id list in `panelState.ts` records what that cost a shared link. */}
+          ⚑ DO NOT WRITE A BOX COUNT HERE. How many top-level boxes exist is DATA-dependent, not just
+          role-dependent: a Site Admin sees Users, Curriculum, Lesson plans and System, and previously
+          also saw a Candidate versions box — but only while candidates existed (`showSaved`). Every
+          fixed count this comment has carried has gone stale, most recently by forgetting System. */}
       <AccordionProvider available={availablePanels} initialOpen={serverOpen} initialAt={serverAt}>
         {(siteAdmin || canSeeRolesAccess) && (
           <AccordionPanel id="users" title="Users">
@@ -615,14 +616,11 @@ export default async function AdminDashboard({
             `initialOpen`'s lone-child rule opens a single top-level panel AND its single available
             child. Same click count as when it was top-level. Each ADMIN child is therefore gated
             individually below; the box being open to a teacher must not open the operations in it. */}
-        {/* ⚑ DERIVED FROM `availablePanels`, NOT RESTATED. `withAncestors` already puts `plans` in that
-            list exactly when one of its children is present, and the note above the list says why
-            hand-writing the disjunction is a trap: "`siteAdmin && 'curriculum'` was only correct by
-            coincidence, waiting for the first child with a different gate". THIS CHANGE IS THAT MOMENT
-            — `plans` went from four uniformly Site-Admin children to a mixed set, and the first draft
-            of this gate did restate the algebra by hand as `(siteAdmin || showSaved)`. Deriving it
-            means the box and the open-state vocabulary cannot disagree, so a future child with yet
-            another gate needs one edit rather than two that silently must match. */}
+        {/* ⚑ DERIVED FROM `availablePanels`, NOT RESTATED. `withAncestors` puts `plans` in that list
+            exactly when one of its children is present, so deriving the gate means the box and the
+            open-state vocabulary cannot disagree. `plans` has children with three different gates
+            (`siteAdmin`, `showSaved`, `siteAdmin && repairPlans.length > 0`); hand-writing that
+            disjunction would need two edits per new child, silently required to match. */}
         {availablePanels.includes('plans') && (
           <AccordionPanel id="plans" title="Lesson plans">
             {siteAdmin && (

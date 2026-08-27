@@ -168,9 +168,8 @@ describe('withAncestors / withoutDescendants', () => {
   })
 
   it('closing a parent closes its subtree', () => {
-    // ⚑ `plans.versions` is a descendant NOW, where the retired top-level `versions` was not — which is
-    // the substantive consequence of the 2026-08-27 renesting: closing "Lesson plans" also closes a
-    // teacher's saved versions, because it is inside the box rather than beside it.
+    // ⚑ `plans.versions` is a DESCENDANT, so closing "Lesson plans" also closes a teacher's saved
+    // versions — the substantive consequence of nesting it rather than placing it beside the box.
     expect(
       withoutDescendants(['curriculum', 'plans', 'plans.delete', 'plans.versions'], 'plans'),
     ).toEqual(['curriculum'])
@@ -223,25 +222,17 @@ describe('initialOpen', () => {
   })
 
   /**
-   * ⚑ THE TEACHER CASE AFTER THE 2026-08-27 RENESTING, and the reason that reversal was acceptable.
-   * "My saved versions" used to be a top-level panel, so rule 2 opened it and the teacher landed on
-   * their work. It is now `plans.versions`, so their only top-level id is the GROUP — and without the
-   * lone-child exception they would click once more to reveal the one thing they came for, inside a box
-   * named for operations they cannot perform. That is precisely the demotion the exception was written
-   * to prevent for the Subject Administrator; this pins that it covers the teacher too.
+   * ⚑ THE TEACHER CASE, and the reason nesting their panel is acceptable. Their only top-level id is
+   * the GROUP, so without the lone-child exception they would click once more to reveal the one thing
+   * they came for, inside a box named for operations they cannot perform — the same demotion the
+   * exception was written to prevent for the Subject Administrator. This pins that it covers them too.
    */
   it('a teacher with editing access still lands on their saved versions, not a closed box', () => {
     expect(initialOpen('', ['plans', 'plans.versions'])).toEqual(['plans', 'plans.versions'])
   })
 
-  /**
-   * ⚑ THE `: topLevel` BRANCH, restored after this PR's edits quietly removed its only cover. That case
-   * used to be driven by `['versions']` — a top-level id with NO children — which stopped existing when
-   * `versions` became `plans.versions`. Repointing it to `['plans', 'plans.upload']` moved it onto the
-   * ONE-child branch, which two other cases already cover, so the "several children" path lost its
-   * test without anything going red. Coverage loss is the quietest kind of regression: nothing fails,
-   * the suite still passes, and the branch is simply no longer watched.
-   */
+  /** ⚑ THE `: topLevel` BRANCH — one box with SEVERAL children opens the box alone. Easy to lose:
+   *  repointing a fixture onto the one-child path leaves this untested and nothing goes red. */
   it('one top-level box with SEVERAL children opens the box only, not a child', () => {
     expect(initialOpen('', ['plans', 'plans.upload', 'plans.delete'])).toEqual(['plans'])
   })

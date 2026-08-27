@@ -23,9 +23,9 @@
  * the same panel is titled "Candidate versions" for administrators and "My saved versions" for
  * Teachers with editing access, and an id must not encode one role's label.
  *
- * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six sections to four boxes, and
- * again on 2026-08-27 from four to THREE, when `versions` was folded in as `plans.versions`. Between
- * them those changes RETIRED four ids and CHANGED the meaning of a fourth. Read this before concluding
+ * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six flat sections into groups of
+ * nested panels, and again on 2026-08-27 when `versions` was folded in as `plans.versions`. Between
+ * them those changes RETIRED four ids and CHANGED the meaning of a fifth. Read this before concluding
  * a link is broken:
  *
  *   - `subjects` → `curriculum.subjects`, `subject-grades` → `curriculum.subject-grades`,
@@ -56,13 +56,11 @@
  * which is too narrow for the half that holds switches — turning outbound email off is not an
  * installation fact. Design: `docs/DESIGN-system-panel-2026-08-21.md`.
  *
- * ⚑ `versions` JOINED `plans` ON 2026-08-27 and is now `plans.versions`. This paragraph used to argue
- * the opposite — that it must stay top-level, because every non-administrator sees that panel and
- * nothing else (`showSaved` in `AdminDashboard`), so nesting it would put a teacher's entire page
- * behind a "Lesson plans" box offering them nothing else. That objection is answered rather than
- * dismissed: `initialOpen` opens a lone top-level panel AND its lone available child, so a teacher
- * still lands on their saved versions without a click. The operator reversed the decision after using
- * the page; see `docs/DECISIONS.md` 2026-08-27, which supersedes the 2026-08-18 entry.
+ * ⚑ `versions` IS NOW `plans.versions` (2026-08-27, superseding the 2026-08-18 decision to keep it
+ * top-level — `docs/DECISIONS.md`). Every non-administrator sees that panel and nothing else
+ * (`showSaved` in `AdminDashboard`), which is why nesting it is only acceptable given `initialOpen`'s
+ * lone-child rule: a teacher's sole box AND its sole child open together, so they land on their saved
+ * versions without a click. Removing that rule would put their whole page behind a closed box.
  */
 export const PANEL_IDS = [
   'users',
@@ -73,15 +71,10 @@ export const PANEL_IDS = [
   'curriculum.subject-grades',
   'plans',
   'plans.upload',
-  // ⚑ WAS TOP-LEVEL `versions` UNTIL 2026-08-27, and the reversal is deliberate: the 2026-08-18 entry
-  // in DECISIONS argued it should stay top-level, and the operator has since used the page and judged
-  // saved/candidate versions to be part of lesson-plan management. The dated entry stays as history;
-  // a new one records the supersession. Do NOT "restore" the old shape from that older entry.
-  //
-  // ⚑ ONE id FOR EVERY ROLE. Role-dependent nesting was considered twice and refused both times: the
-  // vocabulary is role-independent so a shared link means the same page for everyone. What differs by
-  // role is the TITLE ("Candidate versions" for an administrator, "My saved versions" otherwise) and
-  // whether the row is available at all — never where it lives.
+  // ⚑ ONE id FOR EVERY ROLE. Role-dependent nesting was proposed and refused: the vocabulary is
+  // role-independent so a shared link means the same page for everyone. What differs by role is the
+  // TITLE ("Candidate versions" for an administrator, "My saved versions" otherwise) and whether the
+  // row is available at all — never where it lives.
   'plans.versions',
   'plans.delete',
   'plans.repair',

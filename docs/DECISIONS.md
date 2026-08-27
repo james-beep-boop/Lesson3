@@ -426,6 +426,64 @@ This is consciously a proof of concept: no upload/delete/rename, folders, search
 files, per-file access, public access, expired-session return flow, or file backup/versioning. The
 existing ARES `resourceLinks` contract stays system-owned and completely separate.
 
+## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision
+
+⚑ **Supersedes the 2026-08-18 entry below, which stays as history.** That entry says "`versions` STAYS
+TOP-LEVEL"; do not read it as current, and do not restore the old shape from it.
+
+- **Why:** the operator, having used the page, judges saved/candidate versions to be part of
+  lesson-plan management. A shared "Lesson plans" parent is clearer than a separate top-level
+  inventory. That is sufficient on its own; decisions can change.
+- **One role-independent id: `plans.versions`.** Role-dependent nesting was proposed and refused twice —
+  the vocabulary is role-independent so a shared link means the same page for everyone. What varies by
+  role is the TITLE ("Candidate versions" / "My saved versions") and availability, never the location.
+- **The parent renders when the caller can see any child**, so each administrator child is gated
+  individually: opening the box to a teacher must not open the operations inside it.
+- **Administrators accept one extra click.** A closed panel is `[hidden]`, so `plans.versions` is out of
+  the accessibility tree until Lesson plans is opened.
+- **Teachers pay nothing**, because `initialOpen` opens a lone top-level panel *and* its lone available
+  child. ⚑ That rule is load-bearing for this decision — a pinned case in `panelState.spec.ts` names the
+  teacher scenario so it cannot be removed as redundant.
+- ⚑ **No box counts in prose or tests.** Availability is data-dependent (candidates come and go with
+  `showSaved`, Repair with unpointed plans), and every fixed count written during this change went
+  stale — the last of them by forgetting the System box.
+
+## 2026-08-22 — Link proof of concept stays plain text; PDFs cross one read-only boundary
+
+The requested demonstration deliberately avoids rich text, highlighted ranges, a Payload media
+collection, and general filesystem browsing. One **Insert link** action in the editing toolbar,
+immediately before **Quick preview**, stays disabled until the cursor is placed in a linkable
+body-prose textarea; it then inserts a complete URL in parentheses at that cursor. A Lesson3-owned
+pre-generation transform recognizes only parenthesized
+`http`/`https` addresses and supplies explicit DOCX hyperlinks through the pristine generator's
+existing `Paragraph[]` cell seam. Unlinked strings stay on the byte-existing generator path, and the
+three pinned vendor files remain untouched. Titles are excluded because the generator interpolates
+them into headings rather than cell prose.
+
+The second source is one flat PDF directory, mounted read-only into the app. Authenticated endpoints
+list and serve only regular, non-hidden, signature-checked PDFs of at most 25 MiB; opaque filename
+tokens plus basename, extension, no-symlink and `O_NOFOLLOW` checks prevent this from becoming a path
+browser. The browser turns the server-issued relative route into an absolute URL at its current public
+origin before insertion, which is what makes a Rock-hosted file usable from a remote device. Internet
+addresses are HTTPS-only in the insertion UI and are never fetched by the server.
+
+The production Compose service and `dev-server.sh` mount the same tracked-host-directory shape. The
+development script supplies its container path explicitly, so browser verification does not depend
+on a developer remembering to add the new variable to an older, gitignored `.env`.
+
+The active field and cursor position are captured as focus or selection moves within a supported
+textarea, before the toolbar button and modal take focus. Each edit session starts without an active
+target, so the one action cannot silently insert into a field the teacher did not choose. The pure
+insertion regression test pins the mid-sentence case independently of browser focus timing.
+
+PDF previews still use a synchronously opened placeholder tab so popup blockers permit the eventual
+navigation after generation. The final PDF now replaces that placeholder's history entry rather than
+following it; otherwise the browser's Back action exposes the initial blank document.
+
+This is consciously a proof of concept: no upload/delete/rename, folders, search, Word/video resource
+files, per-file access, public access, expired-session return flow, or file backup/versioning. The
+existing ARES `resourceLinks` contract stays system-owned and completely separate.
+
 ## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision to keep it top-level
 
 ⚑ **This reverses part of the 2026-08-18 entry below, which stays intact as history.** That entry says
