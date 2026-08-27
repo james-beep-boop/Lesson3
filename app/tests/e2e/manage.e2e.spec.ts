@@ -5,12 +5,14 @@
  * coverage. This spec drives the REAL rendered page and asserts what each role sees and the two
  * interactive flows:
  *
- *   1. Role scoping — editing-access user: ONLY "My saved versions"; Subject Admin: "Candidate
- *      versions" + the "Users" box holding "Roles & Access"; Site Admin: all four boxes — "Users"
- *      (Accounts / Roles & Access), "Curriculum" (Subjects / Subject grades), "Lesson plans"
- *      (Upload / Delete / Repair) and the candidate inventory. ⚑ The top level became FOUR BOXES on
- *      2026-08-18; panels that used to be top-level are nested, so a test that wants one must open
- *      its group first.
+ *   1. Role scoping — editing-access user: a "Lesson plans" box holding ONLY "My saved versions";
+ *      Subject Admin: the same box holding "Candidate versions" plus the "Users" box holding
+ *      "Roles & Access"; Site Admin: all three boxes — "Users" (Accounts / Roles & Access),
+ *      "Curriculum" (Subjects / Subject grades) and "Lesson plans" (Upload / Candidate versions /
+ *      Delete / Repair). ⚑ THE TOP LEVEL BECAME FOUR BOXES ON 2026-08-18 AND THREE ON 2026-08-22,
+ *      when the candidate/saved inventory was folded into Lesson plans. Panels that used to be
+ *      top-level are nested, so a test that wants one must open its group first — a closed panel is
+ *      `[hidden]` and therefore absent from the accessibility tree, not merely collapsed.
  *   2. Redirects — the retired list routes (`/admin/collections/lesson-plans`,
  *      `…/lesson-bundle-versions`) land on Manage, and the "Lesson plans" nav group is hidden.
  *   3. Repair — a pointerless plan appears in the Site-Admin Repair section (clean name, links to
@@ -234,9 +236,15 @@ test.describe('Manage page', () => {
     await fx?.teardown()
   })
 
-  test('a Teacher with editing access sees ONLY "My saved versions"', async ({ page }) => {
+  test('a Teacher with editing access sees only their saved versions, inside Lesson plans', async ({
+    page,
+  }) => {
     await loginAs(page, 'editor')
     await page.goto(`${BASE}/admin`)
+    // ⚑ RENESTED 2026-08-22: their panel is `plans.versions` now, so a "Lesson plans" box renders
+    // around it — and `initialOpen`'s lone-child rule opens both, so the heading is still VISIBLE on
+    // arrival rather than behind a click. That is the property that made the renesting acceptable.
+    await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
@@ -250,6 +258,11 @@ test.describe('Manage page', () => {
   test('Subject Admin sees candidates + Editing access, no Site-Admin panels', async ({ page }) => {
     await loginAs(page, 'subjectAdmin')
     await page.goto(`${BASE}/admin`)
+    // ⚑ ONE MORE CLICK THAN BEFORE, and it is the accepted cost of the 2026-08-22 renesting: with two
+    // top-level boxes (Users, Lesson plans) nothing auto-expands, and `plans.versions` sits inside a
+    // closed `[hidden]` panel — out of the accessibility tree, so `getByRole` cannot see it until the
+    // parent opens.
+    await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
@@ -263,7 +276,7 @@ test.describe('Manage page', () => {
     // Accounts panel inside it — Site-Admin-only — is not rendered at all.
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Accounts', exact: true })).toHaveCount(0)
-    // Two top-level boxes (Users, Candidate versions) means the single-section auto-expand does not
+    // Two top-level boxes (Users, Lesson plans) means the single-section auto-expand does not
     // apply, so their panel opens on a click rather than on arrival.
     await openPanel(page, 'Users')
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toBeVisible()
@@ -432,6 +445,8 @@ test.describe('Manage page', () => {
   test('an Official version is never listed as a candidate', async ({ page }) => {
     await loginAs(page, 'siteAdmin')
     await page.goto(`${BASE}/admin`)
+    // Renested 2026-08-22 — a Site Admin starts fully collapsed, so open the box first.
+    await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
     // This run's rows only — the fixture subject-grade's displayName carries the MARK.
     const meta = page.locator('.lp-manage__row-main .lp-manage__meta', { hasText: MARK })
@@ -663,7 +678,11 @@ test.describe('Manage page', () => {
       // inside a closed `[hidden]` panel — out of the accessibility tree entirely, which is why this
       // failed with "element(s) not found" rather than with the wrong attribute value. A hidden
       // control is not a collapsed control, and asserting `aria-expanded=false` on one asserts nothing.
-      for (const name of ['Users', 'Curriculum', 'Lesson plans', 'Candidate versions']) {
+      // ⚑ THREE BOXES SINCE 2026-08-22, not four: `versions` was folded into Lesson plans, so
+      // "Candidate versions" is a nested button inside a closed panel and is not in the tree at all
+      // here. Asserting `aria-expanded=false` on a hidden control asserts nothing — the same trap the
+      // note above records for Subjects / Subject grades / Roles & Access.
+      for (const name of ['Users', 'Curriculum', 'Lesson plans']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
           'aria-expanded',
           'false',
@@ -802,6 +821,7 @@ test.describe('Manage page', () => {
     test('Candidate versions has a search that filters the rows (D3)', async ({ page }) => {
       await loginAs(page, 'siteAdmin')
       await page.goto(`${BASE}/admin`)
+      await openPanel(page, 'Lesson plans')
       await openPanel(page, 'Candidate versions')
       const search = page.getByLabel('Search saved versions')
       await expect(search).toBeVisible()

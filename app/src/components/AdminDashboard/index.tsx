@@ -32,8 +32,8 @@ import { UsersPanel } from '../Manage/UsersPanel'
  * The per-section rationale lives at each section in the JSX rather than in a second inventory here,
  * which drifted the last time the order changed — and drifted again by 2026-08-18, when this header
  * still described five flat sections (two under names that were never panel titles) after the page had
- * become four boxes. The inventory is gone rather than corrected; the ⚑ above `AccordionProvider` is
- * the one account of the shape. Two claims worth keeping out of the JSX:
+ * become four boxes — and three as of 2026-08-22. The inventory is gone rather than corrected; the ⚑
+ * above `AccordionProvider` is the one account of the shape. Two claims worth keeping out of the JSX:
  *
  *   - The candidates scope mirrors `lessonBundleVersionDelete` EXACTLY, because both come from
  *     `deletableVersionsWhere` — no row is shown that the server would refuse to delete. Teachers with editing access see
@@ -482,9 +482,9 @@ export default async function AdminDashboard({
         siteAdmin && 'curriculum.subjects',
         siteAdmin && 'curriculum.subject-grades',
         siteAdmin && 'plans.upload',
+        showSaved && 'plans.versions',
         siteAdmin && 'plans.delete',
         siteAdmin && repairPlans.length > 0 && 'plans.repair',
-        showSaved && 'versions',
         // `systemFacts &&`, the same clause the JSX uses — the ⚑ above asks for one spelling so the
         // list can be diffed against the render by eye. It is non-null exactly when `siteAdmin` is.
         !!systemFacts && 'system.deployment',
@@ -600,26 +600,47 @@ export default async function AdminDashboard({
           </AccordionPanel>
         )}
 
-        {/* Upload / Delete / Repair are three operations on ONE noun, so they sit under a single
-            "Lesson plans" section. They were h3 sub-headings; they are now NESTED panels (D7 names
-            Lesson Plans as one of the two places nesting is warranted). The heading rank and 18px
-            size are unchanged — `AccordionPanel` derives both from the dotted id, so the documented
-            hierarchy step survives the change of mechanism without being restated per call site.
-            Repair is last: it is conditional and rare. */}
-        {siteAdmin && (
-          <AccordionPanel id="plans" title="Lesson plans">
-            <AccordionPanel id="plans.upload" title="Upload lesson plans">
-              <UploadBundles />
-            </AccordionPanel>
+        {/* Upload / Saved versions / Delete / Repair are operations on ONE noun, so they sit under a
+            single "Lesson plans" section (D7 names Lesson Plans as one of the two places nesting is
+            warranted). `AccordionPanel` derives heading rank and size from the dotted id, so the
+            hierarchy step survives without being restated per call site. Repair is last: conditional
+            and rare.
 
+            ⚑ THE PARENT IS NOT SITE-ADMIN-GATED ANY MORE, and that is the whole point of this shape.
+            It renders for anyone with at least one child available, so a teacher with editing access
+            sees "Lesson plans" containing only "My saved versions" — auto-opened, because
+            `initialOpen`'s lone-child rule opens a single top-level panel AND its single available
+            child. Same click count as when it was top-level. Each ADMIN child is therefore gated
+            individually below; the box being open to a teacher must not open the operations in it. */}
+        {(siteAdmin || showSaved) && (
+          <AccordionPanel id="plans" title="Lesson plans">
+            {siteAdmin && (
+              <AccordionPanel id="plans.upload" title="Upload lesson plans">
+                <UploadBundles />
+              </AccordionPanel>
+            )}
+
+            {/* ⚑ TITLE AND EMPTY-STATE DIFFER BY ROLE, LOCATION DOES NOT. "Candidate versions" for an
+                administrator tidying other people's work; "My saved versions" for a teacher returning
+                to their own. An administrator with nothing to tidy gets no row at all (`showSaved`),
+                which is why this stays conditional rather than becoming a permanent empty section. */}
+            {showSaved && (
+              <AccordionPanel id="plans.versions" title={savedTitle}>
+                <p className="lp-manage__desc">{savedDesc}</p>
+                <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
+              </AccordionPanel>
+            )}
+
+            {siteAdmin && (
             <AccordionPanel id="plans.delete" title="Delete lesson plans">
               <p className="lp-manage__desc">
                 Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
               </p>
               <DeletePlansPanel rows={planRows} />
             </AccordionPanel>
+            )}
 
-            {repairPlans.length > 0 && (
+            {siteAdmin && repairPlans.length > 0 && (
               <AccordionPanel id="plans.repair" title="Repair">
                 <p className="lp-manage__desc">
                   Lesson plans with no Official version — open one to set its Official pointer.
@@ -638,13 +659,6 @@ export default async function AdminDashboard({
                 </ul>
               </AccordionPanel>
             )}
-          </AccordionPanel>
-        )}
-
-        {showSaved && (
-          <AccordionPanel id="versions" title={savedTitle}>
-            <p className="lp-manage__desc">{savedDesc}</p>
-            <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
           </AccordionPanel>
         )}
 

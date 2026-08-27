@@ -426,6 +426,55 @@ This is consciously a proof of concept: no upload/delete/rename, folders, search
 files, per-file access, public access, expired-session return flow, or file backup/versioning. The
 existing ARES `resourceLinks` contract stays system-owned and completely separate.
 
+## 2026-08-22 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision to keep it top-level
+
+⚑ **This reverses part of the 2026-08-18 entry below, which stays intact as history.** That entry says
+"`versions` STAYS TOP-LEVEL, and this is the one part of the operator's sketch that was argued down".
+Do not read it as current. It is superseded, deliberately, and the reasoning is recorded here so nobody
+restores the old shape from the older flag — the standing CLAUDE.md rule about exactly that.
+
+**The reason is the operator's, and it is sufficient on its own:** having used the page, they judge
+saved/candidate versions to be part of lesson-plan management, and a shared "Lesson plans" parent
+clearer than a separate top-level inventory. Decisions can change. What matters is recording the
+reversal accurately rather than dressing it up.
+
+⚑ **AND MY FIRST TWO ATTEMPTS AT A RATIONALE WERE BOTH WRONG**, which is worth keeping because it is the
+session's pattern in miniature:
+
+1. I proposed **role-dependent nesting** — nested for administrators, top-level for teachers. The
+   2026-08-18 entry names that option and refuses it: the id vocabulary is role-independent so a shared
+   link means the same page for everyone. I proposed the thing the record had already rejected, without
+   reading the record.
+2. I then argued the reversal was justified because the **lone-child auto-open** exception removed the
+   click cost that drove the original refusal. But that exception was added in the SAME 2026-08-18
+   decision, immediately after `versions` was kept top-level — so it cannot be new information that
+   invalidated it. I built a justification that sounded strong instead of checking the sequence.
+
+**The shape, one id for every role:**
+
+| Role | "Lesson plans" contains |
+|---|---|
+| Teacher with editing access | My saved versions (auto-opened) |
+| Subject Administrator | Candidate versions, when any exist |
+| Site Administrator | Upload · Candidate versions · Delete · Repair (conditional, last) |
+
+`plans` renders whenever the caller can see **any** child, so each administrator child is gated
+individually — opening the box to a teacher must not open the operations inside it.
+
+⚑ **THE ACCEPTED COST, stated because it is real and was not in either proposal.** Reaching candidates
+now takes ONE MORE CLICK for administrators: a closed panel is `[hidden]`, so `plans.versions` is absent
+from the accessibility tree until "Lesson plans" is opened. Teachers pay nothing — `initialOpen`'s
+lone-child rule opens their single top-level box and its single child, so they still land on their work.
+The ergonomic loss is an administrator's; the clarity gain is the grouping. That trade is the operator's
+to make and they made it.
+
+**Scope, for the next person who moves a panel:** the vocabulary (`PANEL_IDS`), `availablePanels`, the
+JSX hierarchy and its role gates, `panelState.spec.ts` fixtures, the Manage e2e (six sites — including a
+box census that had to drop from four to three, because asserting `aria-expanded=false` on a hidden
+control asserts nothing), and FOUR prose paths: `SPEC.md`'s reserved-word note, both Guide surfaces, and
+the retired-id list in `panelState.ts`. `?open=versions` needs no special handling — `parseOpen` drops
+ids outside the closed vocabulary, which is the third time this contract has retired an id that way.
+
 ## 2026-08-22 — The restore drill PASSED, and every overclaim I made about it was corrected
 
 The last outstanding backup obligation is discharged. The arc is worth keeping because the useful part

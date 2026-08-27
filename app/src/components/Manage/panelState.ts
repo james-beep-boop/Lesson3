@@ -24,14 +24,16 @@
  * Teachers with editing access, and an id must not encode one role's label.
  *
  * ⚑ THE TOP LEVEL WAS REGROUPED (operator decision 2026-08-18) from six sections to four boxes, and
- * that RETIRED three ids and CHANGED the meaning of a fourth. Read this before concluding a link is
- * broken:
+ * again on 2026-08-22 from four to THREE, when `versions` was folded in as `plans.versions`. Between
+ * them those changes RETIRED four ids and CHANGED the meaning of a fourth. Read this before concluding
+ * a link is broken:
  *
  *   - `subjects` → `curriculum.subjects`, `subject-grades` → `curriculum.subject-grades`,
- *     `access` → `users.access`. The old spellings are retired: `parseOpen` drops ids outside this
- *     list, so an old bookmark lands on a normal Manage page with nothing opened and the parameter
- *     scrubbed. That is what retiring an entry in a URL contract is supposed to feel like from the
- *     outside, and it is the SECOND time this vocabulary has done it (see `curriculum` below).
+ *     `access` → `users.access`, and (2026-08-22) `versions` → `plans.versions`. The old spellings are
+ *     retired: `parseOpen` drops ids outside this list, so an old bookmark lands on a normal Manage
+ *     page with nothing opened and the parameter scrubbed. That is what retiring an entry in a URL
+ *     contract is supposed to feel like from the outside, and it is now the THIRD time this vocabulary
+ *     has done it (see `curriculum` below).
  *   - `users` now names the GROUP, not the accounts panel — which is `users.accounts`. So an old
  *     `?open=users` link still opens something, one level out from what it used to. That is the
  *     benign direction for a changed meaning, and it is only benign because the group CONTAINS the
@@ -68,9 +70,18 @@ export const PANEL_IDS = [
   'curriculum.subject-grades',
   'plans',
   'plans.upload',
+  // ⚑ WAS TOP-LEVEL `versions` UNTIL 2026-08-22, and the reversal is deliberate: the 2026-08-18 entry
+  // in DECISIONS argued it should stay top-level, and the operator has since used the page and judged
+  // saved/candidate versions to be part of lesson-plan management. The dated entry stays as history;
+  // a new one records the supersession. Do NOT "restore" the old shape from that older entry.
+  //
+  // ⚑ ONE id FOR EVERY ROLE. Role-dependent nesting was considered twice and refused both times: the
+  // vocabulary is role-independent so a shared link means the same page for everyone. What differs by
+  // role is the TITLE ("Candidate versions" for an administrator, "My saved versions" otherwise) and
+  // whether the row is available at all — never where it lives.
+  'plans.versions',
   'plans.delete',
   'plans.repair',
-  'versions',
   'system',
   'system.deployment',
 ] as const
