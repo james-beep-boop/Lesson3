@@ -106,7 +106,10 @@ describe('parseOpen', () => {
   })
 
   it('tolerates whitespace, empty entries and a missing parameter', () => {
-    expect(parseOpen('?open= plans.versions , ,plans ', SITE_ADMIN)).toEqual(['plans', 'plans.versions'])
+    expect(parseOpen('?open= plans.versions , ,plans ', SITE_ADMIN)).toEqual([
+      'plans',
+      'plans.versions',
+    ])
     expect(parseOpen('', SITE_ADMIN)).toEqual([])
     expect(parseOpen('?other=1', SITE_ADMIN)).toEqual([])
   })
@@ -137,10 +140,9 @@ describe('resolveServerPanelState', () => {
   it('handles a repeated parameter, an absent record, and an absent `at`', () => {
     // Next gives `string[]` when a key repeats; dropping the extras silently would be the kind of
     // lossy flattening nobody notices until a URL stops working.
-    expect(resolveServerPanelState({ open: ['plans.versions', 'plans'] }, SITE_ADMIN).open).toEqual([
-      'plans',
-      'plans.versions',
-    ])
+    expect(resolveServerPanelState({ open: ['plans.versions', 'plans'] }, SITE_ADMIN).open).toEqual(
+      ['plans', 'plans.versions'],
+    )
     expect(resolveServerPanelState(undefined, SITE_ADMIN)).toEqual({ open: [], at: null })
     expect(resolveServerPanelState({ open: 'plans' }, SITE_ADMIN).at).toBeNull()
   })
@@ -170,9 +172,9 @@ describe('withAncestors / withoutDescendants', () => {
     // ⚑ `plans.versions` is a descendant NOW, where the retired top-level `versions` was not — which is
     // the substantive consequence of the 2026-08-22 renesting: closing "Lesson plans" also closes a
     // teacher's saved versions, because it is inside the box rather than beside it.
-    expect(withoutDescendants(['curriculum', 'plans', 'plans.delete', 'plans.versions'], 'plans')).toEqual([
-      'curriculum',
-    ])
+    expect(
+      withoutDescendants(['curriculum', 'plans', 'plans.delete', 'plans.versions'], 'plans'),
+    ).toEqual(['curriculum'])
   })
 
   it('closing a parent leaves unrelated panels alone', () => {

@@ -632,12 +632,12 @@ export default async function AdminDashboard({
             )}
 
             {siteAdmin && (
-            <AccordionPanel id="plans.delete" title="Delete lesson plans">
-              <p className="lp-manage__desc">
-                Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
-              </p>
-              <DeletePlansPanel rows={planRows} />
-            </AccordionPanel>
+              <AccordionPanel id="plans.delete" title="Delete lesson plans">
+                <p className="lp-manage__desc">
+                  Deleting a lesson plan removes ALL of its saved versions. This cannot be undone.
+                </p>
+                <DeletePlansPanel rows={planRows} />
+              </AccordionPanel>
             )}
 
             {siteAdmin && repairPlans.length > 0 && (
