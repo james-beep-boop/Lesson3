@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision
+
+⚑ **Supersedes the 2026-08-18 entry below, which stays as history.** That entry says "`versions` STAYS
+TOP-LEVEL"; do not read it as current, and do not restore the old shape from it.
+
+- **Why:** the operator, having used the page, judges saved/candidate versions to be part of
+  lesson-plan management. A shared "Lesson plans" parent is clearer than a separate top-level
+  inventory. That is sufficient on its own; decisions can change.
+- **One role-independent id: `plans.versions`.** Role-dependent nesting was proposed and refused twice —
+  the vocabulary is role-independent so a shared link means the same page for everyone. What varies by
+  role is the TITLE ("Candidate versions" / "My saved versions") and availability, never the location.
+- **The parent renders when the caller can see any child**, so each administrator child is gated
+  individually: opening the box to a teacher must not open the operations inside it.
+- **Administrators accept one extra click.** A closed panel is `[hidden]`, so `plans.versions` is out of
+  the accessibility tree until Lesson plans is opened.
+- **Teachers pay nothing**, because `initialOpen` opens a lone top-level panel *and* its lone available
+  child. ⚑ That rule is load-bearing for this decision — a pinned case in `panelState.spec.ts` names the
+  teacher scenario so it cannot be removed as redundant.
+- ⚑ **No box counts in prose or tests.** Availability is data-dependent (candidates come and go with
+  `showSaved`, Repair with unpointed plans), and every fixed count written during this change went
+  stale — the last of them by forgetting the System box.
+
 ## 2026-08-25 — Local servers install exact, checksummed GitHub releases instead of building source
 
 The supported online local-server path is a small GitHub Release bundle plus prebuilt GHCR images for
@@ -425,113 +447,6 @@ following it; otherwise the browser's Back action exposes the initial blank docu
 This is consciously a proof of concept: no upload/delete/rename, folders, search, Word/video resource
 files, per-file access, public access, expired-session return flow, or file backup/versioning. The
 existing ARES `resourceLinks` contract stays system-owned and completely separate.
-
-## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision
-
-⚑ **Supersedes the 2026-08-18 entry below, which stays as history.** That entry says "`versions` STAYS
-TOP-LEVEL"; do not read it as current, and do not restore the old shape from it.
-
-- **Why:** the operator, having used the page, judges saved/candidate versions to be part of
-  lesson-plan management. A shared "Lesson plans" parent is clearer than a separate top-level
-  inventory. That is sufficient on its own; decisions can change.
-- **One role-independent id: `plans.versions`.** Role-dependent nesting was proposed and refused twice —
-  the vocabulary is role-independent so a shared link means the same page for everyone. What varies by
-  role is the TITLE ("Candidate versions" / "My saved versions") and availability, never the location.
-- **The parent renders when the caller can see any child**, so each administrator child is gated
-  individually: opening the box to a teacher must not open the operations inside it.
-- **Administrators accept one extra click.** A closed panel is `[hidden]`, so `plans.versions` is out of
-  the accessibility tree until Lesson plans is opened.
-- **Teachers pay nothing**, because `initialOpen` opens a lone top-level panel *and* its lone available
-  child. ⚑ That rule is load-bearing for this decision — a pinned case in `panelState.spec.ts` names the
-  teacher scenario so it cannot be removed as redundant.
-- ⚑ **No box counts in prose or tests.** Availability is data-dependent (candidates come and go with
-  `showSaved`, Repair with unpointed plans), and every fixed count written during this change went
-  stale — the last of them by forgetting the System box.
-
-## 2026-08-22 — Link proof of concept stays plain text; PDFs cross one read-only boundary
-
-The requested demonstration deliberately avoids rich text, highlighted ranges, a Payload media
-collection, and general filesystem browsing. One **Insert link** action in the editing toolbar,
-immediately before **Quick preview**, stays disabled until the cursor is placed in a linkable
-body-prose textarea; it then inserts a complete URL in parentheses at that cursor. A Lesson3-owned
-pre-generation transform recognizes only parenthesized
-`http`/`https` addresses and supplies explicit DOCX hyperlinks through the pristine generator's
-existing `Paragraph[]` cell seam. Unlinked strings stay on the byte-existing generator path, and the
-three pinned vendor files remain untouched. Titles are excluded because the generator interpolates
-them into headings rather than cell prose.
-
-The second source is one flat PDF directory, mounted read-only into the app. Authenticated endpoints
-list and serve only regular, non-hidden, signature-checked PDFs of at most 25 MiB; opaque filename
-tokens plus basename, extension, no-symlink and `O_NOFOLLOW` checks prevent this from becoming a path
-browser. The browser turns the server-issued relative route into an absolute URL at its current public
-origin before insertion, which is what makes a Rock-hosted file usable from a remote device. Internet
-addresses are HTTPS-only in the insertion UI and are never fetched by the server.
-
-The production Compose service and `dev-server.sh` mount the same tracked-host-directory shape. The
-development script supplies its container path explicitly, so browser verification does not depend
-on a developer remembering to add the new variable to an older, gitignored `.env`.
-
-The active field and cursor position are captured as focus or selection moves within a supported
-textarea, before the toolbar button and modal take focus. Each edit session starts without an active
-target, so the one action cannot silently insert into a field the teacher did not choose. The pure
-insertion regression test pins the mid-sentence case independently of browser focus timing.
-
-PDF previews still use a synchronously opened placeholder tab so popup blockers permit the eventual
-navigation after generation. The final PDF now replaces that placeholder's history entry rather than
-following it; otherwise the browser's Back action exposes the initial blank document.
-
-This is consciously a proof of concept: no upload/delete/rename, folders, search, Word/video resource
-files, per-file access, public access, expired-session return flow, or file backup/versioning. The
-existing ARES `resourceLinks` contract stays system-owned and completely separate.
-
-## 2026-08-27 — `versions` moves under Lesson plans, SUPERSEDING the 2026-08-18 decision to keep it top-level
-
-⚑ **This reverses part of the 2026-08-18 entry below, which stays intact as history.** That entry says
-"`versions` STAYS TOP-LEVEL, and this is the one part of the operator's sketch that was argued down".
-Do not read it as current. It is superseded, deliberately, and the reasoning is recorded here so nobody
-restores the old shape from the older flag — the standing CLAUDE.md rule about exactly that.
-
-**The reason is the operator's, and it is sufficient on its own:** having used the page, they judge
-saved/candidate versions to be part of lesson-plan management, and a shared "Lesson plans" parent
-clearer than a separate top-level inventory. Decisions can change. What matters is recording the
-reversal accurately rather than dressing it up.
-
-⚑ **AND MY FIRST TWO ATTEMPTS AT A RATIONALE WERE BOTH WRONG**, which is worth keeping because it is the
-session's pattern in miniature:
-
-1. I proposed **role-dependent nesting** — nested for administrators, top-level for teachers. The
-   2026-08-18 entry names that option and refuses it: the id vocabulary is role-independent so a shared
-   link means the same page for everyone. I proposed the thing the record had already rejected, without
-   reading the record.
-2. I then argued the reversal was justified because the **lone-child auto-open** exception removed the
-   click cost that drove the original refusal. But that exception was added in the SAME 2026-08-18
-   decision, immediately after `versions` was kept top-level — so it cannot be new information that
-   invalidated it. I built a justification that sounded strong instead of checking the sequence.
-
-**The shape, one id for every role:**
-
-| Role | "Lesson plans" contains |
-|---|---|
-| Teacher with editing access | My saved versions (auto-opened) |
-| Subject Administrator | Candidate versions, when any exist |
-| Site Administrator | Upload · Candidate versions · Delete · Repair (conditional, last) |
-
-`plans` renders whenever the caller can see **any** child, so each administrator child is gated
-individually — opening the box to a teacher must not open the operations inside it.
-
-⚑ **THE ACCEPTED COST, stated because it is real and was not in either proposal.** Reaching candidates
-now takes ONE MORE CLICK for administrators: a closed panel is `[hidden]`, so `plans.versions` is absent
-from the accessibility tree until "Lesson plans" is opened. Teachers pay nothing — `initialOpen`'s
-lone-child rule opens their single top-level box and its single child, so they still land on their work.
-The ergonomic loss is an administrator's; the clarity gain is the grouping. That trade is the operator's
-to make and they made it.
-
-**Scope, for the next person who moves a panel:** the vocabulary (`PANEL_IDS`), `availablePanels`, the
-JSX hierarchy and its role gates, `panelState.spec.ts` fixtures, the Manage e2e (six sites — including a
-box census that had to drop from four to three, because asserting `aria-expanded=false` on a hidden
-control asserts nothing), and FOUR prose paths: `SPEC.md`'s reserved-word note, both Guide surfaces, and
-the retired-id list in `panelState.ts`. `?open=versions` needs no special handling — `parseOpen` drops
-ids outside the closed vocabulary, which is the third time this contract has retired an id that way.
 
 ## 2026-08-22 — The restore drill PASSED, and every overclaim I made about it was corrected
 
