@@ -183,6 +183,17 @@ test.describe('Manage page', () => {
         finalExplanation: {
           sections: [{ title: 'Section 1 — The Foundation', prompt: 'Explain the fixture.' }],
         },
+        summaryTable: {
+          lessons: [
+            {
+              number: 1,
+              title: 'The Foundation',
+              observed: 'Observed the fixture.',
+              learned: 'Learned the fixture.',
+              explained: 'Explained the fixture.',
+            },
+          ],
+        },
       } as never,
       overrideAccess: true,
     })
@@ -542,6 +553,19 @@ test.describe('Manage page', () => {
     await expect(
       page.getByText('Section 1 — Section 1 — The Foundation', { exact: true }),
     ).toHaveCount(0)
+
+    // Summary Table follows the same outer-panel contract. Its jump chip opens that panel while the
+    // individual lesson-summary rows remain their own collapsed disclosures inside it.
+    const summaryTablePanel = page.locator(
+      '#field-summaryTable > .group-field__wrap > .render-fields > .collapsible-field > .collapsible',
+    )
+    await expect(summaryTablePanel).toHaveClass(/collapsible--collapsed/)
+    await page
+      .locator('.lesson-controls__nav')
+      .getByRole('button', { name: 'Summary table', exact: true })
+      .click()
+    await expect(summaryTablePanel).not.toHaveClass(/collapsible--collapsed/)
+    await expect(page.getByText(/Lesson row 1 —/)).toBeVisible()
   })
 
   // Searching flattens the tree and REMOVES the group checkboxes (2026-08-04). A group checkbox beside

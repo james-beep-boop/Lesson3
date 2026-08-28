@@ -69,7 +69,7 @@ describe('prose() fields ↔ fieldSplit whitelist stay in sync', () => {
   const lessons = byName(lessonContentFields, 'lessons')
   const lessonFields = childrenOf(lessons)
   const finalExplanation = displayedChildrenOf(byName(lessonContentFields, 'finalExplanation'))
-  const summaryTable = childrenOf(byName(lessonContentFields, 'summaryTable'))
+  const summaryTable = displayedChildrenOf(byName(lessonContentFields, 'summaryTable'))
 
   it('LESSON_PROSE matches the lesson group', () => {
     expect(proseNamesIn(lessonFields)).toEqual([...LESSON_PROSE].sort())

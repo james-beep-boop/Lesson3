@@ -136,12 +136,14 @@ describe('ownCollapsedToggle', () => {
     expect(toggle?.dataset.own).toBe('final-explanation')
   })
 
-  it('does not mistake a nested section row for a group’s own collapsible', () => {
+  it('returns Summary Table’s own toggle without selecting a nested lesson-summary row', () => {
     document.body.innerHTML =
-      `<div id="field-summaryTable"><div class="group-field__wrap"><div class="render-fields">` +
-      `<div class="collapsible collapsible--nested collapsible--collapsed">` +
-      `<button class="collapsible__toggle" data-own="nested">t</button></div></div></div></div>`
-    expect(ownCollapsedToggle(document.getElementById('field-summaryTable'))).toBeNull()
+      `<div id="field-summaryTable"><div class="group-field__wrap"><div class="render-fields"><div class="collapsible-field">` +
+      `<div class="collapsible collapsible--collapsed"><button class="collapsible__toggle" data-own="summary-table">t</button>` +
+      `<div id="summaryTable-lessons-row-0"><div class="collapsible collapsible--nested collapsible--collapsed">` +
+      `<button class="collapsible__toggle" data-own="summary-row">t</button></div></div></div></div></div></div></div>`
+    const toggle = ownCollapsedToggle(document.getElementById('field-summaryTable'))
+    expect(toggle?.dataset.own).toBe('summary-table')
   })
 
   it('returns null for an expanded row and for a missing target', () => {

@@ -409,28 +409,39 @@ export const lessonEditableContentFields: Field[] = [
   {
     name: 'summaryTable',
     type: 'group',
-    label: 'Summary table',
+    // Match Final Explanation's presentation: the named group preserves every stored
+    // `summaryTable.*` path, while the unnamed collapsible keeps this second lesson-sized area
+    // compact until the user needs it.
+    label: false,
+    admin: { hideGutter: true },
     fields: [
-      adminOnly(structureText('subStrand', 'Sub-strand')),
-      adminOnly(structureText('drivingQuestion', 'Driving question')),
       {
-        name: 'lessons',
-        type: 'array',
-        labels: { singular: 'Lesson row', plural: 'Lesson rows' },
-        admin: collapsedRow('title', 'Lesson row'),
+        type: 'collapsible',
+        label: 'Summary table',
+        admin: { initCollapsed: true },
         fields: [
+          adminOnly(structureText('subStrand', 'Sub-strand')),
+          adminOnly(structureText('drivingQuestion', 'Driving question')),
           {
-            name: 'number',
-            type: 'number',
-            admin: { hidden: true, readOnly: true },
-            access: { create: systemOnly, update: systemOnly },
+            name: 'lessons',
+            type: 'array',
+            labels: { singular: 'Lesson row', plural: 'Lesson rows' },
+            admin: collapsedRow('title', 'Lesson row'),
+            fields: [
+              {
+                name: 'number',
+                type: 'number',
+                admin: { hidden: true, readOnly: true },
+                access: { create: systemOnly, update: systemOnly },
+              },
+              // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `hooks/fieldSplit.ts`
+              // for why, and SPEC §5 for the permission it implements.
+              adminOnly(structureText('title', 'Title')),
+              prose('observed', 'Observed'),
+              prose('learned', 'Learned'),
+              prose('explained', 'Explained'),
+            ],
           },
-          // Administrator-only — see the ⚑ on `SUMMARY_LESSON_PROSE` in `hooks/fieldSplit.ts` for
-          // why, and SPEC §5 for the permission it implements.
-          adminOnly(structureText('title', 'Title')),
-          prose('observed', 'Observed'),
-          prose('learned', 'Learned'),
-          prose('explained', 'Explained'),
         ],
       },
     ],
