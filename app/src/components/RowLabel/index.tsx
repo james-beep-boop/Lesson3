@@ -16,10 +16,9 @@
 import React from 'react'
 import { useRowLabel } from '@payloadcms/ui'
 
-type Props = { field?: string; noun?: string }
+import { formatRowLabel } from './formatRowLabel'
 
-const firstLine = (s: string): string => s.trim().split('\n')[0]!.trim()
-const truncate = (s: string, max = 60): string => (s.length > max ? `${s.slice(0, max - 1)}…` : s)
+type Props = { field?: string; noun?: string }
 
 export default function RowLabel(props: Props) {
   const { data, rowNumber } = useRowLabel<Record<string, unknown>>()
@@ -27,7 +26,6 @@ export default function RowLabel(props: Props) {
   const noun = props.noun ?? 'Row'
 
   const raw = props.field ? data?.[props.field] : undefined
-  const value = typeof raw === 'string' && raw.trim() ? truncate(firstLine(raw)) : ''
 
-  return <span>{`${noun} ${n}${value ? ` — ${value}` : ''}`}</span>
+  return <span>{formatRowLabel(noun, n, raw)}</span>
 }

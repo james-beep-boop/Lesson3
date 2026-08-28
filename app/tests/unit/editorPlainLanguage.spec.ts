@@ -25,7 +25,13 @@ describe('the version editor uses teacher-facing language', () => {
     expect(byName(byName(fields, 'lessons').fields ?? [], 'slo').label).toBe(
       'Specific learning outcomes',
     )
-    expect(byName(fields, 'finalExplanation').label).toBe('Final explanation')
+    const finalExplanation = byName(fields, 'finalExplanation')
+    const finalExplanationPanel = (finalExplanation.fields ?? []).find(
+      (field) => field.type === 'collapsible',
+    )
+    expect(finalExplanation.label).toBe(false)
+    expect(finalExplanationPanel?.label).toBe('Final explanation')
+    expect(finalExplanationPanel?.admin?.initCollapsed).toBe(true)
     expect(byName(fields, 'summaryTable').label).toBe('Summary table')
   })
 

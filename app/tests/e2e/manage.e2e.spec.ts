@@ -166,6 +166,7 @@ test.describe('Manage page', () => {
     // nothing to tidy, so without a real candidate this spec would assert a heading that correctly
     // does not exist. It also makes the spec finally test its own name — previously "sees candidates"
     // passed against an empty list showing only its empty state.
+    const candidateContent = minimalBundleContent()
     const candidate = await fx.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
@@ -176,7 +177,12 @@ test.describe('Manage page', () => {
         // `author` is systemOnly at field level, which `overrideAccess: true` bypasses. Set here so the
         // row has a name to resolve — that is what proves the `authors` lookup (see the display test).
         author: fx.users.editor.id,
-        ...minimalBundleContent(),
+        ...candidateContent,
+        // Pins the imported-title case from the real editor: RowLabel supplies "Section 1", while
+        // the stored title already begins with the same prefix. The rendered label must contain it once.
+        finalExplanation: {
+          sections: [{ title: 'Section 1 — The Foundation', prompt: 'Explain the fixture.' }],
+        },
       } as never,
       overrideAccess: true,
     })
@@ -502,14 +508,19 @@ test.describe('Manage page', () => {
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
     // intent as the teacher with editing access.
     await loginAs(page, 'editor')
-    await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${fx.version.id}?edit=1`)
+    await page.goto(
+      `${BASE}/admin/collections/lesson-bundle-versions/${candidateVersionId}?edit=1`,
+    )
     // Our control bar renders, with the shared page-level Back control at the far right. It uses the
     // same Next Link component and visual tokens as the frontend pages; crossing root layouts still
     // becomes a full navigation automatically.
     const back = page.locator('.lesson-controls__group--back a')
     await expect(back).toBeVisible()
     await expect(back).toHaveClass(/(^|\s)btn(\s|$)/)
-    await expect(back).toHaveAttribute('href', `/lessons/${fx.plan.id}?version=${fx.version.id}`)
+    await expect(back).toHaveAttribute(
+      'href',
+      `/lessons/${fx.plan.id}?version=${candidateVersionId}`,
+    )
     // Payload chrome is stripped on this page (CSS-hidden): nav sidebar + app-header/breadcrumbs.
     await expect(page.locator('.template-default .nav')).toBeHidden()
     await expect(page.locator('.app-header')).toBeHidden()
@@ -517,6 +528,22 @@ test.describe('Manage page', () => {
     await expect(page.locator('.doc-controls .form-submit')).toBeHidden()
     // Edit intent honoured: a prose textarea is editable for this Teacher's granted scope.
     await expect(page.locator('textarea').first()).toBeEditable()
+
+    // Final Explanation is a real top-level disclosure now: compact on entry, but its existing jump
+    // chip must open the disclosure itself (never a nested Section row) before scrolling to it.
+    const finalExplanationPanel = page.locator(
+      '#field-finalExplanation > .group-field__wrap > .render-fields > .collapsible-field > .collapsible',
+    )
+    await expect(finalExplanationPanel).toHaveClass(/collapsible--collapsed/)
+    await page
+      .locator('.lesson-controls__nav')
+      .getByRole('button', { name: 'Final explanation', exact: true })
+      .click()
+    await expect(finalExplanationPanel).not.toHaveClass(/collapsible--collapsed/)
+    await expect(page.getByText('Section 1 — The Foundation', { exact: true })).toBeVisible()
+    await expect(
+      page.getByText('Section 1 — Section 1 — The Foundation', { exact: true }),
+    ).toHaveCount(0)
   })
 
   // Searching flattens the tree and REMOVES the group checkboxes (2026-08-04). A group checkbox beside
