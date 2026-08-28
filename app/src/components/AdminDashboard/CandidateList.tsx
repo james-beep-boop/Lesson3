@@ -32,10 +32,12 @@ export function CandidateList({
   rows,
   emptyText,
   showAuthor,
+  showContinueEditing,
 }: {
   rows: CandidateRow[]
   emptyText: string
   showAuthor: boolean
+  showContinueEditing: boolean
 }) {
   const router = useRouter()
   const { config } = useConfig()
@@ -126,8 +128,9 @@ export function CandidateList({
                   </Link>
                   <p className="lp-manage__meta">{meta.join(' · ')}</p>
                 </div>
-                {/* The title is still the obvious link, but the action is also NAMED: "click the row to
-                resume editing" was never stated anywhere on the page. */}
+                {/* Teachers get a named return path to their unfinished work. A Site Administrator's
+                panel is a cleanup queue, so the duplicate action is omitted there; the title remains
+                a quiet link to the same editor if an exceptional inspection is needed. */}
                 <div className="lp-manage__row-actions">
                   {row.officialVersionId != null && (
                     <CompareToOfficialLink
@@ -137,9 +140,11 @@ export function CandidateList({
                       candidateVersionId={row.id}
                     />
                   )}
-                  <Link className="btn lp-btn" href={href}>
-                    Continue editing
-                  </Link>
+                  {showContinueEditing && (
+                    <Link className="btn lp-btn" href={href}>
+                      Continue editing
+                    </Link>
+                  )}
                   <Button
                     className="lp-btn"
                     buttonStyle="error"

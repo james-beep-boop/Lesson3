@@ -160,4 +160,6 @@ These rules are also available from *Editing help* at the top of the editor.
 
 ---
 
-Lesson Plans by [ARES Education](https://areseducation.org) — [Donate](https://areseducation.org/donate.html)
+Lesson Plans by [ARES Education](https://areseducation.org) and [Seavuria](https://www.seavuria.org)
+
+[Donate to ARES Education](https://areseducation.org/donate.html) · [Donate to Seavuria](https://www.seavuria.org/donate)

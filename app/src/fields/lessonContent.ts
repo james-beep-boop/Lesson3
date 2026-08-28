@@ -78,10 +78,10 @@ const resourcePhaseFields = (): Field[] => [
 // single biggest reason this form reads as intimidating, and collapsing is only safe BECAUSE the row
 // label keeps a collapsed row identifiable. The jump nav expands a row on the way in.
 //
-// NOTE: `initCollapsed` is a FIRST-VISIT default only. `isRowCollapsed` (@payloadcms/ui) resolves
-// in-session form state → stored field preferences → this value, and the preferences tier is gated on
-// mere EXISTENCE — so once an account has toggled any row, this is never consulted and unlisted rows
-// render expanded. Hence scripts/clear-editor-collapse-prefs.ts. See
+// NOTE: `initCollapsed` is Payload's first-render fallback. Its `isRowCollapsed` resolves in-session
+// form state → stored field preferences → this value, so LessonControls also collapses the loaded
+// form state once per document visit. That makes "opens collapsed" authoritative for returning users
+// while leaving Show All / Collapse All fully usable during the visit. See
 // docs/DESIGN-editor-usability-2026-07-25.md §3b/§3c.
 const collapsedRow = (field: string, noun: string) => ({
   components: {

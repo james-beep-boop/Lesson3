@@ -297,16 +297,31 @@ export default async function UserGuidePage() {
             Lesson Plans by{' '}
             <a href="https://areseducation.org" target="_blank" rel="noopener noreferrer">
               ARES Education
+            </a>{' '}
+            and{' '}
+            <a href="https://www.seavuria.org" target="_blank" rel="noopener noreferrer">
+              Seavuria
             </a>
           </span>
-          <a
-            className="btn guide-footer__donate"
-            href="https://areseducation.org/donate.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Donate
-          </a>
+          <span className="guide-footer__support">Help both organizations continue this work.</span>
+          <div className="guide-footer__actions">
+            <a
+              className="btn guide-footer__donate"
+              href="https://areseducation.org/donate.html"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Donate to ARES Education
+            </a>
+            <a
+              className="btn guide-footer__donate"
+              href="https://www.seavuria.org/donate"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Donate to Seavuria
+            </a>
+          </div>
         </div>
       </footer>
     </article>

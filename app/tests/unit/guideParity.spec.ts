@@ -62,6 +62,7 @@ function flatten(source: string): string {
     .replace(/&rsquo;/g, '’')
     .replace(/&mdash;/g, '—')
     .replace(/&nbsp;/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Markdown links → their visible labels
     .replace(/\*\*|__|\*|_/g, '') // Markdown emphasis
     .replace(/\s+/g, ' ')
 }
@@ -71,6 +72,10 @@ function flatten(source: string): string {
  * Adding a rule to one file and not the other is exactly what this list refuses.
  */
 const CLAIMS: { what: string; claim: string }[] = [
+  {
+    what: 'the shared ARES Education and Seavuria credit',
+    claim: 'Lesson Plans by ARES Education and Seavuria',
+  },
   {
     what: 'the panel path, renamed from "Editing access" on 2026-08-18 and regrouped under Users',
     claim: 'Manage → Users → Roles & Access',
@@ -167,6 +172,21 @@ describe('the in-app guide and USER_GUIDE.md state the same rules', () => {
       entities,
       `Use the literal character instead. Entities found: ${entities.join(', ')}`,
     ).toEqual([])
+  })
+
+  it('links both organizations and their separate donation destinations', () => {
+    const rawPage = read(GUIDE_PAGE, 'The /guide page moved?')
+    const rawMd = read(GUIDE_MD, 'The repo-root bind mount from scripts/in-deps.sh is missing.')
+
+    for (const href of [
+      'https://areseducation.org',
+      'https://areseducation.org/donate.html',
+      'https://www.seavuria.org',
+      'https://www.seavuria.org/donate',
+    ]) {
+      expect(rawPage, `/guide is missing ${href}`).toContain(href)
+      expect(rawMd, `USER_GUIDE.md is missing ${href}`).toContain(href)
+    }
   })
 
   for (const retired of RETIRED) {

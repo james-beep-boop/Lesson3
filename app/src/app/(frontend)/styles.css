@@ -1639,23 +1639,31 @@ button.user-menu__item {
   background: var(--bg-soft);
 }
 .guide-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--app-space-3);
   margin-top: var(--app-space-5);
   padding-top: var(--app-space-3);
   border-top: 1px solid var(--line);
+  text-align: center;
 }
 .guide-footer__credit {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+}
+.guide-footer__support {
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+}
+.guide-footer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--app-space-2);
 }
 .guide-footer__donate {
   display: inline-block;
+  min-width: 13rem;
 }
 
 /* ---- Reading-first mobile pass (IA redesign PR ⑤): the library, lesson pages, and Guide must be

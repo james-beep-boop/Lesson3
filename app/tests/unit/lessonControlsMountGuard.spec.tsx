@@ -17,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   search: 'edit=1',
   // Captured so we can assert the form's locked/unlocked state after the guard settles.
   setDisabled: vi.fn(),
+  dispatchFields: vi.fn(),
+  fields: {} as Record<string, unknown>,
+  initializing: false,
   // A teacher with editing access for the document's subject-grade — the baseline where the edit lifecycle is offered.
   user: { id: 1, roles: [], assignments: [{ subjectGrade: 5, role: 'editor' }] } as unknown,
 }))
@@ -32,7 +35,7 @@ vi.mock('@payloadcms/ui', () => ({
       {children}
     </button>
   ),
-  useAllFormFields: () => [{}],
+  useAllFormFields: () => [mocks.fields],
   useAuth: () => ({ user: mocks.user }),
   useDocumentInfo: () => ({
     id: 1,
@@ -42,7 +45,13 @@ vi.mock('@payloadcms/ui', () => ({
       title: 'BIOLOGY GRADE 10: CELL STRUCTURE',
     },
   }),
-  useForm: () => ({ setDisabled: mocks.setDisabled, reset: vi.fn(), setModified: vi.fn() }),
+  useForm: () => ({
+    dispatchFields: mocks.dispatchFields,
+    initializing: mocks.initializing,
+    setDisabled: mocks.setDisabled,
+    reset: vi.fn(),
+    setModified: vi.fn(),
+  }),
   useFormModified: () => false,
 }))
 
@@ -57,6 +66,9 @@ function setViewportWidth(width: number) {
 
 beforeEach(() => {
   mocks.setDisabled.mockClear()
+  mocks.dispatchFields.mockClear()
+  mocks.fields = {}
+  mocks.initializing = false
   // The pristine-official probe fires on mount (id + lessonPlan are set); keep it from throwing.
   vi.stubGlobal(
     'fetch',
@@ -74,10 +86,64 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
 describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () => {
+  it('collapses loaded array rows once, then leaves in-session toggles alone', () => {
+    vi.useFakeTimers()
+    mocks.search = ''
+    mocks.fields = {
+      lessons: { rows: [{ id: 'lesson-1', collapsed: false }] },
+      'lessons.0.framework': { rows: [{ id: 'phase-1', collapsed: false }] },
+    }
+    setViewportWidth(1280)
+
+    render(<LessonControls />)
+    act(() => vi.advanceTimersByTime(300))
+
+    expect(mocks.dispatchFields.mock.calls.map(([action]) => action)).toEqual([
+      {
+        path: 'lessons',
+        type: 'SET_ALL_ROWS_COLLAPSED',
+        updatedRows: [{ id: 'lesson-1', collapsed: true }],
+      },
+      {
+        path: 'lessons.0.framework',
+        type: 'SET_ALL_ROWS_COLLAPSED',
+        updatedRows: [{ id: 'phase-1', collapsed: true }],
+      },
+    ])
+
+    // A state change later in the visit must not re-apply the opening rule over the user's choice.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(mocks.dispatchFields).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for Payload form initialization before overriding saved row preferences', () => {
+    vi.useFakeTimers()
+    mocks.search = ''
+    mocks.initializing = true
+    mocks.fields = {
+      lessons: { rows: [{ id: 'lesson-1', collapsed: false }] },
+    }
+    setViewportWidth(1280)
+
+    const { rerender } = render(<LessonControls />)
+    expect(mocks.dispatchFields).not.toHaveBeenCalled()
+
+    mocks.initializing = false
+    rerender(<LessonControls />)
+    act(() => vi.advanceTimersByTime(300))
+
+    expect(mocks.dispatchFields).toHaveBeenCalledWith({
+      path: 'lessons',
+      type: 'SET_ALL_ROWS_COLLAPSED',
+      updatedRows: [{ id: 'lesson-1', collapsed: true }],
+    })
+  })
+
   it('at 390px, a ?edit=1 load settles in VIEW mode (Edit shown, no Save; form disabled)', () => {
     mocks.search = 'edit=1'
     setViewportWidth(390)
