@@ -266,6 +266,7 @@ test.describe('Manage page', () => {
     // accessibility tree, so `getByRole` cannot see it until the parent opens.
     await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
+    await openPanel(page, 'Candidate versions')
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
     // rows, which reuse it (`--tight`); `.lp-manage__row-main` is the candidate row's own structure.
