@@ -126,13 +126,22 @@ describe('ownCollapsedToggle', () => {
     expect(ownCollapsedToggle(document.getElementById(lessonRowId(1)))).toBeNull()
   })
 
-  it('returns null for a group target whose nested section rows are collapsed', () => {
-    // Groups have no collapsible of their own — Final Explanation should only be scrolled to.
+  it('returns Final Explanation’s own toggle without selecting a nested section row', () => {
     document.body.innerHTML =
-      `<div id="field-finalExplanation"><div id="finalExplanation-sections-row-0">` +
-      `<div class="collapsible collapsible--nested collapsible--collapsed"><div class="collapsible__toggle-wrap">` +
-      `<button class="collapsible__toggle" data-own="section">t</button></div></div></div></div>`
-    expect(ownCollapsedToggle(document.getElementById('field-finalExplanation'))).toBeNull()
+      `<div id="field-finalExplanation"><div class="group-field__wrap"><div class="render-fields"><div class="collapsible-field">` +
+      `<div class="collapsible collapsible--collapsed"><button class="collapsible__toggle" data-own="final-explanation">t</button>` +
+      `<div id="finalExplanation-sections-row-0"><div class="collapsible collapsible--nested collapsible--collapsed">` +
+      `<button class="collapsible__toggle" data-own="section">t</button></div></div></div></div></div></div></div>`
+    const toggle = ownCollapsedToggle(document.getElementById('field-finalExplanation'))
+    expect(toggle?.dataset.own).toBe('final-explanation')
+  })
+
+  it('does not mistake a nested section row for a group’s own collapsible', () => {
+    document.body.innerHTML =
+      `<div id="field-summaryTable"><div class="group-field__wrap"><div class="render-fields">` +
+      `<div class="collapsible collapsible--nested collapsible--collapsed">` +
+      `<button class="collapsible__toggle" data-own="nested">t</button></div></div></div></div>`
+    expect(ownCollapsedToggle(document.getElementById('field-summaryTable'))).toBeNull()
   })
 
   it('returns null for an expanded row and for a missing target', () => {

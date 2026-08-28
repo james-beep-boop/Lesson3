@@ -35,6 +35,13 @@ const isProseField = (f: Field): boolean =>
 /** Named-field children of a group/array field (skips row-label UI, etc.). */
 const childrenOf = (f: Field): Field[] => (f as { fields?: Field[] }).fields ?? []
 
+/** Unwrap a named group's sole presentational collapsible without changing its stored field paths. */
+const displayedChildrenOf = (f: Field): Field[] => {
+  const children = childrenOf(f)
+  const panel = children.find((child) => child.type === 'collapsible')
+  return panel ? childrenOf(panel) : children
+}
+
 /** Direct prose-field names within a container's field list. */
 const proseNamesIn = (fields: Field[]): string[] =>
   fields
@@ -61,7 +68,7 @@ const byName = (fields: Field[], name: string): Field =>
 describe('prose() fields ↔ fieldSplit whitelist stay in sync', () => {
   const lessons = byName(lessonContentFields, 'lessons')
   const lessonFields = childrenOf(lessons)
-  const finalExplanation = childrenOf(byName(lessonContentFields, 'finalExplanation'))
+  const finalExplanation = displayedChildrenOf(byName(lessonContentFields, 'finalExplanation'))
   const summaryTable = childrenOf(byName(lessonContentFields, 'summaryTable'))
 
   it('LESSON_PROSE matches the lesson group', () => {

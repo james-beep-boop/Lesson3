@@ -361,36 +361,47 @@ export const lessonEditableContentFields: Field[] = [
   {
     name: 'finalExplanation',
     type: 'group',
-    label: 'Final explanation',
+    // Keep the named group (and therefore the stored `finalExplanation.*` paths) while using an
+    // unnamed, presentational collapsible for the editor. `hideGutter` prevents the group from
+    // drawing a second box around the collapsible.
+    label: false,
+    admin: { hideGutter: true },
     fields: [
-      adminOnly(structureText('subjectLabel', 'Subject label')),
-      prose('instructions', 'Instructions'),
       {
-        name: 'sections',
-        type: 'array',
-        labels: { singular: 'Section', plural: 'Sections' },
-        admin: collapsedRow('title', 'Section'),
+        type: 'collapsible',
+        label: 'Final explanation',
+        admin: { initCollapsed: true },
         fields: [
-          adminOnly(structureText('title', 'Title')),
-          prose('prompt', 'Prompt'),
-          // Answer key — Subject Admin only (SPEC §5). Multiline prose, admin-gated.
-          adminOnly(proseAdmin('exemplar', 'Exemplar (answer key)')),
+          adminOnly(structureText('subjectLabel', 'Subject label')),
+          prose('instructions', 'Instructions'),
+          {
+            name: 'sections',
+            type: 'array',
+            labels: { singular: 'Section', plural: 'Sections' },
+            admin: collapsedRow('title', 'Section'),
+            fields: [
+              adminOnly(structureText('title', 'Title')),
+              prose('prompt', 'Prompt'),
+              // Answer key — Subject Admin only (SPEC §5). Multiline prose, admin-gated.
+              adminOnly(proseAdmin('exemplar', 'Exemplar (answer key)')),
+            ],
+          },
+          adminOnly({
+            // Whole rubric is an answer key → Subject Admin only.
+            name: 'rubric',
+            type: 'array',
+            labels: { singular: 'Rubric row', plural: 'Rubric' },
+            admin: collapsedRow('criterion', 'Rubric row'),
+            access: { update: canEditStructure },
+            fields: [
+              structureText('criterion', 'Criterion'),
+              structureText('excellent', 'Excellent'),
+              structureText('proficient', 'Proficient'),
+              structureText('developing', 'Developing'),
+            ],
+          }),
         ],
       },
-      adminOnly({
-        // Whole rubric is an answer key → Subject Admin only.
-        name: 'rubric',
-        type: 'array',
-        labels: { singular: 'Rubric row', plural: 'Rubric' },
-        admin: collapsedRow('criterion', 'Rubric row'),
-        access: { update: canEditStructure },
-        fields: [
-          structureText('criterion', 'Criterion'),
-          structureText('excellent', 'Excellent'),
-          structureText('proficient', 'Proficient'),
-          structureText('developing', 'Developing'),
-        ],
-      }),
     ],
   },
 

@@ -96,18 +96,23 @@ export function sectionKeyForFocus(el: Element | null | undefined): string | nul
 /**
  * The toggle that opens jump target `target` itself, or `null` when the target needs no opening.
  *
- * Only the target's OWN collapsible counts — its DIRECT child, per `ArrayRow.js`
- * (`<div id={rowId}><Collapsible …>`). A plain descendant search would reach *nested* rows, and since
+ * Only the target's OWN collapsible counts: either its DIRECT child, per `ArrayRow.js`
+ * (`<div id={rowId}><Collapsible …>`), or the single presentational collapsible directly inside the
+ * named Final Explanation group's wrapper. A plain descendant search would reach *nested* rows, and since
  * 2026-07-25 every nested array (`framework`, `sections`, `rubric`, `summaryTable.lessons`) also starts
  * collapsed: jumping to an already-open lesson would then expand its first phase, and jumping to Final
  * Explanation would expand its first section — neither of which the user asked for.
  *
- * Group targets (`#field-finalExplanation`, `#field-summaryTable`, `#field-title`) have no collapsible
- * of their own, so they correctly yield `null` and are only scrolled to.
+ * Summary Table and Title have no collapsible of their own, so they correctly yield `null` and are
+ * only scrolled to. Final Explanation does have one, so its jump-nav chip opens it before scrolling.
  */
 export function ownCollapsedToggle(target: Element | null | undefined): HTMLElement | null {
-  // `:scope >` keeps this to the row's own collapsible; `--collapsed` is Payload's own state class.
-  const own = target?.querySelector(':scope > .collapsible--collapsed')
+  // Both selectors are tightly anchored to the target. In particular, neither can reach a nested
+  // Section/Rubric/Phase row. `--collapsed` is Payload's own state class.
+  const own = target?.querySelector(
+    ':scope > .collapsible--collapsed, ' +
+      ':scope > .group-field__wrap > .render-fields > .collapsible-field > .collapsible--collapsed',
+  )
   // The toggle-wrap precedes the content, so the row's own toggle is first in document order.
   const toggle = own?.querySelector('.collapsible__toggle')
   return toggle instanceof HTMLElement ? toggle : null
