@@ -2870,7 +2870,7 @@ CI-watched to green. (Default back to the PR flow for anything with real correct
 **OPERATOR NEXT — DEPLOY `main` (`83f0c4e`) to the Rock.** Usual `scripts/deploy.sh`, **no migration**
 (UI strings + CSS/markup only; `generate:types` unaffected — no schema change).
 
-**EYEBALL (post-deploy):** login reads "ARES Lesson Plans" + "By ARES Education" link works; header /
+**EYEBALL (post-deploy):** login reads "ARES Lesson Plans" + "By ARES Education and Seavuria" links work; header /
 admin brand / a reset-or-welcome email say "ARES Lesson Plans"; a version editor's control bar sits
 on the LEFT above the fields (view AND edit modes); the Guide's editor + auto-sign-out wording; and the
 catalogue rows — blue clickable names, one-line rows with inline PDF/Word, "Supporting documents"

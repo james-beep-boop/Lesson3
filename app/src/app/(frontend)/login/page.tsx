@@ -18,6 +18,10 @@ export default async function LoginPage() {
         By{' '}
         <a href="https://areseducation.org" target="_blank" rel="noopener noreferrer">
           ARES Education
+        </a>{' '}
+        and{' '}
+        <a href="https://www.seavuria.org" target="_blank" rel="noopener noreferrer">
+          Seavuria
         </a>
       </p>
       <LoginForm />

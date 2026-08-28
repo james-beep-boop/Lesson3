@@ -1148,6 +1148,30 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   grid-template-columns: 1fr;
 }
 
+// The editor uses the same centered page shell as the frontend, including Compare. It previously
+// filled the entire viewport after the Payload nav was stripped (1280px at a 1280px viewport), while
+// every frontend page and Manage use the shared 960px column. Override Payload's large admin gutter
+// inside this one collection so the content edge also matches the shared 20px page gutter.
+.collection-edit--lesson-bundle-versions {
+  max-width: var(--app-content-width);
+  margin-inline: auto;
+  --gutter-h: var(--app-content-pad);
+
+  .document-fields {
+    --main-gutter-h-left: var(--app-content-pad);
+    --main-gutter-h-right: var(--app-content-pad);
+  }
+
+  @media (max-width: 640px) {
+    --gutter-h: var(--app-content-pad-sm);
+
+    .document-fields {
+      --main-gutter-h-left: var(--app-content-pad-sm);
+      --main-gutter-h-right: var(--app-content-pad-sm);
+    }
+  }
+}
+
 // Shared admin control classes (search bar / checkbox / version pill), originally from the retired
 // catalogue list view — now used by the Manage panels (DeletePlansPanel, CandidateList). Flat BEM
 // class names; the catalogue-only layout rules were removed with the view (PR ③).

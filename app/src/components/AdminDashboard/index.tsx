@@ -637,7 +637,12 @@ export default async function AdminDashboard({
             {showSaved && (
               <AccordionPanel id="plans.versions" title={savedTitle}>
                 <p className="lp-manage__desc">{savedDesc}</p>
-                <CandidateList rows={candidates} emptyText={savedEmpty} showAuthor={isAdmin} />
+                <CandidateList
+                  rows={candidates}
+                  emptyText={savedEmpty}
+                  showAuthor={isAdmin}
+                  showContinueEditing={!siteAdmin}
+                />
               </AccordionPanel>
             )}
 

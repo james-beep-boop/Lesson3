@@ -97,6 +97,40 @@ const bodyOf = (sel: string) => {
 }
 
 describe('Guide + Compare visual system', () => {
+  it('centers the guide partnership credit and gives both donation links equal treatment', () => {
+    expect(bodyOf('.guide-footer')).toMatch(/text-align:\s*center/)
+    expect(bodyOf('.guide-footer__credit')).toMatch(/flex-direction:\s*column/)
+    expect(bodyOf('.guide-footer__actions')).toMatch(/justify-content:\s*center/)
+    expect(bodyOf('.guide-footer__donate')).toMatch(/min-width:\s*13rem/)
+  })
+
+  it('gives the version editor the shared centered page shell', () => {
+    const selector = '.collection-edit--lesson-bundle-versions'
+    const rule = adminRules.find((r) => r.media === null && r.selectors.includes(selector))
+    expect(rule, `${selector} needs a desktop shell rule`).toBeTruthy()
+    expect(rule!.body).toMatch(/max-width:\s*var\(--app-content-width\)/)
+    expect(rule!.body).toMatch(/margin-inline:\s*auto/)
+    expect(rule!.body).toMatch(/--gutter-h:\s*var\(--app-content-pad\)/)
+
+    const fields = adminRules.find(
+      (r) => r.media === null && r.selectors.includes(`${selector} .document-fields`),
+    )
+    expect(fields, 'the editor field gutters must match the shared page gutter').toBeTruthy()
+    expect(fields!.body).toMatch(/--main-gutter-h-left:\s*var\(--app-content-pad\)/)
+    expect(fields!.body).toMatch(/--main-gutter-h-right:\s*var\(--app-content-pad\)/)
+
+    const mobileShell = mobileRules.find((r) => r.selectors.includes(selector))
+    expect(mobileShell, 'the editor needs the shared small-screen gutter').toBeTruthy()
+    expect(mobileShell!.body).toMatch(/--gutter-h:\s*var\(--app-content-pad-sm\)/)
+
+    const mobileFields = mobileRules.find((r) =>
+      r.selectors.includes(`${selector} .document-fields`),
+    )
+    expect(mobileFields, 'the editor fields need the shared small-screen gutter').toBeTruthy()
+    expect(mobileFields!.body).toMatch(/--main-gutter-h-left:\s*var\(--app-content-pad-sm\)/)
+    expect(mobileFields!.body).toMatch(/--main-gutter-h-right:\s*var\(--app-content-pad-sm\)/)
+  })
+
   it('gives every shared-header page title one owner', () => {
     // `.page-heading h1`, not `.lesson-heading h1` — the latter reached only two pages, which is
     // exactly why the Guide had to declare its own.

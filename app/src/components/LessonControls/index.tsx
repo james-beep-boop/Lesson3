@@ -61,6 +61,7 @@ import {
   subscribeToActiveLinkTarget,
 } from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
+import { initialCollapseActions } from './initialCollapse'
 import CompareToOfficialLink from '../CompareToOfficialLink'
 
 /** The server's error message from a failed Payload REST response, or a labelled status fallback.
@@ -72,7 +73,7 @@ async function errorMessage(res: Response, label: string): Promise<string> {
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
-  const { setDisabled, reset, setModified } = useForm()
+  const { dispatchFields, initializing, setDisabled, reset, setModified } = useForm()
   // Pristine-form Save gate (user decision 2026-07-17, "disabled" variant): an untouched form has
   // nothing to save, so Save is disabled with a tooltip saying why. Payload's `modified` means
   // "touched", not "different" — type a char and delete it and the form counts as modified — so the
@@ -103,6 +104,31 @@ export default function LessonControls() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [tooNarrow, setTooNarrow] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+
+  // Every visit starts compact, even when Payload has an older per-user "Show All" preference.
+  // `initCollapsed` remains the no-flash first-render default; this once-per-document form-state
+  // correction is what makes the rule authoritative for returning users. Payload applies its saved
+  // row preferences shortly after the base form initializes, so wait for the form state to settle
+  // before correcting it; changes during that hydration restart the short timer. It deliberately
+  // does NOT rewrite the preference: after this effect runs, Show All / Collapse All and individual
+  // row toggles work normally for the rest of the visit.
+  const collapsedOnEntryFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (id == null || initializing) return
+    const documentId = String(id)
+    if (collapsedOnEntryFor.current === documentId) return
+
+    const timer = window.setTimeout(() => {
+      const actions = initialCollapseActions(fields)
+      if (actions === null) return
+
+      // Mark before dispatch: each action changes `fields` and re-runs this effect.
+      collapsedOnEntryFor.current = documentId
+      for (const action of actions) dispatchFields(action)
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [dispatchFields, fields, id, initializing])
 
   // The right-hand details sidebar (Lesson Plan / Source Version / Author / Version / timestamps)
   // is useful context but wide; it starts COLLAPSED so the editor opens with the full width for the
