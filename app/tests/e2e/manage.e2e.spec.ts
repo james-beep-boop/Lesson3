@@ -508,9 +508,7 @@ test.describe('Manage page', () => {
     // this catches an upstream class rename on upgrade). Opens the fixture's version with edit
     // intent as the teacher with editing access.
     await loginAs(page, 'editor')
-    await page.goto(
-      `${BASE}/admin/collections/lesson-bundle-versions/${candidateVersionId}?edit=1`,
-    )
+    await page.goto(`${BASE}/admin/collections/lesson-bundle-versions/${candidateVersionId}?edit=1`)
     // Our control bar renders, with the shared page-level Back control at the far right. It uses the
     // same Next Link component and visual tokens as the frontend pages; crossing root layouts still
     // becomes a full navigation automatically.

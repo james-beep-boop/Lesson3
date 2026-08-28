@@ -19,15 +19,11 @@ describe('formatRowLabel', () => {
     expect(formatRowLabel('Rubric row', 4, 'Rubric row 4: Evidence')).toBe(
       'Rubric row 4 — Evidence',
     )
-    expect(formatRowLabel('Lesson row', 5, 'Lesson row 5 — Reflect')).toBe(
-      'Lesson row 5 — Reflect',
-    )
+    expect(formatRowLabel('Lesson row', 5, 'Lesson row 5 — Reflect')).toBe('Lesson row 5 — Reflect')
   })
 
   it('keeps an unrelated title, preserves row-number boundaries, and uses the empty fallback', () => {
-    expect(formatRowLabel('Section', 1, 'The Foundation')).toBe(
-      'Section 1 — The Foundation',
-    )
+    expect(formatRowLabel('Section', 1, 'The Foundation')).toBe('Section 1 — The Foundation')
     expect(formatRowLabel('Section', 1, 'Section 10 — Later')).toBe(
       'Section 1 — Section 10 — Later',
     )
