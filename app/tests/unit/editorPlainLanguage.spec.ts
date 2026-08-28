@@ -14,6 +14,11 @@ const byName = (fields: LooseField[], name: string): LooseField => {
   return field
 }
 
+const displayedFields = (field: LooseField): LooseField[] => {
+  const children = field.fields ?? []
+  return children.find((child) => child.type === 'collapsible')?.fields ?? children
+}
+
 describe('the version editor uses teacher-facing language', () => {
   const fields = lessonContentFields as LooseField[]
   const collectionFields = LessonBundleVersions.fields as LooseField[]
@@ -32,13 +37,19 @@ describe('the version editor uses teacher-facing language', () => {
     expect(finalExplanation.label).toBe(false)
     expect(finalExplanationPanel?.label).toBe('Final explanation')
     expect(finalExplanationPanel?.admin?.initCollapsed).toBe(true)
-    expect(byName(fields, 'summaryTable').label).toBe('Summary table')
+    const summaryTable = byName(fields, 'summaryTable')
+    const summaryTablePanel = (summaryTable.fields ?? []).find(
+      (field) => field.type === 'collapsible',
+    )
+    expect(summaryTable.label).toBe(false)
+    expect(summaryTablePanel?.label).toBe('Summary table')
+    expect(summaryTablePanel?.admin?.initCollapsed).toBe(true)
   })
 
   it('removes internal explanations and hides system numbering', () => {
     const lessons = byName(fields, 'lessons')
     const lessonFields = lessons.fields ?? []
-    const summaryRows = byName(byName(fields, 'summaryTable').fields ?? [], 'lessons')
+    const summaryRows = byName(displayedFields(byName(fields, 'summaryTable')), 'lessons')
 
     expect(lessons.admin?.description).toBeUndefined()
     expect(byName(lessonFields, 'number').admin?.hidden).toBe(true)

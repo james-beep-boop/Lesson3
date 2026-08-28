@@ -103,8 +103,8 @@ export function sectionKeyForFocus(el: Element | null | undefined): string | nul
  * collapsed: jumping to an already-open lesson would then expand its first phase, and jumping to Final
  * Explanation would expand its first section — neither of which the user asked for.
  *
- * Summary Table and Title have no collapsible of their own, so they correctly yield `null` and are
- * only scrolled to. Final Explanation does have one, so its jump-nav chip opens it before scrolling.
+ * Final Explanation and Summary Table each have one, so their jump-nav chips open the panel before
+ * scrolling. Title has no collapsible of its own and correctly yields `null`.
  */
 export function ownCollapsedToggle(target: Element | null | undefined): HTMLElement | null {
   // Both selectors are tightly anchored to the target. In particular, neither can reach a nested
