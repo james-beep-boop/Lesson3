@@ -66,6 +66,7 @@ const DELETE_USER_NAME = `${MARK}Manage deletion target`
 const DELETE_USER_EMAIL = `${MARK.toLowerCase()}manage-delete@example.com`
 
 let fx: RoleFixture
+let candidateVersionId: number
 
 /**
  * The group checkboxes take their accessible name from their own label TEXT (no `aria-label`), with the
@@ -165,7 +166,7 @@ test.describe('Manage page', () => {
     // nothing to tidy, so without a real candidate this spec would assert a heading that correctly
     // does not exist. It also makes the spec finally test its own name — previously "sees candidates"
     // passed against an empty list showing only its empty state.
-    await fx.payload.create({
+    const candidate = await fx.payload.create({
       collection: 'lesson-bundle-versions',
       data: {
         lessonPlan: fx.plan.id,
@@ -179,6 +180,7 @@ test.describe('Manage page', () => {
       } as never,
       overrideAccess: true,
     })
+    candidateVersionId = candidate.id
 
     // Two plans in ONE strand (77), each with an Official version carrying the curriculum coordinates
     // the delete panel groups by — plan, version, then the Official pointer, in ingest order.
@@ -264,12 +266,22 @@ test.describe('Manage page', () => {
     // accessibility tree, so `getByRole` cannot see it until the parent opens.
     await openPanel(page, 'Lesson plans')
     await expect(page.getByRole('heading', { name: 'Candidate versions' })).toBeVisible()
+    await openPanel(page, 'Candidate versions')
     // The seeded non-Official candidate is actually LISTED — the heading alone used to pass against
     // an empty list. Selector note: `.lp-manage__row` alone would ALSO match the editors widget's
     // rows, which reuse it (`--tight`); `.lp-manage__row-main` is the candidate row's own structure.
     // A bare count is safe despite a shared DB: a Subject Admin only sees candidates in their own
     // subject-grade, and this run's subject-grade is freshly MARK-seeded.
     await expect(page.locator('.lp-manage__row:has(.lp-manage__row-main)')).toHaveCount(1)
+    const compare = page.getByRole('link', {
+      name: 'Compare to Official, opens in a new tab',
+    })
+    await expect(compare).toHaveAttribute(
+      'href',
+      `/lessons/${fx.plan.id}/compare?from=${fx.version.id}&to=${candidateVersionId}`,
+    )
+    await expect(compare).toHaveAttribute('target', '_blank')
+    await expect(compare).toHaveAttribute('rel', 'noopener noreferrer')
     // ⚑ REGROUPED (2026-08-18): Roles & Access is a CHILD of the Users box now, so a Subject Admin's
     // top level shows the GROUP. Two assertions replace the old single one, and the pair is the real
     // authorization statement: the box renders because they can see something inside it, and the

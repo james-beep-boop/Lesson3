@@ -326,32 +326,33 @@ export default async function AdminDashboard({
     month: 'short',
     year: 'numeric',
   })
-  const candidates: CandidateRow[] = versionDocs
-    .filter((v) => {
-      // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
-      // ⚑ Fails CLOSED on an unresolvable plan. The previous version read the POPULATED plan and
-      // returned `plan == null || …`, i.e. KEEP when it could not tell — which at depth 0 would have
-      // listed every Official as deletable, breaking this module's "no row the server would refuse"
-      // contract. `lessonPlanRead` is `Boolean(user)`, so every plan behind a visible version is
-      // readable and this map is always complete; an absent id is a can't-happen, not a routine case
-      // being quietly dropped. Pinned by manage.e2e.spec.ts.
-      const planId = relId(v.lessonPlan)
-      if (planId == null) return false
-      const official = officialByPlan.get(planId)
-      return official !== undefined && official !== v.id
-    })
-    .map((v) => {
-      const sgId = relId(v.subjectGrade)
-      const authorId = relId(v.author)
-      return {
+  const candidates: CandidateRow[] = versionDocs.flatMap((v) => {
+    // Officials are not candidates (and are undeletable) — exclude each plan's current pointer.
+    // ⚑ Fails CLOSED on an unresolvable plan. The previous version read the POPULATED plan and
+    // returned `plan == null || …`, i.e. KEEP when it could not tell — which at depth 0 would have
+    // listed every Official as deletable, breaking this module's "no row the server would refuse"
+    // contract. `lessonPlanRead` is `Boolean(user)`, so every plan behind a visible version is
+    // readable and this map is always complete; an absent id is a can't-happen, not a routine case
+    // being quietly dropped. Pinned by manage.e2e.spec.ts.
+    const planId = relId(v.lessonPlan)
+    if (planId == null) return []
+    const official = officialByPlan.get(planId)
+    if (official === undefined || official === v.id) return []
+    const sgId = relId(v.subjectGrade)
+    const authorId = relId(v.author)
+    return [
+      {
         id: v.id,
+        lessonPlanId: planId,
+        officialVersionId: official,
         label: lessonDisplayName(v.meta?.substrand_name, v.title),
         semver: v.semver ?? '',
         sgLabel: (sgId != null ? sgById.get(sgId)?.label : undefined) ?? '',
         authorName: (authorId != null ? authorNameById.get(authorId) : undefined) ?? null,
         savedAt: v.createdAt ? dateFmt.format(new Date(v.createdAt)) : '',
-      }
-    })
+      },
+    ]
+  })
 
   // ---- Site-Admin panels: repair (pointerless plans) + delete lesson plans (one shared fetch) ----
   const repairPlans: { id: number; label: string }[] = []
