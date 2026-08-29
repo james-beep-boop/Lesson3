@@ -265,6 +265,45 @@ export async function openGeneratedPdfInNewTab(url: string, body: FormData): Pro
 }
 
 /**
+ * Download ONE prepared deliverable to disk — the `attachment` twin of
+ * {@link openPreparedPdfInNewTab}, and deliberately shaped like it: warm the (version, kind) cache,
+ * then deliver. Only the delivery differs, because only the disposition does.
+ *
+ * ⚑ IT FETCHES AND SAVES A BLOB RATHER THAN NAVIGATING, and that is the whole reason it exists.
+ * The per-document Word button used to point a bare anchor at the `attachment` URL and let the
+ * CURRENT page navigate to it, relying on the browser to abort that navigation once it saw the
+ * disposition header. Desktop browsers do abort it. iOS Safari commits the navigation and hands the
+ * .docx to its own viewer, so the app page stops being the current history entry and the phone's
+ * Back button steps straight past it, out of the app (reported 2026-08-29). The PDF path was immune
+ * only because it delivers into a separate tab and never touches the caller's history.
+ *
+ * Starting no navigation at all removes the dependency on that abort behaviour rather than
+ * negotiating with it — and it retires the second of the app's two download mechanisms, so
+ * `saveBlob` is now the only way a file reaches disk.
+ *
+ * The cost is that the file is buffered in memory instead of streamed, which is why `downloadExport`
+ * already accepts the same trade for the multi-document .zips: one deliverable is a few hundred KB.
+ */
+export async function downloadPreparedDocument(
+  exportUrl: string,
+  docUrl: string,
+  opts: DownloadOpts = {},
+): Promise<void> {
+  const { onState = () => {} } = opts
+  await ensureExportReady(exportUrl, opts)
+
+  onState('downloading')
+  const dl = await fetchExport(docUrl, { credentials: 'same-origin' }, onState)
+  if (dl.status !== 200) {
+    const msg = await messageFrom(dl, 'The document could not be downloaded.')
+    onState('error', msg)
+    throw new Error(msg)
+  }
+  saveBlob(await dl.blob(), filenameFrom(dl, 'lesson-plan.docx'))
+  onState('idle')
+}
+
+/**
  * Download an export .zip. Ensures the artifacts are warm (`ensureExportReady`), then downloads
  * via the idempotent GET. Resolves once the download has been triggered; rejects with a
  * user-facing message on failure. Drives `onState` through preparing → downloading.

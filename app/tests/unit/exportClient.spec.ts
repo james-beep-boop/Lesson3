@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   downloadExport,
+  downloadPreparedDocument,
   ensureExportReady,
   openGeneratedPdfInNewTab,
   openPreparedPdfInNewTab,
@@ -235,5 +236,63 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
       )
       expect(revoke).toHaveBeenCalledWith('blob:pdf') // the blob nothing will load is not left dangling
     })
+  })
+})
+
+/**
+ * ⚑ THE PROPERTY IS "STARTS NO NAVIGATION", not "downloads the file". The Word button used to point
+ * a bare anchor at the `attachment` URL and let the CURRENT page navigate there, relying on the
+ * browser to abort once it saw the disposition. Desktop browsers abort; iOS Safari commits, so the
+ * app page stopped being the current history entry and a phone reader pressing Back left the app
+ * entirely (reported 2026-08-29). Asserting the delivery mechanism is the only way to pin that from
+ * a suite that cannot run iOS — a test of "did the file arrive" passes under either implementation.
+ */
+describe('a prepared document reaches disk without navigating the page', () => {
+  it('delivers through an anchor with a download attribute, never a location change', async () => {
+    const clicked: { download: string; href: string }[] = []
+    const anchor = { download: '', href: '', remove: () => {}, click: () => {} }
+    anchor.click = () => {
+      clicked.push({ download: anchor.download, href: anchor.href })
+    }
+
+    // Any write to `location` is a navigation — the exact thing this delivery must not start.
+    const navigated: string[] = []
+    vi.stubGlobal('document', {
+      createElement: () => anchor,
+      body: { appendChild: () => {} },
+    })
+    vi.stubGlobal('location', {
+      assign: (u: string) => navigated.push(u),
+      replace: (u: string) => navigated.push(u),
+      set href(u: string) {
+        navigated.push(u)
+      },
+      get href(): string {
+        return ''
+      },
+    })
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:docx', revokeObjectURL: vi.fn() })
+    vi.stubGlobal('setTimeout', vi.fn())
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/export/doc')
+          ? new Response('DOCX', {
+              status: 200,
+              headers: { 'content-disposition': 'attachment; filename="Cell Structure.docx"' },
+            })
+          : json({ state: 'ready' }),
+      ),
+    )
+
+    await downloadPreparedDocument('/api/v/1/export?as=docx', '/api/v/1/export/doc?doc=lp&as=docx')
+
+    expect(clicked, 'the document must be delivered by an anchor click').toHaveLength(1)
+    expect(clicked[0]?.href, 'delivery must use a blob URL, not the document URL').toBe('blob:docx')
+    expect(
+      clicked[0]?.download,
+      "the download attribute is what stops iOS committing a navigation; it must carry the server's filename",
+    ).toBe('Cell Structure.docx')
+    expect(navigated, 'nothing may navigate the current page').toEqual([])
   })
 })
