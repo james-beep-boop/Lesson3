@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-28 — Two correct fixes cancelled out, and the gate went green over it
+
+Found by finally running the manual browser check that had been deferred. The answer was worse than
+"unproven": both fixes in #309 worked, and each undid the other.
+
+Traced on a 13-lesson plan with Summary table lazily unrendered — panel mounts at 104ms, the jump's
+retry opens it at 206ms, the panels' entry rule shuts it at 334ms. Net effect identical to the
+original bug. `CollapseOnEntry` lives behind the panel's own `RenderIfInViewport`, so on a tall
+document its FIRST run happens after the jump has opened the panel, and a first run is exactly what a
+per-component latch cannot guard.
+
+⚑ **THE GENERAL RULE: A LATCH ANSWERS "HAVE I RUN BEFORE", WHICH IS NOT THE QUESTION.** The question
+was "is this still the document's entry" — a property of the DOCUMENT, not of a component that may
+mount at any moment. When a rule is about a moment in a page's life, per-instance state cannot express
+it, because an instance created after that moment has no way to know it missed it. Hence `entryPhase.ts`:
+a phase the document is in, which any deliberate reveal ends.
+
+⚑ **AND STORE WHO ENDED IT, NOT WHO BEGAN IT.** The first version opened the phase from an effect in
+`LessonControls`, and the browser refuted it within minutes: React flushes a child's effects before its
+parent's, so a panel already mounted at load ran before the phase existed, saw it shut, and skipped.
+Making the phase open BY DEFAULT — recording only who ended it — removes the ordering question
+entirely. Whenever correctness depends on "X must run before Y", prefer a formulation where neither
+has to run at all for the default to be right.
+
+⚑ **THE GATE PASSED GREEN ON THE BROKEN COMBINATION**, and that is the part worth keeping. The three
+new e2e assertions ran for the first time in that CI run and passed, because they exercise the panels
+only when already rendered — never the lazy-mount path where the two fixes met. Each fix had tests;
+their INTERACTION had none, and no amount of per-fix coverage would have found it. This is the
+false-green twin of the 2026-08-27 false-red entry: there, noise made a red gate unreadable; here, a
+gap made a green one unearned. Both produce a result you cannot act on.
+
+⚑ **AND THE REASON IT WAS ALMOST NOT FOUND: I had claimed this could not be verified locally.** That
+was wrong — `AGENTS.md` documents `scripts/dev-server.sh` and `dev-seed.sh`, which start their own
+Postgres and seed test logins. I searched for a running app and credentials, did not find them, and
+concluded verification was impossible instead of reading the local-stack section of the file that
+documents it. "I cannot verify this" is a claim requiring the same evidence as any other, and the cost
+of getting it wrong is a defect shipped behind a green gate.
+
 ## 2026-08-28 — `initCollapsed` is a FALLBACK, not a rule, and it has now cost three panels
 
 Found auditing #302–#308. The behaviour is Payload's, verified in installed source

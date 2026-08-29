@@ -68,20 +68,18 @@ whatever the graph says. `feat/local-server-deployment` (#301) was reaped this w
 
 ## What to work on next
 
-⚑ **DEFERRED, AND IT GATES PR #309: the jump retry has no automated proof.** `EditJumpNav` now retries
-opening a jump target's disclosure on each settle cycle, because the two trailing panels are groups
-whose contents come from a nested `RenderIfInViewport` — a target far enough below the viewport has no
-`.collapsible-field` in the DOM, so the old single attempt before scrolling silently did nothing. The
-operator reproduced that in a browser on Summary table; the FIX has only been reasoned about, not
-observed. It cannot be pinned by a spec: the trigger is a target below an unrendered viewport region,
-which a test cannot reliably arrange, and one stray scroll latches `hasRendered` permanently and
-un-reproduces it. To check by hand: open a LONG plan at desktop width via
-`/admin/collections/lesson-bundle-versions/<id>?edit=1`, do not scroll down, expand a few top lessons
-to make the form tall, confirm
-`document.querySelector('#field-summaryTable .collapsible-field') === null`, then click the Summary
-table chip — it must land open. Worth confirming in the same pass: collapsing Final explanation by
-hand within a second of jumping must STICK (the latch), and jumping to an already-open lesson row must
-toggle nothing. Everything else in #309 is covered by 1040 unit tests and three new e2e assertions.
+⚑ **RESOLVED — #309's jump retry is now verified in a browser, and the check found a second bug.**
+This block previously said the retry had no automated proof and was deferred. It was then run against
+the local stack, and the answer was worse than "unproven": the retry worked, and the PR's OWN panel
+entry rule undid it. Traced on a 13-lesson plan with Summary table lazily unrendered — panel mounts at
+104ms, jump opens it at 206ms, entry rule shuts it at 334ms. Both halves behaved as designed and
+cancelled out. Fixed by an entry PHASE (`components/LessonControls/entryPhase.ts`): a jump ends the
+visit's entry phase, and the panels' rule collapses only while it is open. Re-verified after the fix —
+opens at 202ms and stays open, both panels still collapse on return above and below the fold, a
+hand-collapse after a jump sticks, and an already-open lesson row is not toggled. ⚑ THE LESSON WORTH
+KEEPING: the CI gate passed green on the broken combination, because the e2e exercises the panels only
+when they are already rendered — never the lazy-mount path where the two fixes met. A green gate over
+an untested interaction is the false-green twin of the 2026-08-27 false-red entry.
 
 1. **Deploy** the two commits above.
 2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
