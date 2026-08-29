@@ -1,0 +1,109 @@
+// @vitest-environment jsdom
+import React from 'react'
+import { cleanup, render } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const collapsible = { isCollapsed: undefined as boolean | undefined, toggle: vi.fn() }
+const documentInfo = { id: undefined as number | string | undefined }
+
+vi.mock('@payloadcms/ui', () => ({
+  useCollapsible: () => collapsible,
+  useDocumentInfo: () => documentInfo,
+}))
+
+import CollapseOnEntry from '@/components/CollapseOnEntry'
+import { beginEntryPhase, endEntryPhase } from '@/components/LessonControls/entryPhase'
+
+beforeEach(() => {
+  collapsible.isCollapsed = true
+  collapsible.toggle = vi.fn()
+  documentInfo.id = 42
+  // The phase is open by default; this only clears a close left by a previous case.
+  beginEntryPhase('42')
+  beginEntryPhase('43')
+})
+afterEach(cleanup)
+
+describe('the panel entry rule', () => {
+  it('collapses a panel a stored preference reopened', () => {
+    collapsible.isCollapsed = false
+    render(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves an already-compact panel alone', () => {
+    render(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).not.toHaveBeenCalled()
+  })
+
+  /**
+   * ⚑ THE RULE IS "STARTS COMPACT", NOT "STAYS COMPACT". The visit is marked settled on the first
+   * run whether or not anything was collapsed, so a reader opening the panel afterwards keeps it
+   * open. Latching on the toggle instead would re-fire when `isCollapsed` flipped and snap the panel
+   * shut the moment they opened it.
+   */
+  it('does not fight the reader who opens the panel during the visit', () => {
+    const { rerender } = render(<CollapseOnEntry />)
+    collapsible.isCollapsed = false
+    rerender(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).not.toHaveBeenCalled()
+  })
+
+  it('applies again on the next document', () => {
+    collapsible.isCollapsed = false
+    const { rerender } = render(<CollapseOnEntry />)
+    expect(collapsible.toggle).toHaveBeenCalledTimes(1)
+
+    documentInfo.id = 43
+    rerender(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * ⚑ THE REGRESSION THIS FILE EXISTED WITHOUT, and the one a browser had to find. Every case above
+   * mounts the component and THEN changes `isCollapsed`, so the latch always covers them. The real
+   * failure was the opposite order: on a tall document the panel's contents are lazily unrendered, a
+   * jump chip opens the panel, and this component's FIRST run happens against an already-open panel —
+   * which is exactly the moment a latch cannot guard. Measured in the browser: the jump opened the
+   * panel at 206ms and the entry rule shut it again at 334ms, so the two fixes cancelled out.
+   *
+   * The jump ends the entry phase, which is what makes the first run a no-op here.
+   */
+  it('does not shut a panel that a jump just opened, even on its first run', () => {
+    endEntryPhase('42')
+    collapsible.isCollapsed = false
+
+    render(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).not.toHaveBeenCalled()
+  })
+
+  // Ending the phase must not leak into the NEXT document — a jump in one version cannot disarm the
+  // entry rule for the version opened after it.
+  it('re-arms for the next document opened after a jump', () => {
+    endEntryPhase('42')
+    documentInfo.id = 43
+    collapsible.isCollapsed = false
+
+    render(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).toHaveBeenCalledTimes(1)
+  })
+
+  // The panel renders `null` until its preference fetch resolves, so an unsettled state must not
+  // consume the one action this visit gets.
+  it('waits for a settled disclosure state instead of spending the visit on it', () => {
+    collapsible.isCollapsed = undefined
+    const { rerender } = render(<CollapseOnEntry />)
+    expect(collapsible.toggle).not.toHaveBeenCalled()
+
+    collapsible.isCollapsed = false
+    rerender(<CollapseOnEntry />)
+
+    expect(collapsible.toggle).toHaveBeenCalledTimes(1)
+  })
+})

@@ -68,6 +68,19 @@ whatever the graph says. `feat/local-server-deployment` (#301) was reaped this w
 
 ## What to work on next
 
+⚑ **RESOLVED — #309's jump retry is now verified in a browser, and the check found a second bug.**
+This block previously said the retry had no automated proof and was deferred. It was then run against
+the local stack, and the answer was worse than "unproven": the retry worked, and the PR's OWN panel
+entry rule undid it. Traced on a 13-lesson plan with Summary table lazily unrendered — panel mounts at
+104ms, jump opens it at 206ms, entry rule shuts it at 334ms. Both halves behaved as designed and
+cancelled out. Fixed by an entry PHASE (`components/LessonControls/entryPhase.ts`): a jump ends the
+visit's entry phase, and the panels' rule collapses only while it is open. Re-verified after the fix —
+opens at 202ms and stays open, both panels still collapse on return above and below the fold, a
+hand-collapse after a jump sticks, and an already-open lesson row is not toggled. ⚑ THE LESSON WORTH
+KEEPING: the CI gate passed green on the broken combination, because the e2e exercises the panels only
+when they are already rendered — never the lazy-mount path where the two fixes met. A green gate over
+an untested interaction is the false-green twin of the 2026-08-27 false-red entry.
+
 1. **Deploy** the two commits above.
 2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
    clean limiter. Until then every red gate needs a re-run to interpret.

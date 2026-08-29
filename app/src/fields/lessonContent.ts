@@ -93,6 +93,26 @@ const collapsedRow = (field: string, noun: string) => ({
   initCollapsed: true,
 })
 
+/**
+ * The entry rule for a top-level PANEL, as a field that lives inside it.
+ *
+ * `initCollapsed` above is only Payload's fallback: a stored per-user preference outranks it and is
+ * rewritten on every toggle, so "opens compact" was true for a first-time reader and false for a
+ * returning one. `CollapseOnEntry` mounts inside the collapsible and settles that once per visit —
+ * see the ⚑ there for why it is a field rather than a click from the control bar. UI field → no data
+ * key, so stored paths and generator input are unchanged.
+ *
+ * ⚑ EXPORTED, because the defect belongs to `collapsible`, not to these two panels. Every collapsible
+ * with `initCollapsed: true` has it — including "Plan and sub-strand details", which lives in
+ * `collections/LessonBundleVersions.ts` and is the third caller. A new collapsed-by-default panel
+ * wants this field in it; that is the rule, not a coincidence of the two content panels.
+ */
+export const collapseOnEntry = (): Field => ({
+  name: 'collapseOnEntry',
+  type: 'ui',
+  admin: { components: { Field: '@/components/CollapseOnEntry#default' } },
+})
+
 // Admin-form VISIBILITY for the admin-only structure sections (META / UNIT): show them only to whoever
 // may edit them — Subject Admins for THIS doc's subject-grade, and Site Admins — and hide them from
 // everyone else (a teacher with editing access) rather than showing them read-only. Reuses the SAME pure predicate the
@@ -372,6 +392,7 @@ export const lessonEditableContentFields: Field[] = [
         label: 'Final explanation',
         admin: { initCollapsed: true },
         fields: [
+          collapseOnEntry(),
           adminOnly(structureText('subjectLabel', 'Subject label')),
           prose('instructions', 'Instructions'),
           {
@@ -420,6 +441,7 @@ export const lessonEditableContentFields: Field[] = [
         label: 'Summary table',
         admin: { initCollapsed: true },
         fields: [
+          collapseOnEntry(),
           adminOnly(structureText('subStrand', 'Sub-strand')),
           adminOnly(structureText('drivingQuestion', 'Driving question')),
           {

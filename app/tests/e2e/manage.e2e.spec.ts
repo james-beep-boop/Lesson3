@@ -266,6 +266,10 @@ test.describe('Manage page', () => {
     // That property is what makes nesting acceptable for this role; assert it, do not assume it.
     await expect(page.getByRole('heading', { name: 'Lesson plans', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'My saved versions' })).toBeVisible()
+    // The named return path to unfinished work — the half of the role split the Subject Admin test
+    // below asserts the other side of. Together they pin `showContinueEditing`, which was gated on
+    // the wrong predicate and gave exactly one role a resume button on a cleanup queue.
+    await expect(page.getByRole('link', { name: 'Continue editing' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Users', exact: true })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Roles & Access' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Upload lesson plans' })).toHaveCount(0)
@@ -299,6 +303,11 @@ test.describe('Manage page', () => {
     )
     await expect(compare).toHaveAttribute('target', '_blank')
     await expect(compare).toHaveAttribute('rel', 'noopener noreferrer')
+    // ⚑ AND NO "Continue editing". This list is other people's unfinished work under a "Candidate
+    // versions" title — a cleanup queue, the same as the Site Administrator's. #306 gated the button
+    // on `siteAdmin`, which left this role the only one offered a resume action on a queue it is
+    // tidying; the gate is `isAdmin`. The title link remains for exceptional inspection.
+    await expect(page.getByRole('link', { name: 'Continue editing' })).toHaveCount(0)
     // ⚑ REGROUPED (2026-08-18): Roles & Access is a CHILD of the Users box now, so a Subject Admin's
     // top level shows the GROUP. Two assertions replace the old single one, and the pair is the real
     // authorization statement: the box renders because they can see something inside it, and the
@@ -566,6 +575,28 @@ test.describe('Manage page', () => {
       .click()
     await expect(summaryTablePanel).not.toHaveClass(/collapsible--collapsed/)
     await expect(page.getByText(/Lesson row 1 —/)).toBeVisible()
+
+    /**
+     * ⚑ AND BOTH ARE COMPACT AGAIN ON THE NEXT VISIT. This is the case `initCollapsed` alone cannot
+     * hold and the reason `CollapseOnEntry` exists: expanding a panel writes `collapsed: false` into
+     * the per-document preference, which Payload's `fetchInitialState` prefers over `initCollapsed`
+     * forever after. Before the fix this reload came back with both panels open, while every array
+     * row inside them was force-collapsed — two disclosures on one screen with opposite memory.
+     *
+     * It must be a RELOAD, not a re-navigation: the preference is written by the toggles above, so a
+     * fresh document load is the only thing that reads it back.
+     */
+    await page.reload()
+    await expect(finalExplanationPanel).toHaveClass(/collapsible--collapsed/)
+    await expect(summaryTablePanel).toHaveClass(/collapsible--collapsed/)
+
+    // The rule is "starts compact", not "stays compact" — reopening must still work for the rest of
+    // the visit, or the entry default would have become a prohibition.
+    await page
+      .locator('.lesson-controls__nav')
+      .getByRole('button', { name: 'Final explanation', exact: true })
+      .click()
+    await expect(finalExplanationPanel).not.toHaveClass(/collapsible--collapsed/)
   })
 
   // Searching flattens the tree and REMOVES the group checkboxes (2026-08-04). A group checkbox beside

@@ -1,5 +1,6 @@
 import { default as default_e185546b7ba48bca827c8e3f7a96ac79 } from '@/components/RedirectToManage'
 import { default as default_b05f13962071af295724d75873776e05 } from '@/components/VersionTimestamps'
+import { default as default_1ec13738dccc054dffe028635ccc0a07 } from '@/components/CollapseOnEntry'
 import { default as default_d53377545c60cf2eb8a7ca799edfb528 } from '@/components/SubjectSelectField'
 import { default as default_43516998e31efb10f698f9efe32ddeff } from '@/components/LinkedTextarea'
 import { default as default_d4655109717a6f5707cd0a6520a4fd9e } from '@/components/RowLabel'
@@ -18,6 +19,7 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 export const importMap = {
   "@/components/RedirectToManage#default": default_e185546b7ba48bca827c8e3f7a96ac79,
   "@/components/VersionTimestamps#default": default_b05f13962071af295724d75873776e05,
+  "@/components/CollapseOnEntry#default": default_1ec13738dccc054dffe028635ccc0a07,
   "@/components/SubjectSelectField#default": default_d53377545c60cf2eb8a7ca799edfb528,
   "@/components/LinkedTextarea#default": default_43516998e31efb10f698f9efe32ddeff,
   "@/components/RowLabel#default": default_d4655109717a6f5707cd0a6520a4fd9e,

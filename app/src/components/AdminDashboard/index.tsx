@@ -637,11 +637,18 @@ export default async function AdminDashboard({
             {showSaved && (
               <AccordionPanel id="plans.versions" title={savedTitle}>
                 <p className="lp-manage__desc">{savedDesc}</p>
+                {/* ⚑ `isAdmin`, NOT `siteAdmin`. Both administrator roles get the same list under
+                    the same "Candidate versions" title — other people's unfinished work, shown to
+                    be tidied — so both get the same actions. #306 named Site Administrators and
+                    teachers and simply omitted the Subject Administrator, who then had a "Continue
+                    editing" button on a cleanup queue while the Site Administrator beside them did
+                    not. The gate is the role split that already decides the title, not a second
+                    one that happens to agree for two roles out of three. */}
                 <CandidateList
                   rows={candidates}
                   emptyText={savedEmpty}
                   showAuthor={isAdmin}
-                  showContinueEditing={!siteAdmin}
+                  showContinueEditing={!isAdmin}
                 />
               </AccordionPanel>
             )}
