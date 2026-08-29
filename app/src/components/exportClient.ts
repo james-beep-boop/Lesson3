@@ -166,6 +166,36 @@ function deliverToTab(tab: Window | null, url: string): void {
 }
 
 /**
+ * Paint the "Preparing document…" holding page into a tab we just opened.
+ *
+ * ⚑ IT WRITES A VIEWPORT META, and that is the entire point of this helper existing rather than the
+ * two lines it replaces. `window.open('')` yields an `about:blank` document with NO viewport meta, so
+ * iOS Safari lays it out at its ~980px fallback width and scales the result down to the screen —
+ * rendering 16px text at roughly 6px. Reported from an iPhone as "the text is too small to see"
+ * (2026-08-29); it was never a font-size problem. Desktop browsers never showed it, because they do
+ * not do the fallback-width scaling.
+ *
+ * Kept deliberately plain: this page is visible for the second or two a conversion takes, and it is
+ * replaced by the document itself. It borrows no stylesheet — a blank tab has none, and linking one
+ * would race the navigation it exists to cover.
+ */
+const showPreparingNotice = (tab: Window): void => {
+  const doc = tab.document
+  doc.title = 'Preparing document…'
+  const meta = doc.createElement('meta')
+  meta.name = 'viewport'
+  meta.content = 'width=device-width, initial-scale=1'
+  doc.head.appendChild(meta)
+  const note = doc.createElement('p')
+  note.textContent = 'Preparing document…'
+  note.setAttribute(
+    'style',
+    'margin:2rem 1rem;font:400 1rem/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1a1a',
+  )
+  doc.body.appendChild(note)
+}
+
+/**
  * Open an export PDF inline in a NEW TAB: warm the (version, kind) cache (`ensureExportReady`), then
  * navigate the tab to `docUrl` (served `Content-Disposition: inline`). The tab is opened SYNCHRONOUSLY
  * so popup blockers allow it, shows a "Preparing…" note while the cache warms, and is closed on
@@ -175,10 +205,7 @@ function deliverToTab(tab: Window | null, url: string): void {
 export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string): Promise<void> {
   // Synchronous open — inside the click handler, so popup blockers allow it.
   const tab = window.open('', '_blank')
-  if (tab) {
-    tab.document.title = 'Preparing document…'
-    tab.document.body.textContent = 'Preparing document…'
-  }
+  if (tab) showPreparingNotice(tab)
   try {
     await ensureExportReady(exportUrl)
     deliverToTab(tab, docUrl)
@@ -211,10 +238,7 @@ export async function openPreparedPdfInNewTab(exportUrl: string, docUrl: string)
 export async function openGeneratedPdfInNewTab(url: string, body: FormData): Promise<void> {
   // Synchronous open — inside the click handler, so popup blockers allow it.
   const tab = window.open('', '_blank')
-  if (tab) {
-    tab.document.title = 'Preparing document…'
-    tab.document.body.textContent = 'Preparing document…'
-  }
+  if (tab) showPreparingNotice(tab)
   try {
     const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin' })
     if (!res.ok)

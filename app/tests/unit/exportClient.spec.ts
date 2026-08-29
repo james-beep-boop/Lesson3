@@ -93,16 +93,46 @@ describe('export client handshake', () => {
  * cannot silently reintroduce silent success. (2026-07-21 review, finding #2.)
  */
 describe('open-in-new-tab twins: a blocked popup must surface an error, never resolve silently', () => {
+  /**
+   * A placeholder tab, stubbed only as far as `showPreparingNotice` actually reaches.
+   *
+   * ⚑ IT MODELS `head`/`createElement`, not a `body.textContent` string, because the holding page is
+   * now a real document — and it is a real document specifically so it can carry a VIEWPORT META.
+   * `window.open('')` yields `about:blank` with none, so iOS lays it out at its ~980px fallback and
+   * scales down, rendering the notice at roughly 6px. Reported from an iPhone, 2026-08-29.
+   */
+  type FakeEl = {
+    /** Recorded so a case can tell which element was appended. */
+    tag?: string
+    name?: string
+    content?: string
+    textContent?: string
+    setAttribute: (k: string, v: string) => void
+  }
   type FakeTab = {
     location: { replace: ReturnType<typeof vi.fn> }
-    document: { title: string; body: { textContent: string } }
+    document: {
+      title: string
+      head: { appendChild: (el: FakeEl) => void; children: FakeEl[] }
+      body: { appendChild: (el: FakeEl) => void; children: FakeEl[] }
+      createElement: (tag: string) => FakeEl
+    }
     close: ReturnType<typeof vi.fn>
   }
-  const makeTab = (): FakeTab => ({
-    location: { replace: vi.fn() },
-    document: { title: '', body: { textContent: '' } },
-    close: vi.fn(),
-  })
+  const makeTab = (): FakeTab => {
+    const head: FakeEl[] = []
+    const body: FakeEl[] = []
+    return {
+      location: { replace: vi.fn() },
+      document: {
+        title: '',
+        head: { appendChild: (el: FakeEl) => void head.push(el), children: head },
+        body: { appendChild: (el: FakeEl) => void body.push(el), children: body },
+        createElement: (tag: string) => ({ tag, setAttribute: () => {} }) as unknown as FakeEl,
+      },
+      close: vi.fn(),
+    }
+  }
 
   /** Stub the browser globals both twins touch. `open` is scripted per call: the FIRST call is the
    *  synchronous placeholder open, any later call is the post-await retry. */
@@ -122,6 +152,27 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
     )
 
   describe('openPreparedPdfInNewTab (teacher per-document + editor "Formatted PDF")', () => {
+    /**
+     * ⚑ THE HOLDING PAGE CARRIES A VIEWPORT META. `window.open('')` gives `about:blank`, which has
+     * none — so iOS Safari lays the notice out at its ~980px fallback width and scales the result to
+     * the screen, rendering 16px text at roughly 6px. Reported from an iPhone as "too small to see"
+     * (2026-08-29); it was never a font-size problem, and no desktop browser reproduces it because
+     * none does the fallback-width scaling. Asserted here because the symptom is invisible to every
+     * environment this suite runs in.
+     */
+    it('gives the placeholder tab a viewport meta, so iOS does not scale it down', async () => {
+      const tab = makeTab()
+      stubBrowser([tab])
+      ready()
+
+      await openPreparedPdfInNewTab('/export', '/doc.pdf')
+
+      const meta = tab.document.head.children.find((el) => el.tag === 'meta')
+      expect(meta, 'a viewport meta must be appended to the placeholder head').toBeTruthy()
+      expect(meta?.name).toBe('viewport')
+      expect(meta?.content).toContain('width=device-width')
+    })
+
     it('replaces the placeholder tab so Back cannot reveal its blank page', async () => {
       const tab = makeTab()
       stubBrowser([tab])

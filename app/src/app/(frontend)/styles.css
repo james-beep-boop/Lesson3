@@ -620,6 +620,13 @@ button.user-menu__item {
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
+
+/* An empty `.substrand-versions` still occupies a flex slot and perturbs where the line breaks —
+   measured rendering at 0px wide while sitting between the lesson count and the favourite. Nothing
+   is shown, so nothing should be laid out. */
+.substrand-versions:empty {
+  display: none;
+}
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
    system carries both the emphasis (quiet) and the density (compact), so this file no longer states
    them per-control. The D4 reasoning is unchanged and lives on `.btn--quiet`. */
@@ -1385,6 +1392,26 @@ button.user-menu__item {
 .doc-preview {
   font-size: 0.9rem;
   overflow-x: auto;
+  /* ⚑ THE TABLE IS SUPPOSED TO SCROLL SIDEWAYS — the 560px minimum below is deliberate, so a
+     five-column generated table is not crushed to one word per column. What was missing is any SIGN
+     that it scrolls: iOS hides scrollbars until a gesture starts, so a reader sees a sentence cut off
+     at the right edge and reasonably concludes the page is broken (reported from an iPhone,
+     2026-08-29; measured page overflow was 0 — the container was clipping correctly all along).
+     The classic pure-CSS scroll shadow: two cover gradients painted in the LOCAL coordinate space
+     (so they slide away as you scroll) reveal two fixed shadows underneath at whichever edge still
+     has content. No JS, no scroll listener, and it disappears by itself once you reach an end. */
+  background:
+    linear-gradient(to right, var(--bg) 30%, rgba(255, 255, 255, 0)) left center,
+    linear-gradient(to left, var(--bg) 30%, rgba(255, 255, 255, 0)) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)) right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    14px 100%,
+    14px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 .doc-preview table {
   border-collapse: collapse;
@@ -1724,8 +1751,16 @@ button.user-menu__item {
     margin-bottom: 0.65rem;
     gap: 0.5rem;
   }
+  /* ⚑ AND `justify-content` IS RESET, which is the half that fixes the favourite's WANDERING.
+     The base rule is `space-between`, which is right for one row of two ends and wrong the moment
+     `flex-wrap` is added here: whatever item happens to land last on a wrapped line gets flung to
+     the right edge, so the same control appears right, left, or beside "12 lessons" depending only
+     on how the line broke. Reported from a phone as "sometimes on the right, sometimes on the left,
+     sometimes way far away" — one layout rule, not a rendering quirk. Flowing from the start makes
+     position a function of ORDER, which is stable. */
   .substrand-main {
     flex-wrap: wrap;
+    justify-content: flex-start;
     row-gap: 0.15rem;
   }
   .substrand-link {
@@ -1902,11 +1937,22 @@ button.user-menu__item {
   /* Variant B: on cards the catalogue favorite reveals its label and becomes a compact labelled
      control — still ≥44px tall for touch; min-width drops so the width follows star + text, and the
      smaller font balances the glyph against the word. */
-  .fav-toggle--label-mobile {
+  /* ⚑ `:not(.btn)` IS LOAD-BEARING HERE, not decoration copied from the rule above. Without it this
+     selector is (0-1-0) and the `.fav-toggle:not(.btn)` block above is (0-2-0), so ITS 1.35rem won
+     and this whole declaration was dead — measured at 21.6px where 15.2px was intended. The comment
+     above that block describes fixing this exact collision from the other direction; the fix put it
+     back in reverse. Both sides now carry the same weight, so source order decides, which is what
+     the ordering here was written to rely on.
+     ⚑ AND 0.9rem, NOT the 0.95rem this rule used to ask for: measured against its neighbours at
+     375px, the row reads "12 lessons" 14.4 / "Supporting documents" 13.6 / PDF-Word buttons 13. At
+     0.95rem (15.2px) the word "Favorite" would still be the LARGEST thing in the row it sits in.
+     0.9rem makes it a peer of `.substrand-count`, which is what it is. The 44px touch target is
+     unaffected — `min-height` comes from the block above and does not follow the font. */
+  .fav-toggle--label-mobile:not(.btn) {
     gap: 0.3rem;
     min-width: 0;
     padding: 0.3rem 0.6rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   .fav-toggle--label-mobile .fav-toggle__label {
     display: inline;
