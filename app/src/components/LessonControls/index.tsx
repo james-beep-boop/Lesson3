@@ -61,7 +61,7 @@ import {
   subscribeToActiveLinkTarget,
 } from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
-import { beginEntryPhase } from './entryPhase'
+import { beginEntryPhase, endEntryPhaseOnFirstInput } from './entryPhase'
 import { initialCollapseActions } from './initialCollapse'
 import CompareToOfficialLink from '../CompareToOfficialLink'
 
@@ -119,7 +119,12 @@ export default function LessonControls() {
   // new phase. `entryPhase.ts` carries the reasoning; the row pass below needs no such guard, because
   // form state is complete at entry whether or not a row was ever painted.
   useEffect(() => {
-    if (id != null) beginEntryPhase(String(id))
+    if (id == null) return
+    const documentId = String(id)
+    beginEntryPhase(documentId)
+    // The reader's first input ends the phase — see `entryPhase.ts` for why a header click has to
+    // close it before React handles the click, and why scrolling deliberately does not.
+    return endEntryPhaseOnFirstInput(documentId)
   }, [id])
 
   const collapsedOnEntryFor = useRef<string | null>(null)

@@ -14,11 +14,20 @@
  * question was never "have I run before" but "is this still the document's entry" — and that is a
  * property of the DOCUMENT, so it lives here rather than inside any one panel.
  *
- * ⚑ AND IT IS NOT A "did a jump happen" FLAG, though a jump is the only thing that ends it today.
- * Naming it for its cause would invite the next reveal path — edit-recovery restore, a future deep
- * link to a panel — to reintroduce the same collision by simply not knowing to call it. Whatever
- * deliberately reveals content ends the entry phase; that is one rule for a class, not a patch for
- * one caller.
+ * ⚑ AND IT IS NOT A "did a jump happen" FLAG. Naming it for its cause would invite the next reveal
+ * path to reintroduce the collision by simply not knowing to call it. Whatever deliberately reveals
+ * content ends the entry phase; that is one rule for a class, not a patch for one caller.
+ *
+ * ⚑ AND THE FIRST VERSION SHIPPED THAT SENTENCE WHILE WIRING ONLY THE JUMP, which is precisely the
+ * failure it warned against — reported from the deployed build within the hour. Opening a panel by
+ * clicking its OWN header is the commonest deliberate reveal there is, and it ended nothing: the
+ * panel opened, its contents mounted for the first time, and the entry rule shut them. Once, then
+ * fine afterwards, because by the second click the component was mounted and latched. Array rows were
+ * unaffected throughout, since they never had a component inside them to mount late.
+ *
+ * So the phase now ends on the reader's FIRST INPUT anywhere in the editor, which is what "the
+ * document's entry is over" actually means. A jump still ends it explicitly, because the `?lesson=`
+ * deep link scrolls with no input event to observe.
  *
  * ⚑ MOUNT-DRIVEN COVERAGE IS DELIBERATELY KEPT. The alternative considered was a registry: panels
  * register with `LessonControls`, which collapses them in the same once-per-document pass it already
@@ -63,4 +72,35 @@ export function beginEntryPhase(documentId: string): void {
 /** Is `documentId` still in its entry phase? True unless a reveal ended it for that document. */
 export function isEntryPhaseOpen(documentId: string): boolean {
   return closedFor !== documentId
+}
+
+/**
+ * End the phase as soon as the reader touches anything. Returns its own teardown.
+ *
+ * ⚑ `pointerdown`/`keydown` IN THE CAPTURE PHASE, and each half of that matters. Capture + pointerdown
+ * means the phase is already closed before React processes the `click` that opens a panel — the whole
+ * point, since the panel's contents mount from that click and must find the phase shut. `keydown`
+ * covers the reader who opens a panel from the keyboard.
+ *
+ * ⚑ IT DOES NOT LISTEN FOR SCROLL, deliberately. Wheeling down to a panel that a stored preference
+ * left expanded is not the reader revealing it — the rule should still collapse it on the way past,
+ * which is the below-the-fold coverage this design exists to keep. The accepted cost is the reverse
+ * case: a reader who clicks into a field first and scrolls afterwards keeps whatever the preference
+ * says for panels below. They have started working; that is the right side to err on.
+ *
+ * ⚑ A PROGRAMMATIC `.click()` DOES NOT FIRE `pointerdown`, so the jump's own retry cannot end the
+ * phase through this path — it ends it explicitly instead, and the two must not be collapsed into one.
+ */
+export function endEntryPhaseOnFirstInput(documentId: string): () => void {
+  const end = () => {
+    endEntryPhase(documentId)
+    detach()
+  }
+  const detach = () => {
+    document.removeEventListener('pointerdown', end, true)
+    document.removeEventListener('keydown', end, true)
+  }
+  document.addEventListener('pointerdown', end, true)
+  document.addEventListener('keydown', end, true)
+  return detach
 }
