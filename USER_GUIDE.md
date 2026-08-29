@@ -33,10 +33,12 @@ Manage or see version/editing controls.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
 - **Open or download a document:** on the home page, each lesson row has a _PDF_ button (opens in a
-  new tab) and a _Word_ button (downloads its `.docx`) for the lesson plan, with any Final
+  new tab) and a _Word_ button (downloads its `.docx` — on a phone, Word is available by email
+  instead) for the lesson plan, with any Final
   Explanation or Summary Table behind a _Supporting documents_ line. On a lesson page, all downloads
   live in the _Share_ menu: each document on its own under _Download one document_, plus
-  _Download all_ as a Word or PDF `.zip`.
+  _Download all_ as a Word or PDF `.zip`. On a phone the Word downloads are omitted — use
+  _Email all — Word_, or a larger screen.
 - **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day.

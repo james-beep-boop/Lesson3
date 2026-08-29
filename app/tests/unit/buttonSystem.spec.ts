@@ -161,6 +161,52 @@ describe('button system', () => {
     ).toContain('.btn.btn--compact')
   })
 
+  it('hides the phone Word controls with selectors that WIN, not ones that tie', () => {
+    // A REAL defect, caught by measuring on 2026-08-29 before it shipped. The ≤640px rule was first
+    // written `.doc-buttons__word, .share-menu__word-zip { display: none }` — and both lost. The pill
+    // is (0-1-0) against `.share-menu .doc-buttons .btn` (0-3-0, `inline-flex`); the menu item is
+    // (0-1-0) against `.share-menu button` (0-1-1, `block`). Both Word controls stayed fully visible
+    // at 375px while the stylesheet claimed to hide them, and the diff looked correct.
+    //
+    // ⚑ REACHABILITY, NOT ORDER, for the reason the glyph test below records: an order assertion is
+    // only as good as its view of the file. What must hold is that the hide rule MATCHES each real
+    // control while the rules that would re-show it do not out-rank it — so this asserts the hide
+    // reaches all three shapes, and that the pill is covered in BOTH its contexts.
+    const hideRules = allRules.filter((r) => /display:\s*none/.test(r.body))
+    const reaches = (el: Element) =>
+      hideRules.some((r) => r.selectors.some((sel) => el.matches(sel)))
+
+    // The pill as rendered by DocButtons, in each of the two places it appears.
+    const pill = '<button class="btn btn--quiet btn--compact doc-buttons__word"></button>'
+    const inRow = shape(`<span class="doc-buttons">${pill}</span>`).firstElementChild as Element
+    const inMenu = shape(
+      `<div class="share-menu"><span class="doc-buttons">${pill}</span></div>`,
+    ).querySelector('.doc-buttons__word') as Element
+    const zipItem = shape(
+      '<div class="share-menu"><button class="share-menu__word-zip"></button></div>',
+    ).querySelector('.share-menu__word-zip') as Element
+
+    expect(reaches(inRow), 'the catalogue-row Word pill must be hidden at phone width').toBe(true)
+    expect(reaches(inMenu), 'the Share-menu Word pill must be hidden at phone width').toBe(true)
+    expect(reaches(zipItem), 'the Word .zip menu item must be hidden at phone width').toBe(true)
+
+    // ⚑ AND THE SCOPED PILL SELECTOR MUST EXIST, which reachability alone cannot show: the short
+    // `.doc-buttons .btn.doc-buttons__word` MATCHES inside the menu but only TIES `.share-menu
+    // .doc-buttons .btn` at (0-3-0), so it would win by source order and fail silently the day the
+    // blocks move. Only the `.share-menu`-scoped selector wins outright there.
+    const hideSelectors = hideRules.flatMap((r) => r.selectors)
+    expect(
+      hideSelectors,
+      'the Share-menu pill needs a .share-menu-scoped selector to out-rank .share-menu .doc-buttons .btn (0-3-0)',
+    ).toContain('.share-menu .doc-buttons .btn.doc-buttons__word')
+
+    // Email keeps BOTH formats at every width — it is the good path, not the compromised one.
+    const emailItem = shape(
+      '<div class="share-menu"><button>Email all — Word (.zip)…</button></div>',
+    ).querySelector('button') as Element
+    expect(reaches(emailItem), 'emailing Word must NOT be hidden on a phone').toBe(false)
+  })
+
   it('lets no glyph rule reach the labelled favorite, at any width', () => {
     // This replaced a source-ORDER assertion, which was too weak and shipped a real defect. The
     // glyph rules and the button system collide at the SAME specificity (0-1-0), so order decided

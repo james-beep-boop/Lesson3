@@ -1991,9 +1991,11 @@ button.user-menu__item {
      so width covers them by construction and needs no device detection.
 
      ⚑ AND THIS IS NOT A FIX FOR THE BACK-FROM-WORD-VIEWER REPORT. iPads are above this breakpoint and
-     keep both the button and whatever that defect is; the cause is still unexplained (DECISIONS
-     2026-08-29). Removing one route to a bug is not the same as fixing it, and reading this rule as
-     having done so would leave the real thing unexamined.
+     keep both the button and whatever that defect is. The cause is still unexplained, and what has
+     already been ruled out is written down so a third attempt does not start from scratch — see
+     DECISIONS 2026-08-29, "STILL OPEN: browser Back after viewing a generated Word document".
+     Removing one route to a bug is not the same as fixing it, and reading this rule as having done so
+     would leave the real thing unexamined.
 
      Email keeps BOTH formats at every width — it is the good path, not the compromised one. */
   /* ⚑ THE SELECTORS ARE THIS LONG ON PURPOSE — the short ones were measured DOING NOTHING. A bare
@@ -2003,7 +2005,13 @@ button.user-menu__item {
      first version of this block was inert at every width and looked correct in the diff.
      Each selector below now WINS OUTRIGHT rather than tying and relying on source order —
      `buttonSystem.spec.ts` records order being retired as an instrument in this stylesheet after it
-     shipped a defect of exactly this shape. */
+     shipped a defect of exactly this shape, and now PINS this rule too.
+     ⚑ BOTH `doc-buttons__word` SELECTORS ARE REQUIRED; the first is not redundant. The short one is
+     the only match on catalogue rows, where the competitor is a bare `.btn` (0-1-0). The
+     `.share-menu`-scoped one is the only OUTRIGHT win inside the menu, where the short one merely
+     TIES `.share-menu .doc-buttons .btn` at (0-3-0) and would prevail on source order alone. Deleting
+     the first breaks catalogue rows visibly; deleting the second breaks nothing today and fails
+     silently the day these blocks move. */
   .doc-buttons .btn.doc-buttons__word,
   .share-menu .doc-buttons .btn.doc-buttons__word,
   .share-menu button.share-menu__word-zip {
