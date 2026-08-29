@@ -17,9 +17,26 @@
      Five steps, one hierarchy across both surfaces (decided 2026-07-31,
      docs/DESIGN-visual-system-2026-07-31.md §3.2):
        page title 30 / section 20 / list-group heading 18 / body 16 / secondary 14.
+     Page title is the one FLUID step (22→30px, see below) — it is the only one far enough above body
+     size for a fixed value to be visibly wrong on a phone; the other four stay fixed.
      A page SECTION heading (20) deliberately outranks a list-GROUP heading (18): the first names a
      region of the page, the second is structure inside a list. That gap is the hierarchy. */
-  --app-page-title-size: 30px; /* primary <h1>, weight 700 */
+  /* ⚑ FLUID, not a flat 30px, and the phone is why. A page title is the ONE step in this scale big
+     enough for its fixed size to be wrong on a small screen: "Compare: Cell Structure" at 30px on a
+     375px viewport reads as oversized against a 14px row of metadata beneath it (measured on an
+     iPhone, 2026-08-29). No mobile override existed anywhere — the 640px block restacks the header
+     but never resizes it. `clamp` fixes it once, for BOTH surfaces (custom.scss reads this token
+     too), instead of a media query per stylesheet.
+     Endpoints are the scale's own numbers: 22px on a phone, the unchanged 30px from ~960px up, so
+     desktop is byte-identical to before.
+     ⚑ AND IT IS STATED IN px, INCLUDING THE `1.05rem` MIDPOINT (16.8px), because the file header's
+     rule applies to a fluid value exactly as it does to a fixed one: px is what keeps "identical on
+     both surfaces" a property of the token rather than of two rem roots that happen to agree today.
+     Written in rem first, which put back the coupling `DESIGN-visual-system-2026-07-31.md` records
+     converting this very token AWAY from — the curve is identical at a 16px root, so the unit was
+     the whole of the difference. The other four steps stay fixed — they are already close
+     enough to body size that fluid sizing would buy nothing and cost the hierarchy's crispness. */
+  --app-page-title-size: clamp(22px, 16.8px + 1.4vw, 30px); /* primary <h1>, weight 700 */
   --app-section-title-size: 20px; /* page section, weight 600 */
   --app-list-heading-size: 18px; /* list/group heading, weight 600 — names an existing frontend value */
   --app-body-size: 16px; /* body; a MINOR heading is this size at weight 600 */

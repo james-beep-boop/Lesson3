@@ -585,10 +585,16 @@ button.user-menu__item {
   font-size: 0.9rem;
 }
 /* The row's title line (T2: the row itself stacks a document strip under this). */
+/* ⚑ NO `justify-content`, DELIBERATELY. It was `space-between`, which had no reachable effect on
+   desktop — `.substrand-link` carries `flex: 1`, so the first child absorbs the free space there is
+   none left to distribute — and its ONLY live effect was in the wrapped second line at ≤640px, where
+   it flung whichever control landed last on a line to the right edge. Reported from a phone as the
+   favourite appearing "sometimes on the right, sometimes on the left, sometimes way far away".
+   Deleting it beats overriding it at the breakpoint: an override leaves the trap armed for the next
+   flex line someone adds, or for the day `flex: 1` comes off the link. */
 .substrand-main {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 1rem;
 }
 /* T2 per-document strip: quiet label + small PDF/Word buttons per deliverable, indented past
@@ -620,6 +626,7 @@ button.user-menu__item {
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
+
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
    system carries both the emphasis (quiet) and the density (compact), so this file no longer states
    them per-control. The D4 reasoning is unchanged and lives on `.btn--quiet`. */
@@ -1383,8 +1390,33 @@ button.user-menu__item {
 
 /* Faithful content preview (mammoth → HTML). Tables are the bulk of a lesson. */
 .doc-preview {
+  /* ⚑ ONE THRESHOLD, TWO CONSTANTS. This width and the "fourth column" test below describe the same
+     judgement — roughly 140px per column, the point at which a generated cell stops holding a
+     readable phrase. They are declared together so a future tuning of one cannot strand the other,
+     and the value is named here because both the `:has()` rule and its `@supports` fallback need it. */
+  --doc-wide-table-min: 560px;
   font-size: 0.9rem;
   overflow-x: auto;
+  /* ⚑ THE TABLE IS SUPPOSED TO SCROLL SIDEWAYS — the 560px minimum below is deliberate, so a
+     five-column generated table is not crushed to one word per column. What was missing is any SIGN
+     that it scrolls: iOS hides scrollbars until a gesture starts, so a reader sees a sentence cut off
+     at the right edge and reasonably concludes the page is broken (reported from an iPhone,
+     2026-08-29; measured page overflow was 0 — the container was clipping correctly all along).
+     The classic pure-CSS scroll shadow: two cover gradients painted in the LOCAL coordinate space
+     (so they slide away as you scroll) reveal two fixed shadows underneath at whichever edge still
+     has content. No JS, no scroll listener, and it disappears by itself once you reach an end. */
+  background:
+    linear-gradient(to right, var(--bg) 30%, transparent) left center,
+    linear-gradient(to left, var(--bg) 30%, transparent) right center,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.16), transparent) left center,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.16), transparent) right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    14px 100%,
+    14px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 .doc-preview table {
   border-collapse: collapse;
@@ -1724,6 +1756,9 @@ button.user-menu__item {
     margin-bottom: 0.65rem;
     gap: 0.5rem;
   }
+  /* Wrapping is what makes the row work at this width; the base rule deliberately sets no
+     `justify-content`, so wrapped lines flow from the start and a control's position is a function
+     of its ORDER — see the ⚑ on `.substrand-main`. */
   .substrand-main {
     flex-wrap: wrap;
     row-gap: 0.15rem;
@@ -1764,6 +1799,15 @@ button.user-menu__item {
   /* The reserved chip column has no value on a stacked card row. */
   .substrand-versions {
     min-width: 0;
+  }
+  /* ⚑ AND AT THIS WIDTH ONLY. An empty slot still takes a flex slot and perturbs where the line
+     breaks (measured rendering at 0px wide, between the lesson count and the favourite). Collapsing
+     it globally would delete D4's reserved column on desktop — `min-width: 6.5rem` above exists so
+     the star stays put whether or not a row has version history, which is the alignment find D4
+     answered. The reserve is pointless on a stacked card and load-bearing on a desktop row, so the
+     rule is scoped to match, exactly like the `min-width: 0` it sits beside. */
+  .substrand-versions:empty {
+    display: none;
   }
   /* (Filter chips reach the 44px hit area through the shared `.btn` rule below.) */
   /* (The versions chip reaches the 44px touch bar through the shared `.btn` rule below.) */
@@ -1902,21 +1946,52 @@ button.user-menu__item {
   /* Variant B: on cards the catalogue favorite reveals its label and becomes a compact labelled
      control — still ≥44px tall for touch; min-width drops so the width follows star + text, and the
      smaller font balances the glyph against the word. */
-  .fav-toggle--label-mobile {
+  /* ⚑ THE DOUBLED CLASS IS THE POINT, and `:not(.btn)` alone was not enough. This selector was
+     (0-1-0) against the `.fav-toggle:not(.btn)` block above at (0-2-0), so its 1.35rem won and this
+     whole declaration was DEAD — measured at 21.6px where 15.2px was intended.
+     ⚑ AND IT IS SCOPED TO 0-3-0 RATHER THAN TIED AT 0-2-0. A tie would hand the decision to source
+     order, and `tests/unit/buttonSystem.spec.ts` retired that instrument in this very system after
+     it shipped this very bug: "a second glyph rule inside `@media (max-width: 640px)` won unseen,
+     shipping 'Favorited' at 1.35rem … Where scoping is possible, prefer it — an order assertion is
+     only as good as its view of the file." Winning outright needs no assertion about order and
+     survives anyone moving these blocks. (`.btn` and this variant are mutually exclusive in
+     `FavoriteToggle.tsx`, so `:not(.btn)` filters nothing here — it is kept to read as the sibling
+     of the base rule's scoping, and the repeated class carries the weight.)
+     ⚑ AND 0.9rem, NOT the 0.95rem this rule used to ask for: measured against its neighbours at
+     375px, the row reads "12 lessons" 14.4 / "Supporting documents" 13.6 / PDF-Word buttons 13. At
+     0.95rem (15.2px) the word "Favorite" would still be the LARGEST thing in the row it sits in.
+     0.9rem makes it a peer of `.substrand-count`, which is what it is. The 44px touch target is
+     unaffected — `min-height` comes from the block above and does not follow the font. */
+  .fav-toggle.fav-toggle--label-mobile:not(.btn) {
     gap: 0.3rem;
     min-width: 0;
     padding: 0.3rem 0.6rem;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
   .fav-toggle--label-mobile .fav-toggle__label {
     display: inline;
   }
   /* (Compare joins the 44px touch bar through the shared `.btn` rule above.) */
 
-  /* The generated tables (5 columns) stay legible: keep their natural width and let the
-     .doc-preview container (overflow-x: auto) scroll sideways, rather than crushing every
-     cell to a one-word column. */
-  .doc-preview table {
-    min-width: 560px;
+  /* ⚑ ONLY THE GENUINELY WIDE TABLES SCROLL. This was a blanket `min-width: 560px`, whose comment
+     justified it by the FIVE-column tables — and those do need it, or every cell crushes to a
+     one-word column. But counted on a real 13-lesson plan, the document is 73 tables: 24 with one
+     column, 34 with two, and only 15 with four or more. So the blanket rule forced horizontal
+     scrolling on 79% of tables that had no reason to scroll, which is what "cut off on the right"
+     was on a phone (reported from an iPhone, 2026-08-29) — a two-column reflection paragraph clipped
+     mid-sentence for the sake of tables elsewhere in the document.
+     `:has()` asks the only question that matters — does any row have a fourth cell — so the wide
+     ones keep their minimum and everything else wraps to the container and is never cut off. Cells
+     carrying `colspan` are counted as the one child they are, which is correct here: a two-column
+     table whose header spans both is still a two-column table. */
+  .doc-preview table:has(tr > *:nth-child(4)) {
+    min-width: var(--doc-wide-table-min);
+  }
+  /* Pre-`:has()` browsers keep exactly today's behaviour rather than getting the cramped half of the
+     new one: everything scrolls, as it did before. (iOS Safari has supported `:has()` since 15.4.) */
+  @supports not selector(:has(*)) {
+    .doc-preview table {
+      min-width: var(--doc-wide-table-min);
+    }
   }
 }
