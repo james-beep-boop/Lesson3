@@ -25,7 +25,7 @@ import Link from 'next/link'
 import { downloadExport, type ExportState } from '@/components/exportClient'
 import DocStrip from '@/components/DocStrip'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
-import EmailModal from './EmailModal'
+import EmailModal, { type EmailFormat } from './EmailModal'
 
 export default function ShareMenu({
   planId,
@@ -47,7 +47,8 @@ export default function ShareMenu({
   const [exportState, setExportState] = useState<ExportState>('idle')
   const exporting = exportState === 'preparing' || exportState === 'downloading'
 
-  const [emailOpen, setEmailOpen] = useState(false)
+  // Which format the open compose form will send; `null` means the form is closed.
+  const [emailFormat, setEmailFormat] = useState<EmailFormat | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,6 +82,13 @@ export default function ShareMenu({
     }).catch(() => {
       /* state/error already surfaced via onState */
     })
+  }
+
+  const openEmail = (format: EmailFormat) => {
+    setOpen(false)
+    setNote(null)
+    setError(null)
+    setEmailFormat(format)
   }
 
   const busyText =
@@ -121,14 +129,19 @@ export default function ShareMenu({
               <DocStrip versionId={versionId} tags={deliverables} />
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false)
-              setEmailOpen(true)
-            }}
-          >
-            Email to an address…
+          {/* ⚑ EMAIL MIRRORS DOWNLOAD, one entry per format. It was a single "Email to an address…"
+              that always sent Word, while Download offered both — an asymmetry against SPEC §10's own
+              model, where an artifact is (version, document, KIND) and "only the deliverable `kind`
+              varies". The endpoint already took `?as=docx|pdf`; only the UI withheld it.
+              ⚑ THE ELLIPSIS STAYS, and it is the one thing that distinguishes these from the two
+              entries above: Download acts on click, Email opens a form for the address. Without it,
+              four adjacent items would look like four of the same kind of action, and two of them
+              are not. It also says WHAT is sent, which "Email to an address…" never did. */}
+          <button type="button" onClick={() => openEmail('docx')}>
+            Email all — Word (.zip)…
+          </button>
+          <button type="button" onClick={() => openEmail('pdf')}>
+            Email all — PDF (.zip)…
           </button>
           {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
           <Link href={`/messages?plan=${planId}&version=${versionId}`}>Message a colleague</Link>
@@ -153,13 +166,14 @@ export default function ShareMenu({
         </span>
       )}
 
-      {emailOpen && (
+      {emailFormat && (
         <EmailModal
           versionId={versionId}
-          onClose={() => setEmailOpen(false)}
+          format={emailFormat}
+          onClose={() => setEmailFormat(null)}
           onSent={(addr) => {
-            setNote(`Sending to ${addr}…`)
-            setEmailOpen(false)
+            setNote(`Sending ${emailFormat === 'pdf' ? 'PDF' : 'Word'} to ${addr}…`)
+            setEmailFormat(null)
           }}
         />
       )}

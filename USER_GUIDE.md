@@ -37,8 +37,8 @@ Manage or see version/editing controls.
   Explanation or Summary Table behind a _Supporting documents_ line. On a lesson page, all downloads
   live in the _Share_ menu: each document on its own under _Download one document_, plus
   _Download all_ as a Word or PDF `.zip`.
-- **Email:** choose _Share → Email to an address…_ on a lesson page to send the generated documents
-  (as a .zip of Word files) to any email address — your own, or a colleague's. Sends are limited per
+- **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
+  generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day.
 - **Want to edit?** use _Request editing access_ on a lesson page. The app messages the appropriate
   administrators for that subject-grade; requests are limited to once per subject-grade per day.
