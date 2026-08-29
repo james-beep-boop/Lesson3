@@ -1148,6 +1148,28 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   grid-template-columns: 1fr;
 }
 
+// ⚑ AN ARRAY'S OWN NAME OUTRANKS ITS CONTROLS. Payload ships the array label at 13px/500 while
+// "Collapse All" / "Show All" beside it are 16px/400 — so "Lessons" was rendering SMALLER than the two
+// secondary actions attached to it (measured at 375px, reported 2026-08-29). That is the hierarchy
+// inverted: the label names the region, the actions operate on it.
+//
+// The values are the shared scale's own answer rather than new numbers. `--app-body-size` at weight
+// 600 is what `app-tokens.scss` defines as a MINOR heading — the right rank for a group opener that
+// sits inside a form — and the actions drop to `--app-secondary-size`, which is what they are.
+// Deliberately NOT `--app-list-heading-size` (18px): this rule reaches every array in the editor,
+// nested ones included (13 on a 13-lesson plan), and 18px on a phase list inside a lesson row would
+// shout louder than the lesson it belongs to.
+.collection-edit--lesson-bundle-versions {
+  .array-field__title .field-label {
+    font-size: var(--app-body-size);
+    font-weight: 600;
+  }
+
+  .array-field__header-action {
+    font-size: var(--app-secondary-size);
+  }
+}
+
 // The editor uses the same centered page shell as the frontend, including Compare. It previously
 // filled the entire viewport after the Payload nav was stripped (1280px at a 1280px viewport), while
 // every frontend page and Manage use the shared 960px column. Override Payload's large admin gutter
@@ -2569,6 +2591,21 @@ body:has(.lesson-controls-wrap--editing) .collection-edit--lesson-bundle-version
   // into a one-word-per-line column that collides with the form beneath it.
   .lesson-controls__group--output {
     flex-wrap: wrap;
+  }
+
+  // ⚑ THE ↗ GOES AT PHONE WIDTH, and it buys a whole row. Measured at 375px: the bar wrapped to FOUR
+  // rows, and dropping this one decorative glyph took "Quick preview" 138→123px and "Formatted PDF"
+  // 145→129px — 31px, exactly enough to pull Formatted PDF up beside Edit and Quick preview, leaving
+  // three. Nothing is lost to assistive tech: both buttons carry `aria-label="…, opens in a new tab"`,
+  // which is the real announcement; the glyph is a sighted-user hint that a new tab is coming, and a
+  // new tab is far less disorienting on a phone than on a desktop. Desktop keeps it.
+  // ⚑ AND THE ROW WAS WON WITHOUT RENAMING ANYTHING. "Quick preview" and "Formatted PDF" are a
+  // semantic PAIR — the help dialog and the Guide both say "Quick preview checks your content.
+  // Formatted PDF shows the final layout" — so the adjectives are the whole distinction between the
+  // two buttons, and shortening either would have bought the same pixels by making the pair
+  // unreadable.
+  .lesson-controls__ext {
+    display: none;
   }
 
   // #5 — what the button system does NOT cover. The `.btn` scopes and both form controls that used

@@ -691,7 +691,10 @@ export default function LessonControls() {
             onClick={onPreview}
             aria-label="Quick preview, opens in a new tab"
           >
-            Quick preview ↗
+            Quick preview{' '}
+            <span aria-hidden="true" className="lesson-controls__ext">
+              ↗
+            </span>
           </Button>
           {/* The accurate, formatted rendering (real DOCX→PDF), next to the quick HTML preview.
               Pristine → the cached export PDF; unsaved → generated from the current form state. One
@@ -708,7 +711,16 @@ export default function LessonControls() {
               aria-expanded={pdfMenuOpen}
               aria-label="Formatted PDF, opens in a new tab"
             >
-              {pdfBusy ? 'Preparing document…' : 'Formatted PDF ↗'}
+              {pdfBusy ? (
+                'Preparing document…'
+              ) : (
+                <>
+                  Formatted PDF{' '}
+                  <span aria-hidden="true" className="lesson-controls__ext">
+                    ↗
+                  </span>
+                </>
+              )}
             </Button>
             {pdfMenuOpen && (
               <div className="lesson-controls__pdf-menu">
@@ -739,7 +751,7 @@ export default function LessonControls() {
           </Button>
           {canEdit && (
             <Button buttonStyle="secondary" size="small" onClick={() => setHelpOpen(true)}>
-              Editing help
+              Help
             </Button>
           )}
           {/* Explicit destructive action (view mode only), replacing the native document-controls
@@ -819,7 +831,7 @@ export default function LessonControls() {
         </Modal>
       )}
       {helpOpen && (
-        <Modal title="Editing help" onClose={() => setHelpOpen(false)} className="lesson-edit-help">
+        <Modal title="Help" onClose={() => setHelpOpen(false)} className="lesson-edit-help">
           <p className="modal__body">How editing and saving behave.</p>
           {/* ⚑ ROWS, NOT BULLETS (operator decision 2026-08-23). Eight bullets of mixed importance
               read as one undifferentiated wall: the rule you need and the aside you do not look

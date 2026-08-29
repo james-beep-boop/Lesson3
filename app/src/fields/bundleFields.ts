@@ -4,7 +4,7 @@ import { canEditProse } from '../access/bundle'
 
 /**
  * Field factories for the sub-strand bundle. The editor's plain-text grammar is
- * explained once in LessonControls' "Editing help" dialog instead of being repeated
+ * explained once in LessonControls' "Help" dialog instead of being repeated
  * beneath roughly forty fields. These factories still carry the access-control split.
  */
 
