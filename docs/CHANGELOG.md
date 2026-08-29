@@ -8,6 +8,28 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — editor panels, phone fixes, and Word by email
+
+The version editor now opens compact on every visit. Payload gives a stored per-user preference
+precedence over a field's `initCollapsed`, so a panel a teacher had once expanded reopened expanded
+forever; three panels carried that defect. Each visit now starts collapsed while Show All, Collapse
+All and individual toggles stay usable for the rest of the visit, and the jump chips open a panel
+reliably even when it has not yet been rendered. The editor's control bar fits three rows instead of
+four on a phone, an array's own name no longer renders smaller than the buttons that act on it, and
+the summary table's driving question wraps instead of running off the edge.
+
+Phone reading and sharing improved. Generated tables wrap instead of clipping unless they are genuinely
+wide, page titles scale with the screen, the favourite control sits in a stable place at a readable
+size, and the "Preparing document…" notice is legible. Share now offers **Email all — Word** and
+**Email all — PDF**, mirroring the two download entries; emailing had silently sent Word only, though
+the endpoint had always accepted either format. On a phone the Word *downloads* are gone — reading and
+printing are the PDF's job, and Word travels by email — while every larger screen, Windows tablets
+included, is unchanged. Downloading a Word document no longer navigates the page it was requested from.
+
+One reported defect is **not** fixed and is recorded in `docs/DECISIONS.md` 2026-08-29: after viewing a
+generated Word document on a phone, the browser's Back button lands on the login page despite the
+session still being valid.
+
 ## Unreleased — checksummed GitHub deployment bundles and maintenance updates
 
 Lesson3 now has a local-server release path that does not build source on the destination. A version
