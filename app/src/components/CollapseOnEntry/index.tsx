@@ -24,11 +24,20 @@
  * instead would re-run when `isCollapsed` flipped and snap the panel shut the moment the reader
  * opened it — an entry default that had become a prohibition.
  *
+ * ⚑ THE LATCH IS NOT ENOUGH ON ITS OWN, which a browser proved and no unit test could. This component
+ * lives behind the panel's own lazy render, so on a tall document its FIRST run can happen after a
+ * jump chip has already opened the panel — and a first run is precisely what the latch cannot guard.
+ * `isEntryPhaseOpen` is the second condition: the visit's entry phase, which a jump ends. See
+ * {@link ../LessonControls/entryPhase} for why that is a property of the document rather than of
+ * this component.
+ *
  * Renders nothing. A `ui` field adds no data key, so stored paths, generator input and
  * render-versioning are untouched.
  */
 import { useEffect, useRef } from 'react'
 import { useCollapsible, useDocumentInfo } from '@payloadcms/ui'
+
+import { isEntryPhaseOpen } from '../LessonControls/entryPhase'
 
 export default function CollapseOnEntry() {
   const { isCollapsed, toggle } = useCollapsible()
@@ -46,7 +55,10 @@ export default function CollapseOnEntry() {
     if (settledFor.current === documentId) return
     settledFor.current = documentId
 
-    if (!isCollapsed) toggle()
+    // Both conditions, and they answer different questions: `isCollapsed` is "is there anything to
+    // do", `isEntryPhaseOpen` is "is this still entry". An expanded panel outside the entry phase was
+    // opened deliberately, by a jump — leave it alone.
+    if (!isCollapsed && isEntryPhaseOpen(documentId)) toggle()
   }, [id, isCollapsed, toggle])
 
   return null

@@ -61,6 +61,7 @@ import {
   subscribeToActiveLinkTarget,
 } from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
+import { beginEntryPhase } from './entryPhase'
 import { initialCollapseActions } from './initialCollapse'
 import CompareToOfficialLink from '../CompareToOfficialLink'
 
@@ -112,6 +113,15 @@ export default function LessonControls() {
   // before correcting it; changes during that hydration restart the short timer. It deliberately
   // does NOT rewrite the preference: after this effect runs, Show All / Collapse All and individual
   // row toggles work normally for the rest of the visit.
+  // Open this visit's entry phase, which is what lets the PANELS' entry rule tell "the document just
+  // opened" from "a jump revealed me". Keyed on `id` alone, so it runs once per mount and once per
+  // document change — re-entering the same document later in the session is a new visit and gets a
+  // new phase. `entryPhase.ts` carries the reasoning; the row pass below needs no such guard, because
+  // form state is complete at entry whether or not a row was ever painted.
+  useEffect(() => {
+    if (id != null) beginEntryPhase(String(id))
+  }, [id])
+
   const collapsedOnEntryFor = useRef<string | null>(null)
   useEffect(() => {
     if (id == null || initializing) return

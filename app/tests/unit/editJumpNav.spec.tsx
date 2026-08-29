@@ -28,7 +28,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(mocks.lesson ? `lesson=${mocks.lesson}` : ''),
 }))
-vi.mock('@payloadcms/ui', () => ({ useAllFormFields: () => [mocks.fields] }))
+// `useDocumentInfo` is here because a jump ends the visit's entry phase, and the phase is keyed by
+// document — see `LessonControls/entryPhase.ts`.
+vi.mock('@payloadcms/ui', () => ({
+  useAllFormFields: () => [mocks.fields],
+  useDocumentInfo: () => ({ id: 42 }),
+}))
 
 import EditJumpNav from '@/components/LessonControls/EditJumpNav'
 

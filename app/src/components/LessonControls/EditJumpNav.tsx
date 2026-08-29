@@ -28,8 +28,9 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useAllFormFields } from '@payloadcms/ui'
+import { useAllFormFields, useDocumentInfo } from '@payloadcms/ui'
 
+import { endEntryPhase } from './entryPhase'
 import {
   crossingLine,
   FINAL_EXPLANATION_ID,
@@ -49,6 +50,7 @@ interface LessonEntry {
 
 export default function EditJumpNav() {
   const [fields] = useAllFormFields()
+  const { id: documentId } = useDocumentInfo()
   const searchParams = useSearchParams()
   const didDeepLink = useRef(false)
   // The single in-flight scroll-settle timeout; a new scroll (or unmount) cancels it so competing
@@ -96,50 +98,58 @@ export default function EditJumpNav() {
    * would be disorienting and would fight the re-pinning. `block: 'start'` targets the row header,
    * which doesn't move when the row expands.
    */
-  const scrollToField = useCallback((id: string) => {
-    if (scrollTimer.current != null) window.clearTimeout(scrollTimer.current)
-    scrollTimer.current = null
-    const el = document.getElementById(id)
-    if (!el) return
-    let prevHeight = -1
-    let stableHeight = 0
-    let tries = 0
-    /**
-     * ⚑ RETRIED EACH CYCLE, NOT ONCE BEFORE THE SCROLL, and the difference is the whole fix. The two
-     * trailing panels are groups, so their contents come from a nested `RenderIfInViewport`
-     * (rootMargin 1000px, no `forceRender` from `Group`): a target far enough below the viewport has
-     * no `.collapsible-field` in the DOM yet, the toggle resolves to `null`, and a single attempt
-     * before scrolling silently does nothing. Reproduced in a browser on Summary table — the jump
-     * landed, Payload mounted the disclosure afterwards, and it stayed shut. Lesson rows never showed
-     * this: their wrapper and Collapsible render with the array.
-     *
-     * ⚑ AND IT LATCHES ON THE FIRST SUCCESS. `ownCollapsedToggle` is self-limiting — an open panel
-     * has no `--collapsed` — but the settle chain runs up to 12s, so without the latch a reader who
-     * collapsed the panel again while it was still re-pinning would have it yanked back open.
-     */
-    let opened = false
-    const openTarget = () => {
-      if (opened) return
-      const toggle = ownCollapsedToggle(el)
-      if (!toggle) return
-      toggle.click()
-      opened = true
-    }
-    const settle = () => {
-      // Before the scroll, exactly as the single pre-loop attempt used to be — `settle` runs
-      // synchronously below, so the first cycle still opens an already-rendered target immediately.
-      openTarget()
-      el.scrollIntoView({ block: 'start' })
-      const height = document.documentElement.scrollHeight
-      stableHeight = height === prevHeight ? stableHeight + 1 : 0
-      prevHeight = height
-      const landed = Math.round(el.getBoundingClientRect().top) < 200
-      // 12s hard cap covers a target legitimately too near the document end to reach the top.
-      scrollTimer.current =
-        !(stableHeight >= 4 && landed) && tries++ < 80 ? window.setTimeout(settle, 150) : null
-    }
-    settle()
-  }, [])
+  const scrollToField = useCallback(
+    (id: string) => {
+      if (scrollTimer.current != null) window.clearTimeout(scrollTimer.current)
+      scrollTimer.current = null
+      const el = document.getElementById(id)
+      if (!el) return
+      // ⚑ A JUMP IS A DELIBERATE REVEAL, so it ends this visit's entry phase. Without this the two
+      // halves of "starts compact" cancel out: the retry below opens the target, the target's contents
+      // mount for the first time behind their own lazy render, and the panels' entry rule shuts what
+      // the jump just opened. Measured before the fix — open at 206ms, closed again at 334ms.
+      if (documentId != null) endEntryPhase(String(documentId))
+      let prevHeight = -1
+      let stableHeight = 0
+      let tries = 0
+      /**
+       * ⚑ RETRIED EACH CYCLE, NOT ONCE BEFORE THE SCROLL, and the difference is the whole fix. The two
+       * trailing panels are groups, so their contents come from a nested `RenderIfInViewport`
+       * (rootMargin 1000px, no `forceRender` from `Group`): a target far enough below the viewport has
+       * no `.collapsible-field` in the DOM yet, the toggle resolves to `null`, and a single attempt
+       * before scrolling silently does nothing. Reproduced in a browser on Summary table — the jump
+       * landed, Payload mounted the disclosure afterwards, and it stayed shut. Lesson rows never showed
+       * this: their wrapper and Collapsible render with the array.
+       *
+       * ⚑ AND IT LATCHES ON THE FIRST SUCCESS. `ownCollapsedToggle` is self-limiting — an open panel
+       * has no `--collapsed` — but the settle chain runs up to 12s, so without the latch a reader who
+       * collapsed the panel again while it was still re-pinning would have it yanked back open.
+       */
+      let opened = false
+      const openTarget = () => {
+        if (opened) return
+        const toggle = ownCollapsedToggle(el)
+        if (!toggle) return
+        toggle.click()
+        opened = true
+      }
+      const settle = () => {
+        // Before the scroll, exactly as the single pre-loop attempt used to be — `settle` runs
+        // synchronously below, so the first cycle still opens an already-rendered target immediately.
+        openTarget()
+        el.scrollIntoView({ block: 'start' })
+        const height = document.documentElement.scrollHeight
+        stableHeight = height === prevHeight ? stableHeight + 1 : 0
+        prevHeight = height
+        const landed = Math.round(el.getBoundingClientRect().top) < 200
+        // 12s hard cap covers a target legitimately too near the document end to reach the top.
+        scrollTimer.current =
+          !(stableHeight >= 4 && landed) && tries++ < 80 ? window.setTimeout(settle, 150) : null
+      }
+      settle()
+    },
+    [documentId],
+  )
 
   // Cancel any in-flight scroll chain when the editor unmounts.
   useEffect(
