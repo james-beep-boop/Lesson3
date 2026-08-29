@@ -158,8 +158,11 @@ describe('LessonControls neutralises ?edit=1 on mount at a narrow viewport', () 
     expect(mocks.setDisabled.mock.calls.at(-1)?.[0]).toBe(true)
 
     // The read-only affordances the caller can still use are untouched.
-    expect(screen.getByRole('button', { name: 'Quick preview ↗' })).toBeTruthy()
-    expect(screen.getByText('Editing help')).toBeTruthy()
+    // ⚑ THE NAME NO LONGER CARRIES THE ↗. The glyph moved into an `aria-hidden` span so it can be
+    // dropped at phone width (custom.scss), which also takes it out of the accessible name — the
+    // right outcome twice over: a decorative arrow was never part of what this control is called.
+    expect(screen.getByRole('button', { name: 'Quick preview' })).toBeTruthy()
+    expect(screen.getByText('Help')).toBeTruthy()
     // No standing notice any more (PR B): the bar carries no permanent explanation, because the
     // explanation now arrives on demand — see the press-time test below.
     expect(screen.queryByRole('note')).toBeNull()

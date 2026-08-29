@@ -130,7 +130,7 @@ export default async function UserGuidePage() {
             editable, and any you cannot are shown but marked <em>read-only</em>.{' '}
             <em>Quick preview ↗</em> checks your content, while <em>Formatted PDF ↗</em> shows the
             final layout. Both open in a new tab and include unsaved edits; close that tab to return
-            to the editor. Use <em>Editing help</em> for the short writing rules. The prominent{' '}
+            to the editor. Use <em>Help</em> for the short writing rules. The prominent{' '}
             <em>← Back to lesson</em> button at the top right returns you when you are done.
           </li>
           <li>
@@ -270,7 +270,7 @@ export default async function UserGuidePage() {
       <section id="writing" className="guide-section">
         <h2>Writing in Fields</h2>
         <p>
-          These rules are also available from <em>Editing help</em> at the top of the editor.
+          These rules are also available from <em>Help</em> at the top of the editor.
         </p>
         <ul className="guide-list">
           <li>Start a new line to make a new paragraph.</li>

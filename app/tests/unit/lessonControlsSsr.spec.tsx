@@ -76,9 +76,13 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('Viewing:')
     expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
-    expect(html).toContain('Quick preview ↗')
-    expect(html).toContain('Formatted PDF ↗')
-    expect(html).toContain('Editing help')
+    // ⚑ THE ↗ IS NOW A SEPARATE aria-hidden SPAN so phone width can drop it (custom.scss). Assert the
+    // LABEL and the glyph's decorative wrapper separately — a single `toContain('Quick preview ↗')`
+    // would pass again the moment someone inlined the glyph back into the label and undid that.
+    expect(html).toContain('Quick preview')
+    expect(html).toContain('Formatted PDF')
+    expect(html).toMatch(/<span aria-hidden="true" class="lesson-controls__ext">↗<\/span>/)
+    expect(html).toContain('>Help<')
     expect(html).toContain('<span aria-hidden="true">←</span>Back')
     expect(html).toContain('class="btn"')
     expect(html).toContain('aria-label="Back to lesson"')
@@ -117,8 +121,12 @@ describe('LessonControls offers the edit lifecycle only to someone who may edit 
     expect(html).not.toMatch(/<button[^>]*>Save<\/button>/)
     expect(html).toContain('Viewing:')
     // The read-only affordances they came for must survive.
-    expect(html).toMatch(/<button[^>]*>Quick preview ↗<\/button>/)
-    expect(html).not.toContain('Editing help')
+    // `<!-- -->` is React's text separator between the label and the glyph span — tolerated rather
+    // than pinned, since it is a renderer artefact and not part of this component's contract.
+    expect(html).toMatch(
+      /<button[^>]*>Quick preview(?:<!-- -->)?\s*<span aria-hidden="true"[^>]*>↗<\/span><\/button>/,
+    )
+    expect(html).not.toContain('>Help<')
   })
 
   // The deep link is an INTENT, not an authorisation — `?edit=1` must not unlock a form the caller
