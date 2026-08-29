@@ -91,9 +91,10 @@ export default async function UserGuidePage() {
             <em>Download one document</em>, plus <em>Download all</em> as a Word or PDF .zip.
           </li>
           <li>
-            <strong>Email:</strong> choose <em>Share → Email to an address…</em> on a lesson page to
-            send the generated documents (as a .zip of Word files) to any email address — your own,
-            or a colleague’s. Sends are limited per day.
+            <strong>Email:</strong> choose <em>Share → Email all — Word</em> or{' '}
+            <em>Email all — PDF</em>
+            on a lesson page to send the generated documents (as a .zip of that format) to any email
+            address — your own, or a colleague’s. Sends are limited per day.
           </li>
           <li>
             <strong>Want to edit?</strong> use <em>Request editing access</em> on any lesson page —
