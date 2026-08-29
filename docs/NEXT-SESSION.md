@@ -25,9 +25,9 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-29) — nine PRs of editor/mobile fixes; one bug still unexplained
+# ⚑ HANDOFF (2026-08-29) — eleven PRs of editor/mobile fixes; two things still open
 
-**Supersedes the blocks below for state; they stay for provenance.** `main` is `d9dfe60`.
+**Supersedes the blocks below for state; they stay for provenance.** `main` is `f28dea3`.
 
 ## Status
 
@@ -36,11 +36,12 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 | Open PRs | none |
 | Branches | `main` only, local and remote; no worktrees |
 | Deployed | ⚑ the Rock trails `main`. The operator deployed mid-session (confirmed: the panel open-then-close is gone on the phone), then five more PRs landed. Measure, do not trust this line: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — against `origin/main` after a fetch, not the local ref |
-| To deploy | plain `scripts/deploy.sh` — **no migrations in any of the nine**. `payload-types.ts` regenerated with no diff twice over (both `ui` fields and the `text`→`textarea` change are data-inert) |
+| To deploy | plain `scripts/deploy.sh` — **no migrations in any of the eleven**. `payload-types.ts` regenerated with no diff twice over (both `ui` fields and the `text`→`textarea` change are data-inert) |
 
 ## What shipped
 
-Started as an audit of #302–#308 and became a day of editor and phone fixes.
+Started as an audit of #302–#308 and became a day of editor and phone fixes. #318 is the handoff
+itself; #319 closed the day.
 
 **#309 — panels start compact, the jump retries, the role gap closes.** Payload's stored preference
 outranks `initCollapsed`, so a panel opened once reopened expanded forever — the same defect #307
@@ -84,6 +85,12 @@ to want a `.docx` over a PDF is to EDIT it, and doing that in a phone's Word app
 away from the system. ⚑ Drawn on WIDTH, not `pointer: coarse`, because **Windows tablets are in real
 use and must keep the `.docx`** — they report a coarse pointer.
 
+**#319 — Payload's "Copy Field / Paste Field" menu is hidden.** A CMS-developer affordance that means
+nothing to a teacher, and "Paste Field" replaces an entire array in one click. No config flag exists;
+scoped to `.clipboard-action__popup` so Collapse All / Show All survive. ⚑ Investigating it settled a
+question worth not re-opening: answer keys are EDIT-restricted, not read-restricted — they are printed
+in the Final Explanation document every teacher downloads. DECISIONS 2026-08-29 has it.
+
 ## ⚑ READ THIS BEFORE WRITING A CSS RULE
 
 **Three specificity traps in one day, all the same shape**: a plausible short selector losing to a
@@ -118,15 +125,24 @@ collapsed, why there will be three collapsible implementations sharing one style
 questions recorded unanswered rather than guessed. Both jump navs (~510 lines) become removable IF the
 accordion carries navigation — sequence that AFTER, so a complaint can be attributed.
 
-1. **Deploy** the nine commits above.
+1. **Deploy** the eleven commits above.
 2. **The Back-from-Word bug**, with the ruled-out list as the starting point.
-3. **The className-resolves-to-a-rule guard** — see the three traps above; this stopped being
+3. ⚑ **The array row `⋯` menu** — it offers teachers Move / Add below / Duplicate / **Remove** on lesson
+   rows, which SPEC §5 makes Subject-Admin-only. Expected to be silently discarded on save by
+   `applyEditorFieldSplit`, which would make Remove a destructive-looking control that does nothing —
+   worse than a hidden field. Needs a TEST, not a guess; the answer matters either way.
+   DECISIONS 2026-08-29 ("OPEN: the array row ⋯ menu").
+   ⚑ **Not** on this list: making admin-only fields visible-but-read-only. Assessed and DECLINED
+   2026-08-29 — real risk at the schema's worst spot (Payload nulls optional admin-only subfields
+   inside open arrays; `exemplar` is the field that surfaced that wipe) to save a tab switch, since the
+   values are already in the PDF. Reasoning recorded so it is not re-derived.
+4. **The className-resolves-to-a-rule guard** — see the three traps above; this stopped being
    theoretical today.
-4. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
+5. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
    clean limiter.
-5. **System panel part 2** — still unblocked, still a ONE-flag PR (`publicLibraryLive`).
-6. **Official-pointer lock** — hard prerequisite for the public read slice.
-7. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
+6. **System panel part 2** — still unblocked, still a ONE-flag PR (`publicLibraryLive`).
+7. **Official-pointer lock** — hard prerequisite for the public read slice.
+8. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
    conversations; `NOTICE` names the gap.
 
 ---

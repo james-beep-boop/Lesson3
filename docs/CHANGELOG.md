@@ -26,6 +26,10 @@ the endpoint had always accepted either format. On a phone the Word *downloads* 
 printing are the PDF's job, and Word travels by email — while every larger screen, Windows tablets
 included, is unchanged. Downloading a Word document no longer navigates the page it was requested from.
 
+The editor also drops Payload's stock "Copy Field / Paste Field" menu from array headers — a
+CMS-developer control that meant nothing to a teacher, and whose paste action replaced a whole array in
+one click.
+
 One reported defect is **not** fixed and is recorded in `docs/DECISIONS.md` 2026-08-29: after viewing a
 generated Word document on a phone, the browser's Back button lands on the login page despite the
 session still being valid.
