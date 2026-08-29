@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-29 — A phone offers no Word DOWNLOAD; and the Back-from-Word report is still open
+
+Two things, recorded together because the first is a workaround people will mistake for the second.
+
+**The decision.** A phone no longer offers any Word *download* — not the per-document pill, not the
+`.zip`. Word by EMAIL stays at every width. Reading and printing are the PDF's job, and it renders
+exactly where a phone's Quick Look renders a `.docx` approximately; sending is
+Share → "Email all — Word", which the server does without the file ever touching the phone.
+
+⚑ **THE REAL ARGUMENT IS THE ROUND TRIP, not screen size.** The only reason to want a `.docx` over a
+PDF is to EDIT it — and editing it in a phone's Word app forks the document away from the system
+entirely: no version, no Official pointer, no provenance, and the next export silently loses the
+work. That is precisely what `CLAUDE.md`'s first design rule ("edit the data, never the document")
+exists to prevent. The button was not offering a capability withheld elsewhere; it was offering a
+dead end.
+
+⚑ **WIDTH, AND IT MUST STAY WIDTH.** `pointer: coarse` is the truer axis — what varies is whether the
+OS offers to preview a document — and it would break a REQUIREMENT: Windows tablets are in real use
+in this deployment and must keep the `.docx`. They report a coarse pointer, so a pointer query hides
+the button on exactly the devices that need it; they report well above 640px in any orientation, so
+width covers them by construction. The rule carries that reasoning inline so the "correction" is not
+made later. This is progressive disclosure, NOT an authorization boundary — the same framing SPEC §5
+already applies to the ≤640px editing rule; no endpoint gets a viewport check.
+
+⚑ **AND THE FIRST VERSION OF THE RULE WAS INERT.** `.doc-buttons__word` (0-1-0) loses to
+`.share-menu .doc-buttons .btn` (0-3-0); `.share-menu__word-zip` (0-1-0) loses to `.share-menu button`
+(0-1-1). Both controls stayed visible at 375px while the stylesheet claimed to hide them, and the diff
+looked right. Third specificity trap of the day, same shape each time: a plausible short selector
+losing to a longer one already in the file. It is now pinned in `buttonSystem.spec.ts` — the harness
+that exists for this defect class, was cited by the comment, and had not been used.
+
+## ⚑ STILL OPEN: browser Back after viewing a generated Word document lands on the login page
+
+Reported from a phone 2026-08-29, against the deployed build, and NOT fixed. Recorded because two
+explanations have already been wrong and the third must not start from scratch.
+
+- **The session is alive.** Opening a new tab from that login page shows the operator still signed in.
+  So it is a stale/incorrect page, not a logout. Signed in ~1 minute, so not `tokenExpiration`.
+- **`/login` does redirect an authenticated caller** (`if (user) redirect('/')`), so the page rendering
+  a form means the redirect never ran — i.e. no request was made.
+- ⚑ **The bfcache explanation does not hold either**, which is where the trail currently ends:
+  `LoginForm` navigates with `window.location.replace('/')`, so `/login` is REPLACED in history and
+  should not be a Back target at all.
+- What was tried and did not fix it: #313 changed the Word download from navigating the current page
+  to a blob + `download` attribute. That removed a real defect (the navigation) and changed the
+  symptom without curing it.
+- ⚑ **The phone Word-hiding above is NOT a fix for this.** iPads sit above the 640px breakpoint and
+  keep both the button and the defect. Removing one route to a bug is not the same as fixing it, and
+  reading the CSS rule as having done so would leave the real thing unexamined.
+
 ## 2026-08-29 — The read page keeps its renderer; the accordion comes to IT, not teachers to the editor
 
 Design work only — nothing built. Full reasoning: `docs/DESIGN-read-page-accordion-2026-08-29.md`.
