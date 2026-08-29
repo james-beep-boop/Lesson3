@@ -1148,6 +1148,30 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
   grid-template-columns: 1fr;
 }
 
+// ⚑ PAYLOAD'S "Copy Field / Paste Field" MENU IS NOT FOR THIS AUDIENCE. Its Array field renders a
+// `ClipboardAction` popup unconditionally beside Collapse All / Show All — there is no config flag to
+// disable it (no `disableCopyPaste` in the field types; it returns `null` only when BOTH copy and
+// paste are unavailable), so CSS is the only lever.
+//
+// It is a CMS-developer affordance for moving JSON between array fields, and it reads as nonsense to a
+// teacher. "Paste Field" is also a genuine footgun: one click replaces an ENTIRE array in form state,
+// so a teacher could wipe their in-progress prose with no obvious undo.
+//
+// ⚑ NOT A CONFIDENTIALITY MEASURE, and it is worth saying so because "Copy Field" looks like a leak
+// and is not. The values it would copy — `sections[].exemplar`, `rubric[*]` — are PRINTED in the Final
+// Explanation document that every teacher can already view, download and email (`generator/vendor/
+// lib/build_docs.js` renders `sec.exemplar` beside `sec.prompt`). SPEC §5's "Subject Admin only" for
+// answer keys sits under a heading that says field-level EDIT permissions, and that rule is enforced
+// write-side by `applyEditorFieldSplit`'s whitelist. Hiding this menu changes what the editor OFFERS,
+// not what anyone can read.
+//
+// ⚑ SCOPED TO `.clipboard-action__popup`, NOT `.array-field__header-action`. Payload passes that
+// second class to the popup as well, so hiding by it would take Collapse All and Show All with it —
+// the two controls this editor's collapse-on-entry design depends on.
+.collection-edit--lesson-bundle-versions .clipboard-action__popup {
+  display: none;
+}
+
 // ⚑ AN ARRAY'S OWN NAME OUTRANKS ITS CONTROLS. Payload ships the array label at 13px/500 while
 // "Collapse All" / "Show All" beside it are 16px/400 — so "Lessons" was rendering SMALLER than the two
 // secondary actions attached to it (measured at 375px, reported 2026-08-29). That is the hierarchy
