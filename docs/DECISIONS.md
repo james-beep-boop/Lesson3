@@ -11,6 +11,53 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-29 — Answer keys are EDIT-restricted, not read-restricted; and hiding them is not worth fixing
+
+Investigated because Payload's "Copy Field" menu looked like it might leak answer keys to a teacher.
+It does not, and the reason is worth recording so nobody re-opens it.
+
+⚑ **SPEC §5's "Subject Admin only … answer keys" IS AN EDIT RULE, NOT A CONFIDENTIALITY ONE.** The
+bullet sits under a heading reading *"Field-level **edit** permissions (maps directly to Payload field
+access control)"*, and every sibling bullet is phrased the same way — "never editable", "editable by".
+I read it as a secrecy claim and it is not.
+
+⚑ **AND THE CONTENT IS PRINTED IN A DOCUMENT EVERY TEACHER CAN DOWNLOAD.**
+`generator/vendor/lib/build_docs.js` renders `sec.exemplar` beside `sec.prompt` in the Final
+Explanation, then the whole rubric below it. Teachers view, download and email that document (§10). So
+read-restricting these values in the API would be pointless AND would break the export, which needs
+them. There is no read-side gate because none is wanted.
+
+What IS enforced is the edit rule, write-side: `SECTION_PROSE = ['prompt']`, so `applyEditorFieldSplit`
+restores `exemplar` from the source version on any teacher's save. Working as designed.
+
+**Consequence, and the operator's question: the editor hides content for no confidentiality reason.**
+`adminOnly` does two jobs at once — "do not offer an edit control" and "do not show the value" — and
+only the first is required. A teacher writing `sections[].prompt` cannot see the exemplar beside it or
+the rubric it will be judged against, both of which they can read in the PDF one tab away.
+
+⚑ **DECIDED: NOT WORTH FIXING NOW.** The gap is narrower than it looks — row labels already show
+section and lesson titles (`collapsedRow('title', …)` reads `data.title` regardless of the condition),
+so the genuinely hidden, pedagogically relevant fields are just `exemplar` and `rubric[*]`. The
+workaround is one click, the same toolbar. And the natural mechanism is the one this codebase has a
+standing rule against: field-level `access.update` renders a field visible-but-disabled, and Payload
+**NULLS optional admin-only subfields inside open arrays** — `exemplar` is the field that surfaced that
+wipe (2026-07-04). A safe fix therefore needs a custom read-only renderer plus write-path proof:
+real risk at the worst spot in the schema, to save a tab switch. Revisit if students ever get a
+surface, where the distinction becomes a real one.
+
+## ⚑ OPEN: the array row `⋯` menu offers teachers structural controls
+
+Found while hiding the clipboard menu, not fixed. Payload's `ArrayAction` popup on every array row
+offers **Move up / Move down / Add below / Duplicate / Copy row / Paste row / Remove**. SPEC §5 makes
+structural changes (add/remove/reorder lessons and phases) Subject-Admin-only.
+
+Expected behaviour is that `applyEditorFieldSplit` rebuilds the array from the source version and
+silently discards a teacher's structural change — which would make **Remove** a destructive-looking
+control that does nothing. That is a worse failure than a hidden field, and "probably discarded" is not
+something to assert about a button labelled Remove: it needs a test, and the answer matters in both
+directions. There is no Payload config flag; the popup is `.array-actions`, scoped CSS is the lever if
+hiding is the answer.
+
 ## 2026-08-29 — A phone offers no Word DOWNLOAD; and the Back-from-Word report is still open
 
 Two things, recorded together because the first is a workaround people will mistake for the second.
