@@ -68,6 +68,21 @@ whatever the graph says. `feat/local-server-deployment` (#301) was reaped this w
 
 ## What to work on next
 
+⚑ **DEFERRED, AND IT GATES PR #309: the jump retry has no automated proof.** `EditJumpNav` now retries
+opening a jump target's disclosure on each settle cycle, because the two trailing panels are groups
+whose contents come from a nested `RenderIfInViewport` — a target far enough below the viewport has no
+`.collapsible-field` in the DOM, so the old single attempt before scrolling silently did nothing. The
+operator reproduced that in a browser on Summary table; the FIX has only been reasoned about, not
+observed. It cannot be pinned by a spec: the trigger is a target below an unrendered viewport region,
+which a test cannot reliably arrange, and one stray scroll latches `hasRendered` permanently and
+un-reproduces it. To check by hand: open a LONG plan at desktop width via
+`/admin/collections/lesson-bundle-versions/<id>?edit=1`, do not scroll down, expand a few top lessons
+to make the form tall, confirm
+`document.querySelector('#field-summaryTable .collapsible-field') === null`, then click the Summary
+table chip — it must land open. Worth confirming in the same pass: collapsing Final explanation by
+hand within a second of jumping must STICK (the latch), and jumping to an already-open lesson row must
+toggle nothing. Everything else in #309 is covered by 1040 unit tests and three new e2e assertions.
+
 1. **Deploy** the two commits above.
 2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
    clean limiter. Until then every red gate needs a re-run to interpret.
