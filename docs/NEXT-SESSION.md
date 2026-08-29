@@ -25,6 +25,112 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-29) — nine PRs of editor/mobile fixes; one bug still unexplained
+
+**Supersedes the blocks below for state; they stay for provenance.** `main` is `d9dfe60`.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Branches | `main` only, local and remote; no worktrees |
+| Deployed | ⚑ the Rock trails `main`. The operator deployed mid-session (confirmed: the panel open-then-close is gone on the phone), then five more PRs landed. Measure, do not trust this line: `git fetch -q origin main && git log --oneline $(ssh Rock5b 'git -C /srv/lesson3 rev-parse HEAD')..origin/main` — against `origin/main` after a fetch, not the local ref |
+| To deploy | plain `scripts/deploy.sh` — **no migrations in any of the nine**. `payload-types.ts` regenerated with no diff twice over (both `ui` fields and the `text`→`textarea` change are data-inert) |
+
+## What shipped
+
+Started as an audit of #302–#308 and became a day of editor and phone fixes.
+
+**#309 — panels start compact, the jump retries, the role gap closes.** Payload's stored preference
+outranks `initCollapsed`, so a panel opened once reopened expanded forever — the same defect #307
+fixed for array ROWS, one level up, across THREE panels and three PRs. Also: the jump chip could land
+on a still-collapsed panel (lazy `RenderIfInViewport`), and Subject Administrators were the one role
+offered "Continue editing" on a cleanup queue.
+
+**#310 — a header click ends the entry phase too.** #309 was broken and the operator caught it in the
+deployed build: the two fixes CANCELLED OUT (jump opened the panel at 206ms, the entry rule shut it at
+334ms). The first repair then had its own ordering bug — React flushes child effects before parents'.
+Fixed by an entry PHASE that defaults to OPEN, so nothing has to run first.
+
+**#311 — the summary table's driving question wraps.** `structureText` → `proseAdmin`: changes the
+control, not the permission.
+
+**#312 — four phone defects.** A favourite-label size rule that was DEAD on specificity (21.6px where
+15.2px was intended); `space-between` scattering the control across wrapped lines; "Preparing
+document…" microscopic on iOS (an `about:blank` tab with no viewport meta); page titles at a flat 30px
+with no mobile size. Plus the tables: a blanket `min-width: 560px` was forcing horizontal scroll on
+**58 of 73 tables** that had no reason to scroll.
+
+**#313 — the Word button no longer navigates.** It pointed a bare anchor at the `attachment` URL and
+relied on the browser aborting the navigation; iOS commits it. Now goes through `saveBlob`, retiring
+the second of two download mechanisms.
+
+**#314 — the control bar loses a row, and Lessons outranks its own buttons.** Dropping the decorative
+`↗` at ≤640px took the bar 4 rows → 3 with no label renamed. "Editing help" → "Help". And Payload
+ships an array label at 13px/500 against its own Collapse All / Show All at 16px/400 — the section's
+name was smaller than the buttons acting on it.
+
+**#315 — Back is quiet and compact, and loses its arrow.** Measurement killed the original
+icon-only proposal: there was no width to reclaim (168px spare on the lesson row, 270px beside the
+editor's Back), so weight was the real complaint.
+
+**#316 — Email offers both formats.** Download offered Word AND PDF; Email silently only Word, while
+the endpoint had accepted `?as=docx|pdf` all along. A gap against SPEC §10's own "only the deliverable
+`kind` varies".
+
+**#317 — no Word downloads on a phone.** Operator decision, argued on the round trip: the only reason
+to want a `.docx` over a PDF is to EDIT it, and doing that in a phone's Word app forks the document
+away from the system. ⚑ Drawn on WIDTH, not `pointer: coarse`, because **Windows tablets are in real
+use and must keep the `.docx`** — they report a coarse pointer.
+
+## ⚑ READ THIS BEFORE WRITING A CSS RULE
+
+**Three specificity traps in one day, all the same shape**: a plausible short selector losing to a
+longer one already in the file, each looking correct in the diff. Two of them shipped INERT into a PR
+and were caught only by measuring in a browser.
+
+- `.doc-buttons__word` (0-1-0) lost to `.share-menu .doc-buttons .btn` (0-3-0)
+- `.share-menu__word-zip` (0-1-0) lost to `.share-menu button` (0-1-1)
+- `.fav-toggle--label-mobile` (0-1-0) lost to `.fav-toggle:not(.btn)` (0-2-0) — and that one had
+  ALREADY shipped, rendering 21.6px where the rule asked for 15.2px
+
+`buttonSystem.spec.ts` is the instrument for this and it now pins two of the three. **Reach for it
+when you write the rule, not after a browser proves it inert.** This is direct evidence for the
+"className-resolves-to-a-rule guard" already on the list below.
+
+## ⚑ STILL OPEN — browser Back after viewing a generated Word document lands on the login page
+
+Reported from a phone against the deployed build; **two explanations have already been wrong.**
+`docs/DECISIONS.md` 2026-08-29 carries what has been RULED OUT so a third attempt does not restart:
+the session is alive (new-tab test), `/login` DOES redirect an authenticated caller, and the bfcache
+theory fails because `LoginForm` uses `window.location.replace('/')`, so `/login` should not be a Back
+target at all. #313 removed a real defect and changed the symptom without curing it. #317 is NOT a fix
+— iPads sit above the breakpoint and keep both the button and the defect.
+
+## What to work on next
+
+⚑ **DEFERRED WITH A PLAN, so it is not re-derived: the READ-PAGE ACCORDION.**
+`docs/DESIGN-read-page-accordion-2026-08-29.md` carries the whole thing — what was proposed, what
+survived, the substrate finding that sizes it (three sections, not thirteen; lessons live inside
+mammoth-converted DOCX), why the read page must stay DOCX-derived, the decision that it opens FULLY
+collapsed, why there will be three collapsible implementations sharing one stylesheet, and four
+questions recorded unanswered rather than guessed. Both jump navs (~510 lines) become removable IF the
+accordion carries navigation — sequence that AFTER, so a complaint can be attributed.
+
+1. **Deploy** the nine commits above.
+2. **The Back-from-Word bug**, with the ruled-out list as the starting point.
+3. **The className-resolves-to-a-rule guard** — see the three traps above; this stopped being
+   theoretical today.
+4. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
+   clean limiter.
+5. **System panel part 2** — still unblocked, still a ONE-flag PR (`publicLibraryLive`).
+6. **Official-pointer lock** — hard prerequisite for the public read slice.
+7. **Licence asks** — the vendored generator and the lesson content both need ARES/SeaVuria
+   conversations; `NOTICE` names the gap.
+
+---
+
 # ⚑ HANDOFF (2026-08-27) — saved versions moved under Lesson plans; two CI facts worth knowing first
 
 **Supersedes the blocks below for state; they stay for provenance.** `main` is `fb8c685`.
@@ -80,15 +186,6 @@ hand-collapse after a jump sticks, and an already-open lesson row is not toggled
 KEEPING: the CI gate passed green on the broken combination, because the e2e exercises the panels only
 when they are already rendered — never the lazy-mount path where the two fixes met. A green gate over
 an untested interaction is the false-green twin of the 2026-08-27 false-red entry.
-
-⚑ **DEFERRED WITH A PLAN, so it is not re-derived: the READ-PAGE ACCORDION.**
-`docs/DESIGN-read-page-accordion-2026-08-29.md` carries the whole thing — what was proposed, what
-survived, the substrate finding that sizes it (three sections, not thirteen; lessons live inside
-mammoth-converted DOCX), why the read page must stay DOCX-derived, the decision that it opens FULLY
-collapsed, why there will be three collapsible implementations sharing one stylesheet, and four
-questions recorded unanswered rather than guessed. Both jump navs (~510 lines) become removable IF the
-accordion carries navigation — sequence that AFTER, so a complaint can be attributed. `DECISIONS.md`
-2026-08-29 has the short form.
 
 1. **Deploy** the two commits above.
 2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
