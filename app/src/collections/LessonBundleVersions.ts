@@ -33,6 +33,7 @@ import { cascadeDeleteVersionFavorites } from './Favorites'
 import { cascadeDeleteVersionRecovery } from './EditRecovery'
 import { recoveryEndpoints } from '../endpoints/recovery'
 import {
+  collapseOnEntry,
   lessonEditableContentFields,
   lessonPlanDetailFields,
   structureCondition,
@@ -261,6 +262,11 @@ export const LessonBundleVersions: CollectionConfig = {
         initCollapsed: true,
       },
       fields: [
+        // ⚑ `initCollapsed` ALONE DOES NOT HOLD THIS PANEL SHUT. Payload prefers a stored per-user
+        // preference over it and rewrites that preference on every toggle, so an administrator who
+        // opened this panel once got it opened on every later visit to the same document. Same defect
+        // and same remedy as the two content panels — see `collapseOnEntry`.
+        collapseOnEntry(),
         {
           name: 'title',
           type: 'text',

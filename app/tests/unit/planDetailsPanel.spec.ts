@@ -19,7 +19,17 @@ describe('the version editor starts at lesson content', () => {
     // assertion circular — the collection composes the panel from the same export, so it passed for
     // ANY contents, including someone moving `lessons` into it, which is the regression this exists
     // to catch.
-    expect(panel.fields?.map((field) => field.name)).toEqual(['title', 'meta', 'unit'])
+    expect(panel.fields?.map((field) => field.name)).toEqual([
+      'collapseOnEntry',
+      'title',
+      'meta',
+      'unit',
+    ])
+    // ⚑ AND `collapseOnEntry` DOES NOT WEAKEN THE DATA-NEUTRAL CLAIM IN THIS TEST'S NAME, which is
+    // why it is asserted rather than just listed: a `ui` field carries no data key, so the panel
+    // still introduces nothing to migrate. A named field appearing here would fail the list above;
+    // this second assertion is what stops the list being widened by something that does store.
+    expect(panel.fields?.find((field) => field.name === 'collapseOnEntry')?.type).toBe('ui')
   })
 
   it('hides the panel from teachers while leaving Lessons as their first editable section', () => {

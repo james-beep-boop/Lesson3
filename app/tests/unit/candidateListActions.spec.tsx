@@ -39,7 +39,7 @@ describe('candidate-version actions by role', () => {
     expect(screen.getByRole('link', { name: 'Continue editing' })).toBeTruthy()
   })
 
-  it('omits the redundant action for a Site Administrator but keeps the title link', () => {
+  it('omits the redundant action for an administrator but keeps the title link', () => {
     render(
       <CandidateList
         rows={[candidate]}
@@ -52,6 +52,41 @@ describe('candidate-version actions by role', () => {
     expect(screen.queryByRole('link', { name: 'Continue editing' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Chemical Bonding' }).getAttribute('href')).toBe(
       '/admin/collections/lesson-bundle-versions/12?edit=1',
+    )
+  })
+
+  // ⚑ `officialVersionId: null` IS REACHABLE, and this pins it as a case rather than a defensive
+  // check that reads as dead. `officialByPlan` is `Map<number, number | null>`: the producer drops
+  // plans absent from the map (`undefined`) but deliberately KEEPS a pointerless plan, whose saved
+  // versions are candidates precisely because no Official pointer excludes them — Repair lists those
+  // plans. With no baseline there is nothing to compare against, so the button must be absent rather
+  // than linking a comparison with a missing `from`.
+  it('offers no comparison for a candidate whose plan has no Official version', () => {
+    render(
+      <CandidateList
+        rows={[{ ...candidate, officialVersionId: null }]}
+        emptyText="No versions"
+        showAuthor
+        showContinueEditing={false}
+      />,
+    )
+
+    expect(screen.queryByRole('link', { name: /Compare to Official/ })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Chemical Bonding' })).toBeTruthy()
+  })
+
+  it('offers the comparison when an Official baseline exists', () => {
+    render(
+      <CandidateList
+        rows={[candidate]}
+        emptyText="No versions"
+        showAuthor
+        showContinueEditing={false}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: /Compare to Official/ }).getAttribute('href')).toBe(
+      '/lessons/4/compare?from=11&to=12',
     )
   })
 })

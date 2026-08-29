@@ -83,7 +83,8 @@ export default function EditJumpNav() {
   })
 
   /**
-   * Scroll a field into view, expanding a collapsed lesson row first. `scrollIntoView` +
+   * Scroll a field into view, expanding the target's own disclosure — a lesson row, or either
+   * trailing panel — on the way in. `scrollIntoView` +
    * `scroll-margin-top` (custom.scss, clears the floating toolbar) does the positioning.
    *
    * The wrinkle: this form is huge and Payload LAZY-RENDERS field content as it nears the viewport,
@@ -100,11 +101,34 @@ export default function EditJumpNav() {
     scrollTimer.current = null
     const el = document.getElementById(id)
     if (!el) return
-    ownCollapsedToggle(el)?.click()
     let prevHeight = -1
     let stableHeight = 0
     let tries = 0
+    /**
+     * ⚑ RETRIED EACH CYCLE, NOT ONCE BEFORE THE SCROLL, and the difference is the whole fix. The two
+     * trailing panels are groups, so their contents come from a nested `RenderIfInViewport`
+     * (rootMargin 1000px, no `forceRender` from `Group`): a target far enough below the viewport has
+     * no `.collapsible-field` in the DOM yet, the toggle resolves to `null`, and a single attempt
+     * before scrolling silently does nothing. Reproduced in a browser on Summary table — the jump
+     * landed, Payload mounted the disclosure afterwards, and it stayed shut. Lesson rows never showed
+     * this: their wrapper and Collapsible render with the array.
+     *
+     * ⚑ AND IT LATCHES ON THE FIRST SUCCESS. `ownCollapsedToggle` is self-limiting — an open panel
+     * has no `--collapsed` — but the settle chain runs up to 12s, so without the latch a reader who
+     * collapsed the panel again while it was still re-pinning would have it yanked back open.
+     */
+    let opened = false
+    const openTarget = () => {
+      if (opened) return
+      const toggle = ownCollapsedToggle(el)
+      if (!toggle) return
+      toggle.click()
+      opened = true
+    }
     const settle = () => {
+      // Before the scroll, exactly as the single pre-loop attempt used to be — `settle` runs
+      // synchronously below, so the first cycle still opens an already-rendered target immediately.
+      openTarget()
       el.scrollIntoView({ block: 'start' })
       const height = document.documentElement.scrollHeight
       stableHeight = height === prevHeight ? stableHeight + 1 : 0

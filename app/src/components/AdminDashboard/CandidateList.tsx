@@ -128,9 +128,10 @@ export function CandidateList({
                   </Link>
                   <p className="lp-manage__meta">{meta.join(' · ')}</p>
                 </div>
-                {/* Teachers get a named return path to their unfinished work. A Site Administrator's
-                panel is a cleanup queue, so the duplicate action is omitted there; the title remains
-                a quiet link to the same editor if an exceptional inspection is needed. */}
+                {/* Teachers get a named return path to their unfinished work. An administrator's
+                panel — Site or Subject-grade — is a cleanup queue over other people's drafts, so the
+                duplicate action is omitted there; the title remains a quiet link to the same editor
+                if an exceptional inspection is needed. */}
                 <div className="lp-manage__row-actions">
                   {row.officialVersionId != null && (
                     <CompareToOfficialLink
