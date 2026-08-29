@@ -11,6 +11,91 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-28 — `initCollapsed` is a FALLBACK, not a rule, and it has now cost three panels
+
+Found auditing #302–#308. The behaviour is Payload's, verified in installed source
+(`@payloadcms/ui/dist/fields/Collapsible/index.js`), not inferred:
+
+    const specificPreference = path ? preferences?.fields?.[path]?.collapsed : …
+    if (specificPreference !== undefined) setCollapsedOnMount(Boolean(specificPreference))
+    else setCollapsedOnMount(initCollapsed)
+
+and the field's own `onToggle` WRITES that preference on every expand. So `initCollapsed: true`
+governs a first-time reader and nobody else: expand a panel once and it opens expanded on every later
+visit to that document, forever.
+
+⚑ **THIS IS THE SAME DEFECT `isRowCollapsed` HAS FOR ARRAY ROWS, and we had already fixed that one
+without noticing the shape repeated.** The 2026-07-25 note and `scripts/clear-editor-collapse-prefs.ts`
+record the row version — preferences outrank `initCollapsed`, gated merely on existence. #307 then
+built `initialCollapseActions` to make "opens collapsed" authoritative for rows, and in the SAME PR
+introduced a `collapsible` panel whose identical weakness went unexamined, because the fix and the new
+weakness were about different field types. #308 repeated it. The audit found the third instance,
+"Plan and sub-strand details", only because the first two were being fixed — it is administrator-only
+and was not in the reported symptom.
+
+**The general rule: a "default" that a stored preference outranks is not a rule, it is a first-run
+suggestion.** Whenever a Payload `admin` setting decides initial UI state, ask what tier sits above it
+and whether the product's claim is about first-run or every-run. If the claim is every-run — and
+"each visit starts compact" is — the setting alone cannot make it true, and a comment asserting it
+will be false the day someone toggles the control.
+
+**Two mechanisms, deliberately, because Payload splits the state.** Row collapse lives in FORM STATE
+(`SET_ALL_ROWS_COLLAPSED`); a panel's open state is not in form state at all, arriving from an async
+preference fetch. So rows are corrected by a dispatch from `LessonControls`, panels by a `ui` field
+(`CollapseOnEntry`) mounted INSIDE each collapsible, which is the only place `useCollapsible()`
+resolves. A control-bar timer cannot do the panels' half: the panel renders `null` until its fetch
+resolves, so "absent" is indistinguishable from "already collapsed", and fixing a race with a shorter
+timer is what produced this bug in the first place.
+
+⚑ **AND THE RULE IS "STARTS COMPACT", NOT "STAYS COMPACT".** The entry component marks the visit
+settled whether or not it collapsed anything. Latching on the toggle instead re-fires when
+`isCollapsed` flips and snaps the panel shut the moment the reader opens it — an entry default that
+has become a prohibition. That distinction is now pinned by name in `collapseOnEntry.spec.ts`.
+
+**Enforced by derivation, not by a list.** `collapsedPanelEntryRule.spec.ts` walks the field tree for
+every `collapsible` with `initCollapsed: true` and asserts each carries the entry rule, plus the
+negative half: no array carries it, because rows use the other mechanism. Listing the three panels
+would only move the omission — the next author adds a panel and not a line in the list. ⚑ Its negative
+half was WRONG when first written: a top-level `fields.filter(f => f.type === 'array')` matched one of
+this collection's six arrays, and the three it missed (`sections`, `rubric`, summary-table `lessons`)
+sit inside the very panels the rule is about, which is exactly where the wrong mechanism would be
+reached for. A guard asserted over a sixth of its population is not a guard. Both halves are now
+recursive and were mutation-checked rather than assumed.
+
+## 2026-08-28 — A guard is not dead until you have read the type it guards
+
+My own correction, logged per the working agreement. Auditing #305 I reported
+`CandidateRow.officialVersionId: number | null` as a dead null-guard, reasoning that the producer's
+`if (official === undefined) return []` had already narrowed the value to `number`, so the
+`row.officialVersionId != null` check in `CandidateList` could never fail. The operator rejected it.
+They were right:
+
+    // plan id → its Official version id (null for a pointerless plan, which Repair lists).
+    const officialByPlan = new Map<number, number | null>()
+
+`undefined` means *absent from the map*; `null` means *this plan has no Official pointer* — and such a
+plan's saved versions ARE candidates, precisely because no Official pointer excludes them. With no
+baseline there is nothing to compare against, so the Compare button must be absent. Type and guard
+were both correct.
+
+⚑ **THE MISTAKE WAS READING THE NARROWING AND NOT THE MAP.** `Map.get` returns `V | undefined`, so
+`=== undefined` looks like it removes the only nullish case — and does, when `V` excludes `null`. The
+whole question is what `V` is, and that is two lines away at the construction site, with a comment
+already stating the answer. Type-checking cannot flag it either: `number` is assignable to
+`number | null`, so the "redundant" annotation compiles clean whichever reading is right.
+
+**The general rule: before calling a null-check redundant, read the DECLARATION of what it checks, not
+just the narrowing in front of it.** This cuts hardest in this codebase, where fail-closed nullish
+handling is deliberate and load-bearing — the same `flatMap` carries a ⚑ about failing CLOSED on an
+unresolvable plan. In that neighbourhood, "this defensive branch is unreachable" is a claim about
+data-modelling, and it needs the declaration as evidence.
+
+**Second-order lesson: a guard that reads as vestigial should be pinned, not deleted.** Nothing
+asserted the pointerless case, which is why it looked like an oversight rather than a decision.
+`candidateListActions.spec.tsx` now covers it in both directions — null renders no Compare link, a
+real baseline renders the exact comparison href. The test is the difference between a branch that
+looks dead and one that is documented as live.
+
 ## 2026-08-27 — Two CI facts that make a red gate ambiguous, and a squash-merge trap
 
 Both found while finishing the Lesson-plans renesting. Neither is about that change.
