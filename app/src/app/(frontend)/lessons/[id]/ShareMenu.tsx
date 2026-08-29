@@ -114,7 +114,14 @@ export default function ShareMenu({
       </button>
       {open && (
         <div className="share-menu">
-          <button type="button" disabled={exporting} onClick={() => onDownloadAll('docx')}>
+          {/* Hidden at phone width with the per-document Word buttons — see `styles.css`. A .zip of
+              .docx files is the least useful thing a phone can be handed. */}
+          <button
+            type="button"
+            className="share-menu__word-zip"
+            disabled={exporting}
+            onClick={() => onDownloadAll('docx')}
+          >
             Download all — Word (.zip)
           </button>
           <button type="button" disabled={exporting} onClick={() => onDownloadAll('pdf')}>

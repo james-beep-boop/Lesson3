@@ -67,9 +67,11 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
       >
         {busy === 'pdf' ? 'Preparing…' : 'PDF'}
       </button>
+      {/* ⚑ `doc-buttons__word` EXISTS ONLY SO PHONES CAN DROP THIS ONE BUTTON — see the rule in
+          `styles.css`. Both pills are otherwise identically classed, so there was nothing to target. */}
       <button
         type="button"
-        className="btn btn--quiet btn--compact"
+        className="btn btn--quiet btn--compact doc-buttons__word"
         disabled={busy !== null}
         aria-busy={busy === 'docx'}
         onClick={downloadWord}

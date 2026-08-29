@@ -1973,6 +1973,43 @@ button.user-menu__item {
   }
   /* (Compare joins the 44px touch bar through the shared `.btn` rule above.) */
 
+  /* ⚑ NO WORD DOWNLOADS ON A PHONE (operator decision 2026-08-29). Not a size compromise — the
+     Word file has no phone use that something else does not do better. Reading and printing are the
+     PDF's job and it renders exactly where a phone's Quick Look renders a .docx approximately;
+     sending to a colleague is Share → "Email all — Word", which the server does without the file
+     ever touching the phone. The one remaining reason to want a .docx over a PDF is to EDIT it — and
+     doing that in a phone's Word app forks the document away from the system entirely: no version, no
+     Official pointer, no provenance, and the next export silently loses the work. That is the
+     round-trip `CLAUDE.md`'s first design rule exists to prevent, so it is not a capability being
+     withheld by accident.
+
+     ⚑ WIDTH, AND IT MUST STAY WIDTH — DO NOT "CORRECT" THIS TO `pointer: coarse`. That query looks
+     like the truer axis, since what actually varies is whether the OS offers to preview a document,
+     and it would silently break a REQUIREMENT: Windows tablets are in real use in this deployment and
+     must be able to download the .docx. They report a coarse pointer, so a pointer query would hide
+     the button on exactly the devices that need it. They report well above 640px in any orientation,
+     so width covers them by construction and needs no device detection.
+
+     ⚑ AND THIS IS NOT A FIX FOR THE BACK-FROM-WORD-VIEWER REPORT. iPads are above this breakpoint and
+     keep both the button and whatever that defect is; the cause is still unexplained (DECISIONS
+     2026-08-29). Removing one route to a bug is not the same as fixing it, and reading this rule as
+     having done so would leave the real thing unexamined.
+
+     Email keeps BOTH formats at every width — it is the good path, not the compromised one. */
+  /* ⚑ THE SELECTORS ARE THIS LONG ON PURPOSE — the short ones were measured DOING NOTHING. A bare
+     `.doc-buttons__word` is (0-1-0) and loses to `.share-menu .doc-buttons .btn` (0-3-0), which sets
+     `inline-flex`; a bare `.share-menu__word-zip` is (0-1-0) and loses to `.share-menu button`
+     (0-1-1), which sets `block`. Both rules render the buttons this one is trying to hide, so the
+     first version of this block was inert at every width and looked correct in the diff.
+     Each selector below now WINS OUTRIGHT rather than tying and relying on source order —
+     `buttonSystem.spec.ts` records order being retired as an instrument in this stylesheet after it
+     shipped a defect of exactly this shape. */
+  .doc-buttons .btn.doc-buttons__word,
+  .share-menu .doc-buttons .btn.doc-buttons__word,
+  .share-menu button.share-menu__word-zip {
+    display: none;
+  }
+
   /* ⚑ ONLY THE GENUINELY WIDE TABLES SCROLL. This was a blanket `min-width: 560px`, whose comment
      justified it by the FIVE-column tables — and those do need it, or every cell crushes to a
      one-word column. But counted on a real 13-lesson plan, the document is 73 tables: 24 with one
