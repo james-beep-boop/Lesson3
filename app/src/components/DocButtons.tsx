@@ -2,9 +2,14 @@
 
 /**
  * Per-document PDF / Word buttons for one deliverable (teacher-first T2, DECISIONS 2026-07-08).
- * PDF opens in a NEW TAB (the endpoint serves it `Content-Disposition: inline`); Word downloads
- * in place (`attachment`). Both first ensure the (version, kind) artifact cache is warm via
- * `ensureExportReady` — a no-op for pre-warmed Officials, a short "Preparing…" for anything cold.
+ * PDF opens in a NEW TAB (the endpoint serves it `Content-Disposition: inline`); Word saves to disk
+ * (`attachment`). Both first ensure the (version, kind) artifact cache is warm — a no-op for
+ * pre-warmed Officials, a short "Preparing…" for anything cold — and both then hand delivery to
+ * `exportClient`, so neither navigates the page the reader is on.
+ *
+ * ⚑ WORD NO LONGER NAVIGATES. It used to point a bare anchor at the `attachment` URL and rely on the
+ * browser aborting the resulting navigation; iOS Safari does not, which dropped a phone reader out
+ * of the app when they pressed Back. See `downloadPreparedDocument`.
  *
  * Popup-blocker note: the PDF tab is opened SYNCHRONOUSLY in the click handler (allowed), shows a
  * small "Preparing…" note while the cache warms, then navigates to the document. On failure the
@@ -12,7 +17,7 @@
  */
 import React, { useState } from 'react'
 
-import { ensureExportReady, openPreparedPdfInNewTab } from './exportClient'
+import { downloadPreparedDocument, openPreparedPdfInNewTab } from './exportClient'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 
 type Kind = 'docx' | 'pdf'
@@ -43,13 +48,7 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
     setBusy('docx')
     setError(null)
     try {
-      await ensureExportReady(exportUrl('docx'))
-      // `attachment` disposition — navigating the current page to it triggers a download in place.
-      const a = document.createElement('a')
-      a.href = docUrl('docx')
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      await downloadPreparedDocument(exportUrl('docx'), docUrl('docx'))
       setBusy(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not download the document.')
