@@ -1959,10 +1959,28 @@ button.user-menu__item {
   }
   /* (Compare joins the 44px touch bar through the shared `.btn` rule above.) */
 
-  /* The generated tables (5 columns) stay legible: keep their natural width and let the
-     .doc-preview container (overflow-x: auto) scroll sideways, rather than crushing every
-     cell to a one-word column. */
+  /* ⚑ ONLY THE GENUINELY WIDE TABLES SCROLL. This was a blanket `min-width: 560px`, whose comment
+     justified it by the FIVE-column tables — and those do need it, or every cell crushes to a
+     one-word column. But counted on a real 13-lesson plan, the document is 73 tables: 24 with one
+     column, 34 with two, and only 15 with four or more. So the blanket rule forced horizontal
+     scrolling on 79% of tables that had no reason to scroll, which is what "cut off on the right"
+     was on a phone (reported from an iPhone, 2026-08-29) — a two-column reflection paragraph clipped
+     mid-sentence for the sake of tables elsewhere in the document.
+     `:has()` asks the only question that matters — does any row have a fourth cell — so the wide
+     ones keep their minimum and everything else wraps to the container and is never cut off. Cells
+     carrying `colspan` are counted as the one child they are, which is correct here: a two-column
+     table whose header spans both is still a two-column table. */
   .doc-preview table {
+    min-width: 0;
+  }
+  .doc-preview table:has(tr > *:nth-child(4)) {
     min-width: 560px;
+  }
+  /* Pre-`:has()` browsers keep exactly today's behaviour rather than getting the cramped half of the
+     new one: everything scrolls, as it did before. (iOS Safari has supported `:has()` since 15.4.) */
+  @supports not selector(:has(*)) {
+    .doc-preview table {
+      min-width: 560px;
+    }
   }
 }
