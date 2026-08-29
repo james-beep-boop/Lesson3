@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-28 — I wrote the general rule in a comment and wired one caller
+
+Same incident as the entry below, one commit later, and it reached the DEPLOYED build: opening
+Final explanation or Summary table by clicking its own header made the panel open and then shut
+itself, once, after which it behaved. Array rows were fine throughout.
+
+`entryPhase.ts` already said, in its own ⚑: *"Whatever deliberately reveals content ends the entry
+phase; that is one rule for a class, not a patch for one caller."* Exactly one caller ended it — the
+jump chip. **Clicking a panel's own header is the commonest deliberate reveal there is**, and it ended
+nothing: the panel opened, its contents mounted for the first time, and the entry rule shut them. The
+second click worked because by then the component was mounted and latched.
+
+⚑ **STATING A GENERAL RULE IS NOT IMPLEMENTING IT, and the comment made the gap harder to see rather
+than easier.** Reading that file, the rule looks handled — the sentence describes a class, so the eye
+supplies the cases. The audit-shaped question is not "is the rule written down" but "enumerate the
+callers that satisfy it": here, jump, header click, keyboard, restore. One of four.
+
+⚑ **AND MY BROWSER TESTING CONFIRMED THE FIX I EXPECTED INSTEAD OF THE BEHAVIOUR A USER PERFORMS.** I
+tested "expand a panel by hand, does it stick" — and it passed, because every panel I expanded had
+ALREADY mounted, having been through the entry pass. The failing case needs a panel whose contents
+mount *from* that first click, which is the ordinary state of any panel a preference left collapsed.
+A test driven from the fix's mechanism will keep finding the mechanism working. Drive it from what the
+reader does, in the state they find the page in.
+
+The phase now ends on the reader's first `pointerdown`/`keydown` in the capture phase, so it is shut
+before React handles the click that opens a panel. Scroll deliberately does not end it, or a
+preference-expanded panel below the fold would stop being collapsed on the way past — the coverage the
+whole design exists to keep.
+
 ## 2026-08-28 — Two correct fixes cancelled out, and the gate went green over it
 
 Found by finally running the manual browser check that had been deferred. The answer was worse than
