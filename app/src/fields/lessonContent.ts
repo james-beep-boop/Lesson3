@@ -443,7 +443,15 @@ export const lessonEditableContentFields: Field[] = [
         fields: [
           collapseOnEntry(),
           adminOnly(structureText('subStrand', 'Sub-strand')),
-          adminOnly(structureText('drivingQuestion', 'Driving question')),
+          // ⚑ `proseAdmin`, NOT `structureText`, and the reason is the rendered control rather than
+          // the value. A driving question is a SENTENCE — the seeded Chemistry bundle's runs past 90
+          // characters — and a single-line `text` input scrolls it sideways out of the panel instead
+          // of wrapping, so an administrator could not read the field they were editing. Both
+          // factories store a plain string and both are admin-only (neither appears in a `*_PROSE`
+          // whitelist, and `rebuildGroup('summaryTable', [], …)` lists no group-level prose), so this
+          // changes the textarea, not the permission. `meta.drivingQuestion` above is already
+          // `proseAdmin` for the same reason — this makes the two spellings of one idea agree.
+          adminOnly(proseAdmin('drivingQuestion', 'Driving question')),
           {
             name: 'lessons',
             type: 'array',
