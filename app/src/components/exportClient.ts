@@ -178,8 +178,13 @@ function deliverToTab(tab: Window | null, url: string): void {
  * Kept deliberately plain: this page is visible for the second or two a conversion takes, and it is
  * replaced by the document itself. It borrows no stylesheet — a blank tab has none, and linking one
  * would race the navigation it exists to cover.
+ *
+ * ⚑ AND IT IS A HELPER RATHER THAN TWO COPIES, which is why `exportClient.spec.ts` asserts the meta
+ * for `openPreparedPdfInNewTab` ALONE. In a suite framed entirely around twins, a test that covers
+ * one twin normally reads as an oversight — here it is the point: both call sites reach the viewport
+ * meta through this function, so the pair cannot drift apart the way the two inline copies could.
  */
-const showPreparingNotice = (tab: Window): void => {
+function showPreparingNotice(tab: Window): void {
   const doc = tab.document
   doc.title = 'Preparing document…'
   const meta = doc.createElement('meta')

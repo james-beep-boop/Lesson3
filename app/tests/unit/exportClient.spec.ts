@@ -126,9 +126,19 @@ describe('open-in-new-tab twins: a blocked popup must surface an error, never re
       location: { replace: vi.fn() },
       document: {
         title: '',
-        head: { appendChild: (el: FakeEl) => void head.push(el), children: head },
-        body: { appendChild: (el: FakeEl) => void body.push(el), children: body },
-        createElement: (tag: string) => ({ tag, setAttribute: () => {} }) as unknown as FakeEl,
+        head: {
+          appendChild: (el: FakeEl) => {
+            head.push(el)
+          },
+          children: head,
+        },
+        body: {
+          appendChild: (el: FakeEl) => {
+            body.push(el)
+          },
+          children: body,
+        },
+        createElement: (tag: string): FakeEl => ({ tag, setAttribute: () => {} }),
       },
       close: vi.fn(),
     }
