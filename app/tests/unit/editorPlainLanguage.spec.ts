@@ -57,8 +57,8 @@ describe('the version editor uses teacher-facing language', () => {
     expect(byName(lessonFields, 'title').admin?.description).toBeUndefined()
   })
 
-  it('uses task labels for version identity; the Save explanation lives only in Editing help', () => {
-    // The former collection description duplicated the Editing help modal — removed, not reworded.
+  it('uses task labels for version identity; the Save explanation lives only in Help', () => {
+    // The former collection description duplicated the Help modal — removed, not reworded.
     const detailFields = planDetailsPanel(collectionFields).fields ?? []
     expect(LessonBundleVersions.admin?.description).toBeUndefined()
     expect(byName(detailFields, 'title').label).toBe('Document title')

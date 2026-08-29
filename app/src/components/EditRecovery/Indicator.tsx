@@ -16,7 +16,7 @@
  * and answer keys are not backed up" — which is a STATIC RULE, identical every render and about the
  * feature rather than about this session. Stacked in the control bar's flex row it doubled the
  * block's height and, at intermediate widths, squeezed the whole thing to one word per line. The
- * rule now lives in *Editing help* beside the other behaviour rules; what stays here is the only
+ * rule now lives in *Help* beside the other behaviour rules; what stays here is the only
  * text that changes, and therefore the only text that has to be on screen.
  */
 import React, { useEffect, useState } from 'react'

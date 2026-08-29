@@ -1617,7 +1617,7 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
 }
 
 // ── The button system, on the admin surface (docs/DESIGN-button-system-2026-07-30.md) ──────────
-// Quick preview, Formatted PDF, Show details, Editing help, Edit, Save, Cancel and Delete are all
+// Quick preview, Formatted PDF, Show details, Help, Edit, Save, Cancel and Delete are all
 // Payload `Button`s. Left stock they carry Payload's own radius, typography and 15px rem root, which
 // is why the editor bar read as a different product from the lesson page. This block re-points them
 // at the SHARED `--app-btn-*` tokens so both surfaces render one control.
@@ -1754,6 +1754,41 @@ body:has(.collection-edit--lesson-bundle-versions) .doc-header__title {
     min-height: var(--app-btn-compact-min-height);
     padding: var(--app-btn-compact-padding-block) var(--app-btn-compact-padding-inline);
     font-size: var(--app-btn-compact-font-size);
+  }
+
+  // Neutral until hover — the frontend's `.btn.btn--quiet`, mirrored here for the same reason
+  // `lp-btn--compact` above is: those rules live in the frontend stylesheet, which this surface never
+  // loads, so the frontend spelling would resolve to nothing. COLOUR only; geometry is inherited, so
+  // this is one system at two emphases rather than two systems. Same shared tokens on both sides.
+  // ⚑ THE PROPERTIES ARE SET DIRECTLY, not only the custom properties, and that is not belt-and-braces.
+  // Every other variant in this block (`btn--style-primary`, `btn--style-error`) sets `--color` /
+  // `--btn-border` alone and works, because those are Payload `<button>`s whose own CSS consumes the
+  // variables. The editor's Back is a bare `<a class="btn">` — Payload's variable-consuming rules do
+  // not reach it, so setting only the variables left it rendering accent blue with the quiet values
+  // sitting unused on the element (measured: `--btn-border` was `1px solid #e2e2e2` while the computed
+  // border was still `rgb(31, 95, 168)`). The frontend's `.btn.btn--quiet` sets the properties
+  // directly for the same reason; this now mirrors it exactly.
+  &.lp-btn--quiet {
+    color: var(--theme-elevation-800);
+    border-color: var(--app-btn-quiet-line);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--app-accent);
+      border-color: var(--app-accent);
+      background: var(--app-btn-bg);
+    }
+
+    // ⚑ The INK is the admin's own `--theme-elevation-800`, not the frontend's `--ink`, because
+    // `app-tokens.scss` shares scale and not colour: "Per-surface palettes stay native … the admin
+    // follows light/dark and cannot take a fixed hex." Only the LINE is shared, and it is shared
+    // already — `--app-btn-quiet-line` is one of the three button-system palette values the token
+    // file names as deliberate exceptions.
+    --color: var(--theme-elevation-800);
+    --btn-border: 1px solid var(--app-btn-quiet-line);
+    --hover-color: var(--app-accent);
+    --hover-bg: var(--app-btn-bg);
+    --hover-btn-border: 1px solid var(--app-accent);
   }
 
   // Disabled and busy read as unavailable, not faded — matching the frontend. Payload adds
@@ -2091,6 +2126,11 @@ a.btn.lp-btn {
   // MEDIA QUERY ADDS NO SPECIFICITY — so without this block the compact Remove would stay 26px on a
   // phone while the stylesheet claimed a 44px target. Compact is a DESKTOP density; on a phone the
   // row has room and the target wins.
+  // ⚑ THE EDITOR BAR'S SCOPE IS IN THIS LIST TOO, added 2026-08-29 with the compact Back. That
+  // control is `.collection-edit--… .lesson-controls-wrap .btn` and carries no `.lp-btn`, so neither
+  // selector below reached it — it would have shipped at 26px on a phone while this block claimed a
+  // 44px target, which is #179 exactly, one scope over.
+  .collection-edit--lesson-bundle-versions .lesson-controls-wrap .btn.lp-btn--compact,
   .lp-modal .btn.lp-btn--compact,
   .btn.lp-btn.lp-btn--compact {
     min-height: var(--app-btn-touch-min-height);

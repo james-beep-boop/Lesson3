@@ -39,7 +39,7 @@ interface ModalProps {
  * enough: every dialog opened from the version editor's control bar was then laid out inside that
  * ~235px-tall strip. Measured at a 1227px-tall viewport — the page behind was not dimmed, the panel
  * was centred in the strip rather than the window (so it overlapped the site header), and
- * backdrop-click-to-close only worked inside the strip. Editing help, Insert link, the too-narrow
+ * backdrop-click-to-close only worked inside the strip. Help, Insert link, the too-narrow
  * notice and the recovery restore prompt were all affected; above 1024px none of them were, which is
  * why it survived so long.
  *

@@ -638,15 +638,21 @@ export default function LessonControls() {
           <div className="lesson-controls__group lesson-controls__group--back">
             {/* Plain <a>, not PageBackLink/next/link: this Back crosses from Payload's admin root to
                 the frontend root, which is a full-document navigation either way — so route it the
-                zero-risk way. Same `.btn` styling and the same shared tokens as the frontend
-                control; the visible label is the single word "Back", with the destination carried in
-                `aria-label` (DESIGN-button-system-2026-07-30 §2). */}
+                zero-risk way. Same styling and the same shared tokens as the frontend control; the
+                visible label is the single word "Back", with the destination carried in `aria-label`
+                (DESIGN-button-system-2026-07-30 §2).
+                ⚑ QUIET + COMPACT AND NO `←`, matching `PageBackLink` (2026-08-29) — see its docblock
+                for why weight rather than width was the real complaint, and why an icon-only Back was
+                rejected. The classes are the ADMIN spellings: `.btn--quiet`/`.btn--compact` live in
+                the frontend stylesheet, which this surface never loads, so using them here would
+                resolve to nothing at all. `custom.scss` mirrors both against the same shared tokens,
+                exactly as `lp-btn--compact` already mirrored the frontend's. */}
             <a
-              className="btn"
+              className="btn lp-btn--quiet lp-btn--compact"
               href={`/lessons/${planId}?version=${id}`}
               aria-label="Back to lesson"
             >
-              <span aria-hidden="true">←</span>Back
+              Back
             </a>
           </div>
         )}

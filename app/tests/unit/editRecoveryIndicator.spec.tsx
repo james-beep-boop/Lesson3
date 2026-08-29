@@ -9,7 +9,7 @@
  * to defend collapsed to one word per line at intermediate widths — a column of vertical text wedged
  * between Cancel and Insert link (reported 2026-08-23).
  *
- * The static rule moved to *Editing help*. What must NOT move is the live status: `Indicator.tsx`
+ * The static rule moved to *Help*. What must NOT move is the live status: `Indicator.tsx`
  * says "the timestamp IS the contract… a promise the user cannot verify is worth nothing", and the
  * ≤640px note says the moment a teacher most needs to know their work is safe is the moment the
  * layout collapses around them. Nothing guarded either claim, so a later tidy-up could quietly put
@@ -66,7 +66,7 @@ describe('every outcome is visible TEXT, not a colour', () => {
 })
 
 describe('the static prose-only rule is no longer stacked in the bar', () => {
-  it('renders one line, with the rule moved to Editing help', () => {
+  it('renders one line, with the rule moved to Help', () => {
     // The whole point of the split: the block is a single line of live status. If the rule comes
     // back here, the two-line collapse comes back with it.
     for (const status of [

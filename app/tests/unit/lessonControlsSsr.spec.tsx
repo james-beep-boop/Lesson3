@@ -83,8 +83,12 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     expect(html).toContain('Formatted PDF')
     expect(html).toMatch(/<span aria-hidden="true" class="lesson-controls__ext">↗<\/span>/)
     expect(html).toContain('>Help<')
-    expect(html).toContain('<span aria-hidden="true">←</span>Back')
-    expect(html).toContain('class="btn"')
+    // Same treatment as the frontend's `PageBackLink`, in the admin spelling — see its docblock.
+    expect(html).toContain('>Back<')
+    expect(html).not.toContain('←')
+    expect(html).toContain('lp-btn--quiet')
+    // Class MEMBERSHIP, not the whole attribute: the control carries variant classes beside `btn`.
+    expect(html).toMatch(/class="[^"]*\bbtn\b/)
     expect(html).toContain('aria-label="Back to lesson"')
   })
 
