@@ -11,6 +11,52 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-29 — The read page keeps its renderer; the accordion comes to IT, not teachers to the editor
+
+Design work only — nothing built. Full reasoning: `docs/DESIGN-read-page-accordion-2026-08-29.md`.
+
+The operator proposed deleting the read view, Quick preview and the floating jump nav, on the grounds
+that the editor's collapsible panels already do the job better. The navigation observation is right and
+is adopted; two of the three deletions are not.
+
+⚑ **THE READ VIEW CANNOT GO, because most users cannot reach the editor.** `/admin` is gated to
+editing-access holders and administrators (`collections/Users.ts:57` — "admin-panel access is gated …
+not teachers"), and Teacher is the default class. The editor's accordion is invisible to ~95% of the
+audience. The read page is also where "Request editing access" lives — the only route from Teacher to
+editing — and it is the destination `/explore` is heading toward. **So the accordion moves to the read
+page instead.** Same UX win, no authorization change, and the public library gets it free.
+
+⚑ **AND THE READ PAGE STAYS DOCX-DERIVED, which was asked directly and deserves a real answer rather
+than a SPEC citation.** Rendering it from the stored JSON would be easier and is disqualified anyway:
+it would create two renderers that must agree forever, and the failure mode is a teacher reading one
+thing on screen and printing another. The generator is ARES's, vendored — when they change
+`sections.js` the DOCX-derived view follows for free, while a JSON renderer would have to chase every
+change and would fail SILENTLY when it did not. The editor is not a counter-example: it renders fields
+from JSON but never claims to be the document. The rule forbids a second thing that PRETENDS to be one.
+
+⚑ **THE SUBSTRATE IS NOT WHAT THE UI SUGGESTS, and this sizes the work.** The read page has THREE
+sections, not thirteen: all lessons live inside Lesson Sequence as mammoth-converted DOCX tables. A
+per-lesson accordion therefore means partitioning generated HTML at lesson boundaries — an extension of
+the `annotateSections` transform that already injects anchors there, guarded by the spec that already
+pins mammoth's output shape. The cheap version (wrap the three sections) does not deliver the table of
+contents that motivated the request, so it is not the ask.
+
+**The operator's argument for FULLY COLLAPSED beat mine and was adopted.** I argued for expanded — a
+reader came to read, do not make them click. The better answer: the collapsed state IS the table of
+contents, thirteen lesson titles in sequence on one screen. Same widget, opposite default from the
+editor, for a different reason.
+
+⚑ **THREE COLLAPSIBLE IMPLEMENTATIONS IS THE RIGHT ANSWER, against a stated preference for reuse.**
+Payload owns the editor's; Manage's needs URL state against a closed id vocabulary and no-unmount-on-
+close; the read page needs zero JS, find-in-page and print control. Forcing one abstraction over three
+substrates with nothing in common is more code, not less. What IS shared is the stylesheet — one visual
+language, three mechanisms, no adapter.
+
+Four questions are recorded unanswered rather than guessed: anchors into collapsed content (the defect
+class that produced #310), find-in-page (Firefox does not auto-expand `<details>`), print (there are NO
+print styles today, so Ctrl+P would yield three headings), and whether the shared-stylesheet answer to
+consistency is enough.
+
 ## 2026-08-28 — I wrote the general rule in a comment and wired one caller
 
 Same incident as the entry below, one commit later, and it reached the DEPLOYED build: opening

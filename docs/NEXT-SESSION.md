@@ -81,6 +81,15 @@ KEEPING: the CI gate passed green on the broken combination, because the e2e exe
 when they are already rendered — never the lazy-mount path where the two fixes met. A green gate over
 an untested interaction is the false-green twin of the 2026-08-27 false-red entry.
 
+⚑ **DEFERRED WITH A PLAN, so it is not re-derived: the READ-PAGE ACCORDION.**
+`docs/DESIGN-read-page-accordion-2026-08-29.md` carries the whole thing — what was proposed, what
+survived, the substrate finding that sizes it (three sections, not thirteen; lessons live inside
+mammoth-converted DOCX), why the read page must stay DOCX-derived, the decision that it opens FULLY
+collapsed, why there will be three collapsible implementations sharing one stylesheet, and four
+questions recorded unanswered rather than guessed. Both jump navs (~510 lines) become removable IF the
+accordion carries navigation — sequence that AFTER, so a complaint can be attributed. `DECISIONS.md`
+2026-08-29 has the short form.
+
 1. **Deploy** the two commits above.
 2. **The CI rate limiter** — make its state deterministic between runs, or stop the specs assuming a
    clean limiter. Until then every red gate needs a re-run to interpret.

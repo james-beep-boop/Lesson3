@@ -59,7 +59,7 @@ export const LessonBundleVersions: CollectionConfig = {
     useAsTitle: 'title',
     group: 'Lesson plans',
     // No collection description: "Saving creates a new version. The original does not change." is
-    // stated once in LessonControls' "Editing help" modal — a passive banner here duplicated it.
+    // stated once in LessonControls' "Help" modal — a passive banner here duplicated it.
     components: {
       // IA redesign PR ③: no admin versions LIST — versions are reached from a lesson page (Edit)
       // or Manage (My saved versions), so the list route redirects to Manage. The DOCUMENT view is
