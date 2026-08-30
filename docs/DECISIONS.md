@@ -58,7 +58,10 @@ teacher's structural change. It does not: `enforceVersionFieldSplit`'s `reject()
 does not lose the change quietly — they compose an apparently valid edit, press Save, and get a **403**.
 
 That is a different defect and a different fix. Not an authorization hole: the server refuses exactly
-what SPEC §5 says it should, and the HTTP suite pins it. The defect is that the UI OFFERS the action at
+what SPEC §5 says it should. ⚑ Be precise about what each layer proves, because "the HTTP suite pins
+it" was read as pinning the STATUS: `endpoints.http.spec.ts` asserts only `>= 400 && < 500`, so it
+pins REJECTION at the wire; that the rejection is specifically `Forbidden` (403) is pinned by the
+source — `reject()` throws `Forbidden` — and by the installed error's own status. The defect is that the UI OFFERS the action at
 all, so the rejection arrives after the work instead of the control being absent before it.
 
 ⚑ And it is the second time today I asserted "probably discarded" about a control I had not tested —
