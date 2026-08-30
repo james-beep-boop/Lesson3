@@ -60,8 +60,8 @@ summary-table text, and Final Explanation prompts. They never edit a Word file d
 - **Edit from the lesson:** open a lesson in the library and press *Edit*. The editing page opens
   ready to type, showing only the fields you may change. *Quick preview ↗* checks your content,
   while *Formatted PDF ↗* shows the final layout. Both open in a new tab and include unsaved edits;
-  close that tab to return to the editor. Use *Help* for the short writing rules. The
-  prominent *← Back to lesson* button at the top right returns you when you are done.
+  close that tab to return to the editor. Use *Help* for the short writing rules. *Back* at the top
+  right returns you when you are done.
 - **Saving makes a new version:** *Save* stores your edits as a new version of the lesson plan — the
   version you opened is never changed in place. A Subject-grade or Site administrator marks a saved
   version Official when it is ready.

@@ -129,12 +129,11 @@ export default async function UserGuidePage() {
         <ul className="guide-list">
           <li>
             <strong>Edit from the lesson:</strong> open a lesson in the library and press
-            <em> Edit</em>. The editing page opens ready to type: the fields you can change are
-            editable, and any you cannot are shown but marked <em>read-only</em>.{' '}
-            <em>Quick preview ↗</em> checks your content, while <em>Formatted PDF ↗</em> shows the
-            final layout. Both open in a new tab and include unsaved edits; close that tab to return
-            to the editor. Use <em>Help</em> for the short writing rules. The prominent{' '}
-            <em>← Back to lesson</em> button at the top right returns you when you are done.
+            <em> Edit</em>. The editing page opens ready to type, showing only the fields you may
+            change. <em>Quick preview ↗</em> checks your content, while <em>Formatted PDF ↗</em>{' '}
+            shows the final layout. Both open in a new tab and include unsaved edits; close that tab
+            to return to the editor. Use <em>Help</em> for the short writing rules. <em>Back</em> at
+            the top right returns you when you are done.
           </li>
           <li>
             <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new

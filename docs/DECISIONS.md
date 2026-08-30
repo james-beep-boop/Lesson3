@@ -51,12 +51,24 @@ Found while hiding the clipboard menu, not fixed. Payload's `ArrayAction` popup 
 offers **Move up / Move down / Add below / Duplicate / Copy row / Paste row / Remove**. SPEC §5 makes
 structural changes (add/remove/reorder lessons and phases) Subject-Admin-only.
 
-Expected behaviour is that `applyEditorFieldSplit` rebuilds the array from the source version and
-silently discards a teacher's structural change — which would make **Remove** a destructive-looking
-control that does nothing. That is a worse failure than a hidden field, and "probably discarded" is not
-something to assert about a button labelled Remove: it needs a test, and the answer matters in both
-directions. There is no Payload config flag; the popup is `.array-actions`, scoped CSS is the lever if
-hiding is the answer.
+⚑ **CORRECTED 2026-08-29, same day, by an independent review — my expectation was WRONG and the
+record would have misdirected the fix.** I wrote that `applyEditorFieldSplit` "silently discards" a
+teacher's structural change. It does not: `enforceVersionFieldSplit`'s `reject()` **throws
+`Forbidden`** on any change to array cardinality or order (`fieldSplit.ts`, guard 1). So the teacher
+does not lose the change quietly — they compose an apparently valid edit, press Save, and get a **403**.
+
+That is a different defect and a different fix. Not an authorization hole: the server refuses exactly
+what SPEC §5 says it should, and the HTTP suite pins it. The defect is that the UI OFFERS the action at
+all, so the rejection arrives after the work instead of the control being absent before it.
+
+⚑ And it is the second time today I asserted "probably discarded" about a control I had not tested —
+the first was the same guess about this same menu. The lesson is the one already in this file from the
+morning: a claim about what a write path does needs the write path read, not inferred from a
+neighbouring mechanism.
+
+There is no Payload config flag; the popup is `.array-actions`, so scoped CSS is the lever if hiding is
+the answer. Hiding is now the more clearly correct answer than it was, because the alternative the
+teacher currently gets is a 403 on their own work.
 
 ## 2026-08-29 — A phone offers no Word DOWNLOAD; and the Back-from-Word report is still open
 
