@@ -110,8 +110,14 @@ async function authorize(
  * POST /:id/save-as-new — save the editor's current form content as a NEW candidate version of this
  * plan (Stage 2 editing model). Does NOT move the Official pointer — designating Official is a separate
  * admin-only action (`make-official`). Authorship is enforced server-side: the submitted content
- * is run through `applyEditorFieldSplit` against THIS version as the source, so a teacher with editing access's structural /
- * META changes are ignored (prose only); a Subject/Site Admin's edits pass through. Body: multipart with
+ * is run through `applyEditorFieldSplit` against THIS version as the source; a Subject/Site Admin's
+ * edits pass through. ⚑ THE TWO KINDS OF TEACHER EDIT ARE NOT TREATED ALIKE, and this line said
+ * "ignored" for both until 2026-08-29: a **META or other non-prose VALUE** change is indeed ignored —
+ * restored from the source, secure by default, no error — but a **STRUCTURAL** change (array
+ * cardinality or order) is **REJECTED**: `fieldSplit.ts`'s first guard throws `Forbidden`, so the save
+ * fails rather than saving a corrected document. That difference is the whole reason the editor
+ * offering Add Lesson / Duplicate / Remove to a teacher is a defect worth fixing — the refusal lands
+ * after they have done the work. Body: multipart with
  * a `data` field carrying the JSON nested bundle (same shape the preview endpoint accepts).
  *
  * Returns the new version + the source's identity so the client can offer to delete the source (only
