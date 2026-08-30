@@ -77,6 +77,17 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'Lesson Plans by ARES Education and Seavuria',
   },
   {
+    // ⚑ The two files CONTRADICTED each other here until 2026-08-29, found by an independent review.
+    // `/guide` said unavailable fields "are shown but marked read-only"; `USER_GUIDE.md` said the
+    // editor shows "only the fields you may change". The Markdown was right — `adminOnly` applies an
+    // `admin.condition`, so those fields are not rendered at all. A teacher reading the in-app guide
+    // would have gone looking for read-only boxes that do not exist. ⚑ This is the exact pairing the
+    // file header calls the worst kind: one surface wrong, the other correct, so a reviewer comparing
+    // them sees a difference and cannot tell which way it should resolve.
+    what: 'the editor shows a teacher only the fields they may change, not disabled ones',
+    claim: 'showing only the fields you may change',
+  },
+  {
     what: 'the panel path, renamed from "Editing access" on 2026-08-18 and regrouped under Users',
     claim: 'Manage → Users → Roles & Access',
   },
