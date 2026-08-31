@@ -14,6 +14,13 @@
  * Popup-blocker note: the PDF tab is opened SYNCHRONOUSLY in the click handler (allowed), shows a
  * small "Preparing…" note while the cache warms, then navigates to the document. On failure the
  * tab is closed and the error surfaces inline instead.
+ *
+ * `variant` changes ONLY the button chrome, never the behaviour — the point of reusing this
+ * component on the lesson page's action bar is that the export dance stays in exactly one place:
+ *   - `quiet` (default) — the D4 neutral-until-hover pills on catalogue rows and in the Share menu.
+ *   - `toolbar` — full-size `.btn`, sized to sit beside Edit / Make Official / Share ▾ in
+ *     `.export-bar`; also tags the wrapper `doc-buttons--toolbar`, which is where that bar's
+ *     spacing and its group divider live (see `styles.css`).
  */
 import React, { useState } from 'react'
 
@@ -22,7 +29,15 @@ import type { DeliverableTag } from '@/generator/exportArtifacts'
 
 type Kind = 'docx' | 'pdf'
 
-export default function DocButtons({ versionId, tag }: { versionId: number; tag: DeliverableTag }) {
+export default function DocButtons({
+  versionId,
+  tag,
+  variant = 'quiet',
+}: {
+  versionId: number
+  tag: DeliverableTag
+  variant?: 'quiet' | 'toolbar'
+}) {
   const [busy, setBusy] = useState<Kind | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,11 +71,22 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
     }
   }
 
+  // ⚑ THE `.btn` PREFIX AND THE `.doc-buttons` WRAPPER ARE LOAD-BEARING in both variants: the
+  // phone Word-hiding rule matches `.doc-buttons .btn.doc-buttons__word`, so a variant that dropped
+  // either would silently re-show Word at 375px. See `buttonSystem.spec.ts`, which pins all three
+  // rendered shapes.
+  // ⚑ BOTH CLASSES ARE COMPUTED HERE, NOT INLINE IN `className={…}`. `classNameStyles.spec.ts`
+  // reads every string literal inside a className expression — a `variant === 'toolbar'` test
+  // written in the attribute makes it demand a `.toolbar` rule that should not exist.
+  const toolbar = variant === 'toolbar'
+  const btn = toolbar ? 'btn' : 'btn btn--quiet btn--compact'
+  const wrap = toolbar ? 'doc-buttons doc-buttons--toolbar' : 'doc-buttons'
+
   return (
-    <span className="doc-buttons">
+    <span className={wrap}>
       <button
         type="button"
-        className="btn btn--quiet btn--compact"
+        className={btn}
         disabled={busy !== null}
         aria-busy={busy === 'pdf'}
         onClick={openPdf}
@@ -71,7 +97,7 @@ export default function DocButtons({ versionId, tag }: { versionId: number; tag:
           `styles.css`. Both pills are otherwise identically classed, so there was nothing to target. */}
       <button
         type="button"
-        className="btn btn--quiet btn--compact doc-buttons__word"
+        className={`${btn} doc-buttons__word`}
         disabled={busy !== null}
         aria-busy={busy === 'docx'}
         onClick={downloadWord}

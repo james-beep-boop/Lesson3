@@ -11,6 +11,77 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-30 — The lesson page gets its own PDF/Word, partly reversing the 2026-07-17 consolidation
+
+**Reported by the operator:** a teacher who opens a lesson plan from the catalogue lands on a page
+with no way to get the document — they have to go BACK a page to reach the PDF/Word buttons they just
+walked past. Fixed by rendering the primary Lesson plan's `DocButtons` in `.export-bar`, between the
+edit affordance and Share ▾.
+
+**This partly reverses a prior decision, deliberately.** On 2026-07-17 the page's Documents line was
+removed on the reasoning that "the catalogue row already offers exactly those one-click downloads, so
+on the detail page every download lives in ONE place — the Share menu". That was right about the FULL
+per-document strip and it has not moved: Final explanation and Summary table are still Share-menu-only,
+which is what keeps the bar from growing back into the pre-declutter Documents line. What it got wrong
+is the premise that a download one navigation step away is still at hand. It is not — the reader is on
+the page they wanted, and the thing they came for was on the page behind them.
+
+**The general rule:** "this already exists elsewhere" is an argument about the INVENTORY of features,
+not about where a user is standing when they need one. A consolidation that is correct for a list of
+capabilities can still be wrong at the one point of use that matters most.
+
+**⚑ AND THE OTHER HALF OF THE MOVE: the Share menu now filters the primary OUT.** The first cut
+surfaced the Lesson plan on the bar and left the menu's per-document list untouched, so the identical
+PDF/Word pair rendered twice on one screen. `deliverables.ts`'s own header names this hazard — the
+primary/secondary split exists so surfacing the primary on one surface cannot "double-render or drop a
+document" on the other — and the catalogue row has always applied it (`DocStrip … condensed` →
+`secondaryDeliverables`). `ShareMenu` now applies the same helper, so every document has exactly one
+home: the Lesson plan on the bar, the supporting documents in the menu. A version with no supporting
+documents drops that menu section entirely, which is the pre-existing empty-list behaviour, now
+reachable. **The lesson to carry:** when a shared primary/secondary split exists, moving one side is
+never a one-sided edit — the split is the invariant, not either surface.
+
+**What was reused rather than rebuilt.** `DocButtons` gained a `variant` that changes the button
+chrome ONLY — `toolbar` renders full-size `.btn` to match Edit / Share ▾, instead of the catalogue's
+`.btn--quiet.btn--compact` pills. The two-phase export, the cache warm, the popup-blocker dance and the
+iOS-Safari `downloadPreparedDocument` fix are all untouched, so this surface cannot drift from the
+other two. Verified in the browser on the local stack: both buttons hit
+`/export/doc?doc=lessonSequence` (200 for `as=pdf` and `as=docx`), and all four controls measure 38px
+at 15px — identical to Edit and Share ▾ beside them.
+
+**Two guards this touched, both worth knowing about:**
+
+- ⚑ **The divider was MOVED, not un-set.** The hairline that separated the edit group from Share ▾
+  now lives on `.doc-buttons--toolbar`, and the two declarations were DELETED from `.share-wrap`.
+  The first cut instead left them there and added a sibling rule to cancel them — which worked, but
+  `ShareMenu` renders in exactly one place and the pair is its unconditional preceding sibling, so
+  that shape kept two rules alive as permanent no-ops and needed a third to un-set them on phones.
+  Deleting is both the smaller change and the smaller stylesheet; the phone reset was repointed to
+  follow the divider rather than duplicated. The invariant to preserve is that the divider belongs
+  to whatever OPENS the output group. **The general form:** when a property moves between elements,
+  un-setting the old owner leaves the sheet describing two states with nothing saying which is live.
+- ⚑ **`classNameStyles.spec.ts` reads string literals inside `className={…}` — including the ones in
+  a CONDITION.** Written inline, `className={variant === 'toolbar' ? … : …}` makes the spec demand a
+  `.toolbar` stylesheet rule that should not exist. Compute the class above the JSX. The spec's
+  over-approximation is deliberate; this is the shape it costs.
+
+**The phone rule needed no change and that is the point.** `variant="toolbar"` keeps the `.doc-buttons`
+wrapper and the `.btn` prefix, so `.doc-buttons .btn.doc-buttons__word` still hides Word at ≤640px
+(operator decision 2026-08-29) — measured at 375px: Word `display: none`, PDF at the 44px touch target,
+the divider dropped. `buttonSystem.spec.ts` now pins all THREE rendered shapes, because a future
+variant that dropped either class would re-show Word against a standing decision and nothing else in
+the build would notice.
+
+**A stale precedent was propagated and is now retired.** Three comments (one pre-existing, two
+copied from it by this change) said the divider "match[es] the editor bar's `--output` group divider".
+`custom.scss` records that divider as gone with the single-row layout it separated. The claim is
+removed rather than carried forward — this is how a dead reference becomes load-bearing lore: each
+copy makes the next reader likelier to believe it was checked.
+
+**Both guides said the false thing** — "on a lesson page, all downloads live in the Share menu" — and
+both were corrected in the same change, with the new fact added to `guideParity.spec.ts`'s pinned
+claims.
+
 ## 2026-08-30 — The accordion and public deployment work are deferred
 
 The immediate product goal is a working authenticated app that teachers can navigate easily. For the

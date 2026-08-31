@@ -104,6 +104,14 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'the only ones who can remove a Subject-grade administrator',
   },
   {
+    // ⚑ Added 2026-08-30 with the lesson page's own PDF/Word pair. Both guides said "on a lesson
+    // page, all downloads live in the Share menu" — true from 2026-07-17 until that change, and the
+    // exact shape of claim this list exists to catch: a reader who believes it goes hunting through
+    // a menu for two buttons now sitting in front of them.
+    what: 'the lesson page carries its own PDF/Word for the lesson plan, not only the Share menu',
+    claim: 'its own PDF and Word buttons for the lesson plan',
+  },
+  {
     what: 'the SPEC §8 email carve-out — the claim that was outright false until 2026-08-21',
     claim: 'the addresses of the people listed',
   },

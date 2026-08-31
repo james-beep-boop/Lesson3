@@ -35,8 +35,9 @@ Manage or see version/editing controls.
 - **Open or download a document:** on the home page, each lesson row has a _PDF_ button (opens in a
   new tab) and a _Word_ button (downloads its `.docx` — on a phone, Word is available by email
   instead) for the lesson plan, with any Final
-  Explanation or Summary Table behind a _Supporting documents_ line. On a lesson page, all downloads
-  live in the _Share_ menu: each document on its own under _Download one document_, plus
+  Explanation or Summary Table behind a _Supporting documents_ line. A lesson page has its own _PDF_
+  and _Word_ buttons for the lesson plan, in the action bar immediately before _Share_; every other
+  download lives in the _Share_ menu: the supporting documents one at a time under _Download one document_, plus
   _Download all_ as a Word or PDF `.zip`. On a phone the Word downloads are omitted — use
   _Email all — Word_, or a larger screen.
 - **Email:** choose _Share → Email all — Word_ or _Email all — PDF_ on a lesson page to send the
