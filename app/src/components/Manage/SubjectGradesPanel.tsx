@@ -67,7 +67,7 @@ function SubjectGradeItem({
       <span className="lp-taxonomy__title">{row.displayName}</span>
       <form className="lp-taxonomy__form" onSubmit={save}>
         <label className="lp-taxonomy__field">
-          <span className="lp-taxonomy__label">Subject</span>
+          <span>Subject</span>
           <select
             className="lp-manage__select"
             value={subjectId}
@@ -78,7 +78,7 @@ function SubjectGradeItem({
           </select>
         </label>
         <label className="lp-taxonomy__field lp-taxonomy__field--narrow">
-          <span className="lp-taxonomy__label">Grade</span>
+          <span>Grade</span>
           <input
             className="lp-users__input"
             type="number"
@@ -190,7 +190,7 @@ export function SubjectGradesPanel({
           to any locator that has to pick one. */}
       <form className="lp-taxonomy__create" aria-label="Add a subject grade" onSubmit={add}>
         <label className="lp-taxonomy__field">
-          <span className="lp-taxonomy__label">Subject</span>
+          <span>Subject</span>
           <select
             className="lp-manage__select"
             value={newSubjectId}
@@ -202,7 +202,7 @@ export function SubjectGradesPanel({
           </select>
         </label>
         <label className="lp-taxonomy__field lp-taxonomy__field--narrow">
-          <span className="lp-taxonomy__label">Grade</span>
+          <span>Grade</span>
           <input
             className="lp-users__input"
             type="number"

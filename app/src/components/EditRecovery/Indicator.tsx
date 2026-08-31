@@ -108,7 +108,7 @@ export function EditRecoveryIndicator({ status }: { status: RecoveryStatus }) {
       role="status"
       aria-live="polite"
     >
-      <span className="lp-recovery__text">{text}</span>
+      <span>{text}</span>
     </div>
   )
 }

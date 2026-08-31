@@ -327,7 +327,7 @@ export function RolesAccessPanel({
   }, [query, resolved])
 
   return (
-    <div className="lp-manage__editors">
+    <div>
       {access.groups.length > 1 && (
         <input
           className="lp-admin-list__search"

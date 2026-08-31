@@ -22,7 +22,7 @@ import { getPayload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
-import { createUserVerified } from '../helpers/fixtures.js'
+import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
 import { up } from '../../src/migrations/20260710_041621_add_email_verification.js'
 
 const RUN = `verifybf-${Date.now()}`
@@ -64,15 +64,19 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!payload) return
-  await payload.delete({
-    collection: 'users',
-    where: { email: { in: [LEGACY_EMAIL, UNVERIFIED_EMAIL] } },
-    overrideAccess: true,
-  })
-  // The login assertion spends auth budgets keyed by this run's email.
-  await drizzle().execute(
-    sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%${RUN}%`};`,
-  )
+  try {
+    // On a fresh database `legacyId` is also Payload's auto-promoted first Site Administrator.
+    // Use the exact shared teardown rather than bulk delete, whose per-document hook failures are
+    // returned in `errors` and can otherwise leave this user behind without throwing.
+    for (const id of [legacyId, unverifiedId]) {
+      if (id != null) await deleteUserFixture(payload, id)
+    }
+  } finally {
+    // The login assertion spends auth budgets keyed by this run's email.
+    await drizzle().execute(
+      sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%${RUN}%`};`,
+    )
+  }
 })
 
 describe('email-verification migration backfill (executable, Codex 2026-07-10)', () => {

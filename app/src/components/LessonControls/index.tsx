@@ -601,9 +601,12 @@ export default function LessonControls() {
   }
 
   return (
-    // The --editing modifier is the CSS signal for edit mode (role-locked "read-only" label chips in
-    // custom.scss key off it — the old signal was the absence of the removed view-mode notice).
-    <div className={`lesson-controls-wrap${editing ? ' lesson-controls-wrap--editing' : ''}`}>
+    // The modifiers are CSS signals for mode and role. `--prose-only` is deliberately based on the
+    // same permission helpers as the server fields: an Editor may change lesson prose, but only a
+    // Subject/Site Administrator may add, remove, duplicate or reorder structural array rows.
+    <div
+      className={`lesson-controls-wrap${editing ? ' lesson-controls-wrap--editing' : ''}${canEdit && !canEditStructure ? ' lesson-controls-wrap--prose-only' : ''}`}
+    >
       {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
           The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead lifecycle button
           ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}

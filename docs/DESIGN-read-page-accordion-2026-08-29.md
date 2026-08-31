@@ -35,7 +35,7 @@ UX win, no authorization change, and the public library gets it for free.
 | **`/admin` is gated to editing-access holders, Subject Admins and Site Admins** — *"admin-panel access is gated … not teachers"* | `collections/Users.ts:57` | Teachers, the default and largest class, **cannot see the editor's accordion at all**. Deleting the read view would remove the product for ~95% of users (the teacher-first lock's own figure). |
 | "Request editing access" already exists and messages the right admins server-side, roster names-only, 1/day per subject-grade | `lessons/[id]/page.tsx:170`, `RequestEditingButton.tsx` | The proposal's "greyed-out Edit with a dialog" is already built, and better: a live control offering the next action beats a dead one explaining why it is dead. |
 | Edit / Quick preview / Editing help are already behind `canEdit` | `lessons/[id]/page.tsx` | A non-editing teacher already sees only Favourite, Back, Request editing access, Share ▾. |
-| `/explore` (public library, behind `publicLibraryLive`) links into the read page | `app/(frontend)/explore/page.tsx` | The read page is the destination the public-read roadmap is heading toward. |
+| The planned public-read slice resolves into the same DOCX-derived reading surface | `docs/DESIGN-public-library.md` §Public-content boundary | Improving the read page now also improves the later public lesson page; today's `/explore` remains a placeholder and links nowhere yet. |
 
 ## 3. Quick preview is not a worse accordion
 
@@ -128,7 +128,7 @@ adapter plus three implementations under it.
 **What IS shared: the stylesheet.** One visual language — header row, chevron, borders, spacing, focus
 ring — so a reader cannot tell three mechanisms apart. Make that an explicit requirement of the change.
 
-## 8. The four open questions
+## 8. One product question settled; three implementation requirements remain
 
 Answer these before writing code; each has bitten this codebase already.
 
@@ -136,9 +136,10 @@ Answer these before writing code; each has bitten this codebase already.
    them. Both an in-page click and an inbound bookmark must open the target — **on load and on click**.
    ⚑ This is the exact class of defect that produced #310 and #314's predecessor; decide it, do not
    discover it.
-2. **Find-in-page.** The genuine regression risk. Collapsed content is invisible to Ctrl+F, and on a
-   *reading* surface "find every mention of photosynthesis" is normal. Native `<details>` auto-expands
-   on find in Chrome, Edge and Safari; **Firefox does not**. Is that acceptable? Product call.
+2. ✅ **Find-in-page — settled 2026-08-30.** The collapsed state is the table of contents. Searching
+   or scanning the visible lesson titles is the required navigation; a teacher opens the relevant
+   lesson and can then search within it. Firefox not auto-expanding closed `<details>` for a hidden
+   full-text match is accepted and is not a release blocker.
 3. **Print.** There are **no print styles at all** in `styles.css` today. Ctrl+P currently yields the
    whole plan; after this it would yield three headings. `@media print` is not optional here.
 4. **Consistency vs three mechanisms.** §7. Decide whether the shared-stylesheet answer is enough.

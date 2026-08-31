@@ -12,10 +12,10 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { getPayload, type Payload } from 'payload'
-import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
-import { createUserVerified } from '../helpers/fixtures.js'
+import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
+import { clearRateLimitBuckets } from '../helpers/db.js'
 
 // Per-run addresses so counters/users never collide across runs or with real users.
 const RUN = `authrl-${Date.now()}`
@@ -44,13 +44,25 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!payload) return
-  if (userId != null) {
-    await payload.delete({ collection: 'users', id: userId, overrideAccess: true })
+  try {
+    if (userId != null) {
+      /**
+       * On a fresh test database this probe is Payload's first user and is auto-promoted to Site
+       * Administrator. A normal by-id delete then correctly refuses to remove the last usable
+       * administrator. Bulk delete is NOT an answer: Payload returns per-document hook failures in
+       * `errors` instead of throwing, which once made this teardown pass while leaking the account.
+       *
+       * Follow `userSecurity.int.spec.ts`'s test-only teardown shape: strip roles for THIS exact
+       * fixture below the hook layer, then use the ordinary by-id operation so every cascade still
+       * runs. If deletion fails, restore the original roles and fail the suite loudly.
+       */
+      await deleteUserFixture(payload, userId)
+    }
+  } finally {
+    // Remove this run's per-target counter rows (keys embed the run-tagged emails), even if user
+    // cleanup fails. The failure still propagates after this finally block.
+    await clearRateLimitBuckets(payload, `%${RUN}%`)
   }
-  // Remove this run's per-target counter rows (keys embed the run-tagged emails).
-  const db = (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } })
-    .drizzle
-  await db.execute(sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%${RUN}%`};`)
 })
 
 describe('login rate limit (per target identifier)', () => {

@@ -855,8 +855,7 @@ body {
     flex-wrap: wrap;
   }
 
-  // `.lp-taxonomy__label` is deliberately NOT listed: it is a <span> inside `__field`, so it inherits
-  // the colour and size set here and needs no rule of its own.
+  // The taxonomy label span needs no class: it inherits the colour and size set on `__field` here.
   &__field,
   .lp-taxonomy__field {
     display: grid;
@@ -1170,6 +1169,23 @@ body:has(.collection-edit--lesson-bundle-versions) .template-default {
 // the two controls this editor's collapse-on-entry design depends on.
 .collection-edit--lesson-bundle-versions .clipboard-action__popup {
   display: none;
+}
+
+// Teachers with editing access may change the prose fields the server whitelists, but structural
+// array mutations remain Subject/Site Administrator work. Payload's `readOnly` option would hide the
+// row controls, but it cascades into the array's child fields and would freeze the prose too. So
+// LessonControls emits `--prose-only` from the SAME permission helpers used by the field split and
+// this tightly-scoped rule removes only mutation affordances. This is UI truthfulness, not the
+// authorization boundary: `applyEditorFieldSplit` still rejects the submitted structural diff.
+//
+// Keep Collapse All / Show All and each row's disclosure chevron visible. In particular, do not hide
+// `.array-field__header-action` or `.collapsible__indicator`; both are navigation, not mutation.
+body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-versions {
+  .array-actions,
+  .array-field__add-row,
+  .array-field__row .collapsible__drag {
+    display: none;
+  }
 }
 
 // ⚑ AN ARRAY'S OWN NAME OUTRANKS ITS CONTROLS. Payload ships the array label at 13px/500 while

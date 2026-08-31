@@ -63,6 +63,7 @@ describe('LessonControls server render honours the ?edit=1 intent (hydration-con
     mocks.search = 'edit=1'
     const html = renderToString(<LessonControls />)
     expect(html).toContain('lesson-controls-wrap--editing')
+    expect(html).toContain('lesson-controls-wrap--prose-only')
     expect(html).toContain('Editing:')
     expect(html).toMatch(/<button[^>]*>Save<\/button>/)
     expect(html).toMatch(/<button[^>]*>Cancel<\/button>/)
@@ -153,12 +154,16 @@ describe('LessonControls offers the edit lifecycle only to someone who may edit 
   it('still offers Edit to a Site Administrator, who is scoped to nothing and allowed everything', () => {
     mocks.search = ''
     mocks.user = { id: 1, roles: ['siteAdmin'], assignments: [] }
-    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*>Edit<\/button>/)
+    const html = renderToString(<LessonControls />)
+    expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
+    expect(html).not.toContain('lesson-controls-wrap--prose-only')
   })
 
   it('still offers Edit to a Subject Administrator for THIS subject-grade', () => {
     mocks.search = ''
     mocks.user = { id: 1, roles: [], assignments: [{ subjectGrade: SG, role: 'subjectAdmin' }] }
-    expect(renderToString(<LessonControls />)).toMatch(/<button[^>]*>Edit<\/button>/)
+    const html = renderToString(<LessonControls />)
+    expect(html).toMatch(/<button[^>]*>Edit<\/button>/)
+    expect(html).not.toContain('lesson-controls-wrap--prose-only')
   })
 })

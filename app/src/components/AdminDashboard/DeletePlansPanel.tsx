@@ -135,7 +135,7 @@ export function DeletePlansPanel({ rows }: { rows: PlanRow[] }) {
     : `Delete selected${total ? ` (${total})` : ''}`
 
   return (
-    <div className="lp-manage__delete-plans lp-delete-plans">
+    <div className="lp-delete-plans">
       <div className="lp-admin-list__bar">
         <input
           className="lp-admin-list__search"

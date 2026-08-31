@@ -64,7 +64,7 @@ function SubjectItem({
     <li className="lp-manage__row lp-manage__row--tight">
       <form className="lp-taxonomy__form" onSubmit={save}>
         <label className="lp-taxonomy__field">
-          <span className="lp-taxonomy__label">Subject</span>
+          <span>Subject</span>
           <input
             className="lp-users__input"
             value={name}
@@ -134,7 +134,7 @@ export function SubjectsPanel({ subjects }: { subjects: SubjectRow[] }) {
           to any locator that has to pick one. */}
       <form className="lp-taxonomy__create" aria-label="Add a subject" onSubmit={add}>
         <label className="lp-taxonomy__field">
-          <span className="lp-taxonomy__label">New subject</span>
+          <span>New subject</span>
           <input
             className="lp-users__input"
             placeholder="For example, Biology"
