@@ -1,7 +1,17 @@
 /**
  * Fixture-heavy suites must not depend on the production-wide signup budget left by earlier specs.
- * Pin each test runner's explicit ceiling and the unchanged production fallback together so a future
- * script cleanup cannot quietly restore order-dependent failures—or raise the real abuse limit.
+ * Pin where the test-only headroom is allowed to live, and pin the production fallback as BEHAVIOUR,
+ * so neither a script cleanup nor a "make it consistent" edit can move the real abuse limit.
+ *
+ * ⚑ THE SCRIPT ASSERTIONS ARE NEGATIVE, AND THAT IS DELIBERATE. `test.env` is loaded only by
+ * `test:int`, which owns the private `lesson3_test` database. `test:http` and `test:e2e` seed through
+ * the Local API into the database the RUNNING app serves from — on the Rock, per
+ * `vitest.http.config.mts`, the LIVE `lesson3`. `rateLimit.ts`'s upsert sets `window_start`
+ * unconditionally, so a 1 ms window in either of those runners makes the app's next signup observe a
+ * differing window and RESET the real daily count to 1: the abuse limiter fails OPEN. A counter row
+ * is shared state, so "test-only" env on a shared database is not test-only. Briefly shipped on
+ * `codex/next-session-foundations` and caught in review before merge (2026-08-30) — CI could never
+ * have caught it, because CI's `lesson3` is torn down with `docker compose down -v`.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -51,13 +61,20 @@ afterEach(() => {
 })
 
 describe('fixture signup-limit configuration', () => {
-  it('gives every fixture-heavy runner deterministic test-only headroom', () => {
+  it('gives the isolated integration database deterministic test-only headroom', () => {
     expect(testEnv).toMatch(/^RATE_LIMIT_SIGNUP_GLOBAL_MAX=10000$/m)
     expect(testEnv).toMatch(/^RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS=1$/m)
-    expect(pkg.scripts['test:e2e']).toContain('RATE_LIMIT_SIGNUP_GLOBAL_MAX=10000')
-    expect(pkg.scripts['test:e2e']).toContain('RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS=1')
-    expect(pkg.scripts['test:http']).toContain('RATE_LIMIT_SIGNUP_GLOBAL_MAX=10000')
-    expect(pkg.scripts['test:http']).toContain('RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS=1')
+  })
+
+  it('keeps the short window away from every runner that can reach a shared database', () => {
+    // Not just the 1 ms window: a raised ceiling on a shared database is also wrong, because it lets
+    // a test run spend budget the real deployment is counting on.
+    for (const script of ['test:http', 'test:e2e'] as const) {
+      expect(
+        pkg.scripts[script],
+        `${script} seeds into the app's own database — it must not carry signup-limiter overrides`,
+      ).not.toMatch(/RATE_LIMIT_SIGNUP_GLOBAL_/)
+    }
   })
 
   it('applies controlled global-signup configuration to the real limiter primitive', async () => {

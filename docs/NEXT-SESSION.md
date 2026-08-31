@@ -36,13 +36,18 @@ deployment state before acting; this handoff makes no claim that these changes a
 1. **Decision documents reconciled.** `docs/DECISIONS.md` now records the operator's calls;
    `DESIGN-public-library.md` reflects slices 2/3 and the completed delete-side Official lock; the
    accordion design no longer treats collapsed full-text browser search as a blocker.
-2. **Test signup limits are deterministic without weakening production.** Integration, HTTP and
-   Playwright test processes use a high `RATE_LIMIT_SIGNUP_GLOBAL_MAX` and a 1 ms test-only window;
-   production retains the 100/day default and daily window. The ad hoc deletion of the shared bucket in
-   `bestEffortEnqueue.int.spec.ts` is gone. Focused behavioural coverage now proves controlled global
-   signup settings, the production fallback, and the anonymous-create global refusal. The old diagnosis
-   that state crossed fresh GitHub jobs was false; the actual collision was sequential fixture-heavy
-   specs sharing one database.
+2. **Test signup limits are deterministic without weakening production.** ⚑ **`test:int` ONLY** — a
+   high `RATE_LIMIT_SIGNUP_GLOBAL_MAX` and a 1 ms window live in `test.env`, which only the isolated
+   `lesson3_test` runner loads. `test:http` and `test:e2e` deliberately carry **no** limiter env: they
+   seed through the Local API into the database the running app serves from, which on the Rock is the
+   LIVE one, and a 1 ms window there resets the real daily signup count to 1 (DECISIONS 2026-08-30, "A
+   test-only rate-limit window is not test-only on a shared database"). Production retains the 100/day
+   default. The ad hoc deletion of the shared bucket in `bestEffortEnqueue.int.spec.ts` is gone.
+   Focused behavioural coverage proves the controlled settings, the production fallback and the
+   anonymous-create global refusal; `testSignupLimitConfig.spec.ts` additionally pins, as a negative
+   assertion, that neither shared-database runner mentions `RATE_LIMIT_SIGNUP_GLOBAL_`. The old
+   diagnosis that state crossed fresh GitHub jobs was false; the actual collision was sequential
+   fixture-heavy specs sharing one database.
 3. **Structural array controls tell the truth about editing access.** A Teacher with editing access
    gets the prose fields but no Add row, drag handle or row `⋯` menu. Subject-grade and Site
    Administrators retain them; Collapse All, Show All and disclosure chevrons remain. This is an
@@ -64,7 +69,16 @@ deployment state before acting; this handoff makes no claim that these changes a
   runtime-composed `array-field__row`, so a Payload upgrade that renames one fails the unit suite.
   Sass and PostCSS are direct pinned dev dependencies rather than accidental transitives.
 - The static-class guard compiles Sass before matching. A mutation-style unit case proves that
-  `.lp-manage` plus another block's `&__num` does not invent `.lp-manage__num`.
+  `.lp-manage` plus another block's `&__num` does not invent `.lp-manage__num`. The selector query
+  itself is now one definition in `tests/helpers/cssSelectors.ts`, shared by both CSS guards.
+- ⚑ A later review pass found the first limiter fix had handed the 1 ms window to `test:http` and
+  `test:e2e`, which reach the app's own database — on the Rock, the live one — where it resets the
+  real signup budget instead of isolating from it. Fixed before merge by confining those values to
+  `test.env`; the gate had passed WITH the defect present, because CI's database is ephemeral. The
+  deeper fix (stop counting trusted Local-API fixture creates as anonymous signups) is filed as its
+  own issue rather than carried here.
+- Multi-user teardowns (`purgeMarked`, `verifyBackfill`, `adminResetLinkCarveOut`) now attempt every
+  deletion and report the collected failures, rather than abandoning the rest at the first refusal.
 - Local gates passed: **1,069 unit tests in 117 files; 224 integration tests in 28 files; ESLint,
   Prettier and `tsc --noEmit`; and a production Docker build with the full route manifest.** The full
   integration suite was rerun on a newly created empty database, then direct SQL proved zero users,

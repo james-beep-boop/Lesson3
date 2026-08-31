@@ -87,12 +87,13 @@ export const createUserVerified = (
  * roles and fail loudly if deletion does not complete.
  */
 export async function deleteUserFixture(payload: Payload, userId: number | string): Promise<void> {
+  // One statement, not a SELECT then a DELETE: `RETURNING` hands back exactly the rows it removed,
+  // so there is no window in which the restore data has been read but the delete has not happened.
   const roles = rowsOf<{ value: string; order: number }>(
     await drizzleOf(payload).execute(
-      sql`SELECT value, "order" FROM users_roles WHERE parent_id = ${userId}`,
+      sql`DELETE FROM users_roles WHERE parent_id = ${userId} RETURNING value, "order"`,
     ),
   )
-  await drizzleOf(payload).execute(sql`DELETE FROM users_roles WHERE parent_id = ${userId}`)
 
   try {
     await payload.delete({ collection: 'users', id: userId, overrideAccess: true })
@@ -371,8 +372,18 @@ export async function purgeMarked(payload: Payload, mark: string): Promise<void>
       overrideAccess: true,
     })
     if (users.length === 0) break
+    // Attempt EVERY user before reporting. Stopping at the first refusal leaves the rest of the
+    // namespace behind, and the leftovers are what break a later, unrelated suite — the failure
+    // mode this whole sweep exists to prevent.
+    const failures: unknown[] = []
     for (const user of users) {
-      await deleteUserFixture(payload, user.id)
+      await deleteUserFixture(payload, user.id).catch((error: unknown) => failures.push(error))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures,
+        `Fixture cleanup could not delete ${failures.length} user(s) (${mark})`,
+      )
     }
   }
 

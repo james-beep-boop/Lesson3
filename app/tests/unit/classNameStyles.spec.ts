@@ -10,10 +10,11 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import postcss from 'postcss'
 import * as sass from 'sass'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+
+import { stylesheetHasRule, stylesheetSelectors } from '../helpers/cssSelectors.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const componentRoot = resolve(here, '../../src/components')
@@ -21,7 +22,6 @@ const frontendCss = readFileSync(resolve(here, '../../src/app/(frontend)/styles.
 const adminCss = sass.compile(resolve(here, '../../src/app/(payload)/custom.scss')).css
 
 const CLASS_TOKEN = /^-?[_a-zA-Z]+[_a-zA-Z0-9-]*$/
-const CSS_NAME_CHAR = '[_a-zA-Z0-9-]'
 
 function tsxFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -66,7 +66,7 @@ function classExpressionStrings(expression: ts.Expression): string[] {
   return values
 }
 
-export function staticClassNames(sourceText: string, filename = 'component.tsx'): Set<string> {
+function staticClassNames(sourceText: string, filename = 'component.tsx'): Set<string> {
   const source = ts.createSourceFile(
     filename,
     sourceText,
@@ -99,26 +99,7 @@ export function staticClassNames(sourceText: string, filename = 'component.tsx')
   return names
 }
 
-function escaped(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-export function stylesheetSelectors(...sources: string[]): string[] {
-  return sources.flatMap((source) => {
-    const selectors: string[] = []
-    postcss.parse(source).walkRules((rule) => {
-      selectors.push(...rule.selectors)
-    })
-    return selectors
-  })
-}
-
 const selectors = stylesheetSelectors(frontendCss, adminCss)
-
-export function stylesheetHasRule(ruleSelectors: readonly string[], className: string): boolean {
-  const exact = new RegExp(`\\.${escaped(className)}(?!${CSS_NAME_CHAR})`)
-  return ruleSelectors.some((selector) => exact.test(selector))
-}
 
 describe('component className stylesheet contract', () => {
   it('extracts literals through expression and template branches', () => {

@@ -11,6 +11,47 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-30 — A test-only rate-limit window is not test-only on a shared database
+
+Caught in review **before merge**, on the branch that introduced it. The first fix for fixture
+signup contamination gave `test:int`, `test:http` and `test:e2e` a raised `RATE_LIMIT_SIGNUP_GLOBAL_MAX`
+and a **1 ms** `RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS`. For `test:int` that is correct: it owns the
+private `lesson3_test` database. For the other two it is a production defect.
+
+The chain, verified in installed source rather than reasoned about:
+
+1. `test:http` and `test:e2e` seed fixtures through the **Local API, in-process**, so env set on the
+   runner applies to those writes.
+2. `createUserVerified` calls `payload.create` with `overrideAccess: true` and **no `req.user`**, so
+   `authRateLimit` classifies each fixture user as an anonymous signup and spends `signupGlobal:all`.
+3. `take()` in `lib/rateLimit.ts` upserts with `SET "window_start" = <windowStart>` **unconditionally**
+   and `"count" = CASE WHEN r."window_start" = <windowStart> THEN count + 1 ELSE 1 END`. At
+   `windowMs = 1`, `windowStart` is a millisecond value.
+4. The app process uses the 24-hour window. Its next signup observes a differing `window_start` and
+   **resets the count to 1**.
+5. `vitest.http.config.mts` states that on the Rock, `test:http` runs `--env-file .env` — the **live**
+   `lesson3` database.
+
+So `npm run test:rock` on the Rock silently cleared the real deployment's daily signup budget. Before
+the change tests *consumed* that budget, which is wrong but fails CLOSED; after it they *reset* it,
+which fails OPEN on an abuse limiter.
+
+⚑ **CI could not have caught this, and green CI is not evidence about it.** CI's `lesson3` dies with
+`docker compose down -v`; the defect exists only where a runner points at a database something else
+depends on. The gate passed on this branch with the defect present.
+
+**The rule: a rate-limit counter row is SHARED STATE, so limiter env is never "test-local" unless the
+DATABASE is.** Test-only limiter values belong in `test.env`, which only `test:int` loads. Any runner
+that seeds into the app's own database gets the production limits, full stop — including a raised
+ceiling, which would let a test run spend budget the deployment is counting on.
+`tests/unit/testSignupLimitConfig.spec.ts` now pins this as a **negative** assertion: neither script
+may mention `RATE_LIMIT_SIGNUP_GLOBAL_`.
+
+The deeper fix is filed separately: stop classifying trusted Local-API fixture creates as anonymous
+signups at all (the `!req.user` axis in `hooks/authRateLimit.ts`), which deletes the env plumbing and
+this whole class of problem. It touches an auth hook and must keep the over-the-wire anonymous-signup
+tests exercising the real gate, so it is its own change, not a rider on this one.
+
 ## 2026-08-30 — Test cleanup must prove zero rows; stylesheet guards compile Sass and pin dependency hooks
 
 Independent review found five real holes in the first implementation of the next-session foundation
@@ -65,7 +106,8 @@ Teacher is allowed to edit.
 
 ### Fixture configuration and production defaults are tested as behaviour
 
-The fixture-heavy runners retain the deliberate high signup ceiling and 1 ms test-only window. The
+The integration runner retains the deliberate high signup ceiling and 1 ms test-only window; see the
+entry above for why `test:http` and `test:e2e` must not. The
 production-default assertion no longer searches source text. It dynamically loads the real limiter
 with controlled environment values and a deterministic in-memory database seam, proving the configured
 ceiling/window, the 100-per-24-hour fallback, and the anonymous-create path's `signupGlobal` refusal.
@@ -108,9 +150,9 @@ they consume `signupGlobal:all`. `fileParallelism: false` then makes the damage 
 The fix is environment ownership: fixture-heavy test processes set a high global signup ceiling and
 a 1 ms counter window, while production keeps its 100/day default. The short test-only window is what
 makes repeated runs deterministic rather than merely postponing exhaustion. Integration tests get
-those values from `test.env`; HTTP and Playwright scripts set them explicitly because they
-intentionally do not load the integration-test environment file. Remove the ad hoc `signupGlobal`
-deletion from `bestEffortEnqueue.int.spec.ts`:
+those values from `test.env` and nowhere else — ⚑ see "A test-only rate-limit window is not
+test-only on a shared database" above for why the same values must NOT be handed to `test:http` or
+`test:e2e`. Remove the ad hoc `signupGlobal` deletion from `bestEffortEnqueue.int.spec.ts`:
 unrelated suites must not erase a shared abuse counter, even narrowly. Limiter specs may still remove
 the exact rows they deliberately exercise. Never change the production default to make tests convenient.
 

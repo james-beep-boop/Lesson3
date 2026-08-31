@@ -1,5 +1,5 @@
 /**
- * The editor's structural-control hiding is a narrow affordance contract, not authorization.
+ * The version editor's structural-control hiding is a narrow affordance contract, not authorization.
  * Payload owns the DOM, so pin the exact installed class hooks we intentionally suppress and the
  * navigation hooks we must leave alone. The server-side field split remains the security boundary.
  */
@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url'
 import postcss from 'postcss'
 import * as sass from 'sass'
 import { describe, expect, it } from 'vitest'
+
+import { stylesheetHasRule, stylesheetSelectors } from '../helpers/cssSelectors.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const scope = 'body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-versions'
@@ -31,23 +33,16 @@ const scopedSelectors = rules.flatMap((rule) =>
 
 const payloadCssPath = fileURLToPath(import.meta.resolve('@payloadcms/ui/styles.css'))
 const payloadDist = dirname(payloadCssPath)
-const payloadSelectors: string[] = []
-postcss.parse(readFileSync(payloadCssPath, 'utf8')).walkRules((rule) => {
-  payloadSelectors.push(...rule.selectors)
-})
+const payloadSelectors = stylesheetSelectors(readFileSync(payloadCssPath, 'utf8'))
 const arrayActionSource = readFileSync(
   resolve(payloadDist, 'elements/ArrayAction/index.js'),
   'utf8',
 )
 const arrayRowSource = readFileSync(resolve(payloadDist, 'fields/Array/ArrayRow.js'), 'utf8')
 
-const payloadHasClass = (className: string) => {
-  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const exact = new RegExp(`\\.${escaped}(?![_a-zA-Z0-9-])`)
-  return payloadSelectors.some((selector) => exact.test(selector))
-}
+const payloadHasClass = (className: string) => stylesheetHasRule(payloadSelectors, className)
 
-describe('prose-only editor structural controls', () => {
+describe('prose-only structural controls in the version editor', () => {
   it('hides row actions, add-row buttons and drag handles behind the role marker', () => {
     const expected = [
       `${scope} .array-actions`,

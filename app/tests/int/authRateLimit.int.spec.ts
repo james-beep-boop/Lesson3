@@ -46,16 +46,9 @@ afterAll(async () => {
   if (!payload) return
   try {
     if (userId != null) {
-      /**
-       * On a fresh test database this probe is Payload's first user and is auto-promoted to Site
-       * Administrator. A normal by-id delete then correctly refuses to remove the last usable
-       * administrator. Bulk delete is NOT an answer: Payload returns per-document hook failures in
-       * `errors` instead of throwing, which once made this teardown pass while leaking the account.
-       *
-       * Follow `userSecurity.int.spec.ts`'s test-only teardown shape: strip roles for THIS exact
-       * fixture below the hook layer, then use the ordinary by-id operation so every cascade still
-       * runs. If deletion fails, restore the original roles and fail the suite loudly.
-       */
+      // On a fresh test database this probe is Payload's auto-promoted first Site Administrator, so
+      // an ordinary delete is refused and a bulk delete would swallow the refusal. The shared helper
+      // is the only correct route here — its docblock has the full reasoning.
       await deleteUserFixture(payload, userId)
     }
   } finally {

@@ -40,7 +40,15 @@ beforeAll(async () => {
 
 afterAll(async () => {
   try {
-    for (const id of created) await deleteUserFixture(payload, id)
+    // Attempt EVERY fixture before reporting: stopping at the first refusal leaves the rest behind,
+    // and a leftover fixture is what breaks a later, unrelated spec.
+    const failures: unknown[] = []
+    for (const id of created) {
+      await deleteUserFixture(payload, id).catch((e: unknown) => failures.push(e))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `Could not delete ${failures.length} fixture user(s)`)
+    }
   } finally {
     // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
     // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is
