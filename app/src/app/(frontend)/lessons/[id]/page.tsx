@@ -12,6 +12,8 @@ import { type PreviewSection } from '@/generator/previewBundle'
 import { annotateSections, docNavItems, docSectionId } from '@/lib/lessonAnchors'
 import EditActions from './EditActions'
 import ShareMenu from './ShareMenu'
+import DocButtons from '@/components/DocButtons'
+import { PRIMARY_DELIVERABLE } from '@/generator/deliverables'
 import FavoriteToggle from '@/components/FavoriteToggle'
 import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
@@ -88,7 +90,9 @@ export default async function LessonView({
   })
   const favoriteId = favRows[0]?.id ?? null
 
-  // What the export will contain — drives the Share menu's per-document download list.
+  // What the export will contain. The Share menu takes the whole list and renders the SUPPORTING
+  // documents from it (it applies `secondaryDeliverables` itself, next to the DocStrip it feeds);
+  // the primary Lesson plan is the action bar's own pair below.
   const deliverables = versionDeliverables(selected)
 
   // Faithful content view: render the REAL generated DOCX to HTML (SPEC §5 content-preview tier).
@@ -151,9 +155,10 @@ export default async function LessonView({
       </PageHeader>
 
       {/* The Documents line + Supporting-documents disclosure were REMOVED here (user, 2026-07-17,
-          revising declutter L1): the catalogue row already offers exactly those one-click downloads,
-          so on the detail page every download lives in ONE place — the Share menu below, which
-          gained a per-document section so nothing was lost. */}
+          revising declutter L1) and have NOT come back. What returned on 2026-08-30 is the primary
+          Lesson plan's PDF/Word alone, on the action bar — see the ⚑ there. Every document still
+          has exactly ONE place on this page: the Lesson plan on the bar, the supporting documents
+          in the Share menu, which filters the primary out precisely so this stays true. */}
 
       {/* Sticky while reading (critique 2026-07-12): the action bar plus the in-page jump nav
           stay reachable through an 8-lesson scroll instead of vanishing after the first screen. */}
@@ -168,9 +173,22 @@ export default async function LessonView({
           )}
           {/* T3: viewers without edit rights can ask for them — recipients resolve server-side. */}
           {!canEdit && <RequestEditingButton planId={plan.id} />}
-          {/* Share ▾ (declutter L2): Download-all zips + per-document downloads + Email + Message
-              fold into one menu. A left border on .share-wrap divides it from the edit/request
-              group (matching the editor bar's --output group divider). */}
+          {/* ⚑ THE LESSON PLAN'S OWN PDF / WORD, back on this page (user, 2026-08-30) — this
+              PARTLY REVERSES the 2026-07-17 "every download lives in ONE place" consolidation, and
+              deliberately. That decision was sound about the FULL per-document strip and it stays
+              in the Share menu; what it got wrong is that a teacher who opens a plan from the
+              catalogue and then wants the document has to go BACK a page to get it. The one
+              document 99% of them want is the primary Lesson plan, so exactly that pair surfaces
+              here — same component, same two-phase export, same cache — and the secondary
+              documents (Final explanation, Summary table) remain Share-menu-only, which is what
+              keeps this from re-cluttering the bar into the pre-declutter Documents line.
+              `lessonSequence` is present on every version by construction (`versionDeliverables`),
+              so this needs no guard. */}
+          <DocButtons versionId={selectedId} tag={PRIMARY_DELIVERABLE} variant="toolbar" />
+          {/* Share ▾ (declutter L2): Download-all zips + the SUPPORTING documents' downloads +
+              Email + Message fold into one menu — the Lesson plan's own pair sits outside it, above.
+              The hairline dividing the output group from the edit/request group now belongs to that
+              pair, which opens the group; `.share-wrap` carries no border of its own any more. */}
           <ShareMenu
             planId={plan.id}
             versionId={selectedId}

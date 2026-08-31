@@ -626,6 +626,20 @@ button.user-menu__item {
 .substrand-main .doc-buttons {
   flex-shrink: 0;
 }
+/* The lesson page's action-bar pair (`variant="toolbar"`, 2026-08-30). Full-size `.btn` comes from
+   the component; what this adds is that the pair reads as part of `.export-bar` rather than as a
+   tight catalogue-row grouping — the bar's own 0.6rem gap — and that it OPENS the output group, so
+   it carries that group's hairline divider (moved off `.share-wrap`, which used to lead the group;
+   its rule below records why the declarations were deleted there rather than overridden).
+   ⚑ NOT "matching the editor bar's `--output` divider" — the comment this replaced said that, and
+   `custom.scss` says the editor's lifecycle|output divider went away with the single-row layout it
+   separated. The live convention it does share is the editor bar's GROUPS; the hairline is this
+   bar's own. Do not restore a citation to a rule that is gone. */
+.doc-buttons--toolbar {
+  gap: 0.6rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--line);
+}
 
 /* D4's neutral-until-hover download pills are now `.btn--quiet.btn--compact` — the shared button
    system carries both the emphasis (quiet) and the density (compact), so this file no longer states
@@ -1120,11 +1134,13 @@ button.user-menu__item {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  /* Hairline divider from the edit/request group to its left (declutter L2) — a border on the
-     Share group itself, matching the editor bar's `--output` group divider, so no throwaway
-     spacer element is needed. */
-  padding-left: 0.6rem;
-  border-left: 1px solid var(--line);
+  /* ⚑ THE OUTPUT GROUP'S DIVIDER LIVES ON `.doc-buttons--toolbar` (above), NOT HERE. It was on this
+     element from declutter L2 until 2026-08-30, when PDF/Word moved in front of Share ▾ and became
+     what opens the group. It is DELETED rather than overridden: `ShareMenu` renders in exactly one
+     place and the pair is its unconditional preceding sibling, so a border here could never be
+     seen again, and keeping it would have meant a sibling rule to un-set it plus a phone rule to
+     un-set that. The invariant to preserve is "the divider belongs to whatever opens the output
+     group" — if Share ▾ ever leads the group again, move the two declarations back. */
 }
 .share-menu {
   position: absolute;
@@ -1828,13 +1844,21 @@ button.user-menu__item {
     align-self: flex-end;
   }
 
-  /* Action bar: let it breathe when it wraps. The Share divider drops away when the bar wraps —
-     a border at the start of a wrapped line reads as noise (matches the editor bar's --output
-     group, which drops its divider at this breakpoint too). */
+  /* Action bar: let it breathe when it wraps. The output group's divider drops away when the bar
+     wraps — a border at the start of a wrapped line reads as noise. (This said it matched "the
+     editor bar's --output group, which drops its divider at this breakpoint too"; `custom.scss`
+     records that divider as gone with the single-row layout, so the claim is retired rather than
+     copied forward.) */
   .export-bar {
     row-gap: 0.5rem;
   }
-  .share-wrap {
+  /* ⚑ THIS RESET FOLLOWED THE DIVIDER off `.share-wrap` on 2026-08-30 — it is the same rule this
+     block always carried, repointed, not a second one.
+     ⚑ SPECIFICITY, NOT ORDER: `.doc-buttons.doc-buttons--toolbar` is (0-2-0) and beats the base
+     `.doc-buttons--toolbar` (0-1-0) outright. Written as a bare `.doc-buttons--toolbar` it would
+     merely TIE and win on source position — the failure mode `buttonSystem.spec.ts` was written
+     after, and the one that already shipped the phone Word rule inert. */
+  .doc-buttons.doc-buttons--toolbar {
     padding-left: 0;
     border-left: none;
   }

@@ -182,12 +182,25 @@ describe('button system', () => {
     const inMenu = shape(
       `<div class="share-menu"><span class="doc-buttons">${pill}</span></div>`,
     ).querySelector('.doc-buttons__word') as Element
+    // ⚑ AND THE THIRD SHAPE (2026-08-30): the lesson toolbar renders the same component at
+    // `variant="toolbar"`, i.e. a FULL-SIZE `.btn` with neither `--quiet` nor `--compact`. It is
+    // asserted here because the hide rule is written against `.btn`, so a variant that dropped the
+    // `.btn` prefix or the `.doc-buttons` wrapper would re-show Word at 375px against a standing
+    // operator decision — and nothing else in the build would notice.
+    const inToolbar = shape(
+      '<div class="export-bar"><span class="doc-buttons doc-buttons--toolbar">' +
+        '<button class="btn doc-buttons__word"></button></span></div>',
+    ).querySelector('.doc-buttons__word') as Element
     const zipItem = shape(
       '<div class="share-menu"><button class="share-menu__word-zip"></button></div>',
     ).querySelector('.share-menu__word-zip') as Element
 
     expect(reaches(inRow), 'the catalogue-row Word pill must be hidden at phone width').toBe(true)
     expect(reaches(inMenu), 'the Share-menu Word pill must be hidden at phone width').toBe(true)
+    expect(
+      reaches(inToolbar),
+      "the lesson toolbar's full-size Word button must be hidden at phone width",
+    ).toBe(true)
     expect(reaches(zipItem), 'the Word .zip menu item must be hidden at phone width').toBe(true)
 
     // ⚑ AND THE SCOPED PILL SELECTOR MUST EXIST, which reachability alone cannot show: the short

@@ -1,13 +1,17 @@
 'use client'
 
 /**
- * Share ▾ — the lesson page's ONE home for share/export actions (declutter L2, 2026-07-15;
- * per-document downloads folded in 2026-07-17 when the page's Documents line was removed):
+ * Share ▾ — the lesson page's home for WHOLE-VERSION share/export actions, and for the supporting
+ * documents (declutter L2, 2026-07-15; per-document downloads folded in 2026-07-17 when the page's
+ * Documents line was removed; the primary Lesson plan moved OUT to the action bar 2026-08-30, so
+ * this is no longer the page's only home for downloads and the docblock no longer claims to be):
  * Download all as Word/PDF .zips (SPEC §9 two-phase export → `downloadExport`), a per-document
- * PDF/Word list (the full DocStrip — same known-good buttons as the catalogue rows), Email…
+ * PDF/Word list for the SUPPORTING documents (a DocStrip — same known-good buttons as the
+ * catalogue rows; the Lesson plan's own pair lives on the action bar outside this menu), Email…
  * (SPEC §10 — the compose form is the composed `EmailModal`), and Message a colleague (§10
- * handoff link). Folding these behind one disclosure is what un-clutters the action bar; every
- * item keeps its exact prior behaviour.
+ * handoff link). Folding these behind one disclosure is what un-clutters the action bar. Every item
+ * keeps its exact prior behaviour; what changed on 2026-08-30 is WHICH items are here, not how any
+ * of them works.
  *
  * This stays a thin coordinator: it owns the disclosure + the download-all flow, and delegates the
  * email compose form to `EmailModal` and the per-document buttons to `DocStrip`/`DocButtons`
@@ -24,6 +28,7 @@ import Link from 'next/link'
 
 import { downloadExport, type ExportState } from '@/components/exportClient'
 import DocStrip from '@/components/DocStrip'
+import { secondaryDeliverables } from '@/generator/deliverables'
 import type { DeliverableTag } from '@/generator/exportArtifacts'
 import EmailModal, { type EmailFormat } from './EmailModal'
 
@@ -40,6 +45,14 @@ export default function ShareMenu({
   /** This version's documents — drives the per-document download list (empty → section omitted). */
   deliverables?: DeliverableTag[]
 }) {
+  // ⚑ THE PRIMARY LESSON PLAN IS FILTERED OUT HERE (2026-08-30), and this is the SAME split the
+  // catalogue row has always used (`DocStrip … condensed`): the lesson page's action bar now renders
+  // the Lesson plan's own PDF/Word, so listing it again three centimetres below would put the
+  // identical pair of buttons on screen twice. `deliverables.ts`'s header names this exact hazard —
+  // the primary/secondary split exists so that surfacing the primary on one surface cannot
+  // "double-render or drop a document" on the other. Surfacing it without filtering here was the
+  // one-sided half of that move.
+  const supporting = secondaryDeliverables(deliverables)
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLSpanElement>(null)
 
@@ -127,13 +140,14 @@ export default function ShareMenu({
           <button type="button" disabled={exporting} onClick={() => onDownloadAll('pdf')}>
             Download all — PDF (.zip)
           </button>
-          {/* Per-document downloads (2026-07-17, replacing the page's Documents line): the full
-              DocStrip — one row per document, PDF opens a tab / Word downloads. These keep the
-              menu OPEN (no onClick close): their busy state renders inline on the row. */}
-          {deliverables.length > 0 && (
+          {/* Per-document downloads (2026-07-17, replacing the page's Documents line; narrowed to
+              the SUPPORTING documents 2026-08-30 — see `supporting` above): one row per document,
+              PDF opens a tab / Word downloads. These keep the menu OPEN (no onClick close): their
+              busy state renders inline on the row. */}
+          {supporting.length > 0 && (
             <div className="share-menu__docs">
               <p className="share-menu__group-label">Download one document</p>
-              <DocStrip versionId={versionId} tags={deliverables} />
+              <DocStrip versionId={versionId} tags={supporting} />
             </div>
           )}
           {/* ⚑ EMAIL MIRRORS DOWNLOAD, one entry per format. It was a single "Email to an address…"

@@ -87,10 +87,12 @@ export default async function UserGuidePage() {
             <em>PDF</em> and <em>Word</em> buttons for its lesson plan — <em>PDF</em> opens in a new
             browser tab, <em>Word</em> downloads the .docx (on a phone, Word is available by email
             instead) — and any Final explanation or Summary table sit behind a{' '}
-            <em>Supporting documents</em> line. On a lesson page, all downloads live in the{' '}
-            <em>Share</em> menu: each document on its own under <em>Download one document</em>, plus{' '}
-            <em>Download all</em> as a Word or PDF .zip. On a phone the Word downloads are omitted —
-            use <em>Email all — Word</em>, or a larger screen.
+            <em>Supporting documents</em> line. A lesson page has its own <em>PDF</em> and{' '}
+            <em>Word</em> buttons for the lesson plan, in the action bar immediately before{' '}
+            <em>Share</em>; every other download lives in the <em>Share</em> menu: the supporting
+            documents one at a time under <em>Download one document</em>, plus <em>Download all</em>{' '}
+            as a Word or PDF .zip. On a phone the Word downloads are omitted — use{' '}
+            <em>Email all — Word</em>, or a larger screen.
           </li>
           <li>
             <strong>Email:</strong> choose <em>Share → Email all — Word</em> or{' '}

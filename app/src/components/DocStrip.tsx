@@ -1,16 +1,22 @@
 /**
  * The per-document strip (teacher-first T2): one quiet line per deliverable — its name and two
  * small buttons, PDF (opens in a browser tab) and Word (downloads). Rendered on catalogue rows
- * and on the lesson page; `tags` comes from `versionDeliverables`, so the strip always matches
- * exactly what the export will contain.
+ * and on the lesson page.
+ *
+ * ⚑ `tags` IS WHAT THE CALLER CHOSE TO SHOW, NOT NECESSARILY THE WHOLE EXPORT. It used to be
+ * `versionDeliverables` verbatim on both surfaces; since 2026-08-30 the lesson page's Share menu
+ * passes `secondaryDeliverables(...)`, because the primary Lesson plan now has its own PDF/Word on
+ * that page's action bar and listing it here too would render the identical pair twice. Render what
+ * you are given — the primary/secondary split is the CALLER's to apply (`deliverables.ts`), and both
+ * surfaces now apply it.
  *
  * `condensed` (design track D4 → row redesign 2026-07-14): the catalogue row renders the PRIMARY
  * Lesson plan's PDF/Word inline itself, so in condensed mode this component renders ONLY the
  * SECONDARY documents (Final explanation, Summary table) folded behind a native <details>
- * disclosure — and nothing at all when there are none. The non-condensed FULL strip (one line per
- * deliverable) is the lesson page's Share-menu "Download one document" section (2026-07-17, when
- * that page's own Documents line was removed). <details>/<summary> needs no script, so this stays
- * a server component.
+ * disclosure — and nothing at all when there are none. The non-condensed strip (one line per tag it
+ * is given) is the lesson page's Share-menu "Download one document" section (2026-07-17, when that
+ * page's own Documents line was removed; narrowed to the supporting documents 2026-08-30 by the
+ * filter above). <details>/<summary> needs no script, so this stays a server component.
  */
 import React from 'react'
 
