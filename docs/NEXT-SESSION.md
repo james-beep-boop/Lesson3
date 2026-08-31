@@ -80,8 +80,9 @@ in `docs/DECISIONS.md` 2026-08-30, "The lesson page gets its own PDF/Word".
 - CI `gate` passed in 13m26s before merge.
 - Authenticated browser measurement on the local stack, both roles: the export endpoints returned 200
   for `as=pdf` and `as=docx`; all four bar controls measured 38px; at 375px Word computed
-  `display: none`, PDF took the 44px touch target and the divider dropped; the Share menu listed only
-  Final explanation and Summary table.
+  `display: none`, PDF took the 44px touch target and the divider dropped; the Share menu's
+  per-document download list contained only Final explanation and Summary table (its Download-all,
+  Email and Message entries are unchanged and still present).
 - ⚑ **The rendered `/guide` text was read from the DOM, not the source** — that file has a documented
   defect where an HTML entity swallows a leading space and welds words together.
 
