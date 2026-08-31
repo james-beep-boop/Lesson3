@@ -102,15 +102,78 @@ jobs:
           migrate_digest="$(docker buildx imagetools inspect "$migrate_image" | awk '$1 == "Digest:" {print $2; exit}')"
           scripts/build-local-deploy-bundle.sh \
             "$GITHUB_REF_NAME" dist "$app_digest" "$migrate_digest"
-      - name: Create GitHub Release and upload deployment bundle
+      # The release is PUBLISHED WITH ITS BUNDLE ALREADY ATTACHED, by way of a draft.
+      #
+      # Creating a release first and uploading assets afterwards leaves a window in which GitHub
+      # advertises the version as "Latest" while `releases/latest/download/...` returns 404. v0.80
+      # spent the whole 17 minutes of this job in that state, because the release had been created by
+      # hand before the job ran. A draft is never served by `releases/latest`, so assembling the
+      # release as a draft and making it visible only once its assets are on it CLOSES that window
+      # rather than shortening it. Pushing the tag is now the only step a human performs.
+      - name: Publish the release with its bundle attached
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
-              --title "Lesson3 $GITHUB_REF_NAME"
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          bundle=dist/lesson3-online-deploy.tar.gz
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # A re-run of this job, or a release somebody created by hand. Its assets are missing right
+            # now either way, so attach them immediately rather than refusing and leaving it broken —
+            # but warn, because a hand-created release is precisely what reopens the window above.
+            echo "::warning::release $tag already existed before its bundle was attached; push the tag and let this workflow publish the release"
+            gh release upload "$tag" "$bundle" "$bundle.sha256" --clobber
+          else
+            gh release create "$tag" "$bundle" "$bundle.sha256" \
+              --draft --verify-tag --generate-notes --title "Lesson3 $tag"
+            gh release edit "$tag" --draft=false
           fi
-          gh release upload "$GITHUB_REF_NAME" \
-            dist/lesson3-online-deploy.tar.gz \
-            dist/lesson3-online-deploy.tar.gz.sha256 \
-            --clobber
+
+      # A release that is ADVERTISED but not INSTALLABLE is worse than no release: GitHub keeps
+      # serving it as "Latest" while `releases/latest/download/...` returns 404, and the first person
+      # to find out is whoever tried to deploy. v0.80 sat in exactly that state for the length of this
+      # job, because the release was created by hand before the bundle existed. So the last thing this
+      # workflow does is walk the DOCUMENTED install path from docs/LOCAL-SERVER-DEPLOYMENT.md and
+      # fail if it does not lead to this release.
+      #
+      # The VERSION check is doing double duty: it proves the bundle is intact AND that `latest`
+      # resolves HERE. If an older release were still being served as Latest, the download would
+      # succeed and the version inside would be wrong — which is the silent failure this guards.
+      - name: Verify the documented install path resolves to this release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          asset=lesson3-online-deploy.tar.gz
+
+          # `releases/latest` deliberately skips prereleases, so for one of those assert the tagged
+          # URL instead of failing a state that is correct on purpose.
+          if [[ "$(gh release view "$tag" --json isPrerelease -q .isPrerelease)" == "true" ]]; then
+            base="https://github.com/${{ github.repository }}/releases/download/$tag"
+            echo "note: $tag is a prerelease — 'latest' intentionally does not point here"
+          else
+            base="https://github.com/${{ github.repository }}/releases/latest/download"
+          fi
+
+          work="$(mktemp -d)"
+          cd "$work"
+          # Asset availability can lag the upload by a moment; a few retries, not indefinite patience.
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"; then break; fi
+            if [[ "$attempt" == 5 ]]; then
+              echo "::error::$base/$asset is not downloadable — the documented install path is broken"
+              exit 1
+            fi
+            sleep 6
+          done
+
+          sha256sum -c "$asset.sha256"
+          tar -xzf "$asset"
+          got="$(tr -d '[:space:]' <lesson3-deploy/VERSION)"
+          if [[ "$got" != "$tag" ]]; then
+            echo "::error::documented install path serves '$got', expected '$tag'"
+            exit 1
+          fi
+          echo "verified: $base/$asset installs $got"
