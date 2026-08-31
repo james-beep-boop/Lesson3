@@ -13,7 +13,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
-import { createUserVerified } from '../helpers/fixtures.js'
+import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
 import { clearRateLimitBuckets } from '../helpers/db.js'
 import { ADMIN_RESET_LINK_CONTEXT } from '../../src/hooks/authRateLimit.js'
 
@@ -39,14 +39,23 @@ beforeAll(async () => {
 }, 60_000)
 
 afterAll(async () => {
-  for (const id of created) {
-    await payload.delete({ collection: 'users', id, overrideAccess: true }).catch(() => undefined)
+  try {
+    // Attempt EVERY fixture before reporting: stopping at the first refusal leaves the rest behind,
+    // and a leftover fixture is what breaks a later, unrelated spec.
+    const failures: unknown[] = []
+    for (const id of created) {
+      await deleteUserFixture(payload, id).catch((e: unknown) => failures.push(e))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `Could not delete ${failures.length} fixture user(s)`)
+    }
+  } finally {
+    // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
+    // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is
+    // the exact failure this helper was written after: a leaked daily budget takes out a LATER,
+    // unrelated spec with "Sign-ups are temporarily paused".
+    await clearRateLimitBuckets(payload, `%${RUN}%`)
   }
-  // ⚑ `clearRateLimitBuckets`, not a hand-written DELETE. The column is `bucket_key`, and the
-  // first draft here said `key` — wrapped in a `.catch()`, so it silently deleted nothing. That is the
-  // exact failure this helper was written after: a leaked daily budget takes out a LATER, unrelated
-  // spec with "Sign-ups are temporarily paused".
-  await clearRateLimitBuckets(payload, `%${RUN}%`)
 })
 
 describe('the admin reset-link carve-out', () => {

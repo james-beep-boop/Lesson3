@@ -17,7 +17,7 @@ import { getPayload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
-import { createUserVerified, MARK } from '../helpers/fixtures.js'
+import { createUserVerified, deleteUserFixture, MARK } from '../helpers/fixtures.js'
 import { drizzleOf } from '../helpers/db.js'
 import { PREFERENCE_KEY_PREFIX, writePreferenceValue } from '../../scripts/lib/preferences.js'
 import { stripCollapsed } from '../../scripts/lib/stripCollapsed.js'
@@ -71,10 +71,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await drizzleOf(payload)
-    .execute(sql`DELETE FROM "payload_preferences" WHERE "id" = ${prefId};`)
-    .catch(() => {})
-  await payload.delete({ collection: 'users', id: userId, overrideAccess: true }).catch(() => {})
+  await drizzleOf(payload).execute(sql`DELETE FROM "payload_preferences" WHERE "id" = ${prefId};`)
+  await deleteUserFixture(payload, userId)
 })
 
 describe('clear-editor-collapse-prefs', () => {

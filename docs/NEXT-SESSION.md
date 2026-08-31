@@ -25,6 +25,98 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-30) — the four foundation items are implemented and verified locally
+
+**Supersedes the 2026-08-29 block below for current priorities; older blocks remain provenance.**
+Work is on `codex/next-session-foundations` and is intentionally uncommitted. Re-measure Git and
+deployment state before acting; this handoff makes no claim that these changes are merged or deployed.
+
+## What changed
+
+1. **Decision documents reconciled.** `docs/DECISIONS.md` now records the operator's calls;
+   `DESIGN-public-library.md` reflects slices 2/3 and the completed delete-side Official lock; the
+   accordion design no longer treats collapsed full-text browser search as a blocker.
+2. **Test signup limits are deterministic without weakening production.** ⚑ **`test:int` ONLY** — a
+   high `RATE_LIMIT_SIGNUP_GLOBAL_MAX` and a 1 ms window live in `test.env`, which only the isolated
+   `lesson3_test` runner loads. `test:http` and `test:e2e` deliberately carry **no** limiter env: they
+   seed through the Local API into the database the running app serves from, which on the Rock is the
+   LIVE one, and a 1 ms window there resets the real daily signup count to 1 (DECISIONS 2026-08-30, "A
+   test-only rate-limit window is not test-only on a shared database"). Production retains the 100/day
+   default. The ad hoc deletion of the shared bucket in `bestEffortEnqueue.int.spec.ts` is gone.
+   Focused behavioural coverage proves the controlled settings, the production fallback and the
+   anonymous-create global refusal; `testSignupLimitConfig.spec.ts` additionally pins, as a negative
+   assertion, that neither shared-database runner mentions `RATE_LIMIT_SIGNUP_GLOBAL_`. The old
+   diagnosis that state crossed fresh GitHub jobs was false; the actual collision was sequential
+   fixture-heavy specs sharing one database.
+3. **Structural array controls tell the truth about editing access.** A Teacher with editing access
+   gets the prose fields but no Add row, drag handle or row `⋯` menu. Subject-grade and Site
+   Administrators retain them; Collapse All, Show All and disclosure chevrons remain. This is an
+   affordance fix only—`fieldSplit.ts` remains the 403 authorization boundary.
+4. **Static component classes now have an automated stylesheet guard.** The unit test walks
+   `src/components/**/*.tsx` with the TypeScript AST and requires every static app-owned class token
+   to resolve in `styles.css` or compiled `custom.scss`. Compiling Sass keeps nested BEM suffixes scoped
+   to their real parent instead of pairing unrelated strings. Adding and correcting the guard exposed
+   and removed four inert class names across nine attributes/call sites.
+
+## Independent-review corrections and verification
+
+- Payload bulk deletion resolves with per-document hook failures in `errors`; awaiting it did not prove
+  a fixture was removed. Exact fixture-user deletion is now centralized: it strips only that user's
+  role rows, deletes by id through Payload, restores roles on failure, and is used by the shared role
+  fixture plus all standalone first-user teardowns. Every remaining shared bulk delete checks its
+  returned errors; cleanup failures are no longer swallowed.
+- The structural-control test separately pins every installed Payload hook it depends on, including
+  runtime-composed `array-field__row`, so a Payload upgrade that renames one fails the unit suite.
+  Sass and PostCSS are direct pinned dev dependencies rather than accidental transitives.
+- The static-class guard compiles Sass before matching. A mutation-style unit case proves that
+  `.lp-manage` plus another block's `&__num` does not invent `.lp-manage__num`. The selector query
+  itself is now one definition in `tests/helpers/cssSelectors.ts`, shared by both CSS guards.
+- ⚑ A later review pass found the first limiter fix had handed the 1 ms window to `test:http` and
+  `test:e2e`, which reach the app's own database — on the Rock, the live one — where it resets the
+  real signup budget instead of isolating from it. Fixed before merge by confining those values to
+  `test.env`; the gate had passed WITH the defect present, because CI's database is ephemeral. The
+  deeper fix (stop counting trusted Local-API fixture creates as anonymous signups) is filed as its
+  own issue rather than carried here.
+- Multi-user teardowns (`purgeMarked`, `verifyBackfill`, `adminResetLinkCarveOut`) now attempt every
+  deletion and report the collected failures, rather than abandoning the rest at the first refusal.
+- Local gates passed: **1,069 unit tests in 117 files; 224 integration tests in 28 files; ESLint,
+  Prettier and `tsc --noEmit`; and a production Docker build with the full route manifest.** The full
+  integration suite was rerun on a newly created empty database, then direct SQL proved zero users,
+  user-role rows, marked/standalone test users and run-specific counters. The reused `lesson3_test`
+  database's one old fixture admin and five old `authrl` counters were removed and counted at zero.
+- Authenticated browser measurement on the built local stack passed for both roles. A Teacher with
+  editing access had the prose-only marker and row menus, add-row buttons and drag handles all computed
+  hidden, while Collapse/Show and disclosure indicators remained visible. A Subject-grade
+  Administrator had no marker and the same structural controls computed visible. No browser errors;
+  disposable fixtures were removed and independently counted at zero.
+
+## Decisions closed, not backlog
+
+- **Back from Word on iPhone/iPad:** accepted as a rare edge; do not investigate again without
+  materially stronger evidence of frequency or harm.
+- **Accordion browser search:** visible lesson-title search is sufficient. Firefox's failure to open
+  collapsed lesson content for a hidden full-text match is accepted. Hash opening and print expansion
+  remain required.
+- **Official-pointer lock:** already complete in #217. The explicit lock is delete-side only by
+  design; do not recreate the stale two-sided prerequisite.
+- **Generator licence:** the other party intends MIT, so the conversation is probably over. Wait for
+  published or written confirmation for the pinned code before editing `NOTICE` and provenance.
+  Lesson-content rights remain separate.
+
+## Next work, in order
+
+1. **Review the complete uncommitted diff.** Commit/PR/deploy only on explicit operator instruction.
+2. **Build the read-page accordion** from
+   `docs/DESIGN-read-page-accordion-2026-08-29.md`: fully collapsed on entry, inbound/click hash opens
+   its lesson, print expands all, and the three mechanisms share one visual stylesheet. Title search
+   is the whole browser-search requirement.
+3. **System panel part 2:** the one-flag `publicLibraryLive` work remains the next independent product
+   slice after the accordion unless the operator reprioritizes it.
+4. **Public-read rights/copy confirmation:** keep generator-code MIT confirmation and lesson-content
+   permission as two separate evidence tasks before the public corpus launches.
+
+---
+
 # ⚑ HANDOFF (2026-08-29) — eleven PRs of editor/mobile fixes; two things still open
 
 **Supersedes the blocks below for state; they stay for provenance.** The day closed with **PR #321**.

@@ -1,15 +1,19 @@
 # Public discovery and deployment modes
 
-**Status:** product direction agreed 2026-08-12; slices 2 and 3 planned 2026-08-14, no code merged
-yet. This document separates the decisions already made from the choices the build still owes.
-`SPEC.md` remains authoritative for the resulting architecture and security rules.
+**Status:** product direction agreed 2026-08-12; the deployment boundary and publication model
+(slices 2 and 3) are on `main`, including the disabled-mode 404, visibility/slug fields and the narrow
+Plan → current Official resolver. `/explore` is still a placeholder: the public read, artifact,
+sharing and attribution slices (4–7) have not been built. This document separates the decisions already
+made from the choices the build still owes. `SPEC.md` remains authoritative for the resulting
+architecture and security rules.
 
-⚑ **A prerequisite outside this document's slices: the Official-pointer lock.** Every public route
-below resolves through a plan's current Official pointer, and that pointer has an open read-then-write
-race — an Official version can be deleted during a concurrent promotion, nulling the pointer via
-`ON DELETE SET NULL` and destroying an approved snapshot. Close it (a row lock on `lesson_plans` taken
-by both `enforceOfficialNotDeletable` and `makeOfficialEndpoint`, with a real concurrent-Postgres
-regression test) before the public contract is built on top of it.
+⚑ **PREREQUISITE COMPLETE (#217): the Official-pointer lock.** Every public route below resolves
+through a plan's current Official pointer, so the delete-side stale-read race had to close before the
+public contract was built on top of it. `enforceOfficialNotDeletable` now locks the `lesson_plans` row
+before reading the pointer, and `officialPointerLock.int.spec.ts` mutation-pins the wait. There is
+deliberately no matching explicit promotion-side lock: `UPDATE lesson_plans` already takes that row's
+write lock, and the attempted test for an added lock passed with it removed. `hooks/lessonPlan.ts`
+records the asymmetry at the point someone might otherwise re-add it.
 
 ## Goal
 
@@ -149,11 +153,12 @@ upstream in the ARES generator, re-vendor the pristine files, run the fidelity g
 
 ## Proposed implementation slices
 
-1. **Rights and copy:** confirm publishable corpus, licence/attribution, the ARES–Seavuria wording,
+1. **Rights and copy:** confirm publishable corpus, content licence/attribution, the ARES–Seavuria wording,
    and the permanent public domain.
-2. **Deployment boundary:** explicit setting, login-page Explore action, 404 behavior when disabled,
-   and tests proving the two modes.
-3. **Publication model:** native fields, migration/codegen, Site-Admin controls, unique slug rules,
+2. ✅ **Deployment boundary:** explicit setting, login-page Explore action, 404 behavior when disabled,
+   and tests proving the two modes. The environment ceiling is live; Manage's runtime
+   `publicLibraryLive` control remains System-panel part 2.
+3. ✅ **Publication model:** native fields, migration/codegen, Site-Admin controls, unique slug rules,
    and server-side Official/public resolution.
 4. **Public read slice:** mobile-first `/explore`, human-readable lesson pages, generator-derived
    preview, metadata/social cards, related lessons and no authenticated controls leaking through.

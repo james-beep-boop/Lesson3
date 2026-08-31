@@ -20,6 +20,7 @@
  */
 import { randomUUID } from 'node:crypto'
 
+import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 import { getPayload } from 'payload'
 import config from '../../src/payload.config.js'
@@ -33,6 +34,7 @@ import type {
 } from '../../src/payload-types.js'
 import { jobMatchesVersion } from '../../src/jobs/generateVersionArtifact.js'
 import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks.js'
+import { drizzleOf, rowsOf } from './db.js'
 
 /**
  * Stable namespace prefix shared by every fixture run. Used ONLY for the crashed-run safety sweep at
@@ -75,6 +77,42 @@ export const createUserVerified = (
     disableVerificationEmail: true,
     overrideAccess: true,
   })
+
+/**
+ * Remove one exact fixture user while preserving Payload's ordinary delete cascades.
+ *
+ * A fresh database auto-promotes its first user to Site Administrator, and the production hook
+ * correctly refuses to delete the last usable administrator. For test-owned users only, strip this
+ * exact user's roles below the hook layer, then perform a normal by-id Payload delete. Restore the
+ * roles and fail loudly if deletion does not complete.
+ */
+export async function deleteUserFixture(payload: Payload, userId: number | string): Promise<void> {
+  // One statement, not a SELECT then a DELETE: `RETURNING` hands back exactly the rows it removed,
+  // so there is no window in which the restore data has been read but the delete has not happened.
+  const roles = rowsOf<{ value: string; order: number }>(
+    await drizzleOf(payload).execute(
+      sql`DELETE FROM users_roles WHERE parent_id = ${userId} RETURNING value, "order"`,
+    ),
+  )
+
+  try {
+    await payload.delete({ collection: 'users', id: userId, overrideAccess: true })
+  } catch (deleteError) {
+    try {
+      for (const role of roles) {
+        await drizzleOf(payload).execute(
+          sql`INSERT INTO users_roles ("order", parent_id, value) VALUES (${role.order}, ${userId}, ${role.value})`,
+        )
+      }
+    } catch (restoreError) {
+      throw new AggregateError(
+        [deleteError, restoreError],
+        `Fixture user ${String(userId)} could not be deleted and its roles could not be restored`,
+      )
+    }
+    throw deleteError
+  }
+}
 
 export interface RoleFixture {
   payload: Payload
@@ -270,6 +308,17 @@ export async function setupRoleFixture(password = 'test1234'): Promise<RoleFixtu
  * per-run {@link MARK} for a precise teardown, or {@link MARK_BASE} for the setup namespace sweep.
  */
 export async function purgeMarked(payload: Payload, mark: string): Promise<void> {
+  const assertBulkDeleteSucceeded = (collection: string, result: unknown) => {
+    const errors = (result as { errors?: unknown[] })?.errors ?? []
+    if (errors.length > 0) {
+      throw new Error(
+        `Fixture cleanup failed for ${collection} (${mark}): ${errors
+          .map((error) => JSON.stringify(error))
+          .join('; ')}`,
+      )
+    }
+  }
+
   // Unset Official pointers on marked plans so their versions become deletable. Loop (rather than a
   // fixed cap) so an unbounded number of leftover plans is fully cleared.
   for (;;) {
@@ -293,31 +342,67 @@ export async function purgeMarked(payload: Payload, mark: string): Promise<void>
     )
   }
 
-  await payload.delete({
-    collection: 'lesson-bundle-versions',
-    where: { title: { like: mark } },
-    overrideAccess: true,
-  })
-  await payload.delete({
-    collection: 'lesson-plans',
-    where: { title: { like: mark } },
-    overrideAccess: true,
-  })
-  await payload.delete({
-    collection: 'users',
-    where: { name: { like: mark } },
-    overrideAccess: true,
-  })
-  await payload.delete({
-    collection: 'subject-grades',
-    where: { displayName: { like: mark } },
-    overrideAccess: true,
-  })
-  await payload.delete({
-    collection: 'subjects',
-    where: { name: { like: mark } },
-    overrideAccess: true,
-  })
+  assertBulkDeleteSucceeded(
+    'lesson-bundle-versions',
+    await payload.delete({
+      collection: 'lesson-bundle-versions',
+      where: { title: { like: mark } },
+      overrideAccess: true,
+    }),
+  )
+  assertBulkDeleteSucceeded(
+    'lesson-plans',
+    await payload.delete({
+      collection: 'lesson-plans',
+      where: { title: { like: mark } },
+      overrideAccess: true,
+    }),
+  )
+
+  // Delete users one at a time. Payload's bulk operation reports per-document hook refusals in its
+  // returned `errors` array rather than throwing, and a fresh DB's first fixture user is also its
+  // auto-promoted last Site Administrator. The exact helper handles that test-only case and retains
+  // all ordinary Payload delete cascades.
+  for (;;) {
+    const { docs: users } = await payload.find({
+      collection: 'users',
+      where: { name: { like: mark } },
+      limit: 200,
+      depth: 0,
+      overrideAccess: true,
+    })
+    if (users.length === 0) break
+    // Attempt EVERY user before reporting. Stopping at the first refusal leaves the rest of the
+    // namespace behind, and the leftovers are what break a later, unrelated suite — the failure
+    // mode this whole sweep exists to prevent.
+    const failures: unknown[] = []
+    for (const user of users) {
+      await deleteUserFixture(payload, user.id).catch((error: unknown) => failures.push(error))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures,
+        `Fixture cleanup could not delete ${failures.length} user(s) (${mark})`,
+      )
+    }
+  }
+
+  assertBulkDeleteSucceeded(
+    'subject-grades',
+    await payload.delete({
+      collection: 'subject-grades',
+      where: { displayName: { like: mark } },
+      overrideAccess: true,
+    }),
+  )
+  assertBulkDeleteSucceeded(
+    'subjects',
+    await payload.delete({
+      collection: 'subjects',
+      where: { name: { like: mark } },
+      overrideAccess: true,
+    }),
+  )
 }
 
 /**

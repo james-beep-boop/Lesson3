@@ -45,7 +45,6 @@ vi.mock('../../src/lib/errorTracking.js', async (importOriginal) => ({
 import config from '../../src/payload.config.js'
 import { captureException } from '../../src/lib/errorTracking.js'
 import { generateVersionArtifactTask } from '../../src/jobs/generateVersionArtifact.js'
-import { clearRateLimitBuckets } from '../helpers/db.js'
 import {
   MARK,
   MARK_BASE,
@@ -116,22 +115,6 @@ async function withFailingEnqueue<T>(
   }
 }
 
-/**
- * Release the SHARED global sign-up budget.
- *
- * This suite creates users (a sender, a fresh recipient per test, and `setupRoleFixture`'s four
- * roles) purely as scaffolding — it is not testing the limiter. But `signupGlobal` is a single
- * site-wide bucket with a daily cap, so those creates spend budget that every LATER suite needs:
- * adding the role fixture here was enough to make six unrelated int files die in setup with
- * "Sign-ups are temporarily paused". `fileParallelism: false` means the damage is strictly
- * downstream and invisible when this file is run alone, which is exactly how it got missed.
- *
- * So we clear the global counter on the way in (guaranteeing headroom for our own fixture) and on
- * the way out (handing the budget back). Only the GLOBAL bucket is touched — per-target rows are
- * left alone so nothing here can weaken what `authRateLimit.int.spec.ts` asserts.
- */
-const releaseSignupBudget = (p: Payload) => clearRateLimitBuckets(p, 'signupGlobal%')
-
 beforeAll(async () => {
   // ORDER MATTERS: purge BEFORE building the fixture. `purgeMarked` sweeps the whole `MARK_BASE`
   // prefix, which `setupRoleFixture` also uses — running it second deletes the plan and subject-grade
@@ -139,7 +122,6 @@ beforeAll(async () => {
   // that looks like a product bug rather than a fixture-ordering one.
   const bootstrap = await getPayload({ config })
   await purgeMarked(bootstrap, MARK_BASE)
-  await releaseSignupBudget(bootstrap)
 
   fx = await setupRoleFixture()
   payload = fx.payload
@@ -153,7 +135,6 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.restoreAllMocks()
   await purgeMarked(payload, MARK_BASE)
-  await releaseSignupBudget(payload) // hand the shared budget back to the suites that run after us
 })
 
 describe('best-effort enqueue cannot destroy the primary write (L3-03)', () => {

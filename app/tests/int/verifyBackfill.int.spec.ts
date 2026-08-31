@@ -22,7 +22,8 @@ import { getPayload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 
 import config from '../../src/payload.config.js'
-import { createUserVerified } from '../helpers/fixtures.js'
+import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
+import { clearRateLimitBuckets, drizzleOf } from '../helpers/db.js'
 import { up } from '../../src/migrations/20260710_041621_add_email_verification.js'
 
 const RUN = `verifybf-${Date.now()}`
@@ -34,8 +35,7 @@ let payload: Payload
 let legacyId: number
 let unverifiedId: number
 
-const drizzle = () =>
-  (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<unknown> } }).drizzle
+const drizzle = () => drizzleOf(payload)
 
 const verifiedOf = async (id: number) =>
   (await payload.findByID({ collection: 'users', id, depth: 0, overrideAccess: true }))._verified
@@ -64,15 +64,25 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!payload) return
-  await payload.delete({
-    collection: 'users',
-    where: { email: { in: [LEGACY_EMAIL, UNVERIFIED_EMAIL] } },
-    overrideAccess: true,
-  })
-  // The login assertion spends auth budgets keyed by this run's email.
-  await drizzle().execute(
-    sql`DELETE FROM "rate_limit_counters" WHERE "bucket_key" LIKE ${`%${RUN}%`};`,
-  )
+  try {
+    // `deleteUserFixture` — see its docblock for why a bulk delete cannot do this job. On a fresh
+    // database `legacyId` is also Payload's auto-promoted first Site Administrator.
+    //
+    // Attempt BOTH before reporting: stopping at the first refusal leaves the second user behind,
+    // and a leftover fixture is what breaks a later, unrelated spec.
+    const failures: unknown[] = []
+    for (const id of [legacyId, unverifiedId]) {
+      if (id != null) await deleteUserFixture(payload, id).catch((e: unknown) => failures.push(e))
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `Could not delete ${failures.length} fixture user(s)`)
+    }
+  } finally {
+    // The login assertion spends auth budgets keyed by this run's email. ⚑ `clearRateLimitBuckets`,
+    // not a hand-written DELETE — the column is `bucket_key`, and a hand-written copy that said
+    // `key` once deleted nothing, silently. See `helpers/db.ts`.
+    await clearRateLimitBuckets(payload, `%${RUN}%`)
+  }
 })
 
 describe('email-verification migration backfill (executable, Codex 2026-07-10)', () => {

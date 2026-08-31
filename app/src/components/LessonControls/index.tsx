@@ -600,10 +600,22 @@ export default function LessonControls() {
     setPdfMenuOpen(true)
   }
 
+  // CSS signals for mode and role. `--prose-only` is deliberately derived from the SAME permission
+  // helpers as the server-side field split: a teacher with editing access may change lesson prose,
+  // but only a Subject/Site Administrator may add, remove, duplicate or reorder structural rows.
+  // ⚑ Best-effort affordance, not the boundary. `canEdit` can resolve after first render, so there
+  // are frames where the marker is absent and the controls are briefly visible; `custom.scss` hides
+  // them and `applyEditorFieldSplit` is what actually rejects a structural diff.
+  const wrapClass = [
+    'lesson-controls-wrap',
+    editing && 'lesson-controls-wrap--editing',
+    canEdit && !canEditStructure && 'lesson-controls-wrap--prose-only',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    // The --editing modifier is the CSS signal for edit mode (role-locked "read-only" label chips in
-    // custom.scss key off it — the old signal was the absence of the removed view-mode notice).
-    <div className={`lesson-controls-wrap${editing ? ' lesson-controls-wrap--editing' : ''}`}>
+    <div className={wrapClass}>
       {/* One header row: what you're looking at · status · lifecycle · previews · help · exit.
           The lifecycle swaps Edit ⇄ Save/Cancel with the mode (D3/§13: no dead lifecycle button
           ever renders), and the bold Viewing:/Editing: prefix carries the mode. */}

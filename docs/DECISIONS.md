@@ -11,6 +11,168 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-30 — A test-only rate-limit window is not test-only on a shared database
+
+Caught in review **before merge**, on the branch that introduced it. The first fix for fixture
+signup contamination gave `test:int`, `test:http` and `test:e2e` a raised `RATE_LIMIT_SIGNUP_GLOBAL_MAX`
+and a **1 ms** `RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS`. For `test:int` that is correct: it owns the
+private `lesson3_test` database. For the other two it is a production defect.
+
+The chain, verified in installed source rather than reasoned about:
+
+1. `test:http` and `test:e2e` seed fixtures through the **Local API, in-process**, so env set on the
+   runner applies to those writes.
+2. `createUserVerified` calls `payload.create` with `overrideAccess: true` and **no `req.user`**, so
+   `authRateLimit` classifies each fixture user as an anonymous signup and spends `signupGlobal:all`.
+3. `take()` in `lib/rateLimit.ts` upserts with `SET "window_start" = <windowStart>` **unconditionally**
+   and `"count" = CASE WHEN r."window_start" = <windowStart> THEN count + 1 ELSE 1 END`. At
+   `windowMs = 1`, `windowStart` is a millisecond value.
+4. The app process uses the 24-hour window. Its next signup observes a differing `window_start` and
+   **resets the count to 1**.
+5. `vitest.http.config.mts` states that on the Rock, `test:http` runs `--env-file .env` — the **live**
+   `lesson3` database.
+
+So `npm run test:rock` on the Rock silently cleared the real deployment's daily signup budget. Before
+the change tests *consumed* that budget, which is wrong but fails CLOSED; after it they *reset* it,
+which fails OPEN on an abuse limiter.
+
+⚑ **CI could not have caught this, and green CI is not evidence about it.** CI's `lesson3` dies with
+`docker compose down -v`; the defect exists only where a runner points at a database something else
+depends on. The gate passed on this branch with the defect present.
+
+**The rule: a rate-limit counter row is SHARED STATE, so limiter env is never "test-local" unless the
+DATABASE is.** Test-only limiter values belong in `test.env`, which only `test:int` loads. Any runner
+that seeds into the app's own database gets the production limits, full stop — including a raised
+ceiling, which would let a test run spend budget the deployment is counting on.
+`tests/unit/testSignupLimitConfig.spec.ts` now pins this as a **negative** assertion: neither script
+may mention `RATE_LIMIT_SIGNUP_GLOBAL_`.
+
+The deeper fix is filed separately: stop classifying trusted Local-API fixture creates as anonymous
+signups at all (the `!req.user` axis in `hooks/authRateLimit.ts`), which deletes the env plumbing and
+this whole class of problem. It touches an auth hook and must keep the over-the-wire anonymous-signup
+tests exercising the real gate, so it is its own change, not a rider on this one.
+
+## 2026-08-30 — Test cleanup must prove zero rows; stylesheet guards compile Sass and pin dependency hooks
+
+Independent review found five real holes in the first implementation of the next-session foundation
+work. Re-running the whole suite on an actually empty database exposed one more instance of the same
+cleanup defect. The fixes establish reusable rules.
+
+### A successful Payload bulk delete does not mean every document was deleted
+
+`authRateLimit.int.spec.ts` switched its first-user cleanup from by-id deletion to an exact-match bulk
+delete because a fresh database auto-promotes that fixture to Site Administrator and the last-admin
+hook refuses its deletion. That made the suite green for the wrong reason. Payload's installed bulk
+operation catches a per-document `beforeDelete` failure, returns it in `errors`, and resolves; the test
+ignored the result and left an `authrl-*` account behind.
+
+That exact-user deletion is now centralized in `tests/helpers/fixtures.ts`: read and remove only the
+fixture's role rows below the hook layer, perform an ordinary by-id Payload deletion so all cascades
+still run, restore the roles if deletion fails, and let the failure fail the suite. `purgeMarked`
+uses it for every marked user and inspects `errors` from every remaining bulk delete. The auth,
+verification-backfill, reset-link and collapse-preference specs use the same helper; counter cleanup
+runs in `finally`. General rule: any test using Payload bulk delete for teardown must inspect its
+returned `errors` or independently prove zero matching rows; awaiting the call is not proof. Do not
+swallow cleanup failures with `.catch(() => {})`.
+
+The first correction run against the ordinary local database was green but did not exercise this
+case: an older stuck Site Administrator meant the auth probe was not Payload's first user. A full run
+against a newly created empty database then exposed the same bulk-delete leak in
+`verifyBackfill.int.spec.ts`. After centralizing all standalone teardowns, a second empty-database run
+passed all 224 integration tests and a direct SQL postcondition found zero users, role rows,
+`ZZ_INT` users, standalone test users and run-specific counters. The ordinary `lesson3_test` database's
+one stuck fixture user and five old `authrl` counters were then removed and counted at zero. General
+rule: a fresh-database teardown fix needs a fresh-database proof; a green reused database can take a
+different branch.
+
+### Nested Sass must be resolved structurally, not by pairing unrelated strings
+
+The first static-class guard accepted a BEM class when `.base` occurred anywhere in the stylesheet
+and `&__suffix` occurred anywhere else. That admits invented combinations across unrelated blocks.
+The guard now compiles `custom.scss`, parses the resulting CSS rules with PostCSS, and requires the
+complete class in one real selector. The corrected guard immediately exposed another inert class,
+`lp-taxonomy__label`, repeated on six spans; those attributes were removed because the spans
+deliberately inherit from the parent field and have no rule of their own.
+
+The prose-only structural-control test keeps its app-owned cascade assertions and adds a separate
+compatibility contract against installed `@payloadcms/ui`: the bare `array-actions` component class is
+pinned in `ArrayAction/index.js`; runtime-composed `array-field__row` is pinned in `ArrayRow.js`; and
+the add-row, drag, header-action and indicator hooks are pinned in Payload's compiled stylesheet. This
+catches a dependency selector rename rather than checking only our stylesheet against itself. `sass`
+and `postcss`, which these tests import directly, are now direct pinned dev dependencies instead of
+accidental transitives of `@payloadcms/next`. The explanatory CSS comment now says why Payload
+`readOnly` is unsuitable: it also cascades into the prose children and would freeze the fields the
+Teacher is allowed to edit.
+
+### Fixture configuration and production defaults are tested as behaviour
+
+The integration runner retains the deliberate high signup ceiling and 1 ms test-only window; see the
+entry above for why `test:http` and `test:e2e` must not. The
+production-default assertion no longer searches source text. It dynamically loads the real limiter
+with controlled environment values and a deterministic in-memory database seam, proving the configured
+ceiling/window, the 100-per-24-hour fallback, and the anonymous-create path's `signupGlobal` refusal.
+
+## 2026-08-30 — Four next-session questions settled: one accepted edge, one search contract, and two stale diagnoses
+
+The 2026-08-29 handoff left several items phrased as open work. The operator reviewed the priorities
+before implementation and settled four of them.
+
+### Back from a generated Word document is an accepted low-frequency edge case
+
+The reported iOS/iPadOS history behaviour is **not active work**. Word downloads are already absent at
+phone width; opening a generated Word document on an iPhone or iPad should be rare, and investing in a
+third speculative browser-history repair is not justified by the expected use. Keep the current
+download behaviour. Re-open only with materially stronger evidence of harm or frequency, not merely a
+new theory about the old report.
+
+This is a product-priority decision, not a claim that the browser behaviour was explained or fixed.
+
+### The read-page accordion needs title search, not collapsed full-text search
+
+The accordion's collapsed state is deliberately the table of contents. A teacher can scan or use
+browser search over the visible lesson titles, open the relevant lesson, and then search within it.
+Firefox not auto-expanding closed `<details>` elements for a match inside lesson content is therefore
+an accepted browser difference, not a launch blocker. Hash navigation and printing remain hard
+requirements: a direct `#lesson-N` must open its target, and print must expand every section.
+
+### The CI limiter diagnosis was at the wrong lifecycle boundary
+
+The 2026-08-27 entry below says rate-limit state "persists across CI runs." That does not describe the
+current GitHub job: it creates an empty `lesson3_test` database in an ephemeral Compose stack and ends
+with `docker compose down -v`. A completed job has no database volume to pass to its rerun.
+
+What **does** persist is a global counter across sequential spec files inside one run, and across
+repeated local E2E runs when they deliberately share a persistent database. `setupRoleFixture` creates
+four users through the real Users hook; those system-looking Local API creates have no `req.user`, so
+they consume `signupGlobal:all`. `fileParallelism: false` then makes the damage strictly downstream.
+`bestEffortEnqueue.int.spec.ts` already documents and locally repairs this exact contamination.
+
+The fix is environment ownership: fixture-heavy test processes set a high global signup ceiling and
+a 1 ms counter window, while production keeps its 100/day default. The short test-only window is what
+makes repeated runs deterministic rather than merely postponing exhaustion. Integration tests get
+those values from `test.env` and nowhere else — ⚑ see "A test-only rate-limit window is not
+test-only on a shared database" above for why the same values must NOT be handed to `test:http` or
+`test:e2e`. Remove the ad hoc `signupGlobal` deletion from `bestEffortEnqueue.int.spec.ts`:
+unrelated suites must not erase a shared abuse counter, even narrowly. Limiter specs may still remove
+the exact rows they deliberately exercise. Never change the production default to make tests convenient.
+
+### The Official-pointer lock is already complete
+
+The active handoff mistakenly listed it as unfinished even though the same file records #217 as done.
+Current source is the authority: `enforceOfficialNotDeletable` locks the Lesson Plan row before reading
+its pointer, and `officialPointerLock.int.spec.ts` mutation-pins that wait. There is deliberately no
+matching explicit lock on promotion: the `UPDATE lesson_plans` already takes the row's write lock, and
+the attempted promotion-side test stayed green with the extra lock removed. Do not rebuild either
+half from the stale prerequisite paragraph in `DESIGN-public-library.md`.
+
+### Generator licensing is confirmation work, not a design track
+
+The other party intends to use MIT for the CBE generator code. Treat that conversation as
+substantively settled, but do not remove `NOTICE`'s carve-out until the licence is published upstream
+or supplied in writing for the pinned vendored files. Once confirmed, record the licence and source
+commit in `vendor/PROVENANCE.md`, then update `NOTICE` and the README. Lesson-plan content rights remain
+a separate question before a public corpus launches.
+
 ## 2026-08-29 — Answer keys are EDIT-restricted, not read-restricted; and hiding them is not worth fixing
 
 Investigated because Payload's "Copy Field" menu looked like it might leak answer keys to a teacher.
