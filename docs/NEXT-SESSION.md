@@ -25,6 +25,94 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ⚑ HANDOFF (2026-08-30, evening) — the lesson page carries its own PDF/Word (#326)
+
+**Supersedes the earlier 2026-08-30 block below for STATE; its priority decisions still stand
+unchanged** — the accordion and public-deployment tracks remain deferred, and there is still no
+active next feature. This block adds one operator-reported fix that landed after that pause was
+declared, and it does not reopen either track.
+
+⚑ **NO `main` SHA HERE, for the reason #322 established.** Measure:
+`git fetch -q origin main && git rev-parse --short origin/main`. If the newest merged PR is **#326**
+or later, this block is current.
+
+## Status
+
+| | |
+|---|---|
+| Open PRs | none |
+| Branches | `main` only, local and remote; no worktrees; working tree clean |
+| Last merged | **#326** (squash), on top of #325 |
+| Deployed | ⚑ **UNKNOWN — measure, do not trust any line here.** Nothing was deployed from this session |
+| To deploy | plain `scripts/deploy.sh` — **no migrations**, and no `payload-types.ts` impact: the change touches only frontend components, one stylesheet, two unit specs and docs. No collection or field was altered |
+
+## What shipped
+
+**The problem, as the operator reported it:** a teacher who opens a lesson plan from the catalogue
+lands on a page with no way to get the document — they have to go BACK a page to reach the PDF/Word
+buttons they just walked past.
+
+1. **The primary Lesson plan's `DocButtons` now render in `.export-bar`**, in the action bar
+   immediately before Share ▾. `DocButtons` gained a `variant` that changes the button **chrome
+   only** — `toolbar` renders full-size `.btn` to match its neighbours instead of the catalogue's
+   `.btn--quiet.btn--compact` pills. The two-phase export, the cache warm, the popup-blocker dance and
+   the iOS-Safari `downloadPreparedDocument` fix are untouched, so the three surfaces cannot drift.
+2. **The Share menu filters the primary OUT** (`secondaryDeliverables`, the same helper the catalogue
+   row has always used). Without this the identical pair rendered twice on one screen. Every document
+   now has exactly one home: the Lesson plan on the bar, the supporting documents in the menu; a
+   version with neither drops that menu section entirely.
+3. **The output group's divider MOVED to `.doc-buttons--toolbar`** and its declarations were DELETED
+   from `.share-wrap`, with the ≤640px reset repointed to follow it. Net: fewer stylesheet rules than
+   before the change.
+4. **Both guides corrected**, mirrored, with the new fact pinned in `guideParity.spec.ts`.
+   `buttonSystem.spec.ts` now pins all THREE rendered shapes of the Word button.
+
+⚑ **THIS PARTLY REVERSES 2026-07-17 AND THAT IS DELIBERATE — do not "restore" the consolidation.**
+That decision moved every download into the Share menu because the catalogue row already offered them.
+It was right about the FULL per-document strip, which has NOT come back. What it got wrong is the
+premise that a download one navigation step away is still at hand. Reasoning and the general rule are
+in `docs/DECISIONS.md` 2026-08-30, "The lesson page gets its own PDF/Word".
+
+## Verification
+
+- Local gates: **1,071 unit tests in 117 files**, `tsc --noEmit`, ESLint, Prettier — all clean. The
+  integration and e2e suites were NOT run locally (they need a database); CI covered them.
+- CI `gate` passed in 13m26s before merge.
+- Authenticated browser measurement on the local stack, both roles: the export endpoints returned 200
+  for `as=pdf` and `as=docx`; all four bar controls measured 38px; at 375px Word computed
+  `display: none`, PDF took the 44px touch target and the divider dropped; the Share menu's
+  per-document download list contained only Final explanation and Summary table (its Download-all,
+  Email and Message entries are unchanged and still present).
+- ⚑ **The rendered `/guide` text was read from the DOM, not the source** — that file has a documented
+  defect where an HTML entity swallows a leading space and welds words together.
+
+## Two things worth carrying forward
+
+- ⚑ **A CodeRabbit `pass` DOES NOT MEAN IT REVIEWED — read its status text, not the tick.** The
+  check reports `pass` either way, and its two strings mean opposite things: "Review completed" is a
+  review, "Review skipped: manual review required for this OSS repository" is none. Measured across
+  three runs it was inconsistent — skipped on #326 entirely, then on #327 it reviewed the first push
+  (and found a real over-broad claim in this very block) and skipped the second. So neither "it never
+  reviews here" nor "green means reviewed" is safe; the only reliable read is
+  `gh pr checks <n>`'s description column, per push.
+- ⚑ **Four parallel cleanup agents missed a false UI claim that a human caught.** Both guides said the
+  buttons sit "between Edit and Share" — true only for someone who can edit, since a teacher without
+  editing access sees `Request editing access` in that position. The reviewers were pointed at the
+  diff and the code, and the claim is only false in a state the diff does not show. **Prose claims
+  about UI need the running app in more than one role**; a diff review cannot get there.
+
+## Next work, in order
+
+1. **Deploy.** #325 and #326 are both undeployed as far as this session knows. Measure the Rock; do
+   not assume. No migrations in either.
+2. **Still paused — there is no active next feature.** The earlier block's decision stands: reassess
+   the authenticated teacher workflow on the deployed app before selecting more work. #326 is evidence
+   that reassessment pays — it came from the operator using the app, not from a backlog.
+3. **Both deferred tracks stay deferred** (read-page accordion; public deployment). See the block
+   below for their conditions; nothing here reopens them.
+
+---
+
 # ⚑ HANDOFF (2026-08-30) — foundation work merged; the accordion and public tracks are DEFERRED
 
 **Supersedes the 2026-08-29 block below for current priorities; older blocks remain provenance.**
