@@ -102,18 +102,33 @@ jobs:
           migrate_digest="$(docker buildx imagetools inspect "$migrate_image" | awk '$1 == "Digest:" {print $2; exit}')"
           scripts/build-local-deploy-bundle.sh \
             "$GITHUB_REF_NAME" dist "$app_digest" "$migrate_digest"
-      - name: Create GitHub Release and upload deployment bundle
+      # The release is PUBLISHED WITH ITS BUNDLE ALREADY ATTACHED, by way of a draft.
+      #
+      # Creating a release first and uploading assets afterwards leaves a window in which GitHub
+      # advertises the version as "Latest" while `releases/latest/download/...` returns 404. v0.80
+      # spent the whole 17 minutes of this job in that state, because the release had been created by
+      # hand before the job ran. A draft is never served by `releases/latest`, so assembling the
+      # release as a draft and making it visible only once its assets are on it CLOSES that window
+      # rather than shortening it. Pushing the tag is now the only step a human performs.
+      - name: Publish the release with its bundle attached
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
-              --title "Lesson3 $GITHUB_REF_NAME"
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          bundle=dist/lesson3-online-deploy.tar.gz
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # A re-run of this job, or a release somebody created by hand. Its assets are missing right
+            # now either way, so attach them immediately rather than refusing and leaving it broken —
+            # but warn, because a hand-created release is precisely what reopens the window above.
+            echo "::warning::release $tag already existed before its bundle was attached; push the tag and let this workflow publish the release"
+            gh release upload "$tag" "$bundle" "$bundle.sha256" --clobber
+          else
+            gh release create "$tag" "$bundle" "$bundle.sha256" \
+              --draft --verify-tag --generate-notes --title "Lesson3 $tag"
+            gh release edit "$tag" --draft=false
           fi
-          gh release upload "$GITHUB_REF_NAME" \
-            dist/lesson3-online-deploy.tar.gz \
-            dist/lesson3-online-deploy.tar.gz.sha256 \
-            --clobber
 
       # A release that is ADVERTISED but not INSTALLABLE is worse than no release: GitHub keeps
       # serving it as "Latest" while `releases/latest/download/...` returns 404, and the first person
