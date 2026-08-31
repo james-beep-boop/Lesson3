@@ -114,3 +114,51 @@ jobs:
             dist/lesson3-online-deploy.tar.gz \
             dist/lesson3-online-deploy.tar.gz.sha256 \
             --clobber
+
+      # A release that is ADVERTISED but not INSTALLABLE is worse than no release: GitHub keeps
+      # serving it as "Latest" while `releases/latest/download/...` returns 404, and the first person
+      # to find out is whoever tried to deploy. v0.80 sat in exactly that state for the length of this
+      # job, because the release was created by hand before the bundle existed. So the last thing this
+      # workflow does is walk the DOCUMENTED install path from docs/LOCAL-SERVER-DEPLOYMENT.md and
+      # fail if it does not lead to this release.
+      #
+      # The VERSION check is doing double duty: it proves the bundle is intact AND that `latest`
+      # resolves HERE. If an older release were still being served as Latest, the download would
+      # succeed and the version inside would be wrong — which is the silent failure this guards.
+      - name: Verify the documented install path resolves to this release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          asset=lesson3-online-deploy.tar.gz
+
+          # `releases/latest` deliberately skips prereleases, so for one of those assert the tagged
+          # URL instead of failing a state that is correct on purpose.
+          if [[ "$(gh release view "$tag" --json isPrerelease -q .isPrerelease)" == "true" ]]; then
+            base="https://github.com/${{ github.repository }}/releases/download/$tag"
+            echo "note: $tag is a prerelease — 'latest' intentionally does not point here"
+          else
+            base="https://github.com/${{ github.repository }}/releases/latest/download"
+          fi
+
+          work="$(mktemp -d)"
+          cd "$work"
+          # Asset availability can lag the upload by a moment; a few retries, not indefinite patience.
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"; then break; fi
+            if [[ "$attempt" == 5 ]]; then
+              echo "::error::$base/$asset is not downloadable — the documented install path is broken"
+              exit 1
+            fi
+            sleep 6
+          done
+
+          sha256sum -c "$asset.sha256"
+          tar -xzf "$asset"
+          got="$(tr -d '[:space:]' <lesson3-deploy/VERSION)"
+          if [[ "$got" != "$tag" ]]; then
+            echo "::error::documented install path serves '$got', expected '$tag'"
+            exit 1
+          fi
+          echo "verified: $base/$asset installs $got"
