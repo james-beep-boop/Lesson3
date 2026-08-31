@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-08-30 — The accordion and public deployment work are deferred
+
+The immediate product goal is a working authenticated app that teachers can navigate easily. For the
+time being deployments are expected to be primarily local, so neither the public-library runtime
+switch nor the public discovery experience is part of the active build sequence.
+
+- **System panel part 2 is deferred.** Its only real flag is `publicLibraryLive`; building the
+  password re-authentication, atomic writer, acknowledgement and fail-closed reader now would add
+  substantial security-sensitive machinery for a capability local installations will not use. The
+  existing `PUBLIC_LIBRARY_ENABLED` environment ceiling remains sufficient to keep that surface
+  absent. System panel part 1's deployment facts remain useful and are not affected.
+- **Public discovery is deferred with it.** Public browse/read, anonymous serve-only PDF, sharing and
+  metadata, and the generator attribution footer stay designed work rather than immediate backlog.
+  The completed deployment boundary and publication model remain in place; do not remove or weaken
+  them merely because their consumers are postponed.
+- **The read-page accordion is also deferred.** It remains the most directly relevant of the three
+  designed features for authenticated teachers, but the operator chose to pause rather than begin
+  another implementation. Keep its agreed design; do not treat its former position in the sequence as
+  authorization to start it in the next session.
+
+This is a priority decision, not a rejection of either design. There is no active next feature after
+the foundation batch. On resumption, reassess the authenticated teacher workflow before selecting
+work. Re-open the public track when there is a concrete public-launch plan or a demonstrated
+operational need for a browser-controlled runtime switch. Generator-code licensing and lesson-content
+publication rights remain separate evidence questions when that happens.
+
 ## 2026-08-30 — A test-only rate-limit window is not test-only on a shared database
 
 Caught in review **before merge**, on the branch that introduced it. The first fix for fixture

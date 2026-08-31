@@ -25,11 +25,13 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# ⚑ HANDOFF (2026-08-30) — the four foundation items are implemented and verified locally
+# ⚑ HANDOFF (2026-08-30) — foundation work merged; the accordion and public tracks are DEFERRED
 
 **Supersedes the 2026-08-29 block below for current priorities; older blocks remain provenance.**
-Work is on `codex/next-session-foundations` and is intentionally uncommitted. Re-measure Git and
-deployment state before acting; this handoff makes no claim that these changes are merged or deployed.
+The foundation work merged as **PR #323** (with the pre-merge limiter correction), and
+`codex/next-session-foundations` is deleted on both sides. ⚑ Re-measure before acting — run
+`git rev-parse --short origin/main` rather than trusting a SHA written here, and this handoff makes
+**no claim about deployment**: the Rock's state is unknown until measured.
 
 ## What changed
 
@@ -105,15 +107,20 @@ deployment state before acting; this handoff makes no claim that these changes a
 
 ## Next work, in order
 
-1. **Review the complete uncommitted diff.** Commit/PR/deploy only on explicit operator instruction.
-2. **Build the read-page accordion** from
-   `docs/DESIGN-read-page-accordion-2026-08-29.md`: fully collapsed on entry, inbound/click hash opens
-   its lesson, print expands all, and the three mechanisms share one visual stylesheet. Title search
-   is the whole browser-search requirement.
-3. **System panel part 2:** the one-flag `publicLibraryLive` work remains the next independent product
-   slice after the accordion unless the operator reprioritizes it.
-4. **Public-read rights/copy confirmation:** keep generator-code MIT confirmation and lesson-content
-   permission as two separate evidence tasks before the public corpus launches.
+1. **Deploy the merged foundation work.** Merge, push and repository cleanup are DONE (#323); the
+   repository is `main`-only with no open PRs. Deployment is the operator's and has not been
+   verified from here — measure the Rock, do not assume.
+2. **Pause after merge/deployment. There is no active next feature.** The operator is taking a break;
+   a later session should reassess the authenticated teacher workflow on the deployed local app before
+   selecting or implementing more work.
+3. **Deferred teacher-navigation track:** the read-page accordion remains fully designed in
+   `docs/DESIGN-read-page-accordion-2026-08-29.md`, including collapsed entry, title search, hash-open
+   and print requirements. Do not begin it merely because it was previously next in this list.
+4. **Deferred public-deployment track:** System panel part 2 (`publicLibraryLive`) and the remaining
+   public browse/read, anonymous-PDF, sharing/metadata and attribution slices are no longer immediate
+   next work. Re-open them only for a concrete public-launch plan or a demonstrated need for a runtime
+   switch. Keep generator-code MIT confirmation and lesson-content publication permission as separate
+   evidence tasks when that track resumes.
 
 ---
 
