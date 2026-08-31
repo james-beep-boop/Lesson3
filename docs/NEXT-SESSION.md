@@ -88,9 +88,13 @@ in `docs/DECISIONS.md` 2026-08-30, "The lesson page gets its own PDF/Word".
 
 ## Two things worth carrying forward
 
-- ⚑ **CodeRabbit reported `pass` WITHOUT REVIEWING**: "Review skipped: manual review required for this
-  OSS repository." The green tick on #326 means the `gate` job only. Do not read a CodeRabbit pass on
-  this repository as evidence that anything was looked at.
+- ⚑ **A CodeRabbit `pass` DOES NOT MEAN IT REVIEWED — read its status text, not the tick.** The
+  check reports `pass` either way, and its two strings mean opposite things: "Review completed" is a
+  review, "Review skipped: manual review required for this OSS repository" is none. Measured across
+  three runs it was inconsistent — skipped on #326 entirely, then on #327 it reviewed the first push
+  (and found a real over-broad claim in this very block) and skipped the second. So neither "it never
+  reviews here" nor "green means reviewed" is safe; the only reliable read is
+  `gh pr checks <n>`'s description column, per push.
 - ⚑ **Four parallel cleanup agents missed a false UI claim that a human caught.** Both guides said the
   buttons sit "between Edit and Share" — true only for someone who can edit, since a teacher without
   editing access sees `Request editing access` in that position. The reviewers were pointed at the
