@@ -379,10 +379,10 @@ json-file driver** (`docker-compose.yml`: `max-size 10m`, `max-file 5` per servi
 disk and recent history is retained.
 
 Deliberately **no error-tracking SaaS** (Sentry etc.): keeps everything on-box, no new dep, nothing to
-scrub. *(Amended 2026-07-05, Phase 5 A4: server-side error tracking now exists, self-hosted and
-env-gated — see "Error tracking (GlitchTip)" below. Logs remain the primary on-box stream; with
-`SENTRY_DSN` unset nothing changes.)* Trade-offs we accept: **no client-side (browser) error capture** —
-post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
+scrub. *(Amended 2026-07-05, Phase 5 A4: the CAPABILITY now exists and is env-gated — see "Error
+tracking" below — but it is **OFF, with no backend chosen**, so this paragraph still describes the
+running system. Logs remain the primary on-box stream; with `SENTRY_DSN` unset nothing changes.)* Trade-offs we accept: **no client-side (browser) error capture** —
+post-mortems are by grepping the JSON logs; liveness is the heartbeat below, where one is configured.
 
 - Tail live: `docker compose logs -f app` · errors only: `docker compose logs app | grep '"level":50'`
   (`50`=error, `60`=fatal).
@@ -391,24 +391,48 @@ post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
 
 ---
 
-## Error tracking (GlitchTip) — SPEC §11, required before real users
+## Error tracking — OFF, optional, no backend chosen (SPEC §11)
 
-Server-side error aggregation/alerting for public exposure (Phase 5 A4). **GlitchTip** (self-hosted,
-Sentry-protocol) is the chosen backend — the client is the standard `@sentry/node` SDK, so a hosted
-Sentry DSN would also work unchanged.
+The capability shipped in Phase 5 A4 and is **off by default**: the release bundle's `.env.example`
+carries `SENTRY_DSN=` empty, and while it is empty every call in `lib/errorTracking.ts` is a no-op. That
+is a statement about the shipped default, not a survey of installations — any deployment that sets the
+variable turns tracking on. **Nothing needs doing to keep it
+that way**, and a local school installation does not need it: Docker's JSON logs cover post-mortems, and
+the push heartbeat below covers liveness **once it is set up**. ⚑ That heartbeat is operator setup and is
+**not configured on the Rock today** (no `HEALTHCHECK_*` keys in `.env`, no heartbeat cron — verified
+2026-09-01), so liveness is currently unmonitored there. Do not read "logs plus heartbeat" as a
+description of the running system.
+
+**Two candidate backends have been considered and NEITHER is adopted** (2026-09-01):
+
+- **Self-hosted GlitchTip — rejected.** It would sit on the same box as the app it watches, so a dead
+  Rock takes the alerting with it, exactly when it is needed. The drafted stack is preserved in closed
+  PR #330 if that trade is ever worth making.
+- **Hosted Sentry — not adopted, deliberately deferred.** It solves shared fate but sends error data off
+  the box to a third party and needs internet. For a school deployment that is a data-governance
+  decision, and it is not a deployment prerequisite, so it stays unmade until something needs it.
+
+⚑ **If it is ever enabled, do not promise what the code cannot deliver.** The context payloads carry ids
+and route paths only (`versionId`, `userId`, `messageId`, `kind`, `path`, `routePath`) — but the
+exception's own **message and stack** are transmitted, and there is no client-side `beforeSend` scrubber.
+An SMTP failure in `passwordResetEmail` can plausibly carry a recipient address inside the error text.
+So "no personal data leaves" would be false; the honest claim is that headers and bodies are never
+attached. Scrubbing, if it is ever needed, has to happen in the SDK before transmission, not after.
 
 **Entirely opt-in via env** (same pattern as SMTP/backups): with `SENTRY_DSN` unset, every call is a
 no-op and the app runs exactly as before. What reports when enabled:
 
 - Unhandled errors in renders / route handlers / server actions (Next `onRequestError` →
   `src/instrumentation.ts`), with route context only — request headers/bodies are deliberately
-  dropped (auth cookies never leave the box).
+  dropped, so auth cookies are never attached to a report.
 - Job failures (`generateVersionArtifact`, `emailVersionArtifact`, `messagePing`) at their existing
-  catch/log seams, with ids only (no email addresses).
+  catch/log seams. ⚑ The **context** we attach is ids only — but the exception's own message and stack
+  go with it, unscrubbed, so "no email addresses" is NOT a property of the report. A nodemailer failure
+  in `passwordResetEmail` can carry the recipient address in the error text.
 
 **Operator setup (one-time):**
-1. Deploy GlitchTip (its own compose stack; NOT part of this app's single-runtime core) or use any
-   Sentry-compatible endpoint. Create a project → copy its DSN.
+1. **Only if you have decided to enable it** (see above — the default is off): create a project at any
+   Sentry-protocol endpoint, hosted or self-hosted, and copy its DSN.
 2. Add to the app `.env`: `SENTRY_DSN=https://…` (+ optional `SENTRY_ENVIRONMENT`, default
    `production`).
 3. `docker compose up -d app` and confirm a test error arrives (e.g. hit a route that throws in a
@@ -502,7 +526,9 @@ shipped in Phase 5 Track A; what remains here is **operator configuration on the
 `SERVER_URL` is the single public-posture switch: setting it enables strict CSRF AND (when https)
 Secure auth cookies AND the empty-users boot guard — the checklist can't be half-applied.
 
-**Standing decisions (2026-07-05):** error tracker = self-hosted GlitchTip; `tokenExpiration`
+**Standing decisions (2026-07-05, error tracker amended 2026-09-01):** error tracker = **none chosen,
+capability OFF** (self-hosted GlitchTip rejected on shared-fate grounds, hosted Sentry deferred as an
+external data flow — see "Error tracking" above); `tokenExpiration`
 stays 2h under public exposure (ratified — strict CSRF + Secure cookies + SameSite=Lax + auth rate
 limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = grant-path lock
 (structural index deferred; trigger = assignment write paths multiplying).
@@ -549,8 +575,9 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
    documented trade-off: browsers that send neither Origin nor Sec-Fetch-Site on same-origin
    requests (older Safari ≤16.x) get bounced to login under strict CSRF — acceptable for public
    exposure, revisit only if real users hit it.
-5. **Error tracking:** deploy GlitchTip, set `SENTRY_DSN` (see "Error tracking (GlitchTip)"
-   above ✓), confirm a test event arrives.
+5. **Error tracking — decide first (see "Error tracking" above; nothing is adopted today).** If you do
+   adopt one, set `SENTRY_DSN` and confirm a test event actually arrives, rather than trusting that the
+   variable is set.
 6. **Verify, over the public URL:**
    - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per
      request ✓ (shipped: middleware CSP), `Set-Cookie` on login carries `Secure`.

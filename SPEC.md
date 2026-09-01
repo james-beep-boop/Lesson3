@@ -627,7 +627,16 @@ collections / endpoints / hooks + the Jobs Queue — none affects the generator/
 
 ## 11. Operations
 
-- **Error tracking / observability** (e.g. Sentry) — required before real users.
+- **Error tracking / observability** (e.g. Sentry) — **required before PUBLIC exposure; optional on a
+  trusted-LAN local installation** (amended 2026-09-01). The original wording said "required before real
+  users", which read as a blanket prerequisite and would have made every school install non-compliant
+  while the capability sat deliberately off. It splits by posture, the way backups and `SERVER_URL` do:
+  a school server on a trusted LAN has Docker's JSON logs, plus the push heartbeat **if the operator has
+  configured one** (§11 below — it is optional setup, not automatic), and shipping error data off-box is
+  a governance decision there, not a default. On an internet-facing host it is required.
+  ⚑ **No backend is adopted today** — self-hosted GlitchTip rejected (shared failure domain with the app
+  it watches), hosted Sentry deferred (external data flow). `docs/OPS.md` → "Error tracking" is canonical
+  for the state and the reasoning.
 - **Automated, encrypted backups** (Postgres dumps); snapshot before migrations. **Encryption and
   retention are constant; the destination varies by deployment (amended 2026-08-20).**
   - **Internet-connected installations: off-site**, to a remote object store — today `age` +

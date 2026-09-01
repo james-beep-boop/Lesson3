@@ -339,6 +339,42 @@ describe('collectSystemFacts', () => {
     }
   })
 
+  /**
+   * ⚑ THIS ROW HAS CARRIED TWO FALSE PRIVACY CLAIMS, so both are pinned as negatives rather than trusted
+   * to review. It first said self-hosting meant nothing reached a third party (untrue once a hosted DSN
+   * was possible); the replacement promised "never names or email addresses" (also untrue — the
+   * exception message and stack are transmitted, there is no `beforeSend` scrubber, and an SMTP failure
+   * in `passwordResetEmail` can carry a recipient address in the error text).
+   *
+   * What the code actually guarantees is narrow: headers and bodies are never attached. The row may say
+   * that and no more. Pinned like the PDF row's locality claim above, because this is the sentence a
+   * school reads to decide whether it is comfortable.
+   */
+  it('claims only what the code guarantees about error reports', async () => {
+    process.env.SENTRY_DSN = 'https://key@sentry.example.org/1'
+    const fact = byKey(await collectSystemFacts(), 'errorTracking')
+    // Guaranteed: headers/bodies are dropped at the seam. Order-independent on purpose — the first
+    // draft of this assertion assumed "never request headers" and failed on copy that reads
+    // "Request headers ... are never attached", which is the better sentence.
+    expect(fact.description).toMatch(/headers[^.]*never|never[^.]*headers/i)
+    // Says where it may go, and that the error text itself travels.
+    expect(fact.description).toMatch(/outside the school|external/i)
+    // Both halves of the exception travel, so both are named. The stack was missing from the first
+    // draft of this sentence — an omission, not a lie, but the same direction of error.
+    expect(fact.description, 'the error message itself is sent and may quote data').toMatch(
+      /error message/i,
+    )
+    expect(fact.description, 'the stack trace is transmitted too').toMatch(/stack trace/i)
+    // NOT guaranteed, and must never be claimed again.
+    expect(
+      fact.description,
+      'the exception message and stack are transmitted unscrubbed, so this cannot be promised',
+    ).not.toMatch(/never[^.]*(name|email|personal)|(name|email|personal)[^.]*never/i)
+    expect(fact.description, 'reports may leave the box; do not imply otherwise').not.toMatch(
+      /nothing (goes|leaves)|stays on (this|the) (box|server)/i,
+    )
+  })
+
   it('names the environment variable for every fact', async () => {
     const missing = (await collectSystemFacts()).filter((f) => !f.envVar).map((f) => f.key)
     expect(

@@ -11,6 +11,68 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-01 — Error tracking stays OFF: no backend adopted, and two false privacy claims removed
+
+**Operator decision, arrived at by elimination.** `SENTRY_DSN` had never been set, so error tracking has
+been inert since Phase 5 A4 shipped the code. Asked to enable it, the honest answer was that there was
+nothing to point it at — OPS.md step 1 is "deploy GlitchTip or use a Sentry-compatible endpoint", and no
+backend existed. A GlitchTip stack was drafted (closed PR #330, digest-pinned and arm64-verified, kept
+for reference), rejected, and hosted Sentry was then also **not adopted**:
+
+- **Self-hosted GlitchTip — rejected on shared fate.** It would sit on the same box as the app it
+  watches, so a dead Rock takes the alerting with it, exactly when it is needed. An observability tool
+  that fails with its subject is not observability.
+- **Hosted Sentry — deferred.** It solves shared fate but sends error data off the box to a third party
+  and needs internet. For a school deployment that is a data-governance decision, and **it is not a
+  deployment prerequisite**: a local installation has Docker's JSON logs, and the push heartbeat where an
+  operator has set one up. ⚑ Stated conditionally on purpose — the heartbeat is optional setup, and it is
+  **not configured on the Rock** (no `HEALTHCHECK_*` keys, no cron; verified 2026-09-01), so it cannot be
+  offered as cover for something that is off. The backup crons ARE installed there (three entries).
+
+**The lesson is about scope, and it is the useful part.** The chain "add SENTRY_DSN" → "there is no
+backend" → "draft one" → "256 lines of GlitchTip compose" grew three steps past the question actually
+asked, and none of it was needed to install or run Lesson3. The reviewer's summary was correct: optional
+scope drift, not a prerequisite. **Nothing had to be removed from the product to reach this state** —
+`lib/errorTracking.ts` is a no-op with the variable unset, so "off" was already the shipped default.
+That is the reward for having written the module against the SDK instead of a backend.
+
+**⚑ TWO FALSE PRIVACY CLAIMS WERE FOUND AND REMOVED, one of them added the same day.** This is the part
+to remember, because the second was made *while correcting the first*:
+
+1. `lib/systemFacts.ts` justified the on-screen wording on the grounds that self-hosting meant "nothing
+   goes to a third party". False as soon as a hosted DSN was possible.
+2. Its replacement promised reports contain "never names or email addresses". **Also false.** Only the
+   *context* payloads are ids and route paths (`versionId`, `userId`, `messageId`, `kind`, `path`,
+   `routePath`) — the exception's own **message and stack** are transmitted as well, there is no
+   client-side `beforeSend` scrubber, and an SMTP failure in `passwordResetEmail` can plausibly carry a
+   recipient address inside the error text.
+
+**The methodological error is precise and worth naming: reading the call sites is not the same as
+knowing what is sent.** Seven `captureException` calls were checked and all seven were clean, which felt
+like verification and was not — the payload is the context *plus the exception*, and only the context had
+been examined. A promise about data egress needs the whole envelope.
+
+The row now claims only what the code guarantees: headers and form contents are never attached, the
+destination may be outside the school, and the error message itself travels and may quote a filename or
+an address. A stronger promise has to be earned with an SDK-side scrubber, not asserted in copy — which
+is also what Sentry's own scrubbing guidance says: data that must never leave has to be removed before
+transmission, not filtered on arrival. Both false claims are pinned as NEGATIVE assertions in
+`tests/unit/systemFacts.spec.ts` so neither can return.
+
+**Also corrected:** `docs/OPS.md` had begun contradicting itself — the logging section still said
+"deliberately no error-tracking SaaS ... nothing to scrub" while the section below announced reports
+now leaving the box to a third party. With nothing adopted, the original line is true again and now says
+so explicitly. The going-public checklist marks error tracking optional rather than a step.
+
+**One shell command in this session's advice was simply wrong** and is recorded so it is not repeated:
+`SENTRY_DSN=… >> /srv/lesson3/.env` is an assignment with a redirection, so it writes NOTHING: there is
+no command for the redirection to carry. (An earlier draft of this entry said it *truncates* the file —
+wrong, and worth correcting rather than leaving: `>>` appends, creating the file if absent but never
+truncating it. `>` would truncate. Existing contents survive either way.) The generated `.env` already contains a `SENTRY_DSN=` line, so the correct action if
+one is ever adopted is to EDIT that line, not append a second.
+
+---
+
 ## 2026-08-30 — The lesson page gets its own PDF/Word, partly reversing the 2026-07-17 consolidation
 
 **Reported by the operator:** a teacher who opens a lesson plan from the catalogue lands on a page

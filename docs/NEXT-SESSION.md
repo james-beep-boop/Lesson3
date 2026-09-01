@@ -2721,7 +2721,7 @@ Items 4 (full-codebase review) and 5's iCloud migration were explicitly DEFERRED
    racing them, and never dirties the tree.
 5. Deferred, in rough value order: catalogue/admin pagination at scale; the recipient roster's
    unbounded read; CI dependency caching; going-public ops (edge rate limiting,
-   GlitchTip). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
+   an error-tracking DSN if one is ever adopted). Also consider a **scheduled deps-audit job** — four unrelated transitive advisories
    went red on the gate mid-PR this session (js-yaml, fast-uri, immutable, sharp/next).
 6. Operator-only cleanup on the Rock: untracked `ingest-data/` and the spent
    `cloudflared-linux-arm64.deb` in `/srv/lesson3`.
@@ -2772,7 +2772,7 @@ never reviewed it, so this is its only substantive review. One non-blocking robu
 natural priorities are (a) the optional #111 hardening — a reorder/serialization regression test for
 the byte-exact duplicate-match in `preserveLessonResourceLinks`, or strip ids inside the function; and
 (b) Phase 5 Track B / going-public operator setup (`docs/OPS.md`): public host TLS + reverse proxy,
-`SERVER_URL`/`ADMIN_URL` → the public URL (still the Tailscale URL), edge rate limiting, GlitchTip.
+`SERVER_URL`/`ADMIN_URL` → the public URL (still the Tailscale URL), edge rate limiting, and error tracking only if a backend is adopted.
 
 **Note — `main` is now a PROTECTED branch (2026-07-19).** Direct `git push origin main` is rejected;
 every change (incl. docs) needs a PR + green `gate`. The old direct-to-main allowance is retired.
