@@ -1,0 +1,109 @@
+# GlitchTip — self-hosted error tracking for Lesson3 (SPEC §11; docs/OPS.md "Error tracking").
+#
+# DRAFT FOR REVIEW — not deployed. See README.md in this directory for the decisions that need a
+# yes/no before this goes near the Rock, and for what could not be verified from upstream.
+#
+# A SEPARATE stack, deliberately. It is not part of the app's single-runtime core (CLAUDE.md: "keep the
+# system single-runtime" applies to the product, not to an ops sidecar), it carries its own Postgres and
+# its own release cadence, and an outage in the thing that WATCHES the library must never be able to
+# take the library down.
+#
+# Isolation mirrors ../../docker-compose.yml, because this lands on the same co-tenanted Rock that
+# already runs lesson3-* and nanoclaw's onecli-*:
+#   - project name `glitchtip` -> containers `glitchtip-*`; nothing else is touched
+#   - its own Postgres, its own named volume
+#   - NO published port on Postgres or Valkey; only the web UI is published, and only on loopback
+#   - mem/cpu caps, so an error storm in here cannot starve the app it is meant to be observing
+#   - bounded + rotated logs, same anchor shape as the app stack
+
+name: glitchtip
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  web:
+    # Pinned by multi-arch INDEX digest — same supply-chain posture as gotenberg/postgres in
+    # ../../docker-compose.yml. The index covers the Rock's arm64 and an amd64 machine, so the same
+    # line works on both. Verified multi-arch on Docker Hub (amd64 + arm64 published for 6.2.6).
+    # To re-pin deliberately:  docker buildx imagetools inspect glitchtip/glitchtip:<tag>
+    image: glitchtip/glitchtip:6.2.6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
+    restart: unless-stopped
+    logging: *default-logging
+    # No `command:` — the released image's default entrypoint runs the ALL-IN-ONE shape (web + worker
+    # + scheduler in one container), which upstream's install docs size at 512 MB recommended / 256 MB
+    # minimum. Splitting web and worker is upstream's answer to SCALE; this instance serves a handful
+    # of admins watching one app, so a second container would cost RAM on a shared box and buy nothing.
+    # Revisit only if events start backing up.
+    env_file: .env
+    environment:
+      # Interpolation-free: DATABASE_URL is written out in full in .env, exactly as the app stack does
+      # with DATABASE_URI, so there is one place a password appears and no two-source drift.
+      VALKEY_URL: redis://valkey:6379
+      # This instance has exactly one organisation and a named set of admins. Open registration on a
+      # box that stores stack traces is a hole, not a convenience — the first user is created with
+      # `manage.py createsuperuser` (README) so registration never has to be opened at all.
+      ENABLE_USER_REGISTRATION: "false"
+      ENABLE_ORGANIZATION_CREATION: "false"
+    ports:
+      # LOOPBACK ONLY. The Rock is Tailscale-only, but Tailscale traffic arrives on tailscale0, not
+      # loopback — so this is deliberately NOT reachable over the tailnet as written, and is opened
+      # with an SSH tunnel (README). That is the tight default; see README for the two ways to loosen
+      # it if the UI should be reachable directly.
+      - "127.0.0.1:9000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    volumes:
+      # Upstream's sample ships an `uploads` volume for local file storage. Named, so it survives
+      # recreation the way lesson3_artifact_cache does.
+      - glitchtip_uploads:/code/uploads
+    mem_limit: 768m
+    cpus: 1.5
+
+  postgres:
+    image: postgres:18@sha256:4ef4dbc939d61acea57712655ddb4b4ab27419c913f94cca0cd57cb3ea3c2280
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD:?set GLITCHTIP_POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: glitchtip
+    # NOT tuning-for-taste: GlitchTip partitions its event tables, and a query it cannot narrow to one
+    # partition takes a lock on every partition and every index on them. Upstream's own compose raises
+    # this for that reason and notes it "matches what the install docs recommend to self-hosters".
+    # Postgres' default of 64 is too low and the symptom is "out of shared memory" under load.
+    command:
+      - postgres
+      - -c
+      - max_locks_per_transaction=512
+    volumes:
+      - glitchtip_pgdata:/var/lib/postgresql/data
+    # intentionally NO `ports:` — internal-only, so it cannot collide with lesson3-postgres-1 or
+    # nanoclaw's onecli-postgres-1 (which already binds 127.0.0.1:5432)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    cpus: 1.0
+
+  valkey:
+    image: valkey/valkey:9@sha256:a91d34ab33975b1054e26f1bd9995b268f7e0c507b5ded7f3d181a1a25521630
+    restart: unless-stopped
+    logging: *default-logging
+    # No volume, deliberately: this is the task broker and cache, not a store of record. A restart
+    # drops in-flight queued work, which for an error tracker means losing a few seconds of events —
+    # acceptable, and cheaper than another volume to back up. Upstream treats Valkey as optional.
+    mem_limit: 128m
+    cpus: 0.5
+
+volumes:
+  glitchtip_pgdata:
+  glitchtip_uploads:
