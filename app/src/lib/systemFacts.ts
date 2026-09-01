@@ -554,13 +554,21 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
        * `lib/errorTracking.ts` sends route/job context only, never headers or bodies, so no cookies,
        * passwords or form contents travel with a report — only stack traces and route names.
        *
-       * "We send crash reports somewhere" is exactly the sentence that worries a school, so whether the
-       * displayed wording should now name an EXTERNAL service is an open operator question, not
-       * something to change silently in a docstring.
+       * "We send crash reports somewhere" is exactly the sentence that worries a school, so the
+       * displayed wording NAMES the service as external (operator decision 2026-09-01) and says what is
+       * sent, not only what is withheld. Every `captureException` call site was read before writing that:
+       * the seven job/route seams pass ids and route paths only — `versionId`, `userId`, `messageId`,
+       * `kind`, `path`, `routePath` — so "where in the software" and "internal record numbers" is
+       * literally what goes.
+       *
+       * ⚑ It deliberately does NOT promise that lesson content never leaves. The exception's own message
+       * and stack are sent, and nothing stops a future error message interpolating a value. Claiming
+       * otherwise would be the same unbacked promise this comment had to have removed once already.
        */
       description:
-        'Sends technical information about unexpected errors to the monitoring service so problems ' +
-        'can be found sooner. Request headers and form contents are not attached.',
+        'Sends technical information about unexpected errors to an external monitoring service, so ' +
+        'problems can be found sooner. It sends where in the software the error happened and internal ' +
+        'record numbers — never request headers, form contents, names, or email addresses.',
       value: errorTracking ? 'On' : 'Off',
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',

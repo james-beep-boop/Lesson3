@@ -339,6 +339,31 @@ describe('collectSystemFacts', () => {
     }
   })
 
+  /**
+   * ⚑ The destination is NAMED AS EXTERNAL, and that is the whole point of the row. Until 2026-09-01 the
+   * backend was a self-hosted GlitchTip and the wording said reports go to "the monitoring service" —
+   * unambiguous when the service was this box, and merely incomplete once it became hosted Sentry. The
+   * `lib/systemFacts.ts` docstring had even justified the wording on the grounds that "nothing goes to a
+   * third party", which the switch falsified.
+   *
+   * Pinned for the same reason the PDF row's "does not require internet access" is pinned above: this is
+   * the sentence a school reads to decide whether it is comfortable, so it must not be quietly softened
+   * back into a shrug.
+   */
+  it('says plainly that error reports go to an external service, and what is sent', async () => {
+    process.env.SENTRY_DSN = 'https://key@sentry.example.org/1'
+    const fact = byKey(await collectSystemFacts(), 'errorTracking')
+    expect(fact.description).toContain('external')
+    // What IS sent, not only what is withheld — the row used to state only the exclusions.
+    expect(fact.description, 'the row must say what it does send').toMatch(/record numbers|where in the software/i)
+    expect(fact.description).toMatch(/never request headers/i)
+    // And it must not drift back to implying reports stay on the box.
+    expect(
+      fact.description,
+      'reports DO leave the box now; the row may not imply otherwise',
+    ).not.toMatch(/nothing (goes|leaves)|stays on (this|the) (box|server)|does not require internet/i)
+  })
+
   it('names the environment variable for every fact', async () => {
     const missing = (await collectSystemFacts()).filter((f) => !f.envVar).map((f) => f.key)
     expect(
