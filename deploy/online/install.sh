@@ -38,6 +38,32 @@ health_url="http://127.0.0.1:3001/login"
 [[ "$admin_url" =~ ^https?://[^[:space:]]+$ ]] \
   || die "LESSON3_URL must be an http(s) URL with no spaces"
 
+# ADMIN_URL becomes the base for links in outbound email (password resets), and nothing later in this
+# script ever visits it — the health check below deliberately probes 127.0.0.1. So a wrong host here
+# installs CLEANLY and SILENTLY, and the first symptom is a teacher receiving a reset link that goes
+# nowhere. `http://SERVER_LAN_IP:3001`, copied straight from the README, satisfies the syntax check
+# above, which is exactly why these two extra checks exist.
+rest="${admin_url#*://}"
+case "$rest" in
+  \[*) ;; # bracketed IPv6 literal: an address, not a name — nothing to validate
+  *)
+    admin_host="${rest%%[:/]*}"
+    [[ -n "$admin_host" ]] || die "LESSON3_URL has no host"
+    # An underscore cannot appear in a DNS hostname (RFC 1123), so this rejects the documented
+    # placeholder without enumerating placeholder names, and without depending on any tooling.
+    [[ "$admin_host" != *_* ]] || die \
+      "LESSON3_URL host '$admin_host' is not a valid hostname. Replace SERVER_LAN_IP with this server's LAN IP, e.g. LESSON3_URL=http://192.168.1.50:3001"
+    # Resolution is a WARNING, never fatal. What actually has to resolve is the name in a teacher's
+    # browser, not on this server — a school may publish the name in its own DNS, or hand it out by
+    # hosts file, and the server itself need not know it. Refusing to install in that case would break
+    # a correct configuration to catch a typo, so this reports and continues.
+    if [[ ! "$admin_host" =~ ^[0-9]+(\.[0-9]+){3}$ ]] && command -v getent >/dev/null 2>&1; then
+      getent hosts "$admin_host" >/dev/null 2>&1 || echo \
+        "install: WARNING: '$admin_host' does not resolve on this server — confirm it resolves for teachers' browsers" >&2
+    fi
+    ;;
+esac
+
 umask 077
 tmp_env="$(mktemp "$ROOT/.env.XXXXXX")"
 trap 'rm -f "$tmp_env"' EXIT

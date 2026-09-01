@@ -63,6 +63,26 @@ bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
   fi
 )
 
+# LESSON3_URL becomes ADMIN_URL, the base for password-reset links, and nothing at install time
+# visits it — so a wrong value installs cleanly and only surfaces later as a dead link in a teacher's
+# inbox. `http://SERVER_LAN_IP:3001` copied from the README satisfies the installer's URL syntax check,
+# so the placeholder is rejected explicitly. An underscore cannot appear in a DNS hostname, which is
+# what makes this a rule rather than a list of placeholder names.
+(
+  cd "$TMP"
+  rm -rf guard && cp -r "$BUNDLE" guard && cd guard && rm -f .env
+  if LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh --prepare-only >/dev/null 2>&1; then
+    fail "installer accepted the unsubstituted SERVER_LAN_IP placeholder"
+  fi
+  [[ ! -e .env ]] || fail "installer wrote .env despite rejecting the URL"
+
+  # ...and a real address still installs. An IP literal skips the resolution hint entirely.
+  LESSON3_URL=http://192.168.1.50:3001 ./install.sh --prepare-only >/dev/null \
+    || fail "installer rejected a valid LAN IP"
+  grep -Fq 'ADMIN_URL=http://192.168.1.50:3001' .env \
+    || fail "ADMIN_URL was not written from a valid LESSON3_URL"
+)
+
 "$ROOT/scripts/build-local-deploy-bundle.sh" \
   v0.1 "$TMP/new-assets" "$app_digest" "$migrate_digest" >/dev/null
 tar -C "$TMP/new-assets" -xzf "$TMP/new-assets/lesson3-online-deploy.tar.gz"
