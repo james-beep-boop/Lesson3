@@ -62,8 +62,10 @@ now leaving the box to a third party. With nothing adopted, the original line is
 so explicitly. The going-public checklist marks error tracking optional rather than a step.
 
 **One shell command in this session's advice was simply wrong** and is recorded so it is not repeated:
-`SENTRY_DSN=… >> /srv/lesson3/.env` is an assignment with a redirection — it truncates/creates the file
-and writes nothing. The generated `.env` already contains a `SENTRY_DSN=` line, so the correct action if
+`SENTRY_DSN=… >> /srv/lesson3/.env` is an assignment with a redirection, so it writes NOTHING: there is
+no command for the redirection to carry. (An earlier draft of this entry said it *truncates* the file —
+wrong, and worth correcting rather than leaving: `>>` appends, creating the file if absent but never
+truncating it. `>` would truncate. Existing contents survive either way.) The generated `.env` already contains a `SENTRY_DSN=` line, so the correct action if
 one is ever adopted is to EDIT that line, not append a second.
 
 ---

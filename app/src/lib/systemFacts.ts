@@ -566,7 +566,8 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       description:
         'Sends technical details of unexpected errors to whichever monitoring service is configured, ' +
         'which may be outside the school. What goes: where in the software the error happened, internal ' +
-        'record numbers, and the error message itself — which can quote a filename or an address. ' +
+        'record numbers, and the error message and stack trace themselves — which can quote a filename ' +
+        'or an address. ' +
         'Request headers and form contents are never attached.',
       value: errorTracking ? 'On' : 'Off',
       status: errorTracking ? 'ok' : 'off',

@@ -421,7 +421,9 @@ no-op and the app runs exactly as before. What reports when enabled:
   `src/instrumentation.ts`), with route context only — request headers/bodies are deliberately
   dropped, so auth cookies are never attached to a report.
 - Job failures (`generateVersionArtifact`, `emailVersionArtifact`, `messagePing`) at their existing
-  catch/log seams, with ids only (no email addresses).
+  catch/log seams. ⚑ The **context** we attach is ids only — but the exception's own message and stack
+  go with it, unscrubbed, so "no email addresses" is NOT a property of the report. A nodemailer failure
+  in `passwordResetEmail` can carry the recipient address in the error text.
 
 **Operator setup (one-time):**
 1. **Only if you have decided to enable it** (see above — the default is off): create a project at any
@@ -568,8 +570,9 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
    documented trade-off: browsers that send neither Origin nor Sec-Fetch-Site on same-origin
    requests (older Safari ≤16.x) get bounced to login under strict CSRF — acceptable for public
    exposure, revisit only if real users hit it.
-5. **Error tracking (optional — decide first, see "Error tracking"):** if adopting one, set `SENTRY_DSN"
-   above ✓), confirm a test event arrives.
+5. **Error tracking — decide first (see "Error tracking" above; nothing is adopted today).** If you do
+   adopt one, set `SENTRY_DSN` and confirm a test event actually arrives, rather than trusting that the
+   variable is set.
 6. **Verify, over the public URL:**
    - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per
      request ✓ (shipped: middleware CSP), `Set-Cookie` on login carries `Secure`.

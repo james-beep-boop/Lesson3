@@ -10,8 +10,11 @@
  * Opt-in via env, like SMTP/backups: with `SENTRY_DSN` unset every function here is a no-op and
  * the app runs exactly as before (pino structured logging stays the primary on-box log stream —
  * this ADDS aggregation/alerting for public exposure, it does not replace logs). Reported events
- * carry route/job context only — never request headers or bodies (no cookies/tokens in the
- * tracker).
+ * carry route/job CONTEXT that is ids and route paths only, and request headers and bodies are never
+ * attached (so no cookies or tokens). ⚑ The exception's own message and stack ARE transmitted, and
+ * there is no `beforeSend` scrubber — so this is not a guarantee that no personal data leaves. An SMTP
+ * failure in `passwordResetEmail` can carry a recipient address in the error text. Any stronger promise
+ * has to be built here, in the SDK, before transmission.
  *
  * Wiring: initialized once from src/instrumentation.ts (Node runtime only); request-scoped
  * errors arrive via Next's `onRequestError` hook; job failures via captureException calls at the

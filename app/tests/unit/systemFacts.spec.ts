@@ -359,14 +359,17 @@ describe('collectSystemFacts', () => {
     expect(fact.description).toMatch(/headers[^.]*never|never[^.]*headers/i)
     // Says where it may go, and that the error text itself travels.
     expect(fact.description).toMatch(/outside the school|external/i)
+    // Both halves of the exception travel, so both are named. The stack was missing from the first
+    // draft of this sentence — an omission, not a lie, but the same direction of error.
     expect(fact.description, 'the error message itself is sent and may quote data').toMatch(
       /error message/i,
     )
+    expect(fact.description, 'the stack trace is transmitted too').toMatch(/stack trace/i)
     // NOT guaranteed, and must never be claimed again.
     expect(
       fact.description,
       'the exception message and stack are transmitted unscrubbed, so this cannot be promised',
-    ).not.toMatch(/never[^.]*(name|email|personal)/i)
+    ).not.toMatch(/never[^.]*(name|email|personal)|(name|email|personal)[^.]*never/i)
     expect(fact.description, 'reports may leave the box; do not imply otherwise').not.toMatch(
       /nothing (goes|leaves)|stays on (this|the) (box|server)/i,
     )
