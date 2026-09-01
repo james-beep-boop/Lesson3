@@ -2,8 +2,9 @@
  * Server-side error tracking (SPEC §11 "error tracking / observability — required before real
  * users"; Phase 5 A4). ⚑ NO BACKEND IS CHOSEN AND THE FEATURE IS OFF (2026-09-01): self-hosted
  * GlitchTip was rejected (it would share a failure domain with the app it watches) and hosted Sentry was
- * deferred (an external data flow, and not a deployment prerequisite). `SENTRY_DSN` is unset everywhere
- * including the release bundle, so every function here is a no-op today. Written against the
+ * deferred (an external data flow, and not a deployment prerequisite). The release bundle ships
+ * `SENTRY_DSN=` EMPTY, so off is the default and every function here is a no-op until an operator sets
+ * it — which is a claim about the default, not about what any given installation has done. Written against the
  * `@sentry/node` SDK rather than a backend, so adopting any Sentry-protocol endpoint later is a
  * one-variable change.
  *

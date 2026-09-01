@@ -382,7 +382,7 @@ Deliberately **no error-tracking SaaS** (Sentry etc.): keeps everything on-box, 
 scrub. *(Amended 2026-07-05, Phase 5 A4: the CAPABILITY now exists and is env-gated — see "Error
 tracking" below — but it is **OFF, with no backend chosen**, so this paragraph still describes the
 running system. Logs remain the primary on-box stream; with `SENTRY_DSN` unset nothing changes.)* Trade-offs we accept: **no client-side (browser) error capture** —
-post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
+post-mortems are by grepping the JSON logs; liveness is the heartbeat below, where one is configured.
 
 - Tail live: `docker compose logs -f app` · errors only: `docker compose logs app | grep '"level":50'`
   (`50`=error, `60`=fatal).
@@ -393,10 +393,15 @@ post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
 
 ## Error tracking — OFF, optional, no backend chosen (SPEC §11)
 
-The capability shipped in Phase 5 A4 and is **disabled**: `SENTRY_DSN` is unset everywhere, including in
-the release bundle, so every call in `lib/errorTracking.ts` is a no-op. **Nothing needs doing to keep it
-that way**, and a local school installation does not need it — Docker's JSON logs plus the push heartbeat
-below cover post-mortems and liveness.
+The capability shipped in Phase 5 A4 and is **off by default**: the release bundle's `.env.example`
+carries `SENTRY_DSN=` empty, and while it is empty every call in `lib/errorTracking.ts` is a no-op. That
+is a statement about the shipped default, not a survey of installations — any deployment that sets the
+variable turns tracking on. **Nothing needs doing to keep it
+that way**, and a local school installation does not need it: Docker's JSON logs cover post-mortems, and
+the push heartbeat below covers liveness **once it is set up**. ⚑ That heartbeat is operator setup and is
+**not configured on the Rock today** (no `HEALTHCHECK_*` keys in `.env`, no heartbeat cron — verified
+2026-09-01), so liveness is currently unmonitored there. Do not read "logs plus heartbeat" as a
+description of the running system.
 
 **Two candidate backends have been considered and NEITHER is adopted** (2026-09-01):
 

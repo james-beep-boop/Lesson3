@@ -24,7 +24,10 @@ for reference), rejected, and hosted Sentry was then also **not adopted**:
   that fails with its subject is not observability.
 - **Hosted Sentry — deferred.** It solves shared fate but sends error data off the box to a third party
   and needs internet. For a school deployment that is a data-governance decision, and **it is not a
-  deployment prerequisite**: a local installation has Docker's JSON logs and the push heartbeat.
+  deployment prerequisite**: a local installation has Docker's JSON logs, and the push heartbeat where an
+  operator has set one up. ⚑ Stated conditionally on purpose — the heartbeat is optional setup, and it is
+  **not configured on the Rock** (no `HEALTHCHECK_*` keys, no cron; verified 2026-09-01), so it cannot be
+  offered as cover for something that is off. The backup crons ARE installed there (three entries).
 
 **The lesson is about scope, and it is the useful part.** The chain "add SENTRY_DSN" → "there is no
 backend" → "draft one" → "256 lines of GlitchTip compose" grew three steps past the question actually
