@@ -1,10 +1,11 @@
 /**
  * Server-side error tracking (SPEC §11 "error tracking / observability — required before real
- * users"; Phase 5 A4). HOSTED SENTRY is the chosen backend (operator decision 2026-09-01,
- * superseding self-hosted GlitchTip from 2026-07-05 — self-hosting put the tracker in the same failure
- * domain as the app it watches). Nothing here changes either way: the client is the standard
- * `@sentry/node` SDK, and any Sentry-protocol endpoint works, which is why this module was written
- * against the SDK and not a backend.
+ * users"; Phase 5 A4). ⚑ NO BACKEND IS CHOSEN AND THE FEATURE IS OFF (2026-09-01): self-hosted
+ * GlitchTip was rejected (it would share a failure domain with the app it watches) and hosted Sentry was
+ * deferred (an external data flow, and not a deployment prerequisite). `SENTRY_DSN` is unset everywhere
+ * including the release bundle, so every function here is a no-op today. Written against the
+ * `@sentry/node` SDK rather than a backend, so adopting any Sentry-protocol endpoint later is a
+ * one-variable change.
  *
  * Opt-in via env, like SMTP/backups: with `SENTRY_DSN` unset every function here is a no-op and
  * the app runs exactly as before (pino structured logging stays the primary on-box log stream —

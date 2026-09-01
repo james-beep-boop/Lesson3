@@ -544,31 +544,30 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       label: 'Automatic problem reports',
       /**
        * ⚑ THIS ANSWERS "REPORTED WHERE?", which the operator asked and the old wording dodged. The
-       * destination is whatever `SENTRY_DSN` names, and the chosen backend is now **HOSTED SENTRY**
-       * (decision 2026-09-01, superseding self-hosted GlitchTip on shared-fate grounds: a dead Rock
-       * would have taken the alerting with it).
+       * destination is whatever `SENTRY_DSN` names. **No backend is chosen and the feature is OFF**
+       * (2026-09-01): self-hosted GlitchTip was rejected for sharing a failure domain with the app it
+       * watches, and hosted Sentry was deferred as an external data flow that no deployment requires.
        *
-       * ⚑ That reversal changed a claim this comment used to make. It said self-hosting meant "nothing
-       * goes to a third party" — no longer true, so it is gone rather than left to mislead. Reports DO
-       * leave the box now. What remains true, and is the part that matters to a school:
-       * `lib/errorTracking.ts` sends route/job context only, never headers or bodies, so no cookies,
-       * passwords or form contents travel with a report — only stack traces and route names.
+       * ⚑ THIS ROW HAS NOW CARRIED TWO FALSE CLAIMS, WHICH IS WHY THE WORDING IS SO CAUTIOUS.
        *
-       * "We send crash reports somewhere" is exactly the sentence that worries a school, so the
-       * displayed wording NAMES the service as external (operator decision 2026-09-01) and says what is
-       * sent, not only what is withheld. Every `captureException` call site was read before writing that:
-       * the seven job/route seams pass ids and route paths only — `versionId`, `userId`, `messageId`,
-       * `kind`, `path`, `routePath` — so "where in the software" and "internal record numbers" is
-       * literally what goes.
+       * The first said self-hosting meant "nothing goes to a third party" — untrue the moment a hosted
+       * DSN became possible. The replacement then promised reports contain "never names or email
+       * addresses", which is ALSO untrue: only the *context* payloads are ids and route paths
+       * (`versionId`, `userId`, `messageId`, `kind`, `path`, `routePath`). The exception's own message
+       * and stack are transmitted too, there is no `beforeSend` scrubber, and an SMTP failure in
+       * `passwordResetEmail` can plausibly carry a recipient address inside the error text. Verifying
+       * the call sites was not the same as verifying what is sent.
        *
-       * ⚑ It deliberately does NOT promise that lesson content never leaves. The exception's own message
-       * and stack are sent, and nothing stops a future error message interpolating a value. Claiming
-       * otherwise would be the same unbacked promise this comment had to have removed once already.
+       * So the row now claims only what the code guarantees: headers and form contents are never
+       * attached, the destination may be outside the school, and the error message itself travels and
+       * may quote things. If a stronger promise is ever wanted, it has to be earned with an SDK-side
+       * scrubber, not asserted in copy.
        */
       description:
-        'Sends technical information about unexpected errors to an external monitoring service, so ' +
-        'problems can be found sooner. It sends where in the software the error happened and internal ' +
-        'record numbers — never request headers, form contents, names, or email addresses.',
+        'Sends technical details of unexpected errors to whichever monitoring service is configured, ' +
+        'which may be outside the school. What goes: where in the software the error happened, internal ' +
+        'record numbers, and the error message itself — which can quote a filename or an address. ' +
+        'Request headers and form contents are never attached.',
       value: errorTracking ? 'On' : 'Off',
       status: errorTracking ? 'ok' : 'off',
       envVar: 'SENTRY_DSN',

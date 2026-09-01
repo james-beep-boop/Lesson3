@@ -340,31 +340,35 @@ describe('collectSystemFacts', () => {
   })
 
   /**
-   * ⚑ The destination is NAMED AS EXTERNAL, and that is the whole point of the row. Until 2026-09-01 the
-   * backend was a self-hosted GlitchTip and the wording said reports go to "the monitoring service" —
-   * unambiguous when the service was this box, and merely incomplete once it became hosted Sentry. The
-   * `lib/systemFacts.ts` docstring had even justified the wording on the grounds that "nothing goes to a
-   * third party", which the switch falsified.
+   * ⚑ THIS ROW HAS CARRIED TWO FALSE PRIVACY CLAIMS, so both are pinned as negatives rather than trusted
+   * to review. It first said self-hosting meant nothing reached a third party (untrue once a hosted DSN
+   * was possible); the replacement promised "never names or email addresses" (also untrue — the
+   * exception message and stack are transmitted, there is no `beforeSend` scrubber, and an SMTP failure
+   * in `passwordResetEmail` can carry a recipient address in the error text).
    *
-   * Pinned for the same reason the PDF row's "does not require internet access" is pinned above: this is
-   * the sentence a school reads to decide whether it is comfortable, so it must not be quietly softened
-   * back into a shrug.
+   * What the code actually guarantees is narrow: headers and bodies are never attached. The row may say
+   * that and no more. Pinned like the PDF row's locality claim above, because this is the sentence a
+   * school reads to decide whether it is comfortable.
    */
-  it('says plainly that error reports go to an external service, and what is sent', async () => {
+  it('claims only what the code guarantees about error reports', async () => {
     process.env.SENTRY_DSN = 'https://key@sentry.example.org/1'
     const fact = byKey(await collectSystemFacts(), 'errorTracking')
-    expect(fact.description).toContain('external')
-    // What IS sent, not only what is withheld — the row used to state only the exclusions.
-    expect(fact.description, 'the row must say what it does send').toMatch(
-      /record numbers|where in the software/i,
+    // Guaranteed: headers/bodies are dropped at the seam. Order-independent on purpose — the first
+    // draft of this assertion assumed "never request headers" and failed on copy that reads
+    // "Request headers ... are never attached", which is the better sentence.
+    expect(fact.description).toMatch(/headers[^.]*never|never[^.]*headers/i)
+    // Says where it may go, and that the error text itself travels.
+    expect(fact.description).toMatch(/outside the school|external/i)
+    expect(fact.description, 'the error message itself is sent and may quote data').toMatch(
+      /error message/i,
     )
-    expect(fact.description).toMatch(/never request headers/i)
-    // And it must not drift back to implying reports stay on the box.
+    // NOT guaranteed, and must never be claimed again.
     expect(
       fact.description,
-      'reports DO leave the box now; the row may not imply otherwise',
-    ).not.toMatch(
-      /nothing (goes|leaves)|stays on (this|the) (box|server)|does not require internet/i,
+      'the exception message and stack are transmitted unscrubbed, so this cannot be promised',
+    ).not.toMatch(/never[^.]*(name|email|personal)/i)
+    expect(fact.description, 'reports may leave the box; do not imply otherwise').not.toMatch(
+      /nothing (goes|leaves)|stays on (this|the) (box|server)/i,
     )
   })
 

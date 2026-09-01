@@ -11,46 +11,60 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-09-01 — Error tracker: hosted Sentry, reversing the self-hosted GlitchTip decision
+## 2026-09-01 — Error tracking stays OFF: no backend adopted, and two false privacy claims removed
 
-**Operator decision.** `SENTRY_DSN` had never been set, so error tracking has been off since Phase 5 A4
-shipped the code. Asked to add it, the honest answer was that there was nothing to point it at: OPS.md
-step 1 is "deploy GlitchTip or use a Sentry-compatible endpoint", and no backend existed. A GlitchTip
-stack was drafted for the Rock (closed PR #330 — kept for reference, digest-pinned and arm64-verified),
-then **rejected in favour of hosted Sentry**.
+**Operator decision, arrived at by elimination.** `SENTRY_DSN` had never been set, so error tracking has
+been inert since Phase 5 A4 shipped the code. Asked to enable it, the honest answer was that there was
+nothing to point it at — OPS.md step 1 is "deploy GlitchTip or use a Sentry-compatible endpoint", and no
+backend existed. A GlitchTip stack was drafted (closed PR #330, digest-pinned and arm64-verified, kept
+for reference), rejected, and hosted Sentry was then also **not adopted**:
 
-**The deciding argument is shared fate, and it is worth remembering as a general rule.** Self-hosting the
-tracker on the same box as the app it watches puts them in one failure domain: a dead Rock takes the
-alerting with it, precisely when the alerting is what you need, and it cannot tell you it is gone. An
-observability tool that fails with its subject is not observability. Hosted also removed the two questions
-the draft could not answer — retention became the provider's problem instead of an unbounded volume on a
-co-tenanted box, and there was nothing new to add to the encrypted backup rotation.
+- **Self-hosted GlitchTip — rejected on shared fate.** It would sit on the same box as the app it
+  watches, so a dead Rock takes the alerting with it, exactly when it is needed. An observability tool
+  that fails with its subject is not observability.
+- **Hosted Sentry — deferred.** It solves shared fate but sends error data off the box to a third party
+  and needs internet. For a school deployment that is a data-governance decision, and **it is not a
+  deployment prerequisite**: a local installation has Docker's JSON logs and the push heartbeat.
 
-**No code changed, and that is the point.** `lib/errorTracking.ts` was written against `@sentry/node`
-rather than a backend, because GlitchTip speaks the Sentry protocol. So a decision that reversed the
-entire hosting model was a one-variable change. Worth noticing when picking a client library: the cost of
-this reversal was set months ago by not coupling to the backend.
+**The lesson is about scope, and it is the useful part.** The chain "add SENTRY_DSN" → "there is no
+backend" → "draft one" → "256 lines of GlitchTip compose" grew three steps past the question actually
+asked, and none of it was needed to install or run Lesson3. The reviewer's summary was correct: optional
+scope drift, not a prerequisite. **Nothing had to be removed from the product to reach this state** —
+`lib/errorTracking.ts` is a no-op with the variable unset, so "off" was already the shipped default.
+That is the reward for having written the module against the SDK instead of a backend.
 
-**⚑ It is not a cost-free swap, though, and one docstring was asserting the opposite.**
-`lib/systemFacts.ts` justified the on-screen wording of "Automatic problem reports" partly on the grounds
-that self-hosting meant "by default nothing goes to a third party". That is now false: reports DO leave
-the box. What survives is the part that actually protects a school — `errorTracking.ts` sends route/job
-context only, never headers or bodies, so no cookies, passwords or form contents travel with a report;
-stack traces and route names do. The false clause was removed rather than left to mislead, which is the
-same class of correction as the `IdleLogout` docstring and the "Draft status pill" citation: a comment
-that keeps asserting a fact the code no longer has.
+**⚑ TWO FALSE PRIVACY CLAIMS WERE FOUND AND REMOVED, one of them added the same day.** This is the part
+to remember, because the second was made *while correcting the first*:
 
-**Left open deliberately:** whether the system panel's *displayed* description should now name an
-EXTERNAL service. Today it says reports go to "the monitoring service", which was unambiguous when the
-service was your own box and is merely incomplete now. That is user-facing copy for a school audience —
-an operator call, not a docstring fix, so it is flagged rather than changed.
+1. `lib/systemFacts.ts` justified the on-screen wording on the grounds that self-hosting meant "nothing
+   goes to a third party". False as soon as a hosted DSN was possible.
+2. Its replacement promised reports contain "never names or email addresses". **Also false.** Only the
+   *context* payloads are ids and route paths (`versionId`, `userId`, `messageId`, `kind`, `path`,
+   `routePath`) — the exception's own **message and stack** are transmitted as well, there is no
+   client-side `beforeSend` scrubber, and an SMTP failure in `passwordResetEmail` can plausibly carry a
+   recipient address inside the error text.
 
-Docs corrected to match: `docs/OPS.md` (section title, the chosen-backend paragraph, the
-"cookies never leave the box" bullet which was overstating it, operator step 1, the standing-decisions
-line, and the going-public checklist step), `lib/errorTracking.ts`, `lib/systemFacts.ts`, and the two
-CURRENT next-step mentions in `docs/NEXT-SESSION.md`. Historical blocks in NEXT-SESSION that name
-GlitchTip are left alone — they record what the decision WAS, and rewriting them would make this reversal
-incomprehensible.
+**The methodological error is precise and worth naming: reading the call sites is not the same as
+knowing what is sent.** Seven `captureException` calls were checked and all seven were clean, which felt
+like verification and was not — the payload is the context *plus the exception*, and only the context had
+been examined. A promise about data egress needs the whole envelope.
+
+The row now claims only what the code guarantees: headers and form contents are never attached, the
+destination may be outside the school, and the error message itself travels and may quote a filename or
+an address. A stronger promise has to be earned with an SDK-side scrubber, not asserted in copy — which
+is also what Sentry's own scrubbing guidance says: data that must never leave has to be removed before
+transmission, not filtered on arrival. Both false claims are pinned as NEGATIVE assertions in
+`tests/unit/systemFacts.spec.ts` so neither can return.
+
+**Also corrected:** `docs/OPS.md` had begun contradicting itself — the logging section still said
+"deliberately no error-tracking SaaS ... nothing to scrub" while the section below announced reports
+now leaving the box to a third party. With nothing adopted, the original line is true again and now says
+so explicitly. The going-public checklist marks error tracking optional rather than a step.
+
+**One shell command in this session's advice was simply wrong** and is recorded so it is not repeated:
+`SENTRY_DSN=… >> /srv/lesson3/.env` is an assignment with a redirection — it truncates/creates the file
+and writes nothing. The generated `.env` already contains a `SENTRY_DSN=` line, so the correct action if
+one is ever adopted is to EDIT that line, not append a second.
 
 ---
 
