@@ -355,13 +355,17 @@ describe('collectSystemFacts', () => {
     const fact = byKey(await collectSystemFacts(), 'errorTracking')
     expect(fact.description).toContain('external')
     // What IS sent, not only what is withheld — the row used to state only the exclusions.
-    expect(fact.description, 'the row must say what it does send').toMatch(/record numbers|where in the software/i)
+    expect(fact.description, 'the row must say what it does send').toMatch(
+      /record numbers|where in the software/i,
+    )
     expect(fact.description).toMatch(/never request headers/i)
     // And it must not drift back to implying reports stay on the box.
     expect(
       fact.description,
       'reports DO leave the box now; the row may not imply otherwise',
-    ).not.toMatch(/nothing (goes|leaves)|stays on (this|the) (box|server)|does not require internet/i)
+    ).not.toMatch(
+      /nothing (goes|leaves)|stays on (this|the) (box|server)|does not require internet/i,
+    )
   })
 
   it('names the environment variable for every fact', async () => {
