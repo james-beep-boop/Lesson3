@@ -11,6 +11,49 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-01 — Error tracker: hosted Sentry, reversing the self-hosted GlitchTip decision
+
+**Operator decision.** `SENTRY_DSN` had never been set, so error tracking has been off since Phase 5 A4
+shipped the code. Asked to add it, the honest answer was that there was nothing to point it at: OPS.md
+step 1 is "deploy GlitchTip or use a Sentry-compatible endpoint", and no backend existed. A GlitchTip
+stack was drafted for the Rock (closed PR #330 — kept for reference, digest-pinned and arm64-verified),
+then **rejected in favour of hosted Sentry**.
+
+**The deciding argument is shared fate, and it is worth remembering as a general rule.** Self-hosting the
+tracker on the same box as the app it watches puts them in one failure domain: a dead Rock takes the
+alerting with it, precisely when the alerting is what you need, and it cannot tell you it is gone. An
+observability tool that fails with its subject is not observability. Hosted also removed the two questions
+the draft could not answer — retention became the provider's problem instead of an unbounded volume on a
+co-tenanted box, and there was nothing new to add to the encrypted backup rotation.
+
+**No code changed, and that is the point.** `lib/errorTracking.ts` was written against `@sentry/node`
+rather than a backend, because GlitchTip speaks the Sentry protocol. So a decision that reversed the
+entire hosting model was a one-variable change. Worth noticing when picking a client library: the cost of
+this reversal was set months ago by not coupling to the backend.
+
+**⚑ It is not a cost-free swap, though, and one docstring was asserting the opposite.**
+`lib/systemFacts.ts` justified the on-screen wording of "Automatic problem reports" partly on the grounds
+that self-hosting meant "by default nothing goes to a third party". That is now false: reports DO leave
+the box. What survives is the part that actually protects a school — `errorTracking.ts` sends route/job
+context only, never headers or bodies, so no cookies, passwords or form contents travel with a report;
+stack traces and route names do. The false clause was removed rather than left to mislead, which is the
+same class of correction as the `IdleLogout` docstring and the "Draft status pill" citation: a comment
+that keeps asserting a fact the code no longer has.
+
+**Left open deliberately:** whether the system panel's *displayed* description should now name an
+EXTERNAL service. Today it says reports go to "the monitoring service", which was unambiguous when the
+service was your own box and is merely incomplete now. That is user-facing copy for a school audience —
+an operator call, not a docstring fix, so it is flagged rather than changed.
+
+Docs corrected to match: `docs/OPS.md` (section title, the chosen-backend paragraph, the
+"cookies never leave the box" bullet which was overstating it, operator step 1, the standing-decisions
+line, and the going-public checklist step), `lib/errorTracking.ts`, `lib/systemFacts.ts`, and the two
+CURRENT next-step mentions in `docs/NEXT-SESSION.md`. Historical blocks in NEXT-SESSION that name
+GlitchTip are left alone — they record what the decision WAS, and rewriting them would make this reversal
+incomprehensible.
+
+---
+
 ## 2026-08-30 — The lesson page gets its own PDF/Word, partly reversing the 2026-07-17 consolidation
 
 **Reported by the operator:** a teacher who opens a lesson plan from the catalogue lands on a page

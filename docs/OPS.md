@@ -380,7 +380,7 @@ disk and recent history is retained.
 
 Deliberately **no error-tracking SaaS** (Sentry etc.): keeps everything on-box, no new dep, nothing to
 scrub. *(Amended 2026-07-05, Phase 5 A4: server-side error tracking now exists, self-hosted and
-env-gated — see "Error tracking (GlitchTip)" below. Logs remain the primary on-box stream; with
+env-gated — see "Error tracking" below. Logs remain the primary on-box stream; with
 `SENTRY_DSN` unset nothing changes.)* Trade-offs we accept: **no client-side (browser) error capture** —
 post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
 
@@ -391,24 +391,36 @@ post-mortems are by grepping the JSON logs; liveness is the heartbeat below.
 
 ---
 
-## Error tracking (GlitchTip) — SPEC §11, required before real users
+## Error tracking (hosted Sentry) — SPEC §11, required before real users
 
-Server-side error aggregation/alerting for public exposure (Phase 5 A4). **GlitchTip** (self-hosted,
-Sentry-protocol) is the chosen backend — the client is the standard `@sentry/node` SDK, so a hosted
-Sentry DSN would also work unchanged.
+Server-side error aggregation/alerting for public exposure (Phase 5 A4). **Hosted Sentry** is the chosen
+backend (operator decision **2026-09-01**, superseding self-hosted GlitchTip from 2026-07-05). The client
+is the standard `@sentry/node` SDK either way, so this is a `SENTRY_DSN` change and nothing more.
+
+**Why the reversal:** self-hosting the tracker on the Rock put it in the same failure domain as the app
+it watches — a dead Rock takes the alerting with it, exactly when it is needed. Hosted also adds no
+second Postgres, no memory pressure to a box co-tenanted with nanoclaw, and makes retention the
+provider's problem instead of an unbounded volume. The drafted GlitchTip stack is preserved in closed
+PR #330 if self-hosting is ever revisited.
+
+⚑ **This does mean error reports now leave the box to a third party.** Reports carry route/job context
+only — never request headers or bodies — so no cookies, passwords or form contents travel with them, but
+stack traces and route names do reach Sentry. That is a data-governance fact about a school deployment,
+not just an ops preference; see the system-panel note in `lib/systemFacts.ts`.
 
 **Entirely opt-in via env** (same pattern as SMTP/backups): with `SENTRY_DSN` unset, every call is a
 no-op and the app runs exactly as before. What reports when enabled:
 
 - Unhandled errors in renders / route handlers / server actions (Next `onRequestError` →
   `src/instrumentation.ts`), with route context only — request headers/bodies are deliberately
-  dropped (auth cookies never leave the box).
+  dropped, so auth cookies are never attached to a report.
 - Job failures (`generateVersionArtifact`, `emailVersionArtifact`, `messagePing`) at their existing
   catch/log seams, with ids only (no email addresses).
 
 **Operator setup (one-time):**
-1. Deploy GlitchTip (its own compose stack; NOT part of this app's single-runtime core) or use any
-   Sentry-compatible endpoint. Create a project → copy its DSN.
+1. Create a project in hosted Sentry (the free tier is sufficient for this volume) → copy its DSN.
+   Any Sentry-compatible endpoint works, including a self-hosted GlitchTip, since the client is the
+   same SDK.
 2. Add to the app `.env`: `SENTRY_DSN=https://…` (+ optional `SENTRY_ENVIRONMENT`, default
    `production`).
 3. `docker compose up -d app` and confirm a test error arrives (e.g. hit a route that throws in a
@@ -502,7 +514,9 @@ shipped in Phase 5 Track A; what remains here is **operator configuration on the
 `SERVER_URL` is the single public-posture switch: setting it enables strict CSRF AND (when https)
 Secure auth cookies AND the empty-users boot guard — the checklist can't be half-applied.
 
-**Standing decisions (2026-07-05):** error tracker = self-hosted GlitchTip; `tokenExpiration`
+**Standing decisions (2026-07-05, error tracker amended 2026-09-01):** error tracker = **hosted
+Sentry** (was self-hosted GlitchTip; reversed on shared-fate grounds — see "Error tracking" above);
+`tokenExpiration`
 stays 2h under public exposure (ratified — strict CSRF + Secure cookies + SameSite=Lax + auth rate
 limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = grant-path lock
 (structural index deferred; trigger = assignment write paths multiplying).
@@ -549,7 +563,7 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
    documented trade-off: browsers that send neither Origin nor Sec-Fetch-Site on same-origin
    requests (older Safari ≤16.x) get bounced to login under strict CSRF — acceptable for public
    exposure, revisit only if real users hit it.
-5. **Error tracking:** deploy GlitchTip, set `SENTRY_DSN` (see "Error tracking (GlitchTip)"
+5. **Error tracking:** create the hosted Sentry project, set `SENTRY_DSN` (see "Error tracking"
    above ✓), confirm a test event arrives.
 6. **Verify, over the public URL:**
    - `curl -sD- https://…/login` → `Content-Security-Policy` with a fresh `'nonce-…'` per

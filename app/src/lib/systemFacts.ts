@@ -544,11 +544,19 @@ export async function collectSystemFacts(): Promise<SystemFact[]> {
       label: 'Automatic problem reports',
       /**
        * ⚑ THIS ANSWERS "REPORTED WHERE?", which the operator asked and the old wording dodged. The
-       * destination is whatever `SENTRY_DSN` names; the chosen backend is a SELF-HOSTED GlitchTip
-       * (decision 2026-07-05) speaking the Sentry protocol — so by default nothing goes to a third
-       * party. And `lib/errorTracking.ts` sends route/job context only, never headers or bodies, so
-       * no cookies, passwords or form contents travel with a report. Both facts belong on the screen:
-       * "we send crash reports somewhere" is exactly the sentence that worries a school.
+       * destination is whatever `SENTRY_DSN` names, and the chosen backend is now **HOSTED SENTRY**
+       * (decision 2026-09-01, superseding self-hosted GlitchTip on shared-fate grounds: a dead Rock
+       * would have taken the alerting with it).
+       *
+       * ⚑ That reversal changed a claim this comment used to make. It said self-hosting meant "nothing
+       * goes to a third party" — no longer true, so it is gone rather than left to mislead. Reports DO
+       * leave the box now. What remains true, and is the part that matters to a school:
+       * `lib/errorTracking.ts` sends route/job context only, never headers or bodies, so no cookies,
+       * passwords or form contents travel with a report — only stack traces and route names.
+       *
+       * "We send crash reports somewhere" is exactly the sentence that worries a school, so whether the
+       * displayed wording should now name an EXTERNAL service is an open operator question, not
+       * something to change silently in a docstring.
        */
       description:
         'Sends technical information about unexpected errors to the monitoring service so problems ' +
