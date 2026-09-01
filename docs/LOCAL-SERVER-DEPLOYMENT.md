@@ -24,8 +24,8 @@ HTTPS, a reverse proxy, and the complete “Going public” checklist in `docs/O
 ## Download and install
 
 GitHub attaches two files to every Lesson3 release: the deployment bundle and its SHA-256 checksum.
-These URLs become available after the first accepted `main` commit is tagged and the release workflow
-finishes. One `curl` command downloads both; verify the checksum before extracting or running anything.
+GitHub resolves the `releases/latest/` URLs below to the newest release, so they never need updating.
+One `curl` command downloads both; verify the checksum before extracting or running anything.
 
 ```bash
 mkdir lesson3-download && cd lesson3-download
@@ -39,6 +39,17 @@ LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh
 
 Replace `SERVER_LAN_IP` with the server’s fixed LAN address or local DNS name. If the browser will run
 on the server itself, omit `LESSON3_URL` and the installer uses `http://localhost:3001`.
+
+`LESSON3_URL` becomes `ADMIN_URL`, the base for links in outbound email such as password resets — and
+nothing at install time visits it, since the health check deliberately probes `127.0.0.1`. A wrong value
+therefore used to install cleanly and only surface weeks later as a reset link that goes nowhere. The
+installer now refuses it: the placeholder is rejected outright (an underscore cannot appear in a
+hostname), and a hostname that does not resolve on the server is rejected too. IP literals are taken as
+given.
+
+⛑ **Do not “helpfully” change the placeholder to a realistic-looking IP such as `192.168.1.50`.** Its
+job is to be invalid, so that a forgotten substitution fails loudly. A plausible IP would be accepted
+and quietly wrong — which is the failure this guard exists to prevent.
 
 The installer:
 

@@ -18,9 +18,8 @@ ARES lesson plans are **structured data** (a nested sub-strand bundle), and the 
 
 Versioned releases provide prebuilt x86-64 and ARM64 containers through GitHub Container Registry.
 The server needs Docker Compose, `curl`, and `openssl`; it does not need Git, Node.js, npm, or a local
-image build. The following URLs become available after the first accepted `main` commit is tagged and
-the release workflow finishes. Then download the checksummed deployment bundle from the latest GitHub
-release:
+image build. Download the checksummed deployment bundle from the latest GitHub release — GitHub resolves
+the `releases/latest/` URLs below to the newest release, so they never need updating:
 
 ```bash
 mkdir lesson3-download && cd lesson3-download
@@ -28,8 +27,14 @@ curl -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/le
   -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/lesson3-online-deploy.tar.gz.sha256
 sha256sum -c lesson3-online-deploy.tar.gz.sha256
 tar -xzf lesson3-online-deploy.tar.gz && cd lesson3-deploy
+
+# Replace SERVER_LAN_IP with this server's LAN IP address, e.g. http://192.168.1.50:3001
 LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh
 ```
+
+`LESSON3_URL` is the address teachers will use, and it becomes the base for password-reset links. The
+installer **rejects the unsubstituted `SERVER_LAN_IP` placeholder**, so forgetting to replace it fails
+immediately instead of installing cleanly and mailing links that go nowhere.
 
 Read [`docs/LOCAL-SERVER-DEPLOYMENT.md`](docs/LOCAL-SERVER-DEPLOYMENT.md) before installing. It covers
 requirements, firewall posture, first-user setup, verification, encrypted backups, updates, recovery,
