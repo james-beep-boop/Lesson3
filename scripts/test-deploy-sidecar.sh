@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Branch cover for scripts/deploy.sh's SIDECAR DECISION, with `git` and `docker` stubbed.
+# Branch cover for scripts/deploy.sh's sidecar and readiness decisions, with external commands stubbed.
 #
 # Why this exists: that decision has shipped three defects in three days — a git-history comparison that
 # silently reused a stale image after a failed build, an `unknown == unknown` match that asserted
@@ -54,7 +54,20 @@ if [[ "\$1 \$2" == "image inspect" ]]; then
 fi
 exit 0
 EOF
-  chmod +x "$SANDBOX/home/bin/git" "$SANDBOX/home/bin/docker"
+  cat >"$SANDBOX/home/bin/curl" <<EOF
+#!/usr/bin/env bash
+echo "curl \$*" >>"$SANDBOX/calls"
+[[ "\${HEALTH_FAIL:-}" != 1 ]]
+EOF
+
+  cat >"$SANDBOX/home/bin/sleep" <<EOF
+#!/usr/bin/env bash
+echo "sleep \$*" >>"$SANDBOX/calls"
+exit 0
+EOF
+
+  chmod +x "$SANDBOX/home/bin/git" "$SANDBOX/home/bin/docker" \
+    "$SANDBOX/home/bin/curl" "$SANDBOX/home/bin/sleep"
   : >"$SANDBOX/calls"
 
   env -i HOME="$SANDBOX/home" BACKUP_REPO_DIR="$SANDBOX/repo" ALLOW_UNBACKED_DEPLOY=1 \
@@ -73,7 +86,7 @@ check() { # name, condition-description, 0/1 result
 built()     { grep -q "compose build gotenberg" <<<"$CALLS"; }
 not_built() { ! built; }
 
-echo "deploy.sh sidecar decision:"
+echo "deploy.sh branch decisions:"
 
 # 1. Provenance matches → the whole point: no font build on an unchanged sidecar.
 run_case "$TREE_MATCH" "$TREE_MATCH"
@@ -107,6 +120,21 @@ run_case "$TREE_MATCH" "$TREE_MATCH"
 check "up -d passes --no-build" "expected 'compose up -d --no-build'" \
   "$(grep -q "compose up -d --no-build" <<<"$CALLS" && echo 0 || echo 1)"
 
+# 8. A successful Compose start is not a successful deploy until the app answers over HTTP.
+run_case "$TREE_MATCH" "$TREE_MATCH"
+check "readiness probes the published login route" "expected a bounded HTTP readiness probe" \
+  "$(grep -q 'curl -fsS --max-time .* http://127.0.0.1:3001/login' <<<"$CALLS" && echo 0 || echo 1)"
+check "readiness success permits deploy OK" "expected the success marker" \
+  "$(grep -q 'deploy: OK at deadbee' <<<"$OUT" && echo 0 || echo 1)"
+
+# 9. An app that never serves must fail with logs instead of printing a false success marker.
+run_case "$TREE_MATCH" "$TREE_MATCH" HEALTH_FAIL=1
+check "readiness failure aborts" "expected non-zero exit" "$([[ $EXIT -ne 0 ]] && echo 0 || echo 1)"
+check "readiness failure prints app and migration logs" "expected diagnostic Compose logs" \
+  "$(grep -q 'compose logs app migrate --tail 100' <<<"$CALLS" && echo 0 || echo 1)"
+check "readiness failure never prints deploy OK" "unexpected success marker" \
+  "$(! grep -q 'deploy: OK' <<<"$OUT" && echo 0 || echo 1)"
+
 echo
-printf 'deploy.sh sidecar: %d passed, %d failed\n' "$pass" "$fail"
+printf 'deploy.sh branches: %d passed, %d failed\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]

@@ -182,6 +182,11 @@ digests into the bundle, and attaches the bundle and checksum to a GitHub Releas
 protected-`main` pull-request process, wait for the full CI gate, and create the tag only from the
 accepted commit.
 
+If publication is interrupted after the draft is created, rerun the workflow: it replaces the draft's
+assets and then publishes it, preserving prerelease status. An already-published release is also repaired
+by replacing its assets, but the workflow warns because that release may already have been advertised
+without an installable bundle.
+
 After the first release, verify in GitHub Packages that both container packages are public before
 giving the download command to a server. A public source repository does not by itself prove an
 unauthenticated `docker pull` will work. Then perform one clean-server installation using the release

@@ -27,6 +27,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 die() { echo "deploy: ERROR: $*" >&2; exit 1; }
 
+command -v curl >/dev/null 2>&1 || die "curl is required for the post-deploy readiness check"
+
 echo "deploy: git pull"
 git pull --ff-only
 
@@ -84,6 +86,27 @@ docker compose build app migrate
 # loudly instead.
 echo "deploy: docker compose up -d (migrate runs first)"
 docker compose up -d --no-build
+
+echo "deploy: waiting for app readiness"
+health_url="http://127.0.0.1:3001/login"
+deadline=$((SECONDS + 300))
+ready=0
+for _ in $(seq 1 60); do
+  remaining=$((deadline - SECONDS))
+  ((remaining > 0)) || break
+  if curl -fsS --max-time "$((remaining < 5 ? remaining : 5))" "$health_url" >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  remaining=$((deadline - SECONDS))
+  ((remaining > 0)) || break
+  sleep "$((remaining < 5 ? remaining : 5))"
+done
+
+if [[ "$ready" != 1 ]]; then
+  docker compose logs app migrate --tail 100 >&2 || true
+  die "app did not become ready at $health_url within five minutes"
+fi
 
 echo "deploy: migrate log tail:"
 docker compose logs migrate --tail 8 || true
