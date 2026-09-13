@@ -20,6 +20,7 @@ import PageHeader from '@/components/PageHeader'
 import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
+import { findPersonalFavorites } from '@/lib/personalFavorites'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -77,16 +78,11 @@ export default async function LessonView({
   const canMakeOfficial = isSubjectAdminFor(user, sgId)
 
   // The caller's favorite row for the VIEWED version (§10, per-version by design 2026-07-06:
-  // favoriting 1.0.2 pins that snapshot). Own-rows-only by access; presence + row id drive the
-  // heading star, which follows the version selector.
-  const { docs: favRows } = await payload.find({
-    collection: 'favorites',
-    where: { version: { equals: selectedId } },
-    overrideAccess: false,
+  // favoriting 1.0.2 pins that snapshot). Explicitly own-only, including Site Admins; presence + row
+  // id drive the heading star, which follows the version selector.
+  const { docs: favRows } = await findPersonalFavorites(payload, {
     user,
-    depth: 0,
-    limit: 1,
-    select: {},
+    versionId: selectedId,
   })
   const favoriteId = favRows[0]?.id ?? null
 

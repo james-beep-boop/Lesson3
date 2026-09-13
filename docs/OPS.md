@@ -164,15 +164,17 @@ windows it applied); counts before/after via
   that the ciphertext decrypts or that `pg_restore` accepts it. Only the drill below establishes that,
   and nothing on this screen can substitute for having run it.
 
-### ⚑ CI: the rate limiter's state persists across runs
+### CI and local test rate-limit state
 
-A gate failure in `tests/int/authRateLimit.int.spec.ts` — or an e2e failing with "Sign-ups are
-temporarily paused" — may be environmental rather than yours. Confirmed 2026-08-27: that int case failed
-on a docs-only PR and passed on a re-run of the identical commit.
+A failure in `tests/int/authRateLimit.int.spec.ts` or "Sign-ups are temporarily paused" can be
+caused by test-environment limits, but a successful retry alone does not establish the cause.
+Current CI uses an isolated database per job; it does not preserve database counters across runs.
 
-**Re-run the failed job before reading a failure as yours.** A pass on the same SHA is the answer. The
-local remedy for the same symptom is below (clear the `Global:all` `rate_limit_counters` rows); CI has no
-equivalent yet, which is why a red gate here currently needs interpreting rather than acting on.
+Check the failing bucket, fixture configuration and counter state. A long-lived local test database
+can accumulate counters across suites; recreate only the disposable test database or use the
+scoped local reset documented in AGENTS.md. Keep the fixture-specific signup overrides from
+`app/test.env` when supplying an environment overlay. Never clear production counters merely to
+make a test pass. The 2026-08-27 same-commit retry incident remains history, not proof of persistence.
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 

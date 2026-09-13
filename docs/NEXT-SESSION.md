@@ -25,6 +25,72 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# HANDOFF (2026-09-12) — audit corrections, not yet committed
+
+**Supersedes older status blocks, not their deferred-feature decisions.** The user authorized fixes
+after Claude independently confirmed the seven audit findings. The starting checkout matched GitHub
+`main` when measured. Work is in `/Users/jamesmcclelland/Developer/Lesson3`; do not use the older
+Documents/GitHub checkout by assumption. No commit, push, release publication, or deployment was
+performed. Measure repository and deployment state again before taking the next action.
+
+## Changes
+
+- Save takes a live snapshot under a synchronous Payload processing lock, covering recovery and save
+  network waits. Failure retains dirty content and unlocks; successful navigation releases the lock
+  on document change. Native fields, array controls, and Insert link are locked while saving.
+- Browser verification also exposed a delayed entry-collapse race: typing could be followed by an
+  automatic row collapse. The row timer now respects the existing first-input entry-phase guard.
+- Users unlock is Site-Admin-only; client message creates cannot set `readAt`. Personal favorites
+  share an explicit owner query. The favorites defect affected Site administrators only, not Subject
+  administrators; administrative collection access is intentionally unchanged.
+- Bundle updates stage and pull before activation, retain immutable recovery evidence across retries,
+  and advance VERSION only after readiness. Release retries finish publishing existing drafts after
+  asset attachment, preserving prerelease status. Neither path was exercised against a real release.
+- URL insertion encodes parentheses; the renderer accepts balanced parentheses in existing URLs.
+  Renderer identity is now 5. Prose-list parity tests guard the duplicate model/generator declarations
+  without coupling the renderer to server hooks or changing the vendored generator.
+- Compatible security dependency patches and stale documentation corrections are included. Payload,
+  docx, and Mammoth remain pinned to their previous versions. No schema migration is required.
+
+## Verification
+
+All app checks used the pinned Node 24.19 dependency container, not the unsupported host runtime.
+Fixture-writing checks used a separately named disposable Postgres project, never the live database.
+The temporary server, database, volume, and test environment file were removed after verification;
+the pre-existing local Postgres container was left running.
+
+- Full unit suite: **1,104 tests / 120 files**.
+- Full Local API integration suite: **235 tests / 29 files**.
+- Targeted HTTP suite against the production build: **46 tests / 3 files** (`authFavorites`,
+  `recovery`, `saveAsNewRecovery`), including native unlock and read-receipt authorization.
+- TypeScript, zero-warning ESLint, Prettier, and the production Next build passed.
+- Bundle checks passed, including **8 updater and 8 release-publication regression groups**;
+  sidecar checks **8**, backup checks **53**. Release and updater faults use local stubs.
+- Chromium delayed-Save tests: **4 passed**, covering a Teacher with editing access and a Subject
+  administrator at 1280px and 900px, both network waits, successful source deletion, reopening the
+  saved version, and dirty-content retention after a failed save. Screenshots were inspected.
+- Existing recovery browser suites: **11 passed** after the entry-collapse correction, for **15
+  targeted Chromium tests total**. The full unrelated HTTP/e2e suites were not run.
+- Fresh production dependency audit: **0 high, 0 critical, 6 moderate**, so `audit:prod` passes its
+  high-severity threshold. The remaining items are Payload's unlock advisory (locally mitigated by
+  explicit access) and the inherited drizzle-kit/esbuild chain, not a claim of zero advisories.
+  Native sharp/libvips PNG generation also passed after the patch update.
+
+**Document fidelity caveat:** the full adapter gate remains **5/6**, reproducing the pre-change
+resource-link mismatch in the available Greenhouse Effect oracle/input pair. The current input has
+an additional PhET URL in lesson prose, and the oracle uses a different internal-resource hostname.
+Baseline-versus-working generation produced identical normalized XML across **all 54 parts in the
+three DOCX files**. New unit cases check actual DOCX hyperlink relationships for parenthesized URLs.
+No approved oracle was rewritten to force a pass. PDF visual/converter verification was not run.
+
+## Next Action
+
+Review the uncommitted diff and the verification caveats before choosing to commit or deploy. Check
+the document fixture/oracle pairing before refreshing any approved artifacts. Keep the accordion,
+public-library, and hosted error-tracking tracks deferred; this work does not reopen them.
+
+---
+
 # ⚑ HANDOFF (2026-08-30, evening) — the lesson page carries its own PDF/Word (#326)
 
 **Supersedes the earlier 2026-08-30 block below for STATE; its priority decisions still stand

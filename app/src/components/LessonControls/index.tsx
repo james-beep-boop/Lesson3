@@ -8,7 +8,7 @@
  *   view mode:  Viewing: <title> [Official] │ [Edit] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *   edit mode:  Editing: <title> [Official] │ [Save · Cancel] · [Insert link] · [Quick preview ↗] · [Formatted PDF ↗] · [Back to lesson]
  *
- * Read-only by default: the form is locked on mount (`useForm().setDisabled`); "Edit" unlocks it.
+ * Read-only by default through the collection's edit-mode styling; "Edit" unlocks it.
  * "Save" writes the current form content as a NEW candidate version (POST …/save-as-new — never moves
  * the Official pointer) and opens it. "Cancel" reverts unsaved changes and re-locks. "Quick preview"
  * (fast mammoth HTML, structure only) and "Formatted PDF" (the accurate DOCX→PDF rendering — cached
@@ -22,6 +22,7 @@
  * tabs are hidden in custom.scss so this bar is the only control surface.
  */
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { flushSync } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Button,
@@ -31,7 +32,6 @@ import {
   useForm,
   useFormModified,
 } from '@payloadcms/ui'
-import { reduceFieldsToValues } from 'payload/shared'
 
 import { isEditorFor, isSubjectAdminFor, toId } from '../../access'
 import { canDeleteVersionDoc } from '../../access/versioning'
@@ -61,7 +61,7 @@ import {
   subscribeToActiveLinkTarget,
 } from '../LinkedTextarea/activeTarget'
 import EditJumpNav from './EditJumpNav'
-import { beginEntryPhase, endEntryPhaseOnFirstInput } from './entryPhase'
+import { beginEntryPhase, endEntryPhaseOnFirstInput, isEntryPhaseOpen } from './entryPhase'
 import { initialCollapseActions } from './initialCollapse'
 import CompareToOfficialLink from '../CompareToOfficialLink'
 
@@ -74,7 +74,8 @@ async function errorMessage(res: Response, label: string): Promise<string> {
 
 export default function LessonControls() {
   const { id, savedDocumentData } = useDocumentInfo()
-  const { dispatchFields, initializing, setDisabled, reset, setModified } = useForm()
+  const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
+    useForm()
   // Pristine-form Save gate (user decision 2026-07-17, "disabled" variant): an untouched form has
   // nothing to save, so Save is disabled with a tooltip saying why. Payload's `modified` means
   // "touched", not "different" — type a char and delete it and the form counts as modified — so the
@@ -95,6 +96,14 @@ export default function LessonControls() {
   // ?edit=1 load.
   const [editIntent, setEditIntent] = useState<boolean>(() => searchParams.get('edit') === '1')
   const [saving, setSaving] = useState(false)
+  const saveInFlight = useRef(false)
+  useEffect(() => {
+    return () => {
+      saveInFlight.current = false
+      setProcessing(false)
+      setSaving(false)
+    }
+  }, [id, setProcessing])
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
   // Deliverables offered in the open "View as PDF" menu — computed ONCE when the button is pressed
@@ -116,8 +125,7 @@ export default function LessonControls() {
   // Open this visit's entry phase, which is what lets the PANELS' entry rule tell "the document just
   // opened" from "a jump revealed me". Keyed on `id` alone, so it runs once per mount and once per
   // document change — re-entering the same document later in the session is a new visit and gets a
-  // new phase. `entryPhase.ts` carries the reasoning; the row pass below needs no such guard, because
-  // form state is complete at entry whether or not a row was ever painted.
+  // new phase. Both panels and the delayed row pass must stop collapsing after deliberate input.
   useEffect(() => {
     if (id == null) return
     const documentId = String(id)
@@ -134,6 +142,10 @@ export default function LessonControls() {
     if (collapsedOnEntryFor.current === documentId) return
 
     const timer = window.setTimeout(() => {
+      if (!isEntryPhaseOpen(documentId)) {
+        collapsedOnEntryFor.current = documentId
+        return
+      }
       const actions = initialCollapseActions(fields)
       if (actions === null) return
 
@@ -230,9 +242,8 @@ export default function LessonControls() {
     () => false,
   )
 
-  // The live form values, read at call time. Declared here because edit recovery (below) is the
-  // first consumer; the save path uses the same function so both send an identical snapshot.
-  const currentContent = () => reduceFieldsToValues(fields, true)
+  // Payload reads its current form ref, including from an already-running async handler.
+  const currentContent = getData
 
   // ── Edit recovery (SPEC §5) ───────────────────────────────────────────────────────────────────
   const { register: registerRecoveryFlush } = useEditRecoveryFlushRegistry()
@@ -259,7 +270,7 @@ export default function LessonControls() {
   // the Edit/Cancel buttons flip it), extended over the recovery entry so a save cannot land while an
   // offer is undecided.
   //
-  // ⚑ **`setDisabled` does NOT make fields read-only.** Payload 3.85.1's `useField()` derives its
+  // ⚑ **`setDisabled` does NOT make fields read-only.** Payload's `useField()` derives its
   // `disabled` from `processing || initializing` alone — verified in installed source — and never
   // consumes `useForm().disabled`. So this gates SUBMISSION, and calling it "locking the form" (as an
   // earlier version of this comment did) describes something the framework does not do.
@@ -422,15 +433,22 @@ export default function LessonControls() {
   }
 
   const onSave = async () => {
-    if (saving) return
+    if (saveInFlight.current || saving || recoveryGate || !editing) return
     // Decide up front whether to also delete the version being edited — offered only for a deletable
     // (non-Official) candidate the CALLER may delete (`canDelete`, computed above; the server re-gates
     // in save-as-new). Asking before the request lets save-as-new create + delete atomically.
     const deleteSource =
       canDelete && window.confirm(`Save your edits as a new version and delete ${versionPhrase}?`)
-    setSaving(true)
+    saveInFlight.current = true
+    // Unlike setDisabled, processing disables native fields AND array mutation controls.
+    // Flush before taking the snapshot or awaiting recovery, so no keystroke can race the lock.
+    flushSync(() => {
+      setSaving(true)
+      setProcessing(true)
+    })
     setMsg(null)
     try {
+      const snapshot = JSON.stringify(currentContent())
       // ⚑ Flush BEFORE saving, and let the flush decide whether the save may proceed at all
       // (design §5). The two failure kinds are not alike: a transport failure still saves — the
       // version save is what matters and the capture is only insurance — while a 409 must stop,
@@ -447,11 +465,13 @@ export default function LessonControls() {
           'Your unsaved work is out of date. Reload before saving, so newer changes are not lost.',
         )
         setSaving(false)
+        setProcessing(false)
+        saveInFlight.current = false
         return
       }
 
       const body = new FormData()
-      body.set('data', JSON.stringify(currentContent()))
+      body.set('data', snapshot)
       // Separate multipart fields, never keys in the document: a Site Admin editing the raw document
       // must not be able to persist recovery metadata as lesson content. Absent when the flush was
       // indeterminate, which takes the server's no-token path deliberately.
@@ -473,12 +493,14 @@ export default function LessonControls() {
       // form's dirty/validity state. (The earlier setModified + setTimeout approach was unreliable: the
       // beforeunload listener is torn down in a passive effect that need not flush before a deferred
       // window.location assignment, and it stays armed while the form is invalid.) setModified(false)
-      // stays as correctness hygiene — the save persisted, so the form is no longer dirty.
+      // stays as correctness hygiene. Keep processing locked until the document changes/unmounts.
       setModified(false)
       router.push(out.adminUrl)
     } catch (e) {
       setMsg(e instanceof Error ? e.message : 'Save failed')
       setSaving(false)
+      setProcessing(false)
+      saveInFlight.current = false
     }
   }
 
@@ -697,7 +719,7 @@ export default function LessonControls() {
               buttonStyle="secondary"
               size="small"
               onClick={openActiveLinkTarget}
-              disabled={!linkTargetReady}
+              disabled={saving || !linkTargetReady}
               tooltip={!linkTargetReady ? 'Place the cursor in a prose field first' : undefined}
             >
               Insert link

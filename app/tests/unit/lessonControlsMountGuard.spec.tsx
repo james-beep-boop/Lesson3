@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   search: 'edit=1',
   // Captured so we can assert the form's locked/unlocked state after the guard settles.
   setDisabled: vi.fn(),
+  setProcessing: vi.fn(),
   dispatchFields: vi.fn(),
   fields: {} as Record<string, unknown>,
   initializing: false,
@@ -49,6 +50,8 @@ vi.mock('@payloadcms/ui', () => ({
     dispatchFields: mocks.dispatchFields,
     initializing: mocks.initializing,
     setDisabled: mocks.setDisabled,
+    setProcessing: mocks.setProcessing,
+    getData: () => ({}),
     reset: vi.fn(),
     setModified: vi.fn(),
   }),

@@ -228,9 +228,10 @@ export const Messages: CollectionConfig = {
       relationTo: 'lesson-bundle-versions',
     },
     {
-      // null = unread. Set ONLY by the system mark-read write (inbox view); API update is closed.
+      // null = unread. Client creates must not spoof a read receipt; only system writes may set it.
       name: 'readAt',
       type: 'date',
+      access: { create: () => false, update: () => false },
     },
   ],
 }

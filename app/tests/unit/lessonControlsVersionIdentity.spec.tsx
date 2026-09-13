@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   /** Overridable per test — the point of several cases is a MISSING semver. */
   semver: '1.2.0' as string | undefined,
   confirm: vi.fn((_message?: string) => false),
+  setProcessing: vi.fn(),
   /** `edit=1` puts the bar in edit mode, where Save (and its own confirmation) exists. */
   search: '' as string,
   user: { id: 1, roles: [], assignments: [{ subjectGrade: 5, role: 'editor' }] } as unknown,
@@ -59,7 +60,13 @@ vi.mock('@payloadcms/ui', () => ({
       author: 1,
     },
   }),
-  useForm: () => ({ setDisabled: vi.fn(), reset: vi.fn(), setModified: vi.fn() }),
+  useForm: () => ({
+    setDisabled: vi.fn(),
+    reset: vi.fn(),
+    setModified: vi.fn(),
+    setProcessing: mocks.setProcessing,
+    getData: () => ({}),
+  }),
   // Save is `disabled={saving || !modified}`, so an unmodified form makes the click a no-op and the
   // confirmation is never reached. A caller pressing Save has changes; say so.
   useFormModified: () => true,

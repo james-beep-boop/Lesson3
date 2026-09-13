@@ -80,7 +80,8 @@ See `app/src/generator/vendor/PROVENANCE.md` for checksums and the re-sync proce
 - **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`, `docx_kit.js`
 - **NOT vendored:** upstream `aresResources.js`, because it invokes Python. Lesson3's pure-Node bridge
   supplies the stored JSON map through `AsyncLocalStorage` and filters hyperlinks to HTTP(S).
-- **`docx` pinned** `9.6.1` exact; `mammoth` `1.12.0` (devDep, for DOCX→text diffing).
+- **`docx` and `mammoth` are pinned production dependencies** in `app/package.json`.
+  Mammoth supplies DOCX-to-HTML previews as well as test comparisons; it is not test-only.
 - **Re-sync:** `scripts/vendor-generator.sh <clone> <sha>`, then re-run the fidelity regression
   (the acceptance gate) before trusting the new version.
 
