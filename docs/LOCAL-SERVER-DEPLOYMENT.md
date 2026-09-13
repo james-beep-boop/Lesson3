@@ -128,15 +128,33 @@ cd /tmp/new-lesson3-release/lesson3-deploy
 ./update.sh /absolute/path/to/existing/lesson3-deploy
 ```
 
-The updater first creates an encrypted pre-migration backup, saves the previous deployment files under
-`releases/<old-version>/`, installs the new exact-version Compose definition, pulls the images, runs
-migrations, and waits for `/login`. It refuses to update without configured backups. Only an empty or
-disposable installation should use the explicit `ALLOW_UNBACKED_UPDATE=1` escape hatch.
+The updater stages the bundle and original deployment files in `.update-pending/`, then pulls the new
+images **without replacing the active Compose file**. It next takes an encrypted pre-migration backup,
+records its log and backup identity, activates the staged files, runs migrations, and waits for `/login`.
+Only successful health verification advances `VERSION`. It refuses activation without configured
+backups. Only an empty or disposable installation should use `ALLOW_UNBACKED_UPDATE=1`.
 
-If startup fails after migrations begin, do not blindly restart the old application against the new
-schema. Inspect `docker compose logs migrate app`, restore the pre-migration database, then use the
-previous Compose file saved under `releases/<old-version>/`. Keep both the database backup and previous
-images until the new release has passed login, representative lesson, DOCX, PDF, and backup checks.
+**Retry the exact same extracted bundle after a failure.** `.update-pending/phase` records `staged`,
+`backed-up`, or `activating`; the updater resumes that transaction and rejects another version or changed
+bundle contents, including changed image digests under the same version. Failed pulls leave the active
+files untouched. Once a backup is recorded, retries never replace it with a potentially post-migration
+backup. The original files in `.update-pending/previous/` are never overwritten by a retry. An installed
+version without pending state is not treated as an update retry; different Compose/image identity under
+that same version is refused. Investigate failures from older updaters manually rather than trusting
+their prematurely advanced `VERSION`; a legacy `releases/<installed-version>/` snapshot also blocks a
+fresh transaction because it may belong to an unfinished update.
+
+After health succeeds, the transaction moves to `releases/<old-version>-to-<new-version>/`, preserving
+`previous/`, `bundle/`, `backup.log`, and (when available) `backup-status.json`. Existing recovery records
+are never overwritten. The installation's `.env` is always left in place.
+
+If startup or health fails, **no automatic rollback is attempted**: migrations may already have run.
+Inspect `docker compose logs migrate app` and fix the problem before resuming. To return to old images,
+restore the paired pre-migration database and original deployment files as an explicit recovery operation;
+do not just remove `.update-pending` or restart the old Compose definition against a new schema. Keep the
+database backup and recovery record until login, representative lesson, DOCX, PDF, and backup checks pass.
+After an abrupt process termination, `.update-lock` can remain: remove that empty lock directory only
+after confirming no updater or its Compose child is still running, then resume the same bundle.
 
 ## Routine operations
 

@@ -9,6 +9,7 @@ import type { User } from '@/payload-types'
 import LibraryBrowser from './LibraryBrowser'
 import { lessonDisplayName, type LessonRow } from '@/lib/substrand'
 import { versionCountsByPlan } from '@/lib/versionCounts'
+import { findPersonalFavorites } from '@/lib/personalFavorites'
 
 /**
  * Lesson Plans — the one browse page shared by all roles (SPEC §13). Strand-first: subject-grade
@@ -37,8 +38,8 @@ export default async function BrowsePage({
   //    strands across pages; completeness + search is the right discoverability model here. The
   //    projection is light (ids + small meta), so all-of-hundreds is cheap; revisit (lazy-load /
   //    virtualize) only if the corpus reaches thousands. (Backlog #8.)
-  // The favorites fetch (§10, per-version) is the caller's own handful of rows (own-rows-only by
-  // access, no filter needed) and independent of the plans fetch — one parallel round-trip. Rows
+  // The favorites fetch (§10, per-version) explicitly selects the caller's own rows, even for Site
+  // Admins, and is independent of the plans fetch — one parallel round-trip. Rows
   // key their star to the plan's OFFICIAL version (the version the row opens), so a favorite on a
   // non-Official version (saved from the lesson page) simply never matches a row's lookup here —
   // deliberately not surfaced yet; the versions-panel redesign PR ② adds the any-version indicator.
@@ -58,16 +59,7 @@ export default async function BrowsePage({
         select: { officialVersion: true },
       }),
     ),
-    t.time('favorites', () =>
-      payload.find({
-        collection: 'favorites',
-        overrideAccess: false,
-        user,
-        depth: 0,
-        pagination: false,
-        select: { version: true },
-      }),
-    ),
+    t.time('favorites', () => findPersonalFavorites(payload, { user })),
     t.time('versionCounts', () => versionCountsByPlan(payload)),
   ])
   const officialIds = distinctIds(plans.map((p) => relId(p.officialVersion)))

@@ -11,6 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-12 — Audit corrections: snapshot locks, personal scope, and retry state
+
+The seven audit findings were checked against source and independently reviewed. The favorites bug
+affects **Site administrators only**, not Subject administrators. Unlock resets Payload's password
+lockout; it does not reset Lesson3's separate login rate limits. Keep those impact boundaries explicit.
+
+- **Save uses Payload's processing state, not its disabled state.** Installed `useField` and Array
+  consume processing to disable prose and structural mutation controls; `setDisabled` gates submission
+  only. Lock synchronously before taking the snapshot and awaiting recovery. Use Payload's live
+  `getData`, not a closure over one render's fields. Keep the lock until navigation/document change;
+  failures release it without clearing dirty state. Browser tests hold both network waits open.
+- **A delayed entry rule must check whether entry has ended when its timer fires.** The browser
+  save test exposed the existing 300ms row-collapse timer closing an already-open lesson after typing.
+  Form state being complete does not prevent this timing race. The row pass now shares the panels'
+  `isEntryPhaseOpen` guard; component coverage checks both untouched entry and prior user input.
+- **Administrative visibility is not a personal-query predicate.** Favorites keeps its broad
+  Site-Admin maintenance access, while both personal pages share an explicit current-user query.
+  Explicitly gate Users unlock too; an omitted operation policy inherits the framework's default.
+  `readAt` belongs to the recipient-authorized system write, not a sender's create payload.
+- **An update is a state transition, not a sequence that assumes no command fails.** Stage and pull
+  before activation, preserve the original files and pre-migration backup evidence, and retain pending
+  state for exact-bundle retries. Only successful readiness advances VERSION. Never automatically
+  revert images after a migration may have run. Release retries must publish an existing draft after
+  attaching assets, just as the initial run does.
+- **URL insertion and rendering share a delimiter contract.** Encode parentheses in newly inserted
+  URLs (including unbalanced legal URL characters), and accept balanced parentheses in already-stored
+  links. Advance the renderer identity to invalidate cached artifacts. Prose-list parity is tested
+  across model and generator boundaries instead of importing server hooks into rendering code.
+- **Update dependency pins deliberately.** Compatible patches remove the current high/critical audit
+  findings without a Payload-wide upgrade or forced cross-major transitive replacement. The explicit
+  unlock policy is the local mitigation for Payload's remaining advisory; inherited drizzle/esbuild
+  findings still require tracking rather than a claim of zero advisories.
+
+No change to the role model, immutable versions, shared-computer recovery policy, vendored generator,
+or deferred public-library scope is intended. Verification results belong in the current handoff.
+
+---
+
 ## 2026-09-01 — Error tracking stays OFF: no backend adopted, and two false privacy claims removed
 
 **Operator decision, arrived at by elimination.** `SENTRY_DSN` had never been set, so error tracking has

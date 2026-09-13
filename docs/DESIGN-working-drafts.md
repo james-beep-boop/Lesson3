@@ -1,6 +1,8 @@
 # DESIGN — edit recovery (unsaved-edit durability)
 
-**Status: PR 1 (server) MERGED to `main`; PR 2 (client) not started.** Reconciled 2026-08-05 after adversarial review (five rounds); first drafted 2026-07-20.
+**Status (reconciled 2026-09-12): server and client capture/restore are implemented.** The dated
+PR-stage notes below preserve implementation history, not outstanding work. The durability and
+unsafe-expiry limits in SPEC §5 remain in force. First drafted 2026-07-20.
 ⚑ Per-case status is §7's and only §7's — do not restate it here or in any other document.
 
 > **Filename kept deliberately.** This file is cited from `SPEC.md`, `docs/DECISIONS.md`,

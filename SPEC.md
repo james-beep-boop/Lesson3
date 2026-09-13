@@ -218,19 +218,22 @@ Lesson-content editing is offered only at **viewport width > 640px** (i.e. block
 > access"** granted to a Teacher, never as an "Editor" account. The stored `editor` assignment value
 > is an implementation identifier retained for compatibility; it does not define a fourth type.
 
-### Unsaved-work durability — edit recovery (amended 2026-07-20; reconciled 2026-08-05)
+### Unsaved-work durability — edit recovery (amended 2026-07-20; reconciled 2026-09-12)
 
 **Invariant: a teacher's in-progress edits must survive session expiry, browser crash, forced
 refresh, device sleep and accidental tab close.** This is a product guarantee, not a nicety.
 
-It is not currently met. There are **two distinct expiry paths, with different failures**: Payload's
-own `forceLogOutTimeout` navigates via a *programmatic* `router.replace()` and its dirty-form guard
-intercepts only `beforeunload` and link clicks — so the editor unmounts and unsaved work is destroyed
-with no prompt and no recovery copy. Our `IdleLogout` calls `logOut()`, which does **not** navigate,
-leaving a *zombie editor*: work on screen, session dead, saves 401ing, and the previous teacher's
-content visible to the next person at a shared machine. Both must be fixed; neither is fixed by
-"stop unmounting" (see the clearing rule below). Verified against installed `@payloadcms/ui` 3.85.1;
-full design in `docs/DESIGN-working-drafts.md`.
+**Implemented:** server-owned captures, client capture/restore, and the pre-expiry flush and
+screen-clearing policy below. Both historical expiry paths (Payload's navigating timeout and
+IdleLogout's non-navigating logout) are addressed by this integration. The guarantee remains the
+last confirmed capture, not every keystroke: debounce, network failure and offline work have the
+limits specified below. If the final flush is unconfirmed, the explicit unsafe-work screen policy
+below takes precedence over automatic clearing. Full design and dated implementation history:
+`docs/DESIGN-working-drafts.md`.
+
+Saving holds Payload's processing lock across recovery preparation, submission and navigation;
+native prose and structural controls must not accept changes after the submitted snapshot is taken.
+A rejected or failed save releases the lock without clearing the dirty form.
 
 **Vocabulary — "draft" is reserved and must not be used for this feature.** In this product a
 *draft* already means an unofficial **saved version**, and the live evidence is the Guide, which

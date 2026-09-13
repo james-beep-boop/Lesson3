@@ -116,6 +116,7 @@ export const Users: CollectionConfig = {
     create: usersCollectionCreate,
     update: usersCollectionUpdate,
     delete: siteAdminOnly,
+    unlock: siteAdminOnly,
   },
   hooks: {
     // Payload's production error formatter can lose custom `APIError.data` across Next server chunks

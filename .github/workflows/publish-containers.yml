@@ -113,22 +113,7 @@ jobs:
       - name: Publish the release with its bundle attached
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          tag="$GITHUB_REF_NAME"
-          bundle=dist/lesson3-online-deploy.tar.gz
-
-          if gh release view "$tag" >/dev/null 2>&1; then
-            # A re-run of this job, or a release somebody created by hand. Its assets are missing right
-            # now either way, so attach them immediately rather than refusing and leaving it broken —
-            # but warn, because a hand-created release is precisely what reopens the window above.
-            echo "::warning::release $tag already existed before its bundle was attached; push the tag and let this workflow publish the release"
-            gh release upload "$tag" "$bundle" "$bundle.sha256" --clobber
-          else
-            gh release create "$tag" "$bundle" "$bundle.sha256" \
-              --draft --verify-tag --generate-notes --title "Lesson3 $tag"
-            gh release edit "$tag" --draft=false
-          fi
+        run: bash scripts/publish-release-bundle.sh "$GITHUB_REF_NAME" dist/lesson3-online-deploy.tar.gz
 
       # A release that is ADVERTISED but not INSTALLABLE is worse than no release: GitHub keeps
       # serving it as "Latest" while `releases/latest/download/...` returns 404, and the first person

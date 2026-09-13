@@ -22,7 +22,6 @@ const { AlignmentType, ExternalHyperlink, Paragraph, TextRun } =
 const FONT = 'Arial'
 const SIZE = 18
 const LINK_COLOUR = '2E75B6'
-const PARENTHESIZED_URL = /\((https?:\/\/[^\s<>()]+)\)/gi
 
 type LinkToken = { kind: 'link'; url: string } | { kind: 'text'; text: string }
 
@@ -44,14 +43,27 @@ const safeHttpUrl = (value: string): string | null => {
 export function tokenizeParenthesizedUrls(text: string): LinkToken[] {
   const tokens: LinkToken[] = []
   let cursor = 0
-  PARENTHESIZED_URL.lastIndex = 0
-  for (const match of text.matchAll(PARENTHESIZED_URL)) {
-    const index = match.index ?? 0
-    const url = safeHttpUrl(match[1])
+  const start = /\(https?:\/\//gi
+  let match: RegExpExecArray | null
+  while ((match = start.exec(text))) {
+    const index = match.index
+    let end = index + 1
+    let depth = 1
+    // Parentheses are legal URL characters. Match the enclosing pair without truncating
+    // existing Wikipedia-style paths, and stop malformed candidates at prose boundaries.
+    for (; end < text.length; end++) {
+      const char = text[end]
+      if (/\s|[<>]/.test(char)) break
+      if (char === '(') depth++
+      if (char === ')' && --depth === 0) break
+    }
+    start.lastIndex = end + 1
+    if (depth !== 0) continue
+    const url = safeHttpUrl(text.slice(index + 1, end))
     if (!url) continue
     if (index > cursor) tokens.push({ kind: 'text', text: text.slice(cursor, index) })
     tokens.push({ kind: 'text', text: '(' }, { kind: 'link', url }, { kind: 'text', text: ')' })
-    cursor = index + match[0].length
+    cursor = end + 1
   }
   if (cursor < text.length) tokens.push({ kind: 'text', text: text.slice(cursor) })
   return tokens.length > 0 ? tokens : [{ kind: 'text', text }]

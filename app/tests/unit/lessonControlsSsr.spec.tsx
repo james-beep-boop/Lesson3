@@ -46,7 +46,13 @@ vi.mock('@payloadcms/ui', () => ({
       title: 'BIOLOGY GRADE 10: CELL STRUCTURE',
     },
   }),
-  useForm: () => ({ setDisabled: vi.fn(), reset: vi.fn(), setModified: vi.fn() }),
+  useForm: () => ({
+    setDisabled: vi.fn(),
+    reset: vi.fn(),
+    setModified: vi.fn(),
+    setProcessing: vi.fn(),
+    getData: () => ({}),
+  }),
   useFormModified: () => mocks.modified,
 }))
 

@@ -130,7 +130,8 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
     specs start failing (`forgotPasswordGlobal:all`). Reset with
     `docker compose -p lesson3-ci-probe exec -T postgres psql -U lesson3 -d lesson3_test -c "DELETE FROM rate_limit_counters WHERE bucket_key LIKE '%Global:all';"`
 
-- **Build:** `npm run build` (`next build`, **needs a DB → Rock only**).
+- **Build:** `npm run build` (`next build`, needs a database). Use the pinned dependency container
+  against a disposable local stack or CI; the Rock is not required.
 - **Codegen (run in the pinned Node 24 deps image):** `npm run generate:types`, `npm run generate:importmap` —
   commit the output. The local CLIs can break on newer Node.
 
@@ -211,8 +212,9 @@ curl -fsSLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/
   change (golden-file DOCX diff, type-check, or boot). "Done" requires evidence.
 - **Security:** ingest **extracts** ARES `.js`/`.json` to data; never execute uploaded code. Enforce
   all rules server-side, not only in the UI. The export/preview endpoints are the authz boundary.
-- **Tests:** colocate (`app/tests/int`, `app/tests/e2e`) and run before declaring work done. Note the
-  DB-dependent gap: int/e2e/build only run on the Rock.
+- **Tests:** colocate (`app/tests/int`, `app/tests/e2e`) and run before declaring work done.
+  Integration tests need a database; HTTP/browser tests also need a running app using that same
+  database. Use a disposable local stack or CI, never a live installation for fixture-driven tests.
 - **Formatting/linting:** ESLint 9 (`npm run lint`) + Prettier 3 (`npm run format:check`, or
   `npm run format` to fix); tsc clean. ⚑ **Two commands, not one.** `npm run lint` is ESLint
   ONLY — this line used to name Prettier while giving only the ESLint command, and 106 files

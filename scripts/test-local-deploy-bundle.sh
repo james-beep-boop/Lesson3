@@ -88,6 +88,13 @@ bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
 tar -C "$TMP/new-assets" -xzf "$TMP/new-assets/lesson3-online-deploy.tar.gz"
 NEW_BUNDLE="$TMP/new-assets/lesson3-deploy"
 
+# This is local Compose parsing only. A staged manifest has no .env beside it: the explicit project
+# directory must resolve env_file and relative bind mounts against the existing installation.
+staged_config="$(docker compose --project-directory "$BUNDLE" --env-file "$BUNDLE/.env" \
+  -f "$NEW_BUNDLE/compose.yaml" config)"
+grep -Fq "$BUNDLE/out/ops" <<<"$staged_config" \
+  || fail "staged Compose resolved mounts outside the installation"
+
 missing_target="$TMP/missing-key-target"
 cp -R "$BUNDLE" "$missing_target"
 sed -i.bak '/^ADMIN_URL=/d' "$missing_target/.env"
@@ -107,26 +114,7 @@ fi
 grep -Eq 'refusing downgrade' "$TMP/downgrade.out" \
   || fail "updater did not explain the refused downgrade"
 
-pull_failure_target="$TMP/pull-failure-target"
-cp -R "$BUNDLE" "$pull_failure_target"
-stub_bin="$TMP/stub-bin"
-mkdir -p "$stub_bin"
-cat >"$stub_bin/docker" <<'EOF'
-#!/usr/bin/env bash
-if [[ "${1:-} ${2:-}" == "compose version" ]]; then
-  exit 0
-fi
-if [[ "${1:-} ${2:-}" == "compose pull" ]]; then
-  exit 1
-fi
-exit 2
-EOF
-chmod +x "$stub_bin/docker"
-if PATH="$stub_bin:$PATH" ALLOW_UNBACKED_UPDATE=1 \
-  "$NEW_BUNDLE/update.sh" "$pull_failure_target" >"$TMP/pull-failure.out" 2>&1; then
-  fail "updater succeeded after an image pull failure"
-fi
-[[ "$(cat "$pull_failure_target/VERSION")" == "v0.0.0" ]] \
-  || fail "updater changed VERSION before images downloaded successfully"
+bash "$ROOT/scripts/test-online-update.sh"
+bash "$ROOT/scripts/test-publish-release-bundle.sh"
 
 echo "test-local-deploy-bundle: PASS"

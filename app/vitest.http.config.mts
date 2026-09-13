@@ -5,8 +5,8 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // HTTP endpoint/authz e2e (`tests/http`). UNLIKE `vitest.config.mts` (the Local-API int suite) this
 // config loads NO `vitest.setup.ts`, so it does NOT override DATABASE_URI to the localhost test DB:
 // these tests seed via the Local API into the SAME database the RUNNING app serves from, then drive
-// the real HTTP endpoints over the wire. On the Rock that means `--env-file .env` (the live `lesson3`)
-// and `E2E_BASE_URL=http://app:3000` (the app service on the compose network). See DECISIONS 2026-06-28.
+// the real HTTP endpoints over the wire. Use a disposable database and an app configured for that
+// same database; never point these fixture-writing tests at the live installation.
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {

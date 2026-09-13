@@ -8,7 +8,8 @@ export function insertParenthesizedUrl(
   value: string
 } {
   const safeCursor = Math.max(0, Math.min(cursor, value.length))
-  const insertion = `(${url})`
+  // Encode delimiters for new links, including legal URLs with an unmatched parenthesis.
+  const insertion = `(${url.replace(/\(/g, '%28').replace(/\)/g, '%29')})`
   return {
     value: `${value.slice(0, safeCursor)}${insertion}${value.slice(safeCursor)}`,
     cursor: safeCursor + insertion.length,

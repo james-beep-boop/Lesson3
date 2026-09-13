@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — audit corrections (2026-09-12)
+
+- Save locks native content and structural controls before taking its snapshot, through recovery
+  preparation and navigation. Failed saves unlock without clearing unsaved work.
+- The delayed entry-collapse timer respects the first user input, so it cannot close a lesson the
+  teacher has already opened and started editing.
+- Account unlock is explicitly Site-Administrator-only. Personal favorites are explicitly scoped to
+  the current user, even for Site administrators; senders cannot create recipient read receipts.
+- Bundle updates retain the original rollback files and backup evidence across retries, and record
+  the new VERSION only after readiness. Release publishing resumes an existing draft.
+- New prose links encode parenthesis delimiters; existing balanced-parenthesis URLs now become real
+  document hyperlinks. Renderer cache identity advances so old artifacts do not hide the fix.
+- Compatible security dependency pins and stale current-status documentation are refreshed; prose
+  mapping parity and targeted save/auth/update/release regressions are added.
+
 ## Unreleased — editor panels, phone fixes, and Word by email
 
 The version editor now opens compact on every visit. Payload gives a stored per-user preference

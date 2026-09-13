@@ -11,6 +11,11 @@ import {
   withParenthesizedProseLinks,
 } from '../../src/generator/proseLinks'
 import { minimalBundleContent } from '../helpers/fixtures'
+import {
+  insertParenthesizedUrl,
+  validExternalUrl,
+} from '../../src/components/LinkedTextarea/insertLink'
+import { SLO_PROSE, FRAMEWORK_PROSE, SUMMARY_PROMPT_PROSE } from '../../src/hooks/fieldSplit'
 
 const require = createRequire(import.meta.url)
 const { Document, Packer } = require('docx') as {
@@ -19,6 +24,66 @@ const { Document, Packer } = require('docx') as {
 }
 
 describe('parenthesized prose hyperlinks', () => {
+  it.each([
+    'https://en.wikipedia.org/wiki/Force_(physics)',
+    'https://example.org/?q=(force_(physics))',
+    'https://example.org/Force_%28physics%29',
+  ])('preserves a complete existing URL: %s', async (url) => {
+    expect(validExternalUrl(url)).toBe(url)
+    expect(tokenizeParenthesizedUrls(`See (${url}).`).filter((t) => t.kind === 'link')).toEqual([
+      { kind: 'link', url },
+    ])
+    const document = new Document({ sections: [{ children: linkifyProse(`(${url})`) }] })
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(document))
+    expect(await zip.file('word/_rels/document.xml.rels')!.async('string')).toContain(
+      `Target="${url}"`,
+    )
+  })
+
+  it('encodes new URL delimiters, even when they are unbalanced', () => {
+    for (const url of ['https://example.org/a(b', 'https://example.org/a)b']) {
+      const inserted = insertParenthesizedUrl('', 0, validExternalUrl(url)!).value
+      expect(tokenizeParenthesizedUrls(inserted).filter((t) => t.kind === 'link')).toEqual([
+        { kind: 'link', url: url.replace(/\(/g, '%28').replace(/\)/g, '%29') },
+      ])
+    }
+  })
+
+  it('keeps malformed candidates as text without hiding a following valid link', () => {
+    const text = '(https://example.org/unclosed (https://example.org/ok)'
+    expect(tokenizeParenthesizedUrls(text).filter((t) => t.kind === 'link')).toEqual([
+      { kind: 'link', url: 'https://example.org/ok' },
+    ])
+    expect(linkifyProse('(https://example.org/unclosed')).toBe('(https://example.org/unclosed')
+  })
+
+  it('keeps generator prose mappings in step with the editable field contract', () => {
+    const prose = (keys: readonly string[]) =>
+      Object.fromEntries(keys.map((key) => [key, '(https://example.org)']))
+    const data = withParenthesizedProseLinks({
+      META: {},
+      UNIT: {},
+      LESSONS: [
+        {
+          slo: prose(SLO_PROSE),
+          framework: [prose(FRAMEWORK_PROSE)],
+          summaryTablePrompt: prose(SUMMARY_PROMPT_PROSE),
+        },
+      ],
+      SUMMARY_TABLE: { lessons: [prose(SUMMARY_PROMPT_PROSE)] },
+    })
+    const lesson = data.LESSONS[0] as Record<string, unknown>
+    for (const [keys, value] of [
+      [SLO_PROSE, lesson.slo],
+      [FRAMEWORK_PROSE, (lesson.framework as unknown[])[0]],
+      [SUMMARY_PROMPT_PROSE, lesson.summaryTablePrompt],
+      [SUMMARY_PROMPT_PROSE, (data.SUMMARY_TABLE as { lessons: unknown[] }).lessons[0]],
+    ] as const) {
+      for (const key of keys)
+        expect(Array.isArray((value as Record<string, unknown>)[key]), key).toBe(true)
+    }
+  })
+
   it('recognizes only parenthesized HTTP(S) addresses and preserves the parentheses', () => {
     expect(tokenizeParenthesizedUrls('Watch (https://youtu.be/example) now.')).toEqual([
       { kind: 'text', text: 'Watch ' },
