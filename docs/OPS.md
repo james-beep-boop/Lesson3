@@ -264,7 +264,8 @@ grep -q 'HOME/bin' ~/.profile || echo 'export PATH="$HOME/bin:$PATH"' >> ~/.prof
 ## Deploy (with pre-migration snapshot)
 
 Use `scripts/deploy.sh` instead of a bare `docker compose up`: it pulls, takes a `premigrate-<sha>`
-snapshot, builds, then `docker compose up -d` (the one-shot `migrate` runs first). **No snapshot, no
+snapshot, builds, then `docker compose up -d --no-build` (the one-shot `migrate` runs first), and waits
+up to five minutes for `http://127.0.0.1:3001/login`. It prints `deploy: OK` only after that probe succeeds. **No snapshot, no
 migrate:** if backups aren't configured yet it REFUSES (so a destructive migration can't run with no
 restore point). To deploy before backups are wired, run `ALLOW_UNBACKED_DEPLOY=1 scripts/deploy.sh`
 explicitly.
@@ -286,20 +287,15 @@ fix; the skip logic above only keeps an *unchanged* sidecar off the deploy path.
 mismatched image, and for a missing image it wouldn't even work (`up -d --no-build` fails loudly instead of
 silently building it).
 
-> **Provenance is currently MATCHED** (verified 2026-07-27, Rock at `5cfd4eb`): `gotenberg/` tree
-> `d7c32515…` equals the label on the running image, so `deploy.sh` skips the font build — the steady state
-> this mechanism exists to produce. `fc-list` reports 9 Arial faces in that image.
->
-> History, for when the same situation recurs: the image originally predated the label entirely, which
-> would have forced a rebuild through the un-retried mirror; the label was stamped onto the existing layers
-> with a metadata-only build (`FROM lesson3-gotenberg` + `LABEL`) to avoid it — legitimate because
-> `gotenberg/` had not changed since that image was built. Adding the font retry then moved the tree, so
-> the gate correctly mismatched and rebuilt on the next deploy. That build succeeded on its first attempt,
-> which is the retry's first real exercise. Note a `LABEL` is itself a config change, so the image ID moves
-> (`54e3ad0b…` → …); what stays fixed is the runtime configuration — user, entrypoint, cmd, exposed port.
+Do not copy a previously recorded sidecar hash into an operating decision. The script measures the
+current checkout and installed image every run, then prints whether it skipped or rebuilt Gotenberg.
+The 2026-07-27 metadata-only provenance recovery remains historical context in `DECISIONS.md`; it is
+not evidence about the image currently installed on a particular box.
 
-> Schema-change caveat unchanged: regenerate types/migrations on the Rock when the schema shifts (the
-> local Payload CLI breaks on newer Node) — see `docs/NEXT-SESSION.md` "Deploy".
+Schema changes must arrive on `main` with generated types and migrations committed. Generate them in
+the pinned Node 24 dependency container before merge (`scripts/in-deps.sh -- npm run generate:types`
+and the repository's migration workflow); the normal Rock deploy applies committed migrations through
+the `migrate` service. Do not improvise host-Node Payload code generation on the production box.
 
 ### After any deploy touching edit recovery: verify the cascade on THIS box
 

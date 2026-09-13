@@ -191,12 +191,13 @@ release **with the bundle already attached** — assembled as a draft, made visi
 are on it. A final step then walks the install path from `docs/LOCAL-SERVER-DEPLOYMENT.md` and fails the
 run if it does not lead to this version.
 
-⚑ **Creating the release in the GitHub UI before the workflow runs reopens a real hole.** GitHub serves a
+⚑ **Creating a published release in the GitHub UI before the workflow runs reopens a real hole.** GitHub serves a
 release as "Latest" the moment it exists, so `releases/latest/download/lesson3-online-deploy.tar.gz` —
 the exact command deployers are given — returns **404** until the job attaches the bundle. v0.80 sat in
 that state for 17 minutes. The window is self-healing only while the job succeeds; if it fails, the
-version stays advertised and uninstallable until a human notices. The workflow still uploads to a
-pre-existing release rather than refusing, but it emits a `::warning::` when it has to.
+version stays advertised and uninstallable until a human notices. A workflow-created draft is the
+expected retry state: a rerun attaches/replaces its assets and publishes it. If a release is already
+published, the workflow replaces its assets and emits a `::warning::` because the unsafe window existed.
 
 Publishing takes ~20 minutes (two multi-arch image builds). To confirm afterwards:
 

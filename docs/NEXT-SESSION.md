@@ -25,13 +25,18 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# HANDOFF (2026-09-12) — audit corrections, not yet committed
+# HANDOFF (2026-09-12) — #332 merged; deployment follow-up pending merge
 
 **Supersedes older status blocks, not their deferred-feature decisions.** The user authorized fixes
-after Claude independently confirmed the seven audit findings. The starting checkout matched GitHub
-`main` when measured. Work is in `/Users/jamesmcclelland/Developer/Lesson3`; do not use the older
-Documents/GitHub checkout by assumption. No commit, push, release publication, or deployment was
-performed. Measure repository and deployment state again before taking the next action.
+after Claude independently confirmed the seven audit findings. PR **#332** passed the required gate
+and was squash-merged to `main`; deployment remains operator-owned and was not performed in that
+session. Work is in `/Users/jamesmcclelland/Developer/Lesson3`; do not use the older Documents/GitHub
+checkout by assumption. Measure repository and deployment state again before taking the next action.
+
+**Important:** a separate six-file deployment follow-up is not part of PR #332. Confirm that it has
+merged into `origin/main` before deploying; merely having #332 does not include it. The affected files
+are `scripts/deploy.sh`, `scripts/test-deploy-sidecar.sh`, `docs/OPS.md`, `docs/NEXT-SESSION.md`,
+`docs/LOCAL-SERVER-DEPLOYMENT.md`, and `AGENTS.md`.
 
 ## Changes
 
@@ -52,6 +57,20 @@ performed. Measure repository and deployment state again before taking the next 
 - Compatible security dependency patches and stale documentation corrections are included. Payload,
   docx, and Mammoth remain pinned to their previous versions. No schema migration is required.
 
+## Deployment follow-up pending merge
+
+- The normal Rock deployment script now requires `curl` and waits up to five minutes for
+  `http://127.0.0.1:3001/login` before reporting success. On timeout it prints recent `app` and
+  `migrate` logs and exits nonzero instead of producing a false `deploy: OK`.
+- The deploy test harness now covers readiness success, timeout failure, diagnostic logging, and
+  suppression of the success message on failure. It currently passes 13 branch cases.
+- The operations documentation now uses the exact `docker compose up -d --no-build` behavior,
+  removes a stale sidecar-provenance assertion, and documents code generation and migration creation
+  through the pinned Node 24 dependency container rather than the Rock host.
+- The offline deployment documentation and contributor guidance now distinguish retrying an existing
+  draft release from warning on an already-published release.
+- There are no schema, generated-type, or migration changes in this follow-up.
+
 ## Verification
 
 All app checks used the pinned Node 24.19 dependency container, not the unsupported host runtime.
@@ -70,11 +89,16 @@ the pre-existing local Postgres container was left running.
   administrator at 1280px and 900px, both network waits, successful source deletion, reopening the
   saved version, and dirty-content retention after a failed save. Screenshots were inspected.
 - Existing recovery browser suites: **11 passed** after the entry-collapse correction, for **15
-  targeted Chromium tests total**. The full unrelated HTTP/e2e suites were not run.
+  targeted Chromium tests total** locally. PR #332's required CI gate then passed in **14m38s**,
+  including the complete HTTP and Chromium suites.
 - Fresh production dependency audit: **0 high, 0 critical, 6 moderate**, so `audit:prod` passes its
   high-severity threshold. The remaining items are Payload's unlock advisory (locally mitigated by
   explicit access) and the inherited drizzle-kit/esbuild chain, not a claim of zero advisories.
   Native sharp/libvips PNG generation also passed after the patch update.
+
+The deployment follow-up separately passes `bash -n`, `git diff --check`, all 13 deploy branch cases,
+and the full local deployment-bundle test. `shellcheck` is not installed on this host, so that check
+remains unavailable locally.
 
 **Document fidelity caveat:** the full adapter gate remains **5/6**, reproducing the pre-change
 resource-link mismatch in the available Greenhouse Effect oracle/input pair. The current input has
@@ -85,8 +109,15 @@ No approved oracle was rewritten to force a pass. PDF visual/converter verificat
 
 ## Next Action
 
-Review the uncommitted diff and the verification caveats before choosing to commit or deploy. Check
-the document fixture/oracle pairing before refreshing any approved artifacts. Keep the accordion,
+Do not assume `origin/main` contains the new readiness check. First review and land the six-file
+deployment follow-up described above. Then deploy the resulting `main` with the normal
+`scripts/deploy.sh`. No migration file or persisted field changed; the one-shot migrate service still
+runs and should report no pending migration. Read the script's sidecar message rather than predicting
+whether Gotenberg will rebuild: it measures the checked-out tree against the installed image on that
+box. After the follow-up is merged, the script waits for `/login` before reporting `OK`; afterward,
+verify one successful Save as a Teacher
+with editing access, one as a Subject administrator, and representative DOCX/PDF exports. Check the
+document fixture/oracle pairing before refreshing approved artifacts. Keep the accordion,
 public-library, and hosted error-tracking tracks deferred; this work does not reopen them.
 
 ---
