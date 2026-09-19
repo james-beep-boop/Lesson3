@@ -11,6 +11,39 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 — Digest pinning survives `docker load`; assert it rather than detect the image store
+
+The USB plan assumed it might have to drop `image: repo:tag@sha256:…` pins, because images restored by
+`docker load` are widely believed to carry no registry digest — which would have moved install
+integrity onto the bundle checksum alone.
+
+**Verified, and the belief is wrong here.** Pull by tag → `docker save` → remove every local reference
+→ `docker load`: `RepoDigests` came back intact, and `docker compose create --pull never` resolved the
+pinned reference offline. **Decision: keep the digest pins in the offline compose.** The supply-chain
+property does not have to be traded away.
+
+⚑ **The result is conditioned on the image store.** The test host ran the **containerd image store**.
+The archive is OCI layout whose `index.json` carries the digest under a
+`containerd.io/distribution.source.docker.io` annotation, while the legacy `manifest.json` beside it
+carries only `RepoTags`. A classic-graphdriver box may therefore lose the digest.
+
+⚑ **Do not solve that by detecting the storage driver, and do not "simplify" this away.** The installer
+must assert the property directly: after `docker load`, compare each image's `RepoDigests` against the
+pinned digest and fail with an explanatory message on mismatch, then run compose with `--pull never`.
+That tests what the install depends on rather than a proxy for it, and survives Docker changing its
+defaults. `docs/LOCAL-SERVER-DEPLOYMENT.md` asks only for "a currently supported Docker release", which
+does not pin the store down — the assertion is what makes that acceptable.
+
+**Also corrected:** the failure mode was predicted to be a confusing hang. It is not. A missing digest
+under `--pull never` gives `No such image: …@sha256:…`; under the default policy the pull fails on
+resolution. Both are immediate.
+
+⚑ Two predictions in one day's planning turned out wrong in opposite directions — the migrate saving
+was overstated, this risk was overstated. Both were inferences about tooling behaviour stated with more
+confidence than running the command would have cost. Run the command.
+
+---
+
 ## 2026-09-19 — The Next standalone runner cannot run `payload migrate` (verified)
 
 The USB-distribution plan proposed folding the 536 MB `lesson3-migrate` image into the 81 MB app image

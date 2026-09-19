@@ -149,13 +149,32 @@ security-sensitive parts. One script gains one branch — if the bundle carries 
 `docker load` it; otherwise `docker compose pull`. The bundle builder emits both flavours from one
 source.
 
-⚑ **VERIFY EARLY — digest pinning may silently defeat the whole USB path.** Compose pins
-`image: repo:tag@sha256:…`. Images restored by `docker load` generally carry no registry digest, so a
-digest-pinned reference can send Docker to the network — the precise failure a USB install must not
-have, and one that presents as a confusing hang rather than a clean error. If digests cannot survive
-`save`/`load`, integrity moves onto the bundle checksum (already how the deploy bundle is verified).
-That is an acceptable trade but a deliberate weakening of a supply-chain property this repo built on
-purpose: give it its own decision entry rather than discovering it halfway through.
+**Digest pinning — ⚑ VERIFIED 2026-09-19, AND IT WORKS. Keep the pins.**
+
+The concern was that images restored by `docker load` carry no registry digest, so
+`image: repo:tag@sha256:…` would send a USB install to the network. **Tested and false.** Pulled by
+tag, `docker save`d, removed every local reference, `docker load`ed back: `RepoDigests` returned
+intact, and `docker compose create --pull never` resolved the pinned reference and created the
+container with no network. **The USB path does not have to trade digest pinning for the bundle
+checksum** — keep both.
+
+⚑ **BUT THE RESULT IS CONDITIONED ON THE IMAGE STORE, and that is the part to design around.** The test
+host used the **containerd image store**. The saved archive is OCI layout whose `index.json` carries
+the digest under a `containerd.io/distribution.source.docker.io` annotation; the legacy `manifest.json`
+in the same archive carries **only `RepoTags`, no digest**. So a box on the classic graphdriver store
+may well lose the digest through `save`/`load`. `docs/LOCAL-SERVER-DEPLOYMENT.md` currently asks only
+for "a currently supported Docker release", which does not pin this down.
+
+**Do not solve this by detecting the storage driver.** Assert the property itself: after `docker load`,
+have the installer compare each expected image's `RepoDigests` against the digest pinned in
+`compose.yaml` and fail with an explanatory message on mismatch. That tests what the install actually
+depends on, independently of store internals and Docker version, and converts a subtle environment
+difference into a clean precondition error. Run the subsequent compose step with `--pull never` so any
+residual gap fails closed instead of reaching for the network.
+
+**The failure mode is clean, not a hang** — the earlier claim above was also wrong. With a digest absent
+locally: `--pull never` gives `Error response from daemon: No such image: …@sha256:…`; the default
+policy attempts a pull and fails on resolution. Both are immediate and legible.
 
 ### Open questions the next team must not answer by guessing
 
