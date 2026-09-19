@@ -25,27 +25,26 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-19) — #324 verified; no-email account recovery completed
+# STATUS (2026-09-19) - v0.84 security-maintenance candidate
 
-PR **#341** classifies signup throttling on Payload's in-process `overrideAccess` argument, removes the
-`/first-register` URL carve-out and the test-only signup headroom, and closes #324. After two npm
-registry 503 failures, the classifier-only head passed the complete CI gate. The current follow-up adds
-a real-network test that sends forged body, query, and header values named `overrideAccess` and proves
-the fourth anonymous signup attempt still receives 429.
+PR **#341** is merged on `main` at `7780211`; issue #324 is closed. Trusted Local-API user creates no
+longer consume the anonymous signup budget, forged wire values named `overrideAccess` do not bypass the
+limit, and the complete no-email account lifecycle is present: first-user setup, discoverable later
+account creation, a required second Site Administrator, and constrained operator reset-link recovery.
 
-The no-email lifecycle is complete rather than bootstrap-only: Manage → Users → Accounts exposes the
-native create form, the runbook requires a tested second Site Administrator, and an operator-only CLI
-can mint a reset link for an existing verified administrator. It cannot create, promote, verify, or
-re-enable an account.
+The next promotion is one dedicated maintenance change: Payload 3.88.0 -> 3.90.1, Node 24.19.0 ->
+24.21.0, and Gotenberg 8.36.0 -> 8.37.0. It includes Payload's required nullable
+`reset_password_requested_at` migration and no unrelated package refresh. Local migration, application,
+deployment, DOCX, and PDF-fidelity gates pass; the exact evidence and deferred updates are in
+`docs/DEPENDENCY-REVIEW-2026-09-19.md`.
 
-`audit:prod` now runs after all behavioral suites with `always()`: an unreachable advisory service
-still fails the required gate, but it cannot prevent integration, HTTP, and browser evidence from
-being collected.
+**Release rule:** if `v0.84` does not yet exist, merge the maintenance pull request only after its full
+CI gate passes, update local `main`, and push the tag from that accepted commit. Do not create the
+GitHub release manually. If the tag already exists, do not move or recreate it; verify the `Publish
+release containers` workflow, both release assets, and the documented `releases/latest` download.
 
-**Current verification:** typecheck, lint, format, 1127 unit tests, 236 integration tests, 217 HTTP
-tests, the release-bundle shell checks, and all 51 Chromium scenarios pass locally. One unrelated
-taxonomy scenario needed Playwright's configured retry after a login-navigation timeout and then
-passed cleanly in isolation. These follow-up changes still need CI after they are committed and pushed.
+The USB-first distribution work below remains the next product/deployment phase after `v0.84`. It is
+not part of the security-maintenance release.
 
 ---
 
@@ -60,6 +59,10 @@ predates #336, so it still carries the setup-lockout footgun, and — the bigger
 local-server compose ships **font-less Gotenberg**, which loses PDF fidelity (below). Do not point a
 school at `v0.83`. The first release anyone installs from should carry the USB path, real Arial, and
 both merged fixes. The operator asked explicitly for the tag to be held after #336 merged.
+
+**Later decision:** the current status block above authorizes `v0.84` as a security-maintenance
+checkpoint before the USB phase. That does not make the font-less online bundle the preferred school
+installation path or resolve the USB/font-distribution work described below.
 
 **There are no installed sites.** A couple of demo sites exist; they run the ARES *online* deployment
 (which already has real Arial) and are disposable test sites that can be redeployed from scratch. That
@@ -156,7 +159,7 @@ conclusion from the package's presence in Debian `contrib`.
 
 Two details keep the install-time fetch at ~15 MB rather than tens of MB:
 
-- ⚑ `gotenberg/Dockerfile` currently bases on the **full** `gotenberg:8.36.0` (2.46 GB, includes
+- ⚑ `gotenberg/Dockerfile` currently bases on the **full** `gotenberg:8.37.0` (includes
   Chromium), **not** the `-libreoffice` variant (430 MB). One `FROM` line; same Debian base, so the
   font install should port directly — verify it does.
 - Pre-baking `wget`, `cabextract` and `fontconfig` into the USB-shipped base avoids `apt-get update`

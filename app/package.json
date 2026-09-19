@@ -27,11 +27,11 @@
     "test:unit": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.unit.config.mts"
   },
   "dependencies": {
-    "@payloadcms/db-postgres": "3.88.0",
-    "@payloadcms/email-nodemailer": "3.88.0",
-    "@payloadcms/next": "3.88.0",
-    "@payloadcms/richtext-lexical": "3.88.0",
-    "@payloadcms/ui": "3.88.0",
+    "@payloadcms/db-postgres": "3.90.1",
+    "@payloadcms/email-nodemailer": "3.90.1",
+    "@payloadcms/next": "3.90.1",
+    "@payloadcms/richtext-lexical": "3.90.1",
+    "@payloadcms/ui": "3.90.1",
     "@sentry/node": "10.63.0",
     "acorn": "8.16.0",
     "cross-env": "7.0.3",
@@ -44,7 +44,7 @@
     "jszip": "3.10.1",
     "mammoth": "1.12.1",
     "next": "16.3.5",
-    "payload": "3.88.0",
+    "payload": "3.90.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "0.35.4"
@@ -87,12 +87,12 @@
     "vitest": "4.1.11"
   },
   "engines": {
-    "node": ">=24.19.0 <25"
+    "node": ">=24.21.0 <25"
   },
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": ">=24.19.0 <25",
+      "version": ">=24.21.0 <25",
       "onFail": "error"
     }
   }

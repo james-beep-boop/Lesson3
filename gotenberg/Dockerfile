@@ -7,9 +7,9 @@
 # makes the export render the exact typeface the document specifies; verified on the Rock that this
 # closes the visible table-height gap (three-way Liberation/Arial/Word render comparison).
 #
-# `ttf-mscorefonts-installer` (Debian `contrib`) downloads the fonts under Microsoft's redistribution
-# EULA (accepted non-interactively below) at build time — we deliberately do NOT vendor the .ttf
-# files, which that EULA disallows. Build needs outbound network (SourceForge) once per image build.
+# `ttf-mscorefonts-installer` (Debian `contrib`) downloads the fonts after accepting Microsoft's EULA
+# non-interactively at build time. We deliberately do not vendor the font files; redistribution rights
+# remain a separate legal question. Build needs outbound network (SourceForge) once per image build.
 #
 # Supply-chain pinning (Codex 2026-07-05 #8): the base image is pinned by its multi-arch INDEX
 # digest (covers amd64 for CI and arm64 for the Rock/Macs) and the font installer package by exact
@@ -18,9 +18,9 @@
 # deliberate re-pin moment, not a bug. To re-pin:
 #   docker buildx imagetools inspect gotenberg/gotenberg:8   → new index digest ("Digest:" line)
 #   apt-cache policy ttf-mscorefonts-installer (in the new base, contrib enabled) → new version
-# Resolved 2026-08-25: digest = Gotenberg 8.36.0 (Debian trixie); installer 3.8.1. The font
+# Resolved 2026-09-19: digest = Gotenberg 8.37.0 (Debian trixie); installer 3.8.1. The font
 # binaries themselves are Microsoft's frozen cab files — the installer verifies their checksums.
-FROM gotenberg/gotenberg:8.36.0@sha256:87c16b9f364279d321bc9772d31fa58aa6abe036423c270698bd636c3a8e9466
+FROM gotenberg/gotenberg:8.37.0@sha256:f29984bd1e226bf1b93ba90af06000afa8b315853e99d27b9aaa41b93f15c769
 
 USER root
 RUN set -eux; \

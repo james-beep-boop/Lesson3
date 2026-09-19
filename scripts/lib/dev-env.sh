@@ -41,7 +41,7 @@ dev_env_value() {
 # the base image and the install command — both of which live in the Dockerfile — and by `.npmrc`
 # (`legacy-peer-deps=true`, without which the install resolves differently or fails outright).
 #
-# Concretely: bump `FROM node:24.19.0-alpine` with no lockfile change and the hash did not move, so
+# Concretely: bump a pinned `FROM node:24.x-alpine` with no lockfile change and the hash did not move, so
 # `dev_ensure_deps_image` skipped the rebuild AND the hash-keyed volume below went on serving a
 # `node_modules` installed by the previous base. That is not hypothetical for this repo — #214 was
 # exactly a Node major migration, and DECISIONS records a `lesson3-deps` that "went on answering as

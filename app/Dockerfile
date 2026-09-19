@@ -1,7 +1,7 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.ts file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:24.19.0-alpine AS base
+FROM node:24.21.0-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -29,7 +29,7 @@ RUN \
 # the same legacy-peer-deps reason as `deps` above. npm ci AND the chromium download happen at
 # BUILD time so the test step doesn't redo them on every run, matching how `deps` front-loads
 # installs for the other test steps.
-FROM node:24.19.0-bookworm AS e2e
+FROM node:24.21.0-bookworm AS e2e
 WORKDIR /app
 COPY package.json package-lock.json* .npmrc* ./
 RUN npm ci --include=dev

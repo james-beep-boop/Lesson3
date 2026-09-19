@@ -3,10 +3,10 @@
 # Start the Next.js dev server for local browser verification.
 #
 # WHY THIS RUNS IN A CONTAINER RATHER THAN ON THE HOST. Since the Node 24 migration (#214) the app
-# declares `devEngines: node >=24.19.0 <25` with `onFail: error`, and npm enforces that on every
+# declares `devEngines: node >=24.21.0 <25` with `onFail: error`, and npm enforces that on every
 # invocation — so `npx next dev` on a host running any other major aborts before Next is reached:
 #
-#   npm error EBADDEVENGINES Invalid semver version ">=24.19.0 <25" does not match "v25.8.1"
+#   npm error EBADDEVENGINES Invalid semver version ">=24.21.0 <25" does not match "v25.8.1"
 #
 # There is no host-side way around it: `./node_modules/.bin/next` would bypass npm, but populating
 # `node_modules` needs `npm ci`, blocked by the same gate. #214 removed the Volta pin rather than

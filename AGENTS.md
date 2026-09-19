@@ -6,7 +6,7 @@ Decisions + reasoning: `docs/DECISIONS.md`. Where to start / current state: `doc
 
 ## Stack conventions
 
-- **Language:** TypeScript on Node.js (Docker and `.nvmrc` pin **24.19.0**; `devEngines` accepts
+- **Language:** TypeScript on Node.js (Docker and `.nvmrc` pin **24.21.0**; `devEngines` accepts
   supported 24.x patches and rejects other majors). One runtime end to end — do not add a second
   language on the core path.
 - **Framework:** Payload CMS 3 (Postgres adapter) on Next.js. Define content as **native nested

@@ -41,8 +41,8 @@
 #
 # NOT COVERED, deliberately:
 #   - CI's `test:e2e` step, which runs the `lesson3-e2e` image. ⚑ An `--image` flag is NOT the cheap
-#     generalization it looks like: `deps` is `node:24.19.0-alpine` (musl) and `e2e` is
-#     `node:24.19.0-bookworm` (glibc), while `dev_node_modules_volume` is keyed on the dependency
+#     generalization it looks like: `deps` is `node:24.21.0-alpine` (musl) and `e2e` is
+#     `node:24.21.0-bookworm` (glibc), while `dev_node_modules_volume` is keyed on the dependency
 #     hash and nothing else — so the flag would mount an alpine `node_modules`, native addons
 #     included, into the glibc runner. It is blocked on keying the volume by IMAGE rather than by
 #     dependency hash, not on a second call site appearing. The anonymous volume there is also

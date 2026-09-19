@@ -25,6 +25,7 @@ import * as migration_20260817_141942_add_sign_in_disabled from './20260817_1419
 import * as migration_20260820_223208_add_assignment_provenance from './20260820_223208_add_assignment_provenance'
 import * as migration_20260821_234341_add_system_settings from './20260821_234341_add_system_settings'
 import * as migration_20260822_011614_drop_outbound_email_flag from './20260822_011614_drop_outbound_email_flag'
+import * as migration_20260919_222201_add_reset_password_requested_at from './20260919_222201_add_reset_password_requested_at'
 
 export const migrations = [
   {
@@ -161,5 +162,10 @@ export const migrations = [
     up: migration_20260822_011614_drop_outbound_email_flag.up,
     down: migration_20260822_011614_drop_outbound_email_flag.down,
     name: '20260822_011614_drop_outbound_email_flag',
+  },
+  {
+    up: migration_20260919_222201_add_reset_password_requested_at.up,
+    down: migration_20260919_222201_add_reset_password_requested_at.down,
+    name: '20260919_222201_add_reset_password_requested_at',
   },
 ]
