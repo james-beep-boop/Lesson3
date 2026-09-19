@@ -45,6 +45,14 @@ select posture, not carry a permanent human credential.
 still refuses startup unless the operator deliberately sets `ALLOW_FIRST_USER_BOOTSTRAP=1` for one
 bootstrap boot. The normal signup endpoint cannot substitute for first-register on an empty database.
 
+**Consequence for tests, caught by CI rather than by review:** `/login` now has TWO renderings, and
+which one a browser spec meets depends on whether the users table happens to be empty. Every e2e spec
+tears its fixture down in `afterAll`, so between files it usually is —
+`publicLibraryDisabled.e2e.spec.ts` seeded nothing and went red against a page that was behaving
+correctly. It now seeds one ordinary verified account (`initialized` is a count, not a role check).
+⚑ Any future spec that asserts on the sign-in FORM must seed a user first; asserting on `/login` is
+no longer state-free.
+
 ## 2026-09-12 — Audit corrections: snapshot locks, personal scope, and retry state
 
 The seven audit findings were checked against source and independently reviewed. The favorites bug

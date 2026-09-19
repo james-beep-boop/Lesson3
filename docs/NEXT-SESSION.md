@@ -36,7 +36,9 @@ decision, and changelog documentation are updated. No schema migration is requir
 
 Verification is complete: production image build, TypeScript, ESLint, shell syntax, the full unit
 suite (**1,111/1,111**), the full production HTTP suite against a created-empty disposable database
-(**215/215**), and the local release-bundle/update tests all pass. The HTTP coverage proves the
+(**215/215**), the Playwright e2e suite, and the local release-bundle/update tests all pass. The e2e
+suite was NOT covered by the first verification pass and caught the one regression this change
+produced (see DECISIONS 2026-09-18, "Consequence for tests"). The HTTP coverage proves the
 empty-install form, ordinary-create refusal, exactly one winner under concurrent first-register,
 verified Site-Administrator grant and login, second-use refusal, and return to the normal sign-in
 screen. Payload's stock `/admin/create-first-user` path also redirects to that single supported form,

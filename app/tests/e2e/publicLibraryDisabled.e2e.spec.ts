@@ -21,10 +21,42 @@
  * Runs like the other e2e specs — see `manage.e2e.spec.ts`'s header.
  */
 import { test, expect } from '@playwright/test'
+import { getPayload, type Payload } from 'payload'
+import { randomUUID } from 'crypto'
 
+import config from '../../src/payload.config.js'
 import { E2E_BASE } from '../helpers/e2e'
+import { createUserVerified, deleteUserFixture, MARK } from '../helpers/fixtures'
 
 test.describe('Public discovery disabled (the default and offline deployment shape)', () => {
+  /**
+   * ⚑ THIS SPEC MUST SEED A USER, and the reason is not fixture convenience. Every e2e spec tears
+   * its fixture down in `afterAll`, so the users table is routinely EMPTY between files — and an
+   * empty installation renders `/login` as the one-time first-administrator setup form instead of
+   * the sign-in form (SPEC §8, first-user bootstrap). Without a seeded user the sign-in assertions
+   * below fail on a page that is behaving correctly. One ordinary account is enough: `initialized`
+   * is a count, not a role check.
+   *
+   * Its own address rather than a bare `MARK`: the per-address signup budget is 3, and a shared
+   * fixture address would make an unrelated spec's seeding exhaust this one's.
+   */
+  let payload: Payload
+  let seededUserId: number | string | undefined
+
+  test.beforeAll(async () => {
+    payload = await getPayload({ config })
+    const user = await createUserVerified(payload, {
+      name: `${MARK}publicLibraryDisabled`,
+      email: `${MARK.toLowerCase()}${randomUUID()}_initialized@example.com`,
+      password: 'test1234',
+    })
+    seededUserId = user.id
+  })
+
+  test.afterAll(async () => {
+    if (seededUserId != null) await deleteUserFixture(payload, seededUserId)
+  })
+
   test('/explore is not served at all', async ({ page }) => {
     const response = await page.goto(`${E2E_BASE}/explore`)
 
