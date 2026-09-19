@@ -112,4 +112,7 @@ done
 
 grep -Fq 'run: bash scripts/publish-release-bundle.sh "$GITHUB_REF_NAME" dist/lesson3-online-deploy.tar.gz' \
   "$ROOT/.github/workflows/publish-containers.yml" || fail 'workflow no longer invokes tested helper'
+! grep -Eq 'lesson3-(app|migrate).*:latest|matrix\.package.*:latest' \
+  "$ROOT/.github/workflows/publish-containers.yml" \
+  || fail 'independent image jobs must not publish a non-atomic latest alias'
 echo 'test-publish-release-bundle: PASS'

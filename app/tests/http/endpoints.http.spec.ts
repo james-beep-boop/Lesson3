@@ -1782,6 +1782,31 @@ describe('open self-registration (2026-07-09) — POST /api/users', () => {
     const fourth = await post({ name: signupName('capped'), email, password: 'signup-pass-3' })
     expect(fourth.status).toBe(429)
   })
+
+  it('wire attempts cannot forge overrideAccess to escape the signup cap', async () => {
+    const email = signupEmail('forged-override')
+    const forgedPost = () =>
+      fetch(url('/api/users?overrideAccess=true'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Payload-Override-Access': 'true',
+        },
+        body: JSON.stringify({
+          name: signupName('forged-override'),
+          email,
+          password: 'signup-pass-forged-override',
+          overrideAccess: true,
+        }),
+      })
+
+    const first = await forgedPost()
+    expect([200, 201]).toContain(first.status)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect((await forgedPost()).status).toBe(400)
+    }
+    expect((await forgedPost()).status).toBe(429)
+  })
 })
 
 describe('request-editing (teacher-first T3) — POST /api/lesson-plans/:id/request-editing', () => {

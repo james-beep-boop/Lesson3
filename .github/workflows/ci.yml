@@ -139,10 +139,6 @@ jobs:
         # `--network none`: formatting reads files and nothing else.
         run: scripts/in-deps.sh --network none -- npm run format:check
 
-      - name: audit:prod
-        # No `--network none` here, unlike test:unit: `npm audit` queries the registry.
-        run: scripts/in-deps.sh npm run audit:prod
-
       - name: contract probe (ingest contract-drift gate, DB-free)
         # Guards the product's highest-risk domain rule (contract drift is a HARD ingest gate). DB-free
         # and asset-free. The fidelity probes (ingest-extract/adapter-fidelity) need the
@@ -205,6 +201,14 @@ jobs:
           docker run --rm --network lesson3_default -v "$PWD/app:/app" -v /app/node_modules -w /app \
             --env-file .env -e E2E_BASE_URL=http://app:3000 -e CI=true \
             lesson3-e2e npm run test:e2e -- --reporter=line
+
+      - name: audit:prod
+        # Keep the supply-chain check fail-closed, but run it AFTER behavioral evidence. A registry
+        # outage previously aborted the job before test:int, test:http, and test:e2e could execute.
+        # `always()` also runs the audit after a test failure, so neither side masks the other.
+        # No `--network none` here: `npm audit` queries the registry.
+        if: always()
+        run: scripts/in-deps.sh npm run audit:prod
 
       - name: Dump logs on failure
         if: failure()

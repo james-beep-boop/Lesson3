@@ -22,14 +22,14 @@
  * exists, and the 429 text names only the request rate — so neither the limit nor its message
  * reveals whether an address is registered.
  *
- * Local-API note: trusted system paths that call `payload.login()` — or create users WITHOUT a
- * `req.user` (seed scripts) — spend budget like anyone else — deliberate, since these operations have no user/overrideAccess axis
- * that distinguishes trust here. Budgets are far above legitimate use; int tests clean their keys.
+ * Local-API note: a trusted system path that calls `payload.login()` spends login budget like anyone
+ * else — that operation carries no trust axis to distinguish it. CREATE does (see the classifier),
+ * so trusted server-side user creates are NOT counted as signups. Budgets are far above legitimate
+ * use; int tests clean their keys.
  */
 import type { CollectionBeforeOperationHook } from 'payload'
 import { APIError } from 'payload'
 
-import { hasRegisteredUsers, isFirstRegisterRequest } from '../lib/firstUserBootstrap'
 import { consumeRateLimit, type Bucket } from '../lib/rateLimit'
 
 /** The auth data shape both operations carry (email-only login — loginWithUsername is off). */
@@ -75,6 +75,18 @@ const THROTTLED = {
 export const ADMIN_RESET_LINK_CONTEXT = 'adminResetLink' as const
 
 /**
+ * The operator-only recovery script runs outside an HTTP request, so it has no Site Administrator
+ * session with which to pay the `adminResetLink` toll. Shell access to the deployment is the stronger
+ * authority in that break-glass path; this server-created context flag lets exactly that Local-API
+ * call avoid a public forgot-password budget that may itself be exhausted.
+ *
+ * Like `ADMIN_RESET_LINK_CONTEXT`, this value is never accepted from a request body, header or query
+ * parameter. Keep the two names separate: the admin allowance means "an authenticated administrator
+ * paid the endpoint cap", while this one means "an operator is running the documented CLI tool".
+ */
+export const OPERATOR_RESET_LINK_CONTEXT = 'operatorResetLink' as const
+
+/**
  * Run `work` with the admin reset-link allowance in effect, and take it away again afterwards.
  *
  * ⚑ THE ALLOWANCE IS SCOPED, not set-and-forget. The first version assigned
@@ -110,15 +122,34 @@ export async function withAdminResetLinkAllowance<T>(
 export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   args,
   operation,
+  overrideAccess,
   req,
 }) => {
-  // Which throttled unauthenticated surface is this? Open self-registration (2026-07-09) joins
-  // login/forgot-password: an UNAUTHENTICATED create is a signup. Authenticated creates (Site
-  // Admin) and trusted Local-API paths with a user stay uncapped.
+  /**
+   * Which throttled unauthenticated surface is this? Open self-registration (2026-07-09) joins
+   * login/forgot-password: an UNAUTHENTICATED, UNTRUSTED create is a signup.
+   *
+   * ⚑ `overrideAccess` IS THE TRUST AXIS FOR CREATE, and using it is what closed #324 (2026-09-19).
+   * An earlier version of this comment said no such axis existed — true of `login`/`forgotPassword`,
+   * false of `create`. Verified in installed Payload source: `buildBeforeOperation` passes
+   * `overrideAccess` to every `beforeOperation` hook and `BeforeOperationArg` documents it. The split
+   * falls exactly where trust does — the REST handler (`collections/endpoints/create.js`) never
+   * forwards it, so `POST /api/users` is falsy and stays counted, while `registerFirstUserOperation`
+   * and trusted Local-API callers pass `true`.
+   *
+   * ⚑ IT CANNOT BE FORGED FROM THE WIRE. `overrideAccess` is an operation argument set in-process by
+   * the caller; no request body, header or query parameter reaches it. That is the same property
+   * that makes `req.context` a safe carrier below — do not replace this with anything a client can
+   * influence, and do not "simplify" it to `req.user`, which would exempt every signed-in caller.
+   *
+   * This also subsumes the `/first-register` path carve-out that lived here (#336): that request
+   * carries `overrideAccess: true`, so it is uncounted without the rate limiter needing to know any
+   * URL Payload owns.
+   */
   const kind =
     operation === 'login' || operation === 'forgotPassword'
       ? operation
-      : operation === 'create' && !req.user
+      : operation === 'create' && !req.user && !overrideAccess
         ? ('signup' as const)
         : null
   if (!kind) return args
@@ -143,34 +174,12 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
    * Two tests, not one: the admin path is not throttled by the public budget, AND the ordinary public
    * `POST /forgot-password` still is. The second is what catches this quietly becoming a bypass.
    */
-  if (kind === 'forgotPassword' && req.context?.[ADMIN_RESET_LINK_CONTEXT] === true) return args
-
-  /**
-   * ⚑ THE FIRST-REGISTER CARVE-OUT (2026-09-18). `first-register` reaches this hook as an
-   * unauthenticated create, so without this it spends the ordinary signup budget — three attempts per
-   * address per day. That budget exists to bound open self-registration on a running installation. It
-   * is actively harmful during initial setup: a technician who mistypes the setup form three times on
-   * an offline box has no second administrator, no mail path and no reset route, and is locked out of
-   * that address for 24 hours with nothing to appeal to. The cap would be guarding an installation
-   * that does not exist yet.
-   *
-   * ⚑ BOTH CONDITIONS ARE LOAD-BEARING, and dropping either turns a carve-out into a bypass:
-   *  - the request is the `/first-register` path, so ordinary `POST /api/users` signup stays capped;
-   *  - AND the users table is still EMPTY, so the exemption closes permanently the instant setup
-   *    succeeds. On an initialized installation first-register pays the toll and is then refused, which
-   *    is what keeps this from becoming an uncapped unauthenticated surface for the rest of time.
-   *
-   * The emptiness check — not the pathname — is the real boundary. `pathname` cannot be forged beyond
-   * actually requesting that route, but it is a string, and the count is a fact. Reuses the request so
-   * the read stays on first-register's own transaction.
-   */
   if (
-    kind === 'signup' &&
-    isFirstRegisterRequest(req) &&
-    !(await hasRegisteredUsers(req.payload, req))
-  ) {
+    kind === 'forgotPassword' &&
+    (req.context?.[ADMIN_RESET_LINK_CONTEXT] === true ||
+      req.context?.[OPERATOR_RESET_LINK_CONTEXT] === true)
+  )
     return args
-  }
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email
   // recipient cap). A missing/garbage email still consumes a bucket ('invalid') — probing with

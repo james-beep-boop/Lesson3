@@ -1,5 +1,5 @@
 /**
- * The admin reset-link rate-limit CARVE-OUT (D5a-i).
+ * The trusted reset-link rate-limit carve-outs (D5a-i and operator recovery).
  *
  * ⚑ TWO TESTS, NOT ONE, and the second is the point. "The admin path is not throttled by the public
  * budget" is satisfied just as well by deleting the public throttle entirely — which would be a
@@ -16,10 +16,12 @@ import config from '../../src/payload.config.js'
 import { createUserVerified, deleteUserFixture } from '../helpers/fixtures.js'
 import { clearRateLimitBuckets } from '../helpers/db.js'
 import { ADMIN_RESET_LINK_CONTEXT } from '../../src/hooks/authRateLimit.js'
+import { recoverOfflineSiteAdmin } from '../../src/lib/offlineAdminRecovery.js'
 
 const RUN = `carveout-${Date.now()}`
 const PASSWORD = `pw-${RUN}-Str0ng!`
 const TARGET = `${RUN}-target@lesson3.local`
+const OPERATOR_TARGET = `${RUN}-operator@lesson3.local`
 const PUBLIC_TARGET = `${RUN}-public@lesson3.local`
 const FORGOT_MAX = Number(process.env.RATE_LIMIT_FORGOT_PASSWORD_MAX) || 5
 
@@ -28,11 +30,12 @@ const created: number[] = []
 
 beforeAll(async () => {
   payload = await getPayload({ config })
-  for (const email of [TARGET, PUBLIC_TARGET]) {
+  for (const email of [TARGET, OPERATOR_TARGET, PUBLIC_TARGET]) {
     const u = await createUserVerified(payload, {
       email,
       password: PASSWORD,
       name: `${RUN} ${email}`,
+      ...(email === OPERATOR_TARGET ? { roles: ['siteAdmin'] } : {}),
     })
     created.push(u.id)
   }
@@ -71,6 +74,22 @@ describe('the admin reset-link carve-out', () => {
         context: { [ADMIN_RESET_LINK_CONTEXT]: true },
       } as never)
       expect(token, `admin mint #${i + 1} should not be throttled`).toBeTruthy()
+    }
+  })
+
+  it('the operator recovery tool also remains usable after the public budget', async () => {
+    const previousAdminURL = process.env.ADMIN_URL
+    process.env.ADMIN_URL = 'http://lesson3.local:3001'
+    try {
+      for (let i = 0; i < FORGOT_MAX + 3; i++) {
+        const recovered = await recoverOfflineSiteAdmin(payload, OPERATOR_TARGET, true)
+        expect(recovered.link, `operator mint #${i + 1} should not be throttled`).toMatch(
+          /^http:\/\/lesson3\.local:3001\/reset-password\?token=/,
+        )
+      }
+    } finally {
+      if (previousAdminURL === undefined) delete process.env.ADMIN_URL
+      else process.env.ADMIN_URL = previousAdminURL
     }
   })
 

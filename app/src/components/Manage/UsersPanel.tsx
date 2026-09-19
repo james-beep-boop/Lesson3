@@ -358,6 +358,7 @@ export function UsersPanel() {
   const open = usePanelOpen('users.accounts')
   const { config } = useConfig()
   const apiBase = apiBaseFrom(config)
+  const createUserPath = `${config.routes.admin}/collections/users/create`
   const [query, setQuery] = useState('')
   // The typed value and the value a request may be built from. Splitting them is what confines the
   // debounce to TYPING: with one piece of state the delay rode on `load`'s identity, so changing the
@@ -448,6 +449,9 @@ export function UsersPanel() {
             </option>
           ))}
         </select>
+        <a className="btn lp-btn lp-users__create" href={createUserPath}>
+          Create user
+        </a>
       </div>
 
       {!result && loading && <p className="lp-manage__empty">Loading users…</p>}

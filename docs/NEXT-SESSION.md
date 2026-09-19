@@ -25,6 +25,30 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# STATUS (2026-09-19) — #324 verified; no-email account recovery completed
+
+PR **#341** classifies signup throttling on Payload's in-process `overrideAccess` argument, removes the
+`/first-register` URL carve-out and the test-only signup headroom, and closes #324. After two npm
+registry 503 failures, the classifier-only head passed the complete CI gate. The current follow-up adds
+a real-network test that sends forged body, query, and header values named `overrideAccess` and proves
+the fourth anonymous signup attempt still receives 429.
+
+The no-email lifecycle is complete rather than bootstrap-only: Manage → Users → Accounts exposes the
+native create form, the runbook requires a tested second Site Administrator, and an operator-only CLI
+can mint a reset link for an existing verified administrator. It cannot create, promote, verify, or
+re-enable an account.
+
+`audit:prod` now runs after all behavioral suites with `always()`: an unreachable advisory service
+still fails the required gate, but it cannot prevent integration, HTTP, and browser evidence from
+being collected.
+
+**Current verification:** typecheck, lint, format, 1127 unit tests, 236 integration tests, 217 HTTP
+tests, the release-bundle shell checks, and all 51 Chromium scenarios pass locally. One unrelated
+taxonomy scenario needed Playwright's configured retry after a login-navigation timeout and then
+passed cleanly in isolation. These follow-up changes still need CI after they are committed and pushed.
+
+---
+
 # HANDOFF (2026-09-19) — offline bootstrap shipped; USB distribution is the next phase
 
 **Supersedes the 2026-09-18 block, which it completes.** Two changes are on `main` and green:
@@ -124,11 +148,11 @@ This pays twice: `lesson3-migrate` is both the largest thing on the stick and th
 
 **2. PDF fidelity — the 2026-08-21 font-less decision is overturned; see DECISIONS 2026-09-19.**
 The fix already exists and is production-verified: `gotenberg/Dockerfile` installs real Microsoft Arial
-via `ttf-mscorefonts-installer`, retries the download, and asserts Arial registered. It is built **on
-the box** and never published, because the EULA permits a machine downloading its own copy and forbids
-handing over an image with the fonts baked in — which rules out a GHCR publish *and* a `docker save`
-tarball on a USB stick identically. **The fonts cannot ride on the stick.** That is the one hard
-constraint the whole design bends around.
+via `ttf-mscorefonts-installer`, retries the download, and asserts Arial registered. It is currently
+built **on the box** and never published. Do not put extracted fonts or an image containing them on the
+stick without confirmed distribution rights. Whether the original installer packages may be
+redistributed is unresolved and requires professional review; the repository does not make a legal
+conclusion from the package's presence in Debian `contrib`.
 
 Two details keep the install-time fetch at ~15 MB rather than tens of MB:
 
@@ -168,9 +192,10 @@ for "a currently supported Docker release", which does not pin this down.
 **Do not solve this by detecting the storage driver.** Assert the property itself: after `docker load`,
 have the installer compare each expected image's `RepoDigests` against the digest pinned in
 `compose.yaml` and fail with an explanatory message on mismatch. That tests what the install actually
-depends on, independently of store internals and Docker version, and converts a subtle environment
-difference into a clean precondition error. Run the subsequent compose step with `--pull never` so any
-residual gap fails closed instead of reaching for the network.
+depends on and fails closed before Compose can reach for the network. But a clean error is not a
+compatibility solution: until a classic-image-store fallback is implemented and tested, preservation
+of the pinned digests is an explicit USB installer precondition. Run the subsequent compose step with
+`--pull never`.
 
 **The failure mode is clean, not a hang** — the earlier claim above was also wrong. With a digest absent
 locally: `--pull never` gives `Error response from daemon: No such image: …@sha256:…`; the default
@@ -204,13 +229,9 @@ policy attempts a pull and fails on resolution. Both are immediate and legible.
   `v0.83` that still ships font-less Gotenberg and predates #336.
 - The image that timed the run out is the same 536 MB builder Option C removes. Its multi-arch build
   is the slowest thing in CI, which is the second half of Option C's payoff.
-- **Issue #324 (trusted Local-API fixture creates counted as anonymous signups) is still open and was
-  NOT fixed by #336** — annotated on the issue so the adjacent carve-out is not mistaken for a fix.
-  ⚑ Do not fix it by widening that carve-out: #324's own constraint is that the trusted marker must be
-  unreachable from an HTTP request body, and a path test is the wrong shape. The right model is the
-  existing `ADMIN_RESET_LINK_CONTEXT` pattern — a server-side `req.context` marker. Two carve-outs now
-  sit adjacent in `rateLimitAuthOperations`; they answer different questions and must not be
-  consolidated.
+- **Issue #324 is closed by #341.** Trusted Local-API creates are identified by Payload's in-process
+  `overrideAccess` operation argument; anonymous REST creates cannot set it. The old `/first-register`
+  path carve-out and test-environment headroom are gone.
 
 ---
 
@@ -231,9 +252,8 @@ produced (see DECISIONS 2026-09-18, "Consequence for tests"). The HTTP coverage 
 empty-install form, ordinary-create refusal, exactly one winner under concurrent first-register,
 verified Site-Administrator grant and login, second-use refusal, and return to the normal sign-in
 screen. Payload's stock `/admin/create-first-user` path also redirects to that single supported form,
-closing the misleading route encountered on a real offline installation. Issue #324 (trusted
-Local-API fixtures consuming signup budget) remains deliberately deferred and is not part of this
-change.
+closing the misleading route encountered on a real offline installation. The then-deferred #324 was
+subsequently closed by #341 using Payload's in-process `overrideAccess` operation argument.
 
 ---
 
