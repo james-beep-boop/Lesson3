@@ -75,6 +75,40 @@ describe('offline first-user bootstrap', () => {
     })
   })
 
+  /**
+   * The fumbled-setup case, over the wire, because it is the one a technician actually meets.
+   *
+   * The signup budget is three per address per day and `first-register` reaches the limiter as an
+   * unauthenticated create, so before the carve-out a fourth attempt answered 429 — on a box with no
+   * second administrator, no mail path and no reset route. Four failing attempts on ONE address must
+   * all be refused on their merits and none of them throttled.
+   *
+   * ⚑ Its own address, not a `candidates` one: if this regresses, it must fail HERE rather than by
+   * poisoning the race test's budget two tests later.
+   */
+  it('does not spend the signup budget while the installation is still empty', async () => {
+    const fumbled = `${RUN}-fumble@lesson3.local`
+    const attempts = []
+    for (let attempt = 0; attempt < 4; attempt++) {
+      attempts.push(
+        await fetch(url('/api/users/first-register'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // No password: rejected on its merits, so the users table stays empty and the NEXT
+          // attempt is still a genuine bootstrap request.
+          body: JSON.stringify({ name: 'Fumbled setup', email: fumbled }),
+        }),
+      )
+    }
+
+    expect(attempts.map(({ status }) => status)).not.toContain(429)
+    await expect(
+      payload.count({ collection: 'users', overrideAccess: true }),
+    ).resolves.toMatchObject({
+      totalDocs: 0,
+    })
+  })
+
   it('creates exactly one verified administrator under a concurrent first-register race', async () => {
     const responses = await Promise.all(
       candidates.map(({ email, password }, index) =>

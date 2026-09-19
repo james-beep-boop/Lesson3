@@ -60,16 +60,33 @@ The installer:
 4. starts Postgres, runs all migrations once, then starts Gotenberg and Lesson3; and
 5. waits up to five minutes for `/login` to respond.
 
-It refuses to overwrite an existing `.env`. When it succeeds, open the printed `/login` URL. On an
-empty installation that page becomes the one-time setup form: choose the first Site Administrator's
-display name, sign-in address, and password. Payload verifies and signs in that account immediately,
-so no working inbox or outbound email connection is required. After user #1 exists, `/login` returns
-to the ordinary sign-in form and all later self-registration keeps its normal email-verification
-requirement. Do not create a bootstrap credential in `.env` and do not use Payload's stock
-`/admin/create-first-user` screen; that URL redirects to the supported `/login` setup flow. Keep the
-installation directory: it contains the Compose definition, configuration, operations scripts, and
-the version record. The database itself is in a Docker named volume and survives container
-replacement.
+It refuses to overwrite an existing `.env`. Keep the installation directory: it contains the Compose
+definition, configuration, operations scripts, and the version record. The database itself is in a
+Docker named volume and survives container replacement.
+
+## Create the first administrator
+
+A local installation configures no SMTP server, so nothing it sends can be received. The first
+administrator is therefore created through a one-time form that never sends mail:
+
+1. Open the `/login` URL the installer printed, from a browser on the LAN.
+2. Because the installation has no accounts, that page shows **Create the first Site administrator**
+   rather than a sign-in box.
+3. Enter a display name, an email address, and the password twice. The address is only the sign-in
+   name — no message is sent to it, and it need not be reachable.
+4. Click **Create Site administrator**. The account is created, marked verified, given the Site
+   Administrator role, and signed in immediately; the browser lands on the admin panel.
+5. Confirm setup closed: open `/login` in a private window. It must now show the ordinary sign-in
+   form. The setup form cannot reappear, and a second attempt is refused.
+
+After this, self-registration works normally and keeps its email-verification requirement — which on
+an installation with no SMTP means later accounts should be created by an administrator rather than
+self-registered.
+
+⛑ **Do not put a bootstrap password in `.env`, and do not use Payload's stock
+`/admin/create-first-user` screen.** There is one supported setup path; that URL redirects to it.
+Setup attempts are deliberately exempt from the signup rate limit while the installation is empty, so
+mistyping the form does not lock you out of the address.
 
 ## What is downloaded
 

@@ -36,6 +36,10 @@ LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh
 installer **rejects the unsubstituted `SERVER_LAN_IP` placeholder**, so forgetting to replace it fails
 immediately instead of installing cleanly and mailing links that go nowhere.
 
+The first Site Administrator is created in the browser at `/login` straight after installing, through
+a one-time setup form that sends no mail — a local installation needs no SMTP server and no reachable
+inbox to become usable.
+
 Read [`docs/LOCAL-SERVER-DEPLOYMENT.md`](docs/LOCAL-SERVER-DEPLOYMENT.md) before installing. It covers
 requirements, firewall posture, first-user setup, verification, encrypted backups, updates, recovery,
 and the deliberate PDF-font tradeoff. Do not pipe a remote install script directly into a shell.

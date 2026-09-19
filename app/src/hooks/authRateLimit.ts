@@ -26,9 +26,10 @@
  * `req.user` (seed scripts) — spend budget like anyone else — deliberate, since these operations have no user/overrideAccess axis
  * that distinguishes trust here. Budgets are far above legitimate use; int tests clean their keys.
  */
-import type { CollectionBeforeOperationHook } from 'payload'
+import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
 import { APIError } from 'payload'
 
+import { hasRegisteredUsers } from '../lib/firstUserBootstrap'
 import { consumeRateLimit, type Bucket } from '../lib/rateLimit'
 
 /** The auth data shape both operations carry (email-only login — loginWithUsername is off). */
@@ -106,6 +107,14 @@ export async function withAdminResetLinkAllowance<T>(
   }
 }
 
+/**
+ * Is this the one-shot bootstrap request on an installation that has no accounts yet? See the
+ * carve-out comment inside the hook for why both halves are required.
+ */
+const isUnbootstrappedFirstRegister = async (req: PayloadRequest): Promise<boolean> =>
+  req.pathname?.endsWith('/first-register') === true &&
+  !(await hasRegisteredUsers(req.payload, req))
+
 export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   args,
   operation,
@@ -143,6 +152,27 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
    * `POST /forgot-password` still is. The second is what catches this quietly becoming a bypass.
    */
   if (kind === 'forgotPassword' && req.context?.[ADMIN_RESET_LINK_CONTEXT] === true) return args
+
+  /**
+   * ⚑ THE FIRST-REGISTER CARVE-OUT (2026-09-18). `first-register` reaches this hook as an
+   * unauthenticated create, so without this it spends the ordinary signup budget — three attempts per
+   * address per day. That budget exists to bound open self-registration on a running installation. It
+   * is actively harmful during initial setup: a technician who mistypes the setup form three times on
+   * an offline box has no second administrator, no mail path and no reset route, and is locked out of
+   * that address for 24 hours with nothing to appeal to. The cap would be guarding an installation
+   * that does not exist yet.
+   *
+   * ⚑ BOTH CONDITIONS ARE LOAD-BEARING, and dropping either turns a carve-out into a bypass:
+   *  - the request is the `/first-register` path, so ordinary `POST /api/users` signup stays capped;
+   *  - AND the users table is still EMPTY, so the exemption closes permanently the instant setup
+   *    succeeds. On an initialized installation first-register pays the toll and is then refused, which
+   *    is what keeps this from becoming an uncapped unauthenticated surface for the rest of time.
+   *
+   * The emptiness check — not the pathname — is the real boundary. `pathname` cannot be forged beyond
+   * actually requesting that route, but it is a string, and the count is a fact. Reuses the request so
+   * the read stays on first-register's own transaction.
+   */
+  if (kind === 'signup' && (await isUnbootstrappedFirstRegister(req))) return args
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email
   // recipient cap). A missing/garbage email still consumes a bucket ('invalid') — probing with
