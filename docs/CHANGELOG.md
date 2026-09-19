@@ -20,7 +20,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   a request that loses the race receives 403 instead of an auto-verified second account.
 - Payload's stock `/admin/create-first-user` URL redirects to the supported `/login` setup form, so
   installers cannot accidentally take a second, misleading bootstrap path.
-- Installer output and the local/public deployment runbooks now identify the supported bootstrap path.
+- Initial setup is exempt from the signup rate limit while the installation has no accounts, so
+  mistyping the setup form cannot lock a technician out of their own address for 24 hours on a box
+  with no second administrator. The exemption closes permanently once setup succeeds.
+- Installer output, the README, and the local/public deployment runbooks now identify the supported
+  bootstrap path and state that it needs no SMTP server or reachable inbox.
 
 ## Unreleased — audit corrections (2026-09-12)
 

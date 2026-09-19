@@ -45,6 +45,20 @@ select posture, not carry a permanent human credential.
 still refuses startup unless the operator deliberately sets `ALLOW_FIRST_USER_BOOTSTRAP=1` for one
 bootstrap boot. The normal signup endpoint cannot substitute for first-register on an empty database.
 
+**Amendment, same day — setup is exempt from the signup rate limit.** `first-register` reaches
+`rateLimitAuthOperations` as an unauthenticated create, so it spent the ordinary signup budget: three
+attempts per address per day. On the box this feature exists for, a technician who mistypes the setup
+form three times has no second administrator, no mail path and no reset route, and is locked out of
+that address for 24 hours. The cap was guarding an installation that did not exist yet. The hook now
+skips the toll when BOTH the request is the `/first-register` path AND the users table is empty.
+
+⚑ Both halves are load-bearing. Pathname alone would leave an unauthenticated password-hashing
+endpoint uncapped forever; emptiness alone would uncap ordinary `POST /api/users` as well. The
+emptiness check is the real boundary — it closes permanently the instant setup succeeds.
+`tests/unit/firstRegisterRateLimitCarveOut.spec.ts` pins the negative cases (mutation-checked: the
+exemption's removal fails it), and the HTTP suite proves four fumbled attempts on one address are
+never throttled.
+
 **Consequence for tests, caught by CI rather than by review:** `/login` now has TWO renderings, and
 which one a browser spec meets depends on whether the users table happens to be empty. Every e2e spec
 tears its fixture down in `afterAll`, so between files it usually is —
