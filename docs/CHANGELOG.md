@@ -8,6 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — trusted server-side user creates are no longer throttled (2026-09-19)
+
+- Signup rate limiting now distinguishes trusted server-side user creation from anonymous
+  self-registration, instead of treating every create without a signed-in user as a public signup.
+  Open self-registration is throttled exactly as before.
+- Initial setup is covered by the same rule, so the separate first-register exemption added on
+  2026-09-18 is no longer needed and has been removed.
+- The test-only signup headroom that existed to work around the old behaviour is gone.
+
 ## Unreleased — email-free first administrator setup (2026-09-18)
 
 - A fresh local installation now turns `/login` into a one-time Site Administrator setup form. It

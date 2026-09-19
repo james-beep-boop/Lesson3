@@ -11,6 +11,51 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 — Signup throttling classifies on `overrideAccess`, closing #324
+
+`rateLimitAuthOperations` counted any create without `req.user` as an anonymous signup. Trusted
+server-side creates — `createUserVerified` and seed scripts calling
+`payload.create({ overrideAccess: true })` — carry no `req.user`, so every fixture user spent the
+shared `signupGlobal` budget. The hook's own header asserted that `create` had "no user/overrideAccess
+axis that distinguishes trust here."
+
+**That assertion was wrong.** Verified in installed Payload 3.88.0: `buildBeforeOperation` passes
+`overrideAccess` to every `beforeOperation` hook, and `BeforeOperationArg` documents it. The split
+falls exactly where trust does — `collections/endpoints/create.js` never forwards it, so an
+over-the-wire `POST /api/users` is falsy, while `registerFirstUserOperation` and Local-API callers
+pass `true`.
+
+**Decision:** classify on it — `operation === 'create' && !req.user && !overrideAccess`.
+
+⚑ **This is a CLASSIFIER, not a carve-out, and that is the point.** `overrideAccess` is an operation
+argument set in-process; no request body, header or query parameter reaches it — the same
+unforgeable-from-the-wire property that makes `req.context` a safe carrier for the admin reset-link
+exemption. ⚑ Do not "simplify" it to `req.user`, which would exempt every signed-in caller.
+
+**What it removed, rather than added:**
+- The `/first-register` path carve-out from #336 is **subsumed** — that request carries
+  `overrideAccess: true`, so setup is uncounted without the rate limiter knowing a URL Payload owns.
+  `isFirstRegisterRequest` remains, still used by `grantSiteAdminToFirstUser` for the race refusal.
+- `RATE_LIMIT_SIGNUP_GLOBAL_MAX` / `_WINDOW_MS` are gone from `test.env`, along with the reason they
+  existed. `tests/unit/testSignupLimitConfig.spec.ts` now asserts their **absence** — the inverse of
+  what it pinned before — because a reintroduced override would mean either the classifier regressed
+  or a suite is quietly spending real budget. Its negative assertions about `test:http` / `test:e2e`
+  stand unchanged; the 2026-08-30 fail-open hazard they guard is unaffected.
+
+**Verified both directions, which is the whole discipline here.**
+`tests/unit/signupTrustClassifier.spec.ts` (renamed from `firstRegisterRateLimitCarveOut.spec.ts`)
+is written around the POSITIVE case — an ordinary anonymous wire signup is still counted — because
+that is what catches this becoming a bypass. Mutation-checked: removing the exemption fails the two
+trusted-create tests, and widening it to a blanket bypass fails four counted-path tests including the
+429 itself.
+
+⚑ Note how this was found: an altitude review of #336's diff, reading the installed hook signature
+rather than trusting the comment above it. The workaround chain had survived three sessions because
+everyone accepted the header's claim that no trust axis existed. **Read the framework's types, not
+the file's description of them.**
+
+---
+
 ## 2026-09-19 — Digest pinning survives `docker load`; assert it rather than detect the image store
 
 The USB plan assumed it might have to drop `image: repo:tag@sha256:…` pins, because images restored by

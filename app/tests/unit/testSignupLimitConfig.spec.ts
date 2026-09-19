@@ -1,7 +1,12 @@
 /**
- * Fixture-heavy suites must not depend on the production-wide signup budget left by earlier specs.
- * Pin where the test-only headroom is allowed to live, and pin the production fallback as BEHAVIOUR,
- * so neither a script cleanup nor a "make it consistent" edit can move the real abuse limit.
+ * Pin the production signup budget as BEHAVIOUR, so neither a script cleanup nor a "make it
+ * consistent" edit can move the real abuse limit — and pin that NO runner carries an override.
+ *
+ * ⚑ THE TEST-ONLY HEADROOM IS GONE (#324, 2026-09-19), AND THIS FILE NOW GUARDS ITS ABSENCE. It used
+ * to assert `test.env` carried `RATE_LIMIT_SIGNUP_GLOBAL_MAX=10000` and a 1 ms window, needed because
+ * Local-API fixture users were counted as anonymous signups. `authRateLimit` now classifies on
+ * `overrideAccess`, so trusted creates are not signups and the workaround has no reason to exist. The
+ * env knobs themselves remain real and are still exercised below.
  *
  * ⚑ THE SCRIPT ASSERTIONS ARE NEGATIVE, AND THAT IS DELIBERATE. `test.env` is loaded only by
  * `test:int`, which owns the private `lesson3_test` database. `test:http` and `test:e2e` seed through
@@ -61,9 +66,14 @@ afterEach(() => {
 })
 
 describe('fixture signup-limit configuration', () => {
-  it('gives the isolated integration database deterministic test-only headroom', () => {
-    expect(testEnv).toMatch(/^RATE_LIMIT_SIGNUP_GLOBAL_MAX=10000$/m)
-    expect(testEnv).toMatch(/^RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS=1$/m)
+  it('needs no signup-limiter headroom anywhere, now that trusted creates are not signups', () => {
+    // The inverse of what this asserted before #324. A reintroduced override would mean either the
+    // classifier regressed or someone is papering over a suite that spends real budget.
+    for (const name of ['RATE_LIMIT_SIGNUP_GLOBAL_MAX', 'RATE_LIMIT_SIGNUP_GLOBAL_WINDOW_MS']) {
+      expect(testEnv, `${name} should no longer be needed in test.env (#324)`).not.toMatch(
+        new RegExp(`^${name}=`, 'm'),
+      )
+    }
   })
 
   it('keeps the short window away from every runner that can reach a shared database', () => {
