@@ -83,19 +83,42 @@ Gotenberg base. **Install-time network: ~15 MB of font cabs, nothing else.** Mul
 GHCR continues so the Rock pulls arm64 as it does today; the Rock has connectivity and needs no stick.
 Single-arch sticks, no labelling hazard, no doubled payload.
 
-**1. Migrate image — agreed in principle, approach pending one verification.** Three options were
-weighed; **Option C is recommended**: `FROM runner AS migrate`, building the migrate image on top of
-the app image. Compose keeps its current two-service shape, nothing in the install sequence changes,
-and because the layers become a strict superset of the app image's, the marginal download and the
-marginal bytes on the stick are just the migration files — call it 5 MB instead of 536.
-(Option A folds migrations into the app image and kills the second image; Option B is a purpose-built
-slim stage, lower risk but lands ~150–250 MB.)
+**1. Migrate image — agreed in principle. ⚑ THE BLOCKING VERIFICATION IS DONE, AND IT CAME BACK
+NEGATIVE (2026-09-19).**
 
-⚑ **VERIFY FIRST, before writing anything: can the Next standalone runner actually execute
-`payload migrate`?** Output tracing prunes `node_modules` to what the server imports, and the CLI path
-is not that. Encouraging sign: `drizzle-kit` (18 MB) is a transitive dependency of
-`@payloadcms/db-postgres`, a *production* dependency, so it is in the prod tree; worst case `COPY` it
-explicitly. A and C both die or live on this answer.
+**The Next standalone runner CANNOT execute `payload migrate`.** Verified empirically against a
+freshly built `.next/standalone`, copied outside any parent `node_modules` so resolution could not
+fall through to the repo's own tree:
+
+- `node_modules/payload/bin.js` **does not exist** — the CLI cannot be invoked at all. The `payload`
+  package survives tracing only as `dist/database` and `dist/utilities`.
+- `src/payload.config.ts` **cannot even be imported**: `ERR_MODULE_NOT_FOUND: Cannot find package
+  '@payloadcms/db-postgres'`.
+- Also absent: `drizzle-orm`, `drizzle-kit`, and any TS loader (`tsx`/`@swc/core`). Only `pg` survives.
+
+The cause is structural, not a packaging slip: Next bundles server code into `.next/server` chunks and
+traces into `node_modules` only what cannot be bundled. A CLI that loads `payload.config.ts` at runtime
+is exactly what that process discards. ⚑ **Do not re-attempt this by "fixing the trace"** — the config
+loader needs real, resolvable packages.
+
+**What survives.** Option C's *shape* is still right — `FROM runner AS migrate`, so the migrate image's
+layers are a superset of the app image's and compose keeps its two-service form — but it must **ADD the
+migration toolchain** rather than reuse what is there. Measured uncompressed in this repo: `payload`
+28 MB, `drizzle-orm` 16 MB, `drizzle-kit` 18 MB, `tsx` 11 MB, `@payloadcms/db-postgres` 0.2 MB, `pg`
+0.1 MB — ~73 MB plus transitive closure, so **roughly 30–40 MB compressed as an added layer**.
+
+**Revised estimate: ~115–120 MB compressed for the migrate image, against 536 MB today** — still a
+~420 MB saving, ~38% off the whole 1.10 GB install. ⚑ **The earlier "~5 MB instead of 536" figure in
+this file was wrong** and assumed the standalone tree already carried what migrate needs. It does not.
+
+Worth testing during implementation, both plausible and neither assumed: whether `drizzle-kit` (18 MB)
+is needed to *run* migrations as opposed to generate them, and whether pre-compiling the config to JS
+removes the TS-loader dependency. Either would cut the added layer further.
+
+(Option A — folding migrations into the app image and killing the second image — dies on the same
+finding, and would additionally push the migration toolchain into the production runtime image, which
+is worse on both size and attack surface. Option B, a standalone purpose-built slim stage, remains the
+fallback if `FROM runner` proves awkward; it lands in the same ballpark but without the layer sharing.)
 
 This pays twice: `lesson3-migrate` is both the largest thing on the stick and the slowest thing in CI.
 
