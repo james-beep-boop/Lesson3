@@ -153,7 +153,7 @@ the scripts source.
 - `ghcr.io/james-beep-boop/lesson3-app:<release>` — the minimal production application.
 - `ghcr.io/james-beep-boop/lesson3-migrate:<release>` — the matching one-shot migration image.
 - PostgreSQL 16.15, pinned by multi-architecture digest.
-- Gotenberg 8.36.0’s LibreOffice-only image, pinned by multi-architecture digest.
+- Gotenberg 8.37.0’s LibreOffice-only image, pinned by multi-architecture digest.
 
 The local-server Gotenberg image deliberately omits Chromium and the optional Microsoft core fonts.
 That makes distribution materially smaller and avoids an automatic EULA-governed font download.

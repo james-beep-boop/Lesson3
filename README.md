@@ -72,7 +72,7 @@ and the deliberate PDF-font tradeoff. Do not pipe a remote install script direct
 - `docs/DECISIONS.md` — build-time decisions + reasoning (canonical)
 - `docs/CHANGELOG.md` — session-by-session build history
 - `docs/EXTERNAL-DEPENDENCIES.md` — the ARES generator + schema this app depends on
-- `docs/DEPENDENCY-REVIEW-2026-08-25.md` — current component updates, deferrals, and evidence
+- `docs/DEPENDENCY-REVIEW-2026-09-19.md` — current component updates, deferrals, and evidence
 - `docs/LOCAL-SERVER-DEPLOYMENT.md` — checksummed GitHub/container deployment for a local server
 - `docs/ROCK5B-SETUP.md` — legacy source-checkout notes for the existing Rock test host
 

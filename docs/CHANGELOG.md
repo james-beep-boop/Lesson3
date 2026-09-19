@@ -8,6 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased - Payload, Node, and Gotenberg security maintenance (2026-09-19)
+
+- Payload and all first-party Payload packages move from 3.88.0 to 3.90.1 for the upstream critical
+  security release. Generated types and a reversible migration add Payload's new nullable
+  `users.reset_password_requested_at` auth field.
+- Node 24 LTS moves from 24.19.0 to 24.21.0 in Docker, `.nvmrc`, and runtime policy. Gotenberg moves
+  from 8.36.0 to 8.37.0 under new multi-architecture digest pins in both deployment paths.
+- The migration passed empty-database, populated forward, rollback, and reapply checks. DOCX output
+  reproduces the pre-upgrade Physics 4.1 baseline; representative Gotenberg 8.36/8.37 PDF renders keep
+  the same page counts and geometry with no visible reflow.
+- Local gates pass: unit 1127/1127, integration 236/236, HTTP 217/217, Chromium 51/51, contract 16/16,
+  ingest 25/25, typecheck, lint, format, production build, deployment scripts, release bundle, and the
+  high-severity production audit threshold. Full details are in
+  [`DEPENDENCY-REVIEW-2026-09-19.md`](DEPENDENCY-REVIEW-2026-09-19.md).
+
 ## Unreleased — trusted server-side user creates are no longer throttled (2026-09-19)
 
 - Signup rate limiting now distinguishes trusted server-side user creation from anonymous

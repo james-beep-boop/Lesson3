@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 - Security maintenance changes stay attributable and migration-gated
+
+Payload 3.90.0 is an upstream critical security release, Node 24.21 refreshes its certificate and TLS
+stack, and Gotenberg 8.37 fixes outbound URL-policy bypasses. Delaying all three would leave known
+security maintenance unapplied; mixing the rest of `npm outdated` into the same change would make a
+migration, editor, or export regression hard to attribute.
+
+**Decision:** one dedicated maintenance change updates only the Payload family (3.90.1), Node LTS
+(24.21.0), and Gotenberg (8.37.0). Other dependency updates remain deferred. Acceptance requires more
+than a compiling lockfile:
+
+- regenerate Payload types and add the required auth-schema migration;
+- prove the migration on both an empty database and populated 3.88 schema, including rollback and
+  reapply while preserving a sentinel user;
+- run integration, production HTTP, and browser coverage because Payload 3.89 changes job-access
+  defaults and 3.90 moves Lexical from 0.41 to 0.50;
+- compare DOCX output to the recorded Physics oracle baseline and compare representative PDFs from
+  Gotenberg 8.36 and 8.37 before accepting the LibreOffice 26.8 change.
+
+The generated migration is intentionally minimal: one nullable
+`users.reset_password_requested_at timestamp(3) with time zone` column. No render-version bump is
+needed: DOCX structure is unchanged, and PDF comparison found no reflow, clipping, page-count, or page
+geometry change. Full versions, upstream references, deferrals, and measured evidence are in
+`docs/DEPENDENCY-REVIEW-2026-09-19.md`.
+
+`v0.84` is the promotion boundary. It may be tagged only after this maintenance change passes the
+protected pull-request gate and lands on `main`; the publication workflow, not the GitHub web form,
+must create the release and its checksummed deployment assets.
+
+---
+
 ## 2026-09-19 — No-email operation needs a complete account lifecycle, not only user #1
 
 The one-time first-user form made an empty installation usable, but it did not make the installation
