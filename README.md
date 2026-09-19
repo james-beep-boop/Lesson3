@@ -9,24 +9,36 @@ A **versioned lesson-plan repository** for ARES Kenya. ARES-generated CBE lesson
 - **Node.js / TypeScript**, single runtime.
 - **Payload CMS** (Postgres) — data model, auth, field-level RBAC, versioning, admin UI, API.
 - **DOCX/PDF by reusing ARES's own generator** (`cbe-generation-system`, the `docx` npm package), embedded in-process.
-- **Node-capable host** (cloud VPS now; local Node box for offline later).
+- **Containerized deployment** on a 64-bit Linux Docker host (x86-64 or ARM64); the host does not
+  need Node.js or npm.
 
 ### Why
+
 ARES lesson plans are **structured data** (a nested sub-strand bundle), and the approved Word formatting is produced by ARES's Node generator. The only way to get high-fidelity DOCX is to keep the structured data and reuse that generator — so the app is built in the generator's runtime. Markdown/HTML storage (the Lesson2 approach) is lossy and was disqualifying. Full reasoning: `SPEC.md` §0.
 
 ## Deploy on a local server
 
 Versioned releases provide prebuilt x86-64 and ARM64 containers through GitHub Container Registry.
-The server needs Docker Compose, `curl`, and `openssl`; it does not need Git, Node.js, npm, or a local
-image build. Download the checksummed deployment bundle from the latest GitHub release — GitHub resolves
-the `releases/latest/` URLs below to the newest release, so they never need updating:
+The server needs Docker Compose, `curl`, `openssl`, `tar`, and `sha256sum`; it does not need Git,
+Node.js, npm, or a local image build. The installing account must be able to run `docker` without
+prefixing each command with `sudo`.
+
+This is a containerized service, not a static website, so it does not belong under `/var/www`.
+The example below keeps the deployment control files in `/srv/lesson3`; Postgres data and the generated
+artifact cache live in Docker named volumes. Creating `/srv/lesson3` requires `sudo`; an operator-owned
+durable directory is also valid. Download the checksummed deployment bundle from the latest GitHub
+release — GitHub resolves the `releases/latest/` URLs to the newest published, non-prerelease release:
 
 ```bash
-mkdir lesson3-download && cd lesson3-download
+workdir="$(mktemp -d)" && cd "$workdir"
 curl -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/lesson3-online-deploy.tar.gz \
   -fLO https://github.com/james-beep-boop/Lesson3/releases/latest/download/lesson3-online-deploy.tar.gz.sha256
 sha256sum -c lesson3-online-deploy.tar.gz.sha256
-tar -xzf lesson3-online-deploy.tar.gz && cd lesson3-deploy
+tar -xzf lesson3-online-deploy.tar.gz
+sudo mkdir /srv/lesson3
+sudo chown "$USER":"$(id -gn)" /srv/lesson3
+cp -a lesson3-deploy/. /srv/lesson3/
+cd /srv/lesson3
 
 # Replace SERVER_LAN_IP with this server's LAN IP address, e.g. http://192.168.1.50:3001
 LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh
@@ -37,8 +49,14 @@ installer **rejects the unsubstituted `SERVER_LAN_IP` placeholder**, so forgetti
 immediately instead of installing cleanly and mailing links that go nowhere.
 
 The first Site Administrator is created in the browser at `/login` straight after installing, through
-a one-time setup form that sends no mail — a local installation needs no SMTP server and no reachable
-inbox to become usable.
+a one-time setup form that sends no mail. A local installation needs no SMTP server or reachable inbox
+to become usable. It **does** currently need outbound internet during installation and update so it can
+download the release bundle and container images; the USB/fully offline distribution path is not yet
+implemented.
+
+New sites must use this release-bundle path. The repository's `scripts/deploy.sh` and
+`docs/ROCK5B-SETUP.md` maintain the existing developer-managed Rock source checkout; they are not the
+installation procedure for a school server.
 
 Read [`docs/LOCAL-SERVER-DEPLOYMENT.md`](docs/LOCAL-SERVER-DEPLOYMENT.md) before installing. It covers
 requirements, firewall posture, first-user setup, verification, encrypted backups, updates, recovery,
@@ -56,7 +74,7 @@ and the deliberate PDF-font tradeoff. Do not pipe a remote install script direct
 - `docs/EXTERNAL-DEPENDENCIES.md` — the ARES generator + schema this app depends on
 - `docs/DEPENDENCY-REVIEW-2026-08-25.md` — current component updates, deferrals, and evidence
 - `docs/LOCAL-SERVER-DEPLOYMENT.md` — checksummed GitHub/container deployment for a local server
-- `docs/ROCK5B-SETUP.md` — deployment runbook
+- `docs/ROCK5B-SETUP.md` — legacy source-checkout notes for the existing Rock test host
 
 ## Status
 
