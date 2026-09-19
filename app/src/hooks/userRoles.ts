@@ -11,6 +11,7 @@ import type { User } from '@/payload-types'
 import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
 import { AccountDisabledError } from '../errors/AccountDisabled'
+import { isFirstRegisterRequest } from '../lib/firstUserBootstrap'
 import { lockRows, txDb } from '../lib/txDb'
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
@@ -284,7 +285,7 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
   const { totalDocs } = await req.payload.count({ collection: 'users', req })
   if (totalDocs === 0) {
     data.roles = [...new Set([...(data.roles ?? []), 'siteAdmin' as const])]
-  } else if (req.pathname?.endsWith('/first-register')) {
+  } else if (isFirstRegisterRequest(req)) {
     throw new Forbidden(req.t)
   }
   return data

@@ -26,10 +26,10 @@
  * `req.user` (seed scripts) — spend budget like anyone else — deliberate, since these operations have no user/overrideAccess axis
  * that distinguishes trust here. Budgets are far above legitimate use; int tests clean their keys.
  */
-import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
+import type { CollectionBeforeOperationHook } from 'payload'
 import { APIError } from 'payload'
 
-import { hasRegisteredUsers } from '../lib/firstUserBootstrap'
+import { hasRegisteredUsers, isFirstRegisterRequest } from '../lib/firstUserBootstrap'
 import { consumeRateLimit, type Bucket } from '../lib/rateLimit'
 
 /** The auth data shape both operations carry (email-only login — loginWithUsername is off). */
@@ -107,14 +107,6 @@ export async function withAdminResetLinkAllowance<T>(
   }
 }
 
-/**
- * Is this the one-shot bootstrap request on an installation that has no accounts yet? See the
- * carve-out comment inside the hook for why both halves are required.
- */
-const isUnbootstrappedFirstRegister = async (req: PayloadRequest): Promise<boolean> =>
-  req.pathname?.endsWith('/first-register') === true &&
-  !(await hasRegisteredUsers(req.payload, req))
-
 export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
   args,
   operation,
@@ -172,7 +164,13 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
    * actually requesting that route, but it is a string, and the count is a fact. Reuses the request so
    * the read stays on first-register's own transaction.
    */
-  if (kind === 'signup' && (await isUnbootstrappedFirstRegister(req))) return args
+  if (
+    kind === 'signup' &&
+    isFirstRegisterRequest(req) &&
+    !(await hasRegisteredUsers(req.payload, req))
+  ) {
+    return args
+  }
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email
   // recipient cap). A missing/garbage email still consumes a bucket ('invalid') — probing with
