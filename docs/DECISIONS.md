@@ -11,6 +11,48 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-18 — First-user setup uses Payload first-register, not an environment password
+
+A real offline installation exposed a bootstrap contradiction: the installer told the technician to
+open `/login` and create the first Site Administrator, but that link led to ordinary signup. The
+first-user hook granted `siteAdmin`, while email verification left the same account unable to sign in
+on a box with no mail path. The deployment was healthy and still administratively unusable.
+
+**Decision:** an empty private/local installation renders a one-time setup form at `/login` and posts
+to Payload's native `/api/users/first-register`. Installed Payload source confirms that operation
+starts a transaction, refuses when it sees an existing user, creates with trusted access, marks user
+#1 verified, and sets the login cookie. Lesson3's transaction-locked
+`grantSiteAdminToFirstUser` hook adds the Site Administrator role during that create and repeats the
+existence check after taking its advisory lock. That second check is required: Payload's check occurs
+before `payload.create`, so two READ COMMITTED transactions can both initially see an empty table.
+The request that loses Lesson3's lock race now receives 403 instead of an auto-verified second
+account. Ordinary anonymous collection create refuses while the users table is empty; after
+initialization, open self-registration and email verification are unchanged.
+
+Payload's stock `/admin/create-first-user` URL redirects to `/login`. This is deliberate, not merely
+navigation polish: an experienced installer tried that familiar screen and concluded that first-user
+setup still depended on email. There is one supported bootstrap interface, and both likely entry
+points now reach it.
+
+**Why not `.env` or a credentials file:** either stores a reusable administrator password beside the
+deployment, leaks it through process/container inspection, or requires deletion/rotation semantics
+that become a second authentication system. The native operation already owns password hashing,
+verification state, the login cookie, and the sequential closed-after-first-use rule; Lesson3's
+existing database lock supplies the missing concurrent one-shot boundary. Configuration should
+select posture, not carry a permanent human credential.
+
+**Security boundary:** this does not weaken the public first-user guard. `SERVER_URL` plus zero users
+still refuses startup unless the operator deliberately sets `ALLOW_FIRST_USER_BOOTSTRAP=1` for one
+bootstrap boot. The normal signup endpoint cannot substitute for first-register on an empty database.
+
+**Consequence for tests, caught by CI rather than by review:** `/login` now has TWO renderings, and
+which one a browser spec meets depends on whether the users table happens to be empty. Every e2e spec
+tears its fixture down in `afterAll`, so between files it usually is —
+`publicLibraryDisabled.e2e.spec.ts` seeded nothing and went red against a page that was behaving
+correctly. It now seeds one ordinary verified account (`initialized` is a count, not a role check).
+⚑ Any future spec that asserts on the sign-in FORM must seed a user first; asserting on `/login` is
+no longer state-free.
+
 ## 2026-09-12 — Audit corrections: snapshot locks, personal scope, and retry state
 
 The seven audit findings were checked against source and independently reviewed. The favorites bug

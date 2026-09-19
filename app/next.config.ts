@@ -27,10 +27,12 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: SERVER_ACTION_BODY_LIMIT },
   },
-  // One login form (SPEC §2): send Payload's admin login to the single frontend /login. A static
-  // config redirect fires at the routing layer BEFORE the /admin routes resolve, so it can't 404
-  // and needs no middleware. Everyone lands on The App home after signing in; admins use the
-  // "Admin" link in the header to enter /admin.
+  // One login/bootstrap form (SPEC §2): send Payload's admin login AND its stock first-user screen
+  // to the frontend /login. The latter matters on an offline install: technicians familiar with
+  // Payload otherwise bypass Lesson3's explicit setup entry point and may conclude email is still
+  // required. A static config redirect fires before the /admin routes resolve, so it cannot 404 and
+  // needs no middleware. Everyone lands on The App home after signing in; admins use the "Admin"
+  // link in the header to enter /admin.
   //
   // Backward-compat aliases for the two nav LABELS ("Lessons", "Manage"). The canonical routes are
   // `/` (the catalogue) and `/admin` (Payload manage), but users type the visible label as a path
@@ -41,6 +43,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: '/admin/login', destination: '/login', permanent: false },
+      { source: '/admin/create-first-user', destination: '/login', permanent: false },
       { source: '/lessons', destination: '/', permanent: false },
       { source: '/manage', destination: '/admin', permanent: false },
     ]

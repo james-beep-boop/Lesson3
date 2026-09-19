@@ -261,6 +261,12 @@ export const guardLastSiteAdminOnDelete: CollectionBeforeDeleteHook = async ({ i
  * `roles` defaults to []. Without this, the first user created on a fresh deployment
  * would be locked out of the admin panel — a bootstrap deadlock. On the first create
  * (no users yet) we force `roles` to include 'siteAdmin'.
+ *
+ * Payload's first-register operation checks for an existing user BEFORE it calls `payload.create`.
+ * A transaction alone does not serialize that check under READ COMMITTED: two requests can both see
+ * an empty table, then arrive here. The advisory lock makes our count authoritative. If another
+ * first-register won while this request waited, refuse this request rather than auto-verifying and
+ * signing in a second user. Ordinary creates after initialization remain valid.
  */
 export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
   data,
@@ -278,6 +284,8 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
   const { totalDocs } = await req.payload.count({ collection: 'users', req })
   if (totalDocs === 0) {
     data.roles = [...new Set([...(data.roles ?? []), 'siteAdmin' as const])]
+  } else if (req.pathname?.endsWith('/first-register')) {
+    throw new Forbidden(req.t)
   }
   return data
 }

@@ -324,8 +324,8 @@ describe('the last-Site-Admin invariant', () => {
    * ⚑ THE THIRD USABILITY AXIS. An unverified administrator cannot authenticate at all — Payload
    * refuses at the login op AND in the JWT strategy — so counting one as cover leaves an
    * installation with nobody able to administer it. Reachable rather than theoretical:
-   * `grantSiteAdminToFirstUser` grants the role on the first CREATE, and under open registration
-   * that account is unverified.
+   * a Site Administrator can create another administrator account, and that account remains
+   * unverified until the administrator completes the explicit repair action.
    */
   it('does not count an UNVERIFIED administrator as cover for demoting the verified one', async () => {
     const verified = await mkUser('vcover-verified', { roles: ['siteAdmin'] })

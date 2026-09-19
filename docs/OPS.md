@@ -566,8 +566,10 @@ limits + IdleLogout are the compensating controls); Subject-Admin uniqueness = g
 3. **Seed users BEFORE DNS points at the box.** On an empty DB, Payload's unauthenticated
    first-register hands Site Admin to the FIRST visitor (verified live 2026-07-05). ✓ The app now
    REFUSES to boot with `SERVER_URL` set and zero users. Either restore a backup first, create the
-   admin while unexposed (boot without `SERVER_URL`, register, then set it), or run ONE deliberate
-   bootstrap boot with `ALLOW_FIRST_USER_BOOTSTRAP=1` and unset it after registering.
+   administrator while unexposed (boot without `SERVER_URL`, use the one-time setup form at `/login`,
+   then set it), or run ONE deliberate bootstrap boot with `ALLOW_FIRST_USER_BOOTSTRAP=1`, complete
+   `/login` setup immediately, and unset it afterwards. Do not put a human password in `.env`;
+   `/admin/create-first-user` redirects to this same supported setup entry point.
 4. **Set `SERVER_URL=https://…` in `.env`** → strict CSRF (Payload Origin/Sec-Fetch allowlist,
    Codex #1) + ✓ Secure auth cookies derive automatically (lib/publicPosture.ts). Note the
    documented trade-off: browsers that send neither Origin nor Sec-Fetch-Site on same-origin

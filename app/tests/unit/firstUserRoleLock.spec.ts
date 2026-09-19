@@ -53,4 +53,46 @@ describe('grantSiteAdminToFirstUser', () => {
       grantSiteAdminToFirstUser({ data: {}, operation: 'create', req } as never),
     ).rejects.toThrow(/must run inside.*transaction/i)
   })
+
+  it('refuses a first-register request that lost the serialized race', async () => {
+    const req = {
+      pathname: '/api/users/first-register',
+      transactionID: Promise.resolve('tx-first-user'),
+      payload: {
+        db: {
+          sessions: {
+            'tx-first-user': { db: { execute: async () => undefined } },
+          },
+          drizzle: { execute: async () => undefined },
+        },
+        count: async () => ({ totalDocs: 1 }),
+      },
+      t: (key: string) => key,
+    }
+
+    await expect(
+      grantSiteAdminToFirstUser({ data: {}, operation: 'create', req } as never),
+    ).rejects.toThrow()
+  })
+
+  it('still permits an ordinary user create after initialization', async () => {
+    const data = { name: 'Later user' }
+    const req = {
+      pathname: '/api/users',
+      transactionID: Promise.resolve('tx-later-user'),
+      payload: {
+        db: {
+          sessions: {
+            'tx-later-user': { db: { execute: async () => undefined } },
+          },
+          drizzle: { execute: async () => undefined },
+        },
+        count: async () => ({ totalDocs: 1 }),
+      },
+    }
+
+    await expect(
+      grantSiteAdminToFirstUser({ data, operation: 'create', req } as never),
+    ).resolves.toBe(data)
+  })
 })

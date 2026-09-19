@@ -25,6 +25,29 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# HANDOFF (2026-09-18) — offline first-administrator bootstrap implemented and verified
+
+**Supersedes older status blocks for current work.** A fresh local-server installation could create
+user #1 only through ordinary signup, which granted Site Administrator but left the account unverified
+and unable to sign in without email. The implementation now routes an empty installation's `/login`
+through Payload's native one-shot `first-register`, refuses ordinary signup while no users exist, and
+keeps normal signup verification unchanged after initialization. Installer, operations, specification,
+decision, and changelog documentation are updated. No schema migration is required.
+
+Verification is complete: production image build, TypeScript, ESLint, shell syntax, the full unit
+suite (**1,111/1,111**), the full production HTTP suite against a created-empty disposable database
+(**215/215**), the Playwright e2e suite, and the local release-bundle/update tests all pass. The e2e
+suite was NOT covered by the first verification pass and caught the one regression this change
+produced (see DECISIONS 2026-09-18, "Consequence for tests"). The HTTP coverage proves the
+empty-install form, ordinary-create refusal, exactly one winner under concurrent first-register,
+verified Site-Administrator grant and login, second-use refusal, and return to the normal sign-in
+screen. Payload's stock `/admin/create-first-user` path also redirects to that single supported form,
+closing the misleading route encountered on a real offline installation. Issue #324 (trusted
+Local-API fixtures consuming signup budget) remains deliberately deferred and is not part of this
+change.
+
+---
+
 # HANDOFF (2026-09-12) — audit and deployment corrections merged; ready to deploy
 
 **Supersedes older status blocks, not their deferred-feature decisions.** The user authorized fixes

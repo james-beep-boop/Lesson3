@@ -426,6 +426,15 @@ observable contract, and a failed or backed-off capture must say so rather than 
   Site-Admin remedy. **Changing an account's email is Site-Admin-only** (verification happens
   only at create, so a self-service change would claim an unproven address); the verify
   endpoint is rate-capped site-globally.
+- **First-user bootstrap (amended 2026-09-18):** an empty private/local installation presents a
+  one-time setup form at `/login`. It uses Payload's native transactional `first-register` operation
+  plus Lesson3's advisory-lock recheck: exactly one concurrent caller can become user #1, be
+  automatically verified, receive `siteAdmin`, and be signed in without depending on outbound email.
+  Ordinary anonymous `POST /api/users` is refused while the users table is empty, so a direct request
+  or stale `/signup` page cannot strand an unverified first administrator. Once any user exists,
+  first-register refuses further use and normal signup plus email verification resume.
+  Public-posture startup refusal remains unchanged: an internet-facing empty installation must be
+  deliberately bootstrapped before exposure.
 
 | User type | Scope |
 |---|---|

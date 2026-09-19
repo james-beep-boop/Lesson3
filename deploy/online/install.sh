@@ -97,7 +97,7 @@ docker compose up -d --no-build
 for _ in $(seq 1 60); do
   if curl -fsS "$health_url" >/dev/null 2>&1; then
     echo "install: Lesson3 is ready at ${admin_url%/}/login"
-    echo "install: create the first Site Administrator in the browser, then configure backups"
+    echo "install: open that page to create the first Site Administrator (no email delivery required), then configure backups"
     exit 0
   fi
   sleep 5

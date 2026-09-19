@@ -60,10 +60,16 @@ The installer:
 4. starts Postgres, runs all migrations once, then starts Gotenberg and Lesson3; and
 5. waits up to five minutes for `/login` to respond.
 
-It refuses to overwrite an existing `.env`. When it succeeds, open the printed `/login` URL and create
-the first Site Administrator. Keep the installation directory: it contains the Compose definition,
-configuration, operations scripts, and the version record. The database itself is in a Docker named
-volume and survives container replacement.
+It refuses to overwrite an existing `.env`. When it succeeds, open the printed `/login` URL. On an
+empty installation that page becomes the one-time setup form: choose the first Site Administrator's
+display name, sign-in address, and password. Payload verifies and signs in that account immediately,
+so no working inbox or outbound email connection is required. After user #1 exists, `/login` returns
+to the ordinary sign-in form and all later self-registration keeps its normal email-verification
+requirement. Do not create a bootstrap credential in `.env` and do not use Payload's stock
+`/admin/create-first-user` screen; that URL redirects to the supported `/login` setup flow. Keep the
+installation directory: it contains the Compose definition, configuration, operations scripts, and
+the version record. The database itself is in a Docker named volume and survives container
+replacement.
 
 ## What is downloaded
 
