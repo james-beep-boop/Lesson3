@@ -8,6 +8,20 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — email-free first administrator setup (2026-09-18)
+
+- A fresh local installation now turns `/login` into a one-time Site Administrator setup form. It
+  uses Payload's transactional first-register operation, which verifies and signs in user #1 without
+  requiring a working inbox or outbound mail.
+- Ordinary signup is refused while the database is empty, closing the path that previously created an
+  unverified Site Administrator who could not sign in. After initial setup, normal signup and email
+  verification are unchanged.
+- Concurrent setup requests are serialized at the database boundary: exactly one can create user #1;
+  a request that loses the race receives 403 instead of an auto-verified second account.
+- Payload's stock `/admin/create-first-user` URL redirects to the supported `/login` setup form, so
+  installers cannot accidentally take a second, misleading bootstrap path.
+- Installer output and the local/public deployment runbooks now identify the supported bootstrap path.
+
 ## Unreleased — audit corrections (2026-09-12)
 
 - Save locks native content and structural controls before taking its snapshot, through recovery

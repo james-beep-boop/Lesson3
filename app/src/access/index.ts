@@ -1,5 +1,6 @@
 import type { Access, FieldAccess, PayloadRequest } from 'payload'
 import type { User } from '@/payload-types'
+import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 
 /**
  * Authorization helpers and access functions (SPEC §8, §5).
@@ -147,12 +148,19 @@ export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): bo
  *  admin-only fields must keep using trusted projections (DECISIONS 2026-07-02 round 3). */
 /**
  * Users create = OPEN self-registration (user decision 2026-07-09, SPEC §8) or Site-Admin people
- * management. Anonymous visitors may create an account (rate-capped in hooks/authRateLimit;
- * `roles`/`assignments` are create-gated at field level, so a hostile signup body strips to a
- * plain Teacher). An AUTHENTICATED non-admin has no business creating users.
+ * management. Anonymous visitors may create an account only AFTER initial setup (rate-capped in
+ * hooks/authRateLimit; `roles`/`assignments` are create-gated at field level, so a hostile signup
+ * body strips to a plain Teacher). User #1 must use Payload's native first-register operation, which
+ * bypasses collection access, auto-verifies the account, and is transactionally one-shot. This
+ * prevents ordinary signup from stranding an unverified first Site Administrator on a no-email box.
+ * An AUTHENTICATED non-admin has no business creating users.
  */
-export const usersCollectionCreate: Access = ({ req: { user } }) =>
-  !user || isSiteAdmin(asUser(user))
+export const usersCollectionCreate: Access = async ({ req }) => {
+  const user = asUser(req.user)
+  if (isSiteAdmin(user)) return true
+  if (user) return false
+  return hasRegisteredUsers(req.payload, req)
+}
 
 export const usersCollectionRead: Access = ({ req: { user } }) => Boolean(user)
 

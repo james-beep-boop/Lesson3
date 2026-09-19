@@ -3,14 +3,17 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { getSession } from '@/lib/session'
+import { hasRegisteredUsers } from '@/lib/firstUserBootstrap'
 import { isPublicLibraryEnabled } from '@/lib/publicLibrary'
+import { FirstUserForm } from './FirstUserForm'
 import { LoginForm } from './LoginForm'
 
 export const metadata = { title: 'Sign in — ARES Lesson Plans' }
 
 export default async function LoginPage() {
-  const { user } = await getSession()
+  const { payload, user } = await getSession()
   if (user) redirect('/')
+  const initialized = await hasRegisteredUsers(payload)
   return (
     <section className="login">
       <h1 className="login-title">ARES Lesson Plans</h1>
@@ -24,11 +27,13 @@ export default async function LoginPage() {
           Seavuria
         </a>
       </p>
-      <LoginForm />
-      <p className="login-links">
-        <Link href="/signup">Sign up</Link>
-        <Link href="/forgot-password">Forgot password?</Link>
-      </p>
+      {initialized ? <LoginForm /> : <FirstUserForm />}
+      {initialized && (
+        <p className="login-links">
+          <Link href="/signup">Sign up</Link>
+          <Link href="/forgot-password">Forgot password?</Link>
+        </p>
+      )}
       {/*
         Public discovery, when this deployment opts in. Deliberately SECONDARY and below the
         sign-in links: `/login` stays the restrained front door for the offline school
@@ -36,7 +41,7 @@ export default async function LoginPage() {
         An offline/disabled deployment renders nothing here — and `/explore` 404s regardless,
         because the absent link is presentation, not the boundary (lib/publicLibrary.ts).
       */}
-      {isPublicLibraryEnabled() && (
+      {initialized && isPublicLibraryEnabled() && (
         <p className="login-explore">
           <Link href="/explore">Explore free lesson plans</Link>
         </p>
