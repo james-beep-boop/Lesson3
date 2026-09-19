@@ -11,6 +11,35 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 — The Next standalone runner cannot run `payload migrate` (verified)
+
+The USB-distribution plan proposed folding the 536 MB `lesson3-migrate` image into the 81 MB app image
+(`FROM runner AS migrate`), on the assumption that the standalone runtime already carried what
+`payload migrate` needs. **Verified empirically; it does not.**
+
+Method: a fresh `next build`, then the resulting `.next/standalone` copied outside any parent
+`node_modules` so Node's upward resolution could not fall through to the repo's own tree. Findings:
+`node_modules/payload/bin.js` is absent, so the CLI cannot be invoked; `src/payload.config.ts` fails to
+import with `ERR_MODULE_NOT_FOUND` for `@payloadcms/db-postgres`; `drizzle-orm`, `drizzle-kit` and every
+TS loader are absent. The `payload` package survives tracing only as `dist/database` + `dist/utilities`.
+
+**The cause is structural.** Next bundles server code into `.next/server` chunks and traces into
+`node_modules` only what cannot be bundled. A CLI that loads `payload.config.ts` at runtime is
+precisely what that discards. ⚑ **Do not re-attempt by "fixing the trace."** The config loader needs
+real, resolvable packages — this is not a misconfiguration to tune.
+
+**Decision:** keep Option C's shape (`FROM runner AS migrate`, so layers stay a superset of the app
+image and compose keeps its two-service form) but **add the migration toolchain explicitly**. Measured:
+~73 MB uncompressed of direct packages plus transitive closure, ≈30–40 MB compressed as an added layer,
+giving **~115–120 MB against 536 MB** — a ~420 MB saving, ~38% of the whole 1.10 GB install.
+
+⚑ **The "~5 MB instead of 536" projection recorded earlier the same day was wrong**, and is corrected
+in `docs/NEXT-SESSION.md`. It is logged here because the error is instructive: the saving was projected
+from layer sharing without first checking whether the shared layers contained anything usable. Layer
+arithmetic is not a substitute for running the command.
+
+---
+
 ## 2026-09-19 — Distribution inverts: USB is the default install method, online is the exception
 
 Operator constraints, stated during the deployment session: installing technicians carry phones with
