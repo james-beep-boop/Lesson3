@@ -54,45 +54,43 @@ describe('grantSiteAdminToFirstUser', () => {
     ).rejects.toThrow(/must run inside.*transaction/i)
   })
 
-  it('refuses a first-register request that lost the serialized race', async () => {
-    const req = {
-      pathname: '/api/users/first-register',
-      transactionID: Promise.resolve('tx-first-user'),
-      payload: {
-        db: {
-          sessions: {
-            'tx-first-user': { db: { execute: async () => undefined } },
-          },
-          drizzle: { execute: async () => undefined },
-        },
-        count: async () => ({ totalDocs: 1 }),
+  /**
+   * A request on an INITIALIZED installation, differing only in the route. The two tests below turn
+   * on `pathname` alone; spelling the whole transaction/advisory-lock scaffold out twice invited a
+   * character-by-character diff to see that.
+   */
+  const initializedReq = (pathname: string) => ({
+    pathname,
+    transactionID: Promise.resolve('tx'),
+    payload: {
+      db: {
+        sessions: { tx: { db: { execute: async () => undefined } } },
+        drizzle: { execute: async () => undefined },
       },
-      t: (key: string) => key,
-    }
+      count: async () => ({ totalDocs: 1 }),
+    },
+    t: (key: string) => key,
+  })
 
+  it('refuses a first-register request that lost the serialized race', async () => {
     await expect(
-      grantSiteAdminToFirstUser({ data: {}, operation: 'create', req } as never),
+      grantSiteAdminToFirstUser({
+        data: {},
+        operation: 'create',
+        req: initializedReq('/api/users/first-register'),
+      } as never),
     ).rejects.toThrow()
   })
 
   it('still permits an ordinary user create after initialization', async () => {
     const data = { name: 'Later user' }
-    const req = {
-      pathname: '/api/users',
-      transactionID: Promise.resolve('tx-later-user'),
-      payload: {
-        db: {
-          sessions: {
-            'tx-later-user': { db: { execute: async () => undefined } },
-          },
-          drizzle: { execute: async () => undefined },
-        },
-        count: async () => ({ totalDocs: 1 }),
-      },
-    }
 
     await expect(
-      grantSiteAdminToFirstUser({ data, operation: 'create', req } as never),
+      grantSiteAdminToFirstUser({
+        data,
+        operation: 'create',
+        req: initializedReq('/api/users'),
+      } as never),
     ).resolves.toBe(data)
   })
 })

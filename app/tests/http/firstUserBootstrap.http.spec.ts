@@ -11,7 +11,23 @@ import { getPayload, type Payload } from 'payload'
 import config from '../../src/payload.config.js'
 import { clearRateLimitBuckets } from '../helpers/db.js'
 import { deleteUserFixture } from '../helpers/fixtures.js'
-import { url } from '../helpers/httpWire.js'
+import { login, url } from '../helpers/httpWire.js'
+
+const postJson = (path: string, body: unknown) =>
+  fetch(url(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+/** Both stock bootstrap entry points must funnel to the one supported form (SPEC §8). */
+const expectRedirectToLogin = async (path: string) => {
+  const res = await fetch(url(path), { redirect: 'manual' })
+  expect([307, 308]).toContain(res.status)
+  const location = res.headers.get('location')
+  expect(location, `${path} must redirect`).toBeTruthy()
+  expect(new URL(location!, url('/')).pathname).toBe('/login')
+}
 
 const RUN = `first-bootstrap-${Date.now()}`
 const candidates = [
@@ -21,8 +37,6 @@ const candidates = [
 
 let payload: Payload
 const userIds: Array<number | string> = []
-let winningEmail = ''
-let winningPassword = ''
 
 beforeAll(async () => {
   payload = await getPayload({ config })
@@ -46,26 +60,13 @@ describe('offline first-user bootstrap', () => {
     expect(html).toContain('Create Site administrator')
     expect(html).not.toContain('Forgot password?')
 
-    const stockAdminSetup = await fetch(url('/admin/create-first-user'), { redirect: 'manual' })
-    expect([307, 308]).toContain(stockAdminSetup.status)
-    const stockAdminLocation = stockAdminSetup.headers.get('location')
-    expect(stockAdminLocation).toBeTruthy()
-    expect(new URL(stockAdminLocation!, url('/')).pathname).toBe('/login')
+    await expectRedirectToLogin('/admin/create-first-user')
+    await expectRedirectToLogin('/signup')
 
-    const signupPage = await fetch(url('/signup'), { redirect: 'manual' })
-    expect([307, 308]).toContain(signupPage.status)
-    const signupLocation = signupPage.headers.get('location')
-    expect(signupLocation).toBeTruthy()
-    expect(new URL(signupLocation!, url('/')).pathname).toBe('/login')
-
-    const ordinaryCreate = await fetch(url('/api/users'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Wrong path',
-        email: `${RUN}-wrong@lesson3.local`,
-        password: candidates[0].password,
-      }),
+    const ordinaryCreate = await postJson('/api/users', {
+      name: 'Wrong path',
+      email: `${RUN}-wrong@lesson3.local`,
+      password: candidates[0].password,
     })
     expect(ordinaryCreate.status).toBe(403)
     await expect(
@@ -91,13 +92,9 @@ describe('offline first-user bootstrap', () => {
     const attempts = []
     for (let attempt = 0; attempt < 4; attempt++) {
       attempts.push(
-        await fetch(url('/api/users/first-register'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          // No password: rejected on its merits, so the users table stays empty and the NEXT
-          // attempt is still a genuine bootstrap request.
-          body: JSON.stringify({ name: 'Fumbled setup', email: fumbled }),
-        }),
+        // No password: rejected on its merits, so the users table stays empty and the NEXT
+        // attempt is still a genuine bootstrap request.
+        await postJson('/api/users/first-register', { name: 'Fumbled setup', email: fumbled }),
       )
     }
 
@@ -112,41 +109,26 @@ describe('offline first-user bootstrap', () => {
   it('creates exactly one verified administrator under a concurrent first-register race', async () => {
     const responses = await Promise.all(
       candidates.map(({ email, password }, index) =>
-        fetch(url('/api/users/first-register'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: `Offline Site Administrator ${index + 1}`,
-            email,
-            password,
-          }),
+        postJson('/api/users/first-register', {
+          name: `Offline Site Administrator ${index + 1}`,
+          email,
+          password,
         }),
       ),
     )
-    const bodies = await Promise.all(
-      responses.map(async (candidateResponse) =>
-        candidateResponse.status === 200
-          ? ((await candidateResponse.json()) as {
-              token?: string
-              user?: { id?: number | string }
-            })
-          : null,
-      ),
-    )
-    for (const body of bodies) {
-      if (body?.user?.id != null) userIds.push(body.user.id)
-    }
-
     expect(responses.map(({ status }) => status).sort()).toEqual([200, 403])
+
+    // Only the winner has a body worth reading — the loser is refused and creates nothing to clean
+    // up, so there is no second id to collect.
     const winnerIndex = responses.findIndex(({ status }) => status === 200)
+    const winner = candidates[winnerIndex]!
     const response = responses[winnerIndex]!
-    winningEmail = candidates[winnerIndex]!.email
-    winningPassword = candidates[winnerIndex]!.password
     expect(response.headers.get('set-cookie')).toBeTruthy()
 
-    const body = bodies[winnerIndex]!
+    const body = (await response.json()) as { token?: string; user?: { id?: number | string } }
     expect(body.token).toBeTruthy()
     expect(body.user?.id).toBeDefined()
+    userIds.push(body.user!.id!)
 
     const stored = await payload.findByID({
       collection: 'users',
@@ -157,23 +139,16 @@ describe('offline first-user bootstrap', () => {
     expect(stored.roles).toContain('siteAdmin')
     expect(stored._verified).toBe(true)
 
-    const login = await fetch(url('/api/users/login'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: winningEmail, password: winningPassword }),
-    })
-    expect(login.status).toBe(200)
+    // The helper asserts a token came back, not merely a 200 — the failure mode `httpWire.ts` exists
+    // to stop this suite re-introducing.
+    await expect(login(winner.email, winner.password)).resolves.toBeTruthy()
   })
 
   it('closes the one-shot endpoint and restores the ordinary login screen', async () => {
-    const second = await fetch(url('/api/users/first-register'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Second',
-        email: `${RUN}-second@lesson3.local`,
-        password: candidates[0].password,
-      }),
+    const second = await postJson('/api/users/first-register', {
+      name: 'Second',
+      email: `${RUN}-second@lesson3.local`,
+      password: candidates[0].password,
     })
     expect(second.status).toBe(403)
 

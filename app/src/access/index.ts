@@ -157,8 +157,7 @@ export const adminPanelAccess = ({ req: { user } }: { req: PayloadRequest }): bo
  */
 export const usersCollectionCreate: Access = async ({ req }) => {
   const user = asUser(req.user)
-  if (isSiteAdmin(user)) return true
-  if (user) return false
+  if (user) return isSiteAdmin(user)
   return hasRegisteredUsers(req.payload, req)
 }
 
