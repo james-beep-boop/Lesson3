@@ -27,6 +27,7 @@ import {
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
 import { preserveAccountDisabledWire } from '../errors/AccountDisabled'
 import { emailLinkBase } from '../lib/emailLinkBase'
+import { suppressFirstUserVerificationEmail } from '../lib/firstUserBootstrap'
 import { isHttpsServerUrl } from '../lib/publicPosture'
 import {
   assignEditorEndpoint,
@@ -125,7 +126,9 @@ export const Users: CollectionConfig = {
     afterError: [preserveAccountDisabledWire],
     // Throttle the unauthenticated auth surface (SPEC §11 "generation, auth"): login and
     // forgot-password budgets, per target identifier + site-global. See hooks/authRateLimit.
-    beforeOperation: [rateLimitAuthOperations],
+    // Payload otherwise emails a verification link during first-register and only then marks that
+    // same account verified. Suppress only that trusted bootstrap send; ordinary signup still mails.
+    beforeOperation: [suppressFirstUserVerificationEmail, rateLimitAuthOperations],
     // ⚑ `beforeLogin` runs in BOTH `login` and `resetPassword` (the latter inline, before it signs
     // the token — verified in auth/operations/resetPassword.js:113). One hook, two entry points;
     // see `refuseDisabledLogin` for why that is intended rather than incidental.

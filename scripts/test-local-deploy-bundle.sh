@@ -36,6 +36,12 @@ grep -Eq "lesson3-migrate:v0\\.0\\.0@$migrate_digest" "$BUNDLE/compose.yaml" \
   || fail "release compose builds on the server"
 
 bash -n "$BUNDLE/install.sh" "$BUNDLE/update.sh" "$BUNDLE/scripts/"*.sh
+grep -Fq 'There is no default Lesson3 username or password.' "$BUNDLE/install.sh" \
+  || fail "installer omits the no-default-credentials instruction"
+grep -Fq 'a new password of at least 8 characters' "$BUNDLE/install.sh" \
+  || fail "installer omits the first-administrator password instruction"
+grep -Fq 'create and test a second Site Administrator' "$BUNDLE/install.sh" \
+  || fail "installer omits the second-administrator commissioning instruction"
 (
   cd "$BUNDLE"
   test_admin_url='http://lesson3-box:3001/base?first=one&second=two'

@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 - First-user bootstrap must suppress Payload's redundant verification email
+
+A clean installation from the published `v0.84` bundle proved the online installer, migrations,
+health check, first-user form, immediate login, admin access, and one-shot first-register boundary.
+It also exposed a mismatch beneath that successful behavior: Payload's native first-register
+operation creates the account through the collection create operation, which sends the configured
+verification email, and only afterward marks the same account verified and returns a login token.
+With no SMTP transport this was only a logged attempted send; with SMTP it would send an unusable,
+redundant verification message.
+
+**Decision:** keep Payload's transactional first-register endpoint, but use its typed
+`disableVerificationEmail` create argument for that operation. Set it in `beforeOperation` only when
+both the path is `/first-register` and Payload supplies the trusted in-process `overrideAccess`
+argument. A path alone is not a trust boundary. Ordinary wire signup and unrelated trusted Local-API
+creates keep their existing mail behavior.
+
+The same smoke test confirmed that `v0.84` is operational for an installation with no email service;
+this correction is required for behavioral and documentation accuracy, not to unblock login. It
+should ship in the next release rather than moving or replacing the immutable `v0.84` tag.
+
 ## 2026-09-19 - Security maintenance changes stay attributable and migration-gated
 
 Payload 3.90.0 is an upstream critical security release, Node 24.21 refreshes its certificate and TLS

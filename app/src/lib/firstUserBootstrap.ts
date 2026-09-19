@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { CollectionBeforeOperationHook, Payload, PayloadRequest } from 'payload'
 
 /**
  * Whether this installation already has an account.
@@ -21,3 +21,23 @@ export async function hasRegisteredUsers(payload: Payload, req?: PayloadRequest)
  */
 export const isFirstRegisterRequest = (req: Pick<PayloadRequest, 'pathname'>): boolean =>
   req.pathname?.endsWith('/first-register') === true
+
+/**
+ * Payload's native first-register operation creates the user, sends the collection's verification
+ * email, and only then marks that same user verified. The message is redundant and contradicts the
+ * local-install promise that bootstrap needs no mail path.
+ *
+ * `disableVerificationEmail` is a create-operation argument, so set it in the collection's
+ * beforeOperation seam rather than replacing Payload's transactional first-register endpoint. Both
+ * predicates are deliberate: the route identifies bootstrap, while `overrideAccess` proves this is
+ * Payload's trusted in-process create rather than an ordinary wire signup.
+ */
+export const suppressFirstUserVerificationEmail: CollectionBeforeOperationHook = ({
+  args,
+  operation,
+  overrideAccess,
+  req,
+}) => {
+  if (operation !== 'create' || !overrideAccess || !isFirstRegisterRequest(req)) return args
+  return { ...args, disableVerificationEmail: true }
+}

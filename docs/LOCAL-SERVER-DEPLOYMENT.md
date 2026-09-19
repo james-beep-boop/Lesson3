@@ -88,17 +88,29 @@ volume and survives container replacement.
 A local installation configures no SMTP server, so nothing it sends can be received. This is separate
 from the installer's network requirement: release assets and images are downloaded during installation,
 but no email service or reachable inbox is needed. The first administrator is created through a
-one-time form that never sends mail:
+one-time form that never sends mail.
+
+**There are no factory credentials.** The installer does not create a username or password, and the
+generated `PAYLOAD_SECRET` and `POSTGRES_PASSWORD` in `.env` are internal service secrets, not browser
+login credentials. Do not edit `.env` to add a person or a password.
+
+Before leaving the server, the installing technician must create the first login:
 
 1. Open the `/login` URL the installer printed, from a browser on the LAN.
 2. Because the installation has no accounts, that page shows **Create the first Site administrator**
-   rather than a sign-in box.
-3. Enter a display name, an email address, and the password twice. The address is only the sign-in
-   name — no message is sent to it, and it need not be reachable.
-4. Click **Create Site administrator**. The account is created, marked verified, given the Site
+   rather than a sign-in box. If it shows **Sign in**, stop: the database is not empty. Locate the
+   existing administrator or follow the recovery procedure below instead of trying to bootstrap again.
+3. Enter the person's real display name.
+4. Enter an email-format address as the sign-in name. On a no-mail installation it need not be a
+   reachable inbox, but record it exactly; the administrator will type it whenever they sign in.
+5. Choose a unique password of at least eight characters and enter it twice. Store the sign-in name
+   and password in the site's approved password manager before continuing. Lesson3 stores only a
+   password hash and cannot show the original password later.
+6. Click **Create Site administrator**. The account is created, marked verified, given the Site
    Administrator role, and signed in immediately; the browser lands on the admin panel.
-5. Confirm setup closed: open `/login` in a private window. It must now show the ordinary sign-in
-   form. The setup form cannot reappear, and a second attempt is refused.
+7. Confirm both the credentials and the one-time boundary: open `/login` in a private window. It must
+   show the ordinary **Sign in** form. Sign in with the credentials just recorded. The setup form
+   cannot reappear, and a second first-user attempt is refused.
 
 After this, self-registration works normally and keeps its email-verification requirement — which on
 an installation with no SMTP means later accounts should be created by an administrator:

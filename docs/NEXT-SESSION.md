@@ -25,26 +25,28 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-19) - v0.84 security-maintenance candidate
+# STATUS (2026-09-19) - v0.84 published; online initial install verified
 
-PR **#341** is merged on `main` at `7780211`; issue #324 is closed. Trusted Local-API user creates no
-longer consume the anonymous signup budget, forged wire values named `overrideAccess` do not bypass the
-limit, and the complete no-email account lifecycle is present: first-user setup, discoverable later
-account creation, a required second Site Administrator, and constrained operator reset-link recovery.
+PR **#342** is merged on `main` at `5cb7bde`; immutable tag and GitHub release **`v0.84`** are
+published. The release workflow passed and provides the checksummed deployment bundle and pinned
+multi-architecture images. PR #341 and issue #324 are also complete.
 
-The next promotion is one dedicated maintenance change: Payload 3.88.0 -> 3.90.1, Node 24.19.0 ->
-24.21.0, and Gotenberg 8.36.0 -> 8.37.0. It includes Payload's required nullable
-`reset_password_requested_at` migration and no unrelated package refresh. Local migration, application,
-deployment, DOCX, and PDF-fidelity gates pass; the exact evidence and deferred updates are in
-`docs/DEPENDENCY-REVIEW-2026-09-19.md`.
+The exact `releases/latest` bundle was installed from scratch in an isolated Compose project. Image
+pulls, fresh PostgreSQL initialization, the complete migration chain, application health, the
+no-email first-Site-Administrator form, immediate login, authenticated `/admin`, and refusal of a
+second first-register request all passed. The isolated deployment and its volumes were removed after
+verification; the existing development database was not touched.
 
-**Release rule:** if `v0.84` does not yet exist, merge the maintenance pull request only after its full
-CI gate passes, update local `main`, and push the tag from that accepted commit. Do not create the
-GitHub release manually. If the tag already exists, do not move or recreate it; verify the `Publish
-release containers` workflow, both release assets, and the documented `releases/latest` download.
+**Post-release correction:** Payload attempted its normal verification email while
+creating the first user, then immediately marked that same account verified. This does not block a
+no-SMTP installation, but with SMTP it sends a redundant message and it contradicts the documented
+no-email bootstrap contract. The narrow fix sets Payload's typed `disableVerificationEmail` operation
+argument only for its trusted in-process `/first-register` create. The installer, README, and runbook
+also make the no-default-credentials and first-login procedure explicit. Do not move or replace
+`v0.84`; ship the correction in the next release after its full gate passes.
 
-The USB-first distribution work below remains the next product/deployment phase after `v0.84`. It is
-not part of the security-maintenance release.
+The USB-first distribution work below remains a separate product/deployment phase. It is not required
+for an ordinary connected initial install, which is now proven end to end.
 
 ---
 

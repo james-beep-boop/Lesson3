@@ -48,9 +48,27 @@ LESSON3_URL=http://SERVER_LAN_IP:3001 ./install.sh
 installer **rejects the unsubstituted `SERVER_LAN_IP` placeholder**, so forgetting to replace it fails
 immediately instead of installing cleanly and mailing links that go nowhere.
 
-The first Site Administrator is created in the browser at `/login` straight after installing, through
-a one-time setup form that sends no mail. A local installation needs no SMTP server or reachable inbox
-to become usable. It **does** currently need outbound internet during installation and update so it can
+### First login: create the administrator credentials
+
+**There is no default Lesson3 username or password, and no human login belongs in `.env`.** When the
+installer reports that Lesson3 is ready, it prints a URL ending in `/login`. Open that exact URL and:
+
+1. Confirm the heading says **Create the first Site administrator**. If it says **Sign in**, stop: this
+   database already contains an account.
+2. Enter the administrator's display name.
+3. Enter an email-format address to use as the sign-in name. It does not need to be a working inbox on
+   a no-mail installation; no setup message is sent.
+4. Choose a unique password of at least eight characters, enter it twice, and store the sign-in name
+   and password in the site's approved password manager. The application cannot display the password
+   later.
+5. Select **Create Site administrator**. The account is verified, assigned the Site Administrator
+   role, signed in immediately, and taken to the admin panel.
+6. Open `/login` in a private browser window and sign in with the credentials just recorded. The page
+   must now show the ordinary sign-in form, not the one-time setup form.
+
+Create and test a second Site Administrator before commissioning the site. This provides recovery if
+one administrator forgets a password. A local installation needs no SMTP server or reachable inbox to
+become usable. It **does** currently need outbound internet during installation and update so it can
 download the release bundle and container images; the USB/fully offline distribution path is not yet
 implemented.
 
