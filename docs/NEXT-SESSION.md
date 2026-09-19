@@ -25,6 +25,153 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# HANDOFF (2026-09-19) — offline bootstrap shipped; USB distribution is the next phase
+
+**Supersedes the 2026-09-18 block, which it completes.** Two changes are on `main` and green:
+`84b8b1d` (#335, first-administrator bootstrap) and `7b1d4e0` (#336, setup exempted from the signup
+rate limit, plus the runbook/README updates). `v0.83` is tagged on `84b8b1d`.
+
+⚑ **`v0.83` IS A CHECKPOINT, NOT THE INSTALL RELEASE, and the tag is deliberately held there.** It
+predates #336, so it still carries the setup-lockout footgun, and — the bigger reason — its
+local-server compose ships **font-less Gotenberg**, which loses PDF fidelity (below). Do not point a
+school at `v0.83`. The first release anyone installs from should carry the USB path, real Arial, and
+both merged fixes. The operator asked explicitly for the tag to be held after #336 merged.
+
+**There are no installed sites.** A couple of demo sites exist; they run the ARES *online* deployment
+(which already has real Arial) and are disposable test sites that can be redeployed from scratch. That
+is why the deployment layout can be restructured freely — there is no installed base to keep
+compatible, and no remediation backlog.
+
+## What shipped
+
+An empty installation renders `/login` as a one-time setup form posting to Payload's native
+`first-register`: user #1 is created, auto-verified, granted `siteAdmin` and signed in **without any
+email path**. Ordinary anonymous signup is refused while the users table is empty;
+`/admin/create-first-user` redirects to `/login`; a database lock makes the one-shot boundary hold
+under concurrency. Initial setup is exempt from the signup budget while the installation is empty, so
+a fumbled setup form cannot lock a technician out of their own address for 24 hours. Full reasoning:
+`docs/DECISIONS.md` 2026-09-18 and its two same-day amendments.
+
+⚑ **`/login` now has TWO renderings and asserting on it is no longer state-free.** Any browser spec
+that asserts on the sign-in form must seed a user first. This was not caught by review — the e2e suite
+went red on `publicLibraryDisabled.e2e.spec.ts`, which seeded nothing.
+
+## The next phase: USB-first distribution
+
+**The operator's constraints, stated 2026-09-19.** Installing technicians have phones with mobile
+data, paid by the megabyte, possibly on a slow connection. **USB is the default install method for
+effectively all sites**; a few sites with working internet want the online path as an option.
+**PDFs must be generated locally** — a common and popular feature — and **at near-perfect fidelity**;
+a brief connection to fetch Microsoft fonts at install time is an acceptable price. **Effectively all
+installs are x86.** The Rock 5B remains a live target.
+
+**Why internet is needed today, measured** (registry layers, arm64, `v0.82`, deduplicated — amd64 is
+within 1%). The release bundle itself is a few text files; the whole cost is `docker compose pull`:
+
+| Image | Download | Note |
+|---|---|---|
+| `lesson3-migrate` | **536 MB** | the Dockerfile's `builder` stage, published as-is, to run `npx payload migrate` **once** |
+| `gotenberg` (LibreOffice-only) | 430 MB | LibreOffice; irreducible as a component |
+| `postgres:16.15-alpine` | 114 MB | lean |
+| `lesson3-app` | 81 MB | lean |
+| **Total unique layers** | **~1.10 GB** | |
+
+### The proposed shape
+
+**Stick (amd64 only, ~630 MB):** app, slim migrate, postgres, and a font-*less but font-ready*
+Gotenberg base. **Install-time network: ~15 MB of font cabs, nothing else.** Multi-arch publishing to
+GHCR continues so the Rock pulls arm64 as it does today; the Rock has connectivity and needs no stick.
+Single-arch sticks, no labelling hazard, no doubled payload.
+
+**1. Migrate image — agreed in principle, approach pending one verification.** Three options were
+weighed; **Option C is recommended**: `FROM runner AS migrate`, building the migrate image on top of
+the app image. Compose keeps its current two-service shape, nothing in the install sequence changes,
+and because the layers become a strict superset of the app image's, the marginal download and the
+marginal bytes on the stick are just the migration files — call it 5 MB instead of 536.
+(Option A folds migrations into the app image and kills the second image; Option B is a purpose-built
+slim stage, lower risk but lands ~150–250 MB.)
+
+⚑ **VERIFY FIRST, before writing anything: can the Next standalone runner actually execute
+`payload migrate`?** Output tracing prunes `node_modules` to what the server imports, and the CLI path
+is not that. Encouraging sign: `drizzle-kit` (18 MB) is a transitive dependency of
+`@payloadcms/db-postgres`, a *production* dependency, so it is in the prod tree; worst case `COPY` it
+explicitly. A and C both die or live on this answer.
+
+This pays twice: `lesson3-migrate` is both the largest thing on the stick and the slowest thing in CI.
+
+**2. PDF fidelity — the 2026-08-21 font-less decision is overturned; see DECISIONS 2026-09-19.**
+The fix already exists and is production-verified: `gotenberg/Dockerfile` installs real Microsoft Arial
+via `ttf-mscorefonts-installer`, retries the download, and asserts Arial registered. It is built **on
+the box** and never published, because the EULA permits a machine downloading its own copy and forbids
+handing over an image with the fonts baked in — which rules out a GHCR publish *and* a `docker save`
+tarball on a USB stick identically. **The fonts cannot ride on the stick.** That is the one hard
+constraint the whole design bends around.
+
+Two details keep the install-time fetch at ~15 MB rather than tens of MB:
+
+- ⚑ `gotenberg/Dockerfile` currently bases on the **full** `gotenberg:8.36.0` (2.46 GB, includes
+  Chromium), **not** the `-libreoffice` variant (430 MB). One `FROM` line; same Debian base, so the
+  font install should port directly — verify it does.
+- Pre-baking `wget`, `cabextract` and `fontconfig` into the USB-shipped base avoids `apt-get update`
+  entirely, which is the bulk of the data.
+
+Prefer **build-on-box** (`docker build` from the USB base) over mounting fonts into a volume: it reuses
+the already-verified Dockerfile, survives container recreation, and sidesteps the open question in this
+file's 2026-08-21 notes about whether LibreOffice picks up fonts from a mounted path with `fc-cache` —
+which was never verified and whose stated fallback ("stay font-less") the operator has now ruled out.
+
+**3. Installer structure — do NOT write a second `install.sh`.** It would duplicate secret generation,
+the `LESSON3_URL` guard and the health wait: two scripts obliged to stay in sync on exactly the
+security-sensitive parts. One script gains one branch — if the bundle carries an image archive,
+`docker load` it; otherwise `docker compose pull`. The bundle builder emits both flavours from one
+source.
+
+⚑ **VERIFY EARLY — digest pinning may silently defeat the whole USB path.** Compose pins
+`image: repo:tag@sha256:…`. Images restored by `docker load` generally carry no registry digest, so a
+digest-pinned reference can send Docker to the network — the precise failure a USB install must not
+have, and one that presents as a confusing hang rather than a clean error. If digests cannot survive
+`save`/`load`, integrity moves onto the bundle checksum (already how the deploy bundle is verified).
+That is an acceptable trade but a deliberate weakening of a supply-chain property this repo built on
+purpose: give it its own decision entry rather than discovering it halfway through.
+
+### Open questions the next team must not answer by guessing
+
+- **Legal, needs a professional — may the `ttf-mscorefonts-installer` `.deb` ship on the stick?** It
+  contains no fonts, only the EULA-accepting installer script, and Debian ships it in `contrib` for
+  exactly that reason. Shipping it keeps the official installer in the loop instead of hand-rolling a
+  cab downloader and re-opening the EULA-acceptance question. This repo already flags font/legal
+  questions as needing professional input; do not freelance it.
+- **What happens at a site with genuinely zero connectivity?** Fonts require *some* network at install.
+  If a tech's phone gets no signal, that site gets degraded PDFs or none. The design needs a stated
+  answer rather than discovering it in the field.
+- **Fidelity needs a real gate.** "Near perfect" is currently backed by a one-off manual three-way
+  Liberation/Arial/Word comparison. If it is a hard requirement, make the target concrete and
+  automated: *the school box's PDF matches the online deployment's PDF*. The DOCX golden-file gate does
+  not cover this.
+
+## Also true right now
+
+- ⚑ **`v0.83` IS HALF-PUBLISHED AND NOT INSTALLABLE.** Its `publish-containers` run was **cancelled
+  by the operator at ~60 minutes**, still building multi-arch `lesson3-migrate` (against `v0.82`'s
+  20-minute total for the whole workflow). Verified state: `ghcr.io/…/lesson3-app:v0.83` **exists**,
+  `lesson3-migrate:v0.83` **does not** (404), and because the `release` job runs `needs: images` it
+  never started — **there is no GitHub release and no `lesson3-online-deploy.tar.gz` for `v0.83`**.
+  So the tag cannot be installed from even if someone wanted to, which is consistent with the decision
+  to hold it. **Decide deliberately what to do with it**: delete the tag, or leave it and re-cut after
+  the USB work. Do not simply re-run the publish to "finish" it — that would produce an installable
+  `v0.83` that still ships font-less Gotenberg and predates #336.
+- The image that timed the run out is the same 536 MB builder Option C removes. Its multi-arch build
+  is the slowest thing in CI, which is the second half of Option C's payoff.
+- **Issue #324 (trusted Local-API fixture creates counted as anonymous signups) is still open and was
+  NOT fixed by #336** — annotated on the issue so the adjacent carve-out is not mistaken for a fix.
+  ⚑ Do not fix it by widening that carve-out: #324's own constraint is that the trusted marker must be
+  unreachable from an HTTP request body, and a path test is the wrong shape. The right model is the
+  existing `ADMIN_RESET_LINK_CONTEXT` pattern — a server-side `req.context` marker. Two carve-outs now
+  sit adjacent in `rateLimitAuthOperations`; they answer different questions and must not be
+  consolidated.
+
+---
+
 # HANDOFF (2026-09-18) — offline first-administrator bootstrap implemented and verified
 
 **Supersedes older status blocks for current work.** A fresh local-server installation could create

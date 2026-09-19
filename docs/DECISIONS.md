@@ -11,6 +11,94 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 — Distribution inverts: USB is the default install method, online is the exception
+
+Operator constraints, stated during the deployment session: installing technicians carry phones with
+mobile data **paid by the megabyte**, on connections that may be slow. A current local-server install
+pulls **~1.10 GB** — measured from registry layers (`v0.82`, arm64, deduplicated across images; amd64
+within 1%): `lesson3-migrate` 536 MB, `gotenberg` 430 MB, `postgres` 114 MB, `lesson3-app` 81 MB. The
+release bundle itself is a few text files; the entire cost is `docker compose pull`.
+
+**Decision:** USB becomes the default install method for effectively all sites, with the online pull
+path retained as an option for the few sites that have working internet. ⚑ This inverts the current
+framing — `docs/LOCAL-SERVER-DEPLOYMENT.md` called the offline bundle a "later" thing and `deploy/`
+holds only `online/`.
+
+**Why this is free to do now:** there are **no installed sites**. A couple of demo sites exist and run
+the ARES *online* deployment; they are disposable test sites. There is no installed base to keep
+compatible and no remediation backlog, so the deployment layout can be restructured rather than
+extended. ⚑ That window closes the moment a school is installed — take it now.
+
+**Implementation constraints already settled** (detail and verification steps in
+`docs/NEXT-SESSION.md`): one `install.sh` with a load-or-pull branch, never a second script, because
+duplicating it would fork secret generation and the `LESSON3_URL` guard; and the digest-pinning
+question — `docker load` generally does not preserve registry digests, so a `repo:tag@sha256:…`
+reference may send a USB install to the network. If digests cannot survive `save`/`load`, integrity
+moves onto the bundle checksum; that is acceptable but is a deliberate weakening of a supply-chain
+property and needs its own entry when decided.
+
+---
+
+## 2026-09-19 — Local PDFs must use real Microsoft fonts; the font-less decision is overturned
+
+**Supersedes the font-less half of 2026-08-21** ("ship the image FONT-LESS, fonts optional and never
+automatic"). ⚑ That decision was sound on the facts it had; the facts changed. Its reasoning rested on
+a premise the operator has now contradicted — that the fidelity gap "only reaches a school that
+self-hosts **and** generates PDFs locally." Local PDF generation is, per the operator, expected to be
+common and popular, and the required standard is **near-perfect** rendering.
+
+**What was actually shipping:** `deploy/online/compose.template.yaml` uses stock
+`gotenberg:8.36.0-libreoffice`, so every local-server install would substitute Liberation Sans for
+Arial and shift table row heights versus Word. Documented as an accepted tradeoff in the runbook. No
+school ever received it — see the no-installed-sites note above — so this is a defect in what we would
+have shipped, not a remediation job.
+
+**Decision:** local installs must render with real Microsoft Arial. The mechanism already exists and is
+production-verified: `gotenberg/Dockerfile` installs `ttf-mscorefonts-installer`, retries the download,
+and asserts Arial actually registered; a three-way Liberation/Arial/Word render comparison confirmed it
+closes the row-height gap. It is built **on the box** and never published.
+
+⚑ **THE FONTS CANNOT RIDE ON THE USB STICK, and this is the hard constraint the whole distribution
+design bends around.** The EULA permits a machine downloading its own copy and forbids handing over an
+image with the fonts baked in — which rules out a GHCR publish and a `docker save` tarball
+*identically*. A brief install-time connection is therefore not a convenience, it is the only compliant
+route. Budgeted at **~15 MB** of font cabs, conditional on two things recorded in `NEXT-SESSION.md`:
+re-basing `gotenberg/Dockerfile` onto the `-libreoffice` variant (it currently uses the full 2.46 GB
+image), and pre-baking `wget`/`cabextract`/`fontconfig` so no `apt-get update` is needed.
+
+⚑ **Do not "restore" the font-less build to save space.** Its stated fallback — accept the row-height
+gap — is precisely what the operator has ruled out. If the font fetch cannot be made to work, that is a
+blocker to raise, not a tradeoff to take silently.
+
+**Open and NOT to be answered by guessing:** whether the `ttf-mscorefonts-installer` `.deb` (installer
+script only, no fonts) may ship on the stick is a legal question needing a professional, as this repo's
+other font/legal questions already are.
+
+---
+
+## 2026-09-19 — amd64 is the USB target; arm64 publishing continues for the Rock 5B
+
+Operator: effectively all school installs are **x86**. The Rock 5B remains a live target.
+
+**Decision:** the USB bundle is **amd64-only** — single-arch sticks, no labelling hazard, no doubled
+payload — while multi-arch publishing to GHCR continues unchanged so the Rock pulls arm64 as it does
+today. The Rock has connectivity and needs no stick, so supporting both costs nothing extra: the split
+falls along the line that already exists between a connected box and a carried one.
+
+⚑ Do not read "all installs are x86" as licence to drop arm64 from `publish-containers.yml`. It was
+considered — it would roughly halve publish time, which is painful (see below) — and rejected, because
+the Rock is still a target. The right fix for publish time is the migrate image, not dropping an
+architecture.
+
+**Context on publish time:** `v0.83`'s multi-arch `lesson3-migrate` build ran **60 minutes without
+finishing** and was cancelled by the operator, against `v0.82`'s 20-minute total for the whole
+workflow. That 536 MB builder image is both the largest item on the proposed stick and the slowest
+thing in CI, which is why folding it into the app image (`FROM runner AS migrate`, Option C in
+`NEXT-SESSION.md`) pays twice. ⚑ The cancellation left `v0.83` half-published — see
+`docs/NEXT-SESSION.md`; it is not installable and must not be "finished" by re-running the publish.
+
+---
+
 ## 2026-09-18 — First-user setup uses Payload first-register, not an environment password
 
 A real offline installation exposed a bootstrap contradiction: the installer told the technician to
