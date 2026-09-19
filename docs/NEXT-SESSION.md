@@ -25,6 +25,52 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# STATUS (2026-09-19, end of day) — one PR open, blocked by an npm outage
+
+**If `main` already contains "classify signups on overrideAccess", this block is spent — delete it.**
+
+PR **#341** (`fix-324-overrideaccess-classifier`) is open, complete, and **not merged**. It closes
+issue #324 by classifying signup throttling on `overrideAccess` instead of counting every create
+without `req.user`. It also subsumes and removes the `/first-register` carve-out from #336, and
+deletes the `test.env` signup headroom and the assertions that pinned it.
+
+**Why it is not merged:** `audit:prod` hit a **503 from npmjs.org during a maintenance window**, twice.
+The job aborts at the first failing step, so **`test:int`, `test:http` and `test:e2e` were skipped, not
+run.** See DECISIONS 2026-09-19 "OPEN QUESTION: `audit:prod` fails closed".
+
+⚑ **Re-run the gate and read `test:int` specifically before merging.** This PR removes
+`RATE_LIMIT_SIGNUP_GLOBAL_MAX`/`_WINDOW_MS` from `test.env`, so the integration suite runs against the
+real 100/day global budget **for the first time**. If the classifier works, fixture creates are
+uncounted and it passes; if it does not, the suite exhausts the budget. That suite is the actual proof
+of this change, and it has never executed. ⚑ Do not merge on the strength of the green steps — they
+are unit, lint and format, which were already green locally.
+
+**What was verified locally:** typecheck, eslint, unit 1118/1118, and the classifier mutation-checked
+in both directions — removing the exemption fails the two trusted-create tests, widening it to a
+blanket bypass fails four counted-path tests including the 429.
+
+## Worth a second opinion (operator suggested an external review)
+
+Two things in the recent work are worth someone else's eyes, both because they are judgement calls
+rather than mechanical changes:
+
+1. **The `overrideAccess` classifier (#341)** — it changes a security control. The claim is that
+   `overrideAccess` is unforgeable from the wire because it is an operation argument the REST create
+   handler never forwards, making it a sound trust signal and satisfying #324's constraint. That claim
+   is the whole basis of the change; it was verified by reading installed Payload 3.88.0 source
+   (`buildBeforeOperation.js`, `BeforeOperationArg`, `collections/endpoints/create.js`) and is worth
+   independent confirmation. Blast radius was checked: no production code in `src/` creates a user
+   through the Local API at all.
+2. **The `audit:prod` ordering question** above — three options, none taken.
+
+Useful context for a reviewer: the two USB-phase verifications are settled and recorded (standalone
+runner **cannot** run `payload migrate`; digest pinning **survives** `docker load`), and both of the
+same day's earlier predictions about them were wrong in opposite directions. The remaining unknown in
+that phase is legal, not technical: whether the `ttf-mscorefonts-installer` `.deb` may ship on the
+stick.
+
+---
+
 # HANDOFF (2026-09-19) — offline bootstrap shipped; USB distribution is the next phase
 
 **Supersedes the 2026-09-18 block, which it completes.** Two changes are on `main` and green:

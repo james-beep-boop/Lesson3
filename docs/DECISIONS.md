@@ -11,6 +11,37 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 — OPEN QUESTION: `audit:prod` fails closed on a registry outage, and blocks the gate
+
+Recorded because it cost a day's merge and the answer is a genuine design choice, not an oversight.
+
+`npm audit --omit=dev --audit-level=high` returned **503 Service Unavailable** during an npmjs.org
+maintenance window. `npm audit` exits non-zero when the advisory endpoint is unreachable, so
+`audit:prod` failed, and because CI steps run in sequence the job aborted there — **`contract probe`,
+`test:int`, `test:http` and `test:e2e` were SKIPPED, not run.** Two attempts, identical result. Nothing
+was wrong with the change.
+
+⚑ **The sharp edge is not the outage, it is that an unreachable checker is indistinguishable from a
+clean check in the step's exit code, and it takes the whole suite down with it.** A supply-chain gate
+arguably *should* fail closed — "I could not verify" is not "there is nothing to find", and failing
+open on a registry error is how a real advisory gets shipped during an outage. But sequencing it ahead
+of the test suites means an external outage also costs all behavioural coverage, which is a different
+and worse failure than the one fail-closed is protecting against.
+
+**Not decided. Options, for whoever picks this up:**
+1. Leave it. Simple, honest, and the cost is a delayed merge during someone else's outage.
+2. Distinguish the two cases: treat a transport/5xx error as a distinct outcome — surface it loudly,
+   still fail the step, but let the remaining steps run so a merge is blocked on one known-external
+   reason rather than on missing evidence.
+3. Move `audit:prod` after the test suites, or into its own job, so an outage cannot mask behavioural
+   results. Cheapest change; does not touch the fail-closed property at all. ⚑ Probably the right
+   first move — it is purely about ordering, not about weakening the check.
+
+⚑ **Whatever is chosen, do NOT make `audit:prod` tolerate a failed lookup silently.** That converts a
+supply-chain gate into decoration, and it would not fail visibly the next time the endpoint is down.
+
+---
+
 ## 2026-09-19 — Signup throttling classifies on `overrideAccess`, closing #324
 
 `rateLimitAuthOperations` counted any create without `req.user` as an anonymous signup. Trusted
