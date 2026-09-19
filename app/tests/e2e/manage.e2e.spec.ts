@@ -976,6 +976,16 @@ test.describe('Manage page', () => {
       expect(searches).toHaveLength(0)
 
       await openPanel(page, 'Accounts')
+      await expect(page.getByRole('link', { name: 'Create user', exact: true })).toHaveAttribute(
+        'href',
+        '/admin/collections/users/create',
+      )
+      const createPage = await page.context().newPage()
+      await createPage.goto(`${BASE}/admin/collections/users/create`)
+      const createForm = createPage.locator('form[action^="/api/users"]')
+      await expect(createForm.locator('input[name="name"]')).toBeVisible()
+      await expect(createForm.locator('input[name="email"]')).toBeVisible()
+      await createPage.close()
       const row = await openUser(page, MANAGE_USER_EMAIL)
       expect(searches.length).toBeGreaterThan(0)
       await expect(row.locator('.lp-users__summary-meta')).toContainText('Teacher')

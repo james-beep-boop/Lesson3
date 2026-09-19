@@ -11,7 +11,44 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-09-19 — OPEN QUESTION: `audit:prod` fails closed on a registry outage, and blocks the gate
+## 2026-09-19 — No-email operation needs a complete account lifecycle, not only user #1
+
+The one-time first-user form made an empty installation usable, but it did not make the installation
+operable after setup. The custom Manage directory redirected away Payload's collection list and
+exposed no route to the native create form, so the instruction "later accounts should be created by
+an administrator" named a workflow the UI did not offer. The only no-email reset-link endpoint also
+required a signed-in Site Administrator, which cannot recover the sole administrator's forgotten
+password.
+
+**Decision:** Manage → Users → Accounts exposes **Create user**, and commissioning requires a second,
+tested Site Administrator. Account creation remains the native Payload form and existing access rules;
+the custom directory does not acquire a second create implementation.
+
+For break-glass recovery, a script in the `migrate` image mints a one-hour reset link for an exact
+existing account. It defaults to a dry run and refuses any account that is not already a verified,
+enabled Site Administrator. It cannot create users, grant roles, verify addresses, or re-enable
+sign-in. Shell access to the deployment is the authority, represented by a server-only request-context
+marker distinct from the authenticated admin endpoint's paid rate-limit allowance. No password or
+permanent bypass credential is stored in `.env`.
+
+---
+
+## 2026-09-19 — Container packages have immutable version tags, not independent `latest` aliases
+
+The release workflow built app and migration images as independent matrix legs and each leg moved its
+own `latest` tag. A partial `v0.83` publication demonstrated the failure: app `latest` advanced while
+migrate `latest` remained on the prior release. No ordering tweak can make two registry tag updates
+atomic across packages.
+
+**Decision:** publish container images only under immutable release tags. The supported deployment
+artifact is the checksummed GitHub Release bundle, which records one release version and pins both
+image digests. GitHub's `releases/latest` bundle URL remains supported; it is not a container tag and
+the release is assembled as a draft before becoming visible. Existing skewed GHCR `latest` aliases are
+legacy metadata, not deployment inputs, and should not be repaired by moving them again.
+
+---
+
+## 2026-09-19 — `audit:prod` stays fail-closed but runs after behavioral suites
 
 Recorded because it cost a day's merge and the answer is a genuine design choice, not an oversight.
 
@@ -28,17 +65,16 @@ open on a registry error is how a real advisory gets shipped during an outage. B
 of the test suites means an external outage also costs all behavioural coverage, which is a different
 and worse failure than the one fail-closed is protecting against.
 
-**Not decided. Options, for whoever picks this up:**
-1. Leave it. Simple, honest, and the cost is a delayed merge during someone else's outage.
-2. Distinguish the two cases: treat a transport/5xx error as a distinct outcome — surface it loudly,
-   still fail the step, but let the remaining steps run so a merge is blocked on one known-external
-   reason rather than on missing evidence.
-3. Move `audit:prod` after the test suites, or into its own job, so an outage cannot mask behavioural
-   results. Cheapest change; does not touch the fail-closed property at all. ⚑ Probably the right
-   first move — it is purely about ordering, not about weakening the check.
+**Decision:** run `audit:prod` after `test:int`, `test:http`, and `test:e2e`, with `if: always()`. A
+registry outage still makes the required `gate` job fail, so the supply-chain check does not fail open.
+Its position means the behavioral suites have already produced evidence, and `always()` means a test
+failure does not suppress the audit either. The two failure classes can now be observed independently.
 
 ⚑ **Whatever is chosen, do NOT make `audit:prod` tolerate a failed lookup silently.** That converts a
 supply-chain gate into decoration, and it would not fail visibly the next time the endpoint is down.
+
+**Subsequent outcome:** the registry recovered and the next run completed successfully, including
+`test:int`, `test:http`, and `test:e2e`. The outage is no longer a merge blocker.
 
 ---
 
@@ -106,9 +142,10 @@ carries only `RepoTags`. A classic-graphdriver box may therefore lose the digest
 ⚑ **Do not solve that by detecting the storage driver, and do not "simplify" this away.** The installer
 must assert the property directly: after `docker load`, compare each image's `RepoDigests` against the
 pinned digest and fail with an explanatory message on mismatch, then run compose with `--pull never`.
-That tests what the install depends on rather than a proxy for it, and survives Docker changing its
-defaults. `docs/LOCAL-SERVER-DEPLOYMENT.md` asks only for "a currently supported Docker release", which
-does not pin the store down — the assertion is what makes that acceptable.
+That tests what the install depends on rather than a proxy for it. But detection is not compatibility:
+until a classic-store fallback is implemented and tested, digest preservation is an explicit USB
+installer precondition. The current online guide's generic Docker requirement must not be copied into
+the future USB guide as if every supported Docker image store were proven.
 
 **Also corrected:** the failure mode was predicted to be a confusing hang. It is not. A missing digest
 under `--pull never` gives `No such image: …@sha256:…`; under the default policy the pull fails on
@@ -169,11 +206,10 @@ extended. ⚑ That window closes the moment a school is installed — take it no
 
 **Implementation constraints already settled** (detail and verification steps in
 `docs/NEXT-SESSION.md`): one `install.sh` with a load-or-pull branch, never a second script, because
-duplicating it would fork secret generation and the `LESSON3_URL` guard; and the digest-pinning
-question — `docker load` generally does not preserve registry digests, so a `repo:tag@sha256:…`
-reference may send a USB install to the network. If digests cannot survive `save`/`load`, integrity
-moves onto the bundle checksum; that is acceptable but is a deliberate weakening of a supply-chain
-property and needs its own entry when decided.
+duplicating it would fork secret generation and the `LESSON3_URL` guard. The digest-pinning question
+was subsequently tested and resolved in the newer entry above: preservation works with the tested
+containerd store, must be asserted after load, and remains a precondition until a classic-store
+fallback is proven.
 
 ---
 
@@ -196,13 +232,14 @@ production-verified: `gotenberg/Dockerfile` installs `ttf-mscorefonts-installer`
 and asserts Arial actually registered; a three-way Liberation/Arial/Word render comparison confirmed it
 closes the row-height gap. It is built **on the box** and never published.
 
-⚑ **THE FONTS CANNOT RIDE ON THE USB STICK, and this is the hard constraint the whole distribution
-design bends around.** The EULA permits a machine downloading its own copy and forbids handing over an
-image with the fonts baked in — which rules out a GHCR publish and a `docker save` tarball
-*identically*. A brief install-time connection is therefore not a convenience, it is the only compliant
-route. Budgeted at **~15 MB** of font cabs, conditional on two things recorded in `NEXT-SESSION.md`:
-re-basing `gotenberg/Dockerfile` onto the `-libreoffice` variant (it currently uses the full 2.46 GB
-image), and pre-baking `wget`/`cabextract`/`fontconfig` so no `apt-get update` is needed.
+⚑ **Do not distribute extracted fonts or an image containing them without confirmed rights.** The
+current implementation therefore downloads and installs them on the destination box. That is a
+conservative operational posture, not a legal conclusion that no font-related artifact may ride on a
+stick: the redistribution status of the original installer package and upstream archives is unresolved
+and needs professional advice. Budget the current network path at **~15 MB** of font cabs, conditional
+on two things recorded in `NEXT-SESSION.md`: re-basing `gotenberg/Dockerfile` onto the `-libreoffice`
+variant (it currently uses the full 2.46 GB image), and pre-baking `wget`/`cabextract`/`fontconfig` so no
+`apt-get update` is needed.
 
 ⚑ **Do not "restore" the font-less build to save space.** Its stated fallback — accept the row-height
 gap — is precisely what the operator has ruled out. If the font fetch cannot be made to work, that is a

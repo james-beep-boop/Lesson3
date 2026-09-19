@@ -16,6 +16,23 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Initial setup is covered by the same rule, so the separate first-register exemption added on
   2026-09-18 is no longer needed and has been removed.
 - The test-only signup headroom that existed to work around the old behaviour is gone.
+- A production HTTP test proves request body, query, and header values named `overrideAccess` cannot
+  forge the in-process trust signal or escape the signup cap.
+
+## Unreleased — complete no-email account operations and safer releases (2026-09-19)
+
+- Site Administrators can reach the native user-create form from Manage → Users → Accounts, making the
+  documented later-account workflow discoverable. Commissioning now calls for a tested second Site
+  Administrator.
+- A dry-run-first operator script can mint a one-hour password-reset link for an existing verified,
+  enabled Site Administrator when no administrator can sign in and email is unavailable. It cannot
+  create, promote, verify, or re-enable an account, and stores no bootstrap password in `.env`.
+- Container publication no longer moves an independent `latest` alias from each matrix job. Immutable
+  version tags and the checksummed, digest-pinned GitHub Release bundle are the supported release unit.
+- The production dependency audit remains fail-closed but now runs after all behavioral suites, so an
+  advisory-service outage cannot suppress integration, HTTP, and browser results.
+- Deployment documentation now matches the installer's warning-only hostname resolution check and no
+  longer states an unresolved font-redistribution question as settled law.
 
 ## Unreleased — email-free first administrator setup (2026-09-18)
 

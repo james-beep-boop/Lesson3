@@ -768,7 +768,12 @@ body {
     display: flex;
     align-items: center;
     gap: var(--app-space-2);
+    flex-wrap: wrap;
     margin-bottom: var(--app-space-2);
+  }
+
+  &__create {
+    margin-left: auto;
   }
 
   &__list {
@@ -930,6 +935,10 @@ body {
     .lp-taxonomy__form {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    &__filters .btn {
+      width: 100%;
     }
 
     &__summary {

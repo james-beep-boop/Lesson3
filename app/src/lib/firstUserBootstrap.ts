@@ -15,15 +15,9 @@ export async function hasRegisteredUsers(payload: Payload, req?: PayloadRequest)
 /**
  * Is this request Payload's native one-shot bootstrap route (`POST /api/users/first-register`)?
  *
- * ⚑ ONE SPELLING, DELIBERATELY SHARED BY TWO SUBSYSTEMS. Both `hooks/authRateLimit` (which exempts
- * setup from the signup budget) and `hooks/userRoles` (which refuses the request that loses the
- * advisory-lock race) must agree on what counts as a bootstrap request, and they fail in OPPOSITE
- * directions if they ever disagree: the limiter starts charging setup, or the role hook stops
- * refusing a second registrant. Inlining `endsWith` in both — which is how this arrived — is a
- * silent carve-out failure waiting for the first person to tighten one copy.
- *
- * Same reasoning as `ADMIN_RESET_LINK_CONTEXT`: when two places must agree on a carve-out's
- * boundary, the boundary gets a name.
+ * Used by `hooks/userRoles` to distinguish the one-shot bootstrap request while holding the
+ * advisory lock. Signup throttling no longer depends on this URL: Payload's native first-register
+ * operation carries `overrideAccess: true`, and `authRateLimit` classifies on that operation flag.
  */
 export const isFirstRegisterRequest = (req: Pick<PayloadRequest, 'pathname'>): boolean =>
   req.pathname?.endsWith('/first-register') === true

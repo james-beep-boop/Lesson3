@@ -75,6 +75,18 @@ const THROTTLED = {
 export const ADMIN_RESET_LINK_CONTEXT = 'adminResetLink' as const
 
 /**
+ * The operator-only recovery script runs outside an HTTP request, so it has no Site Administrator
+ * session with which to pay the `adminResetLink` toll. Shell access to the deployment is the stronger
+ * authority in that break-glass path; this server-created context flag lets exactly that Local-API
+ * call avoid a public forgot-password budget that may itself be exhausted.
+ *
+ * Like `ADMIN_RESET_LINK_CONTEXT`, this value is never accepted from a request body, header or query
+ * parameter. Keep the two names separate: the admin allowance means "an authenticated administrator
+ * paid the endpoint cap", while this one means "an operator is running the documented CLI tool".
+ */
+export const OPERATOR_RESET_LINK_CONTEXT = 'operatorResetLink' as const
+
+/**
  * Run `work` with the admin reset-link allowance in effect, and take it away again afterwards.
  *
  * ⚑ THE ALLOWANCE IS SCOPED, not set-and-forget. The first version assigned
@@ -162,7 +174,12 @@ export const rateLimitAuthOperations: CollectionBeforeOperationHook = async ({
    * Two tests, not one: the admin path is not throttled by the public budget, AND the ordinary public
    * `POST /forgot-password` still is. The second is what catches this quietly becoming a bypass.
    */
-  if (kind === 'forgotPassword' && req.context?.[ADMIN_RESET_LINK_CONTEXT] === true) return args
+  if (
+    kind === 'forgotPassword' &&
+    (req.context?.[ADMIN_RESET_LINK_CONTEXT] === true ||
+      req.context?.[OPERATOR_RESET_LINK_CONTEXT] === true)
+  )
+    return args
 
   // Key by the lowercased target so case games don't mint fresh budgets (same rule as the email
   // recipient cap). A missing/garbage email still consumes a bucket ('invalid') — probing with

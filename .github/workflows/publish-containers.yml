@@ -65,9 +65,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           pull: true
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:latest
+          # Publish only immutable release tags. The two matrix legs complete independently, so
+          # moving `latest` in each leg can advertise app and migrate images from different releases
+          # when one build fails. Deployment bundles already pin both version AND digest.
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.package }}:${{ github.ref_name }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

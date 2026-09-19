@@ -79,10 +79,10 @@ describe('offline first-user bootstrap', () => {
   /**
    * The fumbled-setup case, over the wire, because it is the one a technician actually meets.
    *
-   * The signup budget is three per address per day and `first-register` reaches the limiter as an
-   * unauthenticated create, so before the carve-out a fourth attempt answered 429 — on a box with no
-   * second administrator, no mail path and no reset route. Four failing attempts on ONE address must
-   * all be refused on their merits and none of them throttled.
+   * The signup budget is three per address per day. Payload's native `first-register` operation
+   * creates with `overrideAccess: true`, so the limiter now classifies it as trusted without knowing
+   * this route. Four failing attempts on ONE address must all be refused on their merits and none of
+   * them throttled.
    *
    * ⚑ Its own address, not a `candidates` one: if this regresses, it must fail HERE rather than by
    * poisoning the race test's budget two tests later.

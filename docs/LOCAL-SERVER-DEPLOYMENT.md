@@ -43,9 +43,10 @@ on the server itself, omit `LESSON3_URL` and the installer uses `http://localhos
 `LESSON3_URL` becomes `ADMIN_URL`, the base for links in outbound email such as password resets — and
 nothing at install time visits it, since the health check deliberately probes `127.0.0.1`. A wrong value
 therefore used to install cleanly and only surface weeks later as a reset link that goes nowhere. The
-installer now refuses it: the placeholder is rejected outright (an underscore cannot appear in a
-hostname), and a hostname that does not resolve on the server is rejected too. IP literals are taken as
-given.
+installer rejects the placeholder outright (an underscore cannot appear in a hostname). A hostname
+that does not resolve **on the server** produces a warning rather than a refusal, because a school's
+DNS or hosts-file entry may exist only on teachers' computers. IP literals are taken as given. In
+either warning case, verify the printed `/login` URL from a separate LAN computer before commissioning.
 
 ⛑ **Do not “helpfully” change the placeholder to a realistic-looking IP such as `192.168.1.50`.** Its
 job is to be invalid, so that a forgotten substitution fails loudly. A plausible IP would be accepted
@@ -80,13 +81,52 @@ administrator is therefore created through a one-time form that never sends mail
    form. The setup form cannot reappear, and a second attempt is refused.
 
 After this, self-registration works normally and keeps its email-verification requirement — which on
-an installation with no SMTP means later accounts should be created by an administrator rather than
-self-registered.
+an installation with no SMTP means later accounts should be created by an administrator:
+
+1. Open **Manage → Users → Accounts** and select **Create user**.
+2. Enter the person's display name, sign-in email, and initial password. The email is an identifier on
+   a no-mail installation and need not receive messages.
+3. Save the account, return to **Manage → Users → Accounts**, open its row, and select **Mark
+   verified**. The native create form does not expose this system field, and the user cannot sign in
+   until the account is marked verified.
+4. For a second administrator, select **Make Site Administrator** on that account's row.
+5. Test the second administrator in a private browser window before relying on it for recovery.
+
+Commission at least two Site Administrators before real use. The last-usable-administrator guard
+prevents ordinary demotion, deletion, disabling, or unverification from removing the final one, but it
+cannot compensate for both administrators forgetting their passwords.
 
 ⛑ **Do not put a bootstrap password in `.env`, and do not use Payload's stock
 `/admin/create-first-user` screen.** There is one supported setup path; that URL redirects to it.
 Setup attempts are deliberately exempt from the signup rate limit while the installation is empty, so
 mistyping the form does not lock you out of the address.
+
+### Recover an administrator without email
+
+If no Site Administrator can sign in, an operator with shell access can mint a one-hour reset link for
+an **existing, verified, enabled Site Administrator**. Run the read-only check first from the
+installation directory:
+
+```bash
+docker compose run --rm \
+  -e RECOVERY_EMAIL=admin@example.com \
+  migrate npx payload run scripts/recover-site-admin.ts
+```
+
+If it identifies the intended account, mint the link:
+
+```bash
+docker compose run --rm \
+  -e APPLY=1 \
+  -e RECOVERY_EMAIL=admin@example.com \
+  migrate npx payload run scripts/recover-site-admin.ts
+```
+
+Open the printed link from a browser that can reach `ADMIN_URL`. It is a live, single-use credential:
+do not redirect the command output to a file, paste it into a ticket, or leave the terminal visible.
+The script cannot create users, grant Site Administrator, verify an account, or re-enable sign-in. It
+runs through `migrate` because the minimal production `app` image contains neither the Payload CLI nor
+the scripts source.
 
 ## What is downloaded
 
@@ -204,6 +244,12 @@ It publishes matching multi-architecture `lesson3-app` and
 digests into the bundle, and attaches the bundle and checksum to a GitHub Release. Follow the normal
 protected-`main` pull-request process, wait for the full CI gate, and create the tag only from the
 accepted commit.
+
+Container images are published only under immutable version tags. There is deliberately no container
+`latest` alias: app and migration images build in independent matrix jobs, so moving that alias in each
+job can advertise a mixed release after a partial failure. GitHub's `releases/latest` download URL is a
+different mechanism and remains the supported installer entry point; its bundle pins both image tags
+and digests.
 
 If publication is interrupted after the draft is created, rerun the workflow: it replaces the draft's
 assets and then publishes it, preserving prerelease status. An already-published release is also repaired

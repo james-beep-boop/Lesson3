@@ -172,9 +172,11 @@ Current CI uses an isolated database per job; it does not preserve database coun
 
 Check the failing bucket, fixture configuration and counter state. A long-lived local test database
 can accumulate counters across suites; recreate only the disposable test database or use the
-scoped local reset documented in AGENTS.md. Keep the fixture-specific signup overrides from
-`app/test.env` when supplying an environment overlay. Never clear production counters merely to
-make a test pass. The 2026-08-27 same-commit retry incident remains history, not proof of persistence.
+scoped local reset documented in AGENTS.md. `app/test.env` deliberately carries **no** signup-budget
+override: trusted Local-API fixture creates are classified by `overrideAccess` and do not spend the
+budget. Never add headroom to a runner that can reach a shared database, and never clear production
+counters merely to make a test pass. The 2026-08-27 same-commit retry incident remains history, not
+proof of persistence.
 
 ### Restore drill (do this periodically — an untested backup is not a backup)
 
@@ -296,6 +298,33 @@ Schema changes must arrive on `main` with generated types and migrations committ
 the pinned Node 24 dependency container before merge (`scripts/in-deps.sh -- npm run generate:types`
 and the repository's migration workflow); the normal Rock deploy applies committed migrations through
 the `migrate` service. Do not improvise host-Node Payload code generation on the production box.
+
+### Recover a Site Administrator without email
+
+Use this only when no Site Administrator can sign in and email delivery is unavailable. The command
+runs from `migrate`, not `app`: the production app image has no Payload CLI or scripts source. First
+validate the target without writing:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm \
+  -e RECOVERY_EMAIL=admin@example.com \
+  migrate npx payload run scripts/recover-site-admin.ts
+```
+
+Then mint a one-hour reset link:
+
+```bash
+cd /srv/lesson3 && docker compose run --rm \
+  -e APPLY=1 \
+  -e RECOVERY_EMAIL=admin@example.com \
+  migrate npx payload run scripts/recover-site-admin.ts
+```
+
+The output is a live, single-use credential. Do not redirect it to a file or retain it in a ticket.
+The script refuses missing, unverified, disabled, and non-administrator accounts; it cannot grant or
+restore privileges. Shell access is the break-glass authority, so record the operator and time in the
+site's incident log. After recovery, sign in, commission and test a second Site Administrator through
+**Manage → Users → Accounts → Create user**, and close the exposed terminal.
 
 ### After any deploy touching edit recovery: verify the cascade on THIS box
 
