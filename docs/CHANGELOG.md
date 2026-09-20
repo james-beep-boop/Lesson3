@@ -8,6 +8,22 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased - first-user bootstrap sends no verification email (2026-09-19)
+
+- Payload's native first-register operation is now told not to send its otherwise automatic
+  verification message. The operation already verifies and signs in the first Site Administrator,
+  so the message was redundant and contradicted the no-email installation contract.
+- The suppression is limited to Payload's trusted in-process first-register create. Ordinary public
+  signup and other user-creation paths retain their existing verification-email behavior.
+- The published `v0.84` online bundle was installed from scratch as an isolated deployment: image
+  pulls, database initialization, the complete migration chain, health checks, first-user creation,
+  immediate login, authenticated admin access, and rejection of a second first-register request all
+  passed. `v0.84` remains usable without SMTP; this change removes the needless mail attempt and its
+  associated origin warning for the next release.
+- Installer output, the README quick start, and the deployment runbook now state that no default
+  credentials exist and give the technician the complete first-login, credential-recording, and
+  second-administrator verification procedure.
+
 ## Unreleased - Payload, Node, and Gotenberg security maintenance (2026-09-19)
 
 - Payload and all first-party Payload packages move from 3.88.0 to 3.90.1 for the upstream critical

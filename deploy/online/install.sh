@@ -96,8 +96,16 @@ docker compose up -d --no-build
 
 for _ in $(seq 1 60); do
   if curl -fsS "$health_url" >/dev/null 2>&1; then
-    echo "install: Lesson3 is ready at ${admin_url%/}/login"
-    echo "install: open that page to create the first Site Administrator (no email delivery required), then configure backups"
+    login_url="${admin_url%/}/login"
+    echo
+    echo "install: Lesson3 is ready."
+    echo "install: NEXT STEP - create the first Site Administrator at:"
+    echo "install:   $login_url"
+    echo "install: There is no default Lesson3 username or password."
+    echo "install: On that page, enter the administrator's name, an email-format sign-in name,"
+    echo "install: and a new password of at least 8 characters. The address need not receive email."
+    echo "install: Store those credentials securely; they are not written to .env or printed here."
+    echo "install: After signing in, create and test a second Site Administrator, then configure backups."
     exit 0
   fi
   sleep 5
