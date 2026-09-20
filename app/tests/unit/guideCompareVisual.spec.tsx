@@ -102,6 +102,25 @@ describe('Guide + Compare visual system', () => {
     expect(bodyOf('.guide-footer__credit')).toMatch(/flex-direction:\s*column/)
     expect(bodyOf('.guide-footer__actions')).toMatch(/justify-content:\s*center/)
     expect(bodyOf('.guide-footer__donate')).toMatch(/min-width:\s*13rem/)
+    expect(bodyOf('.guide-footer__donate')).not.toMatch(/display:/)
+    expect(bodyOf('.btn')).toMatch(/display:\s*inline-flex/)
+  })
+
+  it('stacks system facts at phone width so a long value cannot crush the explanation', () => {
+    const factRow = mobileRules.find((r) =>
+      r.selectors.includes('.lp-manage__row.lp-manage__row--fact'),
+    )
+    expect(factRow, 'system facts need a phone-specific row layout').toBeTruthy()
+    expect(factRow!.body).toMatch(/flex-direction:\s*column/)
+    expect(factRow!.body).toMatch(/align-items:\s*stretch/)
+
+    const value = mobileRules.find((r) =>
+      r.selectors.includes('.lp-manage__row.lp-manage__row--fact > .lp-manage__fact-value'),
+    )
+    expect(value, 'the fact value needs a full-width phone override').toBeTruthy()
+    expect(value!.body).toMatch(/flex:\s*none/)
+    expect(value!.body).toMatch(/max-width:\s*none/)
+    expect(value!.body).toMatch(/text-align:\s*left/)
   })
 
   it('gives the version editor the shared centered page shell', () => {

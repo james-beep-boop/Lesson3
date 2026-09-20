@@ -1710,7 +1710,6 @@ button.user-menu__item {
   gap: var(--app-space-2);
 }
 .guide-footer__donate {
-  display: inline-block;
   min-width: 13rem;
 }
 

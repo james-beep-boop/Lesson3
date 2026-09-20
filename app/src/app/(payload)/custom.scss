@@ -499,6 +499,13 @@ body {
     padding: var(--app-space-1) 0.1rem;
   }
 
+  // A deployment fact can carry several lines of explanation beside a status value. Align the value
+  // with the fact's label rather than the vertical middle of that prose, and give this row its own
+  // responsive hook instead of changing the people/candidate rows that share `__row--tight`.
+  &__row--fact {
+    align-items: flex-start;
+  }
+
   // Name + address on one line. The address is the muted secondary half, so a scan reads down the
   // names and the address is there when two people share one.
   &__who {
@@ -557,7 +564,10 @@ body {
   }
 
   &__fact-value {
-    flex-shrink: 0;
+    flex: 0 1 16rem;
+    max-width: 45%;
+    overflow-wrap: anywhere;
+    text-align: right;
     font-size: var(--app-secondary-size);
     font-weight: 600;
     // `off` is a legitimate state for an offline school, not a fault, so it stays ordinary muted text.
@@ -2235,6 +2245,26 @@ a.btn.lp-btn {
   .lp-admin-dash {
     padding-inline: var(--app-content-pad-sm);
     padding-block-start: var(--app-page-top-sm);
+  }
+
+  // Long status text must not reserve its desktop max-content width and crush the explanation into
+  // a handful of characters per line. On a phone, facts read in document order: explanation first,
+  // then the reported value on its own full-width line.
+  .lp-manage__row.lp-manage__row--fact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--app-space-1);
+
+    > :first-child {
+      flex: none;
+      width: 100%;
+    }
+
+    > .lp-manage__fact-value {
+      flex: none;
+      max-width: none;
+      text-align: left;
+    }
   }
 }
 

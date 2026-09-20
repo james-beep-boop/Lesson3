@@ -58,9 +58,9 @@ export default async function UserGuidePage() {
             then follow the verification link we email you before signing in — verified accounts can
             read and download everything. <em>Forgot password?</em> on the same page emails you a
             reset link. If your school’s installation cannot send email — some run with no internet
-            — ask a Site administrator instead: they can create a reset link and give it to you
-            directly. For security your session ends after a while and signs you out automatically —
-            just sign in again to continue.
+            — ask a Site administrator to create and verify your account. They can also create a
+            reset link and give it to you directly. For security your session ends after a while and
+            signs you out automatically — just sign in again to continue.
           </li>
           <li>
             <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade,
@@ -238,16 +238,30 @@ export default async function UserGuidePage() {
         </p>
         <ul className="guide-list">
           <li>
+            <strong>Set up the first administrators:</strong> a completely empty installation shows
+            a one-time <em>Create the first Site administrator</em> form at <em>/login</em>. There
+            are no default credentials, and the address and password are not stored in <em>.env</em>
+            . After creating the first account, create and test a second Site administrator so one
+            forgotten password cannot leave the site without an administrator.
+          </li>
+          <li>
             <strong>Everything lives on Manage:</strong> upload lesson plans (each upload creates a
             lesson plan and its first Official version), repair plans that have no Official version,
             delete lesson plans (with all their versions), and reach the Users and Curriculum lists.
           </li>
           <li>
-            <strong>Manage people:</strong> create users, grant Site administrator access, and grant
-            editing access or Subject-grade administrator access by subject-grade. Site
-            administrators are also the only ones who can <strong>remove</strong> a Subject-grade
-            administrator: an administrator may hand the role on, but nobody can take it away from
-            them, and nobody can resign it.
+            <strong>Create accounts without email:</strong> use{' '}
+            <em>Manage → Users → Accounts → Create user</em>, then open the new account and choose{' '}
+            <em>Mark verified</em>. The person cannot sign in until that is done. Use{' '}
+            <em>Make Site Administrator</em> when the new account should be another Site
+            administrator, and test it in a private browser window.
+          </li>
+          <li>
+            <strong>Manage people:</strong> grant Site administrator access, and grant editing
+            access or Subject-grade administrator access by subject-grade. Site administrators are
+            also the only ones who can <strong>remove</strong> a Subject-grade administrator: an
+            administrator may hand the role on, but nobody can take it away from them, and nobody
+            can resign it.
           </li>
           <li>
             <strong>Reset a password by hand:</strong> where email is not set up, you can create a
@@ -256,9 +270,12 @@ export default async function UserGuidePage() {
           </li>
           <li>
             <strong>See what this installation is:</strong> Manage → System reports the address,
-            whether email and public sharing are available, whether PDF output is working, and when
-            a backup last succeeded. Everything there is read-only: those are decided on the server,
-            so changing one is a server job, not a click.
+            whether email and public sharing are available, whether PDF output is working, where
+            backups are sent, when one last succeeded, and whether <em>Backup recovery</em> says
+            this installation holds its own decryption key. A recent successful backup means an
+            encrypted copy was sent; it does not prove that it can be restored. Everything there is
+            read-only: those settings are decided on the server, so changing one is a server job,
+            not a click.
           </li>
           <li>
             <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson

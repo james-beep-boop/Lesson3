@@ -20,7 +20,8 @@ Manage or see version/editing controls.
 - **Your account:** create one from the sign-in page's _Sign up_ link, then follow the verification
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
   If your school's installation cannot send email — some run with no internet — ask a Site
-  administrator instead: they can create a reset link and give it to you directly.
+  administrator to create and verify your account. They can also create a reset link and give it to
+  you directly.
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
 - **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
@@ -117,19 +118,30 @@ subject-grades. They also manage the structure and official content controls for
 Site administrators have full access across the repository. They manage users, curriculum taxonomy,
 lesson-plan upload/import, and all lesson plans.
 
+- **Set up the first administrators:** a completely empty installation shows a one-time _Create the
+  first Site administrator_ form at _/login_. There are no default credentials, and the address and
+  password are not stored in _.env_. After creating the first account, create and test a second Site
+  administrator so one forgotten password cannot leave the site without an administrator.
 - **Everything lives on Manage:** upload lesson plans (each upload creates a lesson plan and its first
   Official version), repair plans that have no Official version, delete lesson plans (with all their
   versions), and reach the People and Curriculum lists.
-- **Manage people:** create users, grant Site administrator access, and grant editing access or
-  Subject-grade administrator access by subject-grade. Site administrators are also the only ones who
-  can **remove** a Subject-grade administrator: an administrator may hand the role on, but nobody can
-  take it away from them, and nobody can resign it.
+- **Create accounts without email:** use _Manage → Users → Accounts → Create user_, then open the new
+  account and choose _Mark verified_. The person cannot sign in until that is done. Use _Make Site
+  Administrator_ when the new account should be another Site administrator, and test it in a private
+  browser window.
+- **Manage people:** grant Site administrator access, and grant editing access or Subject-grade
+  administrator access by subject-grade. Site administrators are also the only ones who can
+  **remove** a Subject-grade administrator: an administrator may hand the role on, but nobody can take
+  it away from them, and nobody can resign it.
 - **Reset a password by hand:** where email is not set up, you can create a one-time reset link for an
   account and hand it over. You never see or choose the password — the person sets their own through the
   normal reset page.
 - **See what this installation is:** Manage → System reports the address, whether email and public
-  sharing are available, whether PDF output is working, and when a backup last succeeded. Everything
-  there is read-only: those are decided on the server, so changing one is a server job, not a click.
+  sharing are available, whether PDF output is working, where backups are sent, when one last
+  succeeded, and whether _Backup recovery_ says this installation holds its own decryption key. A
+  recent successful backup means an encrypted copy was sent; it does not prove that it can be
+  restored. Everything there is read-only: those settings are decided on the server, so changing one
+  is a server job, not a click.
 - **Manage curriculum:** maintain Subjects and Subject Grades before lesson plans are uploaded.
 - **Review everything:** inspect, edit, export, mark Official, or delete lesson plans across all
   subjects and grades.

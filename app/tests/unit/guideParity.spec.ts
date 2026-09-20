@@ -117,11 +117,23 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'a teacher on an email-less installation is NOT locked out — reveal-reset-link (D5) exists, and the guide said only "emails you a reset link" until 2026-08-22',
-    claim: 'they can create a reset link and give it to you directly',
+    claim: 'create a reset link and give it to you directly',
   },
   {
     what: 'the Site-Admin capability that rescues the case above, previously undocumented for users',
     claim: 'Reset a password by hand',
+  },
+  {
+    what: 'a fresh installation has no factory account or password',
+    claim: 'There are no default credentials',
+  },
+  {
+    what: 'accounts created on a no-email installation must be verified by a Site administrator',
+    claim: 'The person cannot sign in until that is done',
+  },
+  {
+    what: 'the backup status distinguishes successful transport from demonstrated recovery',
+    claim: 'it does not prove that it can be restored',
   },
   // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
   // prior explanation, and it is the one place outside version-compare showing red/green diff
