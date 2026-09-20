@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased - first-user bootstrap sends no verification email (2026-09-19)
+## Unreleased - first-user bootstrap sends no verification email (MERGED #343; 2026-09-19)
 
 - Payload's native first-register operation is now told not to send its otherwise automatic
   verification message. The operation already verifies and signs in the first Site Administrator,
