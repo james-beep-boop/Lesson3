@@ -8,31 +8,30 @@ commit label alone, are the acceptance proof for this pin.
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Pinned commit:** `742c8a96637377abbec37af32073210b9f87465b`
-- **Vendored:** 2026-07-19
-- **Reason:** definitive ARES 1.0.0 JSON/resource-link cutover; this pin supplies the current
-  five-column Section C layout, inline resource rendering, and page-break behavior.
+- **Pinned commit:** `a546ee368b04c24f9a619d49142bf08e6869b890`
+- **Vendored:** 2026-09-19
+- **Reason:** retain the definitive ARES 1.0.0 layout/resource behavior while adopting upstream's
+  grade-label correction. Final Explanation and Summary Table now derive their grade from required
+  `META.grade` instead of hardcoding Grade 10, and fail clearly when that metadata is absent.
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
-## ⚑ Licence — OPEN, and it blocks nothing except an honest claim
+## Licence — MIT, resolved 2026-09-19
 
-This repository is public and now carries an MIT `LICENSE`, which covers the code written for this
-project. **It does not cover these three files**, because they are copied byte-verbatim from
-`markknit/cbe-generation-system` and the right to redistribute them belongs to their owner. `NOTICE` at
-the repository root says so explicitly.
+The upstream `markknit/cbe-generation-system` repository adopted the MIT License in commit
+`15283e42a49975a0c6e56dbca088e7588ba0c078` on 2026-09-20 UTC, with copyright `2026 markknit`.
+GitHub identifies the repository license as SPDX `MIT`.
 
-What is needed: a licence for these files from ARES, compatible with MIT. The operator expects this to
-be straightforward; record the answer here, beside the SHA-256 table, when it arrives.
-
-⚑ Until then, do not "tidy" `NOTICE` by removing the exception. A licence file that quietly claims to
-cover someone else's code is worse than one that names the gap.
+The upstream license is copied verbatim into this directory as `LICENSE`; retain it with these
+vendored files. Lesson3's root `LICENSE` covers Lesson3-authored code under the same license but a
+different copyright notice. Matching license terms close the prior redistribution and compatibility
+gap without changing the authorship or provenance of the three byte-pristine files.
 
 ## Pristine files
 
 | Lesson3 path | Upstream path | SHA-256 |
 | --- | --- | --- |
-| `lib/build_docs.js` | `generators/lib/build_docs.js` | `291d62483be608989a8256b428e8d5215dd4ad1d242e0d8a5bdfb428ed5061b1` |
+| `lib/build_docs.js` | `generators/lib/build_docs.js` | `244c6248b84c336aaee500608685806b30e1438aafd126bf8173dc1c6e486d5c` |
 | `lib/sections.js` | `generators/lib/sections.js` | `5ceef695daeac38ffcfdccf545213544e28ec729b6e718be01634a3c9c210d03` |
 | `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `ba74ef7036a06f02a7b6966a90d53350d3f751aacd7adfe96851991f93d73679` |
 

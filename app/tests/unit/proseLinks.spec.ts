@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { bundleToAresData } from '../../src/generator/adapter'
 import { generateLessonSequenceDocx } from '../../src/generator/index'
 import {
+  lessonSequenceProseHyperlinkTargets,
   linkifyProse,
   tokenizeParenthesizedUrls,
   withParenthesizedProseLinks,
@@ -82,6 +83,32 @@ describe('parenthesized prose hyperlinks', () => {
       for (const key of keys)
         expect(Array.isArray((value as Record<string, unknown>)[key]), key).toBe(true)
     }
+  })
+
+  it('collects exactly the linkable Lesson Sequence prose targets for package fidelity', () => {
+    const link = (name: string) => `(https://example.org/${name})`
+    const data = {
+      META: {},
+      UNIT: { content: link('unit'), subject: link('excluded-unit-label') },
+      LESSONS: [
+        {
+          title: link('excluded-title'),
+          overview: link('overview'),
+          slo: { purpose: link('slo') },
+          framework: [{ learnerExperience: link('framework'), phase: link('excluded-phase') }],
+          teacherReflection: link('reflection'),
+          summaryTablePrompt: { observed: link('summary-prompt') },
+        },
+      ],
+      FINAL_EXPLANATION: { instructions: link('excluded-final-explanation') },
+      SUMMARY_TABLE: { lessons: [{ observed: link('excluded-summary-document') }] },
+    }
+
+    expect(lessonSequenceProseHyperlinkTargets(data)).toEqual(
+      ['framework', 'overview', 'reflection', 'slo', 'summary-prompt', 'unit'].map(
+        (name) => `https://example.org/${name}`,
+      ),
+    )
   })
 
   it('recognizes only parenthesized HTTP(S) addresses and preserves the parentheses', () => {

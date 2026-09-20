@@ -158,6 +158,42 @@ const FRAMEWORK_PROSE = [
 
 const SUMMARY_PROMPT_PROSE = ['observed', 'learned', 'explained'] as const
 
+const hyperlinkTargetsIn = (value: unknown): string[] =>
+  typeof value === 'string'
+    ? tokenizeParenthesizedUrls(value)
+        .filter((token): token is Extract<LinkToken, { kind: 'link' }> => token.kind === 'link')
+        .map((token) => token.url)
+    : []
+
+const hyperlinkTargetsInKeys = (value: unknown, keys: readonly string[]): string[] => {
+  const source = record(value)
+  return keys.flatMap((key) => hyperlinkTargetsIn(source[key]))
+}
+
+/**
+ * Expected explicit hyperlinks for the Lesson Sequence package comparison.
+ *
+ * Keep this field walk paired with the Lesson Sequence half of `withParenthesizedProseLinks`. The
+ * fidelity gate compares this list to actual DOCX relationships, so adding a field on only one side
+ * fails closed instead of silently relaxing the approved-oracle comparison.
+ */
+export function lessonSequenceProseHyperlinkTargets(data: AresDataObject): string[] {
+  const targets = hyperlinkTargetsInKeys(data.UNIT, UNIT_PROSE)
+  for (const value of data.LESSONS) {
+    const lesson = record(value)
+    targets.push(...hyperlinkTargetsIn(lesson.overview))
+    targets.push(...hyperlinkTargetsInKeys(lesson.slo, SLO_PROSE))
+    if (Array.isArray(lesson.framework)) {
+      for (const phase of lesson.framework) {
+        targets.push(...hyperlinkTargetsInKeys(phase, FRAMEWORK_PROSE))
+      }
+    }
+    targets.push(...hyperlinkTargetsIn(lesson.teacherReflection))
+    targets.push(...hyperlinkTargetsInKeys(lesson.summaryTablePrompt, SUMMARY_PROMPT_PROSE))
+  }
+  return targets.sort()
+}
+
 /**
  * Transform only fields that the editor marks linkable and the pristine generator hands to cell().
  * Titles are intentionally absent: ARES interpolates them into headings, so the POC does not offer

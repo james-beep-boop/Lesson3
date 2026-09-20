@@ -44,8 +44,11 @@ The post-upgrade Physics 4.1 DOCX probes reproduce the recorded pre-upgrade base
 
 - all 470 Lesson Sequence blocks, 52 Final Explanation blocks, and 41 Summary Table blocks match;
 - all seven Section-C table widths, fills, striping, and eight page breaks match;
-- `fidelity-spike` remains 3/4 and `adapter-fidelity` remains 5/6 only because the supplied fixture and
-  oracle already disagree on `ares.local` versus `ares.edu` and one extra supplied hyperlink.
+- At review time, `fidelity-spike` remained 3/4 and `adapter-fidelity` remained 5/6 because the
+  supplied fixture and older oracle differ on `ares.local` versus `ares.edu`, and because the fixture
+  contains one PhET prose link added after the resource-only oracle. A later 2026-09-19 gate correction
+  now proves the 140 resource links against that unchanged oracle and all 141 links against the current
+  input, restoring 4/4 and 6/6 without changing the dependency-upgrade evidence.
 
 The custom Gotenberg 8.37 image builds on arm64 with `ttf-mscorefonts-installer=3.8.1`, and its build
 asserts that Arial is registered. Representative Lesson Sequence, Final Explanation, and Summary Table

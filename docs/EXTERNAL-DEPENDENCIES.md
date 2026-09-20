@@ -4,6 +4,11 @@
 
 **Repo:** `markknit/cbe-generation-system`
 
+**License:** MIT, adopted upstream in commit
+[`15283e42`](https://github.com/markknit/cbe-generation-system/commit/15283e42a49975a0c6e56dbca088e7588ba0c078).
+Lesson3 retains the upstream copyright and license text at
+`app/src/generator/vendor/LICENSE`; see the adjacent provenance record for the exact vendored pin.
+
 This is the upstream system that produces ARES CBE lesson plans. Lesson3 depends on it for two things:
 
 ### 1. The generated JSON contract (source of truth for Lesson3 ingest)
@@ -65,17 +70,18 @@ as a coordinated upstream product change and re-run the full contract/fidelity p
 
 Pin the upstream generator to a known commit/version. Because fidelity depends on it, treat generator upgrades as deliberate, tested changes — never automatic.
 
-**Current Lesson3 pin (2026-07-19):** upstream `main` commit
-`742c8a96637377abbec37af32073210b9f87465b`. This pin carries the five-column Section C widths,
-inline-resource rendering, and page-break behavior used by the replacement JSON/DOCX outputs. The
-semantic and package/XML fidelity gates pass against the current Physics 4.1 oracle.
+**Current Lesson3 pin (2026-09-19):** upstream `main` commit
+`a546ee368b04c24f9a619d49142bf08e6869b890`. This pin retains the five-column Section C widths,
+inline-resource rendering, and page-break behavior used by the replacement JSON/DOCX outputs, and
+corrects Final Explanation and Summary Table labels to use required `META.grade`. The separate
+upstream license source is the later commit `15283e42` documented above.
 
-## Vendored into Lesson3 (re-pinned 2026-07-19)
+## Vendored into Lesson3 (re-pinned 2026-09-19)
 
 The three Node generator libraries are **vendored byte-verbatim** (not a submodule/npm dependency).
 See `app/src/generator/vendor/PROVENANCE.md` for checksums and the re-sync procedure.
 
-- **Branch / pinned commit:** `main` @ `742c8a96637377abbec37af32073210b9f87465b`
+- **Branch / pinned commit:** `main` @ `a546ee368b04c24f9a619d49142bf08e6869b890`
 - **Mirror tag:** none created as part of this local Lesson3 change.
 - **Vendored files** (`app/src/generator/vendor/lib/`): `build_docs.js`, `sections.js`, `docx_kit.js`
 - **NOT vendored:** upstream `aresResources.js`, because it invokes Python. Lesson3's pure-Node bridge
@@ -89,11 +95,21 @@ See `app/src/generator/vendor/PROVENANCE.md` for checksums and the re-sync proce
 > Lesson3 wraps the builders + `Packer.toBuffer()` for in-process Buffers without modifying any
 > vendored file.
 
+### Grade-label correction (2026-09-19)
+
+Only `build_docs.js` changed between the previous pin and `a546ee3`; the other two vendored runtime
+files are byte-identical. Grade 10 assessment-document XML is unchanged. Grades 11 and 12 now render
+their actual grade, and missing `META.grade` is rejected. Renderer revision 6 invalidates earlier
+DOCX, PDF, and derived HTML cache entries whose labels may have been wrong. The current Physics gate
+passes 4/4 and the Payload-adapter gate passes 6/6; their package checks separately prove the older
+oracle's resource links and Lesson3's later prose hyperlinks.
+
 ### Clean cutover implementation (2026-07-19)
 
-`build_docs.js`, `sections.js`, and `docx_kit.js` were re-vendored byte-pristine from the current pin.
-Lesson3-owned glue supplies each stored `lesson.resourceLinks` map without Python/SQLite, and renderer
-revision 2 invalidates pre-cutover DOCX, PDF, and HTML-preview cache identities.
+`build_docs.js`, `sections.js`, and `docx_kit.js` were re-vendored byte-pristine from the then-current
+`742c8a9` pin. Lesson3-owned glue supplies each stored `lesson.resourceLinks` map without
+Python/SQLite, and renderer revision 2 invalidated pre-cutover DOCX, PDF, and HTML-preview cache
+identities.
 
 ## Prior implementation (reference only)
 

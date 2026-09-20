@@ -105,9 +105,10 @@ the current next steps; re-measure those claims rather than treating the handoff
 
 ## Licence
 
-**MIT** — see [`LICENSE`](LICENSE). Chosen to match Payload CMS, which this project is built on, so
-there is no friction between the two.
+**MIT** — see [`LICENSE`](LICENSE). Chosen to match Payload CMS, which this project is built on. The
+vendored ARES CBE generator is also MIT under its upstream copyright; its license is preserved at
+[`app/src/generator/vendor/LICENSE`](app/src/generator/vendor/LICENSE), with source and pin details in
+[`NOTICE`](NOTICE) and the vendor provenance record.
 
-⚑ **Read [`NOTICE`](NOTICE) alongside it.** Three vendored generator files are copied byte-verbatim
-from the ARES CBE generation system and are not ours to license; the lesson-plan content is a separate
-question, and content wants a different kind of licence from code.
+Lesson-plan content is separate from application and generator code. Its publication rights and any
+content-license attribution requirements remain a distinct question.

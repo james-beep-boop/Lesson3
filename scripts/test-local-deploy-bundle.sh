@@ -8,6 +8,15 @@ trap 'rm -rf "$TMP"' EXIT
 
 fail() { echo "test-local-deploy-bundle: FAIL: $*" >&2; exit 1; }
 
+# The app Docker build context is `app/`, so its copy of Lesson3's root grant must remain byte-exact.
+# The minimal runner also needs both notices copied explicitly; Next's standalone trace omits them.
+cmp "$ROOT/LICENSE" "$ROOT/app/LICENSE" \
+  || fail "app/LICENSE differs from the repository's authoritative LICENSE"
+grep -Fq '/app/LICENSE ./LICENSE' "$ROOT/app/Dockerfile" \
+  || fail "production image omits the Lesson3 license"
+grep -Fq '/app/src/generator/vendor/LICENSE ./THIRD_PARTY_LICENSES/cbe-generation-system-MIT.txt' \
+  "$ROOT/app/Dockerfile" || fail "production image omits the vendored generator license"
+
 app_digest="sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 migrate_digest="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 "$ROOT/scripts/build-local-deploy-bundle.sh" \
