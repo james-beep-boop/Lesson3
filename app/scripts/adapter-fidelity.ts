@@ -88,7 +88,7 @@ async function main() {
       lessonOracle,
       false,
     ),
-    await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data.LESSONS),
+    await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data),
     await compareDoc(
       'FinalExplanation',
       out.finalExplanation,

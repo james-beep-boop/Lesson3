@@ -11,6 +11,62 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-19 - Fidelity compares old resource oracles and newer prose links separately
+
+The Physics 4.1 oracle contains 140 resource hyperlinks. Lesson3 later added explicit hyperlinks for
+parenthesized URLs in editable prose, and the current Physics JSON contains one PhET URL in a
+`learnerExperience`. The generated Lesson Sequence therefore correctly contains 141 relationships,
+but the package gate compared that complete list both to the older resource-only oracle and to an
+expected list built only from `resourceLinks`. It failed 3/4 and 5/6 while the generated document was
+correct. Rewriting the approved DOCX would have hidden the provenance distinction rather than testing
+it.
+
+**Decision:** keep the oracle unchanged and decompose the proof. Collect URLs only from the precise
+Lesson Sequence prose fields transformed by `withParenthesizedProseLinks`; remove that exact multiset
+before comparing resource relationships to the oracle; then compare the complete generated multiset
+to resources plus linkable prose from the current input. Safe-scheme, table-width, fill, page-break,
+semantic-content, adapter-round-trip, and hostname-migration checks remain intact. A missing expected
+prose relationship, an unexpected relationship, or an incorrect resource relationship now fails the
+gate. The result is 4/4 fidelity and 6/6 adapter/fidelity without changing an approved artifact.
+
+## 2026-09-19 - Adopt the upstream grade-aware assessment-document fix
+
+The pinned generator printed literal `GRADE 10` in the Final Explanation title and twice in the
+Summary Table, even though the ARES contract requires integer `META.grade`. That made every Grade 11
+or 12 assessment document confidently wrong while the corresponding Lesson Sequence remained
+correct. This was recorded as an upstream-only blocker because the three vendored libraries must
+remain byte-pristine.
+
+**Decision:** re-vendor from upstream commit
+`a546ee368b04c24f9a619d49142bf08e6869b890`, which derives all three labels from `META.grade` and
+throws when it is absent. Do not carry a Lesson3-local patch. `sections.js` and `docx_kit.js` are
+byte-identical across the old and new pins; only `build_docs.js` changes. The separate upstream MIT
+license source remains commit `15283e42` because the runtime fix predates that license commit.
+
+The Lesson3 ingest contract already rejects missing and non-integer grades. Document-level regression
+coverage now pins Grade 10, 11, and 12 labels plus the missing-grade refusal at the public generator
+boundary. Grade 10 Final Explanation and Summary Table XML remained identical in a before/after
+comparison, and the approved Grade 10 fidelity documents remain content-identical. Increment
+`GENERATOR_RENDER_VERSION` to 6 because a fixed non-Grade-10 snapshot intentionally produces
+different DOCX, PDF, and derived HTML after this change.
+
+## 2026-09-19 - The ARES generator license gap is closed under MIT
+
+The three byte-verbatim generator libraries in `app/src/generator/vendor/lib/` came from
+`markknit/cbe-generation-system`, while Lesson3's root MIT grant covers Lesson3-authored code. Until
+the upstream owner published terms, the files could not honestly be presented as covered by
+Lesson3's license.
+
+**Decision:** record the upstream project's MIT license added in commit
+`15283e42a49975a0c6e56dbca088e7588ba0c078`, and retain its complete `2026 markknit` copyright and
+permission notice beside the vendored files. Do not replace it with Lesson3's root `2026 ARES
+Education` notice: identical license terms do not make authorship or copyright notices
+interchangeable.
+
+The application and vendored generator are now both MIT, closing the software redistribution and
+compatibility question. Lesson-plan content remains a separate asset and still needs its own
+publication rights and, if applicable, attribution design.
+
 ## 2026-09-19 - First-user bootstrap must suppress Payload's redundant verification email
 
 A clean installation from the published `v0.84` bundle proved the online installer, migrations,

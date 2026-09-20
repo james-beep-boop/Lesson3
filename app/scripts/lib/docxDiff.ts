@@ -10,6 +10,9 @@ import mammoth from 'mammoth'
 import { JSDOM } from 'jsdom'
 import JSZip from 'jszip'
 
+import type { AresDataObject } from '../../src/generator/index'
+import { lessonSequenceProseHyperlinkTargets } from '../../src/generator/proseLinks'
+
 export const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 /** Remove the Resource column from every Section-C table (matched by its 'Resource' header). */
@@ -175,7 +178,7 @@ function hyperlinkTargets(relsXml: string): string[] {
     .sort()
 }
 
-function expectedHyperlinks(lessons: LessonWithResources[]): string[] {
+function expectedResourceHyperlinks(lessons: LessonWithResources[]): string[] {
   const targets: string[] = []
   for (const lesson of lessons) {
     for (const row of lesson.framework ?? []) {
@@ -196,6 +199,17 @@ function expectedHyperlinks(lessons: LessonWithResources[]): string[] {
   return targets.filter(Boolean).sort()
 }
 
+/** Remove one occurrence per expected target; null means an expected relationship was not emitted. */
+function withoutExpectedTargets(targets: string[], expected: string[]): string[] | null {
+  const remaining = [...targets]
+  for (const target of expected) {
+    const index = remaining.indexOf(target)
+    if (index === -1) return null
+    remaining.splice(index, 1)
+  }
+  return remaining
+}
+
 /**
  * Package-level current-ARES proof: exact Section-C grids/striping, page breaks, hyperlink targets,
  * and the targets implied by the input JSON. This catches layout/relationship drift that mammoth's
@@ -204,9 +218,9 @@ function expectedHyperlinks(lessons: LessonWithResources[]): string[] {
 export async function compareLessonSequencePackage(
   generated: Buffer,
   approved: Buffer,
-  lessonValues: unknown[],
+  data: AresDataObject,
 ): Promise<boolean> {
-  const lessons = lessonValues as LessonWithResources[]
+  const lessons = data.LESSONS as LessonWithResources[]
   const [gen, oracle] = await Promise.all([packageXml(generated), packageXml(approved)])
   const genTables = implementationTables(gen.document)
   const oracleTables = implementationTables(oracle.document)
@@ -226,8 +240,16 @@ export async function compareLessonSequencePackage(
   const breaksMatch = pageBreaks(gen.document) === pageBreaks(oracle.document)
   const generatedTargets = hyperlinkTargets(gen.relationships)
   const oracleTargets = hyperlinkTargets(oracle.relationships)
-  const expectedTargets = expectedHyperlinks(lessons)
-  const linksMatch = JSON.stringify(generatedTargets) === JSON.stringify(oracleTargets)
+  const expectedResourceTargets = expectedResourceHyperlinks(lessons)
+  const expectedProseTargets = lessonSequenceProseHyperlinkTargets(data)
+  const expectedTargets = [...expectedResourceTargets, ...expectedProseTargets].sort()
+  // The approved DOCX predates Lesson3's parenthesized-prose hyperlink feature. Remove exactly the
+  // prose relationships expected from the current input before comparing its resource relationships
+  // to that oracle; the full generated list is independently checked against the complete input.
+  const generatedResourceTargets = withoutExpectedTargets(generatedTargets, expectedProseTargets)
+  const linksMatch =
+    generatedResourceTargets !== null &&
+    JSON.stringify(generatedResourceTargets) === JSON.stringify(oracleTargets)
   // The committed upstream DOCX oracle predates the JSON host rename (`ares.edu` → `ares.local`).
   // Bound that known deployment-host variance only; paths, ports, queries, counts, and ordering must
   // still match. The generated links themselves must exactly match the supplied JSON below.
@@ -237,8 +259,9 @@ export async function compareLessonSequencePackage(
     return url.toString()
   }
   const hostOnlyLinksMatch =
-    JSON.stringify(generatedTargets.map(normalizeAresHost)) ===
-    JSON.stringify(oracleTargets.map(normalizeAresHost))
+    generatedResourceTargets !== null &&
+    JSON.stringify(generatedResourceTargets.map(normalizeAresHost)) ===
+      JSON.stringify(oracleTargets.map(normalizeAresHost))
   const inputLinksMatch = JSON.stringify(generatedTargets) === JSON.stringify(expectedTargets)
   const safeLinks = generatedTargets.every((target) => /^https?:\/\//.test(target))
 
@@ -251,27 +274,29 @@ export async function compareLessonSequencePackage(
     `  ${breaksMatch ? '✓' : '✗'} page-break count matches upstream (${pageBreaks(gen.document)})`,
   )
   console.log(
-    `  ${linksMatch || hostOnlyLinksMatch ? '✓' : '✗'} hyperlink targets match upstream` +
+    `  ${linksMatch || hostOnlyLinksMatch ? '✓' : '✗'} resource hyperlink targets match upstream` +
       `${hostOnlyLinksMatch && !linksMatch ? ' except bounded ares.edu→ares.local host migration' : ''}` +
-      ` (${generatedTargets.length})`,
+      ` (${generatedResourceTargets?.length ?? 'missing expected prose target'})`,
   )
   if (!linksMatch && !hostOnlyLinksMatch) {
+    const resourceTargets = generatedResourceTargets ?? []
     const index =
-      Math.max(generatedTargets.length, oracleTargets.length) > 0
-        ? Array.from({ length: Math.max(generatedTargets.length, oracleTargets.length) }).findIndex(
-            (_, i) => generatedTargets[i] !== oracleTargets[i],
+      Math.max(resourceTargets.length, oracleTargets.length) > 0
+        ? Array.from({ length: Math.max(resourceTargets.length, oracleTargets.length) }).findIndex(
+            (_, i) => resourceTargets[i] !== oracleTargets[i],
           )
         : -1
     console.log(
-      `      generated=${generatedTargets.length} upstream=${oracleTargets.length}; first diff #${index}`,
+      `      generated resources=${generatedResourceTargets?.length ?? 'invalid'} upstream=${oracleTargets.length}; first diff #${index}`,
     )
     if (index >= 0) {
-      console.log(`      generated: ${JSON.stringify(generatedTargets[index])}`)
+      console.log(`      generated: ${JSON.stringify(resourceTargets[index])}`)
       console.log(`      upstream : ${JSON.stringify(oracleTargets[index])}`)
     }
   }
   console.log(
-    `  ${inputLinksMatch ? '✓' : '✗'} hyperlink targets match the supplied resourceLinks data`,
+    `  ${inputLinksMatch ? '✓' : '✗'} all hyperlink targets match supplied resources + linkable prose` +
+      ` (${expectedResourceTargets.length} + ${expectedProseTargets.length})`,
   )
   console.log(`  ${safeLinks ? '✓' : '✗'} every emitted hyperlink is http(s)`)
   return (

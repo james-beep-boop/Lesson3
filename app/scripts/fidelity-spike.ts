@@ -1,8 +1,10 @@
 /**
  * Current ARES generator fidelity gate — standalone, no Lesson3 DB.
  *
- * Uses the replacement Physics 4.1 JSON and its matching upstream DOCX outputs. Resources are part
- * of the comparison: no column or paragraph is stripped.
+ * Uses the replacement Physics 4.1 JSON and its upstream DOCX outputs. Resources are part of the
+ * comparison: no column or paragraph is stripped. The oracle predates Lesson3's explicit
+ * parenthesized-prose hyperlinks, so the package gate proves its resource relationships against the
+ * oracle and its complete relationship set against the current input.
  */
 import { readFileSync } from 'node:fs'
 import os from 'node:os'
@@ -56,7 +58,7 @@ async function main() {
       lessonOracle,
       false,
     ),
-    await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data.LESSONS),
+    await compareLessonSequencePackage(out.lessonSequence, lessonOracle, data),
     await compareDoc(
       'FinalExplanation',
       out.finalExplanation,

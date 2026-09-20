@@ -18,6 +18,7 @@ import { getPayload, type CollectionSlug } from 'payload'
 import config from '@payload-config'
 
 import { generateForVersion } from '../src/generator/generateForVersion'
+import type { AresDataObject } from '../src/generator/index'
 import { ingestItems, type IngestItem } from '../src/ingest'
 import { extractAresJson } from '../src/ingest/extract'
 import { compareDoc, compareLessonSequencePackage } from './lib/docxDiff'
@@ -129,7 +130,7 @@ const run = async () => {
       await compareLessonSequencePackage(
         out.lessonSequence,
         lessonOracle,
-        raw.LESSONS as unknown[],
+        raw as unknown as AresDataObject,
       ),
       await compareDoc(
         'FinalExplanation',

@@ -10,8 +10,8 @@
 # Usage:
 #   scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
 #
-# After running, re-run the fidelity regression (app/scripts/fidelity-spike.ts)
-# BEFORE trusting the new version, then update PROVENANCE.md and push a mirror tag.
+# After running, re-run both fidelity regressions BEFORE trusting the new version, then update
+# PROVENANCE.md. Create a mirror tag only as a separately approved upstream-repository operation.
 set -euo pipefail
 
 GEN_CLONE="${1:?usage: vendor-generator.sh <clone-path> <commit-sha>}"
@@ -37,5 +37,6 @@ done
 echo
 echo "Done. Next steps:"
 echo "  1. Re-run the fidelity regression: (cd app && npx tsx scripts/fidelity-spike.ts)"
-echo "  2. If it still matches (except resources), update PROVENANCE.md (SHA/date)"
-echo "     and push a new mirror tag to your fork."
+echo "  2. Re-run the adapter regression: (cd app && npx tsx scripts/adapter-fidelity.ts)"
+echo "  3. Investigate every mismatch, then update PROVENANCE.md (SHA/date/checksums)."
+echo "     Create a mirror tag only when that separate upstream operation is approved."

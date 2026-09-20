@@ -85,6 +85,9 @@ async function buildSoW(META, UNIT, LESSONS) {
 // ── Final Explanation ─────────────────────────────────────────────────────────
 
 async function buildFinalExplanation(META, FE) {
+  if (META.grade == null) {
+    throw new Error('buildFinalExplanation: META.grade is required but missing');
+  }
   const FLW = 3000;
   const FCW = W - FLW;
   const RW3 = Math.floor(FCW / 3);
@@ -92,7 +95,7 @@ async function buildFinalExplanation(META, FE) {
 
   const body = [
     ...titleBlock(
-      `FINAL EXPLANATION: ${META.subject.toUpperCase()} GRADE 10`,
+      `FINAL EXPLANATION: ${META.subject.toUpperCase()} GRADE ${META.grade}`,
       `Student Assessment Document`,
     ),
     SPACE(),
@@ -160,13 +163,16 @@ async function buildFinalExplanation(META, FE) {
 // ── Summary Table ─────────────────────────────────────────────────────────────
 
 async function buildSummaryTable(META, ST) {
+  if (META.grade == null) {
+    throw new Error('buildSummaryTable: META.grade is required but missing');
+  }
   const SLW  = 2400;
   const SC3  = Math.floor((W - SLW) / 3);
   const SC3r = W - SLW - SC3 * 2;
 
   const body = [
     ...titleBlock(
-      `SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE 10`,
+      `SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE ${META.grade}`,
       `${ST.subStrand || ''} — Teacher Reference (Pre-filled)`,
     ),
     SPACE(),
@@ -174,7 +180,7 @@ async function buildSummaryTable(META, ST) {
 
   // Header info
   body.push(makeTable([
-    fullHeader(`SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE 10`, C.darkBlue, 'FFFFFF', SZ_H, 2),
+    fullHeader(`SUMMARY TABLE: ${META.subject.toUpperCase()} GRADE ${META.grade}`, C.darkBlue, 'FFFFFF', SZ_H, 2),
     labelRow('Sub-Strand',       ST.subStrand    || '', SLW),
     labelRow('Driving Question', ST.drivingQuestion || '', SLW),
   ], [SLW, W - SLW]));

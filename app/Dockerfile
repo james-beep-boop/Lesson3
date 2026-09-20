@@ -74,6 +74,10 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# The standalone trace contains executable application and vendored generator code but does not
+# retain source-adjacent license files. Ship both MIT notices explicitly with the distributed image.
+COPY --from=builder --chown=nextjs:nodejs /app/LICENSE ./LICENSE
+COPY --from=builder --chown=nextjs:nodejs /app/src/generator/vendor/LICENSE ./THIRD_PARTY_LICENSES/cbe-generation-system-MIT.txt
 # Prove the final standalone trace contains sharp's native addon and libvips. This caught a real
 # ARM64 failure where the full deps image worked but the production image could not start.
 RUN node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: '#00000000' } }).png().toBuffer()"

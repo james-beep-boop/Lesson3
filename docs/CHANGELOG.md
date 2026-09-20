@@ -8,6 +8,26 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased - vendored generator license and grade labels (2026-09-19)
+
+- The upstream `markknit/cbe-generation-system` repository is now MIT-licensed. Lesson3 preserves
+  its upstream `2026 markknit` copyright and complete MIT text beside the three byte-verbatim vendored
+  generator files.
+- `NOTICE`, the README, external-dependency documentation, and vendor provenance now distinguish the
+  two matching MIT grants without misattributing upstream code to Lesson3. Lesson-plan content rights
+  remain a separate question.
+- The minimal production image now ships both copyright and permission notices explicitly; a
+  packaging check pins the copies and prevents the standalone build from silently dropping them.
+- The vendored generator is re-pinned to upstream commit `a546ee3`. Final Explanation and Summary
+  Table documents now use the required `META.grade` instead of labeling every grade as Grade 10;
+  missing grade metadata fails explicitly rather than producing a plausible but incorrect document.
+- Grade 10 output remains content-identical to the approved generator documents. The shared renderer
+  cache identity advances to version 6 so existing non-Grade-10 DOCX, PDF, and HTML artifacts cannot
+  hide the corrected labels.
+- The DOCX fidelity gate now distinguishes the upstream oracle's 140 resource relationships from a
+  later Lesson3 prose hyperlink. It proves those 140 against the oracle and all 141 against the
+  current input, restoring meaningful 4/4 and 6/6 gates without rewriting the approved document.
+
 ## Unreleased - first-user bootstrap sends no verification email (MERGED #343; 2026-09-19)
 
 - Payload's native first-register operation is now told not to send its otherwise automatic

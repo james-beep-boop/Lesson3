@@ -49,6 +49,23 @@ also make the no-default-credentials and first-login procedure explicit. Do not 
 The USB-first distribution work below remains a separate product/deployment phase. It is not required
 for an ordinary connected initial install, which is now proven end to end.
 
+**Generator licensing is resolved.** `markknit/cbe-generation-system` adopted MIT in upstream commit
+`15283e42`; Lesson3 now retains the upstream `2026 markknit` notice and complete license beside the
+vendored files. Application code and generator code therefore use matching MIT terms. Do not reopen
+the old generator-software license item. Lesson-plan content rights remain separate and unresolved.
+
+**The generator's hardcoded Grade 10 defect is resolved in this unreleased work.** The runtime is
+re-pinned byte-verbatim to upstream `a546ee3`; Final Explanation and Summary Table labels now use
+required `META.grade`, focused document tests cover Grades 10-12 and missing metadata, and
+`GENERATOR_RENDER_VERSION` is 6. Older handoff blocks below describe the defect before upstream fixed
+it; their resolved annotations are historical context, not open work.
+
+**The 141-versus-140 fidelity discrepancy is also resolved.** The upstream Physics oracle predates
+Lesson3's explicit parenthesized-prose links and therefore has 140 resource relationships; the current
+fixture legitimately adds one PhET prose link. The gate now proves the 140 resource targets against
+the unchanged oracle and all 141 targets against current resources plus linkable prose. Results are
+4/4 fidelity and 6/6 adapter/fidelity; do not refresh the approved DOCX to erase that distinction.
+
 ---
 
 # HANDOFF (2026-09-19) — offline bootstrap shipped; USB distribution is the next phase
@@ -335,12 +352,11 @@ The deployment follow-up separately passed `bash -n`, `git diff --check`, all 13
 and the full local deployment-bundle test. PR #333's required CI gate passed in **14m52s**. `shellcheck`
 is not installed on this host, so that check remains unavailable locally.
 
-**Document fidelity caveat:** the full adapter gate remains **5/6**, reproducing the pre-change
-resource-link mismatch in the available Greenhouse Effect oracle/input pair. The current input has
-an additional PhET URL in lesson prose, and the oracle uses a different internal-resource hostname.
-Baseline-versus-working generation produced identical normalized XML across **all 54 parts in the
-three DOCX files**. New unit cases check actual DOCX hyperlink relationships for parenthesized URLs.
-No approved oracle was rewritten to force a pass. PDF visual/converter verification was not run.
+**Document fidelity at that time:** the full adapter gate remained **5/6** because the current input
+had an additional PhET URL in lesson prose and the oracle used a different internal-resource
+hostname. Baseline-versus-working generation produced identical normalized XML across all 54 parts.
+**Resolved by the current 2026-09-19 status above:** the gate now compares resource and prose
+relationships to their respective sources and passes 6/6 without rewriting the approved oracle.
 
 ## Next Action
 
@@ -519,9 +535,8 @@ The foundation work merged as **PR #323** (with the pre-merge limiter correction
   remain required.
 - **Official-pointer lock:** already complete in #217. The explicit lock is delete-side only by
   design; do not recreate the stale two-sided prerequisite.
-- **Generator licence:** the other party intends MIT, so the conversation is probably over. Wait for
-  published or written confirmation for the pinned code before editing `NOTICE` and provenance.
-  Lesson-content rights remain separate.
+- **Generator licence:** resolved. Upstream published MIT in commit `15283e42`; `NOTICE`, provenance,
+  and the retained upstream license now record it. Lesson-content rights remain separate.
 
 ## Next work, in order
 
@@ -870,10 +885,10 @@ the previous handoff posed them as open questions:
 - **The 13 `window.confirm` migrations** to the shared `Modal`. One is on the frontend. Mechanical, and
   the `Modal` is now well-tested (portal, chrome, and dialog-button scope all pinned).
 - **Slice C (derivations)** — it changes generated output, so it needs a corpus check before it starts.
-- **`GRADE 10` is hardcoded** in vendored `build_docs.js` lines 95/169/177. Upstream ARES fix; the
-  vendored generator is byte-verbatim by law, so this is not ours to patch.
-- **The fidelity oracle differs by one hyperlink** (141 current vs 140 upstream), unrelated to any
-  recent change and unexplained. Worth ten minutes before it becomes folklore.
+- **[RESOLVED 2026-09-19] `GRADE 10` was hardcoded** in vendored `build_docs.js`. Upstream fixed it in
+  `a546ee3`; Lesson3 re-vendored that byte-pristine file and advanced the renderer cache identity.
+- **[RESOLVED 2026-09-19] The fidelity oracle differed by one hyperlink** because it predates the
+  fixture's PhET prose link. The gate now proves resource and prose relationship sets separately.
 
 ## ⚑ Running the integration suite locally (it is not wired for it)
 
@@ -1055,8 +1070,8 @@ Slice A hid three provenance fields and closed the invariant; slice B is the ide
   *Spacing only*), and the stale-capture read-only case. Five new claims in
   `tests/unit/guideParity.spec.ts` hold the two surfaces together.
 - **Slice C (derivations)** changes generated output, so it needs a corpus check before it starts.
-- **`GRADE 10` is hardcoded** in vendored `build_docs.js` lines 95/169/177. Back burner: an upstream
-  ARES fix, not ours to patch — the vendored generator is byte-verbatim by law.
+- **[RESOLVED 2026-09-19] `GRADE 10` was hardcoded** in vendored `build_docs.js`. Upstream fixed it in
+  `a546ee3`; Lesson3 re-vendored it without a local patch.
 
 ---
 
@@ -1154,24 +1169,23 @@ type- or content-enforced rather than order-inferred.
   are pinned by tests that assert the wrong-looking behaviour on purpose. The fix is a stable
   per-lesson identity in the stored data, not cleverer text matching.
 
-### ⚑ BACK BURNER, not ours to fix: the vendored generator hardcodes GRADE 10
+### RESOLVED 2026-09-19: upstream fixed the vendored generator's hardcoded GRADE 10
 
-`app/src/generator/vendor/lib/build_docs.js` lines **95, 169 and 177** interpolate the literal
-`GRADE 10` into the Final Explanation title and the Summary Table title and header, ignoring
-`META.grade` — which is a REQUIRED integer in the ARES contract
-(`app/src/ingest/ares-contract.schema.json`) and whose own field description says "Shown in the
-generated document". Nothing in the generator reads it.
+The block below records the former defect and the required adoption sequence. Upstream completed the
+fix in `a546ee3`; Lesson3 has now re-vendored that commit, added regression coverage, and advanced
+`GENERATOR_RENDER_VERSION` to 6.
 
-So a Grade 11 or 12 plan renders a correct Lesson Sequence (its title is ARES-supplied `META.titleDoc`)
-and a correct "Grade Level" row (`UNIT.gradeLevel`), while **two of the three documents say GRADE 10** —
-one of them the student-facing Final Explanation.
+The former `build_docs.js` pin interpolated literal `GRADE 10` into the Final Explanation title and
+the Summary Table title and header, ignoring `META.grade`, which is a required integer in the ARES
+contract. Upstream `a546ee3` replaced all three literals with that required value and added explicit
+missing-grade failures.
 
-⚑ **The fix is upstream in `cbe-generation-system`, NOT here.** The three libraries are vendored
-byte-verbatim with checksums in `app/src/generator/vendor/PROVENANCE.md`; a local patch breaks them and
-is reverted by the next `scripts/vendor-generator.sh` re-sync. Sequence: fix upstream → re-vendor at
-the new sha → bump `GENERATOR_RENDER_VERSION` → re-approve the golden files → re-run the fidelity
-regression. Raised with the operator 2026-08-23; outside this repo's control and parked until upstream
-moves. **Worth checking before any Grade 11/12 corpus is generated.**
+Before adoption, a Grade 11 or 12 plan rendered a correct Lesson Sequence and Grade Level row while
+two of its three documents said Grade 10, including the student-facing Final Explanation.
+
+The original rule remains: fix the source upstream, then re-vendor byte-verbatim, bump the render
+version, and rerun fidelity evidence. That sequence is now complete; do not replace the pristine
+upstream file with a Lesson3-local variation.
 
 ---
 
@@ -3163,9 +3177,10 @@ corrective migration aborts if any lesson plans, versions, or lesson rows remain
 5. One document format only: current upstream Section C widths `[1520, 3040, 3040, 3040, 3040]`, with
    video/reading links beneath the phase label in the first cell. “Standard/compact” is historical
    rendering terminology, not JSON-schema terminology.
-6. Generator target: `markknit/cbe-generation-system` commit
-   `742c8a96637377abbec37af32073210b9f87465b`. Keep vendored source byte-pristine; supply stored
-   resources through Lesson3-owned glue, never through the upstream Python-spawning loader.
+6. Original clean-cutover generator target: `markknit/cbe-generation-system` commit
+   `742c8a96637377abbec37af32073210b9f87465b` (superseded by the current provenance pin). Keep
+   vendored source byte-pristine; supply stored resources through Lesson3-owned glue, never through
+   the upstream Python-spawning loader.
 
 ### Original ordered plan and implementation record
 
