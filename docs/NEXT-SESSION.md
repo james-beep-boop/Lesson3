@@ -25,12 +25,15 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-19) - v0.85 published; exact online release verified
+# STATUS (2026-09-20) - v0.86 published; guide and phone-layout corrections shipped
 
-PR **#345** is merged on `main` at `94f1c44`; immutable tag and GitHub release **`v0.85`** are
+PR **#347** is merged on `main` at `82f9380`; immutable tag and GitHub release **`v0.86`** are
 published as the latest release. The release workflow passed and provides the checksummed deployment
-bundle and pinned multi-architecture images. It includes the no-email bootstrap correction from #343,
-the documentation cleanup from #344, and the licensed, grade-aware generator update from #345.
+bundle and pinned multi-architecture images. It includes the expanded first-administrator, no-email
+account, and backup-recovery guidance, plus the corrected donation-button alignment and readable
+phone layout for Manage → System facts. The first image-build attempt stalled on both GitHub runners
+and was cancelled without publishing a release; the clean retry completed both images, assembled the
+bundle, and verified that the documented latest-release install URL resolves to `v0.86`.
 
 The exact published `v0.85` bundle and checksum were downloaded from GitHub and installed from scratch
 in an isolated Compose project on an ARM64 Docker host. Image pulls, fresh PostgreSQL initialization,
