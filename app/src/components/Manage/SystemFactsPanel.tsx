@@ -21,7 +21,7 @@ export function SystemFactsPanel({ facts }: { facts: SystemFact[] }) {
   return (
     <ul className="lp-manage__list">
       {facts.map((fact) => (
-        <li key={fact.key} className="lp-manage__row lp-manage__row--tight">
+        <li key={fact.key} className="lp-manage__row lp-manage__row--tight lp-manage__row--fact">
           <span className="lp-manage__who">
             {fact.label}
             {/* The env var travels with the value, because "email: not configured" without

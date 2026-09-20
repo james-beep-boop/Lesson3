@@ -8,6 +8,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (2026-09-20)
+
+### User guidance and phone layout corrections
+
+- The in-app guide and standalone user guide now explain first-administrator setup, the absence of
+  default credentials, account creation and verification without email, the value of a tested second
+  Site Administrator, and what the backup-recovery status does and does not prove.
+- The two donation links once again inherit the shared button layout, vertically centering their text.
+- Manage → System facts stack their explanations and status values at phone width, preventing long
+  backup-recovery text from being squeezed into an unreadable column.
+
 ## v0.85 (2026-09-19)
 
 ### Vendored generator license and grade labels
