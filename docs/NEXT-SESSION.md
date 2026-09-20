@@ -37,13 +37,14 @@ no-email first-Site-Administrator form, immediate login, authenticated `/admin`,
 second first-register request all passed. The isolated deployment and its volumes were removed after
 verification; the existing development database was not touched.
 
-**Post-release correction:** Payload attempted its normal verification email while
+PR **#343** is merged on `main` at `55d4bbf`. It corrects a post-release issue found by the clean
+install verification: Payload attempted its normal verification email while
 creating the first user, then immediately marked that same account verified. This does not block a
 no-SMTP installation, but with SMTP it sends a redundant message and it contradicts the documented
 no-email bootstrap contract. The narrow fix sets Payload's typed `disableVerificationEmail` operation
 argument only for its trusted in-process `/first-register` create. The installer, README, and runbook
 also make the no-default-credentials and first-login procedure explicit. Do not move or replace
-`v0.84`; ship the correction in the next release after its full gate passes.
+`v0.84`; the next release should include this merged correction.
 
 The USB-first distribution work below remains a separate product/deployment phase. It is not required
 for an ordinary connected initial install, which is now proven end to end.
