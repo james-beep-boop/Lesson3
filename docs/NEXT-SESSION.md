@@ -25,17 +25,19 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-19) - v0.84 published; online initial install verified
+# STATUS (2026-09-19) - v0.85 published; exact online release verified
 
-PR **#342** is merged on `main` at `5cb7bde`; immutable tag and GitHub release **`v0.84`** are
-published. The release workflow passed and provides the checksummed deployment bundle and pinned
-multi-architecture images. PR #341 and issue #324 are also complete.
+PR **#345** is merged on `main` at `94f1c44`; immutable tag and GitHub release **`v0.85`** are
+published as the latest release. The release workflow passed and provides the checksummed deployment
+bundle and pinned multi-architecture images. It includes the no-email bootstrap correction from #343,
+the documentation cleanup from #344, and the licensed, grade-aware generator update from #345.
 
-The exact `releases/latest` bundle was installed from scratch in an isolated Compose project. Image
-pulls, fresh PostgreSQL initialization, the complete migration chain, application health, the
-no-email first-Site-Administrator form, immediate login, authenticated `/admin`, and refusal of a
-second first-register request all passed. The isolated deployment and its volumes were removed after
-verification; the existing development database was not touched.
+The exact published `v0.85` bundle and checksum were downloaded from GitHub and installed from scratch
+in an isolated Compose project on an ARM64 Docker host. Image pulls, fresh PostgreSQL initialization,
+the complete migration chain, application health, the no-email first-Site-Administrator form,
+credential login, authenticated `/admin`, and refusal of a second first-register request all passed.
+The app log contained no attempted verification-email send. The isolated deployment and its volumes
+were removed after verification; the existing development database was not touched.
 
 PR **#343** is merged on `main` at `55d4bbf`. It corrects a post-release issue found by the clean
 install verification: Payload attempted its normal verification email while
@@ -43,8 +45,8 @@ creating the first user, then immediately marked that same account verified. Thi
 no-SMTP installation, but with SMTP it sends a redundant message and it contradicts the documented
 no-email bootstrap contract. The narrow fix sets Payload's typed `disableVerificationEmail` operation
 argument only for its trusted in-process `/first-register` create. The installer, README, and runbook
-also make the no-default-credentials and first-login procedure explicit. Do not move or replace
-`v0.84`; the next release should include this merged correction.
+also make the no-default-credentials and first-login procedure explicit. This correction is included
+and release-verified in `v0.85`.
 
 The USB-first distribution work below remains a separate product/deployment phase. It is not required
 for an ordinary connected initial install, which is now proven end to end.
@@ -54,7 +56,7 @@ for an ordinary connected initial install, which is now proven end to end.
 vendored files. Application code and generator code therefore use matching MIT terms. Do not reopen
 the old generator-software license item. Lesson-plan content rights remain separate and unresolved.
 
-**The generator's hardcoded Grade 10 defect is resolved in this unreleased work.** The runtime is
+**The generator's hardcoded Grade 10 defect is resolved in `v0.85`.** The runtime is
 re-pinned byte-verbatim to upstream `a546ee3`; Final Explanation and Summary Table labels now use
 required `META.grade`, focused document tests cover Grades 10-12 and missing metadata, and
 `GENERATOR_RENDER_VERSION` is 6. Older handoff blocks below describe the defect before upstream fixed
