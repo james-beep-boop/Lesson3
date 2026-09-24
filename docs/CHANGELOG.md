@@ -10,6 +10,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased (2026-09-23)
 
+### Conservative patch dependency maintenance
+
+- Runtime utilities move within their current release lines: Acorn 8.16.0 to 8.18.0, DOMPurify
+  3.4.14 to 3.4.16, JSZip 3.10.1 to 3.10.2, and Mammoth 1.12.1 to 1.12.3.
+- Test and build tooling receives patch-only updates: Testing Library DOM 10.4.2, Testing Library
+  React 16.3.3, PostCSS 8.5.28, Prettier 3.9.9, and tsx 4.23.15. The forced PostCSS version stays
+  aligned with the direct development dependency while its Nano ID security override remains pinned.
+- React, Sass, Payload, Next.js, Drizzle ORM, the ARES document generator, and application behavior
+  are unchanged in this maintenance set. Drizzle 0.45.3 is deliberately deferred because Payload
+  3.90.2 uses 0.45.2 across its typed database boundary.
+
 ### Payload 3.90.2 maintenance
 
 - Payload and all directly installed first-party Payload packages move together from 3.90.1 to

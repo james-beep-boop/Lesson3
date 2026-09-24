@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-23 - Keep routine dependency maintenance patch-only and separately reviewable
+
+After the critical Next.js fix and the Payload family update, the remaining low-risk maintenance set
+contains patch releases for four runtime utilities and five test/build tools. Combining React, Sass,
+framework, or document-generation changes with those patches would expand the compatibility and
+output-fidelity burden without helping the patch updates themselves.
+
+**Decision:** update only Acorn, DOMPurify, JSZip, Mammoth, Testing Library DOM and React, PostCSS,
+Prettier, and tsx. Keep the PostCSS override aligned with the direct dependency and retain its nested
+Nano ID override. Drizzle ORM 0.45.3 is not safe as an independent direct update: Payload 3.90.2 uses
+0.45.2, and installing both versions makes their private `SQL` declarations nominally incompatible
+in `payload.config.ts`. Keep Drizzle at 0.45.2 until Payload moves with it; do not cast away or force
+across that boundary. Require the normal production build and complete protected gate before merge.
+Defer React, Sass, major releases, and document-generation changes to dedicated reviews.
+
 ## 2026-09-23 - Payload patch updates stay family-aligned and browser-gated
 
 Payload 3.90.2 is a patch release, but its actual code diff reaches admin URL formatting, auth

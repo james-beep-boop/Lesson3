@@ -19,8 +19,7 @@ import { verifyEmailThrottledEndpoint } from '../../src/endpoints/verifyEmail'
 
 const fieldNamed = (name: string) =>
   Users.fields.find((f) => 'name' in f && f.name === name) as
-    | { access?: Record<string, unknown>; index?: boolean }
-    | undefined
+    { access?: Record<string, unknown>; index?: boolean } | undefined
 
 const verifiedField = fieldNamed('_verified')
 
