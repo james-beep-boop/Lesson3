@@ -10,6 +10,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased (2026-09-23)
 
+### Payload 3.90.2 maintenance
+
+- Payload and all directly installed first-party Payload packages move together from 3.90.1 to
+  3.90.2. The patch includes admin URL, auth redirect, route-matching, restore-view, and Next-wrapper
+  corrections, so the existing browser and routing gates remain part of acceptance.
+- Regenerating Payload types and the admin import map produces no changes, and the release adds no
+  schema migration.
+- No unrelated application, document-generation, React, or test-tooling dependency is refreshed in
+  this change.
+
+## v0.87 (2026-09-23)
+
 ### Next.js ImageResponse security patch
 
 - Next.js and its matching ESLint configuration move from 16.3.5 to 16.3.6, the upstream fix for

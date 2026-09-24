@@ -11,6 +11,19 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-23 - Payload patch updates stay family-aligned and browser-gated
+
+Payload 3.90.2 is a patch release, but its actual code diff reaches admin URL formatting, auth
+redirect handling, route matching, the version-restore view, and Payload's Next.js wrapper. Lesson3
+uses the affected admin and routing surfaces even though it does not use the release's cloud-storage,
+MCP, or multi-tenant fixes.
+
+**Decision:** update `payload` and all five directly installed `@payloadcms/*` packages together from
+3.90.1 to 3.90.2, with no unrelated dependency refresh. Regenerate types and the import map before
+testing; unchanged generated artifacts establish that the patch adds no local schema or component-map
+delta. Acceptance still requires the full integration, HTTP, and real-browser gate because a clean
+typecheck cannot prove redirects, admin routing, or restore behavior.
+
 ## 2026-09-23 - Patch the Next.js ImageResponse RCE without broad maintenance drift
 
 Next.js 16.3.6 fixes critical advisory GHSA-vcvr-r3jv-pc5j, affecting versions 16.2.0 through
