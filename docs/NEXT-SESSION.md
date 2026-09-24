@@ -25,16 +25,15 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-23) - v0.87 published; tested dependency maintenance is ahead of the release
+# STATUS (2026-09-23) - v0.88 published as the current maintenance release
 
-Immutable tag and GitHub release **`v0.87`** point to `feeef70` and are published as the latest
-release. The release workflow passed tag validation, both multi-architecture image builds, and bundle
-publication. Its assets are `lesson3-online-deploy.tar.gz` and the matching SHA-256 file. This is the
-current installable release and includes the Next.js 16.3.6 fix for critical advisory
-GHSA-vcvr-r3jv-pc5j.
+Immutable tag and GitHub release **`v0.88`** are published as the latest release. The release
+workflow passed tag validation, both multi-architecture image builds, and bundle publication. Its
+assets are `lesson3-online-deploy.tar.gz` and the matching SHA-256 file. This is the current
+installable release and contains three separately reviewed maintenance changes:
 
-`main` is intentionally two reviewed maintenance commits ahead of that release:
-
+- `feeef70` / PR **#349** updates Next.js and its matching ESLint configuration to 16.3.6, fixing
+  critical advisory GHSA-vcvr-r3jv-pc5j.
 - `dda9fd6` / PR **#350** updates Payload and all directly installed first-party Payload packages
   together from 3.90.1 to 3.90.2. Generated types and the import map are unchanged; no migration is
   required.
@@ -42,10 +41,10 @@ GHSA-vcvr-r3jv-pc5j.
   at 0.45.2 because independently installing 0.45.3 beside Payload's 0.45.2 makes their private SQL
   types incompatible. Do not cast around or force that boundary.
 
-Both PRs passed the complete protected gate: deployment and backup script checks, offline release
-bundle checks, unit, lint, formatting, contract, integration, wire-level HTTP, real Chromium role
-tests, production audit threshold, and teardown. The maintenance commits have **not** been tagged or
-published as a new release. Do not move `v0.87`; choose a new version if these commits should ship.
+All three changes and the release-status documentation passed the complete protected gate:
+deployment and backup script checks, offline release-bundle checks, unit, lint, formatting, contract,
+integration, wire-level HTTP, real Chromium role tests, production audit threshold, and teardown.
+Do not move or reuse `v0.88`; later changes require a new version.
 
 The obsolete `v0.83` Git tag has been deleted locally and remotely. A half-published
 `lesson3-app:v0.83` package image may remain in GHCR because the available GitHub token could not
