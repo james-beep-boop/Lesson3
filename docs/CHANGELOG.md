@@ -8,6 +8,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (2026-09-24)
+
+### GitHub Actions runtime maintenance
+
+- Release publishing moves to the Node-24-native major releases of Docker's QEMU, Buildx, registry
+  login, and build/push actions, pinned to immutable commit SHAs.
+- CI checkout is pinned to the same immutable Node-24-native Checkout v6 commit already proven by
+  release publishing.
+- CI and release jobs explicitly use Ubuntu 24.04 instead of inheriting GitHub's scheduled
+  `ubuntu-latest` move to Ubuntu 26.04. This changes no application dependency, container base image,
+  release bundle, or deployment procedure.
+
 ## v0.88 (2026-09-23)
 
 ### Conservative patch dependency maintenance
