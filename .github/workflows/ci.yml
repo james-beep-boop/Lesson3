@@ -40,10 +40,12 @@ permissions:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # Pin the runner image so GitHub's scheduled `ubuntu-latest` migration cannot change the gate
+    # underneath an unrelated application commit. Advance this deliberately after testing.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           # `persist-credentials: true` (the default) writes an `http.extraheader` holding the
           # GITHUB_TOKEN into `.git/config`. Nothing here needs it: no step runs an authenticated git

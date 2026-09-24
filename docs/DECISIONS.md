@@ -11,6 +11,21 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-24 - Pin the proven Actions runtime instead of inheriting platform migrations
+
+GitHub removed Node 20 from hosted Actions runners and forced actions that still declare `node20` to
+execute under Node 24. The `v0.88` release completed successfully under that compatibility behavior,
+but its four Docker actions emitted deprecation warnings. GitHub also scheduled `ubuntu-latest` to
+move from the currently proven Ubuntu 24.04 image to Ubuntu 26.04.
+
+**Decision:** move Docker's QEMU, Buildx, login, and build/push actions to their Node-24-native major
+releases and pin each to the reviewed full commit SHA. Pin CI checkout to the same immutable Checkout
+v6 SHA already used by release publishing. Set every workflow job to `ubuntu-24.04`; advance the
+runner image deliberately after testing rather than allowing the `latest` label to change an
+unrelated build. The hosted runner used for `v0.88` was version 2.337.0, above the new Docker actions'
+2.327.1 minimum, and Lesson3 uses none of the inputs removed by their major updates. This is CI-only
+maintenance and does not justify another application release by itself.
+
 ## 2026-09-23 - Keep routine dependency maintenance patch-only and separately reviewable
 
 After the critical Next.js fix and the Payload family update, the remaining low-risk maintenance set
