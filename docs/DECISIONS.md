@@ -11,6 +11,19 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-23 - Patch the Next.js ImageResponse RCE without broad maintenance drift
+
+Next.js 16.3.6 fixes critical advisory GHSA-vcvr-r3jv-pc5j, affecting versions 16.2.0 through
+16.3.5. Lesson3 was on 16.3.5. A source search finds no direct `next/og` or `ImageResponse` use, which
+reduces the apparent reachable surface but is not a durable reason to retain a vulnerable application
+framework: transitive framework behavior and future call sites should not become part of the security
+argument.
+
+**Decision:** update only `next` and its matching `eslint-config-next` package to 16.3.6. Do not fold
+the wider `npm outdated` result into this change. The narrow package boundary keeps the critical fix
+attributable and lets the ordinary Payload, document-generation, React, and tooling updates retain
+their own compatibility and fidelity evidence.
+
 ## 2026-09-19 - Fidelity compares old resource oracles and newer prose links separately
 
 The Physics 4.1 oracle contains 140 resource hyperlinks. Lesson3 later added explicit hyperlinks for

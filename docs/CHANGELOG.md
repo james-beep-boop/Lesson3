@@ -8,6 +8,17 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased (2026-09-23)
+
+### Next.js ImageResponse security patch
+
+- Next.js and its matching ESLint configuration move from 16.3.5 to 16.3.6, the upstream fix for
+  critical advisory GHSA-vcvr-r3jv-pc5j (`next/og` `ImageResponse` remote code execution).
+- Lesson3 has no direct `next/og` or `ImageResponse` use, but Next.js is the application framework and
+  remains patched rather than relying on that narrower current usage as a permanent security boundary.
+- No other dependency is refreshed in this change; routine framework, document, and tooling updates
+  remain separately reviewable.
+
 ## v0.86 (2026-09-20)
 
 ### User guidance and phone layout corrections
