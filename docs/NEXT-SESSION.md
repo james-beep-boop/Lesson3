@@ -25,51 +25,43 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-20) - v0.86 published; guide and phone-layout corrections shipped
+# STATUS (2026-09-23) - v0.87 published; tested dependency maintenance is ahead of the release
 
-PR **#347** is merged on `main` at `82f9380`; immutable tag and GitHub release **`v0.86`** are
-published as the latest release. The release workflow passed and provides the checksummed deployment
-bundle and pinned multi-architecture images. It includes the expanded first-administrator, no-email
-account, and backup-recovery guidance, plus the corrected donation-button alignment and readable
-phone layout for Manage → System facts. The first image-build attempt stalled on both GitHub runners
-and was cancelled without publishing a release; the clean retry completed both images, assembled the
-bundle, and verified that the documented latest-release install URL resolves to `v0.86`.
+Immutable tag and GitHub release **`v0.87`** point to `feeef70` and are published as the latest
+release. The release workflow passed tag validation, both multi-architecture image builds, and bundle
+publication. Its assets are `lesson3-online-deploy.tar.gz` and the matching SHA-256 file. This is the
+current installable release and includes the Next.js 16.3.6 fix for critical advisory
+GHSA-vcvr-r3jv-pc5j.
 
-The exact published `v0.85` bundle and checksum were downloaded from GitHub and installed from scratch
-in an isolated Compose project on an ARM64 Docker host. Image pulls, fresh PostgreSQL initialization,
-the complete migration chain, application health, the no-email first-Site-Administrator form,
-credential login, authenticated `/admin`, and refusal of a second first-register request all passed.
-The app log contained no attempted verification-email send. The isolated deployment and its volumes
-were removed after verification; the existing development database was not touched.
+`main` is intentionally two reviewed maintenance commits ahead of that release:
 
-PR **#343** is merged on `main` at `55d4bbf`. It corrects a post-release issue found by the clean
-install verification: Payload attempted its normal verification email while
-creating the first user, then immediately marked that same account verified. This does not block a
-no-SMTP installation, but with SMTP it sends a redundant message and it contradicts the documented
-no-email bootstrap contract. The narrow fix sets Payload's typed `disableVerificationEmail` operation
-argument only for its trusted in-process `/first-register` create. The installer, README, and runbook
-also make the no-default-credentials and first-login procedure explicit. This correction is included
-and release-verified in `v0.85`.
+- `dda9fd6` / PR **#350** updates Payload and all directly installed first-party Payload packages
+  together from 3.90.1 to 3.90.2. Generated types and the import map are unchanged; no migration is
+  required.
+- `a0251eb` / PR **#351** applies nine conservative runtime/tooling patch updates. Drizzle ORM remains
+  at 0.45.2 because independently installing 0.45.3 beside Payload's 0.45.2 makes their private SQL
+  types incompatible. Do not cast around or force that boundary.
 
-The USB-first distribution work below remains a separate product/deployment phase. It is not required
-for an ordinary connected initial install, which is now proven end to end.
+Both PRs passed the complete protected gate: deployment and backup script checks, offline release
+bundle checks, unit, lint, formatting, contract, integration, wire-level HTTP, real Chromium role
+tests, production audit threshold, and teardown. The maintenance commits have **not** been tagged or
+published as a new release. Do not move `v0.87`; choose a new version if these commits should ship.
 
-**Generator licensing is resolved.** `markknit/cbe-generation-system` adopted MIT in upstream commit
-`15283e42`; Lesson3 now retains the upstream `2026 markknit` notice and complete license beside the
-vendored files. Application code and generator code therefore use matching MIT terms. Do not reopen
-the old generator-software license item. Lesson-plan content rights remain separate and unresolved.
+The obsolete `v0.83` Git tag has been deleted locally and remotely. A half-published
+`lesson3-app:v0.83` package image may remain in GHCR because the available GitHub token could not
+inspect or delete package versions; it is not referenced by a Git tag, GitHub release, or complete
+deployment bundle. Older handoff blocks below describe the state before deletion and are historical,
+not instructions to recreate or finish that release.
 
-**The generator's hardcoded Grade 10 defect is resolved in `v0.85`.** The runtime is
-re-pinned byte-verbatim to upstream `a546ee3`; Final Explanation and Summary Table labels now use
-required `META.grade`, focused document tests cover Grades 10-12 and missing metadata, and
-`GENERATOR_RENDER_VERSION` is 6. Older handoff blocks below describe the defect before upstream fixed
-it; their resolved annotations are historical context, not open work.
+The connected initial-install path remains proven: there are no default credentials, and the first
+visitor to `/login` creates the verified Site Administrator without an email round trip. The README,
+installer output, deployment runbook, standalone user guide, and in-app guide carry the procedure.
+USB-first distribution remains a separate phase and is not required for an ordinary connected
+installation.
 
-**The 141-versus-140 fidelity discrepancy is also resolved.** The upstream Physics oracle predates
-Lesson3's explicit parenthesized-prose links and therefore has 140 resource relationships; the current
-fixture legitimately adds one PhET prose link. The gate now proves the 140 resource targets against
-the unchanged oracle and all 141 targets against current resources plus linkable prose. Results are
-4/4 fidelity and 6/6 adapter/fidelity; do not refresh the approved DOCX to erase that distinction.
+Generator licensing, grade-aware assessment labels, and the 141-versus-140 hyperlink fidelity proof
+remain resolved as recorded in `DECISIONS.md` and `CHANGELOG.md`. Lesson-plan content rights remain a
+separate publication question.
 
 ---
 
