@@ -154,8 +154,7 @@ const run = async (): Promise<void> => {
     const plan = (await payload.find({ collection: 'lesson-plans', limit: 1, depth: 0 }))
       .docs[0] as { id: number } | undefined
     const user = (await payload.find({ collection: 'users', limit: 1, depth: 0 })).docs[0] as
-      | { id: number }
-      | undefined
+      { id: number } | undefined
     if (!plan || !user) {
       fail('no lesson plan or no user on this box — nothing to drill against')
       return

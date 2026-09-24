@@ -56,8 +56,7 @@ const run = async () => {
     overrideAccess: true,
   })
   const version = (versions.find((v) => editorGrades.has(relId(v.subjectGrade))) ?? versions[0]) as
-    | LessonBundleVersion
-    | undefined
+    LessonBundleVersion | undefined
   if (!version) throw new Error('No lesson-bundle-version found.')
   console.log(
     `Version ${version.id} "${version.title}" — subjectGrade ${relId(version.subjectGrade)}`,

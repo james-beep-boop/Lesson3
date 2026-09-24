@@ -33,9 +33,7 @@ type PdfFile = {
 }
 
 export type ReadPdfResult =
-  | { kind: 'found'; bytes: Buffer; name: string }
-  | { kind: 'not-found' }
-  | { kind: 'too-large' }
+  { kind: 'found'; bytes: Buffer; name: string } | { kind: 'not-found' } | { kind: 'too-large' }
 
 const isSafePdfName = (name: string): boolean =>
   name.length > 0 &&

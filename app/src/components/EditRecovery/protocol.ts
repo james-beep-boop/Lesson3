@@ -83,8 +83,7 @@ export const classifyResponse = (
 
 /** What the save should do, given the outcome of the flush that preceded it. */
 export type SavePlan =
-  | { proceed: true; token: RecoveryToken | null }
-  | { proceed: false; reason: 'conflict' }
+  { proceed: true; token: RecoveryToken | null } | { proceed: false; reason: 'conflict' }
 
 /**
  * Decide how to save after a pre-save flush (design §5, corrected 2026-08-07).

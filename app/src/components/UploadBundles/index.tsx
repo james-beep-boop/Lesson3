@@ -56,8 +56,7 @@ export default function UploadBundles() {
         credentials: 'include',
       })
       const json = (await res.json()) as
-        | { ok: true; count: number; bundles: UploadResult[] }
-        | { ok: false; error: string }
+        { ok: true; count: number; bundles: UploadResult[] } | { ok: false; error: string }
       if (!res.ok || !json.ok) {
         toast.error('error' in json ? json.error : `Upload failed (${res.status})`)
         return

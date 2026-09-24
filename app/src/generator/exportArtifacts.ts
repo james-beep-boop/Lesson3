@@ -214,9 +214,7 @@ async function readManifest(spec: ArtifactSpec): Promise<Manifest | null> {
  *  first — indistinguishable from eviction, same remedy), `absent` = the export is ready and this
  *  version genuinely has no such document (e.g. no Final Explanation for this sub-strand). */
 export type DeliverableResult =
-  | { state: 'ready'; filename: string; bytes: Buffer }
-  | { state: 'cold' }
-  | { state: 'absent' }
+  { state: 'ready'; filename: string; bytes: Buffer } | { state: 'cold' } | { state: 'absent' }
 
 /**
  * WARM PATH (per-document endpoint): serve ONE deliverable from the cache (teacher-first track T1,
