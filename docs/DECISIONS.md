@@ -11,6 +11,22 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-09-24 — Guide tutorial: role-aware accordions
+
+- `/guide` uses five universally visible top-level areas with persistent subtitles and task panels
+  nested one level deep. Role overviews remain available to everyone; detailed task walkthroughs
+  are rendered only when the signed-in user has the relevant capability.
+- Editing is a capability, not a fourth user type. Subject-grade and Site administrators receive
+  editing walkthroughs. The Subject Admin self-demotion handover is available to Subject Admins;
+  Site Admins use the separate appoint/replace/remove flow.
+- The guide owns a small, closed panel vocabulary and parses only allowlisted incoming deep links.
+  Manage's state module remains scoped to Manage. User toggles are local and do not rewrite URLs.
+- Contextual editor links open the guide in a new tab. Search is out of scope; use descriptive task
+  headings and contextual links. Include labeled screenshot slots at seven task decision points;
+  they must be clearly identified as placeholders until replaced with verified captures.
+- `USER_GUIDE.md` remains the complete unscoped offline reference. Shared load-bearing facts are
+  parity-tested; the rendered guide is capability-scoped and tested separately.
+
 ## 2026-09-24 - Pin the proven Actions runtime instead of inheriting platform migrations
 
 GitHub removed Node 20 from hosted Actions runners and forced actions that still declare `node20` to

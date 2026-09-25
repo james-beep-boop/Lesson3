@@ -925,6 +925,15 @@ export default function LessonControls() {
               </div>
             )}
           </dl>
+          <p className="help-guide-link">
+            <a
+              href="/guide?open=editing&at=editing.writing"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open the full writing guide
+            </a>
+          </p>
           {/* ⚑ SECONDARY, not primary. Nothing in this dialog is a primary action — it is an
               acknowledgement, and a filled button claimed an emphasis it has not earned. Manage uses
               outline for both of its row controls, so outline is the house style for a dialog's own
