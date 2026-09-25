@@ -30,8 +30,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           Some editing and administrator tasks are limited to particular subjects and grades.
         </p>
         <p>
-          Use <strong>Lessons</strong> to find plans, a <strong>lesson page</strong> to read and share
-          one plan, <strong>Manage</strong> to edit lessons and manage accounts, and{' '}
+          Use <strong>Lessons</strong> to find plans, a <strong>lesson page</strong> to read and
+          share one plan, <strong>Manage</strong> to edit lessons and manage accounts, and{' '}
           <strong>Messages</strong> to contact other people with Lesson3 accounts.
         </p>
       </header>
@@ -77,8 +77,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               <GuideAccordionPanel id="teachers.find-read" title="Find and read a lesson">
                 <ol className="guide-steps">
                   <li>
-                    Open <em>Lessons</em>. Plans are grouped by subject and grade, then by strand and
-                    sub-strand in curriculum order.
+                    Open <em>Lessons</em>. Plans are grouped by subject and grade, then by strand
+                    and sub-strand in curriculum order.
                   </li>
                   <li>
                     Enter a subject, grade, strand, or sub-strand in the search box. Use the subject
@@ -90,7 +90,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>Open a lesson page to read the lesson and see its available actions.</li>
                 </ol>
-                <p>Each lesson opens at its Official version — the version currently approved for use.</p>
+                <p>
+                  Each lesson opens at its Official version — the version currently approved for
+                  use.
+                </p>
               </GuideAccordionPanel>
             )}
 
@@ -199,8 +202,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           >
             <p>
               With editing access, you can change most lesson content in Lesson3. The subjects and
-              grades you can edit depend on your role. Subject-grade and Site administrators can also
-              edit. Make changes in Lesson3, not in a Word file.
+              grades you can edit depend on your role. Subject-grade and Site administrators can
+              also edit. Make changes in Lesson3, not in a Word file.
             </p>
 
             {can('editing.open-edit') && (
@@ -253,9 +256,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Find a saved version or compare versions"
               >
                 <p>
-                  The <em>N versions</em> panel on library rows and lesson pages lists saved versions,
-                  newest first, with Official at the top. Each row shows its author, date, and
-                  favorite star. Choose <em>Compare</em> when more than one version is available.
+                  The <em>N versions</em> panel on library rows and lesson pages lists saved
+                  versions, newest first, with Official at the top. Each row shows its author, date,
+                  and favorite star. Choose <em>Compare</em> when more than one version is
+                  available.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -282,12 +286,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Normally, Lesson3 shows only the changes you have not saved. Some changes cannot be
-                  shown word by word. <em>Emptied</em> means a field will be cleared;{' '}
+                  Normally, Lesson3 shows only the changes you have not saved. Some changes cannot
+                  be shown word by word. <em>Emptied</em> means a field will be cleared;{' '}
                   <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
-                  <em>Spacing only</em> means the words stayed the same. If someone else saves a newer
-                  version while you are away, Lesson3 cannot restore your changes automatically. They
-                  Lesson3 shows all your unsaved work so you can copy what you still need.
+                  <em>Spacing only</em> means the words stayed the same. If someone else saves a
+                  newer version while you are away, Lesson3 cannot restore your changes
+                  automatically. Lesson3 shows all your unsaved work so you can copy what you still
+                  need.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -308,9 +313,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 </ol>
                 <p>
                   Removals are red and additions are green. If an area is marked{' '}
-                  <em>Spacing or document structure changed</em>, the words are the same but arranged
-                  differently. Lesson3 compares outcomes, overview, teaching steps, teacher
-                  reflection, and summary prompts separately.
+                  <em>Spacing or document structure changed</em>, the words are the same but
+                  arranged differently. Lesson3 compares outcomes, overview, implementation
+                  framework, teacher reflection, and summary prompts separately.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -329,8 +334,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Use <em>Insert link</em> below a text field to add a web address or choose a PDF
                     already available on this Lesson3 site. The address appears in parentheses and
-                    becomes clickable on screen and in the Word/PDF files. Web and PDF
-                    links open separately so your editor stays open.
+                    becomes clickable on screen and in the Word/PDF files. Web and PDF links open
+                    separately so your editor stays open.
                   </li>
                   <li>Bold, italics, and underlining are not supported.</li>
                   <li>
@@ -409,8 +414,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               <GuideAccordionPanel id="subject-admins.candidates" title="Review saved versions">
                 <p>
                   <em>Manage → Lesson plans → Candidate versions</em> lists saved versions that are
-                  not Official for your subjects and grades. Open one to review it, or delete one you
-                  no longer need. This section appears only when there are saved versions to review.
+                  not Official for your subjects and grades. Open one to review it, or delete one
+                  you no longer need. This section appears only when there are saved versions to
+                  review.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -441,8 +447,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               >
                 <ol className="guide-steps">
                   <li>
-                    In <em>Roles &amp; Access</em>, choose someone who already has editing access for
-                    this subject and grade.
+                    In <em>Roles &amp; Access</em>, choose someone who already has editing access
+                    for this subject and grade.
                   </li>
                   <li>Review the handover confirmation before continuing.</li>
                   <li>
@@ -464,9 +470,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             subtitle="Manage accounts, subjects, grades, and lesson plans across the site."
             anchorId="site-admins"
           >
-            <p>
-              Site administrators can manage all accounts, subjects, grades, and lesson plans.
-            </p>
+            <p>Site administrators can manage all accounts, subjects, grades, and lesson plans.</p>
 
             {can('site-admins.first-admin') && (
               <GuideAccordionPanel
@@ -476,9 +480,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   If no account exists yet, the sign-in page shows a one-time{' '}
                   <em>Create the first Site administrator</em> form. There is no default username or
-                  password.
-                  After creating the first account, create and test a second Site administrator so
-                  someone can still manage the site if you forget your password.
+                  password. After creating the first account, create and test a second Site
+                  administrator so someone can still manage the site if you forget your password.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -607,8 +610,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               </li>
               <li>
                 Every lesson plan has one <em>Official</em> version at a time. Teachers open the
-                Official version first. It does not control who can open other saved versions. Anyone
-                who is signed in can open a saved version if they have its link.
+                Official version first. It does not control who can open other saved versions.
+                Anyone who is signed in can open a saved version if they have its link.
               </li>
               <li>
                 Teachers with editing access and Subject-grade administrators can work only with the
