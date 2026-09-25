@@ -39,10 +39,10 @@ panel and its parent.
   the writing task in a new tab so an in-progress edit remains open.
 - Do not add full-text search. Use concise task headings and contextual links from the screens where
   each task begins.
-- Include seven explicitly labeled screenshot slots at the planned decision points: library search
-  and filtering, phone Share, editor, unsaved-work recovery, version promotion, account creation,
-  and lesson-plan upload. Each slot uses descriptive accessible text so it cannot be mistaken for a
-  real capture; replace the slot with a verified image when the matching screen capture is ready.
+- Include seven verified screenshots at the planned decision points: library search and filtering,
+  phone Share, editor, unsaved-work recovery, version promotion, account creation, and lesson-plan
+  upload. The captures show the local Lesson3 UI with illustrative demo data; refresh them when a
+  documented flow materially changes.
 
 ## Content integrity
 

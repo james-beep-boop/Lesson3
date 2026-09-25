@@ -1,15 +1,30 @@
-/** An explicit capture slot, kept visually distinct from a real product screenshot. */
-export default function GuideScreenshot({ description }: { description: string }) {
+import Image from 'next/image'
+
+type GuideScreenshotProps = {
+  src: string
+  alt: string
+  description: string
+  width: number
+  height: number
+}
+
+export default function GuideScreenshot({
+  src,
+  alt,
+  description,
+  width,
+  height,
+}: GuideScreenshotProps) {
   return (
     <figure className="guide-screenshot">
-      <div
-        className="guide-screenshot__placeholder"
-        role="img"
-        aria-label={`Screenshot to be added: ${description}`}
-      >
-        <span className="guide-screenshot__label">Screenshot to be added</span>
-        <span className="guide-screenshot__description">{description}</span>
-      </div>
+      <Image
+        className={`guide-screenshot__image${height > width ? ' guide-screenshot__image--phone' : ''}`}
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        sizes="(max-width: 900px) 100vw, 900px"
+      />
       <figcaption>{description}</figcaption>
     </figure>
   )

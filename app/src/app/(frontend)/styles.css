@@ -1699,28 +1699,16 @@ button.user-menu__item {
 .guide-screenshot {
   margin: var(--app-space-3) 0;
 }
-.guide-screenshot__placeholder {
-  display: flex;
-  min-height: 10rem;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-1);
-  padding: var(--app-space-3);
-  border: 1px dashed var(--line);
+.guide-screenshot__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg-soft);
-  color: var(--muted);
-  text-align: center;
 }
-.guide-screenshot__label {
-  font-size: var(--app-secondary-size);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.guide-screenshot__description {
-  color: var(--ink);
+.guide-screenshot__image--phone {
+  width: min(100%, 27rem);
+  margin-inline: auto;
 }
 .guide-screenshot figcaption {
   margin-top: var(--app-space-1);

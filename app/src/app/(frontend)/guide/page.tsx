@@ -94,7 +94,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>Open a lesson page to read the lesson and see its available actions.</li>
                 </ol>
                 <p>Each lesson opens at its Official version — the current approved copy.</p>
-                <GuideScreenshot description="Browse and filter the lesson library." />
+                <GuideScreenshot
+                  src="/guide-screenshots/library-search.jpg"
+                  alt="Lesson Plans library filtered by the search term Cell, showing Cell Structure for Biology Grade 10."
+                  description="Search for a topic to narrow the lesson library."
+                  width={1100}
+                  height={500}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -145,7 +151,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   are omitted — use <em>Email all — Word</em> or a larger screen. Email sends are
                   limited per day.
                 </p>
-                <GuideScreenshot description="Open the Share menu and download supporting documents on a phone." />
+                <GuideScreenshot
+                  src="/guide-screenshots/phone-share-menu.jpg"
+                  alt="A phone-sized lesson page with the Share menu open, showing document download, email, and colleague-message options."
+                  description="On a phone, open Share to email documents or message a colleague."
+                  width={430}
+                  height={630}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -232,7 +244,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   Close a preview tab to return to the editor. Choose <em>Back</em> at the top right
                   when you are done.
                 </p>
-                <GuideScreenshot description="The lesson editor and its preview controls." />
+                <GuideScreenshot
+                  src="/guide-screenshots/lesson-editor.jpg"
+                  alt="The lesson editor showing editable lesson fields and controls for saving, previewing, and opening Help."
+                  description="Edit lesson fields, preview changes, and save as a new version."
+                  width={1100}
+                  height={820}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -300,7 +318,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   version.
                 </p>
                 <p>The final action is permanent — discarding cannot be undone.</p>
-                <GuideScreenshot description="Review the unsaved-work recovery offer before restoring or discarding changes." />
+                <GuideScreenshot
+                  src="/guide-screenshots/unsaved-work-recovery.jpg"
+                  alt="The unsaved-changes recovery dialog showing changed lesson wording and options to restore, decide later, or discard it."
+                  description="Review unsaved wording and choose whether to restore it or discard it."
+                  width={1100}
+                  height={820}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -398,7 +422,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>The Official version is the one Teachers see by default.</p>
-                <GuideScreenshot description="Review versions and confirm a promotion, including the optional replaced-version deletion." />
+                <GuideScreenshot
+                  src="/guide-screenshots/version-promotion.jpg"
+                  alt="A non-Official lesson version with the Make Official action available."
+                  description="Review a candidate version before choosing Make Official."
+                  width={1100}
+                  height={820}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -514,7 +544,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     access. Test a new Site administrator in a private browser window.
                   </li>
                 </ol>
-                <GuideScreenshot description="Create an account, verify it, and assign its initial access." />
+                <GuideScreenshot
+                  src="/guide-screenshots/create-account.jpg"
+                  alt="The Site Admin Create new User form with fields for email, password, and display name."
+                  description="Create an account, verify it, and assign its initial access."
+                  width={1100}
+                  height={820}
+                />
               </GuideAccordionPanel>
             )}
 
@@ -572,7 +608,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     version.
                   </li>
                 </ol>
-                <GuideScreenshot description="Select lesson-plan files and review the upload before submitting." />
+                <GuideScreenshot
+                  src="/guide-screenshots/upload-lesson-plans.jpg"
+                  alt="The Site Admin Upload lesson plans panel with a selected JSON file and its upload button."
+                  description="Choose the lesson-plan files and check the selection before uploading."
+                  width={1100}
+                  height={820}
+                />
               </GuideAccordionPanel>
             )}
 
