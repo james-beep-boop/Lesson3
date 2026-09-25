@@ -41,16 +41,10 @@ describe('role-aware guide content', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Site administrators' }))
     expect(screen.getByRole('button', { name: 'Find and read a lesson' })).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Find and read a lesson' }))
-    expect(
-      screen.getByRole('img', {
-        name: 'Screenshot to be added: Browse and filter the lesson library.',
-      }),
-    ).not.toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open a lesson for editing' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
-    expect(
-      screen.getByText(/Manage lesson structure, access, and Official versions/),
-    ).not.toBeNull()
+    expect(screen.getByText(/Review lesson changes, manage editing access/)).not.toBeNull()
   })
 
   it('shows editing and subject-grade administration walkthroughs to a Subject-grade admin', async () => {
@@ -91,7 +85,7 @@ describe('role-aware guide content', () => {
     expect(
       screen.queryByRole('button', { name: 'Hand administration to another person' }),
     ).toBeNull()
-    expect(screen.getByRole('button', { name: 'Manage repository roles' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Manage user roles' })).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Create and verify an account' })).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'Set up the first Site administrator' }),

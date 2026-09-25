@@ -61,24 +61,22 @@ export function withAncestors(ids: Iterable<GuidePanelId>): GuidePanelId[] {
   return GUIDE_PANEL_IDS.filter((id) => open.has(id))
 }
 
+/** Next has already parsed the query string, so a single key is either absent, one value, or many. */
+function asArray(value: string | string[] | undefined): string[] {
+  return value == null ? [] : Array.isArray(value) ? value : [value]
+}
+
 export function resolveGuidePanelState(
   searchParams: Record<string, string | string[] | undefined> | undefined,
   available: readonly GuidePanelId[],
 ): { open: GuidePanelId[]; focusTarget: GuidePanelId | null } {
-  const query = new URLSearchParams()
-  for (const [key, value] of Object.entries(searchParams ?? {})) {
-    if (value == null) continue
-    for (const item of Array.isArray(value) ? value : [value]) query.append(key, item)
-  }
-
   const allowed = new Set(available)
-  const requested = query
-    .getAll('open')
+  const requested = asArray(searchParams?.open)
     .flatMap((value) => value.split(','))
     .map((value) => value.trim())
     .filter((value): value is GuidePanelId => isGuidePanelId(value) && allowed.has(value))
 
-  const rawTarget = query.get('at')
+  const rawTarget = asArray(searchParams?.at)[0]
   const focusTarget =
     rawTarget && isGuidePanelId(rawTarget) && allowed.has(rawTarget) ? rawTarget : null
   if (focusTarget) requested.push(focusTarget)

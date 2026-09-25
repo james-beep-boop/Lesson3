@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useId, useState } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 import { parentOf, withAncestors, type GuidePanelId } from './panelState'
 
@@ -29,7 +29,9 @@ export function GuideAccordion({
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState<GuidePanelId[]>(() => [...initialOpen])
-  const availableSet = new Set(available)
+  // `available` is a stable, server-computed prop for the lifetime of the page — recompute the Set
+  // only when it actually changes, not on every open/close re-render.
+  const availableSet = useMemo(() => new Set(available), [available])
 
   useEffect(() => {
     if (!focusTarget) return
@@ -72,8 +74,9 @@ export function GuideAccordionPanel({
   const Heading = nested ? 'h3' : 'h2'
   const { isOpen, toggle } = useGuideAccordion()
   const open = isOpen(id)
-  const reactId = useId()
-  const panelId = `guide-panel-${reactId}`
+  // Every GuidePanelId is rendered exactly once on the page, so `id` is already a stable, unique
+  // key — no need for `useId()`'s generated one.
+  const panelId = `guide-panel-${id}`
   const triggerId = `guide-trigger-${id}`
 
   return (

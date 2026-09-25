@@ -94,15 +94,16 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'a handover cannot be undone by the person who made it (D6a, amended 2026-08-19)',
-    claim: 'only a Site administrator can give it back',
+    claim: 'Only a Site administrator can make you an administrator again',
   },
   {
     what: "the successor must already hold editing access — the operator's blast-radius narrowing",
-    claim: 'must already have editing access there',
+    claim: 'someone who already has editing access',
   },
   {
     what: 'removal is Site-Admin-only, and nobody may resign',
-    claim: 'the only ones who can remove a Subject-grade administrator',
+    claim:
+      'Only a Site administrator can appoint, replace, or remove a Subject-grade administrator',
   },
   {
     // ⚑ Added 2026-08-30 with the lesson page's own PDF/Word pair. Both guides said "on a lesson
@@ -114,7 +115,7 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'the SPEC §8 email carve-out — the claim that was outright false until 2026-08-21',
-    claim: 'the addresses of the people listed',
+    claim: 'addresses only for people listed',
   },
   {
     what: 'a teacher on an email-less installation is NOT locked out — reveal-reset-link (D5) exists, and the guide said only "emails you a reset link" until 2026-08-22',
@@ -122,11 +123,11 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'the Site-Admin capability that rescues the case above, previously undocumented for users',
-    claim: 'Reset a password by hand',
+    claim: 'create a password-reset link and give it to the person',
   },
   {
     what: 'a fresh installation has no factory account or password',
-    claim: 'There are no default credentials',
+    claim: 'There is no default username or password',
   },
   {
     what: 'accounts created on a no-email installation must be verified by a Site administrator',
@@ -134,30 +135,30 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'the backup status distinguishes successful transport from demonstrated recovery',
-    claim: 'it does not prove that it can be restored',
+    claim: 'does not prove the backup can be restored',
   },
   // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
   // prior explanation, and it is the one place outside version-compare showing red/green diff
   // colours. These four are the facts they could act on and be wrong about.
   {
     what: 'recovery is OFFERED, never silently applied (SPEC §5) — the guarantee that makes the whole feature safe to have',
-    claim: 'never applied automatically',
+    claim: 'will not restore it unless you choose to',
   },
   {
     what: 'the capture is per-user, so a shared computer does not leak one teacher’s prose to the next',
-    claim: 'nobody else can see it',
+    claim: 'Only you can see it',
   },
   {
     what: 'the panel lists only DIFFERENCES, not the whole document (operator decision 2026-08-23)',
-    claim: 'only what differs from the saved version',
+    claim: 'shows only the changes you have not saved',
   },
   {
     what: 'a stale capture is read-only — it can be copied out but not restored, which is why the prose is still shown in full',
-    claim: 'cannot be put back automatically',
+    claim: 'cannot restore your changes automatically',
   },
   {
     what: 'discarding is irreversible, and the dialog offers it as a plain button',
-    claim: 'discarding cannot be undone',
+    claim: 'Discarding cannot be undone',
   },
   {
     // ⚑ Found 2026-09-24, reviewing a guide-rewrite plan. `USER_GUIDE.md` said "per subject-grade"
@@ -166,15 +167,19 @@ const CLAIMS: { what: string; claim: string }[] = [
     // teacher". `requestEditing.ts`'s own docblock is unambiguous: the throttle bucket is keyed
     // `${userId}:${sgId}` — one request per user per subject-grade per day. Neither guide said that.
     what: 'the editing-request throttle is per user AND per subject-grade, not shared or subject-wide',
-    claim: 'once per subject-grade per day, per teacher',
+    claim: 'once a day for each subject and grade. The limit applies separately to each teacher',
   },
   {
     what: 'a subject-grade is subject + grade together, e.g. Biology Grade 10 vs. Biology Grade 11',
-    claim: 'Biology Grade 10 and Biology Grade 11 are separate scopes',
+    claim: 'access to Biology Grade 10 does not include Biology Grade 11',
   },
   {
     what: 'Official is the default and trust marker, not an access boundary — a direct link to any version opens for any signed-in user',
-    claim: 'Official is the default and the trust marker, not a permission boundary',
+    claim: 'It does not control who can open other saved versions',
+  },
+  {
+    what: 'any signed-in user can open a saved version when they have its link',
+    claim: 'who is signed in can open a saved version if they have its link',
   },
 ]
 
