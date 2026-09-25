@@ -33,7 +33,19 @@ export default function RequestEditingButton({ planId }: { planId: number | stri
   }
 
   if (state === 'sent') {
-    return <span className="muted">Request sent — an administrator will be in touch.</span>
+    return (
+      <>
+        <span className="muted">Request sent — an administrator will be in touch.</span>
+        <a
+          className="request-editing-guide-link"
+          href="/guide?open=editing"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          What does editing access let me do?
+        </a>
+      </>
+    )
   }
   return (
     <>
@@ -51,6 +63,14 @@ export default function RequestEditingButton({ planId }: { planId: number | stri
           {error}
         </span>
       )}
+      <a
+        className="request-editing-guide-link"
+        href="/guide?open=editing"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        What does editing access let me do?
+      </a>
     </>
   )
 }

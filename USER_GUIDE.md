@@ -8,7 +8,10 @@ The main areas are **Lessons** (the library — the one list of every lesson pla
 people functions available to your role), and **Messages** (notes between repository users). Teachers
 with editing access also see version and comparison controls on the library and lesson pages.
 
-This file mirrors the in-app guide at `/guide`; keep the two in step when either changes.
+This is the complete offline reference for every user type. The in-app guide at `/guide` uses the
+same instructions in role-aware accordions: everyone sees the role overviews, while detailed task
+panels appear only when the signed-in user has the relevant access. Keep the facts in both surfaces
+in step when either changes.
 
 ## Teachers
 
@@ -21,7 +24,8 @@ Manage or see version/editing controls.
   link we email you before signing in. _Forgot password?_ on the same page emails you a reset link.
   If your school's installation cannot send email — some run with no internet — ask a Site
   administrator to create and verify your account. They can also create a reset link and give it to
-  you directly.
+  you directly. For security your session ends after a while and signs you out automatically — just
+  sign in again to continue.
 - **Browse lesson plans:** the home page groups lessons by subject-grade, strand, and sub-strand in
   curriculum order.
 - **Search and filter:** use the search box to find a subject, grade, strand, or sub-strand, and use
@@ -45,7 +49,8 @@ Manage or see version/editing controls.
   generated documents (as a .zip of that format) to any email address — your own, or a colleague's. Sends are limited per
   day.
 - **Want to edit?** use _Request editing access_ on a lesson page. The app messages the appropriate
-  administrators for that subject-grade; requests are limited to once per subject-grade per day.
+  administrators for that subject-grade; requests are limited to once per subject-grade per day, per
+  teacher — a different teacher requesting the same subject-grade is not affected.
 - **Messages:** open _Messages_ from the menu under your avatar (top right) to send a note to any
   user of the repository — a lesson page's _Share → Message a colleague_ item attaches that lesson
   to your note. Each message you receive has a _Reply_ button that opens a box to write straight back. Unread

@@ -1,11 +1,22 @@
 import React from 'react'
 
-import { requireUser } from '@/lib/session'
 import PageBackLink from '@/components/PageBackLink'
 import PageHeader from '@/components/PageHeader'
+import { GuideAccordion, GuideAccordionPanel } from '@/components/Guide/Accordion'
+import GuideScreenshot from '@/components/Guide/GuideScreenshot'
+import { computeGuideAvailablePanels } from '@/components/Guide/availability'
+import { resolveGuidePanelState, type GuidePanelId } from '@/components/Guide/panelState'
+import { requireUser } from '@/lib/session'
 
-export default async function UserGuidePage() {
-  await requireUser()
+type UserGuidePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function UserGuidePage({ searchParams }: UserGuidePageProps) {
+  const [{ user }, params] = await Promise.all([requireUser(), searchParams])
+  const available = computeGuideAvailablePanels(user)
+  const { open, focusTarget } = resolveGuidePanelState(params, available)
+  const can = (id: GuidePanelId) => available.includes(id)
 
   return (
     <article className="guide">
@@ -16,301 +27,623 @@ export default async function UserGuidePage() {
           actions={<PageBackLink href="/" label="Back to lesson plans" />}
         />
         <p>
-          The repository stores ARES lesson plans as structured lesson data. You browse, edit,
-          preview, and export that data in the app; the system generates the Word and PDF documents
-          for you.
+          Follow the steps for the task you want to complete. Your access applies to particular
+          subject-grades, so the editing and administrator tasks below appear when you have those
+          permissions.
         </p>
         <p>
           The main areas are <strong>Lessons</strong> (the library — the one list of every lesson
           plan), the <strong>lesson page</strong> (read, favorite, download, email, and share one
           lesson), <strong>Manage</strong> (editing, housekeeping, and people functions available to
-          your role), and <strong>Messages</strong> (notes between repository users). Teachers with
-          editing access also see version and comparison controls on the library and lesson pages.
+          your role), and <strong>Messages</strong> (notes between repository users).
         </p>
       </header>
 
-      <nav className="guide-toc" aria-label="Guide sections">
-        <a href="#teachers">Teachers</a>
-        {/* Anchor id stays #editors so existing links don't break; the label reframes to "Editing". */}
-        <a href="#editors">Editing</a>
-        <a href="#subject-admins">Subject-grade administrators</a>
-        <a href="#site-admins">Site administrators</a>
-        <a href="#writing">Writing in fields</a>
-      </nav>
+      <GuideAccordion available={available} initialOpen={open} focusTarget={focusTarget}>
+        <div className="guide-accordion">
+          <GuideAccordionPanel
+            id="teachers"
+            title="Teachers"
+            subtitle="Find, read, save, and share lesson plans."
+            anchorId="teachers"
+          >
+            <p>
+              Every signed-in user can use these lesson-library tasks. A Teacher is the starting
+              access level; you may also have editing access in one or more subject-grades.
+            </p>
 
-      <section id="teachers" className="guide-section">
-        <h2>Teachers</h2>
-        {/* Version-history mechanics live in the Editing section (critique 2026-07-12 §4) — Teachers
-            have no version selector, so the chip/Compare explanation was noise here. Precisely:
-            version reads still run under the caller's Payload access (`overrideAccess: false` in
-            `lib/readBundle.ts`); "Official" is just the default + trust marker, NOT an extra
-            role/scope gate on top of that. The previous wording ("Teachers see only Official") implied
-            a permission boundary that does not exist — don't restore it, and don't over-correct to
-            "versions are ungated" either (2026-07-21 review). */}
-        <p>
-          Teachers use the Lesson Plans area to find lesson plans, read them on screen, and download
-          the generated documents. Each lesson plan opens at its Official version — the one current,
-          approved copy. Teachers get no version or editing controls.
-        </p>
-        <ul className="guide-list">
-          <li>
-            <strong>Your account:</strong> create one from the sign-in page’s <em>Sign up</em> link,
-            then follow the verification link we email you before signing in — verified accounts can
-            read and download everything. <em>Forgot password?</em> on the same page emails you a
-            reset link. If your school’s installation cannot send email — some run with no internet
-            — ask a Site administrator to create and verify your account. They can also create a
-            reset link and give it to you directly. For security your session ends after a while and
-            signs you out automatically — just sign in again to continue.
-          </li>
-          <li>
-            <strong>Browse lesson plans:</strong> the home page groups lessons by subject-grade,
-            strand, and sub-strand in curriculum order.
-          </li>
-          <li>
-            <strong>Search &amp; filter:</strong> use the search box to find a subject, grade,
-            strand, or sub-strand, and the subject / grade buttons under it to narrow the whole
-            list. They combine — e.g. filter to Biology Grade 10, then search within it.
-          </li>
-          <li>
-            <strong>Favorites:</strong> click the star on a library row — or the <em>☆ Favorite</em>{' '}
-            button on a lesson page — to keep that lesson in a My favorites list at the top of the
-            home page. Your star always shows the lesson’s current Official version, even when a
-            newer one is promoted later. (If you have editing access the star works differently: it
-            pins the exact version you starred.) Favorites are personal — only you see yours.
-          </li>
-          <li>
-            <strong>Read on screen:</strong> open a sub-strand to view the Lesson Sequence, Final
-            Explanation, and Summary Table when those documents are present.
-          </li>
-          <li>
-            <strong>Open or download a document:</strong> on the home page, every lesson row has{' '}
-            <em>PDF</em> and <em>Word</em> buttons for its lesson plan — <em>PDF</em> opens in a new
-            browser tab, <em>Word</em> downloads the .docx (on a phone, Word is available by email
-            instead) — and any Final explanation or Summary table sit behind a{' '}
-            <em>Supporting documents</em> line. A lesson page has its own <em>PDF</em> and{' '}
-            <em>Word</em> buttons for the lesson plan, in the action bar immediately before{' '}
-            <em>Share</em>; every other download lives in the <em>Share</em> menu: the supporting
-            documents one at a time under <em>Download one document</em>, plus <em>Download all</em>{' '}
-            as a Word or PDF .zip. On a phone the Word downloads are omitted — use{' '}
-            <em>Email all — Word</em>, or a larger screen.
-          </li>
-          <li>
-            <strong>Email:</strong> choose <em>Share → Email all — Word</em> or{' '}
-            <em>Email all — PDF</em>
-            on a lesson page to send the generated documents (as a .zip of that format) to any email
-            address — your own, or a colleague’s. Sends are limited per day.
-          </li>
-          <li>
-            <strong>Want to edit?</strong> use <em>Request editing access</em> on any lesson page —
-            it messages the right administrators for you (once per subject per day). If they grant
-            it, the editing controls appear for that subject-grade.
-          </li>
-          <li>
-            <strong>Messages:</strong> open <em>Messages</em> from the menu under your avatar (top
-            right) to send a note to any user of the repository — a lesson page’s{' '}
-            <em>Share → Message a colleague</em> item attaches that lesson to your note. Each
-            message you receive has a <em>Reply</em> button that opens a box to write straight back.
-            Unread messages show as a small count on your avatar, and you get a short email telling
-            you a message is waiting (never its content). Opening Messages marks everything shown as
-            read.
-          </li>
-        </ul>
-      </section>
+            {can('teachers.sign-in') && (
+              <GuideAccordionPanel id="teachers.sign-in" title="Sign in or manage your account">
+                <p>To create and use your account:</p>
+                <ol className="guide-steps">
+                  <li>
+                    Choose <em>Sign up</em> on the sign-in page and follow the verification link we
+                    email you.
+                  </li>
+                  <li>
+                    Sign in with your verified account. Use <em>Forgot password?</em> if you need a
+                    reset link.
+                  </li>
+                  <li>
+                    If this installation cannot send email, ask a Site administrator to create and
+                    verify your account, or create a reset link and give it to you directly.
+                  </li>
+                </ol>
+                <p>
+                  For security, your session ends after a while and signs you out automatically.
+                  Sign in again to continue.
+                </p>
+              </GuideAccordionPanel>
+            )}
 
-      {/* Anchor id stays #editors (existing links); the section is titled "Editing" and framed as a
-          capability teachers are granted, not a separate user type (DESIGN-user-model-language). */}
-      <section id="editors" className="guide-section">
-        <h2>Editing</h2>
-        <p>
-          A teacher with editing access can do everything any teacher can, plus edit the prose
-          fields for the subject-grades they have been granted — lesson titles, specific learning
-          outcomes, overviews, learner experiences, teacher moves, sensemaking strategies, formative
-          assessments, teacher reflections, summary-table text, and Final Explanation prompts. They
-          never edit a Word file directly.
-        </p>
-        <ul className="guide-list">
-          <li>
-            <strong>Edit from the lesson:</strong> open a lesson in the library and press
-            <em> Edit</em>. The editing page opens ready to type, showing only the fields you may
-            change. <em>Quick preview ↗</em> checks your content, while <em>Formatted PDF ↗</em>{' '}
-            shows the final layout. Both open in a new tab and include unsaved edits; close that tab
-            to return to the editor. Use <em>Help</em> for the short writing rules. <em>Back</em> at
-            the top right returns you when you are done.
-          </li>
-          <li>
-            <strong>Saving makes a new version:</strong> <em>Save</em> stores your edits as a new
-            version of the lesson plan — the version you opened is never changed in place. A
-            Subject-grade or Site administrator marks a saved version Official when it is ready.
-          </li>
-          <li>
-            <strong>Your drafts live in Manage:</strong>{' '}
-            <em>Manage → Lesson plans → My saved versions</em> lists the versions you have saved —
-            click one to continue editing, or delete the ones you no longer need.
-          </li>
-          <li>
-            <strong>Browse version history:</strong> a <em>N versions</em> chip (on library rows and
-            the lesson page) opens a panel listing every retained version — newest first, Official
-            pinned on top, with each version’s author, date, and favorite star. When there is more
-            than one version, a <em>Compare</em> button shows two versions side by side with
-            removals in red and additions in green.
-          </li>
-          <li>
-            <strong>Unsaved work is backed up for you:</strong> while you edit, a notice under the
-            buttons shows when your unsaved changes were last backed up. The backup is yours alone —
-            nobody else can see it, not even someone signing in on the same computer — and it is
-            never applied automatically.
-          </li>
-          <li>
-            <strong>Coming back to unsaved work:</strong> if you leave the editor without saving,
-            the next time you open that version you are offered those changes back. The panel lists
-            only what differs from the saved version, and shows each change word by word: your
-            unsaved wording in green, what the saved version says struck through in red. A change
-            that cannot be shown that way is named instead — <em>Emptied</em> where the field would
-            be cleared, <em>Paragraph breaks changed</em> where only the line breaks moved,{' '}
-            <em>Spacing only</em> where nothing visible differs. Then choose to put the changes
-            back, decide later, or discard them; discarding cannot be undone.
-          </li>
-          <li>
-            <strong>If someone else saved in the meantime:</strong> your changes cannot be put back
-            automatically, because the lesson plan moved underneath them. They are still shown in
-            full so you can read them and copy across whatever you still want.
-          </li>
-          <li>
-            <strong>Find what changed:</strong> Compare works area by area — a lesson’s outcomes,
-            overview, implementation framework, teacher reflection and summary prompts are each
-            compared on their own. The page opens with a count of the changed areas and a list you
-            can click to jump straight to any of them, and shows only the areas that changed. Turn
-            off <em>Changes only</em> to read the two versions in full. An area marked{' '}
-            <em>Spacing or document structure changed</em> differs only in how the text is broken up
-            — the wording is the same, which is why nothing in it is coloured.
-          </li>
-        </ul>
-      </section>
+            {can('teachers.find-read') && (
+              <GuideAccordionPanel id="teachers.find-read" title="Find and read a lesson">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Lessons</em>. The library is grouped by subject-grade, strand, and
+                    sub-strand in curriculum order.
+                  </li>
+                  <li>
+                    Enter a subject, grade, strand, or sub-strand in the search box. Use the subject
+                    and grade buttons to narrow the results; search and filters work together.
+                  </li>
+                  <li>
+                    Open a sub-strand to read its Lesson Sequence, Final Explanation, and Summary
+                    Table when those documents are present.
+                  </li>
+                  <li>Open a lesson page to read the lesson and see its available actions.</li>
+                </ol>
+                <p>Each lesson opens at its Official version — the current approved copy.</p>
+                <GuideScreenshot description="Browse and filter the lesson library." />
+              </GuideAccordionPanel>
+            )}
 
-      <section id="subject-admins" className="guide-section">
-        <h2>Subject-grade administrators</h2>
-        <p>
-          A Subject-grade administrator can do everything a teacher with editing access can, for
-          their assigned subject-grades. They also manage the structure and official content
-          controls for those subject-grades.
-        </p>
-        <ul className="guide-list">
-          <li>
-            <strong>Manage structure:</strong> add, remove, and reorder lessons and instructional
-            phases. To add a lesson, duplicate an existing lesson row, then edit the copy.
-          </li>
-          <li>
-            <strong>Edit controlled fields:</strong> update Document settings, the Sub-strand
-            overview, lesson duration, ARES keywords, phase choices, assessment exemplars, and
-            rubric rows.
-          </li>
-          <li>
-            <strong>Make Official:</strong> on a lesson page, promote a saved version to the
-            Official one Teachers see — optionally deleting the version it replaces.
-          </li>
-          <li>
-            <strong>Tidy candidates:</strong> <em>Manage → Lesson plans → Candidate versions</em>{' '}
-            lists every saved, non-Official version in their subject-grades, with delete. The
-            section appears once there is something to tidy.
-          </li>
-          <li>
-            <strong>Roles &amp; Access:</strong> <em>Manage → Users → Roles &amp; Access</em> gives
-            a teacher editing access, or removes it, per subject-grade. It also shows who
-            administers each of your subject-grades, and the addresses of the people listed there —
-            granting access is a permission decision, and two teachers can share a display name.
-          </li>
-          <li>
-            <strong>Hand administration over:</strong> in the same panel you can make one of your
-            subject-grade’s existing editors its Subject-grade administrator. You are demoted to
-            editing access in the same step, and only a Site administrator can give it back — so the
-            panel asks you to confirm before it happens. Whoever you hand it to must already have
-            editing access there, which keeps the choice to people already trusted with that
-            subject-grade’s content.
-          </li>
-        </ul>
-      </section>
+            {can('teachers.favorites') && (
+              <GuideAccordionPanel id="teachers.favorites" title="Save a favorite">
+                <ol className="guide-steps">
+                  <li>
+                    Select the star on a library row or choose <em>☆ Favorite</em> on the lesson
+                    page.
+                  </li>
+                  <li>
+                    Find the lesson later in <em>My favorites</em> at the top of the home page.
+                  </li>
+                </ol>
+                <p>
+                  Favorites are personal — only you see yours. For Teachers, the favorite follows
+                  the lesson’s current Official version when a newer one is promoted. If you have
+                  editing access, a favorite pins the exact version starred and a non-Official pin
+                  is labelled <code>vX (pinned)</code>.
+                </p>
+              </GuideAccordionPanel>
+            )}
 
-      <section id="site-admins" className="guide-section">
-        <h2>Site administrators</h2>
-        <p>
-          Site administrators have full access across the repository. They manage users, curriculum
-          taxonomy, lesson-plan upload/import, and all lesson plans.
-        </p>
-        <ul className="guide-list">
-          <li>
-            <strong>Set up the first administrators:</strong> a completely empty installation shows
-            a one-time <em>Create the first Site administrator</em> form at <em>/login</em>. There
-            are no default credentials, and the address and password are not stored in <em>.env</em>
-            . After creating the first account, create and test a second Site administrator so one
-            forgotten password cannot leave the site without an administrator.
-          </li>
-          <li>
-            <strong>Everything lives on Manage:</strong> upload lesson plans (each upload creates a
-            lesson plan and its first Official version), repair plans that have no Official version,
-            delete lesson plans (with all their versions), and reach the Users and Curriculum lists.
-          </li>
-          <li>
-            <strong>Create accounts without email:</strong> use{' '}
-            <em>Manage → Users → Accounts → Create user</em>, then open the new account and choose{' '}
-            <em>Mark verified</em>. The person cannot sign in until that is done. Use{' '}
-            <em>Make Site Administrator</em> when the new account should be another Site
-            administrator, and test it in a private browser window.
-          </li>
-          <li>
-            <strong>Manage people:</strong> grant Site administrator access, and grant editing
-            access or Subject-grade administrator access by subject-grade. Site administrators are
-            also the only ones who can <strong>remove</strong> a Subject-grade administrator: an
-            administrator may hand the role on, but nobody can take it away from them, and nobody
-            can resign it.
-          </li>
-          <li>
-            <strong>Reset a password by hand:</strong> where email is not set up, you can create a
-            one-time reset link for an account and hand it over. You never see or choose the
-            password — the person sets their own through the normal reset page.
-          </li>
-          <li>
-            <strong>See what this installation is:</strong> Manage → System reports the address,
-            whether email and public sharing are available, whether PDF output is working, where
-            backups are sent, when one last succeeded, and whether <em>Backup recovery</em> says
-            this installation holds its own decryption key. A recent successful backup means an
-            encrypted copy was sent; it does not prove that it can be restored. Everything there is
-            read-only: those settings are decided on the server, so changing one is a server job,
-            not a click.
-          </li>
-          <li>
-            <strong>Manage curriculum:</strong> maintain Subjects and Subject Grades before lesson
-            plans are uploaded.
-          </li>
-          <li>
-            <strong>Review everything:</strong> inspect, edit, export, mark Official, or delete
-            lesson plans across all subjects and grades.
-          </li>
-        </ul>
-      </section>
+            {can('teachers.documents') && (
+              <GuideAccordionPanel
+                id="teachers.documents"
+                title="Download, email, or share documents"
+              >
+                <p>On a lesson page:</p>
+                <ol className="guide-steps">
+                  <li>
+                    The lesson page has its own PDF and Word buttons for the lesson plan in the
+                    action bar. PDF opens in a new tab; Word downloads a .docx file.
+                  </li>
+                  <li>
+                    Choose <em>Share</em> for supporting documents, <em>Download all</em> as a Word
+                    or PDF .zip, or <em>Email all</em> to send the generated documents to an email
+                    address.
+                  </li>
+                  <li>
+                    Choose <em>Share → Message a colleague</em> to send a repository user a note
+                    with the lesson attached.
+                  </li>
+                </ol>
+                <p>
+                  On the library page, each lesson row has its own PDF and Word buttons; supporting
+                  documents appear behind <em>Supporting documents</em>. On a phone, Word downloads
+                  are omitted — use <em>Email all — Word</em> or a larger screen. Email sends are
+                  limited per day.
+                </p>
+                <GuideScreenshot description="Open the Share menu and download supporting documents on a phone." />
+              </GuideAccordionPanel>
+            )}
 
-      <section id="writing" className="guide-section">
-        <h2>Writing in Fields</h2>
-        <p>
-          These rules are also available from <em>Help</em> at the top of the editor.
-        </p>
-        <ul className="guide-list">
-          <li>Start a new line to make a new paragraph.</li>
-          <li>
-            Start a line with <code>- </code> to make a bullet.
-          </li>
-          <li>
-            Use <em>Insert link</em> beneath a prose field to insert an internet address or choose a
-            PDF already on the Rock. The address appears in parentheses and becomes clickable in the
-            on-screen view and generated Word/PDF documents. Web and PDF links open separately so
-            your editor stays open.
-          </li>
-          <li>Bold, italics, and underlining are not supported.</li>
-          <li>
-            Edit the field that matches the document section you want to change. The exported DOCX
-            and PDF are generated from those fields.
-          </li>
-        </ul>
-      </section>
+            {can('teachers.messages') && (
+              <GuideAccordionPanel id="teachers.messages" title="Send and reply to messages">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Messages</em> from the menu under your avatar.
+                  </li>
+                  <li>
+                    Choose a repository user and write your note. A lesson page’s{' '}
+                    <em>Share → Message a colleague</em> item attaches that lesson.
+                  </li>
+                  <li>
+                    Choose <em>Reply</em> on a message you receive to write back.
+                  </li>
+                </ol>
+                <p>
+                  Unread messages show as a count on your avatar. You get a short email saying a
+                  message is waiting, never its content. Opening Messages marks everything shown as
+                  read.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('teachers.request-editing') && (
+              <GuideAccordionPanel id="teachers.request-editing" title="Request editing access">
+                <ol className="guide-steps">
+                  <li>Open the lesson in the subject-grade you want to edit.</li>
+                  <li>
+                    Choose <em>Request editing access</em> on the lesson page.
+                  </li>
+                  <li>
+                    The app messages the appropriate administrators. If they grant access, editing
+                    controls appear for that subject-grade.
+                  </li>
+                </ol>
+                <p>
+                  Requests are limited to once per subject-grade per day, per teacher — a different
+                  teacher requesting the same subject-grade is not affected.
+                </p>
+                <p>
+                  <a href="/guide?open=editing" target="_blank" rel="noopener noreferrer">
+                    See what editing access lets you do
+                  </a>
+                  .
+                </p>
+              </GuideAccordionPanel>
+            )}
+          </GuideAccordionPanel>
+
+          <GuideAccordionPanel
+            id="editing"
+            title="Editing"
+            subtitle="Edit lesson prose and work with saved versions when you have editing access."
+            anchorId="editors"
+          >
+            <p>
+              Editing access is a capability granted for particular subject-grades. Subject-grade
+              and Site administrators can also edit. Teachers with editing access can change lesson
+              titles, specific learning outcomes, overviews, learner experiences, teacher moves,
+              sensemaking strategies, formative assessments, teacher reflections, summary-table
+              text, and Final Explanation prompts. You never edit a Word file directly.
+            </p>
+
+            {can('editing.open-edit') && (
+              <GuideAccordionPanel id="editing.open-edit" title="Open a lesson for editing">
+                <ol className="guide-steps">
+                  <li>Open a lesson in a subject-grade where you have editing access.</li>
+                  <li>
+                    Choose <em>Edit</em>. The editing page opens ready to type, showing only the
+                    fields you may change.
+                  </li>
+                  <li>
+                    Enter your changes in the field that matches the document section you want to
+                    update.
+                  </li>
+                  <li>
+                    Choose <em>Quick preview ↗</em> to check the content or <em>Formatted PDF ↗</em>{' '}
+                    to check the final layout. Each opens in a new tab and includes unsaved edits.
+                  </li>
+                </ol>
+                <p>
+                  Close a preview tab to return to the editor. Choose <em>Back</em> at the top right
+                  when you are done.
+                </p>
+                <GuideScreenshot description="The lesson editor and its preview controls." />
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.save') && (
+              <GuideAccordionPanel id="editing.save" title="Save your edits as a new version">
+                <ol className="guide-steps">
+                  <li>Review your changes in Quick preview or Formatted PDF.</li>
+                  <li>
+                    Choose <em>Save</em>. Lesson3 stores your edits as a new version; it never
+                    changes the version you opened in place.
+                  </li>
+                  <li>
+                    A Subject-grade or Site administrator can mark the saved version Official when
+                    it is ready.
+                  </li>
+                </ol>
+                <p>
+                  Your saved versions are in <em>Manage → Lesson plans → My saved versions</em>.
+                  Choose one to continue editing or delete one you no longer need.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.saved-versions') && (
+              <GuideAccordionPanel
+                id="editing.saved-versions"
+                title="Find a saved version or compare versions"
+              >
+                <p>
+                  The <em>N versions</em> panel on library rows and lesson pages lists retained
+                  versions, newest first, with Official pinned on top. Each row shows its author,
+                  date, and favorite star. Choose <em>Compare</em> when more than one version is
+                  available.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.recovery') && (
+              <GuideAccordionPanel id="editing.recovery" title="Recover unsaved work">
+                <p>
+                  While you edit, a notice under the buttons shows when your unsaved changes were
+                  last backed up. The backup is yours alone — nobody else can see it, not even
+                  someone signing in on the same computer — and it is never applied automatically.
+                </p>
+                <ol className="guide-steps">
+                  <li>
+                    If you leave without saving, reopen that version to see the recovery offer.
+                  </li>
+                  <li>
+                    Review the listed differences. Your unsaved wording is green; saved wording
+                    being replaced is struck through in red.
+                  </li>
+                  <li>
+                    Choose to restore the changes, decide later, or discard them. Discarding cannot
+                    be undone.
+                  </li>
+                </ol>
+                <p>
+                  Changes that cannot be shown word by word are labelled <em>Emptied</em> when a
+                  field would be cleared, <em>Paragraph breaks changed</em> when only line breaks
+                  moved, or <em>Spacing only</em> when no visible wording differs. If someone else
+                  saved in the meantime, your changes cannot be put back automatically; they remain
+                  visible in full so you can copy what you still want. When the recovery offer
+                  compares work against the saved version, it shows only what differs from the saved
+                  version.
+                </p>
+                <p>The final action is permanent — discarding cannot be undone.</p>
+                <GuideScreenshot description="Review the unsaved-work recovery offer before restoring or discarding changes." />
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.compare') && (
+              <GuideAccordionPanel id="editing.compare" title="Compare two versions">
+                <ol className="guide-steps">
+                  <li>
+                    Open the <em>N versions</em> panel and choose <em>Compare</em>.
+                  </li>
+                  <li>
+                    Review the count and list of changed areas, then choose an area to jump to it.
+                  </li>
+                  <li>
+                    Use <em>Changes only</em> to show changed areas, or turn it off to read both
+                    versions in full.
+                  </li>
+                </ol>
+                <p>
+                  Removals are red and additions are green. An area marked{' '}
+                  <em>Spacing or document structure changed</em> has the same wording broken up
+                  differently, so no text is coloured. Areas are compared separately: outcomes,
+                  overview, implementation framework, teacher reflection, and summary prompts.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('editing.writing') && (
+              <GuideAccordionPanel
+                id="editing.writing"
+                title="Write in lesson fields"
+                anchorId="writing"
+              >
+                <ul className="guide-list">
+                  <li>Start a new line to make a new paragraph.</li>
+                  <li>
+                    Start a line with <code>- </code> to make a bullet.
+                  </li>
+                  <li>
+                    Use <em>Insert link</em> beneath a prose field to insert an internet address or
+                    choose a PDF already on the Rock. The address appears in parentheses and becomes
+                    clickable in the on-screen view and generated Word/PDF documents. Web and PDF
+                    links open separately so your editor stays open.
+                  </li>
+                  <li>Bold, italics, and underlining are not supported.</li>
+                  <li>
+                    Edit the field that matches the document section you want to change. The
+                    exported DOCX and PDF are generated from those fields.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    href="/guide?open=editing&at=editing.writing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open these writing rules in the full guide
+                  </a>
+                  .
+                </p>
+              </GuideAccordionPanel>
+            )}
+          </GuideAccordionPanel>
+
+          <GuideAccordionPanel
+            id="subject-admins"
+            title="Subject-grade administrators"
+            subtitle="Manage lesson structure, access, and Official versions in assigned subject-grades."
+            anchorId="subject-admins"
+          >
+            <p>
+              A Subject-grade administrator can do everything a teacher with editing access can, for
+              their assigned subject-grades. They also manage the structure and official content
+              controls for those subject-grades.
+            </p>
+
+            {can('subject-admins.promote') && (
+              <GuideAccordionPanel
+                id="subject-admins.promote"
+                title="Review a candidate and make it Official"
+              >
+                <ol className="guide-steps">
+                  <li>
+                    Open the lesson page and review the saved versions in the <em>N versions</em>{' '}
+                    panel.
+                  </li>
+                  <li>
+                    Use <em>Compare</em> to review changes when more than one version is available.
+                  </li>
+                  <li>
+                    Choose the version that is ready, then choose <em>Make Official</em>.
+                  </li>
+                  <li>
+                    Review the confirmation carefully. You may optionally delete the version being
+                    replaced.
+                  </li>
+                </ol>
+                <p>The Official version is the one Teachers see by default.</p>
+                <GuideScreenshot description="Review versions and confirm a promotion, including the optional replaced-version deletion." />
+              </GuideAccordionPanel>
+            )}
+
+            {can('subject-admins.structure') && (
+              <GuideAccordionPanel
+                id="subject-admins.structure"
+                title="Manage lesson structure and controlled fields"
+              >
+                <ul className="guide-list">
+                  <li>Add a lesson by duplicating an existing lesson row, then edit the copy.</li>
+                  <li>Add, remove, and reorder lessons and instructional phases.</li>
+                  <li>
+                    Update Document settings, the Sub-strand overview, lesson duration, ARES
+                    keywords, phase choices, assessment exemplars, and rubric rows.
+                  </li>
+                </ul>
+              </GuideAccordionPanel>
+            )}
+
+            {can('subject-admins.candidates') && (
+              <GuideAccordionPanel id="subject-admins.candidates" title="Review candidate versions">
+                <p>
+                  <em>Manage → Lesson plans → Candidate versions</em> lists saved, non-Official
+                  versions in your subject-grades. Open one to review it or delete one that is no
+                  longer needed. The section appears when there is something to tidy.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('subject-admins.access') && (
+              <GuideAccordionPanel
+                id="subject-admins.access"
+                title="Grant or remove editing access"
+              >
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Manage → Users → Roles &amp; Access</em>.
+                  </li>
+                  <li>Find the subject-grade you administer or need to manage.</li>
+                  <li>Grant a teacher editing access or remove an existing editing grant.</li>
+                </ol>
+                <p>
+                  The panel shows who administers each subject-grade and the addresses of the people
+                  listed there — granting access is a permission decision, and two teachers can
+                  share a display name.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('subject-admins.handover') && (
+              <GuideAccordionPanel
+                id="subject-admins.handover"
+                title="Hand administration to another person"
+              >
+                <ol className="guide-steps">
+                  <li>
+                    In <em>Roles &amp; Access</em>, choose an existing editor for your
+                    subject-grade.
+                  </li>
+                  <li>Review the handover confirmation before continuing.</li>
+                  <li>
+                    Confirm to make them the Subject-grade administrator. You are demoted to editing
+                    access in the same step.
+                  </li>
+                </ol>
+                <p>
+                  Whoever you hand it to must already have editing access there; only a Site
+                  administrator can give it back, so check the choice carefully.
+                </p>
+              </GuideAccordionPanel>
+            )}
+          </GuideAccordionPanel>
+
+          <GuideAccordionPanel
+            id="site-admins"
+            title="Site administrators"
+            subtitle="Manage accounts, curriculum, imports, and lesson plans across the repository."
+            anchorId="site-admins"
+          >
+            <p>
+              Site administrators have full access across the repository. They manage users,
+              curriculum taxonomy, lesson-plan upload/import, and all lesson plans.
+            </p>
+
+            {can('site-admins.first-admin') && (
+              <GuideAccordionPanel
+                id="site-admins.first-admin"
+                title="Set up the first Site administrator"
+              >
+                <p>
+                  A completely empty installation shows a one-time{' '}
+                  <em>Create the first Site administrator</em> form at <em>/login</em>. There are no
+                  default credentials, and the address and password are not stored in <em>.env</em>.
+                  After creating the first account, create and test a second Site administrator so
+                  one forgotten password cannot leave the site without an administrator.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.accounts') && (
+              <GuideAccordionPanel id="site-admins.accounts" title="Create and verify an account">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Manage → Users → Accounts</em> and choose <em>Create user</em>.
+                  </li>
+                  <li>Enter the account details and save the new user.</li>
+                  <li>
+                    Open the account and choose <em>Mark verified</em>. The person cannot sign in
+                    until that is done.
+                  </li>
+                  <li>
+                    Use <em>Make Site Administrator</em> only when the account should have site-wide
+                    access. Test a new Site administrator in a private browser window.
+                  </li>
+                </ol>
+                <GuideScreenshot description="Create an account, verify it, and assign its initial access." />
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.passwords') && (
+              <GuideAccordionPanel
+                id="site-admins.passwords"
+                title="Reset a password when email is unavailable"
+              >
+                <p>
+                  Reset a password by hand when email is not set up: create a one-time reset link
+                  for the account and give it to the person. You never see or choose their password;
+                  they set it themselves through the normal reset page.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.roles') && (
+              <GuideAccordionPanel id="site-admins.roles" title="Manage repository roles">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Manage → Users → Roles &amp; Access</em>.
+                  </li>
+                  <li>
+                    Grant Site administrator access when someone needs repository-wide access.
+                  </li>
+                  <li>
+                    Grant editing access or appoint a Subject-grade administrator for each relevant
+                    subject-grade.
+                  </li>
+                  <li>
+                    Replace or remove a Subject-grade administrator when needed. Site administrators
+                    are the only ones who can remove a Subject-grade administrator; a Subject-grade
+                    administrator can hand it to an existing editor but cannot be removed by another
+                    Subject-grade admin.
+                  </li>
+                </ol>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.curriculum') && (
+              <GuideAccordionPanel id="site-admins.curriculum" title="Set up subjects and grades">
+                <p>Maintain Subjects and Subject Grades before lesson plans are uploaded.</p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.upload') && (
+              <GuideAccordionPanel id="site-admins.upload" title="Upload lesson plans">
+                <ol className="guide-steps">
+                  <li>
+                    Open <em>Manage → Lesson plans → Upload lesson plans</em>.
+                  </li>
+                  <li>Select the lesson-plan files to upload and review the selected files.</li>
+                  <li>
+                    Submit the upload. Each upload creates a lesson plan and its first Official
+                    version.
+                  </li>
+                </ol>
+                <GuideScreenshot description="Select lesson-plan files and review the upload before submitting." />
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.repair') && (
+              <GuideAccordionPanel
+                id="site-admins.repair"
+                title="Repair a plan with no Official version"
+              >
+                <p>
+                  Use the Repair panel in Manage to review plans that have no Official version and
+                  repair the plan that needs one.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.delete') && (
+              <GuideAccordionPanel id="site-admins.delete" title="Delete a lesson plan">
+                <p>
+                  Deleting a lesson plan also deletes all its versions. Confirm the lesson plan and
+                  the consequences in the prompt before proceeding.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.system') && (
+              <GuideAccordionPanel id="site-admins.system" title="Read installation status">
+                <p>
+                  <em>Manage → System</em> reports the address, whether email and public sharing are
+                  available, whether PDF output is working, where backups are sent, when one last
+                  succeeded, and whether <em>Backup recovery</em> says this installation holds its
+                  own decryption key.
+                </p>
+                <p>
+                  A recent successful backup means an encrypted copy was sent; it does not prove
+                  that it can be restored. This page is read-only. Server settings and backup
+                  recovery are operations tasks, not changes made with a click here.
+                </p>
+              </GuideAccordionPanel>
+            )}
+          </GuideAccordionPanel>
+
+          <GuideAccordionPanel
+            id="role-notes"
+            title="Role notes"
+            subtitle="Shared definitions for access, Official versions, and account information."
+          >
+            <ul className="guide-list">
+              <li>
+                A <strong>subject-grade</strong> is the unit roles attach to, for example Biology
+                Grade 10. Biology Grade 10 and Biology Grade 11 are separate scopes.
+              </li>
+              <li>
+                Every lesson plan has one <em>Official</em> version at a time. Teachers open the
+                Official version and do not get the version selector — but versions are not
+                access-gated, so a direct link to a specific version still opens for any signed-in
+                user. Official is the default and the trust marker, not a permission boundary.
+              </li>
+              <li>
+                Teachers with editing access and Subject-grade administrators act only within the
+                subject-grades assigned to them; Site administrators can see and manage everything.
+              </li>
+              <li>
+                Email addresses are visible to the account owner and to Site administrators, with{' '}
+                <strong>one exception:</strong> in <em>Manage → Users → Roles &amp; Access</em> a
+                Subject-grade administrator also sees the addresses of the people listed for their
+                own subject-grades. No other screen shows them.
+              </li>
+            </ul>
+          </GuideAccordionPanel>
+        </div>
+      </GuideAccordion>
 
       <footer className="guide-footer">
         <div className="guide-footer__credit">

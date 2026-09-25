@@ -309,38 +309,19 @@ describe('Guide + Compare visual system', () => {
     ).toBeGreaterThan(wide!.i)
   })
 
-  it('pins the TOC link count that --guide-toc-rows was measured against', () => {
-    // `--guide-toc-rows` is the one hand-measured input in the clearance formula — CSS cannot count
-    // flex lines. It is 2 at ≤640px because FIVE links wrap to two rows at 390px. Add a sixth, or
-    // lengthen "Subject-grade administrators", and the bar wraps to three while the formula still
-    // says two: the anchor under-clears and the heading lands behind the sticky bar. Nothing else
-    // would fail. This converts "re-measure" from a note-to-a-human into a failing test.
-    const guide = readFileSync(resolve(here, '../../src/app/(frontend)/guide/page.tsx'), 'utf8')
-    const toc = /<nav className="guide-toc"[\s\S]*?<\/nav>/.exec(guide)
-    expect(toc, 'the guide TOC nav is missing').not.toBeNull()
-    const links = toc![0].match(/<a href="#/g) ?? []
-    expect(
-      links.length,
-      'TOC link count changed — re-measure --guide-toc-rows at 390px and update the ≤640px override',
-    ).toBe(5)
-  })
-
-  it('derives the guide TOC clearance from the tokens that build the bar', () => {
-    // Both `scroll-margin-top` values used to be hand-typed magic numbers with no stated link to the
-    // sticky bar they cleared, so retokenising the bar would have silently broken anchor landing
-    // (the seam DECISIONS 2026-07-27 legislated about after #155). One formula, one consumer.
-    expect(bodyOf('.guide')).toMatch(/--guide-toc-height:\s*calc\(/)
-    expect(bodyOf('.guide-section')).toMatch(/scroll-margin-top:\s*calc\(.*--guide-toc-height/)
-    // Only the ROW COUNT may vary per breakpoint — a second literal offset would re-open the seam.
-    const literalOffsets = allRules.filter(
-      (r) =>
-        r.selectors.includes('.guide-section') &&
-        /scroll-margin-top:\s*[\d.]+(rem|px)/.test(r.body),
+  it('keeps accordion subtitles visible outside the collapsible task panel', () => {
+    const accordion = readFileSync(
+      resolve(here, '../../src/components/Guide/Accordion.tsx'),
+      'utf8',
     )
-    expect(
-      literalOffsets.flatMap((r) => r.body),
-      'guide scroll-margin-top must derive from --guide-toc-height, not a literal',
-    ).toEqual([])
+    expect(accordion).toMatch(/<p className="guide-accordion__subtitle">\{subtitle\}<\/p>/)
+    expect(accordion).toMatch(/<div\s+className="guide-accordion__panel"[^>]*hidden=\{!open\}/)
+    expect(accordion).toMatch(/aria-expanded=\{open\}/)
+    expect(bodyOf('.guide-accordion__subtitle')).toMatch(/padding:/)
+    expect(bodyOf('.guide-accordion__trigger')).toMatch(
+      /min-height:\s*var\(--app-btn-touch-min-height\)/,
+    )
+    expect(bodyOf('.guide-accordion__panel\[hidden\]')).toMatch(/display:\s*none/)
   })
 })
 

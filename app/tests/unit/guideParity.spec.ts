@@ -1,5 +1,6 @@
 /**
- * Guide parity guard — the in-app `/guide` page and `USER_GUIDE.md` must state the same rules.
+ * Guide parity guard — every pinned load-bearing rule must appear on both surfaces. The in-app
+ * guide is capability-scoped; USER_GUIDE.md remains the complete, unscoped offline reference.
  *
  * ⚑ THIS EXISTS BECAUSE A DOCUMENTED OBLIGATION HAS FAILED TWICE. `USER_GUIDE.md`'s own header says
  * "This file mirrors the in-app guide at `/guide`; keep the two in step when either changes", and
@@ -158,11 +159,28 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'discarding is irreversible, and the dialog offers it as a plain button',
     claim: 'discarding cannot be undone',
   },
+  {
+    // ⚑ Found 2026-09-24, reviewing a guide-rewrite plan. `USER_GUIDE.md` said "per subject-grade"
+    // (missing that the limit is per teacher, not shared across everyone requesting that
+    // subject-grade); `/guide` said "per subject" (wrong unit entirely) and also missing "per
+    // teacher". `requestEditing.ts`'s own docblock is unambiguous: the throttle bucket is keyed
+    // `${userId}:${sgId}` — one request per user per subject-grade per day. Neither guide said that.
+    what: 'the editing-request throttle is per user AND per subject-grade, not shared or subject-wide',
+    claim: 'once per subject-grade per day, per teacher',
+  },
+  {
+    what: 'a subject-grade is subject + grade together, e.g. Biology Grade 10 vs. Biology Grade 11',
+    claim: 'Biology Grade 10 and Biology Grade 11 are separate scopes',
+  },
+  {
+    what: 'Official is the default and trust marker, not an access boundary — a direct link to any version opens for any signed-in user',
+    claim: 'Official is the default and the trust marker, not a permission boundary',
+  },
 ]
 
 const RETIRED = ['Manage → Editing access']
 
-describe('the in-app guide and USER_GUIDE.md state the same rules', () => {
+describe('the in-app guide and USER_GUIDE.md preserve shared rules', () => {
   const md = flatten(read(GUIDE_MD, 'The repo-root bind mount from scripts/in-deps.sh is missing.'))
   const page = flatten(read(GUIDE_PAGE, 'The /guide page moved?'))
 
@@ -174,7 +192,7 @@ describe('the in-app guide and USER_GUIDE.md state the same rules', () => {
   })
 
   for (const { what, claim } of CLAIMS) {
-    it(`states in BOTH: ${what}`, () => {
+    it(`states on both surfaces: ${what}`, () => {
       expect(md, `USER_GUIDE.md is missing: "${claim}"`).toContain(claim)
       expect(page, `/guide is missing: "${claim}"`).toContain(claim)
     })

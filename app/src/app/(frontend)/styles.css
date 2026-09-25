@@ -1610,69 +1610,84 @@ button.user-menu__item {
    full step small. It now inherits `.page-heading h1` like every other caller of the shared header.
    Deleting beats restating the tokens: `.guide h1` and `.page-heading h1` are both (0-1-1), so a
    restated copy would sit in a source-order contest with the shared rule for no reason. */
-.guide h2 {
-  font-size: var(--app-section-title-size);
-  font-weight: 600;
-  margin: 0 0 var(--app-space-1);
-}
 .guide p {
   margin: 0 0 var(--app-space-2);
 }
-/* ── The sticky-TOC clearance seam ─────────────────────────────────────────────────────────────
-   `.guide-section`'s `scroll-margin-top` must clear the sticky bar, or a jumped-to heading lands
-   UNDERNEATH it. Both values used to be hand-typed magic numbers (3.5rem / 6rem) with no stated
-   relationship to the bar that produced them — so retokenising the bar's padding or type would have
-   silently broken the landing. That is the seam DECISIONS 2026-07-27 legislated about after #155.
-
-   The bar's height is now DERIVED from the same tokens that build it, so one edit moves both. This
-   is derive-from-one-source, which is weaker than #155's read-it-back-from-the-DOM: `--guide-toc-rows`
-   is still an observed input, because CSS cannot count flex lines. That is the proportionate trade —
-   a mis-landed guide anchor is a cosmetic annoyance, where #155's wrong active chip was a false
-   statement about where the reader was. Over-clearing is also the safe direction: it lands the
-   heading slightly low, where under-clearing hides it.
-
-   Row counts are MEASURED in a browser, not reasoned about: 1 row at ≥641px, 2 at 390–640px
-   (measured 47.7px and 77.4px, which the formula reproduces exactly). Re-measure if a TOC entry is
-   added or renamed — five links is what fits in two rows at 390px. */
-.guide {
-  --guide-toc-line: calc(var(--app-secondary-size) * var(--app-line-height));
-  --guide-toc-rows: 1;
-  /* Written with the inter-row gap term FIRST-factored onto its own line so the subtraction stays
-     intact: prettier's default wrap split `(rows - 1)` across a newline directly after the `-`,
-     which is legal CSS and measured correct, but reads as though the `1` belongs to the next term. */
-  --guide-toc-height: calc(
-    2 * var(--app-space-2) + var(--guide-toc-rows) * var(--guide-toc-line) +
-      (var(--guide-toc-rows) - 1) * var(--app-space-1) + 2px
-  );
-}
-.guide-toc {
-  /* Sticky (critique 2026-07-12): switching role sections shouldn't require scrolling back up. */
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--bg);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-1) var(--app-space-3);
-  margin: 0 0 var(--app-space-5);
-  padding: var(--app-space-2) 0;
+.guide-accordion {
   border-top: 1px solid var(--line);
+}
+.guide-accordion__item {
   border-bottom: 1px solid var(--line);
+  scroll-margin-top: var(--app-space-3);
+}
+.guide-accordion__heading {
+  margin: 0;
+  font-size: var(--app-section-title-size);
+  font-weight: 600;
+}
+.guide-accordion__item--nested {
+  margin: var(--app-space-2) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.guide-accordion__item--nested .guide-accordion__heading {
+  font-size: var(--app-subsection-title-size, 1.05rem);
+}
+.guide-accordion__trigger {
+  display: flex;
+  width: 100%;
+  min-height: var(--app-btn-touch-min-height);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guide-accordion__trigger:hover {
+  background: var(--bg-soft);
+}
+.guide-accordion__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.guide-accordion__title {
+  min-width: 0;
+}
+.guide-accordion__marker {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+.guide-accordion__marker::before {
+  content: '+';
+}
+.guide-accordion__trigger[aria-expanded='true'] .guide-accordion__marker::before {
+  content: '−';
+}
+.guide-accordion__subtitle {
+  margin: 0;
+  padding: 0 var(--app-space-3) var(--app-space-3);
+  color: var(--muted);
   font-size: var(--app-secondary-size);
 }
-.guide-toc a {
-  text-decoration: none;
+.guide-accordion__panel {
+  padding: 0 var(--app-space-3) var(--app-space-3);
 }
-.guide-toc a:hover,
-.guide-toc a:focus-visible {
-  text-decoration: underline;
+.guide-accordion__panel[hidden] {
+  display: none;
 }
-.guide-section {
-  padding-top: var(--app-space-3);
-  margin-top: var(--app-space-3);
-  border-top: 1px solid var(--line);
-  /* Land below the sticky TOC, plus one space unit so the heading isn't flush against the bar. */
-  scroll-margin-top: calc(var(--guide-toc-height) + var(--app-space-1));
+.guide-steps {
+  margin: 0 0 var(--app-space-2);
+  padding-left: var(--app-space-4);
+}
+.guide-steps li + li {
+  margin-top: var(--app-space-1);
 }
 .guide-list {
   margin: 0;
@@ -1681,10 +1696,50 @@ button.user-menu__item {
 .guide-list li + li {
   margin-top: var(--app-space-1);
 }
+.guide-screenshot {
+  margin: var(--app-space-3) 0;
+}
+.guide-screenshot__placeholder {
+  display: flex;
+  min-height: 10rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-1);
+  padding: var(--app-space-3);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  color: var(--muted);
+  text-align: center;
+}
+.guide-screenshot__label {
+  font-size: var(--app-secondary-size);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.guide-screenshot__description {
+  color: var(--ink);
+}
+.guide-screenshot figcaption {
+  margin-top: var(--app-space-1);
+  color: var(--muted);
+  font-size: var(--app-secondary-size);
+}
 .guide code {
   padding: 0.05rem 0.25rem;
   border-radius: 4px;
   background: var(--bg-soft);
+}
+.request-editing-guide-link,
+.help-guide-link a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+}
+.help-guide-link {
+  margin-top: var(--app-space-2) !important;
 }
 .guide-footer {
   margin-top: var(--app-space-5);
@@ -1896,12 +1951,6 @@ button.user-menu__item {
   .doc-preview [id^='lesson-'] {
     scroll-margin-top: 8rem;
   }
-  /* The guide TOC wraps at phone width. Only the ROW COUNT changes here — the height formula and
-     the offset that consumes it stay in one place (see the seam comment on `.guide`). */
-  .guide {
-    --guide-toc-rows: 2;
-  }
-
   /* Compare panes stack on a narrow screen — side-by-side tables would be unreadable slivers.
      Each pair still stacks INSIDE its own `.compare-group`, so a change and its counterpart stay
      adjacent rather than a phone-length scroll apart (the old two-pane layout put the whole "from"
