@@ -102,7 +102,8 @@ const CLAIMS: { what: string; claim: string }[] = [
   },
   {
     what: 'removal is Site-Admin-only, and nobody may resign',
-    claim: 'Only a Site administrator can appoint, replace, or remove a Subject-grade administrator',
+    claim:
+      'Only a Site administrator can appoint, replace, or remove a Subject-grade administrator',
   },
   {
     // ⚑ Added 2026-08-30 with the lesson page's own PDF/Word pair. Both guides said "on a lesson

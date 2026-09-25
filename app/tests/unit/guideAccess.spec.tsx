@@ -44,9 +44,7 @@ describe('role-aware guide content', () => {
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open a lesson for editing' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
-    expect(
-      screen.getByText(/Review lesson changes, manage editing access/),
-    ).not.toBeNull()
+    expect(screen.getByText(/Review lesson changes, manage editing access/)).not.toBeNull()
   })
 
   it('shows editing and subject-grade administration walkthroughs to a Subject-grade admin', async () => {
