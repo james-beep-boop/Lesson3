@@ -26,15 +26,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           actions={<PageBackLink href="/" label="Back to lesson plans" />}
         />
         <p>
-          Follow the steps for the task you want to complete. Your access applies to particular
-          subject-grades, so the editing and administrator tasks below appear when you have those
-          permissions.
+          Choose a task below to see the steps. You’ll only see instructions for tasks you can do.
+          Some editing and administrator tasks are limited to particular subjects and grades.
         </p>
         <p>
-          The main areas are <strong>Lessons</strong> (the library — the one list of every lesson
-          plan), the <strong>lesson page</strong> (read, favorite, download, email, and share one
-          lesson), <strong>Manage</strong> (editing, housekeeping, and people functions available to
-          your role), and <strong>Messages</strong> (notes between repository users).
+          Use <strong>Lessons</strong> to find plans, a <strong>lesson page</strong> to read and share
+          one plan, <strong>Manage</strong> to edit lessons and manage accounts, and{' '}
+          <strong>Messages</strong> to contact other people with Lesson3 accounts.
         </p>
       </header>
 
@@ -47,8 +45,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             anchorId="teachers"
           >
             <p>
-              Every signed-in user can use these lesson-library tasks. A Teacher is the starting
-              access level; you may also have editing access in one or more subject-grades.
+              Anyone who can sign in can use these tasks. You may also have editing access for some
+              subjects and grades.
             </p>
 
             {can('teachers.sign-in') && (
@@ -64,7 +62,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     reset link.
                   </li>
                   <li>
-                    If this installation cannot send email, ask a Site administrator to create and
+                    If this Lesson3 site cannot send email, ask a Site administrator to create and
                     verify your account, or create a reset link and give it to you directly.
                   </li>
                 </ol>
@@ -79,7 +77,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               <GuideAccordionPanel id="teachers.find-read" title="Find and read a lesson">
                 <ol className="guide-steps">
                   <li>
-                    Open <em>Lessons</em>. The library is grouped by subject-grade, strand, and
+                    Open <em>Lessons</em>. Plans are grouped by subject and grade, then by strand and
                     sub-strand in curriculum order.
                   </li>
                   <li>
@@ -92,7 +90,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                   <li>Open a lesson page to read the lesson and see its available actions.</li>
                 </ol>
-                <p>Each lesson opens at its Official version — the current approved copy.</p>
+                <p>Each lesson opens at its Official version — the version currently approved for use.</p>
               </GuideAccordionPanel>
             )}
 
@@ -108,10 +106,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Favorites are personal — only you see yours. For Teachers, the favorite follows
-                  the lesson’s current Official version when a newer one is promoted. If you have
-                  editing access, a favorite pins the exact version starred and a non-Official pin
-                  is labelled <code>vX (pinned)</code>.
+                  Favorites are private. Teachers see the current Official version when one is
+                  promoted. With editing access, a favorite stays on the exact version you chose;
+                  Lesson3 marks it <code>vX (pinned)</code> so you know it stays on that version.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -133,7 +130,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     address.
                   </li>
                   <li>
-                    Choose <em>Share → Message a colleague</em> to send a repository user a note
+                    Choose <em>Share → Message a colleague</em> to send another Lesson3 user a note
                     with the lesson attached.
                   </li>
                 </ol>
@@ -153,7 +150,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Open <em>Messages</em> from the menu under your avatar.
                   </li>
                   <li>
-                    Choose a repository user and write your note. A lesson page’s{' '}
+                    Choose a person with a Lesson3 account and write your note. A lesson page’s{' '}
                     <em>Share → Message a colleague</em> item attaches that lesson.
                   </li>
                   <li>
@@ -171,18 +168,18 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('teachers.request-editing') && (
               <GuideAccordionPanel id="teachers.request-editing" title="Request editing access">
                 <ol className="guide-steps">
-                  <li>Open the lesson in the subject-grade you want to edit.</li>
+                  <li>Open the lesson in the subject and grade you want to edit.</li>
                   <li>
                     Choose <em>Request editing access</em> on the lesson page.
                   </li>
                   <li>
-                    The app messages the appropriate administrators. If they grant access, editing
-                    controls appear for that subject-grade.
+                    Lesson3 notifies the administrators for that subject and grade. If they give you
+                    access, editing controls appear for those lessons.
                   </li>
                 </ol>
                 <p>
-                  Requests are limited to once per subject-grade per day, per teacher — a different
-                  teacher requesting the same subject-grade is not affected.
+                  You can request access once a day for each subject and grade. The limit applies
+                  separately to each teacher.
                 </p>
                 <p>
                   <a href="/guide?open=editing" target="_blank" rel="noopener noreferrer">
@@ -197,21 +194,19 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           <GuideAccordionPanel
             id="editing"
             title="Editing"
-            subtitle="Edit lesson prose and work with saved versions when you have editing access."
+            subtitle="Edit lesson text and work with saved versions when you have editing access."
             anchorId="editors"
           >
             <p>
-              Editing access is a capability granted for particular subject-grades. Subject-grade
-              and Site administrators can also edit. Teachers with editing access can change lesson
-              titles, specific learning outcomes, overviews, learner experiences, teacher moves,
-              sensemaking strategies, formative assessments, teacher reflections, summary-table
-              text, and Final Explanation prompts. You never edit a Word file directly.
+              With editing access, you can change most lesson content in Lesson3. The subjects and
+              grades you can edit depend on your role. Subject-grade and Site administrators can also
+              edit. Make changes in Lesson3, not in a Word file.
             </p>
 
             {can('editing.open-edit') && (
               <GuideAccordionPanel id="editing.open-edit" title="Open a lesson for editing">
                 <ol className="guide-steps">
-                  <li>Open a lesson in a subject-grade where you have editing access.</li>
+                  <li>Open a lesson in a subject and grade where you have editing access.</li>
                   <li>
                     Choose <em>Edit</em>. The editing page opens ready to type, showing only the
                     fields you may change.
@@ -237,8 +232,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <ol className="guide-steps">
                   <li>Review your changes in Quick preview or Formatted PDF.</li>
                   <li>
-                    Choose <em>Save</em>. Lesson3 stores your edits as a new version; it never
-                    changes the version you opened in place.
+                    Choose <em>Save</em>. Lesson3 saves your changes as a new version and leaves the
+                    version you opened unchanged.
                   </li>
                   <li>
                     A Subject-grade or Site administrator can mark the saved version Official when
@@ -246,8 +241,8 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Your saved versions are in <em>Manage → Lesson plans → My saved versions</em>.
-                  Choose one to continue editing or delete one you no longer need.
+                  Find your saved versions in <em>Manage → Lesson plans → My saved versions</em>.
+                  Choose one to continue editing, or delete one you no longer need.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -258,10 +253,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Find a saved version or compare versions"
               >
                 <p>
-                  The <em>N versions</em> panel on library rows and lesson pages lists retained
-                  versions, newest first, with Official pinned on top. Each row shows its author,
-                  date, and favorite star. Choose <em>Compare</em> when more than one version is
-                  available.
+                  The <em>N versions</em> panel on library rows and lesson pages lists saved versions,
+                  newest first, with Official at the top. Each row shows its author, date, and
+                  favorite star. Choose <em>Compare</em> when more than one version is available.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -269,13 +263,14 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('editing.recovery') && (
               <GuideAccordionPanel id="editing.recovery" title="Recover unsaved work">
                 <p>
-                  While you edit, a notice under the buttons shows when your unsaved changes were
-                  last backed up. The backup is yours alone — nobody else can see it, not even
-                  someone signing in on the same computer — and it is never applied automatically.
+                  While you edit, a note below the buttons shows when Lesson3 last saved a temporary
+                  copy of your changes. Only you can see it, even if someone else uses the same
+                  computer. Lesson3 will not restore it unless you choose to.
                 </p>
                 <ol className="guide-steps">
                   <li>
-                    If you leave without saving, reopen that version to see the recovery offer.
+                    If you leave without saving, reopen that version. Lesson3 will ask whether you
+                    want to restore your changes.
                   </li>
                   <li>
                     Review the listed differences. Your unsaved wording is green; saved wording
@@ -287,15 +282,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Changes that cannot be shown word by word are labelled <em>Emptied</em> when a
-                  field would be cleared, <em>Paragraph breaks changed</em> when only line breaks
-                  moved, or <em>Spacing only</em> when no visible wording differs. If someone else
-                  saved in the meantime, your changes cannot be put back automatically; they remain
-                  visible in full so you can copy what you still want. When the recovery offer
-                  compares work against the saved version, it shows only what differs from the saved
-                  version.
+                  Normally, Lesson3 shows only the changes you have not saved. Some changes cannot be
+                  shown word by word. <em>Emptied</em> means a field will be cleared;{' '}
+                  <em>Paragraph breaks changed</em> means only the line breaks changed; and{' '}
+                  <em>Spacing only</em> means the words stayed the same. If someone else saves a newer
+                  version while you are away, Lesson3 cannot restore your changes automatically. They
+                  Lesson3 shows all your unsaved work so you can copy what you still need.
                 </p>
-                <p>The final action is permanent — discarding cannot be undone.</p>
               </GuideAccordionPanel>
             )}
 
@@ -314,10 +307,10 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   </li>
                 </ol>
                 <p>
-                  Removals are red and additions are green. An area marked{' '}
-                  <em>Spacing or document structure changed</em> has the same wording broken up
-                  differently, so no text is coloured. Areas are compared separately: outcomes,
-                  overview, implementation framework, teacher reflection, and summary prompts.
+                  Removals are red and additions are green. If an area is marked{' '}
+                  <em>Spacing or document structure changed</em>, the words are the same but arranged
+                  differently. Lesson3 compares outcomes, overview, teaching steps, teacher
+                  reflection, and summary prompts separately.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -334,15 +327,15 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     Start a line with <code>- </code> to make a bullet.
                   </li>
                   <li>
-                    Use <em>Insert link</em> beneath a prose field to insert an internet address or
-                    choose a PDF already on the Rock. The address appears in parentheses and becomes
-                    clickable in the on-screen view and generated Word/PDF documents. Web and PDF
+                    Use <em>Insert link</em> below a text field to add a web address or choose a PDF
+                    already available on this Lesson3 site. The address appears in parentheses and
+                    becomes clickable on screen and in the Word/PDF files. Web and PDF
                     links open separately so your editor stays open.
                   </li>
                   <li>Bold, italics, and underlining are not supported.</li>
                   <li>
-                    Edit the field that matches the document section you want to change. The
-                    exported DOCX and PDF are generated from those fields.
+                    Change the field for the section you want to update. Lesson3 makes the Word and
+                    PDF files from these fields.
                   </li>
                 </ul>
                 <p>
@@ -362,19 +355,19 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           <GuideAccordionPanel
             id="subject-admins"
             title="Subject-grade administrators"
-            subtitle="Manage lesson structure, access, and Official versions in assigned subject-grades."
+            subtitle="Review lesson changes, manage editing access, and update lessons for your subjects and grades."
             anchorId="subject-admins"
           >
             <p>
-              A Subject-grade administrator can do everything a teacher with editing access can, for
-              their assigned subject-grades. They also manage the structure and official content
-              controls for those subject-grades.
+              Subject-grade administrators can edit lesson text, give or remove editing access,
+              change lesson structure, and choose which version is Official for their subjects and
+              grades.
             </p>
 
             {can('subject-admins.promote') && (
               <GuideAccordionPanel
                 id="subject-admins.promote"
-                title="Review a candidate and make it Official"
+                title="Review a saved version and make it Official"
               >
                 <ol className="guide-steps">
                   <li>
@@ -399,25 +392,25 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('subject-admins.structure') && (
               <GuideAccordionPanel
                 id="subject-admins.structure"
-                title="Manage lesson structure and controlled fields"
+                title="Manage lesson structure and settings"
               >
                 <ul className="guide-list">
                   <li>Add a lesson by duplicating an existing lesson row, then edit the copy.</li>
                   <li>Add, remove, and reorder lessons and instructional phases.</li>
                   <li>
-                    Update Document settings, the Sub-strand overview, lesson duration, ARES
-                    keywords, phase choices, assessment exemplars, and rubric rows.
+                    Change document settings, the Sub-strand overview, lesson duration, ARES
+                    keywords, lesson phases, assessment examples, and rubric rows.
                   </li>
                 </ul>
               </GuideAccordionPanel>
             )}
 
             {can('subject-admins.candidates') && (
-              <GuideAccordionPanel id="subject-admins.candidates" title="Review candidate versions">
+              <GuideAccordionPanel id="subject-admins.candidates" title="Review saved versions">
                 <p>
-                  <em>Manage → Lesson plans → Candidate versions</em> lists saved, non-Official
-                  versions in your subject-grades. Open one to review it or delete one that is no
-                  longer needed. The section appears when there is something to tidy.
+                  <em>Manage → Lesson plans → Candidate versions</em> lists saved versions that are
+                  not Official for your subjects and grades. Open one to review it, or delete one you
+                  no longer need. This section appears only when there are saved versions to review.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -431,13 +424,12 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   <li>
                     Open <em>Manage → Users → Roles &amp; Access</em>.
                   </li>
-                  <li>Find the subject-grade you administer or need to manage.</li>
+                  <li>Choose the subject and grade where you want to change access.</li>
                   <li>Grant a teacher editing access or remove an existing editing grant.</li>
                 </ol>
                 <p>
-                  The panel shows who administers each subject-grade and the addresses of the people
-                  listed there — granting access is a permission decision, and two teachers can
-                  share a display name.
+                  Check the person’s email address before changing access. Two people can have the
+                  same display name.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -449,18 +441,18 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
               >
                 <ol className="guide-steps">
                   <li>
-                    In <em>Roles &amp; Access</em>, choose an existing editor for your
-                    subject-grade.
+                    In <em>Roles &amp; Access</em>, choose someone who already has editing access for
+                    this subject and grade.
                   </li>
                   <li>Review the handover confirmation before continuing.</li>
                   <li>
-                    Confirm to make them the Subject-grade administrator. You are demoted to editing
-                    access in the same step.
+                    Confirm to make them the Subject-grade administrator. You keep editing access,
+                    but lose administrator access.
                   </li>
                 </ol>
                 <p>
-                  Whoever you hand it to must already have editing access there; only a Site
-                  administrator can give it back, so check the choice carefully.
+                  Only a Site administrator can make you an administrator again, so check your
+                  choice carefully.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -469,12 +461,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           <GuideAccordionPanel
             id="site-admins"
             title="Site administrators"
-            subtitle="Manage accounts, curriculum, imports, and lesson plans across the repository."
+            subtitle="Manage accounts, subjects, grades, and lesson plans across the site."
             anchorId="site-admins"
           >
             <p>
-              Site administrators have full access across the repository. They manage users,
-              curriculum taxonomy, lesson-plan upload/import, and all lesson plans.
+              Site administrators can manage all accounts, subjects, grades, and lesson plans.
             </p>
 
             {can('site-admins.first-admin') && (
@@ -483,11 +474,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Set up the first Site administrator"
               >
                 <p>
-                  A completely empty installation shows a one-time{' '}
-                  <em>Create the first Site administrator</em> form at <em>/login</em>. There are no
-                  default credentials, and the address and password are not stored in <em>.env</em>.
+                  If no account exists yet, the sign-in page shows a one-time{' '}
+                  <em>Create the first Site administrator</em> form. There is no default username or
+                  password.
                   After creating the first account, create and test a second Site administrator so
-                  one forgotten password cannot leave the site without an administrator.
+                  someone can still manage the site if you forget your password.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -504,8 +495,9 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                     until that is done.
                   </li>
                   <li>
-                    Use <em>Make Site Administrator</em> only when the account should have site-wide
-                    access. Test a new Site administrator in a private browser window.
+                    Use <em>Make Site Administrator</em> only when the person needs to manage the
+                    whole site. Open a private browser window and sign in as the new administrator
+                    to check that the account works.
                   </li>
                 </ol>
               </GuideAccordionPanel>
@@ -517,31 +509,29 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 title="Reset a password when email is unavailable"
               >
                 <p>
-                  Reset a password by hand when email is not set up: create a one-time reset link
-                  for the account and give it to the person. You never see or choose their password;
-                  they set it themselves through the normal reset page.
+                  If email is not available, create a password-reset link and give it to the person.
+                  They use the link to choose a new password. You will not see their password.
                 </p>
               </GuideAccordionPanel>
             )}
 
             {can('site-admins.roles') && (
-              <GuideAccordionPanel id="site-admins.roles" title="Manage repository roles">
+              <GuideAccordionPanel id="site-admins.roles" title="Manage user roles">
                 <ol className="guide-steps">
                   <li>
                     Open <em>Manage → Users → Roles &amp; Access</em>.
                   </li>
                   <li>
-                    Grant Site administrator access when someone needs repository-wide access.
+                    Make someone a Site administrator only if they need to manage the whole site.
                   </li>
                   <li>
-                    Grant editing access or appoint a Subject-grade administrator for each relevant
-                    subject-grade.
+                    Give editing access or appoint a Subject-grade administrator for each subject
+                    and grade they manage.
                   </li>
                   <li>
-                    Replace or remove a Subject-grade administrator when needed. Site administrators
-                    are the only ones who can remove a Subject-grade administrator; a Subject-grade
-                    administrator can hand it to an existing editor but cannot be removed by another
-                    Subject-grade admin.
+                    Only a Site administrator can appoint, replace, or remove a Subject-grade
+                    administrator. A Subject-grade administrator can hand over their role to someone
+                    who already has editing access, but cannot remove another administrator.
                   </li>
                 </ol>
               </GuideAccordionPanel>
@@ -549,7 +539,7 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
 
             {can('site-admins.curriculum') && (
               <GuideAccordionPanel id="site-admins.curriculum" title="Set up subjects and grades">
-                <p>Maintain Subjects and Subject Grades before lesson plans are uploaded.</p>
+                <p>Add subjects and grades before uploading lesson plans.</p>
               </GuideAccordionPanel>
             )}
 
@@ -571,11 +561,11 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             {can('site-admins.repair') && (
               <GuideAccordionPanel
                 id="site-admins.repair"
-                title="Repair a plan with no Official version"
+                title="Fix a plan with no Official version"
               >
                 <p>
-                  Use the Repair panel in Manage to review plans that have no Official version and
-                  repair the plan that needs one.
+                  Open the Repair panel in Manage and follow the steps to choose an Official version
+                  for the plan.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -590,17 +580,16 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
             )}
 
             {can('site-admins.system') && (
-              <GuideAccordionPanel id="site-admins.system" title="Read installation status">
+              <GuideAccordionPanel id="site-admins.system" title="Check site and backup status">
                 <p>
-                  <em>Manage → System</em> reports the address, whether email and public sharing are
-                  available, whether PDF output is working, where backups are sent, when one last
-                  succeeded, and whether <em>Backup recovery</em> says this installation holds its
-                  own decryption key.
+                  <em>Manage → System</em> shows the site address, whether email and public sharing
+                  are available, whether PDFs are working, where backups are sent, when the last
+                  backup succeeded, and whether this site keeps the key needed to open its backups.
                 </p>
                 <p>
-                  A recent successful backup means an encrypted copy was sent; it does not prove
-                  that it can be restored. This page is read-only. Server settings and backup
-                  recovery are operations tasks, not changes made with a click here.
+                  A successful backup means an encrypted copy was sent. It does not prove the backup
+                  can be restored. You cannot change these settings on this page; ask the person who
+                  manages the server to change them.
                 </p>
               </GuideAccordionPanel>
             )}
@@ -609,28 +598,26 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
           <GuideAccordionPanel
             id="role-notes"
             title="Role notes"
-            subtitle="Shared definitions for access, Official versions, and account information."
+            subtitle="Important facts about access, Official versions, and email addresses."
           >
             <ul className="guide-list">
               <li>
-                A <strong>subject-grade</strong> is the unit roles attach to, for example Biology
-                Grade 10. Biology Grade 10 and Biology Grade 11 are separate scopes.
+                Access is set separately for each subject and grade. For example, access to Biology
+                Grade 10 does not include Biology Grade 11.
               </li>
               <li>
                 Every lesson plan has one <em>Official</em> version at a time. Teachers open the
-                Official version and do not get the version selector — but versions are not
-                access-gated, so a direct link to a specific version still opens for any signed-in
-                user. Official is the default and the trust marker, not a permission boundary.
+                Official version first. It does not control who can open other saved versions. Anyone
+                who is signed in can open a saved version if they have its link.
               </li>
               <li>
-                Teachers with editing access and Subject-grade administrators act only within the
-                subject-grades assigned to them; Site administrators can see and manage everything.
+                Teachers with editing access and Subject-grade administrators can work only with the
+                subjects and grades assigned to them. Site administrators can manage the whole site.
               </li>
               <li>
-                Email addresses are visible to the account owner and to Site administrators, with{' '}
-                <strong>one exception:</strong> in <em>Manage → Users → Roles &amp; Access</em> a
-                Subject-grade administrator also sees the addresses of the people listed for their
-                own subject-grades. No other screen shows them.
+                Only the account owner and Site administrators can see an email address. In{' '}
+                <em>Manage → Users → Roles &amp; Access</em>, Subject-grade administrators can see
+                addresses only for people listed under the subjects and grades they manage.
               </li>
             </ul>
           </GuideAccordionPanel>

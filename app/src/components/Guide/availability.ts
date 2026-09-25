@@ -1,6 +1,6 @@
 import type { User } from '@/payload-types'
 
-import { editingAccessScopeIds, isSiteAdmin, isSubjectAdminForAny } from '@/access'
+import { canUseAdminPanel, isSiteAdmin, isSubjectAdminForAny } from '@/access'
 
 import { withAncestors, type GuidePanelId } from './panelState'
 
@@ -11,8 +11,10 @@ import { withAncestors, type GuidePanelId } from './panelState'
 export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
   const siteAdmin = isSiteAdmin(user)
   const subjectAdmin = isSubjectAdminForAny(user)
-  // A Subject Admin and a Site Admin can both edit prose even without an explicit editor assignment.
-  const canEdit = siteAdmin || subjectAdmin || editingAccessScopeIds(user).length > 0
+  const subjectOrSiteAdmin = siteAdmin || subjectAdmin
+  // Same predicate the admin panel link uses: Site Admin, or any subject-grade assignment row
+  // (Subject Admin or editor) — see `canUseAdminPanel`'s own docblock in `access/index.ts`.
+  const canEdit = canUseAdminPanel(user)
 
   const availableLeaves: (GuidePanelId | false)[] = [
     'teachers.sign-in',
@@ -29,12 +31,12 @@ export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
     canEdit && 'editing.compare',
     canEdit && 'editing.writing',
 
-    (siteAdmin || subjectAdmin) && 'subject-admins.promote',
-    (siteAdmin || subjectAdmin) && 'subject-admins.structure',
-    (siteAdmin || subjectAdmin) && 'subject-admins.access',
+    subjectOrSiteAdmin && 'subject-admins.promote',
+    subjectOrSiteAdmin && 'subject-admins.structure',
+    subjectOrSiteAdmin && 'subject-admins.access',
     // Site Admins use the full appoint/replace/remove controls, not the self-demotion handover flow.
     subjectAdmin && !siteAdmin && 'subject-admins.handover',
-    (siteAdmin || subjectAdmin) && 'subject-admins.candidates',
+    subjectOrSiteAdmin && 'subject-admins.candidates',
 
     siteAdmin && 'site-admins.first-admin',
     siteAdmin && 'site-admins.accounts',

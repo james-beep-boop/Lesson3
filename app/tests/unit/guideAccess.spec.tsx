@@ -45,7 +45,7 @@ describe('role-aware guide content', () => {
     expect(screen.queryByRole('button', { name: 'Open a lesson for editing' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
     expect(
-      screen.getByText(/Manage lesson structure, access, and Official versions/),
+      screen.getByText(/Review lesson changes, manage editing access/),
     ).not.toBeNull()
   })
 
@@ -87,7 +87,7 @@ describe('role-aware guide content', () => {
     expect(
       screen.queryByRole('button', { name: 'Hand administration to another person' }),
     ).toBeNull()
-    expect(screen.getByRole('button', { name: 'Manage repository roles' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Manage user roles' })).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Create and verify an account' })).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'Set up the first Site administrator' }),
