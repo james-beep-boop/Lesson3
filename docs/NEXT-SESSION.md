@@ -25,26 +25,21 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# STATUS (2026-09-23) - v0.88 published as the current maintenance release
+# RELEASE PREPARATION (2026-09-25) - v0.89
 
-Immutable tag and GitHub release **`v0.88`** are published as the latest release. The release
-workflow passed tag validation, both multi-architecture image builds, and bundle publication. Its
-assets are `lesson3-online-deploy.tar.gz` and the matching SHA-256 file. This is the current
-installable release and contains three separately reviewed maintenance changes:
+The latest published, installable release remains **`v0.88`** until the next tag workflow finishes.
+The merged changes since v0.88 are ready to ship as `v0.89`:
 
-- `feeef70` / PR **#349** updates Next.js and its matching ESLint configuration to 16.3.6, fixing
-  critical advisory GHSA-vcvr-r3jv-pc5j.
-- `dda9fd6` / PR **#350** updates Payload and all directly installed first-party Payload packages
-  together from 3.90.1 to 3.90.2. Generated types and the import map are unchanged; no migration is
-  required.
-- `a0251eb` / PR **#351** applies nine conservative runtime/tooling patch updates. Drizzle ORM remains
-  at 0.45.2 because independently installing 0.45.3 beside Payload's 0.45.2 makes their private SQL
-  types incompatible. Do not cast around or force that boundary.
+- `61b577a` / PR **#354** moves GitHub Actions to pinned, Node-24-native releases and Ubuntu 24.04.
+- `8f79863` / PR **#355** replaces the flat user guide with a role-aware task tutorial.
+- `f680104` / PR **#356** keeps the guide text-first and simplifies its wording for Kenyan teachers.
+- `1328e21` / PR **#357** aligns `@types/node` with the supported Node 24 runtime.
 
-All three changes and the release-status documentation passed the complete protected gate:
-deployment and backup script checks, offline release-bundle checks, unit, lint, formatting, contract,
-integration, wire-level HTTP, real Chromium role tests, production audit threshold, and teardown.
-Do not move or reuse `v0.88`; later changes require a new version.
+These changes passed the protected CI gate; they add no application database migration. After this
+release-preparation PR merges, push the immutable tag **`v0.89`** on `main`. The tag workflow validates
+that ancestry, publishes the multi-architecture images, builds the checksummed deployment bundle, and
+verifies the documented download path. It creates the GitHub release with its bundle attached; do not
+create a release manually or reuse `v0.88`.
 
 The obsolete `v0.83` Git tag has been deleted locally and remotely. A half-published
 `lesson3-app:v0.83` package image may remain in GHCR because the available GitHub token could not

@@ -8,7 +8,21 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased (2026-09-24)
+## v0.89 (2026-09-25)
+
+### Teacher guide
+
+- Replace the flat guide with a role-aware tutorial organized around common teacher and administrator
+  tasks. Overview text stays visible to everyone; walkthroughs appear when the reader has the
+  relevant access.
+- Keep the guide text-first and use simpler language for Kenyan teachers. The complete offline
+  reference remains in `USER_GUIDE.md`.
+
+### Node 24 maintenance
+
+- Update `@types/node` to match the supported Node 24 runtime and refresh its lockfile dependency.
+- Move GitHub Actions to Node-24-native pinned releases and Ubuntu 24.04, avoiding unplanned runner
+  changes.
 
 ### GitHub Actions runtime maintenance
 
