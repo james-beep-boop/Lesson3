@@ -21,10 +21,8 @@ from corrections. Committed to git (unlike the assistant's private cross-session
   Site Admins use the separate appoint/replace/remove flow.
 - The guide owns a small, closed panel vocabulary and parses only allowlisted incoming deep links.
   Manage's state module remains scoped to Manage. User toggles are local and do not rewrite URLs.
-- Contextual editor links open the guide in a new tab. Search is out of scope; use descriptive task
-  headings and contextual links. Embed seven verified screenshots at the task decision points.
-  Capture them from the local Lesson3 UI with illustrative demo data, and replace them when those
-  flows materially change.
+- Contextual editor links open the guide in a new tab. Search and screenshots are out of scope; use
+  descriptive task headings and contextual links.
 - `USER_GUIDE.md` remains the complete unscoped offline reference. Shared load-bearing facts are
   parity-tested; the rendered guide is capability-scoped and tested separately.
 

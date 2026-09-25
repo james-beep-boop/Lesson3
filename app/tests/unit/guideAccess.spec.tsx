@@ -41,11 +41,7 @@ describe('role-aware guide content', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Site administrators' }))
     expect(screen.getByRole('button', { name: 'Find and read a lesson' })).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Find and read a lesson' }))
-    expect(
-      screen.getByRole('img', {
-        name: 'Lesson Plans library filtered by the search term Cell, showing Cell Structure for Biology Grade 10.',
-      }),
-    ).not.toBeNull()
+    expect(screen.queryByRole('img')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open a lesson for editing' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
     expect(

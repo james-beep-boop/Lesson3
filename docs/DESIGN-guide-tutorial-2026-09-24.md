@@ -39,10 +39,8 @@ panel and its parent.
   the writing task in a new tab so an in-progress edit remains open.
 - Do not add full-text search. Use concise task headings and contextual links from the screens where
   each task begins.
-- Include seven verified screenshots at the planned decision points: library search and filtering,
-  phone Share, editor, unsaved-work recovery, version promotion, account creation, and lesson-plan
-  upload. The captures show the local Lesson3 UI with illustrative demo data; refresh them when a
-  documented flow materially changes.
+- Omit screenshots. Keep the walkthroughs focused on concise written steps and task headings; users
+  can follow contextual links into the relevant screens.
 
 ## Content integrity
 

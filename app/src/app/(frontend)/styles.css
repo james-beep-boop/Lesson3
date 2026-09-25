@@ -1696,25 +1696,6 @@ button.user-menu__item {
 .guide-list li + li {
   margin-top: var(--app-space-1);
 }
-.guide-screenshot {
-  margin: var(--app-space-3) 0;
-}
-.guide-screenshot__image {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.guide-screenshot__image--phone {
-  width: min(100%, 27rem);
-  margin-inline: auto;
-}
-.guide-screenshot figcaption {
-  margin-top: var(--app-space-1);
-  color: var(--muted);
-  font-size: var(--app-secondary-size);
-}
 .guide code {
   padding: 0.05rem 0.25rem;
   border-radius: 4px;
