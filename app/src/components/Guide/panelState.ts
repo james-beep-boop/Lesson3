@@ -35,6 +35,7 @@ export const GUIDE_PANEL_IDS = [
   'site-admins.repair',
   'site-admins.delete',
   'site-admins.system',
+  'site-admins.backups',
   'role-notes',
 ] as const
 

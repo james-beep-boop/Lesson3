@@ -70,7 +70,7 @@ default 90). Scripts: `scripts/backup-db.sh`, `scripts/restore-db.sh`, `scripts/
    ARES. The school's private identity goes somewhere durable and off-box (a safe; not the server).
    ⚑ Forward-only: dumps written before you set it stay readable only by ARES. ⚑ The two keys must
    differ — the script refuses a duplicate, since it would grant no independent recovery.
-   Manage → System's "Backup recovery" row reports which state an installation is in.
+   Manage → System's "School recovery key" row reports which state an installation is in.
 
 3. **Choose and prepare the destination.**
 

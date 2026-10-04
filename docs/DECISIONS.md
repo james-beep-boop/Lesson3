@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-04 — Backup recovery is a server-operator procedure; Manage only reports its state
+
+Lesson2 exposed browser buttons for backup and restore. Lesson3 deliberately does not port them.
+A restore can replace the live database, depends on an encrypted backup and an off-box private
+identity, and must run against the intended Compose stack. Presenting that as an application control
+would blur both the authorization boundary and the destructive consequence.
+
+**Decision:** *Manage → System* remains read-only. It may report the configured destination, the most
+recent successful upload, and whether new backups include the school's public recovery recipient; it
+must not start a backup or restore data. A Lesson3 **Site Administrator** is an application role, not
+proof that the person has server command-line access or possesses a private recovery identity.
+
+The recovery row is named **School recovery key**. That means
+`BACKUP_AGE_RECIPIENT_SCHOOL` is configured for new backups; the matching private identity remains
+off the server. It does not mean the web application can decrypt or restore anything, and the setting
+is forward-only.
+
+The Site Administrator guide may include the short manual-backup and backup-list commands because a
+Site Administrator and server operator can be the same person. Recovery instructions have a higher
+bar: they must distinguish **School recovery key configured** from **Recovery needs ARES**, name the
+encrypted-file, off-box-key and disposable-Postgres prerequisites, and point the operator to the full
+operations runbook. Do not publish a partial restore recipe that looks runnable without those
+prerequisites.
+
 ## 2026-09-24 — Guide tutorial: role-aware accordions
 
 - `/guide` uses five universally visible top-level areas with persistent subtitles and task panels

@@ -47,6 +47,7 @@ export function computeGuideAvailablePanels(user: User): GuidePanelId[] {
     siteAdmin && 'site-admins.repair',
     siteAdmin && 'site-admins.delete',
     siteAdmin && 'site-admins.system',
+    siteAdmin && 'site-admins.backups',
   ]
 
   return withAncestors([

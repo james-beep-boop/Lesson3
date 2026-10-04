@@ -1700,6 +1700,7 @@ button.user-menu__item {
   padding: 0.05rem 0.25rem;
   border-radius: 4px;
   background: var(--bg-soft);
+  overflow-wrap: anywhere;
 }
 .request-editing-guide-link,
 .help-guide-link a {

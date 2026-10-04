@@ -25,6 +25,88 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# ACTIVE HANDOFF (2026-10-04) — backup/recovery guidance is uncommitted and needs one revision
+
+**This is the active work.** The release-preparation and older handoff blocks below remain for
+provenance; they do not describe the current working tree.
+
+## Repository state — transfer this deliberately
+
+- Branch: `codex/backup-recovery-guidance`
+- Base/HEAD: `9162f2809c14` (`docs: prepare v0.89 release (#358)`)
+- The feature and this handoff are **uncommitted**. No commit or push has been made.
+- The branch's working tree contains the backup/recovery UI, guide and test changes plus this decision
+  record and the corrected OPS row label. Run `git status --short` for the authoritative list.
+
+⚑ **Uncommitted files do not move to the MacBook Air by cloning or pulling.** Before leaving this Mac,
+either explicitly authorize a commit and push of this branch, or create and copy a patch/bundle that
+includes the working tree. Merely recreating the branch name on the other machine will produce the
+unchanged `9162f2809c14` tree.
+
+## What is already implemented
+
+- *Manage → System* now states that it reports status only, distinguishes Site Administrator access
+  from server/private-key access, and links to a Site-Administrator-only guide panel.
+- The System fact is relabelled **School recovery key** and describes the real boundary: the server
+  holds a public recipient setting for new backups; the private identity remains off-box.
+- `/guide` and `USER_GUIDE.md` carry matching backup/recovery guidance, with parity tests. The new
+  panel is in the guide's closed vocabulary and is gated to Site Administrators.
+- Long inline commands wrap at handheld widths.
+
+## Evidence already obtained
+
+These checks ran before the handoff-only edits to `DECISIONS.md`, `NEXT-SESSION.md` and `OPS.md`; the
+tested product, guide and test files have not changed since.
+
+- Full DB-free unit suite: **127 files, 1,158 tests passed**.
+- Zero-warning ESLint, TypeScript, Prettier and `git diff --check` passed.
+- Browser-verified as `siteadmin@local.test`: the Manage copy and **School recovery key** row rendered,
+  the Manage link opened the new guide panel expanded, a 390 px viewport had no horizontal overflow,
+  and the browser console had no warnings or errors. The local dev server and Postgres container were
+  stopped afterwards.
+- An independent review checked the guide commands against `scripts/backup-db.sh`,
+  `scripts/restore-db.sh` and `docs/OPS.md`. CodeRabbit was also started; it emitted one trivial
+  guide-parity test robustness suggestion but never completed, so it is not clean-review evidence.
+
+## Required revision before commit
+
+The current backup and list commands are correct. The restore-drill item is too abbreviated: it does
+not explain how the encrypted file reaches the key-holding machine or that a disposable local Compose
+Postgres must already be running. It also does not tell a school what to do when the row reads
+**Recovery needs ARES**, and `docs/OPS.md` is named as though it were directly reachable from the web
+page.
+
+Keep the status-only Manage copy and the two safe operator commands, then make this narrow revision:
+
+1. Describe the installation directory as configurable (normally `/srv/lesson3`) instead of making
+   that path universal.
+2. Remove the incomplete executable restore command from the user guide. State the three prerequisites
+   in prose: encrypted backup file, matching off-box private identity, and a disposable Compose
+   Postgres stack.
+3. Branch the instruction by reported state: with **School recovery key configured**, the school's
+   server operator can follow the recovery drill using that key; with **Recovery needs ARES**, contact
+   ARES because the school does not hold a suitable private identity.
+4. Give connected readers a real link to the full operations runbook and phrase it as an operator
+   handoff. Decide explicitly whether offline release bundles should also carry `OPS.md`; today
+   `build-local-deploy-bundle.sh` includes `DEPLOYMENT.md` but not `OPS.md`.
+5. Update the guide parity/access tests to pin the final wording and safe boundary. The stale
+   **Backup recovery** label in `docs/OPS.md` was already corrected in this handoff.
+
+Then rerun:
+
+```bash
+scripts/in-deps.sh --network none -- npm run test:unit
+scripts/in-deps.sh --network none -- npm run lint
+scripts/in-deps.sh --network none -- npx tsc --noEmit -p tsconfig.json
+scripts/in-deps.sh --network none -- npm run format:check
+git diff --check
+```
+
+Repeat the Site Administrator browser check for Manage → System, the deep link, and the guide at a
+390 px viewport. Do not commit or push without an explicit request.
+
+---
+
 # RELEASE PREPARATION (2026-09-25) - v0.89
 
 The latest published, installable release remains **`v0.88`** until the next tag workflow finishes.

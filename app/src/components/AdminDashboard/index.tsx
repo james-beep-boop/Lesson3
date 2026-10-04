@@ -705,7 +705,13 @@ export default async function AdminDashboard({
                 made on the server, and most of these take effect only when it restarts. The last
                 three rows are different: they report what actually happened, or what is working
                 right now. The smaller technical names are included for whoever maintains the
-                server.
+                server. This page reports status only; it cannot start a backup or restore data.
+                Site Administrator access does not grant access to the server command line or the
+                private recovery key. See the{' '}
+                <Link href="/guide?open=site-admins&at=site-admins.backups">
+                  backup and recovery instructions
+                </Link>
+                .
               </p>
               <SystemFactsPanel facts={systemFacts} />
             </AccordionPanel>

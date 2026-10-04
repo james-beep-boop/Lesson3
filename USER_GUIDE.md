@@ -130,9 +130,26 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   will not see their password.
 - **Check site and backup status:** Manage → System shows the site address, whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
-  succeeded, and whether this site keeps the key needed to open its backups. A successful backup
-  means an encrypted copy was sent; it does not prove the backup can be restored. You cannot change
-  these settings on this page. Ask the person who manages the server to change them.
+  succeeded, and whether new backups are encrypted for a recovery key held by the school. A
+  successful backup means an encrypted copy was sent; it does not prove the backup can be restored.
+  *Manage → System* reports status only; it cannot start a backup or restore data. Ask the person who
+  manages the server to change its settings.
+- **Backups and recovery for server operators:** Site Administrator access in Lesson3 does not grant
+  access to the server command line or the private recovery key. These commands are for the person
+  who manages the server:
+
+  1. To make an encrypted backup now, sign in to the Lesson3 server and run
+     `cd /srv/lesson3 && scripts/backup-db.sh`.
+  2. To list available backups, run
+     `cd /srv/lesson3 && scripts/restore-db.sh --list`.
+  3. To test recovery safely, copy an encrypted backup to the machine that holds the private key.
+     From a Lesson3 checkout on that machine, run
+     `AGE_IDENTITY=/path/to/lesson3-backup.key scripts/restore-db.sh --local-file /path/to/backup.dump.age --into lesson3_restore_check`.
+     This restores into a disposable test database, not the live lesson library.
+
+  Keep the private recovery key off the Lesson3 server during a drill. A live restore replaces data
+  and requires the app to be stopped, so follow the complete recovery procedure in `docs/OPS.md`; it
+  is deliberately not a browser button.
 - **Set up subjects and grades:** add subjects and grades before uploading lesson plans.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.

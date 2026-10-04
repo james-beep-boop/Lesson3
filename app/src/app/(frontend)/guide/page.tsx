@@ -587,12 +587,52 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   <em>Manage → System</em> shows the site address, whether email and public sharing
                   are available, whether PDFs are working, where backups are sent, when the last
-                  backup succeeded, and whether this site keeps the key needed to open its backups.
+                  backup succeeded, and whether new backups are encrypted for a recovery key held by
+                  the school.
                 </p>
                 <p>
                   A successful backup means an encrypted copy was sent. It does not prove the backup
-                  can be restored. You cannot change these settings on this page; ask the person who
-                  manages the server to change them.
+                  can be restored. <em>Manage → System</em> reports status only; it cannot start a
+                  backup or restore data. Ask the person who manages the server to change its
+                  settings.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.backups') && (
+              <GuideAccordionPanel
+                id="site-admins.backups"
+                title="Backups and recovery for server operators"
+              >
+                <p>
+                  Site Administrator access in Lesson3 does not grant access to the server command
+                  line or the private recovery key. These commands are for the person who manages
+                  the server.
+                </p>
+                <ol className="guide-steps">
+                  <li>
+                    To make an encrypted backup now, sign in to the Lesson3 server and run{' '}
+                    <code>cd /srv/lesson3 &amp;&amp; scripts/backup-db.sh</code>.
+                  </li>
+                  <li>
+                    To list available backups, run{' '}
+                    <code>cd /srv/lesson3 &amp;&amp; scripts/restore-db.sh --list</code>.
+                  </li>
+                  <li>
+                    To test recovery safely, copy an encrypted backup to the machine that holds the
+                    private key. From a Lesson3 checkout on that machine, run{' '}
+                    <code>
+                      AGE_IDENTITY=/path/to/lesson3-backup.key scripts/restore-db.sh --local-file
+                      /path/to/backup.dump.age --into lesson3_restore_check
+                    </code>
+                    . This restores into a disposable test database, not the live lesson library.
+                  </li>
+                </ol>
+                <p>
+                  Keep the private recovery key off the Lesson3 server during a drill. A live
+                  restore replaces data and requires the app to be stopped, so follow the complete
+                  recovery procedure in <code>docs/OPS.md</code>; it is deliberately not a browser
+                  button.
                 </p>
               </GuideAccordionPanel>
             )}

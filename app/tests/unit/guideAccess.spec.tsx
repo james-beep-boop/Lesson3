@@ -44,6 +44,9 @@ describe('role-aware guide content', () => {
     expect(screen.queryByRole('img')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Open a lesson for editing' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Backups and recovery for server operators' }),
+    ).toBeNull()
     expect(screen.getByText(/Review lesson changes, manage editing access/)).not.toBeNull()
   })
 
@@ -61,6 +64,9 @@ describe('role-aware guide content', () => {
       screen.getByRole('button', { name: 'Hand administration to another person' }),
     ).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Create and verify an account' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'Backups and recovery for server operators' }),
+    ).toBeNull()
   })
 
   it('shows Editing to a Teacher with a scoped editing grant, without admin walkthroughs', async () => {
@@ -89,6 +95,9 @@ describe('role-aware guide content', () => {
     expect(screen.getByRole('button', { name: 'Create and verify an account' })).not.toBeNull()
     expect(
       screen.getByRole('button', { name: 'Set up the first Site administrator' }),
+    ).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Backups and recovery for server operators' }),
     ).not.toBeNull()
   })
 })

@@ -137,6 +137,31 @@ const CLAIMS: { what: string; claim: string }[] = [
     what: 'the backup status distinguishes successful transport from demonstrated recovery',
     claim: 'does not prove the backup can be restored',
   },
+  {
+    what: 'Manage reports backup state but cannot perform a backup or restore',
+    claim: 'reports status only; it cannot start a backup or restore data',
+  },
+  {
+    what: 'the recovery-key status describes the off-box school key accurately',
+    claim: 'new backups are encrypted for a recovery key held by the school',
+  },
+  {
+    what: 'Site Administrator is an application role, not server or private-key access',
+    claim:
+      'Site Administrator access in Lesson3 does not grant access to the server command line or the private recovery key',
+  },
+  {
+    what: 'the safe recovery drill targets a disposable database rather than the live library',
+    claim: 'This restores into a disposable test database, not the live lesson library',
+  },
+  {
+    what: 'the manual backup command is available to the server operator',
+    claim: 'cd /srv/lesson3 && scripts/backup-db.sh',
+  },
+  {
+    what: 'the backup-list command is available to the server operator',
+    claim: 'cd /srv/lesson3 && scripts/restore-db.sh --list',
+  },
   // ⚑ Edit recovery had NO guide coverage at all until 2026-08-25 — a teacher met that dialog with no
   // prior explanation, and it is the one place outside version-compare showing red/green diff
   // colours. These four are the facts they could act on and be wrong about.
@@ -202,6 +227,15 @@ describe('the in-app guide and USER_GUIDE.md preserve shared rules', () => {
       expect(page, `/guide is missing: "${claim}"`).toContain(claim)
     })
   }
+
+  it('documents the exact safe local-file recovery drill on both surfaces', () => {
+    const command =
+      /AGE_IDENTITY=\/path\/to\/lesson3-backup\.key scripts\/restore-db\.sh --local-file\s+\/path\/to\/backup\.dump\.age --into lesson3_restore_check/
+    expect(read(GUIDE_MD, 'The repo-root bind mount from scripts/in-deps.sh is missing.')).toMatch(
+      command,
+    )
+    expect(read(GUIDE_PAGE, 'The /guide page moved?')).toMatch(command)
+  })
 
   /**
    * ⚑ NO HTML CHARACTER ENTITIES IN THE PAGE, except `&amp;` — and this is a MEASURED toolchain
