@@ -128,6 +128,9 @@ describe('collectSystemFacts', () => {
       process.env.BACKUP_AGE_RECIPIENT_SCHOOL = 'age1schoolkey'
       const fact = byKey(await collectSystemFacts(), 'backupRecovery')
       expect(fact.status).toBe('ok')
+      expect(fact.label).toBe('School recovery key')
+      expect(fact.value).toBe('School recovery key configured')
+      expect(fact.description).toContain('reported status, not a restore control')
       expect(fact.detail).toContain('BEFORE this key was configured')
     })
 

@@ -189,7 +189,7 @@ function backupDestinationFact(): SystemFact {
 }
 
 /**
- * Can this installation restore its own backups, or does recovery need ARES?
+ * Is a school-held recovery recipient configured for new backups, or does recovery need ARES?
  *
  * ⚑ THE MOST CONSEQUENTIAL FACT ON THE PANEL FOR AN OFFLINE SCHOOL, and until now it was invisible.
  * Backups are encrypted to a public key whose private identity ARES holds; a school with no internet
@@ -207,16 +207,16 @@ function backupRecoveryFact(): SystemFact {
   const schoolKey = process.env.BACKUP_AGE_RECIPIENT_SCHOOL?.trim()
   const base: Omit<SystemFact, 'value' | 'status'> = {
     key: 'backupRecovery',
-    label: 'Backup recovery',
+    label: 'School recovery key',
     envVar: 'BACKUP_AGE_RECIPIENT_SCHOOL',
     description:
-      'Whether this installation holds its own key to reopen its backups, or whether recovering them ' +
-      'requires ARES. Backups are always encrypted; this is about who can decrypt them.',
+      'Whether new backups are encrypted for a recovery key held by this school, or only for ARES. ' +
+      'This is reported status, not a restore control; the private key is kept off the server.',
   }
   return schoolKey
     ? {
         ...base,
-        value: 'This installation can recover on its own',
+        value: 'School recovery key configured',
         status: 'ok',
         detail:
           "Backups are encrypted to this school's key as well as ARES's, so either can restore them. " +

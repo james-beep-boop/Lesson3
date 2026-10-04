@@ -53,6 +53,7 @@ export function computeGuideAvailablePanels(
     siteAdmin && 'site-admins.repair',
     siteAdmin && 'site-admins.delete',
     siteAdmin && 'site-admins.system',
+    siteAdmin && 'site-admins.backups',
     siteAdmin && 'site-admins.discussions',
   ]
 

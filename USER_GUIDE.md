@@ -173,9 +173,10 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   will not see their password.
 - **Check site and backup status:** Manage → System → Installation status shows the site address, whether email and public
   sharing are available, whether PDFs are working, where backups are sent, when the last backup
-  succeeded, and whether this site keeps the key needed to open its backups. A successful backup
-  means an encrypted copy was sent; it does not prove the backup can be restored. You cannot change
-  these installation settings on this page. Ask the person who manages the server to change them.
+  succeeded, and whether new backups are encrypted for a recovery key held by the school. A
+  successful backup means an encrypted copy was sent; it does not prove the backup can be restored.
+  *Manage → System → Installation status* reports status only; it cannot start a backup or restore
+  data. Ask the person who manages the server to change its settings.
 - **Switch Discussions on or off:** in **Manage → System → Features**, change **Discussions enabled**
   and choose **Save**. Review the change and enter your password. The switch stays unchanged until
   Save succeeds. If someone else saved settings first, reload before saving.
@@ -185,6 +186,27 @@ Site administrators can manage all accounts, subjects, grades, and lesson plans.
   removes the entire thread and every reply, and cannot be undone. Each action asks for confirmation.
   While the forum is off, follow **Moderate discussions** beside the switch to read, redact or
   delete. This view has no search, posting, pinning or unread tracking.
+- **Backups and recovery for server operators:** Site Administrator access in Lesson3 is an
+  application role; it does not grant access to the server command line or the private recovery key.
+  These steps are for the person who manages the server.
+
+  To make an encrypted backup now, sign in to the Lesson3 server and run
+  `cd /srv/lesson3 && scripts/backup-db.sh` (replace `/srv/lesson3` with the actual installation
+  directory if it differs). To list available encrypted backups, run
+  `cd /srv/lesson3 && scripts/restore-db.sh --list`.
+
+  Before attempting recovery, check what *Manage → System → Installation status* shows under
+  **School recovery key**:
+
+  - **School recovery key configured** — the school holds the private key for these backups. Recovery
+    requires three things present before starting: the encrypted backup file, the matching private key
+    on the machine where the restore will run (not on the Lesson3 server), and a disposable local
+    Compose Postgres stack already running. Follow the full procedure in `docs/OPS.md`.
+  - **Recovery needs ARES** — the school does not hold a private recovery key. Contact ARES for
+    assistance; do not attempt a restore without the matching key.
+
+  A live restore replaces all data and requires the application to be stopped first. Recovery is
+  deliberately not a browser button; the full runbook is `docs/OPS.md`.
 - **Set up subjects and grades:** add subjects and grades before uploading lesson plans.
 - **Manage all lesson plans:** open, edit, download, mark Official, or delete plans across all
   subjects and grades.

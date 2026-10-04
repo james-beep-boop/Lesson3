@@ -682,13 +682,59 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                 <p>
                   <em>Manage → System → Installation status</em> shows the site address, whether
                   email and public sharing are available, whether PDFs are working, where backups
-                  are sent, when the last backup succeeded, and whether this site keeps the key
-                  needed to open its backups.
+                  are sent, when the last backup succeeded, and whether new backups are encrypted
+                  for a recovery key held by the school.
                 </p>
                 <p>
                   A successful backup means an encrypted copy was sent. It does not prove the backup
-                  can be restored. You cannot change these installation settings on this page; ask
-                  the person who manages the server to change them.
+                  can be restored. <em>Manage → System → Installation status</em> reports status
+                  only; it cannot start a backup or restore data. Ask the person who manages the
+                  server to change its settings.
+                </p>
+              </GuideAccordionPanel>
+            )}
+
+            {can('site-admins.backups') && (
+              <GuideAccordionPanel
+                id="site-admins.backups"
+                title="Backups and recovery for server operators"
+              >
+                <p>
+                  Site Administrator access in Lesson3 is an application role; it does not grant
+                  access to the server command line or the private recovery key. These steps are for
+                  the person who manages the server.
+                </p>
+                <p>
+                  To make an encrypted backup now, sign in to the Lesson3 server and run{' '}
+                  <code>cd /srv/lesson3 &amp;&amp; scripts/backup-db.sh</code> (replace{' '}
+                  <code>/srv/lesson3</code> with the actual installation directory if it differs).
+                  To list available encrypted backups, run{' '}
+                  <code>cd /srv/lesson3 &amp;&amp; scripts/restore-db.sh --list</code>.
+                </p>
+                <p>
+                  Before attempting recovery, check what{' '}
+                  <em>Manage → System → Installation status</em> shows under{' '}
+                  <strong>School recovery key</strong>:
+                </p>
+                <ul>
+                  <li>
+                    <strong>School recovery key configured</strong> — the school holds the private
+                    key for these backups. Recovery requires three things present before starting:
+                    the encrypted backup file, the matching private key on the machine where the
+                    restore will run (not on the Lesson3 server), and a disposable local Compose
+                    Postgres stack already running. Follow the full procedure in{' '}
+                    <code>docs/OPS.md</code>.
+                  </li>
+                  <li>
+                    <strong>Recovery needs ARES</strong> — the school does not hold a private
+                    recovery key. Contact ARES for assistance; do not attempt a restore without the
+                    matching key.
+                  </li>
+                </ul>
+                <p>
+                  A live restore replaces all data and requires the application to be stopped first.
+                  Recovery is deliberately not a browser button; the full runbook is{' '}
+                  <code>docs/OPS.md</code>.
                 </p>
               </GuideAccordionPanel>
             )}
