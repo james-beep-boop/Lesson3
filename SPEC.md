@@ -125,6 +125,16 @@ resource record or `null` when ARES found no recommendation. A resource record p
 metadata: `title`, `source`, `content_type`, `direct_url`, `search_url`, `search_terms`,
 `exact_search_url`, `has_transcript`, and `tier`.
 
+⚑ **A `null` slot is stored as an empty group, and means `null` on export (2026-10-05).** ARES emits
+`video: null` / `reading: null` whenever its relevance matcher finds nothing suitable (upstream
+`DESIGN_link_selection_v2.md` §4.8; 54 of the 95 current Grade 10/11 files carry some). Payload cannot
+persist a `null` group (it throws on write → HTTP 500), so ingest stores an empty group and the export
+adapter restores `null`; the JSON the generator receives is identical to what ARES wrote. The empty
+group is an internal storage form only: an uploaded `{}` or partially populated record is still a
+contract violation (`isEmptyResourceGroup` in `ingest/resourceLinks.ts` is deliberately strict).
+Rendered, a null slot is the "Search ARES" fallback link built from `fallback_search_url`.
+See DECISIONS 2026-10-05.
+
 ARES resolves these links before it writes the downstream JSON artifact. Lesson3 **does not run** the
 Python recommender or its SQLite index at upload or render time. It strictly validates the supplied
 map, stores it losslessly as system-only native Payload fields on each immutable version, and renders

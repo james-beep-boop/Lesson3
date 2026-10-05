@@ -8,6 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+### Ingest
+
+- Accept ARES lesson plans whose `video`/`reading` resource slots are `null` ("no suitable resource
+  found"). These uploaded as an HTTP 500 and blocked over half of the current Grade 10/11 files. The
+  null is stored as an empty group and restored on export; uploaded resources are otherwise validated
+  exactly as before, and populated resources are unchanged. See DECISIONS 2026-10-05.
+
 ## v0.89 (2026-09-25)
 
 ### Teacher guide

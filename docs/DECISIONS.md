@@ -11,6 +11,55 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-05 — Null resource slots: stored as an empty group; "validated" is not "writable"
+
+⚑ **A CORRECTION, and the general rule is the point.** Uploading
+`Biology_Animal_Gaseous_Exchange_and_Respiration_data.json` returned HTTP 500
+(`TypeError: Cannot read properties of null (reading 'title')`). The JSON was valid. Its 30 `null`
+`video`/`reading` slots are the contract's legitimate "ARES found no recommendation" value — and the
+upstream relevance matcher (cbe-generation-system `DESIGN_link_selection_v2.md` §4.4/§4.8, in force
+since late Sept 2026) now emits them whenever the content library has nothing relevant enough
+(upstream: 0 of 7,280 slots null before, 830 after). 54 of the 95 files in `Lessons_New` carry them
+(1,210 slots); the earlier files had none, which is why nothing had ever exercised the path.
+
+- **Cause.** `aresResourceLinksToRows` passed `video: null` straight into Payload's native group.
+  Payload's `beforeValidate` group handler only replaces a value when `typeof value !== 'object'`, and
+  `typeof null === 'object'`, so the null reached `traverseFields` and threw. Every validator, the
+  export adapter and the unit tests accepted null — but **nothing ever wrote a null slot through
+  Payload**, so "null resources are handled" was true of the gates and false of the database.
+  `NEXT-SESSION` listed "including null resources" as a test to *write*; it never was.
+- **Decision.** An absent resource is **stored as an empty Payload group** and **means `null` at the
+  JSON boundary**. `aresResourceLinksToRows` writes `{}` for a null slot; `toResourceRecord` (export)
+  already restored null from an empty group. No migration, no JSON edit, schema stays 1.0.0 — and
+  rewriting nulls to `{}` in the JSON would violate the contract.
+- **The empty group is an internal storage form, never an accepted input.** `isEmptyResourceGroup`
+  (shared by the validator and the export adapter so they cannot disagree) is deliberately strict: no
+  key outside `RESOURCE_RECORD_KEYS`; `has_transcript` must be `false`/`null`/absent (Payload's
+  default is `false` — `true` or any non-boolean is a half-populated record); every other field null
+  or blank. An uploaded `{}`, `{has_transcript: true}`, `{foo: 1}` or a lone `title` is still refused
+  — by the unchanged raw contract-drift gate (HTTP 422, nothing written) — so malformed data cannot
+  silently become a null.
+- **Why the validator had to change too.** The naive fix (map null → `{}` in the adapter alone) fails
+  pre-flight: `validateResourceLinks` ran over the converted rows and called an empty group invalid,
+  and `validateGeneratable` re-runs on every later save (`hooks/bundleVersion.ts`), where the stored
+  empty group is what it reads back. Write path, read-back, edit and export must all agree.
+- **The rule to keep.** *A value that passes validation has not been shown to be writable.* A
+  fixture-only or validator-only test of a persistence-boundary shape is not evidence; pin it with a
+  real write → read-back → later-save → export test. `tests/int/nullResources.int.spec.ts` and
+  `tests/http/nullResources.http.spec.ts` are that pin, and the new int tests were confirmed to fail
+  with the original `TypeError` when the fix is reverted.
+- **Proof.** Every file in `Lessons_New` (95, 54 with nulls) and `ares-json` (85) was ingested for
+  real into a clean database and `toAresResourceLinks(stored)` was compared to the uploaded
+  `resourceLinks` with deep equality: 95/95 and 85/85 identical. Run under the pinned Node 24
+  `scripts/in-deps.sh` image, not the Node 25 on the maintainer's Mac (which `devEngines` rightly
+  refuses).
+- **Not done here (separate decisions).** Re-vendoring the generator for upstream's 2026-10-04
+  changes (summary table derived from lessons — which reverses the SPEC §3 "distinct content" rule —
+  student/teacher final-explanation split, Markdown tables); surfacing upstream's `needs_review`
+  status, which lives in separate log files and never in the JSON; editing resources in the UI.
+  Upstream's `PARTNER_CONTRACT_NOTES.md` lists "partner confirmation that Lesson3 handles `null`
+  resource slots" as an open item — it can be answered yes once this is merged and deployed.
+
 ## 2026-09-24 — Guide tutorial: role-aware accordions
 
 - `/guide` uses five universally visible top-level areas with persistent subtitles and task panels
