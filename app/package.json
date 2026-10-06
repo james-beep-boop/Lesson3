@@ -47,7 +47,7 @@
     "payload": "3.90.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "sharp": "0.35.4"
+    "sharp": "0.35.5"
   },
   "overrides": {
     "@xmldom/xmldom": "0.8.15",
@@ -64,7 +64,7 @@
     "source-map-js": "1.2.2",
     "sass": "1.79.6",
     "immutable": "4.3.9",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "docx": {
       "nanoid": "5.1.16"
     }

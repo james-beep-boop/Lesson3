@@ -23,6 +23,8 @@ Concise record of delivered product changes, newest first. Detailed implementati
   `fast-uri`, `nodemailer`, `braces` and `source-map-js`. Moves five overrides (`undici`, `fast-uri`,
   `nodemailer` to 10.x, `sass` to 1.79.6, which also removes the unpatchable `braces` chain, and
   `source-map-js`). See DECISIONS 2026-10-05.
+- Bump `sharp` to 0.35.5 (bundled `libvips` 1.3.4) for a new high advisory in its librsvg component, which
+  had turned `audit:prod` red on `main`. See DECISIONS 2026-10-07.
 
 ## v0.89 (2026-09-25)
 
