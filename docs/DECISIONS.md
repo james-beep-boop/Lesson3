@@ -22,7 +22,9 @@ Reproduced on the unchanged `main` lockfile (exit 1).
   7.29.1); `fast-uri` 3.1.6 → 3.1.8 (3; 3.1.7 is still affected); `nodemailer` 9.1.1 → **10.0.14**
   (5; fixed from 10.0.9 — 10.0.14 rather than the first fixed release because six later releases
   harden the same address-parser code, and rather than 10.0.15 because that was published the day this
-  was written); `sass` 1.77.4 → 1.79.6 (devDependency **and** a new override).
+  was written); `sass` 1.77.4 → 1.79.6 (devDependency **and** a new override); and, added after the
+  PR's first full CI run, `source-map-js` 1.2.1 → 1.2.2 (one high advisory, GHSA-68fv-2mgg-jv7q,
+  patched in 1.2.2; reached through `postcss`/`sass`, both of whose ranges already allow it).
 - **The `braces` finding has no patched release** (latest is 3.0.3, the version we had; the advisory
   covers ≤3.0.3), so a bump cannot fix it. It arrived through `@payloadcms/next` → `sass` (Payload
   hard-pins exactly `1.77.4`) → `chokidar` 3 → `braces`. Dart Sass ≥1.79 uses `chokidar` 4, which has
@@ -41,8 +43,16 @@ Reproduced on the unchanged `main` lockfile (exit 1).
 - **Lockfile side effects.** Six resolved versions move (the four above plus `chokidar` 3 → 4 and
   `readdirp` 3 → 4), and 15 optional `@parcel/watcher` platform binaries are added because `sass` ≥1.79
   lists it as an optional dependency for `--watch`; production never uses `--watch`.
-- **Residue left on purpose.** 5 moderate findings remain — the `esbuild` dev-server chain through
-  `drizzle-kit` (`@payloadcms/db-postgres`), no fix available, below the `high` threshold.
+- **Residue left on purpose.** 9 moderate findings remain (as CI reports them) — the `esbuild`
+  dev-server chain through `drizzle-kit` (`@payloadcms/db-postgres`, no fix available), `fast-copy`,
+  and `sprintf-js` via `mammoth`/`argparse`. All are below the `high` threshold the gate enforces.
+- **⚑ The gate will go red again.** `audit:prod` reads a live advisory database, and the list moved
+  *between my local pass on 2026-10-05 and CI's run on 2026-10-06* (`source-map-js`, published
+  2026-09-18, was not flagged locally and was flagged in CI). A local pass is therefore evidence, not
+  a guarantee: re-run the audit immediately before merging, and expect to repeat this exercise.
+- **Verified in CI (attempt 3, 2026-10-06):** the production-build stack, `test:unit`, lint, format,
+  `contract probe`, `test:int`, `test:http` and the Playwright suite all passed with the new `sass` and
+  `nodemailer`; only `audit:prod` failed, on the `source-map-js` advisory above, since fixed.
 - **Verified locally** (pinned Node 24 image): the exact CI audit command exits 0 (1 on `main`);
   type-check, lint, format and the unit suite pass; a smoke test through Payload's real adapter against
   a fake SMTP server confirmed AUTH, MAIL FROM, RCPT, a PDF attachment and an accepted recipient on
