@@ -10,6 +10,13 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+### Ingest
+
+- Accept ARES lesson plans whose `video`/`reading` resource slots are `null` ("no suitable resource
+  found"). These uploaded as an HTTP 500 and blocked over half of the current Grade 10/11 files. The
+  null is stored as an empty group and restored on export; uploaded resources are otherwise validated
+  exactly as before, and populated resources are unchanged. See DECISIONS 2026-10-05.
+
 ### Dependencies
 
 - Clear the production audit gate, which began failing on newly published advisories in `undici`,

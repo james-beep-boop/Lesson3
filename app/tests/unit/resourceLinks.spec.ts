@@ -117,6 +117,87 @@ describe('definitive lesson resourceLinks contract', () => {
   })
 })
 
+describe('null resource slots (absent resource)', () => {
+  const rawWithNulls = () => {
+    const value = links() as unknown as Record<string, Record<string, unknown>>
+    value.predict!.video = null
+    value.predict!.reading = null
+    value.dqb!.reading = null
+    return value as unknown as AresResourceLinks
+  }
+
+  it('stores an ARES null as an empty group, never as null (Payload crashes on a null group)', () => {
+    const rows = aresResourceLinksToRows(rawWithNulls()) as StoredResourceLinkRow[]
+    const predict = rows.find((r) => r.phase === 'predict')!
+    expect(predict.video).toEqual({})
+    expect(predict.reading).toEqual({})
+    expect(rows.find((r) => r.phase === 'dqb')!.reading).toEqual({})
+    // a populated sibling is untouched
+    expect(rows.find((r) => r.phase === 'dqb')!.video).toEqual(links().dqb.video)
+  })
+
+  it('validates the converted rows, so ingest pre-flight accepts a null slot', () => {
+    expect(validateResourceLinks(aresResourceLinksToRows(rawWithNulls()))).toEqual([])
+  })
+
+  it('round-trips raw → stored → export with the null preserved and populated slots identical', () => {
+    const raw = rawWithNulls()
+    const rows = aresResourceLinksToRows(raw) as StoredResourceLinkRow[]
+    expect(toAresResourceLinks(rows)).toEqual(raw)
+  })
+
+  it('also round-trips the shape Payload returns on read (nullable leaves, has_transcript false)', () => {
+    const raw = rawWithNulls()
+    const rows = aresResourceLinksToRows(raw) as StoredResourceLinkRow[]
+    const readBack = rows.map((row) => ({
+      ...row,
+      video: row.video && Object.keys(row.video).length === 0 ? payloadEmptyGroup() : row.video,
+      reading:
+        row.reading && Object.keys(row.reading).length === 0 ? payloadEmptyGroup() : row.reading,
+    }))
+    expect(validateResourceLinks(readBack)).toEqual([])
+    expect(toAresResourceLinks(readBack)).toEqual(raw)
+  })
+
+  const payloadEmptyGroup = () => ({
+    title: null,
+    source: null,
+    content_type: null,
+    direct_url: null,
+    search_url: null,
+    search_terms: null,
+    exact_search_url: null,
+    has_transcript: false,
+    tier: null,
+  })
+
+  // An empty group is only an INTERNAL storage form. Anything that is not exactly "absent" must
+  // still fail loudly rather than silently becoming a null.
+  it.each([
+    ['has_transcript true on an otherwise empty group', { has_transcript: true }],
+    ['has_transcript as the string "false"', { has_transcript: 'false' }],
+    ['has_transcript as 0', { has_transcript: 0 }],
+    ['an unexpected key', { foo: 1 }],
+    ['an unexpected key beside empty leaves', { ...payloadEmptyGroup(), foo: 'x' }],
+    ['a single populated field (partial record)', { title: 'only a title' }],
+  ])('rejects %s', (_label, group) => {
+    const rows = storedLinks()
+    rows[0]!.video = group as never
+    expect(validateResourceLinks(rows).length).toBeGreaterThan(0)
+  })
+
+  it('accepts has_transcript false, null or absent on an empty group', () => {
+    for (const transcript of [false, null, undefined]) {
+      const rows = storedLinks()
+      const group: Record<string, unknown> = { ...payloadEmptyGroup() }
+      if (transcript === undefined) delete group.has_transcript
+      else group.has_transcript = transcript
+      rows[0]!.video = group as never
+      expect(validateResourceLinks(rows)).toEqual([])
+    }
+  })
+})
+
 describe('resourceLinks save-as-new boundary', () => {
   it('restores existing lesson maps and accepts an exact stored map for a duplicated lesson', () => {
     const stored = storedLinks()

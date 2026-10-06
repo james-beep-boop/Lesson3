@@ -76,6 +76,9 @@ function validateResourceRecord(value: unknown, path: string, problems: string[]
     problems.push(`${path}: expected a resource object or null.`)
     return
   }
+  // An absent resource is stored as an empty Payload group (see `aresResourceLinksToRows`). Raw
+  // uploads never get here with `{}`: the contract-drift gate rejects an empty record before a write.
+  if (isEmptyResourceGroup(value)) return
 
   for (const key of unexpectedKeys(value, RESOURCE_RECORD_KEYS)) {
     problems.push(`${path}.${key}: unexpected resource field.`)
@@ -108,14 +111,22 @@ export function aresResourceLinksToRows(value: unknown): unknown {
   if (!isObject(value)) return value
   return RESOURCE_PHASE_KEYS.map((phase) => {
     const phaseValue = value[phase]
+    if (!isObject(phaseValue)) return { phase }
     // The enclosing object key is authoritative. Assign it after the raw bucket so an unexpected
     // nested `phase` property cannot redirect or duplicate a stored row before contract drift is
     // reported against the raw JSON.
-    return isObject(phaseValue) ? { ...phaseValue, phase } : { phase }
+    const row: Record<string, unknown> = { ...phaseValue, phase }
+    // ARES's explicit `null` ("no suitable resource") is stored as an EMPTY group. Payload's
+    // beforeValidate group handling only replaces a non-`object` value, and `typeof null` is
+    // 'object', so a null group reaches `traverseFields` and throws "Cannot read properties of null
+    // (reading 'title')" — a 500 on upload. `toResourceRecord` restores the null on export.
+    for (const key of ['video', 'reading'] as const) if (row[key] === null) row[key] = {}
+    return row
   })
 }
 
-/** Validate the native/stored five-row representation. Empty Payload groups are invalid. */
+/** Validate the native/stored five-row representation. A resource slot is null or an empty group
+ *  (an absent resource, `isEmptyResourceGroup`); a partially populated record is invalid. */
 export function validateResourceLinks(value: unknown, path = 'resourceLinks'): string[] {
   const problems: string[] = []
   if (!Array.isArray(value)) return [`${path}: required resourceLinks rows are missing.`]
@@ -158,10 +169,17 @@ export function validateResourceLinks(value: unknown, path = 'resourceLinks'): s
   return problems
 }
 
-/** Payload expands a null optional group into nullable leaves; detect that representation. Derived
- *  from `RESOURCE_RECORD_KEYS` so it can't drift from the field set. `has_transcript` (a checkbox
- *  defaulting to false) is the one field excluded — it never distinguishes empty from populated. */
-function recordIsEmpty(value: Record<string, unknown>): boolean {
+/** True when a stored resource group represents ARES's `null` ("no suitable resource"): Payload
+ *  expands a null optional group into nullable leaves. Deliberately strict, so malformed data cannot
+ *  silently disappear into a null — the group must carry no key outside `RESOURCE_RECORD_KEYS`,
+ *  `has_transcript` must be `false`/`null`/absent (Payload's default is `false`; `true` or any
+ *  non-boolean is a partially populated record), and every other field must be null or blank.
+ *  Derived from `RESOURCE_RECORD_KEYS` so it can't drift from the field set. Shared by the validator
+ *  and the export adapter so the two cannot disagree. */
+export function isEmptyResourceGroup(value: Record<string, unknown>): boolean {
+  if (unexpectedKeys(value, RESOURCE_RECORD_KEYS).length > 0) return false
+  const transcript = value.has_transcript
+  if (transcript !== undefined && transcript !== null && transcript !== false) return false
   return RESOURCE_RECORD_KEYS.filter((key) => key !== 'has_transcript').every(
     (key) => value[key] == null || value[key] === '',
   )
@@ -169,7 +187,7 @@ function recordIsEmpty(value: Record<string, unknown>): boolean {
 
 function toResourceRecord(value: unknown): AresResourceRecord | null {
   if (value === null || value === undefined) return null
-  if (!isObject(value) || recordIsEmpty(value)) return null
+  if (!isObject(value) || isEmptyResourceGroup(value)) return null
   return Object.fromEntries(
     RESOURCE_RECORD_KEYS.map((key) => [key, value[key]]),
   ) as unknown as AresResourceRecord
