@@ -53,18 +53,26 @@ if (process.env.NODE_ENV === 'production' && !isNextBuild && !payloadSecret) {
 // skipVerify keeps app boot decoupled from SMTP reachability; delivery is tested
 // separately. Port 465 = implicit TLS; anything else (e.g. 587) = STARTTLS.
 const smtpPort = Number(process.env.SMTP_PORT) || 465
+// nodemailer 10 moved `auth` from the base connection options to the transport options (types only;
+// `createTransport` accepts it at runtime), but Payload's adapter still types `transportOptions` as
+// the connection options. Widen the type here, derived from the adapter's own signature so it keeps
+// tracking whatever Payload declares.
+type SmtpTransportOptions = NonNullable<
+  NonNullable<Parameters<typeof nodemailerAdapter>[0]>['transportOptions']
+> & { auth?: { user?: string; pass?: string } }
+const smtpTransportOptions: SmtpTransportOptions = {
+  host: process.env.SMTP_HOST,
+  port: smtpPort,
+  secure: smtpPort === 465,
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+}
 const email = process.env.SMTP_HOST
   ? await nodemailerAdapter({
       defaultFromName: process.env.EMAIL_FROM_NAME || 'ARES Lesson Plans',
       defaultFromAddress:
         process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER || 'no-reply@localhost',
       skipVerify: true,
-      transportOptions: {
-        host: process.env.SMTP_HOST,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      },
+      transportOptions: smtpTransportOptions,
     })
   : undefined
 

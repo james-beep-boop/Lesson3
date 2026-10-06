@@ -53,14 +53,16 @@
     "@xmldom/xmldom": "0.8.15",
     "baseline-browser-mapping": "2.11.0",
     "browserslist": "4.28.7",
-    "undici": "7.29.0",
+    "undici": "7.29.1",
     "postcss": {
       ".": "8.5.28",
       "nanoid": "3.3.18"
     },
-    "nodemailer": "9.1.1",
+    "nodemailer": "10.0.14",
     "js-yaml": "4.3.2",
-    "fast-uri": "3.1.6",
+    "fast-uri": "3.1.8",
+    "source-map-js": "1.2.2",
+    "sass": "1.79.6",
     "immutable": "4.3.9",
     "sharp": "0.35.4",
     "docx": {
@@ -80,7 +82,7 @@
     "eslint-config-next": "16.3.6",
     "postcss": "8.5.28",
     "prettier": "3.9.9",
-    "sass": "1.77.4",
+    "sass": "1.79.6",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vite-tsconfig-paths": "6.1.1",
