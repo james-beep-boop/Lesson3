@@ -11,6 +11,56 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-05 — Production audit: override past Payload's pins for new advisories
+
+`npm run audit:prod` (`--omit=dev --audit-level=high`, a fail-closed CI gate) began failing on `main`
+with no code change: new advisories were published against versions we had pinned. `main`'s last green
+run was 2026-09-25; the gate reads a live advisory database, so a green gate can go red on its own.
+Reproduced on the unchanged `main` lockfile (exit 1).
+
+- **Overrides (all in `app/package.json`).** `undici` 7.29.0 → 7.29.1 (10 advisories, fixed in
+  7.29.1); `fast-uri` 3.1.6 → 3.1.8 (3; 3.1.7 is still affected); `nodemailer` 9.1.1 → **10.0.14**
+  (5; fixed from 10.0.9 — 10.0.14 rather than the first fixed release because six later releases
+  harden the same address-parser code, and rather than 10.0.15 because that was published the day this
+  was written); `sass` 1.77.4 → 1.79.6 (devDependency **and** a new override); and, added after the
+  PR's first full CI run, `source-map-js` 1.2.1 → 1.2.2 (one high advisory, GHSA-68fv-2mgg-jv7q,
+  patched in 1.2.2; reached through `postcss`/`sass`, both of whose ranges already allow it).
+- **The `braces` finding has no patched release** (latest is 3.0.3, the version we had; the advisory
+  covers ≤3.0.3), so a bump cannot fix it. It arrived through `@payloadcms/next` → `sass` (Payload
+  hard-pins exactly `1.77.4`) → `chokidar` 3 → `braces`. Dart Sass ≥1.79 uses `chokidar` 4, which has
+  no `braces`, so the **chain is removed rather than patched**. 1.79.6 is deliberately the last release
+  before 1.80, which starts emitting `@import` deprecation warnings Payload's own SCSS would trigger.
+- **This is outside Payload's declared ranges, on purpose.** Payload 3.90.2 (already the latest) pins
+  `undici 7.29.0` and `sass 1.77.4` exactly and declares `nodemailer ^9.1.1`, so no upstream update
+  resolves this. We already override these packages; this moves the overrides, it does not invent the
+  practice. Drop each override once Payload ships a release whose own constraint is fixed.
+- **`nodemailer` 10 breaks types, not behaviour.** It moved `auth` from the base connection options to
+  the transport options; Payload's adapter still types `transportOptions` as the connection options, so
+  our `{ host, port, secure, auth }` literal failed `tsc`. `payload.config.ts` now widens the type by
+  intersection, derived from the adapter's own signature — no `as`, no `any` — so every other field is
+  still checked against Payload's type and `auth` is constrained to `{ user?, pass? }`. The only
+  declared breaking change in 10.0.0 is "Node 20 or newer"; we run Node 24.
+- **Lockfile side effects.** Six resolved versions move (the four above plus `chokidar` 3 → 4 and
+  `readdirp` 3 → 4), and 15 optional `@parcel/watcher` platform binaries are added because `sass` ≥1.79
+  lists it as an optional dependency for `--watch`; production never uses `--watch`.
+- **Residue left on purpose.** 9 moderate findings remain (as CI reports them) — the `esbuild`
+  dev-server chain through `drizzle-kit` (`@payloadcms/db-postgres`, no fix available), `fast-copy`,
+  and `sprintf-js` via `mammoth`/`argparse`. All are below the `high` threshold the gate enforces.
+- **⚑ The gate will go red again.** `audit:prod` reads a live advisory database, and the list moved
+  *between my local pass on 2026-10-05 and CI's run on 2026-10-06* (`source-map-js`, published
+  2026-09-18, was not flagged locally and was flagged in CI). A local pass is therefore evidence, not
+  a guarantee: re-run the audit immediately before merging, and expect to repeat this exercise.
+- **Verified in CI (attempt 3, 2026-10-06):** the production-build stack, `test:unit`, lint, format,
+  `contract probe`, `test:int`, `test:http` and the Playwright suite all passed with the new `sass` and
+  `nodemailer`; only `audit:prod` failed, on the `source-map-js` advisory above, since fixed.
+- **Verified locally** (pinned Node 24 image): the exact CI audit command exits 0 (1 on `main`);
+  type-check, lint, format and the unit suite pass; a smoke test through Payload's real adapter against
+  a fake SMTP server confirmed AUTH, MAIL FROM, RCPT, a PDF attachment and an accepted recipient on
+  `nodemailer` 10.0.14. **Not verified locally:** `test:int`, `test:http`, the Playwright suite and a
+  production `next build` — the last matters most, because it compiles Payload's admin styles with the
+  new `sass`. This PR's CI is the first place those run; **a failing build is grounds to back out the
+  `sass` bump**.
+
 ## 2026-09-24 — Guide tutorial: role-aware accordions
 
 - `/guide` uses five universally visible top-level areas with persistent subtitles and task panels

@@ -8,6 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+### Dependencies
+
+- Clear the production audit gate, which began failing on newly published advisories in `undici`,
+  `fast-uri`, `nodemailer`, `braces` and `source-map-js`. Moves five overrides (`undici`, `fast-uri`,
+  `nodemailer` to 10.x, `sass` to 1.79.6, which also removes the unpatchable `braces` chain, and
+  `source-map-js`). See DECISIONS 2026-10-05.
+
 ## v0.89 (2026-09-25)
 
 ### Teacher guide
