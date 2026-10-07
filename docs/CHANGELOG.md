@@ -18,7 +18,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Waves) were affected; they are corrected on the next export. Where such a field also contains a web
   address, the address stays visible but is not clickable. Prompts are also kept with their answer box at
   a page break. All cached documents are regenerated (render version 8). Upstream generator `b3743ff`
-  (Mark Knittel). See DECISIONS 2026-10-07.
+  (Mark Knittel). See DECISIONS 2026-10-07 (the `b3743ff` entry).
 
 ## v0.91 (2026-10-07)
 
