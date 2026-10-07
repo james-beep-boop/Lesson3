@@ -104,8 +104,15 @@ const serializeNode = (node: ChildNode): string =>
  *   instructions → 1 (one full-width cell)   section → 2 (prompt + exemplar)   rubric → 4
  * Probed values, pinned by the spec.
  */
-const maxCells = (el: Element): number =>
-  [...el.querySelectorAll('tr')].reduce((n, tr) => Math.max(n, tr.children.length), 0)
+const maxCells = (el: Element): number => {
+  // ⚑ `HTMLTableElement.rows` is exactly THIS table's own rows. `querySelectorAll('tr')` also returns the
+  // rows of any table NESTED inside a cell — and since the 2026-10 generator re-pin a Final Explanation
+  // exemplar can hold a Markdown table rendered as a nested table. A 2-cell section containing a 4-column
+  // table then looked 4 wide: it was classified as the rubric (a duplicate `fe:rubric` threw for some real
+  // lessons) and the section count came out short. Across the 95 current lessons that broke 20 comparisons.
+  const rows = (el as HTMLTableElement).rows
+  return rows ? [...rows].reduce((n, tr) => Math.max(n, tr.cells.length), 0) : 0
+}
 
 /** Mutable position/context carried across one document's tables. */
 interface SplitState {

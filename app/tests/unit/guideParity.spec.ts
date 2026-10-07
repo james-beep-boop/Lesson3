@@ -114,6 +114,13 @@ const CLAIMS: { what: string; claim: string }[] = [
     claim: 'its own PDF and Word buttons for the lesson plan',
   },
   {
+    // ⚑ Added 2026-10-07 with the student/teacher split. Until then the single Final explanation printed
+    // the exemplar answers under a "Student Assessment Document" title — handing it out gave students the
+    // answers. The new split only helps if teachers know which document is which.
+    what: 'the Teacher key carries the answers and must not be given to students',
+    claim: 'the Teacher key has the exemplar answers and is not for students',
+  },
+  {
     what: 'the SPEC §8 email carve-out — the claim that was outright false until 2026-08-21',
     claim: 'addresses only for people listed',
   },

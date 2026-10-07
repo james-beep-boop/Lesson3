@@ -33,15 +33,21 @@ export interface PreviewSection {
 
 /**
  * Convert a generated bundle's present documents to content-HTML sections — the
- * LessonSequence always, FinalExplanation / SummaryTable only when the bundle produced
- * them. Shared by the admin editor preview (`renderBundlePreview`) and the teacher
+ * LessonSequence always, FinalExplanation (rendered from the teacher key — see below) /
+ * SummaryTable only when the bundle produced them. Shared by the admin editor preview (`renderBundlePreview`) and the teacher
  * content view, so the "which documents, in what order, mammoth-converted" rule lives
  * in one place.
  */
 export async function docxToSections(docx: GeneratedDocx): Promise<PreviewSection[]> {
   const docs: { label: string; buffer: Buffer | null }[] = [
     { label: LESSON_SEQUENCE_LABEL, buffer: docx.lessonSequence },
-    { label: FINAL_EXPLANATION_LABEL, buffer: docx.finalExplanation },
+    // ⚑ The on-page / compare "Final Explanation" section is built from the TEACHER document, not the
+    // student one. This view is what an editor edits — prompts beside exemplar answers — and the
+    // compare grouping (`compareGroups.ts`) classifies the document by table SHAPE: 2-cell rows are
+    // sections, 1-cell rows are instructions. The student document's full-width prompt rows would be
+    // misread as "Instructions", and it carries no exemplars at all. The student document remains an
+    // export-only deliverable (and its own "View as PDF" preview).
+    { label: FINAL_EXPLANATION_LABEL, buffer: docx.teacherKey },
     { label: SUMMARY_TABLE_LABEL, buffer: docx.summaryTable },
   ]
   return Promise.all(

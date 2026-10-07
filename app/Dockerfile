@@ -81,6 +81,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/generator/vendor/LICENSE ./TH
 # Prove the final standalone trace contains sharp's native addon and libvips. This caught a real
 # ARM64 failure where the full deps image worked but the production image could not start.
 RUN node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: '#00000000' } }).png().toBuffer()"
+# The vendored generator (including js-yaml) is BUNDLED into the server chunks, so the loose copies of
+# vendor/lib/*.js in this image are never what runs — requiring them here would fail for a reason that
+# does not matter in production. What does matter: the attribution config is read from disk at render
+# time and must have been traced into the image. This only proves the file shipped; the proof that the
+# running app FINDS it and renders attribution is tests/http/teacherKey.http.spec.ts (CI test:http runs
+# against this image), because the bundled code builds its path from a build-time placeholder.
+RUN test -s src/generator/config/attribution.yaml && grep -q '^license:' src/generator/config/attribution.yaml
 RUN mkdir -p /var/cache/lesson3 && chown nextjs:nogroup /var/cache/lesson3
 USER nextjs
 

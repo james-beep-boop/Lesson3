@@ -52,8 +52,17 @@ interface Manifest {
 
 const MANIFEST_DOC = '__manifest__'
 
-/** Every deliverable tag a version export can contain (the manifest lists which exist). */
-export const DELIVERABLE_TAGS = ['lessonSequence', 'finalExplanation', 'summaryTable'] as const
+/**
+ * Every deliverable tag a version export can contain (the manifest lists which exist). In document
+ * order. `finalExplanation` is the STUDENT document (blank answer space); `teacherKey` is the same
+ * content with the exemplar answers — it exists whenever a final explanation does.
+ */
+export const DELIVERABLE_TAGS = [
+  'lessonSequence',
+  'finalExplanation',
+  'teacherKey',
+  'summaryTable',
+] as const
 export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
 
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
@@ -87,6 +96,7 @@ const keyFor = (spec: ArtifactSpec, doc: string): string =>
 const STEM_SUFFIX: Record<DeliverableTag, string> = {
   lessonSequence: 'CBE_LessonSequence',
   finalExplanation: 'FinalExplanation',
+  teacherKey: 'FinalExplanation_TeacherKey',
   summaryTable: 'SummaryTable',
 }
 
@@ -94,16 +104,16 @@ const STEM_SUFFIX: Record<DeliverableTag, string> = {
 export const deliverableStem = (tag: DeliverableTag, prefix: string): string =>
   `${prefix}_${STEM_SUFFIX[tag]}`
 
-/** Build the ordered deliverable list (tag + filename stem) from a filePrefix. */
+/**
+ * Build the ordered deliverable list (tag + filename stem) from a filePrefix: every tag in
+ * `DELIVERABLE_TAGS` whose document was generated. Derived from the one list, so a new tag cannot be
+ * silently omitted from the manifest and the zip.
+ */
 function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
-  const docs: DocMeta[] = [
-    { tag: 'lessonSequence', name: deliverableStem('lessonSequence', prefix) },
-  ]
-  if (docx.finalExplanation)
-    docs.push({ tag: 'finalExplanation', name: deliverableStem('finalExplanation', prefix) })
-  if (docx.summaryTable)
-    docs.push({ tag: 'summaryTable', name: deliverableStem('summaryTable', prefix) })
-  return docs
+  return DELIVERABLE_TAGS.filter((tag) => docx[tag]).map((tag) => ({
+    tag,
+    name: deliverableStem(tag, prefix),
+  }))
 }
 
 /** Zip a set of named byte blobs (filenames already include the extension). */
@@ -128,10 +138,10 @@ export async function produceArtifacts(
   convert: (docx: Buffer, filename: string) => Promise<Buffer>,
 ): Promise<DocMeta[]> {
   const docs = docListFor(prefix, generated)
-  // `generated` is already keyed by deliverable tag; docListFor only lists ones that exist.
-  const docxFor = (tag: string): Buffer => (generated as unknown as Record<string, Buffer>)[tag]
+  // `docListFor` only lists tags whose document exists, so the lookup below is never null.
+  const docxFor = (tag: DeliverableTag): Buffer => generated[tag] as Buffer
 
-  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤3) onto the single
+  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤4) onto the single
   // Gotenberg sidecar, matching the prior synchronous endpoint's fan-out; then cache each.
   const entries = await Promise.all(
     docs.map(async (d) => ({

@@ -28,6 +28,8 @@ const fs       = require('fs');
 const { Document, Packer, PageOrientation } = require('docx');
 const { W, C, SZ, SZ_H, SPACE, PAGE_BREAK, para, cell, fullHeader, labelRow, makeTable } = require('./docx_kit');
 const { TableRow } = require('docx');
+const { takeDiagnostics } = require('../aresResources');
+const { substrandHeaderParas, lessonFooterParas } = require('./attribution');
 const {
   titleBlock, subStrandOverview,
   sectionA, sectionB, sectionC, sectionD, sectionE,
@@ -58,6 +60,9 @@ async function buildSoW(META, UNIT, LESSONS) {
     SPACE(),
     subStrandOverview(UNIT),
     SPACE(),
+    // Attribution after the overview, before Lesson 1 (Mark, 2026-10-01: at the
+    // very top it read awkwardly). Every lesson still ends with the footer line.
+    ...substrandHeaderParas(),
   ];
 
   for (const lesson of LESSONS) {
@@ -72,6 +77,7 @@ async function buildSoW(META, UNIT, LESSONS) {
       sectionD(lesson),
       SPACE(),
       sectionE(lesson),
+      ...lessonFooterParas(),
     );
   }
 
@@ -84,7 +90,52 @@ async function buildSoW(META, UNIT, LESSONS) {
 
 // ── Final Explanation ─────────────────────────────────────────────────────────
 
-async function buildFinalExplanation(META, FE) {
+
+// ── Markdown tables inside Final Explanation text ─────────────────────────────
+// The generator writes data tables as markdown ("| a | b |"). Printed raw they
+// read as broken text, so render them as real nested tables. Everything else
+// stays ordinary paragraphs (cell() already handles bullets and line breaks).
+const isPipeRow = ln => ln.trim().startsWith('|');
+const isSepRow  = ln => /^\|[\s:\-|]+\|?$/.test(ln.trim());
+
+function richCell(text, opts) {
+  const lines = String(text || '').split('\n');
+  if (!lines.some(isPipeRow)) return cell(text || '', opts);
+  const innerW = (opts.w || W) - 360;
+  const children = [];
+  let buf = [];
+  const flushText = () => {
+    if (buf.length) { children.push(...cell(buf.join('\n'), opts).options.children); buf = []; }
+  };
+  for (let i = 0; i < lines.length;) {
+    if (!isPipeRow(lines[i])) { buf.push(lines[i]); i++; continue; }
+    flushText();
+    const rows = [];
+    while (i < lines.length && isPipeRow(lines[i])) { if (!isSepRow(lines[i])) rows.push(lines[i]); i++; }
+    const grid = rows.map(r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+    const cols = Math.max(...grid.map(r => r.length));
+    const cw = Math.floor(innerW / cols);
+    const widths = Array.from({ length: cols }, (_, k) => (k === cols - 1 ? innerW - cw * (cols - 1) : cw));
+    children.push(makeTable(grid.map((r, ri) => new TableRow({
+      children: widths.map((w, k) => cell(r[k] || '', {
+        w, size: opts.size, bold: ri === 0, fill: ri === 0 ? C.lightBlue : C.white,
+      })),
+    })), widths));
+    children.push(para('', { size: opts.size }));
+  }
+  flushText();
+  children.push(para('', { size: opts.size }));
+  return cell(children, opts);
+}
+
+// mode 'student': prompts + blank answer space + rubric (what learners write on).
+// mode 'teacher': prompts beside the exemplar answers + rubric (marking key).
+// Both come from the same FINAL_EXPLANATION data, so they cannot disagree.
+async function buildFinalExplanation(META, FE, mode = 'student') {
+  if (mode !== 'student' && mode !== 'teacher') {
+    throw new Error(`buildFinalExplanation: mode must be 'student' or 'teacher', got '${mode}'`);
+  }
+  const isTeacher = mode === 'teacher';
   if (META.grade == null) {
     throw new Error('buildFinalExplanation: META.grade is required but missing');
   }
@@ -96,7 +147,7 @@ async function buildFinalExplanation(META, FE) {
   const body = [
     ...titleBlock(
       `FINAL EXPLANATION: ${META.subject.toUpperCase()} GRADE ${META.grade}`,
-      `Student Assessment Document`,
+      isTeacher ? `Teacher Key: Exemplar Answers and Marking Guide` : `Student Assessment Document`,
     ),
     SPACE(),
   ];
@@ -104,10 +155,13 @@ async function buildFinalExplanation(META, FE) {
   // Student info header
   body.push(makeTable([
     fullHeader(`FINAL EXPLANATION: ${(FE.subjectLabel || META.subject).toUpperCase()}`, C.darkBlue, 'FFFFFF', SZ_H, 2),
-    fullHeader('Student Assessment Document', C.medBlue, 'FFFFFF', SZ, 2),
-    labelRow('Student Name', '_____________________________________________', FLW),
-    labelRow('Class',        '_____________________________________________', FLW),
-    labelRow('Date',         '_____________________________________________', FLW),
+    fullHeader(isTeacher ? 'Teacher Key: Exemplar Answers (do not give to students)' : 'Student Assessment Document',
+               isTeacher ? C.teal : C.medBlue, 'FFFFFF', SZ, 2),
+    ...(isTeacher ? [] : [
+      labelRow('Student Name', '_____________________________________________', FLW),
+      labelRow('Class',        '_____________________________________________', FLW),
+      labelRow('Date',         '_____________________________________________', FLW),
+    ]),
   ], [FLW, FCW]));
 
   body.push(SPACE());
@@ -115,7 +169,7 @@ async function buildFinalExplanation(META, FE) {
   // Instructions
   if (FE.instructions) {
     body.push(makeTable([
-      fullHeader('INSTRUCTIONS FOR STUDENTS', C.teal, 'FFFFFF', SZ_H, 2),
+      fullHeader(isTeacher ? 'INSTRUCTIONS GIVEN TO STUDENTS' : 'INSTRUCTIONS FOR STUDENTS', C.teal, 'FFFFFF', SZ_H, 2),
       new TableRow({ children: [
         cell(FE.instructions, { fill: C.lightBlue, w: W, size: SZ }),
       ]}),
@@ -125,13 +179,26 @@ async function buildFinalExplanation(META, FE) {
 
   // Sections
   for (const sec of (FE.sections || [])) {
-    body.push(makeTable([
-      fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 2),
-      new TableRow({ children: [
-        cell(sec.prompt  || '', { fill: C.lightTeal,  bold: true, w: FLW, size: SZ }),
-        cell(sec.exemplar || '', { fill: C.white,      w: FCW, size: SZ }),
-      ]}),
-    ], [FLW, FCW]));
+    if (isTeacher) {
+      body.push(makeTable([
+        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 2),
+        new TableRow({ children: [
+          richCell(sec.prompt  || '', { fill: C.lightTeal,  bold: true, w: FLW, size: SZ }),
+          richCell(sec.exemplar || '', { fill: C.white,      w: FCW, size: SZ }),
+        ]}),
+      ], [FLW, FCW]));
+    } else {
+      // Full-width prompt, then a ruled blank area to write in. No exemplar.
+      body.push(makeTable([
+        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 1),
+        new TableRow({ children: [
+          richCell(sec.prompt || '', { fill: C.lightTeal, bold: true, w: W, size: SZ }),
+        ]}),
+        new TableRow({ height: { value: 4200, rule: 'atLeast' }, children: [
+          cell('Write your answer here:', { fill: C.white, w: W, size: SZ, italic: true, color: '808080' }),
+        ]}),
+      ], [W]));
+    }
     body.push(SPACE());
   }
 
@@ -154,6 +221,9 @@ async function buildFinalExplanation(META, FE) {
     ];
     body.push(makeTable(rubricRows, [FLW, RW3, RW3, RW3r]));
   }
+
+  // Attribution at the end of the document (Mark, 2026-10-01).
+  body.push(SPACE(), ...substrandHeaderParas());
 
   return new Document({
     sections: [{ properties: pageProps(), children: body }],
@@ -219,6 +289,7 @@ async function buildSummaryTable(META, ST) {
   ];
 
   body.push(makeTable(tableRows, [SLW, SC3, SC3, SC3r]));
+  body.push(SPACE(), ...substrandHeaderParas());   // attribution at the end
 
   return new Document({
     sections: [{ properties: pageProps(), children: body }],
@@ -242,13 +313,25 @@ async function run(dataModule) {
   files.push(sowPath);
   console.log(`    Saved: ${sowPath}  (${Math.round(fs.statSync(sowPath).size / 1024)} KB)`);
 
-  // 2. Final Explanation
+  // Link-matching diagnostics (scores, gate reasons, runners-up) — kept out of
+  // the contract JSON, mirrored under logs/link_matching/<outputDir>/.
+  const diag = takeDiagnostics();
+  if (diag.length) {
+    const diagDir = path.join(__dirname, '..', '..', 'logs', 'link_matching', META.outputDir);
+    fs.mkdirSync(diagDir, { recursive: true });
+    fs.writeFileSync(path.join(diagDir, `${META.filePrefix}.json`), JSON.stringify(diag, null, 2));
+  }
+
+  // 2. Final Explanation: student version (blank answer space) and teacher
+  //    key (exemplars). Same data, so the two cannot drift apart.
   if (FINAL_EXPLANATION) {
-    const feDoc  = await buildFinalExplanation(META, FINAL_EXPLANATION);
-    const fePath = path.join(outBase, `${META.filePrefix}_FinalExplanation.docx`);
-    await Packer.toBuffer(feDoc).then(buf => fs.writeFileSync(fePath, buf));
-    files.push(fePath);
-    console.log(`    Saved: ${fePath}  (${Math.round(fs.statSync(fePath).size / 1024)} KB)`);
+    for (const [mode, suffix] of [['student', 'FinalExplanation'], ['teacher', 'FinalExplanation_TeacherKey']]) {
+      const feDoc  = await buildFinalExplanation(META, FINAL_EXPLANATION, mode);
+      const fePath = path.join(outBase, `${META.filePrefix}_${suffix}.docx`);
+      await Packer.toBuffer(feDoc).then(buf => fs.writeFileSync(fePath, buf));
+      files.push(fePath);
+      console.log(`    Saved: ${fePath}  (${Math.round(fs.statSync(fePath).size / 1024)} KB)`);
+    }
   }
 
   // 3. Summary Table

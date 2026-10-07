@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 
 import {
   RESOURCE_PHASE_KEYS,
@@ -12,13 +11,6 @@ import {
   validateResourceLinks,
 } from '../../src/ingest/resourceLinks'
 import { preserveLessonResourceLinks } from '../../src/hooks/fieldSplit'
-
-const require = createRequire(import.meta.url)
-const { getAllPhaseResources, withStoredResourceLinks } =
-  require('../../src/generator/vendor/aresResources.js') as {
-    getAllPhaseResources: () => unknown
-    withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
-  }
 
 const record = (suffix: string) => ({
   title: `Title ${suffix}`,
@@ -241,50 +233,5 @@ describe('pure-Node generator resource bridge', () => {
     expect(shim).not.toMatch(/\bexec(?:File)?Sync\s*\(/)
     expect(shim).not.toMatch(/\bpython3\b/)
     expect(shim).not.toMatch(/ares_recommender|ARES_DB_PATH|ares_content\.db/)
-  })
-
-  it('isolates concurrent builds with AsyncLocalStorage', async () => {
-    let release!: () => void
-    const barrier = new Promise<void>((resolve) => (release = resolve))
-    const first = links()
-    const second = links()
-    first.predict.video!.title = 'first build'
-    second.predict.video!.title = 'second build'
-
-    const a = withStoredResourceLinks([{ resourceLinks: first }], async () => {
-      await barrier
-      return getAllPhaseResources()
-    })
-    const b = withStoredResourceLinks([{ resourceLinks: second }], async () => {
-      release()
-      await Promise.resolve()
-      return getAllPhaseResources()
-    })
-
-    const [aResult, bResult] = await Promise.all([a, b])
-    expect(aResult).toBe(first)
-    expect(bResult).toBe(second)
-  })
-
-  it('throws on an over-read (more lookups than lessons) instead of returning blank resources', () => {
-    // One queued lesson, two lookups: the second call must fail LOUDLY (the exact "called twice"
-    // vendor drift the count guard exists to catch), not silently return EMPTY_ALL.
-    expect(() =>
-      withStoredResourceLinks([{ resourceLinks: links() }], () => {
-        getAllPhaseResources() // consumes the single queued lesson
-        getAllPhaseResources() // over-read → must throw
-        return null
-      }),
-    ).toThrow(/called more times than/)
-  })
-
-  it('throws when fewer lessons are consumed than queued (post-build count check)', () => {
-    // Two queued lessons, one lookup: the post-build assertion catches the under-read.
-    expect(() =>
-      withStoredResourceLinks([{ resourceLinks: links() }, { resourceLinks: links() }], () => {
-        getAllPhaseResources()
-        return null
-      }),
-    ).toThrow(/fewer than one per lesson/)
   })
 })

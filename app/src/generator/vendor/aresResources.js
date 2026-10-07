@@ -1,84 +1,45 @@
 /**
  * Lesson3-owned ARES resource bridge — pure Node, no recommender, no SQLite.
  *
- * The pristine upstream `sections.js` asks `getAllPhaseResources()` once per lesson. Upstream's
- * implementation shells out to Python; Lesson3 instead places the already-resolved, versioned JSON
- * maps in an AsyncLocalStorage queue for the duration of one build. That keeps concurrent document
- * generations isolated and lets the upstream renderer remain byte-identical.
+ * Upstream's renderer (`sections.js`, from link-selection v2 onward) has two ways to get a lesson's
+ * resource links: query ARES's content database through `getAllPhaseResources()` (only when a file
+ * exists at `DB_PATH`), or — its own supported path for "no database on this machine" — use the
+ * `lesson.resourceLinks` already present in the data. Lesson3 stores the resolved, versioned links in
+ * Payload and never runs the recommender, so it deliberately takes the second path:
+ *
+ *   - `DB_PATH` points at a location that can never exist, so `sectionC` keeps each lesson's own
+ *     stored `resourceLinks`. That is order-independent, and there is no shared state between
+ *     concurrent builds (the previous positional queue could only prove call COUNT, never ORDER).
+ *   - `getAllPhaseResources` still has to exist (the pristine file destructures it) but must never be
+ *     called; if a future re-pin makes the renderer call it, it throws rather than rendering blanks.
+ *   - `takeDiagnostics` is a no-op: link-matching diagnostics are an upstream pipeline artefact that
+ *     never reaches the contract JSON (so partial-match "Related topic" labels cannot be reproduced).
+ *
+ * Upstream's `sectionC` prints one `console.warn` per lesson on the stored-links path. That is
+ * accepted: a cold render only, and replacing the global `console.warn` to hide it would let
+ * concurrent exports interfere with each other's logging.
  */
 'use strict';
 
-const { AsyncLocalStorage } = require('node:async_hooks');
 const {
   Paragraph, TextRun, ExternalHyperlink,
 } = require('docx');
 
-const resourceContext = new AsyncLocalStorage();
+/** A path that cannot exist (a child of a file), so upstream's `fs.existsSync(DB_PATH)` is always false. */
+const DB_PATH = '/dev/null/lesson3-no-ares-content-db';
 
-const EMPTY_PHASE = Object.freeze({ video: null, reading: null, fallback_search_url: '' });
-const EMPTY_ALL = Object.freeze({
-  predict: EMPTY_PHASE,
-  observe: EMPTY_PHASE,
-  explain: EMPTY_PHASE,
-  dqb: EMPTY_PHASE,
-  model: EMPTY_PHASE,
-});
-
-/**
- * Run one pristine generator build with its lesson resources isolated from concurrent builds.
- *
- * COUNT CONTRACT (implicit coupling to the vendored `sections.js`): the pristine renderer must call
- * `getAllPhaseResources()` exactly once per lesson, in `LESSONS` order — that is how the positional
- * queue stays aligned to each lesson. This holds for the pinned commit; a future re-pin that changes
- * the call pattern would misalign (or blank out) resources. Two loud guards defend the CALL COUNT:
- *   - too MANY calls: `getAllPhaseResources` throws the moment the queue is over-read (below), so a
- *     "called twice" drift fails during the build rather than silently returning EMPTY_ALL.
- *   - too FEW calls: the post-build check here throws if not every queued lesson was consumed.
- * Count alone CANNOT prove iteration ORDER (right number of calls, wrong sequence) — the DOCX
- * fidelity oracle (scripts/adapter-fidelity.ts, run on every re-pin) is the order/output guard.
- */
-function withStoredResourceLinks(lessons, build) {
-  const queue = Array.isArray(lessons) ? lessons.map((lesson) => lesson.resourceLinks) : [];
-  const state = { queue, index: 0 };
-  const assertAllConsumed = () => {
-    if (state.index < queue.length) {
-      throw new Error(
-        `aresResources: getAllPhaseResources() called ${state.index} time(s) for ${queue.length} ` +
-          `lesson(s) — fewer than one per lesson. Vendored sections.js count contract broken; ` +
-          `re-check on re-pin.`,
-      );
-    }
-  };
-  const result = resourceContext.run(state, build);
-  // `build` is async (buildSoW returns a Promise): assert after it resolves, not before.
-  if (result && typeof result.then === 'function') {
-    return result.then((value) => {
-      assertAllConsumed();
-      return value;
-    });
-  }
-  assertAllConsumed();
-  return result;
+/** See header: reaching this means the vendored renderer changed how it looks up resources. */
+function getAllPhaseResources() {
+  throw new Error(
+    'aresResources: getAllPhaseResources() was called, but Lesson3 has no ARES content database — ' +
+      'resources must come from each lesson\'s stored resourceLinks (sectionC stored-links path). ' +
+      'The vendored sections.js lookup changed; re-check on re-pin.',
+  );
 }
 
-/**
- * Called by pristine `sections.js` once per lesson in order (see the count contract above); the
- * lookup arguments are intentionally unused. With no active build context it returns EMPTY_ALL
- * (defensive — the wrapped buildSoW path always has one). Within a context, an over-read (more calls
- * than queued lessons) throws LOUDLY instead of silently returning EMPTY_ALL, so a "called twice"
- * vendor drift is caught during the build rather than shipping blank/misaligned resources.
- */
-function getAllPhaseResources() {
-  const state = resourceContext.getStore();
-  if (!state) return EMPTY_ALL;
-  if (state.index >= state.queue.length) {
-    throw new Error(
-      `aresResources: getAllPhaseResources() called more times than the ${state.queue.length} ` +
-        `lesson(s) queued — vendored sections.js resource-lookup count contract broken; ` +
-        `re-check on re-pin.`,
-    );
-  }
-  return state.queue[state.index++] || EMPTY_ALL;
+/** No link-matching runs in Lesson3, so there are never diagnostics to return. */
+function takeDiagnostics() {
+  return [];
 }
 
 const LINK_COLOUR  = '2E75B6';
@@ -113,7 +74,7 @@ function buildResourceParagraphs(resources, phase = '') {
     if (video.source) paras.push(metaPara(`Source: ${video.source}`));
     paras.push(searchLinkPara('🔍 Search ARES for similar videos', video.search_url));
   } else {
-    paras.push(searchLinkPara('🔍 Search ARES for videos', fallback));
+    paras.push(...noMatchParas('video', fallback));
   }
 
   paras.push(spacerPara());
@@ -127,7 +88,7 @@ function buildResourceParagraphs(resources, phase = '') {
     if (reading.source) paras.push(metaPara(`Source: ${reading.source}`));
     paras.push(searchLinkPara('🔍 Search ARES for similar readings', reading.search_url));
   } else {
-    paras.push(searchLinkPara('🔍 Search ARES for readings', fallback));
+    paras.push(...noMatchParas('reading', fallback));
   }
 
   return paras;
@@ -206,4 +167,40 @@ function searchLinkPara(label, rawUrl) {
   });
 }
 
-module.exports = { getAllPhaseResources, buildResourceParagraphs, withStoredResourceLinks };
+/**
+ * "No confident match" block, matching upstream's wording and layout: says so plainly rather than
+ * showing a weak link as if it were a good one, then offers the search link and prints the search terms
+ * (printed copies lose hyperlinks, and the full URL is ~600 characters).
+ */
+function noMatchParas(kind, fallback) {
+  // `fallback` is already http(s)-safe or '' (buildResourceParagraphs sanitised it); searchLinkPara keeps
+  // its own check as the last barrier before a URL becomes a hyperlink target.
+  const terms = searchTermsFromUrl(fallback);
+  return [
+    italicPara(`No closely matching ${kind} in the ARES library for this activity.`),
+    searchLinkPara(`🔍 Search ARES for ${kind}s`, fallback),
+    ...(terms ? [metaPara(`Search terms: ${terms}`)] : []),
+  ];
+}
+
+// A malformed percent-escape must not take down the whole document: show no terms instead.
+function searchTermsFromUrl(url) {
+  const m = /[?&]searchstring=([^&]*)/.exec(url);
+  if (!m) return '';
+  try {
+    return decodeURIComponent(m[1].replace(/\+/g, ' '));
+  } catch (_) {
+    return '';
+  }
+}
+
+function italicPara(text) {
+  return new Paragraph({
+    spacing: { before: 0, after: 20 },
+    children: [new TextRun({
+      text, italics: true, size: 16, font: 'Arial', color: META_COLOUR,
+    })],
+  });
+}
+
+module.exports = { getAllPhaseResources, buildResourceParagraphs, takeDiagnostics, DB_PATH };

@@ -104,7 +104,9 @@ current generated ARES JSON artifacts (see `docs/EXTERNAL-DEPENDENCIES.md`). Ups
 is useful provenance, but it is not the enforceable downstream contract when it differs from emitted
 JSON.
 
-**Generates up to three documents per bundle:** `*_CBE_LessonSequence.docx`, `*_FinalExplanation.docx`, `*_SummaryTable.docx` (plus PDF). All regenerate from the one bundle.
+**Generates up to four documents per bundle:** `*_CBE_LessonSequence.docx`, `*_FinalExplanation.docx` (the **student** document: prompts, blank answer space and rubric — **no exemplar answers**), `*_FinalExplanation_TeacherKey.docx` (the **teacher key**: the same prompts beside the exemplar answers — never give it to students) and `*_SummaryTable.docx` (plus PDF). The student document and the key come from the same `FINAL_EXPLANATION` data, so they exist together or not at all and cannot disagree. All regenerate from the one bundle.
+
+**The teacher key follows the plan's existing read access (decided 2026-10-06):** anyone who can read and export a plan can export its key, it travels in the whole-zip downloads and in email-a-doc, and it is labelled "Teacher key — not for students". Any future public library must **never** serve it (allowlist public deliverables rather than denying the key). Before this split (to 2026-10-06) the single Final Explanation was titled "Student Assessment Document" yet printed the exemplars.
 
 **Single-document sub-strands are legitimate (confirmed 2026-06-26).** Some sub-strands ship as a *single* document — the LessonSequence only — with no FINAL_EXPLANATION sections and/or no SUMMARY_TABLE rows. This is valid content, not incomplete data: the generator already guards and **skips** an empty FE/ST (`FE.sections || []`, `ST.lessons || []`), so it produces exactly the documents the bundle carries. Consequently a missing FE/ST is **not** a defect and **not** a hard gate — it is surfaced as an informational ingest note only. (See `docs/DECISIONS.md` 2026-06-26; this resolves the §3-option-(a) FE/ST modeling question.) The LessonSequence itself is always required — its completeness *is* a hard gate (`validateGeneratable`).
 
@@ -154,17 +156,24 @@ DOCX fidelity is owned entirely by ARES's generator. Editing must stay within it
 - Every content field is a **plain string**.
 - `\n` → a new paragraph.
 - A line beginning with **`- ` or `• `** → a bullet (the generator adds its own marker).
-- **No inline markup** is parsed (`**bold**`, `*italic*`, `>`, `#` render literally). All styling, tables, colours, and numbering are applied by the generator, never from content.
+- **No inline markup** is parsed (`**bold**`, `*italic*`, `>`, `#` render literally). All styling, colours, and numbering are applied by the generator, never from content. **One exception, in the Final Explanation text fields only** (`FINAL_EXPLANATION.sections[].prompt` and `.exemplar` — the two fields upstream renders as tables): consecutive lines that begin with `|` are rendered as a real nested **table** (`| a | b |` rows; a separator row such as `|---|---|` is ignored; the first row is the header). Nothing else about the grammar changes, editing stays plain strings, and no table-editing UI exists. A table in the Final Explanation's `instructions` field is **not** rendered — upstream prints it literally — and in a `prompt` or `exemplar` that contains a table, a parenthesized `(https://…)` stays visible text rather than a clickable link (the table wins).
 - The required lesson-level **ARES resource links** are read from stored `resourceLinks` (see §3) and
   rendered beneath the phase label inside Section C's first cell. There is no separate Resource column,
   no live Python/SQLite lookup, and no user-editable resource field.
 - **`framework[].phase` is a controlled vocabulary** — phase names drive colour-coding and resource lookup; an unknown phase silently degrades output. Phase is a fixed dropdown, never free text.
-- **Document attribution (decided in principle 2026-08-12):** every Lesson Sequence, Final
-  Explanation and Summary Table should carry a visible creator credit and permanent website URL on
-  every page, inherited by PDF from DOCX. Implement this once in the upstream ARES generator and
-  re-vendor; do not inject a PDF-only overlay or store repeated credit prose in lesson content. Exact
-  ARES/Seavuria relationship wording and the permanent printed URL remain to be confirmed. Any such
-  change increments `GENERATOR_RENDER_VERSION` and reruns the DOCX/PDF fidelity and pagination gates.
+- **Document attribution (implemented 2026-10-07; supersedes the 2026-08-12 "every page" wording):**
+  every document carries upstream's attribution and licence block — **CC BY-NC 4.0**, SeaVuria and ARES
+  — exactly as Mark's generator renders it: the full block once after the sub-strand overview in the Lesson
+  Sequence and at the end of the Final Explanation, teacher key and Summary Table, plus a short footer after
+  **every** lesson. It is **not** stamped on every page; the placement is upstream's (2026-10-01) and the
+  rights position for the lesson plans is settled by the operator as stated there. It is implemented once, in
+  the vendored generator (`lib/attribution.js` + `generator/config/attribution.yaml`), and inherited by PDF
+  from DOCX; never as a PDF-only overlay and never as repeated prose in lesson content. The year is a
+  **fixed, configured copyright year** (2026 for this release) so re-rendering a stored version in a later
+  January does not change its bytes; changing it must accompany a `GENERATOR_RENDER_VERSION` bump.
+  The PDF fidelity gate was retired 2026-07-20 (DECISIONS 2026-07-20): **DOCX is the gated layout
+  deliverable**, and a change like this is checked by the DOCX fidelity gates plus a visual inspection of
+  representative PDFs.
 
 Because `generateOne()` is deterministic on the stored strings, **regeneration is byte-stable** — store the field strings, and the document reproduces exactly. Integrate the generator via a Payload hook/endpoint; refactor ARES's `generateOne()` to accept a data object instead of a file on disk.
 
@@ -397,7 +406,7 @@ observable contract, and a failed or backed-off capture must say so rather than 
 - The versioned unit is the **whole sub-strand bundle**. Each save is an **immutable snapshot**.
 - Store a stable Lesson Plan identity separately from immutable Lesson Bundle Version snapshots.
 - Add **semver** (`x.y.z`) and an **official-version pointer** on the Lesson Plan. First uploaded/imported version is **1.0.0 Official**; default edit bump is **patch**; user may choose patch/minor/major. At most one official version per lesson plan.
-- Any version regenerates its three documents on demand.
+- Any version regenerates its documents (up to four) on demand.
 - **Diff:** Payload's field-by-field version compare is adequate to start. Later, add a concise **"what changed" summary** for teachers (e.g. *"Lesson 3 · Teacher Moves edited"*) layered on top — not a replacement.
 - Optimistic concurrency to prevent clobbering concurrent edits.
 
@@ -584,7 +593,7 @@ observable contract, and a failed or backed-off capture must say so rather than 
 
 ## 9. Generation, export & sharing
 
-- Export any version, Official or Not Official, as **DOCX** (all three documents) and **PDF**, via the embedded generator.
+- Export any version, Official or Not Official, as **DOCX** (every document it has) and **PDF**, via the embedded generator.
 - Print, save-as-PDF/DOCX, and email-as-attachment are in scope. **PDF, email-out, and message links/attachments are confirmed in scope** (see §10): a lesson artifact is referenced by **(version, document, kind)** where `kind` is `docx | pdf` — a stable, access-gated, version-pinned URL (generation is content-stable, so it resolves deterministically). There is a **single document layout** (the earlier standard/compact "layout"/`format` axis was removed 2026-07-03): one five-column framework table, no separate Resource column, with the stored ARES video/reading links rendered inline beneath the phase label. Only the deliverable `kind` varies. Email attaches freshly-generated bytes; messages link the URL. Persisting/caching artifacts is a later optimization, not required first (generate-on-demand behind stable URLs avoids reintroducing a media/storage layer).
 - ⚑ **A PHONE OFFERS NO WORD *DOWNLOAD* (≤640px, operator decision 2026-08-29).** Neither the
   per-document pill nor the `.zip`. Word by **email** is unaffected at every width, as is every

@@ -33,6 +33,11 @@ _Compare_ button.
   Lesson3 marks it `vX (pinned)`. Favorites are private.
 - **Read on screen:** open a sub-strand to view the Lesson Sequence, Final Explanation, and Summary
   Table when those documents are present.
+- **Student document and Teacher key:** the _Final explanation_ you download has blank answer space
+  and no answers, so it is the one to give to students. The _Teacher key — not for students_ has the
+  same questions with the exemplar answers: the Teacher key has the exemplar answers and is not for
+  students. It appears beside the Final explanation, wherever one exists, and travels with _Download
+  all_ and _Email all_.
 - **Open or download a document:** on the home page, each lesson row has a _PDF_ button (opens in a
   new tab) and a _Word_ button (downloads its `.docx` — on a phone, Word is available by email
   instead) for the lesson plan, with any Final

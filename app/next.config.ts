@@ -16,7 +16,13 @@ const nextConfig: NextConfig = {
   // shared library. Without this include, an ARM64 Alpine image builds successfully and then
   // crashes at runtime with ERR_DLOPEN_FAILED. The wildcard keeps the rule architecture-neutral.
   outputFileTracingIncludes: {
-    '/*': ['./node_modules/@img/sharp-libvips-linuxmusl-*/lib/libvips-cpp.so.*'],
+    '/*': [
+      './node_modules/@img/sharp-libvips-linuxmusl-*/lib/libvips-cpp.so.*',
+      // The vendored attribution.js reads this file at render time through a computed path
+      // (<its dir>/../../config/attribution.yaml), which the tracer may not follow. Without it a
+      // production image builds, boots, and then fails the first DOCX export with ENOENT.
+      './src/generator/config/attribution.yaml',
+    ],
   },
   // ⚑ Raises the Server Action body ceiling from Next's 1 MiB default. This fixes a PRE-EXISTING
   // editor defect — typing one character into a large lesson plan 500s, because Payload posts the

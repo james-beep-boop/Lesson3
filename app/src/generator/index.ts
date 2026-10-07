@@ -6,20 +6,47 @@
  * them to return in-memory Buffers — no disk writes, no Python, no edits to vendored code.
  */
 import { createRequire } from 'node:module'
+import path from 'node:path'
 
+import type { DeliverableTag } from './exportArtifacts'
 import { withParenthesizedProseLinks } from './proseLinks'
+
+// ⚑ Where the vendored attribution code finds its config — and why this line cannot be removed.
+// `vendor/lib/attribution.js` defaults to `<its own dir>/../../config/attribution.yaml`. Inside the Next.js
+// production bundle that `__dirname` becomes the BUILD-TIME placeholder `/ROOT/src/generator/vendor/lib`,
+// which is never rewritten in the standalone image, so every export died with
+// `ENOENT '/ROOT/src/generator/config/attribution.yaml'`. Dev, unit tests and the fidelity scripts all
+// resolve the real directory, so only the production image shows it (caught by tests/http/teacherKey).
+// The file is shipped into the image by `outputFileTracingIncludes` (next.config.ts); the process always
+// starts from the app root (`node server.js` in /app; `next dev`, vitest and tsx from app/). Set BEFORE
+// the vendored module is first required below; an explicit ATTRIBUTION_YAML still wins.
+process.env.ATTRIBUTION_YAML ??= path.join(
+  process.cwd(),
+  'src',
+  'generator',
+  'config',
+  'attribution.yaml',
+)
 
 const require = createRequire(import.meta.url)
 const { buildSoW, buildFinalExplanation, buildSummaryTable } =
   require('./vendor/lib/build_docs.js') as {
     buildSoW: (META: unknown, UNIT: unknown, LESSONS: unknown[]) => Promise<unknown>
-    buildFinalExplanation: (META: unknown, FE: unknown) => Promise<unknown>
+    buildFinalExplanation: (
+      META: unknown,
+      FE: unknown,
+      mode?: FinalExplanationMode,
+    ) => Promise<unknown>
     buildSummaryTable: (META: unknown, ST: unknown) => Promise<unknown>
   }
-const { withStoredResourceLinks } = require('./vendor/aresResources.js') as {
-  withStoredResourceLinks: <T>(lessons: unknown[], build: () => T) => T
-}
 const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Promise<Buffer> } }
+
+/**
+ * Upstream renders the Final Explanation twice from the same data: `student` (prompts, blank answer
+ * space, rubric — what learners write on) and `teacher` (prompts beside the exemplar answers — the
+ * marking key). Only the teacher mode prints exemplars.
+ */
+type FinalExplanationMode = 'student' | 'teacher'
 
 /** The ARES sub-strand data object the generator consumes. */
 export interface AresDataObject {
@@ -30,20 +57,23 @@ export interface AresDataObject {
   SUMMARY_TABLE?: unknown
 }
 
-/** The three deliverable DOCX as Buffers. FE/ST are null when absent from the bundle. */
-export interface GeneratedDocx {
-  lessonSequence: Buffer
-  finalExplanation: Buffer | null
-  summaryTable: Buffer | null
-}
+/**
+ * The four deliverable DOCX as Buffers. The final explanation and teacher key exist together or not at
+ * all (both come from `FINAL_EXPLANATION`); FE/key/ST are null when absent from the bundle. Key order is
+ * the document order (lesson plan, student final explanation, teacher key, summary table).
+ */
+export type GeneratedDocx = { lessonSequence: Buffer } & Record<
+  Exclude<DeliverableTag, 'lessonSequence'>,
+  Buffer | null
+>
 
 /**
- * Generate the three CBE DOCX from an ARES data object, in-process, as Buffers.
+ * Generate the CBE DOCX from an ARES data object, in-process, as Buffers.
  *
  * There is ONE document format: the current pristine ARES five-column Section C. Required stored
- * resourceLinks render beneath each phase label through the Lesson3-owned pure-Node bridge. The
- * bridge never invokes Python/SQLite and uses AsyncLocalStorage so concurrent builds cannot exchange
- * resource maps. FinalExplanation and SummaryTable use the same pinned upstream builders.
+ * resourceLinks render beneath each phase label through the Lesson3-owned pure-Node bridge, which makes
+ * the pristine renderer use each lesson's own `resourceLinks` (see vendor/aresResources.js). The student
+ * final explanation, teacher key and summary table use the same pinned upstream builders.
  */
 /**
  * Per-deliverable builders, each generating ONE DOCX (the primary always exists; FE/ST return null
@@ -54,16 +84,26 @@ export interface GeneratedDocx {
  */
 export async function generateLessonSequenceDocx(data: AresDataObject): Promise<Buffer> {
   const { META, UNIT, LESSONS } = withParenthesizedProseLinks(data)
-  const document = await withStoredResourceLinks(LESSONS, () => buildSoW(META, UNIT, LESSONS))
-  return Packer.toBuffer(document)
+  return Packer.toBuffer(await buildSoW(META, UNIT, LESSONS))
 }
 
-export async function generateFinalExplanationDocx(data: AresDataObject): Promise<Buffer | null> {
+async function generateFinalExplanation(
+  data: AresDataObject,
+  mode: FinalExplanationMode,
+): Promise<Buffer | null> {
   const { META, FINAL_EXPLANATION } = withParenthesizedProseLinks(data)
   return FINAL_EXPLANATION
-    ? Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION))
+    ? Packer.toBuffer(await buildFinalExplanation(META, FINAL_EXPLANATION, mode))
     : null
 }
+
+/** The STUDENT final explanation: no exemplar answers, blank answer space. */
+export const generateFinalExplanationDocx = (data: AresDataObject): Promise<Buffer | null> =>
+  generateFinalExplanation(data, 'student')
+
+/** The TEACHER key: prompts beside the exemplar answers. Never give this to students. */
+export const generateTeacherKeyDocx = (data: AresDataObject): Promise<Buffer | null> =>
+  generateFinalExplanation(data, 'teacher')
 
 export async function generateSummaryTableDocx(data: AresDataObject): Promise<Buffer | null> {
   const { META, SUMMARY_TABLE } = withParenthesizedProseLinks(data)
@@ -74,6 +114,7 @@ export async function generateBundleDocx(data: AresDataObject): Promise<Generate
   return {
     lessonSequence: await generateLessonSequenceDocx(data),
     finalExplanation: await generateFinalExplanationDocx(data),
+    teacherKey: await generateTeacherKeyDocx(data),
     summaryTable: await generateSummaryTableDocx(data),
   }
 }
@@ -89,6 +130,7 @@ const DELIVERABLE_BUILDERS: Record<
 > = {
   lessonSequence: generateLessonSequenceDocx,
   finalExplanation: generateFinalExplanationDocx,
+  teacherKey: generateTeacherKeyDocx,
   summaryTable: generateSummaryTableDocx,
 }
 

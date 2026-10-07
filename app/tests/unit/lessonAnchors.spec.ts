@@ -12,6 +12,7 @@ import {
   docSectionId,
 } from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
+import { STORED_NULL_LINKS } from '../helpers/nullResourceLinks'
 
 /** The exact shape mammoth emits for the generator's `fullHeader` lesson row (probed 2026-07-12). */
 const header = (n: string, title: string) =>
@@ -109,6 +110,7 @@ describe('drift guard: real generator → mammoth output still carries matchable
       ],
       teacherReflection: 'TR.',
       summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
+      resourceLinks: STORED_NULL_LINKS,
     })
     const bundle = {
       id: 1,

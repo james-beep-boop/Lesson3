@@ -143,6 +143,13 @@ export default async function UserGuidePage({ searchParams }: UserGuidePageProps
                   are omitted — use <em>Email all — Word</em> or a larger screen. Email sends are
                   limited per day.
                 </p>
+                <p>
+                  The <em>Final explanation</em> you download has blank answer space and no answers,
+                  so it is the one to give to students. The <em>Teacher key — not for students</em>{' '}
+                  has the same questions with the exemplar answers: the Teacher key has the exemplar
+                  answers and is not for students. It appears beside the Final explanation, wherever
+                  one exists, and travels with <em>Download all</em> and <em>Email all</em>.
+                </p>
               </GuideAccordionPanel>
             )}
 

@@ -117,6 +117,31 @@ export function linkifyProse(value: unknown, options: { bold?: boolean } = {}): 
   return value.split('\n').map((line) => linkedParagraph(line, options.bold ?? false))
 }
 
+/**
+ * Upstream's own definition of a table row (`isPipeRow` in vendor/lib/build_docs.js): a line whose
+ * trimmed text begins with `|`. Kept identical on purpose — if the two ever disagree, a field is either
+ * linkified when upstream would have rendered a table, or left alone when it would not.
+ */
+const hasPipeTableRow = (value: string): boolean =>
+  value.split('\n').some((line) => line.trim().startsWith('|'))
+
+/**
+ * `linkifyProse` for the two Final Explanation fields upstream renders through `richCell`
+ * (`sections[].prompt` and `.exemplar`). `richCell` parses a Markdown table out of a STRING; handed the
+ * `Paragraph[]` that `linkifyProse` produces it sees no pipes at all and prints the table as raw
+ * `| a | b |` text — in the student document and the teacher key alike. So a field that contains a table
+ * is returned untouched and the table wins.
+ *
+ * ⚑ Deliberate trade-off: in such a field a `(https://…)` stays VISIBLE text, not a clickable link. The
+ * address still prints (printed copies lose hyperlinks anyway), and the alternative — rendering tables
+ * ourselves — would mean editing byte-pristine vendored code. A field with no table is linkified exactly
+ * as before, as is every other prose field.
+ */
+function linkifyTableCapableProse(value: unknown, options: { bold?: boolean } = {}): unknown {
+  if (typeof value === 'string' && hasPipeTableRow(value)) return value
+  return linkifyProse(value, options)
+}
+
 const linkifyKeys = (value: unknown, keys: readonly string[]): Doc => {
   const source = record(value)
   const output = { ...source }
@@ -227,8 +252,8 @@ export function withParenthesizedProseLinks(data: AresDataObject): AresDataObjec
                 const section = record(value)
                 return {
                   ...section,
-                  prompt: linkifyProse(section.prompt, { bold: true }),
-                  exemplar: linkifyProse(section.exemplar),
+                  prompt: linkifyTableCapableProse(section.prompt, { bold: true }),
+                  exemplar: linkifyTableCapableProse(section.exemplar),
                 }
               })
             : fe.sections,
