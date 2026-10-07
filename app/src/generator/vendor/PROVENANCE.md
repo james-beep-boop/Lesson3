@@ -10,7 +10,7 @@ commit label alone, are the acceptance proof for this pin.
 - **Branch:** `main`
 - **Pinned commit:** `b3743ff6d90f8623ba5a4a0c34c79162bd34c472` (`b3743ff`, upstream 2026-10-07; a direct child
   of the previous pin `6591146`)
-- **Vendored:** 2026-10-08
+- **Vendored:** 2026-10-07
 - **Reason:** adopt upstream's fix for Markdown data tables that printed as literal `| a | b |` text. `richCell`
   moved from `build_docs.js` into `docx_kit.js` **unchanged** (same row definition) and is now used for the Final
   Explanation `instructions` (five of the 95 current plans have a data table there) and for the lesson-plan
