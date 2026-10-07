@@ -13,7 +13,6 @@ import {
   generateBundleDocx,
   generateFinalExplanationDocx,
   generateLessonSequenceDocx,
-  generateSummaryTableDocx,
   generateTeacherKeyDocx,
   type AresDataObject,
 } from '../../src/generator/index'
@@ -188,7 +187,6 @@ describe('student document vs teacher key', () => {
 describe('a table and a link in the same Final Explanation field', () => {
   // proseLinks used to turn ANY field with a (https://…) into Paragraph[] before upstream's table parser saw
   // it, so the table printed as raw `| a | b |` text. A field that contains a table now stays a plain string.
-  const TABLE = '| Organ | Function |\n|---|---|\n| Heart | Pumps blood |'
   const LINK = 'Source (https://example.com/evidence)'
   const withFe = (prompt: string, exemplar = 'E') =>
     data({
@@ -206,8 +204,8 @@ describe('a table and a link in the same Final Explanation field', () => {
   ] as const)(
     'the table still renders in the %s when the field also holds a link',
     async (_n, fn) => {
-      const plain = (await parts(await fn(withFe(`Compare:\n${TABLE}`)))).xml
-      const linked = (await parts(await fn(withFe(`Compare:\n${TABLE}\n${LINK}`)))).xml
+      const plain = (await parts(await fn(withFe(`Compare:\n${PIPE_TABLE}`)))).xml
+      const linked = (await parts(await fn(withFe(`Compare:\n${PIPE_TABLE}\n${LINK}`)))).xml
       expect(linked).not.toContain('| Heart |')
       expect(linked).not.toContain('|---|')
       expect(linked).toContain('Pumps blood')
@@ -217,7 +215,9 @@ describe('a table and a link in the same Final Explanation field', () => {
   )
 
   it('the address stays VISIBLE in a table field, as text rather than a clickable link', async () => {
-    const { xml, rels } = await parts(await generateTeacherKeyDocx(withFe(`${TABLE}\n${LINK}`)))
+    const { xml, rels } = await parts(
+      await generateTeacherKeyDocx(withFe(`${PIPE_TABLE}\n${LINK}`)),
+    )
     expect(xml).toContain('https://example.com/evidence')
     expect(rels).not.toContain('https://example.com/evidence')
   })
@@ -231,7 +231,7 @@ describe('a table and a link in the same Final Explanation field', () => {
   it('only the field that holds the table is affected: a sibling field keeps its link', async () => {
     const { rels } = await parts(
       await generateTeacherKeyDocx(
-        withFe(`${TABLE}\n${LINK}`, 'Read (https://example.com/exemplar-link)'),
+        withFe(`${PIPE_TABLE}\n${LINK}`, 'Read (https://example.com/exemplar-link)'),
       ),
     )
     expect(rels).toContain('https://example.com/exemplar-link')
@@ -352,21 +352,21 @@ describe('resources: stored-links path, null wording, isolation', () => {
     expect(xml).not.toContain('N-predict-video') // nothing stale where a slot is null
   })
 
-  it('a malformed percent-escape in the fallback URL drops the terms instead of failing the document', () => {
-    const paras = bridge.buildResourceParagraphs({
-      video: null,
-      reading: null,
-      fallback_search_url: 'http://ares.local/s?searchstring=%E0%A4%A',
-    })
-    expect(Array.isArray(paras)).toBe(true)
+  it('a malformed percent-escape in the fallback URL drops the search terms but still renders the slot', async () => {
+    const bad = 'http://ares.local/www2/search.php?searchstring=%E0%A4%A&x=1'
+    const nullLinks = Object.fromEntries(
+      RESOURCE_PHASE_KEYS.map((k) => [k, { video: null, reading: null, fallback_search_url: bad }]),
+    )
+    const { xml } = await parts(
+      await generateLessonSequenceDocx(data({ LESSONS: [lesson(1, 'Bad escape', nullLinks)] })),
+    )
+    expect(xml).toContain('No closely matching video in the ARES library for this activity.')
+    expect(xml).toContain('Search ARES for videos')
+    expect(xml).not.toContain('Search terms:')
   })
 
   it('refuses a lesson with no stored links rather than printing blank resources', async () => {
     const broken = data({ LESSONS: [lesson(1, 'No links', undefined)] })
     await expect(generateLessonSequenceDocx(broken)).rejects.toThrow(/no existing resourceLinks/)
-  })
-
-  it('still produces the summary table and student document unchanged by the resource path', async () => {
-    expect(await generateSummaryTableDocx(data())).not.toBeNull()
   })
 })

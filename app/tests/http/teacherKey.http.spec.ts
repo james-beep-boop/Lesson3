@@ -24,9 +24,8 @@ import {
   type RoleFixture,
   type RoleKey,
 } from '../helpers/fixtures.js'
+import { login, url } from '../helpers/httpWire.js'
 
-const BASE = (process.env.E2E_BASE_URL ?? 'http://app:3000').replace(/\/$/, '')
-const url = (path: string) => `${BASE}${path}`
 const ROLES: RoleKey[] = ['siteAdmin', 'editor', 'teacher']
 const EXEMPLAR = `EXEMPLAR-${randomUUID()}`
 const PREFIX = 'KeyProbe'
@@ -35,16 +34,6 @@ let fx: RoleFixture
 let withFe: { id: number; lessons?: unknown[] }
 const token: Record<string, string> = {}
 const auth = (key: RoleKey) => ({ Authorization: `JWT ${token[key]}` })
-
-async function login(email: string, password: string): Promise<string> {
-  const res = await fetch(url('/api/users/login'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  if (!res.ok) throw new Error(`login failed (${res.status}) for ${email}`)
-  return ((await res.json()) as { token: string }).token
-}
 
 async function prepare(id: number, key: RoleKey, as: 'docx' | 'pdf') {
   const prep = await fetch(url(`/api/lesson-bundle-versions/${id}/export?as=${as}`), {
@@ -77,7 +66,12 @@ const exportZip = async (id: number, as: 'docx' | 'pdf') => {
 }
 
 const docXml = async (docx: Buffer) =>
-  (await (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string')) ?? ''
+  (await JSZip.loadAsync(docx)).file('word/document.xml')!.async('string')
+const xmlOf = async (zip: JSZip, name: string) => docXml(await zip.files[name]!.async('nodebuffer'))
+
+// Three tests read the SAME cold DOCX export; prepare, download and unzip it once.
+let docxZip: Promise<JSZip> | undefined
+const docxZipOf = () => (docxZip ??= exportZip(withFe.id, 'docx'))
 
 const docUrl = (id: number, doc: string, as: 'docx' | 'pdf') =>
   `/api/lesson-bundle-versions/${id}/export/doc?doc=${doc}&as=${as}`
@@ -117,8 +111,8 @@ afterAll(async () => {
 })
 
 describe('a version with a final explanation exports four documents', () => {
-  it('DOCX zip: exact names, in document order', async () => {
-    const zip = await exportZip(withFe.id, 'docx')
+  it('DOCX zip: exactly the four expected names', async () => {
+    const zip = await docxZipOf()
     expect(Object.keys(zip.files).sort()).toEqual(
       [
         `${PREFIX}_CBE_LessonSequence.docx`,
@@ -146,13 +140,9 @@ describe('a version with a final explanation exports four documents', () => {
   }, 200_000)
 
   it('the exemplar answer is in the teacher key and NEVER in the student document', async () => {
-    const zip = await exportZip(withFe.id, 'docx')
-    const student = await docXml(
-      await zip.files[`${PREFIX}_FinalExplanation.docx`]!.async('nodebuffer'),
-    )
-    const key = await docXml(
-      await zip.files[`${PREFIX}_FinalExplanation_TeacherKey.docx`]!.async('nodebuffer'),
-    )
+    const zip = await docxZipOf()
+    const student = await xmlOf(zip, `${PREFIX}_FinalExplanation.docx`)
+    const key = await xmlOf(zip, `${PREFIX}_FinalExplanation_TeacherKey.docx`)
     expect(student).not.toContain(EXEMPLAR)
     expect(student).toContain('Write your answer here')
     expect(key).toContain(EXEMPLAR)
@@ -160,10 +150,10 @@ describe('a version with a final explanation exports four documents', () => {
   }, 200_000)
 
   it('attribution is rendered in all four deliverables, from the production image', async () => {
-    const zip = await exportZip(withFe.id, 'docx')
+    const zip = await docxZipOf()
     expect(Object.keys(zip.files)).toHaveLength(4)
     for (const name of Object.keys(zip.files)) {
-      const xml = await docXml(await zip.files[name]!.async('nodebuffer'))
+      const xml = await xmlOf(zip, name)
       expect(xml, `${name} carries the licence block`).toContain('This work is licensed under a')
       expect(xml, `${name} carries the fixed year`).toContain('© 2026 SeaVuria and ARES')
     }
@@ -215,9 +205,11 @@ describe('per-document download of the teacher key follows the plan’s read acc
 describe('preview-as-PDF accepts the new tag with the unchanged edit gate', () => {
   const previewUrl = (id: number, doc: string) =>
     `/api/lesson-bundle-versions/${id}/preview-pdf?doc=${doc}`
-  const overlay = () => {
+  // The plan's REAL lessons: an empty overlay is a structural change and is refused (422) before the
+  // missing-document check is reached.
+  const overlay = (lessons: unknown[] = withFe.lessons ?? []) => {
     const form = new FormData()
-    form.set('data', JSON.stringify({ lessons: withFe.lessons ?? [] }))
+    form.set('data', JSON.stringify({ lessons }))
     return form
   }
 
@@ -249,16 +241,10 @@ describe('preview-as-PDF accepts the new tag with the unchanged edit gate', () =
   }, 200_000)
 
   it('404 for the key on a version without a final explanation', async () => {
-    const form = new FormData()
-    // the plan's REAL lessons: an empty overlay is a structural change and is refused (422) first
-    form.set(
-      'data',
-      JSON.stringify({ lessons: (fx.version as unknown as { lessons?: unknown[] }).lessons ?? [] }),
-    )
     const res = await fetch(url(previewUrl(fx.version.id, 'teacherKey')), {
       method: 'POST',
       headers: auth('editor'),
-      body: form,
+      body: overlay((fx.version as unknown as { lessons?: unknown[] }).lessons ?? []),
     })
     expect(res.status).toBe(404)
   })

@@ -47,7 +47,8 @@ silently drift from the vendored bytes.
 
 ## Attribution config — the one deliberate deviation
 
-`lib/attribution.js` reads `config/attribution.yaml` (relative to itself: `generator/config/`). Upstream's
+`lib/attribution.js` reads `config/attribution.yaml` (by default relative to itself: `generator/config/`; in the
+production bundle that default does not resolve, so `generator/index.ts` sets `ATTRIBUTION_YAML` explicitly). Upstream's
 file says `year: auto`, which stamps the **render-time** year: the same immutable snapshot re-rendered in
 January would change bytes, contradicting the byte-stability contract in `renderVersion.ts`.
 
@@ -58,8 +59,9 @@ when any particular lesson was first published, and it says nothing about future
 vendor-generator.sh` produces it and aborts unless that is the only changed line. Changing the year later is
 a deliberate act that **must accompany a `GENERATOR_RENDER_VERSION` bump**.
 
-Runtime needs, each proven in the production image build (see the `Dockerfile` attribution step): `js-yaml`
-(now a direct, pinned dependency) and the yaml file (listed in `outputFileTracingIncludes`).
+Runtime needs: `js-yaml` (now a direct, pinned dependency; bundled into the server chunks) and the yaml file
+(listed in `outputFileTracingIncludes`; the `Dockerfile` only proves it shipped). That the running app finds it and
+renders attribution is proved over the wire by `tests/http/teacherKey.http.spec.ts`.
 
 ## Lesson3-owned resource bridge
 

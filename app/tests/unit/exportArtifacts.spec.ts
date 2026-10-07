@@ -113,7 +113,7 @@ describe('export artifacts', () => {
     expect(await isExportReady(current)).toBe(false)
   })
 
-  it('is on render version 7 for this generator', async () => {
+  it('is at least render version 7 for this generator', async () => {
     // A deliberate tripwire: the pinned generator's output changed (attribution, split final explanation,
     // tables, null wording). Lowering this would let a stale zip be served as if current.
     const { GENERATOR_RENDER_VERSION } = await load()

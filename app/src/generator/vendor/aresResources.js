@@ -172,18 +172,20 @@ function searchLinkPara(label, rawUrl) {
  * showing a weak link as if it were a good one, then offers the search link and prints the search terms
  * (printed copies lose hyperlinks, and the full URL is ~600 characters).
  */
-function noMatchParas(kind, rawFallback) {
-  const fallback = safeHttpUrl(rawFallback);
-  const paras = [italicPara(`No closely matching ${kind} in the ARES library for this activity.`)];
-  paras.push(searchLinkPara(`🔍 Search ARES for ${kind}s`, fallback));
+function noMatchParas(kind, fallback) {
+  // `fallback` is already http(s)-safe or '' (buildResourceParagraphs sanitised it); searchLinkPara keeps
+  // its own check as the last barrier before a URL becomes a hyperlink target.
   const terms = searchTermsFromUrl(fallback);
-  if (terms) paras.push(metaPara(`Search terms: ${terms}`));
-  return paras;
+  return [
+    italicPara(`No closely matching ${kind} in the ARES library for this activity.`),
+    searchLinkPara(`🔍 Search ARES for ${kind}s`, fallback),
+    ...(terms ? [metaPara(`Search terms: ${terms}`)] : []),
+  ];
 }
 
 // A malformed percent-escape must not take down the whole document: show no terms instead.
 function searchTermsFromUrl(url) {
-  const m = /[?&]searchstring=([^&]*)/.exec(url || '');
+  const m = /[?&]searchstring=([^&]*)/.exec(url);
   if (!m) return '';
   try {
     return decodeURIComponent(m[1].replace(/\+/g, ' '));

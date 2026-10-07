@@ -43,8 +43,10 @@ done
 # one line; this script enforces it, so a re-sync can never silently widen the deviation.
 PRISTINE_DIR="$REPO_ROOT/app/src/generator/vendor/config"   # provenance copy, byte-verbatim
 # The pristine lib/attribution.js resolves its config as <its dir>/../../config/attribution.yaml, which
-# from vendor/lib is app/src/generator/config/. Putting the file exactly there means no env var and no
-# bundler-sensitive URL is needed, and Next's file tracer can see the read.
+# from vendor/lib is app/src/generator/config/ — the file must live exactly there for dev, tests and the
+# fidelity scripts. The PRODUCTION bundle does NOT resolve that path (Turbopack bakes a build-time
+# `/ROOT/...` placeholder into `__dirname`), so generator/index.ts also sets ATTRIBUTION_YAML from
+# process.cwd(), and next.config.ts lists the file in outputFileTracingIncludes so it ships.
 CONFIG_DIR="$REPO_ROOT/app/src/generator/config"
 FIXED_YEAR=2026
 mkdir -p "$PRISTINE_DIR" "$CONFIG_DIR"

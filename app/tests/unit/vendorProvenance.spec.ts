@@ -52,6 +52,18 @@ describe('vendored generator provenance', () => {
     expect(record).toContain(sha('config/attribution.yaml'))
   })
 
+  it('the vendored table parser still has the shape proseLinks.ts mirrors', () => {
+    // `hasPipeTableRow` (proseLinks.ts) copies upstream's definition of a table row, and the Final Explanation
+    // fields it exempts from linkification (`prompt`, `exemplar`) are the ones upstream passes to `richCell`.
+    // build_docs.js exports neither, so neither can be imported — a re-pin that changes either would silently
+    // desynchronise the two. Fail loudly here instead.
+    const src = readFileSync(new URL('vendor/lib/build_docs.js', GEN), 'utf8')
+    expect(src).toContain("const isPipeRow = ln => ln.trim().startsWith('|');")
+    expect(src.match(/richCell\(sec\.prompt/g)).toHaveLength(2) // student + teacher
+    expect(src.match(/richCell\(sec\.exemplar/g)).toHaveLength(1) // teacher only
+    expect(src.match(/\brichCell\(/g)).toHaveLength(4) // those three calls + the definition
+  })
+
   it('records the pinned commit the files were vendored from', () => {
     expect(record).toMatch(/Pinned commit:\*\* `[0-9a-f]{40}`/)
   })

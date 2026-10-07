@@ -12,19 +12,7 @@ import {
   docSectionId,
 } from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
-import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks'
-
-// Real lessons always carry complete stored resourceLinks (ingest and every save require them); the
-// renderer now refuses a lesson without them instead of silently printing blank resources. All-null
-// slots keep these drift guards on the null-resource path too.
-const STORED_LINKS = aresResourceLinksToRows(
-  Object.fromEntries(
-    RESOURCE_PHASE_KEYS.map((k) => [
-      k,
-      { video: null, reading: null, fallback_search_url: 'http://ares.local/search' },
-    ]),
-  ) as never,
-)
+import { STORED_NULL_LINKS } from '../helpers/nullResourceLinks'
 
 /** The exact shape mammoth emits for the generator's `fullHeader` lesson row (probed 2026-07-12). */
 const header = (n: string, title: string) =>
@@ -122,7 +110,7 @@ describe('drift guard: real generator → mammoth output still carries matchable
       ],
       teacherReflection: 'TR.',
       summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
-      resourceLinks: STORED_LINKS,
+      resourceLinks: STORED_NULL_LINKS,
     })
     const bundle = {
       id: 1,

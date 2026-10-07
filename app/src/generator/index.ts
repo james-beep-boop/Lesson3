@@ -8,6 +8,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+import type { DeliverableTag } from './exportArtifacts'
 import { withParenthesizedProseLinks } from './proseLinks'
 
 // ⚑ Where the vendored attribution code finds its config — and why this line cannot be removed.
@@ -45,7 +46,7 @@ const { Packer } = require('docx') as { Packer: { toBuffer: (doc: unknown) => Pr
  * space, rubric — what learners write on) and `teacher` (prompts beside the exemplar answers — the
  * marking key). Only the teacher mode prints exemplars.
  */
-export type FinalExplanationMode = 'student' | 'teacher'
+type FinalExplanationMode = 'student' | 'teacher'
 
 /** The ARES sub-strand data object the generator consumes. */
 export interface AresDataObject {
@@ -61,12 +62,10 @@ export interface AresDataObject {
  * all (both come from `FINAL_EXPLANATION`); FE/key/ST are null when absent from the bundle. Key order is
  * the document order (lesson plan, student final explanation, teacher key, summary table).
  */
-export interface GeneratedDocx {
-  lessonSequence: Buffer
-  finalExplanation: Buffer | null
-  teacherKey: Buffer | null
-  summaryTable: Buffer | null
-}
+export type GeneratedDocx = { lessonSequence: Buffer } & Record<
+  Exclude<DeliverableTag, 'lessonSequence'>,
+  Buffer | null
+>
 
 /**
  * Generate the CBE DOCX from an ARES data object, in-process, as Buffers.

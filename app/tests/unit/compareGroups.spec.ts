@@ -29,19 +29,7 @@ import {
 } from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
 import { headerRow, paraRow as row, table } from '../helpers/generatorHtml'
-import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks'
-
-// Real lessons always carry complete stored resourceLinks (ingest and every save require them); the
-// renderer now refuses a lesson without them instead of silently printing blank resources. All-null
-// slots keep these drift guards on the null-resource path too.
-const STORED_LINKS = aresResourceLinksToRows(
-  Object.fromEntries(
-    RESOURCE_PHASE_KEYS.map((k) => [
-      k,
-      { video: null, reading: null, fallback_search_url: 'http://ares.local/search' },
-    ]),
-  ) as never,
-)
+import { STORED_NULL_LINKS } from '../helpers/nullResourceLinks'
 
 /**
  * Top-level nodes that carry content — ELEMENTS **and** non-whitespace text.
@@ -321,61 +309,65 @@ describe('mergeGroupKeys — one document order across both versions', () => {
   })
 })
 
+// One bundle shape for the two real-generator tests below; only the final explanation differs.
+const probeLesson = (number: number, title: string) => ({
+  number,
+  title,
+  duration: '40 min',
+  slo: { purpose: 'P.', knowledge: 'K.', skills: 'S.', attitudes: 'A.', keyInquiry: 'Q?' },
+  overview: 'Overview text.',
+  framework: [
+    {
+      phase: 'Predict Phase',
+      learnerExperience: 'LE.',
+      teacherMoves: 'TM.',
+      sensemakingStrategy: 'SS.',
+      formativeAssessment: 'FA.',
+    },
+  ],
+  teacherReflection: 'TR.',
+  summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
+  resourceLinks: STORED_NULL_LINKS,
+})
+const probeBundle = (finalExplanation: unknown) =>
+  ({
+    id: 1,
+    title: 'T',
+    meta: {
+      subject: 'Biology',
+      grade: 10,
+      substrand_id: '1.1',
+      substrand_name: 'Probe',
+      titleDoc: 'PROBE DOC',
+      subtitleDoc: 'Sub title',
+    },
+    unit: {
+      gradeLevel: 'Grade 10',
+      subject: 'Biology',
+      strand: 'S',
+      substrand: 'SS',
+      overview: 'U.',
+    },
+    lessons: [probeLesson(1, 'Cells'), probeLesson(2, 'Osmosis')],
+    finalExplanation,
+    summaryTable: {
+      subStrand: 'SS',
+      drivingQuestion: 'DQ?',
+      lessons: [{ number: 1, title: 'Cells', observed: 'o', learned: 'l', explained: 'e' }],
+    },
+  }) as never
+
 describe('drift guard: the real generator → mammoth chain still classifies cleanly', () => {
   it('splits all three documents into the expected keys, with nothing unclassified', async () => {
-    const lesson = (number: number, title: string) => ({
-      number,
-      title,
-      duration: '40 min',
-      slo: { purpose: 'P.', knowledge: 'K.', skills: 'S.', attitudes: 'A.', keyInquiry: 'Q?' },
-      overview: 'Overview text.',
-      framework: [
-        {
-          phase: 'Predict Phase',
-          learnerExperience: 'LE.',
-          teacherMoves: 'TM.',
-          sensemakingStrategy: 'SS.',
-          formativeAssessment: 'FA.',
-        },
+    const bundle = probeBundle({
+      subjectLabel: 'Biology',
+      instructions: 'Do the thing.',
+      sections: [
+        { title: 'Part One', prompt: 'P1', exemplar: 'E1' },
+        { title: 'Part Two', prompt: 'P2', exemplar: 'E2' },
       ],
-      teacherReflection: 'TR.',
-      summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
-      resourceLinks: STORED_LINKS,
+      rubric: [{ criterion: 'C', excellent: '4', proficient: '3', developing: '2' }],
     })
-    const bundle = {
-      id: 1,
-      title: 'T',
-      meta: {
-        subject: 'Biology',
-        grade: 10,
-        substrand_id: '1.1',
-        substrand_name: 'Probe',
-        titleDoc: 'PROBE DOC',
-        subtitleDoc: 'Sub title',
-      },
-      unit: {
-        gradeLevel: 'Grade 10',
-        subject: 'Biology',
-        strand: 'S',
-        substrand: 'SS',
-        overview: 'U.',
-      },
-      lessons: [lesson(1, 'Cells'), lesson(2, 'Osmosis')],
-      finalExplanation: {
-        subjectLabel: 'Biology',
-        instructions: 'Do the thing.',
-        sections: [
-          { title: 'Part One', prompt: 'P1', exemplar: 'E1' },
-          { title: 'Part Two', prompt: 'P2', exemplar: 'E2' },
-        ],
-        rubric: [{ criterion: 'C', excellent: '4', proficient: '3', developing: '2' }],
-      },
-      summaryTable: {
-        subStrand: 'SS',
-        drivingQuestion: 'DQ?',
-        lessons: [{ number: 1, title: 'Cells', observed: 'o', learned: 'l', explained: 'e' }],
-      },
-    } as never
 
     const sections = await renderBundlePreview(bundle)
     const keysFor = (label: string) =>
@@ -458,66 +450,23 @@ describe('Final Explanation containing NESTED tables (regression, 2026-10 re-pin
   })
 
   it('end to end through the real generator: tables in exemplars (and a prompt), plus a link', async () => {
-    const lesson = {
-      number: 1,
-      title: 'Cells',
-      duration: '40 min',
-      slo: { purpose: 'P.', knowledge: 'K.', skills: 'S.', attitudes: 'A.', keyInquiry: 'Q?' },
-      overview: 'Overview text.',
-      framework: [
-        {
-          phase: 'Predict Phase',
-          learnerExperience: 'LE.',
-          teacherMoves: 'TM.',
-          sensemakingStrategy: 'SS.',
-          formativeAssessment: 'FA.',
-        },
-      ],
-      teacherReflection: 'TR.',
-      summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
-      resourceLinks: STORED_LINKS,
-    }
     const four = '| A | B | C | D |\n|---|---|---|---|\n| 1 | 2 | 3 | 4 |'
     const three = '| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |'
-    const bundle = {
-      id: 1,
-      title: 'T',
-      meta: {
-        subject: 'Biology',
-        grade: 10,
-        substrand_id: '1.1',
-        substrand_name: 'P',
-        titleDoc: 'D',
-      },
-      unit: {
-        gradeLevel: 'Grade 10',
-        subject: 'Biology',
-        strand: 'S',
-        substrand: 'SS',
-        overview: 'U.',
-      },
-      lessons: [lesson],
-      finalExplanation: {
-        subjectLabel: 'Biology',
-        instructions: 'Do the thing.',
-        sections: [
-          { title: 'One', prompt: 'P1', exemplar: `Answer.\n${four}` },
-          // table + link in the SAME field: the table must still render (see proseLinks.ts)
-          {
-            title: 'Two',
-            prompt: `Compare:\n${three}\nSource (https://example.com/evidence)`,
-            exemplar: 'E2',
-          },
-          { title: 'Three', prompt: 'P3', exemplar: `${three}\n${four}` },
-        ],
-        rubric: [{ criterion: 'C', excellent: '4', proficient: '3', developing: '2' }],
-      },
-      summaryTable: {
-        subStrand: 'SS',
-        drivingQuestion: 'DQ?',
-        lessons: [{ number: 1, title: 'Cells', observed: 'o', learned: 'l', explained: 'e' }],
-      },
-    } as never
+    const bundle = probeBundle({
+      subjectLabel: 'Biology',
+      instructions: 'Do the thing.',
+      sections: [
+        { title: 'One', prompt: 'P1', exemplar: `Answer.\n${four}` },
+        // table + link in the SAME field: the table must still render (see proseLinks.ts)
+        {
+          title: 'Two',
+          prompt: `Compare:\n${three}\nSource (https://example.com/evidence)`,
+          exemplar: 'E2',
+        },
+        { title: 'Three', prompt: 'P3', exemplar: `${three}\n${four}` },
+      ],
+      rubric: [{ criterion: 'C', excellent: '4', proficient: '3', developing: '2' }],
+    })
     const sections = await renderBundlePreview(bundle)
     const html = sections.find((s) => s.label === FINAL_EXPLANATION_LABEL)!.html
     expect(splitDocumentGroups(FINAL_EXPLANATION_LABEL, html).map((g) => g.key)).toEqual([

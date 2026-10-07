@@ -292,12 +292,12 @@ export const lessonEditableContentFields: Field[] = [
       // cell prose, so the narrow link proof of concept deliberately does not offer insertion here.
       prose('title', 'Title', { linkable: false }),
       adminOnly(structureText('duration', 'Duration')),
-      // ⚑ ARGUMENTS TO A LOOKUP THIS APP DOES NOT PERFORM. The pristine `sections.js` passes both to
+      // ⚑ ARGUMENTS TO A LOOKUP THIS APP DOES NOT PERFORM. The pristine `sections.js` would pass both to
       // `getAllPhaseResources({ substrand, topic, subject })`, but Lesson3's bridge
-      // (`generator/vendor/aresResources.js`) is POSITIONAL: it pops each lesson's already-resolved
-      // `resourceLinks` from a queue in `LESSONS` order and ignores the arguments entirely. So
-      // editing either one changed nothing a teacher could ever see — though a re-pin that restored
-      // the lookup would make them matter again, which is why they stay stored.
+      // (`generator/vendor/aresResources.js`) points `DB_PATH` at a file that cannot exist, so the
+      // renderer never performs that lookup at all and uses each lesson's own stored `resourceLinks`.
+      // Editing either one therefore changed nothing a teacher could ever see — though a re-pin that
+      // restored the lookup would make them matter again, which is why they stay stored.
       storedNotEdited(structureText('substrand', 'Sub-strand')),
       storedNotEdited(structureText('aresKeywords', 'ARES keywords')),
       {

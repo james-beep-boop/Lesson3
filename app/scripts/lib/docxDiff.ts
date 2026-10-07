@@ -6,10 +6,14 @@
  * identity (styling/metadata legitimately differ). Current gates compare resource paragraphs in
  * full; the optional legacy column-strip parameter remains only for historical oracle tooling.
  */
+import { createRequire } from 'node:module'
+
 import mammoth from 'mammoth'
 import { JSDOM } from 'jsdom'
 import JSZip from 'jszip'
-import { createRequire } from 'node:module'
+
+import type { AresDataObject } from '../../src/generator/index'
+import { lessonSequenceProseHyperlinkTargets } from '../../src/generator/proseLinks'
 
 const nodeRequire = createRequire(import.meta.url)
 const { attribution } = nodeRequire('../../src/generator/vendor/lib/attribution.js') as {
@@ -29,18 +33,14 @@ const { attribution } = nodeRequire('../../src/generator/vendor/lib/attribution.
  * so it cannot be reproduced from an imported bundle. Resource titles, sources, search links and every
  * hyperlink target are still compared. The count removed is printed on every run.
  */
-export const ORACLE_ONLY_NOTES = ['Related topic: not an exact match for this lesson.'] as const
+const ORACLE_ONLY_NOTE = 'Related topic: not an exact match for this lesson.'
 
 function withoutOracleOnlyNotes(blocks: string[]): { blocks: string[]; removed: number } {
   let removed = 0
   const out = blocks.map((block) => {
-    let b = block
-    for (const note of ORACLE_ONLY_NOTES) {
-      const parts = b.split(note)
-      removed += parts.length - 1
-      b = parts.join('')
-    }
-    return b
+    const parts = block.split(ORACLE_ONLY_NOTE)
+    removed += parts.length - 1
+    return parts.join('')
   })
   return { blocks: out, removed }
 }
@@ -50,7 +50,7 @@ function withoutOracleOnlyNotes(blocks: string[]): { blocks: string[]; removed: 
  * the generated document): every licence-name / licence-URL occurrence in the header block, plus every
  * occurrence in the footer once per lesson. Each links to the licence URL (vendor/lib/attribution.js).
  */
-export function expectedAttributionHyperlinks(lessonCount: number): string[] {
+function expectedAttributionHyperlinks(lessonCount: number): string[] {
   const a = attribution()
   const names = [a.license.full_name, a.license.url, a.license.name]
     .filter((n): n is string => Boolean(n))
@@ -59,11 +59,8 @@ export function expectedAttributionHyperlinks(lessonCount: number): string[] {
   const matches = (text: string) => (text.match(rx) ?? []).length
   const total =
     a.header.reduce((sum, h) => sum + matches(h.text), 0) + matches(a.footer) * lessonCount
-  return Array.from({ length: total }, () => a.license.url)
+  return Array<string>(total).fill(a.license.url)
 }
-
-import type { AresDataObject } from '../../src/generator/index'
-import { lessonSequenceProseHyperlinkTargets } from '../../src/generator/proseLinks'
 
 export const norm = (s: string) => s.replace(/\s+/g, ' ').trim()
 

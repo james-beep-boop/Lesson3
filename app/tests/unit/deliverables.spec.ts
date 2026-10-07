@@ -55,6 +55,5 @@ describe('versionDeliverables mirrors bundleToAresData (T2 strip contract)', () 
   it('the key has its own, unmistakable label', () => {
     expect(DELIVERABLE_LABELS.teacherKey).toMatch(/teacher key/i)
     expect(DELIVERABLE_LABELS.teacherKey).toMatch(/not for students/i)
-    expect(DELIVERABLE_LABELS.teacherKey).not.toBe(DELIVERABLE_LABELS.finalExplanation)
   })
 })

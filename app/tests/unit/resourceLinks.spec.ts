@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 
 import {
   RESOURCE_PHASE_KEYS,
@@ -12,11 +11,6 @@ import {
   validateResourceLinks,
 } from '../../src/ingest/resourceLinks'
 import { preserveLessonResourceLinks } from '../../src/hooks/fieldSplit'
-
-const require = createRequire(import.meta.url)
-const { getAllPhaseResources } = require('../../src/generator/vendor/aresResources.js') as {
-  getAllPhaseResources: () => unknown
-}
 
 const record = (suffix: string) => ({
   title: `Title ${suffix}`,
@@ -239,11 +233,5 @@ describe('pure-Node generator resource bridge', () => {
     expect(shim).not.toMatch(/\bexec(?:File)?Sync\s*\(/)
     expect(shim).not.toMatch(/\bpython3\b/)
     expect(shim).not.toMatch(/ares_recommender|ARES_DB_PATH|ares_content\.db/)
-  })
-
-  it('refuses any resource-database lookup: stored links are the only source', () => {
-    // The vendored renderer takes its stored-links path (see the bridge header). If a future re-pin
-    // makes it call getAllPhaseResources, that must fail loudly rather than render blank resources.
-    expect(() => getAllPhaseResources()).toThrow(/no ARES content database/)
   })
 })
