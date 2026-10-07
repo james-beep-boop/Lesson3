@@ -8,16 +8,18 @@ commit label alone, are the acceptance proof for this pin.
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Pinned commit:** `65911461bd2fb0b34e61a4e07786dc47680c3840` (`6591146`, upstream HEAD on 2026-10-06)
-- **Vendored:** 2026-10-07
-- **Reason:** adopt upstream's 2026-09-30 → 2026-10-04 generator changes: (1) a **student** Final
-  Explanation (prompts, blank answer space, rubric) and a separate **teacher key** (prompts beside the
-  exemplar answers) — previously one document titled "Student Assessment Document" printed the
-  exemplars; (2) the CC BY-NC 4.0 attribution block and per-lesson footer (`lib/attribution.js`, new);
-  (3) Markdown tables inside Final Explanation text rendered as real tables; (4) link-selection v2's
-  resource seam (`DB_PATH`, `takeDiagnostics`) and its null-slot wording. The lib files have not changed
-  upstream since `69f3583` (2026-10-04); nothing under `generators/` or `config/attribution.yaml` changed
-  between `9f2f25b` and this pin. **Previous pin:** `a546ee3` (2026-09-19).
+- **Pinned commit:** `b3743ff6d90f8623ba5a4a0c34c79162bd34c472` (`b3743ff`, upstream 2026-10-07; a direct child
+  of the previous pin `6591146`)
+- **Vendored:** 2026-10-08
+- **Reason:** adopt upstream's fix for Markdown data tables that printed as literal `| a | b |` text. `richCell`
+  moved from `build_docs.js` into `docx_kit.js` **unchanged** (same row definition) and is now used for the Final
+  Explanation `instructions` (five of the 95 current plans have a data table there) and for the lesson-plan
+  `overview` and the four implementation-framework fields (`learnerExperience`, `teacherMoves`,
+  `sensemakingStrategy`, `formativeAssessment`; two plans have tables there). Also adds **keep-with-next**: a
+  section header stays with its prompt and a student prompt stays with its answer box. Only `build_docs.js`,
+  `sections.js` and `docx_kit.js` changed; `attribution.js`, `config/attribution.yaml` and upstream's
+  `aresResources.js` (which the Lesson3-owned bridge mirrors) are byte-identical to the previous pin.
+  **Previous pins:** `6591146` (2026-10-06), `a546ee3` (2026-09-19).
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
@@ -36,9 +38,9 @@ gap without changing the authorship or provenance of the three byte-pristine fil
 
 | Lesson3 path | Upstream path | SHA-256 |
 | --- | --- | --- |
-| `lib/build_docs.js` | `generators/lib/build_docs.js` | `4c571632c38d83137d416c4c34638ad7caebd0dae235af6b6509788cb195d1d7` |
-| `lib/sections.js` | `generators/lib/sections.js` | `decfb1a33f46c4db0f008f19095e8bf28568e8864fedaceae4a713c5fc57a013` |
-| `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `ba74ef7036a06f02a7b6966a90d53350d3f751aacd7adfe96851991f93d73679` |
+| `lib/build_docs.js` | `generators/lib/build_docs.js` | `0d41e8efa1fa5b0bece27e00abe52fad3dc11ec32d689fbe4bdddb43e64972de` |
+| `lib/sections.js` | `generators/lib/sections.js` | `e004b658801059097332fc6491b2b8f49ccbd5396ae103f2b2d2b678b068c018` |
+| `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `c670d5fe84965893017ff910b180c0aca5f20709bb7f117c147afd13366b1ccb` |
 | `lib/attribution.js` | `generators/lib/attribution.js` | `7ac867b861ea1be8f6cfe8590cf7171c94b5536cc828c4d29983bd6abe6f9288` |
 | `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `950f68dbceee79d12de4dc49e9b5827434dca5fb81ddf4bfd188c173041f4104` |
 

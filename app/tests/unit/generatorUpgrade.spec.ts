@@ -370,3 +370,90 @@ describe('resources: stored-links path, null wording, isolation', () => {
     await expect(generateLessonSequenceDocx(broken)).rejects.toThrow(/no existing resourceLinks/)
   })
 })
+
+describe('tables in the fields upstream added to richCell (b3743ff)', () => {
+  // Upstream now parses a Markdown table out of Final Explanation `instructions`, lesson `overview` and the
+  // four framework fields, not just `prompt`/`exemplar`. Five assessments had a table in `instructions` that
+  // printed as raw `| a | b |` text. Each field must (a) render the table and (b) keep it when a link shares
+  // the field ("table wins over link", as for prompt/exemplar).
+  const LINK = 'Source (https://example.com/evidence)'
+  const FRAMEWORK_KEYS = [
+    'learnerExperience',
+    'teacherMoves',
+    'sensemakingStrategy',
+    'formativeAssessment',
+  ] as const
+
+  const withInstructions = (instructions: string) =>
+    data({
+      FINAL_EXPLANATION: {
+        subjectLabel: 'Biology',
+        instructions,
+        sections: [{ title: 'T', prompt: 'P', exemplar: 'E' }],
+        rubric: [],
+      },
+    })
+  const withLessonField = (field: 'overview' | (typeof FRAMEWORK_KEYS)[number], value: string) => {
+    const l = lesson(1, 'Lesson one', links('A'))
+    if (field === 'overview') l.overview = value
+    else l.framework[0] = { ...l.framework[0]!, [field]: value }
+    return data({ LESSONS: [l] })
+  }
+  const rawPipes = (xml: string) => xml.includes('| Heart |') || xml.includes('|---|')
+
+  it.each([
+    ['student document', generateFinalExplanationDocx],
+    ['teacher key', generateTeacherKeyDocx],
+  ] as const)('instructions: a table renders in the %s, with or without a link', async (_n, fn) => {
+    const plain = (await parts(await fn(withInstructions(`Use:\n${PIPE_TABLE}`)))).xml
+    const linked = (await parts(await fn(withInstructions(`Use:\n${PIPE_TABLE}\n${LINK}`)))).xml
+    expect(rawPipes(plain)).toBe(false)
+    expect(rawPipes(linked)).toBe(false)
+    expect(linked).toContain('Pumps blood')
+    expect(count(linked, '<w:tbl>')).toBe(count(plain, '<w:tbl>'))
+    expect(count(plain, '<w:tbl>')).toBeGreaterThan(
+      count((await parts(await fn(withInstructions('Use it.')))).xml, '<w:tbl>'),
+    )
+  })
+
+  it('instructions: a link with no table is still hyperlinked', async () => {
+    const { rels } = await parts(await generateFinalExplanationDocx(withInstructions(LINK)))
+    expect(rels).toContain('https://example.com/evidence')
+  })
+
+  it.each(['overview', ...FRAMEWORK_KEYS] as const)(
+    'lesson %s: a table renders, with or without a link',
+    async (field) => {
+      const base = (await parts(await generateLessonSequenceDocx(withLessonField(field, 'Text.'))))
+        .xml
+      const plain = (
+        await parts(await generateLessonSequenceDocx(withLessonField(field, PIPE_TABLE)))
+      ).xml
+      const linked = (
+        await parts(
+          await generateLessonSequenceDocx(withLessonField(field, `${PIPE_TABLE}\n${LINK}`)),
+        )
+      ).xml
+      expect(rawPipes(plain)).toBe(false)
+      expect(rawPipes(linked)).toBe(false)
+      expect(linked).toContain('Pumps blood')
+      expect(count(plain, '<w:tbl>')).toBeGreaterThan(count(base, '<w:tbl>'))
+      expect(count(linked, '<w:tbl>')).toBe(count(plain, '<w:tbl>'))
+    },
+  )
+
+  it('lesson fields: the address stays visible but is not a link when the field holds a table', async () => {
+    const { xml, rels } = await parts(
+      await generateLessonSequenceDocx(withLessonField('teacherMoves', `${PIPE_TABLE}\n${LINK}`)),
+    )
+    expect(xml).toContain('https://example.com/evidence')
+    expect(rels).not.toContain('https://example.com/evidence')
+  })
+
+  it('lesson fields: a link with no table is still hyperlinked', async () => {
+    for (const field of ['overview', ...FRAMEWORK_KEYS] as const) {
+      const { rels } = await parts(await generateLessonSequenceDocx(withLessonField(field, LINK)))
+      expect(rels, field).toContain('https://example.com/evidence')
+    }
+  })
+})

@@ -22,7 +22,7 @@
 const { TableRow } = require('docx');
 const {
   W, C, SZ, SZ_H, SZ_T, PHASE_COLOUR,
-  para, cell, fullHeader, labelRow, makeTable,
+  para, cell, richCell, fullHeader, labelRow, makeTable,
 } = require('./docx_kit');
 
 // ARES integration. Not optional: this used to fall back to `() => ({})`,
@@ -120,7 +120,7 @@ function sectionA(lesson) {
 function sectionB(lesson) {
   return makeTable([
     fullHeader('B. LESSON OVERVIEW', C.teal, 'FFFFFF', SZ_H, 1),
-    new TableRow({ children: [cell(lesson.overview, { fill: C.white, w: W, size: SZ })] }),
+    new TableRow({ children: [richCell(lesson.overview, { fill: C.white, w: W, size: SZ })] }),
   ], [W]);
 }
 
@@ -191,10 +191,10 @@ function sectionC(lesson, config = {}) {
     ...lesson.framework.map(ph => new TableRow({ children: [
       cell(phaseCell(ph),
            { fill: PHASE_COLOUR[ph.phase] || C.grey, w: cw[0] }),
-      cell(ph.learnerExperience,    { fill: C.white, w: cw[1], size: SZ }),
-      cell(ph.teacherMoves,         { fill: C.grey,  w: cw[2], size: SZ }),
-      cell(ph.sensemakingStrategy,  { fill: C.white, w: cw[3], size: SZ }),
-      cell(ph.formativeAssessment,  { fill: C.grey,  w: cw[4], size: SZ }),
+      richCell(ph.learnerExperience, { fill: C.white, w: cw[1], size: SZ }),
+      richCell(ph.teacherMoves, { fill: C.grey,  w: cw[2], size: SZ }),
+      richCell(ph.sensemakingStrategy, { fill: C.white, w: cw[3], size: SZ }),
+      richCell(ph.formativeAssessment, { fill: C.grey,  w: cw[4], size: SZ }),
     ]})),
   ], cw);
 }

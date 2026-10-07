@@ -8,6 +8,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+### Documents
+
+- **Tables render in more places.** A Markdown table in a Final Explanation's *instructions*, a lesson's
+  overview, or any of the four lesson-framework columns now prints as a real table instead of raw `| a | b |`
+  text. Five assessments (Chemicals of Life, Acids and Bases, Statistics I, Linear Motion, Properties of
+  Waves) were affected; they are corrected on the next export. Where such a field also contains a web
+  address, the address stays visible but is not clickable. Prompts are also kept with their answer box at
+  a page break. All cached documents are regenerated (render version 8). Upstream generator `b3743ff`
+  (Mark Knittel). See DECISIONS 2026-10-08.
+
 ## v0.91 (2026-10-07)
 
 > `v0.90` was tagged on 2026-10-06 but never published (its image build hung and no release bundle was
