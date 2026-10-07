@@ -94,6 +94,21 @@ const ENV_MODULE_REL = 'src/lib/env.ts'
 const RUNTIME_PROVIDED = new Set(['NEXT_PHASE', 'NEXT_RUNTIME', 'RENDER_TIMINGS'])
 
 /**
+ * Read ONLY by byte-pristine vendored code, and deliberately NOT operator-configurable: setting one would
+ * change what the vendored generator does behind the application's back, so it must stay out of every
+ * template. Each entry needs its reason here; a NEW env read in vendored code still fails this suite
+ * (visible, as the comment on `SOURCE_EXT` requires) until someone classifies it.
+ *
+ * `ATTRIBUTION_YAML` — vendor/lib/attribution.js lets this override the path of its attribution
+ * config, and `generator/index.ts` DEFAULTS it to the real on-disk path (the bundled vendored code would
+ * otherwise resolve a build-time `/ROOT/...` placeholder that does not exist in the production image).
+ * Lesson3 ships exactly one config (generator/config/attribution.yaml, fixed copyright year); pointing the
+ * variable elsewhere would change the licence text and year stamped on every document without a
+ * render-version bump, so it is not an operator setting.
+ */
+const VENDORED_INTERNAL = new Set(['ATTRIBUTION_YAML'])
+
+/**
  * Read by Compose or the container, not by `app/src` — so they belong in the ROOT template only and
  * must not be flagged as stale there. `NODE_ENV`/`PORT` are also set by the Dockerfile; keeping them
  * in the root file documents the container's contract.
@@ -181,9 +196,9 @@ const PROCESS_NON_ENV_MEMBERS = new Set(['pid', 'cwd'])
 
 /**
  * `.js` is included deliberately: `allowJs` is on and `app/src` already contains five `.js` files
- * (the byte-pristine vendored ARES generator, plus Payload's generated importMap). None reads env
- * today — and if one ever does it must be visible here rather than silently unscanned. This test only
- * ever READS those files.
+ * (the byte-pristine vendored ARES generator, plus Payload's generated importMap). The vendored
+ * `attribution.js` reads one (`ATTRIBUTION_YAML`, classified in `VENDORED_INTERNAL`); any other read must
+ * be visible here rather than silently unscanned. This test only ever READS those files.
  */
 const SOURCE_EXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 
@@ -585,7 +600,9 @@ const analysis = (): NonNullable<typeof cached> => {
     app: declaredIn(appTemplate),
     /** App-read variables an operator is expected to configure. */
     configurable: [...reads]
-      .filter((n) => !RUNTIME_PROVIDED.has(n) && !NEVER_IN_TEMPLATE.has(n))
+      .filter(
+        (n) => !RUNTIME_PROVIDED.has(n) && !NEVER_IN_TEMPLATE.has(n) && !VENDORED_INTERNAL.has(n),
+      )
       .sort(),
   }
   return cached

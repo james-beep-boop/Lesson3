@@ -11,6 +11,136 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-07 — Quiz answer keys are for the Site administrator only
+
+**Decision (operator, 2026-10-07).** When Lesson3 adopts upstream's Quick Check quizzes, the **answer keys to
+those quizzes are visible to the Site administrator only** — not to Subject administrators, not to Teachers
+(with or without editing access), and never to any public surface.
+
+**This is a different decision from the Final Explanation teacher key, and the two must not be conflated.** The
+Final Explanation **teacher key** (decided 2026-10-06; DECISIONS 2026-10-07 "Generator re-pinned…", SPEC §3) is
+visible to **everyone who can already read and export the plan**. Quiz answer keys are the **narrowest** case in
+the product: Site administrator only.
+
+**Where this stands.** Not built — nothing here changes behaviour today. Per upstream's partner notes
+(`PARTNER_CONTRACT_NOTES.md`, 2026-09-30) quizzes are separate files beside `_data.json`:
+`<prefix>_quiz.json`, plus rendered `quiz/*_QuickCheck.pptx` and `quiz/*_AnswerKey.html` / `*_AnswerKey.docx`.
+The `_data.json` contract has no quiz field (`additionalProperties: false` throughout), and Lesson3 neither
+ingests nor exports quizzes yet.
+
+**How to apply (when quizzes are designed).**
+- The **answer-key deliverables** (`*_AnswerKey.*` and any answer fields inside `_quiz.json`) are gated to the
+  Site administrator **server-side**, like every other authorization rule here — not by hiding a button.
+- Because they are the narrowest case, they must not ride along with the broader paths: **not** in the
+  whole-version zip or the email-a-doc attachment for anyone but a Site administrator, **not** in any preview,
+  compare or on-page view, and **not** in any public artifact. Allowlist who receives them rather than listing
+  who may not.
+- Wire-level tests are required (`CLAUDE.md`): 401 / 403 / 404 for each non-admin role, plus the Site-administrator
+  happy path, and an assertion that the answer key is absent from the zip, the email and the previews for
+  everyone else.
+- **Not decided by this entry:** who may see the quiz *questions* themselves (the QuickCheck deck), and whether a
+  Site administrator can delegate. Neither was addressed.
+
+**Reasoning not recorded.** The operator stated the rule without giving a rationale; add one here if there is a
+reason future sessions should know (for example, assessment integrity), so the rule is not later "simplified"
+into the broader teacher-key access by someone who cannot see why it is narrower.
+
+## 2026-10-07 — Generator re-pinned to upstream `6591146`: student/teacher split, attribution, tables
+
+**What changed.** The vendored ARES generator moves from `a546ee3` (2026-09-19) to `65911461` (upstream HEAD
+2026-10-06; nothing under `generators/` or `config/attribution.yaml` changed after `9f2f25b`, the lib files
+not since `69f3583`). Four files now (`attribution.js` is new). The re-pin brings: a **student** Final
+Explanation (blank answer space, **no exemplars**) and a separate **teacher key**; the CC BY-NC 4.0 attribution
+block and a footer after every lesson; Markdown tables in Final Explanation text rendered as tables; upstream's
+null-resource wording. `GENERATOR_RENDER_VERSION` 6 → 7. Design: `docs/DESIGN-generator-upgrade-2026-10-06.md`.
+
+**The defect this fixes.** Until now the single Final Explanation was titled *Student Assessment Document* yet
+printed the exemplar answers beside each prompt — handing it out gave students the answers.
+
+**Decided (operator, 2026-10-06/07).** Teacher key visible to everyone who can already read/export the plan;
+email keeps the whole zip, key included; the lesson-plan rights position is CC BY-NC 4.0 as upstream states and
+Mark's attribution wording **and placement** supersede the SPEC's 2026-08-12 "every page" line; one PR; the
+copyright year is **fixed at 2026** (the *configured* year for this release — not a claim about when any lesson
+was first published) so a re-render in January does not change bytes; summary-table derivation is **stage 2**
+(existing versions stay as stored). Any future public library must never serve the key (allowlist, don't deny).
+
+**Design choices worth keeping.**
+- *Resources:* the bridge now selects upstream's own "no database on this machine" path (`DB_PATH` that cannot
+  exist; `getAllPhaseResources` throws if called; no-op `takeDiagnostics`), so each lesson renders **its own**
+  stored `resourceLinks`. Order-independent, no shared state; replaces the positional AsyncLocalStorage queue that
+  could prove call count but never call order. Upstream's per-lesson `console.warn` is accepted — hiding it
+  meant swapping the global `console.warn` under concurrent exports.
+- *The on-page and compare "Final Explanation" section is built from the **teacher** document.* That view is what
+  an editor edits (prompts beside exemplars), and `compareGroups.ts` classifies by table SHAPE (2-cell = section,
+  1-cell = instructions); the student document's full-width prompt rows would be misread as "Instructions".
+  *(First version of this was wrong for real data — see lesson 5.)*
+- *Attribution config:* upstream's `year: auto` is replaced by a fixed year via `scripts/vendor-generator.sh`,
+  which **aborts unless that is the only changed line**; a pristine copy and a hash-checked provenance test
+  (`tests/unit/vendorProvenance.spec.ts`) keep the deviation from widening.
+
+**⚑ Lessons — two of them are production-only failures that no unit test could see.**
+1. **Bundled `__dirname` is a build-time placeholder.** Next/Turbopack bundles the vendored CommonJS, and its
+   `path.join(__dirname, …)` becomes `/ROOT/src/generator/vendor/lib/…`, which is **never rewritten in the
+   standalone image**. Every export died with `ENOENT '/ROOT/src/generator/config/attribution.yaml'`. Dev, vitest
+   and the fidelity scripts all resolve the real directory, so only the production image showed it — caught by the
+   wire-level test `tests/http/teacherKey.http.spec.ts` against the running image. **Rule: anything the bundled
+   vendored code reads from disk needs an explicit absolute path** (`generator/index.ts` now sets
+   `ATTRIBUTION_YAML` from `process.cwd()`), and "the image builds" proves nothing about it.
+2. **A guard can test the wrong artefact.** My first Dockerfile check `require`d the loose
+   `src/generator/vendor/lib/attribution.js` in the final image and failed on `js-yaml`. The vendored code
+   (and `js-yaml`) is **bundled into the server chunks**; the loose copies are never what runs, so the failure
+   was meaningless — and my "fix" (requiring `js-yaml` from app code) was based on the wrong model and was
+   reverted. The Dockerfile now only proves the config file shipped; behaviour is proved over the wire.
+3. **Correction — the PDF gate.** I wrote "find the pagination gate". There is none: `pdf-fidelity-check.ts` was
+   deleted 2026-07-20 (cross-engine pixel comparison is not valid and its parser was broken; DOCX is the gated
+   layout deliverable). The stale SPEC sentence telling people to rerun it is fixed in this change. PDFs are
+   checked by **visual inspection** instead (below).
+4. **Stricter, deliberately.** The old bridge silently rendered blank resources for a lesson with no stored
+   links; the renderer now throws. Real data cannot hit it (ingest and every save require complete links); two
+   test fixtures that built lessons without links were corrected.
+5. **Three defects found by independent review, all mine, none caught by my tests** (fixed the same day):
+   - **Nested tables broke version comparison.** `compareGroups.maxCells` counted every `<tr>` under a table,
+     including rows of a table NESTED in a cell; with tables now rendered inside exemplars, a 2-cell section
+     holding a 4-column table looked like the rubric. Across the 95 current lessons **5 threw** a duplicate
+     `fe:rubric` and **15 misclassified** (75 fine). Now only the outer table's own rows count
+     (`HTMLTableElement.rows`); the same corpus is **95/95 correct, 0 thrown**.
+   - **A link in a table field disabled the table.** The hyperlink adapter turned any field containing
+     `(https://…)` into `Paragraph[]`, which upstream's table parser (it parses a *string*) cannot read, so the
+     table printed as raw pipes in both documents. A field that contains a pipe row is now left as a plain
+     string: **the table wins; the address stays visible but is not clickable** (printed copies lose links
+     anyway; the alternative is rendering tables ourselves, i.e. editing vendored code). Real data has no field
+     with both today (0 of 32), but a teacher can add one at any time.
+   - **My SPEC edit deleted the `## 5. Editing` heading, its principle line and a paragraph** — I replaced
+     "from the attribution bullet to the next `- `", and the next bullet was in §5. My review diff also hid the
+     deleted `---` rule because I filtered lines beginning `---`. Restored verbatim from `main`; the heading and
+     rule structure of the SPEC is now diffed against `main`.
+   - **The rule to keep: test against ALL the real data, and review the WHOLE diff.** My first compare guard
+     used a tiny fixture with no tables, so it passed while 20 of 95 real lessons broke; the fix is verified by
+     running every real lesson through the real chain (and by reverting each fix to watch the new tests fail).
+6. **Found while checking: raw pipes in 5 files are upstream's own behaviour.** Biology Chemicals of Life, Chemistry
+   Acids and Bases, Core Mathematics Statistics I, Mathematics Linear Motion and Physics Properties of Waves have a
+   Markdown table in `FINAL_EXPLANATION.instructions`. Upstream renders that field through a plain cell, not the
+   table-aware path, so its own documents print the table as `| a | b |` text. Not ours to fix (byte-pristine
+   vendored code); **a candidate ask of Mark**: render `instructions` through `richCell` too.
+
+**Verified.** DOCX fidelity gates against **upstream's own committed documents at the pin**: `fidelity-spike`
+5/5 and `adapter-fidelity` 7/7 — student Final Explanation, teacher key and Summary Table **content-identical**;
+Lesson Sequence identical apart from **43 "Related topic: not an exact match" notes**, the one enumerated
+exception (upstream's judge data lives outside the JSON; the count is printed every run; resource text and every
+hyperlink target are still compared, including the attribution links derived from the config). Unit 1,202,
+integration 239, HTTP 237 (incl. 12 new over the wire: four documents in DOCX and PDF, exemplar only in the key,
+401/400/404 on the new tag, attribution from the production image). **Visual PDF inspection** (Physics 4.1,
+production stack): attribution block after the overview and before Lesson 1, 7 footers for 7 lessons, student
+document ruled and blank, key header "do not give to students". Layout notes, **upstream's rendering and not
+ours** (the DOCX is content-identical): in the student PDF a prompt and its answer box can fall on different
+pages with whitespace left behind, and in the key a section header can be left at the bottom of a page —
+candidate asks of Mark (keep-with-next), not blockers.
+
+**Not done here.** Stage 2 (derived summary table and its editing UI); partial-match link labels and
+`needs_review` (need data outside the JSON); a same-engine render-version 6-vs-7 page-count comparison (optional
+in the plan). Local note: Docker Desktop's 3.8 GiB VM cannot build the app while the full stack is running —
+stop the stack first, or the Next compile is OOM-killed with no error text.
+
 ## 2026-10-05 — Null resource slots: stored as an empty group; "validated" is not "writable"
 
 ⚑ **A CORRECTION, and the general rule is the point.** Uploading

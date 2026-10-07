@@ -1,6 +1,6 @@
 # Vendored ARES generator — provenance
 
-The three files under `lib/` are copied byte-verbatim from the ARES CBE generation system and must
+The four files under `lib/` are copied byte-verbatim from the ARES CBE generation system and must
 not be edited locally. Lesson3 integration remains outside those files. The fidelity gates, not the
 commit label alone, are the acceptance proof for this pin.
 
@@ -8,11 +8,16 @@ commit label alone, are the acceptance proof for this pin.
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Pinned commit:** `a546ee368b04c24f9a619d49142bf08e6869b890`
-- **Vendored:** 2026-09-19
-- **Reason:** retain the definitive ARES 1.0.0 layout/resource behavior while adopting upstream's
-  grade-label correction. Final Explanation and Summary Table now derive their grade from required
-  `META.grade` instead of hardcoding Grade 10, and fail clearly when that metadata is absent.
+- **Pinned commit:** `65911461bd2fb0b34e61a4e07786dc47680c3840` (`6591146`, upstream HEAD on 2026-10-06)
+- **Vendored:** 2026-10-07
+- **Reason:** adopt upstream's 2026-09-30 → 2026-10-04 generator changes: (1) a **student** Final
+  Explanation (prompts, blank answer space, rubric) and a separate **teacher key** (prompts beside the
+  exemplar answers) — previously one document titled "Student Assessment Document" printed the
+  exemplars; (2) the CC BY-NC 4.0 attribution block and per-lesson footer (`lib/attribution.js`, new);
+  (3) Markdown tables inside Final Explanation text rendered as real tables; (4) link-selection v2's
+  resource seam (`DB_PATH`, `takeDiagnostics`) and its null-slot wording. The lib files have not changed
+  upstream since `69f3583` (2026-10-04); nothing under `generators/` or `config/attribution.yaml` changed
+  between `9f2f25b` and this pin. **Previous pin:** `a546ee3` (2026-09-19).
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
@@ -31,21 +36,51 @@ gap without changing the authorship or provenance of the three byte-pristine fil
 
 | Lesson3 path | Upstream path | SHA-256 |
 | --- | --- | --- |
-| `lib/build_docs.js` | `generators/lib/build_docs.js` | `244c6248b84c336aaee500608685806b30e1438aafd126bf8173dc1c6e486d5c` |
-| `lib/sections.js` | `generators/lib/sections.js` | `5ceef695daeac38ffcfdccf545213544e28ec729b6e718be01634a3c9c210d03` |
+| `lib/build_docs.js` | `generators/lib/build_docs.js` | `4c571632c38d83137d416c4c34638ad7caebd0dae235af6b6509788cb195d1d7` |
+| `lib/sections.js` | `generators/lib/sections.js` | `decfb1a33f46c4db0f008f19095e8bf28568e8864fedaceae4a713c5fc57a013` |
 | `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `ba74ef7036a06f02a7b6966a90d53350d3f751aacd7adfe96851991f93d73679` |
+| `lib/attribution.js` | `generators/lib/attribution.js` | `7ac867b861ea1be8f6cfe8590cf7171c94b5536cc828c4d29983bd6abe6f9288` |
+| `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `950f68dbceee79d12de4dc49e9b5827434dca5fb81ddf4bfd188c173041f4104` |
+
+`tests/unit/vendorProvenance.spec.ts` recomputes these hashes from the files on disk, so this table cannot
+silently drift from the vendored bytes.
+
+## Attribution config — the one deliberate deviation
+
+`lib/attribution.js` reads `config/attribution.yaml` (relative to itself: `generator/config/`). Upstream's
+file says `year: auto`, which stamps the **render-time** year: the same immutable snapshot re-rendered in
+January would change bytes, contradicting the byte-stability contract in `renderVersion.ts`.
+
+Lesson3 therefore ships `generator/config/attribution.yaml` (SHA-256
+`4203befb96b6a9a0546f5cf79a4080b23252e5389fda5c124b560ab82b30b183`) whose **only** difference from the pristine
+copy is `year: 2026` — the **configured copyright year for this generator release**. It is not a claim about
+when any particular lesson was first published, and it says nothing about future lessons. `scripts/
+vendor-generator.sh` produces it and aborts unless that is the only changed line. Changing the year later is
+a deliberate act that **must accompany a `GENERATOR_RENDER_VERSION` bump**.
+
+Runtime needs, each proven in the production image build (see the `Dockerfile` attribution step): `js-yaml`
+(now a direct, pinned dependency) and the yaml file (listed in `outputFileTracingIncludes`).
 
 ## Lesson3-owned resource bridge
 
 Upstream `generators/aresResources.js` invokes a Python recommender backed by SQLite. It is not
 vendored. A Lesson3-owned CommonJS module at `vendor/aresResources.js` occupies the fixed require
-location used by pristine `sections.js` and supplies the already-resolved `LESSONS[].resourceLinks`
-stored in Payload.
+location used by pristine `sections.js` and `build_docs.js`.
 
-The bridge is pure Node and uses `AsyncLocalStorage` to isolate each build's lesson-resource queue.
-It reproduces upstream safe-input paragraph/link formatting, filters hyperlink targets to `http` and
-`https`, and never invokes Python, a subprocess, the recommender, or SQLite. Unlike the former blank
-shim, resource output is included in both semantic and package/XML fidelity checks.
+Since link-selection v2, pristine `sections.js` either queries the ARES content database (only when a
+file exists at the exported `DB_PATH`) or — its own supported path for "no database on this machine" —
+renders each lesson's own `lesson.resourceLinks`. The bridge deliberately selects the second path: it
+exports a `DB_PATH` that cannot exist, a `getAllPhaseResources` that throws if ever called, and a no-op
+`takeDiagnostics`. That is order-independent and shares no state between concurrent builds; it replaces
+the earlier positional `AsyncLocalStorage` queue, which could prove call count but never call order.
+Upstream prints one `console.warn` per lesson on this path; that is accepted, because suppressing it
+would mean replacing the global `console.warn` under concurrent exports.
+
+The bridge reproduces upstream's safe-input paragraph/link formatting and null-slot wording ("No closely
+matching video/reading in the ARES library for this activity", the search link, and the visible
+`Search terms:` line), filters hyperlink targets to `http` and `https`, and never invokes Python, a
+subprocess, the recommender, or SQLite. It cannot reproduce upstream's partial-match "Related topic"
+labels: those come from judge diagnostics that live outside the contract JSON.
 
 `vendor/aresResources.js` and `vendor/package.json` are Lesson3-owned integration files. The latter
 marks the directory as CommonJS so the ESM application can load the pristine sources via
@@ -58,6 +93,9 @@ From the Lesson3 repository root:
 ```sh
 scripts/vendor-generator.sh <path-to-cbe-generation-system-clone> <commit-sha>
 ```
+
+The script copies the four lib files and derives the fixed-year attribution config. Re-check upstream's
+`sections.js` resource path and `build_docs.js` imports against the bridge before trusting a new pin.
 
 Then update this record and run, from `app/`:
 

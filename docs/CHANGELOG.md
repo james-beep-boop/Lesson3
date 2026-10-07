@@ -17,6 +17,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
   null is stored as an empty group and restored on export; uploaded resources are otherwise validated
   exactly as before, and populated resources are unchanged. See DECISIONS 2026-10-05.
 
+### Documents
+
+- **Student document and teacher key.** The Final Explanation is now two documents from the same data: the
+  student version has blank answer space and **no exemplar answers**; a new **Teacher key — not for students**
+  has the exemplars. Previously the single "Student Assessment Document" printed the answers. The key follows
+  existing read access and travels with Download all and Email all. Existing downloads of the Final explanation
+  change content (answers removed).
+- Every document now carries the CC BY-NC 4.0 attribution block (once after the overview or at the end) and a
+  short footer after every lesson, rendered by the upstream generator. Final Explanation tables render as tables.
+  A resource slot with no match prints "No closely matching video/reading in the ARES library" with its search
+  link and search terms. Printed page counts change. See DECISIONS 2026-10-07.
+
 ### Dependencies
 
 - Clear the production audit gate, which began failing on newly published advisories in `undici`,

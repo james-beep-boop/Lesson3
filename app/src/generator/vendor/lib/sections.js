@@ -25,14 +25,11 @@ const {
   para, cell, fullHeader, labelRow, makeTable,
 } = require('./docx_kit');
 
-// ARES integration — gracefully absent if module not found
-let getAllPhaseResources, buildResourceParagraphs;
-try {
-  ({ getAllPhaseResources, buildResourceParagraphs } = require('../aresResources'));
-} catch (_) {
-  getAllPhaseResources   = () => ({});
-  buildResourceParagraphs = () => [para('(ARES resources unavailable)')];
-}
+// ARES integration. Not optional: this used to fall back to `() => ({})`,
+// which wrote empty resourceLinks (a partner-contract violation) and blank
+// Resource cells without any error. A missing DB is handled in sectionC().
+const fs = require('fs');
+const { getAllPhaseResources, buildResourceParagraphs, DB_PATH: ARES_DB_PATH } = require('../aresResources');
 
 // ── Title block ───────────────────────────────────────────────────────────────
 
@@ -149,11 +146,22 @@ function sectionC(lesson, config = {}) {
   const cw = [1520, 3040, 3040, 3040, 3040];
 
   const aresTopic = lesson.aresKeywords || lesson.title || '';
-  const aresRes   = getAllPhaseResources({
-    substrand: lesson.substrand || '',
-    topic:     aresTopic,
-    subject,
-  });
+  let aresRes;
+  if (fs.existsSync(ARES_DB_PATH)) {
+    aresRes = getAllPhaseResources({
+      substrand: lesson.substrand || '',
+      topic:     aresTopic,
+      title:     lesson.title || '',
+      subject,
+    });
+  } else if (lesson.resourceLinks) {
+    // No ARES content DB on this machine (e.g. re-rendering an edited JSON
+    // off jhm-spark): keep the links already in the data rather than blank them.
+    console.warn(`  [sectionC] ARES DB not found (${ARES_DB_PATH}); keeping existing resourceLinks for L${lesson.number}`);
+    aresRes = lesson.resourceLinks;
+  } else {
+    throw new Error(`ARES content DB not found at ${ARES_DB_PATH} and lesson ${lesson.number} has no existing resourceLinks`);
+  }
 
   lesson.resourceLinks = aresRes;   // Added 2026-07: makes resource links reach the JSON export
   const PHASE_KEY = {

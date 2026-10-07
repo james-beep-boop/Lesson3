@@ -21,5 +21,6 @@ export const secondaryDeliverables = (tags: DeliverableTag[]): DeliverableTag[] 
 export const DELIVERABLE_LABELS: Record<DeliverableTag, string> = {
   lessonSequence: 'Lesson plan',
   finalExplanation: 'Final explanation',
+  teacherKey: 'Teacher key — not for students',
   summaryTable: 'Summary table',
 }

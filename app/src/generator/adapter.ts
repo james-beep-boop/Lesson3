@@ -69,7 +69,8 @@ function clean(value: unknown): unknown {
  * Which deliverables this version's export will contain (teacher-first T2) — the UI's
  * per-document buttons must show EXACTLY what `bundleToAresData` below will emit, so this
  * applies the same clean→hasContent decision to the same two optional groups. LessonSequence
- * always exists.
+ * always exists. The teacher key is built from the SAME `finalExplanation` group as the student
+ * document, so it is listed whenever (and only when) the final explanation is.
  */
 export function versionDeliverables(
   bundle: Pick<LessonBundleVersion, 'finalExplanation' | 'summaryTable'>,
@@ -77,7 +78,7 @@ export function versionDeliverables(
   const has = (group: unknown): boolean => hasContent(clean(group ?? {}))
   return [
     'lessonSequence',
-    ...(has(bundle.finalExplanation) ? (['finalExplanation'] as const) : []),
+    ...(has(bundle.finalExplanation) ? (['finalExplanation', 'teacherKey'] as const) : []),
     ...(has(bundle.summaryTable) ? (['summaryTable'] as const) : []),
   ]
 }

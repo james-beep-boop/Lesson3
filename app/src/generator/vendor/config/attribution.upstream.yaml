@@ -1,0 +1,59 @@
+# Attribution and licensing text for all generated outputs.
+# Single source of truth: generators must read this file, never hardcode the text.
+# Applies to every grade and subject (Grade 10 now, Grade 11 next, non-STEM later).
+#
+# {YEAR} is replaced at render time with the current calendar year (the year
+# the file is generated), per project decision 2026-09-29.
+
+year: auto   # "auto" = current year at generation time
+
+license:
+  name: "CC BY-NC 4.0"
+  full_name: "Creative Commons Attribution-NonCommercial 4.0 International License"
+  url: "https://creativecommons.org/licenses/by-nc/4.0/"
+
+# Full block, placed at the TOP of every sub-strand document (Lesson Sequence,
+# Final Explanation, Summary Table), in the document body (not Word's
+# repeating page header). Render each item as: bold label, then text.
+substrand_header:
+  - label: "Curriculum Alignment"
+    text: >-
+      Structured in pedagogical alignment with the competence-based curriculum
+      format and learning outcomes established by the Kenya Institute of
+      Curriculum Development (KICD). This material is independently developed
+      and is not officially endorsed or published by KICD.
+  - label: "Content & Pedagogy"
+    text: >-
+      Developed and adapted by the educator team at SeaVuria (registered
+      501(c)(3) in the United States and registered NGO in Kenya, No. 872-850A-BF11),
+      who designed
+      the pedagogical framework, lesson templates and exemplar lessons on which
+      this material is based.
+  - label: "Production & Layout"
+    text: >-
+      Educational design and curriculum sequencing by SeaVuria. Technical
+      layout, structural formatting, and digital optimization/implementation
+      executed in partnership with ARES Education (registered 501(c)(3) in the
+      United States and Canada (as Afretech Aid) and registered NGO in Kenya),
+      with lesson drafting and compilation assisted by AI (Claude, Anthropic).
+  - label: "Licensing & Copyright"
+    text: >-
+      © {YEAR} SeaVuria and ARES. This work is licensed under a Creative
+      Commons Attribution-NonCommercial 4.0 International License
+      (CC BY-NC 4.0). To view a copy of this license, visit
+      https://creativecommons.org/licenses/by-nc/4.0/. You are free to copy,
+      redistribute, and adapt this material in any medium or format, provided
+      appropriate credit is given and the material is not used for commercial
+      purposes. KICD learning outcomes and curriculum designations reproduced
+      here for alignment purposes remain the property of KICD and are not
+      covered by this license. Linked external resources (e.g. CK-12, Khan
+      Academy, PhET) are subject to their own licenses.
+
+# Short line, placed AFTER EACH LESSON in the Lesson Sequence, on the title
+# slide of each Quick Check deck, and at the bottom of each Answer Key.
+# Render the license name as a hyperlink AND print the URL visibly
+# (printed copies lose hyperlinks; schools are offline).
+lesson_footer: >-
+  © {YEAR} SeaVuria and ARES. Aligned with KICD objectives. Developed by
+  SeaVuria; technical implementation by ARES (with AI assistance from Claude).
+  Licensed under CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/).

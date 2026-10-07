@@ -24,6 +24,11 @@ const JSON_PATH =
     'ares-json',
     'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json',
   )
+// ⚑ The JSON and the oracle DOCX must come from the SAME upstream commit — the one recorded in
+// `src/generator/vendor/PROVENANCE.md` — because upstream regenerates lesson prose continually. Check out
+// a clone at that SHA and point BOTH at it:
+//   ARES_FIDELITY_JSON=<clone>/data/outputs/v2/Physics/SS4.1_…/Physics_…_data.json
+//   ARES_FIDELITY_ORACLE_DIR=<clone>/data/outputs/v2/Physics/SS4.1_…
 const ORACLE_DIR =
   process.env.ARES_FIDELITY_ORACLE_DIR ??
   path.join(
@@ -41,6 +46,7 @@ const ORACLE_DIR =
 const APPROVED = {
   lessonSequence: 'Physics_Greenhouse_Effect_and_Climate_Change_CBE_LessonSequence.docx',
   finalExplanation: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation.docx',
+  teacherKey: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation_TeacherKey.docx',
   summaryTable: 'Physics_Greenhouse_Effect_and_Climate_Change_SummaryTable.docx',
 } as const
 
@@ -95,6 +101,7 @@ async function main() {
       approved(APPROVED.finalExplanation),
       false,
     ),
+    await compareDoc('TeacherKey', out.teacherKey, approved(APPROVED.teacherKey), false),
     await compareDoc('SummaryTable', out.summaryTable, approved(APPROVED.summaryTable), false),
   ]
 

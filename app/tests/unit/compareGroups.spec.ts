@@ -29,6 +29,19 @@ import {
 } from '@/lib/lessonAnchors'
 import { renderBundlePreview } from '@/generator/previewBundle'
 import { headerRow, paraRow as row, table } from '../helpers/generatorHtml'
+import { RESOURCE_PHASE_KEYS, aresResourceLinksToRows } from '../../src/ingest/resourceLinks'
+
+// Real lessons always carry complete stored resourceLinks (ingest and every save require them); the
+// renderer now refuses a lesson without them instead of silently printing blank resources. All-null
+// slots keep these drift guards on the null-resource path too.
+const STORED_LINKS = aresResourceLinksToRows(
+  Object.fromEntries(
+    RESOURCE_PHASE_KEYS.map((k) => [
+      k,
+      { video: null, reading: null, fallback_search_url: 'http://ares.local/search' },
+    ]),
+  ) as never,
+)
 
 /**
  * Top-level nodes that carry content — ELEMENTS **and** non-whitespace text.
@@ -327,6 +340,7 @@ describe('drift guard: the real generator → mammoth chain still classifies cle
       ],
       teacherReflection: 'TR.',
       summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
+      resourceLinks: STORED_LINKS,
     })
     const bundle = {
       id: 1,
@@ -404,5 +418,117 @@ describe('drift guard: the real generator → mammoth chain still classifies cle
       expect(assigned).toBe(countTopLevel(s.html))
       expect(groups.some((g) => /area:\d+$/.test(g.key))).toBe(false)
     }
+  })
+})
+
+describe('Final Explanation containing NESTED tables (regression, 2026-10 re-pin)', () => {
+  // Since the generator re-pin an exemplar can hold a Markdown table, rendered as a table NESTED inside the
+  // section's cell. Counting every <tr> under the outer table made a 2-cell section containing a 4-column
+  // table look 4 wide: it was classified as the rubric — a duplicate `fe:rubric` THROW for some real lessons
+  // and a short section count for others (20 of the 95 current lessons). Only the outer table's own rows count.
+  const nestedFour = '<table><tr><td>a</td><td>b</td><td>c</td><td>d</td></tr></table>'
+  const nestedThree = '<table><tr><td>a</td><td>b</td><td>c</td></tr></table>'
+  const FE =
+    '<p>FINAL EXPLANATION</p>' +
+    '<table><tr><td>Header</td></tr></table>' + // first table → details
+    '<table><tr><td>Instructions</td></tr></table>' + // 1 cell → instructions
+    `<table><tr><td>S1</td></tr><tr><td>prompt</td><td>${nestedFour}</td></tr></table>` +
+    `<table><tr><td>S2</td></tr><tr><td>prompt</td><td>${nestedThree}</td></tr></table>` +
+    '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></table>' // 4 cells → rubric
+
+  it('classifies sections by the OUTER table, whatever is nested inside a cell', () => {
+    expect(splitDocumentGroups(FINAL_EXPLANATION_LABEL, FE).map((g) => g.key)).toEqual([
+      'fe:heading',
+      'fe:details',
+      'fe:instructions',
+      'fe:section:1',
+      'fe:section:2',
+      'fe:rubric',
+    ])
+  })
+
+  it('does not throw a duplicate rubric key when two sections each hold a 4-column table', () => {
+    const two =
+      '<table><tr><td>H</td></tr></table>' +
+      `<table><tr><td>S</td></tr><tr><td>p</td><td>${nestedFour}</td></tr></table>`.repeat(2) +
+      '<table><tr><td>R</td></tr><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></table>'
+    const keys = splitDocumentGroups(FINAL_EXPLANATION_LABEL, two).map((g) => g.key)
+    expect(keys.filter((k) => k === 'fe:rubric')).toHaveLength(1)
+    expect(keys.filter((k) => k.startsWith('fe:section:'))).toHaveLength(2)
+  })
+
+  it('end to end through the real generator: tables in exemplars (and a prompt), plus a link', async () => {
+    const lesson = {
+      number: 1,
+      title: 'Cells',
+      duration: '40 min',
+      slo: { purpose: 'P.', knowledge: 'K.', skills: 'S.', attitudes: 'A.', keyInquiry: 'Q?' },
+      overview: 'Overview text.',
+      framework: [
+        {
+          phase: 'Predict Phase',
+          learnerExperience: 'LE.',
+          teacherMoves: 'TM.',
+          sensemakingStrategy: 'SS.',
+          formativeAssessment: 'FA.',
+        },
+      ],
+      teacherReflection: 'TR.',
+      summaryTablePrompt: { observed: 'O.', learned: 'L.', explained: 'E.' },
+      resourceLinks: STORED_LINKS,
+    }
+    const four = '| A | B | C | D |\n|---|---|---|---|\n| 1 | 2 | 3 | 4 |'
+    const three = '| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |'
+    const bundle = {
+      id: 1,
+      title: 'T',
+      meta: {
+        subject: 'Biology',
+        grade: 10,
+        substrand_id: '1.1',
+        substrand_name: 'P',
+        titleDoc: 'D',
+      },
+      unit: {
+        gradeLevel: 'Grade 10',
+        subject: 'Biology',
+        strand: 'S',
+        substrand: 'SS',
+        overview: 'U.',
+      },
+      lessons: [lesson],
+      finalExplanation: {
+        subjectLabel: 'Biology',
+        instructions: 'Do the thing.',
+        sections: [
+          { title: 'One', prompt: 'P1', exemplar: `Answer.\n${four}` },
+          // table + link in the SAME field: the table must still render (see proseLinks.ts)
+          {
+            title: 'Two',
+            prompt: `Compare:\n${three}\nSource (https://example.com/evidence)`,
+            exemplar: 'E2',
+          },
+          { title: 'Three', prompt: 'P3', exemplar: `${three}\n${four}` },
+        ],
+        rubric: [{ criterion: 'C', excellent: '4', proficient: '3', developing: '2' }],
+      },
+      summaryTable: {
+        subStrand: 'SS',
+        drivingQuestion: 'DQ?',
+        lessons: [{ number: 1, title: 'Cells', observed: 'o', learned: 'l', explained: 'e' }],
+      },
+    } as never
+    const sections = await renderBundlePreview(bundle)
+    const html = sections.find((s) => s.label === FINAL_EXPLANATION_LABEL)!.html
+    expect(splitDocumentGroups(FINAL_EXPLANATION_LABEL, html).map((g) => g.key)).toEqual([
+      'fe:heading',
+      'fe:details',
+      'fe:instructions',
+      'fe:section:1',
+      'fe:section:2',
+      'fe:section:3',
+      'fe:rubric',
+    ])
+    expect(html).not.toContain('| A |') // no raw pipe text anywhere on the page
   })
 })

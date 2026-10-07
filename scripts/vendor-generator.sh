@@ -2,8 +2,9 @@
 #
 # vendor-generator.sh — re-sync the vendored ARES generator into Lesson3.
 #
-# Copies the three Node lib files byte-verbatim from a local clone of
-# cbe-generation-system at a given commit into app/src/generator/vendor/lib/.
+# Copies the four Node lib files byte-verbatim from a local clone of
+# cbe-generation-system at a given commit into app/src/generator/vendor/lib/, and writes the
+# attribution config (see the YAML section below).
 # aresResources.js is intentionally NOT vendored (single-runtime; see
 # app/src/generator/vendor/PROVENANCE.md).
 #
@@ -21,7 +22,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VEND="$REPO_ROOT/app/src/generator/vendor/lib"
 mkdir -p "$VEND"
 
-FILES=(build_docs.js sections.js docx_kit.js)
+FILES=(build_docs.js sections.js docx_kit.js attribution.js)
 
 for f in "${FILES[@]}"; do
   git -C "$GEN_CLONE" show "${SHA}:generators/lib/$f" > "$VEND/$f"
@@ -33,6 +34,35 @@ for f in "${FILES[@]}"; do
   fi
   echo "vendored $f  ($a)"
 done
+
+# --- attribution config -----------------------------------------------------------------------
+# Upstream's config/attribution.yaml is read by the pristine lib/attribution.js. It says `year: auto`,
+# which stamps the RENDER-TIME year: the same immutable snapshot re-rendered in January would then
+# produce different bytes, contradicting the byte-stability contract (renderVersion.ts). Lesson3 therefore
+# ships a copy with a FIXED configured copyright year. The ONLY permitted difference from upstream is that
+# one line; this script enforces it, so a re-sync can never silently widen the deviation.
+PRISTINE_DIR="$REPO_ROOT/app/src/generator/vendor/config"   # provenance copy, byte-verbatim
+# The pristine lib/attribution.js resolves its config as <its dir>/../../config/attribution.yaml, which
+# from vendor/lib is app/src/generator/config/. Putting the file exactly there means no env var and no
+# bundler-sensitive URL is needed, and Next's file tracer can see the read.
+CONFIG_DIR="$REPO_ROOT/app/src/generator/config"
+FIXED_YEAR=2026
+mkdir -p "$PRISTINE_DIR" "$CONFIG_DIR"
+git -C "$GEN_CLONE" show "${SHA}:config/attribution.yaml" > "$PRISTINE_DIR/attribution.upstream.yaml"
+sed -E "s/^year: auto( .*)?$/year: ${FIXED_YEAR}   # Lesson3: fixed configured copyright year (upstream: auto); see PROVENANCE.md/" \
+  "$PRISTINE_DIR/attribution.upstream.yaml" > "$CONFIG_DIR/attribution.yaml"
+if ! grep -q "^year: ${FIXED_YEAR} " "$CONFIG_DIR/attribution.yaml"; then
+  echo "attribution.yaml: could not apply the fixed year — upstream's 'year:' line changed shape; aborting" >&2
+  exit 1
+fi
+changed="$(diff "$PRISTINE_DIR/attribution.upstream.yaml" "$CONFIG_DIR/attribution.yaml" | grep -c '^[<>]' || true)"
+if [ "$changed" != "2" ]; then
+  echo "attribution.yaml: expected exactly one changed line (2 diff rows), found $changed — aborting" >&2
+  exit 1
+fi
+echo "vendored config/attribution.yaml  (year fixed to ${FIXED_YEAR}; pristine copy at vendor/config/attribution.upstream.yaml)"
+echo "  upstream sha256: $(shasum -a 256 "$PRISTINE_DIR/attribution.upstream.yaml" | cut -d' ' -f1)"
+echo "  lesson3  sha256: $(shasum -a 256 "$CONFIG_DIR/attribution.yaml" | cut -d' ' -f1)"
 
 echo
 echo "Done. Next steps:"

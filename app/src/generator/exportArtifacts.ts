@@ -52,8 +52,17 @@ interface Manifest {
 
 const MANIFEST_DOC = '__manifest__'
 
-/** Every deliverable tag a version export can contain (the manifest lists which exist). */
-export const DELIVERABLE_TAGS = ['lessonSequence', 'finalExplanation', 'summaryTable'] as const
+/**
+ * Every deliverable tag a version export can contain (the manifest lists which exist). In document
+ * order. `finalExplanation` is the STUDENT document (blank answer space); `teacherKey` is the same
+ * content with the exemplar answers — it exists whenever a final explanation does.
+ */
+export const DELIVERABLE_TAGS = [
+  'lessonSequence',
+  'finalExplanation',
+  'teacherKey',
+  'summaryTable',
+] as const
 export type DeliverableTag = (typeof DELIVERABLE_TAGS)[number]
 
 const extFor = (kind: ExportKind): string => (kind === 'pdf' ? 'pdf' : 'docx')
@@ -87,6 +96,7 @@ const keyFor = (spec: ArtifactSpec, doc: string): string =>
 const STEM_SUFFIX: Record<DeliverableTag, string> = {
   lessonSequence: 'CBE_LessonSequence',
   finalExplanation: 'FinalExplanation',
+  teacherKey: 'FinalExplanation_TeacherKey',
   summaryTable: 'SummaryTable',
 }
 
@@ -101,6 +111,7 @@ function docListFor(prefix: string, docx: GeneratedDocx): DocMeta[] {
   ]
   if (docx.finalExplanation)
     docs.push({ tag: 'finalExplanation', name: deliverableStem('finalExplanation', prefix) })
+  if (docx.teacherKey) docs.push({ tag: 'teacherKey', name: deliverableStem('teacherKey', prefix) })
   if (docx.summaryTable)
     docs.push({ tag: 'summaryTable', name: deliverableStem('summaryTable', prefix) })
   return docs
@@ -131,7 +142,7 @@ export async function produceArtifacts(
   // `generated` is already keyed by deliverable tag; docListFor only lists ones that exist.
   const docxFor = (tag: string): Buffer => (generated as unknown as Record<string, Buffer>)[tag]
 
-  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤3) onto the single
+  // Convert (the heavy step — PDF only) concurrently, capped at docs.length (≤4) onto the single
   // Gotenberg sidecar, matching the prior synchronous endpoint's fan-out; then cache each.
   const entries = await Promise.all(
     docs.map(async (d) => ({

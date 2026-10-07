@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { bundleToAresData, versionDeliverables } from '../../src/generator/adapter.js'
+import { DELIVERABLE_LABELS, secondaryDeliverables } from '../../src/generator/deliverables.js'
 import type { LessonBundleVersion } from '../../src/payload-types.js'
 
 const CASES: Array<{ name: string; fe: unknown; st: unknown }> = [
@@ -39,6 +40,21 @@ describe('versionDeliverables mirrors bundleToAresData (T2 strip contract)', () 
     const data = bundleToAresData(bundle)
     expect(tags.includes('lessonSequence')).toBe(true) // always present
     expect(tags.includes('finalExplanation')).toBe(data.FINAL_EXPLANATION !== undefined)
+    // The teacher key is built from the SAME group as the student document, so the two come and go
+    // together — a strip that listed one without the other would offer a button that 404s.
+    expect(tags.includes('teacherKey')).toBe(data.FINAL_EXPLANATION !== undefined)
     expect(tags.includes('summaryTable')).toBe(data.SUMMARY_TABLE !== undefined)
+  })
+
+  it('lists the documents in document order, and the key is never the primary deliverable', () => {
+    const tags = versionDeliverables(asBundle({ intro: 'i' }, { lessons: [{ focus: 'y' }] }))
+    expect(tags).toEqual(['lessonSequence', 'finalExplanation', 'teacherKey', 'summaryTable'])
+    expect(secondaryDeliverables(tags)).toEqual(['finalExplanation', 'teacherKey', 'summaryTable'])
+  })
+
+  it('the key has its own, unmistakable label', () => {
+    expect(DELIVERABLE_LABELS.teacherKey).toMatch(/teacher key/i)
+    expect(DELIVERABLE_LABELS.teacherKey).toMatch(/not for students/i)
+    expect(DELIVERABLE_LABELS.teacherKey).not.toBe(DELIVERABLE_LABELS.finalExplanation)
   })
 })
