@@ -5,7 +5,7 @@
  * All generators require this module.
  *
  * Exports: C, PHASE_COLOUR, FONT, SZ, SZ_H, SZ_T, W, SPACE
- *          para, mixedPara, bullet, cell, fullHeader, labelRow, makeTable
+ *          para, mixedPara, bullet, cell, richCell, fullHeader, labelRow, makeTable
  */
 'use strict';
 
@@ -57,6 +57,7 @@ function para(text, opts = {}) {
   return new Paragraph({
     alignment: opts.align || AlignmentType.LEFT,
     spacing: { after: opts.after ?? 60, before: opts.before ?? 0 },
+    keepNext: !!opts.keepNext,
     children: [new TextRun({
       text,
       font: FONT,
@@ -112,18 +113,19 @@ function cell(content, opts = {}) {
     size   = SZ,
     align  = AlignmentType.LEFT,
     italic = false,
+    keepNext = false,
   } = opts;
 
   let children;
   if (typeof content === 'string') {
     if (content === '') {
-      children = [para('', { size })];
+      children = [para('', { size, keepNext })];
     } else {
       children = content.split('\n').map(line => {
         if (line.startsWith('• ') || line.startsWith('- ')) {
           return bullet(line.slice(2), { size, bold, color });
         }
-        return para(line, { size, bold, color, align, italic, after: 40 });
+        return para(line, { size, bold, color, align, italic, after: 40, keepNext });
       });
     }
   } else if (Array.isArray(content)) {
@@ -143,11 +145,11 @@ function cell(content, opts = {}) {
   return new TableCell(cellDef);
 }
 
-function fullHeader(text, fill, textColor = 'FFFFFF', size = SZ_H, numCols = 2) {
+function fullHeader(text, fill, textColor = 'FFFFFF', size = SZ_H, numCols = 2, keepNext = false) {
   return new TableRow({
     children: [cell(text, {
       fill, color: textColor, bold: true, size,
-      align: AlignmentType.CENTER, span: numCols, w: W,
+      align: AlignmentType.CENTER, span: numCols, w: W, keepNext,
     })],
   });
 }
@@ -178,9 +180,45 @@ function makeTable(rows, columnWidths = [W]) {
   });
 }
 
+// The generator writes data tables as markdown ("| a | b |"). Printed raw they
+// read as broken text, so render them as real nested tables. Everything else
+// stays ordinary paragraphs (cell() already handles bullets and line breaks).
+const isPipeRow = ln => ln.trim().startsWith('|');
+const isSepRow  = ln => /^\|[\s:\-|]+\|?$/.test(ln.trim());
+
+function richCell(text, opts) {
+  const lines = String(text || '').split('\n');
+  if (!lines.some(isPipeRow)) return cell(text || '', opts);
+  const innerW = (opts.w || W) - 360;
+  const children = [];
+  let buf = [];
+  const flushText = () => {
+    if (buf.length) { children.push(...cell(buf.join('\n'), opts).options.children); buf = []; }
+  };
+  for (let i = 0; i < lines.length;) {
+    if (!isPipeRow(lines[i])) { buf.push(lines[i]); i++; continue; }
+    flushText();
+    const rows = [];
+    while (i < lines.length && isPipeRow(lines[i])) { if (!isSepRow(lines[i])) rows.push(lines[i]); i++; }
+    const grid = rows.map(r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
+    const cols = Math.max(...grid.map(r => r.length));
+    const cw = Math.floor(innerW / cols);
+    const widths = Array.from({ length: cols }, (_, k) => (k === cols - 1 ? innerW - cw * (cols - 1) : cw));
+    children.push(makeTable(grid.map((r, ri) => new TableRow({
+      children: widths.map((w, k) => cell(r[k] || '', {
+        w, size: opts.size, bold: ri === 0, fill: ri === 0 ? C.lightBlue : C.white,
+      })),
+    })), widths));
+    children.push(para('', { size: opts.size }));
+  }
+  flushText();
+  children.push(para('', { size: opts.size }));
+  return cell(children, opts);
+}
+
 module.exports = {
   // Constants
   W, FONT, SZ, SZ_H, SZ_T, C, PHASE_COLOUR, SPACE, PAGE_BREAK,
   // Helpers
-  para, mixedPara, bullet, cell, fullHeader, labelRow, makeTable,
+  para, mixedPara, bullet, cell, richCell, fullHeader, labelRow, makeTable,
 };

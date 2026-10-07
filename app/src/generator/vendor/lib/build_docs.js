@@ -26,7 +26,7 @@
 const path     = require('path');
 const fs       = require('fs');
 const { Document, Packer, PageOrientation } = require('docx');
-const { W, C, SZ, SZ_H, SPACE, PAGE_BREAK, para, cell, fullHeader, labelRow, makeTable } = require('./docx_kit');
+const { W, C, SZ, SZ_H, SPACE, PAGE_BREAK, para, cell, richCell, fullHeader, labelRow, makeTable } = require('./docx_kit');
 const { TableRow } = require('docx');
 const { takeDiagnostics } = require('../aresResources');
 const { substrandHeaderParas, lessonFooterParas } = require('./attribution');
@@ -92,42 +92,6 @@ async function buildSoW(META, UNIT, LESSONS) {
 
 
 // ── Markdown tables inside Final Explanation text ─────────────────────────────
-// The generator writes data tables as markdown ("| a | b |"). Printed raw they
-// read as broken text, so render them as real nested tables. Everything else
-// stays ordinary paragraphs (cell() already handles bullets and line breaks).
-const isPipeRow = ln => ln.trim().startsWith('|');
-const isSepRow  = ln => /^\|[\s:\-|]+\|?$/.test(ln.trim());
-
-function richCell(text, opts) {
-  const lines = String(text || '').split('\n');
-  if (!lines.some(isPipeRow)) return cell(text || '', opts);
-  const innerW = (opts.w || W) - 360;
-  const children = [];
-  let buf = [];
-  const flushText = () => {
-    if (buf.length) { children.push(...cell(buf.join('\n'), opts).options.children); buf = []; }
-  };
-  for (let i = 0; i < lines.length;) {
-    if (!isPipeRow(lines[i])) { buf.push(lines[i]); i++; continue; }
-    flushText();
-    const rows = [];
-    while (i < lines.length && isPipeRow(lines[i])) { if (!isSepRow(lines[i])) rows.push(lines[i]); i++; }
-    const grid = rows.map(r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
-    const cols = Math.max(...grid.map(r => r.length));
-    const cw = Math.floor(innerW / cols);
-    const widths = Array.from({ length: cols }, (_, k) => (k === cols - 1 ? innerW - cw * (cols - 1) : cw));
-    children.push(makeTable(grid.map((r, ri) => new TableRow({
-      children: widths.map((w, k) => cell(r[k] || '', {
-        w, size: opts.size, bold: ri === 0, fill: ri === 0 ? C.lightBlue : C.white,
-      })),
-    })), widths));
-    children.push(para('', { size: opts.size }));
-  }
-  flushText();
-  children.push(para('', { size: opts.size }));
-  return cell(children, opts);
-}
-
 // mode 'student': prompts + blank answer space + rubric (what learners write on).
 // mode 'teacher': prompts beside the exemplar answers + rubric (marking key).
 // Both come from the same FINAL_EXPLANATION data, so they cannot disagree.
@@ -171,7 +135,7 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
     body.push(makeTable([
       fullHeader(isTeacher ? 'INSTRUCTIONS GIVEN TO STUDENTS' : 'INSTRUCTIONS FOR STUDENTS', C.teal, 'FFFFFF', SZ_H, 2),
       new TableRow({ children: [
-        cell(FE.instructions, { fill: C.lightBlue, w: W, size: SZ }),
+        richCell(FE.instructions, { fill: C.lightBlue, w: W, size: SZ }),
       ]}),
     ], [W]));
     body.push(SPACE());
@@ -181,7 +145,7 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
   for (const sec of (FE.sections || [])) {
     if (isTeacher) {
       body.push(makeTable([
-        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 2),
+        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 2, true),
         new TableRow({ children: [
           richCell(sec.prompt  || '', { fill: C.lightTeal,  bold: true, w: FLW, size: SZ }),
           richCell(sec.exemplar || '', { fill: C.white,      w: FCW, size: SZ }),
@@ -190,9 +154,9 @@ async function buildFinalExplanation(META, FE, mode = 'student') {
     } else {
       // Full-width prompt, then a ruled blank area to write in. No exemplar.
       body.push(makeTable([
-        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 1),
+        fullHeader(sec.title, C.darkBlue, 'FFFFFF', SZ_H, 1, true),
         new TableRow({ children: [
-          richCell(sec.prompt || '', { fill: C.lightTeal, bold: true, w: W, size: SZ }),
+          richCell(sec.prompt || '', { fill: C.lightTeal, bold: true, w: W, size: SZ, keepNext: true }),
         ]}),
         new TableRow({ height: { value: 4200, rule: 'atLeast' }, children: [
           cell('Write your answer here:', { fill: C.white, w: W, size: SZ, italic: true, color: '808080' }),
