@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v0.92 (2026-10-07)
 
 ### Documents
 
@@ -18,7 +18,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Waves) were affected; they are corrected on the next export. Where such a field also contains a web
   address, the address stays visible but is not clickable. Prompts are also kept with their answer box at
   a page break. All cached documents are regenerated (render version 8). Upstream generator `b3743ff`
-  (Mark Knittel). See DECISIONS 2026-10-08.
+  (Mark Knittel). See DECISIONS 2026-10-07.
 
 ## v0.91 (2026-10-07)
 

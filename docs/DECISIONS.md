@@ -11,7 +11,7 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
-## 2026-10-08 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
+## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
 
 **What changed.** The vendored generator moves from `6591146` to `b3743ff` (Mark Knittel's follow-up to the
 five-lesson-plan finding). Three lib files change; `attribution.js` and the attribution config do not.
@@ -41,7 +41,7 @@ Indices, Quadratic Equations, Trigonometry I); the pre-merge trial also had comp
 with upstream's code (not Word): 0/30 split prompts on the new code against 21/30 on the old. Word's own
 pagination is not covered by that check.
 
-**Known limit (visual check, 2026-10-08).** A table inside a *lesson-framework* column is real but cramped:
+**Known limit (visual check, 2026-10-07).** A table inside a *lesson-framework* column is real but cramped:
 `richCell` splits the cell width evenly, so a five-column table in a 1520-twip column wraps mid-word
 ("Wri/tte/n", Essential Mathematics Indices L2, Explain Phase). Legible and far better than raw pipes, but
 worth telling upstream; wide tables belong in `instructions`/`prompt`, which are full-width.
