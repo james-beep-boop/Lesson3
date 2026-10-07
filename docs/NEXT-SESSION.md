@@ -37,9 +37,10 @@ Its release workflow's `lesson3-app` image job hung — the emulated `linux/arm6
 `release` job was skipped. A GitHub release called "Null release", created by hand with GitHub's release
 button instead of by the tag workflow, was advertised as *Latest* with **no assets**, which made
 `releases/latest/download/…` return 404; it has been deleted. The orphaned `lesson3-migrate:v0.90` image
-**remains in GHCR**: the available GitHub token has no package scopes, so it could not be inspected or
-deleted. Nothing references it (no tag, release or bundle); remove it from the package page (Packages →
-`lesson3-migrate` → version `v0.90`) when convenient. The same arm64 job succeeded in the `migrate`
+was **deleted from GHCR by hand on 2026-10-07** (it was one multi-architecture image: an index, the
+amd64 and arm64 images and two attestation manifests, shown as four entries on the package page). The
+available GitHub token has no package scopes, so only a package owner can do this in the web UI; after the
+deletion `v0.89` and `v0.91` were re-checked and every manifest still resolves. The same arm64 job succeeded in the `migrate`
 leg of that run and in `v0.89` (about 17 minutes), so the hang looks like a one-off, but it was not
 reproduced or root-caused. If a tag run hangs again, re-run it and consider shortening
 `timeout-minutes: 90` in `publish-containers.yml` so a hang fails fast.
