@@ -29,13 +29,17 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 The latest published, installable release remains **`v0.89`** until the next tag workflow finishes.
 
-**`v0.90` is burned — do not move, reuse or finish it.** A `v0.90` Git tag exists (on `913048c`) but it
-was **never published**. Its release workflow's `lesson3-app` image job hung — the emulated `linux/arm64`
+**`v0.90` is burned — do not reuse the number or try to finish it.** A `v0.90` Git tag was created on
+`913048c` but it was **never published**, and the tag was **deleted on 2026-10-07** (as `v0.83` was).
+Its release workflow's `lesson3-app` image job hung — the emulated `linux/arm64`
 `npm ci` printed nothing for about 88 minutes until the 90-minute job limit cancelled it — so
 `lesson3-app:v0.90` was never pushed (`lesson3-migrate:v0.90` was), no bundle was built, and the
 `release` job was skipped. A GitHub release called "Null release", created by hand with GitHub's release
 button instead of by the tag workflow, was advertised as *Latest* with **no assets**, which made
-`releases/latest/download/…` return 404; it has been deleted. The same arm64 job succeeded in the `migrate`
+`releases/latest/download/…` return 404; it has been deleted. The orphaned `lesson3-migrate:v0.90` image
+**remains in GHCR**: the available GitHub token has no package scopes, so it could not be inspected or
+deleted. Nothing references it (no tag, release or bundle); remove it from the package page (Packages →
+`lesson3-migrate` → version `v0.90`) when convenient. The same arm64 job succeeded in the `migrate`
 leg of that run and in `v0.89` (about 17 minutes), so the hang looks like a one-off, but it was not
 reproduced or root-caused. If a tag run hangs again, re-run it and consider shortening
 `timeout-minutes: 90` in `publish-containers.yml` so a hang fails fast.
