@@ -8,7 +8,10 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v0.91 (2026-10-07)
+
+> `v0.90` was tagged on 2026-10-06 but never published (its image build hung and no release bundle was
+> built), so its changes are included here. Install from `v0.91`.
 
 ### Ingest
 
