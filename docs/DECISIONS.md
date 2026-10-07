@@ -11,6 +11,28 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-07 — Production audit, again: `sharp` 0.35.4 → 0.35.5
+
+`npm run audit:prod` went red on `main` a third time in three days with no code change. A new high advisory,
+GHSA-wq5f-xc86-pv6w (CVE-2026-96889), covers a vulnerability in the **librsvg component bundled inside libvips**:
+it flags `sharp` below 0.35.5, and `next` through its use of `sharp`. We pinned 0.35.4.
+
+- **Change:** `sharp` 0.35.4 → **0.35.5**, in both `dependencies` and `overrides` (npm requires the two to
+  agree). The real fix is the bundled `libvips` 1.3.3 → 1.3.4 (libvips 8.18.7); every `@img/sharp-*` platform
+  binary moves with it. No other package changes.
+- **Verified:** the exact CI audit command exits 0 (9 moderate findings remain, none high); unit suite, type-check,
+  lint and format pass; a real `sharp` smoke test on the Node 24 image's musl `libvips` created a PNG and resized
+  it to JPEG; and the tracing glob in `next.config.ts` (`@img/sharp-libvips-linuxmusl-*/lib/libvips-cpp.so.*`) still
+  matches the new package layout (`libvips-cpp.so.8.18.7`), which is the one way a `sharp` bump can break the
+  standalone image. **Not verified locally:** the production image build itself — Docker Desktop's 3.8 GiB VM
+  OOM-killed the Next compile on six consecutive attempts. CI's "Stack up" step builds that image and the
+  Dockerfile's own `sharp` startup check runs inside it.
+- **The pattern, which is the point.** The gate reads a **live advisory database**, so a green gate can go red
+  with no change on our side (#360 overrides, `source-map-js`, and now `sharp`). A local pass is evidence, not a
+  guarantee; re-run the audit immediately before merging. *Follow-up worth considering, not done here:* a
+  scheduled CI run of `audit:prod` on `main`, so an advisory is found on a quiet day and not as a red tick on
+  somebody's unrelated PR.
+
 ## 2026-10-05 — Null resource slots: stored as an empty group; "validated" is not "writable"
 
 ⚑ **A CORRECTION, and the general rule is the point.** Uploading
