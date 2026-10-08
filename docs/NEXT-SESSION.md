@@ -25,62 +25,42 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# RELEASE PREPARATION (2026-10-07) - v0.91
+# RELEASE PREPARATION (2026-10-07) - v0.92
 
-The latest published, installable release remains **`v0.89`** until the next tag workflow finishes.
+The latest published, installable release is **`v0.91`** (2026-10-07; both GHCR images, bundle and
+checksum verified) until the next tag workflow finishes. **`v0.90` is burned** — its tag, release and GHCR
+images were all removed on 2026-10-07; do not reuse the number. (The orphaned `lesson3-migrate:v0.90` was
+deleted by hand by a package owner — the available GitHub token has no package scopes. It was one
+multi-architecture image, shown as four entries on the package page: the index, the amd64 and arm64
+images and two attestation manifests; afterwards `v0.89` and `v0.91` were re-checked and every manifest
+still resolves.) (Its release workflow's emulated
+`linux/arm64` `npm ci` hung until the 90-minute limit; `v0.91` took about 18 minutes. If a tag run hangs
+again, re-run it and consider shortening `timeout-minutes: 90` in `publish-containers.yml`.)
 
-**`v0.90` is burned — do not reuse the number or try to finish it.** A `v0.90` Git tag was created on
-`913048c` but it was **never published**, and the tag was **deleted on 2026-10-07** (as `v0.83` was).
-Its release workflow's `lesson3-app` image job hung — the emulated `linux/arm64`
-`npm ci` printed nothing for about 88 minutes until the 90-minute job limit cancelled it — so
-`lesson3-app:v0.90` was never pushed (`lesson3-migrate:v0.90` was), no bundle was built, and the
-`release` job was skipped. A GitHub release called "Null release", created by hand with GitHub's release
-button instead of by the tag workflow, was advertised as *Latest* with **no assets**, which made
-`releases/latest/download/…` return 404; it has been deleted. The orphaned `lesson3-migrate:v0.90` image
-was **deleted from GHCR by hand on 2026-10-07** (it was one multi-architecture image: an index, the
-amd64 and arm64 images and two attestation manifests, shown as four entries on the package page). The
-available GitHub token has no package scopes, so only a package owner can do this in the web UI; after the
-deletion `v0.89` and `v0.91` were re-checked and every manifest still resolves. The same arm64 job succeeded in the `migrate`
-leg of that run and in `v0.89` (about 17 minutes), so the hang looks like a one-off, but it was not
-reproduced or root-caused. If a tag run hangs again, re-run it and consider shortening
-`timeout-minutes: 90` in `publish-containers.yml` so a hang fails fast.
+One change since v0.91 is ready to ship as `v0.92`:
 
-The merged changes since v0.89 are ready to ship as `v0.91`:
+- `6f822b0` / PR **#365** re-pins the ARES generator to upstream `b3743ff` (Mark Knittel): Markdown tables
+  now render as tables in Final Explanation `instructions`, lesson `overview` and the four lesson-framework
+  columns (previously only `prompt`/`exemplar`), and prompts are kept with their answer box at a page
+  break. `proseLinks.ts`'s "a table wins over a link" rule covers every table-capable field.
+  `GENERATOR_RENDER_VERSION` 8, so every cached DOCX/PDF regenerates. See DECISIONS 2026-10-07 (the `b3743ff` entry).
 
-- `90a24f6` / PR **#360** clears the production-audit gate with overrides: `undici`, `fast-uri`,
-  `nodemailer` 10.x, `sass` 1.79.6 (which also removes the unpatchable `braces` chain) and
-  `source-map-js`. These exceed Payload's declared ranges on purpose; see DECISIONS 2026-10-05.
-- `913048c` / PR **#359** fixes the HTTP 500 on uploading lesson plans whose `video`/`reading` resource
-  slots are `null`. The null is stored as an empty group and restored on export.
-- `ca15823` / PR **#361** bumps `sharp` to 0.35.5 (bundled libvips) for GHSA-wq5f-xc86-pv6w.
-- `db30d1b` / PR **#362** re-pins the ARES generator to upstream `6591146`: a **student** Final
-  Explanation (no exemplar answers) plus a separate **Teacher key — not for students**, CC BY-NC 4.0
-  attribution and a footer after every lesson, final-explanation tables rendered as tables, upstream's
-  null-resource wording, and `GENERATOR_RENDER_VERSION` 7. See DECISIONS 2026-10-07.
+It passed the protected CI gate on its pull request and adds **no application database migration and no
+generated-type change** (`git diff v0.91..main` over `app/src/migrations` and `payload-types.ts` is
+empty). After this release-preparation PR merges, push the immutable tag **`v0.92`** on `main`. The tag
+workflow validates that ancestry, publishes the multi-architecture images, builds the checksummed
+deployment bundle, and verifies the documented download path. It creates the GitHub release with its
+bundle attached; **do not create a release manually**, and do not reuse `v0.88`–`v0.91`. Afterwards
+confirm the release has `lesson3-online-deploy.tar.gz` and its `.sha256`, and that both
+`lesson3-app:v0.92` and `lesson3-migrate:v0.92` exist in GHCR.
 
-These changes passed the protected CI gate on their pull requests and on `main`; they add **no
-application database migration and no generated-type change** (`git diff v0.89..main` over
-`app/src/migrations` and `payload-types.ts` is empty). After this release-preparation PR merges, push the
-immutable tag **`v0.91`** on `main`. The tag workflow validates that ancestry, publishes the
-multi-architecture images, builds the checksummed deployment bundle, and verifies the documented download
-path. It creates the GitHub release with its bundle attached; **do not create a release manually**, and do
-not reuse `v0.88`, `v0.89` or `v0.90`. Afterwards confirm the release has `lesson3-online-deploy.tar.gz`
-and its `.sha256`, and that both `lesson3-app:v0.91` and `lesson3-migrate:v0.91` exist in GHCR.
-
-What a teacher will notice after deploying: the *Final explanation* download no longer contains the answers
-(the new *Teacher key* does), every document carries the attribution block, and printed page counts change.
-**Before giving these five assessments to students:** `Biology_Chemicals_of_Life`,
-`Chemistry_Acids_and_Bases`, `Core_Mathematics_Statistics_I`, `Mathematics_Linear_Motion` and
-`Physics_Properties_of_Waves` have a Markdown data table in `FINAL_EXPLANATION.instructions`, which
-upstream prints as literal `| a | b |` text. This was reported to Mark (render `instructions` through the
-table-aware `richCell`); once he fixes it, re-pin and extend `proseLinks.ts`'s "a table wins over a link"
-rule to that field. Quiz answer keys, when built, are Site-administrator only (DECISIONS 2026-10-07).
-
-The obsolete `v0.83` Git tag has been deleted locally and remotely. A half-published
-`lesson3-app:v0.83` package image may remain in GHCR because the available GitHub token could not
-inspect or delete package versions; it is not referenced by a Git tag, GitHub release, or complete
-deployment bundle. Older handoff blocks below describe the state before deletion and are historical,
-not instructions to recreate or finish that release.
+What a teacher will notice after deploying: the five assessments whose `instructions` held a table
+(`Biology_Chemicals_of_Life`, `Chemistry_Acids_and_Bases`, `Core_Mathematics_Statistics_I`,
+`Mathematics_Linear_Motion`, `Physics_Properties_of_Waves`) now print it as a real table — **safe to give to
+students from v0.92 on** (hold them back on v0.91). Page counts change again. **Known limit:** a table
+inside a lesson-framework column is real but cramped (equal-width columns wrap mid-word, e.g. Essential
+Mathematics Indices L2); reported to Mark. Quiz answer keys, when built, are Site-administrator only
+(DECISIONS 2026-10-07).
 
 The connected initial-install path remains proven: there are no default credentials, and the first
 visitor to `/login` creates the verified Site Administrator without an email round trip. The README,

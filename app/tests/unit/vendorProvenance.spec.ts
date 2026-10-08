@@ -53,15 +53,32 @@ describe('vendored generator provenance', () => {
   })
 
   it('the vendored table parser still has the shape proseLinks.ts mirrors', () => {
-    // `hasPipeTableRow` (proseLinks.ts) copies upstream's definition of a table row, and the Final Explanation
-    // fields it exempts from linkification (`prompt`, `exemplar`) are the ones upstream passes to `richCell`.
-    // build_docs.js exports neither, so neither can be imported — a re-pin that changes either would silently
+    // `hasPipeTableRow` (proseLinks.ts) copies upstream's definition of a table row, and the fields it exempts
+    // from linkification are exactly the ones upstream passes to `richCell` (the only place a Markdown table is
+    // parsed). Neither is exported, so neither can be imported — a re-pin that changes either would silently
     // desynchronise the two. Fail loudly here instead.
-    const src = readFileSync(new URL('vendor/lib/build_docs.js', GEN), 'utf8')
-    expect(src).toContain("const isPipeRow = ln => ln.trim().startsWith('|');")
-    expect(src.match(/richCell\(sec\.prompt/g)).toHaveLength(2) // student + teacher
-    expect(src.match(/richCell\(sec\.exemplar/g)).toHaveLength(1) // teacher only
-    expect(src.match(/\brichCell\(/g)).toHaveLength(4) // those three calls + the definition
+    const read = (file: string) => readFileSync(new URL(`vendor/lib/${file}`, GEN), 'utf8')
+    const count = (src: string, re: RegExp) => src.match(re)?.length ?? 0
+    const kit = read('docx_kit.js')
+    expect(kit).toContain("const isPipeRow = ln => ln.trim().startsWith('|');")
+
+    const build = read('build_docs.js')
+    expect(count(build, /richCell\(FE\.instructions/g)).toBe(1)
+    expect(count(build, /richCell\(sec\.prompt/g)).toBe(2) // student + teacher
+    expect(count(build, /richCell\(sec\.exemplar/g)).toBe(1) // teacher only
+    expect(count(build, /\brichCell\(/g)).toBe(4) // exactly those four — no new table-capable field
+
+    const sections = read('sections.js')
+    expect(count(sections, /richCell\(lesson\.overview/g)).toBe(1)
+    for (const key of [
+      'learnerExperience',
+      'teacherMoves',
+      'sensemakingStrategy',
+      'formativeAssessment',
+    ]) {
+      expect(count(sections, new RegExp(`richCell\\(ph\\.${key}\\b`, 'g')), key).toBe(1)
+    }
+    expect(count(sections, /\brichCell\(/g)).toBe(5) // exactly those five
   })
 
   it('records the pinned commit the files were vendored from', () => {

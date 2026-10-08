@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
+
+**What changed.** The vendored generator moves from `6591146` to `b3743ff` (Mark Knittel's follow-up to the
+five-lesson-plan finding). Three lib files change; `attribution.js` and the attribution config do not.
+`richCell` (the only place a Markdown table becomes a table) moves into `docx_kit.js` and is now also applied to
+Final Explanation `instructions`, lesson `overview`, and the four framework fields (`learnerExperience`,
+`teacherMoves`, `sensemakingStrategy`, `formativeAssessment`), where it used to cover only `prompt` and
+`exemplar`. Upstream also adds keep-with-next on prompt/header paragraphs so a prompt is not stranded from its
+answer box at a page break. `GENERATOR_RENDER_VERSION` 7 → 8, so every cached DOCX/PDF is regenerated.
+
+**The defect this fixes.** Five assessments (Chemicals of Life, Acids and Bases, Statistics I, Linear Motion,
+Properties of Waves) had a Markdown table in `instructions`, which printed as raw `| a | b |` text — the gap
+recorded under the 2026-10-07 re-pin entry (the "candidate ask of Mark": render `instructions` through
+`richCell`) is now closed, and it was an upstream gap, not a data problem. Until the new release is deployed those five should not go to students.
+
+**Lesson-3-side change.** `proseLinks.ts` turns `(https://…)` prose into hyperlink `Paragraph[]`, which bypasses
+upstream's string-based table parser — so a field that held both a table and a link would print the table
+literally. The existing "table wins over link" rule (URL stays visible, not clickable) now covers every
+table-capable field, and `lessonSequenceProseHyperlinkTargets` mirrors it so the fidelity gate's expected-links
+check stays honest. `tests/unit/vendorProvenance.spec.ts` now pins upstream's nine `richCell` call sites and the
+`isPipeRow` definition, so a re-pin that adds or moves a table-capable field fails loudly instead of silently
+desynchronising the adapter.
+
+**Verified.** Both fidelity gates pass against upstream's committed DOCX at the pin (5/5 and 7/7; the one
+enumerated exception, "Related topic" notes, is unchanged). Generating all four documents for the 85 local
+corpus files through Lesson3's adapter leaves 0 raw pipe rows (the previous pin left 14, in three lesson plans:
+Indices, Quadratic Equations, Trigonometry I); the pre-merge trial also had compare-grouping classify every file. Pagination was checked through Gotenberg
+with upstream's code (not Word): 0/30 split prompts on the new code against 21/30 on the old. Word's own
+pagination is not covered by that check.
+
+**Known limit (visual check, 2026-10-07).** A table inside a *lesson-framework* column is real but cramped:
+`richCell` splits the cell width evenly, so a five-column table in a 1520-twip column wraps mid-word
+("Wri/tte/n", Essential Mathematics Indices L2, Explain Phase). Legible and far better than raw pipes, but
+worth telling upstream; wide tables belong in `instructions`/`prompt`, which are full-width.
+
+**Credit.** Mark Knittel diagnosed and fixed this upstream within a day of the report.
+
+---
+
 ## 2026-10-07 — Quiz answer keys are for the Site administrator only
 
 **Decision (operator, 2026-10-07).** When Lesson3 adopts upstream's Quick Check quizzes, the **answer keys to
