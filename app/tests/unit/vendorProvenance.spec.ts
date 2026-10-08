@@ -53,14 +53,17 @@ describe('vendored generator provenance', () => {
   })
 
   it('the vendored table parser still has the shape proseLinks.ts mirrors', () => {
-    // `hasPipeTableRow` (proseLinks.ts) copies upstream's definition of a table row, and the fields it exempts
-    // from linkification are exactly the ones upstream passes to `richCell` (the only place a Markdown table is
-    // parsed). Neither is exported, so neither can be imported — a re-pin that changes either would silently
-    // desynchronise the two. Fail loudly here instead.
+    // `hasPipeTable` (proseLinks.ts) copies upstream's definition of a table (two or more consecutive pipe
+    // rows), and the fields it exempts from linkification are exactly the ones upstream passes to `richCell`
+    // or `stripTables` (the only places a Markdown table is parsed). None of these is exported in a way we can
+    // import — a re-pin that changes any would silently desynchronise the two. Fail loudly here instead.
     const read = (file: string) => readFileSync(new URL(`vendor/lib/${file}`, GEN), 'utf8')
     const count = (src: string, re: RegExp) => src.match(re)?.length ?? 0
     const kit = read('docx_kit.js')
     expect(kit).toContain("const isPipeRow = ln => ln.trim().startsWith('|');")
+    // A table is TWO OR MORE consecutive pipe rows; a lone `|x| = 3` line is maths. Both parsers say so.
+    expect(count(kit, /if \(j - i < 2\)/g)).toBe(1) // richCell
+    expect(count(kit, /if \(blk\.length < 2\)/g)).toBe(1) // stripTables
 
     const build = read('build_docs.js')
     expect(count(build, /richCell\(FE\.instructions/g)).toBe(1)
@@ -70,15 +73,14 @@ describe('vendored generator provenance', () => {
 
     const sections = read('sections.js')
     expect(count(sections, /richCell\(lesson\.overview/g)).toBe(1)
-    for (const key of [
-      'learnerExperience',
-      'teacherMoves',
-      'sensemakingStrategy',
-      'formativeAssessment',
-    ]) {
-      expect(count(sections, new RegExp(`richCell\\(ph\\.${key}\\b`, 'g')), key).toBe(1)
-    }
-    expect(count(sections, /\brichCell\(/g)).toBe(5) // exactly those five
+    // The four framework fields are table-stripped (the table moves to a full-width row of its own), not
+    // rendered in place; the pointer and the row are upstream's.
+    expect(count(sections, /stripTables\(ph\[k\]\)/g)).toBe(1)
+    expect(sections).toContain(
+      "const cols = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment'];",
+    )
+    expect(count(kit, /'\(table below\)'/g)).toBe(1)
+    expect(count(sections, /\brichCell\(/g)).toBe(2) // overview + the full-width table row — nothing else
   })
 
   it('records the pinned commit the files were vendored from', () => {

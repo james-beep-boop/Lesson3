@@ -8,18 +8,17 @@ commit label alone, are the acceptance proof for this pin.
 
 - **Repository:** `markknit/cbe-generation-system`
 - **Branch:** `main`
-- **Pinned commit:** `b3743ff6d90f8623ba5a4a0c34c79162bd34c472` (`b3743ff`, upstream 2026-10-07; a direct child
-  of the previous pin `6591146`)
-- **Vendored:** 2026-10-07
-- **Reason:** adopt upstream's fix for Markdown data tables that printed as literal `| a | b |` text. `richCell`
-  moved from `build_docs.js` into `docx_kit.js` **unchanged** (same row definition) and is now used for the Final
-  Explanation `instructions` (five of the 95 current plans have a data table there) and for the lesson-plan
-  `overview` and the four implementation-framework fields (`learnerExperience`, `teacherMoves`,
-  `sensemakingStrategy`, `formativeAssessment`; two plans have tables there). Also adds **keep-with-next**: a
-  section header stays with its prompt and a student prompt stays with its answer box. Only `build_docs.js`,
-  `sections.js` and `docx_kit.js` changed; `attribution.js`, `config/attribution.yaml` and upstream's
-  `aresResources.js` (which the Lesson3-owned bridge mirrors) are byte-identical to the previous pin.
-  **Previous pins:** `6591146` (2026-10-06), `a546ee3` (2026-09-19).
+- **Pinned commit:** `f83db61931566df6bde9252db552bd353ed43d7a` (`f83db61`, upstream 2026-10-08 UTC; a direct
+  child of the previous pin `b3743ff`)
+- **Vendored:** 2026-10-08
+- **Reason:** adopt upstream's fix for the cramped table layout we reported. A Markdown table in a
+  lesson-framework column (`learnerExperience`, `teacherMoves`, `sensemakingStrategy`, `formativeAssessment`)
+  is now pulled out of the narrow cell (`stripTables`, new in `docx_kit.js`), a "(table below)" pointer is
+  left behind, and the table prints **full-width in a row of its own under the phase** (`sections.js`).
+  `richCell` also now treats a table as TWO OR MORE consecutive pipe rows — a lone `|x| = 3` line is maths and
+  stays text. Only `sections.js` and `docx_kit.js` changed; `build_docs.js`, `attribution.js`,
+  `config/attribution.yaml` and upstream's `aresResources.js` are byte-identical to the previous pin.
+  **Previous pins:** `b3743ff` (2026-10-07), `6591146` (2026-10-06), `a546ee3` (2026-09-19).
 - **Mirror tag:** none created for this local change. Create one only as a separately approved
   upstream-repository operation.
 
@@ -39,8 +38,8 @@ gap without changing the authorship or provenance of the three byte-pristine fil
 | Lesson3 path | Upstream path | SHA-256 |
 | --- | --- | --- |
 | `lib/build_docs.js` | `generators/lib/build_docs.js` | `0d41e8efa1fa5b0bece27e00abe52fad3dc11ec32d689fbe4bdddb43e64972de` |
-| `lib/sections.js` | `generators/lib/sections.js` | `e004b658801059097332fc6491b2b8f49ccbd5396ae103f2b2d2b678b068c018` |
-| `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `c670d5fe84965893017ff910b180c0aca5f20709bb7f117c147afd13366b1ccb` |
+| `lib/sections.js` | `generators/lib/sections.js` | `55b431ab1760606ea1a6ac666c26122744393fe045ff1a9a29a841548d6c82a3` |
+| `lib/docx_kit.js` | `generators/lib/docx_kit.js` | `3359cf217a07975b276907ecb2628970ef0b8981b509c67e1bc37a686486cfbd` |
 | `lib/attribution.js` | `generators/lib/attribution.js` | `7ac867b861ea1be8f6cfe8590cf7171c94b5536cc828c4d29983bd6abe6f9288` |
 | `vendor/config/attribution.upstream.yaml` | `config/attribution.yaml` | `950f68dbceee79d12de4dc49e9b5827434dca5fb81ddf4bfd188c173041f4104` |
 

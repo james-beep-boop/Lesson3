@@ -450,10 +450,82 @@ describe('tables in the fields upstream added to richCell (b3743ff)', () => {
     expect(rels).not.toContain('https://example.com/evidence')
   })
 
+  it.each(FRAMEWORK_KEYS)(
+    'lesson %s: the table prints full-width in a row under the phase, with a pointer left in the cell',
+    async (field) => {
+      const base = (await parts(await generateLessonSequenceDocx(withLessonField(field, 'Text.'))))
+        .xml
+      const xml = (
+        await parts(
+          await generateLessonSequenceDocx(withLessonField(field, `Intro.\n${PIPE_TABLE}`)),
+        )
+      ).xml
+      expect(xml).toContain('(table below)')
+      expect(xml).toContain('Intro.')
+      // upstream's extra row spans all five columns; the table is inside it, not in the narrow column
+      expect(count(xml, 'w:gridSpan w:val="5"')).toBe(count(base, 'w:gridSpan w:val="5"') + 1)
+      expect(count(xml, '<w:tbl>')).toBe(count(base, '<w:tbl>') + 1)
+      expect(count(base, '(table below)')).toBe(0)
+    },
+  )
+
+  it('lesson overview keeps its table in place (full-width already), with no pointer', async () => {
+    const xml = (
+      await parts(await generateLessonSequenceDocx(withLessonField('overview', PIPE_TABLE)))
+    ).xml
+    expect(xml).not.toContain('(table below)')
+    expect(xml).toContain('Pumps blood')
+  })
+
   it('lesson fields: a link with no table is still hyperlinked', async () => {
     for (const field of ['overview', ...FRAMEWORK_KEYS] as const) {
       const { rels } = await parts(await generateLessonSequenceDocx(withLessonField(field, LINK)))
       expect(rels, field).toContain('https://example.com/evidence')
     }
+  })
+
+  describe('a lone pipe line is maths, not a table (upstream f83db61)', () => {
+    // `|x| = 3` is an absolute value. Upstream now needs TWO OR MORE consecutive pipe rows to call something a
+    // table, so one such line must neither become a table nor stop a link in the same field being a link.
+    const MATHS = 'Solve |x| = 3 on the board.\n|x| = 3 gives x = 3 or x = -3.'
+    const SPLIT = 'Row one\n|x| = 3\nRow three'
+
+    it.each(['overview', ...FRAMEWORK_KEYS] as const)(
+      'lesson %s: a lone |x| line is text and the field is still hyperlinked',
+      async (field) => {
+        const { xml, rels } = await parts(
+          await generateLessonSequenceDocx(withLessonField(field, `${SPLIT}\n${LINK}`)),
+        )
+        expect(xml).toContain('|x| = 3')
+        expect(xml).not.toContain('(table below)')
+        expect(rels).toContain('https://example.com/evidence')
+      },
+    )
+
+    it('instructions: a lone |x| line is text and the field is still hyperlinked', async () => {
+      const { xml, rels } = await parts(
+        await generateFinalExplanationDocx(withInstructions(`${SPLIT}\n${LINK}`)),
+      )
+      expect(xml).toContain('|x| = 3')
+      expect(rels).toContain('https://example.com/evidence')
+    })
+
+    it('a lone line that looks like a row never becomes a table', async () => {
+      const base = (
+        await parts(await generateLessonSequenceDocx(withLessonField('overview', 'Text.')))
+      ).xml
+      const xml = (
+        await parts(await generateLessonSequenceDocx(withLessonField('overview', MATHS)))
+      ).xml
+      expect(count(xml, '<w:tbl>')).toBe(count(base, '<w:tbl>'))
+    })
+
+    it('two consecutive pipe rows ARE a table, and still beat a link', async () => {
+      const { xml, rels } = await parts(
+        await generateLessonSequenceDocx(withLessonField('teacherMoves', `|a|b|\n|c|d|\n${LINK}`)),
+      )
+      expect(xml).toContain('(table below)')
+      expect(rels).not.toContain('https://example.com/evidence')
+    })
   })
 })

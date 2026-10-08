@@ -113,10 +113,10 @@ describe('export artifacts', () => {
     expect(await isExportReady(current)).toBe(false)
   })
 
-  it('is at least render version 8 for this generator', async () => {
+  it('is at least render version 9 for this generator', async () => {
     // A deliberate tripwire: the pinned generator's output changed (attribution, split final explanation,
-    // tables, null wording, tables in more fields, keep-with-next). Lowering this would let a stale zip be served as if current.
+    // tables, null wording, tables in more fields, keep-with-next, full-width framework tables). Lowering this would let a stale zip be served as if current.
     const { GENERATOR_RENDER_VERSION } = await load()
-    expect(GENERATOR_RENDER_VERSION).toBeGreaterThanOrEqual(8)
+    expect(GENERATOR_RENDER_VERSION).toBeGreaterThanOrEqual(9)
   })
 })

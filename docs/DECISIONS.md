@@ -11,6 +11,36 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-08 — Generator re-pinned to upstream `f83db61`: framework tables full-width; a lone `|` line is text
+
+**What changed.** The vendored generator moves from `b3743ff` to `f83db61` (Mark Knittel's answer to the
+cramped-table problem we reported on 2026-10-07; one commit, `sections.js` and `docx_kit.js` only).
+1. A table in a lesson-framework column is pulled out of the narrow cell (`stripTables`), a `(table below)`
+   pointer stays in the cell, and the table prints **full-width in a row of its own under the phase**.
+2. A table now needs **two or more consecutive pipe rows**; a lone `|x| = 3` line is maths and stays text.
+`GENERATOR_RENDER_VERSION` 8 → 9. The 2026-10-07 "known limit" (mid-word wrapping, Indices L2) is closed.
+
+**Lesson3 side.** `proseLinks.ts`'s `hasPipeTableRow` (any pipe line) became `hasPipeTable` (two consecutive),
+so the "table wins over a link" rule fires exactly when upstream renders a table: a field with only `|x| = 3`
+and a link is now hyperlinked, where the old test would have wrongly withheld the link. `vendorProvenance.spec`
+pins the new call shapes (`stripTables(ph[k])`, the two `< 2` guards, the `(table below)` pointer, two
+`richCell` calls in `sections.js`).
+
+**Trade-off, measured.** Across the 85 local plans there are four lone pipe lines. Two are real maths
+(`|displacement| = …` in Linear Motion, `|R| = …` in Vectors I): `b3743ff` drew each as a bogus one-row table;
+they are now text — a fix. Two are **header-only tables** in Quadratic Equations (`| Expression | a | b | c |`,
+a blank table for learners to fill in): `b3743ff` drew a one-row table; they now print as literal pipe text — a
+regression for those two lines. To be raised with Mark; fixing it means a header-only table must be written with
+its separator row (`|---|`) or upstream must special-case a header line. Not patched here (vendored code stays
+pristine).
+
+**Verified.** Both fidelity gates pass on Physics 4.1 and — because Physics has no framework table — also on
+Essential Mathematics Indices and Mathematics Trigonometry I, which do (574-block lesson plan content-identical to
+upstream's committed DOCX). All 85 corpus plans preview and split into compare groups without error; exactly two
+get a `(table below)` pointer (Indices, Trigonometry I). Credit: Mark Knittel.
+
+---
+
 ## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
 
 **What changed.** The vendored generator moves from `6591146` to `b3743ff` (Mark Knittel's follow-up to the
