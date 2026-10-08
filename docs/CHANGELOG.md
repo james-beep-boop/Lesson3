@@ -8,6 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased
+
+### Next.js security update
+
+- Next.js and its matching ESLint configuration move from 16.3.6 to 16.4.0, the upstream fix for six advisories
+  affecting 16.0.0–16.3.7 (SSG/ISR cache poisoning and cross-user content substitution, Draft Mode content
+  leaking through a `use cache` fill, image-optimisation SSRF, and two information disclosures). 16.4.0 is
+  within Payload 3.90.2's supported range; no override was needed. No schema migration. See DECISIONS 2026-10-08.
+
 ## v0.92 (2026-10-07)
 
 ### Documents

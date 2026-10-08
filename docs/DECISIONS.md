@@ -11,6 +11,30 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-08 — Production audit: Next.js 16.3.6 → 16.4.0 (six advisories)
+
+**Trigger.** `audit:prod` (`--omit=dev --audit-level=high`) went red on PR #367 with no code change on that
+branch: the advisory database added six Next.js advisories covering 16.0.0–16.3.7 — cache poisoning of SSG/ISR
+pages and cross-user content substitution (GHSA-4jqv-mc3x-m676, GHSA-mcj8-r9mp-w47p), a pending `use cache`
+fill leaking Draft Mode content (GHSA-3w37-wq28-93x7), image-optimisation SSRF (GHSA-cjq9-62q9-8jv4), and two
+information disclosures (GHSA-f87g-xv8r-7p7x, GHSA-39w2-rjm5-chcv).
+
+**Decision.** Move only `next` and its matching `eslint-config-next` to **16.4.0** (the fixed release, published
+2026-10-07), same narrow boundary as the 16.3.6 patch (2026-09-23). `@payloadcms/next` 3.90.2 declares
+`next >=16.3.3 <17.0.0`, so 16.4.0 is **inside** Payload's supported range — no override and no
+out-of-range install, unlike the earlier overrides. The release notes list internal App Router/Turbopack
+refactors and no breaking change. The lockfile also moves one transitive patch (`fastq` 1.20.1 → 1.20.3).
+
+**Verified.** `audit:prod` exits 0 (nine *moderate* findings remain — `esbuild` under `drizzle-kit`, `fast-copy`,
+`sprintf-js` under `mammoth` — all below the gate's `high` threshold and unchanged by this PR); typecheck,
+lint and 1211 unit tests pass; the production `runner` image builds and contains `next` 16.4.0. The
+full gate (integration, wire-level HTTP and browser e2e against the built app) is the acceptance proof.
+
+**Why this sat blocked.** The gate reads a live advisory database, so it can go red with no change on the
+branch; the only fix is to patch the dependency in its own PR, which is why #367 (generator re-pin) waited.
+
+---
+
 ## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
 
 **What changed.** The vendored generator moves from `6591146` to `b3743ff` (Mark Knittel's follow-up to the
