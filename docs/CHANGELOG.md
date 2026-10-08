@@ -19,6 +19,18 @@ Concise record of delivered product changes, newest first. Detailed implementati
   Equations, two places) prints literally. All cached documents are regenerated (render version 9). Upstream
   generator `f83db61` (Mark Knittel). See DECISIONS 2026-10-08.
 
+### Next.js security update
+
+- Next.js and its matching ESLint configuration move from 16.3.6 to 16.4.0, the upstream fix for six advisories
+  affecting 16.0.0–16.3.7 (SSG/ISR cache poisoning and cross-user content substitution, Draft Mode content
+  leaking through a `use cache` fill, image-optimisation SSRF, and two information disclosures). 16.4.0 is
+  within Payload 3.90.2's supported range; no override was needed. No schema migration. See DECISIONS 2026-10-08.
+- Turns off production minification (`experimental.turbopackMinify: false`) because Next.js 16.4.0's minifier
+  leaves Payload's error classes unnamed, which made server messages such as "N lesson plan(s) still use this
+  subject grade" reach the Manage page as "An unknown error occurred.". Cost: larger JavaScript bundles (client
+  ~0.8 → ~1.5 MB gzipped). A wire-level test now checks the built app returns the real messages. Remove the
+  setting when Next.js or Payload fixes the naming.
+
 ## v0.92 (2026-10-07)
 
 ### Documents

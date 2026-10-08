@@ -32,6 +32,15 @@ const nextConfig: NextConfig = {
   // is derived from the document ceiling the save path already accepts, not from today's corpus.
   experimental: {
     serverActions: { bodySizeLimit: SERVER_ACTION_BODY_LIMIT },
+    // ⚑ DO NOT turn minification back on without running `tests/http/apiErrorMessages.http.spec.ts` against
+    // the BUILT app. Next.js 16.4.0's production minifier exports Payload's error classes as anonymous class
+    // expressions, so `this.constructor.name` — which Payload uses to set every error's `name` — is empty, and
+    // Payload's `formatErrors` then serialises every guard message ("N lesson plan(s) still use this subject
+    // grade") as "An unknown error occurred.". Only the built app shows it. The cost of this setting is a
+    // larger bundle (client ~0.8 → ~1.5 MB gzipped; server 21 → 54 MB), measured in DECISIONS 2026-10-08.
+    // Remove it when a Next.js or Payload release fixes the naming: delete the line, rebuild, and the wire
+    // test above is the proof.
+    turbopackMinify: false,
   },
   // One login/bootstrap form (SPEC §2): send Payload's admin login AND its stock first-user screen
   // to the frontend /login. The latter matters on an offline install: technicians familiar with

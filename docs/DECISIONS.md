@@ -56,6 +56,56 @@ that two tables in one phase (or one field) share that single row.
 
 ---
 
+## 2026-10-08 — Production audit: Next.js 16.3.6 → 16.4.0 (six advisories)
+
+**Trigger.** `audit:prod` (`--omit=dev --audit-level=high`) went red on PR #367 with no code change on that
+branch: the advisory database added six Next.js advisories covering 16.0.0–16.3.7 — cache poisoning of SSG/ISR
+pages and cross-user content substitution (GHSA-4jqv-mc3x-m676, GHSA-mcj8-r9mp-w47p), a pending `use cache`
+fill leaking Draft Mode content (GHSA-3w37-wq28-93x7), image-optimisation SSRF (GHSA-cjq9-62q9-8jv4), and two
+information disclosures (GHSA-f87g-xv8r-7p7x, GHSA-39w2-rjm5-chcv).
+
+**Decision.** Move only `next` and its matching `eslint-config-next` to **16.4.0** (the fixed release, published
+2026-10-07), same narrow boundary as the 16.3.6 patch (2026-09-23). `@payloadcms/next` 3.90.2 declares
+`next >=16.3.3 <17.0.0`, so 16.4.0 is **inside** Payload's supported range — no override and no
+out-of-range install, unlike the earlier overrides. The release notes list internal App Router/Turbopack
+refactors and no breaking change. The lockfile also moves one transitive patch (`fastq` 1.20.1 → 1.20.3).
+
+**Verified.** `audit:prod` exits 0 (nine *moderate* findings remain — `esbuild` under `drizzle-kit`, `fast-copy`,
+`sprintf-js` under `mammoth` — all below the gate's `high` threshold and unchanged by this PR); typecheck,
+lint and 1211 unit tests pass; the production `runner` image builds and contains `next` 16.4.0. The
+full gate (integration, wire-level HTTP and browser e2e against the built app) is the acceptance proof.
+
+**What the full gate found (the unit tests could not).** Three Manage-page browser tests failed on the 16.4.0
+build: a guard's own message ("N lesson plan(s) still use this subject grade", the duplicate-grade text) reached
+the page as "An unknown error occurred.". Cause, confirmed in the built chunk: the 16.4.0 production Turbopack
+build exports Payload's error classes as ANONYMOUS class expressions (`a.s(["f",0,class extends d{…}])`), so
+`this.constructor.name` — which Payload uses to set every error's `name` — is `''`; Payload's `formatErrors`
+trusts only a non-empty `name`, so every thrown `APIError` serialised as the generic message (the server log
+showed `"type":""`), and its name-keyed `loggingLevels` stopped applying. Dev, `next dev` and all unit/integration
+tests run unbundled classes and cannot see it. No newer Next release exists and no upstream report was found.
+
+**Fix chosen (operator, 2026-10-08): `experimental.turbopackMinify: false`.** One supported config line, no custom
+code, confirmed to restore the names in the built chunk (`class APIError extends ExtendableError`) and then by
+the wire test and the three browser tests below. Cost, measured on the built output: client JavaScript ~824 KB →
+~1523 KB gzipped (raw 3.3 → 8.1 MB) and the server bundle 21 MB → 54 MB — modest on a local-server install,
+larger for an online one. **Rejected:** a startup shim that renamed Payload's exported error classes
+(worked, ~30 lines, no size cost — but a code workaround the operator did not want to carry); holding at 16.3.6
+(leaves six advisories and keeps the audit gate red, blocking every release). **Condition to remove:** a
+Next.js or Payload release that fixes the naming — delete the setting and its guard
+(`tests/unit/nextConfigMinify.spec.ts`), rebuild, and `tests/http/apiErrorMessages.http.spec.ts` against the
+built app is the proof. Neither project has a fix as of 2026-10-08 (Next 16.4.0 and Payload 3.90.2 are both
+their latest); an upstream report is to be filed.
+
+**Scope of the defect.** Not every error is affected: Payload's other formatting branches (an error that carries
+`data`, a `ValidationError`, `Forbidden`/`NotFound` on the paths exercised) still produced real messages. What
+broke is an `APIError` thrown with no `data` — the guard messages this app relies on — and the generic
+"Something went wrong." fallback, plus name-keyed log levels.
+
+**Why this sat blocked.** The gate reads a live advisory database, so it can go red with no change on the
+branch; the only fix is to patch the dependency in its own PR, which is why #367 (generator re-pin) waited.
+
+---
+
 ## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
 
 **What changed.** The vendored generator moves from `6591146` to `b3743ff` (Mark Knittel's follow-up to the
