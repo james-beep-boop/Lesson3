@@ -25,42 +25,55 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# RELEASE PREPARATION (2026-10-07) - v0.92
+# RELEASE PREPARATION (2026-10-09) - v0.93
 
-The latest published, installable release is **`v0.91`** (2026-10-07; both GHCR images, bundle and
-checksum verified) until the next tag workflow finishes. **`v0.90` is burned** — its tag, release and GHCR
-images were all removed on 2026-10-07; do not reuse the number. (The orphaned `lesson3-migrate:v0.90` was
-deleted by hand by a package owner — the available GitHub token has no package scopes. It was one
-multi-architecture image, shown as four entries on the package page: the index, the amd64 and arm64
-images and two attestation manifests; afterwards `v0.89` and `v0.91` were re-checked and every manifest
-still resolves.) (Its release workflow's emulated
-`linux/arm64` `npm ci` hung until the 90-minute limit; `v0.91` took about 18 minutes. If a tag run hangs
-again, re-run it and consider shortening `timeout-minutes: 90` in `publish-containers.yml`.)
+The latest published, installable release is **`v0.92`** (2026-10-07; both GHCR images, bundle and checksum
+verified) until the next tag workflow finishes. **`v0.90` is burned** — its tag, release and GHCR images were
+all removed on 2026-10-07 (the orphaned `lesson3-migrate:v0.90` was one multi-architecture image, shown as four
+entries on the package page, deleted by hand by a package owner because the available GitHub token has no
+package scopes); do not reuse the number. If a tag run hangs again (the `v0.90` emulated `linux/arm64`
+`npm ci` hung to the 90-minute limit; `v0.91` and `v0.92` took about 18 minutes), re-run it and consider
+shortening `timeout-minutes: 90` in `publish-containers.yml`.
 
-One change since v0.91 is ready to ship as `v0.92`:
+Three changes since v0.92 are ready to ship as `v0.93`:
 
-- `6f822b0` / PR **#365** re-pins the ARES generator to upstream `b3743ff` (Mark Knittel): Markdown tables
-  now render as tables in Final Explanation `instructions`, lesson `overview` and the four lesson-framework
-  columns (previously only `prompt`/`exemplar`), and prompts are kept with their answer box at a page
-  break. `proseLinks.ts`'s "a table wins over a link" rule covers every table-capable field.
-  `GENERATOR_RENDER_VERSION` 8, so every cached DOCX/PDF regenerates. See DECISIONS 2026-10-07 (the `b3743ff` entry).
+- `e2a7413` / PR **#368** updates Next.js (and `eslint-config-next`) 16.3.6 → **16.4.0**, the fix for six
+  advisories affecting 16.0.0–16.3.7 (SSG/ISR cache poisoning and cross-user substitution, Draft Mode leak
+  through a `use cache` fill, image-optimisation SSRF, two information disclosures). It also sets
+  **`experimental.turbopackMinify: false`**: the 16.4.0 production minifier exports Payload's error classes as
+  anonymous classes, so every `APIError` thrown without data reached the client as "An unknown error
+  occurred." (the Manage page lost its guard messages). Cost: client JavaScript ~0.8 → ~1.5 MB gzipped and a
+  server bundle of 54 MB instead of 21 MB. **Remove the setting when a Next.js or Payload release fixes the
+  naming** (neither had one on 2026-10-08); `tests/http/apiErrorMessages.http.spec.ts` against the built app is
+  the proof. See DECISIONS 2026-10-08 (the Next.js entry).
+- `63d5549` / PR **#367** re-pins the ARES generator to upstream `f83db61` (Mark Knittel): a Markdown table in
+  a lesson-framework column prints **full-width in a row of its own under the phase**, with "(table below)"
+  left in the column, and a lone `|x| = 3` line is text, not a table. `GENERATOR_RENDER_VERSION` 9, so every
+  cached DOCX/PDF regenerates. It also adds `scripts/corpus-check.ts` (whole-corpus render check, fails
+  closed) and lets both fidelity gates take `ARES_FIDELITY_SUBSTRAND_DIR`. See DECISIONS 2026-10-08 (the
+  `f83db61` entry).
+- `7bf1cc3` / PR **#364** is documentation only.
 
-It passed the protected CI gate on its pull request and adds **no application database migration and no
-generated-type change** (`git diff v0.91..main` over `app/src/migrations` and `payload-types.ts` is
-empty). After this release-preparation PR merges, push the immutable tag **`v0.92`** on `main`. The tag
-workflow validates that ancestry, publishes the multi-architecture images, builds the checksummed
-deployment bundle, and verifies the documented download path. It creates the GitHub release with its
-bundle attached; **do not create a release manually**, and do not reuse `v0.88`–`v0.91`. Afterwards
-confirm the release has `lesson3-online-deploy.tar.gz` and its `.sha256`, and that both
-`lesson3-app:v0.92` and `lesson3-migrate:v0.92` exist in GHCR.
+They passed the protected CI gate on their pull requests and add **no application database migration and no
+generated-type change** (`git diff v0.92..main` over `app/src/migrations` and `payload-types.ts` is empty).
+After this release-preparation PR merges, push the immutable tag **`v0.93`** on `main`. The tag workflow
+validates that ancestry, publishes the multi-architecture images, builds the checksummed deployment bundle,
+and verifies the documented download path. It creates the GitHub release with its bundle attached; **do not
+create a release manually**, and do not reuse `v0.88`–`v0.92`. Afterwards confirm the release has
+`lesson3-online-deploy.tar.gz` and its `.sha256`, and that both `lesson3-app:v0.93` and
+`lesson3-migrate:v0.93` exist in GHCR.
 
-What a teacher will notice after deploying: the five assessments whose `instructions` held a table
-(`Biology_Chemicals_of_Life`, `Chemistry_Acids_and_Bases`, `Core_Mathematics_Statistics_I`,
-`Mathematics_Linear_Motion`, `Physics_Properties_of_Waves`) now print it as a real table — **safe to give to
-students from v0.92 on** (hold them back on v0.91). Page counts change again. **Known limit:** a table
-inside a lesson-framework column is real but cramped (equal-width columns wrap mid-word, e.g. Essential
-Mathematics Indices L2); reported to Mark. Quiz answer keys, when built, are Site-administrator only
-(DECISIONS 2026-10-07).
+What an operator and a teacher will notice after deploying: the first export of each plan is slower (every
+cached document regenerates); the first page load downloads more JavaScript; lesson plans that have a table
+in a framework column (Essential Mathematics Indices, Mathematics Trigonometry I among the current 95) show
+it readably under the phase. **Known gap, accepted for this release:** Essential Mathematics Quadratic
+Equations has two one-line, header-only tables (`| Expression | a | b | c |`) that now print as literal pipe
+text. Fixing it needs either separator rows in the upstream data or a renderer change in upstream (which would
+also repair already-stored versions); to be raised with Mark. Also to raise: an extracted table can land on the
+page after its pointer (Indices L2), `keepNext` is absent on bullet paragraphs and the last paragraph of a
+table prompt, and none of this has been checked in Word (every visual check used LibreOffice via Gotenberg).
+Still to file, by the operator: the Next.js and Payload reports for the anonymous-class defect. Quiz answer
+keys, when built, are Site-administrator only (DECISIONS 2026-10-07).
 
 The connected initial-install path remains proven: there are no default credentials, and the first
 visitor to `/login` creates the verified Site Administrator without an email round trip. The README,

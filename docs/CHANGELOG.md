@@ -8,7 +8,7 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
-## Unreleased
+## v0.93 (2026-10-09)
 
 ### Documents
 
