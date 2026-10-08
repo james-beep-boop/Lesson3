@@ -3,7 +3,6 @@ import { bigint, integer, pgTable, text } from 'drizzle-orm/pg-core'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
-import * as payloadExports from 'payload'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
@@ -26,7 +25,6 @@ import { isSiteAdmin } from './access'
 import { isPublicLibraryEnabled, publicLibraryBootRefusal } from './lib/publicLibrary'
 import { firstUserBootRefusal, isUndefinedTableError } from './lib/publicPosture'
 import { positiveIntEnv } from './lib/env'
-import { restoreErrorClassNames } from './lib/restoreErrorClassNames'
 import {
   resourceLibraryFileEndpoint,
   resourceLibraryListEndpoint,
@@ -77,9 +75,6 @@ const email = process.env.SMTP_HOST
       transportOptions: smtpTransportOptions,
     })
   : undefined
-
-// Must run before any error is constructed; see the helper for why (Next.js 16.4.0 anonymous classes).
-restoreErrorClassNames(payloadExports as unknown as Record<string, unknown>)
 
 export default buildConfig({
   email,

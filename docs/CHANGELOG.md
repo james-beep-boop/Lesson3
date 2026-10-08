@@ -16,10 +16,11 @@ Concise record of delivered product changes, newest first. Detailed implementati
   affecting 16.0.0–16.3.7 (SSG/ISR cache poisoning and cross-user content substitution, Draft Mode content
   leaking through a `use cache` fill, image-optimisation SSRF, and two information disclosures). 16.4.0 is
   within Payload 3.90.2's supported range; no override was needed. No schema migration. See DECISIONS 2026-10-08.
-- Works around a 16.4.0 production-build defect found while verifying it: server messages such as "N lesson
-  plan(s) still use this subject grade" reached the Manage page as "An unknown error occurred." because the
-  bundle left Payload's error classes unnamed. Their names are restored at startup, and a wire-level test now
-  checks the built app returns the real messages.
+- Turns off production minification (`experimental.turbopackMinify: false`) because Next.js 16.4.0's minifier
+  leaves Payload's error classes unnamed, which made server messages such as "N lesson plan(s) still use this
+  subject grade" reach the Manage page as "An unknown error occurred.". Cost: larger JavaScript bundles (client
+  ~0.8 → ~1.5 MB gzipped). A wire-level test now checks the built app returns the real messages. Remove the
+  setting when Next.js or Payload fixes the naming.
 
 ## v0.92 (2026-10-07)
 

@@ -39,14 +39,22 @@ trusts only a non-empty `name`, so every thrown `APIError` serialised as the gen
 showed `"type":""`), and its name-keyed `loggingLevels` stopped applying. Dev, `next dev` and all unit/integration
 tests run unbundled classes and cannot see it. No newer Next release exists and no upstream report was found.
 
-**Fix chosen.** `src/lib/restoreErrorClassNames.ts`, called from `payload.config.ts` before `buildConfig`, names
-any anonymous Error subclass exported by `payload` after its export key (a named class is left alone, so it
-becomes a no-op on a Next release that fixes the naming and can then be deleted). Rejected:
-`experimental.turbopackMinify: false` restores the names but grows client JavaScript from ~824 KB to ~1523 KB
-gzipped (raw 3.3 → 8.1 MB) and the server bundle from 21 MB to 54 MB — a real cost on a school network.
-Rejected: holding at 16.3.6 (leaves six advisories). Pinned by `tests/unit/restoreErrorClassNames.spec.ts` and,
-over the wire against the production build, `tests/http/apiErrorMessages.http.spec.ts` — the 409 guard test
-fails on the unfixed 16.4.0 app and passes with the fix; the three browser tests pass with it.
+**Fix chosen (operator, 2026-10-08): `experimental.turbopackMinify: false`.** One supported config line, no custom
+code, confirmed to restore the names in the built chunk (`class APIError extends ExtendableError`) and then by
+the wire test and the three browser tests below. Cost, measured on the built output: client JavaScript ~824 KB →
+~1523 KB gzipped (raw 3.3 → 8.1 MB) and the server bundle 21 MB → 54 MB — modest on a local-server install,
+larger for an online one. **Rejected:** a startup shim that renamed Payload's exported error classes
+(worked, ~30 lines, no size cost — but a code workaround the operator did not want to carry); holding at 16.3.6
+(leaves six advisories and keeps the audit gate red, blocking every release). **Condition to remove:** a
+Next.js or Payload release that fixes the naming — delete the setting and its guard
+(`tests/unit/nextConfigMinify.spec.ts`), rebuild, and `tests/http/apiErrorMessages.http.spec.ts` against the
+built app is the proof. Neither project has a fix as of 2026-10-08 (Next 16.4.0 and Payload 3.90.2 are both
+their latest); an upstream report is to be filed.
+
+**Scope of the defect.** Not every error is affected: Payload's other formatting branches (an error that carries
+`data`, a `ValidationError`, `Forbidden`/`NotFound` on the paths exercised) still produced real messages. What
+broke is an `APIError` thrown with no `data` — the guard messages this app relies on — and the generic
+"Something went wrong." fallback, plus name-keyed log levels.
 
 **Why this sat blocked.** The gate reads a live advisory database, so it can go red with no change on the
 branch; the only fix is to patch the dependency in its own PR, which is why #367 (generator re-pin) waited.
