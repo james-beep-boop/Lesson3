@@ -5,7 +5,6 @@
  * resourceLinks maps round-trip exactly, then compares all three generated documents to upstream.
  */
 import { readFileSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 
 import type { LessonBundleVersion } from '../src/payload-types'
@@ -13,42 +12,15 @@ import { bundleToAresData } from '../src/generator/adapter'
 import { generateBundleDocx } from '../src/generator/index'
 import { extractAresJson } from '../src/ingest/extract'
 import { rawToBundle } from '../src/ingest/toBundle'
+import { resolveFidelityFixture } from './lib/fidelityFixture'
 import { compareDoc, compareLessonSequencePackage } from './lib/docxDiff'
 import { withRowIds } from './lib/payloadRowIds'
 
-const JSON_PATH =
-  process.env.ARES_FIDELITY_JSON ??
-  path.join(
-    os.homedir(),
-    'Desktop',
-    'ares-json',
-    'physics__grade_10__ss_4_1__greenhouse_effect_and_climate_change.json',
-  )
-// ⚑ The JSON and the oracle DOCX must come from the SAME upstream commit — the one recorded in
-// `src/generator/vendor/PROVENANCE.md` — because upstream regenerates lesson prose continually. Check out
-// a clone at that SHA and point BOTH at it:
-//   ARES_FIDELITY_JSON=<clone>/data/outputs/v2/Physics/SS4.1_…/Physics_…_data.json
-//   ARES_FIDELITY_ORACLE_DIR=<clone>/data/outputs/v2/Physics/SS4.1_…
-const ORACLE_DIR =
-  process.env.ARES_FIDELITY_ORACLE_DIR ??
-  path.join(
-    os.homedir(),
-    'Documents',
-    'GitHub',
-    'cbe-generation-system',
-    'data',
-    'outputs',
-    'v2',
-    'Physics',
-    'SS4.1_Greenhouse_Effect_and_Climate_Change',
-  )
-
-const APPROVED = {
-  lessonSequence: 'Physics_Greenhouse_Effect_and_Climate_Change_CBE_LessonSequence.docx',
-  finalExplanation: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation.docx',
-  teacherKey: 'Physics_Greenhouse_Effect_and_Climate_Change_FinalExplanation_TeacherKey.docx',
-  summaryTable: 'Physics_Greenhouse_Effect_and_Climate_Change_SummaryTable.docx',
-} as const
+// Sub-strand selection and the same-commit rule live in `scripts/lib/fidelityFixture.ts`.
+const FIXTURE = resolveFidelityFixture()
+const JSON_PATH = FIXTURE.jsonPath
+const ORACLE_DIR = FIXTURE.oracleDir
+const APPROVED = FIXTURE.approved
 
 const approved = (file: string) => readFileSync(path.join(ORACLE_DIR, file))
 
@@ -79,7 +51,7 @@ async function main() {
   )
   const cleanShape = !/"id":/.test(JSON.stringify(data))
 
-  console.log('Payload adapter fidelity gate — Physics 4.1')
+  console.log(`Payload adapter fidelity gate — ${FIXTURE.label}`)
   console.log(`  ${roundTrip ? '✓' : '✗'} all resourceLinks maps round-trip exactly`)
   console.log(`  ${cleanShape ? '✓' : '✗'} Payload row ids removed`)
 

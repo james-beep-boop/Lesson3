@@ -6,7 +6,9 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 
+import { JSDOM } from 'jsdom'
 import JSZip from 'jszip'
+import mammoth from 'mammoth'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -527,5 +529,114 @@ describe('tables in the fields upstream added to richCell (b3743ff)', () => {
       expect(xml).toContain('(table below)')
       expect(rels).not.toContain('https://example.com/evidence')
     })
+  })
+})
+
+describe('where an extracted framework table lands (upstream f83db61)', () => {
+  // Counting tables and five-column spans does not show that the table sits directly under the RIGHT phase.
+  // These read the real rendered Section C (mammoth → DOM) and check row-by-row adjacency.
+  const FRAMEWORK = [
+    'learnerExperience',
+    'teacherMoves',
+    'sensemakingStrategy',
+    'formativeAssessment',
+  ] as const
+  const T = (tag: string) => `| ${tag} | Value |\n|---|---|\n| ${tag}-cell | 1 |`
+
+  /** A lesson whose phases carry `edits[phaseIndex][field] = text`; every other field is plain prose. */
+  const lessonWith = (
+    edits: Record<number, Partial<Record<(typeof FRAMEWORK)[number], string>>>,
+  ) => {
+    const l = lesson(1, 'Lesson one', links('A'))
+    l.framework = l.framework.map((ph, i) => ({ ...ph, ...(edits[i] ?? {}) }))
+    return data({ LESSONS: [l] })
+  }
+
+  /** Section C's own rows (outer table only), each as { label, cells[], nestedTables }. */
+  async function sectionC(d: AresDataObject) {
+    const buffer = await generateLessonSequenceDocx(d)
+    const html = (await mammoth.convertToHtml({ buffer })).value
+    const doc = new JSDOM(html).window.document
+    const table = [...doc.querySelectorAll('table')].find((t) =>
+      (t.rows[0]?.textContent ?? '').startsWith('C. LESSON IMPLEMENTATION FRAMEWORK'),
+    )
+    expect(table, 'Section C table').toBeTruthy()
+    return [...table!.rows].map((r) => ({
+      first: r.cells[0]?.textContent ?? '',
+      cellCount: r.cells.length,
+      cells: [...r.cells].map((c) => c.textContent ?? ''),
+      nested: r.cells[0] ? r.cells[0].querySelectorAll('table').length : 0,
+    }))
+  }
+  const phaseRowIndex = (rows: Awaited<ReturnType<typeof sectionC>>, phase: string) =>
+    rows.findIndex((r) => r.cellCount === 5 && r.first.startsWith(phase))
+
+  it('the table is the very next row after ITS phase, spans the whole width, and the phase cell points to it', async () => {
+    const rows = await sectionC(lessonWith({ 1: { teacherMoves: `Say this.\n${T('OBS')}` } }))
+    const i = phaseRowIndex(rows, PHASE_VALUES[1]!)
+    expect(i).toBeGreaterThan(-1)
+    expect(rows[i]!.cells[2]).toContain('Say this.')
+    expect(rows[i]!.cells[2]).toContain('(table below)')
+    expect(rows[i]!.cells[2]).not.toContain('OBS-cell') // the table left the column
+    const next = rows[i + 1]!
+    expect(next.cellCount).toBe(1) // one full-width cell …
+    expect(next.nested).toBe(1) // … holding exactly the one table
+    expect(next.first).toContain('OBS-cell')
+    // the following row is the next PHASE again, not another extracted row
+    expect(rows[i + 2]!.cellCount).toBe(5)
+    expect(rows[i + 2]!.first.startsWith(PHASE_VALUES[2]!)).toBe(true)
+  })
+
+  it('phases without a table get no extra row, and a neighbour is never the one that receives it', async () => {
+    const rows = await sectionC(lessonWith({ 2: { formativeAssessment: T('MID') } }))
+    for (const p of [0, 1, 3]) {
+      const i = phaseRowIndex(rows, PHASE_VALUES[p]!)
+      expect(i, PHASE_VALUES[p]).toBeGreaterThan(-1)
+      expect(rows[i + 1]!.cellCount, `${PHASE_VALUES[p]} is followed by a phase row`).toBe(5)
+      expect(rows[i]!.cells.join('|')).not.toContain('(table below)')
+    }
+    const i = phaseRowIndex(rows, PHASE_VALUES[2]!)
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.first).toContain('MID-cell')
+  })
+
+  it('two table-bearing fields in ONE phase share one row, each table kept, each cell pointing to it', async () => {
+    const rows = await sectionC(
+      lessonWith({
+        0: { learnerExperience: T('ALPHA'), formativeAssessment: `Check.\n${T('OMEGA')}` },
+      }),
+    )
+    const i = phaseRowIndex(rows, PHASE_VALUES[0]!)
+    expect(rows[i]!.cells[1]).toContain('(table below)')
+    expect(rows[i]!.cells[4]).toContain('(table below)')
+    expect(rows[i]!.cells[4]).toContain('Check.')
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.nested).toBe(2)
+    // upstream joins them in column order: learner experience first, formative assessment last
+    expect(rows[i + 1]!.first.indexOf('ALPHA-cell')).toBeGreaterThan(-1)
+    expect(rows[i + 1]!.first.indexOf('ALPHA-cell')).toBeLessThan(
+      rows[i + 1]!.first.indexOf('OMEGA-cell'),
+    )
+  })
+
+  it('two tables inside ONE field also stay in that phase’s single extra row', async () => {
+    const rows = await sectionC(
+      lessonWith({ 3: { sensemakingStrategy: `${T('ONE')}\nbetween\n${T('TWO')}` } }),
+    )
+    const i = phaseRowIndex(rows, PHASE_VALUES[3]!)
+    expect(rows[i]!.cells[3]).toContain('between')
+    expect((rows[i]!.cells[3].match(/\(table below\)/g) ?? []).length).toBe(2)
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.nested).toBe(2)
+  })
+
+  it('every framework field behaves the same (the field decides the column, never the row)', async () => {
+    for (const [col, field] of FRAMEWORK.entries()) {
+      const rows = await sectionC(lessonWith({ 0: { [field]: T('F') } }))
+      const i = phaseRowIndex(rows, PHASE_VALUES[0]!)
+      expect(rows[i]!.cells[col + 1], field).toContain('(table below)')
+      expect(rows[i + 1]!.cellCount, field).toBe(1)
+      expect(rows[i + 1]!.first, field).toContain('F-cell')
+    }
   })
 })

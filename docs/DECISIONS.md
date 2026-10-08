@@ -39,6 +39,16 @@ Essential Mathematics Indices and Mathematics Trigonometry I, which do (574-bloc
 upstream's committed DOCX). All 85 corpus plans preview and split into compare groups without error; exactly two
 get a `(table below)` pointer (Indices, Trigonometry I). Credit: Mark Knittel.
 
+**Tooling added in review.** `scripts/lib/fidelityFixture.ts` lets both gates take
+`ARES_FIDELITY_SUBSTRAND_DIR=<clone>/data/outputs/v2/<Subject>/<SSx.y_Name>` (filenames derived; the log names the
+sub-strand) instead of renaming files to look like Physics. `scripts/corpus-check.ts` is the retained whole-corpus
+check: it generates all four documents for every bundle, previews and compare-groups them, **fails** on a run of two
+or more unrendered pipe paragraphs and only **lists** lone pipe lines. Run on the 95-bundle `Lessons_New` it passes
+with exactly the two Quadratic header lines listed; pointed at the pre-`b3743ff` generator it reports the five
+assessments plus Indices and Trigonometry I as unrendered, so it can fail. Row-adjacency tests
+(`generatorUpgrade.spec.ts`) now prove an extracted table is the very next row after ITS phase, spans the width, and
+that two tables in one phase (or one field) share that single row.
+
 ---
 
 ## 2026-10-07 — Generator re-pinned to upstream `b3743ff`: tables in more fields, keep-with-next
