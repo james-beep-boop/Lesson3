@@ -29,7 +29,11 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 The latest published, installable release is **`v0.91`** (2026-10-07; both GHCR images, bundle and
 checksum verified) until the next tag workflow finishes. **`v0.90` is burned** — its tag, release and GHCR
-images were all removed on 2026-10-07; do not reuse the number. (Its release workflow's emulated
+images were all removed on 2026-10-07; do not reuse the number. (The orphaned `lesson3-migrate:v0.90` was
+deleted by hand by a package owner — the available GitHub token has no package scopes. It was one
+multi-architecture image, shown as four entries on the package page: the index, the amd64 and arm64
+images and two attestation manifests; afterwards `v0.89` and `v0.91` were re-checked and every manifest
+still resolves.) (Its release workflow's emulated
 `linux/arm64` `npm ci` hung until the 90-minute limit; `v0.91` took about 18 minutes. If a tag run hangs
 again, re-run it and consider shortening `timeout-minutes: 90` in `publish-containers.yml`.)
 
