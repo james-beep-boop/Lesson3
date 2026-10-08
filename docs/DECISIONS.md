@@ -11,6 +11,51 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-08 — Generator re-pinned to upstream `f83db61`: framework tables full-width; a lone `|` line is text
+
+**What changed.** The vendored generator moves from `b3743ff` to `f83db61` (Mark Knittel's answer to the
+cramped-table problem we reported on 2026-10-07; one commit, `sections.js` and `docx_kit.js` only).
+1. A table in a lesson-framework column is pulled out of the narrow cell (`stripTables`), a `(table below)`
+   pointer stays in the cell, and the table prints **full-width in a row of its own under the phase**.
+2. A table now needs **two or more consecutive pipe rows**; a lone `|x| = 3` line is maths and stays text.
+`GENERATOR_RENDER_VERSION` 8 → 9. The 2026-10-07 "known limit" (mid-word wrapping, Indices L2) is closed.
+
+**Lesson3 side.** `proseLinks.ts`'s `hasPipeTableRow` (any pipe line) became `hasPipeTable` (two consecutive),
+so the "table wins over a link" rule fires exactly when upstream renders a table: a field with only `|x| = 3`
+and a link is now hyperlinked, where the old test would have wrongly withheld the link. `vendorProvenance.spec`
+pins the new call shapes (`stripTables(ph[k])`, the two `< 2` guards, the `(table below)` pointer, two
+`richCell` calls in `sections.js`).
+
+**Trade-off, measured.** Across the 85 local plans there are four lone pipe lines. Two are real maths
+(`|displacement| = …` in Linear Motion, `|R| = …` in Vectors I): `b3743ff` drew each as a bogus one-row table;
+they are now text — a fix. Two are **header-only tables** in Quadratic Equations (`| Expression | a | b | c |`,
+a blank table for learners to fill in): `b3743ff` drew a one-row table; they now print as literal pipe text — a
+regression for those two lines. To be raised with Mark; fixing it means a header-only table must be written with
+its separator row (`|---|`) or upstream must special-case a header line. Not patched here (vendored code stays
+pristine).
+
+**Verified.** Both fidelity gates pass on Physics 4.1 and — because Physics has no framework table — also on
+Essential Mathematics Indices and Mathematics Trigonometry I, which do (574-block lesson plan content-identical to
+upstream's committed DOCX). All 85 corpus plans preview and split into compare groups without error; exactly two
+get a `(table below)` pointer (Indices, Trigonometry I). Credit: Mark Knittel.
+
+**Tooling added in review.** `scripts/lib/fidelityFixture.ts` lets both gates take
+`ARES_FIDELITY_SUBSTRAND_DIR=<clone>/data/outputs/v2/<Subject>/<SSx.y_Name>` (filenames derived; the log names the
+sub-strand) instead of renaming files to look like Physics. `scripts/corpus-check.ts` is the retained whole-corpus
+check: it generates all four documents for every bundle, previews and compare-groups them, **fails** on a run of two
+or more unrendered pipe paragraphs and only **lists** lone pipe lines. Run on the 95-bundle `Lessons_New` it passes
+with exactly the two Quadratic header lines listed; pointed at the pre-`b3743ff` generator it reports the five
+assessments plus Indices and Trigonometry I as unrendered, so it can fail. The checker fails closed — malformed JSON, an empty folder or a manifest-only
+folder exit non-zero (`tests/unit/corpusCheck.spec.ts`) — and its closing message separates "no unrendered
+multi-row table" from "N lone lines look like header-only tables", which a pass does not settle. Visual check
+(Gotenberg, not Word): Trigonometry I — pointer and table on the same page, table directly under its phase;
+Indices — pointer on one page and table at the top of the next (the extracted row paginates on its own);
+Quadratic Equations — the two header lines print as plain `| a | b |` text. Row-adjacency tests
+(`generatorUpgrade.spec.ts`) now prove an extracted table is the very next row after ITS phase, spans the width, and
+that two tables in one phase (or one field) share that single row.
+
+---
+
 ## 2026-10-08 — Production audit: Next.js 16.3.6 → 16.4.0 (six advisories)
 
 **Trigger.** `audit:prod` (`--omit=dev --audit-level=high`) went red on PR #367 with no code change on that

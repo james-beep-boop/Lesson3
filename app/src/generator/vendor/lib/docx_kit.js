@@ -5,7 +5,7 @@
  * All generators require this module.
  *
  * Exports: C, PHASE_COLOUR, FONT, SZ, SZ_H, SZ_T, W, SPACE
- *          para, mixedPara, bullet, cell, richCell, fullHeader, labelRow, makeTable
+ *          para, mixedPara, bullet, cell, richCell, stripTables, fullHeader, labelRow, makeTable
  */
 'use strict';
 
@@ -197,6 +197,8 @@ function richCell(text, opts) {
   };
   for (let i = 0; i < lines.length;) {
     if (!isPipeRow(lines[i])) { buf.push(lines[i]); i++; continue; }
+    let j = i; while (j < lines.length && isPipeRow(lines[j])) j++;
+    if (j - i < 2) { buf.push(lines[i]); i++; continue; }  // lone "|x| = 3" line is maths
     flushText();
     const rows = [];
     while (i < lines.length && isPipeRow(lines[i])) { if (!isSepRow(lines[i])) rows.push(lines[i]); i++; }
@@ -216,9 +218,26 @@ function richCell(text, opts) {
   return cell(children, opts);
 }
 
+// For narrow cells: pull pipe tables out of `text`. Returns [textWithoutTables, tablesText];
+// the text keeps a "(table below)" pointer where each table was.
+function stripTables(text) {
+  const lines = String(text || '').split('\n');
+  if (!lines.some(isPipeRow)) return [text || '', ''];
+  const kept = [], tabs = [];
+  for (let i = 0; i < lines.length;) {
+    if (!isPipeRow(lines[i])) { kept.push(lines[i]); i++; continue; }
+    const blk = [];
+    while (i < lines.length && isPipeRow(lines[i])) { blk.push(lines[i]); i++; }
+    if (blk.length < 2) { kept.push(...blk); continue; }   // a lone "|x| = 3" line is maths, not a table
+    kept.push('(table below)');
+    tabs.push(blk.join('\n'));
+  }
+  return [kept.join('\n'), tabs.join('\n\n')];
+}
+
 module.exports = {
   // Constants
   W, FONT, SZ, SZ_H, SZ_T, C, PHASE_COLOUR, SPACE, PAGE_BREAK,
   // Helpers
-  para, mixedPara, bullet, cell, richCell, fullHeader, labelRow, makeTable,
+  para, mixedPara, bullet, cell, richCell, stripTables, fullHeader, labelRow, makeTable,
 };

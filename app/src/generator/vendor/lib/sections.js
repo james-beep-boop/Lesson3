@@ -22,7 +22,7 @@
 const { TableRow } = require('docx');
 const {
   W, C, SZ, SZ_H, SZ_T, PHASE_COLOUR,
-  para, cell, richCell, fullHeader, labelRow, makeTable,
+  para, cell, richCell, stripTables, fullHeader, labelRow, makeTable,
 } = require('./docx_kit');
 
 // ARES integration. Not optional: this used to fall back to `() => ({})`,
@@ -188,14 +188,30 @@ function sectionC(lesson, config = {}) {
       cell('Sensemaking Strategy', { fill: C.teal,     bold: true, color: 'FFFFFF', w: cw[3], size: SZ }),
       cell(col5Label,              { fill: C.medBlue,  bold: true, color: 'FFFFFF', w: cw[4], size: SZ }),
     ]}),
-    ...lesson.framework.map(ph => new TableRow({ children: [
-      cell(phaseCell(ph),
-           { fill: PHASE_COLOUR[ph.phase] || C.grey, w: cw[0] }),
-      richCell(ph.learnerExperience, { fill: C.white, w: cw[1], size: SZ }),
-      richCell(ph.teacherMoves, { fill: C.grey,  w: cw[2], size: SZ }),
-      richCell(ph.sensemakingStrategy, { fill: C.white, w: cw[3], size: SZ }),
-      richCell(ph.formativeAssessment, { fill: C.grey,  w: cw[4], size: SZ }),
-    ]})),
+    ...lesson.framework.flatMap(ph => {
+      // Tables do not fit the narrow columns: keep a pointer in the cell and
+      // print the table full-width in a row of its own under the phase.
+      const cols = ['learnerExperience', 'teacherMoves', 'sensemakingStrategy', 'formativeAssessment'];
+      const txt = {}, tabs = [];
+      for (const k of cols) {
+        const [t2, tb] = stripTables(ph[k]);
+        txt[k] = t2;
+        if (tb) tabs.push(tb);
+      }
+      const rows = [new TableRow({ children: [
+        cell(phaseCell(ph), { fill: PHASE_COLOUR[ph.phase] || C.grey, w: cw[0] }),
+        cell(txt.learnerExperience,   { fill: C.white, w: cw[1], size: SZ }),
+        cell(txt.teacherMoves,        { fill: C.grey,  w: cw[2], size: SZ }),
+        cell(txt.sensemakingStrategy, { fill: C.white, w: cw[3], size: SZ }),
+        cell(txt.formativeAssessment, { fill: C.grey,  w: cw[4], size: SZ }),
+      ]})];
+      if (tabs.length) {
+        rows.push(new TableRow({ children: [
+          richCell(tabs.join('\n\n'), { fill: C.white, w: W, size: SZ, span: 5 }),
+        ]}));
+      }
+      return rows;
+    }),
   ], cw);
 }
 

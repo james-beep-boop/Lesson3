@@ -6,7 +6,9 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 
+import { JSDOM } from 'jsdom'
 import JSZip from 'jszip'
+import mammoth from 'mammoth'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -450,10 +452,191 @@ describe('tables in the fields upstream added to richCell (b3743ff)', () => {
     expect(rels).not.toContain('https://example.com/evidence')
   })
 
+  it.each(FRAMEWORK_KEYS)(
+    'lesson %s: the table prints full-width in a row under the phase, with a pointer left in the cell',
+    async (field) => {
+      const base = (await parts(await generateLessonSequenceDocx(withLessonField(field, 'Text.'))))
+        .xml
+      const xml = (
+        await parts(
+          await generateLessonSequenceDocx(withLessonField(field, `Intro.\n${PIPE_TABLE}`)),
+        )
+      ).xml
+      expect(xml).toContain('(table below)')
+      expect(xml).toContain('Intro.')
+      // upstream's extra row spans all five columns; the table is inside it, not in the narrow column
+      expect(count(xml, 'w:gridSpan w:val="5"')).toBe(count(base, 'w:gridSpan w:val="5"') + 1)
+      expect(count(xml, '<w:tbl>')).toBe(count(base, '<w:tbl>') + 1)
+      expect(count(base, '(table below)')).toBe(0)
+    },
+  )
+
+  it('lesson overview keeps its table in place (full-width already), with no pointer', async () => {
+    const xml = (
+      await parts(await generateLessonSequenceDocx(withLessonField('overview', PIPE_TABLE)))
+    ).xml
+    expect(xml).not.toContain('(table below)')
+    expect(xml).toContain('Pumps blood')
+  })
+
   it('lesson fields: a link with no table is still hyperlinked', async () => {
     for (const field of ['overview', ...FRAMEWORK_KEYS] as const) {
       const { rels } = await parts(await generateLessonSequenceDocx(withLessonField(field, LINK)))
       expect(rels, field).toContain('https://example.com/evidence')
+    }
+  })
+
+  describe('a lone pipe line is maths, not a table (upstream f83db61)', () => {
+    // `|x| = 3` is an absolute value. Upstream now needs TWO OR MORE consecutive pipe rows to call something a
+    // table, so one such line must neither become a table nor stop a link in the same field being a link.
+    const MATHS = 'Solve |x| = 3 on the board.\n|x| = 3 gives x = 3 or x = -3.'
+    const SPLIT = 'Row one\n|x| = 3\nRow three'
+
+    it.each(['overview', ...FRAMEWORK_KEYS] as const)(
+      'lesson %s: a lone |x| line is text and the field is still hyperlinked',
+      async (field) => {
+        const { xml, rels } = await parts(
+          await generateLessonSequenceDocx(withLessonField(field, `${SPLIT}\n${LINK}`)),
+        )
+        expect(xml).toContain('|x| = 3')
+        expect(xml).not.toContain('(table below)')
+        expect(rels).toContain('https://example.com/evidence')
+      },
+    )
+
+    it('instructions: a lone |x| line is text and the field is still hyperlinked', async () => {
+      const { xml, rels } = await parts(
+        await generateFinalExplanationDocx(withInstructions(`${SPLIT}\n${LINK}`)),
+      )
+      expect(xml).toContain('|x| = 3')
+      expect(rels).toContain('https://example.com/evidence')
+    })
+
+    it('a lone line that looks like a row never becomes a table', async () => {
+      const base = (
+        await parts(await generateLessonSequenceDocx(withLessonField('overview', 'Text.')))
+      ).xml
+      const xml = (
+        await parts(await generateLessonSequenceDocx(withLessonField('overview', MATHS)))
+      ).xml
+      expect(count(xml, '<w:tbl>')).toBe(count(base, '<w:tbl>'))
+    })
+
+    it('two consecutive pipe rows ARE a table, and still beat a link', async () => {
+      const { xml, rels } = await parts(
+        await generateLessonSequenceDocx(withLessonField('teacherMoves', `|a|b|\n|c|d|\n${LINK}`)),
+      )
+      expect(xml).toContain('(table below)')
+      expect(rels).not.toContain('https://example.com/evidence')
+    })
+  })
+})
+
+describe('where an extracted framework table lands (upstream f83db61)', () => {
+  // Counting tables and five-column spans does not show that the table sits directly under the RIGHT phase.
+  // These read the real rendered Section C (mammoth → DOM) and check row-by-row adjacency.
+  const FRAMEWORK = [
+    'learnerExperience',
+    'teacherMoves',
+    'sensemakingStrategy',
+    'formativeAssessment',
+  ] as const
+  const T = (tag: string) => `| ${tag} | Value |\n|---|---|\n| ${tag}-cell | 1 |`
+
+  /** A lesson whose phases carry `edits[phaseIndex][field] = text`; every other field is plain prose. */
+  const lessonWith = (
+    edits: Record<number, Partial<Record<(typeof FRAMEWORK)[number], string>>>,
+  ) => {
+    const l = lesson(1, 'Lesson one', links('A'))
+    l.framework = l.framework.map((ph, i) => ({ ...ph, ...(edits[i] ?? {}) }))
+    return data({ LESSONS: [l] })
+  }
+
+  /** Section C's own rows (outer table only), each as { label, cells[], nestedTables }. */
+  async function sectionC(d: AresDataObject) {
+    const buffer = await generateLessonSequenceDocx(d)
+    const html = (await mammoth.convertToHtml({ buffer })).value
+    const doc = new JSDOM(html).window.document
+    const table = [...doc.querySelectorAll('table')].find((t) =>
+      (t.rows[0]?.textContent ?? '').startsWith('C. LESSON IMPLEMENTATION FRAMEWORK'),
+    )
+    expect(table, 'Section C table').toBeTruthy()
+    return [...table!.rows].map((r) => ({
+      first: r.cells[0]?.textContent ?? '',
+      cellCount: r.cells.length,
+      cells: [...r.cells].map((c) => c.textContent ?? ''),
+      nested: r.cells[0] ? r.cells[0].querySelectorAll('table').length : 0,
+    }))
+  }
+  const phaseRowIndex = (rows: Awaited<ReturnType<typeof sectionC>>, phase: string) =>
+    rows.findIndex((r) => r.cellCount === 5 && r.first.startsWith(phase))
+
+  it('the table is the very next row after ITS phase, spans the whole width, and the phase cell points to it', async () => {
+    const rows = await sectionC(lessonWith({ 1: { teacherMoves: `Say this.\n${T('OBS')}` } }))
+    const i = phaseRowIndex(rows, PHASE_VALUES[1]!)
+    expect(i).toBeGreaterThan(-1)
+    expect(rows[i]!.cells[2]).toContain('Say this.')
+    expect(rows[i]!.cells[2]).toContain('(table below)')
+    expect(rows[i]!.cells[2]).not.toContain('OBS-cell') // the table left the column
+    const next = rows[i + 1]!
+    expect(next.cellCount).toBe(1) // one full-width cell …
+    expect(next.nested).toBe(1) // … holding exactly the one table
+    expect(next.first).toContain('OBS-cell')
+    // the following row is the next PHASE again, not another extracted row
+    expect(rows[i + 2]!.cellCount).toBe(5)
+    expect(rows[i + 2]!.first.startsWith(PHASE_VALUES[2]!)).toBe(true)
+  })
+
+  it('phases without a table get no extra row, and a neighbour is never the one that receives it', async () => {
+    const rows = await sectionC(lessonWith({ 2: { formativeAssessment: T('MID') } }))
+    for (const p of [0, 1, 3]) {
+      const i = phaseRowIndex(rows, PHASE_VALUES[p]!)
+      expect(i, PHASE_VALUES[p]).toBeGreaterThan(-1)
+      expect(rows[i + 1]!.cellCount, `${PHASE_VALUES[p]} is followed by a phase row`).toBe(5)
+      expect(rows[i]!.cells.join('|')).not.toContain('(table below)')
+    }
+    const i = phaseRowIndex(rows, PHASE_VALUES[2]!)
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.first).toContain('MID-cell')
+  })
+
+  it('two table-bearing fields in ONE phase share one row, each table kept, each cell pointing to it', async () => {
+    const rows = await sectionC(
+      lessonWith({
+        0: { learnerExperience: T('ALPHA'), formativeAssessment: `Check.\n${T('OMEGA')}` },
+      }),
+    )
+    const i = phaseRowIndex(rows, PHASE_VALUES[0]!)
+    expect(rows[i]!.cells[1]).toContain('(table below)')
+    expect(rows[i]!.cells[4]).toContain('(table below)')
+    expect(rows[i]!.cells[4]).toContain('Check.')
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.nested).toBe(2)
+    // upstream joins them in column order: learner experience first, formative assessment last
+    expect(rows[i + 1]!.first.indexOf('ALPHA-cell')).toBeGreaterThan(-1)
+    expect(rows[i + 1]!.first.indexOf('ALPHA-cell')).toBeLessThan(
+      rows[i + 1]!.first.indexOf('OMEGA-cell'),
+    )
+  })
+
+  it('two tables inside ONE field also stay in that phase’s single extra row', async () => {
+    const rows = await sectionC(
+      lessonWith({ 3: { sensemakingStrategy: `${T('ONE')}\nbetween\n${T('TWO')}` } }),
+    )
+    const i = phaseRowIndex(rows, PHASE_VALUES[3]!)
+    expect(rows[i]!.cells[3]).toContain('between')
+    expect((rows[i]!.cells[3].match(/\(table below\)/g) ?? []).length).toBe(2)
+    expect(rows[i + 1]!.cellCount).toBe(1)
+    expect(rows[i + 1]!.nested).toBe(2)
+  })
+
+  it('every framework field behaves the same (the field decides the column, never the row)', async () => {
+    for (const [col, field] of FRAMEWORK.entries()) {
+      const rows = await sectionC(lessonWith({ 0: { [field]: T('F') } }))
+      const i = phaseRowIndex(rows, PHASE_VALUES[0]!)
+      expect(rows[i]!.cells[col + 1], field).toContain('(table below)')
+      expect(rows[i + 1]!.cellCount, field).toBe(1)
+      expect(rows[i + 1]!.first, field).toContain('F-cell')
     }
   })
 })

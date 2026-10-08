@@ -118,12 +118,20 @@ export function linkifyProse(value: unknown, options: { bold?: boolean } = {}): 
 }
 
 /**
- * Upstream's own definition of a table row (`isPipeRow` in vendor/lib/docx_kit.js): a line whose
- * trimmed text begins with `|`. Kept identical on purpose — if the two ever disagree, a field is either
- * linkified when upstream would have rendered a table, or left alone when it would not.
+ * Upstream's own definition of a table (`isPipeRow` / `richCell` / `stripTables` in vendor/lib/docx_kit.js):
+ * TWO OR MORE consecutive lines whose trimmed text begins with `|`. A lone pipe line is maths (`|x| = 3`)
+ * and prints as ordinary text, so it must NOT suppress linkification. Kept identical on purpose — if the two
+ * ever disagree, a field is either linkified when upstream would have rendered a table, or left alone when
+ * it would not.
  */
-const hasPipeTableRow = (value: string): boolean =>
-  value.split('\n').some((line) => line.trim().startsWith('|'))
+const hasPipeTable = (value: string): boolean => {
+  let run = 0
+  for (const line of value.split('\n')) {
+    run = line.trim().startsWith('|') ? run + 1 : 0
+    if (run >= 2) return true
+  }
+  return false
+}
 
 /**
  * `linkifyProse` for the fields upstream renders through `richCell` — the ONLY fields in which a Markdown
@@ -131,7 +139,9 @@ const hasPipeTableRow = (value: string): boolean =>
  *   - Final Explanation `instructions`, `sections[].prompt` and `sections[].exemplar`;
  *   - lesson `overview`, and the four framework fields in `FRAMEWORK_PROSE`.
  * Keep this list, the call sites below, `lessonSequenceProseHyperlinkTargets`, and the guard in
- * `tests/unit/vendorProvenance.spec.ts` (which pins upstream's `richCell` call sites) in step.
+ * `tests/unit/vendorProvenance.spec.ts` (which pins upstream's `richCell`/`stripTables` call sites) in step.
+ * (Upstream prints a framework-column table full-width in its own row under the phase, with a
+ * "(table below)" pointer left in the cell; the rule here is the same for every table-capable field.)
  *
  * `richCell` parses a Markdown table out of a STRING; handed the
  * `Paragraph[]` that `linkifyProse` produces it sees no pipes at all and prints the table as raw
@@ -144,7 +154,7 @@ const hasPipeTableRow = (value: string): boolean =>
  * as before, as is every other prose field.
  */
 function linkifyTableCapableProse(value: unknown, options: { bold?: boolean } = {}): unknown {
-  if (typeof value === 'string' && hasPipeTableRow(value)) return value
+  if (typeof value === 'string' && hasPipeTable(value)) return value
   return linkifyProse(value, options)
 }
 
@@ -203,7 +213,7 @@ const hyperlinkTargetsIn = (value: unknown): string[] =>
 /** `hyperlinkTargetsIn` for a table-capable field: a field holding a table is not linkified (see
  *  `linkifyTableCapableProse`), so it contributes NO expected hyperlinks. */
 const hyperlinkTargetsInTableCapable = (value: unknown): string[] =>
-  typeof value === 'string' && hasPipeTableRow(value) ? [] : hyperlinkTargetsIn(value)
+  typeof value === 'string' && hasPipeTable(value) ? [] : hyperlinkTargetsIn(value)
 
 const hyperlinkTargetsInKeys = (
   value: unknown,

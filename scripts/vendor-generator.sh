@@ -70,5 +70,8 @@ echo
 echo "Done. Next steps:"
 echo "  1. Re-run the fidelity regression: (cd app && npx tsx scripts/fidelity-spike.ts)"
 echo "  2. Re-run the adapter regression: (cd app && npx tsx scripts/adapter-fidelity.ts)"
+echo "     Pick sub-strands that exercise what changed (Physics 4.1 has no framework table): set"
+echo "     ARES_FIDELITY_SUBSTRAND_DIR=<clone-at-the-pin>/data/outputs/v2/<Subject>/<SSx.y_Name> (see scripts/lib/fidelityFixture.ts)"
+echo "  2b. Render the WHOLE corpus: (cd app && ARES_CORPUS_DIR=<folder of bundle JSON> npx tsx scripts/corpus-check.ts)"
 echo "  3. Investigate every mismatch, then update PROVENANCE.md (SHA/date/checksums)."
 echo "     Create a mirror tag only when that separate upstream operation is approved."

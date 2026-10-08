@@ -10,6 +10,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 
 ## Unreleased
 
+### Documents
+
+- **Tables in lesson-plan columns are readable.** A Markdown table in one of the four lesson-framework columns
+  (learner experience, teacher moves, sensemaking, formative assessment) now prints full-width in a row of its
+  own under that phase, with "(table below)" left in the column, instead of squeezed into it. A single `|x| = 3`
+  line is now ordinary text, not a one-row table. Known gap: a one-line, header-only table (Quadratic
+  Equations, two places) prints literally. All cached documents are regenerated (render version 9). Upstream
+  generator `f83db61` (Mark Knittel). See DECISIONS 2026-10-08.
+
 ### Next.js security update
 
 - Next.js and its matching ESLint configuration move from 16.3.6 to 16.4.0, the upstream fix for six advisories
