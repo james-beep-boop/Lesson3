@@ -45,7 +45,12 @@ sub-strand) instead of renaming files to look like Physics. `scripts/corpus-chec
 check: it generates all four documents for every bundle, previews and compare-groups them, **fails** on a run of two
 or more unrendered pipe paragraphs and only **lists** lone pipe lines. Run on the 95-bundle `Lessons_New` it passes
 with exactly the two Quadratic header lines listed; pointed at the pre-`b3743ff` generator it reports the five
-assessments plus Indices and Trigonometry I as unrendered, so it can fail. Row-adjacency tests
+assessments plus Indices and Trigonometry I as unrendered, so it can fail. The checker fails closed — malformed JSON, an empty folder or a manifest-only
+folder exit non-zero (`tests/unit/corpusCheck.spec.ts`) — and its closing message separates "no unrendered
+multi-row table" from "N lone lines look like header-only tables", which a pass does not settle. Visual check
+(Gotenberg, not Word): Trigonometry I — pointer and table on the same page, table directly under its phase;
+Indices — pointer on one page and table at the top of the next (the extracted row paginates on its own);
+Quadratic Equations — the two header lines print as plain `| a | b |` text. Row-adjacency tests
 (`generatorUpgrade.spec.ts`) now prove an extracted table is the very next row after ITS phase, spans the width, and
 that two tables in one phase (or one field) share that single row.
 

@@ -8,9 +8,13 @@
  *   ARES_CORPUS_DIR=~/Desktop/ares-json npx tsx scripts/corpus-check.ts
  *
  * FAILS (exit 1) when
+ *   - the folder cannot be read, or any `.json` in it is MALFORMED (a truncated or corrupt bundle is a
+ *     defect, never something to skip); or
+ *   - NO bundle was checked (an empty folder, or one holding only manifests, must not look like success); or
  *   - any bundle fails to generate, preview, or group for compare; or
  *   - a document prints a RUN OF TWO OR MORE consecutive `|` paragraphs inside one cell — a Markdown table that
  *     did not render (this is exactly what the old link adapter produced, and what the 2026-10 re-pins fixed).
+ * SKIPPED, and counted in the summary: valid JSON that is not a bundle (a manifest, a quiz file).
  * REPORTS, without failing:
  *   - lone `|` lines — usually maths (`|x| = 3`), but a header-only table (one row, no separator) prints the
  *     same way, so each is listed to be read by a person;
@@ -77,12 +81,12 @@ async function main() {
     let raw: Partial<AresDataObject>
     try {
       raw = JSON.parse(readFileSync(path.join(DIR, file), 'utf8'))
-    } catch {
-      skipped++
+    } catch (error) {
+      failures.push(`${file} is not valid JSON: ${(error as Error).message.split('\n')[0]}`)
       continue
     }
-    if (!raw.META || !raw.LESSONS) {
-      skipped++ // a manifest or other non-bundle JSON
+    if (typeof raw !== 'object' || raw === null || !raw.META || !raw.LESSONS) {
+      skipped++ // valid JSON that is not a bundle: a manifest, a quiz file
       continue
     }
     try {
@@ -111,8 +115,18 @@ async function main() {
     }
   }
 
+  if (checked === 0) {
+    failures.push(
+      `no bundle was checked in ${DIR} (${files.length} .json file(s), ${skipped} skipped as non-bundle)`,
+    )
+  }
+
+  // A lone `|` line is either maths (`|x| = 3`) or a header-only table. Three or more pipes is the shape of a
+  // header row, so those are the ones a person must decide on; the rest are almost certainly maths.
+  const headerLike = lone.filter((l) => (l.match(/\|/g) ?? []).length >= 4)
+
   console.log(`corpus: ${DIR}`)
-  console.log(`bundles checked: ${checked}  (non-bundle JSON skipped: ${skipped})`)
+  console.log(`bundles checked: ${checked}  (valid JSON skipped as not a bundle: ${skipped})`)
   console.log(
     `framework tables extracted to a full-width row: ${pointers} in ${withPointers} bundle(s)`,
   )
@@ -125,7 +139,18 @@ async function main() {
     for (const f of failures) console.log(`  ${f}`)
     process.exit(1)
   }
-  console.log('\n✓ every bundle generated, previewed and grouped; no unrendered tables')
+  console.log(
+    `\n✓ ${checked} bundle(s) generated, previewed and grouped; no unrendered multi-row table`,
+  )
+  if (headerLike.length) {
+    console.log(
+      `⚠ ${headerLike.length} lone line(s) look like header-only tables and print literally — NOT a pass for those;\n` +
+        '  fix the source (add a `|---|` separator row), get upstream to handle it, or accept it in DECISIONS.',
+    )
+  }
 }
 
-void main()
+main().catch((error) => {
+  console.error(`corpus-check could not run: ${(error as Error).message}`)
+  process.exit(1)
+})
