@@ -30,6 +30,24 @@ refactors and no breaking change. The lockfile also moves one transitive patch (
 lint and 1211 unit tests pass; the production `runner` image builds and contains `next` 16.4.0. The
 full gate (integration, wire-level HTTP and browser e2e against the built app) is the acceptance proof.
 
+**What the full gate found (the unit tests could not).** Three Manage-page browser tests failed on the 16.4.0
+build: a guard's own message ("N lesson plan(s) still use this subject grade", the duplicate-grade text) reached
+the page as "An unknown error occurred.". Cause, confirmed in the built chunk: the 16.4.0 production Turbopack
+build exports Payload's error classes as ANONYMOUS class expressions (`a.s(["f",0,class extends d{…}])`), so
+`this.constructor.name` — which Payload uses to set every error's `name` — is `''`; Payload's `formatErrors`
+trusts only a non-empty `name`, so every thrown `APIError` serialised as the generic message (the server log
+showed `"type":""`), and its name-keyed `loggingLevels` stopped applying. Dev, `next dev` and all unit/integration
+tests run unbundled classes and cannot see it. No newer Next release exists and no upstream report was found.
+
+**Fix chosen.** `src/lib/restoreErrorClassNames.ts`, called from `payload.config.ts` before `buildConfig`, names
+any anonymous Error subclass exported by `payload` after its export key (a named class is left alone, so it
+becomes a no-op on a Next release that fixes the naming and can then be deleted). Rejected:
+`experimental.turbopackMinify: false` restores the names but grows client JavaScript from ~824 KB to ~1523 KB
+gzipped (raw 3.3 → 8.1 MB) and the server bundle from 21 MB to 54 MB — a real cost on a school network.
+Rejected: holding at 16.3.6 (leaves six advisories). Pinned by `tests/unit/restoreErrorClassNames.spec.ts` and,
+over the wire against the production build, `tests/http/apiErrorMessages.http.spec.ts` — the 409 guard test
+fails on the unfixed 16.4.0 app and passes with the fix; the three browser tests pass with it.
+
 **Why this sat blocked.** The gate reads a live advisory database, so it can go red with no change on the
 branch; the only fix is to patch the dependency in its own PR, which is why #367 (generator re-pin) waited.
 
