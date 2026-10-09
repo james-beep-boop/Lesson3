@@ -39,6 +39,31 @@ Each holder now performs the competing write, uncommitted: a concurrent reply (i
 duplicate `seq`, or a NOT NULL violation on delete. All seven 3a guards were mutation-tested one at a
 time, and each turned exactly its own test red.
 
+**GPT review of 3a, before merge: four defects and three tightenings, all fixed.**
+1. **A deadlock between replying and account deletion.** A reply locked the topic, then its author
+   foreign key took the user row. Account deletion locks the user row, then `ON DELETE SET NULL` updates the
+   topics that user authored. GPT reproduced the 40P01. The fix is a consistent order, user then topic: the
+   reply takes `FOR KEY SHARE` on its author before the topic `UPDATE`. The regression test runs through the
+   real application paths (a thread author replies while their account is deleted), and the old order fails
+   it with Postgres's deadlock abort. **Rule: lock order is user, then topic, for every transaction that
+   touches both.**
+2. **Activity could move backwards.** `now()` is the transaction's start time, so an earlier-started reply
+   could take the higher `seq` with an older `lastActivityAt`. Now
+   `GREATEST(last_activity_at, clock_timestamp())`, pinned by a test whose concurrent reply stamps a later time.
+3. **The immutability guard confused objects with text.** It normalised every value as a possible
+   relationship, so body `"12"` → `{ id: 12 }` passed. Scalar fields now compare strictly, and relationship
+   fields compare by id, where anything that is not an id counts as a change.
+4. **The down migration could never complete.** Payload generated it with `DROP TABLE … CASCADE` before the
+   `DROP CONSTRAINT`s on `payload_locked_documents_rels`. It was reordered and verified up → down → up on a
+   disposable database, with the migration isolated in its own batch.
+5. **`relId` accepted non-ids.** It now accepts only integers from 1 to 2³¹−1, so NaN, Infinity, fractions
+   and digit strings that overflow are refused.
+6. **`findReadableVersion` with `select`** is typed as the projection (`TransformCollectionWithSelect`).
+7. **The delete endpoint** refuses to run unless it owns its transaction, so its post-commit log is always
+   true.
+
+The mutation set grew to nine guards, and each one turns its own test red.
+
 **`/simplify` review of 3a.** The fixes it led to were re-verified, and all seven mutations were re-run on
 the reworked code:
 - **The account-deletion lock moved to its root.** `lockDeletingUser` runs first in `Users.beforeDelete`.

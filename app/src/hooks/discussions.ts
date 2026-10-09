@@ -176,7 +176,7 @@ export const stampReplyCreate: CollectionBeforeValidateHook = async ({ data, ope
  * Number the reply within its thread and advance the thread's activity — ONE statement
  * (§16.4 "Ordering"):
  *
- *   UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = now() … RETURNING last_seq
+ *   UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = … RETURNING last_seq
  *
  * The UPDATE takes the topic's row lock, so replies to one topic are serialised, and a reply racing a
  * thread deletion either commits first (and is cascaded) or finds no topic and fails cleanly. The value it
@@ -188,6 +188,21 @@ export const stampReplyCreate: CollectionBeforeValidateHook = async ({ data, ope
  * reply. The statement touches only system fields, never content, so it needs nothing from
  * `rejectContentEdits`.
  *
+ * ⚑ LOCK ORDER: THE AUTHOR'S USER ROW FIRST, THEN THE TOPIC (review 2026-10-09). The reply's author
+ * foreign key takes `FOR KEY SHARE` on the user row. Taken after the topic lock, that formed a cycle with
+ * account deletion, which locks the user row (`lockDeletingUser`) and then, through `ON DELETE SET NULL`,
+ * updates every topic the user authored: reply held topic → wanted user; deletion held user → wanted
+ * topic; Postgres aborted one with 40P01. Taking the user row first puts both in the same order — user,
+ * then topic — and a reply by an account already being deleted waits for it, finds the account gone, and
+ * is refused. The rule is general: any transaction that locks a topic and then writes a reference to a
+ * user must take that user's row first (3b's redaction stamps `redactedBy`).
+ *
+ * ⚑ ACTIVITY NEVER MOVES BACKWARDS (review 2026-10-09). `now()` is the TRANSACTION's start time, so a reply
+ * whose transaction began earlier but reached this statement later wrote an older `lastActivityAt` than
+ * the reply before it, while taking the higher `seq`. `clock_timestamp()` is the time this statement runs,
+ * and `GREATEST` with the stored value also absorbs any skew from the app server's clock, which stamps a
+ * new topic's first `lastActivityAt`.
+ *
  * `joinedAtSeq` is checked against the PREVIOUS `lastSeq` (`seq - 1`): it can never legitimately exceed
  * it, because `lastSeq` only grows, so a larger value can only be forged.
  */
@@ -195,12 +210,22 @@ export const orderReply: CollectionBeforeChangeHook = async ({ data, operation, 
   if (operation !== 'create') return data
   const topicId = relId(data.topic)
   if (topicId == null) throw new APIError('A reply needs a discussion.', 400)
-
   const db = await txDb(req, { requireTransaction: true })
+
+  const authorId = relId(data.author)
+  if (authorId != null) {
+    const [author] = rowsOf(
+      await db.execute(sql`SELECT "id" FROM "users" WHERE "id" = ${authorId} FOR KEY SHARE`),
+    )
+    if (!author) throw new APIError('This account is no longer available.', 403)
+  }
+
   const [row] = rowsOf(
     await db.execute(sql`
       UPDATE "discussion_topics"
-         SET "last_seq" = COALESCE("last_seq", 0) + 1, "last_activity_at" = now(), "updated_at" = now()
+         SET "last_seq" = COALESCE("last_seq", 0) + 1,
+             "last_activity_at" = GREATEST(COALESCE("last_activity_at", '-infinity'), clock_timestamp()),
+             "updated_at" = clock_timestamp()
        WHERE "id" = ${topicId}
       RETURNING "last_seq"`),
   )
@@ -236,14 +261,11 @@ export const joinReplyAuthor: CollectionAfterChangeHook = async ({ data, doc, op
 
 // ─── Immutability ──────────────────────────────────────────────────────────────────────────────────
 
-/**
- * Compare-ready form of a stored value. A populated relationship collapses to its id; everything else
- * is compared as its exact string, so a title `"007"` never equals `"7"`.
- */
-const normalise = (value: unknown): string | null => {
+/** A relationship value collapses to its id; anything that is not a valid id stays distinct. */
+const INVALID = Symbol('not an id')
+const asRelationship = (value: unknown): number | null | typeof INVALID => {
   if (value == null) return null
-  if (typeof value === 'object') return String(relId(value))
-  return String(value)
+  return relId(value) ?? INVALID
 }
 
 /**
@@ -253,20 +275,42 @@ const normalise = (value: unknown): string | null => {
  * that legitimately update these rows (pin and redaction, in 3b) run with `overrideAccess: true`, which
  * bypasses FIELD access too (DECISIONS 2026-08-21). This hook is what keeps a trusted-path write from
  * changing what someone posted.
+ *
+ * ⚑ TWO KINDS OF FIELD, compared differently (review 2026-10-09). The first version normalised every
+ * value as a possible relationship, so a body `"12"` "equalled" `{ id: 12 }`, and `"null"` equalled any
+ * object without an id. Now:
+ *   - `scalar` fields (text, numbers) compare by strict identity — an object never equals a string;
+ *   - `relationships` compare by id, where `{ id: 12 }`, `12` and `"12"` are the same reference, and a
+ *     value that is not an id at all is itself a change, never "equal to nothing".
  */
 export const rejectContentEdits =
-  (fields: readonly string[]): CollectionBeforeChangeHook =>
+  (fields: {
+    scalar: readonly string[]
+    relationships: readonly string[]
+  }): CollectionBeforeChangeHook =>
   ({ data, operation, originalDoc }) => {
     if (operation !== 'update' || !data) return data
-    for (const field of fields) {
-      if (field in data && normalise(data[field]) !== normalise(originalDoc?.[field])) {
-        throw new APIError('Published discussions cannot be edited.', 403)
-      }
-    }
+    const changed =
+      fields.scalar.some(
+        (field) => field in data && (data[field] ?? null) !== (originalDoc?.[field] ?? null),
+      ) ||
+      fields.relationships.some((field) => {
+        if (!(field in data)) return false
+        const next = asRelationship(data[field])
+        return next === INVALID || next !== asRelationship(originalDoc?.[field])
+      })
+    if (changed) throw new APIError('Published discussions cannot be edited.', 403)
     return data
   }
 
 /** Content every post has; the topic adds its title, a reply its thread and position. */
-const POST_CONTENT_FIELDS = ['body', 'author', 'submissionKey', 'refVersion', 'refPlan', 'refLabel']
-export const TOPIC_CONTENT_FIELDS = ['title', ...POST_CONTENT_FIELDS]
-export const REPLY_CONTENT_FIELDS = ['topic', 'seq', ...POST_CONTENT_FIELDS]
+const POST_SCALARS = ['body', 'submissionKey', 'refLabel']
+const POST_RELATIONSHIPS = ['author', 'refVersion', 'refPlan']
+export const TOPIC_CONTENT_FIELDS = {
+  scalar: ['title', ...POST_SCALARS],
+  relationships: POST_RELATIONSHIPS,
+}
+export const REPLY_CONTENT_FIELDS = {
+  scalar: ['seq', ...POST_SCALARS],
+  relationships: ['topic', ...POST_RELATIONSHIPS],
+}

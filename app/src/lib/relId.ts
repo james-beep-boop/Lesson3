@@ -11,10 +11,22 @@
  * and made equality checks against numeric ids fail. Only `^\d+$` qualifies — `" 12 "`, `"1e1"` and
  * `"0x0c"` are not ids, and an `{ id }` that is not one yields null rather than NaN.
  */
+/** Every id in this schema is a Postgres `serial` — an `integer` from 1 to 2³¹−1. */
+const MAX_ID = 2_147_483_647
+
+/**
+ * ⚑ VALIDATED, not just converted (review 2026-10-09). A number must be a positive integer in the id
+ * range — NaN, ±Infinity, fractions, 0 and negatives are not ids — and a digit string must convert to one:
+ * a long enough run of digits converts to Infinity, or to an unsafe integer that names a different row.
+ */
 const fromId = (value: unknown): number | null => {
-  if (typeof value === 'number') return value
-  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value)
-  return null
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^\d+$/.test(value)
+        ? Number(value)
+        : NaN
+  return Number.isInteger(n) && n >= 1 && n <= MAX_ID ? n : null
 }
 
 export const relId = (value: unknown): number | null => {

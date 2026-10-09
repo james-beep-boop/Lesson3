@@ -742,8 +742,14 @@ native-Payload approach of sections 13–14.
   already redacted, and only when the redact endpoint has set a server-side `req.context` marker for that row id
   and part. REST clients cannot set `req.context`.
 - **Ordering, in one transaction.** Reply creation runs (as built in 3a):
-  1. one `UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = now() … RETURNING last_seq`,
-     which takes the topic's row lock, assigns this reply's `seq` and advances activity in a single statement;
+  0. `FOR KEY SHARE` on the author's user row. ⚑ **Lock order is user, then topic**, the same order account
+     deletion uses (`lockDeletingUser`, then `ON DELETE SET NULL` on the topics the user authored). The reverse
+     order deadlocked (40P01). Any transaction that locks a topic and then writes a user reference takes that
+     user's row first; this includes 3b's redaction, which stamps `redactedBy`;
+  1. one `UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = GREATEST(last_activity_at,
+     clock_timestamp()) … RETURNING last_seq`, which takes the topic's row lock, assigns this reply's `seq` and
+     advances activity in a single statement. `clock_timestamp()`, not `now()`: `now()` is the transaction's
+     start time and let activity move backwards;
   2. the reply insert;
   3. upsert the author's participation.
 

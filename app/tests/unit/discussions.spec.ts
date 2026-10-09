@@ -111,25 +111,65 @@ describe('refLabelFor', () => {
 })
 
 describe('rejectContentEdits', () => {
-  const guard = rejectContentEdits(['title', 'author']) as (a: {
+  const guard = rejectContentEdits({
+    scalar: ['title', 'body', 'seq'],
+    relationships: ['author'],
+  }) as (a: {
     data: Record<string, unknown>
     operation: string
     originalDoc: Record<string, unknown>
   }) => unknown
-  const original = { title: '007', author: 5, lastSeq: 2 }
+  const original = { title: '007', body: '12', seq: 3, author: 5, lastSeq: 2 }
 
-  it('allows system fields and unchanged content', () => {
-    const data = { title: '007', author: { id: 5 }, lastSeq: 3 }
-    expect(guard({ data, operation: 'update', originalDoc: original })).toBe(data)
+  it('allows system fields, unchanged content, and the same reference in another shape', () => {
+    for (const data of [
+      { title: '007', author: { id: 5 }, lastSeq: 3 },
+      { author: '5' },
+      { seq: 3, body: '12' },
+    ]) {
+      expect(
+        guard({ data, operation: 'update', originalDoc: original }),
+        JSON.stringify(data),
+      ).toBe(data)
+    }
   })
 
-  it('refuses a changed title — including "007" → "7" — and a changed author', () => {
-    for (const data of [{ title: '7' }, { title: 'Other' }, { author: 6 }, { author: null }]) {
+  it('refuses changed text — including "007" → "7" — and any object in a text field', () => {
+    for (const data of [
+      { title: '7' },
+      { title: 'Other' },
+      { body: { id: 12 } },
+      { body: 12 },
+      { title: { unexpected: 'changed' } },
+      { seq: '3' },
+    ]) {
       expect(
         () => guard({ data, operation: 'update', originalDoc: original }),
         JSON.stringify(data),
       ).toThrow(/cannot be edited/)
     }
+  })
+
+  it('refuses a changed reference, and a value that is not a reference at all', () => {
+    for (const data of [
+      { author: 6 },
+      { author: null },
+      { author: { unexpected: 'x' } },
+      { author: 'abc' },
+    ]) {
+      expect(
+        () => guard({ data, operation: 'update', originalDoc: original }),
+        JSON.stringify(data),
+      ).toThrow(/cannot be edited/)
+    }
+    // A non-reference is refused even where the stored value is null.
+    expect(() =>
+      guard({
+        data: { author: { unexpected: 'x' } },
+        operation: 'update',
+        originalDoc: { author: null },
+      }),
+    ).toThrow(/cannot be edited/)
   })
 
   it('does not apply on create', () => {

@@ -27,7 +27,7 @@ import {
   type RoleFixture,
 } from '../helpers/fixtures.js'
 import { clearRateLimitBuckets, drizzleOf, rowsOf } from '../helpers/db.js'
-import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
+import { stillPendingAfterWindow, whileLockHeld, whileRowLocked } from '../helpers/rowLocks.js'
 import type { DiscussionTopic, LessonBundleVersion, User } from '../../src/payload-types.js'
 
 let fx: RoleFixture
@@ -274,6 +274,73 @@ describe('replying', () => {
     expect(blocked, 'the reply must block on the topic row').toBe(true)
     expect((await replying).seq).toBe(2)
     expect((await topicById(topic.id)).lastSeq).toBe(2)
+  }, 30_000)
+})
+
+describe('replying while others write (review 2026-10-09)', () => {
+  /**
+   * ⚑ THE DEADLOCK REGRESSION, through the real application paths. The thread's author replies to their
+   * own thread while their account is being deleted.
+   *
+   * The test holds the topic row, so the reply is parked mid-flight. Then the account deletion starts.
+   *   - FIXED ORDER (author's user row, then topic): the parked reply already holds `FOR KEY SHARE` on the
+   *     user, so the deletion's `lockDeletingUser` queues behind it. Releasing the topic lets the reply
+   *     commit, then the deletion — both succeed.
+   *   - OLD ORDER (topic, then user): the reply holds nothing on the user while parked, so the deletion
+   *     locks the user and reaches `ON DELETE SET NULL` on this topic. When the topic is released the reply
+   *     takes it and then wants the user — a cycle, which Postgres breaks by aborting one with 40P01.
+   */
+  it('a thread author’s reply and account deletion both finish — no deadlock', async () => {
+    const author = await markedUser('author-departing')
+    const topic = await createTopic(author)
+    let replying!: Promise<unknown>
+    let deleting!: Promise<unknown>
+    let replyParked = false
+    let deletionWaits = false
+    await whileRowLocked(fx.payload, 'discussion_topics', topic.id, async () => {
+      replying = createReply(author, topic.id)
+      replyParked = await stillPendingAfterWindow(replying)
+      deleting = fx.payload.delete({ collection: 'users', id: author.id, overrideAccess: true })
+      deletionWaits = await stillPendingAfterWindow(deleting)
+    })
+    expect(replyParked, 'precondition: the reply is parked on the topic').toBe(true)
+    expect(deletionWaits, 'precondition: the deletion is waiting too').toBe(true)
+    // Neither may fail — a 40P01 here is the cycle.
+    await expect(replying).resolves.toBeTruthy()
+    await expect(deleting).resolves.toBeTruthy()
+    // The thread and its reply survive the account, with the author cleared.
+    const after = await topicById(topic.id)
+    expect(after.author ?? null).toBeNull()
+    expect(after.lastSeq).toBe(1)
+    await clearRateLimitBuckets(fx.payload, `discussionPost:${author.id}`)
+  }, 30_000)
+
+  /**
+   * ⚑ ACTIVITY NEVER MOVES BACKWARDS. The holder is an in-flight reply that stamps a LATER activity time
+   * than our reply's transaction began. `now()` (transaction start) would write our older time over it;
+   * the fixed statement keeps the greater of the two.
+   */
+  it('a reply that finishes after a later one never moves activity backwards', async () => {
+    const topic = await createTopic(fx.users.teacher)
+    const later = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    let replying!: Promise<unknown>
+    await whileLockHeld(
+      fx.payload,
+      sql`WITH bumped AS (
+            UPDATE discussion_topics SET last_seq = 1, last_activity_at = ${later}
+             WHERE id = ${topic.id} RETURNING id
+          )
+          INSERT INTO discussion_replies (topic_id, seq, body, updated_at, created_at)
+          SELECT id, 1, 'Later reply', now(), now() FROM bumped`,
+      async () => {
+        replying = createReply(fx.users.editor, topic.id)
+        expect(await stillPendingAfterWindow(replying)).toBe(true)
+      },
+    )
+    await replying
+    const after = await topicById(topic.id)
+    expect(after.lastSeq).toBe(2)
+    expect(Date.parse(after.lastActivityAt!)).toBeGreaterThanOrEqual(Date.parse(later))
   }, 30_000)
 })
 

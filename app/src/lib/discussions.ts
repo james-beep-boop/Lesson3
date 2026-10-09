@@ -11,7 +11,7 @@ import { APIError, type Access, type Field, type PayloadRequest, type Validate }
 
 import { isSiteAdmin } from '../access'
 import { systemOnly } from '../access/bundle'
-import type { LessonBundleVersion, User } from '../payload-types'
+import type { User } from '../payload-types'
 import { lessonDisplayName } from './substrand'
 import { isForumEnabled } from './systemFlags'
 import { txDb } from './txDb'
@@ -149,9 +149,11 @@ export const postFields = (): Field[] => [
  * The snapshot label a reference keeps after its version is deleted: `<lesson name> · v<semver>`
  * (§16.2). Lesson names are readable by every signed-in user, so the snapshot discloses nothing new.
  */
-export const refLabelFor = (
-  version: Pick<LessonBundleVersion, 'meta' | 'title' | 'semver'>,
-): string =>
+export const refLabelFor = (version: {
+  meta?: { substrand_name?: string | null } | null
+  title?: string | null
+  semver?: string | null
+}): string =>
   `${lessonDisplayName(version.meta?.substrand_name, version.title)} · v${version.semver ?? '?'}`
 
 // ─── Participation ─────────────────────────────────────────────────────────────────────────────────

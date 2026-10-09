@@ -39,7 +39,15 @@ export const deleteThreadEndpoint: Endpoint = {
     if (topicId == null) throw new APIError('Missing discussion id', 400)
 
     let replyCount: number
+    // ⚑ This endpoint must OWN its transaction: the log below claims a committed deletion, which is only
+    // true if the commit is ours. Payload gives a REST endpoint a fresh request, so this never fires in
+    // practice; if a caller ever ran it inside an existing transaction, refusing beats a false log line.
     const shouldCommit = await initTransaction(req)
+    if (!shouldCommit) {
+      throw new Error(
+        'discussion thread delete must own its transaction; refusing to run inside another',
+      )
+    }
     try {
       // Lock first, so the reply count read below cannot be overtaken by a reply before the delete.
       await lockRows(req, 'discussion_topics', [topicId])
@@ -61,7 +69,7 @@ export const deleteThreadEndpoint: Endpoint = {
         overrideAccess: true,
         req,
       })
-      if (shouldCommit) await commitTransaction(req)
+      await commitTransaction(req)
     } catch (e) {
       await killTransaction(req)
       throw e

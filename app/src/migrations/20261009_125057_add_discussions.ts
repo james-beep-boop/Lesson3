@@ -111,24 +111,25 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "payload_locked_documents_rels_discussion_participation_i_idx" ON "payload_locked_documents_rels" USING btree ("discussion_participation_id");`)
 }
 
+/**
+ * ⚑ REORDERED BY HAND. Payload generated this down migration with the tables dropped FIRST: `DROP TABLE
+ * … CASCADE` then removed the `payload_locked_documents_rels` foreign keys pointing at them, and the
+ * explicit `DROP CONSTRAINT`s that followed failed because those constraints no longer existed — so a
+ * rollback could never complete (found in review, 2026-10-09; verified up → down → up on a disposable
+ * database). The references are removed first now, then the tables.
+ */
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "discussion_topics" DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE "discussion_replies" DISABLE ROW LEVEL SECURITY;
-  ALTER TABLE "discussion_participation" DISABLE ROW LEVEL SECURITY;
-  DROP TABLE "discussion_topics" CASCADE;
-  DROP TABLE "discussion_replies" CASCADE;
-  DROP TABLE "discussion_participation" CASCADE;
-  ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_topics_fk";
-  
+   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_topics_fk";
   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_replies_fk";
-  
   ALTER TABLE "payload_locked_documents_rels" DROP CONSTRAINT "payload_locked_documents_rels_discussion_participation_fk";
-  
   DROP INDEX "payload_locked_documents_rels_discussion_topics_id_idx";
   DROP INDEX "payload_locked_documents_rels_discussion_replies_id_idx";
   DROP INDEX "payload_locked_documents_rels_discussion_participation_i_idx";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_topics_id";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_replies_id";
-  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_participation_id";`)
+  ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "discussion_participation_id";
+  DROP TABLE "discussion_participation";
+  DROP TABLE "discussion_replies";
+  DROP TABLE "discussion_topics";`)
 }

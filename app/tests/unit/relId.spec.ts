@@ -10,7 +10,9 @@ import { describe, expect, it } from 'vitest'
 import { relId } from '../../src/lib/relId.js'
 
 describe('relId', () => {
-  it('reads numbers, digit strings and populated objects', () => {
+  it('reads numbers, digit strings and populated objects — up to the integer id range', () => {
+    expect(relId(2_147_483_647)).toBe(2_147_483_647)
+    expect(relId('2147483647')).toBe(2_147_483_647)
     expect(relId(12)).toBe(12)
     expect(relId('12')).toBe(12)
     expect(relId({ id: 12 })).toBe(12)
@@ -31,6 +33,17 @@ describe('relId', () => {
       {},
       { id: 'x' },
       [],
+      // Numbers that are not ids, and digit strings that do not convert to one.
+      Number.NaN,
+      Infinity,
+      -Infinity,
+      1.5,
+      0,
+      -3,
+      2_147_483_648,
+      '2147483648',
+      '9'.repeat(400),
+      { id: Infinity },
     ]) {
       expect(relId(value), JSON.stringify(value)).toBeNull()
     }
