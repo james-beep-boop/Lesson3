@@ -56,6 +56,18 @@ Design details:
    correct." would have told a locked-out administrator typing the right password that it was wrong.
    The error is now matched by class (`AuthenticationError`).
 
+**Two more, found by a GPT audit after #373 merged (landed as a follow-up PR):**
+
+4. **An authorization check is a snapshot, and a slow path outlives it.** The Save authorized `req.user`
+   at the start, then spent ~100 ms re-authenticating and could wait on the settings lock. An
+   administrator demoted or disabled in that window could still finish a Save, and a deleted one caused
+   a 500 when provenance named them. The Save now re-reads the caller after taking the lock and refuses
+   all three (the `userAssignments` re-read-under-lock pattern). **Rule: any endpoint that authorizes,
+   then waits on a lock or a slow step, re-checks the actor after the wait.**
+5. **Fail-closed also means saying so for bad VALUES, not just failed reads.** A missing or malformed
+   flag correctly read as off but was silent. It now logs `system_settings_invalid_flags`, naming the
+   flags, and the valid flags keep their stored values.
+
 ## 2026-10-09 — Discussions: design confirmed; technical validation pending; implementation not approved
 
 Discussions will be built natively on Payload: topics, replies and per-user participation, plus
