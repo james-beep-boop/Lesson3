@@ -253,6 +253,27 @@ export const guardLastSiteAdminOnDelete: CollectionBeforeDeleteHook = async ({ i
 }
 
 /**
+ * Lock the account's row for the rest of its deletion — the first thing every account deletion does
+ * after `guardLastSiteAdminOnDelete` (2026-10-09, discussions 3a review).
+ *
+ * ⚑ WHY HERE AND NOT IN ANY ONE CASCADE. Favorites, messages, edit recovery and discussion participation
+ * all reference the user through a NOT NULL column whose foreign key is `ON DELETE SET NULL`, so each
+ * cascade must remove its rows before the user's own DELETE runs. A row inserted AFTER its cascade but
+ * BEFORE that DELETE would make the account deletion fail with 23502. Every one of those inserts takes
+ * `FOR KEY SHARE` on the user row (Postgres's own foreign-key check does it; `insertParticipation` also
+ * asks explicitly), which conflicts with this `FOR UPDATE`: so a concurrent insert either committed before
+ * this point (and its cascade removes it) or waits until the deletion commits and then fails or, for
+ * participation, inserts nothing. Taking the lock inside one cascade — where it first lived — closed the
+ * race for that table only.
+ *
+ * Lock order: `guardLastSiteAdminOnDelete` may take the administrator-count advisory key; this row lock
+ * comes after it — advisory before row, the universal order (`lib/txDb.ts`, `ADVISORY_LOCKS`).
+ */
+export const lockDeletingUser: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  await lockRows(req, 'users', [Number(id)])
+}
+
+/**
  * Bootstrap: make the very first user a Site Administrator (SPEC §8).
  *
  * `access.admin` (adminPanelAccess) admits only site admins / assigned users, and

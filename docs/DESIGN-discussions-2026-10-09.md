@@ -727,7 +727,7 @@ native-Payload approach of sections 13–14.
 
 | Collection | Key fields | Access (every predicate also requires `isForumEnabled`, **except** the Site Administrator's read, delete and redact while off; see "Off switch") |
 | --- | --- | --- |
-| `discussion-topics` | `title`, `body`, `author` (optional rel, stamped), `refVersion` (optional rel), `refPlan` (derived), `refLabel` (snapshot), `pinnedAt` (null = unpinned), `lastActivityAt`, `replyCount`, `lastSeq`, `titleRedactedAt`/`titleRedactedBy`, `redactedAt`/`redactedBy` (opening post) | read/create: signed in; update: `() => false`; delete: Site Administrator |
+| `discussion-topics` | `title`, `body`, `author` (optional rel, stamped), `refVersion` (optional rel), `refPlan` (derived), `refLabel` (snapshot), `pinnedAt` (null = unpinned), `lastActivityAt`, `lastSeq` (also the reply count — `replyCount` was dropped in 3a, since replies are only removed with their thread and a second counter could drift), `titleRedactedAt`/`titleRedactedBy`, `redactedAt`/`redactedBy` (opening post) | read/create: signed in; update: `() => false`; delete: Site Administrator |
 | `discussion-replies` | `topic` (required rel), `seq` (unique with `topic`), `body`, `author`, `refVersion`, `refPlan`, `refLabel`, `redactedAt`, `redactedBy` | read/create: signed in; update/delete: `() => false` |
 | `discussion-participation` | `user`, `topic` (unique pair), `lastReadSeq` (−1 = opening post unread) | read: own rows; create/update/delete: `() => false` (system writes only) |
 
@@ -741,11 +741,11 @@ native-Payload approach of sections 13–14.
   is redaction:** `title → ''` and/or `body → ''`, with the matching `*RedactedAt`/`*RedactedBy` set, on a part not
   already redacted, and only when the redact endpoint has set a server-side `req.context` marker for that row id
   and part. REST clients cannot set `req.context`.
-- **Ordering, in one transaction.** Reply creation runs:
-  1. `lockRows(req, 'discussion_topics', [topicId])`;
-  2. `seq = lastSeq + 1`;
-  3. update `lastSeq`, `replyCount`, `lastActivityAt`;
-  4. upsert the author's participation.
+- **Ordering, in one transaction.** Reply creation runs (as built in 3a):
+  1. one `UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = now() … RETURNING last_seq`,
+     which takes the topic's row lock, assigns this reply's `seq` and advances activity in a single statement;
+  2. the reply insert;
+  3. upsert the author's participation.
 
   A failed reply therefore cannot advance activity, and a reply that races thread deletion fails
   cleanly instead of leaving an orphan. Seq 0 is the opening post.
@@ -916,9 +916,12 @@ both.
      ON CONFLICT (user_id, topic_id) DO NOTHING`, run through `txDb`. Payload has no conditional insert, so this gap is
      documented at the call site. An existing row keeps its `lastReadSeq`, and a user who is being deleted yields no
      row rather than an error.
-   - **Deleting an account:** `Users.beforeDelete`'s participation cascade takes `lockRows(req, 'users', [id])` before
-     deleting rows. That comes after the administrator-count advisory key, per the universal lock order. A concurrent
-     insert therefore either commits first (and is cascaded) or waits and inserts nothing.
+   - **Deleting an account:** `lockDeletingUser` (`hooks/userRoles.ts`), the `Users.beforeDelete` hook straight after
+     the last-administrator guard, takes `lockRows(req, 'users', [id])` before any cascade runs. That comes after the
+     administrator-count advisory key, per the universal lock order. A concurrent insert therefore either commits
+     first (and is cascaded) or waits and inserts nothing. It sits at the start of account deletion, not inside the
+     participation cascade, because favorites, messages and edit recovery have the same race through their own
+     foreign-key checks (3a review).
    - **Outcome:** the account deletion succeeds; posts survive with `author` cleared; no required user relationship
      is left behind; and a topic posted by someone else never fails because its invited version author is being
      deleted. A post **by** the account being deleted may fail on its author foreign key, which is accepted.

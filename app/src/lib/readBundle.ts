@@ -92,7 +92,18 @@ export async function findReadableVersions(
  */
 export async function findReadableVersion(
   payload: Payload,
-  args: { id: string | number; user: User | null; depth?: number; req?: PayloadRequest },
+  args: {
+    id: string | number
+    user: User | null
+    depth?: number
+    req?: PayloadRequest
+    /**
+     * Optional projection. A version carries the whole lesson bundle in nested array tables, so a caller
+     * that needs a label or a plan id should not pay for every lesson's content (the discussions reference
+     * lookup reads five fields). Visibility is unchanged: read access is not field-scoped.
+     */
+    select?: Record<string, unknown>
+  },
 ): Promise<LessonBundleVersion | null> {
   try {
     return (await payload.findByID({
@@ -102,6 +113,7 @@ export async function findReadableVersion(
       overrideAccess: false,
       user: args.user,
       req: args.req,
+      ...(args.select ? { select: args.select as never } : {}),
     })) as LessonBundleVersion
   } catch (e) {
     return nullOnNotVisible(e)

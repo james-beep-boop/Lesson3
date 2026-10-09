@@ -1,14 +1,27 @@
 /**
- * Numeric id from a Payload relationship value — an id number, a populated `{ id }` object, or
- * null/undefined. Returns null when there's no id. Generic over `unknown` so it works on any
- * relationship field (frontend pages, scripts), unlike `access/index.ts`'s `toId`, which is typed
+ * Numeric id from a Payload relationship value — an id number, a digit string, a populated `{ id }`
+ * object, or null/undefined. Returns null when there's no id. Generic over `unknown` so it works on
+ * any relationship field (frontend pages, scripts), unlike `access/index.ts`'s `toId`, which is typed
  * to the SubjectGrade ref and returns `undefined`.
+ *
+ * ⚑ DIGIT STRINGS ARE IDS (2026-10-09). Payload converts a string relationship id to a number only when
+ * the related collection declares its own numeric `id` field (installed
+ * `fields/hooks/beforeValidate/promise.js`); with default serial ids, a REST body's `"12"` reaches
+ * collection hooks as a string. Reading that as null silently dropped references clients really sent,
+ * and made equality checks against numeric ids fail. Only `^\d+$` qualifies — `" 12 "`, `"1e1"` and
+ * `"0x0c"` are not ids, and an `{ id }` that is not one yields null rather than NaN.
  */
-export const relId = (value: unknown): number | null => {
+const fromId = (value: unknown): number | null => {
   if (typeof value === 'number') return value
-  if (value && typeof value === 'object' && 'id' in value)
-    return Number((value as { id: unknown }).id)
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value)
   return null
+}
+
+export const relId = (value: unknown): number | null => {
+  if (value && typeof value === 'object' && 'id' in value) {
+    return fromId((value as { id: unknown }).id)
+  }
+  return fromId(value)
 }
 
 /**

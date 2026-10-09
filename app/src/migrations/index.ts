@@ -27,6 +27,7 @@ import * as migration_20260821_234341_add_system_settings from './20260821_23434
 import * as migration_20260822_011614_drop_outbound_email_flag from './20260822_011614_drop_outbound_email_flag'
 import * as migration_20260919_222201_add_reset_password_requested_at from './20260919_222201_add_reset_password_requested_at'
 import * as migration_20261009_082909_add_forum_enabled from './20261009_082909_add_forum_enabled'
+import * as migration_20261009_125057_add_discussions from './20261009_125057_add_discussions'
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20261009_082909_add_forum_enabled.up,
     down: migration_20261009_082909_add_forum_enabled.down,
     name: '20261009_082909_add_forum_enabled',
+  },
+  {
+    up: migration_20261009_125057_add_discussions.up,
+    down: migration_20261009_125057_add_discussions.down,
+    name: '20261009_125057_add_discussions',
   },
 ]

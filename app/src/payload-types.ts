@@ -75,6 +75,9 @@ export interface Config {
     favorites: Favorite;
     messages: Message;
     'edit-recovery': EditRecovery;
+    'discussion-topics': DiscussionTopic;
+    'discussion-replies': DiscussionReply;
+    'discussion-participation': DiscussionParticipation;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -91,6 +94,9 @@ export interface Config {
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
     messages: MessagesSelect<false> | MessagesSelect<true>;
     'edit-recovery': EditRecoverySelect<false> | EditRecoverySelect<true>;
+    'discussion-topics': DiscussionTopicsSelect<false> | DiscussionTopicsSelect<true>;
+    'discussion-replies': DiscussionRepliesSelect<false> | DiscussionRepliesSelect<true>;
+    'discussion-participation': DiscussionParticipationSelect<false> | DiscussionParticipationSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -465,6 +471,61 @@ export interface EditRecovery {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-topics".
+ */
+export interface DiscussionTopic {
+  id: number;
+  title?: string | null;
+  body?: string | null;
+  author?: (number | null) | User;
+  submissionKey?: string | null;
+  refVersion?: (number | null) | LessonBundleVersion;
+  refPlan?: (number | null) | LessonPlan;
+  refLabel?: string | null;
+  redactedAt?: string | null;
+  redactedBy?: (number | null) | User;
+  pinnedAt?: string | null;
+  lastActivityAt?: string | null;
+  lastSeq?: number | null;
+  titleRedactedAt?: string | null;
+  titleRedactedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-replies".
+ */
+export interface DiscussionReply {
+  id: number;
+  topic: number | DiscussionTopic;
+  seq: number;
+  body?: string | null;
+  author?: (number | null) | User;
+  submissionKey?: string | null;
+  refVersion?: (number | null) | LessonBundleVersion;
+  refPlan?: (number | null) | LessonPlan;
+  refLabel?: string | null;
+  redactedAt?: string | null;
+  redactedBy?: (number | null) | User;
+  joinedAtSeq?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-participation".
+ */
+export interface DiscussionParticipation {
+  id: number;
+  user: number | User;
+  topic: number | DiscussionTopic;
+  lastReadSeq: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -634,6 +695,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'edit-recovery';
         value: number | EditRecovery;
+      } | null)
+    | ({
+        relationTo: 'discussion-topics';
+        value: number | DiscussionTopic;
+      } | null)
+    | ({
+        relationTo: 'discussion-replies';
+        value: number | DiscussionReply;
+      } | null)
+    | ({
+        relationTo: 'discussion-participation';
+        value: number | DiscussionParticipation;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -946,6 +1019,58 @@ export interface EditRecoverySelect<T extends boolean = true> {
   baseUpdatedAt?: T;
   schemaVersion?: T;
   content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-topics_select".
+ */
+export interface DiscussionTopicsSelect<T extends boolean = true> {
+  title?: T;
+  body?: T;
+  author?: T;
+  submissionKey?: T;
+  refVersion?: T;
+  refPlan?: T;
+  refLabel?: T;
+  redactedAt?: T;
+  redactedBy?: T;
+  pinnedAt?: T;
+  lastActivityAt?: T;
+  lastSeq?: T;
+  titleRedactedAt?: T;
+  titleRedactedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-replies_select".
+ */
+export interface DiscussionRepliesSelect<T extends boolean = true> {
+  topic?: T;
+  seq?: T;
+  body?: T;
+  author?: T;
+  submissionKey?: T;
+  refVersion?: T;
+  refPlan?: T;
+  refLabel?: T;
+  redactedAt?: T;
+  redactedBy?: T;
+  joinedAtSeq?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-participation_select".
+ */
+export interface DiscussionParticipationSelect<T extends boolean = true> {
+  user?: T;
+  topic?: T;
+  lastReadSeq?: T;
   updatedAt?: T;
   createdAt?: T;
 }

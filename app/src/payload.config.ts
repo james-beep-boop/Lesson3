@@ -16,6 +16,9 @@ import { Favorites } from './collections/Favorites'
 import { EditRecovery } from './collections/EditRecovery'
 import { SystemSettings } from './globals/SystemSettings'
 import { Messages } from './collections/Messages'
+import { DiscussionTopics } from './collections/DiscussionTopics'
+import { DiscussionReplies } from './collections/DiscussionReplies'
+import { DiscussionParticipation } from './collections/DiscussionParticipation'
 import { generateVersionArtifactTask } from './jobs/generateVersionArtifact'
 import { emailVersionArtifactTask } from './jobs/emailVersionArtifact'
 import { expireEditRecoveryTask } from './jobs/expireEditRecovery'
@@ -147,6 +150,10 @@ export default buildConfig({
     Favorites,
     Messages,
     EditRecovery,
+    // Discussions (`docs/DESIGN-discussions-2026-10-09.md`): gated by the `forumEnabled` setting.
+    DiscussionTopics,
+    DiscussionReplies,
+    DiscussionParticipation,
   ],
   // The project's FIRST global (Manage → System, 2026-08-21): this installation's runtime capability
   // flags, Site-Admin-only, sitting inside the deploy-time env ceilings rather than replacing them.
