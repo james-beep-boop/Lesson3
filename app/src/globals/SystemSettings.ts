@@ -2,6 +2,7 @@ import type { GlobalConfig, GlobalBeforeChangeHook } from 'payload'
 
 import { siteAdminOnly } from '../access'
 import { saveSystemSettingsEndpoint } from '../endpoints/systemSettingsSave'
+import { SYSTEM_FLAGS, type SystemFlag } from '../lib/systemFlagNames'
 import type { User } from '../payload-types'
 
 /**
@@ -23,8 +24,9 @@ import type { User } from '../payload-types'
  *     Manage → My saved versions.
  *
  * ⚑ WHO READS AND WRITES THESE (2026-10-09, discussions PR 2). The ONE writer is the Save endpoint,
- * `endpoints/systemSettingsSave.ts`, mounted below; it may change only `SAVEABLE_FLAGS`. The ONE
- * reader for enforcement is `lib/systemFlags.ts` (fail-closed, never cached across requests).
+ * `endpoints/systemSettingsSave.ts`, mounted below; it may change only `SAVEABLE_FLAGS`
+ * (`lib/systemFlagNames.ts`). The ONE reader for enforcement is `lib/systemFlags.ts` (fail-closed,
+ * never cached across requests).
  * `publicLibraryLive` still has no enforcement reader — `PUBLIC_LIBRARY_ENABLED` alone governs public
  * discovery — so it is stored but not saveable. Nothing on the panel renders a switch yet: the
  * Discussions toggle arrives with the forum's UI, never before the feature it controls (the
@@ -50,8 +52,10 @@ import type { User } from '../payload-types'
  * preserved a decision nobody had earned. `docs/DESIGN-system-panel-2026-08-21.md` holds the open
  * question.
  */
-export const SYSTEM_FLAGS = ['publicLibraryLive', 'forumEnabled'] as const
-export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
+//
+// The list itself lives in `lib/systemFlagNames.ts` (dependency-free, so the endpoint, the reader and a
+// client-side panel can import it without a cycle); re-exported here for existing importers.
+export { SYSTEM_FLAGS, type SystemFlag }
 
 /**
  * Record who changed which flag, and when — per flag, not one pair for the whole global.

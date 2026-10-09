@@ -1,4 +1,3 @@
-import { sql } from '@payloadcms/db-postgres'
 import type {
   CollectionAfterChangeHook,
   CollectionBeforeChangeHook,
@@ -12,14 +11,15 @@ import type { Assignment } from '../access'
 import { isSiteAdmin, isSubjectAdminFor, toId } from '../access'
 import { AccountDisabledError } from '../errors/AccountDisabled'
 import { isFirstRegisterRequest } from '../lib/firstUserBootstrap'
-import { lockRows, txDb } from '../lib/txDb'
+import { ADVISORY_LOCKS, lockRows, takeAdvisoryLock } from '../lib/txDb'
 
 const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.role}`
 
 /**
- * ⚑ THE ADVISORY-LOCK REGISTRY for this collection. Both keys share classifier `1280527187` and
- * differ in the second int, so they are visibly one family and cannot collide with the row-id
- * advisory locks unrelated features use.
+ * ⚑ THIS COLLECTION'S ADVISORY LOCKS — registered, with every other advisory key, in `ADVISORY_LOCKS`
+ * (`lib/txDb.ts`, 2026-10-09). Both keys share classifier `1280527187` and differ in the second int,
+ * so they are visibly one family and cannot collide with the row-id advisory locks unrelated features
+ * use.
  *
  *   (…, 1)  first-user bootstrap — `grantSiteAdminToFirstUser`
  *   (…, 2)  the ADMINISTRATOR-COUNT invariant — every operation that can reduce the number of
@@ -44,7 +44,7 @@ const rowSignature = (a: Assignment): string => `${toId(a.subjectGrade)}:${a.rol
  * key and waits for the row — which Postgres resolves by aborting one transaction. `takeAdminCountLock`
  * exists so the endpoints can acquire the key up front and join the one order.
  */
-export const ADMIN_COUNT_LOCK = { classifier: 1280527187, key: 2 } as const
+export const ADMIN_COUNT_LOCK = ADVISORY_LOCKS.adminCount // registered in `lib/txDb.ts`
 
 /**
  * Refuse sign-in for a disabled account (D13a step 2).
@@ -127,10 +127,7 @@ const isUsableSiteAdmin = (
 export async function takeAdminCountLock(
   req: Parameters<CollectionBeforeChangeHook>[0]['req'],
 ): Promise<void> {
-  const db = await txDb(req, { requireTransaction: true })
-  await db.execute(
-    sql`SELECT pg_advisory_xact_lock(${ADMIN_COUNT_LOCK.classifier}, ${ADMIN_COUNT_LOCK.key})`,
-  )
+  await takeAdvisoryLock(req, 'adminCount')
 }
 
 async function assertAnotherUsableSiteAdminRemains(
@@ -280,8 +277,7 @@ export const grantSiteAdminToFirstUser: CollectionBeforeChangeHook = async ({
   // Serialize that count-and-grant decision on the request transaction so only the actual first
   // committed user receives Site Admin. A fixed two-int advisory key is app-local and avoids
   // colliding with row-id advisory locks used by unrelated features.
-  const db = await txDb(req, { requireTransaction: true })
-  await db.execute(sql`SELECT pg_advisory_xact_lock(1280527187, 1)`)
+  await takeAdvisoryLock(req, 'firstRegister')
   const { totalDocs } = await req.payload.count({ collection: 'users', req })
   if (totalDocs === 0) {
     data.roles = [...new Set([...(data.roles ?? []), 'siteAdmin' as const])]

@@ -15,7 +15,8 @@ docker run -d --name lesson3-forum-spike -e POSTGRES_USER=spike -e POSTGRES_PASS
   postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
 ```
 
-From a scratch copy of this directory, with `node_modules` symlinked to `app/node_modules` (Payload 3.90.2),
+From a scratch copy of this directory, with `node_modules` symlinked to `app/node_modules` (the 2026-10-09 run used a host install of Payload 3.90.1, a patch behind
+the pinned 3.90.2),
 run the scripts with `./node_modules/.bin/tsx <script>.ts`. Set `SPIKE_DB` to override the connection string.
 
 1. `correctness.ts`: pushes the minimal schema (`config.ts`) and shows that Payload's join-path `where`

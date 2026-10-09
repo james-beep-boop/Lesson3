@@ -7,13 +7,12 @@
  * that checked "is this one of `SYSTEM_FLAGS`" instead of `SAVEABLE_FLAGS` would accept it — and make a
  * switch writable that nothing enforces.
  *
- * DB-free and Payload-boot-free → runs in `test:unit`. The wire behaviour (401/403/409/lockout, the
- * concurrent pair) is `tests/http/systemSettings.http.spec.ts`.
+ * DB-free and Payload-boot-free → runs in `test:unit`. The wire behaviour (401/403/409/lockout, the lock
+ * wait) is `tests/http/systemSettings.http.spec.ts`.
  */
 import { describe, expect, it } from 'vitest'
 
-import { SYSTEM_FLAGS } from '../../src/globals/SystemSettings.js'
-import { parseSaveBody, SAVEABLE_FLAGS } from '../../src/endpoints/systemSettingsSave.js'
+import { parseSaveBody } from '../../src/endpoints/systemSettingsSave.js'
 
 const TOKEN = '2026-10-09T08:00:00.000Z'
 const valid = { changes: { forumEnabled: false }, password: 'pw', expectedUpdatedAt: TOKEN }
@@ -71,12 +70,5 @@ describe('parseSaveBody', () => {
     for (const body of [null, undefined, 'x', 3, [valid]]) {
       expect(refusal(body), JSON.stringify(body)).not.toBeNull()
     }
-  })
-})
-
-describe('SAVEABLE_FLAGS', () => {
-  it('is a subset of SYSTEM_FLAGS that excludes the unenforced public-library flag', () => {
-    for (const flag of SAVEABLE_FLAGS) expect(SYSTEM_FLAGS).toContain(flag)
-    expect(SAVEABLE_FLAGS).not.toContain('publicLibraryLive')
   })
 })

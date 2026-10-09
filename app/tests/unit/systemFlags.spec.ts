@@ -32,12 +32,11 @@ describe('readSystemFlags', () => {
       { features: null },
       { features: {} },
       { features: { forumEnabled: null } },
+      { features: { forumEnabled: 'true' } },
     ]) {
       const { payload } = fakePayload(async () => doc)
       expect((await readSystemFlags(payload)).forumEnabled, JSON.stringify(doc)).toBe(false)
     }
-    const { payload } = fakePayload(async () => ({ features: { forumEnabled: 'true' } }))
-    expect((await readSystemFlags(payload)).forumEnabled).toBe(false)
   })
 
   it('fails closed on a read error, and logs it as a structured error', async () => {

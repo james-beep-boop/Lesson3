@@ -24,10 +24,16 @@ Design details:
 - **Re-authentication is Payload's own `login`**, and the session it mints is revoked at once with
   `logoutOperation` (operator decision). It inherits Payload's lockout, `refuseDisabledLogin`, and the
   per-address and global login limits, with no copy of the hash check.
-- **An advisory lock (`SYSTEM_SETTINGS_LOCK`), not a row lock.** The migration also **inserts the
-  settings row**: measured on a freshly migrated database, `system_settings` had zero rows. Without
-  the row, fail-closed would have turned "on by default" into off, and a row lock would have locked
-  nothing.
+- **The migration inserts the settings row**: measured on a freshly migrated database,
+  `system_settings` had zero rows. Without the row, fail-closed would have turned "on by default" into
+  off.
+- **An advisory lock (`ADVISORY_LOCKS.systemSettings`), not a row lock**, because it needs no row lookup.
+  The first draft's reason, "a row lock would lock nothing", stopped being true once the migration
+  guaranteed the row.
+- **A `/simplify` pass** moved every advisory key into one registry with one `takeAdvisoryLock` helper in
+  `lib/txDb.ts` (the first-user and administrator-count locks too). It also extracted `assertFresh`
+  beside `lockAndVerifyFresh`, and moved the flag names into a dependency-free `lib/systemFlagNames.ts`
+  so a client-side panel never imports Payload to learn them.
 - **`publicLibraryLive` is stored but not saveable** until it has an enforcement point. The versioned
   acknowledgement is deliberately unbuilt, because no saveable flag needs it.
 

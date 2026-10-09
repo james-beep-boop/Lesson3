@@ -27,7 +27,7 @@ import { sql } from '@payloadcms/db-postgres'
 
 import { clearRateLimitBuckets, drizzleOf, rowsOf } from '../helpers/db.js'
 import { stillPendingAfterWindow, whileLockHeld } from '../helpers/rowLocks.js'
-import { SYSTEM_SETTINGS_LOCK } from '../../src/endpoints/systemSettingsSave.js'
+import { ADVISORY_LOCKS } from '../../src/lib/txDb.js'
 import {
   createUserVerified,
   deleteUserFixture,
@@ -96,7 +96,7 @@ beforeAll(async () => {
   fx = await setupRoleFixture()
   const tokens = await Promise.all(ROLES.map((k) => login(fx.users[k].email, fx.password)))
   ROLES.forEach((k, i) => (token[k] = tokens[i]!))
-  // A known starting value, written the way the Save endpoint will.
+  // A known starting value, written on the trusted path (the Save endpoint cannot write this flag).
   await fx.payload.updateGlobal({
     slug: 'system-settings',
     data: { features: { publicLibraryLive: true } } as never,
@@ -116,7 +116,7 @@ describe('system-settings — the ordinary write door is shut', () => {
   /**
    * ⚑ THE CASE THIS FILE IS FOR. Not "a Teacher cannot write settings" — obviously — but "the person
    * who legitimately administers everything still cannot write them THIS WAY", because the write has to
-   * carry a re-authentication and an acknowledgement that only the Save endpoint asks for.
+   * carry the re-authentication and freshness check that only the Save endpoint asks for.
    */
   it('refuses a Site Administrator writing the global directly, and changes nothing', async () => {
     const before = await storedFlag()
@@ -180,12 +180,14 @@ async function save(authToken: string | undefined, body: unknown): Promise<SaveR
   return { status: res.status, body: (await res.json().catch(() => null)) as SaveResult['body'] }
 }
 
-/** The stored state, read through the Local API so a serialization quirk cannot fool the assertion. */
-async function stored(): Promise<{
+interface Stored {
   updatedAt: string
-  forumEnabled: boolean | null | undefined
+  forumEnabled: boolean
   forumChange?: { enabled?: boolean | null; changedBy?: unknown }
-}> {
+}
+
+/** The stored state, read through the Local API so a serialization quirk cannot fool the assertion. */
+async function stored(): Promise<Stored> {
   const doc = (await fx.payload.findGlobal({
     slug: 'system-settings',
     depth: 0,
@@ -197,18 +199,34 @@ async function stored(): Promise<{
   }
   return {
     updatedAt: doc.updatedAt,
-    forumEnabled: doc.features?.forumEnabled,
+    // Normalised the way the reader does (`=== true`), so every call site can say `!before.forumEnabled`.
+    forumEnabled: doc.features?.forumEnabled === true,
     forumChange: doc.flagChanges?.find((r) => r.flag === 'forumEnabled'),
   }
 }
 
-/** A Save body asking for `forumEnabled = value`, against the CURRENT token. */
-async function bodyFor(value: boolean, password = fx.password) {
-  return {
-    changes: { forumEnabled: value },
-    password,
-    expectedUpdatedAt: (await stored()).updatedAt,
-  }
+/** A valid Save body that flips `forumEnabled` against `state`'s token; `overrides` replace any part. */
+const bodyFor = (state: Stored, overrides: Record<string, unknown> = {}) => ({
+  changes: { forumEnabled: !state.forumEnabled },
+  password: fx.password,
+  expectedUpdatedAt: state.updatedAt,
+  ...overrides,
+})
+
+/**
+ * Save, expect `status`, and prove NOTHING changed — the whole stored state, not just `updatedAt`.
+ * Returns the response so a caller can also check its message.
+ */
+async function expectRefused(
+  authToken: string | undefined,
+  status: number,
+  overrides: Record<string, unknown> = {},
+): Promise<SaveResult> {
+  const before = await stored()
+  const res = await save(authToken, bodyFor(before, overrides))
+  expect(res.status, messageOf(res)).toBe(status)
+  expect(await stored(), 'a refused Save must write nothing').toEqual(before)
+  return res
 }
 
 /** The account's live sessions — the password check must leave them exactly as it found them. */
@@ -224,18 +242,13 @@ async function sessionIds(userId: number): Promise<string[]> {
 const messageOf = (r: SaveResult) => r.body?.errors?.[0]?.message ?? ''
 
 describe('Save endpoint — who may call it', () => {
-  it('refuses an unauthenticated Save', async () => {
-    const before = await stored()
-    expect((await save(undefined, await bodyFor(!before.forumEnabled))).status).toBe(401)
-    expect((await stored()).updatedAt).toBe(before.updatedAt)
+  it('refuses an unauthenticated Save, and writes nothing', async () => {
+    await expectRefused(undefined, 401)
   })
 
   for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
     it(`refuses a ${LABEL[role]}, even with their own correct password, and writes nothing`, async () => {
-      const before = await stored()
-      const res = await save(token[role], await bodyFor(!before.forumEnabled))
-      expect(res.status).toBe(403)
-      expect((await stored()).updatedAt).toBe(before.updatedAt)
+      await expectRefused(token[role], 403)
     })
   }
 })
@@ -250,15 +263,14 @@ describe('Save endpoint — a Site Administrator', () => {
     const admin = fx.users.siteAdmin
     const before = await stored()
     const sessionsBefore = await sessionIds(admin.id)
-    const target = !(before.forumEnabled === true)
 
-    const res = await save(token.siteAdmin, await bodyFor(target))
+    const res = await save(token.siteAdmin, bodyFor(before))
     expect(res.status, messageOf(res)).toBe(200)
 
     const after = await stored()
-    expect(after.forumEnabled).toBe(target)
+    expect(after.forumEnabled).toBe(!before.forumEnabled)
     expect(after.updatedAt).toBe(res.body?.updatedAt)
-    expect(after.forumChange?.enabled).toBe(target)
+    expect(after.forumChange?.enabled).toBe(!before.forumEnabled)
     expect(after.forumChange?.changedBy).toBe(admin.id)
     expect(
       await sessionIds(admin.id),
@@ -266,37 +278,23 @@ describe('Save endpoint — a Site Administrator', () => {
     ).toEqual(sessionsBefore)
 
     // Put it back, through the same door.
-    expect((await save(token.siteAdmin, await bodyFor(!target))).status).toBe(200)
+    expect((await save(token.siteAdmin, bodyFor(after))).status).toBe(200)
   })
 
   it('refuses a wrong password with 401, and writes nothing', async () => {
-    const before = await stored()
-    const res = await save(token.siteAdmin, await bodyFor(!before.forumEnabled, 'not-the-password'))
-    expect(res.status).toBe(401)
+    const res = await expectRefused(token.siteAdmin, 401, { password: 'not-the-password' })
     expect(messageOf(res)).toBe('That password is not correct.')
-    expect(await stored()).toEqual(before)
   })
 
   it('refuses a stale freshness token with 409, and writes nothing', async () => {
-    const before = await stored()
-    const res = await save(token.siteAdmin, {
-      changes: { forumEnabled: !before.forumEnabled },
-      password: fx.password,
-      expectedUpdatedAt: new Date(Date.parse(before.updatedAt) - 60_000).toISOString(),
+    const { updatedAt } = await stored()
+    await expectRefused(token.siteAdmin, 409, {
+      expectedUpdatedAt: new Date(Date.parse(updatedAt) - 60_000).toISOString(),
     })
-    expect(res.status).toBe(409)
-    expect(await stored()).toEqual(before)
   })
 
   it('refuses the stored-but-unsaveable public-library flag, and writes nothing', async () => {
-    const before = await stored()
-    const res = await save(token.siteAdmin, {
-      changes: { publicLibraryLive: false },
-      password: fx.password,
-      expectedUpdatedAt: before.updatedAt,
-    })
-    expect(res.status).toBe(400)
-    expect(await stored()).toEqual(before)
+    await expectRefused(token.siteAdmin, 400, { changes: { publicLibraryLive: false } })
   })
 
   it('refuses an oversized body before reading it', async () => {
@@ -319,23 +317,20 @@ describe('Save endpoint — a Site Administrator', () => {
    */
   it('makes a Save wait on the settings lock, then refuse a change made while it waited', async () => {
     const before = await stored()
+    const { classifier, key } = ADVISORY_LOCKS.systemSettings
     let saving!: Promise<SaveResult>
     let blocked = false
 
     await whileLockHeld(
       fx.payload,
-      sql`SELECT pg_advisory_xact_lock(${SYSTEM_SETTINGS_LOCK.classifier}, ${SYSTEM_SETTINGS_LOCK.key})`,
+      sql`SELECT pg_advisory_xact_lock(${classifier}, ${key})`,
       async () => {
-        saving = save(token.siteAdmin, {
-          changes: { forumEnabled: !before.forumEnabled },
-          password: fx.password,
-          expectedUpdatedAt: before.updatedAt,
-        })
+        saving = save(token.siteAdmin, bodyFor(before))
         blocked = await stillPendingAfterWindow(saving)
         // Another administrator's change lands while the Save is waiting.
         await fx.payload.updateGlobal({
           slug: 'system-settings',
-          data: { features: { forumEnabled: before.forumEnabled === true } } as never,
+          data: { features: { forumEnabled: before.forumEnabled } } as never,
           overrideAccess: true,
           user: fx.users.siteAdmin,
         })
@@ -376,18 +371,14 @@ describe('Save endpoint — the password check is not a guessing oracle', () => 
       roles: ['siteAdmin'],
     })
     const lockedToken = await login(locked.email, fx.password)
-    const before = await stored()
 
     for (let i = 0; i < 5; i++) {
-      const res = await save(lockedToken, await bodyFor(!before.forumEnabled, 'wrong'))
-      expect(res.status, `attempt ${i + 1}`).toBe(401)
+      await expectRefused(lockedToken, 401, { password: 'wrong' })
     }
-    const res = await save(lockedToken, await bodyFor(!before.forumEnabled))
-    expect(res.status).toBe(401)
+    const res = await expectRefused(lockedToken, 401)
     expect(
       messageOf(res),
       'a locked account is told it is locked, not that its password is wrong',
     ).toMatch(/locked/i)
-    expect(await stored()).toEqual(before)
   })
 })

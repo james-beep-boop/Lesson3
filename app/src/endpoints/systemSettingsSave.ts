@@ -17,7 +17,7 @@
  *
  * ⚑ NO ACKNOWLEDGEMENT STEP YET, and that is not an omission. The design's server-enforced, versioned
  * acknowledgement exists for transitions whose consequence is not obvious — the public library going
- * live. That flag is not saveable until it has an enforcement point ({@link SAVEABLE_FLAGS}), and
+ * live. That flag is not saveable until it has an enforcement point (`SAVEABLE_FLAGS`), and
  * switching Discussions on or off needs no warning, so the mechanism would have no caller. It arrives
  * with the first flag that needs it.
  *
@@ -35,10 +35,8 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
-import { sql } from '@payloadcms/db-postgres'
-
-import { txDb } from '../lib/txDb'
-import type { SystemFlag } from '../globals/SystemSettings'
+import { assertFresh, takeAdvisoryLock } from '../lib/txDb'
+import { SAVEABLE_FLAGS, type SaveableFlag } from '../lib/systemFlagNames'
 import type { User } from '../payload-types'
 import {
   assertSiteAdmin,
@@ -47,32 +45,6 @@ import {
   readJsonBody,
   requireExpectedUpdatedAt,
 } from './respond'
-
-/**
- * The flags this endpoint may change — a SUBSET of `SYSTEM_FLAGS`, deliberately.
- *
- * ⚑ `publicLibraryLive` IS NOT HERE. Nothing enforces it yet (`lib/publicLibrary.ts` reads only the env
- * ceiling), so a writable switch would change a value no reader consults — the "never render a toggle
- * for something absent" rule, applied to the API as well as the panel. It joins this list in the PR
- * that gives it an enforcement point, together with the acknowledgement its "goes public" warning needs.
- *
- * Defined here rather than beside `SYSTEM_FLAGS`, because the global imports this module to mount it;
- * a value import back would be a runtime cycle. The `satisfies` keeps it a subset at compile time.
- */
-export const SAVEABLE_FLAGS = ['forumEnabled'] as const satisfies readonly SystemFlag[]
-export type SaveableFlag = (typeof SAVEABLE_FLAGS)[number]
-
-/**
- * This global's advisory-lock family. A classifier of its own (ASCII "SYST") so it cannot collide with
- * the users-collection family in `hooks/userRoles.ts`.
- *
- * ⚑ AN ADVISORY LOCK, NOT A ROW LOCK. The freshness check is a read-then-compare followed by a separate
- * write, so two simultaneous Saves carrying the same token would both pass the compare without a lock —
- * a freshness token is not atomicity (design, "Save"). A `SELECT … FOR UPDATE` on `system_settings`
- * would serialise them only if the row exists, and on an installation where it did not, it would lock
- * nothing; the advisory key needs no row.
- */
-export const SYSTEM_SETTINGS_LOCK = { classifier: 1398362964, key: 1 } as const
 
 const MAX_PASSWORD_LENGTH = 1024
 const STALE_MESSAGE = 'Settings changed since you loaded them — reload before saving.'
@@ -110,7 +82,7 @@ export function parseSaveBody(raw: unknown): SaveBody {
   }
   const entries = Object.entries(rawChanges)
   if (entries.length === 0) throw new APIError('Nothing to save.', 400)
-  const changes: Partial<Record<SaveableFlag, boolean>> = {}
+  const changes: SaveBody['changes'] = {}
   for (const [flag, value] of entries) {
     if (!(SAVEABLE_FLAGS as readonly string[]).includes(flag)) {
       throw new APIError(`"${flag}" is not a setting that can be changed here.`, 400)
@@ -197,10 +169,14 @@ export const saveSystemSettingsEndpoint: Endpoint = {
 
     const shouldCommit = await initTransaction(req)
     try {
-      const db = await txDb(req, { requireTransaction: true })
-      await db.execute(
-        sql`SELECT pg_advisory_xact_lock(${SYSTEM_SETTINGS_LOCK.classifier}, ${SYSTEM_SETTINGS_LOCK.key})`,
-      )
+      // ⚑ AN ADVISORY LOCK (`ADVISORY_LOCKS.systemSettings`, `lib/txDb.ts`). The freshness check is a
+      // read-then-compare followed by a separate write, so without a lock two Saves carrying the same
+      // token could both pass the compare — a freshness token is not atomicity (design, "Save"). Advisory
+      // rather than `FOR UPDATE` on `system_settings` because it needs no row lookup; it would also hold
+      // if the singleton row were ever missing, though the `add_forum_enabled` migration now guarantees
+      // the row (an earlier version of this comment gave "the row may not exist" as THE reason — true
+      // only before that migration). Readers take no advisory lock, so nothing but another Save waits.
+      await takeAdvisoryLock(req, 'systemSettings')
       // Read AFTER the lock: reading first would let two Saves with the same fresh token both pass.
       const current = await req.payload.findGlobal({
         slug: 'system-settings',
@@ -208,9 +184,7 @@ export const saveSystemSettingsEndpoint: Endpoint = {
         overrideAccess: true,
         req,
       })
-      if (Date.parse(String(current.updatedAt)) !== Date.parse(body.expectedUpdatedAt)) {
-        throw new APIError(STALE_MESSAGE, 409)
-      }
+      assertFresh(current.updatedAt, body.expectedUpdatedAt, STALE_MESSAGE)
 
       const updated = await req.payload.updateGlobal({
         slug: 'system-settings',
