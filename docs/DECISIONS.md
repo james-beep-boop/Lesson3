@@ -11,6 +11,26 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-10 — Discussions audit: account/thread deletion and stale moderation permission
+
+Two more races were reproduced before fixes, with regressions through the real application paths:
+
+- **Account deletion versus whole-thread deletion deadlocked.** The account cascade removed participation
+  first; its final user DELETE then needed the topic to clear `author`. Thread deletion held the topic
+  while waiting for the same participation. PostgreSQL aborted the thread deletion with 40P01. After
+  locking the user, the account cascade now discovers all topics referenced by that user's participation,
+  posts or moderation provenance and locks them in ascending id order **before** removing participation.
+  Optional user FKs still clear through the native database action; content is preserved.
+- **Thread deletion trusted an earlier permission snapshot.** Over HTTP, administrators demoted, disabled
+  or deleted while waiting for the topic lock still received 200 and deleted the thread. The endpoint now
+  re-reads the caller after the wait and refuses with 403 before deletion. This follows the System Save
+  rule: authorization must be checked again after a slow step or lock wait. The read takes no user row
+  lock after the topic lock.
+
+The new integration regression and three HTTP permission regressions failed against the previous code.
+After the fixes: 1,270 unit, 263 integration and 271 HTTP tests pass; lint, type checking, formatting
+and the production build pass.
+
 ## 2026-10-09 — Discussions 3a: data and posting; concurrency pinned by what the other side DOES
 
 PR 3 was split into 3a (data and posting) and 3b (actions and queries); both land before PR 4 under the

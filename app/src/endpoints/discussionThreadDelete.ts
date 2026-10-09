@@ -25,6 +25,7 @@ import {
   type PayloadRequest,
 } from 'payload'
 
+import { isSiteAdmin } from '../access'
 import { relId } from '../lib/relId'
 import { lockRows } from '../lib/txDb'
 import type { User } from '../payload-types'
@@ -51,6 +52,16 @@ export const deleteThreadEndpoint: Endpoint = {
     try {
       // Lock first, so the reply count read below cannot be overtaken by a reply before the delete.
       await lockRows(req, 'discussion_topics', [topicId])
+      // Authentication is a snapshot: privileges may have changed while waiting for the topic.
+      const caller = await req.payload.findByID({
+        collection: 'users',
+        id: (req.user as User).id,
+        depth: 0,
+        overrideAccess: true,
+        disableErrors: true,
+        req,
+      })
+      if (!isSiteAdmin(caller) || caller?.signInDisabled) throw new APIError('Forbidden', 403)
       const topic = await req.payload.findByID({
         collection: 'discussion-topics',
         id: topicId,

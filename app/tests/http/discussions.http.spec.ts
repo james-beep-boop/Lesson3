@@ -16,6 +16,8 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { clearRateLimitBuckets } from '../helpers/db.js'
 import {
+  createUserVerified,
+  deleteUserFixture,
   MARK,
   setForumEnabled,
   setupRoleFixture,
@@ -23,6 +25,7 @@ import {
   type RoleKey,
 } from '../helpers/fixtures.js'
 import { login, url } from '../helpers/httpWire.js'
+import { stillPendingAfterWindow, whileRowLocked } from '../helpers/rowLocks.js'
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 /** ⚑ `editor` is a fixture key, not a user type — the user it names is a Teacher with editing access. */
@@ -207,6 +210,51 @@ describe('no edits, and no REST delete', () => {
 })
 
 describe('whole-thread delete endpoint', () => {
+  for (const change of ['demoted', 'disabled', 'deleted'] as const) {
+    it(`refuses an administrator ${change} while the delete waits on the topic`, async () => {
+      const topicId = await postTopic('teacher')
+      const caller = await createUserVerified(fx.payload, {
+        email: `${MARK}delete-${change}@example.test`.toLowerCase(),
+        name: `${MARK}Delete ${change}`,
+        password: fx.password,
+        roles: ['siteAdmin'],
+      })
+      let deleted = false
+      try {
+        const callerToken = await login(caller.email, fx.password)
+        let deleting!: Promise<Response>
+        await whileRowLocked(fx.payload, 'discussion_topics', topicId, async () => {
+          deleting = fetch(url(`/api/discussion-topics/${topicId}/delete`), {
+            method: 'POST',
+            headers: { Authorization: `JWT ${callerToken}` },
+          })
+          expect(await stillPendingAfterWindow(deleting)).toBe(true)
+          if (change === 'deleted') {
+            await fx.payload.delete({ collection: 'users', id: caller.id, overrideAccess: true })
+            deleted = true
+          } else {
+            await fx.payload.update({
+              collection: 'users',
+              id: caller.id,
+              data: change === 'demoted' ? { roles: [] } : { signInDisabled: true, sessions: [] },
+              overrideAccess: true,
+            })
+          }
+        })
+        expect((await deleting).status).toBe(403)
+        const kept = await fx.payload.findByID({
+          collection: 'discussion-topics',
+          id: topicId,
+          overrideAccess: true,
+        })
+        expect(kept.id).toBe(topicId)
+      } finally {
+        await clearRateLimitBuckets(fx.payload, `login:${caller.email.toLowerCase()}`)
+        if (!deleted) await deleteUserFixture(fx.payload, caller.id)
+      }
+    }, 30_000)
+  }
+
   it('refuses an anonymous caller and every role but the Site Administrator', async () => {
     const topicId = await postTopic('teacher')
     expect((await deleteThread(topicId)).status).toBe(401)
