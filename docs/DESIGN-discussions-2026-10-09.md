@@ -853,6 +853,37 @@ The search spike is **done** (16.3 item 4: titles only, via Payload's own `like`
 | 3 | **Forum server side**: three collections, migration, hooks (including invited participants and duplicate-submission keys), mark-read/pin/redact endpoints, the moderation-while-off gate, rate-limit bucket, account-deletion cascade. int + http tests only. | Concentrates the authorization, concurrency and immutability review. |
 | 4 | **Forum UI**: `/discuss`, thread page, composers, the shared "Add lesson reference" selector, plain-text + safe auto-links, the **Discuss** nav item + blue dot, **Post about these changes** on the saved-version surface, **Discuss this version** on the lesson page, Site Administrator pin/redact/delete controls, the moderation-only view while off, the per-row unread marker, the empty state, the System panel toggle, the Guide/`USER_GUIDE.md`, a SPEC §10 bullet, release notes, and e2e. | Everything a user sees lands together, so no half-visible feature ever ships. |
 
+**Guide and `USER_GUIDE.md` in PR 4** (operator-confirmed 2026-10-09). `/guide` is the role-aware tutorial
+(`docs/DESIGN-guide-tutorial-2026-09-24.md`): five top-level sections and a second accordion level of task
+panels, filtered by `computeGuideAvailablePanels` (`components/Guide/availability.ts`). `USER_GUIDE.md` is the
+complete, unscoped print/offline reference. Both carry the same facts (`guideParity.spec.ts`).
+
+- **Teachers** section, new task panels:
+  - start a discussion and reply;
+  - add a lesson reference;
+  - **Discuss this version** on the lesson page;
+  - what the blue dot and the per-row markers mean (posting in a thread, or being the author of a referenced
+    version, puts you in it);
+  - **search covers titles only**, plus the title hint ("Name the lesson and the question or change");
+  - authors cannot edit or delete their posts.
+- **Editing** section: **Post about these changes** after saving, and that the referenced version's author gets
+  the dot.
+- **Site administrators** section:
+  - the forum switch in Manage → System;
+  - pin and unpin;
+  - redact a title or a post (irreversible), stating that **existing backups keep the text until they age out**;
+  - delete a whole thread;
+  - the **moderation-only view** while the forum is off.
+- **Visibility follows the switch.** While the forum is off, the Teachers and Editing forum panels are not
+  rendered, like every other forum entry point (16.4 "Off switch"). The Site Administrator's switch and
+  moderation panels stay. `computeGuideAvailablePanels` is synchronous and takes only the user today, so it gains
+  the resolved `forumEnabled` value as an argument rather than reading the flag itself.
+- **`USER_GUIDE.md`** describes the forum unfiltered, noting that a Site Administrator can switch it off and that
+  the forum is on by default.
+- **Tests:** `guideAccess.spec.tsx` gains forum-on and forum-off cases for each role, and `guideParity.spec.ts`
+  covers the new facts.
+- **Vocabulary:** the CLAUDE.md rule applies. Say "Teacher with editing access", never "Editor".
+
 ⚑ **Release hold:** do not tag a release between PR 3 and PR 4. With the forum on by default, a release
 cut there would ship a forum reachable through the API but with no UI and no off switch.
 
