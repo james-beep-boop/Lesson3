@@ -11,6 +11,86 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-09 — Discussions: design confirmed; technical validation pending; implementation not approved
+
+Discussions will be built natively on Payload: topics, replies and per-user participation, plus
+Lesson3's existing frontend. No forum package or comments plugin is adopted. Design and research:
+`docs/DESIGN-discussions-2026-10-09.md`. Section 16 is the current proposal, and its open items are in 16.6.
+Implementation is not approved.
+
+Operator-confirmed (2026-10-09):
+- menu **Discuss** with a **blue** unread dot;
+- **on by default** (a failed read of the flag still fails closed);
+- notifications start at a user's **first contribution**;
+- **posting cap** of 100 topics + replies per user per day (abuse protection, not moderation);
+- a **missing version** is stated, never substituted. The lesson page shows "This version is no longer
+  available" with a separate Open the Official version button. The compare page shows the notice and
+  computes no substitute comparison. This applies to every link, including messages.
+
+Also confirmed the same day:
+- **First appearance:** release notes, a useful empty state and a Guide section. No automatic system post and no
+  announcement mechanism.
+- **Who gets the dot:** posters, plus the referenced version's author for a topic that references a lesson. An
+  earlier answer the same day also added the subject-grade administrator. It was revised after review: one
+  administrator per subject-grade would see a permanently lit dot on a busy deployment, which makes the dot
+  meaningless, and adding recipients later is cheap while removing them is a regression.
+- **Which discussions are unread:** topic-list rows carry the same blue marker. Without it, the nav dot says
+  something is new but not where.
+- **Search:** case-insensitive substring matching, which is language-neutral.
+- **Scale target:** about 100,000 replies per installation.
+- **Removing one bad contribution:** Site Administrator **redaction**, which erases the text from the live database
+  and leaves a "Removed by the administrator" marker. This narrowly reverses the earlier "no reply-deletion feature".
+- **Entry points:** **Discuss this version** on the lesson page for every signed-in user, in addition to the
+  after-save button and the Discussions page.
+
+Defaults confirmed the same day:
+- **Text limits:** title 150 characters; post or reply 5,000.
+- **Page sizes:** 20 topics; 50 replies.
+- **Pinned topics:** most recently pinned first.
+- **Lesson references:** one per post or reply.
+- **Titles are redactable,** independently of the opening post. A bad title would otherwise force deleting the
+  whole thread, which is exactly the problem redaction exists to avoid.
+
+Final-review loose ends, also confirmed the same day:
+- **Expiry while composing:** the forum follows the rest of the frontend, with no forum-specific rule. Today no
+  frontend page clears the screen at expiry (`IdleLogout` is admin-only), contrary to SPEC §13, which now records
+  that gap. When the frontend-wide fix lands, it applies to the forum unchanged. An earlier wording framed
+  "text stays visible" as a forum decision. Revised for consistency: an exception would have bound the future fix
+  to work around it.
+- **Identical display names:** accepted for now. The current name only, never emails.
+- **Moderating while switched off:** the Site Administrator keeps a moderation-only view (read, delete, redact),
+  reached from Manage → System. This amends the brief's "blocking applies to administrators as well" for that one
+  role. A first recommendation, "allow only the delete and redact endpoints", was unusable on its own, because the
+  administrator could not see what to redact. Name the UI a capability needs, not just its endpoint.
+
+Review corrections folded in (GPT review of the first draft, verified against code):
+- The Compare changes link is conditional, because save can delete its source and empty `sourceVersion`.
+- The unread starting point must be explicit, and it must be the thread's latest reply number when the page opened,
+  not the highest reply displayed. The latter depends on pagination: replying from page 1 of a long thread would
+  make every later existing reply light the dot.
+- The unread query must use `IS DISTINCT FROM`, or "Deleted User" replies never light the dot.
+- Topic locks go through `lockRows`/`txDb`, not a hand-written lock. Hand-written locks have fallen
+  back to the pool before and held nothing.
+- The forum toggle ships with the forum UI, not with the Save infrastructure, because the System panel
+  never renders a control for an absent feature.
+- Second GPT review:
+  - Measure the scale target in the spike rather than assert it.
+  - Make submissions idempotent with a per-composer key, because nobody can delete a duplicate.
+  - Reject, not clamp, an out-of-range read marker.
+  - State the switch-off timing contract; it depends on never caching the flag across requests.
+- Third GPT review, resolved for simplicity and consistency (operator):
+  - The moderation-while-off exception is now stated in the access table and the tests.
+  - A genuinely simultaneous same-key pair may be charged twice against the daily cap. Accepted: no lock, and still
+    never two posts.
+  - Forum creates use the ordinary REST create like Messages. The missing app-wide request-size limit is a
+    separate follow-up, and §16 no longer overclaims a capped create path.
+  - Spike budgets were fixed before measuring: DB time, median of 10, single user, Rock 5B, isolated database.
+- Fourth GPT review:
+  - Wording fixes: the disabled-forum test names the moderation exception, and an index is the first remedy to
+    investigate rather than an assumed fix.
+  - Single-user timings are a baseline, not concurrent capacity; the page budget is re-checked in PR 4.
+  - **Product scope frozen.** The next step is the search spike, then review, then authorized PRs.
+
 ## 2026-10-08 — Generator re-pinned to upstream `f83db61`: framework tables full-width; a lone `|` line is text
 
 **What changed.** The vendored generator moves from `b3743ff` to `f83db61` (Mark Knittel's answer to the
