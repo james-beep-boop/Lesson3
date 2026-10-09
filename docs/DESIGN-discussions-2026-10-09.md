@@ -616,7 +616,7 @@ native-Payload approach of sections 13–14.
 
 | Choice | Decision |
 | --- | --- |
-| Labels | Menu **Discuss**; page **Discussions**; **Start a discussion**; after-save **Post about these changes**; **Compare changes**. |
+| Labels | Menu **Discuss**; page **Discussions**; **Start a discussion**; after-save **Post about these changes**; **Compare changes**. Search box placeholder **Search discussion titles**. Title field hint **Name the lesson and the question or change.** (Discovery depends on titles; added after the search decision.) |
 | Unread dot | **Blue**, with accessible text. |
 | Initial state | **On by default.** The stored default of `forumEnabled` is `true`, following `publicLibraryLive`'s reasoning: fail-closed governs a failed *read* (absence or error), which means *off* and emits a structured operational error. It does not govern the stored default. |
 | When notifications start | At **your first contribution**. Replies that existed before you joined stay readable but never light your dot (rule in 16.4). |
@@ -625,7 +625,7 @@ native-Payload approach of sections 13–14.
 | First appearance | **Release notes + a useful empty state + a Guide section.** The notes tell operators the forum is on, that Manage → System switches it off, and suggest the Site Administrator write and pin a welcome topic. The empty Discussions page invites a first post. No automatic system post (it would have no author and read "Deleted User") and no new announcement mechanism. |
 | Who gets the dot | **Posters, plus the referenced version's author for a topic that references a lesson.** This widens section 5's "threads you posted in" to "threads you posted in, or that discuss your edit". Subject-grade administrators are **not** added automatically, so a busy subject-grade does not get a permanently lit dot. That is cheap to add later if questions go unanswered (revised 2026-10-09 after review; an earlier answer the same day included them). Mechanics are in 16.4. |
 | Which discussions are unread | **Topic-list rows show the same blue marker** (with accessible text) on each discussion that has unread posts for you. There is no separate notifications screen. |
-| Search matching | **Case-insensitive substring** (language-neutral, so it works for Swahili and mixed text; recency-ordered). PostgreSQL full-text search is recorded as a possible later step, not built. |
+| Search matching | **Titles only** (decided 2026-10-09 after the search spike, 16.3 item 4). Every search word must appear in the topic title, in any order, case-insensitive substring; language-neutral (Swahili and mixed text work); newest activity first. Opening-post and reply text are **not** searched in this release. PostgreSQL full-text search is not built. |
 | Scale target | **Up to ~100,000 replies per installation**, on ordinary indexes. A `pg_trgm` trigram index is the recorded next step if search slows. |
 | Removing one bad reply | **Site Administrator redaction.** Replaces a single contribution's text (or a topic's title, independently) with "Removed by the administrator", erasing the original from the live database. This reverses section 3's "no separate reply-deletion feature" for this narrow case. Mechanics are in 16.4. |
 | Entry points | **Three:** Post about these changes (after save), Start a discussion (Discussions page), and **Discuss this version** on the lesson page for every signed-in user. No shortcut on My saved versions. |
@@ -647,11 +647,14 @@ native-Payload approach of sections 13–14.
   unavailable reference can still say what it was. Plan titles are readable by every signed-in user. Links
   are generated only from current, readable records.
 - **Text limits:** title 150 characters; post/reply 5000 (the same as `messages.body`).
-- **Search.** Case-insensitive. **Every search word must appear somewhere in the same discussion**: the title,
-  the opening post, or *any* reply, and different words may match different replies ("fractions
-  assessment" finds a thread whose opening says *fractions* and whose reply says *assessment*). One
-  result per discussion, newest activity first, paginated. A long reply list must never be truncated in a way
-  that drops a discussion from the results.
+- **Search (titles only; supersedes the earlier whole-discussion rule).** Every search word must appear in the
+  title, in any order, case-insensitive, as a substring ("fract" finds "Fractions"). It is Payload's own
+  `where: { title: { like } }`, whose `like` already splits on spaces and requires every word in the field. The
+  only addition is escaping `\`, `%` and `_` before the call, because Payload does not escape them. One result
+  per topic, newest activity first, paginated. Redacted titles do not match. The UI and the Guide say plainly that
+  search looks at titles only ("Search discussion titles"), and the title field carries a short writing hint (16.1).
+  - **Deferred, already measured:** adding opening posts is about five lines (a per-word
+    `{ or: [title, body] }`) and no migration. Adding replies needs hand-written SQL plus `pg_trgm` (16.3 item 4).
 - **Pages:** 20 topics and **50** replies (raised from 30, so that nearly every thread fits on one page; the
   pagination rules in 16.4 are still built and tested). Pinned topics come first, most-recently-pinned first, then by
   `lastActivityAt` desc and `id` desc.
@@ -673,32 +676,48 @@ native-Payload approach of sections 13–14.
 3. **Lesson/compare fallback.** `lessons/[id]/page.tsx` falls back to Official, and `compare/page.tsx`
    defaults both sides. 16.1's missing-version rows replace this for explicit parameters. A URL with *no*
    parameter keeps its current default behaviour.
-4. **Search through replies needs a spike.** Can Payload 3.90.2's query layer express 16.2's
-   per-word "anywhere in the discussion" rule with per-topic pagination? Each word becomes an OR of
-   title, opening post and an EXISTS over replies, and the words are ANDed. This probably exceeds the `where` grammar. The
-   fallback is one documented SQL query (escaped `ILIKE`, `EXISTS`) through `txDb`/`payload.db.drizzle`.
-   No search plugin and no projection collection.
-   **The spike also measures, rather than asserts, the 16.1 scale target.**
-   - **Data:** seed about 5,000 topics and 100,000 replies, with English, Swahili and mixed-language text and
-     some very long threads.
-   - **Time:** (a) a multi-word search whose words match different replies, on page 1 and on a deep page;
-     (b) the nav-dot query, which runs on every navigation for every user; (c) the per-row markers for one page.
-   - **Data (adds to the above):** one 2,000-reply thread, and one user participating in 500 discussions.
-   - **Method:** database execution time (`EXPLAIN ANALYZE`, median of 10 runs), single user, plus one
-     full-response check of the Discussions page. Run on the **Rock 5B** (and a development machine for
-     comparison), always against an **isolated test database**, never a real installation's (repository testing rules).
-   - **Budgets on the Rock 5B, fixed before measuring (operator-confirmed 2026-10-09):** search < 500 ms (page 1
-     and a deep page); nav-dot query < 25 ms; per-row markers for one page < 25 ms; Discussions page full
-     response < 1.5 s. Concurrent load is not measured in this release.
-   - **A miss:** an index (the `pg_trgm` trigram index, or another index) is the **first remedy to investigate**,
-     not an assumed fix. Measurements must show whether it brings the query within budget, and the result is
-     recorded either way.
-   - **Matching before timing.** First verify correctness: the per-word "anywhere in the discussion" rule, one
-     result per topic, and pagination. Then measure, using common terms, rare terms and terms with no matches.
-   - **Limits of the method.** Single-user medians are a **baseline, not a measure of concurrent capacity**. The
-     1.5 s page budget is re-verified against the real frontend in PR 4.
-   - **The record must be reproducible:** Payload `where` or SQL (and why), the exact query definitions, required
-     indexes, hardware, dataset, timings and any missed budgets. Measured results are kept distinct from assumptions.
+4. **Search spike: DONE 2026-10-09.** Outcome: **search titles only, using Payload's own query.** Scripts
+   and rerun instructions are in `docs/spikes/discussions-search-2026-10-09/`.
+
+   **Method.**
+   - Postgres 16.15 (the production image digest) in a disposable `--tmpfs` container, with a minimal Payload
+     3.90.2 config of the planned collections (schema pushed by Payload).
+   - Deterministic seed: 5,000 topics, 100,000 replies (48 MB), one 2,000-reply thread, a user in 500 discussions,
+     and English/Swahili vocabulary.
+   - Timings are `EXPLAIN ANALYZE` execution time, median of 10 after one warm-up, single user, unless marked
+     "round trip". Hardware: Apple Silicon Mac, Docker arm64. **The Rock 5B has NOT been measured** (no access from
+     the session that ran this). Every figure below is a development-machine baseline, not a Rock result, and not a
+     measure of concurrent capacity.
+
+   **Findings — measured:**
+
+   | Question | Result |
+   | --- | --- |
+   | Can Payload's `where` express "each word anywhere in the discussion"? | **No.** A join-field path (`'replies.body'`) reuses ONE join alias, so every word must occur in the *same* reply: a thread whose words are in different replies was missed. The nested `contains` form produced invalid SQL (`id ILIKE '%[object Object]%'`). |
+   | Hand-written SQL (`NOT EXISTS` over `unnest(words)`, `EXISTS` over replies) | Correct results, page counts and ordering, `%` escaped. **Too slow:** worst search page (list + count) ≈ 670 ms on the Mac, over the 500 ms budget before any Rock slowdown. |
+   | Same query + `pg_trgm` GIN indexes | **No improvement.** The correlated form cannot use the index. |
+   | Set-based rewrite (per-word topic sets) + `pg_trgm` | Worst ≈ 63 ms, identical results. The viable route **if** reply search is ever wanted: it needs the extension, three GIN indexes declared through the adapter's `extensions`/`afterSchemaInit`, and hand-written SQL. |
+   | **Title only, Payload `like` (adopted)** | **≈ 5–8 ms per search page, round trip including the count.** Every word must be in the title, any order, case-insensitive, Swahili OK. |
+   | Title + opening post, per-word `or` (deferred) | ≈ 22–45 ms round trip. A query split across title and opening post matches correctly. Roughly twice the matches for a common word. |
+   | Nav dot (budget 25 ms) | ≤ 2.4 ms (worst: a user in 500 discussions with everything read). |
+   | Per-row markers, one page (25 ms) | 0.4 ms. |
+   | Topic list, pins first | 0.8 ms (page 1), 2.4 ms (last page). |
+   | Thread page / first-unread lookup in the 2,000-reply thread | 0.02 ms / 0.01 ms (via `(topic, seq)`). |
+
+   **Findings — schema facts observed in the pushed tables:**
+   - Payload `number` fields are `numeric` columns.
+   - Required relationships are `NOT NULL` columns with `ON DELETE SET NULL` FKs. So replies and participation
+     MUST be deleted before their topic, and participation before its user (as 16.4 already plans), or the delete
+     fails with 23502.
+   - Optional relationships (`author`, `refVersion`) are nullable `SET NULL`, which gives "Deleted User" and
+     unavailable references, as designed.
+   - Payload's `like` does **not** escape `%`/`_`. Escape before calling.
+
+   **Still to do:** run `measure.ts` and `titles.ts` on the Rock 5B against an isolated database, per the agreed
+   method. With title-only search at ≈ 8 ms on the Mac against a 500 ms budget, a miss would need a slowdown of
+   more than 60×. The run is a confirmation, not a gate on the design, and it does not delay PR 1. ⚑ These are
+   **Mac results from a minimal Payload configuration**. The full-page response budget (1.5 s) and the relevant
+   query timings are re-checked against the completed app in PR 4, and on the Rock.
 5. **Row locks go through `lib/txDb.ts`.** `lockRows` with a required transaction exists because three
    hand-written locks once fell back to the pool and held nothing. `LockableTable` is a closed union;
    adding `discussion_topics` to it is a deliberate edit.
@@ -751,8 +770,8 @@ native-Payload approach of sections 13–14.
   ordinary `<>` treats a deleted account's NULL author as *not different*, which would silently drop
   "Deleted User" replies from the dot. The test pins this.
 - **Indexes (16.1 scale target):** replies `(topic, seq)` unique; participation `(user, topic)` unique; topics
-  `lastActivityAt` and `pinnedAt`. Whether substring scanning of text columns meets the scale target is **what the
-  search spike must establish** (16.3 item 4), not an assumption.
+  `lastActivityAt` and `pinnedAt`. Title-only search scans the topics table and measured ≈ 5–8 ms at 5,000 topics
+  (16.3 item 4). No trigram or full-text index in this release.
 - **Per-row marker.** The topic list evaluates the unread condition above only for the topic ids on the
   displayed page that have a participation row for the user, so the cost is bounded by the page size.
 - **Mark-read.** `POST /api/discussion-topics/:id/mark-read { fromSeq, throughSeq }`. The values must be integers with
@@ -772,7 +791,7 @@ native-Payload approach of sections 13–14.
     `operation`; whether Payload 3.90.2 passes `operation` to field validators is to be verified against installed
     source, with a `beforeValidate` check on create as the fallback.
   - Unchanged: `seq`, author attribution, unread state, the thread's place in the list, and the structured lesson reference.
-  - Redacted text no longer matches in search.
+  - A redacted title no longer matches in search (search covers titles only).
   - ⚑ "Erased" means from the live database. Existing backups keep the text until they age out, and the release
     notes and Guide must not claim more than that.
 - **Delete.** Payload's normal REST delete, gated to the Site Administrator (also while off, per 16.1).
@@ -825,8 +844,7 @@ native-Payload approach of sections 13–14.
 
 ### 16.5 Build order
 
-Before any PR: **the search spike**. It is an investigation, not a merge. Its outcome (native `where` or the SQL query, and why) is
-recorded here.
+The search spike is **done** (16.3 item 4: titles only, via Payload's own `like`). Only its Rock 5B confirmation run is outstanding, and that does not block PR 1.
 
 | PR | Contents | Why separate |
 | --- | --- | --- |
@@ -860,10 +878,13 @@ verified against a production build.
   administrator is not added; the topic's own author is never invited; a reply's reference invites nobody; a null
   version author adds nobody;
 - the per-row marker matches the nav dot for every topic on the page, including "Deleted User" posts;
+- search in the real app keeps the spike's behaviour: every word must be in the title, in any order;
+  case-insensitive; Swahili; literal `%`, `_` and `\` treated as plain characters; pagination; a redacted title
+  no longer matches;
 - redaction: refused for everyone except the Site Administrator (allowed for them while disabled, via the
   moderation view); a second redaction of
   the same part is refused; title and opening post redact independently; a non-empty title/body is still required
-  at create; the original text is gone from the row and from search; an ordinary update that sets `body = ''`
+  at create; the original text is gone from the row, and a redacted title no longer matches search; an ordinary update that sets `body = ''`
   without the endpoint's marker is still refused;
 - forged `author`/`seq`/`pinnedAt`/`ref*` fields are refused;
 - update through `overrideAccess` is refused;
@@ -871,12 +892,10 @@ verified against a production build.
 
 ### 16.6 Planning status
 
-Every product question and default is operator-confirmed (16.1, 16.2; 2026-10-09), including the loose ends
-from the final review (expiry while composing, identical names, moderation while off). Remaining before
-implementation:
+Every product question and default is operator-confirmed (16.1, 16.2; 2026-10-09). The **search spike is done**
+(16.3 item 4), and its finding narrowed search to titles only. Remaining before implementation:
 
-- **The search spike** (16.3 item 4): the query approach, plus the scale measurements against budgets written down
-  in advance. Its outcome is recorded here and reviewed before PR 1 begins.
+- **The Rock 5B confirmation run** of the spike's measurements (a confirmation, not a design gate).
 - Approval to begin PR 1.
 
 **Product scope is frozen** as of 2026-10-09. After the spike, resolve only issues that it exposes; new features are

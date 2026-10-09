@@ -91,6 +91,22 @@ Review corrections folded in (GPT review of the first draft, verified against co
   - Single-user timings are a baseline, not concurrent capacity; the page budget is re-checked in PR 4.
   - **Product scope frozen.** The next step is the search spike, then review, then authorized PRs.
 
+**Search spike outcome: titles only** (operator decision after the spike, 2026-10-09; full record in
+the design doc, §16.3 item 4):
+- Payload's `where` cannot express "every word anywhere in the discussion": a join-field path ties all words to
+  one reply.
+- Hand-written SQL was correct, but took ≈ 670 ms worst case on a development Mac.
+- Reaching ≈ 63 ms needed a set-based rewrite plus the `pg_trgm` extension and three GIN indexes.
+- Title-only search is Payload's own `like` (every word in the title, any order), at ≈ 5–8 ms round trip, with
+  no custom SQL, extension or index.
+- Opening-post search was weighed and deferred: it would be about five lines and no migration, at the cost of
+  noisier results.
+- The Rock 5B run remains outstanding as a confirmation.
+
+Lesson: **when a requirement's cheapest implementation is an order of magnitude more machinery than its
+neighbour, put the cut-down version in front of the operator.** The whole-discussion rule had been confirmed
+without its cost being visible.
+
 ## 2026-10-08 — Generator re-pinned to upstream `f83db61`: framework tables full-width; a lone `|` line is text
 
 **What changed.** The vendored generator moves from `b3743ff` to `f83db61` (Mark Knittel's answer to the
