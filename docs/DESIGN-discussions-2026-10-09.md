@@ -909,6 +909,10 @@ verified against a production build.
   administrator is not added; the topic's own author is never invited; a reply's reference invites nobody; a null
   version author adds nobody;
 - the per-row marker matches the nav dot for every topic on the page, including "Deleted User" posts;
+- a deleted referenced version: create a post referencing a version, delete that version, and assert that the
+  thread shows the `refLabel` as an unavailable reference with **no link at all**, neither to the lesson page
+  (which would open Official) nor a Compare changes link. The renderer must handle a null `refVersion`
+  explicitly; the snapshot label alone does not guarantee it (GPT review, 2026-10-09);
 - search in the real app keeps the spike's behaviour: every word must be in the title, in any order;
   case-insensitive; Swahili; literal `%`, `_` and `\` treated as plain characters; pagination; a redacted title
   no longer matches;
