@@ -80,6 +80,13 @@ export default async function CompareView({
   const versions = await findReadableVersions(payload, { planId: plan.id, user })
   const officialId = relId(plan.officialVersion)
   const title = lessonDisplayName(versions[0]?.meta?.substrand_name, plan.title)
+  // One header for both renderings below, so the notice and the comparison cannot drift apart.
+  const header = (
+    <PageHeader
+      title={`Compare: ${title}`}
+      actions={<PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />}
+    />
+  )
 
   // ⚑ An explicit `?from=` / `?to=` that does not resolve is stated, and NO substitute comparison is
   // computed (operator decision 2026-10-09; `lib/requestedVersion.ts`). Checked BEFORE the
@@ -90,13 +97,8 @@ export default async function CompareView({
   if (requestedFrom.kind === 'unavailable' || requestedTo.kind === 'unavailable') {
     return (
       <article className="lesson lesson--compare">
-        <PageHeader
-          title={`Compare: ${title}`}
-          actions={<PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />}
-        />
-        <div className="version-unavailable">
-          <p>A version in this comparison is no longer available.</p>
-        </div>
+        {header}
+        <p className="muted">A version in this comparison is no longer available.</p>
       </article>
     )
   }
@@ -191,10 +193,7 @@ export default async function CompareView({
 
   return (
     <article className="lesson lesson--compare">
-      <PageHeader
-        title={`Compare: ${title}`}
-        actions={<PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />}
-      />
+      {header}
       <ComparePickers
         planId={plan.id}
         options={versions.map((v) => ({ id: v.id, label: label(v) }))}

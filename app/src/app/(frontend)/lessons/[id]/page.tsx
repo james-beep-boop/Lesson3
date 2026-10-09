@@ -62,14 +62,12 @@ export default async function LessonView({
           title={lessonDisplayName(official?.meta?.substrand_name, plan.title)}
           actions={<PageBackLink href="/" label="Back to lesson plans" />}
         />
-        <div className="version-unavailable">
-          <p>This version is no longer available.</p>
-          {official && (
-            <Link className="btn" href={`/lessons/${plan.id}`}>
-              Open the Official version
-            </Link>
-          )}
-        </div>
+        <p className="muted">This version is no longer available.</p>
+        {official && (
+          <Link className="btn" href={`/lessons/${plan.id}`}>
+            Open the Official version
+          </Link>
+        )}
       </article>
     )
   }

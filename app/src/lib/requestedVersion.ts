@@ -4,9 +4,15 @@
  *
  * ⚑ WHY THIS EXISTS (operator decision 2026-10-09, `docs/DESIGN-discussions-2026-10-09.md` §16.1).
  * The lesson page used to fall back to the Official version, and the compare page to its default
- * pair, whenever an explicit id did not resolve. A link to a deleted version — from a message, a
- * bookmark, or a discussion — then quietly showed a DIFFERENT revision under the reader's nose. A
- * missing version is now stated, never substituted: the pages render a notice and no content.
+ * pair, whenever an explicit id did not resolve. A URL naming a deleted version — a bookmark, a
+ * shared link — then quietly showed a DIFFERENT revision under the reader's nose. A missing version
+ * is now stated, never substituted: the pages render a notice and no content.
+ *
+ * ⚑ THIS ONLY SEES IDS THAT ARE STILL IN THE URL. A stored reference that loses its id before a link
+ * is built never reaches it: `messages.version` is an `ON DELETE SET NULL` relationship, so the inbox
+ * builds a plan-only link once the version is gone, and the page correctly reads that as `absent`.
+ * Fixing that belongs to how such references are stored, not here (the discussion design keeps a
+ * snapshot label for exactly this reason, §16.2).
  *
  * Three answers, because "no id was asked for" and "the id asked for is gone" must not collapse into
  * one: only the first may take the page's default.
@@ -20,9 +26,7 @@
  * `findReadableVersions`, which is what makes `found` a proof of READ.
  */
 export type RequestedVersion<V> =
-  | { kind: 'absent' }
-  | { kind: 'found'; version: V }
-  | { kind: 'unavailable' }
+  { kind: 'absent' } | { kind: 'found'; version: V } | { kind: 'unavailable' }
 
 export function resolveRequestedVersion<V extends { id: number }>(
   raw: string | string[] | undefined,
