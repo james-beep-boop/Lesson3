@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/session'
 import { isEditorFor, isSubjectAdminFor, toId } from '@/access'
 import { findReadablePlan, findReadableVersions } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
+import { resolveRequestedVersion } from '@/lib/requestedVersion'
 import { lessonDisplayName } from '@/lib/substrand'
 import { renderVersionSectionsCached } from '@/generator/htmlSectionsCache'
 import { type PreviewSection } from '@/generator/previewBundle'
@@ -33,7 +34,7 @@ export default async function LessonView({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ version?: string }>
+  searchParams: Promise<{ version?: string | string[] }>
 }) {
   const { id } = await params
   const sp = await searchParams
@@ -49,12 +50,31 @@ export default async function LessonView({
   const versions = await findReadableVersions(payload, { planId: plan.id, user })
 
   const officialId = relId(plan.officialVersion)
-  // Selected version: an explicit, valid `?version=` that belongs to this plan, else Official.
-  const requested = sp.version ? Number(sp.version) : null
-  const selected =
-    (requested != null && versions.find((v) => v.id === requested)) ||
-    versions.find((v) => v.id === officialId)
-  if (!selected) notFound() // a plan with no Official version + no valid selection
+  const official = versions.find((v) => v.id === officialId)
+  // Selected version: an explicit `?version=` that belongs to this plan, else (no id given) Official.
+  // ⚑ An explicit id that does NOT resolve is stated, never substituted with Official — see
+  // `lib/requestedVersion.ts` (operator decision 2026-10-09).
+  const requested = resolveRequestedVersion(sp.version, versions)
+  if (requested.kind === 'unavailable') {
+    return (
+      <article className="lesson">
+        <PageHeader
+          title={lessonDisplayName(official?.meta?.substrand_name, plan.title)}
+          actions={<PageBackLink href="/" label="Back to lesson plans" />}
+        />
+        <div className="version-unavailable">
+          <p>This version is no longer available.</p>
+          {official && (
+            <Link className="btn" href={`/lessons/${plan.id}`}>
+              Open the Official version
+            </Link>
+          )}
+        </div>
+      </article>
+    )
+  }
+  const selected = requested.kind === 'found' ? requested.version : official
+  if (!selected) notFound() // a plan with no Official version + no version asked for
 
   // The version list is already access-gated and scoped to this plan, so `selected` proves the user
   // may read it — no second read needed; `generateForVersion` reads the content for rendering.

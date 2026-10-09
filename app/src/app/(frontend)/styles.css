@@ -1058,6 +1058,24 @@ button.user-menu__item {
   font-size: 0.95rem;
 }
 
+/* "This version is no longer available" — the lesson and compare pages' answer to a link naming a
+   version that does not resolve (lib/requestedVersion.ts). Rendered INSTEAD of content, so it is a
+   plain panel rather than an error: nothing failed, the version is simply gone. */
+.version-unavailable {
+  margin: var(--app-space-3) 0;
+  padding: var(--app-space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+}
+.version-unavailable p {
+  margin: 0 0 var(--app-space-2);
+  font-weight: 600;
+}
+.version-unavailable p:last-child {
+  margin-bottom: 0;
+}
+
 /* "· Official" trust marker — in the merged lesson meta line (declutter L3) and the versions
    panel (VersionsChip). Bold + ink so it stands out of the muted line around it. */
 .official-tag {

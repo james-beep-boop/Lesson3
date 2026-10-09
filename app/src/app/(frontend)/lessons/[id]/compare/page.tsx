@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/session'
 import { findReadablePlan, findReadableVersions } from '@/lib/readBundle'
 import { relId } from '@/lib/relId'
+import { resolveRequestedVersion } from '@/lib/requestedVersion'
 import { lessonDisplayName } from '@/lib/substrand'
 import { docSectionId } from '@/lib/lessonAnchors'
 import { changeSummary, groupAnchorId } from '@/lib/compareGroups'
@@ -65,7 +66,7 @@ export default async function CompareView({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ from?: string; to?: string }>
+  searchParams: Promise<{ from?: string | string[]; to?: string | string[] }>
 }) {
   const { id } = await params
   const sp = await searchParams
@@ -77,23 +78,42 @@ export default async function CompareView({
   // The shared access-gated version list (lib/readBundle) — it doubles as the READ proof for the
   // cached render below. Oldest → newest.
   const versions = await findReadableVersions(payload, { planId: plan.id, user })
+  const officialId = relId(plan.officialVersion)
+  const title = lessonDisplayName(versions[0]?.meta?.substrand_name, plan.title)
+
+  // ⚑ An explicit `?from=` / `?to=` that does not resolve is stated, and NO substitute comparison is
+  // computed (operator decision 2026-10-09; `lib/requestedVersion.ts`). Checked BEFORE the
+  // two-version minimum below: a link whose version was deleted, leaving one, is still a link to a
+  // missing version, and says so rather than 404ing.
+  const requestedFrom = resolveRequestedVersion(sp.from, versions)
+  const requestedTo = resolveRequestedVersion(sp.to, versions)
+  if (requestedFrom.kind === 'unavailable' || requestedTo.kind === 'unavailable') {
+    return (
+      <article className="lesson lesson--compare">
+        <PageHeader
+          title={`Compare: ${title}`}
+          actions={<PageBackLink href={`/lessons/${plan.id}`} label="Back to lesson" />}
+        />
+        <div className="version-unavailable">
+          <p>A version in this comparison is no longer available.</p>
+        </div>
+      </article>
+    )
+  }
+
   if (versions.length < 2) notFound() // nothing to compare
 
-  const officialId = relId(plan.officialVersion)
-  const byId = (raw?: string) => {
-    const n = raw ? Number(raw) : NaN
-    return versions.find((v) => v.id === n)
-  }
-  // Defaults: oldest → Official (or newest when the oldest IS the Official). An id that isn't one
-  // of this plan's versions falls back to the default rather than 404ing.
+  // Defaults, used only for a side the URL did not name: oldest → Official (or newest when the
+  // oldest IS the Official).
   const fallbackTo =
     officialId != null && officialId !== versions[0].id
       ? versions.find((v) => v.id === officialId)
       : undefined
-  const from = byId(sp.from) ?? versions[0]
-  const to = byId(sp.to) ?? fallbackTo ?? versions[versions.length - 1]
-
-  const title = lessonDisplayName(versions[0].meta?.substrand_name, plan.title)
+  const from = requestedFrom.kind === 'found' ? requestedFrom.version : versions[0]
+  const to =
+    requestedTo.kind === 'found'
+      ? requestedTo.version
+      : (fallbackTo ?? versions[versions.length - 1])
   const label = (v: (typeof versions)[number]) =>
     `${v.semver ?? `v${v.id}`}${v.id === officialId ? ' · Official' : ''}`
 
