@@ -727,7 +727,7 @@ native-Payload approach of sections 13–14.
 
 | Collection | Key fields | Access (every predicate also requires `isForumEnabled`, **except** the Site Administrator's read, delete and redact while off; see "Off switch") |
 | --- | --- | --- |
-| `discussion-topics` | `title`, `body`, `author` (optional rel, stamped), `refVersion` (optional rel), `refPlan` (derived), `refLabel` (snapshot), `pinnedAt` (null = unpinned), `lastActivityAt`, `replyCount`, `lastSeq`, `titleRedactedAt`/`titleRedactedBy`, `redactedAt`/`redactedBy` (opening post) | read/create: signed in; update: `() => false`; delete: Site Administrator |
+| `discussion-topics` | `title`, `body`, `author` (optional rel, stamped), `refVersion` (optional rel), `refPlan` (derived), `refLabel` (snapshot), `pinnedAt` (null = unpinned), `lastActivityAt`, `lastSeq` (also the reply count — `replyCount` was dropped in 3a, since replies are only removed with their thread and a second counter could drift), `titleRedactedAt`/`titleRedactedBy`, `redactedAt`/`redactedBy` (opening post) | read/create: signed in; update: `() => false`; delete: Site Administrator |
 | `discussion-replies` | `topic` (required rel), `seq` (unique with `topic`), `body`, `author`, `refVersion`, `refPlan`, `refLabel`, `redactedAt`, `redactedBy` | read/create: signed in; update/delete: `() => false` |
 | `discussion-participation` | `user`, `topic` (unique pair), `lastReadSeq` (−1 = opening post unread) | read: own rows; create/update/delete: `() => false` (system writes only) |
 
@@ -741,11 +741,17 @@ native-Payload approach of sections 13–14.
   is redaction:** `title → ''` and/or `body → ''`, with the matching `*RedactedAt`/`*RedactedBy` set, on a part not
   already redacted, and only when the redact endpoint has set a server-side `req.context` marker for that row id
   and part. REST clients cannot set `req.context`.
-- **Ordering, in one transaction.** Reply creation runs:
-  1. `lockRows(req, 'discussion_topics', [topicId])`;
-  2. `seq = lastSeq + 1`;
-  3. update `lastSeq`, `replyCount`, `lastActivityAt`;
-  4. upsert the author's participation.
+- **Ordering, in one transaction.** Reply creation runs (as built in 3a):
+  0. `FOR KEY SHARE` on the author's user row. ⚑ **Lock order is user, then topic**, the same order account
+     deletion uses (`lockDeletingUser`, then `ON DELETE SET NULL` on the topics the user authored). The reverse
+     order deadlocked (40P01). Any transaction that locks a topic and then writes a user reference takes that
+     user's row first; this includes 3b's redaction, which stamps `redactedBy`;
+  1. one `UPDATE discussion_topics SET last_seq = last_seq + 1, last_activity_at = GREATEST(last_activity_at,
+     clock_timestamp()) … RETURNING last_seq`, which takes the topic's row lock, assigns this reply's `seq` and
+     advances activity in a single statement. `clock_timestamp()`, not `now()`: `now()` is the transaction's
+     start time and let activity move backwards;
+  2. the reply insert;
+  3. upsert the author's participation.
 
   A failed reply therefore cannot advance activity, and a reply that races thread deletion fails
   cleanly instead of leaving an orphan. Seq 0 is the opening post.
@@ -795,7 +801,8 @@ native-Payload approach of sections 13–14.
   - A redacted title no longer matches in search (search covers titles only).
   - ⚑ "Erased" means from the live database. Existing backups keep the text until they age out, and the release
     notes and Guide must not claim more than that.
-- **Delete.** Payload's normal REST delete, gated to the Site Administrator (also while off, per 16.1).
+- **Delete.** ⚑ Superseded by the 3a contract in 16.5 (item 5): an endpoint, not Payload's REST delete, so the log
+  can mean "committed". Gated to the Site Administrator (also while off, per 16.1).
   `beforeDelete` takes the same topic lock, then deletes the topic's replies and participation rows in that
   transaction. These are system writes inside the delete, so they work while the forum is off, even though
   ordinary participation writes are refused then. Because nothing
@@ -884,6 +891,73 @@ complete, unscoped print/offline reference. Both carry the same facts (`guidePar
 - **Tests:** `guideAccess.spec.tsx` gains forum-on and forum-off cases for each role, and `guideParity.spec.ts`
   covers the new facts.
 - **Vocabulary:** the CLAUDE.md rule applies. Say "Teacher with editing access", never "Editor".
+
+**PR 3 is split into 3a and 3b** (operator decision 2026-10-09). Both land before PR 4, and the release hold below covers
+both.
+
+- **3a: data and posting.** The three collections and their migration; creating topics and replies (stamping, duplicate
+  check, the `discussionPost` cap, reply `seq` under the topic lock, participation including the invited version
+  author); the immutability guard; the on/off gates; whole-thread delete; the account-deletion cascade.
+- **3b: actions and queries.** The mark-read, pin and redact endpoints; `hasUnread`/`unreadTopicIds`; title search.
+
+**3a contract** (tightened after GPT review, 2026-10-09; it supersedes anything above that conflicts):
+
+1. **Create requests, exactly.**
+   - **Topic:** `POST /api/discussion-topics` `{ title, body, submissionKey, refVersion? }`.
+   - **Reply:** `POST /api/discussion-replies` `{ topic, body, submissionKey, joinedAtSeq, refVersion? }`.
+   - **`submissionKey`** is generated by the composer and must survive retries. It is validated (16–64 characters of
+     `[A-Za-z0-9-]`); missing or malformed is a 400. The server never generates or replaces it.
+   - **`joinedAtSeq`** is a transient input: a `virtual: true` field, never stored, required on replies, and checked
+     against the locked topic's `lastSeq`. That virtual fields reach the create hooks is verified while building 3a.
+   - **`refVersion`** is the only client-supplied reference. It must be readable by the caller, or the request is a 400.
+     `refPlan` and `refLabel` are always derived from it.
+   - **Every other field is server-written:** `author`, `refPlan`, `refLabel`, `seq`, counters, pin and redaction
+     fields. Field access is `create/update: () => false`, so Payload silently drops a client-supplied value, and the
+     stamping hook then writes the authoritative value **unconditionally** (it owns these fields even on
+     `overrideAccess` paths, the `stampFlagChanges` lesson). Forged system fields are therefore **ignored, not
+     rejected**, and the tests assert that the stored value is the server's. Rejecting them explicitly would mean
+     validating before Payload strips them, which adds code for no security gain.
+2. **Participation versus account deletion.**
+   - **Inserting participation** is one statement, `INSERT … SELECT … FROM users WHERE id = $user FOR KEY SHARE
+     ON CONFLICT (user_id, topic_id) DO NOTHING`, run through `txDb`. Payload has no conditional insert, so this gap is
+     documented at the call site. An existing row keeps its `lastReadSeq`, and a user who is being deleted yields no
+     row rather than an error.
+   - **Deleting an account:** `lockDeletingUser` (`hooks/userRoles.ts`), the `Users.beforeDelete` hook straight after
+     the last-administrator guard, takes `lockRows(req, 'users', [id])` before any cascade runs. That comes after the
+     administrator-count advisory key, per the universal lock order. A concurrent insert therefore either commits
+     first (and is cascaded) or waits and inserts nothing. It sits at the start of account deletion, not inside the
+     participation cascade, because favorites, messages and edit recovery have the same race through their own
+     foreign-key checks (3a review).
+   - **Outcome:** the account deletion succeeds; posts survive with `author` cleared; no required user relationship
+     is left behind; and a topic posted by someone else never fails because its invited version author is being
+     deleted. A post **by** the account being deleted may fail on its author foreign key, which is accepted.
+   - **Tests:** hold-the-lock cases in both directions, including the invited version author.
+3. **Gates, per operation and per PR.**
+
+   | Operation | Forum on | Forum off | PR |
+   | --- | --- | --- | --- |
+   | Read topics and replies (REST and Local API as the user) | signed in | Site Administrator only | 3a |
+   | Create a topic or reply | signed in | nobody | 3a |
+   | Read own participation | signed in, own rows | nobody | 3a |
+   | Delete a whole thread | Site Administrator | Site Administrator | 3a |
+   | Internal cleanup (thread-delete cascade, account-deletion cascade) | system, never gated | system, never gated | 3a |
+   | Redact | Site Administrator | Site Administrator | 3b |
+   | Pin | Site Administrator | nobody | 3b |
+   | Mark read | signed in, own row | nobody | 3b |
+   | Title search, unread queries | signed in | nobody (empty or false) | 3b |
+
+4. **`maxDepth: 0` on every forum relationship:** `author`, `refVersion`, `refPlan`, `topic`, `user`, and every
+   `*RedactedBy`. The UI uses ids and deliberate projections; an expanded lesson version would also bloat responses.
+   The privacy tests read with `?depth=2` and assert ids only, with no email, roles or assignments anywhere.
+5. **Whole-thread delete is an endpoint,** `POST /api/discussion-topics/:id/delete`, for the Site Administrator only,
+   behind the forum-or-moderation gate.
+   - It runs `payload.delete` in its own transaction (the cascade still happens in `beforeDelete`), commits, and only
+     **then** logs `discussion_thread_deleted` with the actor, topic id and reply count. The log therefore means
+     *committed*.
+   - Payload's `afterDelete` and `afterOperation` both run **before** the commit (verified in `deleteByID.js`), so a
+     log written from either could describe a deletion that later rolled back.
+   - The ordinary REST `DELETE` is closed (`delete: () => false`), which also makes every moderation action (delete,
+     pin, redact) endpoint-based.
 
 ⚑ **Release hold:** do not tag a release between PR 3 and PR 4. With the forum on by default, a release
 cut there would ship a forum reachable through the API but with no UI and no off switch.

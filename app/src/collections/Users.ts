@@ -22,6 +22,7 @@ import {
   guardLastSiteAdmin,
   guardLastSiteAdminOnDelete,
   guardPasswordChange,
+  lockDeletingUser,
   refuseDisabledLogin,
 } from '../hooks/userRoles'
 import { rateLimitAuthOperations } from '../hooks/authRateLimit'
@@ -46,6 +47,7 @@ import { forgotPasswordQueuedEndpoint } from '../endpoints/forgotPassword'
 import { cascadeDeleteUserFavorites } from './Favorites'
 import { cascadeDeleteUserRecovery } from './EditRecovery'
 import { cascadeDeleteUserMessages } from './Messages'
+import { cascadeDeleteUserParticipation } from './DiscussionParticipation'
 
 /**
  * Users + roles (SPEC §8).
@@ -154,9 +156,13 @@ export const Users: CollectionConfig = {
     beforeDelete: [
       // Before the cascades: refusing the delete must happen before its children are removed.
       guardLastSiteAdminOnDelete,
+      // Then lock the account's row, so no cascade below can be outrun by a concurrent insert.
+      lockDeletingUser,
       cascadeDeleteUserFavorites,
       cascadeDeleteUserMessages,
       cascadeDeleteUserRecovery,
+      // Discussion participation is personal state; forum POSTS survive with `author` cleared.
+      cascadeDeleteUserParticipation,
     ],
   },
   endpoints: [

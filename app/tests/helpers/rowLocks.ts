@@ -32,7 +32,7 @@ type TxRunner = {
 }
 
 /** Table names these helpers may lock. Closed for the same reason `LockableTable` is in `txDb.ts`. */
-export type LockableTestTable = 'subject_grades' | 'users' | 'lesson_plans'
+export type LockableTestTable = 'subject_grades' | 'users' | 'lesson_plans' | 'discussion_topics'
 
 /**
  * Hold `table.id = id` locked in an independent transaction for as long as `work` runs, then release

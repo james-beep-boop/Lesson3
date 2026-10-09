@@ -1,6 +1,11 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest, SelectType, TransformCollectionWithSelect } from 'payload'
 
-import type { LessonBundleVersion, LessonPlan, User } from '@/payload-types'
+import type {
+  LessonBundleVersion,
+  LessonBundleVersionsSelect,
+  LessonPlan,
+  User,
+} from '@/payload-types'
 
 /**
  * findByID with the CALLER's access (overrideAccess:false + user), for the Official-version model.
@@ -85,24 +90,47 @@ export async function findReadableVersions(
   return docs as ReadableVersionListItem[]
 }
 
+type ReadableVersionArgs = {
+  id: string | number
+  user: User | null
+  depth?: number
+  req?: PayloadRequest
+}
+
 /**
  * findByID for an immutable LessonBundleVersion with the CALLER's access (overrideAccess:false +
  * user). Returns null only for not-visible cases (404/403). There is no draft/published axis on
  * versions — every retained version is a valid snapshot — so this has no `draft` flag.
+ *
+ * With `select`, the result is TYPED AS THE PROJECTION (Payload's `TransformCollectionWithSelect`), so a
+ * caller cannot read a field it did not fetch. A version carries the whole lesson bundle in nested array
+ * tables, so a caller that needs a label or a plan id should project (the discussions reference lookup
+ * reads five fields). Visibility is unchanged: read access is not field-scoped.
  */
 export async function findReadableVersion(
   payload: Payload,
-  args: { id: string | number; user: User | null; depth?: number; req?: PayloadRequest },
-): Promise<LessonBundleVersion | null> {
+  args: ReadableVersionArgs,
+): Promise<LessonBundleVersion | null>
+export async function findReadableVersion<
+  TSelect extends LessonBundleVersionsSelect<true> & SelectType,
+>(
+  payload: Payload,
+  args: ReadableVersionArgs & { select: TSelect },
+): Promise<TransformCollectionWithSelect<'lesson-bundle-versions', TSelect> | null>
+export async function findReadableVersion(
+  payload: Payload,
+  args: ReadableVersionArgs & { select?: LessonBundleVersionsSelect<true> },
+): Promise<unknown> {
   try {
-    return (await payload.findByID({
+    return await payload.findByID({
       collection: 'lesson-bundle-versions',
       id: args.id,
       depth: args.depth ?? 0,
       overrideAccess: false,
       user: args.user,
       req: args.req,
-    })) as LessonBundleVersion
+      ...(args.select ? { select: args.select } : {}),
+    })
   } catch (e) {
     return nullOnNotVisible(e)
   }

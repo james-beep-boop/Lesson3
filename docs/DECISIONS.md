@@ -11,6 +11,77 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-09 — Discussions 3a: data and posting; concurrency pinned by what the other side DOES
+
+PR 3 was split into 3a (data and posting) and 3b (actions and queries); both land before PR 4 under the
+release hold. 3a follows the contract recorded in the design doc, §16.5. Decisions made while building it:
+
+- **`replyCount` dropped.** It always equals `lastSeq`, because replies are only removed with their whole
+  thread. A second counter could only drift.
+- **Ids arrive as numbers or digit strings.** `relId` reads `"12"` as null, which would have silently dropped
+  a reference a client really sent. The hooks use a small `idOf` instead. The immutability guard compares text
+  exactly, so `"007"` and `"7"` stay different titles. My first normaliser parsed digit strings and would
+  have let that edit through; a unit test now pins it.
+- **Server-written fields are stamped in the collection's `beforeValidate`**, after Payload's field pass has
+  already dropped a client's attempt (verified in `create.js`). Forged values are therefore ignored and
+  overwritten, as the contract says.
+- **Every relationship is `maxDepth: 0`**, and the HTTP suite probes `?depth=2` for emails, roles and
+  assignments.
+
+**Rule, learned again: a lock test's holder must DO what the competing operation does.** Holding a bare row
+lock proved nothing twice in this PR:
+- The reply-ordering test stayed green with the topic lock removed. The reply blocked anyway, on its later
+  write to the topic row, and nothing had changed underneath it.
+- The thread-delete and account-delete locks had no test that could fail.
+
+Each holder now performs the competing write, uncommitted: a concurrent reply (insert reply 1 and bump
+`lastSeq`), or an in-flight participation insert. Removing the lock then produces the real failure: a
+duplicate `seq`, or a NOT NULL violation on delete. All seven 3a guards were mutation-tested one at a
+time, and each turned exactly its own test red.
+
+**GPT review of 3a, before merge: four defects and three tightenings, all fixed.**
+1. **A deadlock between replying and account deletion.** A reply locked the topic, then its author
+   foreign key took the user row. Account deletion locks the user row, then `ON DELETE SET NULL` updates the
+   topics that user authored. GPT reproduced the 40P01. The fix is a consistent order, user then topic: the
+   reply takes `FOR KEY SHARE` on its author before the topic `UPDATE`. The regression test runs through the
+   real application paths (a thread author replies while their account is deleted), and the old order fails
+   it with Postgres's deadlock abort. **Rule: lock order is user, then topic, for every transaction that
+   touches both.**
+2. **Activity could move backwards.** `now()` is the transaction's start time, so an earlier-started reply
+   could take the higher `seq` with an older `lastActivityAt`. Now
+   `GREATEST(last_activity_at, clock_timestamp())`, pinned by a test whose concurrent reply stamps a later time.
+3. **The immutability guard confused objects with text.** It normalised every value as a possible
+   relationship, so body `"12"` → `{ id: 12 }` passed. Scalar fields now compare strictly, and relationship
+   fields compare by id, where anything that is not an id counts as a change.
+4. **The down migration could never complete.** Payload generated it with `DROP TABLE … CASCADE` before the
+   `DROP CONSTRAINT`s on `payload_locked_documents_rels`. It was reordered and verified up → down → up on a
+   disposable database, with the migration isolated in its own batch.
+5. **`relId` accepted non-ids.** It now accepts only integers from 1 to 2³¹−1, so NaN, Infinity, fractions
+   and digit strings that overflow are refused.
+6. **`findReadableVersion` with `select`** is typed as the projection (`TransformCollectionWithSelect`).
+7. **The delete endpoint** refuses to run unless it owns its transaction, so its post-commit log is always
+   true.
+
+The mutation set grew to nine guards, and each one turns its own test red.
+
+**`/simplify` review of 3a.** The fixes it led to were re-verified, and all seven mutations were re-run on
+the reworked code:
+- **The account-deletion lock moved to its root.** `lockDeletingUser` runs first in `Users.beforeDelete`.
+  Favorites, messages and edit recovery had the same race as participation, a row inserted between their
+  cascade and the user DELETE, which made the deletion fail on 23502. The lock had first lived inside the
+  participation cascade, which closed the race for one table only.
+- **`relId` accepts digit-string ids.** Payload passes a REST body's `"12"` through to hooks unconverted,
+  so `relId` used to read it as null. The local `idOf` workaround is gone.
+- **Reply ordering is one `UPDATE … RETURNING last_seq`.** It takes the lock, assigns `seq` and advances
+  activity in one statement, where the lock, read and `payload.update` it replaced cost about 10 round
+  trips under the topic lock.
+- **Thread cascades are plain SQL deletes.** Payload's per-row delete costs 3–4 queries per reply under
+  the lock.
+- **The reference lookup projects five fields.** It no longer loads the whole lesson bundle.
+- **Smaller tidy-ups:** the `req.context` hand-offs between hooks are gone (afterChange receives
+  beforeChange's `data`), the redundant system-field resets are gone, and shared `postFields()` keep
+  `maxDepth: 0` in one place. `purgeMarked` now also matches topics by marked authors.
+
 ## 2026-10-09 — System Save endpoint and `forumEnabled` (discussions PR 2); three corrections
 
 **What landed.**

@@ -98,7 +98,7 @@ export const poolDb = (payload: { db: unknown }): DrizzleHandle =>
  * statement as an identifier, so it must never be able to originate in caller data. Adding a table
  * here is a deliberate edit; passing one through from a request is impossible.
  */
-export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
+export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans' | 'discussion_topics'
 
 /**
  * The collection represented by each lockable database table.
@@ -108,6 +108,7 @@ export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans'
  */
 const COLLECTION_OF = {
   lesson_plans: 'lesson-plans',
+  discussion_topics: 'discussion-topics',
   subject_grades: 'subject-grades',
   users: 'users',
 } as const satisfies Record<LockableTable, CollectionSlug>

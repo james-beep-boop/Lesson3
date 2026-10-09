@@ -319,6 +319,33 @@ export async function purgeMarked(payload: Payload, mark: string): Promise<void>
     }
   }
 
+  // Discussion topics first: deleting a topic cascades its replies and participation
+  // (`cascadeDeleteThread`), and nothing else would remove them — deleting their marked authors and
+  // lesson plans only CLEARS those references (`ON DELETE SET NULL`), so marked threads would outlive the
+  // run. Matched by a marked title OR a marked author: redaction (3b) blanks a title, and a marked user
+  // may post under an unmarked one. Must run before the users are deleted, which clears `author`.
+  const { docs: markedUsers } = await payload.find({
+    collection: 'users',
+    where: { name: { like: mark } },
+    pagination: false,
+    depth: 0,
+    select: {},
+    overrideAccess: true,
+  })
+  assertBulkDeleteSucceeded(
+    'discussion-topics',
+    await payload.delete({
+      collection: 'discussion-topics',
+      where: {
+        or: [
+          { title: { like: mark } },
+          ...(markedUsers.length ? [{ author: { in: markedUsers.map((u) => u.id) } }] : []),
+        ],
+      },
+      overrideAccess: true,
+    }),
+  )
+
   // Unset Official pointers on marked plans so their versions become deletable. Loop (rather than a
   // fixed cap) so an unbounded number of leftover plans is fully cleared.
   for (;;) {
@@ -427,3 +454,14 @@ export async function enqueuedKindsFor(
       .map((j) => String((j.input as { kind?: string }).kind)),
   )
 }
+
+/**
+ * Switch the Discuss forum on or off through the trusted path (the Save endpoint's re-authentication is
+ * not what these specs are testing). Shared by the discussions int and http specs.
+ */
+export const setForumEnabled = (payload: Payload, forumEnabled: boolean) =>
+  payload.updateGlobal({
+    slug: 'system-settings',
+    data: { features: { forumEnabled } } as never,
+    overrideAccess: true,
+  })

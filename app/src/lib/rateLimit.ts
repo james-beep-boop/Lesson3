@@ -91,6 +91,14 @@ const LIMITS = {
     max: positiveIntEnv('RATE_LIMIT_MESSAGE_MAX', 50),
     windowMs: positiveIntEnv('RATE_LIMIT_MESSAGE_WINDOW_MS', 86_400_000),
   },
+  // Discussions (2026-10-09, `docs/DESIGN-discussions-2026-10-09.md` §16.1): a generous daily cap on
+  // topics + replies COMBINED, per user. Abuse protection for the shared database, not moderation — the
+  // operator withdrew posting restrictions. Charged after the duplicate check, so a retried submission
+  // whose response was lost is not charged twice.
+  discussionPost: {
+    max: positiveIntEnv('RATE_LIMIT_DISCUSSION_POST_MAX', 100),
+    windowMs: positiveIntEnv('RATE_LIMIT_DISCUSSION_POST_WINDOW_MS', 86_400_000),
+  },
   // Open self-registration (2026-07-09): same two-tier shape as forgot-password — per requested
   // email (case games don't mint budgets) + a site-global daily ceiling on new accounts. There is
   // no email verification yet (a schema change — deferred), so these caps are the abuse bound.
