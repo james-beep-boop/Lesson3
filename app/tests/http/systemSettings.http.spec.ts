@@ -37,7 +37,7 @@ import {
   type RoleKey,
 } from '../helpers/fixtures.js'
 import { login, url } from '../helpers/httpWire.js'
-import type { User } from '../../src/payload-types.js'
+import type { SystemSetting, User } from '../../src/payload-types.js'
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
 
@@ -181,6 +181,7 @@ async function save(authToken: string | undefined, body: unknown): Promise<SaveR
 }
 
 interface Stored {
+  document: SystemSetting
   updatedAt: string
   forumEnabled: boolean
   forumChange?: { enabled?: boolean | null; changedBy?: unknown }
@@ -188,17 +189,14 @@ interface Stored {
 
 /** The stored state, read through the Local API so a serialization quirk cannot fool the assertion. */
 async function stored(): Promise<Stored> {
-  const doc = (await fx.payload.findGlobal({
+  const doc = await fx.payload.findGlobal({
     slug: 'system-settings',
     depth: 0,
     overrideAccess: true,
-  })) as {
-    updatedAt: string
-    features?: { forumEnabled?: boolean | null }
-    flagChanges?: { flag: string; enabled?: boolean | null; changedBy?: unknown }[]
-  }
+  })
   return {
-    updatedAt: doc.updatedAt,
+    document: doc,
+    updatedAt: doc.updatedAt!,
     // Normalised the way the reader does (`=== true`), so every call site can say `!before.forumEnabled`.
     forumEnabled: doc.features?.forumEnabled === true,
     forumChange: doc.flagChanges?.find((r) => r.flag === 'forumEnabled'),
@@ -345,6 +343,57 @@ describe('Save endpoint — a Site Administrator', () => {
     expect(res.status, messageOf(res)).toBe(409)
     expect((await stored()).forumEnabled).toBe(before.forumEnabled)
   }, 30_000)
+})
+
+describe('Save endpoint — permissions changed while waiting', () => {
+  for (const change of ['demoted', 'disabled', 'deleted'] as const) {
+    it(`refuses an administrator ${change} while the Save waits, and writes nothing`, async () => {
+      const admin = await createUserVerified(fx.payload, {
+        email: `${MARK}waiting-${change}-admin@example.test`.toLowerCase(),
+        name: `${MARK}Waiting Admin`,
+        password: fx.password,
+        roles: ['siteAdmin'],
+      })
+      let deleted = false
+      try {
+        const adminToken = await login(admin.email, fx.password)
+        const before = await stored()
+        const { classifier, key } = ADVISORY_LOCKS.systemSettings
+        let saving!: Promise<SaveResult>
+        await whileLockHeld(
+          fx.payload,
+          sql`SELECT pg_advisory_xact_lock(${classifier}, ${key})`,
+          async () => {
+            saving = save(adminToken, bodyFor(before))
+            expect(await stillPendingAfterWindow(saving)).toBe(true)
+            if (change === 'deleted') {
+              await fx.payload.delete({
+                collection: 'users',
+                id: admin.id,
+                overrideAccess: true,
+                user: fx.users.siteAdmin,
+              })
+              deleted = true
+            } else {
+              await fx.payload.update({
+                collection: 'users',
+                id: admin.id,
+                data: change === 'demoted' ? { roles: [] } : { signInDisabled: true, sessions: [] },
+                overrideAccess: true,
+                user: fx.users.siteAdmin,
+              })
+            }
+          },
+        )
+        const res = await saving
+        expect(res.status, messageOf(res)).toBe(403)
+        expect(await stored(), 'a revoked administrator must not change settings').toEqual(before)
+      } finally {
+        await clearRateLimitBuckets(fx.payload, `login:${admin.email.toLowerCase()}`)
+        if (!deleted) await deleteUserFixture(fx.payload, admin.id)
+      }
+    }, 30_000)
+  }
 })
 
 describe('Save endpoint — the password check is not a guessing oracle', () => {

@@ -32,7 +32,8 @@ const flagsFrom = (
   Object.fromEntries(SYSTEM_FLAGS.map((flag) => [flag, features?.[flag] === true])) as SystemFlags
 
 /**
- * Read every flag once. Never throws: a failure is logged and resolves to every flag off.
+ * Read every flag once. Never throws: unreadable settings fail closed; malformed flags are logged
+ * and individually resolve to off, preserving the other valid stored values.
  *
  * Pass `req` when there is one: the read then runs on that request's connection (and its transaction,
  * if a write hook is asking) rather than holding a second pool connection beside it. A read that fails
@@ -52,7 +53,15 @@ export async function readSystemFlags(
       select: { features: true },
       ...(req ? { req } : {}),
     })
-    return flagsFrom((doc as { features?: Partial<Record<SystemFlag, unknown>> | null }).features)
+    const features = (doc as { features?: Partial<Record<SystemFlag, unknown>> | null }).features
+    const invalidFlags = SYSTEM_FLAGS.filter((flag) => typeof features?.[flag] !== 'boolean')
+    if (invalidFlags.length) {
+      payload.logger.error(
+        { event: 'system_settings_invalid_flags', flags: invalidFlags },
+        'system settings contain missing or invalid flags — those capabilities fail closed (off)',
+      )
+    }
+    return flagsFrom(features)
   } catch (err) {
     payload.logger.error(
       { err, event: 'system_settings_read_failed' },

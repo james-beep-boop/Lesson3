@@ -2,7 +2,7 @@
  * The fail-closed flag reader (`src/lib/systemFlags.ts`).
  *
  * ⚑ THE LOAD-BEARING CASES are the failures: a read that throws, and a document without the value,
- * must both read as OFF — and the throw must be LOGGED, or a database fault is indistinguishable from
+ * must both read as OFF and be LOGGED, or a database fault is indistinguishable from
  * an operator's deliberate off (`docs/DESIGN-system-panel-2026-08-21.md`, "Reads"). The happy path
  * alone would pass against a reader that defaulted to on.
  *
@@ -20,10 +20,11 @@ const fakePayload = (findGlobal: () => Promise<unknown>) => {
 
 describe('readSystemFlags', () => {
   it('reads an explicit true as on and an explicit false as off', async () => {
-    const { payload } = fakePayload(async () => ({
+    const { payload, error } = fakePayload(async () => ({
       features: { forumEnabled: true, publicLibraryLive: false },
     }))
     expect(await readSystemFlags(payload)).toEqual({ forumEnabled: true, publicLibraryLive: false })
+    expect(error).not.toHaveBeenCalled()
   })
 
   it('fails closed on a missing document, group or value — and on anything but true', async () => {
@@ -34,9 +35,26 @@ describe('readSystemFlags', () => {
       { features: { forumEnabled: null } },
       { features: { forumEnabled: 'true' } },
     ]) {
-      const { payload } = fakePayload(async () => doc)
+      const { payload, error } = fakePayload(async () => doc)
       expect((await readSystemFlags(payload)).forumEnabled, JSON.stringify(doc)).toBe(false)
+      expect(error).toHaveBeenCalledTimes(1)
+      expect(error.mock.calls[0][0]).toMatchObject({
+        event: 'system_settings_invalid_flags',
+        flags: expect.arrayContaining(['forumEnabled']),
+      })
     }
+  })
+
+  it('reports only malformed flags and preserves the other stored values', async () => {
+    const { payload, error } = fakePayload(async () => ({
+      features: { forumEnabled: true, publicLibraryLive: 'false' },
+    }))
+    expect(await readSystemFlags(payload)).toEqual({ forumEnabled: true, publicLibraryLive: false })
+    expect(error).toHaveBeenCalledTimes(1)
+    expect(error.mock.calls[0][0]).toEqual({
+      event: 'system_settings_invalid_flags',
+      flags: ['publicLibraryLive'],
+    })
   })
 
   it('fails closed on a read error, and logs it as a structured error', async () => {
@@ -54,7 +72,9 @@ describe('readSystemFlags', () => {
 
 describe('isForumEnabled', () => {
   it('reads once per request, however many checks ask', async () => {
-    const findGlobal = vi.fn(async () => ({ features: { forumEnabled: true } }))
+    const findGlobal = vi.fn(async () => ({
+      features: { forumEnabled: true, publicLibraryLive: false },
+    }))
     const { payload } = fakePayload(findGlobal)
     const req = { payload, context: {} } as unknown as PayloadRequest
 
@@ -69,7 +89,9 @@ describe('isForumEnabled', () => {
 
   it('does not carry an answer from one request to the next', async () => {
     let stored = true
-    const findGlobal = vi.fn(async () => ({ features: { forumEnabled: stored } }))
+    const findGlobal = vi.fn(async () => ({
+      features: { forumEnabled: stored, publicLibraryLive: false },
+    }))
     const { payload } = fakePayload(findGlobal)
 
     expect(await isForumEnabled({ payload, context: {} } as unknown as PayloadRequest)).toBe(true)
