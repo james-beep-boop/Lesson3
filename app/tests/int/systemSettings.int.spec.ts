@@ -22,6 +22,7 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { setupRoleFixture, type RoleFixture } from '../helpers/fixtures.js'
+import { readSystemFlags } from '../../src/lib/systemFlags.js'
 
 let fx: RoleFixture
 /**
@@ -255,5 +256,34 @@ describe('system-settings: per-flag provenance', () => {
     expect(after.publicLibraryLive?.enabled).toBe(before.publicLibraryLive?.enabled)
     expect(after.publicLibraryLive?.changedBy).toBe(before.publicLibraryLive?.changedBy)
     expect(after.publicLibraryLive?.changedBy).not.toBe(fx.users.teacher.id)
+  })
+})
+
+describe('readSystemFlags against the real database', () => {
+  /**
+   * The unit spec drives every branch with a fake Payload; this pins the one thing a fake cannot — that
+   * the real `findGlobal` call, with its `select: { features: true }`, returns the stored flags rather
+   * than an object the projection emptied (which would silently read every flag as OFF).
+   */
+  it('reads each stored forumEnabled value back', async () => {
+    const original = (await readSystemFlags(fx.payload)).forumEnabled
+    try {
+      for (const value of [false, true]) {
+        await fx.payload.updateGlobal({
+          slug: 'system-settings',
+          data: { features: { forumEnabled: value } } as never,
+          overrideAccess: true,
+          user: fx.users.siteAdmin,
+        })
+        expect((await readSystemFlags(fx.payload)).forumEnabled, String(value)).toBe(value)
+      }
+    } finally {
+      await fx.payload.updateGlobal({
+        slug: 'system-settings',
+        data: { features: { forumEnabled: original } } as never,
+        overrideAccess: true,
+        user: fx.users.siteAdmin,
+      })
+    }
   })
 })

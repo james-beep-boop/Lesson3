@@ -161,6 +161,60 @@ export async function lockRows(
 }
 
 /**
+ * EVERY application-level advisory lock this project takes, in one registry.
+ *
+ * ⚑ ONE PLACE, SO A COLLISION IS VISIBLE. These keys used to live beside their callers — two in
+ * `hooks/userRoles.ts` (one of them as bare literals) and one in the System Save endpoint — so checking
+ * that a new key was free meant grepping. A key is `[classifier, key]` for Postgres's two-int form, which
+ * shares no space with the one-bigint form, and each classifier is a family: `1280527187` is the users
+ * collection's, `1398362964` (ASCII "SYST") the system-settings global's.
+ *
+ * ⚑ LOCK ORDER: an advisory key is taken BEFORE any row lock in the same transaction. `adminCount`
+ * documents why at length in `hooks/userRoles.ts`; the rule is general.
+ */
+export const ADVISORY_LOCKS = {
+  /** First-user bootstrap — `grantSiteAdminToFirstUser`. */
+  firstRegister: { classifier: 1280527187, key: 1 },
+  /** The administrator-count invariant — `hooks/userRoles.ts` (`ADMIN_COUNT_LOCK`). */
+  adminCount: { classifier: 1280527187, key: 2 },
+  /** The System Save endpoint's check-and-write — `endpoints/systemSettingsSave.ts`. */
+  systemSettings: { classifier: 1398362964, key: 1 },
+} as const
+export type AdvisoryLockName = keyof typeof ADVISORY_LOCKS
+
+/**
+ * Take a registered transaction-scoped advisory lock (`pg_advisory_xact_lock`), released at commit or
+ * rollback.
+ *
+ * Like {@link lockRows}, there is no opt-out from the transaction: an advisory xact lock on the pool
+ * would be released the moment the statement returned and would serialise nothing.
+ */
+export async function takeAdvisoryLock(source: TxSource, name: AdvisoryLockName): Promise<void> {
+  const { classifier, key } = ADVISORY_LOCKS[name]
+  const db = await txDb(source, { requireTransaction: true })
+  await db.execute(sql`SELECT pg_advisory_xact_lock(${classifier}, ${key})`)
+}
+
+/**
+ * Refuse a STALE optimistic-concurrency token with 409. The comparison only — callers must have taken
+ * their lock and re-read BEFORE calling it (see {@link lockAndVerifyFresh} for why the order matters).
+ *
+ * ⚑ ONE COMPARISON RULE for every freshness-guarded write, as `requireExpectedUpdatedAt` is one
+ * ACCEPTANCE rule: two copies of "is this stale?" can drift, and two endpoints would then disagree about
+ * what consent looks like. A missing or unparseable stored timestamp is NaN, which equals nothing, so it
+ * refuses — fail closed.
+ */
+export function assertFresh(
+  storedUpdatedAt: unknown,
+  expectedUpdatedAt: string,
+  staleMessage: string,
+): void {
+  if (Date.parse(String(storedUpdatedAt)) !== Date.parse(expectedUpdatedAt)) {
+    throw new APIError(staleMessage, 409)
+  }
+}
+
+/**
  * drizzle's `execute` returns a driver-shaped result, and the codebase has disagreed with itself
  * about whether that can be a bare array (`lib/rateLimit.ts` assumes `{ rows }` only). One answer,
  * here, rather than a guess per call site.
@@ -229,8 +283,6 @@ export async function lockAndVerifyFresh<T extends { updatedAt?: unknown }>(
     overrideAccess: true,
     req,
   })) as unknown as T
-  if (Date.parse(String(target.updatedAt)) !== Date.parse(expectedUpdatedAt)) {
-    throw new APIError(staleMessage, 409)
-  }
+  assertFresh(target.updatedAt, expectedUpdatedAt, staleMessage)
   return target
 }

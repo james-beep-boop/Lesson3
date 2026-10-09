@@ -681,7 +681,8 @@ native-Payload approach of sections 13–14.
 
    **Method.**
    - Postgres 16.15 (the production image digest) in a disposable `--tmpfs` container, with a minimal Payload
-     3.90.2 config of the planned collections (schema pushed by Payload).
+     config of the planned collections (schema pushed by Payload). ⚑ It ran from the host's `app/node_modules`,
+     which held Payload **3.90.1**, a patch behind the pinned 3.90.2 that the deps container and CI use.
    - Deterministic seed: 5,000 topics, 100,000 replies (48 MB), one 2,000-reply thread, a user in 500 discussions,
      and English/Swahili vocabulary.
    - Timings are `EXPLAIN ANALYZE` execution time, median of 10 after one warm-up, single user, unless marked
@@ -829,8 +830,8 @@ native-Payload approach of sections 13–14.
 - **Account deletion.** `author` is optional, so the FK is `SET NULL` and the post renders exactly "Deleted User".
   `Users.beforeDelete` cascades only the user's *participation* rows, alongside favorites and messages.
   Forum content is never cascaded.
-- **Off switch.** `lib/discussions.ts` exports `isForumEnabled(req)` (fail-closed, memoised on
-  `req.context`) and `requireForum()` for pages (the `requirePublicLibrary` idiom). Every collection access
+- **Off switch.** `lib/systemFlags.ts` exports `isForumEnabled(req)` (fail-closed, memoised on
+  `req.context` via `systemFlagsFor`; built in PR 2) and PR 3 adds `requireForum()` for pages (the `requirePublicLibrary` idiom). Every collection access
   function, custom endpoint, page, nav projection and entry point consults it. GraphQL is already disabled,
   with its routes deleted. Admin views for all three collections stay `hidden`.
   - **Timing contract.** A request that *starts* after the switch is turned off is refused. A request already
@@ -909,6 +910,10 @@ verified against a production build.
   administrator is not added; the topic's own author is never invited; a reply's reference invites nobody; a null
   version author adds nobody;
 - the per-row marker matches the nav dot for every topic on the page, including "Deleted User" posts;
+- a deleted referenced version: create a post referencing a version, delete that version, and assert that the
+  thread shows the `refLabel` as an unavailable reference with **no link at all**, neither to the lesson page
+  (which would open Official) nor a Compare changes link. The renderer must handle a null `refVersion`
+  explicitly; the snapshot label alone does not guarantee it (GPT review, 2026-10-09);
 - search in the real app keeps the spike's behaviour: every word must be in the title, in any order;
   case-insensitive; Swahili; literal `%`, `_` and `\` treated as plain characters; pagination; a redacted title
   no longer matches;

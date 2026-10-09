@@ -66,6 +66,7 @@ can act on.
 | general email switch — ⚑ **decided absent, see below** | **no — removed in #268** | never | `SMTP_HOST` remains the deployment ceiling; any future optional control is capability-specific |
 | `studentAccess` | no — **not built anywhere** | never, until built | would sit under a new `STUDENT_ACCESS_ENABLED` ceiling |
 | `studentQuiz` | no — **not built anywhere** | never, until built | — |
+| `forumEnabled` (added 2026-10-09, discussions PR 2) | stored, default **on**; **saveable** | with the Discussions UI (discussions PR 4) — never before the forum exists | `lib/systemFlags.ts` (fail-closed), consulted by every forum access check from discussions PR 3. ⚑ **No env ceiling**, a recorded deviation (`DESIGN-discussions-2026-10-09.md` §16.3 item 2) |
 
 ⚑ **A TOGGLE ONLY RENDERS WHEN ITS CEILING IS PRESENT** (operator, 2026-08-21; the earlier table read as
 though both always rendered). With no `PUBLIC_LIBRARY_ENABLED` there is no public-library switch — the
@@ -187,6 +188,16 @@ changes, stamps provenance, commits.
   password-guessing oracle against the Site Admin account.** `hooks/authRateLimit.ts` keys login and
   forgot-password on the *requested* identifier precisely so they are not account-existence oracles;
   this inherits the same obligation. The password must never reach a log.
+  - ⚑ **AS BUILT (2026-10-09, operator decision): re-authentication IS Payload's own `login`**, and the
+    session it mints is revoked at once with Payload's `logoutOperation`
+    (`endpoints/systemSettingsSave.ts`). That satisfies this bullet without a second limiter. The
+    existing `login`/`loginGlobal` buckets key on the caller's own address and site-wide (per user AND
+    globally), and Payload's account lockout (`maxLoginAttempts` 5, then 10 minutes) also applies; a wire
+    test proves the lock engages. Payload records failed attempts outside any transaction by design
+    (`incrementLoginAttempts` omits `req`), so lockout does not depend on where the login runs. It runs on
+    its own request, before the Save's transaction, because `login` assigns `req.user` and because the
+    slow hash should not sit inside the settings lock. Each Save spends one `login` from the caller's
+    hourly budget.
 - `expectedUpdatedAt` → **409**, matching the assignment endpoints ("reload before changing roles"), so
   two Site Administrators with the panel open cannot silently overwrite each other.
 - ⚑ **BUT A FRESHNESS TOKEN IS NOT ATOMICITY** (operator, 2026-08-21). Compare-then-write has a window;
@@ -250,9 +261,9 @@ here is a known gap, not a discovery waiting to happen.
 | Backup last success + destination in the facts | ✓ built in the backup-status follow-up | host script atomically records only a completed upload; app reads the mounted directory read-only |
 | Each probe independently bounded, three-valued | ~ partly: two probes run concurrently and each resolves independently, but they share one `PROBE_TIMEOUT_MS` | give each its own bound when a third probe lands |
 | A toggle renders only when its ceiling is present | n/a — part 1 renders no toggles at all | part 2 |
-| Fail-closed reads emit a structured operational error | n/a — no readers yet | part 2 |
-| Atomic check-and-write, not just a freshness token | n/a — no writer yet | part 2 |
-| Server-enforced versioned acknowledgement | n/a — no writer yet | part 2 |
+| Fail-closed reads emit a structured operational error | ✓ **built 2026-10-09** — `lib/systemFlags.ts`: a failed read logs `system_settings_read_failed` and returns every flag off; only an explicit stored `true` is on | done |
+| Atomic check-and-write, not just a freshness token | ✓ **built 2026-10-09** — `endpoints/systemSettingsSave.ts` takes an advisory lock (`ADVISORY_LOCKS.systemSettings`, `lib/txDb.ts`) before re-reading and comparing `updatedAt` (`assertFresh`); advisory because it needs no row lookup. The `add_forum_enabled` migration also inserts the settings row, which a freshly migrated database did not have. A real concurrent pair is in `tests/http/systemSettings.http.spec.ts` | done |
+| Server-enforced versioned acknowledgement | ✗ **deliberately not built** — no saveable flag needs one: `publicLibraryLive` is not saveable until it has an enforcement point, and `forumEnabled` needs no warning | arrives with the public-library switch |
 | Email flag semantics | ✓ **the flag was REMOVED in #268**, not renamed — `SYSTEM_FLAGS` is `['publicLibraryLive']` and the column is dropped | ✓ decided absent: SMTP is the global ceiling; future optional controls, if earned, are capability-specific |
 
 ⚑ **The last row's schema consequence was taken, in the cheap direction.** `features_outbound_email`
