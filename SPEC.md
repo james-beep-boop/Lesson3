@@ -767,6 +767,10 @@ References: Payload (`payloadcms.com/docs`), the `docx` npm package, ARES `cbe-g
      and `admin.autoRefresh: off` are deliberate, and an indefinitely self-refreshing session is
      explicitly rejected. Durability of unsaved work is solved by server-side **edit recovery** (§5),
      never by weakening expiry.
+     ⚑ **Known gap (recorded 2026-10-09):** only the admin surface clears the screen at expiry
+     (`IdleLogout`). Frontend pages, including the Messages composer and the planned Discussions composer,
+     do not yet. This is a frontend-wide follow-up, and when fixed it applies to every frontend page alike.
+     No frontend page holds an exception to it (`docs/DESIGN-discussions-2026-10-09.md` §16.1).
 - **Reserved words — a name that already means something else is a bug, not a preference.** `class`
   is reserved: the entity is always `SubjectGrade`. **`draft` is reserved** for an unofficial *saved
   version* — the Guide tells users "your drafts live in Manage → Lesson plans → My saved versions" — so

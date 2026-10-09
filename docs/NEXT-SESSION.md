@@ -25,6 +25,23 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
+# DISCUSSIONS FORUM — PLANNING (2026-10-09), not started
+
+Discussions: **design confirmed; technical validation pending; implementation not approved.**
+Read `docs/DESIGN-discussions-2026-10-09.md` §16 (the current design; §1–15 are the dated planning record) and
+DECISIONS 2026-10-09 "Discussions". Next steps, in order:
+
+1. **Search spike: DONE (2026-10-09).** Outcome: **search titles only**, using Payload's own `like` (§16.3 item 4).
+   Still outstanding: rerun `docs/spikes/discussions-search-2026-10-09/` on the **Rock 5B** against an isolated
+   database, as a confirmation.
+2. Get operator approval, then build **PR 1** (missing-version notice on the lesson and compare pages).
+3. Then PR 2 (System Save infrastructure, API only), PR 3 (forum server side), PR 4 (forum UI). **Do not tag
+   a release between PR 3 and PR 4.**
+
+The planning docs were reviewed by GPT as well as Claude. Corrections from that review are recorded in DECISIONS.
+
+---
+
 # RELEASE PREPARATION (2026-10-09) - v0.93
 
 The latest published, installable release is **`v0.92`** (2026-10-07; both GHCR images, bundle and checksum
