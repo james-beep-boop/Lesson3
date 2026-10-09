@@ -11,6 +11,45 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-09 — System Save endpoint and `forumEnabled` (discussions PR 2); three corrections
+
+**What landed.**
+- `POST /api/globals/system-settings/save` is the sole writer of the settings global, as the System
+  panel design always required.
+- `lib/systemFlags.ts` is the fail-closed enforcement reader, never cached across requests.
+- A `forumEnabled` flag defaults on, with no env ceiling.
+- There is no visible toggle until the forum UI exists (PR 4).
+
+Design details:
+- **Re-authentication is Payload's own `login`**, and the session it mints is revoked at once with
+  `logoutOperation` (operator decision). It inherits Payload's lockout, `refuseDisabledLogin`, and the
+  per-address and global login limits, with no copy of the hash check.
+- **An advisory lock (`SYSTEM_SETTINGS_LOCK`), not a row lock.** The migration also **inserts the
+  settings row**: measured on a freshly migrated database, `system_settings` had zero rows. Without
+  the row, fail-closed would have turned "on by default" into off, and a row lock would have locked
+  nothing.
+- **`publicLibraryLive` is stored but not saveable** until it has an enforcement point. The versioned
+  acknowledgement is deliberately unbuilt, because no saveable flag needs it.
+
+**Corrections, each caught before merge:**
+
+1. **A race test is not a lock test, and this project already knew that.** The first concurrency case
+   fired two real Saves with one token and expected `[200, 409]`. It stayed green with the lock
+   removed: each Save's re-authentication writes the same user row, so the requests queued before
+   either reached the compare. `officialPointerLock.int.spec.ts` records the identical failure from
+   2026-08. **Rule: to pin a lock, hold it from an independent transaction (`whileLockHeld`) and assert
+   the guarded operation WAITS. Never infer a lock from the outcome of a race.** The replacement went
+   red in 76 ms against the unlocked build.
+2. **I asserted a hazard without reading the code that would cause it.** The comment justifying "login
+   before the transaction" said a rollback would erase the failed-attempt count. Payload's
+   `incrementLoginAttempts` deliberately writes without `req`, outside any transaction. A mutation that
+   moved the login inside the transaction left the lockout test green, which is how it surfaced. The
+   placement stays, for the true reasons: `login` assigns `req.user`, and the slow hash belongs outside
+   the settings lock.
+3. **Payload's `LockedAuth` is a 401 too.** Mapping every 401 from `login` to "That password is not
+   correct." would have told a locked-out administrator typing the right password that it was wrong.
+   The error is now matched by class (`AuthenticationError`).
+
 ## 2026-10-09 — Discussions: design confirmed; technical validation pending; implementation not approved
 
 Discussions will be built natively on Payload: topics, replies and per-user participation, plus

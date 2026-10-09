@@ -1,6 +1,7 @@
 import type { GlobalConfig, GlobalBeforeChangeHook } from 'payload'
 
 import { siteAdminOnly } from '../access'
+import { saveSystemSettingsEndpoint } from '../endpoints/systemSettingsSave'
 import type { User } from '../payload-types'
 
 /**
@@ -21,11 +22,12 @@ import type { User } from '../payload-types'
  *     already means an unofficial saved version, and the Guide tells users their drafts live in
  *     Manage → My saved versions.
  *
- * ⚑ WHAT PR 1 DOES **NOT** DO: nothing reads these flags yet. `PUBLIC_LIBRARY_ENABLED` alone still
- * governs public discovery, and outbound email is still unconditional. The flags, their provenance and
- * their access land here so the enforcement PR is a change to readers only — no second migration, and
- * the authorization surface is provable on its own. Until then a value stored here is inert, which is
- * why the panel in PR 1 renders FACTS ONLY and shows nobody a switch that does nothing (the
+ * ⚑ WHO READS AND WRITES THESE (2026-10-09, discussions PR 2). The ONE writer is the Save endpoint,
+ * `endpoints/systemSettingsSave.ts`, mounted below; it may change only `SAVEABLE_FLAGS`. The ONE
+ * reader for enforcement is `lib/systemFlags.ts` (fail-closed, never cached across requests).
+ * `publicLibraryLive` still has no enforcement reader — `PUBLIC_LIBRARY_ENABLED` alone governs public
+ * discovery — so it is stored but not saveable. Nothing on the panel renders a switch yet: the
+ * Discussions toggle arrives with the forum's UI, never before the feature it controls (the
  * never-render-a-toggle-for-something-absent rule, amendments §D).
  *
  * ⚑ AND WHY THERE ARE NO `studentAccess` / `studentQuiz` COLUMNS. The design doc listed them as
@@ -48,7 +50,7 @@ import type { User } from '../payload-types'
  * preserved a decision nobody had earned. `docs/DESIGN-system-panel-2026-08-21.md` holds the open
  * question.
  */
-export const SYSTEM_FLAGS = ['publicLibraryLive'] as const
+export const SYSTEM_FLAGS = ['publicLibraryLive', 'forumEnabled'] as const
 export type SystemFlag = (typeof SYSTEM_FLAGS)[number]
 
 /**
@@ -170,6 +172,8 @@ export const SystemSettings: GlobalConfig = {
   admin: { group: 'System', hidden: true },
   versions: false,
   hooks: { beforeChange: [stampFlagChanges] },
+  // POST /api/globals/system-settings/save — the sole writer (see `access.update` above).
+  endpoints: [saveSystemSettingsEndpoint],
   fields: [
     {
       name: 'features',
@@ -192,6 +196,25 @@ export const SystemSettings: GlobalConfig = {
           admin: {
             description:
               'Serve the public Explore routes. Requires PUBLIC_LIBRARY_ENABLED=1 and SERVER_URL at boot — off by env means these routes 404 whatever this says.',
+          },
+        },
+        {
+          name: 'forumEnabled',
+          type: 'checkbox',
+          // ⚑ DEFAULTS TRUE: the forum is on by default (operator decision 2026-10-09,
+          // `docs/DESIGN-discussions-2026-10-09.md` §16.1). Fail-closed governs a failed READ, not this
+          // stored default — `lib/systemFlags.ts` turns a failed or absent read into "off". The
+          // `20261009_*_add_forum_enabled` migration inserts the singleton row, so on a correct database
+          // "absent" cannot happen and the default is what an installation actually gets.
+          //
+          // ⚑ NO ENV CEILING, unlike `publicLibraryLive` — a deliberate deviation from the panel's pattern
+          // (§16.3 item 2): the forum exposes nothing beyond signed-in users and works offline, so a
+          // ceiling would only add install-time configuration.
+          defaultValue: true,
+          label: 'Discussions',
+          admin: {
+            description:
+              'The Discuss forum for signed-in users. Off hides every forum entry point and refuses every forum API, for everyone; forum data is kept.',
           },
         },
       ],

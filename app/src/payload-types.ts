@@ -1035,6 +1035,10 @@ export interface SystemSetting {
      * Serve the public Explore routes. Requires PUBLIC_LIBRARY_ENABLED=1 and SERVER_URL at boot — off by env means these routes 404 whatever this says.
      */
     publicLibraryLive?: boolean | null;
+    /**
+     * The Discuss forum for signed-in users. Off hides every forum entry point and refuses every forum API, for everyone; forum data is kept.
+     */
+    forumEnabled?: boolean | null;
   };
   /**
    * System-written. The last change to each flag.
@@ -1078,6 +1082,7 @@ export interface SystemSettingsSelect<T extends boolean = true> {
     | T
     | {
         publicLibraryLive?: T;
+        forumEnabled?: T;
       };
   flagChanges?:
     | T
