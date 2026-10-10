@@ -836,7 +836,13 @@ native-Payload approach of sections 13–14.
   generated migration, not assumed. Forum rows never block or cascade from lesson deletion.
 - **Account deletion.** `author` is optional, so the FK is `SET NULL` and the post renders exactly "Deleted User".
   `Users.beforeDelete` cascades only the user's *participation* rows, alongside favorites and messages.
-  Forum content is never cascaded.
+  After locking the user, it locks all topics referenced by their participation, posts or moderation
+  provenance in ascending id order before removing participation. The final user DELETE clears optional
+  post/provenance FKs under those locks. This keeps account deletion and thread deletion in the same
+  topic-before-children order. Forum content is never cascaded.
+- **Moderation authorization after waiting.** A custom moderation endpoint re-reads the caller after its
+  topic-lock wait and refuses a demoted, disabled or deleted administrator before writing. The re-read
+  takes no user row lock after the topic; actions recording an administrator FK take the user lock first.
 - **Off switch.** `lib/systemFlags.ts` exports `isForumEnabled(req)` (fail-closed, memoised on
   `req.context` via `systemFlagsFor`; built in PR 2) and PR 3 adds `requireForum()` for pages (the `requirePublicLibrary` idiom). Every collection access
   function, custom endpoint, page, nav projection and entry point consults it. GraphQL is already disabled,

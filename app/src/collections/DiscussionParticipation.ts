@@ -1,6 +1,8 @@
 import type { CollectionBeforeDeleteHook, CollectionConfig } from 'payload'
+import { sql } from '@payloadcms/db-postgres'
 
 import { ownParticipation } from '../lib/discussions'
+import { lockRows, rowsOf, txDb } from '../lib/txDb'
 
 /**
  * Discussion participation — who follows which thread, and how far they have read
@@ -46,10 +48,28 @@ export const DiscussionParticipation: CollectionConfig = {
  * user column (the Favorites/Messages 23502 trap). Their POSTS are never touched: `author` is optional,
  * so the delete clears it and the post shows "Deleted User".
  *
- * Coordination with concurrent posting is not this hook's job: `lockDeletingUser` (hooks/userRoles.ts)
- * has already taken the account's row lock, and `insertParticipation` waits on it.
+ * `lockDeletingUser` has already locked the account, blocking new references to it. Lock every affected
+ * topic before removing participation: the eventual user DELETE also clears author and moderation FKs.
+ * Otherwise this cascade can hold participation while waiting for a topic, and whole-thread deletion
+ * holds that topic while waiting for the same participation — a deadlock. Include reply authors and
+ * moderation provenance even when the departing account never authored the opening post.
  */
 export const cascadeDeleteUserParticipation: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const db = await txDb(req, { requireTransaction: true })
+  const topics = rowsOf(
+    await db.execute(sql`
+      SELECT id FROM discussion_topics
+       WHERE author_id = ${id} OR redacted_by_id = ${id} OR title_redacted_by_id = ${id}
+      UNION SELECT topic_id AS id FROM discussion_replies
+       WHERE author_id = ${id} OR redacted_by_id = ${id}
+      UNION SELECT topic_id AS id FROM discussion_participation WHERE user_id = ${id}
+    `),
+  )
+  await lockRows(
+    req,
+    'discussion_topics',
+    topics.map((topic) => Number(topic.id)),
+  )
   await req.payload.delete({
     collection: 'discussion-participation',
     where: { user: { equals: id } },

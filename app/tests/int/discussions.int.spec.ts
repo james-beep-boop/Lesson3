@@ -379,6 +379,38 @@ describe('immutability', () => {
 })
 
 describe('deletion', () => {
+  it('account deletion and whole-thread deletion both finish when participation is locked', async () => {
+    const author = await markedUser('thread-delete-departing')
+    const topic = await createTopic(author)
+    let accountDeletion!: Promise<unknown>
+    let threadDeletion!: Promise<unknown>
+    await whileLockHeld(
+      fx.payload,
+      sql`UPDATE discussion_participation SET last_read_seq = 0
+          WHERE user_id = ${author.id} AND topic_id = ${topic.id}`,
+      async () => {
+        accountDeletion = fx.payload.delete({
+          collection: 'users',
+          id: author.id,
+          overrideAccess: true,
+        })
+        expect(await stillPendingAfterWindow(accountDeletion)).toBe(true)
+        threadDeletion = fx.payload.delete({
+          collection: 'discussion-topics',
+          id: topic.id,
+          overrideAccess: true,
+        })
+        expect(await stillPendingAfterWindow(threadDeletion)).toBe(true)
+      },
+    )
+    // The old account cascade held participation before its FK cleanup needed the topic;
+    // thread deletion held the topic before deleting participation. Neither may abort with 40P01.
+    const outcomes = await Promise.allSettled([accountDeletion, threadDeletion])
+    expect(outcomes.map((outcome) => outcome.status)).toEqual(['fulfilled', 'fulfilled'])
+    expect(await participation(topic.id)).toEqual({})
+    await clearRateLimitBuckets(fx.payload, `discussionPost:${author.id}`)
+  }, 30_000)
+
   it('a whole-thread delete removes its replies and participants, and nothing else', async () => {
     const doomed = await createTopic(fx.users.teacher)
     await createReply(fx.users.editor, doomed.id)
