@@ -1,7 +1,7 @@
 # Lesson3 discussion forum
 
 Planning record started: 2026-10-08 (Asia/Tokyo).
-Status (2026-10-10): **design confirmed; the server side is built (PRs 1–3); the UI, the administrator switch and the Guide (PR 4) remain, under the release hold.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
+Status (2026-10-11): **design confirmed; the server side (PRs 1–3) and the forum for every user (4a, #378) are built; the administrator controls and switch (4b) and the Guide and release (4c) remain, under the release hold.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
 
 This document records the product discussion before option research. User-confirmed
 requirements take precedence over earlier suggestions. Research findings below include sources, dates, and limits on what has been verified. SPEC.md remains the
@@ -606,12 +606,17 @@ it introduces no implementation changes.
 
 ## 16. Design — 2026-10-09
 
-**Status (2026-10-10): design confirmed; server side built; PR 4 (UI) remaining.** Implementation was
-approved and PRs 1–3 have landed: the missing-version notice (#371); System Save and the `forumEnabled` flag
-(#373, #374); and the forum's server side (#375, #376 and #377). That covers data and posting, then mark-read,
-pin, redaction, the unread queries and title search. Section 16.5 holds the build contract and the as-built
-notes. What remains is PR 4: the forum UI, the System panel switch, the Guide and `USER_GUIDE.md`. **The release
-hold stands until PR 4 lands**, so no release is tagged with the server side alone. This section is
+**Status (2026-10-11): design confirmed; server side and 4a built; 4b and 4c remaining.** Implementation was
+approved, and these have landed:
+- the missing-version notice (#371);
+- System Save and the `forumEnabled` flag (#373, #374);
+- the forum's server side (#375, #376 and #377): data and posting, then mark-read, pin, redaction, the unread
+  queries and title search;
+- **4a (#378)**: the forum for every signed-in user.
+
+What remains is 4b (the Site Administrator's controls, the System panel switch, the moderation-only view) and 4c
+(the Guide, `USER_GUIDE.md`, SPEC §10, release notes). Section 16.5 holds the contracts and the as-built notes.
+**The release hold stands until 4c lands.** This section is
 the current design. Sections 1–15 are the dated planning record that led to it. Where they conflict, 16
 wins. Every product choice (16.1) and default (16.2) is operator-confirmed. The technical contracts (16.3,
 16.4) were reviewed by Claude and GPT, and are subject to the search spike's findings. The design adopts the
