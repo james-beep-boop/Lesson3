@@ -16,6 +16,8 @@ import type { PayloadRequest } from 'payload'
 
 import {
   createdText,
+  escapeLike,
+  titleSearchWhere,
   forumPosting,
   forumReading,
   ownParticipation,
@@ -24,6 +26,7 @@ import {
   requireSubmissionKey,
 } from '../../src/lib/discussions.js'
 import { rejectContentEdits } from '../../src/hooks/discussions.js'
+import { parseReadRange, parseTopicRedaction } from '../../src/endpoints/discussionActions.js'
 import type { User } from '../../src/payload-types.js'
 
 const teacher = { id: 7, roles: [] } as unknown as User
@@ -175,5 +178,61 @@ describe('rejectContentEdits', () => {
   it('does not apply on create', () => {
     const data = { title: 'Anything' }
     expect(guard({ data, operation: 'create', originalDoc: {} })).toBe(data)
+  })
+})
+
+describe('3b inputs', () => {
+  it('mark-read: two whole numbers with 0 ≤ fromSeq ≤ throughSeq, else 400', () => {
+    expect(parseReadRange({ fromSeq: 0, throughSeq: 0 })).toEqual({ fromSeq: 0, throughSeq: 0 })
+    expect(parseReadRange({ fromSeq: 3, throughSeq: 9 })).toEqual({ fromSeq: 3, throughSeq: 9 })
+    for (const bad of [
+      null,
+      {},
+      { fromSeq: 1 },
+      { fromSeq: 5, throughSeq: 4 },
+      { fromSeq: -1, throughSeq: 2 },
+      { fromSeq: 0, throughSeq: 1.5 },
+      { fromSeq: '0', throughSeq: '2' },
+    ]) {
+      expect(() => parseReadRange(bad), JSON.stringify(bad)).toThrow(/fromSeq/)
+    }
+  })
+
+  it('topic redaction: title and/or body, each exactly true, at least one', () => {
+    expect(parseTopicRedaction({ title: true })).toEqual({ title: true, body: false })
+    expect(parseTopicRedaction({ body: true })).toEqual({ title: false, body: true })
+    expect(parseTopicRedaction({ title: true, body: true })).toEqual({ title: true, body: true })
+    for (const bad of [
+      {},
+      null,
+      { title: false },
+      { title: 'yes' },
+      { author: true },
+      { body: true, extra: true },
+    ]) {
+      expect(() => parseTopicRedaction(bad), JSON.stringify(bad)).toThrow()
+    }
+  })
+})
+
+describe('title search', () => {
+  it('escapes LIKE wildcards and backslashes so they match literally', () => {
+    expect(escapeLike('50%')).toBe('50\\%')
+    expect(escapeLike('a_b')).toBe('a\\_b')
+    expect(escapeLike('c:\\x')).toBe('c:\\\\x')
+  })
+
+  it('collapses whitespace, escapes each word, and is null for an empty search', () => {
+    expect(titleSearchWhere('  fractions    lesson ')).toEqual({
+      title: { like: 'fractions lesson' },
+    })
+    expect(titleSearchWhere('50% off')).toEqual({ title: { like: '50\\% off' } })
+    expect(titleSearchWhere('   ')).toBeNull()
+    expect(titleSearchWhere('')).toBeNull()
+  })
+
+  it('bounds the search length', () => {
+    const where = titleSearchWhere('x'.repeat(500)) as { title: { like: string } }
+    expect(where.title.like).toHaveLength(200)
   })
 })

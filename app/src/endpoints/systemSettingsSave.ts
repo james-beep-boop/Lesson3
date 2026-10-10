@@ -35,7 +35,6 @@ import {
   type Endpoint,
   type PayloadRequest,
 } from 'payload'
-import { isSiteAdmin } from '../access'
 import { assertFresh, takeAdvisoryLock } from '../lib/txDb'
 import { SAVEABLE_FLAGS, type SaveableFlag } from '../lib/systemFlagNames'
 import type { User } from '../payload-types'
@@ -44,6 +43,7 @@ import {
   json,
   MAX_CONTROL_BODY_BYTES,
   readJsonBody,
+  reassertSiteAdmin,
   requireExpectedUpdatedAt,
 } from './respond'
 
@@ -181,15 +181,7 @@ export const saveSystemSettingsEndpoint: Endpoint = {
       // Password verification and waiting for the settings lock can outlive the caller's privileges.
       // Re-read the account before using the trusted writer; a demoted, disabled or deleted caller
       // must not save using the request's earlier authentication snapshot.
-      const caller = await req.payload.findByID({
-        collection: 'users',
-        id: (req.user as User).id, // `assertSiteAdmin` above guarantees a user
-        depth: 0,
-        overrideAccess: true,
-        disableErrors: true,
-        req,
-      })
-      if (!isSiteAdmin(caller) || caller?.signInDisabled) throw new APIError('Forbidden', 403)
+      await reassertSiteAdmin(req)
       // Read AFTER the lock: reading first would let two Saves with the same fresh token both pass.
       const current = await req.payload.findGlobal({
         slug: 'system-settings',

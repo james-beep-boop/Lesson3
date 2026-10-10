@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { redactReplyEndpoint } from '../endpoints/discussionActions'
 import {
   joinReplyAuthor,
   orderReply,
@@ -38,6 +39,7 @@ export const DiscussionReplies: CollectionConfig = {
     beforeChange: [rejectContentEdits(REPLY_CONTENT_FIELDS), orderReply],
     afterChange: [joinReplyAuthor],
   },
+  endpoints: [redactReplyEndpoint],
   indexes: [
     { fields: ['topic', 'seq'], unique: true },
     { fields: ['author', 'submissionKey'], unique: true },

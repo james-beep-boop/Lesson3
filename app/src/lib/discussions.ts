@@ -7,14 +7,22 @@
  * three slightly different copies of "who may do what while the forum is off".
  */
 import { sql } from '@payloadcms/db-postgres'
-import { APIError, type Access, type Field, type PayloadRequest, type Validate } from 'payload'
+import {
+  APIError,
+  type Access,
+  type Field,
+  type Payload,
+  type PayloadRequest,
+  type Validate,
+  type Where,
+} from 'payload'
 
 import { isSiteAdmin } from '../access'
 import { systemOnly } from '../access/bundle'
 import type { User } from '../payload-types'
 import { lessonDisplayName } from './substrand'
-import { isForumEnabled } from './systemFlags'
-import { txDb } from './txDb'
+import { isForumEnabled, readSystemFlags } from './systemFlags'
+import { poolDb, rowsOf, sqlIdList, txDb } from './txDb'
 
 export const MAX_TITLE_LENGTH = 150
 export const MAX_BODY_LENGTH = 5000
@@ -189,4 +197,169 @@ export async function insertParticipation(
      WHERE u."id" = ${args.userId}
        FOR KEY SHARE
     ON CONFLICT ("user_id", "topic_id") DO NOTHING`)
+}
+
+// ─── Reading (3b) ──────────────────────────────────────────────────────────────────────────────────
+
+/** A read-marker request: the displayed range of reply seqs, `0 ≤ fromSeq ≤ throughSeq`. */
+export interface ReadRange {
+  fromSeq: number
+  throughSeq: number
+}
+
+/**
+ * Advance a participant's read marker over the replies they were just shown (§16.4 "Mark-read"). Returns
+ * null when the topic does not exist; otherwise the thread's `lastSeq` and the caller's marker after the
+ * call — null when the caller does not participate (reading alone never subscribes anyone, so nothing is
+ * written).
+ *
+ * ONE STATEMENT, so it is atomic without a lock, and one round trip on the hottest forum path:
+ *   - `last_read_seq < $through` — the marker never moves backwards, whichever of two tabs reports last,
+ *     and a re-report of what is already read writes nothing;
+ *   - `$from <= last_read_seq + 1` — it only advances over a range that follows on directly from what was
+ *     already read, so a later page can never mark skipped replies as read. (An invited version author at
+ *     −1 reading from 0 qualifies, which marks the opening post read.)
+ *   - `$through <= last_seq` — a range past the thread's end can only be forged; nothing is written, and
+ *     the caller refuses it from the returned `lastSeq`.
+ *
+ * When nothing moved, the marker reported is the one this statement's snapshot saw — a concurrent tab's
+ * advance may not be in it yet. The stored marker is right either way; the next call reports it.
+ *
+ * ⚑ RAW SQL — the Payload-first rule's documented gap: a conditional, monotonic update is not expressible
+ * through `payload.update`.
+ */
+export async function advanceReadMarker(
+  req: PayloadRequest,
+  args: { userId: number; topicId: number } & ReadRange,
+): Promise<{ lastSeq: number; lastReadSeq: number | null } | null> {
+  const db = await txDb(req)
+  const [row] = rowsOf(
+    await db.execute(sql`
+      WITH "t" AS (SELECT "last_seq" FROM "discussion_topics" WHERE "id" = ${args.topicId}),
+      "moved" AS (
+        UPDATE "discussion_participation" p
+           SET "last_read_seq" = ${args.throughSeq}, "updated_at" = clock_timestamp()
+          FROM "t"
+         WHERE p."user_id" = ${args.userId} AND p."topic_id" = ${args.topicId}
+           AND ${args.throughSeq} <= COALESCE("t"."last_seq", 0)
+           AND p."last_read_seq" < ${args.throughSeq}
+           AND ${args.fromSeq} <= p."last_read_seq" + 1
+        RETURNING p."last_read_seq"
+      )
+      SELECT COALESCE("t"."last_seq", 0) AS "last_seq",
+             COALESCE(
+               (SELECT "last_read_seq" FROM "moved"),
+               (SELECT "last_read_seq" FROM "discussion_participation"
+                 WHERE "user_id" = ${args.userId} AND "topic_id" = ${args.topicId})
+             ) AS "last_read_seq"
+        FROM "t"`),
+  )
+  if (!row) return null
+  return {
+    lastSeq: Number(row.last_seq),
+    lastReadSeq: row.last_read_seq == null ? null : Number(row.last_read_seq),
+  }
+}
+
+/**
+ * The unread condition for one participation row `p` of user `$user` (§16.4 "Unread query"): the opening
+ * post is unread for an invited participant (`last_read_seq < 0`), or a later reply exists by someone
+ * else.
+ *
+ * ⚑ `IS DISTINCT FROM`, NOT `<>`. A deleted account's posts have a NULL author, and `NULL <> $user` is NULL —
+ * which would silently drop every "Deleted User" reply from the dot.
+ */
+const unreadCondition = (userId: number) => sql`(
+  (p."last_read_seq" < 0 AND EXISTS (
+    SELECT 1 FROM "discussion_topics" t
+     WHERE t."id" = p."topic_id" AND t."author_id" IS DISTINCT FROM ${userId}
+  ))
+  OR EXISTS (
+    SELECT 1 FROM "discussion_replies" r
+     WHERE r."topic_id" = p."topic_id" AND r."seq" > p."last_read_seq"
+       AND r."author_id" IS DISTINCT FROM ${userId}
+  )
+)`
+
+/**
+ * Has `userId` anything unread in the discussions they take part in? — the Discuss nav dot.
+ *
+ * Gated here, not by the caller: while the forum is off it is always `false` (§16.5, 3b gate table), so a
+ * page that forgets to check cannot light a dot for a switched-off forum. Read-only, on the pool.
+ */
+export async function hasUnread(payload: Payload, userId: number): Promise<boolean> {
+  if (!(await readSystemFlags(payload)).forumEnabled) return false
+  const [row] = rowsOf(
+    await poolDb(payload).execute(sql`
+      SELECT EXISTS (
+        SELECT 1 FROM "discussion_participation" p
+         WHERE p."user_id" = ${userId} AND ${unreadCondition(userId)}
+      ) AS "unread"`),
+  )
+  return row?.unread === true
+}
+
+/**
+ * Which of `topicIds` (one page of the topic list) have something unread for `userId` — the per-row
+ * markers. Bounded by the page: only those ids are examined. Empty while the forum is off.
+ */
+export async function unreadTopicIds(
+  payload: Payload,
+  userId: number,
+  topicIds: readonly number[],
+): Promise<number[]> {
+  if (topicIds.length === 0 || !(await readSystemFlags(payload)).forumEnabled) return []
+  const rows = rowsOf(
+    await poolDb(payload).execute(sql`
+      SELECT p."topic_id" FROM "discussion_participation" p
+       WHERE p."user_id" = ${userId} AND p."topic_id" IN (${sqlIdList(topicIds)})
+         AND ${unreadCondition(userId)}`),
+  )
+  return rows.map((row) => Number(row.topic_id))
+}
+
+// ─── Search (3b) ───────────────────────────────────────────────────────────────────────────────────
+
+/** Longest search text honoured — bounds the query, not the reader. */
+export const MAX_SEARCH_LENGTH = 200
+
+/** Make `%`, `_` and `\` literal in a LIKE pattern. Payload's `like` does not escape them (spike 2026-10-09). */
+export const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`)
+
+/**
+ * The title-search `where` (§16.2): every word must appear in the title, in any order, case-insensitive.
+ * Payload's own `like` already splits on spaces and requires every word; this collapses whitespace,
+ * escapes the LIKE wildcards and bounds the length. Null for an empty search.
+ */
+export function titleSearchWhere(query: string): Where | null {
+  const words = query.slice(0, MAX_SEARCH_LENGTH).trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return null
+  return { title: { like: words.map(escapeLike).join(' ') } }
+}
+
+/** Topics per page in the list and in search results (§16.2). */
+export const TOPIC_PAGE_SIZE = 20
+
+/**
+ * Title search, as the caller — the ONE entry point, because it carries the 3b gate: while the forum is off
+ * it returns null for everyone, Site Administrator included. (Reading threads stays open to the Site
+ * Administrator while off, for moderation; searching does not.) Null also for an empty search. Results are
+ * one row per topic, newest activity first, through the collection's own read access.
+ */
+export async function searchTopicTitles(
+  payload: Payload,
+  args: { user: User; query: string; page?: number },
+) {
+  const where = titleSearchWhere(args.query)
+  if (!where || !(await readSystemFlags(payload)).forumEnabled) return null
+  return payload.find({
+    collection: 'discussion-topics',
+    where,
+    sort: ['-lastActivityAt', '-id'],
+    limit: TOPIC_PAGE_SIZE,
+    page: args.page ?? 1,
+    depth: 0,
+    overrideAccess: false,
+    user: args.user,
+  })
 }

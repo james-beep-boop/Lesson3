@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { markReadEndpoint, pinEndpoint, redactTopicEndpoint } from '../endpoints/discussionActions'
 import { deleteThreadEndpoint } from '../endpoints/discussionThreadDelete'
 import {
   cascadeDeleteThread,
@@ -22,10 +23,16 @@ import {
  * Discussion topics — the opening post of each thread (`docs/DESIGN-discussions-2026-10-09.md` §16.4).
  *
  * Created through Payload's ordinary REST create (`POST /api/discussion-topics`), exactly like Messages.
- * Nothing about a published topic can be edited by anyone; the only later writes are system ones
- * (activity on each reply, and pin/redaction in 3b), which `rejectContentEdits` confines to system fields.
- * Whole-thread deletion is a Site-Administrator ENDPOINT, not the REST delete, so its log can mean
- * "committed" (§16.5 contract, item 5).
+ * Nothing about a published topic can be edited by anyone. The only later writes are system ones:
+ * activity on each reply and pinning, which `rejectContentEdits` confines to system fields; and redaction,
+ * a conditional SQL update that never passes through that guard (endpoints/discussionActions.ts).
+ * Whole-thread deletion and redaction are Site-Administrator ENDPOINTS, not REST writes, so their log
+ * can mean "committed" (§16.5 contract, item 5; endpoints/moderate.ts).
+ *
+ * ⚑ ANY `payload.update` OF A TOPIC MUST HOLD THE TOPIC'S ROW LOCK FIRST. Payload reads the document and
+ * writes it back whole, so an update that reads outside the lock overwrites a concurrent reply's `lastSeq`
+ * or a redaction with the older values (review 2026-10-10, found on pinning). Today the only such write is
+ * pinning, which runs inside `moderate`; replies and redaction are single SQL statements.
  */
 export const DiscussionTopics: CollectionConfig = {
   slug: 'discussion-topics',
@@ -42,7 +49,7 @@ export const DiscussionTopics: CollectionConfig = {
     afterChange: [joinTopicParticipants],
     beforeDelete: [cascadeDeleteThread],
   },
-  endpoints: [deleteThreadEndpoint],
+  endpoints: [deleteThreadEndpoint, markReadEndpoint, pinEndpoint, redactTopicEndpoint],
   // One post per composer submission (contract item 1). NULL authors (deleted accounts) never collide.
   indexes: [{ fields: ['author', 'submissionKey'], unique: true }],
   fields: [

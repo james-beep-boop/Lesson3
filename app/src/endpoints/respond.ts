@@ -26,6 +26,25 @@ export function assertSiteAdmin(req: PayloadRequest): void {
 }
 
 /**
+ * Re-read the caller's account inside the transaction and refuse unless it is STILL an enabled Site
+ * Administrator — the second half of `assertSiteAdmin`, for endpoints that wait on a lock (or verify a
+ * password) before their trusted write. `req.user` is the snapshot authentication took; a demotion or
+ * disable committed while the request waited does not conflict with any lock it holds, so only a re-read
+ * after the wait can see it (#374, #376). Call it AFTER the last lock that can wait.
+ */
+export async function reassertSiteAdmin(req: PayloadRequest): Promise<void> {
+  const caller = await req.payload.findByID({
+    collection: 'users',
+    id: (req.user as User).id, // `assertSiteAdmin` ran first, so there is a user
+    depth: 0,
+    overrideAccess: true,
+    disableErrors: true,
+    req,
+  })
+  if (!isSiteAdmin(caller) || caller?.signInDisabled) throw new APIError('Forbidden', 403)
+}
+
+/**
  * The `expectedUpdatedAt` optimistic-concurrency token, parsed and validated.
  *
  * ⚑ ONE ACCEPTANCE RULE for every endpoint that guards an authorization write. `userAssignments` and

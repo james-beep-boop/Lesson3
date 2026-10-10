@@ -465,3 +465,13 @@ export const setForumEnabled = (payload: Payload, forumEnabled: boolean) =>
     data: { features: { forumEnabled } } as never,
     overrideAccess: true,
   })
+
+/** Run `fn` with the forum switched OFF, and switch it back ON afterwards, whatever `fn` does. */
+export async function withForumOff<T>(payload: Payload, fn: () => Promise<T>): Promise<T> {
+  await setForumEnabled(payload, false)
+  try {
+    return await fn()
+  } finally {
+    await setForumEnabled(payload, true)
+  }
+}

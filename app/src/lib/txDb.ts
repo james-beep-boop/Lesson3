@@ -98,7 +98,8 @@ export const poolDb = (payload: { db: unknown }): DrizzleHandle =>
  * statement as an identifier, so it must never be able to originate in caller data. Adding a table
  * here is a deliberate edit; passing one through from a request is impossible.
  */
-export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans' | 'discussion_topics'
+export type LockableTable =
+  'subject_grades' | 'users' | 'lesson_plans' | 'discussion_topics' | 'discussion_replies'
 
 /**
  * The collection represented by each lockable database table.
@@ -109,6 +110,7 @@ export type LockableTable = 'subject_grades' | 'users' | 'lesson_plans' | 'discu
 const COLLECTION_OF = {
   lesson_plans: 'lesson-plans',
   discussion_topics: 'discussion-topics',
+  discussion_replies: 'discussion-replies',
   subject_grades: 'subject-grades',
   users: 'users',
 } as const satisfies Record<LockableTable, CollectionSlug>
@@ -147,18 +149,42 @@ export async function lockRows(
 
   const db = await txDb(source, { requireTransaction: true })
 
-  // Each id is BOUND as its own parameter. `= ANY(${array})` reads better and was tried first, but
-  // drizzle renders it as `ANY(($1))` and node-postgres then serialises the JS array as a plain
-  // string — Postgres answers `22P02: Array value must start with "{"`. Joining bound chunks is the
-  // form that actually parameterises. Only the table name is interpolated, and it comes from a
-  // closed union, never from caller data.
-  const idList = sql.join(
-    unique.map((id) => sql`${id}`),
+  // Only the table name is interpolated, and it comes from a closed union, never from caller data.
+  await db.execute(
+    sql`SELECT id FROM ${sql.raw(`"${table}"`)} WHERE id IN (${sqlIdList(unique)}) ORDER BY id FOR UPDATE`,
+  )
+}
+
+/**
+ * A list of ids for `IN (…)`, each BOUND as its own parameter.
+ *
+ * ⚑ NOT `= ANY(${array})`. That reads better and was tried first, but drizzle renders it as `ANY(($1))`
+ * and node-postgres then serialises the JS array as a plain string — Postgres answers `22P02: Array value
+ * must start with "{"`. Joining bound chunks is the form that actually parameterises. Callers must not
+ * pass an empty list (`IN ()` is a syntax error).
+ */
+export const sqlIdList = (ids: ReadonlyArray<number>) =>
+  sql.join(
+    ids.map((id) => sql`${id}`),
     sql`, `,
   )
-  await db.execute(
-    sql`SELECT id FROM ${sql.raw(`"${table}"`)} WHERE id IN (${idList}) ORDER BY id FOR UPDATE`,
+
+/**
+ * Take `FOR KEY SHARE` on a user's row before writing a reference to them, inside the caller's
+ * transaction. Returns false when the account no longer exists.
+ *
+ * ⚑ LOCK ORDER — USER, THEN TOPICS, THEN PARTICIPATION (DECISIONS 2026-10-09, 2026-10-10). Account deletion
+ * locks the user row first (`lockDeletingUser`) and only then the forum rows it touches. A write that
+ * locks a forum row and then references a user — whose foreign key takes this same lock implicitly —
+ * would take them in the reverse order and could deadlock with it (40P01). Taking it explicitly, first,
+ * puts every path in one order. Used by reply ordering and every moderation write.
+ */
+export async function lockUserForReference(source: TxSource, userId: number): Promise<boolean> {
+  const db = await txDb(source, { requireTransaction: true })
+  const rows = rowsOf(
+    await db.execute(sql`SELECT "id" FROM "users" WHERE "id" = ${userId} FOR KEY SHARE`),
   )
+  return rows.length > 0
 }
 
 /**

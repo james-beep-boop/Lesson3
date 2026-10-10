@@ -1,7 +1,7 @@
 # Lesson3 discussion forum
 
 Planning record started: 2026-10-08 (Asia/Tokyo).
-Status: **design confirmed; technical validation pending; implementation not approved.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
+Status (2026-10-10): **design confirmed; the server side is built (PRs 1–3); the UI, the administrator switch and the Guide (PR 4) remain, under the release hold.** Section 16 is the current design and supersedes the open items in sections 4–7, 11, 15.3 and 15.6; sections 1–15 are the dated planning record.
 
 This document records the product discussion before option research. User-confirmed
 requirements take precedence over earlier suggestions. Research findings below include sources, dates, and limits on what has been verified. SPEC.md remains the
@@ -606,7 +606,12 @@ it introduces no implementation changes.
 
 ## 16. Design — 2026-10-09
 
-**Status: design confirmed; technical validation pending; implementation not approved.** This section is
+**Status (2026-10-10): design confirmed; server side built; PR 4 (UI) remaining.** Implementation was
+approved and PRs 1–3 have landed: the missing-version notice (#371); System Save and the `forumEnabled` flag
+(#373, #374); and the forum's server side (#375, #376 and #377). That covers data and posting, then mark-read,
+pin, redaction, the unread queries and title search. Section 16.5 holds the build contract and the as-built
+notes. What remains is PR 4: the forum UI, the System panel switch, the Guide and `USER_GUIDE.md`. **The release
+hold stands until PR 4 lands**, so no release is tagged with the server side alone. This section is
 the current design. Sections 1–15 are the dated planning record that led to it. Where they conflict, 16
 wins. Every product choice (16.1) and default (16.2) is operator-confirmed. The technical contracts (16.3,
 16.4) were reviewed by Claude and GPT, and are subject to the search spike's findings. The design adopts the
@@ -783,12 +788,19 @@ native-Payload approach of sections 13–14.
   displayed page that have a participation row for the user, so the cost is bounded by the page size.
 - **Mark-read.** `POST /api/discussion-topics/:id/mark-read { fromSeq, throughSeq }`. The values must be integers with
   `0 ≤ fromSeq ≤ throughSeq ≤ lastSeq`; anything else is a 400 and nothing is written.
-  - It touches only your own row, using `GREATEST`, so the marker never moves backwards across tabs.
+  - It touches only your own row, and only to move the marker forward (as built: `last_read_seq < throughSeq`, equivalent to the planned `GREATEST` but writing nothing on a repeat), so it never moves backwards across tabs.
   - It advances only when `fromSeq ≤ lastReadSeq + 1`, i.e. the displayed range follows on directly from what was already read. A later page can never mark skipped replies as read.
   - A thread opens at the page holding the first unread reply.
   - It is a POST, never a GET side effect (the `markMessagesRead` precedent).
 - **Pin.** `POST /api/discussion-topics/:id/pin { pinned }`, Site Administrator only, writes `pinnedAt` only.
-- **Redact.** `POST /api/discussion-replies/:id/redact` and `POST /api/discussion-topics/:id/redact
+- **Redact.** ⚑ **As built in 3b (operator decision 2026-10-10), redaction is ONE conditional SQL `UPDATE`**
+  (`… SET body = '', redacted_at = clock_timestamp(), redacted_by_id = $admin WHERE id = $id AND redacted_at IS
+  NULL`), not a write through `payload.update` past the immutability guard. That refuses a second redaction
+  atomically (409), and `rejectContentEdits` stays strict for every Payload path, with no marker exception. The
+  `req.context` marker described below was not built. It runs through the shared `moderate` helper
+  (`endpoints/moderate.ts`), which takes the administrator's row, then the post's row, then re-checks
+  permissions, then writes, commits and logs. Whole-thread delete uses the same helper.
+  `POST /api/discussion-replies/:id/redact` and `POST /api/discussion-topics/:id/redact
   { title?: true, body?: true }`. The topic's **title and opening post are redactable independently**, offered as two
   checkboxes in one dialog. Site Administrator only, irreversible, with a confirmation dialog.
   - It blanks the chosen part and stamps its `*RedactedAt`/`*RedactedBy`. The UI renders "Removed by the
@@ -1009,10 +1021,11 @@ verified against a production build.
 ### 16.6 Planning status
 
 Every product question and default is operator-confirmed (16.1, 16.2; 2026-10-09). The **search spike is done**
-(16.3 item 4), and its finding narrowed search to titles only. Remaining before implementation:
+(16.3 item 4), and its finding narrowed search to titles only. Implementation was approved, and PRs 1–3 have landed
+(see the status at the top of section 16). Remaining:
 
+- **PR 4**: the UI, the System panel switch, the Guide and `USER_GUIDE.md`, under the release hold (16.5).
 - **The Rock 5B confirmation run** of the spike's measurements (a confirmation, not a design gate).
-- Approval to begin PR 1.
 
 **Product scope is frozen** as of 2026-10-09. After the spike, resolve only issues that it exposes; new features are
 out of scope for this release.

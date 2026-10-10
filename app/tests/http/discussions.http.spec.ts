@@ -209,26 +209,37 @@ describe('no edits, and no REST delete', () => {
   })
 })
 
-describe('whole-thread delete endpoint', () => {
+/**
+ * The #376 rule over the wire, for every moderation action that does not lock the caller's own row: a Site
+ * Administrator demoted, disabled or deleted while the action WAITS on the topic's lock is refused (403)
+ * after the wait, and `unchanged` proves nothing was written. The holder keeps the topic locked while the
+ * account change commits, so the change lands mid-wait by construction rather than by timing.
+ */
+function refusesAdminChangedDuringWait(
+  action: 'delete' | 'pin',
+  body: unknown,
+  unchanged: (topic: { id: number; pinnedAt?: string | null }) => void,
+) {
   for (const change of ['demoted', 'disabled', 'deleted'] as const) {
-    it(`refuses an administrator ${change} while the delete waits on the topic`, async () => {
+    it(`refuses an administrator ${change} while the ${action} waits on the topic`, async () => {
       const topicId = await postTopic('teacher')
       const caller = await createUserVerified(fx.payload, {
-        email: `${MARK}delete-${change}@example.test`.toLowerCase(),
-        name: `${MARK}Delete ${change}`,
+        email: `${MARK}${action}-${change}@example.test`.toLowerCase(),
+        name: `${MARK}${action} ${change}`,
         password: fx.password,
         roles: ['siteAdmin'],
       })
       let deleted = false
       try {
         const callerToken = await login(caller.email, fx.password)
-        let deleting!: Promise<Response>
+        let acting!: Promise<Response>
         await whileRowLocked(fx.payload, 'discussion_topics', topicId, async () => {
-          deleting = fetch(url(`/api/discussion-topics/${topicId}/delete`), {
+          acting = fetch(url(`/api/discussion-topics/${topicId}/${action}`), {
             method: 'POST',
-            headers: { Authorization: `JWT ${callerToken}` },
+            headers: { Authorization: `JWT ${callerToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
           })
-          expect(await stillPendingAfterWindow(deleting)).toBe(true)
+          expect(await stillPendingAfterWindow(acting)).toBe(true)
           if (change === 'deleted') {
             await fx.payload.delete({ collection: 'users', id: caller.id, overrideAccess: true })
             deleted = true
@@ -241,19 +252,24 @@ describe('whole-thread delete endpoint', () => {
             })
           }
         })
-        expect((await deleting).status).toBe(403)
-        const kept = await fx.payload.findByID({
-          collection: 'discussion-topics',
-          id: topicId,
-          overrideAccess: true,
-        })
-        expect(kept.id).toBe(topicId)
+        expect((await acting).status).toBe(403)
+        unchanged(
+          await fx.payload.findByID({
+            collection: 'discussion-topics',
+            id: topicId,
+            overrideAccess: true,
+          }),
+        )
       } finally {
         await clearRateLimitBuckets(fx.payload, `login:${caller.email.toLowerCase()}`)
         if (!deleted) await deleteUserFixture(fx.payload, caller.id)
       }
     }, 30_000)
   }
+}
+
+describe('whole-thread delete endpoint', () => {
+  refusesAdminChangedDuringWait('delete', {}, (topic) => expect(topic.id).toBeTruthy())
 
   it('refuses an anonymous caller and every role but the Site Administrator', async () => {
     const topicId = await postTopic('teacher')
@@ -343,6 +359,103 @@ describe('the off switch (3a gates)', () => {
       }
       expect((await call('GET', `/api/discussion-topics/${topicId}`, 'siteAdmin')).status).toBe(200)
       expect((await deleteThread(topicId, 'siteAdmin')).status).toBe(200)
+    } finally {
+      await setForum(true)
+    }
+  })
+})
+
+// ─── 3b: mark-read, pin, redaction ─────────────────────────────────────────────────────────────────
+
+const topicAction = (topicId: number, action: string, as?: RoleKey, body: unknown = {}) =>
+  call('POST', `/api/discussion-topics/${topicId}/${action}`, as, body)
+const redactReply = (replyId: number, as?: RoleKey) =>
+  call('POST', `/api/discussion-replies/${replyId}/redact`, as, {})
+
+/** A topic by the Teacher with one reply by the Teacher with editing access; returns both ids. */
+async function threadWithReply(): Promise<{ topicId: number; replyId: number }> {
+  const topicId = await postTopic('teacher')
+  const reply = await call('POST', '/api/discussion-replies', 'editor', replyBody(topicId))
+  expect(reply.status, reply.text).toBe(201)
+  return { topicId, replyId: (reply.body?.doc as { id: number }).id }
+}
+
+describe('mark-read endpoint (3b)', () => {
+  it('refuses an anonymous caller, accepts a participant, and refuses a bad range', async () => {
+    const { topicId } = await threadWithReply()
+    expect(
+      (await topicAction(topicId, 'mark-read', undefined, { fromSeq: 0, throughSeq: 1 })).status,
+    ).toBe(401)
+    const res = await topicAction(topicId, 'mark-read', 'teacher', { fromSeq: 1, throughSeq: 1 })
+    expect(res.status, res.text).toBe(200)
+    expect(res.body?.lastReadSeq).toBe(1)
+    expect(
+      (await topicAction(topicId, 'mark-read', 'teacher', { fromSeq: 2, throughSeq: 1 })).status,
+    ).toBe(400)
+    expect(
+      (await topicAction(topicId, 'mark-read', 'teacher', { fromSeq: 0, throughSeq: 9 })).status,
+    ).toBe(400)
+  })
+})
+
+describe('pin endpoint (3b)', () => {
+  refusesAdminChangedDuringWait('pin', { pinned: true }, (topic) =>
+    expect(topic.pinnedAt ?? null).toBeNull(),
+  )
+
+  it('refuses an anonymous caller and every role but the Site Administrator', async () => {
+    const topicId = await postTopic('teacher')
+    expect((await topicAction(topicId, 'pin', undefined, { pinned: true })).status).toBe(401)
+    for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
+      expect((await topicAction(topicId, 'pin', role, { pinned: true })).status, LABEL[role]).toBe(
+        403,
+      )
+    }
+    const res = await topicAction(topicId, 'pin', 'siteAdmin', { pinned: true })
+    expect(res.status, res.text).toBe(200)
+    expect(res.body?.pinnedAt).toBeTruthy()
+    expect((await topicAction(topicId, 'pin', 'siteAdmin', { pinned: 'yes' })).status).toBe(400)
+  })
+})
+
+describe('redaction endpoints (3b)', () => {
+  it('refuses an anonymous caller and every role but the Site Administrator', async () => {
+    const { topicId, replyId } = await threadWithReply()
+    expect((await topicAction(topicId, 'redact', undefined, { body: true })).status).toBe(401)
+    expect((await redactReply(replyId)).status).toBe(401)
+    for (const role of ['subjectAdmin', 'editor', 'teacher'] as const) {
+      expect((await topicAction(topicId, 'redact', role, { body: true })).status, LABEL[role]).toBe(
+        403,
+      )
+      expect((await redactReply(replyId, role)).status, LABEL[role]).toBe(403)
+    }
+  })
+
+  it('lets the Site Administrator redact once (200, then 409) and refuses an unknown part (400)', async () => {
+    const { topicId, replyId } = await threadWithReply()
+    expect((await topicAction(topicId, 'redact', 'siteAdmin', { title: true })).status).toBe(200)
+    expect((await topicAction(topicId, 'redact', 'siteAdmin', { title: true })).status).toBe(409)
+    expect((await topicAction(topicId, 'redact', 'siteAdmin', { author: true })).status).toBe(400)
+    expect((await redactReply(replyId, 'siteAdmin')).status).toBe(200)
+    expect((await redactReply(replyId, 'siteAdmin')).status).toBe(409)
+    expect((await redactReply(999_999_999, 'siteAdmin')).status).toBe(404)
+  })
+})
+
+describe('the off switch (3b gates)', () => {
+  it('while off: no mark-read or pin for anyone; the Site Administrator can still redact', async () => {
+    const { topicId, replyId } = await threadWithReply()
+    await setForum(false)
+    try {
+      for (const role of ROLES) {
+        expect(
+          (await topicAction(topicId, 'mark-read', role, { fromSeq: 0, throughSeq: 0 })).status,
+          LABEL[role],
+        ).toBe(403)
+      }
+      expect((await topicAction(topicId, 'pin', 'siteAdmin', { pinned: true })).status).toBe(403)
+      expect((await topicAction(topicId, 'redact', 'siteAdmin', { body: true })).status).toBe(200)
+      expect((await redactReply(replyId, 'siteAdmin')).status).toBe(200)
     } finally {
       await setForum(true)
     }
