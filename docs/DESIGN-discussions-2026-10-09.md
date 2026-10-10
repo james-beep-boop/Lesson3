@@ -783,12 +783,19 @@ native-Payload approach of sections 13–14.
   displayed page that have a participation row for the user, so the cost is bounded by the page size.
 - **Mark-read.** `POST /api/discussion-topics/:id/mark-read { fromSeq, throughSeq }`. The values must be integers with
   `0 ≤ fromSeq ≤ throughSeq ≤ lastSeq`; anything else is a 400 and nothing is written.
-  - It touches only your own row, using `GREATEST`, so the marker never moves backwards across tabs.
+  - It touches only your own row, and only to move the marker forward (as built: `last_read_seq < throughSeq`, equivalent to the planned `GREATEST` but writing nothing on a repeat), so it never moves backwards across tabs.
   - It advances only when `fromSeq ≤ lastReadSeq + 1`, i.e. the displayed range follows on directly from what was already read. A later page can never mark skipped replies as read.
   - A thread opens at the page holding the first unread reply.
   - It is a POST, never a GET side effect (the `markMessagesRead` precedent).
 - **Pin.** `POST /api/discussion-topics/:id/pin { pinned }`, Site Administrator only, writes `pinnedAt` only.
-- **Redact.** `POST /api/discussion-replies/:id/redact` and `POST /api/discussion-topics/:id/redact
+- **Redact.** ⚑ **As built in 3b (operator decision 2026-10-10), redaction is ONE conditional SQL `UPDATE`**
+  (`… SET body = '', redacted_at = clock_timestamp(), redacted_by_id = $admin WHERE id = $id AND redacted_at IS
+  NULL`), not a write through `payload.update` past the immutability guard. That refuses a second redaction
+  atomically (409), and `rejectContentEdits` stays strict for every Payload path, with no marker exception. The
+  `req.context` marker described below was not built. It runs through the shared `moderate` helper
+  (`endpoints/moderate.ts`), which takes the administrator's row, then the post's row, then re-checks
+  permissions, then writes, commits and logs. Whole-thread delete uses the same helper.
+  `POST /api/discussion-replies/:id/redact` and `POST /api/discussion-topics/:id/redact
   { title?: true, body?: true }`. The topic's **title and opening post are redactable independently**, offered as two
   checkboxes in one dialog. Site Administrator only, irreversible, with a confirmation dialog.
   - It blanks the chosen part and stamps its `*RedactedAt`/`*RedactedBy`. The UI renders "Removed by the

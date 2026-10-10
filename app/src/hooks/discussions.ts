@@ -29,7 +29,7 @@ import {
 import { consumeRateLimit } from '../lib/rateLimit'
 import { findReadableVersion } from '../lib/readBundle'
 import { relId } from '../lib/relId'
-import { lockRows, rowsOf, txDb } from '../lib/txDb'
+import { lockRows, lockUserForReference, rowsOf, txDb } from '../lib/txDb'
 import type { User } from '../payload-types'
 
 type Data = Record<string, unknown>
@@ -213,11 +213,8 @@ export const orderReply: CollectionBeforeChangeHook = async ({ data, operation, 
   const db = await txDb(req, { requireTransaction: true })
 
   const authorId = relId(data.author)
-  if (authorId != null) {
-    const [author] = rowsOf(
-      await db.execute(sql`SELECT "id" FROM "users" WHERE "id" = ${authorId} FOR KEY SHARE`),
-    )
-    if (!author) throw new APIError('This account is no longer available.', 403)
+  if (authorId != null && !(await lockUserForReference(req, authorId))) {
+    throw new APIError('This account is no longer available.', 403)
   }
 
   const [row] = rowsOf(

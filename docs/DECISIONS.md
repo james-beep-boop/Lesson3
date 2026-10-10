@@ -11,6 +11,59 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-10 — Discussions 3b: actions and queries; one moderation path
+
+3b adds mark-read, pin and redaction (`endpoints/discussionActions.ts`), the unread queries (`hasUnread` and
+`unreadTopicIds`), and title search (`searchTopicTitles`) in `lib/discussions.ts`. Decisions made while
+building it:
+
+- **Redaction is one conditional SQL UPDATE** (operator decision). `WHERE id = $id AND redacted_at IS NULL`
+  refuses a second redaction atomically, and the immutability guard keeps no exception. This departs from
+  §16.4's planned `req.context` marker, which was not built.
+- **One moderation path** (`endpoints/moderate.ts`). Whole-thread delete and both redactions run through
+  `moderate`. It owns the transaction, takes the post's lock, and **only then** re-checks permissions, so
+  a demotion committed during the lock wait is caught (#374 and the entry below). Redaction first takes
+  `FOR KEY SHARE` on the administrator's row (lock order: user, then post), because its `redacted_by_id`
+  foreign key would otherwise take that lock after the post's and deadlock with the deletion of the
+  administrator's own account. **Thread deletion deliberately does not take it.** Correction: after
+  /simplify I took it for all three "to be safe". That made #376's HTTP tests hang. A demotion, disable
+  or account deletion takes `FOR UPDATE` on the user row, so it queued behind the waiting delete instead
+  of committing during the wait. The cost: for redaction, such a change waits for the redaction rather
+  than being refused by the re-check. That is still safe, because the redaction happened first. After that it writes, commits, and logs only after the
+  commit. My first draft re-checked before the target lock, which repeated the mistake the audit below had
+  just fixed. The re-check is now one helper, `reassertSiteAdmin`, which System Save uses too, and the user
+  lock is `lockUserForReference` (`lib/txDb.ts`), which reply ordering uses too. One rule, one spelling.
+- **Pinning goes through `payload.update`, inside `moderate`.** `pinnedAt` is a system field, so the
+  immutability guard lets it through. Correction (review 2026-10-10): /simplify swapped my one-statement SQL
+  pin for a bare `payload.update`. Payload reads the document and then writes it back whole. Outside the
+  topic lock, a reply or redaction committed between the read and the write was overwritten, which restored
+  redacted text and rolled `lastSeq` back so the next reply hit a duplicate seq. The pin also trusted the
+  permission snapshot from the start of the request, which the SQL version already did. Now `moderate`
+  takes the topic lock before Payload reads, and re-checks the caller after the wait. Regressions: pin
+  racing a held reply increment and a held redaction (integration), and demoted, disabled and deleted
+  administrators during the wait (HTTP, shared with thread delete). **Rule: any `payload.update` of a topic
+  holds the topic's row lock first** (recorded on the collection). Redaction stays SQL because it must be
+  conditional.
+- **The switch gates search and the dot, not only the routes.** `hasUnread`, `unreadTopicIds` and
+  `searchTopicTitles` check `forumEnabled` themselves and return nothing while the forum is off, for the
+  Site Administrator too. A page that forgets to check cannot light a dot or search a switched-off forum.
+  The Site Administrator's moderation-while-off is reading and moderating threads, not searching.
+- **Mark-read is one statement and one round trip,** because it runs on every thread view. It reads the
+  thread's `lastSeq` and conditionally advances the marker in a single CTE. The marker only moves forward
+  (`last_read_seq < throughSeq`, so a repeat writes nothing), only over a contiguous range
+  (`fromSeq <= last_read_seq + 1`), and never past the thread's end. A caller who has never posted in the
+  thread gets nothing written, because reading alone never subscribes. The accepted cost: when nothing
+  moved, the marker reported back is the one the statement's snapshot saw, which a concurrent tab may
+  already have passed. The stored marker is right either way.
+- **Deferred to PR 4: a per-render cache of the forum switch.** `hasUnread`, `unreadTopicIds` and
+  `searchTopicTitles` each read the flags. A page that calls two of them reads twice. `lib/systemFlags.ts`
+  already says the React `cache()` reader arrives with the first page that needs it; that is PR 4.
+
+Twelve 3b guards were mutation-tested one at a time, and each turned its own tests red. They include
+redaction's lock order (a deadlock test against the administrator's own account deletion), both
+double-redaction refusals, `IS DISTINCT FROM`, the forward-only marker, the no-skip rule, the end-of-thread
+bound, wildcard escaping, pinning inside `moderate`, and the three switch gates.
+
 ## 2026-10-10 — Discussions audit: account/thread deletion and stale moderation permission
 
 Two more races were reproduced before fixes, with regressions through the real application paths:

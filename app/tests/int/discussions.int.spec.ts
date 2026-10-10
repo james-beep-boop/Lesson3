@@ -23,6 +23,7 @@ import {
   MARK,
   minimalBundleContent,
   setForumEnabled,
+  withForumOff,
   setupRoleFixture,
   type RoleFixture,
 } from '../helpers/fixtures.js'
@@ -551,8 +552,7 @@ describe('deletion', () => {
 describe('the off switch (3a gates)', () => {
   it('while off: nobody posts, only the Site Administrator reads, nobody reads participation', async () => {
     const topic = await createTopic(fx.users.teacher)
-    await setForum(false)
-    try {
+    await withForumOff(fx.payload, async () => {
       await expect(createTopic(fx.users.teacher)).rejects.toMatchObject({ status: 403 })
       await expect(createTopic(fx.users.siteAdmin)).rejects.toMatchObject({ status: 403 })
       await expect(createReply(fx.users.teacher, topic.id)).rejects.toMatchObject({ status: 403 })
@@ -582,8 +582,6 @@ describe('the off switch (3a gates)', () => {
           }),
         ).rejects.toMatchObject({ status: 403 })
       }
-    } finally {
-      await setForum(true)
-    }
+    })
   })
 })

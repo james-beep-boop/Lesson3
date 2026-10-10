@@ -7,7 +7,12 @@ vi.mock('payload', async (importOriginal) => ({
   commitTransaction: vi.fn(),
   killTransaction: vi.fn(),
 }))
-vi.mock('../../src/lib/txDb.js', () => ({ lockRows: vi.fn() }))
+vi.mock('../../src/lib/txDb.js', () => ({
+  lockRows: vi.fn(),
+  lockUserForReference: vi.fn(async () => true),
+  rowsOf: (result: unknown) => (result as { rows?: unknown[] })?.rows ?? [],
+  txDb: vi.fn(async () => ({ execute: vi.fn(async () => ({ rows: [] })) })),
+}))
 
 import { commitTransaction, killTransaction } from 'payload'
 import { lockRows } from '../../src/lib/txDb.js'
