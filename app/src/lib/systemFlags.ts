@@ -17,6 +17,7 @@
  * `req.context`, which lives for exactly one request. Adding a cross-request cache weakens that
  * contract to "within the TTL", and needs a recorded decision first.
  */
+import { cache } from 'react'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { SYSTEM_FLAGS, type SystemFlag } from './systemFlagNames'
@@ -78,9 +79,7 @@ const MEMO_KEY = 'lesson3:systemFlags'
  * (they all carry the same `req.context`). The memo holds the PROMISE, so concurrent callers within one
  * request share a single read rather than racing to issue several.
  *
- * Server components have no `PayloadRequest`; their equivalent is a React `cache()` around
- * {@link readSystemFlags}, which is per-render and so keeps the never-across-requests rule. It arrives
- * with the first page that needs it.
+ * Server components have no `PayloadRequest`; their equivalent is {@link systemFlagsForRender}.
  */
 export function systemFlagsFor(req: PayloadRequest): Promise<SystemFlags> {
   const context = req.context as Record<string, unknown>
@@ -91,3 +90,17 @@ export function systemFlagsFor(req: PayloadRequest): Promise<SystemFlags> {
 /** Is the Discuss forum switched on, for this request? */
 export const isForumEnabled = async (req: PayloadRequest): Promise<boolean> =>
   (await systemFlagsFor(req)).forumEnabled
+
+/**
+ * Every flag, for THIS server render: one read, shared by the page gate, the nav, the unread markers,
+ * search and the entry buttons (discussions 4a, GPT review 2026-10-10). Without it each asked separately,
+ * so one render could light the nav dot from one reading and 404 the page from the next.
+ *
+ * React's `cache()` memoises per server render (per request), which keeps the never-across-requests rule
+ * above. Outside a render — an endpoint, a test — it memoises nothing, so every call reads afresh. That is
+ * why WRITES keep using {@link isForumEnabled}: their contract is a fresh read per request, not per render.
+ * Keyed by the `payload` instance, which is one per process.
+ */
+export const systemFlagsForRender = cache((payload: Payload): Promise<SystemFlags> =>
+  readSystemFlags(payload),
+)

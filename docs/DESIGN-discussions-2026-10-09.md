@@ -977,6 +977,133 @@ both.
    - The ordinary REST `DELETE` is closed (`delete: () => false`), which also makes every moderation action (delete,
      pin, redact) endpoint-based.
 
+**PR 4 is split into 4a, 4b and 4c** (operator decision 2026-10-10), stacked, all under the release hold. Users
+still see everything at once, because no release is tagged until 4c merges. The split is for review size only.
+
+**4a: the forum for every signed-in user.**
+
+- **One switch reading per render** (GPT review 2026-10-10). A React `cache()` reader resolves the flags once per
+  server render. The page gate, the nav item and dot, the unread markers, search and the entry buttons all share
+  that one answer, so a page cannot show a nav dot from one reading and a 404 from another. `hasUnread`,
+  `unreadTopicIds` and `searchTopicTitles` keep gating themselves, through that same reader. **Writes still read
+  the switch afresh, per request** (`isForumEnabled(req)`, unchanged).
+- **Page gate.** `requireForum()` answers 404 while the forum is off (the `requirePublicLibrary` idiom). In 4a that
+  includes the Site Administrator; their moderation-only view arrives in 4b.
+- **`/discuss`, the Discussions page.**
+  - Search box ("Search discussion titles", through `searchTopicTitles`) and **Start a discussion**.
+  - ⚑ **Pinned topics are a separate block, not a sort key** (GPT review 2026-10-10). Postgres sorts NULLs
+    FIRST in a descending sort, so `-pinnedAt` would put every unpinned topic above the pins, and Payload's
+    `sort` cannot say `NULLS LAST`. Page 1 therefore shows every pinned topic (`pinnedAt` exists, most recently
+    pinned first). The paginated list below excludes pinned topics and sorts by `lastActivityAt` desc, then `id`
+    desc, 20 per page. Pins are administrator-chosen and few, so the block is not paginated.
+  - Search results are one ordering, newest activity first, with **no pin priority**.
+  - Tests: mixed pinned and unpinned topics across pages, and search ordering.
+  - Each row shows the title, the author's display name ("Deleted User" when null), the activity time, the reply
+    count (`lastSeq`), the lesson reference label, and the blue unread marker with accessible text
+    (`unreadTopicIds` for the page's ids).
+  - The empty state invites a first post.
+- **`/discuss/new`, the topic composer.** Title (with the hint "Name the lesson and the question or change."),
+  post, and an optional lesson reference. `?version=<id>` prefills the reference when the caller can read that
+  version. ⚑ **Otherwise it says so** (GPT review 2026-10-10): a short notice that the lesson version is no
+  longer available, so the post will have no reference unless one is added. Silently opening an unreferenced
+  composer would defeat **Post about these changes**.
+- **`/discuss/<id>`, the thread page.**
+  - Layout: the title and opening post, then their reference, then replies oldest to newest, 50 per page (`?page=`).
+    Page `k` holds reply seqs `50(k−1)+1 … 50k`. The opening post (seq 0) heads every page but **counts as
+    displayed only on page 1**.
+  - ⚑ **With no `?page=`, it opens at the page holding `lastReadSeq + 1`** (GPT review 2026-10-10), clamped to
+    the last page. It does NOT jump to the next reply by someone else. The marker is contiguous (mark-read
+    requires `fromSeq ≤ lastReadSeq + 1`), so jumping past your own unread-marked replies would leave them
+    unmarked and stop the marker advancing. An invited author at −1 opens page 1. A non-participant opens page 1.
+  - After render, a client component POSTs `mark-read` for exactly the range displayed: `fromSeq` 0 on page 1,
+    otherwise the page's first reply seq; `throughSeq` the page's last reply seq (0 for a thread with no replies
+    on page 1). It never writes during GET, following the `MarkShownRead` precedent. Opening a later page
+    directly marks nothing that was skipped: the server refuses a range that does not follow on, and seeing the
+    opening post on page 3 marks nothing.
+  - Tests: page boundaries (50 and 51 replies), opening a later page directly, then navigating back and
+    forward, and the invited author at −1.
+  - Redacted parts render "Removed by the administrator" or "Title removed by the administrator".
+  - The reply box sends `joinedAtSeq` = `lastSeq` as rendered.
+- **References** (16.2):
+  - Render `refLabel` with a link to `/lessons/<plan>?version=<version>`, plus **Compare changes** only when
+    `sourceVersion` is non-null and both versions are readable now.
+  - A null or unreadable `refVersion` renders the label as an unavailable reference with **no link at all**.
+- **Text.** Plain text: `\n` separates paragraphs. Only `http`/`https` URLs are auto-linked, with trailing
+  punctuation excluded, as text nodes and `<a rel="noopener noreferrer" target="_blank">`. Never HTML. One pure
+  function, unit-tested.
+- **Composers** (16.4 "Duplicate submissions"):
+  - `submissionKey` = `crypto.randomUUID()`, held in memory only. A fresh key after a successful post.
+  - ⚑ **The key travels WITH its content** (GPT review 2026-10-10). After an uncertain result (network error or
+    timeout) the fields lock, and **Try again** re-sends the identical content with the same key. Editing while
+    keeping the key could "recover" the earlier post and silently drop the edit. Minting a new key could
+    duplicate a post that did land. So nothing is editable until the outcome is known. A definite refusal
+    (validation, 429, session ended) unlocks the fields and keeps the key, since nothing was written.
+  - The submit button is disabled in flight.
+  - Recovery: after an uncertain result or a unique-key conflict, the composer looks its own post up by key. If it
+    exists, it navigates there. A reply goes to the thread page holding its seq, anchored at the reply. Tested for
+    a reply beyond page 1.
+  - Plain messages for a 429 (the daily cap) and for an ended session.
+  - Text stays in the form after an error, and never goes into browser storage.
+- **Add lesson reference** (operator decision 2026-10-10: lesson, then version). In both composers:
+  - Type to find a lesson by title (readable lessons only, `overrideAccess: false`).
+  - Then choose one of its saved versions (version number, date, author), via the `findReadableVersions` rules.
+  - One reference per post; a prefilled reference is removable.
+  - **Through existing REST endpoints only**, as the caller (`overrideAccess: false`). Authors are projected
+    **names only** (`populate[users][name]`), never emails, roles or assignments. ⚑ If building it needs a new
+    route or Server Action, that is a new authorization boundary. It then gets wire tests: 401, per-role access,
+    readable lessons only, names only, and behaviour while the forum is off.
+- **Navigation.**
+  - **Discuss** is a top-level item after **Lessons** on both surfaces (`AppNav`).
+  - A blue dot with visually hidden text ("unread discussions") when `hasUnread`.
+  - Absent while the forum is off, for everyone.
+- **Entry points.**
+  - **Discuss this version** on the lesson page, beside **Message a colleague**, links to `/discuss/new?version=<id>`.
+  - **Post about these changes** on the saved-version admin page (`LessonControls`, view mode, the viewer being
+    that version's author) links to the same route.
+  - Both only while the forum is on.
+- **Tests.**
+  - unit: the linkifier, the first-unread page arithmetic, the composer key states.
+  - int: the first-unread page lookup and the picker's queries.
+  - e2e: post, reply, the dot lighting for another user and clearing after reading, search, a reference with
+    Compare changes, both entry points, and 404 while off.
+  - No new endpoints, so no new wire tests; the REST doors are already covered (3a, 3b). That holds only while the
+    picker uses existing REST (see "Add lesson reference").
+
+**4b: the Site Administrator.**
+
+- **Thread controls.**
+  - **Pin/Unpin**.
+  - **Redact**: two checkboxes for a topic (title, post); one action per reply.
+  - **Delete thread**.
+  - Each has a confirmation dialog. Redaction and deletion say they are irreversible, and redaction says existing
+    backups keep the text until they age out.
+- **Manage → System → Features.**
+  - The `forumEnabled` toggle (no env ceiling, 16.3 item 2) is pending until **Save**.
+  - Save opens a dialog that lists the change and asks for the password, then calls the System Save endpoint
+    (PR 2). Wrong password: 401. Stale: 409, reload. Cap: 429. Each shows a plain message.
+  - **Moderate discussions** beside the toggle opens the moderation-only view.
+- **Moderation-only view** (16.1).
+  - While off, the Site Administrator can open `/discuss` and threads.
+  - A banner says the forum is switched off. There is no search, composer, pin, dot or nav item, only redact and
+    delete.
+  - `requireForum()` lets the Site Administrator through in this mode only.
+- **Tests:**
+  - unit: the pending-toggle reducer.
+  - e2e: each moderation action, the Save flow (including a wrong password), and the off-state view.
+  - Endpoint wire tests already exist (PR 2, 3a, 3b).
+
+**4c: documentation and release.**
+
+- The Guide and `USER_GUIDE.md` exactly as listed above, with `computeGuideAvailablePanels(user, { forumEnabled })`.
+  Tests: `guideAccess` forum-on and forum-off cases per role; `guideParity` facts.
+- A SPEC §10 bullet.
+- Release notes in `docs/CHANGELOG.md`:
+  - the forum is on by default and Manage → System switches it off;
+  - suggest writing and pinning a welcome topic;
+  - the backups caveat on redaction.
+- The query timings re-checked against the completed app (16.3 item 4); the Rock 5B run as available.
+- This document's status updated. The release hold lifts when 4c merges.
+
 ⚑ **Release hold:** do not tag a release between PR 3 and PR 4. With the forum on by default, a release
 cut there would ship a forum reachable through the API but with no UI and no off switch.
 

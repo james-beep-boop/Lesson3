@@ -20,12 +20,18 @@ import {
 import { isSiteAdmin } from '../access'
 import { systemOnly } from '../access/bundle'
 import type { User } from '../payload-types'
-import { lessonDisplayName } from './substrand'
-import { isForumEnabled, readSystemFlags } from './systemFlags'
+import { likeAllWords } from './discussionText'
+import { isForumEnabled, systemFlagsForRender } from './systemFlags'
 import { poolDb, rowsOf, sqlIdList, txDb } from './txDb'
 
-export const MAX_TITLE_LENGTH = 150
-export const MAX_BODY_LENGTH = 5000
+// The pure text rules live in `discussionText.ts` so the browser can share them; re-exported for server callers.
+export {
+  escapeLike,
+  MAX_BODY_LENGTH,
+  MAX_SEARCH_LENGTH,
+  MAX_TITLE_LENGTH,
+  refLabelFor,
+} from './discussionText'
 
 // ─── Gates (the 3a table in §16.5) ─────────────────────────────────────────────────────────────────
 
@@ -151,19 +157,6 @@ export const postFields = (): Field[] => [
   },
 ]
 
-// ─── References ────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The snapshot label a reference keeps after its version is deleted: `<lesson name> · v<semver>`
- * (§16.2). Lesson names are readable by every signed-in user, so the snapshot discloses nothing new.
- */
-export const refLabelFor = (version: {
-  meta?: { substrand_name?: string | null } | null
-  title?: string | null
-  semver?: string | null
-}): string =>
-  `${lessonDisplayName(version.meta?.substrand_name, version.title)} · v${version.semver ?? '?'}`
-
 // ─── Participation ─────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -285,10 +278,12 @@ const unreadCondition = (userId: number) => sql`(
  * Has `userId` anything unread in the discussions they take part in? — the Discuss nav dot.
  *
  * Gated here, not by the caller: while the forum is off it is always `false` (§16.5, 3b gate table), so a
- * page that forgets to check cannot light a dot for a switched-off forum. Read-only, on the pool.
+ * page that forgets to check cannot light a dot for a switched-off forum. The switch comes from
+ * `systemFlagsForRender`, so within one render the dot, the markers and the page gate share one reading.
+ * Read-only, on the pool.
  */
 export async function hasUnread(payload: Payload, userId: number): Promise<boolean> {
-  if (!(await readSystemFlags(payload)).forumEnabled) return false
+  if (!(await systemFlagsForRender(payload)).forumEnabled) return false
   const [row] = rowsOf(
     await poolDb(payload).execute(sql`
       SELECT EXISTS (
@@ -308,7 +303,7 @@ export async function unreadTopicIds(
   userId: number,
   topicIds: readonly number[],
 ): Promise<number[]> {
-  if (topicIds.length === 0 || !(await readSystemFlags(payload)).forumEnabled) return []
+  if (topicIds.length === 0 || !(await systemFlagsForRender(payload)).forumEnabled) return []
   const rows = rowsOf(
     await poolDb(payload).execute(sql`
       SELECT p."topic_id" FROM "discussion_participation" p
@@ -320,21 +315,10 @@ export async function unreadTopicIds(
 
 // ─── Search (3b) ───────────────────────────────────────────────────────────────────────────────────
 
-/** Longest search text honoured — bounds the query, not the reader. */
-export const MAX_SEARCH_LENGTH = 200
-
-/** Make `%`, `_` and `\` literal in a LIKE pattern. Payload's `like` does not escape them (spike 2026-10-09). */
-export const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`)
-
-/**
- * The title-search `where` (§16.2): every word must appear in the title, in any order, case-insensitive.
- * Payload's own `like` already splits on spaces and requires every word; this collapses whitespace,
- * escapes the LIKE wildcards and bounds the length. Null for an empty search.
- */
+/** The title-search `where` (§16.2): every word in the title (`likeAllWords`). Null for an empty search. */
 export function titleSearchWhere(query: string): Where | null {
-  const words = query.slice(0, MAX_SEARCH_LENGTH).trim().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return null
-  return { title: { like: words.map(escapeLike).join(' ') } }
+  const like = likeAllWords(query)
+  return like == null ? null : { title: { like } }
 }
 
 /** Topics per page in the list and in search results (§16.2). */
@@ -351,7 +335,7 @@ export async function searchTopicTitles(
   args: { user: User; query: string; page?: number },
 ) {
   const where = titleSearchWhere(args.query)
-  if (!where || !(await readSystemFlags(payload)).forumEnabled) return null
+  if (!where || !(await systemFlagsForRender(payload)).forumEnabled) return null
   return payload.find({
     collection: 'discussion-topics',
     where,

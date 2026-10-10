@@ -11,6 +11,83 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-11 — Discussions 4a: the forum for every signed-in user
+
+PR 4 is split into 4a (every user), 4b (Site Administrator) and 4c (Guide and release), all under the
+release hold (operator decision 2026-10-10). The 4a contract is in the design doc, §16.5. GPT reviewed it
+before building and tightened five points:
+
+- **A thread opens at the page holding `lastReadSeq + 1`, not at the next reply by someone else.** The
+  marker is contiguous, so jumping past your own replies would strand it. The opening post counts as
+  displayed only on page 1, so opening page 3 directly marks nothing that was skipped (`discussionPaging.ts`).
+- **The submission key travels with its content.** After an uncertain result the fields lock, and **Try
+  again** re-sends the same request. Editing under the old key could "recover" the first post and drop the
+  edit; a new key could duplicate a post that landed. The composer finds its own post by key before it
+  concludes anything, and a reply goes to its own page (`discussionComposer.ts`, `submitPost.ts`).
+- **One switch reading per render.** `systemFlagsForRender` (React `cache()`) is shared by the page gate,
+  the nav dot, the markers, search and the entry buttons. Writes still read the switch afresh per request.
+  This is the per-render reader the 3b entry deferred.
+- **Pins are a separate query, not a sort key.** Postgres sorts NULLs first in a descending sort, and
+  Payload's `sort` cannot say `NULLS LAST`, so `-pinnedAt` would put unpinned topics above the pins. Page 1
+  shows a pinned block, and the activity pages exclude pinned topics. Search has no pin priority.
+- **An unavailable prefilled reference is explained,** not silently dropped.
+
+Other choices:
+
+- **The picker uses existing REST only.** It has no new endpoint, so there is no new authorization
+  boundary. Its query builders live in `components/Discussions/referencePickerQueries.ts`, so the wire test
+  sends exactly what the browser sends. Lesson search and forum title search share one bounded "every word"
+  rule (`likeAllWords`). Version authors come back names only (`populate[users][name]`), and the test
+  checks for no email, roles or assignments.
+- **The pure text rules moved to `discussionText.ts`** (`escapeLike`, `refLabelFor`, the text limits, the
+  linkifier), so client components can share them. `lib/discussions.ts` re-exports them.
+- **Correction: no secure-context-only browser APIs in the app.** The first composers minted their key
+  with `crypto.randomUUID()`, which browsers expose only over HTTPS or on localhost. The e2e run against
+  `http://app:3000` crashed every composer on open, and a Rock on a school LAN serves plain HTTP too. The
+  key now comes from `crypto.getRandomValues`, which works everywhere, and a unit test removes
+  `randomUUID` to prove it. **Rule:** before using a browser API, check it is not
+  `[SecureContext]`-only. Clipboard, `randomUUID` and service workers all are.
+- **Corrections from GPT's second review (2026-10-11).** These were reproduced against the code before
+  any fix:
+  - The server answers a repeated key with **409** ("This was already posted"), and the first composer
+    only looked a post up on 400. A 409 now goes through the lookup, and a 409 whose post cannot be found
+    stays uncertain.
+  - **Only a post settles an uncertain attempt.** A refusal of a retry proves only that the retry wrote
+    nothing. So while an earlier attempt is `unresolved`, every refusal keeps the original content and key
+    locked. Only a successful create, or a lookup that finds the post, resolves it. With nothing unresolved, a
+    refusal simply unlocks. My first version let a "content" refusal (a 400 with nothing found, or a 413)
+    settle it. GPT's third review pointed out that a 400 can depend on server state that changed in between,
+    such as the referenced version being deleted, and that an empty lookup only shows nothing is visible
+    *yet*. That version inferred an earlier outcome from a status code; now nothing is inferred. An e2e test
+    covers the sequence: the answer is lost and the lookup is down, a retry while the forum is off stays
+    locked, then a retry hits 409 and the post is recovered.
+  - The recovery lookup has the same timeout as the post. A stalled lookup no longer leaves "Posting…"
+    with no way on.
+  - The session message no longer says "reload, your text is still here". The text is only in the form, so
+    the message says to copy it first.
+  - `loadThread` turns only 404/403 into a 404 (`readBundle`'s `nullOnNotVisible`, now exported). A
+    database failure propagates.
+- **Correction: hints live outside the `<label>`.** Inside it, the hint became part of the field's
+  accessible name ("Post Plain text. Web links become clickable."), which is what a screen reader
+  announces. It is now attached with `aria-describedby` (`ComposerField`). The e2e run found it because
+  `getByLabel('Post')` matched nothing.
+- **Correction: never run Prettier over a whole tree.** During the 4a /simplify pass I ran
+  `prettier --write src tests`, which reformatted the vendored ARES generator, every migration JSON, the
+  ingest schema and `attribution.yaml`. The vendored files must stay byte-identical to upstream, and
+  `vendorProvenance.spec.ts` failed on their SHA-256s. I proved each file was exactly Prettier's output of
+  HEAD before restoring it. **Rule:** format only the files you changed, or use `npm run format`, whose
+  globs (`.ts/.tsx/.css/.scss`) exist precisely to keep vendored and generated files out.
+- **One agent per working tree.** Midway through 4a, a second agent (ChatGPT/Codex) began a ZIP-upload
+  feature in the same checkout and branch, so the gate was testing both changes and a commit could have
+  swept its half-finished files in. 4a was moved to its own git worktree (operator decision 2026-10-11),
+  carrying only its own files and this entry. **Rule:** before a gate or a commit, check
+  `git status` for changes that are not yours. When another agent is working in the same repository, give
+  each one a worktree.
+- **Post about these changes lives inside `LessonControls`.** It sits beside Compare to Official, in view
+  mode, for the version's own author. A thin server wrapper (`LessonControls/server.tsx`) passes the system
+  flags in, because a client component cannot read them. It passes all of them, so the next flag a control
+  needs is a prop read, not another wrapper.
+
 ## 2026-10-10 — Discussions 3b: actions and queries; one moderation path
 
 3b adds mark-read, pin and redaction (`endpoints/discussionActions.ts`), the unread queries (`hasUnread` and

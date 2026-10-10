@@ -71,7 +71,7 @@ export const LessonBundleVersions: CollectionConfig = {
       // SPEC §5) and per-export DOCX/PDF download (every retained version is inherently exportable —
       // SPEC §9, Official-version model).
       edit: {
-        beforeDocumentControls: ['@/components/LessonControls#default'],
+        beforeDocumentControls: ['@/components/LessonControls/server#default'],
       },
     },
   },

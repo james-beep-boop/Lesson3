@@ -24,6 +24,7 @@ import {
   type RoleFixture,
 } from '../helpers/fixtures.js'
 import { clearRateLimitBuckets, drizzleOf, rowsOf } from '../helpers/db.js'
+import { clearPostingCaps, createTopicAs, testSubmissionKey } from '../helpers/discussions.js'
 import { stillPendingAfterWindow, whileLockHeld, whileRowLocked } from '../helpers/rowLocks.js'
 import {
   markReadEndpoint,
@@ -35,23 +36,11 @@ import { hasUnread, searchTopicTitles, unreadTopicIds } from '../../src/lib/disc
 import type { DiscussionTopic, LessonBundleVersion, User } from '../../src/payload-types.js'
 
 let fx: RoleFixture
-let keyCounter = 0
-const newKey = () => `${crypto.randomUUID()}-${++keyCounter}`
+const newKey = testSubmissionKey
 const setForum = (on: boolean) => setForumEnabled(fx.payload, on)
 
-async function createTopic(user: User, data: Record<string, unknown> = {}) {
-  return (await fx.payload.create({
-    collection: 'discussion-topics',
-    data: {
-      title: `${MARK}Topic`,
-      body: 'Opening post',
-      submissionKey: newKey(),
-      ...data,
-    } as never,
-    overrideAccess: false,
-    user,
-  })) as DiscussionTopic
-}
+const createTopic = (user: User, data: Record<string, unknown> = {}) =>
+  createTopicAs(fx.payload, user, data)
 
 async function createReply(user: User, topicId: number, joinedAtSeq = 0) {
   return fx.payload.create({
@@ -116,9 +105,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (fx) {
     await setForum(true)
-    for (const user of Object.values(fx.users)) {
-      await clearRateLimitBuckets(fx.payload, `discussionPost:${user.id}`)
-    }
+    await clearPostingCaps(fx.payload, Object.values(fx.users))
   }
   await fx?.teardown()
 })

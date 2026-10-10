@@ -1351,6 +1351,18 @@ body:has(.lesson-controls-wrap--prose-only) .collection-edit--lesson-bundle-vers
     vertical-align: text-top;
   }
 
+  // The Discuss item's unread dot — the frontend's `.app-nav__dot`, so the shared nav matches on both
+  // surfaces (discussions §16.1: blue, with visually hidden text beside it).
+  .app-nav__dot {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-left: 0.35rem;
+    border-radius: 50%;
+    background: var(--app-accent);
+    vertical-align: middle;
+  }
+
   .user-menu {
     position: relative;
     display: inline-flex;
