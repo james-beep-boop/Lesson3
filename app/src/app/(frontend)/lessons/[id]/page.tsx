@@ -22,6 +22,7 @@ import RequestEditingButton from '@/components/RequestEditingButton'
 import VersionsChip from '@/components/VersionsChip'
 import { versionDeliverables } from '@/generator/adapter'
 import { findPersonalFavorites } from '@/lib/personalFavorites'
+import { systemFlagsForRender } from '@/lib/systemFlags'
 
 /**
  * Lesson Plan detail (Official-version model). The route id is a LESSON PLAN id; by default we
@@ -47,7 +48,12 @@ export default async function LessonView({
   // All retained versions of this plan (for the selector), oldest → newest. The shared
   // access-gated list (lib/readBundle) — also the compare page's READ proof, so the visibility
   // rule lives in one place.
-  const versions = await findReadableVersions(payload, { planId: plan.id, user })
+  // The forum switch rides along (the render's one reading, shared with the nav): it only decides
+  // whether the Share menu offers "Discuss this version".
+  const [versions, { forumEnabled }] = await Promise.all([
+    findReadableVersions(payload, { planId: plan.id, user }),
+    systemFlagsForRender(payload),
+  ])
 
   const officialId = relId(plan.officialVersion)
   const official = versions.find((v) => v.id === officialId)
@@ -208,6 +214,7 @@ export default async function LessonView({
             versionId={selectedId}
             semver={selected.semver}
             deliverables={deliverables}
+            canDiscuss={forumEnabled}
           />
         </div>
         {navItems.length > 0 && (

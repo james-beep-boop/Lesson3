@@ -19,12 +19,18 @@ import {
   createUserVerified,
   deleteUserFixture,
   MARK,
+  minimalBundleContent,
   setForumEnabled,
   setupRoleFixture,
   type RoleFixture,
   type RoleKey,
 } from '../helpers/fixtures.js'
+import { clearPostingCaps } from '../helpers/discussions.js'
 import { login, url } from '../helpers/httpWire.js'
+import {
+  lessonSearchPath,
+  lessonVersionsPath,
+} from '../../src/components/Discussions/referencePickerQueries.js'
 import { stillPendingAfterWindow, whileRowLocked } from '../helpers/rowLocks.js'
 
 const ROLES: RoleKey[] = ['siteAdmin', 'subjectAdmin', 'editor', 'teacher']
@@ -109,9 +115,10 @@ beforeAll(async () => {
 afterAll(async () => {
   if (fx) {
     await setForum(true)
-    for (const k of ROLES) {
-      await clearRateLimitBuckets(fx.payload, `discussionPost:${fx.users[k].id}`)
-    }
+    await clearPostingCaps(
+      fx.payload,
+      ROLES.map((k) => fx.users[k]),
+    )
   }
   await fx?.teardown()
 })
@@ -458,6 +465,54 @@ describe('the off switch (3b gates)', () => {
       expect((await redactReply(replyId, 'siteAdmin')).status).toBe(200)
     } finally {
       await setForum(true)
+    }
+  })
+})
+
+// ─── 4a: the lesson-reference picker ───────────────────────────────────────────────────────────────
+
+describe('lesson reference picker (4a)', () => {
+  // ⚑ The picker adds no endpoint: it reads Payload's own REST as the caller. What this pins is the
+  // exact query the browser sends (the same builders) — above all that version authors come back NAMES
+  // ONLY, never an email, roles or assignments.
+  it('finds a readable lesson by title and lists its versions with the saver’s name only', async () => {
+    const saved = await fx.payload.create({
+      collection: 'lesson-bundle-versions',
+      data: {
+        lessonPlan: fx.plan.id,
+        subjectGrade: fx.subjectGrade.id,
+        semver: '1.0.1',
+        title: `${MARK}Plan v1.0.1`,
+        sourceVersion: fx.version.id,
+        author: fx.users.editor.id,
+        ...minimalBundleContent(),
+      } as never,
+      overrideAccess: true,
+    })
+    try {
+      const search = await call('GET', lessonSearchPath(`${MARK}Plan`), 'teacher')
+      expect(search.status, search.text).toBe(200)
+      expect((search.body?.docs as { id: number }[]).map((d) => d.id)).toContain(fx.plan.id)
+
+      const versions = await call('GET', lessonVersionsPath(fx.plan.id), 'teacher')
+      expect(versions.status, versions.text).toBe(200)
+      const row = (versions.body?.docs as { id: number; author?: unknown }[]).find(
+        (d) => d.id === saved.id,
+      )
+      // Exactly the id, the name, and Payload's own `collection` marker on a populated document.
+      expect(row?.author, JSON.stringify(row?.author)).toEqual({
+        id: fx.users.editor.id,
+        name: fx.users.editor.name,
+        collection: 'users',
+      })
+      expect(versions.text).not.toContain(fx.users.editor.email)
+      expect(versions.text).not.toMatch(/"(email|roles|assignments)"/)
+    } finally {
+      await fx.payload.delete({
+        collection: 'lesson-bundle-versions',
+        id: saved.id,
+        overrideAccess: true,
+      })
     }
   })
 })

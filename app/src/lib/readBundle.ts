@@ -18,7 +18,7 @@ import type {
  */
 
 /** Turn an access 404/403 into null (the "not visible to this user" cases); rethrow real errors. */
-function nullOnNotVisible(e: unknown): null {
+export function nullOnNotVisible(e: unknown): null {
   const status = (e as { status?: number } | null | undefined)?.status
   if (status === 404 || status === 403) return null
   throw e

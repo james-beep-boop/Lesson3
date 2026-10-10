@@ -37,6 +37,7 @@ export default function ShareMenu({
   versionId,
   semver,
   deliverables = [],
+  canDiscuss = false,
 }: {
   planId: number
   versionId: number
@@ -44,6 +45,8 @@ export default function ShareMenu({
   semver?: string | null
   /** This version's documents — drives the per-document download list (empty → section omitted). */
   deliverables?: DeliverableTag[]
+  /** Offer "Discuss this version" — only while the forum is switched on (§16.1 entry points). */
+  canDiscuss?: boolean
 }) {
   // ⚑ THE PRIMARY LESSON PLAN IS FILTERED OUT HERE (2026-08-30), and this is the SAME split the
   // catalogue row has always used (`DocStrip … condensed`): the lesson page's action bar now renders
@@ -166,6 +169,10 @@ export default function ShareMenu({
           </button>
           {/* Internal messaging handoff (§10): prefills compose with this plan+version as the link. */}
           <Link href={`/messages?plan=${planId}&version=${versionId}`}>Message a colleague</Link>
+          {/* Forum handoff (discussions §16.1): opens Start a discussion with this version referenced. */}
+          {canDiscuss && (
+            <Link href={`/discuss/new?version=${versionId}`}>Discuss this version</Link>
+          )}
           <p className="share-menu__note">
             Everything here acts on this version{semver ? ` (${semver})` : ''}.
           </p>

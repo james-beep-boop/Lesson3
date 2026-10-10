@@ -4,6 +4,8 @@ import config from '@payload-config'
 
 import { canUseAdminPanel, userTypeLabel } from '../../access'
 import { resolveAccessSummary } from '../../lib/accessScopes'
+import { hasUnread } from '../../lib/discussions'
+import { systemFlagsForRender } from '../../lib/systemFlags'
 import { UserMenu } from '../UserMenu'
 import type { User } from '../../payload-types'
 
@@ -11,7 +13,11 @@ import type { User } from '../../payload-types'
  * The ONE top navigation, rendered identically on both surfaces (the frontend header and the admin
  * header) so they match — same items, order, and styling. Items:
  *
- *   Lessons · [Manage] · Guide · {avatar dropdown}
+ *   Lessons · [Discuss] · [Manage] · Guide · {avatar dropdown}
+ *
+ * "Discuss" appears only while the forum is switched on, for everyone (§16.4 "Off switch"), with a blue
+ * dot when something in a discussion you take part in is unread (§16.1). The switch is the render's one
+ * reading (`systemFlagsForRender`), the same one the Discussions page gate uses.
  *
  * "Manage" appears only for users who can use the admin panel (anyone with editing access, a
  * subject-grade admin, or a site admin); plain Teachers see Lessons · Guide · avatar. Plain `<a>`
@@ -33,12 +39,13 @@ export async function AppNav({ user }: { user: User }) {
   // it does not misstate: editing access is server-enforced and unaffected, and the type is unchanged
   // (an editor is a "Teacher" with or without the line). A "(unavailable)" placeholder would be
   // uglier and no more useful, so we show the type alone.
-  const [unread, summary] = await Promise.all([
+  const [unread, summary, forum] = await Promise.all([
     countUnread(payload, user),
     resolveAccessSummary(payload, user).catch(() => ({
       typeLabel: userTypeLabel(user),
       lines: [],
     })),
+    forumState(payload, user),
   ])
   return (
     <nav className="app-nav" aria-label="Primary">
@@ -46,6 +53,17 @@ export async function AppNav({ user }: { user: User }) {
       <a className="app-nav__link" href="/">
         Lessons
       </a>
+      {forum.enabled && (
+        <a className="app-nav__link" href="/discuss">
+          Discuss
+          {forum.unread && (
+            <>
+              <span className="app-nav__dot" aria-hidden="true" />
+              <span className="visually-hidden"> (unread discussions)</span>
+            </>
+          )}
+        </a>
+      )}
       {canUseAdminPanel(user) && (
         <a className="app-nav__link" href="/admin">
           Manage
@@ -86,4 +104,16 @@ async function countUnread(
   } catch {
     return 0
   }
+}
+
+/** Is the forum on, and is anything unread for this user? Best-effort, like the message count: a failed
+ *  unread query shows no dot rather than breaking navigation. */
+async function forumState(
+  payload: Awaited<ReturnType<typeof getPayload>>,
+  user: User,
+): Promise<{ enabled: boolean; unread: boolean }> {
+  // `systemFlagsForRender` never throws (a failed read is "off"); only the unread query can.
+  const { forumEnabled } = await systemFlagsForRender(payload)
+  if (!forumEnabled) return { enabled: false, unread: false }
+  return { enabled: true, unread: await hasUnread(payload, user.id).catch(() => false) }
 }

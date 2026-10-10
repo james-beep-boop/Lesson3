@@ -7,6 +7,7 @@
  */
 import type { Page } from '@playwright/test'
 
+import { clearRateLimitBuckets } from './db'
 import { login } from './login'
 import type { RoleFixture, RoleKey } from './fixtures'
 
@@ -25,8 +26,16 @@ export const E2E_BASE = (process.env.E2E_BASE_URL ?? 'http://localhost:3000').re
  * test regardless. Playwright owns a fixture's context and tears it down per test, including flushing
  * traces and video. The only constraint this imposes is one role per test, which is how every spec here
  * already worked.
+ *
+ * ⚑ IT CLEARS THE USER'S SIGN-IN BUDGET FIRST. Sign-in is throttled per address, 20 an hour
+ * (`hooks/authRateLimit.ts`), and a spec shares one fixture across its tests — `manage.e2e.spec.ts` signs
+ * its Site Administrator in 23 times. The 21st got a 429, which the login form shows as "Invalid email or
+ * password", and the test passed on retry only because a retry starts a new worker with a fresh fixture
+ * address (triaged 2026-10-11 with retries off: it failed every time). These specs test the pages behind
+ * sign-in, not the throttle — that has its own wire tests — so each sign-in starts with a clean budget.
  */
 export async function loginAs(page: Page, fx: RoleFixture, key: RoleKey): Promise<void> {
+  await clearRateLimitBuckets(fx.payload, `login:${fx.users[key].email.toLowerCase()}`)
   await login({
     page,
     serverURL: E2E_BASE,

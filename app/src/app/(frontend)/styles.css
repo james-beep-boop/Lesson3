@@ -178,6 +178,21 @@ a {
   margin-left: 0.35rem;
   vertical-align: text-top;
 }
+/* The forum's unread dot (discussions §16.1: BLUE, with accessible text beside it) — ONE geometry for the
+   nav item and the topic rows, like the badges above. A dot, not a count: the forum says "something is
+   new", not how much. Per-site rules carry only placement. */
+.app-nav__dot,
+.disc-dot {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.app-nav__dot {
+  margin-left: 0.35rem;
+}
 /* ---- Messages (SPEC §10) ---- */
 /* No own max-width: Messages fills the shared `.app-main` column (--app-content-width, 960px), the
    same as every other page. The former `.messages { max-width: 46rem }` capped it at 736px inside a
@@ -268,7 +283,9 @@ a {
 /* THE app-standard "needs attention" treatment (D5, critique §6 — its strongest-rated signal):
    accent left border + soft tint (+ a small accent pill, .msg-new-tag). Reuse this trio for any
    future unread/pending/attention state instead of inventing a new visual. */
-.msg--unread {
+.msg--unread,
+.disc-row--unread,
+.disc-notice {
   border-left: 3px solid var(--accent);
   background: var(--bg-soft);
 }
@@ -2080,4 +2097,176 @@ button.user-menu__item {
       min-width: var(--doc-wide-table-min);
     }
   }
+}
+
+/* ---- Discussions (docs/DESIGN-discussions-2026-10-09.md §16) ---- */
+.disc-search {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.5rem;
+}
+.disc-search input {
+  flex: 1 1 16rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+}
+.disc-section-title {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.disc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.disc-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+}
+.disc-row__title {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.disc-row__meta,
+.disc-post__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.disc-dot {
+  margin-right: 0.45rem;
+}
+.disc-empty {
+  margin: 1.5rem 0;
+}
+.disc-pager {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.disc-notice {
+  padding: 0.6rem 0.9rem;
+  margin: 0 0 1rem;
+}
+.disc-post {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin: 0 0 0.75rem;
+  scroll-margin-top: 1rem;
+}
+.disc-post--opening {
+  background: var(--bg-soft);
+}
+.disc-post__text p {
+  margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
+}
+.disc-post__removed {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-style: italic;
+}
+.disc-ref {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+}
+.disc-ref__kicker {
+  color: var(--muted);
+}
+.disc-replies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.disc-compose {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0 2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.disc-compose__field {
+  display: block;
+  font-size: 0.9rem;
+}
+.disc-compose__field > label {
+  font-weight: 600;
+}
+.disc-compose__field input,
+.disc-compose__field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+/* Locked after an uncertain result (the key travels with its content): visibly not editable. */
+.disc-compose__field input:read-only,
+.disc-compose__field textarea:read-only {
+  background: var(--bg-soft);
+}
+.disc-compose__hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.disc-compose__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.disc-compose__note {
+  font-size: 0.9rem;
+}
+.disc-picker {
+  font-size: 0.9rem;
+}
+.disc-picker--open {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.disc-picker--open legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+.disc-picker--open input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+}
+.disc-picker__label {
+  color: var(--muted);
+}
+.disc-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+  max-height: 16rem;
+  overflow-y: auto;
 }

@@ -44,6 +44,7 @@ import {
 import { DELIVERABLE_LABELS } from '../../generator/deliverables'
 import { versionDeliverables } from '../../generator/adapter'
 import type { DeliverableTag } from '../../generator/exportArtifacts'
+import type { SystemFlags } from '../../lib/systemFlags'
 import type { User } from '../../payload-types'
 import { openGeneratedPdfInNewTab, openPreparedPdfInNewTab } from '../exportClient'
 import { EditRecoveryIndicator } from '../EditRecovery/Indicator'
@@ -72,7 +73,12 @@ async function errorMessage(res: Response, label: string): Promise<string> {
   return body.errors?.[0]?.message || `${label} failed (${res.status})`
 }
 
-export default function LessonControls() {
+export default function LessonControls({
+  flags,
+}: {
+  /** From the server wrapper (`./server.tsx`). Absent means every capability off. */
+  flags?: SystemFlags
+}) {
   const { id, savedDocumentData } = useDocumentInfo()
   const { dispatchFields, getData, initializing, setDisabled, setProcessing, reset, setModified } =
     useForm()
@@ -794,6 +800,18 @@ export default function LessonControls() {
               Help
             </Button>
           )}
+          {/* "Post about these changes" (discussions §16.1, the after-save entry point): Save lands
+              here, on the new version's page, so this is the clean saved-version surface. View mode
+              only, and only for the version's own author — it is about THEIR changes. A full
+              navigation (`<a>`): /discuss is the frontend app. */}
+          {!editing &&
+            flags?.forumEnabled &&
+            user &&
+            toId((savedDocumentData?.author ?? null) as never) === user.id && (
+              <a className="btn" href={`/discuss/new?version=${id}`}>
+                Post about these changes
+              </a>
+            )}
           {/* Explicit destructive action (view mode only), replacing the native document-controls
               kebab. Shown only for a version the caller may delete; the server re-gates. */}
           {!editing && canDelete && planId != null && officialVersionId != null && (

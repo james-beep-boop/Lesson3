@@ -4,7 +4,7 @@ import { default as default_1ec13738dccc054dffe028635ccc0a07 } from '@/component
 import { default as default_d53377545c60cf2eb8a7ca799edfb528 } from '@/components/SubjectSelectField'
 import { default as default_43516998e31efb10f698f9efe32ddeff } from '@/components/LinkedTextarea'
 import { default as default_d4655109717a6f5707cd0a6520a4fd9e } from '@/components/RowLabel'
-import { default as default_1977dab3faaeed591047a7da1ebb7030 } from '@/components/LessonControls'
+import { default as default_c0727e03cfd6a5017972851983e848b4 } from '@/components/LessonControls/server'
 import { RedirectSubjectsToManage as RedirectSubjectsToManage_e185546b7ba48bca827c8e3f7a96ac79 } from '@/components/RedirectToManage'
 import { RedirectSubjectGradesToManage as RedirectSubjectGradesToManage_e185546b7ba48bca827c8e3f7a96ac79 } from '@/components/RedirectToManage'
 import { RedirectUsersToManage as RedirectUsersToManage_e185546b7ba48bca827c8e3f7a96ac79 } from '@/components/RedirectToManage'
@@ -23,7 +23,7 @@ export const importMap = {
   "@/components/SubjectSelectField#default": default_d53377545c60cf2eb8a7ca799edfb528,
   "@/components/LinkedTextarea#default": default_43516998e31efb10f698f9efe32ddeff,
   "@/components/RowLabel#default": default_d4655109717a6f5707cd0a6520a4fd9e,
-  "@/components/LessonControls#default": default_1977dab3faaeed591047a7da1ebb7030,
+  "@/components/LessonControls/server#default": default_c0727e03cfd6a5017972851983e848b4,
   "@/components/RedirectToManage#RedirectSubjectsToManage": RedirectSubjectsToManage_e185546b7ba48bca827c8e3f7a96ac79,
   "@/components/RedirectToManage#RedirectSubjectGradesToManage": RedirectSubjectGradesToManage_e185546b7ba48bca827c8e3f7a96ac79,
   "@/components/RedirectToManage#RedirectUsersToManage": RedirectUsersToManage_e185546b7ba48bca827c8e3f7a96ac79,
