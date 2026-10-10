@@ -856,7 +856,7 @@ native-Payload approach of sections 13–14.
   topic-lock wait and refuses a demoted, disabled or deleted administrator before writing. The re-read
   takes no user row lock after the topic; actions recording an administrator FK take the user lock first.
 - **Off switch.** `lib/systemFlags.ts` exports `isForumEnabled(req)` (fail-closed, memoised on
-  `req.context` via `systemFlagsFor`; built in PR 2) and PR 3 adds `requireForum()` for pages (the `requirePublicLibrary` idiom). Every collection access
+  `req.context` via `systemFlagsFor`; built in PR 2). Pages use `requireForum()` (the `requirePublicLibrary` idiom; as built in 4a, `lib/discussionPages.ts`, over the per-render `systemFlagsForRender`). Every collection access
   function, custom endpoint, page, nav projection and entry point consults it. GraphQL is already disabled,
   with its routes deleted. Admin views for all three collections stay `hidden`.
   - **Timing contract.** A request that *starts* after the switch is turned off is refused. A request already
@@ -1032,17 +1032,26 @@ still see everything at once, because no release is tagged until 4c merges. The 
   punctuation excluded, as text nodes and `<a rel="noopener noreferrer" target="_blank">`. Never HTML. One pure
   function, unit-tested.
 - **Composers** (16.4 "Duplicate submissions"):
-  - `submissionKey` = `crypto.randomUUID()`, held in memory only. A fresh key after a successful post.
-  - ⚑ **The key travels WITH its content** (GPT review 2026-10-10). After an uncertain result (network error or
-    timeout) the fields lock, and **Try again** re-sends the identical content with the same key. Editing while
-    keeping the key could "recover" the earlier post and silently drop the edit. Minting a new key could
-    duplicate a post that did land. So nothing is editable until the outcome is known. A definite refusal
-    (validation, 429, session ended) unlocks the fields and keeps the key, since nothing was written.
+  - `submissionKey`: 32 hex characters from `crypto.getRandomValues`, held in memory only. A fresh key after a
+    successful post. ⚑ **Not `crypto.randomUUID()`** (as built 2026-10-11): browsers expose it only in a secure
+    context (HTTPS or localhost), and a Rock on a school LAN serves plain HTTP, so it crashed every composer there.
+  - ⚑ **The key travels WITH its content** (GPT review 2026-10-10). After an uncertain result (network error,
+    timeout, or a 5xx) the fields lock, and **Try again** re-sends the identical content with the same key. Editing
+    while keeping the key could "recover" the earlier post and silently drop the edit. Minting a new key could
+    duplicate a post that did land.
+  - ⚑ **Only a post settles an uncertain attempt** (GPT reviews 2026-10-11; as built). With nothing unresolved, a
+    definite refusal (validation, 429, a session or switch problem) unlocks the fields and keeps the key, since
+    nothing was written. While an earlier attempt is unresolved, **every** refusal keeps the original content and
+    key locked: a refusal of a retry proves only that the retry wrote nothing, and a 400 can turn on server state
+    that changed in between. Only a successful create, or a lookup that finds the post, resolves it. Nothing is
+    inferred from status codes. Locked is not lost: the text stays on screen to copy, and Try again stays.
   - The submit button is disabled in flight.
-  - Recovery: after an uncertain result or a unique-key conflict, the composer looks its own post up by key. If it
-    exists, it navigates there. A reply goes to the thread page holding its seq, anchored at the reply. Tested for
-    a reply beyond page 1.
-  - Plain messages for a 429 (the daily cap) and for an ended session.
+  - Recovery: after an uncertain result, a 400, or the server's **409** ("This was already posted"), the composer
+    looks its own post up by key, with the same timeout as the post. If it exists, it navigates there. A reply goes
+    to the thread page holding its seq, anchored at the reply. Tested for a reply beyond page 1. A 409 whose post
+    cannot be found, or a failed lookup, stays uncertain.
+  - Plain messages for a 429 (the daily cap) and for a session or switch problem. The latter tells the teacher to
+    copy their text before reloading or signing in again: the text lives only in the form.
   - Text stays in the form after an error, and never goes into browser storage.
 - **Add lesson reference** (operator decision 2026-10-10: lesson, then version). In both composers:
   - Type to find a lesson by title (readable lessons only, `overrideAccess: false`).
@@ -1062,8 +1071,9 @@ still see everything at once, because no release is tagged until 4c merges. The 
     that version's author) links to the same route.
   - Both only while the forum is on.
 - **Tests.**
-  - unit: the linkifier, the first-unread page arithmetic, the composer key states.
-  - int: the first-unread page lookup and the picker's queries.
+  - unit: the linkifier, the first-unread page arithmetic, the composer key states and recovery.
+  - int: the first-unread page lookup, the pinned block, search order and references.
+  - http: the picker's exact queries, authors names only (`referencePickerQueries.ts` is shared with the test).
   - e2e: post, reply, the dot lighting for another user and clearing after reading, search, a reference with
     Compare changes, both entry points, and 404 while off.
   - No new endpoints, so no new wire tests; the REST doors are already covered (3a, 3b). That holds only while the

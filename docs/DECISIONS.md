@@ -83,6 +83,19 @@ Other choices:
   carrying only its own files and this entry. **Rule:** before a gate or a commit, check
   `git status` for changes that are not yours. When another agent is working in the same repository, give
   each one a worktree.
+- **The Manage "flake" was the sign-in throttle (triaged at GPT's request, 2026-10-11).** In the 4a gate,
+  "a blocked delete shows the guard's own message" failed with "Invalid email or password" and passed on
+  retry. I had called it a timing problem without evidence. With retries off it failed **every** time (5 of
+  5). `manage.e2e.spec.ts` signs one Site-Administrator fixture in 23 times, against a limit of 20 per
+  address per hour. The 21st sign-in got a 429, which the login form shows as "Invalid email or password".
+  A retry passed only because Playwright starts a new worker, which mints a fresh fixture address. Fix:
+  `loginAs` (`tests/helpers/e2e.ts`) clears that user's sign-in budget first; the throttle has its own wire
+  tests. After the fix: 93 of 93 with retries off (the spec three times).
+  - The same run also showed one unrelated failure, the known `history.replaceState` race in "a user can
+    change their own display name" (it timed out on main's merge run for #239 too). It occurred 1 time in
+    5 and was clean in the 3 runs after the fix. It is recorded here and not fixed in 4a.
+  - **Rule:** a flake is "unexplained" until it is reproduced with retries off. A login form that shows
+    every failure as "Invalid email or password" hides a 429.
 - **Post about these changes lives inside `LessonControls`.** It sits beside Compare to Official, in view
   mode, for the version's own author. A thin server wrapper (`LessonControls/server.tsx`) passes the system
   flags in, because a client component cannot read them. It passes all of them, so the next flag a control
