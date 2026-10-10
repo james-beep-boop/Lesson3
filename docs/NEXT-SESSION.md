@@ -25,20 +25,67 @@ file is the launch prompt; the build history lives in `docs/CHANGELOG.md` (consu
 
 ---
 
-# DISCUSSIONS FORUM — PLANNING (2026-10-09), not started
+# DISCUSSIONS FORUM — HANDOFF (2026-10-11): 4a merged; build 4b next
 
-Discussions: **design confirmed; technical validation pending; implementation not approved.**
-Read `docs/DESIGN-discussions-2026-10-09.md` §16 (the current design; §1–15 are the dated planning record) and
-DECISIONS 2026-10-09 "Discussions". Next steps, in order:
+**State.** PRs 1–3 and 4a have merged:
+- #371: the missing-version notice.
+- #373, #374: System Save and the `forumEnabled` flag.
+- #375, #376, #377: the forum's server side.
+- **#378 (4a)**: the forum for every signed-in user.
+  - The Discussions page, the thread page and both composers.
+  - The lesson-then-version reference picker.
+  - The Discuss nav item and its blue dot.
+  - Both entry points: Discuss this version, and Post about these changes.
 
-1. **Search spike: DONE (2026-10-09).** Outcome: **search titles only**, using Payload's own `like` (§16.3 item 4).
-   Still outstanding: rerun `docs/spikes/discussions-search-2026-10-09/` on the **Rock 5B** against an isolated
-   database, as a confirmation.
-2. Get operator approval, then build **PR 1** (missing-version notice on the lesson and compare pages).
-3. Then PR 2 (System Save infrastructure, API only), PR 3 (forum server side), PR 4 (forum UI). **Do not tag
-   a release between PR 3 and PR 4.**
+⚑ **RELEASE HOLD: do not tag a release until 4c merges.** The forum is ON by default, so a release now would
+ship a forum with no administrator off-switch UI and no Guide.
 
-The planning docs were reviewed by GPT as well as Claude. Corrections from that review are recorded in DECISIONS.
+**Read first:** `docs/DESIGN-discussions-2026-10-09.md` §16, especially §16.5, which holds the 4a/4b/4c
+contracts and the as-built notes. Then DECISIONS 2026-10-11 ("Discussions 4a") and 2026-10-10 (3b, audit).
+
+**Next, in order:**
+1. **4b: the Site Administrator** (contract in §16.5).
+   - Pin/unpin, redact and delete controls on the thread page, each with a confirmation. Redaction says
+     existing backups keep the text.
+   - The `forumEnabled` toggle in Manage → System → Features. Changes are pending until **Save**, which opens a
+     password dialog and calls the PR 2 endpoint; show plain messages for 401, 409 and 429.
+   - A **Moderate discussions** link beside the toggle.
+   - The **moderation-only view** while the forum is off: `requireForum()` (`lib/discussionPages.ts`) lets the
+     Site Administrator through, with a banner and no search, composer, pin, dot or nav item.
+   - The endpoints already exist and have wire tests (`endpoints/discussionActions.ts`, `moderate.ts`,
+     `discussionThreadDelete.ts`, `systemSettingsSave.ts`).
+2. **4c: documentation and release.**
+   - The Guide and `USER_GUIDE.md`, with `computeGuideAvailablePanels(user, { forumEnabled })`.
+   - A SPEC §10 bullet.
+   - `docs/CHANGELOG.md` release notes: the forum is on by default, Manage → System switches it off, suggest a
+     pinned welcome topic, and the backups caveat on redaction.
+   - Re-check query timings on the finished app, plus the outstanding Rock 5B rerun of
+     `docs/spikes/discussions-search-2026-10-09/`.
+   - Update the §16 status. The release hold lifts when 4c merges.
+3. **Optional follow-up:** the display-name e2e `replaceState` race (DECISIONS 2026-10-11).
+
+**Gotchas learned building 4a** (each recorded in DECISIONS 2026-10-11):
+- **Never run Prettier over whole directories.** It reformats the vendored generator, and
+  `vendorProvenance.spec.ts` fails on the SHA-256s. Format only the changed files, or use `npm run format`.
+- **No secure-context-only browser APIs.** `crypto.randomUUID`, the clipboard and service workers are among
+  them. The Rock serves plain HTTP.
+- **Docker needs about 8 GB.** At 3.8 GB the Next build ran out of memory and crashed Docker Desktop. Also,
+  `docker compose up --build` builds app, migrate and gotenberg in PARALLEL; build them one at a time
+  (`docker compose -p lesson3-ci-probe build <svc>`), then `up -d`.
+- **Run `test:http` and e2e with `NODE_ENV=production`.** In test mode, schema push writes into the probe
+  app's database, and the next `migrate` hangs at an interactive prompt (`down -v` the probe to recover).
+- **The HTTP and e2e suites hit the probe's `app` container,** so rebuild it after every source change.
+- **One agent per working tree.** Two agents in one checkout mixed their changes. 4a was built in
+  `.claude/worktrees/discussions-4a`. Check `git status` for changes that aren't yours before a gate or a
+  commit.
+- **Reproduce a flake with retries off before naming its cause.** The login form shows a 429 as
+  "Invalid email or password".
+
+**Uncommitted work in the main checkout.** A **ZIP-upload** feature is uncommitted on branch
+`feat/discussions-4a` in the main checkout, with a DECISIONS entry "ZIP uploads import valid JSON despite
+malformed neighbours". It came from a concurrent ChatGPT/Codex session and is unrelated to the forum. Give it
+its own branch or PR. The `feat/discussions-4a` branch name is a historical accident: 4a shipped from
+`feat/discussions-4a-forum`.
 
 ---
 
