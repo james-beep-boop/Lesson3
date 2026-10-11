@@ -9,11 +9,11 @@
  * CLI + upload endpoint use). Seeds its own Subject/SubjectGrade, MARK-tagged, and tears down.
  * Requires a DB → Rock/CI only (like all of `tests/int`).
  */
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import { getPayload, type Payload } from 'payload'
 
 import config from '../../src/payload.config.js'
-import { ingestItems, type IngestItem } from '../../src/ingest/index.js'
+import { ingestItems, ingestUploadItems, type IngestItem } from '../../src/ingest/index.js'
 import { rawToBundle } from '../../src/ingest/toBundle.js'
 import {
   MARK,
@@ -211,5 +211,74 @@ describe('re-ingest (SPEC §7)', () => {
     await expect(
       ingestItems(payload, [item('ambig.json', rawBundle('97.9', 'Ambiguous'))]),
     ).rejects.toThrow(/matches 2 existing/i)
+  })
+})
+
+describe('partial web ingest', () => {
+  it('imports all valid files around parse, contract and taxonomy failures', async () => {
+    const noTaxonomy = rawBundle('97.81', 'Unknown subject')
+    ;(noTaxonomy.META as Record<string, unknown>).subject = 'Missing subject for ZIP test'
+    const drift = rawBundle('97.82', 'Contract failure')
+    drift.schemaVersion = 'invalid'
+    const result = await ingestUploadItems(payload, [
+      item('zip/first.json', rawBundle('97.80', 'First valid')),
+      {
+        name: 'zip/broken.json',
+        extract: () => {
+          throw new Error('Malformed JSON')
+        },
+      },
+      item('zip/taxonomy.json', noTaxonomy),
+      item('zip/contract.json', drift),
+      item('zip/last.json', rawBundle('97.83', 'Last valid')),
+    ])
+    expect(result.bundles.map((r) => r.file)).toEqual(['zip/first.json', 'zip/last.json'])
+    expect(result.rejected.map((r) => r.file)).toEqual([
+      'zip/broken.json',
+      'zip/taxonomy.json',
+      'zip/contract.json',
+    ])
+    for (const r of result.bundles) expect(await versionsOf(r.id)).toEqual(['1.0.0'])
+  })
+
+  it('rejects all files sharing an identity and imports unrelated files', async () => {
+    const result = await ingestUploadItems(payload, [
+      item('a.json', rawBundle('97.84', 'Duplicate A')),
+      item('b.json', rawBundle('97.84', 'Duplicate B')),
+      item('c.json', rawBundle('97.84', 'Duplicate C')),
+      item('good.json', rawBundle('97.85', 'Independent')),
+    ])
+    expect(result.bundles.map((r) => r.file)).toEqual(['good.json'])
+    expect(result.rejected.map((r) => r.file).sort()).toEqual(['a.json', 'b.json', 'c.json'])
+  })
+
+  it('aborts before writing when a database lookup fails after another valid file', async () => {
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const original = payload.find.bind(payload)
+    const lookup = vi
+      .spyOn(payload, 'find')
+      .mockImplementationOnce(original) // Subject
+      .mockImplementationOnce(original) // Subject-grade
+      .mockImplementationOnce(original) // First file's plan lookup
+      .mockRejectedValueOnce(new Error('Database lookup unavailable')) // Second file; taxonomy cached
+    try {
+      await expect(
+        ingestUploadItems(payload, [
+          item('first.json', rawBundle('97.86', 'Prepared but not written')),
+          item('second.json', rawBundle('97.87', 'Database failure')),
+        ]),
+      ).rejects.toThrow('Database lookup unavailable')
+    } finally {
+      lookup.mockRestore()
+    }
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
+  })
+
+  it('reports all-invalid input without creating any versions', async () => {
+    const before = await payload.count({ collection: 'lesson-bundle-versions' })
+    const report = await ingestUploadItems(payload, [item('bad.json', {})])
+    expect(report.bundles).toEqual([])
+    expect(report.rejected).toHaveLength(1)
+    expect(await payload.count({ collection: 'lesson-bundle-versions' })).toEqual(before)
   })
 })

@@ -1,15 +1,16 @@
 /**
  * Upload/import orchestration (SPEC §7): read ARES data files (`.js` modules OR `.json` exports) →
- * create a LessonPlan plus its version 1.0.0 (Official) via the Local API, in one all-or-nothing
- * transaction. The two input formats carry deep-equal data for a sub-strand, so only the
+ * create a LessonPlan plus its version 1.0.0 (Official) via the Local API. The CLI is atomic;
+ * web uploads reject invalid files and commit the valid subset in one transaction. The two input formats carry deep-equal data for a sub-strand, so only the
  * read step differs (`.json` → JSON.parse; `.js` → safe AST parse) — see `extract.ts`.
  *
  * ENTRY POINTS (both trusted, never teacher-facing): the dev-only CLI (`app/scripts/ingest.ts`)
- * and the Site-Administrator-only JSON upload endpoint (`src/endpoints/uploadBundles.ts`) — both
- * call the shared `ingestItems` core below. `ingestItems` runs as a TRUSTED Local-API system
+ * and the Site-Administrator-only JSON/ZIP upload endpoint (`src/endpoints/uploadBundles.ts`) — both
+ * share validation and writes below: the CLI is atomic, while web uploads reject invalid files
+ * and commit the valid subset. Both run as a TRUSTED Local-API system
  * call (no `req.user` → the version field-split treats it as a system path and lets it set all
  * fields), so **callers MUST enforce authorization first**: the CLI is dev-only; the endpoint
- * gates on Site Admin server-side (`isSiteAdmin`) and accepts JSON only. The untrusted-input risk
+ * gates on Site Admin server-side (`isSiteAdmin`) and parses JSON data only. The untrusted-input risk
  * lives in `extract.ts` (parse-never-execute for `.js`; structural guards for `.json`); see its
  * security contract.
  *
@@ -68,7 +69,7 @@ export interface IngestResult {
  * transaction session produced a lock holding NOTHING while ingest proceeded as though serialised —
  * the docblock's old claim that "outside a transaction the lock is a harmless no-op" was true only
  * of the no-op, not of the harmlessness. `lockRows` fails closed; every caller was checked to run
- * inside a transaction (this one via `initTransaction` in `ingestItems`).
+ * inside a transaction (this one via `initTransaction` in `writePrepared`).
  *
  * Kept as a named function rather than inlined: it is the documented seam for the wiring spec, since
  * true concurrency can't be pinned in a unit test.
@@ -224,28 +225,24 @@ type Prepared = {
  * by extension (`.js` AST / `.json` JSON.parse); the upload endpoint always uses
  * `extractAresJson`. Neither path ever executes the input.
  */
-export type IngestItem = { name: string; extract: () => Record<string, unknown> }
+export type IngestItem = {
+  name: string
+  extract: () => Record<string, unknown> | Promise<Record<string, unknown>>
+}
 
-/**
- * Shared ingest core (used by the CLI `ingestPaths` and the Site-Admin upload endpoint).
- * Two phases:
- *   1. PRE-FLIGHT (read-only): extract + completeness-validate + resolve taxonomy for ALL
- *      items, collecting every problem. If any fails, throw with the full list, write NOTHING.
- *   2. WRITE: create all prepared lesson plans + 1.0.0 Official versions inside ONE transaction
- *      (all-or-nothing — a failure rolls back the whole batch).
- *
- * This is a TRUSTED system path (no `req.user`): callers MUST enforce authorization before
- * calling it — the CLI is dev-only; the endpoint gates on Site Admin.
- */
-export async function ingestItems(payload: Payload, items: IngestItem[]): Promise<IngestResult[]> {
-  if (items.length === 0) {
-    throw new IngestError('No bundles to ingest.')
-  }
+export type IngestRejection = { file: string; error: string }
+export type IngestReport = { bundles: IngestResult[]; rejected: IngestRejection[] }
 
+/** Read-only validation shared by the atomic CLI and partial web upload. */
+async function prepareItems(
+  payload: Payload,
+  items: IngestItem[],
+  partial: boolean,
+): Promise<{ prepared: Prepared[]; rejected: IngestRejection[] }> {
   // Phase 1 — pre-flight (read-only).
   const preflightReq: IngestReq = { payload }
   const prepared: Prepared[] = []
-  const errors: string[] = []
+  const rejected: IngestRejection[] = []
   // Memoize taxonomy resolution across the batch: a directory of sub-strands is typically all one
   // subject-grade, so without this `resolveSubjectGrade` re-runs its 2 finds for every file.
   const sgCache = new Map<string, Promise<number>>()
@@ -260,21 +257,22 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
     return hit
   }
   for (const { name, extract } of items) {
+    let inputValidated = false
     try {
-      const raw = extract()
+      const raw = await extract()
       const data = rawToBundle(raw)
       const problems = validateGeneratable(data)
       if (problems.length > 0) {
         throw new IngestError(`not generatable:\n    - ${problems.join('\n    - ')}`)
       }
       // Contract drift is a HARD GATE: ARES adopted ares-contract.schema.json, so any divergence
-      // is a regression that must block ingest (same all-or-nothing pre-flight as
-      // validateGeneratable — nothing is written if ANY file drifts). Validate the RAW (UPPERCASE)
+      // is a regression that must reject this file. Validate the RAW (UPPERCASE)
       // object, the shape the contract describes. See docs/DECISIONS.md (warn-only → hard gate).
       const drift = contractDrift(raw)
       if (drift.length > 0) {
         throw new IngestError(`contract drift:\n    - ${drift.join('\n    - ')}`)
       }
+      inputValidated = true
       const subjectGrade = await resolveSubjectGradeCached(raw)
       const substrandId = substrandIdOf(raw)
       // Re-ingest resolution (SPEC §7): the existing plan to attach to as a new major, or null to
@@ -294,34 +292,68 @@ export async function ingestItems(payload: Payload, items: IngestItem[]): Promis
         warnings: deliverableWarnings(data),
       })
     } catch (e) {
-      errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`)
+      // Missing taxonomy and ambiguous identities are input rejections. An unexpected database
+      // failure must abort pre-flight, rather than mislabel a valid file and commit only its peers.
+      if (partial && inputValidated && !(e instanceof IngestError)) throw e
+      rejected.push({ file: name, error: e instanceof Error ? e.message : String(e) })
     }
   }
 
-  // Intra-batch duplicate guard (SPEC §7): two files targeting the SAME (subjectGrade, substrand_id)
-  // in one upload would race for the plan/pointer — reject the batch instead. Only non-empty
-  // substrand_ids are keyed (an empty one is always a distinct new plan, so it can't collide).
-  const seen = new Map<string, string>()
+  // Reject every member of an ambiguous group on web uploads; never choose an arbitrary winner.
+  const seen = new Map<string, Prepared>()
+  const duplicates = new Set<Prepared>()
   for (const p of prepared) {
     if (!p.substrandId) continue
     const key = `${p.subjectGrade}::${p.substrandId}`
     const prior = seen.get(key)
     if (prior) {
-      errors.push(
-        `${p.name}: duplicate of "${prior}" in this batch — both target sub-strand ` +
-          `${JSON.stringify(p.substrandId)} in the same subject-grade. Upload one at a time.`,
-      )
+      const error =
+        `duplicate of "${prior.name}" in this batch — both target sub-strand ` +
+        `${JSON.stringify(p.substrandId)} in the same subject-grade. Upload one at a time.`
+      rejected.push({ file: p.name, error })
+      if (partial && !duplicates.has(prior)) {
+        rejected.push({
+          file: prior.name,
+          error: `duplicate of "${p.name}" in this batch. Upload one at a time.`,
+        })
+      }
+      duplicates.add(prior)
+      duplicates.add(p)
     } else {
-      seen.set(key, p.name)
+      seen.set(key, p)
     }
   }
+  return { prepared: prepared.filter((p) => !duplicates.has(p)), rejected }
+}
 
-  if (errors.length > 0) {
+/** Atomic CLI entry: any pre-flight failure prevents all writes. Trusted callers only. */
+export async function ingestItems(payload: Payload, items: IngestItem[]): Promise<IngestResult[]> {
+  if (items.length === 0) throw new IngestError('No bundles to ingest.')
+  const { prepared, rejected } = await prepareItems(payload, items, false)
+  if (rejected.length > 0) {
     throw new IngestError(
-      `Pre-flight failed (${errors.length}/${items.length} file(s)); nothing was written:\n  - ${errors.join('\n  - ')}`,
+      `Pre-flight failed (${rejected.length}/${items.length} file(s)); nothing was written:\n  - ` +
+        rejected.map((r) => `${r.file}: ${r.error}`).join('\n  - '),
     )
   }
+  return writePrepared(payload, prepared)
+}
 
+/**
+ * Web upload: reject invalid files, then commit all valid files together. Database/write failures
+ * still roll back the transaction and propagate; a malformed input cannot prevent valid imports.
+ * TRUSTED system path: the endpoint must authorize the caller before invoking this function.
+ */
+export async function ingestUploadItems(
+  payload: Payload,
+  items: IngestItem[],
+): Promise<IngestReport> {
+  const { prepared, rejected } = await prepareItems(payload, items, true)
+  const bundles = prepared.length > 0 ? await writePrepared(payload, prepared) : []
+  return { bundles, rejected }
+}
+
+async function writePrepared(payload: Payload, prepared: Prepared[]): Promise<IngestResult[]> {
   // Phase 2 — write all bundles in one transaction.
   const req: IngestReq = { payload }
   await initTransaction(req)

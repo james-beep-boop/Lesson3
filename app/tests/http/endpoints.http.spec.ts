@@ -24,6 +24,7 @@
  *     `/srv/lesson3/app` — the two habits `scripts/in-deps.sh` exists to retire. A recipe inside a
  *     test file is a high-traffic place to copy from, so it is worth keeping current.)
  */
+import JSZip from 'jszip'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Where } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
@@ -2201,11 +2202,12 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     expect(res.status).toBe(400)
   })
 
-  it('400 on a non-.json file (JSON-only web surface)', async () => {
+  it('422 with a rejection report on an unsupported file', async () => {
     const res = await post('siteAdmin', (f) =>
       f.append('files', new File(['x = 1'], 'evil.js', { type: 'text/javascript' })),
     )
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(422)
+    expect((await res.json()).rejected[0].file).toBe('evil.js')
   })
 
   it('422 on a well-formed-but-invalid bundle (pre-flight rejects, nothing written)', async () => {
@@ -2222,6 +2224,52 @@ describe('Upload endpoint (SPEC §7) — Site-Admin-only ingest boundary', () =>
     )
     expect(res.status).toBe(422)
     expect((await res.json()).ok).toBe(false)
+  })
+
+  it('ZIP uploads retain the 401/403 gate and import valid files around malformed files', async () => {
+    const zip = new JSZip()
+      .file('first.json', await jsonFile('first.json', '90.zip1').text())
+      .file('bad.json', '{malformed')
+      .file('invalid.json', '{}')
+      .file('nested/last.JSON', await jsonFile('last.JSON', '90.zip2').text())
+      .file('notes.txt', 'Notes')
+    const bytes = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' })
+    const build = (form: FormData) => form.append('files', new File([bytes], 'lessons.zip'))
+    expect((await post(undefined, build)).status).toBe(401)
+    for (const role of ['teacher', 'editor', 'subjectAdmin'] as const) {
+      expect((await post(role, build)).status).toBe(403)
+    }
+    const res = await post('siteAdmin', build)
+    expect(res.status).toBe(200)
+    const report = await res.json()
+    expect(report.count).toBe(2)
+    expect(report.bundles.map((r: { file: string }) => r.file)).toEqual([
+      'lessons.zip/first.json',
+      'lessons.zip/nested/last.JSON',
+    ])
+    expect(report.rejected.map((r: { file: string }) => r.file)).toEqual([
+      'lessons.zip/bad.json',
+      'lessons.zip/invalid.json',
+    ])
+    expect(report.skipped[0].file).toBe('lessons.zip/notes.txt')
+    for (const bundle of report.bundles) {
+      const plan = await fx.payload.findByID({
+        collection: 'lesson-plans',
+        id: bundle.id,
+        depth: 0,
+      })
+      expect(plan.officialVersion).toBeTruthy()
+    }
+  })
+
+  it('a ZIP containing only malformed JSON returns a complete 422 report', async () => {
+    const bytes = await new JSZip().file('bad.json', '{').generateAsync({ type: 'arraybuffer' })
+    const res = await post('siteAdmin', (f) => f.append('files', new File([bytes], 'bad.zip')))
+    expect(res.status).toBe(422)
+    const report = await res.json()
+    expect(report.count).toBe(0)
+    expect(report.bundles).toEqual([])
+    expect(report.rejected[0].file).toBe('bad.zip/bad.json')
   })
 
   it('a Site Admin uploads and reads a full resource bundle without the Postgres argument-limit 500', async () => {

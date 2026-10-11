@@ -8,6 +8,15 @@ Concise record of delivered product changes, newest first. Detailed implementati
 - Decisions and reasoning: [`docs/DECISIONS.md`](DECISIONS.md)
 - Architecture and domain rules: [`SPEC.md`](../SPEC.md)
 
+## Unreleased — ZIP lesson-plan uploads
+
+Site Administrators can upload ZIP archives of ARES JSON lesson plans, including nested folders.
+Valid files import even when neighbours are malformed; the report lists imports, rejections with
+reasons and skipped non-JSON files. Existing sub-strands become Not Official major revisions.
+The developer CLI retains its all-or-nothing batch behavior. Archives stay in memory; input count
+and compressed/expanded sizes are bounded.
+
+
 ## v0.93 (2026-10-09)
 
 ### Documents

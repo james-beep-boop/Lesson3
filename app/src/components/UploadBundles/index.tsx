@@ -7,7 +7,7 @@
  * Renders NOTHING unless the current user is a Site Administrator (`roles` includes
  * 'siteAdmin' — saveToJWT, so it's on the client user). This hides the control as requested;
  * the real authorization boundary is the server endpoint (POST /api/lesson-plans/upload),
- * which re-checks isSiteAdmin. Accepts ARES `.json` exports and creates Official 1.0.0
+ * which re-checks isSiteAdmin. Accepts ARES `.json` exports and ZIP archives and creates Official 1.0.0
  * lesson-plan versions.
  */
 import React, { useRef, useState } from 'react'
@@ -24,6 +24,17 @@ type UploadResult = {
   warnings: string[]
 }
 
+type FileIssue = { file: string; error: string }
+type UploadReport = {
+  ok: boolean
+  count: number
+  bundles: UploadResult[]
+  rejected?: FileIssue[]
+  skipped?: FileIssue[]
+  error?: string
+  errors?: { message?: string }[]
+}
+
 export default function UploadBundles() {
   const { user } = useAuth()
   const { config } = useConfig()
@@ -31,6 +42,11 @@ export default function UploadBundles() {
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<UploadResult[]>([])
+  const [report, setReport] = useState<UploadReport | null>(null)
+  const clearReport = () => {
+    setResults([])
+    setReport(null)
+  }
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Site Admin only — invisible to everyone else (server still enforces independently).
@@ -41,44 +57,43 @@ export default function UploadBundles() {
 
   const onUpload = async () => {
     if (files.length === 0) {
-      toast.error('Choose one or more .json files first')
+      toast.error('Choose .json files or a .zip archive first')
       return
     }
     const form = new FormData()
     for (const f of files) form.append('files', f)
 
     setBusy(true)
-    setResults([])
+    clearReport()
     try {
       const res = await fetch(`${apiBase}/lesson-plans/upload`, {
         method: 'POST',
         body: form,
         credentials: 'include',
       })
-      const json = (await res.json()) as
-        { ok: true; count: number; bundles: UploadResult[] } | { ok: false; error: string }
-      if (!res.ok || !json.ok) {
-        toast.error('error' in json ? json.error : `Upload failed (${res.status})`)
+      const json = (await res.json()) as UploadReport
+      // A completed report can have no successes (422), or both imports and rejections (200).
+      if (
+        !Array.isArray(json.bundles) ||
+        !Array.isArray(json.rejected) ||
+        (res.status !== 200 && res.status !== 422)
+      ) {
+        toast.error(json.error || json.errors?.[0]?.message || `Upload failed (${res.status})`)
         return
       }
+      setReport(json)
       setResults(json.bundles)
-      // Distinguish new plans from re-ingested revisions (SPEC §7): a revision lands as the next
-      // major version, Not Official, awaiting an admin's Make Official.
-      const created = json.bundles.filter((b) => b.action === 'created').length
-      const revised = json.bundles.length - created
-      const parts = [
-        created > 0 ? `${created} new (Official 1.0.0)` : '',
-        revised > 0
-          ? `${revised} revised (new version, Not Official — promote via Make Official)`
-          : '',
-      ].filter(Boolean)
-      toast.success(`Uploaded ${json.count} file(s): ${parts.join('; ')}.`)
+      const rejected = json.rejected?.length ?? 0
+      const skipped = json.skipped?.length ?? 0
+      const message = `Imported ${json.count} file(s); rejected ${rejected}; skipped ${skipped}.`
+      if (json.count > 0) toast.success(message)
+      else toast.error(message)
       // Reset the picker so the button returns to its disabled "Upload" state and the same
       // files can't be re-submitted by accident. (Clearing state alone won't clear the native
       // input's "N files" label — reset its value too.)
       setFiles([])
       if (inputRef.current) inputRef.current.value = ''
-      router.refresh() // reflect the new lesson plans in the list
+      if (json.count > 0) router.refresh() // reflect the new lesson plans in the list
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Upload failed')
     } finally {
@@ -100,8 +115,10 @@ export default function UploadBundles() {
           shared help-text class the sibling panels use — the inline style it replaces had drifted to
           0.85rem (13.6px) against the 14px token and had no max-width measure. */}
       <p className="lp-manage__desc">
-        Site administrator only. ARES <code>.json</code> exports are validated and saved as Official
-        1.0.0 versions. The upload never executes the file; only JSON data is parsed.
+        Site administrator only. Choose ARES <code>.json</code> exports or <code>.zip</code>{' '}
+        archives containing JSON files, including files in folders. Valid files are imported even if
+        others fail. New plans become Official 1.0.0; revisions require Make Official. Up to 50 JSON
+        files, 5 MB per JSON file and 50 MB per ZIP. Review the report below after uploading.
       </p>
       {/* Classed, not inline-styled: the class is what lets the shared admin button block reach
           Upload. It was the last control on Manage rendering as stock Payload (operator report,
@@ -111,7 +128,7 @@ export default function UploadBundles() {
           ref={inputRef}
           type="file"
           className="lp-manage__file"
-          accept=".json,application/json"
+          accept=".json,.zip,application/json,application/zip,application/x-zip-compressed"
           multiple
           disabled={busy}
           // The PREVIOUS upload's result list is cleared the moment the picker is opened, not when
@@ -120,9 +137,9 @@ export default function UploadBundles() {
           // fires when the OS dialog opens, so the stale list goes even if the admin then cancels —
           // which is the case `onChange` alone would miss. `onChange` clears too, for the paths that
           // set files without a click (drag-drop, programmatic).
-          onClick={() => setResults([])}
+          onClick={clearReport}
           onChange={(e) => {
-            setResults([])
+            clearReport()
             setFiles(e.target.files ? Array.from(e.target.files) : [])
           }}
         />
@@ -136,12 +153,18 @@ export default function UploadBundles() {
           {busy ? 'Uploading…' : `Upload${files.length ? ` ${files.length} file(s)` : ''}`}
         </Button>
       </div>
+      {report && (
+        <div role="status" style={{ marginTop: '0.75rem' }}>
+          Imported {report.count} file(s); rejected {report.rejected?.length ?? 0}; skipped{' '}
+          {report.skipped?.length ?? 0}.
+        </div>
+      )}
       {results.length > 0 && (
         <ul style={{ margin: '0.75rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
           {results.map((r, i) => (
             <li key={`${r.id}-${i}`}>
-              {r.action === 'revised' ? 'Revised' : 'New'} · #{r.id} · {r.title} ({r.semver},{' '}
-              {r.official ? 'Official' : 'Not Official'})
+              {r.file} · {r.action === 'revised' ? 'Revised' : 'New'} · #{r.id} · {r.title} (
+              {r.semver}, {r.official ? 'Official' : 'Not Official'})
               {r.warnings.length > 0 && (
                 <span style={{ color: 'var(--theme-warning-600, #a60)' }}>
                   {' '}
@@ -151,6 +174,30 @@ export default function UploadBundles() {
             </li>
           ))}
         </ul>
+      )}
+      {(report?.rejected?.length ?? 0) > 0 && (
+        <div>
+          <p>Rejected files</p>
+          <ul>
+            {report?.rejected?.map((r, i) => (
+              <li key={i}>
+                <strong>{r.file}</strong>: <span style={{ whiteSpace: 'pre-wrap' }}>{r.error}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(report?.skipped?.length ?? 0) > 0 && (
+        <div>
+          <p>Skipped files</p>
+          <ul>
+            {report?.skipped?.map((r, i) => (
+              <li key={i}>
+                {r.file}: {r.error}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )

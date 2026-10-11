@@ -11,6 +11,32 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-11 — ZIP uploads import valid JSON despite malformed neighbours
+
+Operator request: accept a ZIP containing multiple JSON lesson plans, import all valid files,
+reject malformed files, and report the outcome. Web uploads now use shared read-only validation
+and commit the valid subset; the developer CLI retains its atomic batch contract. Duplicate
+sub-strand identities in one upload reject every member of that group rather than choosing a
+winner. Re-ingest still creates the next major version, Not Official.
+
+ZIPs are read in memory with the already-pinned JSZip dependency. Nested JSON files are supported;
+other entries are reported as skipped. Compressed size, expanded per-JSON size, JSON count and
+archive entry count are bounded. Expanded data is streamed with a byte limit; eager archive-wide
+CRC checking would inflate all entries before those limits, so it is not enabled. Invalid archives
+and per-file parsing/validation/taxonomy failures appear in the rejection report. Unexpected database
+lookup failures abort pre-flight before writes; write failures roll back the valid subset.
+
+Validation: 15 focused unit tests, 10 ingest integration tests, 10 upload HTTP checks and a real
+Chromium upload test passed, using isolated databases. Type checking, lint and formatting passed.
+The browser check covered both a mixed ZIP (two imported, two rejected, one skipped) and an
+all-rejected ZIP, including the report surviving refresh and replacing the previous result.
+
+
+Shutdown review on the current `origin/main` base re-ran all 15 focused unit and 10 ingest
+integration tests, plus lint, formatting and type checking; all pass. Published separately from
+the forum. The earlier HTTP/browser checks are retained above as provenance; the final branch's
+production build, HTTP and full browser gate will be checked by CI before merge.
+
 ## 2026-10-11 — Discussions 4a: the forum for every signed-in user
 
 PR 4 is split into 4a (every user), 4b (Site Administrator) and 4c (Guide and release), all under the
