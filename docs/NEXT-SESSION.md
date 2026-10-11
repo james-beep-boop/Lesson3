@@ -74,8 +74,11 @@ migration or generated type. See SPEC §7 and the ZIP decision entry for the beh
 4a work and extracted ZIP source`. Restore selectively into an isolated branch if needed; do not
 apply that historical forum tree over current main. Temporary verification databases/containers and
 Rock probe files are removed; live services were untouched. `app/test.env` is restored in every tree.
-The locked Claude checkout is retained. Clean isolated publication worktrees may be removed safely
-because their branch heads are pushed; create a fresh worktree to resume.
+The stale Claude checkout was removed only after confirming its owner PID had exited, its tree
+was clean and byte-identical to merged main. The ZIP publication checkout is removed; the final
+forum publication checkout is removed after its last pushed handoff. All branch heads remain local
+and remote. Environment files were preserved privately under `.git/shutdown-backups-2026-10-11/`;
+never commit those files. Create a fresh worktree to resume.
 
 ---
 
