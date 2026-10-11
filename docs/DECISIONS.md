@@ -11,6 +11,24 @@ from corrections. Committed to git (unlike the assistant's private cross-session
 
 ---
 
+## 2026-10-12 — Native ARM publishing and verification of bundle image pins
+
+Build each release image on its matching architecture: `ubuntu-24.04` for amd64 and
+`ubuntu-24.04-arm` for arm64. v0.94's first app publisher stalled in emulated ARM `npm ci` for
+over 30 minutes while the identical migrator install finished in 268 seconds; a fresh-runner retry
+published successfully. Native runners remove emulation from this path. Keep the pinned Node
+runtime, Dockerfile checks, provenance and SBOMs. Architecture-specific caches and versioned tags
+keep the four builds separate; a manifest job joins their inspected digests only after all succeed.
+
+The deployment bundle must pin the **joined index**, never a platform's digest. Before publishing,
+resolve the exact application and migration references in its `compose.yaml` and require both
+linux/amd64 and linux/arm64, with the resolved digest matching the pin. Tests build actual fixture
+bundles and refuse per-platform pins for either image. CI builds the production image on a native
+ARM runner; a failed ARM build explicitly fails the required gate rather than skipping it.
+
+References: [GitHub runner labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners),
+[Docker manifest creation](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/).
+
 ## 2026-10-12 — Messages and Discussions share presentation components
 
 Operator preference: keep the opening discussion post softly grey and replies white; give the

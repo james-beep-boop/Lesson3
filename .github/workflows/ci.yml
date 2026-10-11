@@ -39,12 +39,35 @@ permissions:
   contents: read
 
 jobs:
+  native_arm:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build the production image on native ARM
+        run: |
+          test "$(uname -m)" = aarch64
+          docker build --platform linux/arm64 --target runner -t lesson3-native-arm ./app
+
   gate:
+    needs: native_arm
+    # A failed dependency normally skips this job; skipped checks can satisfy branch protection.
+    # Run unless cancelled and explicitly fail the required gate when the ARM build failed.
+    if: ${{ !cancelled() }}
     # Pin the runner image so GitHub's scheduled `ubuntu-latest` migration cannot change the gate
     # underneath an unrelated application commit. Advance this deliberately after testing.
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
+      - name: Require the native ARM build
+        env:
+          NATIVE_ARM_RESULT: ${{ needs.native_arm.result }}
+        run: test "$NATIVE_ARM_RESULT" = success
+
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           # `persist-credentials: true` (the default) writes an `http.extraheader` holding the
@@ -107,6 +130,9 @@ jobs:
 
       - name: local-server release bundle (no image pulls)
         run: ./scripts/test-local-deploy-bundle.sh
+
+      - name: release image manifests (stubbed registry)
+        run: ./scripts/test-merge-release-images.sh
 
       - name: test:unit
         # `envTemplateParity.spec.ts` compares the ROOT `.env.example` (what a Compose operator copies)
